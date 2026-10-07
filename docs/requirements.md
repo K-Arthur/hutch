@@ -80,7 +80,7 @@ commits can cite them. Evidence for the *why* is in
 | SR-4 | Outward-sending tools always ask, regardless of sticky allows | MVP | partial | gate enforces outward-never-sticky (`approvals.py`); outward classification of tools pending |
 | SR-5 | Small models: thinking off, per-turn token cap, loop detector | MVP | planned | |
 | SR-6 | In-app help generated from or tested against real routes | Later | later | |
-| SR-7 | Every run shows its parent bot or plan | MVP | done | every run shows 'started by' (schedule / you via cli| done | every run shows who started it: schedule, you (cli, dashboard or api), or a plan |
+| SR-7 | Every run shows its parent bot or plan | MVP | done | every run shows who started it: schedule, you (cli, dashboard or api), or a plan |
 | SR-8 | Provider fallback chain | MVP | planned | |
 | SR-9 | Failed streaming request retried once without streaming | MVP | planned | |
 | SR-10 | Bubblewrap-wrapped shell on Linux | Later | later | |
