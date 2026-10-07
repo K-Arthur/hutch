@@ -10,9 +10,18 @@ from __future__ import annotations
 import re
 from typing import Any
 
-import httpx
-
 from .base import Tool, ToolContext, ToolResult, _schema, clip
+
+class _LazyHttpx:
+    """`httpx` costs ~50 ms to import; only fetching a URL needs it (PF-6). Attribute access
+    (and test monkeypatching of ``httpx.get``) behaves like the real module."""
+
+    def __getattr__(self, name: str):
+        import httpx as _httpx
+        return getattr(_httpx, name)
+
+
+httpx = _LazyHttpx()
 
 _TAG_RE = re.compile(r"<(script|style)[^>]*>.*?</\1>", re.DOTALL | re.IGNORECASE)
 _WS_RE = re.compile(r"\n{3,}")

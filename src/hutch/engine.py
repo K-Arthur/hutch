@@ -271,6 +271,17 @@ class Engine:
             outcome_status, outcome_reason = RunStatus.failed, "error"
             error = f"{result['crashed']}\n{result.get('traceback', '')}"
             emit(Event(run_id=run.id, type=EventType.error, data={"error": str(result['crashed'])}))
+        elif cancel.is_set():
+            # Stop (or the deadline) arrived while the runtime was finishing: its last tool may have been
+            # killed mid-command, so reporting success would be a lie. Stop always wins.
+            if time.monotonic() > deadline:
+                outcome_status, outcome_reason = RunStatus.failed, "timeout"
+                error = f"run exceeded {bot.limits.timeout_seconds}s wall clock and was killed"
+            else:
+                outcome_status, outcome_reason = RunStatus.stopped, "stopped"
+                error = "stopped by user"
+            emit(Event(run_id=run.id, type=EventType.error,
+                       data={"error": f"run {outcome_reason}: {error}"}))
         else:
             final = str(result.get("final", ""))
             emit(Event(run_id=run.id, type=EventType.log,
