@@ -106,7 +106,7 @@ function summarizeOutput(output) {
 const AVATAR_HUES = [
   { fg: "#34d399", bg: "rgba(52, 211, 153, 0.1)" },
   { fg: "#60a5fa", bg: "rgba(96, 165, 250, 0.1)" },
-  { fg: "#a78bfa", bg: "rgba(167, 139, 250, 0.1)" },
+  { fg: "#9daebf", bg: "rgba(157, 174, 191, 0.1)" },
   { fg: "#fbbf24", bg: "rgba(251, 191, 36, 0.1)" },
 ];
 
