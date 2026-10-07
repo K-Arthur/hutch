@@ -3,28 +3,29 @@
    subtle depth elevation, and high-density technical typography. Zero external asset dependencies. */
 
 :root {
+  /* Token values are shared with the dashboard (docs/design-system.md). */
   --bg: #05070a;
   --bg-subtle: #080c12;
-  --bg-card: rgba(13, 18, 26, 0.75);
-  --bg-card-hover: rgba(18, 25, 36, 0.9);
-  --bg-card-raised: #141c28;
-  
+  --bg-card: rgba(16, 22, 31, 0.75);
+  --bg-card-hover: rgba(23, 31, 43, 0.9);
+  --bg-card-raised: #171f2b;
+
   --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-card: rgba(255, 255, 255, 0.09);
+  --border-card: rgba(255, 255, 255, 0.1);
   --border-highlight: rgba(52, 211, 153, 0.35);
   --border-beam: linear-gradient(135deg, rgba(52, 211, 153, 0.4) 0%, rgba(255, 255, 255, 0.05) 50%, transparent 100%);
-  
-  --text-main: #f0f4f9;
-  --text-muted: #8b9bb0;
-  --text-dim: #5c6c80;
-  
+
+  --text-main: #f0f4f9;    /* 18.3:1 on --bg */
+  --text-muted: #9daebf;   /* 8.9:1 on --bg — secondary copy */
+  --text-dim: #75879c;     /* 5.5:1 on --bg — metadata only */
+
   --accent: #34d399;
   --accent-light: #6ee7b7;
   --accent-dim: #10b981;
   --accent-dark: #052e21;
   --accent-glow: rgba(52, 211, 153, 0.22);
   --accent-glow-strong: rgba(52, 211, 153, 0.45);
-  
+
   --blue: #60a5fa;
   --blue-glow: rgba(96, 165, 250, 0.15);
   --amber: #fbbf24;
@@ -32,31 +33,65 @@
   --red: #f87171;
   --red-glow: rgba(248, 113, 113, 0.15);
   --violet: #a78bfa;
-  
+
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", Menlo, Consolas, monospace;
-  
+
   --max-width: 1180px;
   --radius-xs: 4px;
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 18px;
+  --radius-lg: 16px;
   --radius-xl: 24px;
   --radius-full: 9999px;
-  
+
   --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border-card);
   --shadow-card-hover: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--border-highlight);
   --shadow-glow: 0 0 40px var(--accent-glow);
+
+  /* Icon primitives (data-URI masks; glyph characters are banned by scripts/audit_emoji.py) */
+  --icon-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20 6 9 17l-5-5' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --icon-x: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M18 6 6 18M6 6l12 12' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
+  --icon-minus: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12h14' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 
+/* The hidden attribute must always win over component display values */
+[hidden] { display: none !important; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-xs); }
+
+.skip-link {
+  position: fixed;
+  top: -48px;
+  left: 16px;
+  z-index: 200;
+  padding: 8px 14px;
+  background: var(--bg-card-raised);
+  border: 1px solid var(--accent-border, var(--border-highlight));
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-weight: 600;
+  transition: top 0.18s ease-out;
+}
+.skip-link:focus { top: 12px; color: var(--accent-light); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html { scroll-behavior: auto; }
+}
+
 body {
   margin: 0;
   background-color: var(--bg);
-  background-image: 
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(52, 211, 153, 0.12), transparent),
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(52, 211, 153, 0.07), transparent),
     radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
   background-size: 100% 100%, 32px 32px;
   color: var(--text-main);
@@ -134,7 +169,8 @@ a:hover { color: var(--accent-light); }
   border: 1px solid var(--border-card);
   padding: 6px 13px;
   border-radius: var(--radius-sm);
-  transition: all 0.15s ease;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
 }
 .github-pill:hover {
   background: rgba(255, 255, 255, 0.08);
@@ -215,23 +251,17 @@ a:hover { color: var(--accent-light); }
   gap: 8px;
   font-size: 11.5px;
   font-family: var(--font-mono);
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--accent);
-  background: rgba(52, 211, 153, 0.08);
-  border: 1px solid rgba(52, 211, 153, 0.3);
-  padding: 5px 14px;
-  border-radius: var(--radius-full);
+  color: var(--text-muted);
   margin-bottom: 24px;
-  box-shadow: 0 0 20px rgba(52, 211, 153, 0.12);
 }
 .kicker-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 8px var(--accent);
   animation: pulse-dot 2s infinite;
 }
 @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
@@ -339,10 +369,10 @@ h1.hero-title .accent-gradient {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 .preview-dots { display: flex; gap: 7px; }
-.preview-dot { width: 11px; height: 11px; border-radius: 50%; opacity: 0.85; }
-.preview-dot.r { background: #ff5f56; }
-.preview-dot.y { background: #ffbd2e; }
-.preview-dot.g { background: #27c93f; }
+.preview-dot { width: 11px; height: 11px; border-radius: 50%; opacity: 0.5; }
+.preview-dot.r { background: var(--red); }
+.preview-dot.y { background: var(--amber); }
+.preview-dot.g { background: var(--accent); }
 
 .preview-tab-group {
   display: flex;
@@ -372,7 +402,7 @@ h1.hero-title .accent-gradient {
 .preview-body {
   padding: 24px 28px;
   font-family: var(--font-mono);
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.75;
   background: #06090e;
 }
@@ -499,11 +529,21 @@ section.alt-bg {
 .section-label {
   font-size: 11.5px;
   font-family: var(--font-mono);
-  font-weight: 750;
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 12px;
+}
+.section-label::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 h2.section-heading {
   font-size: clamp(28px, 4vw, 42px);
@@ -741,8 +781,9 @@ thead th.matrix-hutch {
   mask: var(--icon-check) center / contain no-repeat;
 }
 .pill-check.yes { color: var(--accent); background: rgba(52, 211, 153, 0.1); }
-.pill-check.no { color: var(--red); background: var(--red-glow); }
+.pill-check.no { color: var(--text-dim); background: transparent; }
 .pill-check.no::before {
+  opacity: 0.55;
   -webkit-mask-image: var(--icon-x);
   mask-image: var(--icon-x);
 }
@@ -750,14 +791,6 @@ thead th.matrix-hutch {
 .pill-check.maybe::before {
   -webkit-mask-image: var(--icon-minus);
   mask-image: var(--icon-minus);
-}
-
-/* SVG icon primitives (data-URI masks; see scripts/audit_emoji.py — no
-   glyph characters are permitted in UI surfaces). */
-:root {
-  --icon-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20 6 9 17l-5-5' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  --icon-x: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M18 6 6 18M6 6l12 12' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
-  --icon-minus: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12h14' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
 .ic { display: inline-block; vertical-align: -0.15em; }
@@ -837,8 +870,8 @@ thead th.matrix-hutch {
 .code-window-body {
   padding: 22px 26px;
   font-family: var(--font-mono);
-  font-size: 13.5px;
-  line-height: 1.85;
+  font-size: 14px;
+  line-height: 1.7;
   overflow-x: auto;
 }
 
