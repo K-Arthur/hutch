@@ -834,11 +834,11 @@ button.icon-btn, .icon-btn {
 
 .composer-input-row {
   display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  padding: 6px 8px 6px 10px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
 }
-.composer-input-row .hex-avatar { margin-bottom: 8px; }
+.composer-input-row .hex-avatar { flex: none; }
 .composer-textarea {
   flex: 1;
   background: transparent;
@@ -847,8 +847,8 @@ button.icon-btn, .icon-btn {
   color: var(--text);
   font-family: var(--font-sans);
   font-size: var(--fs-md);
-  padding: 10px 0;
-  min-height: 40px;
+  padding: 8px 0;
+  min-height: 36px;
   max-height: 160px;
   resize: none;
   outline: none;
@@ -860,9 +860,10 @@ button.icon-btn, .icon-btn {
 .composer-textarea:focus { overflow: auto; }
 .composer-add {
   flex: none;
-  width: 30px;
-  height: 30px;
-  min-height: 30px;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  min-width: 34px;
   padding: 0;
   border-radius: 50%;
   border: 1px solid var(--border);
@@ -875,12 +876,13 @@ button.icon-btn, .icon-btn {
   margin-bottom: 4px;
 }
 .composer-add:hover { color: var(--accent); border-color: var(--accent-border); }
-.composer-add .icon { width: 15px; height: 15px; }
+.composer-add .icon { width: 16px; height: 16px; }
 .composer-send {
   flex: none;
   width: 34px;
   height: 34px;
   min-height: 34px;
+  min-width: 34px;
   padding: 0;
   border-radius: 50%;
   background: var(--accent-down);
@@ -889,7 +891,6 @@ button.icon-btn, .icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 4px;
 }
 .composer-send:hover { background: var(--accent); border-color: var(--accent); transform: scale(1.05); }
 .composer-send:disabled { transform: none; }
@@ -1312,7 +1313,8 @@ select { cursor: pointer; }
   .composer-stats { width: 100%; justify-content: space-between; }
   .composer-input-box { gap: var(--space-2); }
   .composer-textarea { font-size: var(--fs-sm); min-height: 48px; }
-  .composer-send { height: 48px; min-width: 72px; }
+  .composer-send { width: 40px; height: 40px; min-height: 40px; }
+  .composer-add { width: 34px; height: 34px; min-height: 34px; }
 
   .approval-buttons { flex-wrap: wrap; gap: var(--space-2); }
 
