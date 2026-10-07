@@ -5,6 +5,10 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 ## [Unreleased]
 
 ### Added
+- **UI-complaint research** ([docs/research/complaints.md](docs/research/complaints.md#7-ui--interface-complaints-design-signals)):
+  documented interface failures across shipped agent UIs — Claude Code's saturated-on-black
+  regression, ChatGPT accent churn, Codex role ambiguity, colour-only status dots — with a
+  traceability table for the dashboard.
 - **Design system** ([docs/design-system.md](docs/design-system.md)): one set of WCAG-AA-verified
   tokens (surfaces, text roles, semantic status colors, radius/type/spacing/motion scales) shared by
   the dashboard, marketing site, and legacy SPA; documented component anatomy for tool lines,
@@ -17,6 +21,11 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   `#/runs?status=…&q=…` state, "show more" pagination, keyboard-operable rows, distinct empty states.
 
 ### Changed
+- **Dashboard (server-rendered): monochrome-first pass.** Retired the tinted status fills and the
+  violet token; state now reads as glyph + word + a 6px dot or a 2px rail, and the one softened
+  emerald accent is reserved for the primary action and the active nav. Restrained serif page title,
+  12px panels, calmer density; `aria-current` on the active nav, `aria-live` on the live pill, and a
+  labelled approval badge. Direction in [docs/design-system.md](docs/design-system.md).
 - **Studio feed** (legacy SPA): tool call/result pairs merge into compact expandable one-line entries;
   4+ steps collapse under a "tool steps" group; expansion persists per run; run errors are alert rows.
 - **Approvals**: live fail-closed TTL countdowns everywhere (previously static text), flipping to

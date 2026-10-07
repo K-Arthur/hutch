@@ -37,15 +37,25 @@ Design goals, in priority order:
 | border-subtle | `rgba(255,255,255,.06)` | decorative |
 | border | `rgba(255,255,255,.10)` / `#1a2330` solid | — |
 | border-strong | `rgba(255,255,255,.18)` / `#283649` solid | — |
-| accent (emerald) | `#34d399` (+bg `.12` alpha, border `.38`) | 10.5:1 |
+| accent (emerald) | `#34d399` | 10.5:1 |
 | accent-ink (text on accent fills) | `#052e21` | 7.7:1 |
-| info (blue) | `#60a5fa` | running, tool calls |
-| warning (amber) | `#fbbf24` | approvals, TTL, budget >= 70% |
-| danger (red) | `#f87171` | failures, denials, destructive |
-| meta (violet) | `#a78bfa` | model tags, tool names |
+| info (blue) | `#60a5fa` | running only |
+| warning (amber) | `#fbbf24` | approval, stale, budget >= 70% |
+| danger (red) | `#f87171` | failure, deny, destructive |
+
+There is **no violet**: the `meta` hue was retired in Oct 2026 (non-semantic tags use the dim
+greys). The old `-bg` tint tokens were retired too — a colour is a **dot, a 2px rail, or a thin
+underline**, never a large fill (see *Status is not a fill*).
 
 Semantic colors are for **state only** — never decoration. If a red or green
 mark doesn't tell the user something happened, it doesn't ship.
+
+**Status is not a fill.** A status colour appears as at most three small things: a 6px dot inside a
+neutral pill, a 2px left rail on a card, or a thin underline — never a tinted card, banner, or
+button background. Shape and wording carry the state; hue only reinforces it (WCAG 2.1 SC 1.4.1,
+and the colour-only status-dot complaint in
+[research/complaints.md](research/complaints.md)). This is the Oct 2026 *monochrome-first*
+correction: the dashboard had read as too colourful and playful.
 
 Verified with the luminance formula (WCAG 2.1 rel. 1.4.3). The audit lives in
 git history; re-verify after changing any value in this table.
@@ -53,8 +63,10 @@ git history; re-verify after changing any value in this table.
 ## Scales
 
 - **Radius:** 4 (chips, small buttons) / 8 (inputs, buttons, tool lines) /
-  12 (cards, panels) / 16 (modals) / 9999 (pills). No other values.
-- **Type:** 11, 12, 13, 14 (body), 16, 18. System sans; `ui-monospace` stack
+  12 (cards, panels) / 16 (modals) / 9999 (pills). No other values. The app is
+  utilitarian: **12px panels, not 16** — oversized radii read as playful.
+- **Type:** 11, 12, 13, 14 (body), 16, 18. System sans for all UI; a system
+  serif for the page `<h1>` only (the one editorial signature); `ui-monospace`
   for tool names, IDs, cron, timestamps, and code.
 - **Spacing:** 4 / 8 / 12 / 16 / 20 / 24.
 - **Motion:** 120–180ms ease-out; transform/opacity only; every animation
@@ -70,7 +82,7 @@ git history; re-verify after changing any value in this table.
 ### Tool line (run transcripts)
 
 One row per tool step, ~28px closed: verdict glyph (spinner while running,
-check/x when done) + tool name (violet mono) + truncated argument summary +
+check/x when done) + tool name (mono, full text colour) + truncated argument summary +
 timestamp. Expanding (click or keyboard, `aria-expanded` on a real button)
 reveals full input and output; long output clips behind "Show more".
 Call/result pairs merge into one line; 4+ consecutive steps collapse under a
@@ -79,17 +91,19 @@ the SPA; `<details>` in the server-rendered transcript).
 
 ### Approval gate
 
-Amber card, the loudest surface in the product: "Approval required" tag, live
-fail-closed TTL countdown (ticks every second, flips to "expired — denied" in
-red at zero), the action in bold, detail JSON in a capped well, Approve (accent)
-/ Deny (danger) / always-allow checkbox. Same anatomy in the studio feed, the
-approvals queue, and the server-rendered approval cards.
+The loudest surface — but loud through structure, not colour: a neutral card
+with a 2px amber rail (red when the risk is high or the action is outward), the
+action in bold, a live fail-closed TTL countdown that flips to "expired —
+denied" in red at zero, the parsed segments, and the rule that fired. Actions:
+Allow once (emerald fill) / Always / For this plan / Deny (red outline). Same
+anatomy in the studio feed, the approvals queue, and the server-rendered cards.
 
 ### Status chip
 
-Glyph (dot) + word, tinted bg: succeeded (green), failed (red), running
-(blue, pulsing), waiting_approval (amber, pulsing), paused/pending (dim).
-Words come from the API status vocabulary verbatim.
+A neutral pill (surface + hairline border + dim text) with a 6px dot in the
+state colour: succeeded (emerald), failed (red), running (blue),
+waiting_approval (amber), paused/pending (dim). The word comes from the API
+status vocabulary verbatim; the dot only reinforces it. No tinted chip fills.
 
 ### Budget meter
 
@@ -156,8 +170,33 @@ integration so the default test run is the gate.
 | GitHub Actions: logs crash / invisible mid-run | capped output wells + SSE/live polling |
 | Cursor: surprise spend | budget meters + run spend meters |
 | Color-only status | glyph + word chips everywhere |
+| Claude Code: saturated blue on pure black ("harsh", eye strain) | monochrome-first; one softened emerald accent for the primary action only |
+| ChatGPT: accent churn with no opt-out | one documented token set; no runtime accent surprises |
+| Codex: user/assistant turns indistinguishable | non-colour role cues (raised vs flat surface, role label, timestamp) |
+| Claude Code: colour-only status dots (WCAG 1.4.1) | glyph + word + dot/rail on every status |
+| Claude Code: "needs action" buried in output | approvals/failures carry a bold label + glyph + 2px rail; count on the nav |
 
 The incident-level product requirements (the $447 bill, silent cron failures,
 allowlist bypasses, …) and their traceability live in
 [docs/research/complaints.md](docs/research/complaints.md); this file covers
 the UI layer only.
+
+## Marketing website — needed changes (accounted for, not yet applied)
+
+The app and the site share token **values** but not their names or their density. The Oct 2026
+pass touched only the dashboard (`src/hutch/server/static/hutch.css`); the site (`website/`) needs a
+smaller matching follow-up so the two surfaces stay one brand:
+
+1. **Retire the same tokens.** Drop the `-bg` tint tokens and any remaining violet from
+   `website/styles.css`; add `--accent-ink`. Keep the values identical to the app's `:root`.
+2. **One accent, used sparingly.** The site already leads with emerald; make sure no section
+   introduces a second hue (the incident-log and comparison sections are the likely spots).
+3. **Status as dot/rail, not fill.** Any tinted status blocks in the site's comparison or incident
+   sections become a neutral surface + rail + dot, matching the app.
+4. **Keep the personalities different.** The site is the loud surface (display type, motion, noise);
+   the app is the quiet one. Share the *token values*, not the app's restraint.
+5. **Re-check contrast.** Re-verify every text token against the site's surfaces with the same
+   luminance formula after the token edits.
+
+This is tracked as a follow-up. `website/` currently has unrelated uncommitted work and was left
+untouched.

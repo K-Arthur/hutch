@@ -70,6 +70,50 @@ documented incidents. Sources checked 2026-10-07; HN item IDs are given for veri
 - OpenClaw (closest local analog at the time): shipped with zero out-of-the-box restrictions —
   [49954346](https://news.ycombinator.com/item?id=49954346); markdown memory inadequate — [49950141](https://news.ycombinator.com/item?id=49950141)
 
+## 7. UI / interface complaints (design signals)
+
+The product failures above have a visual counterpart: shipped agent UIs that made work harder to
+read, harder to scan, or harder to trust. These drove the Oct 2026 dashboard pass (monochrome-first,
+fewer colours, non-colour state cues).
+
+- **Claude Code desktop, dark-mode redesign (Apr 2026):** saturated blue user bubbles on a pure-black
+  background read as "harsh", "dated", and "less premium"; users reported eye strain, asked to revert
+  or get a theme picker, and objected that the Code surface used a different design language from Chat
+  and lost the user-right/assistant-left layout —
+  [48158](https://github.com/anthropics/claude-code/issues/48158)
+- **Claude Code desktop, blue-on-black user text:** ~2.4:1 contrast, below WCAG 2.2 SC 1.4.3 (4.5:1);
+  "borderline unreadable" across macOS/Windows/Linux —
+  [49056](https://github.com/anthropics/claude-code/issues/49056)
+- **ChatGPT accent churn:** a silent update recoloured user bubbles blue/purple — "really jarring",
+  no opt-out; accent bugs left chat boxes grey —
+  [r/ChatGPT](https://www.reddit.com/r/ChatGPT/comments/1vo3ox1/color_change/),
+  [r/ChatGPTcomplaints](https://www.reddit.com/r/ChatGPTcomplaints/comments/1urtwp5/accent_color_doesnt_apply_to_chat_boxes_anymore/)
+- **Codex TUI:** user prompts and assistant replies render "nearly the same colour/styling"; long
+  transcripts become unscannable. Requested a **non-colour** structural cue (border / left rule /
+  badge / role label) that survives every terminal theme —
+  [17879](https://github.com/openai/codex/issues/17879)
+- **Claude Code status dots:** session state encoded by hue alone, same size/shape — a WCAG 2.1
+  SC 1.4.1 (Use of Colour) failure, and hard to read at ~8px even with normal vision; requested a
+  shape/glyph channel —
+  [83570](https://github.com/anthropics/claude-code/issues/83570)
+- **Claude Code, questions vs status:** "Should I commit?" is visually identical to a status report,
+  so users miss prompts mid-stream; asked for a distinct treatment (border, tint, or icon) —
+  [35117](https://github.com/anthropics/claude-code/issues/35117),
+  [69775](https://github.com/anthropics/claude-code/issues/69775)
+- **Claude Code, system notices:** context-compaction warnings use the same styling as body text and
+  get missed —
+  [6472](https://github.com/anthropics/claude-code/issues/6472)
+- **Hermes TUI:** hardcoded bright yellow is unreadable on light terminals; `NO_COLOR=1` "removes all
+  colour differentiation" —
+  [11300](https://github.com/NousResearch/hermes-agent/issues/11300)
+- **Character.AI themes:** the free palettes "hurt my eyes" — bright blue/red bubbles and
+  white-on-black both cited as headache triggers —
+  [r/CharacterAI](https://www.reddit.com/r/CharacterAI/comments/1qy3hnx/all_of_the_free_color_options_hurt_my_eyes/)
+- **Grok Bot (design essay):** "much of the design work involved taking things away"; state is shown
+  through one channel (the avatar's motion) rather than another indicator layer; execution detail
+  hides behind hover. "The interface should ask less of the person." —
+  [x.ai/news/designing-grok-bot](https://x.ai/news/designing-grok-bot)
+
 ---
 
 ## Fixable-in-MVP requirements → implementation traceability
@@ -86,8 +130,15 @@ documented incidents. Sources checked 2026-10-07; HN item IDs are given for veri
 | 8 | Egress guardrails | upload-flag detection on curl/wget; pipe-to-network denial; URL scheme/private-range guards |
 | 9 | HITL gates on irreversible actions, fail-closed | ask-verdict approvals with 10-min TTL → expired = denied |
 | 10 | Graceful CAPTCHA/MFA pause-to-human + persistent logins | browser tool `pause_to_human` events; per-bot persistent Chromium profiles |
+| 11 | Over-saturated accent on near-black reads "harsh"; eye strain | Monochrome-first: neutral surfaces, one softened emerald for the primary action and the active nav only, no large tinted fills (`docs/design-system.md`) |
+| 12 | Colour-only status fails WCAG 1.4.1 and is unreadable small | Every status is glyph + word + a dot or rail; shape and position carry the meaning, hue only reinforces |
+| 13 | User vs assistant turns indistinguishable in long threads | Non-colour role cues: the user bubble sits on the raised surface, the assistant turn is flat; both carry a role label and a timestamp |
+| 14 | "Needs your action" buried in status output | Approvals and failures carry a bold label, a glyph and a 2px amber/red rail; the pending count rides the Approvals nav item |
+| 15 | Theme/accent churn with no escape hatch | One documented token set is the contract (`docs/design-system.md`); no runtime accent surprises |
+| 16 | A redesign that changes muscle memory overnight | Layout primitives stay stable (topbar, three-question triage, transcript); the change is tonal, not structural |
 
 ## Not fixable at our scale (documented non-goals)
 
 Site bot-blocking arms race, CAPTCHA solving, model-level hallucination/"claims done",
-vendor allowance churn, regional availability of cloud agents, frontier-model speed.
+vendor allowance churn, regional availability of cloud agents, frontier-model speed,
+and a per-user theme/accent picker (hutch ships one documented theme; the tokens are the contract).
