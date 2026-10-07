@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
-{% block title %}Home{% endblock %}
+{% block title %}Overview{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Home</h1><p class="sub">What needs you, what is running, and what has gone quiet.</p></div>
+  <div><h1>Overview</h1><p class="sub">What needs you, what is running, and what has gone quiet.</p></div>
   <a class="btn" href="/bots">All bots {{ icon("arrow", 14) }}</a>
 </div>
 {% if not has_bots %}

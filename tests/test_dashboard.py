@@ -22,7 +22,7 @@ def client(tmp_path, monkeypatch):
 
 
 def token(client) -> str:
-    html = client.get("/").text
+    html = client.get("/overview").text
     return re.search(r'<meta name="csrf" content="([^"]+)"', html).group(1)
 
 
@@ -50,14 +50,14 @@ def wait_for(fn, timeout=15.0):
 # ------------------------------------------------------------------ pages render
 
 def test_every_page_renders_on_an_empty_install(client):
-    for path in ("/", "/bots", "/bots/new", "/runs", "/approvals", "/_home", "/_badge"):
+    for path in ("/", "/overview", "/bots", "/bots/new", "/runs", "/approvals", "/_home", "/_badge"):
         r = client.get(path)
         assert r.status_code == 200, path
-    assert "No bots yet" in client.get("/").text
+    assert "No bots yet" in client.get("/overview").text
 
 
 def test_pages_are_server_rendered_with_htmx_and_no_build_step(client):
-    html = client.get("/").text
+    html = client.get("/overview").text
     assert "/static/vendor/htmx.min.js" in html and "/static/hutch.js" in html
     assert client.get("/static/vendor/htmx.min.js").status_code == 200
     assert "<script" in html and "node_modules" not in html
@@ -65,7 +65,7 @@ def test_pages_are_server_rendered_with_htmx_and_no_build_step(client):
 
 def test_home_has_the_three_questions(client):
     make_bot(client)
-    html = client.get("/").text
+    html = client.get("/overview").text
     assert "Needs you" in html and "Running now" in html and "Stale" in html
 
 
@@ -76,6 +76,13 @@ def test_unknown_page_is_a_helpful_404_not_a_stack_trace(client):
 
 def test_legacy_spa_stays_reachable(client):
     assert client.get("/legacy/").status_code == 200
+
+
+def test_home_is_the_chat_studio(client):
+    """The app opens into the chat interface (Grok-bot style), not the triage dashboard."""
+    html = client.get("/").text
+    assert "/static/app.js" in html and "/static/style.css" in html
+    assert 'id="view"' in html
 
 
 # ------------------------------------------------------------------ approvals (UI-5)
@@ -146,7 +153,7 @@ def test_outward_actions_never_offer_always(client):
 
 def test_stop_all_is_in_every_header_and_stops_a_run(client):
     bot = make_bot(client)
-    for path in ("/", "/bots", "/runs", "/approvals"):
+    for path in ("/overview", "/bots", "/runs", "/approvals"):
         assert "/stop-all" in client.get(path).text, path
     store, engine = client.app_.state.store, client.app_.state.engine
     run = engine.submit(bot, "write a report")

@@ -33,7 +33,8 @@ RUNS_PAGE = 50
 FLASH, FLASH_ERR = "hutch_flash", "hutch_flash_err"
 
 NAV = [
-    ("home", "/", "Home", "home"),
+    ("studio", "/", "Studio", "chat"),
+    ("overview", "/overview", "Overview", "home"),
     ("bots", "/bots", "Bots", "bot"),
     ("runs", "/runs", "Runs", "list"),
     ("approvals", "/approvals", "Approvals", "shield"),
@@ -174,8 +175,14 @@ def register_pages(app: FastAPI) -> None:
         return views.home_state(store, scheduler, engine)
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
-    def home(request: Request):
-        return page(request, "home.html", nav="home", home=home_ctx(), has_bots=bool(store.list_bots()))
+    def studio_home():
+        """The chat interface is the home (Grok-bot style): open the app and talk to a bot.
+        The triage dashboard lives at /overview; /legacy serves the same studio app."""
+        return FileResponse(Path(__file__).parent / "static" / "index.html")
+
+    @app.get("/overview", response_class=HTMLResponse, include_in_schema=False)
+    def overview(request: Request):
+        return page(request, "home.html", nav="overview", home=home_ctx(), has_bots=bool(store.list_bots()))
 
     @app.get("/_home", response_class=HTMLResponse, include_in_schema=False)
     def home_partial(request: Request):
