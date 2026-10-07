@@ -104,7 +104,7 @@ def status() -> None:
         nxt = scheduler.next_fire(bot)
         nxt_s = nxt.astimezone().strftime("%a %H:%M %Z") if nxt else "—"
         last = store.last_successful_run(bot.id)
-        last_s = "never ⚠" if last is None else f"{dt.datetime.fromisoformat(last.finished_at or last.created_at).astimezone().strftime('%b %d %H:%M')}"
+        last_s = "never (stale)" if last is None else f"{dt.datetime.fromisoformat(last.finished_at or last.created_at).astimezone().strftime('%b %d %H:%M')}"
         sched = f"{bot.schedule.cron} ({bot.schedule.timezone})" if bot.schedule else "on demand"
         table.add_row(bot.name, bot.model, sched, "yes" if bot.paused else "no", nxt_s, last_s)
     console.print(table)
@@ -113,7 +113,7 @@ def status() -> None:
     pending = store.pending_approvals()
     console.print(f"active runs: [bold]{len(active)}[/bold]   queued tasks: {len(store.pending_tasks())}   pending approvals: [yellow]{len(pending)}[/yellow]")
     for req in pending:
-        console.print(f"  ⏳ {req.id}  [{req.tool}] {req.action}")
+        console.print(f"  [yellow]![/yellow] {req.id}  [{req.tool}] {req.action}")
 
 
 # --------------------------------------------------------------------- bots
@@ -369,7 +369,7 @@ def _print_event(ev) -> None:  # pragma: no cover
         out = (ev.data.get("output") or "").splitlines()[0][:120] if ev.data.get("output") else ""
         console.print(f"  {mark} {out}")
     elif ev.type is EventType.approval_request:
-        console.print(f"[yellow]⏳ approval needed:[/yellow] {ev.data.get('action')} — "
+        console.print(f"[yellow]approval needed:[/yellow] {ev.data.get('action')} — "
                       f"resolve with `hutch approvals approve {ev.data.get('approval_id')}`")
     elif ev.type is EventType.error:
         console.print(f"[red]error:[/red] {str(ev.data)[:200]}")
@@ -438,7 +438,7 @@ def approvals_list() -> None:
     store = _store()
     reqs = store.pending_approvals()
     if not reqs:
-        console.print("no pending approvals 🎉")
+        console.print("no pending approvals")
         return
     for req in reqs:
         bot = store.get_bot(req.bot_id)

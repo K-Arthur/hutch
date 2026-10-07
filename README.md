@@ -14,7 +14,7 @@ orchestrator, memory, logs, and bots live in one directory on your disk, with an
 $ hutch run tidy-downloads "sort this week's downloads"
 → remember    {"key": "last-run", "value": "sort downloads"}
 → list_files  42 files
-⏳ approval needed: move invoices/ → sorted/invoices/      ← you decide
+! approval needed: move invoices/ → sorted/invoices/      ← you decide
 ✓ approved — continuing
 ✓ moved 38 files · run succeeded (steps=6, tokens≈2.1k)
 ```
@@ -41,7 +41,7 @@ Your first run will pause for a human decision — that's the point:
 
 ```bash
 $ hutch run research-briefing "summarize this week's AI news"
-⏳ approval needed: write report.md (281 chars)
+! approval needed: write report.md (281 chars)
    resolve with: hutch approvals approve apr_…  (or --always to remember)
 $ hutch approvals approve apr_… --always
 ✓ run succeeded (steps=4, tokens≈1.4k)

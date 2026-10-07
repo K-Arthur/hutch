@@ -78,7 +78,7 @@ documented incidents. Sources checked 2026-10-07; HN item IDs are given for veri
 |---|---|---|
 | 1 | Catch-up for schedules missed while asleep | `scheduler.Scheduler.due()` counts missed windows; `coalesce` policy runs once with `missed_windows` tag; `skip` policy records a visible marker |
 | 2 | DST/timezone correctness; no double-fire/overlap | cron math in bot's IANA zone + round-trip DST-gap check (`scheduler._to_utc`); per-bot single-instance lock (`engine.dispatch_pending`) |
-| 3 | Append-only transcripts; staleness visible | `engine._execute` mirrors every event to SQLite + `transcript.jsonl`; dashboard shows last-success age and `never ⚠` |
+| 3 | Append-only transcripts; staleness visible | `engine._execute` mirrors every event to SQLite + `transcript.jsonl`; dashboard shows last-success age, flagged when stale |
 | 4 | Spend/step/time caps with hard kill | `limits` on every bot; engine wall-clock kill; runtime enforces steps + daily token cap |
 | 5 | Least-privilege workspace; no ambient home access | per-run workspace; path jail (`safety.check_path`); shell runs with `HOME` inside workspace and scrubbed env |
 | 6 | Compound-command-aware permissions | `safety.split_compound` + per-segment classification, worst-verdict-wins |

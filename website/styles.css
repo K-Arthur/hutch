@@ -269,7 +269,8 @@ h2.section-title {
   border-radius: 11px;
   padding: 18px 20px;
 }
-.feature .f-icon { font-size: 20px; margin-bottom: 10px; }
+.feature .f-icon { color: var(--accent); margin-bottom: 12px; }
+.feature .f-icon svg { width: 20px; height: 20px; display: block; }
 .feature h3 { margin: 0 0 6px; font-size: 15px; font-weight: 650; }
 .feature p { margin: 0; color: var(--text-dim); font-size: 13.8px; }
 

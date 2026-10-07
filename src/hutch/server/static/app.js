@@ -85,7 +85,10 @@ async function route() {
 }
 
 function errorState(err) {
-  return `<div class="empty-state"><div class="big">⚠️</div>
+  return `<div class="empty-state">
+    <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="var(--amber)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 3.5 22 20.5H2z"/><path d="M12 10v5"/><path d="M12 18.2v.01"/>
+    </svg>
     <p>${esc(err.message || err)}</p><p><a href="#/overview">back to overview</a></p></div>`;
 }
 
@@ -180,7 +183,7 @@ function botCard(b) {
     </div>
     <div class="bot-facts">
       <div>next run <b>${b.next_run_local || "—"}</b></div>
-      <div class="${stale ? "fact-stale" : ""}">last success <b>${timeAgo(b.last_success)}</b>${stale ? " ⚠" : ""}</div>
+      <div class="${stale ? "fact-stale" : ""}">last success <b>${timeAgo(b.last_success)}</b>${stale ? " · stale" : ""}</div>
       <div>runs <b>${Object.values(b.run_counts).reduce((a, c) => a + c, 0)}</b></div>
       <div>tokens today <b>${fmtTokens(b.tokens_today)}</b> / ${fmtTokens(b.limits.daily_token_cap)}</div>
     </div>
@@ -489,7 +492,7 @@ async function renderApprovals() {
     <p class="page-subtitle">A bot wants to do something irreversible. You decide. Unanswered requests
       expire as <b>denied</b> — silence never becomes consent.</p>
     ${approvals.map(a => approvalCard(a, true)).join("") ||
-      `<div class="panel" style="color:var(--text-dim)">Nothing waiting on you. 🎉</div>`}
+      `<div class="panel" style="color:var(--text-dim)">Nothing waiting on you.</div>`}
     <div class="section-head"><h2>How this works</h2></div>
     <div class="panel">
       <p style="margin:0;color:var(--text-dim);font-size:13.5px">

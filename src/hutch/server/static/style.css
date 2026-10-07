@@ -402,6 +402,7 @@ input[type="checkbox"] { accent-color: var(--accent-dim); width: 15px; height: 1
   padding: 70px 0;
 }
 .empty-state .big { font-size: 40px; margin-bottom: 8px; }
+.empty-state svg { margin: 34px auto 14px; display: block; }
 .spinner {
   width: 28px; height: 28px; margin: 40px auto 14px;
   border: 3px solid var(--border-strong);
