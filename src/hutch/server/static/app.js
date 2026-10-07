@@ -11,7 +11,7 @@ let pollTimer = null;
 let currentStudioBot = null;
 let currentStudioTab = "chat";
 let currentRunId = null;
-let lastEventId = 0;
+let lastPrompt = "";
 
 // ------------------------------------------------------------------ utils
 
@@ -75,11 +75,32 @@ const ICON_PATHS = {
   hourglass: '<path d="M5 22h14M5 2h14M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"/>',
   bot: '<rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>',
   chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  send: '<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>',
+  caret: '<path d="m9 18 6-6-6-6"/>',
   alert: '<path d="M12 3.5 22 20.5H2z"/><path d="M12 10v5"/><path d="M12 18.2v.01"/>',
 };
 
 function icon(name, cls = "") {
   return `<svg class="icon ${cls}" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name] || ""}</svg>`;
+}
+
+function truncate(s, n) {
+  return s.length > n ? `${s.slice(0, n - 1)}…` : s;
+}
+
+// Per-bot daily token budget meter. Amber near the cap, red over it — the
+// spend should never be a surprise (documented failure of usage-based tools).
+function budgetMeterHtml(bot) {
+  const cap = bot.limits.daily_token_cap || 0;
+  const used = bot.tokens_today || 0;
+  const pct = cap ? Math.round((used / cap) * 100) : 0;
+  const state = pct >= 100 ? "over" : pct >= 70 ? "warn" : "";
+  return `
+    <span class="budget-meter ${state}" title="Daily token budget: ${used} of ${cap}">
+      <span class="meter-track"><span class="meter-fill" style="width:${Math.min(pct, 100)}%"></span></span>
+      <span>${fmtTokens(used)} / ${fmtTokens(cap)} tokens (${pct}%)</span>
+    </span>
+  `;
 }
 
 // ------------------------------------------------------------------ modal
@@ -214,7 +235,7 @@ async function renderChatStudio(preferredBot = null) {
             const isActive = b.name === bot.name;
             const isRun = b.active_run_id;
             return `
-              <div class="bot-nav-item ${isActive ? "active" : ""}" data-switch-bot="${esc(b.name)}">
+              <div class="bot-nav-item ${isActive ? "active" : ""}" role="button" tabindex="0" ${isActive ? 'aria-current="true"' : ""} data-switch-bot="${esc(b.name)}">
                 <div class="bot-nav-row">
                   <span class="bot-nav-name">${esc(b.name)}</span>
                   ${b.paused ? `<span class="tag warn" style="font-size:10px">paused</span>` : ""}
@@ -264,13 +285,14 @@ async function renderChatStudio(preferredBot = null) {
               <span class="composer-chip" data-quick-prompt="Inspect repository for TODOs and report">${icon("search")} Repo sweep</span>
             </div>
             <div class="composer-stats">
-              <span>Tokens today: <b>${fmtTokens(bot.tokens_today)}</b> / ${fmtTokens(bot.limits.daily_token_cap)}</span>
+              ${budgetMeterHtml(bot)}
               <span>Max steps: <b>${bot.limits.max_steps}</b></span>
             </div>
           </div>
           <div class="composer-input-box">
-            <textarea class="composer-textarea" id="chat-prompt" placeholder="Ask ${esc(bot.name)} to run a task… (Enter to send, Shift+Enter for new line)"></textarea>
-            <button class="primary" id="chat-send" style="height:40px;padding:0 16px;">Send</button>
+            <label class="visually-hidden" for="chat-prompt">Task prompt for ${esc(bot.name)}</label>
+            <textarea class="composer-textarea" id="chat-prompt" placeholder="Ask ${esc(bot.name)} to run a task… (Enter to send, Shift+Enter for a new line, Up to recall)"></textarea>
+            <button class="primary composer-send" id="chat-send">${icon("send")} Send</button>
           </div>
         </footer>
       </main>
@@ -330,11 +352,15 @@ async function renderChatStudio(preferredBot = null) {
     renderChatStudio(currentStudioBot);
   });
 
-  // Wire sidebar bot switching
+  // Wire sidebar bot switching (mouse + keyboard)
   $$("[data-switch-bot]").forEach(item => {
-    item.addEventListener("click", () => {
+    const activate = () => {
       currentStudioTab = "chat";
       renderChatStudio(item.dataset.switchBot);
+    };
+    item.addEventListener("click", activate);
+    item.addEventListener("keydown", ev => {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); activate(); }
     });
   });
 
@@ -366,6 +392,7 @@ async function renderChatStudio(preferredBot = null) {
     if (!promptVal.trim()) return;
     send.disabled = true;
     send.textContent = "Running…";
+    lastPrompt = promptVal.trim();
     try {
       const r = await api(`/bots/${encodeURIComponent(bot.name)}/run`, { method: "POST", body: { prompt: promptVal.trim() } });
       toast(`Run started`);
@@ -376,7 +403,7 @@ async function renderChatStudio(preferredBot = null) {
       toast(err.message, true);
     } finally {
       send.disabled = false;
-      send.textContent = "Send";
+      send.innerHTML = `${icon("send")} Send`;
     }
   };
 
@@ -385,6 +412,9 @@ async function renderChatStudio(preferredBot = null) {
     if (ev.key === "Enter" && !ev.shiftKey) {
       ev.preventDefault();
       triggerRun(txt.value);
+    } else if (ev.key === "ArrowUp" && !txt.value && lastPrompt) {
+      ev.preventDefault();
+      txt.value = lastPrompt;
     }
   });
 
@@ -421,13 +451,18 @@ async function renderChatStudio(preferredBot = null) {
   $("#sidebar-new-bot")?.addEventListener("click", promptNewBot);
 }
 
-// Render conversation stream for a run
+// Render conversation stream for a run.
+// Tool activity renders as compact Codex-style lines: call+result merge into
+// one row, runs of 4+ collapse under a "Ran N tools" group, and expansion
+// state survives re-renders via localStorage (per run).
 async function renderChatFeed(runId) {
   const stream = $("#chat-stream");
   if (!stream) return;
+  stopPolling();
 
   const run = await api(`/runs/${runId}`);
   const events = await api(`/runs/${runId}/events?after=0`);
+  const items = groupToolItems(pairToolEvents(events.events));
 
   let html = `
     <div class="chat-msg user">
@@ -435,18 +470,13 @@ async function renderChatFeed(runId) {
       <div class="msg-text">${esc(run.prompt)}</div>
     </div>
   `;
-
-  if (events.events.length) {
-    events.events.forEach(ev => {
-      html += renderChatEvent(ev);
-    });
-  }
+  items.forEach(item => { html += renderFeedItem(item, runId); });
 
   if (run.error) {
     html += `
-      <div class="tool-card error">
-        <div class="tool-card-head"><span style="color:var(--red);font-weight:700">Error</span></div>
-        <div class="tool-card-body">${esc(run.error)}</div>
+      <div class="run-error">
+        <span class="run-error-label">Error</span>
+        <span>${esc(run.error)}</span>
       </div>
     `;
   }
@@ -454,19 +484,203 @@ async function renderChatFeed(runId) {
   stream.innerHTML = html;
   stream.scrollTop = stream.scrollHeight;
 
-  // Wire inline approvals
   wireApprovals();
+  wireFeedInteractions(runId);
+  updateTtls();
 
-  // If run is active, poll for updates
+  // Cursor-based polling: only refetch events newer than the last one seen.
+  const lastSeq = events.events.length ? events.events[events.events.length - 1].seq : 0;
   if (ACTIVE.has(run.status)) {
     pollTimer = setInterval(async () => {
-      const updated = await api(`/runs/${runId}/events?after=0`);
-      if (updated.events.length !== events.events.length) {
-        renderChatFeed(runId);
-      }
+      try {
+        const updated = await api(`/runs/${runId}/events?after=${lastSeq}`);
+        if (updated.events.length) renderChatFeed(runId);
+      } catch { /* transient poll errors retry on the next tick */ }
     }, 2000);
   }
 }
+
+// Merge tool_call + tool_result pairs into single display items.
+function pairToolEvents(events) {
+  const items = [];
+  let pending = null;
+  for (const e of events) {
+    const d = e.data || {};
+    if (e.type === "tool_call") {
+      if (pending) items.push({ kind: "tool", call: pending, result: null });
+      pending = { e, d };
+    } else if (e.type === "tool_result") {
+      items.push({ kind: "tool", call: pending, result: { e, d } });
+      pending = null;
+    } else {
+      if (pending) { items.push({ kind: "tool", call: pending, result: null }); pending = null; }
+      items.push({ kind: "event", e, d });
+    }
+  }
+  if (pending) items.push({ kind: "tool", call: pending, result: null });
+  return items;
+}
+
+// Collapse runs of 4+ consecutive tool lines under one group row.
+const TOOL_GROUP_THRESHOLD = 4;
+
+function groupToolItems(items) {
+  const out = [];
+  let run = [];
+  const flush = () => {
+    if (run.length >= TOOL_GROUP_THRESHOLD) out.push({ kind: "group", items: run });
+    else out.push(...run);
+    run = [];
+  };
+  for (const it of items) {
+    if (it.kind === "tool") run.push(it);
+    else { flush(); out.push(it); }
+  }
+  flush();
+  return out;
+}
+
+function expandedStore(runId) {
+  try { return new Set(JSON.parse(localStorage.getItem(`hutch-expanded:${runId}`)) || []); }
+  catch { return new Set(); }
+}
+
+function renderFeedItem(item, runId) {
+  if (item.kind === "tool") return toolLineHtml(item, item.call?.e ?? item.result.e, runId);
+  if (item.kind === "group") return toolGroupHtml(item, runId);
+  return renderChatEvent(item.e);
+}
+
+function toolLineHtml(item, anchorEvent, runId) {
+  const idx = anchorEvent.seq ?? anchorEvent.ts;
+  const call = item.call, res = item.result;
+  const tool = (res || call).d.tool;
+  const running = !res;
+  const ok = res ? res.d.ok !== false : true;
+  const cls = running ? "running" : ok ? "success" : "error";
+  const argsStr = JSON.stringify(call?.d.args ?? {});
+  const t = (res || call).e.ts?.slice(11, 19) || "";
+  const open = expandedStore(runId).has(String(idx));
+  const verdict = running
+    ? '<span class="spin-line" role="status" aria-label="running"></span>'
+    : icon(ok ? "check" : "x");
+
+  return `
+    <div class="tool-line ${cls}" data-tool-line="${esc(String(idx))}">
+      <button class="tool-line-head" type="button" aria-expanded="${open}" aria-controls="tlb-${esc(String(idx))}" data-tool-toggle="${esc(String(idx))}">
+        <span class="tool-verdict">${verdict}</span>
+        <span class="tool-name">${esc(tool)}</span>
+        <span class="tool-args">${esc(truncate(argsStr, 90))}</span>
+        <span class="tool-time">${t}</span>
+        <span class="tool-caret">${icon("caret")}</span>
+      </button>
+      <div class="tool-line-body" id="tlb-${esc(String(idx))}" ${open ? "" : "hidden"}>
+        <div class="tool-line-section">
+          <span class="tool-line-label">Input</span>
+          ${esc(JSON.stringify(call?.d.args ?? {}, null, 2))}
+        </div>
+        ${res ? toolOutputHtml(res.d.output) : '<div class="tool-line-section"><span class="tool-line-label">Output</span>pending…</div>'}
+      </div>
+    </div>
+  `;
+}
+
+const OUTPUT_CLIP = 600;
+
+function toolOutputHtml(output) {
+  const text = output || "(no output)";
+  if (text.length <= OUTPUT_CLIP) {
+    return `<div class="tool-line-section"><span class="tool-line-label">Output</span>${esc(text)}</div>`;
+  }
+  return `
+    <div class="tool-line-section">
+      <span class="tool-line-label">Output</span>
+      <span data-out-clip>${esc(text.slice(0, OUTPUT_CLIP))}</span><span data-out-full hidden>…${esc(text.slice(OUTPUT_CLIP))}</span>
+      <button class="tool-line-more" type="button" data-show-more>Show ${text.length - OUTPUT_CLIP} more characters</button>
+    </div>
+  `;
+}
+
+function toolGroupHtml(item, runId) {
+  const open = localStorage.getItem(`hutch-group:${runId}`) === "1";
+  const tools = item.items.map(it => (it.result || it.call).d.tool);
+  const uniq = [...new Set(tools)];
+  const label = uniq.length <= 3 ? uniq.join(", ") : `${uniq.slice(0, 3).join(", ")} +${uniq.length - 3}`;
+  const done = item.items.filter(it => it.result).length;
+  const summary = `${done}/${item.items.length} tool steps — ${label}`;
+  return `
+    <div class="tool-group ${open ? "open" : ""}" data-tool-group>
+      <button class="tool-group-summary" type="button" aria-expanded="${open}" data-group-toggle>
+        <span class="tool-verdict">${icon(done === item.items.length && item.items.every(it => (it.result?.d.ok ?? true) !== false) ? "check" : "zap")}</span>
+        <span>${esc(summary)}</span>
+        <span class="tool-caret">${icon("caret")}</span>
+      </button>
+      <div class="tool-group-items" ${open ? "" : "hidden"}>
+        ${item.items.map(it => toolLineHtml(it, it.call?.e ?? it.result.e, runId)).join("")}
+      </div>
+    </div>
+  `;
+}
+
+// Delegated interactions for the feed: line expansion, output clip, groups.
+function wireFeedInteractions(runId) {
+  const stream = $("#chat-stream");
+  if (!stream) return;
+  const persist = () => {
+    const ids = [...stream.querySelectorAll("[data-tool-toggle][aria-expanded='true']")]
+      .map(b => b.dataset.toolToggle);
+    try { localStorage.setItem(`hutch-expanded:${runId}`, JSON.stringify(ids)); } catch {}
+  };
+  stream.addEventListener("click", ev => {
+    const more = ev.target.closest("[data-show-more]");
+    if (more) {
+      const full = more.parentElement.querySelector("[data-out-full]");
+      const clip = more.parentElement.querySelector("[data-out-clip]");
+      const show = full.hidden;
+      full.hidden = !show;
+      clip.hidden = show;
+      more.textContent = show ? "Show less" : more.textContent;
+      return;
+    }
+    const groupBtn = ev.target.closest("[data-group-toggle]");
+    if (groupBtn) {
+      const group = groupBtn.closest("[data-tool-group]");
+      const open = !group.classList.contains("open");
+      group.classList.toggle("open", open);
+      groupBtn.setAttribute("aria-expanded", String(open));
+      group.querySelector(".tool-group-items").hidden = !open;
+      try { localStorage.setItem(`hutch-group:${runId}`, open ? "1" : "0"); } catch {}
+      return;
+    }
+    const lineBtn = ev.target.closest("[data-tool-toggle]");
+    if (lineBtn) {
+      const line = lineBtn.closest("[data-tool-line]");
+      const body = document.getElementById(lineBtn.getAttribute("aria-controls"));
+      const open = lineBtn.getAttribute("aria-expanded") !== "true";
+      lineBtn.setAttribute("aria-expanded", String(open));
+      line.classList.toggle("open", open);
+      if (body) body.hidden = !open;
+      persist();
+    }
+  });
+}
+
+// Live fail-closed countdowns: any [data-deadline] (epoch ms) ticks down.
+function updateTtls() {
+  $$("[data-deadline]").forEach(el => {
+    const target = el.querySelector("[data-ttl-text]") || el;
+    const ms = Number(el.dataset.deadline) - Date.now();
+    if (ms <= 0) {
+      target.textContent = "expired — denied";
+      el.classList.add("expired");
+      return;
+    }
+    const m = Math.floor(ms / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    target.textContent = `${m}:${String(s).padStart(2, "0")} left`;
+  });
+}
+setInterval(updateTtls, 1000);
 
 function renderChatEvent(e) {
   const t = e.ts ? e.ts.slice(11, 19) : "";
@@ -476,50 +690,32 @@ function renderChatEvent(e) {
     case "message":
       return `
         <div class="chat-msg agent">
-          <span class="msg-role">${esc(d.role || "Agent")} · <span style="color:var(--text-faint)">${t}</span></span>
+          <span class="msg-role">${esc(d.role || "Agent")} <span class="msg-time">· ${t}</span></span>
           <div class="msg-text">${esc(d.content || "")}</div>
         </div>
       `;
-    case "tool_call":
-      return `
-        <div class="tool-card">
-          <div class="tool-card-head">
-            <div><span class="tool-name">${icon("zap")} ${esc(d.tool)}</span> <span class="tool-args">${esc(JSON.stringify(d.args ?? {}))}</span></div>
-            <span style="font-size:11px;color:var(--text-faint)">${t}</span>
-          </div>
-        </div>
-      `;
-    case "tool_result": {
-      const ok = d.ok !== false;
-      return `
-        <div class="tool-card ${ok ? 'success' : 'error'}">
-          <div class="tool-card-head">
-            <div><span class="tool-verdict">${icon(ok ? "check" : "x")} <b>${esc(d.tool)} result</b></span></div>
-            <span style="font-size:11px;color:var(--text-faint)">${t}</span>
-          </div>
-          <div class="tool-card-body">${esc(d.output || "")}</div>
-        </div>
-      `;
-    }
-    case "approval_request":
+    case "approval_request": {
+      const deadline = e.ts ? new Date(e.ts).getTime() + 10 * 60 * 1000 : 0;
       return `
         <div class="approval-card-chat" data-approval-card="${esc(d.approval_id)}">
           <div class="approval-badge-bar">
-            <span class="tag warn">APPROVAL REQUIRED</span>
-            <span class="ttl-countdown">${icon("hourglass")} 10m fail-closed timer</span>
+            <span class="tag warn">Approval required</span>
+            <span class="ttl-countdown" ${deadline ? `data-deadline="${deadline}"` : ""}>${icon("hourglass")}<span data-ttl-text>10:00 left</span></span>
           </div>
           <div class="approval-action-text">${esc(d.action || "Perform action")}</div>
           <pre class="approval-detail mono">${esc(JSON.stringify(d.detail ?? {}, null, 2))}</pre>
           <div class="approval-buttons" data-approval="${esc(d.approval_id)}">
             <button class="primary small" data-approve="1">Approve</button>
             <button class="danger small" data-approve="0">Deny</button>
-            <label style="font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:4px;cursor:pointer;">
+            <label class="approval-always">
               <input type="checkbox" class="always"> always allow this action
             </label>
           </div>
         </div>
       `;
+    }
     default:
+      // tool_call / tool_result are consumed by pairToolEvents()
       return "";
   }
 }
@@ -719,7 +915,7 @@ async function renderRunDetail(runId) {
       <div id="chat-stream"></div>
     </div>
   `;
-  renderChatFeed(runId);
+  await renderChatFeed(runId);
 }
 
 // ------------------------------------------------------------- MODALS & HELPERS
