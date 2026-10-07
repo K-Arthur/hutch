@@ -12,7 +12,7 @@ commits can cite them. Evidence for the *why* is in
 > Performance numbers in the draft are *proposed targets*. Measured values live in
 > [performance.md](performance.md) and the committed `benchmarks/baseline.json`.
 
-*Status column last updated: end of Phase 2 (run view and control).*
+*Status column last updated: Phase 3 built (local model layer), Connections, and the chat model switcher.*
 
 ## Dashboard and app
 
@@ -37,21 +37,21 @@ commits can cite them. Evidence for the *why* is in
 
 | ID | Requirement | Phase | Status | Where |
 |---|---|---|---|---|
-| LM-1 | Ollama provider uses native chat API, always sets context size | MVP | planned | |
-| LM-2 | Startup self-check: fact at top of a long prompt must be recalled | MVP | planned | |
-| LM-3 | Warn before a run when prompt + tools exceed effective context | MVP | planned | |
-| LM-4 | Hardware probe: RAM, GPU memory, Apple Silicon, installed runtimes | MVP | planned | |
-| LM-5 | Models page: fits / tight / won't fit + actual context | MVP | planned | |
-| LM-6 | Models are scheduled resources; batching; cold load is a visible state | MVP | planned | |
-| LM-7 | Task presets: router, research, extraction, coding, planner, vision | MVP | planned | |
+| LM-1 | Ollama provider uses native chat API, always sets context size | MVP | done | `providers/ollama.py`: native `/api/chat`, `num_ctx` always sent; the `/v1` path is never used for Ollama |
+| LM-2 | Startup self-check: fact at top of a long prompt must be recalled | MVP | done | `context.run_selfcheck` (cached per model/window/template); `hutch doctor --deep` |
+| LM-3 | Warn before a run when prompt + tools exceed effective context | MVP | done | `context.py` pre-run prompt + tools check; the run fails with the fix instead of truncating |
+| LM-4 | Hardware probe: RAM, GPU memory, Apple Silicon, installed runtimes | MVP | done | `hardware.probe`: RAM, GPU memory, Apple Silicon, installed runtimes |
+| LM-5 | Models page: fits / tight / won't fit + actual context | MVP | done | `/models` page and `hutch models list`; [models.md](models.md) |
+| LM-6 | Models are scheduled resources; batching; cold load is a visible state | MVP | done | `slots.py` (batching, slot gate, fairness, visible wait reason); cold load is the `loading_model` state. Swap latency measurable with `hutch models swap-test`; not yet measured on real models |
+| LM-7 | Task presets: router, research, extraction, coding, planner, vision | MVP | partial | six presets resolve per machine, shown on `/models` and `hutch models presets`; picking one in bot creation arrives with the wizard (UI-7) |
 | LM-8 | Different presets for planner/executor/summarizer roles | Later | later | |
-| LM-9 | One-step escalation on malformed calls / loop / overflow, within spend cap | MVP | planned | |
-| LM-10 | Local-default bots ask before first hosted call | MVP | planned | |
+| LM-9 | One-step escalation on malformed calls / loop / overflow, within spend cap | MVP | done | `runtime/ladder.py`: one-rung escalation inside the spend guard; tests |
+| LM-10 | Local-default bots ask before first hosted call | MVP | done | ask before the first hosted call for a local-default bot, even in auto mode; a hosted model picked in the chat switcher is explicit consent for that message |
 | LM-11 | Reliability harness per model/quant/runtime/template | MVP | planned | |
 | LM-12 | Re-measure when runtime or model file changes | Later | later | |
-| LM-13 | Tool-call repair; ≤ 8 tools by default | MVP | planned | |
-| LM-14 | Editable hosted price file with verified-on date in UI | MVP | planned | |
-| LM-15 | API key access; subscription only via vendor CLI behind a terms warning; no token extraction | MVP | planned | |
+| LM-13 | Tool-call repair; ≤ 8 tools by default | MVP | partial | `runtime/toolrepair.py` coerce/validate/one retry; `hutch doctor` warns above 8 tools; the 8-tool default is not enforced at bot creation |
+| LM-14 | Editable hosted price file with verified-on date in UI | MVP | done | price table with source and verified date on `/models`; edit, reset; 90-day stale flag |
+| LM-15 | API key access; subscription only via vendor CLI behind a terms warning; no token extraction | MVP | partial | API keys and connection terms notices done ([connections.md](connections.md)); the `pi` / `opencode` vendor-CLI adapters do not yet show a terms warning |
 | LM-16 | Show each model's license; flag non-Apache/MIT | Later | later | |
 
 ## Bot collaboration
@@ -74,7 +74,7 @@ commits can cite them. Evidence for the *why* is in
 
 | ID | Requirement | Phase | Status | Where |
 |---|---|---|---|---|
-| SR-1 | One runtime/model crash affects only its own runs; health per runtime | MVP | partial | orphan recovery + graceful shutdown + per-run isolation done; per-runtime health arrives with the model layer |
+| SR-1 | One runtime/model crash affects only its own runs; health per runtime | MVP | done | orphan recovery, shutdown, per-run isolation and per-runtime health (`health.py`, Models page, doctor) |
 | SR-2 | Exact per-step token/cost accounting, visible before a run | MVP | planned | |
 | SR-3 | Per-bot compact-now and fresh-session controls | Later | later | |
 | SR-4 | Outward-sending tools always ask, regardless of sticky allows | MVP | partial | gate enforces outward-never-sticky (`approvals.py`); outward classification of tools pending |
@@ -87,7 +87,7 @@ commits can cite them. Evidence for the *why* is in
 | SR-11 | Hash-chained event log | Later | done | hash chain in `store.py`, `Store.verify_chain`; tamper/delete tests (CLI/UI surface pending) |
 | SR-12 | Risk tier per bot (medium asks, high blocked) + per-command rules | MVP | planned | |
 | SR-13 | Command parser fuzz-tested | MVP | planned | |
-| SR-14 | `doctor` command | MVP | planned | |
+| SR-14 | `doctor` command | MVP | done | `hutch doctor` (`doctor.py`): every problem prints its fix; `--deep`, `--online`, `--json` |
 
 ## Performance
 
@@ -113,7 +113,7 @@ commits can cite them. Evidence for the *why* is in
 |---|---|---|---|---|
 | 1 | Engine baseline | PF-5, PF-6, PF-7, PF-11, PF-12, PF-13 | tests pass offline; benchmarks record a baseline | **passed** — 101 tests offline; baseline in `benchmarks/baselines/local.json` |
 | 2 | Run view and control | UI-1…6, UI-12, SR-7 | ten concurrent runs stream, connection cut, transcript resumes with no missing events | **passed** - `tests/test_sse_resume.py` (10 runs x 2 real cuts, real sockets) and `tests/e2e` (Chromium, TCP cut, DOM verified) |
-| 3 | Local model layer | LM-1…6, SR-1, SR-14 | self-check passes; swap latency measured for two model pairs | planned |
+| 3 | Local model layer | LM-1…6, SR-1, SR-14 | self-check passes; swap latency measured for two model pairs | **built and tested; gate not met** - self-check and swap measurement pass against scripted servers (`tests/test_slots.py`, `tests/test_models_layer.py`); no real local models on the dev machine, so swap latency for two real pairs is **not measured** |
 | 4 | Reliability harness | LM-11, LM-13, SR-5 | ≥ 3 models profiled on the dev machine | planned |
 | 5 | Presets, escalation, budgets | LM-7, 9, 10, 14, 15, SR-2, 8, 9, 12, PF-1…3 | escalation respects caps in tests | planned |
 | 6 | Collaboration | CO-1…11 | demo plan finishes on mock + one local model; misbehaving specialist is stopped by the engine | planned |
@@ -126,6 +126,7 @@ commits can cite them. Evidence for the *why* is in
 | Dashboard CSRF / DNS-rebinding defence (Host allow-list, Origin + Fetch-Metadata, CSRF token, token auth for `--allow-remote`) | Local approval endpoints are drivable from any web page ([research §3](research/offerings-and-failures.md)) | done - `server/security.py`; refusal of non-loopback bind without a token lands with the CLI work |
 | **Rehearse** (dry-run) mode: mutating actions simulated and logged | Grok Bot: "no dry-run mode; testing performs real work" | planned |
 | Role templates (sales, PM, marketing, analytics) in the gallery | Team Bots ships role templates | planned |
+| **Model switcher** in the chat composer + all-models dialog, per message (never edits the bot) | A chat product switches models from the composer; ChatGPT shows deprecation notes there, Hutch shows fit, cost and what is missing | done - `modelchoices.py`, `static/model-switcher.js`, [models.md](models.md); real-browser tested, desktop + phone |
 | Approval webhook notification | Dots / Grok are reachable when you are away | planned |
 | Pulled forward from *Later*: UI-10, UI-11, UI-13, SR-11 | Memory opacity, spend opacity, mobile, and audit are the loudest complaints about the two reference products | planned |
 

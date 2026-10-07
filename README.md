@@ -57,7 +57,10 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 ## Feature highlights
 
 - **Multiple named bots** — own model, tools, schedule, memory, workspace; pause/resume; templates
-- **Any model, local first** — OpenAI-compatible client with provider presets; free offline mock runtime
+- **Any model, local first** — native Ollama (context size always set), Anthropic, OpenAI, and any OpenAI- or Anthropic-compatible endpoint; free offline mock runtime
+- **Switch models from the chat** — a composer menu shows what fits this machine, what it costs and what is missing; per message, never a silent edit of the bot
+- **Subscription plans as connections** — OpenCode Go, Xiaomi MiMo Token Plan or your own endpoint, each with its own key, allowance meter and terms notice
+- **Knows your hardware** — fit/tight/won't-fit per model, model slots that batch runs, and `hutch doctor` that prints the fix for every problem
 - **Scheduling that survives real life** — IANA-timezone cron, DST-correct, catch-up after sleep,
   never overlapping runs
 - **Approvals that don't nag** — ask-once with sticky always-allows; unanswered = denied
@@ -74,6 +77,8 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 | [Architecture](docs/architecture.md) | component map, decision log, concurrency model |
 | [Safety model](docs/safety.md) | deny/ask/allow rules, approval flow, honest limits |
 | [Bot configuration](docs/bot-config.md) | fields, model specs, schedules, limits, examples |
+| [Models](docs/models.md) | chat model switcher, fit, model slots, prices, `hutch doctor` |
+| [Connections](docs/connections.md) | subscription plans and custom endpoints, keys, allowances, what is unsupported and why |
 | [Design system](docs/design-system.md) | shared UI tokens, components, icon/emoji policy, a11y rules |
 | [Roadmap](docs/roadmap.md) | phases: hardening → capability → scale-out |
 | [Research](docs/research/) | orchestrator/runtime comparison; incident-based requirements |
