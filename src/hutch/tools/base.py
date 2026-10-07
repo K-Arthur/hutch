@@ -115,7 +115,10 @@ class ToolContext:
     dry_run: bool = False             # Rehearse mode: mutating actions are simulated, reads still run
 
 
-MAX_TOOL_OUTPUT = 12_000  # chars — huge tool dumps blowing up context is a documented failure
+#: Tools return up to this much (a hard memory bound). What the MODEL sees is truncated to a per-tool limit in
+#: ``runtime.steps.call_tool`` and the full text is saved as an artifact (PF-2): "MCP tools dumping huge JSON
+#: into context" is a documented failure, but silently losing the rest is a worse one.
+MAX_TOOL_OUTPUT = 1_000_000
 
 
 def clip(text: str, limit: int = MAX_TOOL_OUTPUT) -> str:

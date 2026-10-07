@@ -70,11 +70,44 @@ class Schedule(BaseModel):
 
 
 class Limits(BaseModel):
-    """Hard caps enforced per run (and daily per bot for tokens)."""
+    """Hard caps enforced per run (and daily per bot for tokens / spend). 0 means "no cap" / "automatic"."""
 
     max_steps: int = 24                # agent turns before forced stop
     timeout_seconds: int = 900         # wall-clock kill switch
     daily_token_cap: int = 200_000     # estimated tokens (prompt+completion)
+    max_turn_tokens: int = 0           # per-turn generation cap (SR-5); 0 = provider default (local 2048, hosted 16000)
+    max_cost_usd: float = 0.0          # hard spend cap for ONE run, hosted models only (SR-2, LM-9)
+    daily_cost_cap_usd: float = 0.0    # hard spend cap per bot per day
+
+    model_config = {"frozen": True}
+
+
+class Escalation(BaseModel):
+    """Move up the ladder when a local model is not up to the job (LM-9) - one rung at a time."""
+
+    to: list[str] = Field(default_factory=list)    # model specs, tried in order: e.g. ["anthropic/claude-opus-5-5"]
+    ask_first: bool = True                         # LM-10: a local-default bot asks before its FIRST hosted call
+    after_malformed: int = 2                       # consecutive malformed tool calls that trigger escalation
+    on_loop: bool = True
+    on_context_overflow: bool = True
+
+    model_config = {"frozen": True}
+
+
+class RiskTier(str, Enum):
+    """SR-12: what the bot may do. High-risk actions (secrets, exfiltration, privilege escalation) are always
+    blocked; the tier decides what happens to MEDIUM-risk ones."""
+
+    readonly = "readonly"      # medium-risk actions are blocked outright: a bot that can only look
+    supervised = "supervised"  # medium-risk actions ask (default)
+    trusted = "trusted"        # medium-risk actions run without asking (same as approval_mode auto)
+
+
+class CommandRule(BaseModel):
+    """Per-command refinement of the tier (SR-12): e.g. {match: "git push*", verdict: "deny"}."""
+
+    match: str                                      # glob against the command line (first matching rule wins)
+    verdict: str                                    # allow | ask | deny
 
     model_config = {"frozen": True}
 
@@ -99,6 +132,15 @@ class Bot(BaseModel):
     memory_enabled: bool = True
     paused: bool = False
     template: Optional[str] = None    # which starter template it came from
+    preset: Optional[str] = None      # task preset this bot was configured from (LM-7)
+    fallbacks: list[str] = Field(default_factory=list)   # tried in order when the model is unavailable (SR-8)
+    escalation: Optional[Escalation] = None              # quality ladder (LM-9)
+    risk_tier: RiskTier = RiskTier.supervised            # SR-12
+    command_rules: list[CommandRule] = Field(default_factory=list)
+    think: Optional[bool] = None      # None = off for small local models, model default for hosted (SR-5)
+    selfcheck: bool = True            # prove the context window works before the first run (LM-2)
+    num_ctx: Optional[int] = None     # manual context override; None = computed from hardware and preset
+    tool_limits: dict[str, int] = Field(default_factory=dict)   # per-tool output limits in chars (PF-2)
     created_at: str = Field(default_factory=lambda: iso(utcnow()))
 
 

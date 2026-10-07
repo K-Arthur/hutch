@@ -32,6 +32,30 @@ class StepTimer:
         self.model_ms += seconds * 1000.0
 
 
+DEFAULT_TOOL_LIMIT = 12_000   # chars shown to the model per tool call unless the bot overrides it (PF-2)
+
+
+def save_artifact(ctx: ToolContext, tool: str, text: str) -> str:
+    """Write a tool's full output under the run's artifacts/ directory; returns its path relative to the run."""
+    run_dir = ctx.config.run_dir(ctx.bot.name, ctx.run.id)
+    art = run_dir / "artifacts"
+    art.mkdir(parents=True, exist_ok=True)
+    n = len(list(art.iterdir())) + 1
+    path = art / f"{n:03d}-{tool}.txt"
+    path.write_text(text, encoding="utf-8", errors="replace")
+    return str(path.relative_to(run_dir))
+
+
+def truncate_for_model(ctx: ToolContext, tool: str, output: str) -> tuple[str, Optional[str]]:
+    """PF-2: cap what the model sees to the tool's limit; the full output is kept as an artifact."""
+    limit = int(ctx.bot.tool_limits.get(tool, DEFAULT_TOOL_LIMIT))
+    if limit <= 0 or len(output) <= limit:
+        return output, None
+    rel = save_artifact(ctx, tool, output)
+    note = f"\n... [{len(output) - limit:,} of {len(output):,} characters omitted; full output saved as artifact {rel}]"
+    return output[:limit] + note, rel
+
+
 def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, args: dict[str, Any],
               timer: Optional[StepTimer] = None, output_chars: int = 2_000) -> ToolResult:
     """Emit the call, run the tool (timed), emit the result. Used by the mock and builtin runtimes."""
@@ -44,8 +68,12 @@ def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, arg
         result = tool.run(args, ctx)
     if timer is not None:
         timer.tool_ms += (time.perf_counter() - t1) * 1000.0
-    ctx.emit(Event(run_id=run.id, type=EventType.tool_result,
-                   data={"tool": name, "ok": result.ok, "output": result.output[:output_chars]}))
+    full_chars = len(result.output)
+    result.output, artifact = truncate_for_model(ctx, name, result.output)
+    data: dict[str, Any] = {"tool": name, "ok": result.ok, "output": result.output[:output_chars]}
+    if artifact:
+        data.update(artifact=artifact, chars=full_chars)
+    ctx.emit(Event(run_id=run.id, type=EventType.tool_result, data=data))
     return result
 
 

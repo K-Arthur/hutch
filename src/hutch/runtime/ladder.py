@@ -1,0 +1,140 @@
+"""Which model runs the next turn, and may it be called? (SR-8, LM-9, LM-10, SR-2)
+
+Two different failures need two different responses, and conflating them is how fallback chains become spend storms
+(research: "a single misconfigured fallback line turned $40/month into $2,300 in 48 hours"):
+
+* **availability** (runtime down, rate-limited, out of memory, model not installed, refusal) -> *fallback*:
+  the next model in ``bot.fallbacks``, in order (SR-8).
+* **quality** (malformed tool calls again and again, a loop, the prompt overflowing the window) -> *escalation*:
+  ONE rung up ``bot.escalation.to`` (LM-9), never straight to the top and never restarting the run.
+
+Every hop to a hosted model passes the SpendGuard first: price known, run and daily caps not exceeded, and - for a
+bot that is local by default - a human said yes to the first hosted call (LM-10).
+"""
+
+from __future__ import annotations
+
+import threading
+from dataclasses import dataclass
+from typing import Optional
+
+from ..models import Bot, Run, iso, utcnow
+from ..providers import Provider, make_provider, parse_spec
+from ..providers.pricing import PriceBook
+
+_PROVIDERS: dict[tuple[str, Optional[str]], Provider] = {}
+_LOCK = threading.Lock()
+
+
+def get_provider(provider: str, base_url: Optional[str]) -> Provider:
+    """Providers are cached so HTTP connections and `show()` metadata are reused across runs."""
+    key = (provider, base_url)
+    with _LOCK:
+        if key not in _PROVIDERS:
+            _PROVIDERS[key] = make_provider(provider, base_url)
+        return _PROVIDERS[key]
+
+
+def reset_provider_cache() -> None:
+    with _LOCK:
+        _PROVIDERS.clear()
+
+
+@dataclass(frozen=True)
+class Rung:
+    spec: str
+    provider: str
+    model: str
+    local: bool
+    role: str                 # primary | fallback | escalation
+
+    @property
+    def label(self) -> str:
+        return self.spec
+
+
+def make_rung(spec: str, role: str) -> Rung:
+    from ..providers.pricing import LOCAL_PROVIDERS
+    provider, model = parse_spec(spec)
+    return Rung(spec=spec, provider=provider, model=model, local=provider in LOCAL_PROVIDERS, role=role)
+
+
+class Ladder:
+    def __init__(self, bot: Bot):
+        self.bot = bot
+        self.primary = make_rung(bot.model, "primary")
+        self.fallbacks = [make_rung(s, "fallback") for s in bot.fallbacks]
+        self.escalations = [make_rung(s, "escalation") for s in (bot.escalation.to if bot.escalation else [])]
+        self.current = self.primary
+        #: rungs that were refused (spend cap, not usable) for the rest of this run, and whether a human said
+        #: no to hosted calls: neither may be re-asked on every later bad turn (a denial must stick)
+        self.blocked: set[str] = set()
+        self.hosted_denied = False
+
+    @property
+    def local_default(self) -> bool:
+        """LM-10 applies to bots whose own model is local."""
+        return self.primary.local
+
+    def base_url_for(self, rung: Rung) -> Optional[str]:
+        return self.bot.base_url if rung.provider == self.primary.provider else None
+
+    def next_fallback(self) -> Optional[Rung]:
+        """Next model after an AVAILABILITY failure of the current one."""
+        if self.current.role == "escalation":
+            i = [r.spec for r in self.escalations].index(self.current.spec)
+            return self.escalations[i + 1] if i + 1 < len(self.escalations) else None
+        if self.current.role == "primary":
+            return self.fallbacks[0] if self.fallbacks else None
+        i = [r.spec for r in self.fallbacks].index(self.current.spec)
+        return self.fallbacks[i + 1] if i + 1 < len(self.fallbacks) else None
+
+    def next_escalation(self) -> Optional[Rung]:
+        """ONE rung above the current model after a QUALITY failure."""
+        if not self.escalations:
+            return None
+        if self.current.role != "escalation":
+            return self.escalations[0]
+        i = [r.spec for r in self.escalations].index(self.current.spec)
+        return self.escalations[i + 1] if i + 1 < len(self.escalations) else None
+
+
+class SpendGuard:
+    """Hard caps for hosted spend. Refuses BEFORE a call that could exceed a cap, not after."""
+
+    def __init__(self, store, bot: Bot, run: Run, prices: PriceBook):
+        self.store, self.bot, self.run, self.prices = store, bot, run, prices
+
+    def spent_today(self) -> float:
+        day = utcnow().date().isoformat()
+        total = 0.0
+        for r in self.store.list_runs(self.bot.id, limit=500):
+            if r.created_at.startswith(day):
+                total += r.cost_usd
+        return total
+
+    @property
+    def has_cost_caps(self) -> bool:
+        lim = self.bot.limits
+        return bool(lim.max_cost_usd or lim.daily_cost_cap_usd)
+
+    def refusal(self, rung: Rung, est_prompt_tokens: int, max_turn_tokens: int) -> Optional[str]:
+        """Why this call must not happen, or None. Local models are free and always allowed."""
+        if rung.local:
+            return None
+        if not self.prices.has_price(rung.provider, rung.model):
+            if self.has_cost_caps:
+                return (f"{rung.spec} has no price in prices.json, so the spend cap cannot be enforced; add a row "
+                        "(or remove the cap) to use it")
+            return None
+        worst = self.prices.cost(rung.provider, rung.model, est_prompt_tokens, max_turn_tokens) or 0.0
+        lim = self.bot.limits
+        if lim.max_cost_usd and self.run.cost_usd + worst > lim.max_cost_usd:
+            return (f"the next call to {rung.spec} could cost up to ${worst:.4f}; this run has spent "
+                    f"${self.run.cost_usd:.4f} of its ${lim.max_cost_usd:.2f} cap")
+        if lim.daily_cost_cap_usd:
+            spent = self.spent_today()
+            if spent + worst > lim.daily_cost_cap_usd:
+                return (f"the next call to {rung.spec} could cost up to ${worst:.4f}; this bot has spent "
+                        f"${spent:.4f} of its ${lim.daily_cost_cap_usd:.2f} daily cap")
+        return None

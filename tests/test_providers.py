@@ -392,3 +392,36 @@ def test_cache_reads_are_priced_below_fresh_input():
     fresh = pb.cost("anthropic", "claude-opus-5-5", 100_000, 0)
     cached = pb.cost("anthropic", "claude-opus-5-5", 100_000, 0, cached_tokens=100_000)
     assert cached < fresh * 0.1
+
+
+def test_a_cancelled_call_is_never_rescued_by_the_streaming_retry(ollama):
+    """Found by the runtime tests: Stop aborts the socket, which looks like a broken stream. Retrying it without
+    streaming made the run complete as if Stop had never been pressed."""
+    ollama.stall_once = 20.0
+    closers = []
+    cancelled = {"v": False}
+
+    def register(fn):
+        closers.append(fn)
+        return lambda: None
+
+    errs = []
+
+    def run():
+        try:
+            OllamaProvider(ollama.url).chat(req(register_cancel=register, is_cancelled=lambda: cancelled["v"],
+                                                idle_timeout=30))
+        except ProviderError as e:
+            errs.append(e)
+
+    t = threading.Thread(target=run)
+    t.start()
+    deadline = time.time() + 5
+    while not closers and time.time() < deadline:
+        time.sleep(0.02)
+    time.sleep(0.3)
+    cancelled["v"] = True
+    closers[0]()
+    t.join(timeout=5)
+    assert errs and errs[0].kind == "stream"
+    assert [r["body"]["stream"] for r in ollama.of("/api/chat")] == [True], "no non-streaming retry after Stop"

@@ -361,3 +361,26 @@ class FakeAnthropic(_Server):
         ev("message_delta", {"type": "message_delta", "delta": delta, "usage": {"output_tokens": usage["output_tokens"]}})
         ev("message_stop", {"type": "message_stop"})
         self.end_stream(h)
+
+
+# ============================================================ scripted agents
+
+def agent_script(replies: list, recall: bool = True):
+    """A fake model for the Ollama server: auto-answers the context self-check like a well-behaved long-context
+    model (recalling only what survived truncation), and plays ``replies`` in order for everything else.
+
+    A reply is a dict like {"content": "...", "tool_calls": [{"name": ..., "arguments": {...}}]}; the last one
+    repeats forever. Returns the script function; ``script.calls`` counts the non-self-check turns.
+    """
+    import re
+
+    def script(body):
+        full = body.get("_full_text", "")
+        if "secret code word for this check is" in full:
+            m = re.search(r"code word for this check is ([A-Z0-9-]+)", body.get("_seen_text", ""))
+            return {"content": m.group(1) if (m and recall) else "I do not know."}
+        i = min(script.calls, len(replies) - 1)
+        script.calls += 1
+        return dict(replies[i])
+    script.calls = 0
+    return script

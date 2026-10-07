@@ -65,8 +65,13 @@ class ApprovalGate:
     cancel_requested: bool = False
 
     def decide(self, tool: str, action: str, detail: dict, decision: Optional[Decision] = None,
-               outward: bool = False) -> None:
-        """Raise DeniedError unless the action may proceed."""
+               outward: bool = False, ask_in_auto: bool = False) -> None:
+        """Raise DeniedError unless the action may proceed.
+
+        ``ask_in_auto``: ask even for a bot in auto mode (sticky allows and plan grants still apply). Used for the
+        first call to a hosted model (LM-10): spending money and sending the conversation to a third party is not
+        something "auto" should do silently on a bot that was set up to run locally.
+        """
         if decision is None:
             decision = Decision(Verdict.ask, action, f"{tool}:*")
         outward = outward or decision.outward
@@ -89,7 +94,7 @@ class ApprovalGate:
                                 data={"note": f"plan-granted: {decision.sticky_key}", "plan": self.run.plan_id}))
                 return
             # "auto" mode skips asks (the hard-deny list already ran), but never for outward actions.
-            if self.bot.approval_mode is ApprovalMode.auto:
+            if self.bot.approval_mode is ApprovalMode.auto and not ask_in_auto:
                 return
 
         now = utcnow()

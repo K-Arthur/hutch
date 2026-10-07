@@ -67,6 +67,8 @@ class ChatRequest:
     stream: bool = True
     # called with a close() function so Stop can abort the in-flight request; returns an unregister fn
     register_cancel: Callable[[Callable[[], None]], Callable[[], None]] = lambda fn: (lambda: None)
+    #: True once the user pressed Stop. A cancelled call must never be "recovered" by the streaming retry
+    is_cancelled: Callable[[], bool] = lambda: False
 
 
 @dataclass
@@ -217,7 +219,7 @@ class Provider(ABC):
             try:
                 result = self._complete(req, stream=True)
             except ProviderError as exc:
-                if not exc.streaming_related:
+                if not exc.streaming_related or req.is_cancelled():
                     raise
                 result = self._complete(req, stream=False)
                 result.streamed = False
