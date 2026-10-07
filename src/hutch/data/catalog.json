@@ -1,0 +1,20 @@
+{
+  "_readme": "Suggested local models, used to estimate fit BEFORE a model is installed. Sizes are the Ollama library page figures (2026-10-07; upper end of a range, to be conservative). Layer / KV-head / head-size numbers are estimates from the published architectures and are labelled as estimates in the UI; for an installed model Hutch uses the numbers the runtime itself reports. Capabilities are verified against `ollama show` once a model is installed.",
+  "models": {
+    "qwen3:0.6b":  {"params_b": 0.6,  "quant": "Q4_K_M", "size_gb": 0.523, "layers": 28, "kv_heads": 8, "head_dim": 128, "max_context": 40960,  "caps": ["tools"], "license": "Apache-2.0"},
+    "qwen3:1.7b":  {"params_b": 1.7,  "quant": "Q4_K_M", "size_gb": 1.4,   "layers": 28, "kv_heads": 8, "head_dim": 128, "max_context": 40960,  "caps": ["tools"], "license": "Apache-2.0"},
+    "qwen3:4b":    {"params_b": 4.0,  "quant": "Q4_K_M", "size_gb": 2.5,   "layers": 36, "kv_heads": 8, "head_dim": 128, "max_context": 262144, "caps": ["tools"], "license": "Apache-2.0"},
+    "qwen3:8b":    {"params_b": 8.2,  "quant": "Q4_K_M", "size_gb": 5.2,   "layers": 36, "kv_heads": 8, "head_dim": 128, "max_context": 40960,  "caps": ["tools"], "license": "Apache-2.0"},
+    "qwen3:14b":   {"params_b": 14.8, "quant": "Q4_K_M", "size_gb": 9.3,   "layers": 40, "kv_heads": 8, "head_dim": 128, "max_context": 40960,  "caps": ["tools"], "license": "Apache-2.0"},
+    "qwen3:30b":   {"params_b": 30.5, "quant": "Q4_K_M", "size_gb": 19.0,  "layers": 48, "kv_heads": 4, "head_dim": 128, "max_context": 262144, "caps": ["tools"], "license": "Apache-2.0"},
+    "qwen3:32b":   {"params_b": 32.8, "quant": "Q4_K_M", "size_gb": 20.0,  "layers": 64, "kv_heads": 8, "head_dim": 128, "max_context": 40960,  "caps": ["tools"], "license": "Apache-2.0"},
+    "qwen2.5-coder:1.5b": {"params_b": 1.5,  "quant": "Q4_K_M", "size_gb": 0.986, "layers": 28, "kv_heads": 2, "head_dim": 128, "max_context": 32768, "caps": ["tools"]},
+    "qwen2.5-coder:3b":   {"params_b": 3.1,  "quant": "Q4_K_M", "size_gb": 1.9,   "layers": 36, "kv_heads": 2, "head_dim": 128, "max_context": 32768, "caps": ["tools"]},
+    "qwen2.5-coder:7b":   {"params_b": 7.6,  "quant": "Q4_K_M", "size_gb": 4.7,   "layers": 28, "kv_heads": 4, "head_dim": 128, "max_context": 32768, "caps": ["tools"]},
+    "qwen2.5-coder:14b":  {"params_b": 14.8, "quant": "Q4_K_M", "size_gb": 9.0,   "layers": 48, "kv_heads": 8, "head_dim": 128, "max_context": 32768, "caps": ["tools"]},
+    "qwen2.5-coder:32b":  {"params_b": 32.8, "quant": "Q4_K_M", "size_gb": 20.0,  "layers": 64, "kv_heads": 8, "head_dim": 128, "max_context": 32768, "caps": ["tools"]},
+    "gemma4:e4b": {"params_b": 8.0,  "quant": "Q4_K_M", "size_gb": 9.5,  "max_context": 131072, "caps": ["tools", "vision", "thinking"]},
+    "gemma4:12b": {"params_b": 12.0, "quant": "Q4_K_M", "size_gb": 8.0,  "max_context": 262144, "caps": ["tools", "vision", "thinking"]},
+    "gemma4:26b": {"params_b": 26.0, "quant": "Q4_K_M", "size_gb": 19.0, "max_context": 262144, "caps": ["tools", "vision", "thinking"]}
+  }
+}

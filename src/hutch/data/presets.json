@@ -1,0 +1,48 @@
+{
+  "_readme": "Task presets (LM-7). Pick a TASK, not a model name: Hutch resolves each preset to a local model that fits this machine, with a hosted model to escalate to. Edit by copying to <state dir>/presets.json. `local` lists candidates best-first per hardware tier; the resolver takes the best one that fits (preferring models already installed). Local picks are suggestions to be MEASURED on your machine (`hutch models bench`), not guarantees. The hosted pick defaults to claude-opus-5-5; cheaper picks (claude-sonnet-5-5, claude-haiku-4-5) are one edit away and priced in prices.json.",
+  "hosted_default": "anthropic/claude-opus-5-5",
+  "presets": {
+    "router": {
+      "title": "Router", "description": "Cheap, fast decisions: classify, route, answer in a sentence.",
+      "needs": ["tools"], "want_ctx": 8192, "min_ctx": 4096, "keep_resident": true,
+      "limits": {"max_steps": 8, "timeout_seconds": 300, "daily_token_cap": 100000, "max_turn_tokens": 512},
+      "local": {"tiny": ["qwen3:1.7b"], "small": ["qwen3:4b", "qwen3:1.7b"], "medium": ["qwen3:4b", "qwen3:1.7b"],
+                "large": ["qwen3:4b", "qwen3:1.7b"], "xl": ["qwen3:4b", "qwen3:1.7b"]}
+    },
+    "research": {
+      "title": "Research", "description": "Read pages, take notes, write a sourced report. Wants a long context.",
+      "needs": ["tools"], "want_ctx": 32768, "min_ctx": 16384,
+      "limits": {"max_steps": 24, "timeout_seconds": 1200, "daily_token_cap": 300000, "max_turn_tokens": 2048},
+      "local": {"tiny": ["qwen3:1.7b"], "small": ["qwen3:4b"], "medium": ["qwen3:8b", "qwen3:4b"],
+                "large": ["qwen3:14b", "qwen3:8b"], "xl": ["qwen3:32b", "qwen3:14b"]}
+    },
+    "extraction": {
+      "title": "Extraction", "description": "Pull structured facts out of text or files; short, exact outputs.",
+      "needs": ["tools"], "want_ctx": 16384, "min_ctx": 8192,
+      "limits": {"max_steps": 12, "timeout_seconds": 600, "daily_token_cap": 200000, "max_turn_tokens": 1024},
+      "local": {"tiny": ["qwen3:1.7b"], "small": ["qwen3:4b"], "medium": ["qwen3:8b", "qwen3:4b"],
+                "large": ["qwen3:14b", "qwen3:8b"], "xl": ["qwen3:14b", "qwen3:8b"]}
+    },
+    "coding": {
+      "title": "Coding", "description": "Read and edit code in a workspace, run commands, explain changes.",
+      "needs": ["tools"], "want_ctx": 32768, "min_ctx": 16384,
+      "limits": {"max_steps": 32, "timeout_seconds": 1800, "daily_token_cap": 400000, "max_turn_tokens": 4096},
+      "local": {"tiny": ["qwen2.5-coder:1.5b"], "small": ["qwen2.5-coder:3b"], "medium": ["qwen2.5-coder:7b"],
+                "large": ["qwen2.5-coder:14b"], "xl": ["qwen2.5-coder:32b", "qwen2.5-coder:14b"]}
+    },
+    "planner": {
+      "title": "Planner", "description": "Break a goal into tasks for specialist bots and judge their results.",
+      "needs": ["tools"], "want_ctx": 32768, "min_ctx": 16384,
+      "limits": {"max_steps": 16, "timeout_seconds": 900, "daily_token_cap": 300000, "max_turn_tokens": 2048},
+      "local": {"tiny": ["qwen3:1.7b"], "small": ["qwen3:4b"], "medium": ["qwen3:8b"],
+                "large": ["qwen3:14b", "qwen3:8b"], "xl": ["qwen3:30b", "qwen3:14b"]}
+    },
+    "vision": {
+      "title": "Vision", "description": "Look at screenshots or images. Optional: DOM-based browser control needs no vision model.",
+      "needs": ["tools", "vision"], "want_ctx": 16384, "min_ctx": 8192,
+      "limits": {"max_steps": 16, "timeout_seconds": 900, "daily_token_cap": 200000, "max_turn_tokens": 2048},
+      "local": {"tiny": [], "small": [], "medium": ["gemma4:e4b"], "large": ["gemma4:12b", "gemma4:e4b"],
+                "xl": ["gemma4:26b", "gemma4:12b"]}
+    }
+  }
+}
