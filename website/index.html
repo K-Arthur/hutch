@@ -277,14 +277,18 @@
     transcripts — offline and free. Swap in a real model when you're ready.</p>
 
     <div class="quickstart">
-      <div class="qs-body"><span class="qs-comment"># install (or: pipx install openbot / uv tool install openbot)</span>
-pip install openbot
+      <div class="qs-body"><span class="qs-comment"># install (Python 3.11+; Linux first)</span>
+git clone https://github.com/kevinarthur/openbot && cd openbot
+pip install -e .
 
 <span class="qs-comment"># create state + starter bots (research-briefing, repo-sweeper, tidy-downloads)</span>
 openbot init
 
-<span class="qs-comment"># explore offline with the mock model — then point at something real</span>
+<span class="qs-comment"># explore offline with the mock model — your first run pauses for approval (by design)</span>
 openbot run research-briefing "summarize this week's AI news"
+openbot approvals approve apr_… <span class="t-blue">--always</span>      <span class="qs-comment"># one click, remembered</span>
+
+<span class="qs-comment"># point at something real whenever you're ready</span>
 openbot bot update research-briefing --model <span class="t-blue">ollama/llama3.2</span>   <span class="qs-comment"># or openai/gpt-4o-mini</span>
 
 <span class="qs-comment"># dashboard: live transcripts, approvals, spend meters</span>

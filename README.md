@@ -31,15 +31,25 @@ yolo mode. The receipts and the requirement traceability live in
 ## Quickstart
 
 ```bash
-pip install openbot            # or: pipx install openbot / uv tool install openbot
+git clone https://github.com/kevinarthur/openbot && cd openbot
+pip install -e .               # or: uv venv && uv pip install -e ".[dev]"
 openbot init                   # state dir + 3 starter bots (free mock model — no API key)
 openbot serve                  # dashboard → http://127.0.0.1:8787
 ```
 
-Explore offline with the mock model, then point a bot at something real:
+Your first run will pause for a human decision — that's the point:
 
 ```bash
-openbot run research-briefing "summarize this week's AI news"
+$ openbot run research-briefing "summarize this week's AI news"
+⏳ approval needed: write report.md (281 chars)
+   resolve with: openbot approvals approve apr_…  (or --always to remember)
+$ openbot approvals approve apr_… --always
+✓ run succeeded (steps=4, tokens≈1.4k)
+```
+
+Then point a bot at a real model:
+
+```bash
 openbot bot update research-briefing --model ollama/llama3.2     # or openai/gpt-4o-mini
 openbot daemon                 # headless: schedules, dispatch, approval expiry
 ```

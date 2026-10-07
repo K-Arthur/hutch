@@ -226,10 +226,10 @@ h2.section-title {
 }
 .section-sub { color: var(--text-dim); max-width: 660px; margin: 0 0 40px; font-size: 16.5px; }
 
-/* pain points */
+/* pain points — 2 columns on desktop so the 4 incident cards balance 2x2 */
 .pain-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
   gap: 16px;
 }
 .pain-card {
@@ -421,5 +421,10 @@ footer.site nav a { color: var(--text-dim); }
   .safety-cols { grid-template-columns: 1fr; }
   .hero { padding: 56px 0 48px; }
   section { padding: 56px 0; }
-  .terminal-body { font-size: 11.5px; }
+  /* terminals wrap instead of clipping: long lines must never cross the card edge */
+  .terminal-body { font-size: 11.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .quickstart .qs-body { font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+}
+@media (max-width: 460px) {
+  .pain-grid { grid-template-columns: 1fr; }
 }
