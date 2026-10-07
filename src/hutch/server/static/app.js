@@ -61,6 +61,27 @@ function statusChip(status) {
   return `<span class="status ${esc(status)}">${esc(status.replace("_", " "))}</span>`;
 }
 
+// Inline SVG icon set — the only permitted iconography (see scripts/audit_emoji.py).
+// 24x24 viewBox, stroked with currentColor so context sets the color.
+const ICON_PATHS = {
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  zap: '<path d="M13 2 3 14h7l-1 8 11-12h-7l1-8z"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>',
+  sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+  folder: '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.2 3.9A2 2 0 0 0 7.5 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+  fileText: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  hourglass: '<path d="M5 22h14M5 2h14M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"/>',
+  bot: '<rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>',
+  chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  alert: '<path d="M12 3.5 22 20.5H2z"/><path d="M12 10v5"/><path d="M12 18.2v.01"/>',
+};
+
+function icon(name, cls = "") {
+  return `<svg class="icon ${cls}" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name] || ""}</svg>`;
+}
+
 // ------------------------------------------------------------------ modal
 
 function openModal({ title, bodyHtml, onConfirm, confirmText = "Confirm", confirmClass = "primary" }) {
@@ -70,7 +91,7 @@ function openModal({ title, bodyHtml, onConfirm, confirmText = "Confirm", confir
       <div class="modal-card">
         <div class="modal-header">
           <h3>${esc(title)}</h3>
-          <button class="ghost small" id="modal-close">✕</button>
+          <button class="ghost small icon-btn" id="modal-close" aria-label="Close dialog">${icon("x")}</button>
         </div>
         <div class="modal-body">${bodyHtml}</div>
         <div class="modal-footer">
@@ -127,9 +148,7 @@ async function route() {
 
 function errorState(err) {
   return `<div class="container"><div class="empty-state">
-    <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="var(--amber)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M12 3.5 22 20.5H2z"/><path d="M12 10v5"/><path d="M12 18.2v.01"/>
-    </svg>
+    ${icon("alert", "icon-lg")}
     <p>${esc(err.message || err)}</p><p><a href="#/chat">back to studio</a></p></div></div>`;
 }
 
@@ -173,9 +192,9 @@ async function renderChatStudio(preferredBot = null) {
 
   view.innerHTML = `
     <div class="studio-mobile-nav">
-      <button class="sm-tab ${currentStudioTab === 'chat' ? 'active' : ''}" data-studio-tab="chat">💬 Chat</button>
-      <button class="sm-tab ${currentStudioTab === 'fleet' ? 'active' : ''}" data-studio-tab="fleet">🤖 Fleet (${bots.length})</button>
-      <button class="sm-tab ${currentStudioTab === 'inspector' ? 'active' : ''}" data-studio-tab="inspector">⚙️ Specs &amp; Memory</button>
+      <button class="sm-tab ${currentStudioTab === 'chat' ? 'active' : ''}" data-studio-tab="chat">${icon("chat")} Chat</button>
+      <button class="sm-tab ${currentStudioTab === 'fleet' ? 'active' : ''}" data-studio-tab="fleet">${icon("bot")} Fleet (${bots.length})</button>
+      <button class="sm-tab ${currentStudioTab === 'inspector' ? 'active' : ''}" data-studio-tab="inspector">${icon("sliders")} Specs &amp; Memory</button>
     </div>
 
     <div class="studio-container" data-tab="${currentStudioTab}">
@@ -211,7 +230,7 @@ async function renderChatStudio(preferredBot = null) {
         <header class="studio-main-header">
           <div class="bot-header-info">
             <select class="bot-mobile-select" id="bot-mobile-select" aria-label="Switch Bot">
-              ${bots.map(b => `<option value="${esc(b.name)}" ${b.name === bot.name ? "selected" : ""}>🤖 ${esc(b.name)}</option>`).join("")}
+              ${bots.map(b => `<option value="${esc(b.name)}" ${b.name === bot.name ? "selected" : ""}>${esc(b.name)}</option>`).join("")}
             </select>
             <span class="bot-header-title">${esc(bot.name)}</span>
             <div class="bot-header-chips">
@@ -222,9 +241,9 @@ async function renderChatStudio(preferredBot = null) {
           </div>
           <div style="display:flex;gap:8px;align-items:center;">
             ${activeRun && ACTIVE.has(activeRun.status) ? `
-              <button class="danger small" id="studio-stop-run">■ Stop run</button>
+              <button class="danger small" id="studio-stop-run">${icon("stop")} Stop run</button>
             ` : ""}
-            <a class="btn ghost small" href="#/bot/${esc(bot.name)}">Settings ⚙</a>
+            <a class="btn ghost small" href="#/bot/${esc(bot.name)}">${icon("sliders")} Settings</a>
           </div>
         </header>
 
@@ -235,9 +254,9 @@ async function renderChatStudio(preferredBot = null) {
         <footer class="studio-composer">
           <div class="composer-tools-row">
             <div class="composer-chips">
-              <span class="composer-chip" data-quick-prompt="Sort this week's downloads and move invoices">📁 Sort downloads</span>
-              <span class="composer-chip" data-quick-prompt="Research this week's AI news and write summary">📰 Research news</span>
-              <span class="composer-chip" data-quick-prompt="Inspect repository for TODOs and report">🔍 Repo sweep</span>
+              <span class="composer-chip" data-quick-prompt="Sort this week's downloads and move invoices">${icon("folder")} Sort downloads</span>
+              <span class="composer-chip" data-quick-prompt="Research this week's AI news and write summary">${icon("fileText")} Research news</span>
+              <span class="composer-chip" data-quick-prompt="Inspect repository for TODOs and report">${icon("search")} Repo sweep</span>
             </div>
             <div class="composer-stats">
               <span>Tokens today: <b>${fmtTokens(bot.tokens_today)}</b> / ${fmtTokens(bot.limits.daily_token_cap)}</span>
@@ -268,7 +287,7 @@ async function renderChatStudio(preferredBot = null) {
             ${botDetail.memory.map(m => `
               <div class="interactive-chip">
                 <div><b style="color:var(--violet)">${esc(m.key)}</b><br><span style="color:var(--text-dim);font-size:11px;">${esc(m.value)}</span></div>
-                <span class="chip-del" title="Delete memory" data-del-mem="${esc(m.key)}">✕</span>
+                <button class="chip-del" title="Delete memory" aria-label="Delete memory ${esc(m.key)}" data-del-mem="${esc(m.key)}">${icon("x")}</button>
               </div>
             `).join("") || `<span style="font-size:12px;color:var(--text-faint)">No memories recorded</span>`}
           </div>
@@ -279,8 +298,8 @@ async function renderChatStudio(preferredBot = null) {
           <div class="interactive-chip-list" id="sticky-list">
             ${botDetail.sticky_allows.map(s => `
               <div class="interactive-chip">
-                <span class="chip-label" style="color:var(--accent)">✓ ${esc(s)}</span>
-                <span class="chip-del" title="Revoke permission" data-revoke-sticky="${esc(s)}">✕</span>
+                <span class="chip-label">${icon("check")} ${esc(s)}</span>
+                <button class="chip-del" title="Revoke permission" aria-label="Revoke permission ${esc(s)}" data-revoke-sticky="${esc(s)}">${icon("x")}</button>
               </div>
             `).join("") || `<span style="font-size:12px;color:var(--text-faint)">None — all risky commands ask</span>`}
           </div>
@@ -460,7 +479,7 @@ function renderChatEvent(e) {
       return `
         <div class="tool-card">
           <div class="tool-card-head">
-            <div><span class="tool-name">⚡ ${esc(d.tool)}</span> <span class="tool-args">${esc(JSON.stringify(d.args ?? {}))}</span></div>
+            <div><span class="tool-name">${icon("zap")} ${esc(d.tool)}</span> <span class="tool-args">${esc(JSON.stringify(d.args ?? {}))}</span></div>
             <span style="font-size:11px;color:var(--text-faint)">${t}</span>
           </div>
         </div>
@@ -470,7 +489,7 @@ function renderChatEvent(e) {
       return `
         <div class="tool-card ${ok ? 'success' : 'error'}">
           <div class="tool-card-head">
-            <div><span>${ok ? '✓' : '✗'} <b>${esc(d.tool)} result</b></span></div>
+            <div><span class="tool-verdict">${icon(ok ? "check" : "x")} <b>${esc(d.tool)} result</b></span></div>
             <span style="font-size:11px;color:var(--text-faint)">${t}</span>
           </div>
           <div class="tool-card-body">${esc(d.output || "")}</div>
@@ -482,7 +501,7 @@ function renderChatEvent(e) {
         <div class="approval-card-chat" data-approval-card="${esc(d.approval_id)}">
           <div class="approval-badge-bar">
             <span class="tag warn">APPROVAL REQUIRED</span>
-            <span class="ttl-countdown">⏳ 10m fail-closed timer</span>
+            <span class="ttl-countdown">${icon("hourglass")} 10m fail-closed timer</span>
           </div>
           <div class="approval-action-text">${esc(d.action || "Perform action")}</div>
           <pre class="mono" style="font-size:11px;background:#0d1219;padding:8px;border-radius:6px;overflow-x:auto;">${esc(JSON.stringify(d.detail ?? {}, null, 2))}</pre>
@@ -538,7 +557,7 @@ async function renderBots() {
               <button class="ghost small" data-action="toggle-pause" data-bot="${esc(b.name)}" data-paused="${b.paused}">
                 ${b.paused ? "Resume" : "Pause"}
               </button>
-              <a class="btn ghost small" href="#/chat/${esc(b.name)}">Open in Studio →</a>
+              <a class="btn ghost small" href="#/chat/${esc(b.name)}">Open in Studio</a>
             </div>
           </div>
         `).join("")}
@@ -619,7 +638,7 @@ async function renderApprovals() {
               <div>
                 <b>${esc(a.bot_name)}</b> &middot; <span class="tag">${esc(a.tool)}</span>
               </div>
-              <span class="ttl-countdown">⏳ 10m TTL &middot; ${timeAgo(a.created_at)}</span>
+              <span class="ttl-countdown">${icon("hourglass")} 10m TTL &middot; ${timeAgo(a.created_at)}</span>
             </div>
             <p style="font-size:14.5px;font-weight:600;margin:4px 0 10px;">${esc(a.action)}</p>
             <pre class="mono" style="font-size:12px;background:#0d1219;padding:10px;border-radius:6px;overflow-x:auto;">${esc(JSON.stringify(a.detail, null, 2))}</pre>
@@ -629,7 +648,7 @@ async function renderApprovals() {
               <label style="font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:4px;cursor:pointer;">
                 <input type="checkbox" class="always"> always allow for this bot
               </label>
-              <a class="btn ghost small" href="#/run/${esc(a.run_id)}">Open run &rarr;</a>
+              <a class="btn ghost small" href="#/run/${esc(a.run_id)}">Open run</a>
             </div>
           </div>
         `).join("") || `<div class="panel" style="color:var(--text-dim)">No pending approvals. All runs clear.</div>`}
@@ -651,7 +670,7 @@ async function renderBotDetail(name) {
           <p class="page-subtitle" style="margin:0">${esc(b.description || "No description")}</p>
         </div>
         <div style="display:flex;gap:8px;">
-          <a class="btn primary" href="#/chat/${esc(b.name)}">Open Studio 💬</a>
+          <a class="btn primary" href="#/chat/${esc(b.name)}">${icon("chat")} Open Studio</a>
           <button class="danger" id="btn-delete-bot">Delete Bot</button>
         </div>
       </div>
@@ -687,7 +706,7 @@ async function renderRunDetail(runId) {
           <h1>Run <span class="mono">${esc(r.id)}</span></h1>
           <p class="page-subtitle">Bot: <a href="#/chat/${esc(r.bot_name)}">${esc(r.bot_name)}</a> &middot; Status: ${statusChip(r.status)}</p>
         </div>
-        <a class="btn ghost" href="#/runs">&larr; Back to Runs</a>
+        <a class="btn ghost" href="#/runs">Back to Runs</a>
       </div>
       <div class="panel" style="margin-bottom:16px;">
         <b>Prompt:</b><br><span style="color:var(--text-dim)">${esc(r.prompt)}</span>

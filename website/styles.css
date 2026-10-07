@@ -309,7 +309,15 @@ h1.hero-title .accent-gradient {
   gap: 6px;
   color: var(--text-muted);
 }
-.hero-guarantees span b { color: var(--accent); }
+.hero-guarantees span::before {
+  content: "";
+  flex: none;
+  width: 11px;
+  height: 11px;
+  background: var(--accent);
+  -webkit-mask: var(--icon-check) center / contain no-repeat;
+  mask: var(--icon-check) center / contain no-repeat;
+}
 
 /* ------------------------------------------------------------- Interactive Studio Preview */
 
@@ -630,10 +638,14 @@ h2.section-heading {
   gap: 9px;
 }
 .bento-list li::before {
-  content: "✓";
-  color: var(--accent);
-  font-weight: 850;
-  font-size: 12px;
+  content: "";
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin-top: 5px;
+  background: var(--accent);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20 6 9 17l-5-5' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20 6 9 17l-5-5' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 /* ------------------------------------------------------------- Comparison Matrix */
@@ -719,9 +731,82 @@ thead th.matrix-hutch {
   padding: 3px 8px;
   border-radius: 4px;
 }
-.pill-check.yes { color: var(--accent); background: var(--accent-bg); }
+.pill-check::before {
+  content: "";
+  flex: none;
+  width: 11px;
+  height: 11px;
+  background: currentColor;
+  -webkit-mask: var(--icon-check) center / contain no-repeat;
+  mask: var(--icon-check) center / contain no-repeat;
+}
+.pill-check.yes { color: var(--accent); background: rgba(52, 211, 153, 0.1); }
 .pill-check.no { color: var(--red); background: var(--red-glow); }
+.pill-check.no::before {
+  -webkit-mask-image: var(--icon-x);
+  mask-image: var(--icon-x);
+}
 .pill-check.maybe { color: var(--amber); background: var(--amber-glow); }
+.pill-check.maybe::before {
+  -webkit-mask-image: var(--icon-minus);
+  mask-image: var(--icon-minus);
+}
+
+/* SVG icon primitives (data-URI masks; see scripts/audit_emoji.py — no
+   glyph characters are permitted in UI surfaces). */
+:root {
+  --icon-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20 6 9 17l-5-5' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --icon-x: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M18 6 6 18M6 6l12 12' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
+  --icon-minus: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12h14' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.ic { display: inline-block; vertical-align: -0.15em; }
+.ic-zap { color: var(--blue); }
+.sim-tool-card.success .ic-zap { color: var(--accent); }
+
+.verdict-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-weight: 700;
+}
+.verdict-ok::before {
+  content: "";
+  flex: none;
+  width: 12px;
+  height: 12px;
+  background: currentColor;
+  -webkit-mask: var(--icon-check) center / contain no-repeat;
+  mask: var(--icon-check) center / contain no-repeat;
+}
+.verdict-ok.run-summary { display: flex; margin-top: 10px; }
+
+.deny-mark {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 2px;
+  vertical-align: -0.05em;
+  background: var(--red);
+  -webkit-mask: var(--icon-x) center / contain no-repeat;
+  mask: var(--icon-x) center / contain no-repeat;
+}
+.allow-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+}
+.allow-mark::before {
+  content: "";
+  flex: none;
+  width: 12px;
+  height: 12px;
+  background: currentColor;
+  -webkit-mask: var(--icon-check) center / contain no-repeat;
+  mask: var(--icon-check) center / contain no-repeat;
+}
 
 /* ------------------------------------------------------------- Quickstart & Tabs */
 
