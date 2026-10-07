@@ -31,7 +31,7 @@ yolo mode. The receipts and the requirement traceability live in
 ## Quickstart
 
 ```bash
-git clone https://github.com/kevinarthur/hutch && cd hutch
+git clone https://github.com/K-Arthur/hutch && cd hutch
 pip install -e .               # or: uv venv && uv pip install -e ".[dev]"
 hutch init                   # state dir + 3 starter bots (free mock model — no API key)
 hutch serve                  # dashboard → http://127.0.0.1:8787
