@@ -322,8 +322,10 @@ async function renderChatStudio(preferredBot = null) {
             </button>
           `;
         }).join("")}
-        <a class="rail-add" href="#/bot/${esc(bot.name)}" title="Specs and memory" aria-label="Specs and memory">${icon("sliders")}</a>
-        <button class="rail-add" type="button" id="sidebar-new-bot" title="New bot" aria-label="New bot">${icon("plus")}</button>
+        <div class="rail-foot">
+          <a class="rail-add" href="#/bot/${esc(bot.name)}" title="Specs and memory" aria-label="Specs and memory">${icon("sliders")}</a>
+          <button class="rail-add" type="button" id="sidebar-new-bot" title="New bot" aria-label="New bot">${icon("plus")}</button>
+        </div>
       </aside>
 
       <!-- Center Stage: Conversation & Live Execution -->
