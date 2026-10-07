@@ -10,11 +10,11 @@
     {% if m.note %}<div class="meter-note">{{ m.note }}</div>{% endif %}
   </div>
   {%- endfor %}
-  {% if split.model or split.tool or split.overhead %}
+  {% if timing.total_ms %}
   <div class="meter wide">
     <div class="meter-top"><span class="meter-label">Where the time went</span>
-      <span class="meter-cap">model {{ split.model | round(0) | int }}% - tools {{ split.tool | round(0) | int }}% - hutch {{ split.overhead | round(1) }}%</span></div>
-    <div class="bar split"><i class="s-model" style="width: {{ split.model }}%"></i><i class="s-tool" style="width: {{ split.tool }}%"></i><i class="s-over" style="width: {{ split.overhead }}%"></i></div>
+      <span class="meter-cap">model {{ timing.model_ms | ms }} - tools {{ timing.tool_ms | ms }} - hutch {{ timing.overhead_ms | ms }} ({{ timing.per_step_ms | ms }} per step)</span></div>
+    {% if timing.total_ms >= 500 %}<div class="bar split"><i class="s-model" style="width: {{ split.model }}%"></i><i class="s-tool" style="width: {{ split.tool }}%"></i><i class="s-over" style="width: {{ split.overhead }}%"></i></div>{% endif %}
   </div>
   {% endif %}
 </div>

@@ -141,6 +141,7 @@ class Run(BaseModel):
     plan_id: Optional[str] = None
     plan_task_id: Optional[str] = None
     rehearsal: bool = False           # dry run: mutating actions are simulated
+    owner: str = ""                   # pid of the process executing this run (orphan recovery)
 
 
 class EventType(str, Enum):

@@ -8,8 +8,6 @@ failure. Used for screenshots, first-run tours, and manual testing.
 
 from __future__ import annotations
 
-import time
-
 from .config import hutchConfig
 from .engine import Engine
 from .models import (
@@ -48,19 +46,13 @@ def seed_demo(config: hutchConfig, store: Store, engine: Engine) -> dict:
         bot.approval_mode = TEMPLATES[name].approval_mode
         store.upsert_bot(bot)
 
-    # 2) One live run parked on a human approval (write_file gate)
+    # 2) One run QUEUED for a live engine. It must be executed by a long-lived process (`hutch serve` or
+    #    `hutch daemon`): parked on an approval inside this short-lived CLI it would become a zombie that
+    #    nothing is waiting on, and "Approve" in the dashboard would do nothing.
     tidy = store.get_bot("tidy-downloads")
     if tidy is not None:
-        run = engine.submit(tidy, "sort this week's downloads into folders")
-        engine.dispatch_pending()
-        deadline = time.time() + 10
-        while time.time() < deadline:
-            current = store.get_run(run.id)
-            if current and current.status is RunStatus.waiting_approval:
-                break
-            time.sleep(0.1)
-        summary["runs"].append({"bot": tidy.name, "run": run.id,
-                                "status": store.get_run(run.id).status.value})
+        run = engine.submit(tidy, "sort this week's downloads into folders", origin="manual:demo")
+        summary["runs"].append({"bot": tidy.name, "run": run.id, "status": "queued (starts with hutch serve)"})
 
     # 3) One historical failure for the run list (timeout story)
     research = store.get_bot("research-briefing")

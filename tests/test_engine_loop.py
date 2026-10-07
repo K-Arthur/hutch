@@ -184,3 +184,47 @@ def test_stop_unblocks_a_run_waiting_for_approval(store, config, monkeypatch):
     assert time.time() - t0 < 3, "stop took too long to unblock the approval wait"
     assert store.pending_approvals() == []
     del mock_mod
+
+
+# ----------------------------------------------------------------- orphan recovery / shutdown
+
+def test_a_run_whose_process_died_is_marked_interrupted_and_frees_its_bot(store, config):
+    bot = store.create_bot(_bot(name="orphan-bot"))
+    dead = store.create_run(__import__("hutch.models", fromlist=["Run"]).Run(
+        bot_id=bot.id, prompt="x", status=RunStatus.running, owner="2147483646"))   # no such pid
+    req = store.create_approval(ApprovalRequest(run_id=dead.id, bot_id=bot.id, tool="shell", action="rm x"))
+    engine = Engine(config, store)
+    recovered = engine.recover_orphans()
+    assert [r.id for r in recovered] == [dead.id]
+    fixed = store.get_run(dead.id)
+    assert fixed.status is RunStatus.failed and fixed.exit_reason == "interrupted"
+    assert "exited before it finished" in fixed.error
+    assert store.get_approval(req.id).status.value == "expired"
+    # the per-bot lock is released: a new run for this bot can start
+    fresh = engine.submit(bot, "research again")
+    engine.dispatch_pending()
+    deadline = time.time() + 10
+    while time.time() < deadline and store.get_run(fresh.id).status is not RunStatus.succeeded:
+        time.sleep(0.05)
+    assert store.get_run(fresh.id).status is RunStatus.succeeded
+
+
+def test_runs_owned_by_a_live_process_are_never_touched(store, config):
+    bot = store.create_bot(_bot(name="live-bot"))
+    mine = store.create_run(__import__("hutch.models", fromlist=["Run"]).Run(
+        bot_id=bot.id, prompt="x", status=RunStatus.running, owner=str(os.getpid())))
+    queued = store.create_run(__import__("hutch.models", fromlist=["Run"]).Run(bot_id=bot.id, prompt="y"))
+    assert Engine(config, store).recover_orphans() == []
+    assert store.get_run(mine.id).status is RunStatus.running and store.get_run(queued.id).status is RunStatus.pending
+
+
+def test_shutdown_lets_in_flight_runs_record_their_outcome(store, config):
+    bot = store.create_bot(_bot(name="down-bot", approval_mode=ApprovalMode.ask))
+    engine = Engine(config, store)
+    run = engine.submit(bot, "write a report")
+    engine.dispatch_pending()
+    deadline = time.time() + 10
+    while time.time() < deadline and store.get_run(run.id).status is not RunStatus.waiting_approval:
+        time.sleep(0.05)
+    engine.shutdown(timeout=8)
+    assert store.get_run(run.id).status in (RunStatus.stopped, RunStatus.failed)   # recorded, not left 'running'

@@ -90,6 +90,7 @@ def create_app() -> FastAPI:
         finally:
             stop.set()
             store.bus.notify("work", remote=False)
+            engine.shutdown()          # let in-flight runs record their outcome before the DB closes
             store.close()
 
     app = FastAPI(title="hutch", version=__version__, docs_url="/api/openapi.json", lifespan=lifespan)

@@ -68,9 +68,34 @@ def test_bot_pause_resume_forget(state_env):
     assert runner.invoke(app, ["bot", "resume", "research-briefing"]).exit_code == 0
 
 
-def test_demo_seed_leaves_waiting_approval(state_env):
+def test_demo_seed_queues_a_run_for_a_live_engine_instead_of_leaving_a_zombie(state_env):
+    """The seeded approval must be executed by a long-lived process. Parked inside the short-lived CLI it
+    became a zombie: Approve in the dashboard flipped a database row that nothing was waiting on."""
+    import time
+    from hutch.config import get_config
+    from hutch.engine import Engine
+    from hutch.models import RunStatus
+    from hutch.store import Store
+
     result = runner.invoke(app, ["demo", "seed"])
     assert result.exit_code == 0, result.output
-    # tidy-downloads run should be waiting on its write_file approval
-    approvals = runner.invoke(app, ["approvals", "list"])
-    assert "tidy-downloads" in approvals.output
+    store = Store(get_config())
+    queued = [r for r in store.list_runs() if r.origin == "manual:demo"]
+    assert len(queued) == 1 and queued[0].status is RunStatus.pending
+    assert not [r for r in store.active_runs() if r.status is RunStatus.waiting_approval]
+
+    # a live engine (what `hutch serve` is) picks it up and parks on a REAL approval
+    engine = Engine(get_config(), store)
+    engine.dispatch_pending()
+    deadline = time.time() + 10
+    while time.time() < deadline and not store.pending_approvals():
+        time.sleep(0.05)
+    pending = store.pending_approvals()
+    assert pending and pending[0].run_id == queued[0].id
+    from hutch.approvals import resolve_approval
+    resolve_approval(store, pending[0].id, approve=True, by="test")
+    deadline = time.time() + 10
+    while time.time() < deadline and store.get_run(queued[0].id).status is not RunStatus.succeeded:
+        time.sleep(0.05)
+    assert store.get_run(queued[0].id).status is RunStatus.succeeded   # approving really resumes the run
+    store.close()

@@ -86,7 +86,9 @@
     const gapUrl = root.dataset.gapUrl;
     let last = parseInt(root.dataset.lastSeq || "0", 10);
     let follow = true;
-    const wasActive = root.dataset.active === "1";
+    // ?noreload freezes the page when the run ends (the final summary reload is skipped): handy for
+    // debugging and for end-to-end tests that inspect exactly what the stream appended.
+    const wasActive = root.dataset.active === "1" && !new URLSearchParams(location.search).has("noreload");
 
     window.addEventListener("scroll", () => {
       follow = window.innerHeight + window.scrollY >= document.body.scrollHeight - 160;

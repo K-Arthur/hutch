@@ -31,7 +31,7 @@
     {% endfor %}
   </div>
   {% elif a.detail and not compact %}
-  <pre class="detail">{{ a.detail | tojson(indent=2) }}</pre>
+  <pre class="detail">{{ a.detail | jsonish }}</pre>
   {% endif %}
 
   <p class="rule"><span class="muted">Why you are being asked:</span> {{ a.rule }}</p>

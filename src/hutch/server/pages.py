@@ -77,7 +77,8 @@ def register_pages(app: FastAPI) -> None:
     templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
     env = templates.env
     env.filters.update({
-        "ago": views.timeago, "money": views.fmt_money, "tokens": views.fmt_tokens,
+        "ago": views.timeago, "money": views.fmt_money, "tokens": views.fmt_tokens, "ms": views.fmt_ms,
+        "jsonish": views.json_pretty, "argsum": views.arg_summary, "argsum_for": views.arg_summary, "outsum": views.output_summary,
         "duration": views.fmt_duration, "clock": views.fmt_clock, "origin": views.origin_label,
         "until": lambda ts: views.fmt_clock(max(0.0, (views.parse_ts(ts) - views.utcnow()).total_seconds()))
         if views.parse_ts(ts) else "-",
@@ -337,7 +338,7 @@ def register_pages(app: FastAPI) -> None:
         meters = views.run_meters(store, run, bot)
         view = rv(run)
         return page(request, "run.html", nav="runs", run=view, active=active, wait=wait,
-                    meters=meters, split=views.timing_split(run), evs=evs, first_seq=first_seq,
+                    meters=meters, split=views.timing_split(run), timing=views.timing_abs(run), evs=evs, first_seq=first_seq,
                     hidden=max(0, first_seq - 1), last_seq=evs[-1].seq if evs else 0, event_count=total,
                     bot_model=bot.model if bot else "?", verify=store.verify_chain(run_id) if not active else {},
                     approvals={a.id: a for a in (store.get_approval(e.data.get("approval_id", ""))
@@ -366,7 +367,8 @@ def register_pages(app: FastAPI) -> None:
         run = run_or_404(run_id)
         bot = store.get_bot(run.bot_id)
         return fragment(request, "_meters.html", run=run, active=run.status in views.ACTIVE_STATUSES,
-                        meters=views.run_meters(store, run, bot), split=views.timing_split(run))
+                        meters=views.run_meters(store, run, bot), split=views.timing_split(run),
+                        timing=views.timing_abs(run))
 
     @app.get("/runs/{run_id}/wait", response_class=HTMLResponse, include_in_schema=False)
     def run_wait_fragment(request: Request, run_id: str):

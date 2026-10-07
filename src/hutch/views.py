@@ -73,9 +73,9 @@ def fmt_money(usd: float) -> str:
 def fmt_tokens(n: float) -> str:
     n = int(n or 0)
     if n >= 1_000_000:
-        return f"{n / 1e6:.1f}M"
+        return f"{n / 1e6:.1f}M".replace(".0M", "M")
     if n >= 1_000:
-        return f"{n / 1e3:.1f}k"
+        return f"{n / 1e3:.1f}k".replace(".0k", "k")
     return str(n)
 
 
@@ -417,3 +417,58 @@ def timing_split(run: Run) -> dict[str, float]:
         return {"model": 0, "tool": 0, "overhead": 0}
     return {"model": run.model_ms / total * 100, "tool": run.tool_ms / total * 100,
             "overhead": run.overhead_ms / total * 100}
+
+
+def timing_abs(run: Run) -> dict[str, float]:
+    """PF-11 in absolute terms. A percentage misleads when everything is sub-millisecond (a mock run
+    would read "Hutch = 46%"), so the UI shows milliseconds and the per-step overhead."""
+    steps = max(run.steps, 1)
+    return {"model_ms": run.model_ms, "tool_ms": run.tool_ms, "overhead_ms": run.overhead_ms,
+            "per_step_ms": run.overhead_ms / steps, "total_ms": run.model_ms + run.tool_ms + run.overhead_ms}
+
+
+def fmt_ms(ms: float) -> str:
+    if ms < 1:
+        return f"{ms:.2f} ms"
+    if ms < 1000:
+        return f"{ms:.0f} ms"
+    return f"{ms / 1000:.1f} s"
+
+
+def json_pretty(obj: Any, indent: int | None = 2) -> str:
+    """Readable JSON for display (autoescaping handles HTML; Jinja's tojson would emit \\u0027 for quotes)."""
+    import json
+    return json.dumps(obj, ensure_ascii=False, indent=indent, default=str)
+
+
+def arg_summary(tool: str, args: Any, limit: int = 120) -> str:
+    """One line describing what a tool call is doing, for the compact transcript line."""
+    if not isinstance(args, dict) or not args:
+        return ""
+    a = args
+    if tool == "shell":
+        text = str(a.get("command", ""))
+    elif tool in ("read_file", "list_files"):
+        text = str(a.get("path", "") or ".")
+    elif tool == "write_file":
+        text = f"{a.get('path', '')} ({len(str(a.get('content', '')))} chars)"
+    elif tool == "web_fetch":
+        text = str(a.get("url", ""))
+    elif tool == "remember":
+        text = f"{a.get('key', '')} = {str(a.get('value', ''))[:60]}"
+    elif tool == "recall":
+        text = str(a.get("query", "")) or "(all)"
+    elif tool == "browser":
+        text = " ".join(str(x) for x in (a.get("action"), a.get("url") or a.get("selector") or a.get("label")) if x)
+    else:
+        text = ", ".join(f"{k}={str(val)[:40]}" for k, val in a.items())
+    text = " ".join(text.split())
+    return text if len(text) <= limit else text[: limit - 1] + "..."
+
+
+def output_summary(output: str, limit: int = 140) -> str:
+    """First meaningful line of a tool result."""
+    for line in (output or "").splitlines():
+        if line.strip():
+            return line.strip() if len(line.strip()) <= limit else line.strip()[: limit - 1] + "..."
+    return "(no output)"

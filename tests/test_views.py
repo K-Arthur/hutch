@@ -181,3 +181,19 @@ def test_dismissed_failures_leave_needs_you_and_a_later_success_clears_them(stor
     finished(store, bot, RunStatus.succeeded, NOW - timedelta(minutes=10))
     assert not views.home_state(store, sched, None, NOW).failures
     del r2
+
+
+def test_timing_is_shown_in_absolute_terms_so_a_mock_run_does_not_read_as_46_percent_hutch():
+    run = Run(bot_id="x", prompt="p", steps=4, model_ms=0, tool_ms=4.0, overhead_ms=0.9)
+    t = views.timing_abs(run)
+    assert round(t["per_step_ms"], 3) == 0.225 and t["total_ms"] == 4.9
+    assert views.fmt_ms(0.225) == "0.23 ms" and views.fmt_ms(840) == "840 ms" and views.fmt_ms(2500) == "2.5 s"
+
+
+def test_arg_summaries_are_one_readable_line():
+    assert views.arg_summary("shell", {"command": "git status\n&& ls"}) == "git status && ls"
+    assert views.arg_summary("write_file", {"path": "report.md", "content": "x" * 323}) == "report.md (323 chars)"
+    assert views.arg_summary("remember", {"key": "k", "value": "v"}) == "k = v"
+    assert views.arg_summary("shell", {"command": "x" * 500}).endswith("...")
+    assert views.fmt_tokens(200_000) == "200k" and views.fmt_tokens(1_100) == "1.1k"
+    assert views.output_summary("\n\nexit=0\nfoo") == "exit=0"

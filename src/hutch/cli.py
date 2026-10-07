@@ -483,6 +483,7 @@ def daemon() -> None:
 
     console.print(f"[bold]hutch daemon[/bold] — state: {config.state_dir} (Ctrl-C to stop)")
     engine.run_daemon(on_tick=on_tick)
+    engine.shutdown()
     console.print("daemon stopped")
 
 

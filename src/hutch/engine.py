@@ -186,6 +186,7 @@ class Engine:
         run.status = RunStatus.running
         run.started_at = iso(utcnow())
         run.workspace = str(workspace)
+        run.owner = str(os.getpid())
         self.store.update_run(run)
         if run.missed_windows:
             emit(Event(run_id=run.id, type=EventType.log,
@@ -308,8 +309,63 @@ class Engine:
 
     # ------------------------------------------------------------- tick/loop
 
+    # ------------------------------------------------------------- recovery
+
+    @staticmethod
+    def _pid_alive(pid: str) -> bool:
+        try:
+            os.kill(int(pid), 0)
+        except (ValueError, ProcessLookupError):
+            return False
+        except PermissionError:
+            return True
+        try:  # a zombie is not alive for our purposes
+            return open(f"/proc/{int(pid)}/stat").read().rsplit(") ", 1)[1][0] != "Z"
+        except (OSError, IndexError):
+            return True
+
+    def recover_orphans(self) -> list[Run]:
+        """Runs whose owning process died (crash, kill -9, power loss) must not stay 'running' forever.
+
+        An orphan would show in "Running now" indefinitely and, via the per-bot single-instance lock, block
+        that bot from ever running again. A run owned by a *live* process (another `hutch run`, or this one)
+        is never touched.
+        """
+        recovered: list[Run] = []
+        for run in self.store.active_runs():
+            if run.status is RunStatus.pending or not run.owner:
+                continue
+            if run.id in self._threads or self._pid_alive(run.owner):
+                continue
+            run.status, run.exit_reason = RunStatus.failed, "interrupted"
+            run.error = f"the process running this job (pid {run.owner}) exited before it finished"
+            run.finished_at = iso(utcnow())
+            self.store.append_event(Event(run_id=run.id, type=EventType.error, data={"error": run.error}))
+            self.store.append_event(Event(run_id=run.id, type=EventType.status,
+                                          data={"status": "failed", "reason": "interrupted"}))
+            self.store.flush_events()
+            self.store.update_run(run)
+            for req in self.store.pending_approvals():
+                if req.run_id == run.id:
+                    from .models import ApprovalStatus
+                    req.status, req.resolved_at, req.decided_by = ApprovalStatus.expired, iso(utcnow()), "interrupted"
+                    self.store.update_approval(req)
+            recovered.append(run)
+        return recovered
+
+    def shutdown(self, timeout: float = 5.0) -> None:
+        """Graceful stop for `hutch serve` / the daemon: stop every run and let workers record their
+        outcome *before* the database closes. Anything that does not unwind in time is left to
+        ``recover_orphans`` on the next start."""
+        self.stop_all()
+        deadline = time.monotonic() + timeout
+        for t in list(self._threads.values()):
+            t.join(timeout=max(0.0, deadline - time.monotonic()))
+        self.store.flush_events()
+
     def tick(self) -> list[Run]:
         """One beat: expire approvals, dispatch due schedules, drain the queue."""
+        self.recover_orphans()
         expire_stale_approvals(self.store, self.config.default_approval_ttl_seconds)
         created: list[Run] = []
         for bot, missed in self.scheduler.due():

@@ -11,18 +11,16 @@
       <div class="bubble-text">{{ d.content }}</div>
     </div>
   {%- elif ev.type == "tool_call" %}
-    <div class="toolcard">
-      <div class="toolcard-head">{{ icon("terminal" if d.tool == "shell" else ("file" if "file" in d.tool else ("globe" if d.tool in ("web_fetch", "browser") else "zap")), 15) }}
-        <strong>{{ d.tool }}</strong><time>{{ ev.ts[11:19] }}</time></div>
-      <pre class="args">{{ d.args | tojson }}</pre>
-    </div>
+    {% set ic = "terminal" if d.tool == "shell" else ("file" if "file" in d.tool else ("globe" if d.tool in ("web_fetch", "browser") else "zap")) %}
+    <details class="toolline call">
+      <summary>{{ icon(ic, 14) }}<strong>{{ d.tool }}</strong><span class="argsum">{{ d.tool | argsum_for(d.args) }}</span><time>{{ ev.ts[11:19] }}</time></summary>
+      <pre class="args">{{ d.args | jsonish }}</pre>
+    </details>
   {%- elif ev.type == "tool_result" %}
-    <div class="toolcard result {{ 'ok' if d.ok else 'bad' }}">
-      <div class="toolcard-head">{{ icon("check" if d.ok else "x", 15) }}<strong>{{ d.tool }} {{ 'returned' if d.ok else 'failed' }}</strong></div>
-      {% if d.output and d.output | length > 400 %}
-        <details><summary>{{ d.output[:160] }}... ({{ d.output | length }} chars)</summary><pre>{{ d.output }}</pre></details>
-      {% else %}<pre>{{ d.output }}</pre>{% endif %}
-    </div>
+    <details class="toolline result {{ 'ok' if d.ok else 'bad' }}">
+      <summary>{{ icon("check" if d.ok else "x", 14) }}<span class="argsum">{{ d.output | outsum }}</span>{% if d.output and d.output | length > 140 %}<span class="more">{{ d.output | length }} chars</span>{% endif %}</summary>
+      <pre>{{ d.output }}</pre>
+    </details>
   {%- elif ev.type == "approval_request" %}
     {% set a = approvals.get(d.approval_id) %}
     {% if a and a.status.value == "pending" %}
@@ -60,7 +58,7 @@
         {%- elif d.denied %}<strong>Denied by policy:</strong> {{ d.denied }} <span class="muted">- {{ d.reason }}</span>
         {%- elif d.runtime %}runtime {{ d.runtime }}, model {{ d.model }}, {{ d.tools | length }} tool{{ '' if d.tools | length == 1 else 's' }}{% if d.rehearsal %} - <strong>rehearsal</strong>{% endif %}
         {%- elif d.final_chars is defined %}finished: {{ d.steps }} steps, ~{{ d.tokens }} tokens
-        {%- else %}{{ d | tojson }}{% endif -%}
+        {%- else %}{{ d | jsonish(None) }}{% endif -%}
       </span></div>
   {%- endif %}
 </li>
