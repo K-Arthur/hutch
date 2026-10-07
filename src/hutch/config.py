@@ -52,7 +52,13 @@ class hutchConfig:
         return self.run_dir(bot_name, run_id) / "workspace"
 
     def ensure(self) -> None:
-        for path in (self.state_dir, self.bots_dir, self.downloads_dir):
+        """Create the state directory PRIVATE (0700): it holds transcripts, memory and, optionally, API keys.
+        An existing directory is left as the user made it (`hutch doctor` warns if it is open to others)."""
+        fresh = not self.state_dir.exists()
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        if fresh:
+            os.chmod(self.state_dir, 0o700)
+        for path in (self.bots_dir, self.downloads_dir):
             path.mkdir(parents=True, exist_ok=True)
 
     # Defaults tuned from documented agent incidents (see docs/research/complaints.md):

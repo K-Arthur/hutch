@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Models{% endblock %}
+{% macro fitchip(f) -%}
+  <span class="chip fit-{{ f.status }}">{{ f.label }}</span>
+{%- endmacro %}
+{% block content %}
+<div class="page-head"><div><h1>Models</h1>
+  <p class="sub">What this machine can actually run, what each task preset picks for it, and what hosted models cost. <span class="mono">{{ v.hw.summary }}</span></p></div></div>
+
+{% for n in v.notes %}<div class="banner wait">{{ icon("alert", 18) }}<div class="banner-body"><p>{{ n }}</p></div></div>{% endfor %}
+
+<section class="panel" id="runtimes" aria-labelledby="rt-h">
+  <h2 id="rt-h" class="card-title">Runtimes and connections</h2>
+  <p class="hint">One failing runtime never stops the others: each run stands alone. This shows which ones need attention.</p>
+  <ul class="plain health-list">
+  {% for h in v.runtimes %}
+    <li class="health health-{{ h.state }}">
+      <span class="chip st-{{ {'healthy':'succeeded','degraded':'stale','down':'failed','needs_setup':'waiting_approval','idle':'stopped'}[h.state] }}">{{ h.state | replace("_", " ") }}</span>
+      <strong>{{ h.name }}</strong> <span class="tag">{{ h.kind | replace("-", " ") }}</span>
+      <span class="muted">{{ h.detail }}</span>
+      {% if h.loaded %}<span class="tag mono">loaded: {{ h.loaded | join(", ") }}</span>{% endif %}
+      {% if h.fix %}<div class="hint fixline">{{ icon("zap", 13) }} {{ h.fix }}</div>{% endif %}
+    </li>
+  {% else %}<li class="muted">No runtimes detected.</li>{% endfor %}
+  </ul>
+</section>
+
+<section class="panel" id="installed" aria-labelledby="inst-h">
+  <h2 id="inst-h" class="card-title">Installed models</h2>
+  {% if v.rows %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Model</th><th>Size</th><th>At 16k context</th><th>At 32k context</th><th>Used by</th><th>Self-check</th></tr></thead>
+    <tbody>
+    {% for r in v.rows %}
+      <tr>
+        <td><span class="mono">{{ r.name }}</span><div class="muted small">{{ r.meta.params_b or "?" }}B, {{ r.meta.quant or "?" }}, trained for up to {{ r.meta.max_context | tokens if r.meta.max_context else "?" }} tokens{% if r.load_ms %}; last cold load {{ (r.load_ms / 1000) | round(1) }}s{% endif %}</div></td>
+        <td>{{ r.fits[16384].weights_gib | round(1) }} GiB</td>
+        {% for w in (16384, 32768) %}{% set f = r.fits[w] %}
+        <td>{{ fitchip(f) }}<div class="muted small">gets {{ f.effective_ctx | tokens }} tokens{% if f.status != "fits" %}: {{ f.reason }}{% endif %}</div></td>
+        {% endfor %}
+        <td>{% for b in r.bots %}<a class="tag" href="/bots/{{ b }}">{{ b }}</a> {% else %}<span class="muted">no bot</span>{% endfor %}</td>
+        <td><span class="chip st-{{ {'passed':'succeeded','failed':'failed','not run':'stopped'}[r.selfcheck] }}">{{ r.selfcheck }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody></table></div>
+  <p class="hint">"Gets" is the context a bot really receives, never more than fits in memory: Hutch always sets it explicitly, because a runtime's silent default (4,096 tokens on some) is how long prompts lose their instructions.</p>
+  {% else %}
+  <p class="muted">{% if v.ollama_up %}Ollama is running but has no models yet. Pick one under Suggested below.{% else %}Start Ollama to list installed models: <span class="mono">ollama serve</span>.{% endif %}</p>
+  {% endif %}
+</section>
+
+<section class="panel" id="presets" aria-labelledby="pre-h">
+  <h2 id="pre-h" class="card-title">Task presets on this machine</h2>
+  <p class="hint">Each preset picks the best model that fits here, for the job it names, and tells you what to install when it is missing.</p>
+  <div class="preset-grid">
+  {% for r in v.presets %}
+    <article class="preset">
+      <h3>{{ r.preset.title }}</h3>
+      <p class="muted">{{ r.preset.description }}</p>
+      <p>{% if r.local_model %}{{ fitchip(r.fit) if r.fit else "" }} <span class="mono">{{ r.local_model }}</span>{% if not r.installed %} <span class="tag warn">not installed</span>{% endif %}{% else %}<span class="chip st-stopped">no local model fits</span>{% endif %}</p>
+      <p class="muted small">{{ r.reason }}</p>
+      {% if r.install_hint %}<p class="mono small">{{ r.install_hint }}</p>{% endif %}
+      <p class="small">Hosted instead: <span class="mono">{{ r.hosted }}</span></p>
+    </article>
+  {% endfor %}
+  </div>
+</section>
+
+{% if v.suggestions %}
+<section class="panel" id="suggested" aria-labelledby="sug-h">
+  <h2 id="sug-h" class="card-title">Suggested models (not installed)</h2>
+  <p class="hint">Estimates from architecture numbers, until you install one and Hutch reads the real figures from the runtime.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Model</th><th>Fit</th><th>Install</th></tr></thead>
+    <tbody>{% for tag, f, m in v.suggestions[:10] %}
+      <tr><td class="mono">{{ tag }}</td><td>{{ fitchip(f) }} <span class="muted small">{{ f.reason }}</span></td><td class="mono small">ollama pull {{ tag }}</td></tr>
+    {% endfor %}</tbody></table></div>
+</section>
+{% endif %}
+
+<section class="panel" id="swaps" aria-labelledby="swap-h">
+  <h2 id="swap-h" class="card-title">Swap cost between models</h2>
+  {% if v.swaps %}
+    <ul class="plain">{% for s in v.swaps %}
+      <li><span class="mono">{{ s.a }}</span> and <span class="mono">{{ s.b }}</span>:
+        {% if s.evicted %}switching takes {{ (s.swap_a_to_b_ms / 1000) | round(1) }}s one way and {{ (s.swap_b_to_a_ms / 1000) | round(1) }}s back{% else %}both stay loaded together, so there is no swap cost{% endif %}
+        <span class="muted small">(cold load {{ (s.cold_a_ms / 1000) | round(1) }}s)</span></li>{% endfor %}</ul>
+  {% else %}
+    <p class="muted">Not measured yet. Alternating bots between two local models can cost seconds to minutes per switch on modest hardware. Measure a pair when the machine is idle: <span class="mono">hutch models swap-test &lt;model-a&gt; &lt;model-b&gt;</span>. It unloads and reloads both, so it is a command and not a button.</p>
+  {% endif %}
+  <p class="hint">Hutch keeps runs for one model together and only switches when the queue demands it, and a waiting run says which model it is waiting for.</p>
+</section>
+
+<section class="panel" id="prices" aria-labelledby="price-h">
+  <h2 id="price-h" class="card-title">Hosted prices</h2>
+  <p class="hint">USD per 1M tokens. Every row shows where it came from and when it was last checked; rows over 90 days old are flagged. Vendors change prices, so correct a row here and the new number is used straight away. A hosted model without a row cannot run under a spend cap.</p>
+  {% for e in v.price_errors %}<div class="flash error" role="alert">{{ icon("alert", 16) }}<span>{{ e }}</span></div>{% endfor %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Model</th><th>Input</th><th>Output</th><th>Cache read</th><th>Verified</th><th>Source</th><th></th></tr></thead>
+    <tbody>{% for p in v.prices %}
+      <tr><td class="mono">{{ p.model }}</td><td>{{ p.input }}</td><td>{{ p.output }}</td><td>{{ p.cache_read if p.cache_read is not none else "-" }}</td>
+        <td>{{ p.verified_on or "never" }}{% if p.stale %} <span class="tag warn">old</span>{% endif %}</td>
+        <td class="small">{% if p.source.startswith("http") %}<a href="{{ p.source }}" rel="noopener noreferrer" target="_blank">{{ p.source.split("/")[2] }}</a>{% else %}{{ p.source or "-" }}{% endif %}{% if p.user %} <span class="tag">yours</span>{% endif %}{% if p.note %}<div class="muted small">{{ p.note }}</div>{% endif %}</td>
+        <td>{% if p.user %}<form method="post" action="/models/prices/reset" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="model" value="{{ p.model }}"><button class="btn ghost small">Reset</button></form>{% endif %}</td></tr>
+    {% endfor %}</tbody></table></div>
+
+  <details class="conn-more"><summary>Add or correct a price</summary>
+    <form method="post" action="/models/prices/save" class="stack-form price-form">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label>Model <input type="text" name="model" required placeholder="provider/model, e.g. opencode-go/glm-5.3" class="mono"></label>
+      <div class="price-row">
+        <label>Input <input type="text" inputmode="decimal" name="input" required placeholder="per 1M tokens"></label>
+        <label>Output <input type="text" inputmode="decimal" name="output" required placeholder="per 1M tokens"></label>
+        <label>Cache read <input type="text" inputmode="decimal" name="cache_read" placeholder="optional"></label>
+        <label>Cache write <input type="text" inputmode="decimal" name="cache_write" placeholder="optional"></label>
+      </div>
+      <label>Source <input type="text" name="source" placeholder="where you read it (a URL)"></label>
+      <div><button class="btn">Save price</button></div>
+    </form>
+  </details>
+</section>
+{% endblock %}

@@ -109,6 +109,66 @@ class PriceBook:
     def rows(self) -> list[Price]:
         return sorted(self.prices.values(), key=lambda p: p.model)
 
+    # ------------------------------------------------------------- editing (LM-14)
+
+    def _user_rows(self) -> dict:
+        if not self.user_path or not self.user_path.exists():
+            return {}
+        try:
+            return dict(json.loads(self.user_path.read_text()).get("models") or {})
+        except (OSError, json.JSONDecodeError):
+            return {}
+
+    def _write_user(self, rows: dict) -> None:
+        if not self.user_path:
+            raise ValueError("no user price file configured")
+        self.user_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.user_path.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"_readme": "Your price overrides, USD per 1M tokens. Rows here win over the bundled "
+                                              "ones. Edited by hutch or by hand.", "models": rows}, indent=2) + "\n")
+        tmp.replace(self.user_path)
+
+    def set_price(self, model: str, input: float, output: float, cache_read: Optional[float] = None,
+                  cache_write: Optional[float] = None, source: str = "", note: str = "") -> Price:
+        """Add or override a row in the user's file, stamped today. Rejects what would make cost maths wrong."""
+        provider, _, name = model.partition("/")
+        if not provider or not name:
+            raise ValueError("a price row is keyed 'provider/model', for example anthropic/claude-opus-5-5")
+        if self.is_local(provider):
+            raise ValueError(f"{provider} models run on your machine and cost nothing; they need no price row")
+        for label, v in (("input", input), ("output", output), ("cache_read", cache_read), ("cache_write", cache_write)):
+            if v is not None and (v != v or v < 0 or v > 100_000):
+                raise ValueError(f"{label} must be a price in USD per 1M tokens between 0 and 100,000 (got {v})")
+        rows = self._user_rows()
+        row = {"input": float(input), "output": float(output), "verified_on": date.today().isoformat(),
+               "source": source.strip() or "entered by you"}
+        if cache_read is not None:
+            row["cache_read"] = float(cache_read)
+        if cache_write is not None:
+            row["cache_write"] = float(cache_write)
+        if note.strip():
+            row["note"] = note.strip()
+        rows[model] = row
+        self._write_user(rows)
+        price = Price(model=model, input=row["input"], output=row["output"], cache_read=_opt(row.get("cache_read")),
+                      cache_write=_opt(row.get("cache_write")), verified_on=row["verified_on"], source=row["source"],
+                      note=row.get("note", ""), user=True)
+        self.prices[model] = price
+        return price
+
+    def remove_override(self, model: str) -> bool:
+        """Drop the user's row; the bundled one (if any) applies again."""
+        rows = self._user_rows()
+        if model not in rows:
+            return False
+        del rows[model]
+        self._write_user(rows)
+        self.prices.pop(model, None)
+        bundled = PriceBook()
+        if model in bundled.prices:
+            self.prices[model] = bundled.prices[model]
+        return True
+
 
 def _opt(v) -> Optional[float]:
     return None if v is None else float(v)

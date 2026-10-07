@@ -124,9 +124,9 @@ class OllamaProvider(Provider):
         return Health(ok=True, version=version, loaded=self.ps(),
                       latency_ms=(time.perf_counter() - t) * 1000.0)
 
-    def ps(self) -> list[dict[str, Any]]:
+    def ps(self, timeout: float = 5.0) -> list[dict[str, Any]]:
         try:
-            r = self._http().get("/api/ps", timeout=self._timeout(read=5.0))
+            r = self._http().get("/api/ps", timeout=_httpx().Timeout(timeout))
             r.raise_for_status()
             return r.json().get("models", [])
         except Exception:

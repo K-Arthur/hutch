@@ -61,8 +61,13 @@ class Engine:
         self._gates: dict[str, ApprovalGate] = {}
         self._ctxs: dict[str, ToolContext] = {}
         self._lock = threading.Lock()
+        #: local models are scheduled resources (LM-6): batch by loaded model, gate by free slots
+        from .hardware import probe
+        from .slots import ModelSlots
+        self.slots = ModelSlots(store, tier=probe(with_runtimes=False).tier, loaded=_ollama_loaded)
         #: optional hook so a model-slot scheduler (LM-6) can veto/reorder dispatch
-        self.slot_filter: Optional[Callable[[list[Run]], list[Run]]] = None
+        self.slot_filter: Optional[Callable[[list[Run], list[Run]], list[Run]]] = self.slots.filter
+        self.slot_reason: Optional[Callable[[Run], object]] = self.slots.reason
 
     # ------------------------------------------------------------- dispatch
 
@@ -92,7 +97,7 @@ class Engine:
             pending = sorted((r for r in active if r.status is RunStatus.pending),
                              key=lambda r: r.created_at)
             if self.slot_filter:
-                pending = self.slot_filter(pending)
+                pending = self.slot_filter(pending, active)
             live_bots = {r.bot_id for r in active
                          if r.status in (RunStatus.running, RunStatus.waiting_approval,
                                          RunStatus.loading_model, RunStatus.waiting_human)}
@@ -448,6 +453,13 @@ class Engine:
         with self._lock:
             self._reap_threads()
             return len(self._threads)
+
+
+def _ollama_loaded() -> set[str]:
+    """Models Ollama currently has resident, as ``ollama/<name>`` (1 s timeout: dispatch must never stall on it)."""
+    from .runtime.ladder import get_provider
+    prov = get_provider("ollama", None)
+    return {f"ollama/{m.get('name') or m.get('model')}" for m in prov.ps(timeout=1.0)}
 
 
 def bot_prompt_for_schedule(bot: Bot) -> str:

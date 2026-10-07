@@ -38,6 +38,7 @@ NAV = [
     ("bots", "/bots", "Bots", "bot"),
     ("runs", "/runs", "Runs", "list"),
     ("approvals", "/approvals", "Approvals", "shield"),
+    ("models", "/models", "Models", "cpu"),
     ("connections", "/connections", "Connections", "layers"),
 ]
 
@@ -478,6 +479,9 @@ def register_pages(app: FastAPI) -> None:
         if request.headers.get("hx-request"):
             return fragment(request, "_approval_resolved.html", a=store.get_approval(approval_id), choice=choice)
         return go(nxt, notice="Denied." if choice == "deny" else "Allowed - the run continues.")
+
+    from .pages_models import register_model_pages
+    register_model_pages(app, page, go, read_form)
 
     # ----------------------------------------------------------- connections (CN)
 

@@ -585,6 +585,90 @@ def conn_remove(name: str = typer.Argument(...), yes: bool = typer.Option(False,
     console.print("removed" if _book().remove(name) else "no such connection")
 
 
+# ------------------------------------------------------------------ doctor
+
+@app.command()
+def doctor(deep: bool = typer.Option(False, "--deep", help="also run each local bot's context self-check "
+                                                            "(uses CPU/GPU, no money)"),
+           online: bool = typer.Option(False, "--online", help="authenticate connections (spends no tokens)"),
+           as_json: bool = typer.Option(False, "--json")) -> None:
+    """Check runtimes, context size, database, permissions and the service. Each problem comes with its fix."""
+    from .doctor import FAIL, INFO, OK, WARN, run_doctor, worst
+    config, store = get_config(), _store()
+    checks = run_doctor(config, store, deep=deep, online=online)
+    if as_json:
+        console.print_json(json.dumps([c.__dict__ for c in checks]))
+    else:
+        mark = {OK: "[green]ok  [/green]", WARN: "[yellow]warn[/yellow]", FAIL: "[red]FAIL[/red]", INFO: "[dim]info[/dim]"}
+        for c in checks:
+            console.print(f"{mark[c.status]} [bold]{c.title}[/bold]: {c.detail}")
+            if c.fix and c.status in (WARN, FAIL, INFO):
+                console.print(f"       fix: {c.fix}")
+        w = worst(checks)
+        console.print("\n" + {OK: "[green]everything checks out[/green]", WARN: "[yellow]warnings only[/yellow]",
+                              FAIL: "[red]problems found[/red]"}[w])
+    raise typer.Exit(code=1 if worst(checks) == FAIL else 0)
+
+
+# ------------------------------------------------------------------ models
+
+models_app = typer.Typer(no_args_is_help=True, help="Local models: what fits this machine, presets, swap cost.")
+app.add_typer(models_app, name="models")
+
+
+@models_app.command("list")
+def models_list() -> None:
+    """Installed local models, each marked fits / tight / won't fit with the context it will actually get."""
+    from .modelview import build_models_view
+    config, store = get_config(), _store()
+    v = build_models_view(config, store)
+    console.print(f"[bold]hardware:[/bold] {v.hw.summary}")
+    for n in v.notes:
+        console.print(f"  [yellow]note:[/yellow] {n}")
+    if not v.rows:
+        console.print("no installed models found" + ("" if v.ollama_up else " (Ollama is not running)"))
+    for r in v.rows:
+        f16, f32 = r.fits[16384], r.fits[32768]
+        console.print(f"[bold]{r.name}[/bold]  {r.meta.params_b or '?'}B {r.meta.quant}  "
+                      f"max context {r.meta.max_context or '?'}")
+        console.print(f"  @16k: {f16.label} (gets {f16.effective_ctx:,})    @32k: {f32.label} (gets {f32.effective_ctx:,})"
+                      f"    self-check: {r.selfcheck}" + (f"    last cold load {r.load_ms / 1000:.1f}s" if r.load_ms else ""))
+    if v.suggestions:
+        console.print("\n[bold]suggested (estimates, not installed):[/bold]")
+        for tag, fit, meta in v.suggestions[:8]:
+            console.print(f"  {tag:<22} {fit.label:<9} {fit.reason}   [dim]ollama pull {tag}[/dim]")
+
+
+@models_app.command("presets")
+def models_presets() -> None:
+    """What each task preset resolves to on THIS machine."""
+    from .modelview import build_models_view
+    v = build_models_view(get_config(), _store())
+    console.print(f"[bold]hardware:[/bold] {v.hw.summary}\n")
+    for r in v.presets:
+        console.print(f"[bold]{r.preset.title}[/bold] - {r.preset.description}")
+        console.print(f"  local:  {r.local_model or 'none fits'}  {r.reason}")
+        if r.install_hint:
+            console.print(f"          install: {r.install_hint}")
+        console.print(f"  hosted: {r.hosted}")
+
+
+@models_app.command("swap-test")
+def models_swap_test(model_a: str = typer.Argument(...), model_b: str = typer.Argument(...)) -> None:
+    """Measure the real cost of alternating between two local models (unloads and reloads them; run when idle)."""
+    from .runtime.ladder import get_provider
+    from .slots import measure_swap, record_swap
+    prov = get_provider("ollama", None)
+    console.print(f"measuring {model_a} <-> {model_b} (this loads both models, no tokens are generated)...")
+    try:
+        rep = measure_swap(prov, model_a, model_b)
+    except Exception as exc:
+        err.print(f"[red]could not measure: {exc}[/red]")
+        raise typer.Exit(code=1)
+    record_swap(_store(), rep)
+    console.print(rep.summary)
+
+
 # --------------------------------------------------------------- approvals
 
 @apr_app.command("list")

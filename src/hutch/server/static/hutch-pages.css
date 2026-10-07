@@ -20,3 +20,19 @@
 .plain { list-style: none; padding: 0; margin: 8px 0; }
 .card-title { font-size: 14px; margin: 0 0 6px; }
 @media (max-width: 800px) { .conn-grid { grid-template-columns: 1fr; } }
+
+/* Models page */
+.fit-fits::before { background: var(--accent) !important; }
+.fit-tight::before { background: var(--amber) !important; }
+.fit-wont_fit::before { background: var(--red) !important; }
+.health-list { margin: 8px 0 0; }
+.health { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--border); }
+.health:first-child { border-top: 0; }
+.fixline { flex-basis: 100%; display: flex; gap: 6px; align-items: center; margin: 0; color: var(--text); }
+.preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 10px; }
+.preset { border: 1px solid var(--border); border-radius: var(--r); padding: 12px 14px; background: var(--bg-subtle); }
+.preset h3 { margin: 0 0 4px; font-size: 14px; }
+.preset p { margin: 0 0 6px; }
+.small { font-size: 12.5px; }
+.price-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--dim); }
+.price-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }

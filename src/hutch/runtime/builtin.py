@@ -33,6 +33,7 @@ from ..safety import Decision, Verdict
 from ..tools import Tool, ToolContext
 from .base import RunAborted
 from ..connections import ConnectionBook
+from ..health import record_outcome
 from ..providers.connection import provider_for_connection
 from .ladder import Ladder, Rung, SpendGuard, get_provider
 from .steps import StepTimer, call_tool, finish_step
@@ -395,9 +396,11 @@ class BuiltinRuntime:
             t_call = time.perf_counter()
             try:
                 result = session.provider.chat(req)
+                record_outcome(ctx.store, session.rung.provider, True)
             except ProviderError as exc:
                 if stop():
                     raise RunAborted("stopped", "user requested stop") from exc
+                record_outcome(ctx.store, session.rung.provider, False, f"{exc.kind}: {exc}")
                 if (exc.kind == "rate_limit" and not rate_limited_once
                         and (exc.retry_after or 5.0) <= RATE_LIMIT_PAUSE_MAX):
                     rate_limited_once = True
