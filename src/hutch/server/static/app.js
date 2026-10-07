@@ -9,7 +9,6 @@ const view = $("#view");
 const ACTIVE = new Set(["pending", "running", "waiting_approval"]);
 let pollTimer = null;
 let currentStudioBot = null;
-let currentStudioTab = "chat";
 let currentRunId = null;
 let lastPrompt = "";
 
@@ -119,7 +118,12 @@ function botHue(name) {
 
 function hexAvatar(name, size = 40) {
   const hue = botHue(name);
-  return `<span class="hex-avatar" style="width:${size}px;height:${size}px;color:${hue.fg};background:${hue.bg};font-size:${Math.round(size * 0.34)}px" aria-hidden="true">${esc(String(name)[0].toUpperCase())}</span>`;
+  // Pointy-top hexagon echoing the hutch logo mark, with a real 2px stroke —
+  // a clip-path hexagon cannot carry a border, which read as a flat chip.
+  return `<svg class="hex-avatar" width="${size}" height="${size}" viewBox="0 0 36 40" aria-hidden="true" style="color:${hue.fg}">
+    <path d="M18 2.5 33.5 11.5v17L18 37.5 2.5 28.5v-17z" fill="${hue.bg}" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+    <text x="18" y="25.5" text-anchor="middle" font-family="var(--font-mono)" font-size="${Math.round(size * 0.36)}" font-weight="700" fill="currentColor">${esc(String(name)[0].toUpperCase())}</text>
+  </svg>`;
 }
 
 function botState(b) {
@@ -305,14 +309,8 @@ async function renderChatStudio(preferredBot = null) {
   currentRunId = activeRun ? activeRun.id : null;
 
   view.innerHTML = `
-    <div class="studio-mobile-nav">
-      <button class="sm-tab ${currentStudioTab === 'chat' ? 'active' : ''}" data-studio-tab="chat">${icon("chat")} Chat</button>
-      <button class="sm-tab ${currentStudioTab === 'fleet' ? 'active' : ''}" data-studio-tab="fleet">${icon("bot")} Fleet (${bots.length})</button>
-      <button class="sm-tab ${currentStudioTab === 'inspector' ? 'active' : ''}" data-studio-tab="inspector">${icon("sliders")} Specs &amp; Memory</button>
-    </div>
-
-    <div class="studio-container" data-tab="${currentStudioTab}">
-      <!-- Left Sidebar: Bots & Status -->
+    <div class="studio-container">
+      <!-- Left rail: bot personas (the single switcher) -->
       <aside class="bot-rail" aria-label="Your bots">
         ${bots.map(b => {
           const isActive = b.name === bot.name;
@@ -324,6 +322,7 @@ async function renderChatStudio(preferredBot = null) {
             </button>
           `;
         }).join("")}
+        <a class="rail-add" href="#/bot/${esc(bot.name)}" title="Specs and memory" aria-label="Specs and memory">${icon("sliders")}</a>
         <button class="rail-add" type="button" id="sidebar-new-bot" title="New bot" aria-label="New bot">${icon("plus")}</button>
       </aside>
 
@@ -334,7 +333,7 @@ async function renderChatStudio(preferredBot = null) {
             ${hexAvatar(bot.name, 34)}
             <div class="bot-header-id">
               <span class="bot-header-title">${esc(bot.name)}</span>
-              <span class="bot-header-meta">${esc(bot.model)} &middot; approval: ${esc(bot.approval_mode)}</span>
+              <span class="bot-header-meta">${esc(bot.model)} &middot; asks before running</span>
             </div>
           </div>
           <div class="studio-header-actions">
@@ -351,7 +350,7 @@ async function renderChatStudio(preferredBot = null) {
 
         <footer class="studio-composer">
           <div class="composer-pill">
-            <div class="composer-meta-row">
+            <div class="composer-meta-row" hidden>
               <div class="composer-chips">
                 <span class="composer-chip" data-quick-prompt="Sort this week's downloads and move invoices">${icon("folder")} Sort downloads</span>
                 <span class="composer-chip" data-quick-prompt="Research this week's AI news and write summary">${icon("fileText")} Research news</span>
@@ -363,9 +362,9 @@ async function renderChatStudio(preferredBot = null) {
               </div>
             </div>
             <div class="composer-input-row">
-              ${hexAvatar(bot.name, 28)}
+              <button class="composer-add" type="button" id="composer-toggle" aria-label="Suggestions and budget" aria-expanded="false">${icon("plus")}</button>
               <label class="visually-hidden" for="chat-prompt">Task prompt for ${esc(bot.name)}</label>
-              <textarea class="composer-textarea" id="chat-prompt" rows="1" placeholder="Message ${esc(bot.name)}… (Enter to send, Shift+Enter for a new line, Up to recall)"></textarea>
+              <textarea class="composer-textarea" id="chat-prompt" rows="1" placeholder="Message ${esc(bot.name)}…"></textarea>
               <button class="composer-send" id="chat-send" aria-label="Send prompt">${icon("send")}</button>
             </div>
           </div>
@@ -410,29 +409,9 @@ async function renderChatStudio(preferredBot = null) {
     </div>
   `;
 
-  // Wire mobile tab switcher
-  $$("[data-studio-tab]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      currentStudioTab = btn.dataset.studioTab;
-      const c = $(".studio-container");
-      if (c) c.dataset.tab = currentStudioTab;
-      $$("[data-studio-tab]").forEach(b => b.classList.toggle("active", b === btn));
-    });
-  });
-
-  // Wire mobile bot select dropdown
-  $("#bot-mobile-select")?.addEventListener("change", (e) => {
-    currentStudioBot = e.target.value;
-    currentStudioTab = "chat";
-    renderChatStudio(currentStudioBot);
-  });
-
   // Wire sidebar bot switching (mouse + keyboard)
   $$("[data-switch-bot]").forEach(item => {
-    const activate = () => {
-      currentStudioTab = "chat";
-      renderChatStudio(item.dataset.switchBot);
-    };
+    const activate = () => renderChatStudio(item.dataset.switchBot);
     item.addEventListener("click", activate);
     item.addEventListener("keydown", ev => {
       if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); activate(); }
@@ -505,6 +484,17 @@ async function renderChatStudio(preferredBot = null) {
     });
   });
 
+  // The plus button reveals suggestions and the budget row (collapsed by default,
+  // mirroring the reference composer's plus affordance).
+  const composerToggle = $("#composer-toggle");
+  const metaRow = $(".composer-meta-row");
+  composerToggle?.addEventListener("click", () => {
+    const open = metaRow.hasAttribute("hidden");
+    if (open) metaRow.removeAttribute("hidden");
+    else metaRow.setAttribute("hidden", "");
+    composerToggle.setAttribute("aria-expanded", String(open));
+  });
+
   // Wire Stop Run
   const stopBtn = $("#studio-stop-run");
   if (stopBtn && currentRunId) {
@@ -546,7 +536,6 @@ async function renderChatFeed(runId) {
 
   let html = `
     <div class="chat-msg user">
-      <span class="msg-role">Prompt</span>
       <div class="msg-text">${esc(run.prompt)}</div>
     </div>
   `;
@@ -759,6 +748,13 @@ function updateTtls() {
     if (ms <= 0) {
       target.textContent = "expired — denied";
       el.classList.add("expired");
+      // A fail-closed gate must not offer live buttons once it has failed closed.
+      const card = el.closest(".approval-card-chat, .approval");
+      if (card) {
+        card.classList.add("expired");
+        card.querySelectorAll("[data-approve]").forEach(b => b.remove());
+        card.querySelector(".approval-always")?.remove();
+      }
       return;
     }
     const m = Math.floor(ms / 60000);
@@ -773,29 +769,33 @@ function renderChatEvent(e) {
   const d = e.data || {};
 
   switch (e.type) {
-    case "message":
+    case "message": {
+      const hue = currentStudioBot ? botHue(currentStudioBot) : null;
       return `
         <div class="chat-msg agent">
           ${currentStudioBot ? hexAvatar(currentStudioBot, 30) : ""}
           <div class="chat-msg-stack">
-            <span class="msg-role">${esc(d.role || "Agent")} <span class="msg-time">· ${t}</span></span>
+            <span class="msg-role"${hue ? ` style="color:${hue.fg}"` : ""}>${esc(currentStudioBot || d.role || "Agent")} <span class="msg-time">· ${t}</span></span>
             <div class="msg-bubble"><div class="msg-text">${esc(d.content || "")}</div></div>
           </div>
         </div>
       `;
+    }
     case "approval_request": {
       const deadline = e.ts ? new Date(e.ts).getTime() + 10 * 60 * 1000 : 0;
+      const expired = deadline && deadline <= Date.now();
+      const detail = JSON.stringify(d.detail ?? {}, null, 2);
       return `
-        <div class="approval-card-chat" data-approval-card="${esc(d.approval_id)}">
+        <div class="approval-card-chat ${expired ? "expired" : ""}" data-approval-card="${esc(d.approval_id)}" ${deadline ? `data-deadline="${deadline}"` : ""}>
           <div class="approval-badge-bar">
             <span class="tag warn">Approval required</span>
-            <span class="ttl-countdown" ${deadline ? `data-deadline="${deadline}"` : ""}>${icon("hourglass")}<span data-ttl-text>10:00 left</span></span>
+            <span class="ttl-countdown" data-deadline-parent>${icon("hourglass")}<span data-ttl-text>${expired ? "expired — denied" : "10:00 left"}</span></span>
           </div>
           <div class="approval-action-text">${esc(d.action || "Perform action")}</div>
-          <pre class="approval-detail mono">${esc(JSON.stringify(d.detail ?? {}, null, 2))}</pre>
+          ${detail === "{}" ? "" : `<pre class="approval-detail mono">${esc(detail)}</pre>`}
           <div class="approval-buttons" data-approval="${esc(d.approval_id)}">
             <button class="primary small" data-approve="1">Approve</button>
-            <button class="danger small" data-approve="0">Deny</button>
+            <button class="ghost small" data-approve="0">Deny</button>
             <label class="approval-always">
               <input type="checkbox" class="always"> always allow this action
             </label>
@@ -1031,20 +1031,22 @@ async function renderApprovals() {
 
       ${approvals.map(a => {
         const deadline = a.created_at ? new Date(a.created_at).getTime() + 10 * 60 * 1000 : 0;
+        const expired = deadline && deadline <= Date.now();
+        const detail = JSON.stringify(a.detail ?? {}, null, 2);
         return `
-        <div class="approval-card-chat" data-approval-card="${esc(a.id)}">
+        <div class="approval-card-chat ${expired ? "expired" : ""}" data-approval-card="${esc(a.id)}" ${deadline ? `data-deadline="${deadline}"` : ""}>
           <div class="approval-badge-bar">
             <div class="bot-header-chips">
               <b>${esc(a.bot_name)}</b>
               <span class="tag">${esc(a.tool)}</span>
             </div>
-            <span class="ttl-countdown" ${deadline ? `data-deadline="${deadline}"` : ""}>${icon("hourglass")}<span data-ttl-text>10:00 left</span></span>
+            <span class="ttl-countdown" data-deadline-parent>${icon("hourglass")}<span data-ttl-text>${expired ? "expired — denied" : "10:00 left"}</span></span>
           </div>
           <div class="approval-action-text">${esc(a.action)}</div>
-          <pre class="approval-detail mono">${esc(JSON.stringify(a.detail ?? {}, null, 2))}</pre>
+          ${detail === "{}" ? "" : `<pre class="approval-detail mono">${esc(detail)}</pre>`}
           <div class="approval-buttons" data-approval="${esc(a.id)}">
             <button class="primary small" data-approve="1">Approve</button>
-            <button class="danger small" data-approve="0">Deny</button>
+            <button class="ghost small" data-approve="0">Deny</button>
             <label class="approval-always">
               <input type="checkbox" class="always"> always allow for this bot
             </label>
