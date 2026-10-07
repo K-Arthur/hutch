@@ -30,7 +30,7 @@
   <h2 id="inst-h" class="card-title">Installed models</h2>
   {% if v.rows %}
   <div class="table-wrap"><table class="models-table">
-    <thead><tr><th>Model</th><th>Size</th><th>At 16k context</th><th>At 32k context</th><th>Used by</th><th>Self-check</th></tr></thead>
+    <thead><tr><th>Model</th><th>Size</th><th>At 16k context</th><th>At 32k context</th><th>Used by</th><th>Tool reliability</th></tr></thead>
     <tbody>
     {% for r in v.rows %}
       <tr>
@@ -40,7 +40,11 @@
         <td>{{ fitchip(f16) }}<div class="muted small">{% if f16.status == "wont_fit" %}{{ f16.reason }}{% else %}gets {{ f16.effective_ctx | tokens }} tokens{% if f16.status == "tight" %}: {{ f16.reason }}{% endif %}{% endif %}</div></td>
         <td>{{ fitchip(f32) }}{% if f32.status == "wont_fit" %}{% if f16.status == "wont_fit" %}<div class="muted small">same</div>{% else %}<div class="muted small">{{ f32.reason }}</div>{% endif %}{% else %}<div class="muted small">gets {{ f32.effective_ctx | tokens }} tokens{% if f32.status == "tight" %}: {{ f32.reason }}{% endif %}</div>{% endif %}</td>
         <td>{% for b in r.bots %}<a class="tag" href="/bots/{{ b }}">{{ b }}</a> {% else %}<span class="muted">no bot</span>{% endfor %}</td>
-        <td><span class="chip st-{{ {'passed':'succeeded','failed':'failed','not run':'stopped'}[r.selfcheck] }}">{{ r.selfcheck }}</span></td>
+        <td>{% if r.profile %}{% set pv = r.profile.verdict %}
+          <span class="chip st-{{ {'reliable':'succeeded','usable_with_repair':'stale','unreliable':'failed','inconclusive':'stopped'}[pv] }}">{{ {'reliable':'reliable','usable_with_repair':'needs repair','unreliable':'unreliable','inconclusive':'inconclusive'}[pv] }}</span>
+          <div class="muted small">{{ r.profile.summary }}{% if r.profile_stale %} <span class="tag warn">changed since measured</span>{% endif %}<br>measured {{ r.profile.measured_at[:10] }} at {{ r.profile.num_ctx | tokens }} tokens{% if r.profile.tokens_per_sec %}, {{ r.profile.tokens_per_sec }} tok/s{% endif %}</div>
+          {% else %}<span class="muted small">not measured</span><div class="muted small mono">hutch models bench {{ r.name }}</div>{% endif %}
+          <div class="muted small">context self-check: {{ r.selfcheck }}</div></td>
       </tr>
     {% endfor %}
     </tbody></table></div>

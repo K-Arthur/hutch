@@ -47,7 +47,7 @@ commits can cite them. Evidence for the *why* is in
 | LM-8 | Different presets for planner/executor/summarizer roles | Later | later | |
 | LM-9 | One-step escalation on malformed calls / loop / overflow, within spend cap | MVP | done | `runtime/ladder.py`: one-rung escalation inside the spend guard; tests |
 | LM-10 | Local-default bots ask before first hosted call | MVP | done | ask before the first hosted call for a local-default bot, even in auto mode; a hosted model picked in the chat switcher is explicit consent for that message |
-| LM-11 | Reliability harness per model/quant/runtime/template | MVP | planned | |
+| LM-11 | Reliability harness per model/quant/runtime/template | MVP | done | `reliability.py` + `hutch models bench`: five tool probes + long-prompt recall, keyed by model/quant/runtime/template/digest/window, shown on `/models`, used by doctor. Verified against scripted models only; not yet run on real local models |
 | LM-12 | Re-measure when runtime or model file changes | Later | later | |
 | LM-13 | Tool-call repair; ≤ 8 tools by default | MVP | partial | `runtime/toolrepair.py` coerce/validate/one retry; `hutch doctor` warns above 8 tools; the 8-tool default is not enforced at bot creation |
 | LM-14 | Editable hosted price file with verified-on date in UI | MVP | done | price table with source and verified date on `/models`; edit, reset; 90-day stale flag |
@@ -78,7 +78,7 @@ commits can cite them. Evidence for the *why* is in
 | SR-2 | Exact per-step token/cost accounting, visible before a run | MVP | planned | |
 | SR-3 | Per-bot compact-now and fresh-session controls | Later | later | |
 | SR-4 | Outward-sending tools always ask, regardless of sticky allows | MVP | partial | gate enforces outward-never-sticky (`approvals.py`); outward classification of tools pending |
-| SR-5 | Small models: thinking off, per-turn token cap, loop detector | MVP | planned | |
+| SR-5 | Small models: thinking off, per-turn token cap, loop detector | MVP | done | `think:false` only for thinking-capable models, per-turn token cap, loop detector that refuses a third identical call (`tests/test_providers.py`, `tests/test_runtime_builtin.py`) |
 | SR-6 | In-app help generated from or tested against real routes | Later | later | |
 | SR-7 | Every run shows its parent bot or plan | MVP | done | every run shows who started it: schedule, you (cli, dashboard or api), or a plan |
 | SR-8 | Provider fallback chain | MVP | planned | |
@@ -114,7 +114,7 @@ commits can cite them. Evidence for the *why* is in
 | 1 | Engine baseline | PF-5, PF-6, PF-7, PF-11, PF-12, PF-13 | tests pass offline; benchmarks record a baseline | **passed** — 101 tests offline; baseline in `benchmarks/baselines/local.json` |
 | 2 | Run view and control | UI-1…6, UI-12, SR-7 | ten concurrent runs stream, connection cut, transcript resumes with no missing events | **passed** - `tests/test_sse_resume.py` (10 runs x 2 real cuts, real sockets) and `tests/e2e` (Chromium, TCP cut, DOM verified) |
 | 3 | Local model layer | LM-1…6, SR-1, SR-14 | self-check passes; swap latency measured for two model pairs | **built and tested; gate not met** - self-check and swap measurement pass against scripted servers (`tests/test_slots.py`, `tests/test_models_layer.py`); no real local models on the dev machine, so swap latency for two real pairs is **not measured** |
-| 4 | Reliability harness | LM-11, LM-13, SR-5 | ≥ 3 models profiled on the dev machine | planned |
+| 4 | Reliability harness | LM-11, LM-13, SR-5 | ≥ 3 models profiled on the dev machine | **harness built and tested; gate not met** - three scripted models (good / needs repair / never calls tools) are ranked correctly in `tests/test_reliability.py`; **no real models were profiled** because the dev machine has ~3 GiB free and no Ollama. Run `hutch models bench <model>` on a real machine to meet it |
 | 5 | Presets, escalation, budgets | LM-7, 9, 10, 14, 15, SR-2, 8, 9, 12, PF-1…3 | escalation respects caps in tests | planned |
 | 6 | Collaboration | CO-1…11 | demo plan finishes on mock + one local model; misbehaving specialist is stopped by the engine | planned |
 | 7 | v0.1 release | UI-7…9, UI-14, SR-4, SR-13, docs, site | README quickstart runs verbatim on a clean Linux machine | planned |

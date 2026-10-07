@@ -140,8 +140,17 @@ def _migrate_3(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX IF NOT EXISTS idx_usage_bot_ts ON usage(bot_id, ts)")
 
 
+def _migrate_4(db: sqlite3.Connection) -> None:
+    """Model reliability profiles (LM-11): keyed by model + quant + runtime + template + digest + window, so a changed
+    file, runtime or window is a *different* profile instead of a stale number."""
+    db.execute("""CREATE TABLE IF NOT EXISTS model_profiles (
+        key TEXT PRIMARY KEY, model TEXT NOT NULL, runtime TEXT NOT NULL, digest TEXT NOT NULL DEFAULT '',
+        template_hash TEXT NOT NULL DEFAULT '', measured_at TEXT NOT NULL, doc TEXT NOT NULL)""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_profiles_model ON model_profiles(model, measured_at)")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
-_MIGRATIONS = [_migrate_2, _migrate_3]
+_MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 EVENT_BATCH_MAX = 256
@@ -712,6 +721,29 @@ class Store:
                 "SELECT COALESCE(SUM(prompt_tokens + completion_tokens), 0) AS n FROM usage "
                 "WHERE provider = ? AND ts >= ?", (provider, since)).fetchone()
         return int(row["n"])
+
+    def save_profile(self, profile: Any) -> None:
+        with self._lock:
+            self._db.execute(
+                "INSERT OR REPLACE INTO model_profiles (key, model, runtime, digest, template_hash, measured_at, doc) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (profile.key, profile.model, profile.runtime, profile.digest, profile.template_hash,
+                 profile.measured_at, profile.to_json()))
+            self._db.commit()
+
+    def latest_profile(self, model: str) -> Optional[Any]:
+        """The most recent profile of ``model`` ("ollama/qwen3:4b"), whatever window it was measured at."""
+        from .reliability import Profile
+        with self._lock:
+            row = self._db.execute("SELECT doc FROM model_profiles WHERE model = ? ORDER BY measured_at DESC LIMIT 1",
+                                   (model,)).fetchone()
+        return Profile.from_json(row["doc"]) if row else None
+
+    def list_profiles(self) -> list[Any]:
+        from .reliability import Profile
+        with self._lock:
+            rows = self._db.execute("SELECT doc FROM model_profiles ORDER BY model, measured_at DESC").fetchall()
+        return [Profile.from_json(r["doc"]) for r in rows]
 
     def usage_models(self, limit: int = 100) -> list[tuple[str, str]]:
         """(provider, model) pairs that have actually been called, most recent first."""

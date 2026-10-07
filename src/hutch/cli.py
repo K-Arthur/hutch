@@ -653,6 +653,44 @@ def models_presets() -> None:
         console.print(f"  hosted: {r.hosted}")
 
 
+@models_app.command("bench")
+def models_bench(model: str = typer.Argument(..., help="an installed Ollama model, e.g. qwen3:4b"),
+                 trials: int = typer.Option(3, "--trials", "-n", min=1, max=20, help="runs per probe"),
+                 ctx: int = typer.Option(8192, "--ctx", help="context window to measure at"),
+                 recall: bool = typer.Option(True, "--recall/--no-recall", help="include the long-prompt recall probe")) -> None:
+    """Profile how reliably a model forms tool calls, picks tools and uses results, on THIS machine."""
+    from .hardware import probe
+    from .reliability import VERDICT_TEXT, profile_model
+    from .runtime.ladder import get_provider
+    config, store = get_config(), _store()
+    prov = get_provider("ollama", None)
+    health = prov.health()
+    if not health.ok:
+        err.print(f"[red]Ollama is not reachable ({health.detail}).[/red] Start it with `ollama serve`.")
+        raise typer.Exit(code=1)
+    hw = probe(with_runtimes=False)
+    console.print(f"profiling [bold]{model}[/bold]: {trials} trial(s) per probe at {ctx:,} tokens "
+                  f"(each trial is one model call; on CPU this can take a while)")
+    prof = profile_model(prov, model, runtime="ollama", num_ctx=ctx, trials=trials, hardware=hw.summary,
+                         with_recall=recall, progress=lambda s: console.print(f"  [dim]{s}[/dim]"))
+    store.save_profile(prof)
+    from rich.table import Table
+    t = Table(show_header=True, header_style="bold")
+    t.add_column("probe", no_wrap=True)
+    t.add_column("passed", justify="right")
+    t.add_column("unaided", justify="right")
+    t.add_column("what went wrong")
+    for p in prof.probes:
+        t.add_row(p.title, f"{p.repaired}/{p.trials}", f"{p.raw}/{p.trials}", p.detail or "-")
+    console.print(t)
+    col = {"reliable": "green", "usable_with_repair": "yellow", "unreliable": "red", "inconclusive": "dim"}[prof.verdict]
+    console.print(f"[{col}]{VERDICT_TEXT[prof.verdict]}[/{col}]: {prof.summary}")
+    if prof.tokens_per_sec:
+        console.print(f"speed: {prof.tokens_per_sec} tokens/s median;  quant {prof.quant or '?'};  measured on {hw.summary}")
+    if prof.verdict == "inconclusive":
+        raise typer.Exit(code=2)
+
+
 @models_app.command("swap-test")
 def models_swap_test(model_a: str = typer.Argument(...), model_b: str = typer.Argument(...)) -> None:
     """Measure the real cost of alternating between two local models (unloads and reloads them; run when idle)."""

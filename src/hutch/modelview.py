@@ -30,7 +30,8 @@ class ModelRow:
     bots: list[str]
     load_ms: Optional[float]
     selfcheck: str                      # "passed" | "failed" | "not run"
-    profile: Optional[dict] = None      # reliability profile (LM-11), when measured
+    profile: Optional[Any] = None       # reliability Profile (LM-11), when measured
+    profile_stale: bool = False         # the model file / template changed since it was measured
 
 
 @dataclass
@@ -89,6 +90,11 @@ def build_models_view(config: Any, store: Any, hw: Optional[Hardware] = None, pr
             fits={w: estimate_fit(meta, hw, w) for w in REFERENCE_WINDOWS},
             bots=used_by.get(f"ollama/{name}", []), load_ms=json.loads(raw)["ms"] if raw else None,
             selfcheck=_selfcheck_status(store, name)))
+        prof = store.latest_profile(f"ollama/{name}")
+        if prof is not None:
+            rows[-1].profile = prof
+            rows[-1].profile_stale = bool((meta.template_hash and prof.template_hash and meta.template_hash != prof.template_hash)
+                                          or (meta.digest and prof.digest and meta.digest != prof.digest))
     presets = [resolve_preset(p, hw, inst) for p in load_presets(config.state_dir / "presets.json").values()]
     sugg = []
     for tag in _data("catalog.json")["models"]:

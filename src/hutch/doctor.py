@@ -122,6 +122,20 @@ def run_doctor(config: Any, store: Any, hw: Any = None, deep: bool = False, onli
                 {"fits": OK, "tight": WARN, "wont_fit": FAIL}[fit.status],
                 f"{tag}: {fit.label} - {fit.reason}; context it will actually get: {fit.effective_ctx:,} tokens",
                 "" if fit.status == "fits" else "choose a smaller model or lower num_ctx on the Models page")
+            if b.tools:
+                prof = store.latest_profile(b.model)
+                if prof is None:
+                    add(f"profile:{b.name}", f"Tool reliability of {b.model}", INFO,
+                        "not measured: whether this model forms valid tool calls here is unknown",
+                        f"hutch models bench {tag}")
+                elif prof.verdict == "unreliable":
+                    add(f"profile:{b.name}", f"Tool reliability of {b.model}", WARN,
+                        f"measured {prof.measured_at[:10]}: {prof.summary}",
+                        "use a larger model, fewer tools, or add a stronger model as the escalation target")
+                elif prof.verdict == "usable_with_repair":
+                    add(f"profile:{b.name}", f"Tool reliability of {b.model}", OK, f"works, but {prof.summary}")
+                elif prof.verdict == "reliable":
+                    add(f"profile:{b.name}", f"Tool reliability of {b.model}", OK, f"measured {prof.measured_at[:10]}: {prof.summary}")
             if len(b.tools) > 8:
                 add(f"tools:{b.name}", f"Tools for {b.name}", WARN,
                     f"{len(b.tools)} tools: small models get unreliable past about 8",
