@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+  <a class="skip-link" href="#view">Skip to content</a>
   <header class="topbar">
     <a class="brand" href="#/chat">
       <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true">
@@ -16,7 +17,7 @@
       </svg>
       <span>hutch</span>
     </a>
-    <nav>
+    <nav aria-label="Primary">
       <a href="#/chat" data-nav="chat">Studio</a>
       <a href="#/bots" data-nav="bots">Bots</a>
       <a href="#/runs" data-nav="runs">Runs</a>
@@ -30,13 +31,13 @@
 
   <main id="view" aria-live="polite">
     <div class="empty-state">
-      <div class="spinner"></div>
+      <div class="spinner" role="status" aria-label="Loading"></div>
       <p>Loading…</p>
     </div>
   </main>
 
   <div id="modal-root"></div>
-  <div id="toast-root"></div>
+  <div id="toast-root" class="toast-root" role="status" aria-live="polite"></div>
 
   <script src="/static/app.js"></script>
 </body>

@@ -136,7 +136,12 @@ async function route() {
   for (const [re, handler, nav] of routes) {
     const m = hash.match(re);
     if (m) {
-      $$(".topbar nav a").forEach(a => a.classList.toggle("active", a.dataset.nav === nav));
+      $$(".topbar nav a").forEach(a => {
+        const isActive = a.dataset.nav === nav;
+        a.classList.toggle("active", isActive);
+        if (isActive) a.setAttribute("aria-current", "page");
+        else a.removeAttribute("aria-current");
+      });
       try { await handler(m); }
       catch (err) { view.innerHTML = errorState(err); }
       refreshBadge();
@@ -504,7 +509,7 @@ function renderChatEvent(e) {
             <span class="ttl-countdown">${icon("hourglass")} 10m fail-closed timer</span>
           </div>
           <div class="approval-action-text">${esc(d.action || "Perform action")}</div>
-          <pre class="mono" style="font-size:11px;background:#0d1219;padding:8px;border-radius:6px;overflow-x:auto;">${esc(JSON.stringify(d.detail ?? {}, null, 2))}</pre>
+          <pre class="approval-detail mono">${esc(JSON.stringify(d.detail ?? {}, null, 2))}</pre>
           <div class="approval-buttons" data-approval="${esc(d.approval_id)}">
             <button class="primary small" data-approve="1">Approve</button>
             <button class="danger small" data-approve="0">Deny</button>
@@ -641,7 +646,7 @@ async function renderApprovals() {
               <span class="ttl-countdown">${icon("hourglass")} 10m TTL &middot; ${timeAgo(a.created_at)}</span>
             </div>
             <p style="font-size:14.5px;font-weight:600;margin:4px 0 10px;">${esc(a.action)}</p>
-            <pre class="mono" style="font-size:12px;background:#0d1219;padding:10px;border-radius:6px;overflow-x:auto;">${esc(JSON.stringify(a.detail, null, 2))}</pre>
+            <pre class="approval-detail mono">${esc(JSON.stringify(a.detail, null, 2))}</pre>
             <div class="approval-buttons" data-approval="${esc(a.id)}">
               <button class="primary small" data-approve="1">Approve</button>
               <button class="danger small" data-approve="0">Deny</button>
@@ -677,7 +682,7 @@ async function renderBotDetail(name) {
 
       <div class="panel" style="margin-bottom:18px;">
         <h3 style="margin-top:0">Instructions</h3>
-        <textarea id="bot-instructions" style="min-height:120px;font-family:var(--mono);">${esc(b.instructions || "")}</textarea>
+        <textarea id="bot-instructions" style="min-height:120px;font-family:var(--font-mono);">${esc(b.instructions || "")}</textarea>
         <button class="primary small" id="btn-save-instructions" style="margin-top:8px;">Save instructions</button>
       </div>
     </div>
