@@ -12,9 +12,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from . import __version__
-from .approvals import resolve_approval
 from .config import get_config
-from .engine import Engine, bot_prompt_for_schedule
 from .models import (
     ApprovalMode,
     Bot,
@@ -24,10 +22,12 @@ from .models import (
     RuntimeKind,
     Schedule,
 )
-from .scheduler import Scheduler
 from .store import Store
 from .templates import TEMPLATES, seed
 from .tools import ALL_TOOL_NAMES, expand_tools
+
+# NOTE (PF-6): Engine, the runtimes, providers, fastapi and playwright are imported inside the
+# commands that need them, so `hutch status` / `hutch version` stay fast.
 
 app = typer.Typer(no_args_is_help=True, add_completion=False,
                   help="hutch — local-first multi-bot agent platform.")
@@ -93,6 +93,7 @@ def version() -> None:
 @app.command()
 def status() -> None:
     """System overview: bots, active runs, queue, pending approvals."""
+    from .scheduler import Scheduler
     store = _store()
     scheduler = Scheduler(store)
     bots = store.list_bots()
@@ -309,47 +310,36 @@ def run(
     bot_ref: str = typer.Argument(..., help="Bot name"),
     prompt: str = typer.Argument(..., help="What the bot should do"),
     watch: bool = typer.Option(True, "--watch/--no-watch", help="stream events while running"),
+    rehearse: bool = typer.Option(False, "--rehearse", help="dry run: mutating actions are simulated and logged"),
 ) -> None:
     """Run a bot once, now (blocking)."""
+    from .engine import Engine
     config = get_config()
     store = _store()
     bot = _require_bot(store, bot_ref)
     engine = Engine(config, store)
 
-    seen = 0
-    if watch:
-        import threading
-        from .models import Event
-
-        run_holder: dict[str, str] = {}
-
-        def watcher(run_id_holder: dict[str, str]) -> None:  # pragma: no cover
-            rid = None
-            while rid is None:
-                rid = run_id_holder.get("id")
-                time.sleep(0.05)
-            nonlocal seen
-            while True:
-                for ev in store.list_events(rid, after_id=seen):
-                    seen = ev.id or seen
+    created = engine.submit(bot, prompt, origin="manual:cli", rehearsal=rehearse)
+    engine.dispatch_pending()
+    topic, seen = f"run:{created.id}", 0
+    deadline = time.monotonic() + bot.limits.timeout_seconds + 60
+    while time.monotonic() < deadline:
+        version = store.bus.version(topic)  # read before querying: no lost wake-ups
+        for ev in store.list_events(created.id, after_seq=seen):
+            seen = ev.seq
+            if watch:
+                _print_event(ev)
+        current = store.get_run(created.id)
+        if current and current.status.value not in ("pending", "loading_model", "running",
+                                                    "waiting_approval", "waiting_human"):
+            for ev in store.list_events(created.id, after_seq=seen):
+                if watch:
                     _print_event(ev)
-                current = store.get_run(rid)
-                if current and current.status.value not in ("pending", "running", "waiting_approval"):
-                    for ev in store.list_events(rid, after_id=seen):
-                        _print_event(ev)
-                    return
-                time.sleep(0.3)
-
-        holder = {}
-        t = threading.Thread(target=watcher, args=(holder,), daemon=True)
-        t.start()
-        created = engine.submit(bot, prompt)
-        holder["id"] = created.id
-        engine.dispatch_pending()
-        t.join(timeout=bot.limits.timeout_seconds + 60)
-        final = store.get_run(created.id)
-    else:
-        final = engine.run_blocking(bot, prompt)
+            break
+        if current and current.status is RunStatus.pending:
+            engine.dispatch_pending()  # capacity may have freed up
+        store.bus.wait(topic, version, timeout=5.0)
+    final = store.get_run(created.id)
 
     color = {"succeeded": "green", "failed": "red", "stopped": "yellow"}.get(final.status.value, "white")
     console.print(f"\nrun [bold]{final.id}[/bold] → [{color}]{final.status.value}[/{color}] "
@@ -416,8 +406,8 @@ def stop(run_id: str = typer.Argument(...)) -> None:
     """Stop a run."""
     store = _store()
     _require_run(store, run_id)
-    config = get_config()
-    engine = Engine(config, store)
+    from .engine import Engine
+    engine = Engine(get_config(), store)
     engine.stop_run(run_id)
     console.print(f"stop requested for {run_id}")
 
@@ -425,6 +415,7 @@ def stop(run_id: str = typer.Argument(...)) -> None:
 @app.command("stop-all")
 def stop_all() -> None:
     """Emergency stop: request stop on every active run."""
+    from .engine import Engine
     store = _store()
     engine = Engine(get_config(), store)
     n = engine.stop_all()
@@ -454,6 +445,7 @@ def approvals_list() -> None:
 def approvals_approve(approval_id: str = typer.Argument(...),
                       always: bool = typer.Option(False, "--always", "-a",
                                                   help="also remember this action as always-allowed for the bot")) -> None:
+    from .approvals import resolve_approval
     store = _store()
     req = resolve_approval(store, approval_id, approve=True, by="cli", sticky=always)
     if req is None:
@@ -463,6 +455,7 @@ def approvals_approve(approval_id: str = typer.Argument(...),
 
 @apr_app.command("deny")
 def approvals_deny(approval_id: str = typer.Argument(...)) -> None:
+    from .approvals import resolve_approval
     store = _store()
     req = resolve_approval(store, approval_id, approve=False, by="cli")
     if req is None:
@@ -473,10 +466,15 @@ def approvals_deny(approval_id: str = typer.Argument(...)) -> None:
 # ------------------------------------------------------------------ daemon
 
 @app.command()
-def daemon(interval: float = typer.Option(20.0, "--interval", help="tick interval (seconds)")) -> None:
-    """Run the scheduler + dispatcher loop (foreground; Ctrl-C to stop)."""
+def daemon() -> None:
+    """Run the scheduler + dispatcher loop (foreground; Ctrl-C to stop).
+
+    The loop sleeps until the next scheduled run or an incoming event — no polling interval.
+    """
+    from .engine import Engine
     config = get_config()
     store = _store()
+    store.ensure_listening()
     engine = Engine(config, store)
 
     def on_tick(runs):
@@ -484,7 +482,7 @@ def daemon(interval: float = typer.Option(20.0, "--interval", help="tick interva
             console.print(f"[magenta]dispatched scheduled run[/magenta] {r.id}")
 
     console.print(f"[bold]hutch daemon[/bold] — state: {config.state_dir} (Ctrl-C to stop)")
-    engine.run_daemon(interval=interval, on_tick=on_tick)
+    engine.run_daemon(on_tick=on_tick)
     console.print("daemon stopped")
 
 
@@ -506,6 +504,7 @@ app.add_typer(demo_app, name="demo")
 def demo_seed() -> None:
     """Seed demo bots/runs (offline, mock models) for exploring the dashboard."""
     from .demo import seed_demo
+    from .engine import Engine
     config = get_config()
     store = _store()
     engine = Engine(config, store)

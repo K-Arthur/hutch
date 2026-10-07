@@ -77,13 +77,14 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 | [Roadmap](docs/roadmap.md) | phases: hardening → capability → scale-out |
 | [Research](docs/research/) | orchestrator/runtime comparison; incident-based requirements |
 
-Marketing site: [website/](website/index.html) (static, no build step).
+Marketing site: [website/](website/index.html) (responsive landing page with interactive sandbox, incident receipts, and bento grid).
+Web Dashboard: 3-pane Chat Studio (`http://127.0.0.1:8787/#/chat`) with live approval interceptor, memory manager, sticky permissions, and mobile drawer tabs.
 
 ## Development
 
 ```bash
 uv venv && uv pip install -e ".[dev]"
-pytest                # 70 tests, fully offline (mock runtime)
+pytest                # 71 tests, fully offline (mock runtime)
 hutch demo seed && hutch serve   # rich dashboard state for manual testing
 ```
 

@@ -17,11 +17,11 @@ from __future__ import annotations
 import os
 from typing import Callable
 
-from openai import OpenAI
-
 from ..models import Event, EventType, Run
 from ..tools import Tool, ToolContext
 from .base import RunAborted
+
+OpenAI = None  # test seam; the real SDK is imported lazily in _client (PF-6) until the provider layer lands
 
 PROVIDER_BASE_URLS = {
     "ollama": "http://localhost:11434/v1",
@@ -73,6 +73,10 @@ class BuiltinRuntime:
         return model, base_url or ""
 
     def _client(self, ctx: ToolContext):
+        global OpenAI
+        if OpenAI is None:
+            from openai import OpenAI as _OpenAI  # heavy import (~600 ms): only when a real model is called (PF-6)
+            OpenAI = _OpenAI
         model, base_url = self._client_config(ctx)
         kwargs = {"base_url": base_url} if base_url else {}
         return OpenAI(api_key=os.environ.get(self.api_key_env, "local"), **kwargs), model

@@ -9,6 +9,7 @@ const view = $("#view");
 const ACTIVE = new Set(["pending", "running", "waiting_approval"]);
 let pollTimer = null;
 let currentStudioBot = null;
+let currentStudioTab = "chat";
 let currentRunId = null;
 let lastEventId = 0;
 
@@ -171,7 +172,13 @@ async function renderChatStudio(preferredBot = null) {
   currentRunId = activeRun ? activeRun.id : null;
 
   view.innerHTML = `
-    <div class="studio-container">
+    <div class="studio-mobile-nav">
+      <button class="sm-tab ${currentStudioTab === 'chat' ? 'active' : ''}" data-studio-tab="chat">💬 Chat</button>
+      <button class="sm-tab ${currentStudioTab === 'fleet' ? 'active' : ''}" data-studio-tab="fleet">🤖 Fleet (${bots.length})</button>
+      <button class="sm-tab ${currentStudioTab === 'inspector' ? 'active' : ''}" data-studio-tab="inspector">⚙️ Specs &amp; Memory</button>
+    </div>
+
+    <div class="studio-container" data-tab="${currentStudioTab}">
       <!-- Left Sidebar: Bots & Status -->
       <aside class="studio-sidebar">
         <div class="sidebar-header">
@@ -203,6 +210,9 @@ async function renderChatStudio(preferredBot = null) {
       <main class="studio-main">
         <header class="studio-main-header">
           <div class="bot-header-info">
+            <select class="bot-mobile-select" id="bot-mobile-select" aria-label="Switch Bot">
+              ${bots.map(b => `<option value="${esc(b.name)}" ${b.name === bot.name ? "selected" : ""}>🤖 ${esc(b.name)}</option>`).join("")}
+            </select>
             <span class="bot-header-title">${esc(bot.name)}</span>
             <div class="bot-header-chips">
               <span class="tag model">${esc(bot.model)}</span>
@@ -279,9 +289,27 @@ async function renderChatStudio(preferredBot = null) {
     </div>
   `;
 
+  // Wire mobile tab switcher
+  $$("[data-studio-tab]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      currentStudioTab = btn.dataset.studioTab;
+      const c = $(".studio-container");
+      if (c) c.dataset.tab = currentStudioTab;
+      $$("[data-studio-tab]").forEach(b => b.classList.toggle("active", b === btn));
+    });
+  });
+
+  // Wire mobile bot select dropdown
+  $("#bot-mobile-select")?.addEventListener("change", (e) => {
+    currentStudioBot = e.target.value;
+    currentStudioTab = "chat";
+    renderChatStudio(currentStudioBot);
+  });
+
   // Wire sidebar bot switching
   $$("[data-switch-bot]").forEach(item => {
     item.addEventListener("click", () => {
+      currentStudioTab = "chat";
       renderChatStudio(item.dataset.switchBot);
     });
   });
@@ -531,9 +559,9 @@ async function renderRuns() {
       <h1 class="page-title">Runs Archive</h1>
       <p class="page-subtitle">Complete transcript log of every task executed on this machine.</p>
 
-      <div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;">
-        <input type="text" id="run-search" placeholder="Filter runs by bot or keyword…" style="max-width:320px;">
-        <div style="display:flex;gap:6px;">
+      <div class="runs-filter-bar">
+        <input type="text" id="run-search" placeholder="Filter runs by bot or keyword…">
+        <div class="runs-filter-pills">
           <button class="ghost small active" data-filter="all">All</button>
           <button class="ghost small" data-filter="succeeded">Succeeded</button>
           <button class="ghost small" data-filter="failed">Failed</button>

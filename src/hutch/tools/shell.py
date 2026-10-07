@@ -9,6 +9,7 @@ answers).
 from __future__ import annotations
 
 import os
+import signal
 import subprocess
 from typing import Any
 
@@ -49,22 +50,29 @@ class ShellTool(Tool):
             "TERM": "dumb",
         }
         try:
-            proc = subprocess.run(
+            proc = subprocess.Popen(
                 ["/bin/bash", "-c", command],
-                cwd=ctx.workspace,
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
+                cwd=ctx.workspace, env=env, text=True,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                start_new_session=True,  # own process group: Stop and timeouts kill the whole tree
             )
-        except subprocess.TimeoutExpired:
-            return ToolResult(ok=False, output=f"error: timed out after {timeout}s", data={"command": command})
         except FileNotFoundError:
             return ToolResult(ok=False, output="error: no shell available", data={"command": command})
+        ctx.procs.register(proc)
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            ctx.procs._signal(proc, signal.SIGKILL)
+            proc.communicate()
+            return ToolResult(ok=False, output=f"error: timed out after {timeout}s", data={"command": command})
+        finally:
+            ctx.procs.unregister(proc)
 
-        out = proc.stdout
-        if proc.stderr:
-            out += ("\n" if out else "") + proc.stderr
+        if ctx.procs.killed:
+            return ToolResult(ok=False, output="error: stopped — command was killed", data={"command": command})
+        out = stdout
+        if stderr:
+            out += ("\n" if out else "") + stderr
         return ToolResult(
             ok=proc.returncode == 0,
             output=clip(f"exit={proc.returncode}\n{out.strip() or '(no output)'}"),

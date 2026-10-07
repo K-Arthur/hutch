@@ -29,7 +29,7 @@ class MemorySaveTool(Tool):
         key, value = (args.get("key") or "").strip(), (args.get("value") or "").strip()
         if not key or not value:
             return ToolResult(ok=False, output="error: 'key' and 'value' are required")
-        ctx.store.remember(ctx.bot.id, key, clip(value, 2000))
+        ctx.store.remember(ctx.bot.id, key, clip(value, 2000), run_id=ctx.run.id)
         return ToolResult(ok=True, output=f"remembered '{key}'")
 
 

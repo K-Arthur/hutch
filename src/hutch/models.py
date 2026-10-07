@@ -30,12 +30,21 @@ def new_id(prefix: str) -> str:
 
 class RunStatus(str, Enum):
     pending = "pending"
+    loading_model = "loading_model"        # cold-loading a local model (LM-6)
     running = "running"
     waiting_approval = "waiting_approval"
+    waiting_human = "waiting_human"        # login / CAPTCHA wall: a person must act
     succeeded = "succeeded"
     failed = "failed"
     stopped = "stopped"
     skipped = "skipped"
+
+
+#: statuses in which a run still holds (or is queued for) resources
+ACTIVE_STATUSES = (
+    RunStatus.pending, RunStatus.loading_model, RunStatus.running,
+    RunStatus.waiting_approval, RunStatus.waiting_human,
+)
 
 
 class RuntimeKind(str, Enum):
@@ -116,6 +125,22 @@ class Run(BaseModel):
     workspace: Optional[str] = None
     missed_windows: int = 0           # >0 when this run is a catch-up coalescence
     created_at: str = Field(default_factory=lambda: iso(utcnow()))
+    # --- accounting (SR-2, UI-4, PF-11): exact per step, summed per run
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    cached_tokens: int = 0
+    cost_usd: float = 0.0
+    model_ms: int = 0                 # time waiting on the model
+    tool_ms: int = 0                  # time inside tools
+    overhead_ms: int = 0              # everything else: Hutch's own cost per step
+    context_used: int = 0             # tokens in the last prompt
+    context_limit: int = 0            # effective window the model actually got
+    model_used: str = ""              # may differ from bot.model after escalation/fallback
+    # --- lineage (SR-7)
+    origin: str = "manual"            # manual:dashboard | manual:cli | manual:api | schedule | plan
+    plan_id: Optional[str] = None
+    plan_task_id: Optional[str] = None
+    rehearsal: bool = False           # dry run: mutating actions are simulated
 
 
 class EventType(str, Enum):
@@ -127,11 +152,14 @@ class EventType(str, Enum):
     approval_resolved = "approval_resolved"
     error = "error"
     log = "log"
+    step = "step"                     # one model turn: tokens, cost, timing split
 
 
 class Event(BaseModel):
-    id: Optional[int] = None
+    id: Optional[int] = None          # database row id; only set on events read back
     run_id: str
+    seq: int = 0                      # per-run sequence number, 1-based and gap-free (UI-3)
+    hash: str = ""                    # hash-chain link to the previous event of this run (SR-11)
     ts: str = Field(default_factory=lambda: iso(utcnow()))
     type: EventType
     data: dict[str, Any] = Field(default_factory=dict)
@@ -159,9 +187,19 @@ class ApprovalRequest(BaseModel):
     created_at: str = Field(default_factory=lambda: iso(utcnow()))
     resolved_at: Optional[str] = None
     decided_by: str = ""              # "dashboard" | "cli:<user>" | "timeout"
+    # --- what the human needs to decide well (UI-5)
+    segments: list[dict[str, Any]] = Field(default_factory=list)  # parsed command segments + verdicts
+    rule: str = ""                    # the rule that triggered the prompt
+    risk: str = "medium"              # low | medium | high
+    outward: bool = False             # sends something out: sticky allows never apply (SR-4)
+    ttl_seconds: int = 600
+    expires_at: Optional[str] = None  # default-deny deadline, shown as a countdown
+    plan_id: Optional[str] = None     # tagged when the run belongs to a plan (CO-10)
 
 
 class MemoryItem(BaseModel):
     key: str
     value: str
     updated_at: str = Field(default_factory=lambda: iso(utcnow()))
+    run_id: str = ""                  # the run that wrote this entry (UI-10)
+    source: str = "bot"               # bot | user

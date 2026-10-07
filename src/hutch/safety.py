@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import re
 import shlex
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Optional
@@ -36,11 +36,18 @@ class Decision:
     verdict: Verdict
     reason: str
     sticky_key: str = ""  # non-empty when a "always allow" could apply
+    rule: str = ""        # id of the rule that fired, shown in the approvals inbox (UI-5)
+    risk: str = ""        # low | medium | high
+    outward: bool = False  # sends something out of the machine: always asks, never sticky (SR-4)
+    segments: list = field(default_factory=list)  # per-segment breakdown of a compound command
 
     def worse(self, other: "Decision") -> "Decision":
-        if _SEVERITY[other.verdict] > _SEVERITY[self.verdict]:
-            return other
-        return self
+        merged_outward = self.outward or other.outward
+        pick = other if _SEVERITY[other.verdict] > _SEVERITY[self.verdict] else self
+        if merged_outward and not pick.outward:
+            pick = Decision(pick.verdict, pick.reason, pick.sticky_key, pick.rule, pick.risk,
+                            True, pick.segments)
+        return pick
 
 
 # --------------------------------------------------------------------------

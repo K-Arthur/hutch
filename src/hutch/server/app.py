@@ -242,7 +242,7 @@ def create_app() -> FastAPI:
     def run_events(run_id: str, after: int = 0) -> dict:
         if store.get_run(run_id) is None:
             raise HTTPException(404, f"no such run: {run_id}")
-        events = [e.model_dump() for e in store.list_events(run_id, after_id=after)]
+        events = [e.model_dump() for e in store.list_events(run_id, after_seq=after)]
         current = store.get_run(run_id)
         return {"events": events, "status": current.status.value if current else "?"}
 
