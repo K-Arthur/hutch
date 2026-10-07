@@ -1,17 +1,18 @@
 /* hutch dashboard - server-rendered pages, no build step.
-   Dark, quiet, dense. System fonts only. All iconography is inline SVG (see templates/_icons.html). */
+   Dark, quiet, dense. System fonts only. All iconography is inline SVG (see templates/_icons.html).
+   Token VALUES are shared with website/ and the legacy SPA — see docs/design-system.md. */
 
 :root {
-  --bg: #0a0e13;
-  --bg-subtle: #0f141c;
-  --panel: #131a24;
-  --elevated: #182230;
-  --border: #1e2a3a;
-  --border-strong: #2c3e54;
+  --bg: #05070a;
+  --bg-subtle: #0a0e15;
+  --panel: #10161f;
+  --elevated: #171f2b;
+  --border: #1a2330;
+  --border-strong: #283649;
 
-  --text: #e2eaf4;
-  --dim: #9aabbf;
-  --faint: #7d8ea4;   /* >= 4.8:1 on every surface (WCAG AA); #6b7d93 failed at 4.1:1 on panels */
+  --text: #f0f4f9;
+  --dim: #9daebf;
+  --faint: #7d8ea4;   /* >= 4.9:1 on every surface (WCAG AA); #6b7d93 failed at 4.1:1 on panels */
 
   --accent: #34d399;
   --accent-bg: rgba(52, 211, 153, 0.12);
@@ -24,10 +25,10 @@
   --violet: #a78bfa;
   --violet-bg: rgba(167, 139, 250, 0.13);
 
-  --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", Menlo, Consolas, monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  --r: 10px;
-  --r-sm: 6px;
+  --r: 12px;
+  --r-sm: 8px;
   --gutter: 16px;
 }
 
@@ -48,13 +49,13 @@ pre { margin: 0; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere
 .bad { color: var(--red); }
 .hidden { display: none !important; }
 .ico { flex: none; vertical-align: -3px; }
-.skip { position: absolute; left: -999px; top: 6px; background: var(--accent); color: #04150f; padding: 6px 10px; border-radius: 6px; z-index: 100; }
+.skip { position: absolute; left: -999px; top: 6px; background: var(--accent); color: var(--accent-ink, #052e21); padding: 6px 10px; border-radius: 6px; z-index: 100; }
 .skip:focus { left: 8px; }
-:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 
 /* ------------------------------------------------------------------ topbar */
 .topbar { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 18px; padding: 0 20px; height: 54px;
-  background: rgba(15, 20, 28, 0.96); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); }
+  background: rgba(8, 12, 18, 0.96); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; color: var(--text); }
 .brand:hover { text-decoration: none; }
 .nav { display: flex; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
@@ -90,7 +91,7 @@ pre { margin: 0; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere
   background: var(--elevated); color: var(--text); font: 600 13px var(--sans); cursor: pointer; white-space: nowrap; }
 .btn:hover { border-color: #3b506d; background: #1d2a3b; text-decoration: none; }
 .btn.small { min-height: 30px; padding: 0 10px; font-size: 12.5px; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #04150f; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink, #052e21); }
 .btn.primary:hover { background: #4ade9f; }
 .btn.danger { background: var(--red-bg); border-color: rgba(248, 113, 113, .45); color: var(--red); }
 .btn.danger:hover { background: rgba(248, 113, 113, .22); }
@@ -184,7 +185,7 @@ pre { margin: 0; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere
 .field small { font-weight: 400; color: var(--faint); }
 input[type=text], input[type=password], select, textarea { width: 100%; background: var(--bg-subtle); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--r-sm); padding: 9px 11px; font: 14px var(--sans); }
 textarea { font-family: var(--mono); font-size: 13px; resize: vertical; }
-input:focus, select:focus, textarea:focus { outline: 2px solid var(--blue); outline-offset: 0; border-color: transparent; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
 .settings { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .settings .wide, .form-actions { grid-column: 1 / -1; }
 .compose { display: flex; flex-direction: column; gap: 10px; }

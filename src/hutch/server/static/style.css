@@ -22,7 +22,7 @@
   /* Text roles — all AA on every surface they appear on */
   --text: #f0f4f9;
   --text-dim: #9daebf;                 /* secondary                 >= 7.9:1 */
-  --text-faint: #75879c;               /* hints, metadata           >= 4.6:1 */
+  --text-faint: #7d8ea4;               /* hints, metadata           >= 4.9:1 on every surface */
 
   /* Accent + semantic status colors (used for status only, never decoration) */
   --accent: #34d399;
