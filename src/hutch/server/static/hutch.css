@@ -25,15 +25,24 @@
   --mono: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", Menlo, Consolas, monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
-  --r: 12px;                   /* panels, cards */
-  --r-sm: 8px;                 /* controls */
+  --r: 8px;                    /* panels, cards — brutalist-modern: sharp, not playful */
+  --r-sm: 5px;                 /* controls */
+  --r-btn: 0px;                /* square buttons (brutalist) */
   --gutter: 18px;
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Atmosphere: subtle radial accent glow + a glass ring */
+  --glow-accent: rgba(52, 211, 153, 0.10);
+  --glow-info: rgba(96, 165, 250, 0.07);
+  --ring-glass: rgba(255, 255, 255, 0.08);
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
-body { min-height: 100vh; display: flex; flex-direction: column; }
+body { min-height: 100vh; display: flex; flex-direction: column;
+  background-image: radial-gradient(900px 520px at 12% -8%, var(--glow-accent), transparent 60%),
+                    radial-gradient(760px 460px at 100% 0%, var(--glow-info), transparent 58%);
+  background-attachment: fixed; }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 h1 { font-family: var(--serif); font-weight: 400; font-size: 30px; line-height: 1.15; letter-spacing: -0.02em; margin: 0 0 3px; }
@@ -89,7 +98,7 @@ pre { margin: 0; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere
 .actions form, form.inline { margin: 0; display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
 /* ----------------------------------------------------------------- buttons */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 0 14px; border-radius: var(--r-sm); border: 1px solid var(--border-strong);
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 0 14px; border-radius: var(--r-btn); border: 1px solid var(--border-strong);
   background: var(--elevated); color: var(--text); font: 600 13px var(--sans); cursor: pointer; white-space: nowrap; transition: background .2s var(--ease), border-color .2s var(--ease); }
 .btn:hover { border-color: #3b506d; background: #1d2a3b; text-decoration: none; }
 .btn.small { min-height: 30px; padding: 0 10px; font-size: 12.5px; }
@@ -102,9 +111,9 @@ pre { margin: 0; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 
 /* ------------------------------------------------------------------- bits */
-.panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; margin-bottom: 16px; }
+.panel { background: rgba(16, 22, 31, 0.78); border: 1px solid var(--border); border-radius: var(--r); box-shadow: inset 0 0 0 1px var(--ring-glass); backdrop-filter: blur(10px); padding: 18px; margin-bottom: 16px; }
 .panel.narrow { max-width: 520px; margin: 40px auto; }
-.card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; }
+.card { background: rgba(16, 22, 31, 0.78); border: 1px solid var(--border); border-radius: var(--r); box-shadow: inset 0 0 0 1px var(--ring-glass); backdrop-filter: blur(10px); padding: 18px; }
 .stack { display: flex; flex-direction: column; gap: 12px; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
 .two-col .panel { margin-bottom: 0; }
@@ -227,7 +236,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r); background: var(--panel); }
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-th { color: var(--faint); font-size: 11.5px; letter-spacing: .05em; background: var(--bg-subtle); }
+th { color: var(--dim); font: 600 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; background: var(--bg-subtle); }
 td.snip { white-space: normal; min-width: 200px; max-width: 360px; }
 .num { text-align: right; }
 tr.clickable { cursor: pointer; }
@@ -332,3 +341,39 @@ tbody tr:last-child td { border-bottom: 0; }
   .compose-row .btn { width: 100%; }
   .filters .field.inline { width: 100%; }
 }
+
+/* ------------------------------------------------------- Brutalist-modern pass
+   Square buttons, 100px pill chips, monospace data rows (Oct 2026 spec). */
+.btn, .btn.small { border-radius: 0; }
+.chip, .tag, .count, .badge, .pill { border-radius: 100px; }
+th, td { font-family: var(--mono); }
+
+/* Full-screen mobile menu (header nav collapses to an overlay) */
+.nav-toggle { display: none; width: 38px; height: 38px; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid var(--border); color: var(--dim); cursor: pointer; border-radius: 0; }
+.nav-toggle[aria-expanded="true"] { color: var(--accent); border-color: rgba(52, 211, 153, .4); }
+@media (max-width: 760px) {
+  .nav-toggle { display: inline-flex; }
+  #primary-nav {
+    position: fixed; inset: 0; z-index: 120;
+    display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: 4px;
+    padding: 40px 28px; background: var(--bg); border: none; overflow-y: auto;
+    transform: translateY(-100%); opacity: 0; pointer-events: none;
+    transition: transform .24s var(--ease), opacity .24s var(--ease);
+  }
+  #primary-nav.open { transform: none; opacity: 1; pointer-events: auto; }
+  #primary-nav a { font-size: 20px; font-weight: 600; padding: 16px 8px; border-bottom: 1px solid var(--border); border-radius: 0; }
+  #primary-nav a.active { background: transparent; }
+}
+
+/* ------------------------------------------------------- Palette (Oct 2026)
+   Neutral #0a0a0a cards, accent blue #52a8ff for active states, success green #62c073. */
+:root {
+  --bg: #050505; --bg-subtle: #0a0a0a; --panel: #0a0a0a; --elevated: #151515;
+  --accent: #52a8ff; --accent-ink: #04121f; --success: #62c073;
+}
+.chip.st-succeeded::before, .chip.st-approved::before, .chip.v-allow::before { background: var(--success); }
+.chip.st-running::before, .chip.st-loading_model::before { background: var(--accent); }
+.tag.ok { color: var(--success); border-color: rgba(98, 192, 115, .35); }
+.chip, .tag, .count, .badge, .pill { font-size: 12px; }
+@media (max-width: 760px) { .topbar { backdrop-filter: none; -webkit-backdrop-filter: none; } }

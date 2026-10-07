@@ -146,3 +146,18 @@
     });
   }
 })();
+
+/* Full-screen mobile menu (header nav collapses to an overlay) */
+(function () {
+  var btn = document.getElementById("nav-toggle");
+  var nav = document.getElementById("primary-nav");
+  if (!btn || !nav) return;
+  function setOpen(open) {
+    nav.classList.toggle("open", open);
+    btn.setAttribute("aria-expanded", String(open));
+    btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+  }
+  btn.addEventListener("click", function () { setOpen(!nav.classList.contains("open")); });
+  nav.addEventListener("click", function (e) { if (e.target.closest("a")) setOpen(false); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") setOpen(false); });
+})();

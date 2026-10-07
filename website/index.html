@@ -667,5 +667,39 @@ if (menuBtn && drawer) {
 }
 </script>
 
+<script>
+/* Motion layer: scroll reveals + floating parallax cards. */
+(function () {
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var targets = document.querySelectorAll('main > section, .bento-card, .incident, .matrix, .interactive-preview, .section-heading');
+  if (!reduce && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+    targets.forEach(function (el, i) { el.classList.add('reveal'); el.style.transitionDelay = (i % 4) * 60 + 'ms'; io.observe(el); });
+  }
+  if (!reduce) {
+    var px = Array.prototype.slice.call(document.querySelectorAll('.bento-card, .interactive-preview'));
+    var ticking = false;
+    function onScroll() {
+      if (ticking) return; ticking = true;
+      requestAnimationFrame(function () {
+        var vh = window.innerHeight;
+        px.forEach(function (el) {
+          var r = el.getBoundingClientRect();
+          if (r.bottom < 0 || r.top > vh) return;
+          var depth = parseFloat(el.dataset.depth || '12');
+          var offset = ((r.top + r.height / 2) - vh / 2) / vh;
+          el.style.transform = 'translateY(' + (-offset * depth).toFixed(1) + 'px)';
+        });
+        ticking = false;
+      });
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+})();
+</script>
+
 </body>
 </html>

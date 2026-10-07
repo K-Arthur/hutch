@@ -1240,3 +1240,18 @@ function wireCommon() {
 
 route();
 setInterval(refreshBadge, 4000);
+
+/* Full-screen mobile menu (header nav collapses to an overlay) */
+(function () {
+  const btn = document.getElementById("nav-toggle");
+  const nav = document.getElementById("primary-nav");
+  if (!btn || !nav) return;
+  const setOpen = (open) => {
+    nav.classList.toggle("open", open);
+    btn.setAttribute("aria-expanded", String(open));
+    btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+  };
+  btn.addEventListener("click", () => setOpen(!nav.classList.contains("open")));
+  nav.addEventListener("click", (e) => { if (e.target.closest("a")) setOpen(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+})();
