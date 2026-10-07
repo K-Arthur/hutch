@@ -1,0 +1,44 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e ".[dev]"
+      - run: pytest -q
+
+  benchmarks:
+    # PF-12: tracks CLI start, events/s, per-step overhead, idle memory/CPU; fails on a >20% regression.
+    # Absolute numbers depend on the runner, so the baseline is recorded on the runner itself (first run)
+    # and cached; later runs compare against it.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - uses: actions/cache@v4
+        with:
+          path: benchmarks/baselines/ci.json
+          key: bench-baseline-${{ runner.os }}-${{ runner.arch }}-v1
+      - run: python -m benchmarks.run --record-if-missing --check
+        env:
+          HUTCH_BENCH_BASELINE: ci
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench-results
+          path: benchmarks/results/latest.json

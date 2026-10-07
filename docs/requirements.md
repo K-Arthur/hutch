@@ -12,14 +12,14 @@ commits can cite them. Evidence for the *why* is in
 > Performance numbers in the draft are *proposed targets*. Measured values live in
 > [performance.md](performance.md) and the committed `benchmarks/baseline.json`.
 
-*Status column last updated: initial commit (everything `planned`); updated as phases land.*
+*Status column last updated: end of Phase 1 (engine baseline).*
 
 ## Dashboard and app
 
 | ID | Requirement | Phase | Status | Where |
 |---|---|---|---|---|
 | UI-1 | Home shows Needs you / Running now / Stale | MVP | planned | |
-| UI-2 | Stop all in every header; per-run Stop kills child processes | MVP | planned | |
+| UI-2 | Stop all in every header; per-run Stop kills child processes | MVP | partial | engine Stop kills process groups + unblocks approvals (tested); header control pending |
 | UI-3 | Run detail streams over SSE and resumes gap-free via event sequence | MVP | planned | |
 | UI-4 | Run detail: steps, elapsed, spend, context vs caps | MVP | planned | |
 | UI-5 | Approvals inbox: parsed segments, rule, once/always/deny, countdown | MVP | planned | |
@@ -77,14 +77,14 @@ commits can cite them. Evidence for the *why* is in
 | SR-1 | One runtime/model crash affects only its own runs; health per runtime | MVP | planned | |
 | SR-2 | Exact per-step token/cost accounting, visible before a run | MVP | planned | |
 | SR-3 | Per-bot compact-now and fresh-session controls | Later | later | |
-| SR-4 | Outward-sending tools always ask, regardless of sticky allows | MVP | planned | |
+| SR-4 | Outward-sending tools always ask, regardless of sticky allows | MVP | partial | gate enforces outward-never-sticky (`approvals.py`); outward classification of tools pending |
 | SR-5 | Small models: thinking off, per-turn token cap, loop detector | MVP | planned | |
 | SR-6 | In-app help generated from or tested against real routes | Later | later | |
 | SR-7 | Every run shows its parent bot or plan | MVP | planned | |
 | SR-8 | Provider fallback chain | MVP | planned | |
 | SR-9 | Failed streaming request retried once without streaming | MVP | planned | |
 | SR-10 | Bubblewrap-wrapped shell on Linux | Later | later | |
-| SR-11 | Hash-chained event log | Later | planned *(pulled forward)* | |
+| SR-11 | Hash-chained event log | Later | done | hash chain in `store.py`, `Store.verify_chain`; tamper/delete tests (CLI/UI surface pending) |
 | SR-12 | Risk tier per bot (medium asks, high blocked) + per-command rules | MVP | planned | |
 | SR-13 | Command parser fuzz-tested | MVP | planned | |
 | SR-14 | `doctor` command | MVP | planned | |
@@ -97,21 +97,21 @@ commits can cite them. Evidence for the *why* is in
 | PF-2 | Per-tool output limit; full output saved as artifact | configurable per tool | MVP | planned | |
 | PF-3 | Prompt includes only the bot's allowed tools | — | MVP | planned | |
 | PF-4 | Compaction before the context limit | ~75% of context | Later | later | |
-| PF-5 | Scheduler sleeps until next due run or event; no polling | near-zero idle CPU | MVP | planned | |
-| PF-6 | Playwright and provider SDKs imported lazily | CLI status < 300 ms | MVP | planned | |
-| PF-7 | SQLite WAL, one writer, batched event inserts, run+seq index | 1,000 events/s | MVP | planned | |
+| PF-5 | Scheduler sleeps until next due run or event; no polling | near-zero idle CPU | MVP | done | `engine.run_loop`/`next_wakeup`, `wake.py`; `tests/test_engine_loop.py`; 0.0 s/h idle CPU |
+| PF-6 | Playwright and provider SDKs imported lazily | CLI status < 300 ms | MVP | done | lazy `httpx`/provider imports; `hutch status` 275 ms (was 820 ms for `version`) |
+| PF-7 | SQLite WAL, one writer, batched event inserts, run+seq index | 1,000 events/s | MVP | done | `store.py` writer thread + WAL; ~52k events/s; `tests/test_store_events.py` |
 | PF-8 | Browser launches on first use, closes when idle | idle close 5 min | MVP | planned | |
 | PF-9 | Coalesced live updates, paginated transcripts | usable at 10,000 events | MVP | planned | |
 | PF-10 | Small router model stays loaded | — | Later | later | |
-| PF-11 | Per-step timing: model wait, tool time, Hutch overhead | overhead < 50 ms/step | MVP | planned | |
-| PF-12 | Benchmark suite in CI; fails on 20% regression | — | MVP | planned | |
-| PF-13 | Idle daemon small | < 150 MB resident | MVP | planned | |
+| PF-11 | Per-step timing: model wait, tool time, Hutch overhead | overhead < 50 ms/step | MVP | done | `runtime/steps.py`; 0.25 ms/step (mock); recorded as `step` events |
+| PF-12 | Benchmark suite in CI; fails on 20% regression | — | MVP | done | `benchmarks/run.py`, `baselines/local.json`, `.github/workflows/ci.yml` (CI not yet run remotely) |
+| PF-13 | Idle daemon small | < 150 MB resident | MVP | done | 39 MB daemon / 56 MB serve idle |
 
 ## Build order and gates
 
 | # | Phase | IDs | Gate | Gate status |
 |---|---|---|---|---|
-| 1 | Engine baseline | PF-5, PF-6, PF-7, PF-11, PF-12, PF-13 | tests pass offline; benchmarks record a baseline | planned |
+| 1 | Engine baseline | PF-5, PF-6, PF-7, PF-11, PF-12, PF-13 | tests pass offline; benchmarks record a baseline | **passed** — 101 tests offline; baseline in `benchmarks/baselines/local.json` |
 | 2 | Run view and control | UI-1…6, UI-12, SR-7 | ten concurrent runs stream, connection cut, transcript resumes with no missing events | planned |
 | 3 | Local model layer | LM-1…6, SR-1, SR-14 | self-check passes; swap latency measured for two model pairs | planned |
 | 4 | Reliability harness | LM-11, LM-13, SR-5 | ≥ 3 models profiled on the dev machine | planned |

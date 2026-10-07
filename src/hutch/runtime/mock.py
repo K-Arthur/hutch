@@ -13,6 +13,7 @@ from typing import Callable
 from ..models import Event, EventType, Run
 from ..tools import Tool, ToolContext
 from .base import RunAborted
+from .steps import StepTimer, call_tool, finish_step
 
 
 class MockRuntime:
@@ -30,15 +31,11 @@ class MockRuntime:
         def call(name: str, args: dict) -> str:
             if stop():
                 raise RunAborted("stopped", "user requested stop")
-            ctx.emit(Event(run_id=run.id, type=EventType.tool_call, data={"tool": name, "args": args}))
-            tool = tools.get(name)
-            from ..tools.base import ToolResult
-            result = tool.run(args, ctx) if tool else ToolResult(
-                ok=False, output=f"error: tool '{name}' not enabled for this bot")
-            ctx.emit(Event(run_id=run.id, type=EventType.tool_result,
-                           data={"tool": name, "ok": result.ok, "output": result.output[:2_000]}))
+            timer = StepTimer()
+            result = call_tool(run, ctx, tools, name, args, timer)
             run.steps += 1
             run.tokens += 350  # plausible per-step usage for the dashboard meter
+            finish_step(run, ctx, timer, model="mock/demo", prompt_tokens=250, completion_tokens=100)
             return result.output
 
         topic = ctx.bot.description or ctx.bot.name

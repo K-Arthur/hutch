@@ -130,9 +130,9 @@ class Run(BaseModel):
     completion_tokens: int = 0
     cached_tokens: int = 0
     cost_usd: float = 0.0
-    model_ms: int = 0                 # time waiting on the model
-    tool_ms: int = 0                  # time inside tools
-    overhead_ms: int = 0              # everything else: Hutch's own cost per step
+    model_ms: float = 0.0             # time waiting on the model
+    tool_ms: float = 0.0              # time inside tools
+    overhead_ms: float = 0.0          # everything else: Hutch's own cost per step
     context_used: int = 0             # tokens in the last prompt
     context_limit: int = 0            # effective window the model actually got
     model_used: str = ""              # may differ from bot.model after escalation/fallback

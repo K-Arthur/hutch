@@ -74,18 +74,14 @@ def create_app() -> FastAPI:
     scheduler = Scheduler(store)
     @contextlib.asynccontextmanager
     async def lifespan(app_: FastAPI):
-        def loop() -> None:
-            import time, traceback
-            while True:
-                try:
-                    engine.tick()
-                except Exception:
-                    traceback.print_exc()
-                time.sleep(15)
-
-        t = threading.Thread(target=loop, daemon=True, name="hutch-tick")
-        t.start()
-        yield
+        # The scheduler loop sleeps until the next due run or a bus event (PF-5); no fixed tick.
+        store.ensure_listening()
+        _thread, stop = engine.start_background()
+        try:
+            yield
+        finally:
+            stop.set()
+            store.bus.notify("work", remote=False)
 
     app = FastAPI(title="hutch", version=__version__, docs_url="/api/openapi.json", lifespan=lifespan)
 

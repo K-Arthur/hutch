@@ -32,3 +32,6 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+
+# Benchmark output (baselines under benchmarks/baselines/ ARE committed)
+benchmarks/results/
