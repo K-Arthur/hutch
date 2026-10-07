@@ -2,6 +2,37 @@
 
 All notable changes to hutch (formerly "openbot"). Format follows Keep a Changelog; versioning is semantic.
 
+## [Unreleased]
+
+### Added
+- **Design system** ([docs/design-system.md](docs/design-system.md)): one set of WCAG-AA-verified
+  tokens (surfaces, text roles, semantic status colors, radius/type/spacing/motion scales) shared by
+  the dashboard, marketing site, and legacy SPA; documented component anatomy for tool lines,
+  approval gates, status chips, budget meters, empty states, dialogs, and toasts.
+- **Emoji audit gate**: `scripts/audit_emoji.py` (improved Python port of varve's audit-emoji.mjs —
+  HTML-entity, escape-sequence, and surrogate-pair detection; greppable waivers) wired into `pytest`
+  via `tests/test_emoji_audit.py`. Pictographic emoji and icon-like text characters are banned;
+  UI iconography is inline SVG only.
+- Runs view: wired status filters and search (previously rendered with no listeners), shareable
+  `#/runs?status=…&q=…` state, "show more" pagination, keyboard-operable rows, distinct empty states.
+
+### Changed
+- **Studio feed** (legacy SPA): tool call/result pairs merge into compact expandable one-line entries;
+  4+ steps collapse under a "tool steps" group; expansion persists per run; run errors are alert rows.
+- **Approvals**: live fail-closed TTL countdowns everywhere (previously static text), flipping to
+  "expired — denied"; consistent amber gate card across studio feed and approvals queue.
+- **Composer**: per-bot daily token budget meter (amber >= 70%, red >= 100%), icon send button,
+  Up-arrow recall of the last prompt.
+- **Dialogs/toasts**: `role=dialog` modals with focus trap, Escape/backdrop close, and focus
+  restoration; `window.confirm` replaced by styled destructive confirms; toasts gained dismiss
+  buttons and errors persist until dismissed.
+- **Marketing site**: tokens aligned with the dashboard (AA text roles), comparison-matrix negatives
+  calmed from a wall of red pills to quiet metadata, one primary action per viewport, 14px code
+  windows, lowercase brand casing throughout, skip link/`<main>`/focus rings/reduced-motion, and an
+  accessible mobile drawer (`aria-expanded`, Escape, focus return).
+- **Server-rendered dashboard**: token values aligned onto the shared system (obsidian surfaces,
+  12/8px radii, emerald focus rings) without structural changes.
+
 ## [0.1.0] — 2026-10-07
 
 First MVP.

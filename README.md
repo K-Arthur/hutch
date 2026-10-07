@@ -74,6 +74,7 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 | [Architecture](docs/architecture.md) | component map, decision log, concurrency model |
 | [Safety model](docs/safety.md) | deny/ask/allow rules, approval flow, honest limits |
 | [Bot configuration](docs/bot-config.md) | fields, model specs, schedules, limits, examples |
+| [Design system](docs/design-system.md) | shared UI tokens, components, icon/emoji policy, a11y rules |
 | [Roadmap](docs/roadmap.md) | phases: hardening → capability → scale-out |
 | [Research](docs/research/) | orchestrator/runtime comparison; incident-based requirements |
 
