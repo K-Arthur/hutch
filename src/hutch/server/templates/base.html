@@ -20,8 +20,8 @@
     </a>
     <nav class="nav" aria-label="Primary">
       {%- for key, href, label, ic in nav_items %}
-      <a href="{{ href }}" class="{{ 'active' if nav == key else '' }}">{{ icon(ic, 15) }}<span>{{ label }}</span>
-        {%- if key == 'approvals' %}<span id="approval-badge" class="badge {{ '' if pending_count else 'hidden' }}" data-live="/_badge" data-live-swap="inner">{{ pending_count }}</span>{% endif -%}
+      <a href="{{ href }}" class="{{ 'active' if nav == key else '' }}"{% if nav == key %} aria-current="page"{% endif %}>{{ icon(ic, 15) }}<span>{{ label }}</span>
+        {%- if key == 'approvals' %}<span id="approval-badge" class="badge {{ '' if pending_count else 'hidden' }}" data-live="/_badge" data-live-swap="inner" aria-label="{{ pending_count }} pending approval{{ '' if pending_count == 1 else 's' }}">{{ pending_count }}</span>{% endif -%}
       </a>
       {%- endfor %}
     </nav>
@@ -31,7 +31,7 @@
         <input type="hidden" name="next" value="{{ request.url.path }}">
         <button class="btn danger small" type="submit" title="Stop all runs now. Kills child processes, not just the agent loop.">{{ icon("stop", 14) }}<span>Stop all</span></button>
       </form>
-      <span id="live-pill" class="pill pulse" title="Live updates connected">live</span>
+      <span id="live-pill" class="pill pulse" role="status" aria-live="polite" title="Live updates connected">live</span>
     </div>
   </header>
 
