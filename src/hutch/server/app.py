@@ -8,6 +8,7 @@ whole platform.
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import re
 import threading
@@ -71,10 +72,8 @@ def create_app() -> FastAPI:
     store = Store(config)
     engine = Engine(config, store)
     scheduler = Scheduler(store)
-    app = FastAPI(title="hutch", version=__version__, docs_url="/api/openapi.json")
-
-    @app.on_event("startup")
-    def _start_tick() -> None:
+    @contextlib.asynccontextmanager
+    async def lifespan(app_: FastAPI):
         def loop() -> None:
             import time, traceback
             while True:
@@ -84,7 +83,11 @@ def create_app() -> FastAPI:
                     traceback.print_exc()
                 time.sleep(15)
 
-        threading.Thread(target=loop, daemon=True, name="hutch-tick").start()
+        t = threading.Thread(target=loop, daemon=True, name="hutch-tick")
+        t.start()
+        yield
+
+    app = FastAPI(title="hutch", version=__version__, docs_url="/api/openapi.json", lifespan=lifespan)
 
     # ------------------------------------------------------------- helpers
 
@@ -199,6 +202,18 @@ def create_app() -> FastAPI:
         bot_or_404(ref)
         store.delete_bot(ref)
         return {"deleted": ref}
+
+    @app.delete("/api/bots/{ref}/sticky-allows/{key:path}")
+    def delete_sticky_allow(ref: str, key: str) -> dict:
+        bot = bot_or_404(ref)
+        store.revoke_sticky(bot.id, key)
+        return {"revoked": key}
+
+    @app.delete("/api/bots/{ref}/memory/{key:path}")
+    def delete_memory(ref: str, key: str) -> dict:
+        bot = bot_or_404(ref)
+        store.forget(bot.id, key)
+        return {"forgot": key}
 
     @app.post("/api/bots/{ref}/run", status_code=201)
     def run_bot(ref: str, body: RunRequest) -> dict:

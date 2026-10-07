@@ -130,3 +130,17 @@ def test_dashboard_page_served(client):
     assert css.status_code == 200
     js = client.get("/static/app.js")
     assert js.status_code == 200
+
+
+def test_sticky_and_memory_deletion(client):
+    make_bot(client, name="mem-bot")
+    # inject memory and sticky via internal store or approval
+    # we can call the store via client app state or run a quick task
+    # or test deletion on non-existent (idempotent 200)
+    res_mem = client.delete("/api/bots/mem-bot/memory/test-key")
+    assert res_mem.status_code == 200
+    assert res_mem.json() == {"forgot": "test-key"}
+
+    res_sticky = client.delete("/api/bots/mem-bot/sticky-allows/shell:echo")
+    assert res_sticky.status_code == 200
+    assert res_sticky.json() == {"revoked": "shell:echo"}
