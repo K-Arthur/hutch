@@ -67,6 +67,7 @@ class BotPatch(BaseModel):
 class RunRequest(BaseModel):
     prompt: str
     rehearse: bool = False
+    model: Optional[str] = None          # run this message on another model (the chat switcher); bot is unchanged
 
 
 class ApproveRequest(BaseModel):
@@ -232,9 +233,22 @@ def create_app() -> FastAPI:
     @app.post("/api/bots/{ref}/run", status_code=201)
     def run_bot(ref: str, body: RunRequest) -> dict:
         bot = bot_or_404(ref)
-        run = engine.submit(bot, body.prompt, origin="manual:api", rehearsal=body.rehearse)
+        from ..modelchoices import ModelNotUsable, validate_override
+        try:
+            model = validate_override(config, store, bot, body.model or "")
+        except ModelNotUsable as exc:
+            raise HTTPException(exc.status, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
+        run = engine.submit(bot, body.prompt, origin="manual:api", rehearsal=body.rehearse,
+                            model="" if model == bot.model else model)
         engine.dispatch_pending()
         return run_view(store.get_run(run.id))
+
+    @app.get("/api/bots/{ref}/models")
+    def bot_models(ref: str) -> dict:
+        """The switcher's list for this bot: its own model first, then what is usable, then what needs setup."""
+        from ..modelchoices import choices_json, model_choices
+        bot = bot_or_404(ref)
+        return {"default": bot.model, "models": choices_json(model_choices(config, store, bot))}
 
     # --------------------------------------------------------------- runs
 

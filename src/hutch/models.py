@@ -183,6 +183,7 @@ class Run(BaseModel):
     plan_id: Optional[str] = None
     plan_task_id: Optional[str] = None
     rehearsal: bool = False           # dry run: mutating actions are simulated
+    model_override: str = ""          # the model picked for THIS message in the chat switcher (bot.model is untouched)
     owner: str = ""                   # pid of the process executing this run (orphan recovery)
 
 

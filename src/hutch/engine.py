@@ -73,10 +73,12 @@ class Engine:
 
     def submit(self, bot: Bot, prompt: str, kind: str = "on_demand", missed_windows: int = 0,
                origin: str = "manual", plan_id: Optional[str] = None,
-               plan_task_id: Optional[str] = None, rehearsal: bool = False) -> Run:
-        """Create a queued run; the dispatcher (or run_blocking) executes it."""
+               plan_task_id: Optional[str] = None, rehearsal: bool = False, model: str = "") -> Run:
+        """Create a queued run; the dispatcher (or run_blocking) executes it.
+
+        ``model`` runs this one run on a different model than the bot's own (the chat switcher)."""
         run = Run(bot_id=bot.id, prompt=prompt, missed_windows=missed_windows, origin=origin,
-                  plan_id=plan_id, plan_task_id=plan_task_id, rehearsal=rehearsal)
+                  plan_id=plan_id, plan_task_id=plan_task_id, rehearsal=rehearsal, model_override=model)
         self.store.create_run(run)
         self.store.enqueue_task(Task(bot_id=bot.id, kind=kind, prompt=prompt))
         # attach the task to this run so it is marked done when the run finishes
@@ -122,6 +124,8 @@ class Engine:
         return started
 
     def _start_worker(self, bot: Bot, run: Run) -> None:
+        if run.model_override:
+            bot = bot.model_copy(update={"model": run.model_override})    # this run only; the stored bot is unchanged
         cancel = threading.Event()
         self._cancels[run.id] = cancel
         t = threading.Thread(target=self._execute, args=(bot, run, cancel),

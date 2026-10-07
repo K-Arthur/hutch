@@ -367,6 +367,7 @@ async function renderChatStudio(preferredBot = null) {
               <button class="composer-add" type="button" id="composer-toggle" aria-label="Suggestions and budget" aria-expanded="false">${icon("plus")}</button>
               <label class="visually-hidden" for="chat-prompt">Task prompt for ${esc(bot.name)}</label>
               <textarea class="composer-textarea" id="chat-prompt" rows="1" placeholder="Message ${esc(bot.name)}…"></textarea>
+              <span class="model-switch-slot" id="model-switch-slot"></span>
               <button class="composer-send" id="chat-send" aria-label="Send prompt">${icon("send")}</button>
             </div>
           </div>
@@ -449,13 +450,14 @@ async function renderChatStudio(preferredBot = null) {
   // Wire prompt submit & quick prompts
   const txt = $("#chat-prompt");
   const send = $("#chat-send");
+  const switcher = window.hutchModelSwitcher?.mount($("#model-switch-slot"), bot);   // model-switcher.js
   const triggerRun = async (promptVal) => {
     if (!promptVal.trim()) return;
     send.disabled = true;
     send.textContent = "Running…";
     lastPrompt = promptVal.trim();
     try {
-      const r = await api(`/bots/${encodeURIComponent(bot.name)}/run`, { method: "POST", body: { prompt: promptVal.trim() } });
+      const r = await api(`/bots/${encodeURIComponent(bot.name)}/run`, { method: "POST", body: { prompt: promptVal.trim(), model: switcher?.selected() || undefined } });
       toast(`Run started`);
       currentRunId = r.id;
       txt.value = "";

@@ -1,0 +1,73 @@
+/* Model switcher (composer menu + all-models dialog). Uses the studio's tokens only. */
+/* the menu is anchored to the composer pill, not the button: it can never be cut off by the bot rail on a phone */
+.composer-pill { position: relative; }
+.ms-wrap { position: static; flex: none; align-self: center; margin-bottom: 4px; }
+.ms-btn {
+  display: inline-flex; align-items: center; gap: 7px; max-width: 190px; min-height: 34px; padding: 0 10px 0 11px;
+  border-radius: 999px; border: 1px solid var(--border); background: var(--surface-3, transparent);
+  color: var(--text-dim); font: 500 12.5px var(--font-sans); cursor: pointer;
+}
+.ms-btn:hover, .ms-btn[aria-expanded="true"] { color: var(--text); border-color: var(--border-strong, var(--border)); }
+.ms-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ms-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ms-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-faint); flex: none; }
+.ms-btn.is-custom { color: var(--text); border-color: var(--accent-border, var(--accent)); }
+.ms-btn.is-custom .ms-dot { background: var(--accent); }
+.ms-ico { flex: none; }
+
+.ms-menu {
+  position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 30; width: 300px; max-width: calc(100vw - 24px);
+  padding: 6px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface-2);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .45);
+}
+.ms-menu[hidden] { display: none; }
+.ms-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left;
+  padding: 9px 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text); cursor: pointer;
+  font: inherit; min-height: 44px;
+}
+.ms-item:hover, .ms-item:focus-visible { background: var(--surface-3); outline: none; }
+.ms-item:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.ms-item-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; }
+.ms-item-name { font-size: 14px; overflow-wrap: anywhere; }
+.ms-item-note { flex-basis: 100%; font-size: 12px; color: var(--text-dim); }
+.ms-item-check { color: var(--accent); display: inline-flex; flex: none; width: 16px; }
+.ms-sep { height: 1px; margin: 4px 6px; background: var(--border); }
+.ms-more .ms-item-name { color: var(--text); }
+.ms-tag {
+  display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; border-radius: 5px; border: 1px solid var(--border);
+  font: 11px var(--font-mono); color: var(--text-dim); background: var(--surface-1);
+}
+.ms-tag.ms-warn { color: var(--amber, #fbbf24); border-color: rgba(251, 191, 36, .4); }
+.ms-tag.ms-hosted { color: var(--text-dim); }
+
+/* all-models dialog */
+.ms-all { display: flex; flex-direction: column; gap: 12px; width: 100%; min-width: 0; }
+.ms-search, .ms-custom { width: 100%; box-sizing: border-box; }
+.ms-groups { max-height: 46vh; overflow: auto; padding-right: 4px; }
+.ms-group { margin-bottom: 12px; }
+.ms-group h4 { margin: 0 0 4px; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); }
+.ms-row { display: flex; gap: 10px; align-items: flex-start; padding: 8px 8px; border-radius: 9px; cursor: pointer; }
+.ms-row:hover { background: var(--surface-3); }
+.ms-row[hidden], .ms-group[hidden], .ms-empty[hidden] { display: none; }
+/* radios are drawn here: the browser's default renders unchecked ones as solid discs on this dark theme */
+.ms-row input[type="radio"] {
+  appearance: none; -webkit-appearance: none; flex: none; width: 16px; height: 16px; min-height: 0; margin: 3px 0 0; padding: 0;
+  border-radius: 50%; border: 1.5px solid var(--text-faint); background: transparent; cursor: pointer;
+}
+.ms-row input[type="radio"]:checked { border-color: var(--accent); background: radial-gradient(circle, var(--accent) 0 4px, transparent 5px); }
+.ms-row input[type="radio"]:disabled { opacity: .35; cursor: not-allowed; }
+.ms-row input[type="radio"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ms-row.is-off { cursor: not-allowed; opacity: .85; }
+.ms-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ms-row-name { font-size: 14px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; overflow-wrap: anywhere; }
+.ms-row-note { font-size: 12.5px; color: var(--text-dim); }
+.ms-other { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+.ms-other .muted { color: var(--text-faint); }
+.ms-foot { margin: 0; font-size: 12.5px; color: var(--text-dim); }
+.ms-foot a { color: var(--accent); }
+
+@media (max-width: 560px) {
+  .ms-btn { max-width: 120px; padding: 0 8px; gap: 5px; }
+  .ms-menu { left: 0; right: 0; width: auto; max-width: none; }
+}

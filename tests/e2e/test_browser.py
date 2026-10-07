@@ -185,7 +185,7 @@ def test_approve_and_stop_work_from_the_real_ui(browser, live):
 
     ctx = browser.new_context(viewport={"width": 390, "height": 844})     # phone width (UI-13)
     page = ctx.new_page()
-    page.goto(f"{base}/")
+    page.goto(f"{base}/overview")
     page.wait_for_selector("[data-approval]")
     countdown = page.inner_text("[data-countdown-to] .cd-text")
     time.sleep(2.1)
@@ -200,8 +200,115 @@ def test_approve_and_stop_work_from_the_real_ui(browser, live):
     engine.dispatch_pending()
     wait_for(lambda: store.get_run(run2.id).status is RunStatus.waiting_approval)
     page.on("dialog", lambda d: d.accept())
-    page.goto(f"{base}/")
+    page.goto(f"{base}/overview")
     page.click("header button:has-text('Stop all')")
     wait_for(lambda: store.get_run(run2.id).status is RunStatus.stopped)
     assert re.search(r"Stopped 1 run", page.inner_text("body"))
     ctx.close()
+
+
+# ============================================================ model switcher (composer menu + all-models dialog)
+
+@pytest.fixture()
+def switcher_env(live, monkeypatch):
+    from tests.fakes import FakeOllama
+    small = {"params": "1B", "size": 500_000_000}            # small enough to fit any machine that runs the tests
+    fake = FakeOllama({"tiny:1b": dict(small), "small:2b": dict(small),
+                       "huge:70b": {"params": "70B", "size": 45_000_000_000, "ctx": 131072}})
+    monkeypatch.setenv("OLLAMA_HOST", fake.url)
+    from hutch.modelchoices import reset_cache
+    from hutch.runtime.ladder import reset_provider_cache
+    reset_provider_cache()
+    reset_cache()
+    base, app = live
+    app.state.store.create_bot(Bot(name="chatty", model="ollama/tiny:1b", approval_mode=ApprovalMode.auto,
+                                   tools=[], selfcheck=False))
+    yield base, app, fake
+    fake.close()
+
+
+def test_composer_switcher_menu_check_keyboard_and_per_message_override(browser, switcher_env):
+    from tests.fakes import agent_script
+    base, app, fake = switcher_env
+    fake.script = agent_script([{"content": "answered on the small model"}])
+    page = browser.new_context(viewport={"width": 1280, "height": 800}).new_page()
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.goto(base + "/")
+    btn = page.locator(".ms-btn")
+    btn.wait_for()
+    assert "tiny:1b" in btn.inner_text()
+    assert btn.get_attribute("aria-expanded") == "false"
+
+    btn.click()
+    menu = page.locator(".ms-menu")
+    menu.wait_for(state="visible")
+    items = page.locator(".ms-menu .ms-item[role=menuitemradio]")
+    page.wait_for_function("document.querySelectorAll('.ms-menu .ms-item[role=menuitemradio]').length >= 2")
+    assert items.first.get_attribute("aria-checked") == "true", "the model in use carries the check"
+    assert "default" in items.first.inner_text()
+    assert page.evaluate("document.activeElement.classList.contains('ms-item')"), "focus moves into the menu"
+    assert btn.get_attribute("aria-expanded") == "true"
+    # a model that cannot fit is not offered in the compact menu
+    assert "huge:70b" not in menu.inner_text()
+
+    page.keyboard.press("ArrowDown")
+    page.keyboard.press("Enter")                          # pick the next model with the keyboard
+    assert menu.is_hidden() and btn.get_attribute("aria-expanded") == "false"
+    assert page.evaluate("document.activeElement.classList.contains('ms-btn')"), "focus returns to the button"
+    chosen = btn.inner_text().strip()
+    assert chosen == "small:2b"
+    assert "is-custom" in btn.get_attribute("class")
+
+    page.locator("#chat-prompt").fill("hello there")
+    with page.expect_response(lambda r: r.url.endswith("/api/bots/chatty/run") and r.request.method == "POST") as info:
+        page.locator("#chat-send").click()
+    body = info.value.json()
+    assert body["model_override"].startswith("ollama/") and body["model_override"] == "ollama/small:2b"
+    assert app.state.store.get_bot("chatty").model == "ollama/tiny:1b", "switching must not edit the bot"
+
+    page.reload()                                           # the choice is remembered for this bot
+    page.locator(".ms-btn").wait_for()
+    assert page.locator(".ms-btn").inner_text().strip() == chosen
+    assert not errors, errors
+
+
+def test_all_models_dialog_filters_explains_and_applies(browser, switcher_env):
+    base, app, fake = switcher_env
+    page = browser.new_context(viewport={"width": 1280, "height": 800}).new_page()
+    page.goto(base + "/")
+    page.locator(".ms-btn").click()
+    page.locator(".ms-more").click()
+    dlg = page.locator(".modal-card")
+    dlg.wait_for()
+    text = dlg.inner_text()
+    assert "Choose a model for this chat" in text and "huge:70b" in text
+    assert "won't fit" in text, "a model that does not fit is shown, with the reason, but cannot be chosen"
+    assert page.locator('input[name="ms-pick"][value="ollama/huge:70b"]').is_disabled()
+    assert "anthropic" in text.lower() and "ANTHROPIC_API_KEY" in text
+    assert "leaves this machine" in text
+    assert page.locator('a[href="/models"]').count() == 1
+
+    page.locator(".ms-search").fill("small")
+    assert page.locator(".ms-row:visible").count() == 1
+    page.locator(".ms-search").fill("zzz-nothing")
+    assert page.locator(".ms-empty").is_visible()
+    page.locator(".ms-search").fill("small")
+    page.locator('input[name="ms-pick"][value="ollama/small:2b"]').check()
+    page.locator("#modal-confirm").click()
+    assert "small:2b" in page.locator(".ms-btn").inner_text()
+
+    page.locator(".ms-btn").click()                          # Escape closes the menu and keeps the choice
+    page.keyboard.press("Escape")
+    assert page.locator(".ms-menu").is_hidden() and "small:2b" in page.locator(".ms-btn").inner_text()
+
+
+def test_switcher_fits_a_phone_screen(browser, switcher_env):
+    base, app, fake = switcher_env
+    page = browser.new_context(viewport={"width": 390, "height": 844}).new_page()
+    page.goto(base + "/")
+    page.locator(".ms-btn").click()
+    page.locator(".ms-menu").wait_for(state="visible")
+    box = page.locator(".ms-menu").bounding_box()
+    assert box["x"] >= 0 and box["x"] + box["width"] <= 390, box
+    assert page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth") <= 1

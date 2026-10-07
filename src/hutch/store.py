@@ -713,6 +713,14 @@ class Store:
                 "WHERE provider = ? AND ts >= ?", (provider, since)).fetchone()
         return int(row["n"])
 
+    def usage_models(self, limit: int = 100) -> list[tuple[str, str]]:
+        """(provider, model) pairs that have actually been called, most recent first."""
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT provider, model, MAX(ts) AS last FROM usage GROUP BY provider, model "
+                "ORDER BY last DESC LIMIT ?", (limit,)).fetchall()
+        return [(r["provider"], r["model"]) for r in rows]
+
     def usage_summary(self, group: str = "day", days: int = 30) -> list[dict[str, Any]]:
         """Aggregate the ledger: group is day | bot | provider | model."""
         from datetime import timedelta
