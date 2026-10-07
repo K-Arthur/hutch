@@ -83,6 +83,7 @@ const ICON_PATHS = {
   chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
   send: '<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>',
   caret: '<path d="m9 18 6-6-6-6"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
   alert: '<path d="M12 3.5 22 20.5H2z"/><path d="M12 10v5"/><path d="M12 18.2v.01"/>',
 };
 
@@ -92,6 +93,39 @@ function icon(name, cls = "") {
 
 function truncate(s, n) {
   return s.length > n ? `${s.slice(0, n - 1)}…` : s;
+}
+
+// One-line flattening of tool output for the woven feed entry.
+function summarizeOutput(output) {
+  if (!output) return "";
+  const flat = String(output).replace(/\s+/g, " ").trim();
+  return flat ? flat : "";
+}
+
+// Bot persona: hexagon avatar (the hutch logo shape) tinted per bot, plus a
+// derived status so the rail reads at a glance.
+const AVATAR_HUES = [
+  { fg: "#34d399", bg: "rgba(52, 211, 153, 0.1)" },
+  { fg: "#60a5fa", bg: "rgba(96, 165, 250, 0.1)" },
+  { fg: "#a78bfa", bg: "rgba(167, 139, 250, 0.1)" },
+  { fg: "#fbbf24", bg: "rgba(251, 191, 36, 0.1)" },
+];
+
+function botHue(name) {
+  let h = 0;
+  for (const c of String(name)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return AVATAR_HUES[h % AVATAR_HUES.length];
+}
+
+function hexAvatar(name, size = 40) {
+  const hue = botHue(name);
+  return `<span class="hex-avatar" style="width:${size}px;height:${size}px;color:${hue.fg};background:${hue.bg};font-size:${Math.round(size * 0.34)}px" aria-hidden="true">${esc(String(name)[0].toUpperCase())}</span>`;
+}
+
+function botState(b) {
+  if (b.active_run_id) return "running";
+  if (b.paused) return "paused";
+  return "idle";
 }
 
 // Per-bot daily token budget meter. Amber near the cap, red over it — the
@@ -279,47 +313,31 @@ async function renderChatStudio(preferredBot = null) {
 
     <div class="studio-container" data-tab="${currentStudioTab}">
       <!-- Left Sidebar: Bots & Status -->
-      <aside class="studio-sidebar">
-        <div class="sidebar-header">
-          <h3>Your Bots (${bots.length})</h3>
-          <button class="ghost small" id="sidebar-new-bot">+ New</button>
-        </div>
-        <div class="sidebar-bots">
-          ${bots.map(b => {
-            const isActive = b.name === bot.name;
-            const isRun = b.active_run_id;
-            return `
-              <div class="bot-nav-item ${isActive ? "active" : ""}" role="button" tabindex="0" ${isActive ? 'aria-current="true"' : ""} data-switch-bot="${esc(b.name)}">
-                <div class="bot-nav-row">
-                  <span class="bot-nav-name">${esc(b.name)}</span>
-                  ${b.paused ? `<span class="tag warn" style="font-size:10px">paused</span>` : ""}
-                  ${isRun ? `<span class="tag ok" style="font-size:10px">running</span>` : ""}
-                </div>
-                <div class="bot-nav-row">
-                  <span class="bot-nav-model">${esc(b.model)}</span>
-                  <span class="bot-nav-badge">${b.schedule ? esc(b.schedule.cron) : "on demand"}</span>
-                </div>
-              </div>
-            `;
-          }).join("")}
-        </div>
+      <aside class="bot-rail" aria-label="Your bots">
+        ${bots.map(b => {
+          const isActive = b.name === bot.name;
+          const state = botState(b);
+          return `
+            <button class="rail-bot ${isActive ? "active" : ""}" type="button" ${isActive ? 'aria-current="true"' : ""} data-switch-bot="${esc(b.name)}" title="${esc(b.name)} — ${state}">
+              ${hexAvatar(b.name, 40)}
+              <span class="rail-dot ${state}" aria-hidden="true"></span>
+            </button>
+          `;
+        }).join("")}
+        <button class="rail-add" type="button" id="sidebar-new-bot" title="New bot" aria-label="New bot">${icon("plus")}</button>
       </aside>
 
       <!-- Center Stage: Conversation & Live Execution -->
       <main class="studio-main">
         <header class="studio-main-header">
           <div class="bot-header-info">
-            <select class="bot-mobile-select" id="bot-mobile-select" aria-label="Switch Bot">
-              ${bots.map(b => `<option value="${esc(b.name)}" ${b.name === bot.name ? "selected" : ""}>${esc(b.name)}</option>`).join("")}
-            </select>
-            <span class="bot-header-title">${esc(bot.name)}</span>
-            <div class="bot-header-chips">
-              <span class="tag model">${esc(bot.model)}</span>
-              ${bot.schedule ? `<span class="tag schedule">${esc(bot.schedule.cron)}</span>` : `<span class="tag">manual</span>`}
-              ${bot.paused ? `<span class="tag warn">paused</span>` : `<span class="tag ok">active</span>`}
+            ${hexAvatar(bot.name, 34)}
+            <div class="bot-header-id">
+              <span class="bot-header-title">${esc(bot.name)}</span>
+              <span class="bot-header-meta">${esc(bot.model)} &middot; approval: ${esc(bot.approval_mode)}</span>
             </div>
           </div>
-          <div style="display:flex;gap:8px;align-items:center;">
+          <div class="studio-header-actions">
             ${activeRun && ACTIVE.has(activeRun.status) ? `
               <button class="danger small" id="studio-stop-run">${icon("stop")} Stop run</button>
             ` : ""}
@@ -332,21 +350,24 @@ async function renderChatStudio(preferredBot = null) {
         </div>
 
         <footer class="studio-composer">
-          <div class="composer-tools-row">
-            <div class="composer-chips">
-              <span class="composer-chip" data-quick-prompt="Sort this week's downloads and move invoices">${icon("folder")} Sort downloads</span>
-              <span class="composer-chip" data-quick-prompt="Research this week's AI news and write summary">${icon("fileText")} Research news</span>
-              <span class="composer-chip" data-quick-prompt="Inspect repository for TODOs and report">${icon("search")} Repo sweep</span>
+          <div class="composer-pill">
+            <div class="composer-meta-row">
+              <div class="composer-chips">
+                <span class="composer-chip" data-quick-prompt="Sort this week's downloads and move invoices">${icon("folder")} Sort downloads</span>
+                <span class="composer-chip" data-quick-prompt="Research this week's AI news and write summary">${icon("fileText")} Research news</span>
+                <span class="composer-chip" data-quick-prompt="Inspect repository for TODOs and report">${icon("search")} Repo sweep</span>
+              </div>
+              <div class="composer-stats">
+                ${budgetMeterHtml(bot)}
+                <span>Steps <b>${bot.limits.max_steps}</b></span>
+              </div>
             </div>
-            <div class="composer-stats">
-              ${budgetMeterHtml(bot)}
-              <span>Max steps: <b>${bot.limits.max_steps}</b></span>
+            <div class="composer-input-row">
+              ${hexAvatar(bot.name, 28)}
+              <label class="visually-hidden" for="chat-prompt">Task prompt for ${esc(bot.name)}</label>
+              <textarea class="composer-textarea" id="chat-prompt" rows="1" placeholder="Message ${esc(bot.name)}… (Enter to send, Shift+Enter for a new line, Up to recall)"></textarea>
+              <button class="composer-send" id="chat-send" aria-label="Send prompt">${icon("send")}</button>
             </div>
-          </div>
-          <div class="composer-input-box">
-            <label class="visually-hidden" for="chat-prompt">Task prompt for ${esc(bot.name)}</label>
-            <textarea class="composer-textarea" id="chat-prompt" placeholder="Ask ${esc(bot.name)} to run a task… (Enter to send, Shift+Enter for a new line, Up to recall)"></textarea>
-            <button class="primary composer-send" id="chat-send">${icon("send")} Send</button>
           </div>
         </footer>
       </main>
@@ -618,6 +639,9 @@ function toolLineHtml(item, anchorEvent, runId) {
   const ok = res ? res.d.ok !== false : true;
   const cls = running ? "running" : ok ? "success" : "error";
   const argsStr = JSON.stringify(call?.d.args ?? {});
+  const summary = res
+    ? summarizeOutput(res.d.output) || argsStr
+    : argsStr;
   const t = (res || call).e.ts?.slice(11, 19) || "";
   const open = expandedStore(runId).has(String(idx));
   const verdict = running
@@ -629,7 +653,7 @@ function toolLineHtml(item, anchorEvent, runId) {
       <button class="tool-line-head" type="button" aria-expanded="${open}" aria-controls="tlb-${esc(String(idx))}" data-tool-toggle="${esc(String(idx))}">
         <span class="tool-verdict">${verdict}</span>
         <span class="tool-name">${esc(tool)}</span>
-        <span class="tool-args">${esc(truncate(argsStr, 90))}</span>
+        <span class="tool-args">${icon("caret", "tool-arrow")}${esc(truncate(summary, 80))}</span>
         <span class="tool-time">${t}</span>
         <span class="tool-caret">${icon("caret")}</span>
       </button>
@@ -667,13 +691,16 @@ function toolGroupHtml(item, runId) {
   const label = uniq.length <= 3 ? uniq.join(", ") : `${uniq.slice(0, 3).join(", ")} +${uniq.length - 3}`;
   const done = item.items.filter(it => it.result).length;
   const summary = `${done}/${item.items.length} tool steps — ${label}`;
+  const allOk = done === item.items.length && item.items.every(it => (it.result?.d.ok ?? true) !== false);
   return `
     <div class="tool-group ${open ? "open" : ""}" data-tool-group>
-      <button class="tool-group-summary" type="button" aria-expanded="${open}" data-group-toggle>
-        <span class="tool-verdict">${icon(done === item.items.length && item.items.every(it => (it.result?.d.ok ?? true) !== false) ? "check" : "zap")}</span>
-        <span>${esc(summary)}</span>
-        <span class="tool-caret">${icon("caret")}</span>
-      </button>
+      <div class="feed-divider">
+        <button class="feed-pill" type="button" aria-expanded="${open}" data-group-toggle>
+          ${icon(allOk ? "check" : "zap")}
+          <span>${esc(summary)}</span>
+          <span class="tool-caret">${icon("caret")}</span>
+        </button>
+      </div>
       <div class="tool-group-items" ${open ? "" : "hidden"}>
         ${item.items.map(it => toolLineHtml(it, it.call?.e ?? it.result.e, runId)).join("")}
       </div>
@@ -749,8 +776,11 @@ function renderChatEvent(e) {
     case "message":
       return `
         <div class="chat-msg agent">
-          <span class="msg-role">${esc(d.role || "Agent")} <span class="msg-time">· ${t}</span></span>
-          <div class="msg-text">${esc(d.content || "")}</div>
+          ${currentStudioBot ? hexAvatar(currentStudioBot, 30) : ""}
+          <div class="chat-msg-stack">
+            <span class="msg-role">${esc(d.role || "Agent")} <span class="msg-time">· ${t}</span></span>
+            <div class="msg-bubble"><div class="msg-text">${esc(d.content || "")}</div></div>
+          </div>
         </div>
       `;
     case "approval_request": {
