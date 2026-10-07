@@ -35,11 +35,17 @@ function esc(s) {
 }
 
 function toast(msg, isError = false) {
+  const root = $("#toast-root");
   const el = document.createElement("div");
   el.className = "toast" + (isError ? " error" : "");
-  el.textContent = msg;
-  $("#toast-root").appendChild(el);
-  setTimeout(() => el.remove(), 4200);
+  el.innerHTML = `<span class="toast-msg">${esc(msg)}</span>
+    <button class="toast-close" aria-label="Dismiss notification">${icon("x")}</button>`;
+  const dismiss = () => el.remove();
+  el.querySelector(".toast-close").addEventListener("click", dismiss);
+  root.appendChild(el);
+  // Transient notices auto-dismiss; errors persist until dismissed (Primer
+  // guidance: toasts that vanish are how errors get missed).
+  if (!isError) setTimeout(dismiss, 4200);
 }
 
 function timeAgo(iso) {
@@ -105,13 +111,16 @@ function budgetMeterHtml(bot) {
 
 // ------------------------------------------------------------------ modal
 
-function openModal({ title, bodyHtml, onConfirm, confirmText = "Confirm", confirmClass = "primary" }) {
+let modalReturnFocus = null;
+
+function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confirm", confirmClass = "primary" }) {
   const root = $("#modal-root");
+  modalReturnFocus = document.activeElement;
   root.innerHTML = `
-    <div class="modal-backdrop">
-      <div class="modal-card">
+    <div class="modal-backdrop" data-modal-backdrop>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div class="modal-header">
-          <h3>${esc(title)}</h3>
+          <h3 id="modal-title">${esc(title)}</h3>
           <button class="ghost small icon-btn" id="modal-close" aria-label="Close dialog">${icon("x")}</button>
         </div>
         <div class="modal-body">${bodyHtml}</div>
@@ -122,21 +131,66 @@ function openModal({ title, bodyHtml, onConfirm, confirmText = "Confirm", confir
       </div>
     </div>
   `;
-  const close = () => { root.innerHTML = ""; };
-  $("#modal-close").addEventListener("click", close);
-  $("#modal-cancel").addEventListener("click", close);
+  const card = $(".modal-card", root);
+  const close = (cancelled = true) => {
+    document.removeEventListener("keydown", keyHandler, true);
+    root.innerHTML = "";
+    if (cancelled && onCancel) onCancel();
+    modalReturnFocus?.focus?.();
+  };
+  const keyHandler = ev => {
+    if (ev.key === "Escape") {
+      ev.stopPropagation();
+      close();
+      return;
+    }
+    if (ev.key === "Tab") {
+      // Focus trap: cycle within the dialog.
+      const focusables = $$("button, input, select, textarea, a[href]", card)
+        .filter(el => !el.disabled && el.offsetParent !== null);
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
+      else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+    }
+  };
+  document.addEventListener("keydown", keyHandler, true);
+  $("[data-modal-backdrop]", root).addEventListener("mousedown", ev => {
+    if (ev.target === ev.currentTarget) close();
+  });
+  $("#modal-close").addEventListener("click", () => close());
+  $("#modal-cancel").addEventListener("click", () => close());
   $("#modal-confirm").addEventListener("click", async () => {
     if (onConfirm) {
       const ok = await onConfirm();
-      if (ok !== false) close();
+      if (ok !== false) close(false);
     } else {
-      close();
+      close(false);
     }
   });
+  // Initial focus: first form field if present, else the confirm action.
+  const firstField = $("input, select, textarea", card);
+  (firstField || $("#modal-confirm")).focus();
 }
 
 function closeModal() {
   $("#modal-root").innerHTML = "";
+}
+
+// Promise-based replacement for window.confirm(): keeps the native dialog
+// out of the visual language and gives destructive actions a styled path.
+function confirmDialog({ title, body, confirmText = "Confirm", danger = false }) {
+  return new Promise(resolve => {
+    openModal({
+      title,
+      bodyHtml: `<p class="confirm-body">${body}</p>`,
+      confirmText,
+      confirmClass: danger ? "danger" : "primary",
+      onCancel: () => resolve(false),
+      onConfirm: async () => { resolve(true); return true; },
+    });
+  });
 }
 
 // -------------------------------------------------------------- router
@@ -145,7 +199,7 @@ const routes = [
   [/^#\/chat(?:\/([\w-]+))?$/, m => renderChatStudio(m ? m[1] : null), "chat"],
   [/^#\/overview$/, () => renderChatStudio(), "chat"],
   [/^#\/bots$/, renderBots, "bots"],
-  [/^#\/runs$/, renderRuns, "runs"],
+  [/^#\/runs(?:\?(.*))?$/, m => renderRuns(m ? m[1] : ""), "runs"],
   [/^#\/approvals$/, renderApprovals, "approvals"],
   [/^#\/bot\/([\w-]+)$/, m => renderBotDetail(decodeURIComponent(m[1])), "bots"],
   [/^#\/run\/([\w-]+)$/, m => renderRunDetail(m[1]), "runs"],
@@ -368,7 +422,12 @@ async function renderChatStudio(preferredBot = null) {
   $$("[data-del-mem]").forEach(btn => {
     btn.addEventListener("click", async () => {
       const k = btn.dataset.delMem;
-      if (!confirm(`Delete memory "${k}"?`)) return;
+      if (!(await confirmDialog({
+        title: "Forget memory",
+        body: `Delete the memory <b>${esc(k)}</b>? The bot will no longer recall it.`,
+        confirmText: "Forget",
+        danger: true,
+      }))) return;
       await api(`/bots/${encodeURIComponent(bot.name)}/memory/${encodeURIComponent(k)}`, { method: "DELETE" });
       toast(`Forgot "${k}"`);
       renderChatStudio(bot.name);
@@ -723,38 +782,40 @@ function renderChatEvent(e) {
 // ------------------------------------------------------------- BOTS VIEW
 
 async function renderBots() {
-  const [bots, templates] = await Promise.all([api("/bots"), api("/bots/templates")]);
+  const bots = await api("/bots");
   view.innerHTML = `
     <div class="container">
       <div class="section-head">
         <div>
           <h1 class="page-title">Bots</h1>
-          <p class="page-subtitle">Configured agents on your machine. Each has isolated workspace, limits, and memory.</p>
+          <p class="page-subtitle">Configured agents on this machine. Each has an isolated workspace, limits, and memory.</p>
         </div>
-        <button class="primary" id="btn-create-bot">+ New Bot</button>
       </div>
 
+      ${bots.length ? `
       <div class="bot-grid">
         ${bots.map(b => `
           <div class="bot-card">
             <div class="bot-head">
               <span class="bot-name">${esc(b.name)}</span>
-              ${b.paused ? `<span class="tag warn">paused</span>` : `<span class="tag ok">active</span>`}
+              ${b.paused
+                ? `<span class="status pending">paused</span>`
+                : `<span class="status succeeded">active</span>`}
             </div>
-            <div class="bot-desc">${esc(b.description || "No description provided.")}</div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <p class="bot-desc">${esc(b.description || "No description provided.")}</p>
+            <div class="bot-chips">
               <span class="tag model">${esc(b.model)}</span>
-              ${b.schedule ? `<span class="tag schedule">${esc(b.schedule.cron)}</span>` : `<span class="tag">on demand</span>`}
-              <span class="tag">${esc(b.approval_mode)}</span>
+              ${b.schedule ? `<span class="tag schedule" title="${esc(b.schedule.timezone || "UTC")}">${esc(b.schedule.cron)}</span>` : `<span class="tag">on demand</span>`}
+              <span class="tag">approval: ${esc(b.approval_mode)}</span>
             </div>
             <div class="bot-facts">
-              <div>next run: <b>${esc(b.next_run_local || '—')}</b></div>
-              <div>last run: <b>${timeAgo(b.last_success)}</b></div>
-              <div>tokens: <b>${fmtTokens(b.tokens_today)}</b></div>
-              <div>memories: <b>${b.memory_count}</b></div>
+              <div>next run <b>${esc(b.next_run_local || "—")}</b></div>
+              <div>last success <b title="${esc(b.last_success || "")}">${timeAgo(b.last_success)}</b></div>
+              <div>tokens today <b>${fmtTokens(b.tokens_today)}</b></div>
+              <div>memories <b>${b.memory_count}</b></div>
             </div>
             <div class="card-actions">
-              <button class="primary small" data-action="run" data-bot="${esc(b.name)}">Run</button>
+              <button class="primary small" data-action="run" data-bot="${esc(b.name)}">${icon("zap")} Run</button>
               <button class="ghost small" data-action="toggle-pause" data-bot="${esc(b.name)}" data-paused="${b.paused}">
                 ${b.paused ? "Resume" : "Pause"}
               </button>
@@ -763,33 +824,101 @@ async function renderBots() {
           </div>
         `).join("")}
       </div>
+      ` : `
+      <div class="empty-state">
+        ${icon("bot", "icon-lg")}
+        <p>No bots yet.</p>
+        <p class="hint">Create a bot, or run <span class="mono">hutch init</span> for starter templates.</p>
+        <button class="primary" id="btn-create-first-bot">Create your first bot</button>
+      </div>
+      `}
     </div>
   `;
 
-  $("#btn-create-bot")?.addEventListener("click", promptNewBot);
+  $("#btn-create-first-bot")?.addEventListener("click", promptNewBot);
   wireCommon();
 }
 
 // ------------------------------------------------------------- RUNS ARCHIVE
 
-async function renderRuns() {
-  const runs = await api("/runs?limit=50");
+const RUNS_PAGE_SIZE = 25;
+let runsState = { all: [], status: "all", q: "", shown: RUNS_PAGE_SIZE };
+
+async function renderRuns(query = "") {
+  const params = new URLSearchParams(query);
+  runsState = {
+    all: await api("/runs?limit=200"),
+    status: params.get("status") || "all",
+    q: params.get("q") || "",
+    shown: RUNS_PAGE_SIZE,
+  };
+
   view.innerHTML = `
     <div class="container">
-      <h1 class="page-title">Runs Archive</h1>
-      <p class="page-subtitle">Complete transcript log of every task executed on this machine.</p>
+      <h1 class="page-title">Runs</h1>
+      <p class="page-subtitle">Every task executed on this machine, newest first. Click a row for the full transcript.</p>
 
       <div class="runs-filter-bar">
-        <input type="text" id="run-search" placeholder="Filter runs by bot or keyword…">
-        <div class="runs-filter-pills">
-          <button class="ghost small active" data-filter="all">All</button>
-          <button class="ghost small" data-filter="succeeded">Succeeded</button>
-          <button class="ghost small" data-filter="failed">Failed</button>
-          <button class="ghost small" data-filter="waiting_approval">Waiting</button>
+        <label class="visually-hidden" for="run-search">Filter runs</label>
+        <input type="text" id="run-search" placeholder="Filter by bot or prompt…" value="${esc(runsState.q)}">
+        <div class="runs-filter-pills" role="group" aria-label="Filter by status">
+          ${["all", "succeeded", "failed", "waiting_approval"].map(f => `
+            <button class="ghost small ${runsState.status === f ? "active" : ""}" data-filter="${f}" aria-pressed="${runsState.status === f}">
+              ${f === "all" ? "All" : f === "waiting_approval" ? "Waiting" : f[0].toUpperCase() + f.slice(1)}
+            </button>
+          `).join("")}
         </div>
+        <span class="hint" id="runs-count"></span>
       </div>
 
-      <div class="table-wrap">
+      <div class="table-wrap" id="runs-table-wrap"></div>
+    </div>
+  `;
+
+  const syncHash = () => {
+    const p = new URLSearchParams();
+    if (runsState.status !== "all") p.set("status", runsState.status);
+    if (runsState.q) p.set("q", runsState.q);
+    const next = `#/runs${p.toString() ? `?${p}` : ""}`;
+    // replaceState keeps filter state shareable without re-rendering the view
+    history.replaceState(null, "", next);
+  };
+
+  const renderRows = () => {
+    const q = runsState.q.trim().toLowerCase();
+    const filtered = runsState.all.filter(r => {
+      if (runsState.status !== "all" && r.status !== runsState.status) return false;
+      if (q && !`${r.bot_name} ${r.prompt}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+    const wrap = $("#runs-table-wrap");
+    if (!filtered.length) {
+      wrap.innerHTML = runsState.all.length ? `
+        <div class="empty-state">
+          ${icon("search", "icon-lg")}
+          <p>No runs match this filter.</p>
+          <button class="ghost small" id="runs-clear">Clear filters</button>
+        </div>` : `
+        <div class="empty-state">
+          ${icon("zap", "icon-lg")}
+          <p>No runs yet.</p>
+          <p class="hint">Start a bot from the Studio and its transcript will appear here.</p>
+          <a class="btn primary small" href="#/chat">Open Studio</a>
+        </div>`;
+      $("#runs-clear")?.addEventListener("click", () => {
+        runsState = { ...runsState, status: "all", q: "", shown: RUNS_PAGE_SIZE };
+        $("#run-search").value = "";
+        $$(".runs-filter-pills button").forEach(b => {
+          const on = b.dataset.filter === "all";
+          b.classList.toggle("active", on);
+          b.setAttribute("aria-pressed", String(on));
+        });
+        syncHash();
+        renderRows();
+      });
+    } else {
+      const rows = filtered.slice(0, runsState.shown);
+      wrap.innerHTML = `
         <table>
           <thead>
             <tr>
@@ -797,30 +926,68 @@ async function renderRuns() {
               <th>Bot</th>
               <th>Status</th>
               <th>Prompt</th>
-              <th>Steps</th>
-              <th>Tokens</th>
+              <th class="num">Steps</th>
+              <th class="num">Tokens</th>
               <th>Executed</th>
             </tr>
           </thead>
-          <tbody id="runs-table-body">
-            ${runs.map(r => `
-              <tr class="clickable" data-goto="#/run/${esc(r.id)}">
+          <tbody>
+            ${rows.map(r => `
+              <tr class="clickable" tabindex="0" role="link" aria-label="Open run ${esc(r.id)}" data-goto="#/run/${esc(r.id)}" title="${esc(r.created_at || "")}">
                 <td class="mono">${esc(r.id.slice(0, 16))}…</td>
                 <td><b>${esc(r.bot_name)}</b></td>
                 <td>${statusChip(r.status)}</td>
-                <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.prompt)}</td>
-                <td class="mono">${r.steps}</td>
-                <td class="mono">${fmtTokens(r.tokens)}</td>
-                <td class="mono">${timeAgo(r.created_at)}</td>
+                <td class="cell-truncate">${esc(r.prompt)}</td>
+                <td class="num">${r.steps}</td>
+                <td class="num">${fmtTokens(r.tokens)}</td>
+                <td class="mono" title="${esc(r.created_at || "")}">${timeAgo(r.created_at)}</td>
               </tr>
             `).join("")}
           </tbody>
         </table>
-      </div>
-    </div>
-  `;
+        ${filtered.length > runsState.shown ? `
+          <div style="padding:10px 16px; border-top:1px solid var(--border-subtle); text-align:center;">
+            <button class="ghost small" id="runs-more">Show ${Math.min(RUNS_PAGE_SIZE, filtered.length - runsState.shown)} more of ${filtered.length}</button>
+          </div>` : ""}
+      `;
+      $("#runs-more")?.addEventListener("click", () => {
+        runsState.shown += RUNS_PAGE_SIZE;
+        renderRows();
+      });
+      $$("tr[data-goto]", wrap).forEach(tr => {
+        const go = () => { location.hash = tr.dataset.goto; };
+        tr.addEventListener("click", go);
+        tr.addEventListener("keydown", ev => { if (ev.key === "Enter") go(); });
+      });
+    }
+    $("#runs-count").textContent = `${filtered.length} run${filtered.length === 1 ? "" : "s"}`;
+  };
 
-  $$("tr[data-goto]").forEach(tr => tr.addEventListener("click", () => location.hash = tr.dataset.goto));
+  let searchTimer = null;
+  $("#run-search").addEventListener("input", ev => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      runsState.q = ev.target.value;
+      runsState.shown = RUNS_PAGE_SIZE;
+      syncHash();
+      renderRows();
+    }, 180);
+  });
+  $$(".runs-filter-pills button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      runsState.status = btn.dataset.filter;
+      runsState.shown = RUNS_PAGE_SIZE;
+      $$(".runs-filter-pills button").forEach(b => {
+        const on = b === btn;
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-pressed", String(on));
+      });
+      syncHash();
+      renderRows();
+    });
+  });
+
+  renderRows();
 }
 
 // ------------------------------------------------------------- APPROVALS
@@ -829,34 +996,43 @@ async function renderApprovals() {
   const approvals = await api("/approvals");
   view.innerHTML = `
     <div class="container">
-      <h1 class="page-title">Approvals Queue</h1>
-      <p class="page-subtitle">A bot wants to perform an irreversible machine action. Unanswered requests expire as <b>denied</b>.</p>
+      <h1 class="page-title">Approvals</h1>
+      <p class="page-subtitle">A bot wants to perform an irreversible action. Unanswered requests expire as <b>denied</b>.</p>
 
-      <div style="display:flex;flex-direction:column;gap:12px;">
-        ${approvals.map(a => `
-          <div class="panel" data-approval-card="${esc(a.id)}">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-              <div>
-                <b>${esc(a.bot_name)}</b> &middot; <span class="tag">${esc(a.tool)}</span>
-              </div>
-              <span class="ttl-countdown">${icon("hourglass")} 10m TTL &middot; ${timeAgo(a.created_at)}</span>
+      ${approvals.map(a => {
+        const deadline = a.created_at ? new Date(a.created_at).getTime() + 10 * 60 * 1000 : 0;
+        return `
+        <div class="approval-card-chat" data-approval-card="${esc(a.id)}">
+          <div class="approval-badge-bar">
+            <div class="bot-header-chips">
+              <b>${esc(a.bot_name)}</b>
+              <span class="tag">${esc(a.tool)}</span>
             </div>
-            <p style="font-size:14.5px;font-weight:600;margin:4px 0 10px;">${esc(a.action)}</p>
-            <pre class="approval-detail mono">${esc(JSON.stringify(a.detail, null, 2))}</pre>
-            <div class="approval-buttons" data-approval="${esc(a.id)}">
-              <button class="primary small" data-approve="1">Approve</button>
-              <button class="danger small" data-approve="0">Deny</button>
-              <label style="font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:4px;cursor:pointer;">
-                <input type="checkbox" class="always"> always allow for this bot
-              </label>
-              <a class="btn ghost small" href="#/run/${esc(a.run_id)}">Open run</a>
-            </div>
+            <span class="ttl-countdown" ${deadline ? `data-deadline="${deadline}"` : ""}>${icon("hourglass")}<span data-ttl-text>10:00 left</span></span>
           </div>
-        `).join("") || `<div class="panel" style="color:var(--text-dim)">No pending approvals. All runs clear.</div>`}
-      </div>
+          <div class="approval-action-text">${esc(a.action)}</div>
+          <pre class="approval-detail mono">${esc(JSON.stringify(a.detail ?? {}, null, 2))}</pre>
+          <div class="approval-buttons" data-approval="${esc(a.id)}">
+            <button class="primary small" data-approve="1">Approve</button>
+            <button class="danger small" data-approve="0">Deny</button>
+            <label class="approval-always">
+              <input type="checkbox" class="always"> always allow for this bot
+            </label>
+            <a class="btn ghost small" href="#/run/${esc(a.run_id)}">Open run</a>
+          </div>
+        </div>
+        `;
+      }).join("") || `
+        <div class="empty-state">
+          ${icon("check", "icon-lg")}
+          <p>No pending approvals.</p>
+          <p class="hint">When a bot hits a gated action, it waits here for your decision.</p>
+        </div>
+      `}
     </div>
   `;
   wireApprovals();
+  updateTtls();
 }
 
 // ------------------------------------------------------------- DETAILS
@@ -891,7 +1067,12 @@ async function renderBotDetail(name) {
   });
 
   $("#btn-delete-bot")?.addEventListener("click", async () => {
-    if (!confirm(`Delete bot "${b.name}"?`)) return;
+    if (!(await confirmDialog({
+      title: "Delete bot",
+      body: `Delete <b>${esc(b.name)}</b>? Its workspace, memory, and transcripts stay on disk, but the bot and its schedule are removed.`,
+      confirmText: "Delete bot",
+      danger: true,
+    }))) return;
     await api(`/bots/${encodeURIComponent(b.name)}`, { method: "DELETE" });
     toast(`Deleted ${b.name}`);
     location.hash = "#/bots";

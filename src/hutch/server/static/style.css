@@ -1009,6 +1009,8 @@ td.mono { font-family: var(--font-mono); font-size: var(--fs-xs); }
 }
 .modal-header h3 { margin: 0; font-size: var(--fs-lg); font-weight: 700; }
 .modal-body { padding: var(--space-5); overflow-y: auto; }
+.modal-body .confirm-body { margin: 0; color: var(--text-dim); font-size: var(--fs-sm); line-height: 1.6; }
+.modal-body .confirm-body b { color: var(--text); }
 .modal-footer {
   padding: var(--space-3) var(--space-5) var(--space-4);
   border-top: 1px solid var(--border-subtle);
