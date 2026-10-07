@@ -153,6 +153,8 @@ class EventType(str, Enum):
     error = "error"
     log = "log"
     step = "step"                     # one model turn: tokens, cost, timing split
+    human_needed = "human_needed"     # login / CAPTCHA / 2FA wall: a person must act
+    human_resumed = "human_resumed"
 
 
 class Event(BaseModel):

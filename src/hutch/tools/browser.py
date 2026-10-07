@@ -126,13 +126,11 @@ class BrowserTool(Tool):
             body_sample = page.inner_text("body")[:500].lower()
             walls = [w for w in _LOGIN_WALL_RE if w in body_sample]
             if walls:
-                ctx.emit(
-                    Event(run_id=ctx.run.id, type=EventType.log,
-                          data={"pause_to_human": True, "page": url,
-                                "wall": walls,
-                                "hint": "a human should complete login/CAPTCHA in the browser window; "
-                                        "the bot will keep waiting and reading state"})
-                )
+                # Park the run for a human instead of barrelling on: the person clears the wall in
+                # the bot's own browser profile, presses Resume, and the session persists (UI-1).
+                ctx.gate.wait_for_human(f"login/CAPTCHA wall at {url} ({', '.join(walls)})", url)
+                page.reload(wait_until="domcontentloaded")
+                title = page.title()
             return ToolResult(ok=True, output=f"opened {url}\ntitle: {title}", data={"url": url})
 
         if action == "read":

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Bots{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Bots</h1><p class="sub">Named agents on your machine. Each has its own workspace, browser profile, memory and limits.</p></div>
+  <a class="btn primary" href="/bots/new">{{ icon("plus", 15) }} New bot</a></div>
+
+<div class="card-grid">
+  {% for b in bots %}
+  <article class="card bot-card">
+    <header><a href="/bots/{{ b.name }}" class="bot-name">{{ icon("bot", 17) }} {{ b.name }}</a>
+      {% if b.paused %}<span class="chip st-paused">paused</span>{% elif b.active_run_id %}<span class="chip st-running">running</span>{% else %}<span class="chip st-idle">idle</span>{% endif %}</header>
+    <p class="desc">{{ b.description or "No description." }}</p>
+    <div class="tags"><span class="tag">{{ b.model }}</span><span class="tag">{{ b.schedule.cron if b.schedule else "on demand" }}</span><span class="tag">{{ b.approval_mode.value }}</span></div>
+    <dl class="facts">
+      <div><dt>next run</dt><dd>{{ b.next_run_local or "-" }}</dd></div>
+      <div><dt>last success</dt><dd>{{ b.last_success | ago }}</dd></div>
+      <div><dt>tokens today</dt><dd>{{ b.tokens_today | tokens }}</dd></div>
+      <div><dt>memories</dt><dd>{{ b.memory_count }}</dd></div>
+    </dl>
+    <footer><a class="btn small primary" href="/bots/{{ b.name }}#compose">{{ icon("play", 13) }} Run</a>
+      <form method="post" action="/bots/{{ b.name }}/{{ 'resume' if b.paused else 'pause' }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/bots">
+        <button class="btn small ghost">{{ icon("play" if b.paused else "pause", 13) }} {{ "Resume" if b.paused else "Pause" }}</button></form></footer>
+  </article>
+  {% else %}
+  <div class="empty panel">{{ icon("bot", 28) }}<p>No bots yet.</p><p class="hint">Create one from a template, or run <span class="mono">hutch init</span>.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

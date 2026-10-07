@@ -1,37 +1,42 @@
 """FastAPI dashboard + REST API.
 
-Serves the single-page dashboard from server/static and a JSON API used by
-both the dashboard and remote tooling. A background thread ticks the engine
-(schedules, dispatch, approval expiry) so `hutch serve` alone runs the
-whole platform.
+* ``/api/*``  JSON API (scripts, CLI, tests). Run transcripts are paginated by per-run ``seq`` and
+  streamed over SSE with ``Last-Event-ID`` resume.
+* everything else: server-rendered pages (Jinja2 + HTMX, no build step) from ``pages.py``.
+
+A background thread runs the engine's scheduler loop, which sleeps until work exists (PF-5) — so
+`hutch serve` alone runs the whole platform. See ``security.py`` for the CSRF / DNS-rebinding defences.
 """
 
 from __future__ import annotations
 
 import contextlib
-import datetime as dt
+import os
 import re
-import threading
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .. import __version__
 from ..approvals import resolve_approval
 from ..config import get_config
-from ..engine import Engine
-from ..models import ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, Limits, RunStatus, Schedule
-from ..scheduler import Scheduler
+from ..engine import Engine, bot_prompt_for_schedule
+from ..models import ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, Schedule
 from ..store import Store
 from ..templates import TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
+from .security import SecurityMiddleware
+from .sse import resume_cursor, run_event_stream
 
 _STATIC = Path(__file__).parent / "static"
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,40}$")
+
+#: transcript window returned by default (PF-9): the run page stays usable at 10,000+ events
+DEFAULT_EVENT_WINDOW = 200
 
 
 class BotCreate(BaseModel):
@@ -61,17 +66,20 @@ class BotPatch(BaseModel):
 
 class RunRequest(BaseModel):
     prompt: str
+    rehearse: bool = False
 
 
 class ApproveRequest(BaseModel):
     always: bool = False
+    plan_scope: int = 0
 
 
 def create_app() -> FastAPI:
     config = get_config()
     store = Store(config)
     engine = Engine(config, store)
-    scheduler = Scheduler(store)
+    scheduler = engine.scheduler
+
     @contextlib.asynccontextmanager
     async def lifespan(app_: FastAPI):
         # The scheduler loop sleeps until the next due run or a bus event (PF-5); no fixed tick.
@@ -82,8 +90,11 @@ def create_app() -> FastAPI:
         finally:
             stop.set()
             store.bus.notify("work", remote=False)
+            store.close()
 
     app = FastAPI(title="hutch", version=__version__, docs_url="/api/openapi.json", lifespan=lifespan)
+    app.state.config, app.state.store, app.state.engine, app.state.scheduler = config, store, engine, scheduler
+    app.add_middleware(SecurityMiddleware, auth_token=os.environ.get("HUTCH_AUTH_TOKEN") or None)
 
     # ------------------------------------------------------------- helpers
 
@@ -114,11 +125,17 @@ def create_app() -> FastAPI:
         bot = store.get_bot(run.bot_id)
         return {**run.model_dump(), "bot_name": bot.name if bot else "?"}
 
+    def run_or_404(run_id: str):
+        run = store.get_run(run_id)
+        if run is None:
+            raise HTTPException(404, f"no such run: {run_id}")
+        return run
+
     # ------------------------------------------------------------- health
 
     @app.get("/api/health")
     def health() -> dict:
-        return {"status": "ok", "version": __version__}
+        return {"status": "ok", "version": __version__, "schema": store.schema_version}
 
     # --------------------------------------------------------------- bots
 
@@ -214,40 +231,74 @@ def create_app() -> FastAPI:
     @app.post("/api/bots/{ref}/run", status_code=201)
     def run_bot(ref: str, body: RunRequest) -> dict:
         bot = bot_or_404(ref)
-        run = engine.submit(bot, body.prompt)
+        run = engine.submit(bot, body.prompt, origin="manual:api", rehearsal=body.rehearse)
         engine.dispatch_pending()
         return run_view(store.get_run(run.id))
 
     # --------------------------------------------------------------- runs
 
     @app.get("/api/runs")
-    def list_runs(bot: Optional[str] = None, limit: int = 30) -> list[dict]:
+    def list_runs(bot: Optional[str] = None, status: Optional[str] = None, limit: int = 30,
+                  offset: int = 0) -> list[dict]:
         bot_id = bot_or_404(bot).id if bot else None
-        return [run_view(r) for r in store.list_runs(bot_id, limit=min(limit, 200))]
+        return [run_view(r) for r in store.list_runs_page(bot_id, status, min(limit, 200), offset)]
 
     @app.get("/api/runs/{run_id}")
-    def get_run(run_id: str) -> dict:
-        run = store.get_run(run_id)
-        if run is None:
-            raise HTTPException(404, f"no such run: {run_id}")
+    def get_run(run_id: str, events: int = DEFAULT_EVENT_WINDOW) -> dict:
+        """Run + the newest ``events`` transcript entries (0 = all). Page further with /events?before=."""
+        run = run_or_404(run_id)
         view = run_view(run)
-        view["events"] = [e.model_dump() for e in store.list_events(run_id)]
+        total = store.count_events(run_id)
+        window = store.tail_events(run_id, events) if events else store.list_events(run_id)
+        view["events"] = [e.model_dump() for e in window]
+        view["event_count"] = total
+        view["events_truncated"] = bool(window) and window[0].seq > 1
         return view
 
     @app.get("/api/runs/{run_id}/events")
-    def run_events(run_id: str, after: int = 0) -> dict:
-        if store.get_run(run_id) is None:
-            raise HTTPException(404, f"no such run: {run_id}")
-        events = [e.model_dump() for e in store.list_events(run_id, after_seq=after)]
-        current = store.get_run(run_id)
-        return {"events": events, "status": current.status.value if current else "?"}
+    def run_events(run_id: str, after: int = 0, before: int = 0, limit: int = 500) -> dict:
+        """Events by per-run ``seq``: ``after=N`` for the next page / resume, ``before=N`` for earlier."""
+        run = run_or_404(run_id)
+        limit = max(1, min(limit, 1000))
+        evs = (store.events_before(run_id, before, limit) if before
+               else store.list_events(run_id, after_seq=after, limit=limit))
+        return {"events": [e.model_dump() for e in evs], "status": run.status.value,
+                "last_seq": store.last_seq(run_id)}
+
+    @app.get("/api/runs/{run_id}/stream")
+    async def run_stream(run_id: str, request: Request, after: int = 0) -> StreamingResponse:
+        """SSE of JSON event batches. Reconnect with ``Last-Event-ID`` (browsers do this automatically)."""
+        run_or_404(run_id)
+        cursor = resume_cursor(request, after)
+
+        def render(events, run):
+            return {"events": [e.model_dump(exclude={"id"}) for e in events]}
+
+        return StreamingResponse(run_event_stream(request, store, run_id, cursor, render),
+                                 media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    @app.get("/api/runs/{run_id}/verify")
+    def verify_run(run_id: str) -> dict:
+        """SR-11: recompute the run's hash chain; ok=false means history was edited."""
+        run_or_404(run_id)
+        return store.verify_chain(run_id)
 
     @app.post("/api/runs/{run_id}/stop")
     def stop_run(run_id: str) -> dict:
-        if store.get_run(run_id) is None:
-            raise HTTPException(404, f"no such run: {run_id}")
+        run_or_404(run_id)
         engine.stop_run(run_id)
         return {"stopping": run_id}
+
+    @app.post("/api/runs/{run_id}/resume")
+    def resume_run(run_id: str) -> dict:
+        run_or_404(run_id)
+        store.resume_run(run_id)
+        return {"resumed": run_id}
+
+    @app.post("/api/stop-all")
+    def stop_all() -> dict:
+        return {"stopping": engine.stop_all()}
 
     # ---------------------------------------------------------- approvals
 
@@ -266,8 +317,9 @@ def create_app() -> FastAPI:
             raise HTTPException(404, "no such approval")
         if existing.status is not ApprovalStatus.pending:
             raise HTTPException(409, f"approval already {existing.status.value}")
-        resolve_approval(store, approval_id, approve=True, by="dashboard", sticky=body.always)
-        return {"approved": approval_id, "sticky": body.always}
+        resolve_approval(store, approval_id, approve=True, by="api", sticky=body.always,
+                         plan_scope=body.plan_scope)
+        return {"approved": approval_id, "sticky": body.always and not existing.outward}
 
     @app.post("/api/approvals/{approval_id}/deny")
     def deny(approval_id: str) -> dict:
@@ -276,7 +328,7 @@ def create_app() -> FastAPI:
             raise HTTPException(404, "no such approval")
         if existing.status is not ApprovalStatus.pending:
             raise HTTPException(409, f"approval already {existing.status.value}")
-        resolve_approval(store, approval_id, approve=False, by="dashboard")
+        resolve_approval(store, approval_id, approve=False, by="api")
         return {"denied": approval_id}
 
     # --------------------------------------------------------------- stats
@@ -295,12 +347,12 @@ def create_app() -> FastAPI:
             "version": __version__,
         }
 
-    # -------------------------------------------------------------- static
+    # ------------------------------------------------------- pages + static
 
-    @app.get("/", include_in_schema=False)
-    def index() -> FileResponse:
-        return FileResponse(_STATIC / "index.html")
-
+    from .pages import register_pages
+    register_pages(app)
     app.mount("/static", StaticFiles(directory=_STATIC), name="static")
-
     return app
+
+
+__all__ = ["create_app", "bot_prompt_for_schedule"]

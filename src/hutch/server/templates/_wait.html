@@ -1,0 +1,15 @@
+{#- UI-6: a waiting or failed state always names its cause and a fix. -#}
+{%- from "_icons.html" import icon -%}
+{% macro wait_banner(w) %}
+{% if w %}
+<div class="banner {{ w.kind }}" role="status">
+  {{ icon("alert" if w.kind == "error" else ("user" if w.kind == "action" else "clock"), 20) }}
+  <div class="banner-body">
+    <p class="cause"><strong>Why:</strong> {{ w.cause }}</p>
+    <p class="fix"><strong>What to do:</strong> {{ w.fix }}</p>
+    {% if w.href %}<a class="btn small" href="{{ w.href }}">{{ w.link_text or "Open" }} {{ icon("arrow", 13) }}</a>{% endif %}
+    {% if w.deadline %}<span class="countdown" data-countdown-to="{{ w.deadline }}">{{ icon("clock", 13) }}<span class="cd-text">denies in {{ w.deadline | until }}</span></span>{% endif %}
+  </div>
+</div>
+{% endif %}
+{% endmacro %}

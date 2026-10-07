@@ -38,7 +38,7 @@ from .scheduler import Scheduler
 from .store import Store
 from .tools import ToolContext, build_tools
 
-DEFAULT_MAX_CONCURRENT = int(os.environ.get("HUTCH_MAX_CONCURRENT", "2"))
+DEFAULT_MAX_CONCURRENT = 2
 
 #: The scheduler loop sleeps exactly until the next due run or incoming event. This cap is only a
 #: safety net: CLOCK_MONOTONIC does not advance while a laptop is suspended, so an unbounded sleep
@@ -55,7 +55,7 @@ class Engine:
         self.store = store
         self.bus = store.bus
         self.scheduler = Scheduler(store)
-        self.max_concurrent = max_concurrent or DEFAULT_MAX_CONCURRENT
+        self.max_concurrent = max_concurrent or int(os.environ.get("HUTCH_MAX_CONCURRENT", DEFAULT_MAX_CONCURRENT))
         self._threads: dict[str, threading.Thread] = {}
         self._cancels: dict[str, threading.Event] = {}
         self._gates: dict[str, ApprovalGate] = {}

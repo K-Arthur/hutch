@@ -353,6 +353,33 @@ class Store:
             rows = self._db.execute(q, args).fetchall()
         return [Run.model_validate_json(r["doc"]) for r in rows]
 
+    def list_runs_page(self, bot_id: Optional[str] = None, status: Optional[str] = None,
+                       limit: int = 50, offset: int = 0) -> list[Run]:
+        """Filtered, paginated run listing for the Runs page."""
+        q, args = "SELECT doc FROM runs WHERE 1=1", []
+        if bot_id:
+            q += " AND bot_id = ?"
+            args.append(bot_id)
+        if status == "active":
+            q += f" AND status IN ({','.join('?' for _ in ACTIVE_STATUSES)})"
+            args += [st.value for st in ACTIVE_STATUSES]
+        elif status:
+            q += " AND status = ?"
+            args.append(status)
+        q += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        args += [limit, offset]
+        with self._lock:
+            rows = self._db.execute(q, args).fetchall()
+        return [Run.model_validate_json(r["doc"]) for r in rows]
+
+    def latest_finished_run(self, bot_id: str) -> Optional[Run]:
+        done = (RunStatus.succeeded.value, RunStatus.failed.value, RunStatus.stopped.value)
+        with self._lock:
+            row = self._db.execute(
+                f"SELECT doc FROM runs WHERE bot_id = ? AND status IN ({','.join('?' for _ in done)}) "
+                "ORDER BY created_at DESC LIMIT 1", (bot_id, *done)).fetchone()
+        return Run.model_validate_json(row["doc"]) if row else None
+
     def active_runs(self) -> list[Run]:
         live = tuple(st.value for st in ACTIVE_STATUSES)
         marks = ",".join("?" for _ in live)
@@ -548,6 +575,14 @@ class Store:
             row = self._db.execute("SELECT doc FROM approvals WHERE id = ?", (approval_id,)).fetchone()
         return ApprovalRequest.model_validate_json(row["doc"]) if row else None
 
+    def recent_approvals(self, limit: int = 10) -> list[ApprovalRequest]:
+        """Most recently decided approvals, newest first (the inbox's 'recently decided' list)."""
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT doc FROM approvals WHERE status != ? ORDER BY created_at DESC LIMIT ?",
+                (ApprovalStatus.pending.value, limit)).fetchall()
+        return [ApprovalRequest.model_validate_json(r["doc"]) for r in rows]
+
     def pending_approvals(self, bot_id: Optional[str] = None) -> list[ApprovalRequest]:
         q = "SELECT doc FROM approvals WHERE status = ?"
         args: tuple = (ApprovalStatus.pending.value,)
@@ -642,6 +677,19 @@ class Store:
                     counts[row["status"]] = row["n"]
                 out[bot.id] = {"counts": counts}
         return out
+
+    # ------------------------------------------------------- human pauses
+
+    def resume_run(self, run_id: str) -> None:
+        """A person finished the login/CAPTCHA wall: wake the run that is waiting on it."""
+        self.kv_set(f"resume:{run_id}", "1")
+        self.bus.notify(f"human:{run_id}", f"run:{run_id}", "work")
+
+    def consume_resume(self, run_id: str) -> bool:
+        if self.kv_get(f"resume:{run_id}") == "1":
+            self.kv_set(f"resume:{run_id}", "0")
+            return True
+        return False
 
     # --------------------------------------------------------------- kv
 

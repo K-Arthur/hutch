@@ -1,0 +1,20 @@
+{#- UI-4: steps, elapsed, spend, tokens, context - each against its cap. -#}
+<div class="meters" id="meters" data-run="{{ run.id }}" data-active="{{ 1 if active else 0 }}"
+     {% if active %}data-started="{{ run.started_at or run.created_at }}"{% endif %}>
+  {%- for m in meters %}
+  <div class="meter lv-{{ m.level }}">
+    <div class="meter-top"><span class="meter-label">{{ m.label }}</span>
+      <span class="meter-val"{% if m.label == "Elapsed" and active %} data-elapsed{% endif %}>{{ m.value }}</span>
+      {% if m.cap %}<span class="meter-cap">{{ m.cap }}</span>{% endif %}</div>
+    <div class="bar" role="progressbar" aria-label="{{ m.label }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ m.pct | round(0) | int }}"><i style="width: {{ m.pct }}%"></i></div>
+    {% if m.note %}<div class="meter-note">{{ m.note }}</div>{% endif %}
+  </div>
+  {%- endfor %}
+  {% if split.model or split.tool or split.overhead %}
+  <div class="meter wide">
+    <div class="meter-top"><span class="meter-label">Where the time went</span>
+      <span class="meter-cap">model {{ split.model | round(0) | int }}% - tools {{ split.tool | round(0) | int }}% - hutch {{ split.overhead | round(1) }}%</span></div>
+    <div class="bar split"><i class="s-model" style="width: {{ split.model }}%"></i><i class="s-tool" style="width: {{ split.tool }}%"></i><i class="s-over" style="width: {{ split.overhead }}%"></i></div>
+  </div>
+  {% endif %}
+</div>

@@ -8,6 +8,12 @@ from hutch.config import hutchConfig, get_config
 from hutch.store import Store
 
 
+@pytest.fixture(autouse=True)
+def _allow_testclient_host(monkeypatch):
+    """Starlette's TestClient sends `Host: testserver`; the dashboard only accepts loopback hosts."""
+    monkeypatch.setenv("HUTCH_ALLOWED_HOSTS", "testserver")
+
+
 @pytest.fixture()
 def config(tmp_path, monkeypatch) -> hutchConfig:
     monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))

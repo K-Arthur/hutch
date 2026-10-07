@@ -1,0 +1,81 @@
+{#- Transcript rendering. One <li> per event, tagged with its per-run seq so the client can detect gaps (UI-3). -#}
+{%- from "_icons.html" import icon -%}
+{%- from "_approval_card.html" import approval_card, approval_resolved with context -%}
+
+{% macro event(ev, approvals, run) %}
+{%- set d = ev.data -%}
+<li class="tx tx-{{ ev.type }}" id="ev-{{ ev.seq }}" data-seq="{{ ev.seq }}">
+  {%- if ev.type == "message" %}
+    <div class="bubble {{ 'user' if d.role == 'user' else 'agent' }}">
+      <div class="bubble-meta">{{ d.role or "agent" }} <time>{{ ev.ts[11:19] }}</time></div>
+      <div class="bubble-text">{{ d.content }}</div>
+    </div>
+  {%- elif ev.type == "tool_call" %}
+    <div class="toolcard">
+      <div class="toolcard-head">{{ icon("terminal" if d.tool == "shell" else ("file" if "file" in d.tool else ("globe" if d.tool in ("web_fetch", "browser") else "zap")), 15) }}
+        <strong>{{ d.tool }}</strong><time>{{ ev.ts[11:19] }}</time></div>
+      <pre class="args">{{ d.args | tojson }}</pre>
+    </div>
+  {%- elif ev.type == "tool_result" %}
+    <div class="toolcard result {{ 'ok' if d.ok else 'bad' }}">
+      <div class="toolcard-head">{{ icon("check" if d.ok else "x", 15) }}<strong>{{ d.tool }} {{ 'returned' if d.ok else 'failed' }}</strong></div>
+      {% if d.output and d.output | length > 400 %}
+        <details><summary>{{ d.output[:160] }}... ({{ d.output | length }} chars)</summary><pre>{{ d.output }}</pre></details>
+      {% else %}<pre>{{ d.output }}</pre>{% endif %}
+    </div>
+  {%- elif ev.type == "approval_request" %}
+    {% set a = approvals.get(d.approval_id) %}
+    {% if a and a.status.value == "pending" %}
+      {{ approval_card(a, run.bot_name if run else "", "/runs/" ~ ev.run_id) }}
+    {% else %}
+      <div class="line">{{ icon("shield", 15) }}<span>Approval requested: <strong>{{ d.action }}</strong>
+        {% if a %}- <span class="chip st-{{ a.status.value }}">{{ a.status.value }}</span>{% if a.decided_by %} by {{ a.decided_by }}{% endif %}{% endif %}</span></div>
+    {% endif %}
+  {%- elif ev.type == "approval_resolved" %}
+    <div class="line muted">{{ icon("shield", 15) }}<span>Approval {{ d.result }}{% if d.by %} ({{ d.by }}){% endif %}</span></div>
+  {%- elif ev.type == "human_needed" %}
+    <div class="banner action">{{ icon("user", 18) }}<div><strong>A person is needed</strong><p>{{ d.reason }}</p>
+      {% if run and run.status.value == "waiting_human" %}
+      <form method="post" action="/runs/{{ ev.run_id }}/resume" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="btn primary small">{{ icon("play", 14) }} I have cleared it - resume</button></form>{% endif %}</div></div>
+  {%- elif ev.type == "human_resumed" %}
+    <div class="line muted">{{ icon("play", 15) }}<span>Resumed by a person</span></div>
+  {%- elif ev.type == "error" %}
+    <div class="toolcard result bad"><div class="toolcard-head">{{ icon("alert", 15) }}<strong>Error</strong></div><pre>{{ d.error }}</pre></div>
+  {%- elif ev.type == "step" %}
+    <div class="stepline" title="Wall time split: model wait / tool time / Hutch overhead">
+      <span>step {{ d.n }}</span>
+      <span>{{ (d.prompt_tokens or 0) + (d.completion_tokens or 0) }} tok</span>
+      {% if d.cost_usd %}<span>${{ '%.4f' | format(d.cost_usd) }}</span>{% endif %}
+      <span>model {{ d.model_ms | round(0) | int }}ms</span><span>tools {{ d.tool_ms | round(0) | int }}ms</span><span>hutch {{ d.overhead_ms | round(1) }}ms</span>
+      {% if d.cached_tokens %}<span>{{ d.cached_tokens }} cached</span>{% endif %}
+    </div>
+  {%- elif ev.type == "status" %}
+    <div class="line status-line">{{ icon("clock", 14) }}<span>{{ d.status | replace("_", " ") }}{% if d.reason and d.reason != d.status %} - {{ d.reason }}{% endif %}{% if d.origin %} <span class="muted">(started by {{ d.origin }})</span>{% endif %}</span></div>
+  {%- else %}
+    {# log #}
+    <div class="line muted logline">{{ icon("list", 14) }}
+      <span>
+        {%- if d.note %}{{ d.note }}
+        {%- elif d.denied %}<strong>Denied by policy:</strong> {{ d.denied }} <span class="muted">- {{ d.reason }}</span>
+        {%- elif d.runtime %}runtime {{ d.runtime }}, model {{ d.model }}, {{ d.tools | length }} tool{{ '' if d.tools | length == 1 else 's' }}{% if d.rehearsal %} - <strong>rehearsal</strong>{% endif %}
+        {%- elif d.final_chars is defined %}finished: {{ d.steps }} steps, ~{{ d.tokens }} tokens
+        {%- else %}{{ d | tojson }}{% endif -%}
+      </span></div>
+  {%- endif %}
+</li>
+{%- endmacro %}
+
+{% macro events(evs, approvals, run) -%}
+{%- for ev in evs %}{{ event(ev, approvals, run) }}{% endfor -%}
+{%- endmacro %}
+
+{% macro more(first_seq, hidden, run_id) -%}
+{%- if first_seq > 1 %}
+<li class="tx-more" id="tx-more">
+  <button class="btn ghost small" hx-get="/runs/{{ run_id }}/events?before={{ first_seq }}" hx-target="#tx-more" hx-swap="outerHTML">
+    {{ icon("refresh", 14) }} Load {{ [hidden, 200] | min }} earlier event{{ '' if [hidden, 200] | min == 1 else 's' }} ({{ hidden }} hidden)
+  </button>
+</li>
+{%- endif %}
+{%- endmacro %}

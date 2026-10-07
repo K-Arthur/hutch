@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_events.html" import events, more with context %}
+{% from "_wait.html" import wait_banner %}
+{% block title %}Run {{ run.id[4:16] }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/runs">Runs</a> / <a href="/bots/{{ run.bot_name }}">{{ run.bot_name }}</a></p>
+    <h1>Run <span class="mono">{{ run.id }}</span></h1>
+    <p class="sub" id="run-sub">
+      <span class="chip st-{{ run.status.value }}" id="run-status">{{ run.status.value | replace("_", " ") }}</span>
+      {% if run.rehearsal %}<span class="tag" title="Mutating actions were simulated, not executed.">rehearsal</span>{% endif %}
+      started by <strong>{{ run | origin }}</strong>
+      {% if run.plan_id %}- <a href="/plans/{{ run.plan_id }}">{{ icon("plan", 13) }} plan {{ run.plan_id[:12] }}</a>{% endif %}
+      - model <span class="mono">{{ run.model_used or bot_model }}</span>
+    </p>
+  </div>
+  <div class="actions">
+    {% if active %}
+    <form method="post" action="/runs/{{ run.id }}/stop" hx-post="/runs/{{ run.id }}/stop" hx-swap="none">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/runs/{{ run.id }}">
+      <button class="btn danger">{{ icon("stop", 15) }} Stop run</button></form>
+    {% endif %}
+    {% if run.status.value == "waiting_human" %}
+    <form method="post" action="/runs/{{ run.id }}/resume"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/runs/{{ run.id }}">
+      <button class="btn primary">{{ icon("play", 15) }} Resume</button></form>
+    {% endif %}
+  </div>
+</div>
+
+<div id="wait-slot" data-live="/runs/{{ run.id }}/wait">{{ wait_banner(wait) }}</div>
+
+<div data-live="/runs/{{ run.id }}/meters">
+  {% include "_meters.html" %}
+</div>
+
+<section class="transcript" id="transcript" aria-label="Transcript"
+         data-run-stream="/runs/{{ run.id }}/stream" data-last-seq="{{ last_seq }}"
+         data-run-id="{{ run.id }}" data-active="{{ 1 if active else 0 }}" data-gap-url="/runs/{{ run.id }}/events">
+  <div class="bubble user prompt"><div class="bubble-meta">prompt - {{ run.created_at | ago }}</div><div class="bubble-text">{{ run.prompt }}</div></div>
+  <ol class="tx-list" id="tx-list" data-events>
+    {{ more(first_seq, hidden, run.id) }}
+    {{ events(evs, approvals, run) }}
+  </ol>
+  <div class="stream-state" id="stream-state" role="status" aria-live="polite" data-state="{{ 'connecting' if active else 'done' }}">
+    {% if active %}{{ icon("spinner", 14, "spin") }}<span>connecting to live stream...</span>{% else %}{{ icon("check", 14) }}<span>run finished - {{ event_count }} events{% if verify.ok %}, history verified{% endif %}</span>{% endif %}
+  </div>
+</section>
+
+{% if not active %}
+<p class="foot-note">
+  {% if verify.ok %}{{ icon("shield", 14) }} Hash chain verified: {{ verify.checked }} event{{ '' if verify.checked == 1 else 's' }}{% if verify.legacy %} ({{ verify.legacy }} older events predate chaining){% endif %}.
+  {% else %}<span class="bad">{{ icon("alert", 14) }} The event log for this run does not verify (first bad sequence: {{ verify.bad_seq }}). History may have been edited.</span>{% endif %}
+  Workspace: <span class="mono">{{ run.workspace }}</span>
+</p>
+{% endif %}
+{% endblock %}

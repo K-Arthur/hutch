@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ bot.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/bots">Bots</a></p>
+    <h1>{{ icon("bot", 24) }} {{ bot.name }}</h1>
+    <p class="sub">{{ bot.description or "No description." }}</p>
+    <div class="tags"><span class="tag">{{ bot.model }}</span><span class="tag">{{ bot.runtime.value }}</span>
+      <span class="tag">{{ bot.schedule.cron ~ " (" ~ bot.schedule.timezone ~ ")" if bot.schedule else "on demand" }}</span>
+      <span class="tag {{ 'warn' if bot.approval_mode.value == 'ask' else 'ok' }}">approvals: {{ bot.approval_mode.value }}</span>
+      {% if bot.paused %}<span class="chip st-paused">paused</span>{% endif %}</div>
+  </div>
+  <div class="actions">
+    <form method="post" action="/bots/{{ bot.name }}/{{ 'resume' if bot.paused else 'pause' }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/bots/{{ bot.name }}">
+      <button class="btn">{{ icon("play" if bot.paused else "pause", 15) }} {{ "Resume schedule" if bot.paused else "Pause schedule" }}</button></form>
+  </div>
+</div>
+
+<section class="panel" id="compose">
+  <h2>{{ icon("play", 18) }} Give it a task</h2>
+  <form method="post" action="/bots/{{ bot.name }}/run" class="compose">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <textarea name="prompt" rows="3" required placeholder="What should {{ bot.name }} do? e.g. summarize this week's AI news"></textarea>
+    <div class="compose-row">
+      <label class="check" title="Mutating actions are simulated and logged. Reads still run, so you can see what it would do before it does it."><input type="checkbox" name="rehearse" value="1"> Rehearse (dry run - nothing is changed)</label>
+      <button class="btn primary" type="submit">{{ icon("play", 15) }} Start run</button>
+    </div>
+    <p class="hint">Limits for this bot: {{ bot.limits.max_steps }} steps, {{ bot.limits.timeout_seconds }}s wall clock, {{ bot.limits.daily_token_cap | tokens }} tokens/day ({{ tokens_today | tokens }} used today).</p>
+  </form>
+</section>
+
+<div class="two-col">
+  <section class="panel">
+    <h2>{{ icon("list", 18) }} Recent runs</h2>
+    {% if runs %}<ul class="runlist">
+      {% for r in runs %}<li><a href="/runs/{{ r.id }}"><span class="chip st-{{ r.status.value }}">{{ r.status.value | replace("_", " ") }}</span> <span class="snip">{{ r.prompt[:80] }}</span></a>
+        <span class="muted">{{ r | origin }} - {{ r.created_at | ago }}</span></li>{% endfor %}</ul>
+    {% else %}<div class="empty">{{ icon("list", 24) }}<p>No runs yet.</p></div>{% endif %}
+  </section>
+
+  <section class="panel">
+    <h2>{{ icon("brain", 18) }} Memory <span class="count">{{ memory | length }}</span></h2>
+    {% for m in memory %}
+    <div class="memrow"><div><strong>{{ m.key }}</strong><p>{{ m.value }}</p>
+      <span class="muted">{% if m.run_id %}written in <a href="/runs/{{ m.run_id }}">{{ m.run_id[4:16] }}</a>{% else %}{{ m.source }}{% endif %} - {{ m.updated_at | ago }}</span></div>
+      <form method="post" action="/bots/{{ bot.name }}/memory/delete" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="key" value="{{ m.key }}"><input type="hidden" name="next" value="/bots/{{ bot.name }}">
+        <button class="btn ghost small" aria-label="Forget {{ m.key }}">{{ icon("trash", 14) }}</button></form></div>
+    {% else %}<p class="hint">Nothing remembered yet.</p>{% endfor %}
+
+    <h2 class="section">{{ icon("shield", 18) }} Always-allowed actions <span class="count">{{ allows | length }}</span></h2>
+    {% for s in allows %}
+    <div class="memrow"><code>{{ s }}</code>
+      <form method="post" action="/bots/{{ bot.name }}/allows/revoke" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="key" value="{{ s }}"><input type="hidden" name="next" value="/bots/{{ bot.name }}">
+        <button class="btn ghost small">Revoke</button></form></div>
+    {% else %}<p class="hint">None - every risky action asks first.</p>{% endfor %}
+  </section>
+</div>
+
+<section class="panel">
+  <h2>{{ icon("cpu", 18) }} Settings</h2>
+  <form method="post" action="/bots/{{ bot.name }}/update" class="settings">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="field"><span>Description</span><input type="text" name="description" value="{{ bot.description }}"></label>
+    <label class="field"><span>Model</span><input type="text" name="model" value="{{ bot.model }}"><small>mock/demo - ollama/llama3.2 - openai/gpt-4o-mini</small></label>
+    <label class="field"><span>Schedule (cron, blank = on demand)</span><input type="text" name="cron" value="{{ bot.schedule.cron if bot.schedule else '' }}" placeholder="0 9 * * 1"></label>
+    <label class="field"><span>Schedule time zone</span><input type="text" name="timezone" value="{{ bot.schedule.timezone if bot.schedule else 'UTC' }}"></label>
+    <label class="field"><span>Approvals</span><select name="approval_mode"><option value="ask" {{ 'selected' if bot.approval_mode.value == 'ask' }}>ask - pause for risky actions</option><option value="auto" {{ 'selected' if bot.approval_mode.value == 'auto' }}>auto - only the deny-list stops it</option></select></label>
+    <label class="field wide"><span>Instructions</span><textarea name="instructions" rows="6">{{ bot.instructions }}</textarea></label>
+    <div class="form-actions"><button class="btn primary">Save</button></div>
+  </form>
+  <details class="danger-zone"><summary>Delete this bot</summary>
+    <form method="post" action="/bots/{{ bot.name }}/delete" data-confirm="Delete {{ bot.name }}? Its memory and always-allowed actions go too; run history stays on disk.">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn danger">{{ icon("trash", 15) }} Delete {{ bot.name }}</button></form></details>
+</section>
+{% endblock %}

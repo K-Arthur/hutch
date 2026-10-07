@@ -64,6 +64,7 @@ def finish_step(run: Run, ctx: ToolContext, timer: StepTimer, *, model: str = ""
     run.overhead_ms += overhead_ms
     if model:
         run.model_used = model
+    ctx.store.update_run(run)  # persist running totals so the meters (UI-4) are live, not end-of-run
     ctx.emit(Event(run_id=run.id, type=EventType.step, data={
         "n": run.steps, "model": model or run.model_used,
         "prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens,

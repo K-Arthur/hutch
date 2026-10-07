@@ -149,6 +149,43 @@ class ApprovalGate:
                 self.run.status = prev_status if prev_status is not RunStatus.waiting_approval else RunStatus.running
                 self.store.update_run(self.run)
 
+    def wait_for_human(self, reason: str, url: str = "") -> None:
+        """Park the run until a person clears a login / CAPTCHA / 2FA wall (UI-1 "Needs you").
+
+        Hutch never attempts these challenges itself. The run shows as ``waiting_human`` with the
+        cause and a Resume button; if nobody comes back before the deadline the run fails rather
+        than spinning forever.
+        """
+        from .models import RunStatus
+        self.store.ensure_listening()
+        bus = self.store.bus
+        self.store.consume_resume(self.run.id)  # drop any stale resume flag
+        prev = self.run.status
+        self.run.status = RunStatus.waiting_human
+        self.store.update_run(self.run)
+        deadline = time.monotonic() + self.ttl
+        self.emit(Event(run_id=self.run.id, type=EventType.human_needed,
+                        data={"reason": reason, "url": url,
+                              "expires_at": iso(utcnow() + timedelta(seconds=self.ttl))}))
+        topics = {f"human:{self.run.id}": 0, f"approval:wake:{self.run.id}": 0}
+        try:
+            while True:
+                for t in topics:
+                    topics[t] = bus.version(t)
+                if self.cancel_requested:
+                    raise DeniedError("run was stopped while waiting for a person")
+                if self.store.consume_resume(self.run.id):
+                    self.emit(Event(run_id=self.run.id, type=EventType.human_resumed, data={"url": url}))
+                    return
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise DeniedError(f"nobody cleared the login wall within {self.ttl}s: {reason}")
+                bus.wait_any(topics, timeout=min(remaining, self.poll_seconds))
+        finally:
+            if self.run.status is RunStatus.waiting_human:
+                self.run.status = prev if prev is not RunStatus.waiting_human else RunStatus.running
+                self.store.update_run(self.run)
+
     def _resolve(self, req: ApprovalRequest, status: ApprovalStatus, by: str) -> None:
         req.status = status
         req.resolved_at = iso(utcnow())

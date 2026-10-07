@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Home</h1><p class="sub">What needs you, what is running, and what has gone quiet.</p></div>
+  <a class="btn" href="/bots">All bots {{ icon("arrow", 14) }}</a>
+</div>
+{% if not has_bots %}
+<section class="panel empty">{{ icon("bot", 30) }}<h2>No bots yet</h2>
+  <p>Create one from a template, or run <span class="mono">hutch init</span> to seed three starter bots on the free offline model.</p>
+  <p><a class="btn primary" href="/bots/new">{{ icon("plus", 15) }} New bot</a></p></section>
+{% endif %}
+<div id="home-lists" data-live="/_home">
+  {% include "_home_lists.html" %}
+</div>
+{% endblock %}

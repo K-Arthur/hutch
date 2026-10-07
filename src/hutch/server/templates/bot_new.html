@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}New bot{% endblock %}
+{% block content %}
+<div class="page-head"><div><p class="crumb"><a href="/bots">Bots</a></p><h1>New bot</h1>
+  <p class="sub">Start from a template, then adjust. Everything defaults to the free offline mock model - no API key or download.</p></div></div>
+<form method="post" action="/bots" class="panel settings">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label class="field"><span>Name</span><input type="text" name="name" required pattern="[a-z0-9][a-z0-9-]{1,40}" placeholder="my-bot"></label>
+  <label class="field"><span>Template</span><select name="template"><option value="">blank</option>
+    {% for t in templates %}<option value="{{ t.name }}" {{ 'selected' if t.name == picked }}>{{ t.name }} - {{ t.description }}</option>{% endfor %}</select></label>
+  <label class="field"><span>Model</span><input type="text" name="model" value="mock/demo"></label>
+  <label class="field"><span>Schedule (cron, optional)</span><input type="text" name="cron" placeholder="0 9 * * 1"></label>
+  <label class="field"><span>Schedule time zone</span><input type="text" name="timezone" value="UTC"></label>
+  <label class="field wide"><span>Description</span><input type="text" name="description" placeholder="What this bot is for"></label>
+  <div class="form-actions"><button class="btn primary">{{ icon("plus", 15) }} Create bot</button></div>
+</form>
+{% endblock %}

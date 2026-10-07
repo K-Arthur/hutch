@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ status }}{% endblock %}
+{% block content %}
+<section class="panel narrow empty">{{ icon("alert", 32) }}<h1>{{ status }}</h1><p>{{ message }}</p>
+  <p><a class="btn" href="/">{{ icon("home", 15) }} Back to Home</a></p></section>
+{% endblock %}

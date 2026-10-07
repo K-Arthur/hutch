@@ -137,6 +137,9 @@ _INTERPRETERS = {
 
 _EGRESS_PROGRAMS = {"curl", "wget", "nc", "ncat", "ssh", "scp", "rsync", "ftp", "telnet"}
 
+#: asking-class programs that send data off this machine: they always ask, even with a sticky allow (SR-4)
+_OUTWARD_PROGRAMS = {"ssh", "scp", "rsync", "ftp"}
+
 _SECRET_RE = re.compile(
     r"(\.ssh|id_rsa|id_ed25519|\.gnupg|\.aws|\.kube|\.docker/config\.json|"
     r"\.netrc|\.env\b|\.env\.|/etc/shadow|/etc/sudoers|credentials\.json|"
@@ -178,14 +181,19 @@ class PolicyEngine:
             return Decision(Verdict.allow, "empty command")
         if _FORK_BOMB_RE.search(command):
             return Decision(Verdict.deny, "fork bomb pattern")
-        overall = Decision(Verdict.allow, "ok")
+        overall = Decision(Verdict.allow, "ok", rule="allow:default", risk="low")
         segments = split_compound(command)
         if not segments:
-            return Decision(Verdict.allow, "empty command")
+            return Decision(Verdict.allow, "empty command", rule="allow:empty", risk="low")
+        breakdown = []
         for seg in segments:
-            overall = overall.worse(self._classify_segment(seg))
+            d = self._classify_segment(seg)
+            breakdown.append({"text": seg.text, "program": _program(seg.tokens), "verdict": d.verdict.value,
+                              "reason": d.reason, "rule": d.rule})
+            overall = overall.worse(d)
         if overall.verdict is Verdict.allow:
             overall.reason = "allowed by policy"
+        overall.segments = breakdown
         return overall
 
     def _classify_segment(self, seg: Segment) -> Decision:
@@ -193,37 +201,39 @@ class PolicyEngine:
         text = seg.text
 
         if _SECRET_RE.search(text):
-            return Decision(Verdict.deny, "references secrets/credentials paths")
+            return Decision(Verdict.deny, "references secrets/credentials paths", rule="deny:secret-path", risk="high")
         if seg.piped_in and prog in _INTERPRETERS:
-            return Decision(Verdict.deny, "piping untrusted data into an interpreter")
+            return Decision(Verdict.deny, "piping untrusted data into an interpreter", rule="deny:pipe-to-interpreter", risk="high")
         if seg.piped_out and prog in _EGRESS_PROGRAMS and not self._looks_readonly(prog, seg.tokens):
-            return Decision(Verdict.deny, "pipes command output to the network (exfiltration channel)")
+            return Decision(Verdict.deny, "pipes command output to the network (exfiltration channel)", rule="deny:exfil-pipe", risk="high", outward=True)
 
         if prog in _DENY_PROGRAMS:
-            return Decision(Verdict.deny, f"'{prog}' is on the hard denylist")
+            return Decision(Verdict.deny, f"'{prog}' is on the hard denylist", rule=f"deny:program:{prog}", risk="high")
 
         if prog == "rm":
             targets = [t for t in seg.tokens[1:] if not t.startswith("-")]
             for t in targets:
                 if _UNSAFE_TARGET_RE.match(t):
-                    return Decision(Verdict.deny, f"rm targets outside the workspace: {t}")
-            return Decision(Verdict.ask, "deletes files", f"shell:rm")
+                    return Decision(Verdict.deny, f"rm targets outside the workspace: {t}", rule="deny:rm-outside-workspace", risk="high")
+            return Decision(Verdict.ask, "deletes files", "shell:rm", rule="ask:rm", risk="medium")
 
         if prog in ("curl", "wget"):
             if not self._looks_readonly(prog, seg.tokens):
-                return Decision(Verdict.deny, "network upload/write flags on " + prog)
-            return Decision(Verdict.allow, "read-only fetch")
+                return Decision(Verdict.deny, "network upload/write flags on " + prog, rule="deny:network-upload", risk="high", outward=True)
+            return Decision(Verdict.allow, "read-only fetch", rule="allow:readonly-fetch", risk="low")
 
         if prog == "git":
             sub = seg.tokens[1] if len(seg.tokens) > 1 else ""
             if sub in ("push", "reset", "clean", "checkout", "rebase", "filter-branch"):
-                return Decision(Verdict.ask, f"git {sub} mutates repo state", "shell:git")
-            return Decision(Verdict.allow, "read-only git")
+                return Decision(Verdict.ask, f"git {sub} mutates repo state", "shell:git", rule=f"ask:git-{sub}", risk="medium",
+                            outward=(sub == "push"))
+            return Decision(Verdict.allow, "read-only git", rule="allow:readonly-git", risk="low")
 
         if prog in _ASK_PROGRAMS:
-            return Decision(Verdict.ask, f"'{prog}' can mutate the system", f"shell:{prog}")
+            return Decision(Verdict.ask, f"'{prog}' can mutate the system", f"shell:{prog}", rule=f"ask:program:{prog}",
+                            risk="medium", outward=prog in _OUTWARD_PROGRAMS)
 
-        return Decision(Verdict.allow, "allowed by policy")
+        return Decision(Verdict.allow, "allowed by policy", rule="allow:default", risk="low")
 
     @staticmethod
     def _looks_readonly(prog: str, tokens: list[str]) -> bool:
@@ -248,14 +258,14 @@ class PolicyEngine:
         try:
             p = (ws / path if not Path(path).is_absolute() else Path(path)).resolve()
         except (OSError, RuntimeError) as exc:
-            return Decision(Verdict.deny, f"unresolvable path: {exc}")
+            return Decision(Verdict.deny, f"unresolvable path: {exc}", rule="deny:unresolvable-path", risk="high")
         if ws != p and ws not in p.parents:
-            return Decision(Verdict.deny, f"path escapes the workspace jail: {path}")
+            return Decision(Verdict.deny, f"path escapes the workspace jail: {path}", rule="deny:path-jail", risk="high")
         if _SECRET_RE.search(str(p)):
-            return Decision(Verdict.deny, "path references secrets")
+            return Decision(Verdict.deny, "path references secrets", rule="deny:secret-path", risk="high")
         if write:
-            return Decision(Verdict.ask, "writes a file", "files:write")
-        return Decision(Verdict.allow, "read inside workspace")
+            return Decision(Verdict.ask, "writes a file", "files:write", rule="ask:file-write", risk="medium")
+        return Decision(Verdict.allow, "read inside workspace", rule="allow:workspace-read", risk="low")
 
     # --------------------------------------------------------------- urls
 
@@ -268,8 +278,8 @@ class PolicyEngine:
         m = re.match(r"^([a-zA-Z][a-zA-Z0-9+.-]*)://", url)
         scheme = m.group(1).lower() if m else "http"
         if scheme not in ("http", "https"):
-            return Decision(Verdict.deny, f"scheme '{scheme}' is not allowed (http/https only)")
+            return Decision(Verdict.deny, f"scheme '{scheme}' is not allowed (http/https only)", rule="deny:url-scheme", risk="high")
         host = re.sub(r"^[a-zA-Z0-9+.-]+://", "", url).split("/", 1)[0].split(":")[0]
         if self._PRIVATE_HOST_RE.match(host):
-            return Decision(Verdict.deny, "targeting loopback/private/metadata address")
-        return Decision(Verdict.allow, "public http(s) fetch")
+            return Decision(Verdict.deny, "targeting loopback/private/metadata address", rule="deny:private-address", risk="high")
+        return Decision(Verdict.allow, "public http(s) fetch", rule="allow:public-fetch", risk="low")

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Runs{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Runs</h1><p class="sub">Every run on this machine, with its full transcript. Each shows who or what started it.</p></div></div>
+
+<form class="filters" method="get" action="/runs">
+  <label class="field inline"><span>Bot</span>
+    <select name="bot" onchange="this.form.submit()"><option value="">all bots</option>
+      {% for b in bots %}<option value="{{ b.name }}" {{ 'selected' if b.name == f_bot else '' }}>{{ b.name }}</option>{% endfor %}</select></label>
+  <label class="field inline"><span>Status</span>
+    <select name="status" onchange="this.form.submit()">
+      {% for key, label in [("", "all"), ("active", "active"), ("succeeded", "succeeded"), ("failed", "failed"), ("stopped", "stopped")] %}
+      <option value="{{ key }}" {{ 'selected' if key == f_status else '' }}>{{ label }}</option>{% endfor %}</select></label>
+  <noscript><button class="btn small">Filter</button></noscript>
+</form>
+
+<div id="runs-list" data-live="/runs?{{ query }}&fragment=1">
+  {% include "_runs_table.html" %}
+</div>
+{% endblock %}

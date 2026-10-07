@@ -34,6 +34,7 @@ class Bus:
         self._cv = threading.Condition()
         self._ver: dict[str, int] = defaultdict(int)
         self._hub: Optional["WakeHub"] = None
+        self._subs: dict[str, list] = defaultdict(list)
 
     def attach_hub(self, hub: "WakeHub") -> None:
         self._hub = hub
@@ -42,11 +43,37 @@ class Bus:
         with self._cv:
             return self._ver[topic]
 
+    def subscribe(self, topics: Iterable[str], callback) -> "callable":
+        """Call ``callback()`` (from the notifying thread) whenever any topic moves.
+
+        Lets an asyncio server wait on ``loop.call_soon_threadsafe(event.set)`` instead of parking
+        a thread per open SSE stream. Returns an unsubscribe function.
+        """
+        topics = tuple(topics)
+        with self._cv:
+            for t in topics:
+                self._subs[t].append(callback)
+
+        def unsubscribe() -> None:
+            with self._cv:
+                for t in topics:
+                    try:
+                        self._subs[t].remove(callback)
+                    except ValueError:
+                        pass
+        return unsubscribe
+
     def notify(self, *topics: str, remote: bool = True) -> None:
         with self._cv:
             for t in topics:
                 self._ver[t] += 1
             self._cv.notify_all()
+            callbacks = [cb for t in topics for cb in self._subs.get(t, ())]
+        for cb in callbacks:
+            try:
+                cb()
+            except Exception:
+                pass
         if remote and self._hub is not None:
             self._hub.ping(topics)
 

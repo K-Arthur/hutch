@@ -1,0 +1,62 @@
+{#- One approval, as a person needs to decide it (UI-5): parsed segments, the rule that fired, three choices, a visible default-deny countdown. -#}
+{%- from "_icons.html" import icon -%}
+{% macro approval_card(a, bot_name, next_url="/approvals", compact=False) %}
+<article class="approval {{ 'outward' if a.outward else '' }} risk-{{ a.risk }}" id="{{ a.id }}" data-approval="{{ a.id }}">
+  <header class="approval-head">
+    <div>
+      <strong>{{ bot_name }}</strong>
+      <span class="tag">{{ a.tool }}</span>
+      <span class="tag risk-{{ a.risk }}">{{ a.risk }} risk</span>
+      {% if a.outward %}<span class="tag danger" title="Sends something out of this machine: always asks, sticky allows never apply.">{{ icon("globe", 12) }} outward</span>{% endif %}
+      {% if a.plan_id %}<a class="tag plan" href="/plans/{{ a.plan_id }}">{{ icon("plan", 12) }} plan {{ a.plan_id[:12] }}</a>{% endif %}
+    </div>
+    {% if a.expires_at %}
+    <div class="countdown" data-countdown-to="{{ a.expires_at }}" title="If nobody answers, the action is denied.">
+      {{ icon("clock", 13) }}<span class="cd-text">denies in {{ (a.expires_at | until) }}</span>
+    </div>
+    {% endif %}
+  </header>
+
+  <p class="approval-action">{{ a.action }}</p>
+
+  {% if a.segments %}
+  <div class="segments" aria-label="Command parsed into segments">
+    <div class="seg-title">Parsed into {{ a.segments | length }} segment{{ '' if a.segments | length == 1 else 's' }}; the worst verdict wins</div>
+    {% for s in a.segments %}
+    <div class="seg v-{{ s.verdict }}">
+      <code>{{ s.text }}</code>
+      <span class="chip v-{{ s.verdict }}">{{ s.verdict }}</span>
+      <span class="seg-why">{{ s.reason }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% elif a.detail and not compact %}
+  <pre class="detail">{{ a.detail | tojson(indent=2) }}</pre>
+  {% endif %}
+
+  <p class="rule"><span class="muted">Why you are being asked:</span> {{ a.rule }}</p>
+
+  <form method="post" action="/approvals/{{ a.id }}/decide" class="decide"
+        hx-post="/approvals/{{ a.id }}/decide" hx-target="closest .approval" hx-swap="outerHTML">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <button class="btn primary" name="choice" value="once" type="submit">{{ icon("check", 15) }} Allow once</button>
+    {% if a.sticky_key and not a.outward %}
+    <button class="btn" name="choice" value="always" type="submit" title="Remember for this bot: <code>{{ a.sticky_key }}</code>">{{ icon("shield", 15) }} Always for this bot</button>
+    {% endif %}
+    {% if a.plan_id and a.sticky_key and not a.outward %}
+    <button class="btn" name="choice" value="plan" type="submit" title="Allow the same action for this plan, up to 20 uses">{{ icon("plan", 15) }} For this plan (20)</button>
+    {% endif %}
+    <button class="btn danger" name="choice" value="deny" type="submit">{{ icon("x", 15) }} Deny</button>
+    <a class="btn ghost small" href="/runs/{{ a.run_id }}">Open run {{ icon("arrow", 13) }}</a>
+  </form>
+  {% if a.outward %}<p class="hint">This action sends something outward, so "always" is not offered - you decide each time.</p>{% endif %}
+</article>
+{% endmacro %}
+
+{% macro approval_resolved(a, choice) %}
+<article class="approval resolved {{ 'denied' if choice == 'deny' else 'allowed' }}" id="{{ a.id }}">
+  {{ icon("check" if choice != 'deny' else "x", 16) }}
+  <span><strong>{{ 'Denied' if choice == 'deny' else 'Allowed' }}</strong>{% if choice == 'always' %} - and remembered for this bot{% elif choice == 'plan' %} - and granted to the plan{% endif %}: {{ a.action }}</span>
+</article>
+{% endmacro %}

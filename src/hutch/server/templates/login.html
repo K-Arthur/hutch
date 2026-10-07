@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<section class="panel narrow">
+  <h1>{{ icon("lock", 22) }} Sign in</h1>
+  <p class="sub">This dashboard was started with <span class="mono">--allow-remote</span>, so it needs the access token printed in the terminal where you ran <span class="mono">hutch serve</span>. It is never put in a URL.</p>
+  <form method="post" action="/login" class="stack"><input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="field"><span>Access token</span><input type="password" name="token" autocomplete="current-password" required autofocus></label>
+    <button class="btn primary">Sign in</button></form>
+</section>
+{% endblock %}
