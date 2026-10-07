@@ -93,6 +93,10 @@ def finish_step(run: Run, ctx: ToolContext, timer: StepTimer, *, model: str = ""
     if model:
         run.model_used = model
     ctx.store.update_run(run)  # persist running totals so the meters (UI-4) are live, not end-of-run
+    if prompt_tokens or completion_tokens:
+        provider, _, name = (model or run.model_used or "unknown/unknown").partition("/")
+        ctx.store.add_usage(run.id, run.bot_id, provider, name or provider, prompt_tokens, completion_tokens,
+                            cached_tokens, cost_usd)
     ctx.emit(Event(run_id=run.id, type=EventType.step, data={
         "n": run.steps, "model": model or run.model_used,
         "prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens,

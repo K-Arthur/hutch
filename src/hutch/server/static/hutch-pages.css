@@ -1,0 +1,22 @@
+/* Styles for pages added after the first dashboard pass (connections, models, plans, usage, ...).
+   Kept in its own file so it never collides with the shared token/base stylesheet. Uses its variables only. */
+
+.conn { margin-bottom: 16px; }
+.conn-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 8px; }
+.conn-head h2 { margin-bottom: 6px; }
+.conn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.conn-block h3, .terms h3 { font-size: 13px; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; color: var(--text); }
+.conn-block p { margin: 0 0 8px; }
+.inline-form { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+.inline-form input[type=text], .inline-form input[type=password] { flex: 1 1 200px; width: auto; }
+.inline-form select { width: auto; }
+.stack-form { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.terms { border: 1px solid var(--border-strong); border-radius: var(--r); padding: 12px 14px; margin-top: 14px; background: var(--bg-subtle); }
+.terms.required, .terms.stale { border-color: rgba(251, 191, 36, .5); }
+.terms.ok { border-color: rgba(52, 211, 153, .35); }
+.ack-form { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.conn-more { margin-top: 12px; color: var(--dim); }
+.conn-more summary { cursor: pointer; }
+.plain { list-style: none; padding: 0; margin: 8px 0; }
+.card-title { font-size: 14px; margin: 0 0 6px; }
+@media (max-width: 800px) { .conn-grid { grid-template-columns: 1fr; } }

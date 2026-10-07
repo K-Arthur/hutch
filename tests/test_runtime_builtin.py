@@ -20,7 +20,7 @@ from hutch.providers.ollama import OllamaProvider
 from hutch.providers.openai_compat import OpenAICompatProvider
 from hutch.providers.pricing import PriceBook
 from hutch.runtime import RunAborted
-from hutch.runtime.builtin import BuiltinRuntime
+from hutch.runtime.builtin import BuiltinRuntime, reset_connection_cache
 from hutch.runtime.ladder import reset_provider_cache
 from hutch.safety import PolicyEngine
 from hutch.tools import build_tools
@@ -34,6 +34,7 @@ WRITE = {"name": "write_file", "arguments": {"path": "out.md", "content": "hello
 @pytest.fixture(autouse=True)
 def _fresh_providers():
     reset_provider_cache()
+    reset_connection_cache()
 
 
 @pytest.fixture()

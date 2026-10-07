@@ -37,6 +37,8 @@ apr_app = typer.Typer(no_args_is_help=True, help="Resolve pending approvals.")
 app.add_typer(bot_app, name="bot")
 app.add_typer(run_app, name="runs")
 app.add_typer(apr_app, name="approvals")
+conn_app = typer.Typer(no_args_is_help=True, help="Hosted endpoints and subscription plans, each with its own key.")
+app.add_typer(conn_app, name="connections")
 
 console = Console()
 err = Console(stderr=True)
@@ -420,6 +422,167 @@ def stop_all() -> None:
     engine = Engine(get_config(), store)
     n = engine.stop_all()
     console.print(f"[red]stop requested for {n} run(s)[/red]")
+
+
+# -------------------------------------------------------------- connections
+
+def _book():
+    from .connections import ConnectionBook
+    return ConnectionBook(get_config().state_dir)
+
+
+@conn_app.command("templates")
+def conn_templates() -> None:
+    """Endpoints and plans Hutch knows how to talk to."""
+    book = _book()
+    table = Table(title="connection templates")
+    table.add_column("template", no_wrap=True)       # the exact name to type must never be truncated
+    for col in ("billing", "protocol", "endpoint", "get a key"):
+        table.add_column(col)
+    for name, t in book.templates().items():
+        table.add_row(name, t.get("billing", ""), t.get("protocol", ""), t.get("base_url", ""),
+                      t.get("get_key_url", "-"))
+    console.print(table)
+    console.print("add one with: [bold]hutch connections add <template>[/bold]  "
+                  "then [bold]hutch connections set-key <name>[/bold]")
+
+
+@conn_app.command("list")
+def conn_list() -> None:
+    """Configured connections: key, terms, and allowance used."""
+    book, store = _book(), _store()
+    conns = book.configured()
+    if not conns:
+        console.print("no connections yet - see [bold]hutch connections templates[/bold]")
+        return
+    for name, c in conns.items():
+        console.print(f"[bold]{name}[/bold]  {c.title}")
+        console.print(f"  billing: {c.billing.replace('_', ' ')}   protocol: {c.protocol}   endpoint: {c.base_url}")
+        src = book.key_source(name)
+        console.print("  key: " + (f"present ({src})" if src != "missing" else
+                                   f"[red]missing[/red] - set ${c.api_key_env} or run "
+                                   f"`hutch connections set-key {name}`"))
+        ack = book.ack_status(store, name)
+        if ack == "ok":
+            console.print("  terms: acknowledged")
+        elif ack in ("required", "stale"):
+            console.print(f"  terms: [yellow]{'ACK REQUIRED' if ack == 'required' else 'CHANGED - ACK REQUIRED'}"
+                          f"[/yellow] - run `hutch connections ack {name}`")
+        if c.quota.tokens:
+            u = store.usage_tokens_since(name, c.quota.seconds)
+            console.print(f"  allowance: {u:,} / {c.quota.tokens:,} tokens ({c.quota.window} window)")
+        else:
+            console.print("  allowance: none declared (`hutch connections set-allowance`)")
+        console.print()
+
+
+@conn_app.command("add")
+def conn_add(
+    template: str = typer.Argument(..., help="see `hutch connections templates`"),
+    name: Optional[str] = typer.Option(None, "--name", help="name used in model specs: <name>/<model>"),
+    key_env: Optional[str] = typer.Option(None, "--key-env", help="environment variable that holds the key"),
+    base_url: Optional[str] = typer.Option(None, "--base-url"),
+    billing: Optional[str] = typer.Option(None, "--billing", help="per_token | subscription | free"),
+    quota_tokens: int = typer.Option(0, "--allowance-tokens", help="stop before this many tokens per window"),
+    quota_window: str = typer.Option("month", "--allowance-window", help="5h | day | week | month"),
+) -> None:
+    """Add a connection from a template."""
+    book = _book()
+    try:
+        over: dict = {"api_key_env": key_env, "base_url": base_url, "billing": billing}
+        if quota_tokens:
+            over["quota"] = {"window": quota_window, "tokens": quota_tokens}
+        c = book.add(template, name, **over)
+    except ValueError as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1)
+    console.print(f"[green]added[/green] [bold]{c.name}[/bold] ({c.title})")
+    console.print(f"  use it in a bot:  [bold]hutch bot update <bot> --model {c.name}/<model-id>[/bold]")
+    console.print(f"  next: put the key in ${c.api_key_env}, or run [bold]hutch connections set-key {c.name}[/bold]")
+    if c.terms.requires_ack:
+        console.print(f"  [yellow]read the terms, then[/yellow] [bold]hutch connections ack {c.name}[/bold]")
+    if c.get_key_url:
+        console.print(f"  get a key: {c.get_key_url}")
+
+
+@conn_app.command("set-key")
+def conn_set_key(name: str = typer.Argument(...)) -> None:
+    """Store a key in a 0600 file under the state directory (it is never printed or put in the database)."""
+    book = _book()
+    if book.get(name) is None:
+        err.print(f"[red]no connection named {name}[/red]")
+        raise typer.Exit(code=1)
+    key = typer.prompt(f"API key for {name} (input hidden)", hide_input=True).strip()
+    if not key:
+        err.print("[red]empty key[/red]")
+        raise typer.Exit(code=1)
+    book.set_key(name, key)
+    console.print(f"[green]stored[/green] in {book.key_file(name)} (mode 0600)")
+
+
+@conn_app.command("ack")
+def conn_ack(name: str = typer.Argument(...), yes: bool = typer.Option(False, "--yes", "-y")) -> None:
+    """Read and acknowledge a plan's terms notice - required before a bot may use the connection."""
+    book, store = _book(), _store()
+    c = book.get(name)
+    if c is None:
+        err.print(f"[red]no connection named {name}[/red]")
+        raise typer.Exit(code=1)
+    if not c.terms.requires_ack:
+        console.print("this connection has no terms notice to acknowledge")
+        return
+    console.print(Panel(c.terms.notice, title=f"{c.title} - terms notice", subtitle=c.terms.url))
+    if not (yes or typer.confirm("I have read this and take responsibility for how my bots use this plan")):
+        raise typer.Exit(code=1)
+    book.acknowledge(store, name)
+    console.print("[green]acknowledged[/green]")
+
+
+@conn_app.command("test")
+def conn_test(name: str = typer.Argument(...),
+              chat: Optional[str] = typer.Option(None, "--chat", help="also send ONE tiny chat to this model "
+                                                                      "(spends a few tokens)")) -> None:
+    """Check the key and endpoint. Spends no tokens unless --chat is given."""
+    from .providers.connection import check_connection
+    res = check_connection(_book(), name, chat or "")
+    console.print(("[green]ok[/green] " if res.ok else "[red]failed[/red] ") + res.detail)
+    for m in res.models[:40]:
+        console.print(f"  {name}/{m}")
+    if len(res.models) > 40:
+        console.print(f"  ... and {len(res.models) - 40} more")
+    raise typer.Exit(code=0 if res.ok else 1)
+
+
+@conn_app.command("set-protocol")
+def conn_set_protocol(name: str = typer.Argument(...), model: str = typer.Argument(...),
+                      protocol: str = typer.Argument(..., help="openai-chat | anthropic")) -> None:
+    """Serve one model over a different protocol (some plans split models across endpoints)."""
+    try:
+        _book().set_model_protocol(name, model, protocol)
+    except (KeyError, ValueError) as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1)
+    console.print(f"{name}/{model} now uses the {protocol} protocol")
+
+
+@conn_app.command("set-allowance")
+def conn_set_allowance(name: str = typer.Argument(...), tokens: int = typer.Argument(...),
+                       window: str = typer.Option("month", "--window", help="5h | day | week | month")) -> None:
+    """Declare how many tokens the plan allows per window; Hutch stops BEFORE the vendor does (0 = none)."""
+    try:
+        _book().set_quota(name, window, tokens)
+    except (KeyError, ValueError) as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1)
+    console.print(f"{name}: allowance {tokens:,} tokens per {window} (rolling window)")
+
+
+@conn_app.command("remove")
+def conn_remove(name: str = typer.Argument(...), yes: bool = typer.Option(False, "--yes", "-y")) -> None:
+    """Remove a connection and its stored key file."""
+    if not yes and not typer.confirm(f"remove connection '{name}' and its stored key?"):
+        raise typer.Exit()
+    console.print("removed" if _book().remove(name) else "no such connection")
 
 
 # --------------------------------------------------------------- approvals

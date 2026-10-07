@@ -32,6 +32,8 @@ from ..providers.pricing import PriceBook
 from ..safety import Decision, Verdict
 from ..tools import Tool, ToolContext
 from .base import RunAborted
+from ..connections import ConnectionBook
+from ..providers.connection import provider_for_connection
 from .ladder import Ladder, Rung, SpendGuard, get_provider
 from .steps import StepTimer, call_tool, finish_step
 from .toolrepair import LoopDetector, coerce_args, repair_instruction, unknown_tool_message, validate_args
@@ -60,6 +62,13 @@ DEFAULT_HOSTED_TURN_TOKENS = 16000   # hosted models think inside max_tokens; a 
 DEFAULT_WANT_CTX = 16384
 MAX_MALFORMED_STREAK = 4             # without an escalation target, give up after this many bad turns
 RATE_LIMIT_PAUSE_MAX = 30.0
+
+
+_CONN_PROVIDERS: dict[tuple, Provider] = {}
+
+
+def reset_connection_cache() -> None:
+    _CONN_PROVIDERS.clear()
 
 
 @dataclass
@@ -103,10 +112,33 @@ class BuiltinRuntime:
             self._hw = probe(with_runtimes=False)
         return self._hw
 
+    def _connections(self, ctx: ToolContext) -> ConnectionBook:
+        return ConnectionBook(ctx.config.state_dir)
+
     def _prices_for(self, ctx: ToolContext) -> PriceBook:
         if self._prices is None:
             self._prices = PriceBook(ctx.config.state_dir / "prices.json")
+        self._prices.flat_providers = self._connections(ctx).flat_providers()
         return self._prices
+
+    def _provider_for(self, ctx: ToolContext, ladder: Ladder, rung: Rung) -> Provider:
+        """A configured Connection wins over a built-in provider name; its terms must be acknowledged first."""
+        book = self._connections(ctx)
+        conn = book.get(rung.provider)
+        if conn is None:
+            return self._factory(rung.provider, ladder.base_url_for(rung))
+        status = book.ack_status(ctx.store, rung.provider)
+        if status in ("required", "stale"):
+            raise ProviderError(
+                "auth", f"the terms of '{conn.title}' have not been acknowledged{' (they changed)' if status == 'stale' else ''}: "
+                        f"read them on the Connections page and acknowledge, or run `hutch connections ack {conn.name}`",
+                provider=conn.name)
+        key = (rung.provider, rung.model, conn.base_url, conn.protocol, str(sorted(conn.model_protocols.items())),
+               book.key(conn.name) is not None)
+        cached = _CONN_PROVIDERS.get(key)
+        if cached is None:
+            cached = _CONN_PROVIDERS[key] = provider_for_connection(book, conn.name, rung.model)
+        return cached
 
     @staticmethod
     def _log(ctx: ToolContext, run: Run, kind: str, note: str, **extra: Any) -> None:
@@ -147,7 +179,7 @@ class BuiltinRuntime:
                       specs: list[dict]) -> Session:
         """Make a rung ready: window, pre-run check, cold load, self-check. Raises ProviderError on failure."""
         bot = ctx.bot
-        provider = self._factory(rung.provider, ladder.base_url_for(rung))
+        provider = self._provider_for(ctx, ladder, rung)
         if not rung.local:
             return Session(rung, provider, None, None)
         meta = provider.show(rung.model) if rung.provider == "ollama" else None
@@ -319,7 +351,7 @@ class BuiltinRuntime:
         bot = ctx.bot
         ladder = Ladder(bot)
         prices = self._prices_for(ctx)
-        guard = SpendGuard(ctx.store, bot, run, prices)
+        guard = SpendGuard(ctx.store, bot, run, prices, self._connections(ctx))
         system = self._system_prompt(ctx)
         specs = [tools[n].spec() for n in sorted(tools)]             # PF-1 / PF-3: frozen, deterministic, allowed only
         prefix_hash = hashlib.sha256((system + json.dumps(specs, sort_keys=True)).encode()).hexdigest()[:12]
@@ -333,6 +365,7 @@ class BuiltinRuntime:
         loop = LoopDetector()
         malformed_streak = loop_strikes = 0
         rate_limited_once = False
+        warned_quota: set[str] = set()
 
         while True:
             if stop():
@@ -345,11 +378,19 @@ class BuiltinRuntime:
             if refusal:
                 raise RunAborted("cost_cap", refusal)
 
+            quota = guard.quota_state(session.rung)
+            if quota and quota[1] and quota[0] / quota[1] >= (self._connections(ctx).get(session.rung.provider).quota.warn_at) \
+                    and session.rung.provider not in warned_quota:
+                warned_quota.add(session.rung.provider)
+                self._log(ctx, run, "quota", f"{session.rung.provider}: {quota[0]:,} of {quota[1]:,} allowance tokens "
+                                             f"used in the {quota[2]} window ({quota[0] / quota[1] * 100:.0f}%)",
+                          used=quota[0], limit=quota[1])
+
             timer = StepTimer()
             req = ChatRequest(
                 model=session.rung.model, messages=messages, tools=specs, num_ctx=session.num_ctx,
                 max_tokens=self._turn_cap(bot, session.rung), think=bot.think if bot.think is not None else False,
-                register_cancel=self._register_cancel(ctx), is_cancelled=stop,
+                register_cancel=self._register_cancel(ctx), is_cancelled=stop, session_id=run.id,
                 keep_alive="30m" if _keep_resident(ctx, bot) else "10m")
             t_call = time.perf_counter()
             try:

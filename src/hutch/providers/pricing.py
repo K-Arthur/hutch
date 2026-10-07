@@ -54,6 +54,8 @@ class PriceBook:
         self.user_path = user_path
         self.prices: dict[str, Price] = {}
         self.errors: list[str] = []
+        #: connections billed flat (subscription / free): no per-call cost, but usage is still tracked
+        self.flat_providers: set[str] = set()
         self._load(bundled_path(), user=False)
         if user_path and user_path.exists():
             self._load(user_path, user=True)
@@ -82,12 +84,13 @@ class PriceBook:
         return self.prices.get(f"{provider}/{model}")
 
     def has_price(self, provider: str, model: str) -> bool:
-        return self.is_local(provider) or self.lookup(provider, model) is not None
+        return (self.is_local(provider) or provider in self.flat_providers
+                or self.lookup(provider, model) is not None)
 
     def cost(self, provider: str, model: str, prompt_tokens: int, completion_tokens: int,
              cached_tokens: int = 0, cache_write_tokens: int = 0) -> Optional[float]:
         """USD for one call, or None when the model has no price. Local models are free."""
-        if self.is_local(provider):
+        if self.is_local(provider) or provider in self.flat_providers:
             return 0.0
         p = self.lookup(provider, model)
         if p is None:

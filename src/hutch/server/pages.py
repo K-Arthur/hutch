@@ -37,6 +37,7 @@ NAV = [
     ("bots", "/bots", "Bots", "bot"),
     ("runs", "/runs", "Runs", "list"),
     ("approvals", "/approvals", "Approvals", "shield"),
+    ("connections", "/connections", "Connections", "layers"),
 ]
 
 
@@ -470,6 +471,88 @@ def register_pages(app: FastAPI) -> None:
         if request.headers.get("hx-request"):
             return fragment(request, "_approval_resolved.html", a=store.get_approval(approval_id), choice=choice)
         return go(nxt, notice="Denied." if choice == "deny" else "Allowed - the run continues.")
+
+    # ----------------------------------------------------------- connections (CN)
+
+    from ..connections import WINDOWS, ConnectionBook
+    from ..providers.connection import check_connection
+
+    def conn_book() -> ConnectionBook:
+        return ConnectionBook(config.state_dir)
+
+    def conn_views(book: ConnectionBook):
+        out = []
+        for name, c in book.configured().items():
+            used = store.usage_tokens_since(name, c.quota.seconds) if c.quota.tokens else 0
+            day = store.usage_tokens_since(name, 86400)
+            out.append(_Obj({
+                "c": c, "key": book.key_source(name), "has_key": book.key(name) is not None,
+                "ack": book.ack_status(store, name), "used": used, "day": day,
+                "pct": min(100.0, used / c.quota.tokens * 100) if c.quota.tokens else 0.0,
+                "level": ("hot" if c.quota.tokens and used / c.quota.tokens >= 0.9 else
+                          "warn" if c.quota.tokens and used / c.quota.tokens >= c.quota.warn_at else "ok")}))
+        return out
+
+    @app.get("/connections", response_class=HTMLResponse, include_in_schema=False)
+    def connections_page(request: Request):
+        book = conn_book()
+        have = set(book.names())
+        return page(request, "connections.html", nav="connections", conns=conn_views(book),
+                    templates=[(k, v) for k, v in book.templates().items()], have=have, windows=list(WINDOWS),
+                    errors=book.errors)
+
+    @app.post("/connections/add", include_in_schema=False)
+    async def connection_add(request: Request):
+        form = await read_form(request)
+        book = conn_book()
+        tpl = form.get("template")
+        try:
+            over = {"base_url": form.get("base_url").strip() or None, "api_key_env": form.get("api_key_env").strip() or None}
+            c = book.add(tpl, form.get("name").strip() or None, **over)
+        except ValueError as exc:
+            return go("/connections", error=str(exc))
+        return go("/connections", notice=f"Added {c.name}. Now give it a key, and acknowledge its terms if it has any.")
+
+    @app.post("/connections/{name}/{action}", include_in_schema=False)
+    async def connection_action(request: Request, name: str, action: str):
+        form = await read_form(request)
+        book = conn_book()
+        conn = book.get(name)
+        if conn is None:
+            raise HTTPException(404, f"No connection named '{name}'.")
+        if action == "key":
+            key = form.get("key").strip()
+            if not key:
+                return go("/connections", error="That key was empty.")
+            book.set_key(name, key)          # written to a 0600 file; never echoed, logged or stored in the database
+            return go("/connections", notice=f"Key stored for {name}.")
+        if action == "clear-key":
+            book.clear_key(name)
+            return go("/connections", notice=f"Stored key removed for {name}.")
+        if action == "ack":
+            if not form.flag("agree"):
+                return go("/connections", error="Tick the box to confirm you read the terms.")
+            book.acknowledge(store, name)
+            return go("/connections", notice=f"Terms acknowledged for {name}.")
+        if action == "test":
+            res = check_connection(book, name)
+            return go("/connections", **({"notice": f"{name}: {res.detail}"} if res.ok else {"error": f"{name}: {res.detail}"}))
+        if action == "allowance":
+            try:
+                book.set_quota(name, form.get("window") or "month", int(form.get("tokens") or 0))
+            except (ValueError, KeyError) as exc:
+                return go("/connections", error=str(exc))
+            return go("/connections", notice="Allowance saved. Hutch will stop before it is spent.")
+        if action == "protocol":
+            try:
+                book.set_model_protocol(name, form.get("model").strip(), form.get("protocol"))
+            except (ValueError, KeyError) as exc:
+                return go("/connections", error=str(exc))
+            return go("/connections", notice="Protocol saved for that model.")
+        if action == "remove":
+            book.remove(name)
+            return go("/connections", notice=f"Removed {name} and its stored key.")
+        raise HTTPException(404, "Unknown action.")
 
     # ----------------------------------------------------------- login (remote)
 

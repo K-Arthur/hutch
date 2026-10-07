@@ -86,15 +86,20 @@ def to_claude_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
 class ClaudeProvider(Provider):
     name = "anthropic"
 
-    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None,
+                 provider_name: str = "anthropic", headers: Optional[dict[str, str]] = None,
+                 session_header: str = ""):
         self.api_key = api_key if api_key is not None else os.environ.get("ANTHROPIC_API_KEY", "")
         self.base_url = base_url or os.environ.get("ANTHROPIC_BASE_URL") or None
+        self.name = provider_name
+        self.extra_headers = dict(headers or {})
+        self.session_header = session_header
         self._client = None
 
     def _c(self):
         if not self.api_key:
-            raise ProviderError("auth", "no Anthropic API key: set ANTHROPIC_API_KEY (Hutch uses API keys only and "
-                                        "never reads login tokens)", provider=self.name)
+            raise ProviderError("auth", f"no API key for '{self.name}': set ANTHROPIC_API_KEY (Hutch uses API keys "
+                                        "only and never reads login tokens)", provider=self.name)
         if self._client is None:
             sdk = _sdk()
             kw: dict[str, Any] = {"api_key": self.api_key, "max_retries": 0}
@@ -167,6 +172,11 @@ class ClaudeProvider(Provider):
             kwargs["tools"] = to_claude_tools(req.tools)
         if req.effort and req.model.startswith(EFFORT_PREFIXES):
             kwargs["output_config"] = {"effort": req.effort}
+        extra = dict(self.extra_headers)
+        if self.session_header and req.session_id:
+            extra[self.session_header] = req.session_id
+        if extra:
+            kwargs["extra_headers"] = extra
         try:
             if stream:
                 with client.messages.stream(**kwargs) as s:

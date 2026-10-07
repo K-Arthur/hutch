@@ -69,6 +69,7 @@ class ChatRequest:
     register_cancel: Callable[[Callable[[], None]], Callable[[], None]] = lambda fn: (lambda: None)
     #: True once the user pressed Stop. A cancelled call must never be "recovered" by the streaming retry
     is_cancelled: Callable[[], bool] = lambda: False
+    session_id: str = ""                   # stable per run: plans such as OpenCode Go require it as a header
 
 
 @dataclass

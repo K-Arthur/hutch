@@ -1,0 +1,99 @@
+{
+  "_readme": "Templates for hosted endpoints and subscription plans. Everything here was read from the vendor's own docs or a docs aggregator on 2026-10-07 and is marked with its source; nothing was exercised against a live account (no keys on the dev machine). Hutch never stores a key in this file or the database: a key comes from an environment variable or a 0600 file under the state dir. Model protocols differ per model on some plans - override them per connection.",
+  "templates": {
+    "opencode-go": {
+      "title": "OpenCode Go (flat subscription)",
+      "protocol": "openai-chat",
+      "base_url": "https://opencode.ai/zen/go/v1",
+      "api_key_env": "OPENCODE_API_KEY",
+      "billing": "subscription",
+      "session_header": "x-opencode-session",
+      "get_key_url": "https://opencode.ai/auth",
+      "source": "https://opencode.ai/docs/go/",
+      "models_endpoint": true,
+      "terms": {
+        "url": "https://opencode.ai/docs/go/",
+        "requires_ack": true,
+        "notice": "OpenCode Go asks third-party clients to send 'typical coding agent traffic', to identify themselves with their own User-Agent, and to send a stable session id; it says traffic is monitored for abuse. Hutch sends its own User-Agent and a per-run session id. Whether UNATTENDED, SCHEDULED bot runs count as typical coding-agent traffic is OpenCode's call, not Hutch's - read their terms before scheduling bots on this plan, and keep an allowance below so you stop before they do."
+      },
+      "quota_hint": "Usage is capped as monthly dollar amounts with a 5-hour sub-limit of 20% and a weekly sub-limit of 50% (docs, 2026-10-07). The dollar value per token varies by model, so declare your allowance in tokens (a rough proxy) and calibrate it against the OpenCode console.",
+      "model_protocol_hint": "The OpenCode docs list some model families (Claude Haiku, MiniMax, Qwen) on the Anthropic Messages endpoint and others (Grok, Muse Spark) on the OpenAI Responses endpoint; models.dev lists them all as OpenAI-compatible. Hutch speaks openai-chat and anthropic; Responses-only models are unsupported. If a model errors on the default, set its protocol: `hutch connections set-protocol opencode-go <model> anthropic`."
+    },
+    "xiaomi-token-plan-sgp": {
+      "title": "Xiaomi MiMo Token Plan - Singapore (subscription credits)",
+      "protocol": "openai-chat",
+      "base_url": "https://token-plan-sgp.xiaomimimo.com/v1",
+      "anthropic_base_url": "https://token-plan-sgp.xiaomimimo.com/anthropic",
+      "api_key_env": "XIAOMI_TOKEN_PLAN_API_KEY",
+      "billing": "subscription",
+      "get_key_url": "https://mimo.mi.com/docs/en-US/tokenplan/subscription",
+      "source": "https://docs.openclaw.ai/providers/xiaomi",
+      "models_endpoint": true,
+      "terms": {
+        "url": "https://mimo.mi.com/docs/en-US/tokenplan/subscription",
+        "requires_ack": true,
+        "notice": "The Token Plan is sold as a subscription of Credits for individual developers (keys start with tp-). Xiaomi documents support for coding tools such as OpenCode, Claude Code and OpenClaw; it does not say that unattended agent platforms are covered. Plans may be restricted to the listed tools and keys must not be shared. Hutch could not read the plan's full terms (the page is not machine-readable), so confirm yours allow automated use before scheduling bots on it."
+      },
+      "quota_hint": "Credits, not tokens, are the unit and each model consumes them at a rate Xiaomi sets. Declare an allowance in tokens as a proxy and calibrate against your usage page in the Xiaomi console."
+    },
+    "xiaomi-token-plan-cn": {
+      "title": "Xiaomi MiMo Token Plan - China (subscription credits)",
+      "protocol": "openai-chat",
+      "base_url": "https://token-plan-cn.xiaomimimo.com/v1",
+      "anthropic_base_url": "https://token-plan-cn.xiaomimimo.com/anthropic",
+      "api_key_env": "XIAOMI_TOKEN_PLAN_API_KEY",
+      "billing": "subscription",
+      "get_key_url": "https://mimo.mi.com/docs/en-US/tokenplan/subscription",
+      "source": "https://docs.openclaw.ai/providers/xiaomi",
+      "models_endpoint": true,
+      "terms": {"url": "https://mimo.mi.com/docs/en-US/tokenplan/subscription", "requires_ack": true,
+                "notice": "Same Token Plan terms as the Singapore endpoint: confirm that automated, unattended use is allowed on your plan before scheduling bots."},
+      "quota_hint": "Credits, not tokens, are the unit; declare a token allowance as a rough proxy."
+    },
+    "xiaomi-token-plan-ams": {
+      "title": "Xiaomi MiMo Token Plan - Amsterdam (subscription credits)",
+      "protocol": "openai-chat",
+      "base_url": "https://token-plan-ams.xiaomimimo.com/v1",
+      "anthropic_base_url": "https://token-plan-ams.xiaomimimo.com/anthropic",
+      "api_key_env": "XIAOMI_TOKEN_PLAN_API_KEY",
+      "billing": "subscription",
+      "get_key_url": "https://mimo.mi.com/docs/en-US/tokenplan/subscription",
+      "source": "https://docs.openclaw.ai/providers/xiaomi",
+      "models_endpoint": true,
+      "terms": {"url": "https://mimo.mi.com/docs/en-US/tokenplan/subscription", "requires_ack": true,
+                "notice": "Same Token Plan terms as the Singapore endpoint: confirm that automated, unattended use is allowed on your plan before scheduling bots."},
+      "quota_hint": "Credits, not tokens, are the unit; declare a token allowance as a rough proxy."
+    },
+    "xiaomi": {
+      "title": "Xiaomi MiMo - pay as you go (per token)",
+      "protocol": "openai-chat",
+      "base_url": "https://api.xiaomimimo.com/v1",
+      "api_key_env": "XIAOMI_API_KEY",
+      "billing": "per_token",
+      "source": "https://docs.openclaw.ai/providers/xiaomi",
+      "models_endpoint": true,
+      "terms": {"url": "https://mimo.mi.com/", "requires_ack": false, "notice": ""},
+      "quota_hint": "Per-token billing needs a price row in prices.json (Settings > Prices) before a spend cap can be enforced."
+    },
+    "custom-openai": {
+      "title": "Custom OpenAI-compatible endpoint",
+      "protocol": "openai-chat",
+      "base_url": "https://",
+      "api_key_env": "CUSTOM_API_KEY",
+      "billing": "per_token",
+      "models_endpoint": true,
+      "terms": {"url": "", "requires_ack": false, "notice": ""},
+      "quota_hint": "Any server exposing /v1/chat/completions: OpenRouter, Together, Groq, DeepInfra, a company gateway, vLLM. Add a price row for per-token billing, or choose 'subscription' if it is flat-rate."
+    },
+    "custom-anthropic": {
+      "title": "Custom Anthropic-compatible endpoint",
+      "protocol": "anthropic",
+      "base_url": "https://",
+      "api_key_env": "CUSTOM_API_KEY",
+      "billing": "per_token",
+      "models_endpoint": false,
+      "terms": {"url": "", "requires_ack": false, "notice": ""},
+      "quota_hint": "Any server exposing /v1/messages. The URL is the root WITHOUT /v1/messages (the Anthropic SDK appends it)."
+    }
+  }
+}

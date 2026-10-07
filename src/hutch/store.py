@@ -128,8 +128,20 @@ def _migrate_2(db: sqlite3.Connection) -> None:
     db.execute("ALTER TABLE memory ADD COLUMN source TEXT NOT NULL DEFAULT 'bot'")
 
 
+def _migrate_3(db: sqlite3.Connection) -> None:
+    """Usage ledger: one row per model call. Powers allowance enforcement for subscription connections
+    (CN-5) and the Usage page (UI-11): spend by bot, provider and day."""
+    db.execute("""CREATE TABLE IF NOT EXISTS usage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, run_id TEXT NOT NULL, bot_id TEXT NOT NULL,
+        provider TEXT NOT NULL, model TEXT NOT NULL, prompt_tokens INTEGER NOT NULL DEFAULT 0,
+        completion_tokens INTEGER NOT NULL DEFAULT 0, cached_tokens INTEGER NOT NULL DEFAULT 0,
+        cost_usd REAL NOT NULL DEFAULT 0, kind TEXT NOT NULL DEFAULT 'step')""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_usage_provider_ts ON usage(provider, ts)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_usage_bot_ts ON usage(bot_id, ts)")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
-_MIGRATIONS = [_migrate_2]
+_MIGRATIONS = [_migrate_2, _migrate_3]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 EVENT_BATCH_MAX = 256
@@ -677,6 +689,45 @@ class Store:
                     counts[row["status"]] = row["n"]
                 out[bot.id] = {"counts": counts}
         return out
+
+    # -------------------------------------------------------------- usage
+
+    def add_usage(self, run_id: str, bot_id: str, provider: str, model: str, prompt_tokens: int,
+                  completion_tokens: int, cached_tokens: int = 0, cost_usd: float = 0.0, kind: str = "step") -> None:
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO usage (ts, run_id, bot_id, provider, model, prompt_tokens, completion_tokens, "
+                "cached_tokens, cost_usd, kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (iso(utcnow()), run_id, bot_id, provider, model, prompt_tokens, completion_tokens, cached_tokens,
+                 cost_usd, kind))
+            self._db.commit()
+        self.bus.notify("usage")
+
+    def usage_tokens_since(self, provider: str, seconds: float) -> int:
+        """Tokens (prompt + completion) sent to ``provider`` in the trailing window."""
+        from datetime import timedelta
+        since = iso(utcnow() - timedelta(seconds=seconds))
+        with self._lock:
+            row = self._db.execute(
+                "SELECT COALESCE(SUM(prompt_tokens + completion_tokens), 0) AS n FROM usage "
+                "WHERE provider = ? AND ts >= ?", (provider, since)).fetchone()
+        return int(row["n"])
+
+    def usage_summary(self, group: str = "day", days: int = 30) -> list[dict[str, Any]]:
+        """Aggregate the ledger: group is day | bot | provider | model."""
+        from datetime import timedelta
+        cols = {"day": "substr(ts, 1, 10)", "bot": "bot_id", "provider": "provider", "model": "provider || '/' || model"}
+        if group not in cols:
+            raise ValueError(f"group must be one of {', '.join(cols)}")
+        since = iso(utcnow() - timedelta(days=days))
+        with self._lock:
+            rows = self._db.execute(
+                f"SELECT {cols[group]} AS k, COUNT(*) AS calls, SUM(prompt_tokens) AS prompt, "
+                "SUM(completion_tokens) AS completion, SUM(cached_tokens) AS cached, SUM(cost_usd) AS cost "
+                f"FROM usage WHERE ts >= ? GROUP BY k ORDER BY {'k DESC' if group == 'day' else 'cost DESC, calls DESC'}",
+                (since,)).fetchall()
+        return [{"key": r["k"], "calls": r["calls"], "prompt": r["prompt"] or 0, "completion": r["completion"] or 0,
+                 "cached": r["cached"] or 0, "cost": r["cost"] or 0.0} for r in rows]
 
     # ------------------------------------------------------- human pauses
 

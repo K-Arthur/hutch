@@ -102,8 +102,9 @@ class Ladder:
 class SpendGuard:
     """Hard caps for hosted spend. Refuses BEFORE a call that could exceed a cap, not after."""
 
-    def __init__(self, store, bot: Bot, run: Run, prices: PriceBook):
+    def __init__(self, store, bot: Bot, run: Run, prices: PriceBook, connections=None):
         self.store, self.bot, self.run, self.prices = store, bot, run, prices
+        self.connections = connections
 
     def spent_today(self) -> float:
         day = utcnow().date().isoformat()
@@ -118,10 +119,36 @@ class SpendGuard:
         lim = self.bot.limits
         return bool(lim.max_cost_usd or lim.daily_cost_cap_usd)
 
+    def quota_state(self, rung: Rung) -> Optional[tuple[int, int, str]]:
+        """(tokens used in the window, declared allowance, window) for a subscription connection, if one is set."""
+        conn = self.connections.get(rung.provider) if self.connections else None
+        if conn is None or not conn.quota.tokens:
+            return None
+        return self.store.usage_tokens_since(rung.provider, conn.quota.seconds), conn.quota.tokens, conn.quota.window
+
+    def quota_refusal(self, rung: Rung, est_prompt_tokens: int, max_turn_tokens: int) -> Optional[str]:
+        """CN-5: stop BEFORE the plan's allowance is spent, not after the vendor cuts you off (or bills overage)."""
+        state = self.quota_state(rung)
+        if state is None:
+            return None
+        used, limit, window = state
+        label = {"5h": "the last 5 hours", "day": "the last 24 hours", "week": "the last 7 days",
+                 "month": "the last 30 days"}[window]
+        if used >= limit:
+            return (f"the usage allowance for {rung.provider} is spent: {used:,} of {limit:,} tokens in {label}. "
+                    "Raise it on the Connections page if your plan allows more")
+        if used + est_prompt_tokens + max_turn_tokens > limit:
+            return (f"the next call to {rung.spec} could pass the {limit:,}-token allowance for {rung.provider} "
+                    f"({used:,} used in {label})")
+        return None
+
     def refusal(self, rung: Rung, est_prompt_tokens: int, max_turn_tokens: int) -> Optional[str]:
         """Why this call must not happen, or None. Local models are free and always allowed."""
         if rung.local:
             return None
+        quota = self.quota_refusal(rung, est_prompt_tokens, max_turn_tokens)
+        if quota:
+            return quota
         if not self.prices.has_price(rung.provider, rung.model):
             if self.has_cost_caps:
                 return (f"{rung.spec} has no price in prices.json, so the spend cap cannot be enforced; add a row "

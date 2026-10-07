@@ -129,6 +129,29 @@ commits can cite them. Evidence for the *why* is in
 | Approval webhook notification | Dots / Grok are reachable when you are away | planned |
 | Pulled forward from *Later*: UI-10, UI-11, UI-13, SR-11 | Memory opacity, spend opacity, mobile, and audit are the loudest complaints about the two reference products | planned |
 
+## Connections and integrations (added at the product owner's request, 2026-10-07)
+
+Subscription plans such as OpenCode Go and the Xiaomi MiMo Token Plan, and the integration breadth that Dots
+(4,000+ plugins) and Grok Bot (Slack, routines) advertise. Details: [connections.md](connections.md).
+
+| ID | Requirement | Status | Where |
+|---|---|---|---|
+| CN-1 | Named connections, each with its own key, usable as `<connection>/<model>` | done | `connections.py`, `providers/connection.py` |
+| CN-2 | Keys from an env var or a 0600 file; never in the database, transcript, page or API | done | `ConnectionBook.key`; test greps pages + DB for a planted secret |
+| CN-3 | Required headers: own User-Agent and a stable per-run session id | done | `ChatRequest.session_id`, both HTTP providers |
+| CN-4 | Billing modes: per-token (priced), subscription / free (flat, still ledgered) | done | `PriceBook.flat_providers`, `usage` table |
+| CN-5 | Declared allowance enforced before the call; warning at 80% | done | `SpendGuard.quota_refusal`, `quota` log |
+| CN-6 | Terms notice acknowledged before first use; re-ack when it changes | done | `ConnectionBook.ack_status`, runtime fails fast with the fix |
+| CN-7 | Protocol per model (openai-chat / anthropic); Responses API rejected clearly | partial | Responses protocol not implemented |
+| CN-8 | Test a connection without spending tokens | done | `check_connection`, `hutch connections test` |
+| CN-9 | Consumer-plan OAuth sessions explicitly unsupported (vendor terms) | done | policy, documented in connections.md |
+| IG-1 | MCP client (stdio): bots can use MCP tools, all behind the approval gate | planned | |
+| IG-2 | Inbound webhook trigger for a bot | planned | |
+| IG-3 | Outbound notifications (approval needed, failure, result) to a webhook | planned | |
+| IG-4 | "Save this run as a bot" (routine capture without a recorder) | planned | |
+| TP-1 | Role templates (sales, PM, marketing, analytics, support, ops) | planned | |
+| TP-2 | Bot customization: persona/tone, reusable skills, delivery target | planned | |
+
 ## Out of scope (unchanged)
 
 A Rust rewrite, messaging channels (Discord, Telegram, Slack, Teams), hardware peripherals, peer-to-peer bot

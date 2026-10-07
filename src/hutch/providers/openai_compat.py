@@ -36,17 +36,25 @@ def _httpx():
 class OpenAICompatProvider(Provider):
     name = "openai-compatible"
 
-    def __init__(self, base_url: str, api_key: str = "", provider_name: str = "openai-compatible"):
+    def __init__(self, base_url: str, api_key: str = "", provider_name: str = "openai-compatible",
+                 headers: Optional[dict[str, str]] = None, session_header: str = ""):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.name = provider_name
+        self.extra_headers = dict(headers or {})
+        self.session_header = session_header
         self._client = None
 
     def _http(self):
         if self._client is None:
             headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+            headers.update(self.extra_headers)
             self._client = _httpx().Client(base_url=self.base_url, headers=headers)
         return self._client
+
+    def _req_headers(self, req: ChatRequest) -> dict[str, str]:
+        """Per-request headers: a plan that wants a stable session id gets the run id."""
+        return {self.session_header: req.session_id} if self.session_header and req.session_id else {}
 
     def _timeout(self, req: Optional[ChatRequest] = None, read: Optional[float] = None):
         return _httpx().Timeout(connect=5.0, read=read or (req.first_token_timeout if req else 30.0),
@@ -104,6 +112,22 @@ class OpenAICompatProvider(Provider):
             return Health(ok=False, detail=self._wrap_exc(exc).args[0])
         return Health(ok=True, latency_ms=(time.perf_counter() - t) * 1000.0)
 
+    def probe_models(self) -> tuple[bool, str, list[str]]:
+        """ONE authenticated GET of the model list: (ok, detail, names). Spends no tokens."""
+        try:
+            r = self._http().get("/models", timeout=self._timeout(read=8.0))
+        except Exception as exc:
+            return False, self._wrap_exc(exc).args[0], []
+        if r.status_code in (401, 403):
+            return False, "reachable, but the API key was rejected", []
+        if r.status_code >= 400:
+            return False, f"the endpoint answered HTTP {r.status_code}", []
+        try:
+            names = sorted(m.get("id", "") for m in r.json().get("data", []))
+        except ValueError:
+            return True, "authenticated, but the model list could not be read", []
+        return True, f"authenticated; {len(names)} model(s) available", names
+
     def list_models(self) -> list[ModelMeta]:
         r = self._http().get("/models", timeout=self._timeout(read=10.0))
         r.raise_for_status()
@@ -129,7 +153,8 @@ class OpenAICompatProvider(Provider):
         try:
             if stream:
                 return self._chat_stream(req, body)
-            r = self._http().post("/chat/completions", json=body, timeout=self._timeout(req))
+            r = self._http().post("/chat/completions", json=body, timeout=self._timeout(req),
+                                  headers=self._req_headers(req))
             if r.status_code >= 400:
                 raise self._error_from_response(r)
             return self._from_full(r.json(), req)
@@ -143,7 +168,8 @@ class OpenAICompatProvider(Provider):
         finish = "stop"
         model = req.model
         done = False
-        with self._http().stream("POST", "/chat/completions", json=body, timeout=self._timeout(req)) as resp:
+        with self._http().stream("POST", "/chat/completions", json=body, timeout=self._timeout(req),
+                                 headers=self._req_headers(req)) as resp:
             if resp.status_code >= 400:
                 resp.read()
                 raise self._error_from_response(resp)
