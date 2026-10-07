@@ -32,7 +32,6 @@
   --amber-glow: rgba(251, 191, 36, 0.15);
   --red: #f87171;
   --red-glow: rgba(248, 113, 113, 0.15);
-  --violet: #a78bfa;
 
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", Menlo, Consolas, monospace;
@@ -254,7 +253,7 @@ a:hover { color: var(--accent-light); }
   font-family: var(--font-mono);
   font-weight: 600;
   letter-spacing: 0.06em;
-  text-transform: uppercase;
+ 
   color: var(--text-muted);
   margin-bottom: 24px;
 }
@@ -425,7 +424,7 @@ h1.hero-title .accent-gradient {
   font-size: 11px;
   color: var(--accent);
   font-weight: 700;
-  text-transform: uppercase;
+ 
   margin-bottom: 4px;
 }
 
@@ -444,7 +443,7 @@ h1.hero-title .accent-gradient {
   justify-content: space-between;
   align-items: center;
 }
-.sim-tool-name { font-weight: 700; color: var(--violet); }
+.sim-tool-name { font-weight: 700; color: var(--text-muted); }
 .sim-tool-args { color: var(--text-muted); }
 .sim-tool-output {
   margin-top: 6px;
@@ -471,7 +470,7 @@ h1.hero-title .accent-gradient {
 .sim-gate-tag {
   font-size: 11px;
   font-weight: 800;
-  text-transform: uppercase;
+ 
   letter-spacing: 0.06em;
   color: var(--amber);
   background: var(--amber-glow);
@@ -532,7 +531,7 @@ section.alt-bg {
   font-family: var(--font-mono);
   font-weight: 600;
   letter-spacing: 0.07em;
-  text-transform: uppercase;
+ 
   color: var(--text-dim);
   display: inline-flex;
   align-items: center;
@@ -578,7 +577,7 @@ h2.section-heading {
 .incident-index { font: 600 13px var(--font-mono); color: var(--text-dim); letter-spacing: 0.08em; }
 .incident-stamp {
   font: 600 10.5px var(--font-mono);
-  text-transform: uppercase;
+ 
   letter-spacing: 0.09em;
   color: var(--text-dim);
   border: 1px solid var(--border-strong);
@@ -628,11 +627,11 @@ h2.section-heading {
   font-size: 11px;
   font-family: var(--font-mono);
   font-weight: 750;
-  text-transform: uppercase;
+ 
   letter-spacing: 0.07em;
-  color: var(--violet);
-  background: rgba(167, 139, 250, 0.1);
-  border: 1px solid rgba(167, 139, 250, 0.3);
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-card);
   padding: 3px 10px;
   border-radius: 5px;
   align-self: flex-start;
@@ -694,7 +693,7 @@ table.matrix-table th, table.matrix-table td {
 table.matrix-table thead th {
   font-size: 11px;
   font-family: var(--font-mono);
-  text-transform: uppercase;
+ 
   letter-spacing: 0.08em;
   color: var(--text-dim);
   background: rgba(14, 20, 28, 0.95);
@@ -952,7 +951,7 @@ footer.site {
     content: attr(data-label);
     color: var(--text-dim);
     font: 600 11px var(--font-mono);
-    text-transform: uppercase;
+   
     letter-spacing: 0.06em;
     flex: none;
   }
