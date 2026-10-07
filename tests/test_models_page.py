@@ -16,7 +16,8 @@ from tests.fakes import FakeOllama
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
-    s = FakeOllama({"fake:8b": {}, "huge:70b": {"params": "70B", "size": 45_000_000_000, "ctx": 131072}})
+    s = FakeOllama({"fake:8b": {}, "tiny:1b": {"params": "1B", "size": 500_000_000},
+                    "huge:70b": {"params": "70B", "size": 45_000_000_000, "ctx": 131072}})
     monkeypatch.setenv("OLLAMA_HOST", s.url)
     from hutch.runtime.ladder import reset_provider_cache
     reset_provider_cache()
@@ -40,9 +41,12 @@ def test_models_page_renders_every_section(client):
 
 
 def test_page_flags_what_wont_fit_and_shows_real_context(client):
-    t = client.get("/models").text
-    assert "won't fit" in t.lower() or "wont" in t.lower()
-    assert "gets" in t and "tokens" in t
+    import html
+    t = html.unescape(client.get("/models").text)
+    assert "won't fit" in t.lower()                      # huge:70b cannot fit any normal machine
+    assert "the weights alone are" in t, "a model that cannot fit says why, in plain words"
+    assert "gets 0 tokens" not in t, "a model that does not fit must not claim a context window"
+    assert re.search(r"gets [\d,.]+k? tokens", t), "a model that fits shows the context it will really get"
 
 
 def test_price_rows_show_source_and_verified_date(client):

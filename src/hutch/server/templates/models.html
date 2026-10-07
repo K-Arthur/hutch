@@ -29,16 +29,16 @@
 <section class="panel" id="installed" aria-labelledby="inst-h">
   <h2 id="inst-h" class="card-title">Installed models</h2>
   {% if v.rows %}
-  <div class="table-wrap"><table>
+  <div class="table-wrap"><table class="models-table">
     <thead><tr><th>Model</th><th>Size</th><th>At 16k context</th><th>At 32k context</th><th>Used by</th><th>Self-check</th></tr></thead>
     <tbody>
     {% for r in v.rows %}
       <tr>
         <td><span class="mono">{{ r.name }}</span><div class="muted small">{{ r.meta.params_b or "?" }}B, {{ r.meta.quant or "?" }}, trained for up to {{ r.meta.max_context | tokens if r.meta.max_context else "?" }} tokens{% if r.load_ms %}; last cold load {{ (r.load_ms / 1000) | round(1) }}s{% endif %}</div></td>
         <td>{{ r.fits[16384].weights_gib | round(1) }} GiB</td>
-        {% for w in (16384, 32768) %}{% set f = r.fits[w] %}
-        <td>{{ fitchip(f) }}<div class="muted small">gets {{ f.effective_ctx | tokens }} tokens{% if f.status != "fits" %}: {{ f.reason }}{% endif %}</div></td>
-        {% endfor %}
+        {% set f16 = r.fits[16384] %}{% set f32 = r.fits[32768] %}
+        <td>{{ fitchip(f16) }}<div class="muted small">{% if f16.status == "wont_fit" %}{{ f16.reason }}{% else %}gets {{ f16.effective_ctx | tokens }} tokens{% if f16.status == "tight" %}: {{ f16.reason }}{% endif %}{% endif %}</div></td>
+        <td>{{ fitchip(f32) }}{% if f32.status == "wont_fit" %}{% if f16.status == "wont_fit" %}<div class="muted small">same</div>{% else %}<div class="muted small">{{ f32.reason }}</div>{% endif %}{% else %}<div class="muted small">gets {{ f32.effective_ctx | tokens }} tokens{% if f32.status == "tight" %}: {{ f32.reason }}{% endif %}</div>{% endif %}</td>
         <td>{% for b in r.bots %}<a class="tag" href="/bots/{{ b }}">{{ b }}</a> {% else %}<span class="muted">no bot</span>{% endfor %}</td>
         <td><span class="chip st-{{ {'passed':'succeeded','failed':'failed','not run':'stopped'}[r.selfcheck] }}">{{ r.selfcheck }}</span></td>
       </tr>
