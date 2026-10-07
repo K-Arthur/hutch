@@ -12,25 +12,25 @@ commits can cite them. Evidence for the *why* is in
 > Performance numbers in the draft are *proposed targets*. Measured values live in
 > [performance.md](performance.md) and the committed `benchmarks/baseline.json`.
 
-*Status column last updated: end of Phase 1 (engine baseline).*
+*Status column last updated: end of Phase 2 (run view and control).*
 
 ## Dashboard and app
 
 | ID | Requirement | Phase | Status | Where |
 |---|---|---|---|---|
-| UI-1 | Home shows Needs you / Running now / Stale | MVP | planned | |
-| UI-2 | Stop all in every header; per-run Stop kills child processes | MVP | partial | engine Stop kills process groups + unblocks approvals (tested); header control pending |
-| UI-3 | Run detail streams over SSE and resumes gap-free via event sequence | MVP | planned | |
-| UI-4 | Run detail: steps, elapsed, spend, context vs caps | MVP | planned | |
-| UI-5 | Approvals inbox: parsed segments, rule, once/always/deny, countdown | MVP | planned | |
-| UI-6 | Every waiting state names its cause and a fix | MVP | planned | |
+| UI-1 | Home shows Needs you / Running now / Stale | MVP | done | , ; Needs you / Running now / Stale with cause+fix; ,  |
+| UI-2 | Stop all in every header; per-run Stop kills child processes | MVP | done | Stop all in every header (plain POST + confirm); engine kills process groups; tested incl. forked helper |
+| UI-3 | Run detail streams over SSE and resumes gap-free via event sequence | MVP | done | SSE seq cursor + Last-Event-ID replay from SQLite; gate + real-Chromium TCP-cut test |
+| UI-4 | Run detail: steps, elapsed, spend, context vs caps | MVP | done | : steps/elapsed/spend/tokens/context vs caps + absolute timing split |
+| UI-5 | Approvals inbox: parsed segments, rule, once/always/deny, countdown | MVP | done | approval card: parsed segments, rule, once/always/plan/deny, live countdown; outward never offers always |
+| UI-6 | Every waiting state names its cause and a fix | MVP | done |  /  / stale cause; every wait names cause + fix |
 | UI-7 | New bot: template gallery → purpose, model preset, permissions+budget; YAML view | MVP | planned | |
 | UI-8 | First run: mock demo / local model that fits / API key; seeded demo bots | MVP | planned | |
 | UI-9 | Schedules page: next runs in each bot's zone, coalesced misses, pause all | MVP | planned | |
-| UI-10 | Memory page with provenance, edit, delete, export | Later | planned *(pulled forward)* | |
+| UI-10 | Memory page with provenance, edit, delete, export | Later | partial | bot page lists memory with the run that wrote it, delete; edit/export + dedicated page pending |
 | UI-11 | Usage page: spend by bot/provider/day; escalation log | Later | planned *(pulled forward)* | |
-| UI-12 | Server-rendered templates + HTMX, no build step; stop/approve are plain POSTs | MVP | planned | |
-| UI-13 | Approvals inbox usable at phone width | Later | planned *(pulled forward)* | |
+| UI-12 | Server-rendered templates + HTMX, no build step; stop/approve are plain POSTs | MVP | done | Jinja2 + htmx 2.0.4 vendored, no build step; every action is a plain POST; CSRF + Host/Origin checks |
+| UI-13 | Approvals inbox usable at phone width | Later | done | approvals inbox verified at 390px in Chromium (full-width, thumb-sized actions) |
 | UI-14 | Localhost app run by a user-level systemd service; Tauri shell after v0.1 | MVP, then later | planned | |
 
 ## Local models and presets
@@ -74,13 +74,13 @@ commits can cite them. Evidence for the *why* is in
 
 | ID | Requirement | Phase | Status | Where |
 |---|---|---|---|---|
-| SR-1 | One runtime/model crash affects only its own runs; health per runtime | MVP | planned | |
+| SR-1 | One runtime/model crash affects only its own runs; health per runtime | MVP | partial | orphan recovery + graceful shutdown + per-run isolation done; per-runtime health arrives with the model layer |
 | SR-2 | Exact per-step token/cost accounting, visible before a run | MVP | planned | |
 | SR-3 | Per-bot compact-now and fresh-session controls | Later | later | |
 | SR-4 | Outward-sending tools always ask, regardless of sticky allows | MVP | partial | gate enforces outward-never-sticky (`approvals.py`); outward classification of tools pending |
 | SR-5 | Small models: thinking off, per-turn token cap, loop detector | MVP | planned | |
 | SR-6 | In-app help generated from or tested against real routes | Later | later | |
-| SR-7 | Every run shows its parent bot or plan | MVP | planned | |
+| SR-7 | Every run shows its parent bot or plan | MVP | done | every run shows 'started by' (schedule / you via cli|dashboard|api / plan) |
 | SR-8 | Provider fallback chain | MVP | planned | |
 | SR-9 | Failed streaming request retried once without streaming | MVP | planned | |
 | SR-10 | Bubblewrap-wrapped shell on Linux | Later | later | |
@@ -112,7 +112,7 @@ commits can cite them. Evidence for the *why* is in
 | # | Phase | IDs | Gate | Gate status |
 |---|---|---|---|---|
 | 1 | Engine baseline | PF-5, PF-6, PF-7, PF-11, PF-12, PF-13 | tests pass offline; benchmarks record a baseline | **passed** — 101 tests offline; baseline in `benchmarks/baselines/local.json` |
-| 2 | Run view and control | UI-1…6, UI-12, SR-7 | ten concurrent runs stream, connection cut, transcript resumes with no missing events | planned |
+| 2 | Run view and control | UI-1…6, UI-12, SR-7 | ten concurrent runs stream, connection cut, transcript resumes with no missing events | **passed** - `tests/test_sse_resume.py` (10 runs x 2 real cuts, real sockets) and `tests/e2e` (Chromium, TCP cut, DOM verified) |
 | 3 | Local model layer | LM-1…6, SR-1, SR-14 | self-check passes; swap latency measured for two model pairs | planned |
 | 4 | Reliability harness | LM-11, LM-13, SR-5 | ≥ 3 models profiled on the dev machine | planned |
 | 5 | Presets, escalation, budgets | LM-7, 9, 10, 14, 15, SR-2, 8, 9, 12, PF-1…3 | escalation respects caps in tests | planned |
@@ -123,7 +123,7 @@ commits can cite them. Evidence for the *why* is in
 
 | Item | Why | Status |
 |---|---|---|
-| Dashboard CSRF / DNS-rebinding defence (Host allow-list, Origin + Fetch-Metadata, CSRF token, non-loopback bind refusal) | Local approval endpoints are drivable from any web page ([research §3](research/offerings-and-failures.md)) | planned |
+| Dashboard CSRF / DNS-rebinding defence (Host allow-list, Origin + Fetch-Metadata, CSRF token, token auth for `--allow-remote`) | Local approval endpoints are drivable from any web page ([research §3](research/offerings-and-failures.md)) | done - `server/security.py`; refusal of non-loopback bind without a token lands with the CLI work |
 | **Rehearse** (dry-run) mode: mutating actions simulated and logged | Grok Bot: "no dry-run mode; testing performs real work" | planned |
 | Role templates (sales, PM, marketing, analytics) in the gallery | Team Bots ships role templates | planned |
 | Approval webhook notification | Dots / Grok are reachable when you are away | planned |
