@@ -181,22 +181,19 @@ allowlist bypasses, …) and their traceability live in
 [docs/research/complaints.md](docs/research/complaints.md); this file covers
 the UI layer only.
 
-## Marketing website — needed changes (accounted for, not yet applied)
+## Surfaces covered by the Oct 2026 monochrome-first pass
 
-The app and the site share token **values** but not their names or their density. The Oct 2026
-pass touched only the dashboard (`src/hutch/server/static/hutch.css`); the site (`website/`) needs a
-smaller matching follow-up so the two surfaces stay one brand:
+All three surfaces now share the retired-violet / neutral-tint rule:
 
-1. **Retire the same tokens.** Drop the `-bg` tint tokens and any remaining violet from
-   `website/styles.css`; add `--accent-ink`. Keep the values identical to the app's `:root`.
-2. **One accent, used sparingly.** The site already leads with emerald; make sure no section
-   introduces a second hue (the incident-log and comparison sections are the likely spots).
-3. **Status as dot/rail, not fill.** Any tinted status blocks in the site's comparison or incident
-   sections become a neutral surface + rail + dot, matching the app.
-4. **Keep the personalities different.** The site is the loud surface (display type, motion, noise);
-   the app is the quiet one. Share the *token values*, not the app's restraint.
-5. **Re-check contrast.** Re-verify every text token against the site's surfaces with the same
-   luminance formula after the token edits.
+- **Server-rendered dashboard** (`src/hutch/server/static/hutch.css` + `templates/`): full pass —
+  neutral chips/tags/banners, dot/rail status, 12px panels, restrained serif title, asymmetric
+  triage, role-labelled transcript turns.
+- **Legacy SPA studio** (`src/hutch/server/static/{style.css,app.js}`, served at `/legacy`): the
+  `-bg` tint tokens are neutral, violet is retired (tool names, memory keys, the third bot-avatar
+  hue), the dot-grid background is gone, panels are 12px. Structure unchanged.
+- **Marketing site** (`website/`): keeps its loud personality (display type, motion, glow) but drops
+  the `--violet` token and its last uses; labels moved to sentence case.
 
-This is tracked as a follow-up. `website/` currently has unrelated uncommitted work and was left
-untouched.
+Remaining website follow-up (optional, not blocking): re-verify every text token against the site's
+surfaces with the luminance formula, and confirm no comparison/incident section carries a second hue
+beyond emerald.

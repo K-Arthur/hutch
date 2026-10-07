@@ -26,6 +26,10 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   emerald accent is reserved for the primary action and the active nav. Restrained serif page title,
   12px panels, calmer density; `aria-current` on the active nav, `aria-live` on the live pill, and a
   labelled approval badge. Direction in [docs/design-system.md](docs/design-system.md).
+- **Legacy SPA studio + marketing site: monochrome-first alignment.** The studio's `-bg` tint tokens
+  are neutral and violet is retired (tool names, memory keys, the third bot-avatar hue), with the
+  decorative dot-grid gone and 12px panels; the site drops `--violet` and moves labels to sentence
+  case. All three surfaces now share the retired-violet / neutral-tint rule.
 - **Studio feed** (legacy SPA): tool call/result pairs merge into compact expandable one-line entries;
   4+ steps collapse under a "tool steps" group; expansion persists per run; run errors are alert rows.
 - **Approvals**: live fail-closed TTL countdowns everywhere (previously static text), flipping to
