@@ -18,12 +18,12 @@ commits can cite them. Evidence for the *why* is in
 
 | ID | Requirement | Phase | Status | Where |
 |---|---|---|---|---|
-| UI-1 | Home shows Needs you / Running now / Stale | MVP | done | , ; Needs you / Running now / Stale with cause+fix; ,  |
+| UI-1 | Home shows Needs you / Running now / Stale | MVP | done | `views.home_state` served at `/`: Needs you / Running now / Stale, each with cause and fix; `tests/test_views.py`, `tests/test_dashboard.py` |
 | UI-2 | Stop all in every header; per-run Stop kills child processes | MVP | done | Stop all in every header (plain POST + confirm); engine kills process groups; tested incl. forked helper |
 | UI-3 | Run detail streams over SSE and resumes gap-free via event sequence | MVP | done | SSE seq cursor + Last-Event-ID replay from SQLite; gate + real-Chromium TCP-cut test |
-| UI-4 | Run detail: steps, elapsed, spend, context vs caps | MVP | done | : steps/elapsed/spend/tokens/context vs caps + absolute timing split |
+| UI-4 | Run detail: steps, elapsed, spend, context vs caps | MVP | done | `views.run_meters`: steps, elapsed, spend, tokens, context vs caps, plus absolute model/tool/Hutch timing |
 | UI-5 | Approvals inbox: parsed segments, rule, once/always/deny, countdown | MVP | done | approval card: parsed segments, rule, once/always/plan/deny, live countdown; outward never offers always |
-| UI-6 | Every waiting state names its cause and a fix | MVP | done |  /  / stale cause; every wait names cause + fix |
+| UI-6 | Every waiting state names its cause and a fix | MVP | done | `views.explain_run`, `explain_outcome` and the stale cause: every wait names a cause and a fix |
 | UI-7 | New bot: template gallery → purpose, model preset, permissions+budget; YAML view | MVP | planned | |
 | UI-8 | First run: mock demo / local model that fits / API key; seeded demo bots | MVP | planned | |
 | UI-9 | Schedules page: next runs in each bot's zone, coalesced misses, pause all | MVP | planned | |
@@ -80,7 +80,7 @@ commits can cite them. Evidence for the *why* is in
 | SR-4 | Outward-sending tools always ask, regardless of sticky allows | MVP | partial | gate enforces outward-never-sticky (`approvals.py`); outward classification of tools pending |
 | SR-5 | Small models: thinking off, per-turn token cap, loop detector | MVP | planned | |
 | SR-6 | In-app help generated from or tested against real routes | Later | later | |
-| SR-7 | Every run shows its parent bot or plan | MVP | done | every run shows 'started by' (schedule / you via cli|dashboard|api / plan) |
+| SR-7 | Every run shows its parent bot or plan | MVP | done | every run shows 'started by' (schedule / you via cli| done | every run shows who started it: schedule, you (cli, dashboard or api), or a plan |
 | SR-8 | Provider fallback chain | MVP | planned | |
 | SR-9 | Failed streaming request retried once without streaming | MVP | planned | |
 | SR-10 | Bubblewrap-wrapped shell on Linux | Later | later | |
