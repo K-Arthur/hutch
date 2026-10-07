@@ -76,6 +76,7 @@ def test_run_lifecycle_and_events(store):
     events = store.list_events(run.id)
     assert [e.data["i"] for e in events] == [0, 1, 2]
     assert len(store.list_events(run.id, after_id=events[0].id)) == 2
+    assert len(store.list_events(run.id, after_seq=events[0].seq)) == 2
 
 
 def test_active_runs_and_last_success(store):
