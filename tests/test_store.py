@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from openbot.models import (
+from hutch.models import (
     ApprovalRequest,
     ApprovalStatus,
     Bot,

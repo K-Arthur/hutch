@@ -1,6 +1,6 @@
 # Architecture
 
-OpenBot is a local-first multi-bot agent platform: one Python process family that stores everything
+hutch is a local-first multi-bot agent platform: one Python process family that stores everything
 in one state directory, drives LLM agents through a policy-gated tool layer, and exposes both a CLI
 and a local web dashboard.
 
@@ -9,7 +9,7 @@ and a local web dashboard.
 ```mermaid
 flowchart LR
   subgraph Clients
-    CLI["openbot CLI<br/>(typer)"]
+    CLI["hutch CLI<br/>(typer)"]
     UI["Dashboard<br/>(FastAPI + static SPA)"]
   end
 
@@ -51,10 +51,10 @@ flowchart LR
 
 ## State layout
 
-Everything lives under one directory (default `~/.local/state/openbot`, override `OPENBOT_STATE_DIR`):
+Everything lives under one directory (default `~/.local/state/hutch`, override `HUTCH_STATE_DIR`):
 
 ```
-openbot.db                      # SQLite (WAL): all entities + events
+hutch.db                      # SQLite (WAL): all entities + events
 bots/<bot>/runs/<run_id>/
   transcript.jsonl              # append-only run transcript (mirror of events)
   workspace/                    # the bot's jailed world for this run
@@ -113,9 +113,9 @@ and to `transcript.jsonl` on disk. Run outcome is always terminal-state recorded
 
 ### D6 — Web dashboard and CLI are the same engine
 
-`openbot serve` runs FastAPI with a background tick thread (scheduler + dispatch + approval
+`hutch serve` runs FastAPI with a background tick thread (scheduler + dispatch + approval
 expiry), serving a dependency-free static SPA that polls `/api`. The CLI drives the same `Engine`.
-No separate daemon is required for dashboard-driven usage; `openbot daemon` is the headless
+No separate daemon is required for dashboard-driven usage; `hutch daemon` is the headless
 equivalent.
 
 ## Concurrency model

@@ -13,7 +13,7 @@ import threading
 from pathlib import Path
 from typing import Any, Optional
 
-from .config import OpenBotConfig, get_config
+from .config import hutchConfig, get_config
 from .models import (
     ApprovalRequest,
     ApprovalStatus,
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS kv (
 
 
 class Store:
-    def __init__(self, config: OpenBotConfig | None = None):
+    def __init__(self, config: hutchConfig | None = None):
         self.config = config or get_config()
         self.config.ensure()
         self._lock = threading.RLock()

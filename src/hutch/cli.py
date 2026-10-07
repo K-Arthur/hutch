@@ -1,4 +1,4 @@
-"""OpenBot command line interface."""
+"""hutch command line interface."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ from .templates import TEMPLATES, seed
 from .tools import ALL_TOOL_NAMES, expand_tools
 
 app = typer.Typer(no_args_is_help=True, add_completion=False,
-                  help="OpenBot — local-first multi-bot agent platform.")
+                  help="hutch — local-first multi-bot agent platform.")
 bot_app = typer.Typer(no_args_is_help=True, help="Manage bots.")
 run_app = typer.Typer(no_args_is_help=True, help="Inspect runs.")
 apr_app = typer.Typer(no_args_is_help=True, help="Resolve pending approvals.")
@@ -49,7 +49,7 @@ def _store() -> Store:
 def _require_bot(store: Store, ref: str) -> Bot:
     bot = store.get_bot(ref)
     if bot is None:
-        err.print(f"[red]no such bot:[/red] {ref} (see `openbot bot list`)")
+        err.print(f"[red]no such bot:[/red] {ref} (see `hutch bot list`)")
         raise typer.Exit(code=1)
     return bot
 
@@ -72,22 +72,22 @@ def init() -> None:
     created = seed(store)
     config.ensure()
     console.print(Panel.fit(
-        f"[green]OpenBot initialized[/green]\n"
+        f"[green]hutch initialized[/green]\n"
         f"state dir: [cyan]{config.state_dir}[/cyan]\n"
         f"database:  [cyan]{config.db_path}[/cyan]",
-        title="openbot init"))
+        title="hutch init"))
     if created:
         for name in created:
             console.print(f"  seeded bot [bold]{name}[/bold] (template, mock model — free to try)")
     else:
         console.print("  templates already present; nothing new seeded")
-    console.print("\nnext: [bold]openbot serve[/bold] → dashboard, or [bold]openbot run <bot> \"task\"[/bold]")
+    console.print("\nnext: [bold]hutch serve[/bold] → dashboard, or [bold]hutch run <bot> \"task\"[/bold]")
 
 
 @app.command()
 def version() -> None:
     """Print version."""
-    console.print(f"openbot {__version__}")
+    console.print(f"hutch {__version__}")
 
 
 @app.command()
@@ -96,7 +96,7 @@ def status() -> None:
     store = _store()
     scheduler = Scheduler(store)
     bots = store.list_bots()
-    table = Table(title="OpenBot status")
+    table = Table(title="hutch status")
     for col in ("bot", "model", "schedule", "paused", "next run (local tz)", "last success"):
         table.add_column(col)
     import datetime as dt
@@ -124,7 +124,7 @@ def bot_list() -> None:
     store = _store()
     bots = store.list_bots()
     if not bots:
-        console.print("no bots yet — try [bold]openbot init[/bold]")
+        console.print("no bots yet — try [bold]hutch init[/bold]")
         return
     table = Table()
     for col in ("name", "model", "runtime", "tools", "schedule", "approvals", "paused"):
@@ -180,7 +180,7 @@ def bot_create(
     if template:
         base = TEMPLATES.get(template)
         if base is None:
-            err.print(f"[red]unknown template:[/red] {template} (see `openbot bot templates`)")
+            err.print(f"[red]unknown template:[/red] {template} (see `hutch bot templates`)")
             raise typer.Exit(code=1)
         bot = base.model_copy(deep=True)
         bot.name, bot.template = name, template
@@ -370,7 +370,7 @@ def _print_event(ev) -> None:  # pragma: no cover
         console.print(f"  {mark} {out}")
     elif ev.type is EventType.approval_request:
         console.print(f"[yellow]⏳ approval needed:[/yellow] {ev.data.get('action')} — "
-                      f"resolve with `openbot approvals approve {ev.data.get('approval_id')}`")
+                      f"resolve with `hutch approvals approve {ev.data.get('approval_id')}`")
     elif ev.type is EventType.error:
         console.print(f"[red]error:[/red] {str(ev.data)[:200]}")
     elif ev.type is EventType.status and "status" in ev.data:
@@ -444,9 +444,9 @@ def approvals_list() -> None:
         bot = store.get_bot(req.bot_id)
         console.print(Panel(
             f"[bold]{req.action}[/bold]\n{json.dumps(req.detail, indent=2)}\n\n"
-            f"approve:  [green]openbot approvals approve {req.id}[/green]\n"
-            f"always:   [green]openbot approvals approve {req.id} --always[/green]\n"
-            f"deny:     [red]openbot approvals deny {req.id}[/red]",
+            f"approve:  [green]hutch approvals approve {req.id}[/green]\n"
+            f"always:   [green]hutch approvals approve {req.id} --always[/green]\n"
+            f"deny:     [red]hutch approvals deny {req.id}[/red]",
             title=f"{req.id} · {bot.name if bot else req.bot_id} · {req.tool}"))
 
 
@@ -483,7 +483,7 @@ def daemon(interval: float = typer.Option(20.0, "--interval", help="tick interva
         for r in runs:
             console.print(f"[magenta]dispatched scheduled run[/magenta] {r.id}")
 
-    console.print(f"[bold]openbot daemon[/bold] — state: {config.state_dir} (Ctrl-C to stop)")
+    console.print(f"[bold]hutch daemon[/bold] — state: {config.state_dir} (Ctrl-C to stop)")
     engine.run_daemon(interval=interval, on_tick=on_tick)
     console.print("daemon stopped")
 
@@ -492,8 +492,8 @@ def daemon(interval: float = typer.Option(20.0, "--interval", help="tick interva
 def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8787)) -> None:
     """Serve the web dashboard + API."""
     import uvicorn
-    console.print(f"[bold]openbot[/bold] dashboard → http://{host}:{port}")
-    uvicorn.run("openbot.server.app:create_app", factory=True, host=host, port=port, log_level="warning")
+    console.print(f"[bold]hutch[/bold] dashboard → http://{host}:{port}")
+    uvicorn.run("hutch.server.app:create_app", factory=True, host=host, port=port, log_level="warning")
 
 
 # --------------------------------------------------------------------- demo
@@ -513,7 +513,7 @@ def demo_seed() -> None:
     console.print(f"seeded {len(summary['bots_created'])} new bot(s); demo runs:")
     for r in summary["runs"]:
         console.print(f"  {r['bot']:<20} {r['run']}  {r['status']}")
-    console.print("\ntry: [bold]openbot serve[/bold] → http://127.0.0.1:8787")
+    console.print("\ntry: [bold]hutch serve[/bold] → http://127.0.0.1:8787")
 
 
 def main() -> None:  # console_scripts entry point

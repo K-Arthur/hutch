@@ -43,7 +43,7 @@ class WebFetchTool(Tool):
                 url,
                 timeout=20,
                 follow_redirects=True,
-                headers={"User-Agent": "openbot/0.1 (+local agent platform)"},
+                headers={"User-Agent": "hutch/0.1 (+local agent platform)"},
             )
         except httpx.HTTPError as exc:
             return ToolResult(ok=False, output=f"error fetching {url}: {exc}")

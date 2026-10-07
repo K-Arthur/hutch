@@ -1,4 +1,4 @@
-/* openbot.dev — marketing site. Same DNA as the dashboard: dark, quiet, readable.
+/* hutch.dev — marketing site. Same DNA as the dashboard: dark, quiet, readable.
    Zero external assets: system fonts, inline SVG. */
 
 :root {
@@ -326,7 +326,7 @@ table.compare thead th {
 }
 table.compare tbody tr:last-child td { border-bottom: none; }
 table.compare td:first-child { color: var(--text-dim); font-weight: 600; font-size: 13px; white-space: nowrap; }
-.openbot-col { background: rgba(52, 211, 153, 0.05); }
+.hutch-col { background: rgba(52, 211, 153, 0.05); }
 .compare .yes { color: var(--accent); font-weight: 650; }
 .compare .no { color: var(--red); }
 .compare .meh { color: var(--amber); }

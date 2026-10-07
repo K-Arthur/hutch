@@ -1,4 +1,4 @@
-/* OpenBot dashboard — vanilla JS SPA, hash-routed, polling. No build step. */
+/* hutch dashboard — vanilla JS SPA, hash-routed, polling. No build step. */
 "use strict";
 
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -160,7 +160,7 @@ async function refreshOverviewLive() {
 
 function emptyBotState() {
   return `<div class="panel">No bots yet. <a href="#/bots">Create your first bot</a> — or run
-    <span class="mono">openbot init</span> to get the starter templates.</div>`;
+    <span class="mono">hutch init</span> to get the starter templates.</div>`;
 }
 
 function botCard(b) {
@@ -254,7 +254,7 @@ async function renderBots() {
               ${["shell", "files", "memory", "web_fetch", "browser"].map(t =>
                 `<label><input type="checkbox" name="tools" value="${t}" ${["shell", "files", "memory"].includes(t) ? "checked" : ""}> ${t}</label>`).join("")}
             </div>
-            <span class="hint">browser needs <span class="mono">openbot[browser]</span>; everything runs inside the bot's workspace jail</span>
+            <span class="hint">browser needs <span class="mono">hutch[browser]</span>; everything runs inside the bot's workspace jail</span>
           </div>
           <label class="field full">Instructions
             <textarea name="instructions" placeholder="Standing instructions the bot follows on every run…"></textarea>

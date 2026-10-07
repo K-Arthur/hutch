@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from openbot.safety import PolicyEngine, Verdict, split_compound
+from hutch.safety import PolicyEngine, Verdict, split_compound
 
 
 @pytest.fixture()

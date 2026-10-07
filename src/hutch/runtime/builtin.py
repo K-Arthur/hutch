@@ -1,4 +1,4 @@
-"""Built-in agent loop — OpenBot's own runtime.
+"""Built-in agent loop — hutch's own runtime.
 
 A deliberately thin loop (the differentiating machinery — policy, approvals,
 caps, transcripts — lives in the engine, not here). Works with any
@@ -9,7 +9,7 @@ Model spec format:  provider/model-id
   openai/gpt-4o-mini            -> api.openai.com (OPENAI_API_KEY)
   ollama/llama3.2               -> localhost:11434/v1
   lmstudio/qwen2.5-7b           -> localhost:1234/v1
-  openai-compatible/<name>      -> OPENBOT_BASE_URL (or bot.base_url)
+  openai-compatible/<name>      -> HUTCH_BASE_URL (or bot.base_url)
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ PROVIDER_BASE_URLS = {
     "lmstudio": "http://localhost:1234/v1",
 }
 
-SYSTEM_TEMPLATE = """You are {name}, a bot running on OpenBot — a local, human-supervised agent platform.
+SYSTEM_TEMPLATE = """You are {name}, a bot running on hutch — a local, human-supervised agent platform.
 
 Your purpose: {description}
 
@@ -57,7 +57,7 @@ class BuiltinRuntime:
         spec = ctx.bot.model
         provider, _, model = spec.partition("/")
         model = model or spec
-        base_url = ctx.bot.base_url or os.environ.get("OPENBOT_BASE_URL")
+        base_url = ctx.bot.base_url or os.environ.get("HUTCH_BASE_URL")
         api_key = os.environ.get(self.api_key_env, "local")
 
         if provider == "openai" and not base_url:
@@ -67,7 +67,7 @@ class BuiltinRuntime:
             api_key = api_key if provider == "openai" else "local"
         elif provider == "openai-compatible":
             if not base_url:
-                raise RunAborted("error", "openai-compatible provider needs bot.base_url or OPENBOT_BASE_URL")
+                raise RunAborted("error", "openai-compatible provider needs bot.base_url or HUTCH_BASE_URL")
         elif provider == "mock":
             raise RunAborted("error", "use MockRuntime for mock/* models")
         return model, base_url or ""

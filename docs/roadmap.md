@@ -33,13 +33,13 @@
 - [ ] Vector memory (local embeddings, sqlite-vec) with inspectable recall
 - [ ] Webhook/event triggers (file-watch, HTTP inbox) alongside cron
 - [ ] Multi-step workflow templates (chained runs, hand-off artifacts)
-- [ ] Pi adapter: full RPC event mapping (tool approvals bridged into OpenBot's gate)
+- [ ] Pi adapter: full RPC event mapping (tool approvals bridged into hutch's gate)
 - [ ] Browser tool: DOM snapshots in transcripts; per-bot download dirs
 
 ## Phase 3 — scale-out (deliberately far)
 
 - [ ] Cross-OS support (macOS, Windows) — GUI automation paths differ per OS
-- [ ] Multi-user access to one OpenBot instance (auth + roles)
+- [ ] Multi-user access to one hutch instance (auth + roles)
 - [ ] Optional remote access (tailscale/SSH guidance, or relay) — stays opt-in, never a cloud default
 - [ ] A2A collaboration between bots (scoped, auditable)
 

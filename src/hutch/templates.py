@@ -1,4 +1,4 @@
-"""Starter bot templates seeded by `openbot init`.
+"""Starter bot templates seeded by `hutch init`.
 
 All templates default to the free, offline mock model — new users can explore
 the whole pipeline (scheduling, tools, approvals, transcripts) without an API

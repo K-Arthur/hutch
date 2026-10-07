@@ -3,14 +3,14 @@ from __future__ import annotations
 import pytest
 from typer.testing import CliRunner
 
-from openbot.cli import app
+from hutch.cli import app
 
 runner = CliRunner()
 
 
 @pytest.fixture()
 def state_env(tmp_path, monkeypatch):
-    monkeypatch.setenv("OPENBOT_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
     monkeypatch.setenv("COLUMNS", "300")  # keep rich tables from wrapping cell text
 
 

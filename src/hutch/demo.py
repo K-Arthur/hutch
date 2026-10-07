@@ -1,4 +1,4 @@
-"""Demo data seeding — `openbot demo seed`.
+"""Demo data seeding — `hutch demo seed`.
 
 Produces a dashboard-ready state entirely offline: template bots, completed
 runs with real transcripts (mock runtime through the real tool/policy
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import time
 
-from .config import OpenBotConfig
+from .config import hutchConfig
 from .engine import Engine
 from .models import (
     ApprovalMode,
@@ -27,7 +27,7 @@ from .store import Store
 from .templates import TEMPLATES, seed
 
 
-def seed_demo(config: OpenBotConfig, store: Store, engine: Engine) -> dict:
+def seed_demo(config: hutchConfig, store: Store, engine: Engine) -> dict:
     created = seed(store)
     summary = {"bots_created": created, "runs": []}
 

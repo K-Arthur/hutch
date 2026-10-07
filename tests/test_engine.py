@@ -4,10 +4,10 @@ import json
 import time
 from datetime import datetime, timezone
 
-from openbot.config import get_config
-from openbot.engine import Engine, bot_prompt_for_schedule
-from openbot.models import ApprovalMode, Bot, CatchUpPolicy, RunStatus, Schedule
-from openbot.store import Store
+from hutch.config import get_config
+from hutch.engine import Engine, bot_prompt_for_schedule
+from hutch.models import ApprovalMode, Bot, CatchUpPolicy, RunStatus, Schedule
+from hutch.store import Store
 
 
 def mock_bot(name="runner", tools=("shell", "files", "memory"), **kw) -> Bot:
@@ -85,7 +85,7 @@ def test_per_bot_single_instance(store, config):
     release = threading.Event()
 
     # slow runtime: patch MockRuntime to block until released
-    import openbot.runtime.mock as mock_mod
+    import hutch.runtime.mock as mock_mod
     orig = mock_mod.MockRuntime.execute
 
     def slow_execute(self, run, ctx, tools, stop):
@@ -122,11 +122,11 @@ def test_per_bot_single_instance(store, config):
 def test_timeout_kills_run(store, config):
     import threading
     bot = store.create_bot(mock_bot(name="slowpoke"))
-    from openbot.models import Limits
+    from hutch.models import Limits
     bot.limits = Limits(timeout_seconds=2)
     store.upsert_bot(bot)
 
-    import openbot.runtime.mock as mock_mod
+    import hutch.runtime.mock as mock_mod
     orig = mock_mod.MockRuntime.execute
     blocker = threading.Event()
 

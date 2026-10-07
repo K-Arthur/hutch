@@ -39,7 +39,7 @@ class RunStatus(str, Enum):
 
 
 class RuntimeKind(str, Enum):
-    builtin = "builtin"      # OpenBot's own agent loop (OpenAI-compatible providers)
+    builtin = "builtin"      # hutch's own agent loop (OpenAI-compatible providers)
     mock = "mock"            # deterministic offline provider (tests + demos)
     pi = "pi"                # Pi coding agent, driven over RPC stdio
     opencode = "opencode"    # OpenCode, driven via `opencode run`

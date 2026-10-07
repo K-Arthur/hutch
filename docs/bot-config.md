@@ -1,7 +1,7 @@
 # Bot configuration reference
 
 A **bot** is a stored configuration; a **run** is one execution of it. Bots are managed via CLI,
-dashboard, or the REST API, and live in `openbot.db`.
+dashboard, or the REST API, and live in `hutch.db`.
 
 ## Fields
 
@@ -27,7 +27,7 @@ mock/demo                 deterministic offline runtime (tests, demos, first-run
 openai/gpt-4o-mini        OpenAI API (needs OPENAI_API_KEY)
 ollama/llama3.2           local Ollama  (http://localhost:11434/v1)
 lmstudio/qwen2.5-7b       local LM Studio (http://localhost:1234/v1)
-openai-compatible/<name>  any endpoint — set bot.base_url or OPENBOT_BASE_URL
+openai-compatible/<name>  any endpoint — set bot.base_url or HUTCH_BASE_URL
 ```
 
 Any `mock/*` model routes to the mock runtime regardless of the `runtime` field.
@@ -35,7 +35,7 @@ Any `mock/*` model routes to the mock runtime regardless of the `runtime` field.
 ## Tools
 
 Group names expand: `files` → `read_file, list_files, write_file`; `memory` → `remember, recall`;
-`browser` → `browser` (needs `pip install "openbot[browser]"`). Concrete names may be listed
+`browser` → `browser` (needs `pip install "hutch[browser]"`). Concrete names may be listed
 individually. Everything runs through the policy engine (`docs/safety.md`).
 
 ## Schedules
@@ -62,7 +62,7 @@ A bot never has two live runs (single-instance lock). All storage is UTC-with-of
 Weekly research bot on a local model, approvals on:
 
 ```bash
-openbot bot create weekly-research \
+hutch bot create weekly-research \
   --template research-briefing \
   --model ollama/llama3.2 \
   --tools web_fetch,files,memory \
@@ -73,7 +73,7 @@ openbot bot create weekly-research \
 Trusted cleanup bot, auto-approve within policy:
 
 ```bash
-openbot bot create tidy \
+hutch bot create tidy \
   --template tidy-downloads \
   --model openai/gpt-4o-mini \
   --approvals auto \
@@ -83,13 +83,13 @@ openbot bot create tidy \
 Inspect what a bot remembers and what it's been allowed to do:
 
 ```bash
-openbot bot show tidy          # memory + sticky allows + recent runs
-openbot bot forget tidy        # wipe memory and sticky allows
+hutch bot show tidy          # memory + sticky allows + recent runs
+hutch bot forget tidy        # wipe memory and sticky allows
 ```
 
 ## Templates
 
-Seeded by `openbot init` (`src/openbot/templates.py`):
+Seeded by `hutch init` (`src/hutch/templates.py`):
 
 - **research-briefing** — weekly web research → `report.md`, dedupes via memory (scheduled Mon 09:00 UTC)
 - **repo-sweeper** — on-demand TODO/FIXME sweep of the workspace repo, reports only

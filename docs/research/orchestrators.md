@@ -18,7 +18,7 @@ TypeScript monorepo, MIT, Node 22+, very active (113k+ stars at research time). 
 **Providers:** dozens via `pi-ai` + models.dev-style catalog; local via OpenAI-compatible
 `models.json` (Ollama, LM Studio, vLLM) plus a direct llama.cpp GGUF router.
 
-**Assessment:** best external runtime for OpenBot (process/workspace isolation comes free with one
+**Assessment:** best external runtime for hutch (process/workspace isolation comes free with one
 process per run). Weaknesses: no built-in permissions/sandbox; extensions are TypeScript-only.
 
 ## 2. OpenCode — anomalyco/opencode (formerly sst/opencode), 212k★
@@ -27,7 +27,7 @@ process per run). Weaknesses: no built-in permissions/sandbox; extensions are Ty
 (the TUI is just a client of it) with sessions, SSE event bus, abort/fork, OpenAPI spec at `/doc`.
 Python SDK exists but is alpha (`opencode-ai` 0.1.0a36).
 
-**Blocking issues for OpenBot-as-core:** the server appears scoped to **one project directory** —
+**Blocking issues for hutch-as-core:** the server appears scoped to **one project directory** —
 N isolated bot workspaces means N servers on N ports; SSE has no documented delivery guarantees;
 some endpoints marked experimental; no API stability commitment; auth flows are TUI-first.
 
@@ -35,7 +35,7 @@ some endpoints marked experimental; no API stability commitment; auth flows are 
 
 ## 3. Frameworks surveyed
 
-| Framework | Verdict for openbot |
+| Framework | Verdict for hutch |
 |---|---|
 | CrewAI | Role-play heavy, debugging opacity, enterprise-gated features — overkill |
 | LangGraph | Solid but low-level graph model; drags LangChain ecosystem weight |
@@ -51,7 +51,7 @@ some endpoints marked experimental; no API stability commitment; auth flows are 
   stdlib Python; frameworks are "black boxes adding unnecessary abstraction layers"; vector DBs
   unnecessary for MVP memory. <https://buildyourowncodingagent.com>, HN 46872087.
 - Microsoft Agent Framework docs: "If you can write a function to handle the task, do that instead
-  of using an AI agent" — and use **workflows** for well-defined steps. OpenBot's cron dispatch is
+  of using an AI agent" — and use **workflows** for well-defined steps. hutch's cron dispatch is
   exactly that shape.
 - 2026 production write-ups ("Most AI Agent Frameworks Are Overkill", "AI Agents in Production:
   What Actually Works", "When Multi-Agent Is Overkill") converge on: frameworks abstract the loop

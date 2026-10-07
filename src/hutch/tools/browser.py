@@ -9,7 +9,7 @@ Answers the documented browser-agent failures:
   pause_to_human event; with a human watching the dashboard they finish the
   challenge and the bot continues. The bot never solves challenges itself.
 
-Requires the optional extra:  pip install "openbot[browser]"
+Requires the optional extra:  pip install "hutch[browser]"
 """
 
 from __future__ import annotations

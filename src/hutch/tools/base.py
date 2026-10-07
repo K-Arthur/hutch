@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from ..config import OpenBotConfig
+from ..config import hutchConfig
 from ..models import Bot, Run
 from ..safety import PolicyEngine
 from ..approvals import ApprovalGate
@@ -47,7 +47,7 @@ class ToolContext:
     store: Store
     policy: PolicyEngine
     gate: ApprovalGate
-    config: OpenBotConfig
+    config: hutchConfig
     workspace: Path
     headless: bool = True
     on_finish: list[Callable[[], None]] = field(default_factory=list)

@@ -5,8 +5,8 @@ process/workspace isolation, no ports, no daemon. Wire protocol follows
 pi.dev/docs/latest/rpc (JSONL request lines in, event/result lines out).
 
 Trade-off (documented in docs/safety.md): Pi runs with its own tool system;
-OpenBot's approval gates apply to the workspace boundary (cwd jail, policy on
-commands OpenBot itself runs) but not to Pi-internal tool calls.
+hutch's approval gates apply to the workspace boundary (cwd jail, policy on
+commands hutch itself runs) but not to Pi-internal tool calls.
 
 Requires `pi` on PATH:  npm i -g @earendil-works/pi-coding-agent
 """

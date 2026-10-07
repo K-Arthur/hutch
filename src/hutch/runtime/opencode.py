@@ -2,8 +2,8 @@
 
 Uses OpenCode's headless CLI (`opencode run <prompt> --format json --auto`)
 with cwd pinned to the run workspace. `--auto` lets OpenCode approve its own
-tool calls (OpenCode's permission config still applies per-project); OpenBot's
-gates own the workspace boundary and everything OpenBot runs itself. See
+tool calls (OpenCode's permission config still applies per-project); hutch's
+gates own the workspace boundary and everything hutch runs itself. See
 docs/safety.md for the trust trade-off.
 
 Requires `opencode` on PATH.

@@ -2,7 +2,7 @@
 
 Serves the single-page dashboard from server/static and a JSON API used by
 both the dashboard and remote tooling. A background thread ticks the engine
-(schedules, dispatch, approval expiry) so `openbot serve` alone runs the
+(schedules, dispatch, approval expiry) so `hutch serve` alone runs the
 whole platform.
 """
 
@@ -71,7 +71,7 @@ def create_app() -> FastAPI:
     store = Store(config)
     engine = Engine(config, store)
     scheduler = Scheduler(store)
-    app = FastAPI(title="OpenBot", version=__version__, docs_url="/api/openapi.json")
+    app = FastAPI(title="hutch", version=__version__, docs_url="/api/openapi.json")
 
     @app.on_event("startup")
     def _start_tick() -> None:
@@ -84,7 +84,7 @@ def create_app() -> FastAPI:
                     traceback.print_exc()
                 time.sleep(15)
 
-        threading.Thread(target=loop, daemon=True, name="openbot-tick").start()
+        threading.Thread(target=loop, daemon=True, name="hutch-tick").start()
 
     # ------------------------------------------------------------- helpers
 

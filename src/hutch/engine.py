@@ -14,7 +14,7 @@ import traceback
 from typing import Optional
 
 from .approvals import ApprovalGate, expire_stale_approvals
-from .config import OpenBotConfig
+from .config import hutchConfig
 from .models import (
     Bot,
     Event,
@@ -35,7 +35,7 @@ DEFAULT_MAX_CONCURRENT = 2
 
 
 class Engine:
-    def __init__(self, config: OpenBotConfig, store: Store, max_concurrent: int = DEFAULT_MAX_CONCURRENT):
+    def __init__(self, config: hutchConfig, store: Store, max_concurrent: int = DEFAULT_MAX_CONCURRENT):
         self.config = config
         self.store = store
         self.scheduler = Scheduler(store)
@@ -96,12 +96,12 @@ class Engine:
         cancel = threading.Event()
         self._cancels[run.id] = cancel
         t = threading.Thread(target=self._execute, args=(bot, run, cancel),
-                             name=f"openbot-run-{run.id}", daemon=True)
+                             name=f"hutch-run-{run.id}", daemon=True)
         self._threads[run.id] = t
         t.start()
 
     def run_blocking(self, bot: Bot, prompt: str, missed_windows: int = 0) -> Run:
-        """Create + execute a run in the calling thread (CLI `openbot run`)."""
+        """Create + execute a run in the calling thread (CLI `hutch run`)."""
         run = self.submit(bot, prompt, missed_windows=missed_windows)
         self._execute(bot, run, threading.Event())
         return run
@@ -184,7 +184,7 @@ class Engine:
                 result["crashed"] = exc
                 result["traceback"] = traceback.format_exc(limit=6)
 
-        worker = threading.Thread(target=work, daemon=True, name=f"openbot-agent-{run.id}")
+        worker = threading.Thread(target=work, daemon=True, name=f"hutch-agent-{run.id}")
         worker.start()
         worker.join(timeout=max(1.0, deadline - time.monotonic() + 5))
 

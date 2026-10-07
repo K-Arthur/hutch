@@ -5,12 +5,12 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from openbot.server.app import create_app
+from hutch.server.app import create_app
 
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
-    monkeypatch.setenv("OPENBOT_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
     app = create_app()
     with TestClient(app) as c:
         yield c
@@ -124,7 +124,7 @@ def test_approval_flow_via_api(client):
 def test_dashboard_page_served(client):
     res = client.get("/")
     assert res.status_code == 200
-    assert "openbot" in res.text.lower()
+    assert "hutch" in res.text.lower()
     assert res.headers["content-type"].startswith("text/html")
     css = client.get("/static/style.css")
     assert css.status_code == 200

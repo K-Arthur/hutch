@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from openbot.models import Bot, CatchUpPolicy, Schedule
-from openbot.scheduler import Scheduler
+from hutch.models import Bot, CatchUpPolicy, Schedule
+from hutch.scheduler import Scheduler
 
 
 def scheduled_bot(cron="0 9 * * *", tz="UTC", catch_up=CatchUpPolicy.coalesce, created=None) -> Bot:

@@ -74,7 +74,7 @@ documented incidents. Sources checked 2026-10-07; HN item IDs are given for veri
 
 ## Fixable-in-MVP requirements → implementation traceability
 
-| # | Requirement (from incidents) | OpenBot implementation |
+| # | Requirement (from incidents) | hutch implementation |
 |---|---|---|
 | 1 | Catch-up for schedules missed while asleep | `scheduler.Scheduler.due()` counts missed windows; `coalesce` policy runs once with `missed_windows` tag; `skip` policy records a visible marker |
 | 2 | DST/timezone correctness; no double-fire/overlap | cron math in bot's IANA zone + round-trip DST-gap check (`scheduler._to_utc`); per-bot single-instance lock (`engine.dispatch_pending`) |

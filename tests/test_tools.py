@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from openbot.approvals import ApprovalGate, DeniedError
-from openbot.models import ApprovalMode, ApprovalRequest, Bot, Event, EventType, Run
-from openbot.safety import PolicyEngine
-from openbot.tools import build_tools, expand_tools
-from openbot.tools.base import ToolContext
+from hutch.approvals import ApprovalGate, DeniedError
+from hutch.models import ApprovalMode, ApprovalRequest, Bot, Event, EventType, Run
+from hutch.safety import PolicyEngine
+from hutch.tools import build_tools, expand_tools
+from hutch.tools.base import ToolContext
 
 
 def make_ctx(store, config, tmp_path, bot: Bot | None = None, approval_mode=ApprovalMode.ask):
@@ -69,7 +69,7 @@ def test_shell_ask_creates_approval_and_sticky_skips(store, config, tmp_path):
         for _ in range(200):
             pend = store.pending_approvals()
             if pend:
-                from openbot.approvals import resolve_approval
+                from hutch.approvals import resolve_approval
                 resolve_approval(store, pend[0].id, approve=True, by="test", sticky=True)
                 return
             _t.sleep(0.01)
@@ -147,7 +147,7 @@ def test_webfetch_denies_private_and_allows_check(store, config, tmp_path, monke
         def get(self, url, **kw):
             assert url == "https://example.com/x"
             return FakeResp()
-    import openbot.tools.webfetch as wf
+    import hutch.tools.webfetch as wf
     monkeypatch.setattr(wf.httpx, "get", FakeHttpx().get)
     res = tools["web_fetch"].run({"url": "https://example.com/x"}, ctx)
     assert res.ok and "hi there" in res.output

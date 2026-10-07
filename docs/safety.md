@@ -1,6 +1,6 @@
 # Safety model
 
-OpenBot assumes a **supervising human** is part of the system. It is not a formal security boundary
+hutch assumes a **supervising human** is part of the system. It is not a formal security boundary
 against a determined adversary — it is a well-instrumented fence against the documented failure
 modes of autonomous agents. Each rule below traces to an incident class in
 `research/complaints.md`.
@@ -69,7 +69,7 @@ still apply.
 ## Honest limits (read this)
 
 - **External runtimes** (`pi`, `opencode` adapters) run with their own tool systems and `--auto`-style
-  approvals. OpenBot's gates own the workspace boundary and everything OpenBot itself executes;
+  approvals. hutch's gates own the workspace boundary and everything hutch itself executes;
   the external harness's internal tool calls are governed by *its* permission config. The system
   prompt and transcript still record activity. Treat external-runtime bots as wider-trust bots.
 - **A supervised human is assumed.** Prompt injection can still produce plausible-but-wrong actions

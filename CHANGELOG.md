@@ -1,10 +1,15 @@
 # Changelog
 
-All notable changes to OpenBot. Format follows Keep a Changelog; versioning is semantic.
+All notable changes to hutch (formerly "openbot"). Format follows Keep a Changelog; versioning is semantic.
 
 ## [0.1.0] — 2026-10-07
 
 First MVP.
+
+### Changed
+- **Renamed the project openbot → hutch** before any public push: "openbot" is taken on PyPI and
+  collides with unrelated GitHub projects. Candidate research (PyPI, GitHub, web/marketing) in
+  [docs/research/naming.md](docs/research/naming.md); `botshed` documented as fallback.
 
 ### Added
 - Bot management: CRUD, starter templates (research-briefing, repo-sweeper, tidy-downloads),
@@ -21,7 +26,7 @@ First MVP.
   skip, per-bot single-instance locks.
 - Engine: run dispatch with global concurrency, per-run hard caps (steps, wall clock, daily
   tokens), stop/stop-all, append-only transcripts (SQLite + JSONL).
-- Interfaces: Typer CLI (`openbot`), FastAPI dashboard with live transcripts/approval queue/spend
+- Interfaces: Typer CLI (`hutch`), FastAPI dashboard with live transcripts/approval queue/spend
   meters, headless daemon, `demo seed` for offline exploration.
 - Docs: architecture (decision log), safety model, bot-config reference, roadmap, and incident
   research with requirement traceability.

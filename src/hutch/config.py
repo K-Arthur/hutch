@@ -1,8 +1,8 @@
 """Application configuration and state-directory layout.
 
-All OpenBot state lives under a single directory (default: ~/.local/state/openbot)
+All hutch state lives under a single directory (default: ~/.local/state/hutch)
 so it is easy to inspect, back up, or delete. Tests override it with the
-OPENBOT_STATE_DIR environment variable.
+HUTCH_STATE_DIR environment variable.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-APP_NAME = "openbot"
+APP_NAME = "hutch"
 
 
 def _default_state_dir() -> Path:
@@ -21,14 +21,14 @@ def _default_state_dir() -> Path:
 
 
 @dataclass(frozen=True)
-class OpenBotConfig:
-    """Paths and defaults for one OpenBot installation."""
+class hutchConfig:
+    """Paths and defaults for one hutch installation."""
 
     state_dir: Path
 
     @property
     def db_path(self) -> Path:
-        return self.state_dir / "openbot.db"
+        return self.state_dir / "hutch.db"
 
     @property
     def bots_dir(self) -> Path:
@@ -63,6 +63,6 @@ class OpenBotConfig:
     default_approval_ttl_seconds: int = 600  # unanswered approvals expire as DENIED
 
 
-def get_config() -> OpenBotConfig:
-    override = os.environ.get("OPENBOT_STATE_DIR")
-    return OpenBotConfig(state_dir=Path(override) if override else _default_state_dir())
+def get_config() -> hutchConfig:
+    override = os.environ.get("HUTCH_STATE_DIR")
+    return hutchConfig(state_dir=Path(override) if override else _default_state_dir())

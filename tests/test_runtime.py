@@ -6,13 +6,13 @@ from types import SimpleNamespace
 
 import pytest
 
-import openbot.runtime.builtin as builtin_mod
-from openbot.approvals import ApprovalGate, resolve_approval
-from openbot.models import ApprovalMode, Bot, Event, EventType, Run, RunStatus
-from openbot.runtime import MockRuntime, OpenCodeRuntime, PiRuntime, RunAborted, get_runtime, BuiltinRuntime
-from openbot.safety import PolicyEngine
-from openbot.tools import build_tools
-from openbot.tools.base import ToolContext
+import hutch.runtime.builtin as builtin_mod
+from hutch.approvals import ApprovalGate, resolve_approval
+from hutch.models import ApprovalMode, Bot, Event, EventType, Run, RunStatus
+from hutch.runtime import MockRuntime, OpenCodeRuntime, PiRuntime, RunAborted, get_runtime, BuiltinRuntime
+from hutch.safety import PolicyEngine
+from hutch.tools import build_tools
+from hutch.tools.base import ToolContext
 
 
 def make_ctx(store, config, tmp_path, approval_mode=ApprovalMode.auto, tools=("shell", "files", "memory")):
@@ -156,7 +156,7 @@ def test_builtin_loop_provider_errors_abort(store, config, tmp_path, monkeypatch
 def test_builtin_loop_token_cap_aborts(store, config, tmp_path, monkeypatch):
     ctx, run, _ = make_ctx(store, config, tmp_path)
     ctx.bot.model = "openai/gpt-4o-mini"
-    from openbot.models import Limits
+    from hutch.models import Limits
     ctx.bot.limits = Limits(daily_token_cap=50)
     # pre-consume cap
     run.tokens = 1000
