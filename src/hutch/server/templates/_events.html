@@ -6,9 +6,9 @@
 {%- set d = ev.data -%}
 <li class="tx tx-{{ ev.type }}" id="ev-{{ ev.seq }}" data-seq="{{ ev.seq }}">
   {%- if ev.type == "message" %}
-    <div class="bubble {{ 'user' if d.role == 'user' else 'agent' }}">
-      <div class="bubble-meta">{{ d.role or "agent" }} <time>{{ ev.ts[11:19] }}</time></div>
-      <div class="bubble-text">{{ d.content }}</div>
+    <div class="turn {{ 'user' if d.role == 'user' else 'agent' }}">
+      <div class="turn-role">{{ d.role or "agent" }} <time>{{ ev.ts[11:19] }}</time></div>
+      <div class="turn-body">{{ d.content }}</div>
     </div>
   {%- elif ev.type == "tool_call" %}
     {% set ic = "terminal" if d.tool == "shell" else ("file" if "file" in d.tool else ("globe" if d.tool in ("web_fetch", "browser") else "zap")) %}

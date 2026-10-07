@@ -4,6 +4,7 @@
 <article class="approval {{ 'outward' if a.outward else '' }} risk-{{ a.risk }}" id="{{ a.id }}" data-approval="{{ a.id }}">
   <header class="approval-head">
     <div>
+      <span class="kicker">{{ icon("shield", 12) }} Approval required</span>
       <strong>{{ bot_name }}</strong>
       <span class="tag">{{ a.tool }}</span>
       <span class="tag risk-{{ a.risk }}">{{ a.risk }} risk</span>

@@ -43,13 +43,13 @@
   </section>
 
   <!-- ------------------------------------------------------------- running now -->
-  <section class="panel col" aria-labelledby="h-run">
+  <section class="col quiet" aria-labelledby="h-run">
     <h2 id="h-run">{{ icon("play", 18) }} Running now <span class="count">{{ home.running | length }}</span></h2>
     {% if not home.running %}
       <div class="empty">{{ icon("bot", 26) }}<p>Nothing is running.</p><p class="hint">Start a bot from its page, or let a schedule fire.</p></div>
     {% endif %}
     {% for run, bot_name, w in home.running %}
-    <article class="item">
+    <article class="row">
       <header>
         <a href="/runs/{{ run.id }}"><strong>{{ bot_name }}</strong></a>
         <span class="chip st-{{ run.status.value }}">{{ run.status.value | replace("_", " ") }}</span>
@@ -68,13 +68,13 @@
   </section>
 
   <!-- --------------------------------------------------------------------- stale -->
-  <section class="panel col" aria-labelledby="h-stale">
+  <section class="col quiet" aria-labelledby="h-stale">
     <h2 id="h-stale">{{ icon("clock", 18) }} Stale <span class="count {{ 'warn' if home.stale else '' }}">{{ home.stale | length }}</span></h2>
     {% if not home.stale %}
       <div class="empty">{{ icon("check", 26) }}<p>Every scheduled bot is up to date.</p><p class="hint">A bot lands here when its last success is older than its schedule implies.</p></div>
     {% endif %}
     {% for s in home.stale %}
-    <article class="item stale">
+    <article class="row">
       <header><a href="/bots/{{ s.bot.name }}"><strong>{{ s.bot.name }}</strong></a> <span class="chip st-stale">stale</span>
         <span class="muted">last success {{ s.last_success | ago }}</span></header>
       <div class="banner wait">{{ icon("clock", 18) }}<div class="banner-body">

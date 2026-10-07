@@ -4,7 +4,7 @@
 {% from "_wait.html" import wait_banner %}
 {% block title %}Run {{ run.id[4:16] }}{% endblock %}
 {% block content %}
-<div class="page-head">
+<div class="page-head run-head">
   <div>
     <p class="crumb"><a href="/runs">Runs</a> / <a href="/bots/{{ run.bot_name }}">{{ run.bot_name }}</a></p>
     <h1>Run <span class="mono">{{ run.id }}</span></h1>
@@ -38,7 +38,11 @@
 <section class="transcript" id="transcript" aria-label="Transcript"
          data-run-stream="/runs/{{ run.id }}/stream" data-last-seq="{{ last_seq }}"
          data-run-id="{{ run.id }}" data-active="{{ 1 if active else 0 }}" data-gap-url="/runs/{{ run.id }}/events">
-  <div class="bubble user prompt"><div class="bubble-meta">prompt - {{ run.created_at | ago }}</div><div class="bubble-text">{{ run.prompt }}</div></div>
+  <div class="tx-head"><span class="tx-title">{{ icon("list", 14) }} Transcript</span><span class="muted">{{ event_count }} event{{ '' if event_count == 1 else 's' }}</span></div>
+  <div class="turn user prompt">
+    <div class="turn-role">prompt - {{ run.created_at | ago }}</div>
+    <div class="turn-body">{{ run.prompt }}</div>
+  </div>
   <ol class="tx-list" id="tx-list" data-events>
     {{ more(first_seq, hidden, run.id) }}
     {{ events(evs, approvals, run) }}
