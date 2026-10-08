@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
-# Baseline user journeys through the real CLI against a throwaway state directory (mock model, offline).
+# Offline test-fixture journeys through the real CLI against a throwaway state directory.
+# The test scenario runtime is explicitly enabled here and is never a supported app model route.
 # Usage: bash docs/realignment/journeys.sh        (from anywhere; uses the venv of this checkout)
 # Everything that blocks (CLI runs wait for approvals) is backgrounded with output redirected to files.
 set -u
 cd "$(dirname "$0")/../.."
 H=.venv/bin/hutch
 export HUTCH_STATE_DIR=$(mktemp -d "${TMPDIR:-/tmp}/hutch-journeys.XXXX")
+export HUTCH_TESTING=1
 out() { sed -e 's/^/   /'; }
 echo "state: $HUTCH_STATE_DIR"
 
 echo "J1 init";                $H init 2>&1 | tail -4 | out
-echo "J2 create a bot";        $H bot create ledger-bot --description "keeps a ledger" --tools files,memory 2>&1 | tail -2 | out
+echo "J2 create fixture bots"; $H bot create ledger-bot --model mock/test --description "keeps a ledger" --tools files,memory 2>&1 | tail -2 | out
+$H bot create research-briefing --template research-briefing --model mock/test 2>&1 | tail -2 | out
+$H bot create repo-sweeper --template repo-sweeper --model mock/test 2>&1 | tail -2 | out
 
 echo "J3 run that needs approval, approved from a second process"
 $H run research-briefing "summarize this week's AI news" > "$HUTCH_STATE_DIR/j3.out" 2>&1 &

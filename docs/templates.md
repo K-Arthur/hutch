@@ -2,7 +2,7 @@
 
 Templates are starting configurations, not finished integrations or guarantees that a bot can complete every task. They create a bot with its own instructions, tools, policy rules, model preset, and optional schedule. `hutch bot templates` and the web app show the same catalogue.
 
-All templates start with `mock/demo`, so you can try the interface without a provider key or model download. Mock runs exercise Hutch's local flow; they do not perform real research, analyze real files, or verify that a provider works. Choose a configured model before expecting useful work.
+Templates contain task instructions, tool permissions, policy rules and an optional schedule; they do not fabricate a model, run, transcript or result. Choose a configured local or hosted model route when creating the bot. Hutch refuses to start until a real route is selected and available.
 
 Templates marked **needs a folder** expect files or a repository that you choose. Give the bot a working folder when you create it, or set one afterward. Without one, its private workspace starts empty. Review the template's input, outputs, schedule, tools, and policy before connecting it to real data.
 

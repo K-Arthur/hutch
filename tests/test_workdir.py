@@ -239,8 +239,8 @@ def test_api_and_bot_page(tmp_path, monkeypatch):
     d = tmp_path / "data"
     d.mkdir()
     with TestClient(create_app()) as c:
-        assert c.post("/api/bots", json={"name": "wd", "workdir": "/etc"}).status_code == 422
-        r = c.post("/api/bots", json={"name": "wd", "workdir": str(d)})
+        assert c.post("/api/bots", json={"name": "wd", "workdir": "/etc", "model": "mock/demo"}).status_code == 422
+        r = c.post("/api/bots", json={"name": "wd", "workdir": str(d), "model": "mock/demo"})
         assert r.status_code == 201 and r.json()["workdir"] == str(d.resolve())
         assert c.patch("/api/bots/wd", json={"workdir": "/nope/nope"}).status_code == 422
         assert c.patch("/api/bots/wd", json={"workdir": ""}).json()["workdir"] is None

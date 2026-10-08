@@ -23,7 +23,7 @@
         <button class="btn small ghost">{{ icon("play" if b.paused else "pause", 13) }} {{ "Resume" if b.paused else "Pause" }}</button></form></footer>
   </article>
   {% else %}
-  <div class="empty panel">{{ icon("bot", 28) }}<p>No bots yet.</p><p class="hint">Create one from a template, or run <span class="mono">hutch init</span>.</p></div>
+  <div class="empty panel">{{ icon("bot", 28) }}<p>No bots yet.</p><p class="hint">Configure a <a href="/connections">real model route</a>, then create a bot from a template.</p></div>
   {% endfor %}
 </div>
 {% endblock %}

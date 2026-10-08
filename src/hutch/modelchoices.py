@@ -158,11 +158,18 @@ def model_choices(config: Any, store: Any, bot: Bot, hw: Optional[Hardware] = No
     from .estimate import RunEstimator
     est = RunEstimator(config, store, bot)
     choices: list[Choice] = []
-    own_local = is_local(bot.model)
-    own = Choice(spec=bot.model, label=short_label(bot.model), group="This bot", state="ready", default=True,
-                 hosted=not own_local,
-                 note="this bot's own model" if own_local else "this bot's own hosted model route",
-                 detail=[] if own_local else ["this route sends the chat to a hosted model service"])
+    own_local = is_local(bot.model) if bot.model else False
+    retired_fixture = bot.model.startswith("mock/")
+    test_fixture = retired_fixture and os.environ.get("HUTCH_TESTING") == "1"
+    own = Choice(spec=bot.model, label=short_label(bot.model) if bot.model else "Choose a model",
+                 group="This bot", state="ready" if test_fixture else ("setup" if not bot.model or retired_fixture else "ready"),
+                 default=True, hosted=bool(bot.model) and not own_local,
+                 note=("test-only execution fixture" if test_fixture else
+                       "no model route is configured" if not bot.model else
+                       "legacy test route; choose a real model" if retired_fixture else
+                       "this bot's own model" if own_local else "this bot's own hosted model route"),
+                 fix="Choose a configured Ollama, OpenAI, Anthropic, or compatible route" if not test_fixture and (not bot.model or retired_fixture) else "",
+                 detail=[] if own_local or not bot.model else ["this route sends the chat to a hosted model service"])
     choices.append(own)
     seen = {bot.model}
     for c in (_local_choices(bot, hw, provider) + _hosted_choices(bot, book)
@@ -188,15 +195,21 @@ def model_choices(config: Any, store: Any, bot: Bot, hw: Optional[Hardware] = No
 
 def validate_override(config: Any, store: Any, bot: Bot, spec: str, hw: Optional[Hardware] = None) -> str:
     """Return the normalised spec, or raise ``ModelNotUsable`` saying exactly what is wrong and how to fix it."""
-    spec = (spec or "").strip()
+    spec = (spec or bot.model or "").strip()
     if not spec:
-        return ""
+        raise ModelNotUsable("No model route is configured for this bot",
+                             "configure a provider in Connections, then choose its model route", 422)
     if "/" not in spec:
         raise ModelNotUsable(f"'{spec}' is not a model spec", "write it as provider/model, e.g. ollama/qwen3:4b",
                              status=422)
     provider, model = parse_spec(spec)
     if not model:
         raise ModelNotUsable(f"'{spec}' names a provider but no model", "add the model name after the slash", 422)
+    if provider == "mock":
+        if os.environ.get("HUTCH_TESTING") == "1":
+            return spec
+        raise ModelNotUsable("Mock inference is test-only and cannot run user tasks",
+                             "choose a configured Ollama, OpenAI, Anthropic, or compatible model route", 422)
     if bot.inference_mode.value in ("local", "offline") and not is_local(spec):
         label = "Strict offline" if bot.inference_mode.value == "offline" else "Local model routes"
         raise ModelNotUsable(
@@ -211,7 +224,7 @@ def validate_override(config: Any, store: Any, bot: Bot, spec: str, hw: Optional
             validate_offline_route(spec, bot.base_url if provider == parse_spec(bot.model)[0] else None)
         except ValueError as exc:
             raise ModelNotUsable(str(exc), "choose a verified local model route", 409) from None
-    if bot.runtime.value not in ("builtin", "mock"):
+    if bot.runtime.value != "builtin":
         raise ModelNotUsable(f"{bot.name} runs on the {bot.runtime.value} runtime, which chooses its own model",
                              "switch models inside that runtime's own settings", 422)
     cbook = ConnectionBook(config.state_dir)

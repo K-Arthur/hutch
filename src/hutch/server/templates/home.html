@@ -8,7 +8,7 @@
 </div>
 {% if not has_bots %}
 <section class="panel empty">{{ icon("bot", 30) }}<h2>No bots yet</h2>
-  <p>Create one from a template, or run <span class="mono">hutch init</span> to seed three starter bots on the free offline model.</p>
+  <p>Configure a <a href="/connections">real model route</a>, then create a bot from a template. Hutch does not seed sample bots or simulated runs.</p>
   <p><a class="btn primary" href="/bots/new">{{ icon("plus", 15) }} New bot</a></p></section>
 {% endif %}
 <div id="home-lists" data-live="/_home">

@@ -1,6 +1,6 @@
 /* hutch marketing site enhancement layer.
    Progressive only: without this file everything is readable and navigable.
-   Adds: data-js gate, scroll reveals, mobile drawer, tabs and a scripted demo gate. */
+   Adds: data-js gate, scroll reveals, mobile drawer and accessible tabs. */
 (function () {
   "use strict";
   var root = document.documentElement;
@@ -41,7 +41,7 @@
 
   /* ------------------------------------------------------ reveal on scroll */
   revealTargets = document.querySelectorAll(
-    ".proof-head, .proof-figure, .ledger-row, .step, .gate-demo, .runs-grid, .control-grid, .case, .get-grid, .cta-grid"
+    ".proof-head, .proof-figure, .ledger-row, .step, .runs-grid, .control-grid, .case, .get-grid, .cta-grid"
   );
   function revealAllNow() {
     revealTargets.forEach(function (el) { el.classList.add("in"); });
@@ -121,31 +121,5 @@
       });
     });
   });
-
-  /* -------------------------------------------------- scripted gate demo */
-  var card = document.getElementById("gate-card");
-  if (card) {
-    var allow = document.getElementById("gate-allow");
-    var deny = document.getElementById("gate-deny");
-    var reset = document.getElementById("gate-reset");
-    var result = document.getElementById("gate-result");
-    var settle = function (approved) {
-      [allow, deny].forEach(function (b) { b.classList.add("hidden"); b.disabled = true; });
-      reset.classList.remove("hidden"); reset.disabled = false;
-      result.hidden = false;
-      result.classList.toggle("denied", !approved);
-      result.textContent = approved
-        ? "Allowed once (demo) — the real run would continue here and every tool call would land in the transcript. Nothing executed."
-        : "Denied (demo) — the run ends and the reason is recorded. Unanswered requests expire to this same verdict after 10 minutes.";
-    };
-    allow.addEventListener("click", function () { settle(true); });
-    deny.addEventListener("click", function () { settle(false); });
-    reset.addEventListener("click", function () {
-      [allow, deny].forEach(function (b) { b.classList.remove("hidden"); b.disabled = false; });
-      reset.disabled = true;
-      result.hidden = true; result.textContent = "";
-      result.classList.remove("denied");
-    });
-  }
 
 })();

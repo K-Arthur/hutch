@@ -37,31 +37,26 @@ answers, and their limits, are in [docs/safety.md](docs/safety.md).
 ```bash
 cd hutch                       # your source checkout (the repository is private)
 pip install -e .               # from a source checkout; or: uv venv && uv pip install -e ".[dev]"
-hutch init                   # state dir + 3 starter bots (free mock model — no API key)
+hutch init                   # create local state; no bots or runs are fabricated
 hutch serve                  # dashboard → http://127.0.0.1:8787
 ```
 
-Your first run will pause for a human decision — that's the point:
+Configure a real model route in **Connections**, then create a bot with that route. For a local
+Ollama install, for example:
 
 ```bash
-$ hutch run research-briefing "summarize this week's AI news"
-! approval needed: write report.md (281 chars)
-   resolve with: hutch approvals approve apr_…  (or --always to remember)
-$ hutch approvals approve apr_… --always
-✓ run succeeded (steps=4, tokens≈1.4k)
+hutch bot create research-briefing --model ollama/llama3.2 --tools files,web_fetch --approvals ask
+hutch run research-briefing "summarize this week's AI news"
 ```
 
-Then point a bot at a real model:
-
-```bash
-hutch bot update research-briefing --model ollama/llama3.2     # or openai/gpt-4o-mini
-hutch daemon                 # headless: schedules, dispatch, approval expiry
-```
+The run uses the configured model and real tool responses. Review and resolve any approval
+shown by Hutch before the requested action can continue. `hutch daemon` runs schedules and
+approval expiry without the dashboard.
 
 ## Feature highlights
 
 - **Multiple named bots** — own model, tools, schedule, memory, workspace; pause/resume; templates
-- **Model choice, local first** — native Ollama (context size always set), Anthropic, OpenAI, and OpenAI- or Anthropic-compatible endpoints; free offline mock runtime. Tested against recorded fakes; live provider and Ollama runs depend on your setup
+- **Model choice, local first** — native Ollama (context size always set), Anthropic, OpenAI, and OpenAI-compatible endpoints. There is no user-facing mock model or simulated run; live provider and local-model checks depend on your setup
 - **Per-bot model routing** — Hybrid allows local and hosted routes; Local keeps model calls on recognized local routes while tools may still use the network. Experimental Offline is offered only after Linux bubblewrap network/PID-namespace and Unix-socket broker checks pass. It removes browser/web tools and requires contained shell; the separate model service may still use the network.
 - **Switch models from the chat** — a composer menu shows what fits this machine, what it costs and what is missing; per message, never a silent edit of the bot
 - **Subscription plans as connections** — OpenCode Go, Xiaomi MiMo Token Plan or your own endpoint, each with its own key, allowance meter and terms notice
@@ -87,7 +82,7 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 - **Browser (experimental)** — optional Playwright extra and a persistent profile per bot. A run can pause at some detected login
   walls; live handoff in the same session and a pinned browser egress path are unavailable.
 - **External runtimes** — Pi and OpenCode are recognized in old bot configs but disabled before starting a process. Their
-  permission broker, process containment and provider budget path are not ready. Supported execution choices are builtin and offline mock.
+  permission broker, process containment and provider budget path are not ready. Supported production execution uses Hutch's builtin runtime with a configured local or hosted model.
 
 ## Documentation
 
@@ -119,8 +114,8 @@ provider billing and live compatibility remain unverified.
 
 ```bash
 uv venv && uv pip install -e ".[dev]"
-pytest --ignore=tests/e2e   # tests use recorded fakes/mock runtime; tests/e2e needs Playwright browsers
-hutch demo seed && hutch serve   # rich dashboard state for manual testing
+pytest --ignore=tests/e2e   # isolated provider and execution fixtures; tests/e2e needs Playwright browsers
+hutch init && hutch serve   # opens the real empty setup state; no sample activity is seeded
 ```
 
 Python ≥ 3.11. Linux first; macOS/Windows are roadmap items.

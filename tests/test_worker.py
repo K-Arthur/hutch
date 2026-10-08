@@ -26,6 +26,7 @@ from hutch.store import Store
 
 pytestmark = pytest.mark.skipif(not procguard.available(), reason="needs /proc (Linux)")
 SRC = str(Path(__file__).resolve().parents[1] / "src")
+ROOT = str(Path(__file__).resolve().parents[1])
 
 
 @pytest.mark.parametrize("outcome", ["success", "error", "signal"])
@@ -197,6 +198,7 @@ def test_a_worker_that_ignores_stop_is_escalated_to_sigkill(store, config, engin
 
 SUPERVISOR = """
     import sys, time
+    sys.path.insert(0, {root!r})
     sys.path.insert(0, {src!r})
     from hutch.config import get_config
     from hutch.store import Store
@@ -212,7 +214,7 @@ SUPERVISOR = """
 def test_a_worker_outlives_a_dead_supervisor_and_is_adopted_by_the_next(store, config):
     asker(store)
     env = dict(os.environ, HUTCH_STATE_DIR=str(config.state_dir), PYTHONUNBUFFERED="1", HUTCH_LEASE_SECONDS="2")
-    sup = subprocess.Popen([sys.executable, "-I", "-c", textwrap.dedent(SUPERVISOR).format(src=SRC)], env=env,
+    sup = subprocess.Popen([sys.executable, "-I", "-c", textwrap.dedent(SUPERVISOR).format(src=SRC, root=ROOT)], env=env,
                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     worker_pgid = None
     try:

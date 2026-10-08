@@ -13,7 +13,7 @@ from hutch.cli import app as cli_app
 from hutch.engine import Engine
 from hutch.models import Bot, RunStatus
 from hutch.safety import PolicyEngine
-from hutch.templates import CATEGORIES, SEEDED, TEMPLATE_INFO, TEMPLATES, gallery, seed
+from hutch.templates import CATEGORIES, TEMPLATE_INFO, TEMPLATES, gallery
 from hutch.tools import ALL_TOOL_NAMES, expand_tools
 
 runner = CliRunner()
@@ -34,7 +34,7 @@ def test_every_template_is_a_valid_bot(key):
     assert b.name == key == b.template and re.fullmatch(r"[a-z0-9][a-z0-9-]{1,40}", key)
     assert Bot.model_validate(b.model_dump()) == b
     assert i.category in CATEGORIES and i.tagline and i.reads and i.produces and i.safety
-    assert b.preset in PRESETS and b.model == "mock/demo", "templates start on the free offline model"
+    assert b.preset in PRESETS and not b.model, "templates describe tasks but do not choose or simulate a model"
     assert set(expand_tools(b.tools)) <= set(ALL_TOOL_NAMES) | {"browser"}
     assert len(b.instructions) > 150 and b.workdir is None
     if b.schedule:
@@ -94,18 +94,18 @@ def test_gallery_groups_by_category_in_a_stable_order():
     assert sum(len(items) for _, items in g) == len(TEMPLATE_INFO)
 
 
-def test_init_seeds_only_the_original_three(store):
-    assert seed(store) == list(SEEDED) and len(store.list_bots()) == 3
-    assert seed(store) == []
+def test_templates_never_create_seeded_bots_or_fake_model_routes(store):
+    assert not store.list_bots()
+    assert all(not template.model for template in TEMPLATES.values())
 
 
 @pytest.mark.parametrize("key", ALL)
-def test_every_template_runs_end_to_end_on_the_offline_model(key, config, store):
+def test_every_template_exercises_the_governed_tool_pipeline_in_test_fixture(key, config, store):
     engine = Engine(config, store)
     bot = TEMPLATES[key].model_copy(deep=True)
     bot.name = f"t-{key}"[:41]
     bot = store.create_bot(bot)
-    run = engine.run_blocking(bot, "go", rehearsal=True)       # a rehearsal: no approvals, nothing changes
+    run = engine.run_blocking(bot, "go", rehearsal=True)
     assert run.status is RunStatus.succeeded, (key, run.error)
     assert not store.pending_approvals()
 
@@ -115,11 +115,13 @@ def test_cli_lists_templates_by_category_and_warns_when_a_folder_is_needed(tmp_p
     out = runner.invoke(cli_app, ["bot", "templates"]).output
     for needle in ("Sales", "Support", "Analytics", "sales-prospector", "support-triage", "needs a folder"):
         assert needle in out, needle
-    made = runner.invoke(cli_app, ["bot", "create", "mine", "--template", "support-triage"]).output
+    made = runner.invoke(cli_app, ["bot", "create", "mine", "--template", "support-triage",
+                                   "--model", "mock/demo"]).output
     assert "reads files" in made and "--workdir" in made
     d = tmp_path / "tickets-folder"
     d.mkdir()
-    ok = runner.invoke(cli_app, ["bot", "create", "mine2", "--template", "support-triage", "--workdir", str(d)]).output
+    ok = runner.invoke(cli_app, ["bot", "create", "mine2", "--template", "support-triage", "--workdir", str(d),
+                                 "--model", "mock/demo"]).output
     assert "reads files" not in ok
     assert runner.invoke(cli_app, ["bot", "create", "mine3", "--template", "nope"]).exit_code == 1
 
@@ -134,5 +136,5 @@ def test_api_exposes_what_a_gallery_needs(tmp_path, monkeypatch):
         r = rows["sales-prospector"]
         assert r["category"] == "Sales" and r["needs_folder"] and "prospects.txt" in r["reads"] and r["safety"]
         assert rows["pm-standup-digest"]["rules"] and rows["pm-standup-digest"]["schedule"]["cron"] == "0 9 * * 1-5"
-        made = c.post("/api/bots", json={"name": "from-tpl", "template": "meeting-actions"})
+        made = c.post("/api/bots", json={"name": "from-tpl", "template": "meeting-actions", "model": "mock/demo"})
         assert made.status_code == 201 and made.json()["template"] == "meeting-actions"

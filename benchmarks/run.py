@@ -4,7 +4,8 @@
     python -m benchmarks.run --record        # also (over)write the baseline for this machine
     python -m benchmarks.run --check         # compare with the baseline; exit 1 on a >20% regression
 
-Everything is offline (mock model). Numbers are machine-specific: baselines are keyed by
+The execution step uses the repository's test-only scenario fixture; it is a control-path
+measurement and does not measure production model performance. Numbers are machine-specific: baselines are keyed by
 $HUTCH_BENCH_BASELINE (default "local"), so CI records its own on first run and compares afterwards.
 The draft's targets are *proposals*; they are printed next to each metric but only the regression
 gate fails the build.
@@ -91,6 +92,7 @@ def bench_events(state: Path, n: int = 20_000, runs: int = 5) -> dict[str, list[
 
 def bench_step_overhead(state: Path, runs: int = 12) -> dict[str, list[float]]:
     os.environ["HUTCH_STATE_DIR"] = str(state)
+    os.environ["HUTCH_TESTING"] = "1"  # select the source-only test scenario fixture, never a product runtime
     from hutch.config import get_config
     from hutch.engine import Engine
     from hutch.models import ApprovalMode, Bot

@@ -59,10 +59,11 @@ some endpoints marked experimental; no API stability commitment; auth flows are 
 
 ## 5. Decision
 
-**Own thin loop (default) + Pi/OpenCode adapters + mock runtime.** The differentiating work —
+**Own thin loop (default) + Pi/OpenCode adapters; deterministic scenario fixtures stay in tests.** The differentiating work —
 policy, approvals, caps, scheduling correctness, transcripts — is plumbing no framework ships.
-The loop against an OpenAI-compatible client is ~300 auditable lines, testable offline with the
-mock provider, and swappable per bot when an external harness is preferred.
+The loop against an OpenAI-compatible client is ~300 auditable lines. Provider HTTP behavior is
+tested with recorded responses; a source-only scenario fixture exercises the tool and policy
+pipeline offline, and is not an application model route.
 
 ## Uncertainties at decision time
 

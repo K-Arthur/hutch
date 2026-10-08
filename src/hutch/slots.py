@@ -36,7 +36,7 @@ class ModelSlots:
     # ---------------------------------------------------------------- models
 
     def model_of(self, run: Run) -> Optional[str]:
-        """The local model a run will use, or None for hosted / mock runs."""
+        """The local model a run will use, or None for hosted and unavailable legacy routes."""
         bot = self.store.get_bot(run.bot_id)
         if bot is None:
             return None
@@ -64,7 +64,7 @@ class ModelSlots:
         """Prefer resident models, retain starvation priority, never gate an entire run."""
         busy = {m for r in active if r.status in (RunStatus.running, RunStatus.loading_model) and (m := self.model_of(r))}
         wants_local = any(self.model_of(r) for r in pending)
-        resident = (self.loaded() if wants_local else set()) | busy      # no HTTP at all for hosted/mock queues
+        resident = (self.loaded() if wants_local else set()) | busy      # no HTTP at all for hosted queues
         now = utcnow()
 
         def waited(r: Run) -> float:

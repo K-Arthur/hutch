@@ -1,4 +1,4 @@
-"""Capture isolated mock navigation journeys; never reads the operator's state.
+"""Capture isolated deterministic UI-state fixtures; never reads operator state or writes site assets.
 
 PLAYWRIGHT_BROWSERS_PATH=/tmp/hutch-playwright-browsers .venv/bin/python \
   docs/realignment/capture_navigation.py
@@ -22,6 +22,10 @@ from datetime import datetime, timezone
 
 import playwright.sync_api as pw
 import uvicorn
+
+# This source-checkout-only script drives the deterministic scenario fixture.
+# Production launch paths never set this flag and built wheels omit tests/.
+os.environ["HUTCH_TESTING"] = "1"
 
 from hutch.models import ApprovalMode, Bot, Run, RunStatus
 from hutch.approvals import resolve_approval_ex
@@ -175,19 +179,14 @@ def main():
                         page.keyboard.press('Escape')
                     page.unroute('**/api/health')
 
-                # Static-site images are derivatives of sanitized fixture captures, generated locally.
+                # Build local inspection sheets from fixture states. Never copy fixture images to the site.
                 image_python = os.environ.get('HUTCH_IMAGE_PYTHON', sys.executable)
                 image_script = '''
 from PIL import Image, __version__
 from PIL import ImageDraw, ImageFont
 from pathlib import Path
 import sys
-out, root = map(Path, sys.argv[1:])
-for source, target in [('waiting', 'gate'), ('completion', 'transcript'),
-                       ('run-detail', 'run-detail'), ('activity', 'overview')]:
-    with Image.open(out / f'{source}-desktop.png') as im:
-        im.resize((1280, 889), Image.Resampling.LANCZOS).save(
-            root / f'website/assets/captures/proof-{target}.webp', quality=88)
+out = Path(sys.argv[1])
 print(__version__)
 states = ['empty', 'waiting', 'needs-you', 'settings', 'local-routes', 'fleet', 'activity', 'completion',
           'run-detail', 'loading', 'cancelling', 'error', 'reconnecting', 'site']
@@ -205,7 +204,7 @@ for size, viewport in {'desktop': (1440, 1000), 'tablet': (900, 1024), 'phone': 
             sheet.paste(im, (x + 12 + (408 - im.width) // 2, y + 34))
     sheet.save(out / f'{size}-inspection.png')
 '''
-                pillow_version = subprocess.check_output([image_python, '-c', image_script, str(OUT), str(ROOT)], text=True).strip()
+                pillow_version = subprocess.check_output([image_python, '-c', image_script, str(OUT)], text=True).strip()
                 for size, page in pages.items():
                     page.goto(f'http://127.0.0.1:{site.server_port}/')
                     page.locator('main').wait_for()

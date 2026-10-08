@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-10-08T18:48:40.044433+00:00",
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "viewport": [
+    900,
+    1024
+  ],
+  "scenario": "Anonymous marketing page with an actual empty first-run application capture; no localhost credential or provider access",
+  "figure_capture_note": "Inspect the viewport PNG for fixed navigation; an oversized Firefox locator crop includes off-viewport fixed layers.",
+  "page_errors": [],
+  "horizontal_overflow": 0,
+  "source_sha256": {
+    "website/index.html": "2ac59a6ad4b3a558e2bce2f715bb4a62e5278a165eb9dd0904efd9b3ce3281a6",
+    "website/styles.css": "80c6cdb1edf0a80c97b1ce26b0f9c7dc0bd233c37fd1000536c9e8fc8879284c",
+    "website/site.js": "bdbcb486cad0c71bb315d28c1da10cc7a56eafb85d1614a98f0a4a17f84bc9b5",
+    "website/assets/captures/setup-desktop.webp": "404c8a4c0b5ed637a339cb7c1020d49b53a72307ed513ecf9d691656c8405ed3",
+    "website/assets/captures/setup-phone.webp": "8d050f87c2959cb5f9b434ef5bd9f2c0feac71230a493e9cef2a5e43096d5e9a"
+  }
+}

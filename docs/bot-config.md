@@ -18,10 +18,10 @@ dashboard, or the REST API, and live in `hutch.db`.
 | `name` | slug | — | lowercase `[a-z0-9-]`, unique; names the workspace dir too |
 | `description` | str | "" | one-liner shown in dashboards |
 | `instructions` | str | "" | standing system-prompt guidance, prepended every run |
-| `model` | provider/model | `mock/demo` | see model specs below |
+| `model` | provider/model | none | choose a configured real route before creating or running a bot |
 | `inference_mode` | enum | `hybrid` | `hybrid` permits local and hosted routes; `local` restricts model routes to classified local providers while tools may still use the network; experimental `offline` requires fresh host-verified Linux network/PID namespaces, loopback model routes through Hutch's private Unix-socket broker, and strict shell containment when shell is enabled. |
 | `base_url` | str? | null | override endpoint for OpenAI-compatible providers |
-| `runtime` | enum | `builtin` | `builtin` · `mock`; legacy values `pi` and `opencode` are retained but fail closed as unsupported |
+| `runtime` | enum | `builtin` | `builtin`; legacy values `mock`, `pi` and `opencode` are retained for migration but fail closed as unsupported |
 | `tools` | list | `["shell","files","memory"]` | allowlist; groups expand (see below) |
 | `schedule` | obj? | null | `{cron, timezone, catch_up}` — omit for on-demand |
 | `limits` | obj | see below | runtime limits and usage admission budgets |
@@ -59,7 +59,6 @@ Two bots may share a folder; Hutch does not coordinate between them. **Rehearse*
 ## Model specs
 
 ```
-mock/demo                 deterministic offline runtime (tests, demos, first-run)
 openai/gpt-4o-mini        OpenAI API (needs OPENAI_API_KEY)
 ollama/llama3.2           local Ollama  (http://localhost:11434/v1)
 lmstudio/qwen2.5-7b       local LM Studio (http://localhost:1234/v1)
@@ -73,7 +72,9 @@ fixture-tested at the protocol level; it does not establish that a particular en
 use tools or report all usage. `hutch connections test` can check model-list access, but the
 per-connection/model capability probe is not implemented.
 
-Any `mock/*` model routes to the mock runtime regardless of the `runtime` field.
+There is no production mock model route. Existing records that contain `mock/*` remain readable
+for migration and audit, but attempts fail before starting an action with `model_unavailable`.
+The deterministic test scenario runtime lives under `tests/` and is not included in built wheels.
 
 Set the route policy with `hutch bot create helper --model ollama/llama3.2 --inference-mode local`
 or update it with `hutch bot update helper --inference-mode local`. The model must also be an
@@ -88,7 +89,7 @@ On Linux, Hutch runs a fresh bubblewrap network/PID namespace probe: both loopba
 TCP must be unreachable, only namespace processes should appear in `/proc`, and a private Unix socket
 must remain reachable. A per-run Unix-socket broker forwards only to its configured numeric loopback
 model endpoints. systemd user scopes apply memory/task caps, not network filtering. Offline routes
-must use Hutch's builtin/mock runtime and recognized local model providers. Hutch removes browser
+must use Hutch's builtin runtime and recognized local model providers. Hutch removes browser
 and web-fetch tools, blocks hosted overrides/fallbacks, scrubs provider-key/proxy/custom-endpoint
 environment variables, masks saved provider connection/key files from the worker, and requires
 strict bubblewrap containment for shell tools. Thread/in-process execution is refused. See
@@ -176,7 +177,7 @@ hutch bot forget tidy        # archive all facts; revoke sticky allows; history 
 
 ## Templates
 
-Seeded by `hutch init` (`src/hutch/templates.py`):
+Available from `hutch bot templates` (`src/hutch/templates.py`); `hutch init` creates no bots:
 
 - **research-briefing** — weekly web research → `report.md`, dedupes via memory (scheduled Mon 09:00 UTC)
 - **repo-sweeper** — on-demand TODO/FIXME sweep of the workspace repo, reports only

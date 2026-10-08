@@ -71,7 +71,7 @@ ACTIVE_STATUSES = (
 
 class RuntimeKind(str, Enum):
     builtin = "builtin"      # hutch's own agent loop (OpenAI-compatible providers)
-    mock = "mock"            # deterministic offline provider (tests + demos)
+    mock = "mock"            # legacy value; unsupported outside the test harness
     pi = "pi"                # Pi coding agent, driven over RPC stdio
     opencode = "opencode"    # OpenCode, driven via `opencode run`
 
@@ -188,7 +188,7 @@ class Bot(BaseModel):
     name: str                         # slug, unique
     description: str = ""
     instructions: str = ""            # system-prompt level guidance
-    model: str = "mock/demo"          # provider/model spec, e.g. openai/gpt-4o-mini, ollama/llama3.2
+    model: str = ""                   # a configured provider/model route; empty legacy records need setup before use
     base_url: Optional[str] = None    # override for OpenAI-compatible endpoints
     runtime: RuntimeKind = RuntimeKind.builtin
     inference_mode: InferenceMode = InferenceMode.hybrid

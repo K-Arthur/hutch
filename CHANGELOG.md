@@ -69,6 +69,13 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   closure to be retried after it exits. Closing state refuses new buffered events.
 - Stop expires pending approvals in its cancellation transaction; later requests expire immediately
   and stale workers cannot admit a new request.
+- Remove the production mock runtime and `hutch demo seed`; `hutch init` now creates only state,
+  and bot creation requires an actual configured route. Existing mock-route records remain readable
+  for audit but fail before worker/action start with an actionable `model_unavailable` result. The
+  deterministic scenario runtime is test-only and excluded from built wheels. The website now
+  shows an inspected empty first-run capture instead of seeded mock runs or scripted approvals.
+- Check restore execution hold before route validation in CLI/API run requests, so held restored
+  state reports the required review step even when its historical bot has no usable model route.
 
 ### Added
 - **Transactional resource replay:** schema v11 adds content-free invalidations with typed pages/SSE,
@@ -104,8 +111,8 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   Currency checks are estimates and do not guarantee the provider's final bill. Pi/OpenCode remain disabled; live billing is unverified.
 - **Repeatable performance evidence:** the benchmark runner now retains raw repetitions and host/revision/harness metadata; the
   pre-realignment archive and current branch have same-harness captures with a data-quality notebook and explicit sampling limits.
-- **Marketing demo truth:** the scripted hero illustration is labeled “DEMO supervised run,” not “LIVE,” and its accessible name
-  identifies it as a demo preview.
+- **Marketing evidence:** remove seeded mock-run imagery and scripted approval controls; replace the product preview with an
+  inspected capture of the real empty first-run UI and verify it at desktop, tablet and phone widths.
 - **Global transcript replay:** `/api/v1/events` provides bounded cross-run pages and `/api/v1/events/stream` resumes with
   `Last-Event-ID`. A missing or future cursor directs the client to a bounded consistent snapshot and a replay watermark.
 - **Canonical conversation persistence and v1 API (partial):** schema v8 imports each old run into a separate legacy conversation;

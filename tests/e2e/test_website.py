@@ -60,7 +60,9 @@ def test_home_loads_assets_and_truthful_availability(browser, site_url):
     page.goto(site_url, wait_until="networkidle")
     assert page.title().startswith("hutch")
     assert "Your bots." in page.inner_text("h1.hero-title")
-    assert page.locator("#proof .chip.demo").count() == 1
+    assert page.locator("#proof .chip").filter(has_text="Real application").count() == 1
+    assert page.locator("#proof .chip.demo").count() == 0
+    assert page.locator("#gate-card").count() == 0
     assert page.locator("#get").get_by_text("Public access", exact=True).count() == 1
     assert page.locator("#get .get-row").filter(has_text="Experimental").count() == 1
     assert page.locator("#get .get-row").nth(3).locator(".chip").inner_text() == "Unavailable"
@@ -74,6 +76,9 @@ def test_home_loads_assets_and_truthful_availability(browser, site_url):
     assert "private" in text and "no public package" in text
     assert "hard spend cap" not in text and "jailed workspace" not in text
     assert "github.com/k-arthur/hutch" not in page.content().lower()
+    text = text.replace("’", "'")
+    for retired in ("mock/demo", "deterministic mock", "nothing executes", "try the gate"):
+        assert retired not in text, retired
     assert not errors, errors
     context.close()
 
@@ -142,51 +147,40 @@ def test_tabs_support_arrow_home_end_and_ignore_unrelated_keys(browser, site_url
     context.close()
 
 
-def test_scripted_approval_demo_is_explicit_and_non_executing(browser, site_url):
-    context, page, errors = _page(browser)
-    page.goto(site_url, wait_until="networkidle")
-    page.click("#gate-allow")
-    result = page.inner_text("#gate-result")
-    assert "Allowed once (demo)" in result and "Nothing executed" in result
-    assert page.locator("#gate-reset").is_visible()
-    page.click("#gate-reset")
-    assert page.locator("#gate-result").is_hidden()
-    assert not errors, errors
-    context.close()
-
-
 @pytest.mark.parametrize('width,height,size',[(1440,1000,'desktop'),(900,1024,'tablet'),(390,844,'phone')])
-def test_receipt_proof_is_labelled_and_fits_anonymous_viewports(browser, site_url, width, height, size):
+def test_real_setup_capture_is_truthful_and_fits_anonymous_viewports(browser, site_url, width, height, size):
     import hashlib
     import json
     from hutch.models import iso, utcnow
     context, page, errors = _page(browser,width=width,height=height)
-    out = SITE_DIR.parent/'docs/realignment/artifacts/action-receipts'
+    out = SITE_DIR.parent/'docs/realignment/artifacts/no-mock-setup/site'
     out.mkdir(parents=True,exist_ok=True)
     try:
         page.goto(site_url,wait_until='networkidle')
-        image = page.locator('img[src="assets/captures/proof-receipt.webp"]')
+        image = page.locator('img[src="assets/captures/setup-desktop.webp"]')
         image.evaluate("img=>{img.loading='eager';return img.decode()}")
         figure = image.locator('xpath=ancestor::figure')
         assert image.evaluate('img=>img.naturalWidth') == (390 if width <= 640 else 1440)
-        assert 'Synthetic missing receipt' in figure.inner_text()
-        assert 'human report' in figure.inner_text()
-        assert 'not live-provider or physical-phone verification' in figure.inner_text()
-        figure.screenshot(path=str(out/f'site-{size}.png'),animations='disabled')
-        # An oversized locator crop in Firefox can include fixed layers from
-        # outside the physical viewport. Preserve the actual viewport too.
+        assert 'Real application' in figure.inner_text()
+        assert 'state directory contained no bots' in figure.inner_text()
+        assert 'no bot is running' in figure.inner_text()
+        assert page.locator('#gate-card').count() == 0
+        page.evaluate('window.scrollTo(0, 0)')
+        page.screenshot(path=str(out/f'site-{size}.png'),animations='disabled',full_page=True)
+        # Preserve the physical viewport separately; fixed navigation should appear only once
+        # in the full-page view and must not be stitched across the proof figure.
         assert page.locator('.skip-link').evaluate('e=>e.getBoundingClientRect().bottom <= 0')
         page.screenshot(path=str(out/f'site-{size}-viewport.png'),animations='disabled')
         overflow = page.evaluate('document.documentElement.scrollWidth-innerWidth')
         assert overflow <= 1 and not errors
         (out/f'site-{size}.json').write_text(json.dumps({
             'captured_at':iso(utcnow()),'browser':browser.browser_type.name,'version':browser.version,'viewport':[width,height],
-            'scenario':'Anonymous marketing figure; synthetic missing receipt screenshot; no localhost credentials or provider access',
+            'scenario':'Anonymous marketing page with an actual empty first-run application capture; no localhost credential or provider access',
             'figure_capture_note':'Inspect the viewport PNG for fixed navigation; an oversized Firefox locator crop includes off-viewport fixed layers.',
             'page_errors':errors,'horizontal_overflow':overflow,
             'source_sha256':{str(p.relative_to(SITE_DIR.parent)):hashlib.sha256(p.read_bytes()).hexdigest() for p in
-                              (SITE_DIR/'index.html',SITE_DIR/'styles.css',SITE_DIR/'assets/captures/proof-receipt.webp',
-                               SITE_DIR/'assets/captures/proof-receipt-phone.webp')},
+                              (SITE_DIR/'index.html',SITE_DIR/'styles.css',SITE_DIR/'site.js',
+                               SITE_DIR/'assets/captures/setup-desktop.webp',SITE_DIR/'assets/captures/setup-phone.webp')},
         },indent=2)+'\n')
     finally:
         context.close()

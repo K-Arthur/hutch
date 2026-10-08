@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Optional
 
 STALE_DAYS = 90
-LOCAL_PROVIDERS = {"ollama", "lmstudio", "llamacpp", "llama.cpp", "vllm", "mock"}
+LOCAL_PROVIDERS = {"ollama", "lmstudio", "llamacpp", "llama.cpp", "vllm"}
 _OLLAMA_CLOUD_TAG = re.compile(r"(?:^|[:_-])cloud(?:$|[-_.])", re.IGNORECASE)
 
 

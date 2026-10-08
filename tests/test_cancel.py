@@ -24,11 +24,12 @@ from hutch.runtime.steps import call_tool
 from hutch.store import Store
 
 SRC = str(Path(__file__).resolve().parents[1] / "src")
+ROOT = str(Path(__file__).resolve().parents[1])
 
 
 def spawn(config, code: str) -> subprocess.Popen:
     env = dict(os.environ, HUTCH_STATE_DIR=str(config.state_dir), PYTHONUNBUFFERED="1")
-    prelude = f"import sys; sys.path.insert(0, {SRC!r})\n"
+    prelude = f"import sys; sys.path.insert(0, {ROOT!r}); sys.path.insert(0, {SRC!r})\n"
     return subprocess.Popen([sys.executable, "-I", "-c", prelude + textwrap.dedent(code)], env=env,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
@@ -116,10 +117,10 @@ def test_stop_all_from_a_cli_process_reaches_a_run_owned_by_the_daemon(store, co
 
 def test_a_worker_that_lost_its_lease_is_fenced_and_cannot_change_the_outcome(store, config, monkeypatch):
     """A suspended laptop: the heartbeat stops, another process recovers the run, then the old worker wakes up."""
-    import hutch.runtime.mock as mock_mod
+    import tests.support.runtime as mock_mod
     bot = store.create_bot(Bot(name="sleeper", model="mock/demo", tools=["files"], approval_mode=ApprovalMode.auto))
     release, entered, outcome = threading.Event(), threading.Event(), {}
-    orig = mock_mod.MockRuntime.execute
+    orig = mock_mod.TestScenarioRuntime.execute
 
     def slow(self, run, ctx, tools, stop):
         entered.set()
@@ -131,7 +132,7 @@ def test_a_worker_that_lost_its_lease_is_fenced_and_cannot_change_the_outcome(st
             outcome["raised"] = type(exc).__name__
         return orig(self, run, ctx, tools, stop)
 
-    monkeypatch.setattr(mock_mod.MockRuntime, "execute", slow)
+    monkeypatch.setattr(mock_mod.TestScenarioRuntime, "execute", slow)
     owner = Engine(config, store, lease_seconds=30)
     run = owner.submit(bot, "write a file")
     owner.dispatch_pending()
@@ -162,7 +163,7 @@ def test_a_worker_that_lost_its_lease_is_fenced_and_cannot_change_the_outcome(st
 def test_a_stopped_run_stays_cancelling_until_its_worker_unwinds(store, config, monkeypatch):
     """A thread cannot be killed safely, so cancellation stays visible until it exits and cannot write after terminal status."""
     import hutch.engine as engine_mod
-    import hutch.runtime.mock as mock_mod
+    import tests.support.runtime as mock_mod
     monkeypatch.setattr(engine_mod, "CANCEL_GRACE_SECONDS", 0.3)
     bot = store.create_bot(Bot(name="stuck", model="mock/demo", tools=["files"], approval_mode=ApprovalMode.auto))
     release, entered = threading.Event(), threading.Event()
@@ -174,7 +175,7 @@ def test_a_stopped_run_stays_cancelling_until_its_worker_unwinds(store, config, 
         late["tool"] = call_tool(run, ctx, tools, "write_file", {"path": "after.txt", "content": "x"})
         return "late"
 
-    monkeypatch.setattr(mock_mod.MockRuntime, "execute", stuck)
+    monkeypatch.setattr(mock_mod.TestScenarioRuntime, "execute", stuck)
     engine = Engine(config, store)
     run = engine.submit(bot, "hang")
     engine.dispatch_pending()
@@ -202,13 +203,13 @@ CRASH_SCRIPT = """
     from hutch.config import get_config
     from hutch.store import Store
     from hutch.engine import Engine
-    import hutch.runtime.mock as mock_mod
+    import tests.support.runtime as mock_mod
     from hutch.runtime.steps import call_tool
     def execute(self, run, ctx, tools, stop):
         # the effect: append to a log inside the bot's own folder, then keep working (so we can be killed mid-action)
         call_tool(run, ctx, tools, "shell", {"command": "echo hit >> effects.log && sleep 60"})
         return "never reached"
-    mock_mod.MockRuntime.execute = execute
+    mock_mod.TestScenarioRuntime.execute = execute
     cfg = get_config(); st = Store(cfg); eng = Engine(cfg, st, lease_seconds=2)
     bot = st.get_bot("deployer")
     run = eng.submit(bot, "deploy")

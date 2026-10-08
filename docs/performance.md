@@ -6,7 +6,8 @@ Hutch stays in Python. Model latency dominates every step, so the gains that mat
 next to each result.
 
 **Measured on:** AMD Ryzen 3 5300U (4C/8T), 22 GiB RAM, no GPU, Linux, Python 3.13.15,
-2026-10-07, offline mock model, a busy desktop (a second coding agent was running).
+2026-10-07, test-only deterministic scenario fixture, a busy desktop (a second coding agent was running). This fixture measures
+Hutch control-path overhead only; it is not a product model route and does not verify real inference latency or quality.
 
 Reproduce: `python -m benchmarks.run` (print), `--record` (new baseline), `--check` (exit 1 on a
 > 20% regression). Baselines live in `benchmarks/baselines/<name>.json`, keyed by
@@ -21,7 +22,7 @@ GitHub from the development machine**).
 | `hutch status` wall time | PF-6 | < 300 ms | **275 ms** | min of 11 cold-process runs |
 | `hutch version` wall time | PF-6 | — | **255 ms** | |
 | Event inserts per second | PF-7 | 1,000 sustained | **~52,000** | append + group-commit + flush, 20k events × 3 |
-| Hutch overhead per step | PF-11 | < 50 ms | **0.25 ms** | mock runtime; the real builtin runtime adds JSON parsing only |
+| Hutch overhead per step | PF-11 | < 50 ms | **0.25 ms** | deterministic test fixture; do not infer production inference or tool latency from this value |
 | Idle daemon resident memory | PF-13 | < 150 MB | **39 MB** | `hutch daemon`, no browser, no model |
 | Idle `hutch serve` resident memory | PF-13 | < 150 MB | **56 MB** | FastAPI + uvicorn |
 | Idle daemon CPU | PF-5 | near zero | **0.0 s/hour** | below one 10 ms clock tick over an 8 s window |
@@ -60,6 +61,6 @@ wake per five minutes the cost is unmeasurable above.
   gate uses a 20% tolerance plus absolute floors so a single clock tick cannot fail the build.
 - `events_per_sec` measures the store, not the dashboard. UI-9's "run page usable at 10,000
   events" is tested separately (pagination + coalesced SSE) in the Phase 2 tests.
-- The idle-memory numbers are for an empty state directory plus the three seeded template bots.
+- The idle-memory numbers are for an empty state directory. Current `hutch init` creates no bots or sample activity.
 - PF-1 (cached-token share) and PF-4/PF-10 (compaction, router residency) are model-layer items and
   are measured in the model-layer phases, not here.

@@ -30,7 +30,8 @@ def register_usage_page(app: FastAPI, page: Callable) -> None:
         by_model = store.usage_by("model", days)
         for r in by_model:
             provider = r["key"].partition("/")[0]
-            r["billing"] = ("local" if provider in ("ollama", "lmstudio", "llamacpp", "llama.cpp", "vllm", "mock")
+            r["billing"] = ("legacy test fixture" if provider == "mock"
+                            else "local" if provider in ("ollama", "lmstudio", "llamacpp", "llama.cpp", "vllm")
                             else "flat plan" if provider in flat else "per token")
         by_bot = []
         for r in store.usage_by("bot", days):

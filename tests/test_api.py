@@ -59,6 +59,15 @@ def test_bot_crud_and_validation(client):
     assert client.get("/api/bots/api-bot").status_code == 404
 
 
+def test_bot_create_requires_a_real_route_outside_the_test_harness(client, monkeypatch):
+    monkeypatch.delenv("HUTCH_TESTING", raising=False)
+    missing = client.post("/api/bots", json={"name": "unconfigured"})
+    assert missing.status_code == 422 and "No model route is configured" in missing.json()["detail"]
+    retired = client.post("/api/bots", json={"name": "legacy-mock", "model": "mock/demo"})
+    assert retired.status_code == 422 and "test-only" in retired.json()["detail"]
+    assert client.get("/api/bots").json() == []
+
+
 def test_bot_limits_are_editable_and_validated(client):
     make_bot(client)
     saved = client.patch("/api/bots/api-bot", json={"limits": {

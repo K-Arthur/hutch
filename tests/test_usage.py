@@ -79,6 +79,7 @@ def test_spend_today_is_included(config, store):
 
 def test_cli_estimate_and_api(tmp_path, monkeypatch):
     monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     assert runner.invoke(cli_app, ["bot", "create", "est", "--model", "anthropic/claude-haiku-4-5"]).exit_code == 0
     out = runner.invoke(cli_app, ["bot", "estimate", "est"]).output
     assert "Estimated at $" in out and "claude-haiku-4-5" in out

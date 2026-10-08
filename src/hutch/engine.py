@@ -161,6 +161,12 @@ class Engine:
         return started
 
     def _start_worker(self, bot: Bot, run: Run) -> bool:
+        try:
+            target = bot.model_copy(update={"model": run.model_override}) if run.model_override else bot
+            get_runtime(target)
+        except RuntimeError as exc:
+            self._fail_unavailable_runtime(run, str(exc))
+            return False
         offline = bot.inference_mode.value == "offline"
         if offline:
             from .providers.registry import validate_offline_bot
@@ -199,6 +205,15 @@ class Engine:
             self.store.transition_run(
                 run.id, RunStatus.failed, fence=run.fence, exit_reason="offline_unavailable", error=reason,
                 event={"reason": "offline_unavailable", "error": reason}, cancel_wins=True)
+        except (IllegalTransition, LeaseLost, KeyError):
+            pass
+
+    def _fail_unavailable_runtime(self, run: Run, reason: str) -> None:
+        """Do not start legacy mock or unconfigured bots; preserve the actionable failure on the run."""
+        try:
+            self.store.transition_run(
+                run.id, RunStatus.failed, fence=run.fence, exit_reason="model_unavailable", error=reason,
+                event={"reason": "model_unavailable", "error": reason}, cancel_wins=True)
         except (IllegalTransition, LeaseLost, KeyError):
             pass
 
@@ -396,6 +411,11 @@ class Engine:
     # ------------------------------------------------------------ execution
 
     def _execute(self, bot: Bot, run: Run, cancel: threading.Event) -> None:
+        try:
+            runtime = get_runtime(bot)
+        except RuntimeError as exc:
+            self._fail_unavailable_runtime(run, str(exc))
+            return
         run_dir = self.config.run_dir(bot.name, run.id)
         workdir_error = check_workdir_at_run(bot.workdir, self.config.state_dir)
         if bot.workdir:
@@ -440,7 +460,6 @@ class Engine:
         # remember every process this run starts, so a supervisor that did not spawn it can still end it after a crash
         ctx.procs.on_register = lambda pid, pgid, st, kind, boot: self.store.add_proc(run.id, pid, pgid, st, kind, boot)
         tools = build_tools(bot.tools, ctx)
-        runtime = get_runtime(bot)
         deadline = time.monotonic() + bot.limits.timeout_seconds
         emit(Event(run_id=run.id, type=EventType.log,
                    data={"runtime": runtime.kind, "model": bot.model,

@@ -7,7 +7,8 @@ import pytest
 
 from hutch.approvals import ApprovalGate, resolve_approval
 from hutch.models import ApprovalMode, Bot, Event, EventType, Run, RunStatus
-from hutch.runtime import MockRuntime, OpenCodeRuntime, PiRuntime, RunAborted, get_runtime, BuiltinRuntime
+from tests.support.runtime import TestScenarioRuntime
+from hutch.runtime import OpenCodeRuntime, PiRuntime, RunAborted, get_runtime, BuiltinRuntime
 from hutch.safety import PolicyEngine
 from hutch.tools import build_tools
 from hutch.tools.base import ToolContext
@@ -34,16 +35,24 @@ def make_ctx(store, config, tmp_path, approval_mode=ApprovalMode.auto, tools=("s
 
 
 def test_get_runtime_dispatch():
-    assert get_runtime(Bot(name="a", model="mock/demo")).kind == "mock"
+    assert get_runtime(Bot(name="a", model="mock/demo")).kind == "test-scenario"
     assert get_runtime(Bot(name="b", runtime="pi")).kind == "pi"
     assert get_runtime(Bot(name="c", runtime="opencode")).kind == "opencode"
     assert get_runtime(Bot(name="d", model="openai/gpt-4o-mini")).kind == "builtin"
 
 
-def test_mock_runtime_end_to_end(store, config, tmp_path):
+def test_mock_and_unconfigured_routes_are_not_available_outside_the_test_harness(monkeypatch):
+    from hutch.runtime import RuntimeUnavailable
+    monkeypatch.delenv("HUTCH_TESTING", raising=False)
+    for bot in (Bot(name="legacy-mock", model="mock/demo"), Bot(name="unconfigured")):
+        with pytest.raises(RuntimeUnavailable):
+            get_runtime(bot)
+
+
+def test_test_scenario_runtime_exercises_real_tool_authority(store, config, tmp_path):
     ctx, run, emitted = make_ctx(store, config, tmp_path)
     tools = build_tools(ctx.bot.tools, ctx)
-    final = MockRuntime().execute(run, ctx, tools, stop=lambda: False)
+    final = TestScenarioRuntime().execute(run, ctx, tools, stop=lambda: False)
 
     assert (ctx.workspace / "report.md").exists()
     # This summary is a demo of the real tool layer, while its saved reference
@@ -57,7 +66,7 @@ def test_mock_runtime_end_to_end(store, config, tmp_path):
     assert run.steps >= 3
 
 
-def test_mock_runtime_ask_mode_pauses_for_approval(store, config, tmp_path):
+def test_test_scenario_runtime_ask_mode_pauses_for_approval(store, config, tmp_path):
     ctx, run, _ = make_ctx(store, config, tmp_path, approval_mode=ApprovalMode.ask)
     # This direct runtime fixture has no supervisor to claim its run. Put its
     # unowned fixture row into the same running state a claimed worker uses.
@@ -79,7 +88,7 @@ def test_mock_runtime_ask_mode_pauses_for_approval(store, config, tmp_path):
     t = threading.Thread(target=auto_approver)
     t.start()
     try:
-        final = MockRuntime().execute(run, ctx, tools, stop=lambda: False)
+        final = TestScenarioRuntime().execute(run, ctx, tools, stop=lambda: False)
     finally:
         stop_approver.set()
         t.join(timeout=2)
@@ -93,7 +102,7 @@ def test_mock_runtime_stop_requested(store, config, tmp_path):
     ctx, run, _ = make_ctx(store, config, tmp_path)
     tools = build_tools(ctx.bot.tools, ctx)
     with pytest.raises(RunAborted) as exc:
-        MockRuntime().execute(run, ctx, tools, stop=lambda: True)
+        TestScenarioRuntime().execute(run, ctx, tools, stop=lambda: True)
     assert exc.value.reason == "stopped"
 
 

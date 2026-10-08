@@ -643,7 +643,8 @@ async function renderChatStudio(preferredBot = null) {
     view.innerHTML = `<div class="page-scroll"><div class="container"><div class="empty-state">
       ${icon("bot", "icon-lg")}
       <p><b>No bots yet.</b></p>
-      <p class="hint">Create your first bot and it will live here. Nothing leaves your machine unless a bot's model is hosted.</p>
+      <p class="hint">Choose a real model route when you create a bot. Configure a hosted connection or start a local model first; Hutch will not create sample bots or simulate a run.</p>
+      <a class="btn ghost" href="#/connections">Configure a model connection</a>
       <button class="btn primary" id="btn-create-first">Create a bot</button>
     </div></div></div>`;
     $("#btn-create-first")?.addEventListener("click", promptNewBot);
@@ -2695,8 +2696,8 @@ async function promptNewBot() {
       <p class="hint" id="tpl-note">Blank bots start with no tools — you wire what they can do.</p>
       <div class="form-grid row2">
         <label class="field">Model
-          <input type="text" name="model" value="mock/demo" required>
-          <span class="hint">mock/demo · openai/gpt-4o-mini · ollama/llama3.2</span>
+          <input type="text" name="model" placeholder="provider/model" required>
+          <span class="hint">Use a configured route, such as openai/gpt-4o-mini or an installed ollama model. Model names are validated before a run.</span>
         </label>
         <label class="field">Schedule (cron, optional)
           <input type="text" name="cron" placeholder="0 9 * * 1">

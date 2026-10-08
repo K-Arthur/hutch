@@ -66,7 +66,7 @@
   <form method="post" action="/bots/{{ bot.name }}/update" class="settings">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <label class="field"><span>Description</span><input type="text" name="description" value="{{ bot.description }}"></label>
-    <label class="field"><span>Model</span><input type="text" name="model" value="{{ bot.model }}"><small>mock/demo - ollama/llama3.2 - openai/gpt-4o-mini</small></label>
+    <label class="field"><span>Model route</span><input type="text" name="model" value="{{ bot.model }}" required><small>Choose a configured Ollama, OpenAI, Anthropic, or compatible route.</small></label>
     <label class="field"><span>Schedule (cron, blank = on demand)</span><input type="text" name="cron" value="{{ bot.schedule.cron if bot.schedule else '' }}" placeholder="0 9 * * 1"></label>
     <label class="field"><span>Schedule time zone</span><input type="text" name="timezone" value="{{ bot.schedule.timezone if bot.schedule else 'UTC' }}"></label>
     <label class="field"><span>Approvals</span><select name="approval_mode"><option value="ask" {{ 'selected' if bot.approval_mode.value == 'ask' }}>ask - pause for risky actions</option><option value="auto" {{ 'selected' if bot.approval_mode.value == 'auto' }}>auto - only the deny-list stops it</option></select></label>

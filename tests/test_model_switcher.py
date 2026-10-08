@@ -110,7 +110,7 @@ def test_api_requires_local_primary_when_local_mode_is_selected(env):
     bad_override = env.post("/api/bots/local-bot/run", json={"prompt": "hello",
                                                             "model": "ollama/qwen3-coder:480b-cloud"})
     assert bad_override.status_code == 409 and "Local model routes" in bad_override.json()["detail"]
-    good_patch = env.patch("/api/bots/local-bot", json={"model": "mock/demo"})
+    good_patch = env.patch("/api/bots/local-bot", json={"model": "ollama/another-local:3b"})
     assert good_patch.status_code == 200
 
 
@@ -222,5 +222,5 @@ def test_a_bot_on_another_runtime_cannot_be_overridden(env):
 
 def test_validate_override_returns_empty_for_no_choice(env):
     bot = mkbot(env)
-    assert validate_override(env.config, env.store, bot, "") == ""
+    assert validate_override(env.config, env.store, bot, "") == bot.model
     assert validate_override(env.config, env.store, bot, "ollama/anything:1b") == "ollama/anything:1b"

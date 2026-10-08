@@ -92,7 +92,7 @@ while Hutch is running.
 Capacity is held per model call, then released before tools, approvals or human waits. Each
 later turn re-enters the FIFO queue. The dispatcher prefers already resident models and gives
 older runs priority after fifteen minutes, but that preference grants no inference capacity.
-The retired `HUTCH_MODEL_SLOTS` setting cannot widen this limit. Hosted and mock calls bypass
+The retired `HUTCH_MODEL_SLOTS` setting cannot widen this limit. Hosted calls bypass
 this local admission queue. It does not control unrelated clients or prove that an external
 server has stopped working after a Hutch process dies.
 

@@ -2,13 +2,14 @@
 
     python docs/realignment/bench_worker.py [repeats]
 
-Offline (mock model). 'dispatch->terminal' is wall time from dispatch_pending() to the run being terminal for a run that does 4 tool
+Test-only deterministic scenario fixture. 'dispatch->terminal' is wall time from dispatch_pending() to the run being terminal for a run that does 4 tool
 steps; 'worker RSS' is the worker's resident set while it waits on an approval (the common long-lived state).
 """
 import os, re, statistics, sys, tempfile, time
 from pathlib import Path
 state = tempfile.mkdtemp(prefix="bench-worker-")
 os.environ["HUTCH_STATE_DIR"] = state
+os.environ["HUTCH_TESTING"] = "1"  # this benchmark lives in the source checkout and is not a product run
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from hutch.config import get_config
 from hutch.engine import Engine

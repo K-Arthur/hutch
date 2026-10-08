@@ -1,7 +1,7 @@
 """Model specs -> providers.
 
 A spec is ``provider/model``:  ollama/llama3.2 - anthropic/claude-opus-5-5 - openai/gpt-4o-mini -
-lmstudio/qwen2.5-7b - llamacpp/<name> - openai-compatible/<name> (base_url required) - mock/demo.
+lmstudio/qwen2.5-7b - llamacpp/<name> - openai-compatible/<name> (base_url required).
 
 Routing rule that matters (LM-1): an ``openai-compatible`` URL that is really an Ollama server is sent to the
 NATIVE Ollama provider, because Ollama's ``/v1`` endpoint cannot set the context size and silently truncates.
@@ -107,10 +107,6 @@ def loopback_endpoint(provider: str, url: Optional[str] = None) -> str:
     accepting arbitrary names would make the decision depend on DNS at request
     time. ``localhost`` is rewritten to its numeric IPv4 loopback address.
     """
-    if provider == "mock":
-        if url:
-            raise ValueError("mock inference does not accept a network endpoint in strict offline mode")
-        return ""
     endpoint = url or _OFFLINE_DEFAULTS.get(provider)
     if not endpoint:
         raise ValueError(f"{provider} needs an explicit loopback endpoint in strict offline mode")
@@ -176,8 +172,8 @@ def validate_offline_bot(bot, *, model_override: str = "", check_host: bool = Tr
     """Validate persisted routing, runtime, shell and endpoint settings before an Offline run starts."""
     if getattr(getattr(bot, "inference_mode", None), "value", getattr(bot, "inference_mode", "")) != "offline":
         return
-    if getattr(getattr(bot, "runtime", None), "value", getattr(bot, "runtime", "")) not in ("builtin", "mock"):
-        raise ValueError("Strict offline supports only Hutch's built-in and mock runtimes")
+    if getattr(getattr(bot, "runtime", None), "value", getattr(bot, "runtime", "")) != "builtin":
+        raise ValueError("Strict offline supports only Hutch's built-in runtime")
     offline_endpoints_for_bot(bot, model_override=model_override)
     from ..tools import expand_tools
     has_shell = "shell" in expand_tools(bot.tools)
@@ -225,4 +221,4 @@ def make_provider(provider: str, base_url: Optional[str] = None, env: Optional[d
         key, hint = ambient_key("openai", url, env) if provider == "openai" else ("", "")
         return OpenAICompatProvider(url, key, provider_name=provider, auth_hint=hint)
     raise ProviderError("bad_request", f"unknown provider '{provider}' (try ollama, anthropic, openai, lmstudio, "
-                                       "llamacpp, openai-compatible, mock)", provider=provider)
+                                       "llamacpp, openai-compatible)", provider=provider)

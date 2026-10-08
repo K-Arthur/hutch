@@ -5,9 +5,8 @@ coworkers for everyday jobs. Hutch's templates are the same idea, built from wha
 yours, web fetch, memory, a policy-gated shell, and no way to send anything on its own. That last point is deliberate and is
 stated on every template that touches people (sales, support): they *draft*, a person sends.
 
-Every template defaults to the free, offline mock model, so it can be tried without a key or a download; switch `--model`
-(or pick a task preset on the Models page) when you are ready for real work. Templates that read files say so: a bot with
-no working folder starts with an empty workspace and has nothing to look at.
+Templates describe a bot's task and tools. They do not choose or simulate a model: select a real configured route when
+creating the bot. Templates that read files say so: a bot with no working folder starts with an empty workspace.
 
 ``TEMPLATES`` (name -> Bot) is what the rest of the code uses; ``TEMPLATE_INFO`` adds what a gallery needs to show.
 """
@@ -42,7 +41,7 @@ _T: list[TemplateInfo] = []
 
 
 def _add(key: str, category: str, tagline: str, reads: str, produces: str, safety: str, needs_folder: bool, **bot) -> None:
-    bot.setdefault("model", "mock/demo")
+    bot.setdefault("model", "")
     bot.setdefault("description", tagline)
     _T.append(TemplateInfo(key, category, tagline, reads, produces, safety, needs_folder,
                            Bot(name=key, template=key, **bot)))
@@ -202,9 +201,6 @@ TEMPLATE_INFO: dict[str, TemplateInfo] = {t.key: t for t in _T}
 #: name -> a ready-to-copy Bot (what the CLI, API and dashboard create from)
 TEMPLATES: dict[str, Bot] = {t.key: t.bot for t in _T}
 
-#: seeded by `hutch init`; the rest are one command away
-SEEDED = ("research-briefing", "repo-sweeper", "tidy-downloads")
-
 CATEGORIES = ["Research", "Sales", "Product", "Marketing", "Analytics", "Support", "Operations", "Monitoring",
               "Engineering", "Personal"]
 
@@ -217,14 +213,3 @@ def gallery() -> list[tuple[str, list[TemplateInfo]]]:
         if items:
             out.append((cat, items))
     return out
-
-
-def seed(store) -> list[str]:
-    """Create any missing starter bots (the original three). Returns names created."""
-    created = []
-    for key in SEEDED:
-        tpl = TEMPLATES[key]
-        if store.get_bot(tpl.name) is None:
-            store.create_bot(tpl.model_copy(deep=True))
-            created.append(tpl.name)
-    return created

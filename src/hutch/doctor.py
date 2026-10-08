@@ -173,12 +173,16 @@ def run_doctor(config: Any, store: Any, hw: Any = None, deep: bool = False, onli
 
     # ---- bot hygiene
     for b in bots:
+        if not b.model or b.model.partition("/")[0].lower() == "mock":
+            add(f"model-route:{b.name}", f"{b.name}: no production model route", FAIL,
+                "this legacy or unconfigured route cannot execute a real model-backed run",
+                "configure a real model route in Connections, then update or recreate this bot")
         if b.approval_mode.value == "auto" and "shell" in b.tools:
             add(f"auto-shell:{b.name}", f"{b.name}: auto approvals with a shell", WARN,
                 "medium-risk shell commands run without asking (secrets, sudo and exfiltration stay blocked)",
                 "use ask mode, or add per-command rules")
         lim = b.limits
-        if not b.model.startswith(("mock/", "ollama/")) and not (lim.max_cost_usd or lim.daily_cost_cap_usd) \
+        if not b.model.startswith(("ollama/",)) and not (lim.max_cost_usd or lim.daily_cost_cap_usd) \
                 and (b.model.split("/", 1)[0] in ("anthropic", "openai")):
             add(f"nocap:{b.name}", f"{b.name}: hosted model with no Hutch currency estimate limit", WARN,
                 f"{b.model} has no Hutch currency admission limit", "set max_cost_usd and daily_cost_cap_usd on the bot")

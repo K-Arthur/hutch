@@ -8,7 +8,7 @@ import pytest
 
 from hutch.config import get_config
 from hutch.engine import Engine, bot_prompt_for_schedule
-from hutch.models import ApprovalMode, Bot, CatchUpPolicy, RunStatus, Schedule
+from hutch.models import ApprovalMode, Bot, CatchUpPolicy, EventType, RunStatus, Schedule
 from hutch.store import Store
 
 
@@ -130,15 +130,15 @@ def test_per_bot_single_instance(store, config):
     bot = store.create_bot(mock_bot(name="solo"))
     release = threading.Event()
 
-    # slow runtime: patch MockRuntime to block until released
-    import hutch.runtime.mock as mock_mod
-    orig = mock_mod.MockRuntime.execute
+    # slow test scenario runtime: block until the test releases it
+    import tests.support.runtime as mock_mod
+    orig = mock_mod.TestScenarioRuntime.execute
 
     def slow_execute(self, run, ctx, tools, stop):
         release.wait(timeout=10)
         return orig(self, run, ctx, tools, stop)
 
-    mock_mod.MockRuntime.execute = slow_execute
+    mock_mod.TestScenarioRuntime.execute = slow_execute
     try:
         engine = Engine(config, store)
         r1 = engine.submit(bot, "first")
@@ -161,7 +161,7 @@ def test_per_bot_single_instance(store, config):
         time.sleep(0.5)
         assert store.get_run(r2.id).status is not RunStatus.pending
     finally:
-        mock_mod.MockRuntime.execute = orig
+        mock_mod.TestScenarioRuntime.execute = orig
         release.set()
 
 
@@ -172,15 +172,15 @@ def test_timeout_kills_run(store, config):
     bot.limits = Limits(timeout_seconds=2)
     store.upsert_bot(bot)
 
-    import hutch.runtime.mock as mock_mod
-    orig = mock_mod.MockRuntime.execute
+    import tests.support.runtime as mock_mod
+    orig = mock_mod.TestScenarioRuntime.execute
     blocker = threading.Event()
 
     def slow_execute(self, run, ctx, tools, stop):
         blocker.wait(timeout=30)
         return orig(self, run, ctx, tools, stop)
 
-    mock_mod.MockRuntime.execute = slow_execute
+    mock_mod.TestScenarioRuntime.execute = slow_execute
     engine = Engine(config, store)
     try:
         engine.submit(bot, "will hang")
@@ -205,7 +205,7 @@ def test_timeout_kills_run(store, config):
         assert run.exit_reason == "timeout"
         assert run.status is RunStatus.failed
     finally:
-        mock_mod.MockRuntime.execute = orig
+        mock_mod.TestScenarioRuntime.execute = orig
         blocker.set()
         engine.shutdown()
 
@@ -214,3 +214,17 @@ def test_bot_prompt_for_schedule_mentions_standing_task():
     bot = mock_bot(instructions="Collect all new issues and summarize.")
     prompt = bot_prompt_for_schedule(bot)
     assert "scheduled run" in prompt and "Collect all new issues" in prompt
+
+
+def test_retired_legacy_route_fails_before_a_worker_or_action(store, config, monkeypatch):
+    monkeypatch.delenv("HUTCH_TESTING", raising=False)
+    bot = store.create_bot(mock_bot(name="legacy-route", tools=["files"]))
+    engine = Engine(config, store, executor="process")
+    run = engine.submit(bot, "write a report")
+
+    assert engine.dispatch_pending() == 0
+    saved = store.get_run(run.id)
+    assert saved.status is RunStatus.failed and saved.exit_reason == "model_unavailable"
+    assert not any(event.type is EventType.tool_call for event in store.list_events(run.id))
+    assert not engine._procs and not engine._threads
+    engine.shutdown()

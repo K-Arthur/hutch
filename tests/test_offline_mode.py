@@ -28,7 +28,6 @@ def offline_client(tmp_path, monkeypatch):
     ("ollama", "http://localhost:11434/api", "http://127.0.0.1:11434/api"),
     ("lmstudio", "http://[::1]:1234/v1", "http://[::1]:1234/v1"),
     ("llamacpp", "http://127.8.9.10:8080/v1", "http://127.8.9.10:8080/v1"),
-    ("mock", None, ""),
 ])
 def test_offline_endpoint_accepts_loopback_only(provider, url, expected):
     assert loopback_endpoint(provider, url) == expected
@@ -81,7 +80,7 @@ def test_offline_bot_requires_hutch_runtime_loopback_routes_and_contained_shell(
               tools=["shell", "browser", "web_fetch"], sandbox="strict")
     validate_offline_bot(bot)
 
-    with pytest.raises(ValueError, match="built-in and mock"):
+    with pytest.raises(ValueError, match="built-in runtime"):
         validate_offline_bot(bot.model_copy(update={"runtime": "pi"}))
     with pytest.raises(ValueError, match="strict shell sandbox"):
         validate_offline_bot(bot.model_copy(update={"sandbox": "off"}))
@@ -92,7 +91,7 @@ def test_offline_bot_requires_hutch_runtime_loopback_routes_and_contained_shell(
 
 
 def test_offline_worker_filters_host_network_tools_from_model_specs():
-    bot = Bot(name="offline-tools", model="mock/demo", inference_mode=InferenceMode.offline,
+    bot = Bot(name="offline-tools", model="ollama/test-model", inference_mode=InferenceMode.offline,
               tools=["files", "shell", "web_fetch", "browser"], memory_enabled=False)
     ctx = SimpleNamespace(bot=bot, store=SimpleNamespace(get_bot=lambda _id: None))
 
@@ -327,7 +326,7 @@ def test_offline_shell_does_not_request_a_host_systemd_scope(monkeypatch, tmp_pa
 def test_offline_dispatch_fails_closed_when_host_filter_is_unavailable(store, config, monkeypatch):
     monkeypatch.setattr(sandbox, "offline_egress_status",
                         lambda refresh=False: sandbox.OfflineStatus(False, reason="network namespace failed a local TCP check"))
-    bot = store.create_bot(Bot(name="offline-host-gated", model="mock/demo", inference_mode="offline", tools=[]))
+    bot = store.create_bot(Bot(name="offline-host-gated", model="ollama/test-model", inference_mode="offline", tools=[]))
     engine = Engine(config, store, executor="process")
     run = engine.submit(bot, "must not start")
 
@@ -342,7 +341,7 @@ def test_offline_dispatch_fails_closed_when_host_filter_is_unavailable(store, co
 
 def test_offline_dispatch_refuses_in_process_executor_even_if_host_filter_passes(store, config, monkeypatch):
     monkeypatch.setattr(sandbox, "offline_egress_status", lambda refresh=False: sandbox.OfflineStatus(True))
-    bot = store.create_bot(Bot(name="offline-thread-gated", model="mock/demo", inference_mode="offline", tools=[]))
+    bot = store.create_bot(Bot(name="offline-thread-gated", model="ollama/test-model", inference_mode="offline", tools=[]))
     engine = Engine(config, store, executor="thread")
     run = engine.submit(bot, "must not start")
 
@@ -359,7 +358,7 @@ def test_api_refuses_offline_when_host_filter_is_unavailable(offline_client, mon
                         lambda refresh=False: sandbox.OfflineStatus(False, reason="the worker namespace did not block egress"))
 
     response = offline_client.post("/api/bots", json={
-        "name": "offline-not-available", "model": "mock/demo", "inference_mode": "offline", "tools": [],
+        "name": "offline-not-available", "model": "ollama/test-model", "inference_mode": "offline", "tools": [],
     })
 
     assert response.status_code == 422
@@ -370,7 +369,7 @@ def test_api_refuses_offline_when_host_filter_is_unavailable(offline_client, mon
 def test_api_allows_verified_offline_configuration_but_blocks_hosted_override(offline_client, monkeypatch):
     monkeypatch.setattr(sandbox, "offline_egress_status", lambda refresh=False: sandbox.OfflineStatus(True))
     response = offline_client.post("/api/bots", json={
-        "name": "offline-ready", "model": "mock/demo", "inference_mode": "offline", "tools": [],
+        "name": "offline-ready", "model": "ollama/test-model", "inference_mode": "offline", "tools": [],
     })
     assert response.status_code == 201, response.text
 
@@ -388,7 +387,7 @@ def test_cli_refuses_offline_when_host_filter_is_unavailable(tmp_path, monkeypat
     monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
     monkeypatch.setattr(sandbox, "offline_egress_status",
                         lambda refresh=False: sandbox.OfflineStatus(False, reason="local interface was reachable"))
-    result = CliRunner().invoke(app, ["bot", "create", "offline-cli", "--model", "mock/demo",
+    result = CliRunner().invoke(app, ["bot", "create", "offline-cli", "--model", "ollama/test-model",
                                       "--inference-mode", "offline", "--tools", ""])
 
     assert result.exit_code != 0
@@ -398,6 +397,6 @@ def test_cli_refuses_offline_when_host_filter_is_unavailable(tmp_path, monkeypat
 def test_offline_option_cannot_use_a_hosted_model_override(store, config):
     from hutch.modelchoices import ModelNotUsable, validate_override
 
-    bot = Bot(name="offline-override", model="mock/demo", inference_mode="offline", tools=[])
+    bot = Bot(name="offline-override", model="ollama/test-model", inference_mode="offline", tools=[])
     with pytest.raises(ModelNotUsable, match="Strict offline"):
         validate_override(config, store, bot, "openai/gpt-4o-mini")

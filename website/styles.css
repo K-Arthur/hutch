@@ -260,13 +260,11 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 
 /* ---------------------------------------------------------------- proof */
 .proof-figure {
-  display: grid; grid-template-columns: minmax(0, 1fr) 280px;
   border: 1px solid var(--color-semantic-border);
   background: var(--color-semantic-surface);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
 }
 .proof-chrome {
-  grid-column: 1 / -1;
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap;
   padding: 12px 16px;
   background: var(--color-semantic-bg);
@@ -275,8 +273,8 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .proof-label { font-family: var(--font-mono); font-size: var(--text-size-2xs); color: var(--color-semantic-text-3); letter-spacing: 0.02em; }
 .proof-figure > picture { display: block; min-width: 0; max-width: 100%; }
 .proof-img { display: block; width: 100%; max-width: 100%; height: auto; }
-.proof-legend { padding: var(--space-6); border-left: 1px solid var(--color-semantic-border-soft); }
-.proof-legend ol { display: flex; flex-direction: column; gap: var(--space-5); counter-reset: legend; }
+.proof-legend { display: grid; gap: var(--space-5); padding: var(--space-6); border-top: 1px solid var(--color-semantic-border-soft); }
+.proof-legend ol { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-6); counter-reset: legend; list-style: none; margin: 0; padding: 0; }
 .proof-legend li { position: relative; padding-left: 30px; font-size: var(--text-size-xs); line-height: 1.6; color: var(--color-semantic-text-2); }
 .proof-legend li::before {
   counter-increment: legend; content: counter(legend, decimal-leading-zero);
@@ -287,8 +285,8 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .proof-meta { margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--color-semantic-border-soft); font-family: var(--font-mono); font-size: var(--text-size-sm); line-height: 1.7; color: var(--color-semantic-text-3); }
 .proof-meta code { font-family: inherit; color: var(--color-semantic-text-2); overflow-wrap: anywhere; }
 @media (max-width: 940px) {
-  .proof-figure { grid-template-columns: minmax(0, 1fr); }
-  .proof-legend { min-width: 0; border-left: 0; border-top: 1px solid var(--color-semantic-border-soft); }
+  .proof-legend { min-width: 0; }
+  .proof-legend ol { grid-template-columns: 1fr; }
 }
 
 /* ------------------------------------------------------------- receipts */
@@ -324,38 +322,12 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 }
 .step h3 { font-size: var(--text-size-lg); font-weight: 700; letter-spacing: -0.01em; margin-bottom: 10px; }
 .step p { color: var(--color-semantic-text-2); font-size: var(--text-size-sm); margin-bottom: var(--space-5); max-width: 42ch; }
-.step-shot { border: 1px solid var(--color-semantic-border); background: var(--color-semantic-bg); margin-top: auto; }
-.step-shot img { width: 100%; height: auto; }
 @media (max-width: 940px) {
   .steps { grid-template-columns: 1fr; gap: var(--space-12); }
   .step + .step::before { display: none; }
   .step { border-top: 1px solid var(--color-semantic-border-soft); padding-top: var(--space-6); }
   .step:first-child { border-top: 0; padding-top: 0; }
 }
-
-/* scripted gate demo */
-.gate-demo { max-width: 880px; border: 1px solid var(--color-semantic-border); background: var(--color-semantic-surface); padding: var(--space-6); display: grid; gap: var(--space-5); }
-.gate-demo-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
-.gate-demo-head h3 { font-size: var(--text-size-lg); font-weight: 700; letter-spacing: -0.01em; }
-.gate-card {
-  border: 1px solid var(--color-semantic-border);
-  border-left: 2px solid color-mix(in srgb, var(--color-semantic-warning) 60%, transparent);
-  background: var(--color-semantic-well); padding: var(--space-5);
-}
-.gate-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; margin-bottom: 6px; }
-.gate-tag {
-  display: inline-flex; align-items: center; gap: 7px;
-  font-family: var(--font-mono); font-size: var(--text-size-2xs); font-weight: 650;
-  color: var(--color-semantic-text-2);
-}
-.gate-tag::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--color-semantic-warning); }
-.gate-action { font-size: var(--text-size-sm); color: var(--color-semantic-text); }
-.gate-action b { font-family: var(--font-mono); font-size: 0.94em; font-weight: 700; }
-.gate-detail { font-family: var(--font-mono); font-size: var(--text-size-sm); color: var(--color-semantic-text-3); margin-bottom: var(--space-4); }
-.gate-actions { display: flex; gap: var(--space-3); flex-wrap: wrap; }
-.gate-result { font-size: var(--text-size-xs); line-height: 1.6; color: var(--color-semantic-text-2); background: var(--color-semantic-scrim-well); border: 1px solid var(--color-semantic-border-soft); padding: var(--space-3) var(--space-4); }
-.gate-result.denied { color: var(--color-semantic-danger); }
-.gate-note { font-size: var(--text-size-xs); color: var(--color-semantic-text-3); max-width: 68ch; }
 
 /* ---------------------------------------------------------- where it runs */
 .runs-grid { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: var(--space-12); align-items: start; }

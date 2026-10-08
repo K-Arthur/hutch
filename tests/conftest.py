@@ -15,6 +15,12 @@ def _allow_testclient_host(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _deterministic_execution_fixture(monkeypatch):
+    """Keep the test-only scenario runtime out of normal CLI/server processes."""
+    monkeypatch.setenv("HUTCH_TESTING", "1")
+
+
+@pytest.fixture(autouse=True)
 def _sandbox_off_by_default(monkeypatch):
     """The suite exercises policy, scheduling, approvals... with host commands; tests/test_sandbox.py turns containment on itself."""
     monkeypatch.setenv("HUTCH_SANDBOX", "off")

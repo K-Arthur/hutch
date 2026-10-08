@@ -327,8 +327,9 @@ chips pill) while carrying its own louder personality:
 - **Deliberate deviations from the brief**: the nav is a translucent blurred bar, *not*
   `mix-blend-difference` — inverting against the brand's accent panels hurt legibility, and the site is
   single-theme. Corner radii stay 8px rather than 24–48px so the site and the app share one shape
-  language. The scripted hero pill says "DEMO supervised run" and its accessible name
-  identifies a preview. Application health is shown only by the application.
+  language. The archived scripted hero pill said "DEMO supervised run" and has been removed;
+  the site now shows the actual empty first-run application state. Application health is shown
+  only by the application.
 
 The hero gradient heading uses a solid accent fallback and applies `background-clip:text` only inside
 `@supports`: a `filter` on the same element made Chromium paint the whole text box as a solid block

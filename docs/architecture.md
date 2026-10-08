@@ -31,7 +31,6 @@ flowchart LR
 
   subgraph Runtimes
     BUILTIN["builtin loop<br/>(OpenAI-compatible)"]
-    MOCK["mock<br/>(deterministic, offline)"]
     EXT["Pi / OpenCode<br/>(recognized; disabled)"]
   end
 
@@ -50,9 +49,9 @@ flowchart LR
   CONV --> SCHED_STORE
   SCH --> ENG
   ENG --> SCHED_STORE
-  ENG --> BUILTIN & MOCK & EXT
-  BUILTIN & MOCK --> POL
-  BUILTIN & MOCK --> SH & FI & ME & WF & BR
+  ENG --> BUILTIN & EXT
+  BUILTIN --> POL
+  BUILTIN --> SH & FI & ME & WF & BR
   SH & FI & WF --> POL
   SH & FI & BR --> GATE
   GATE --> SCHED_STORE
@@ -84,7 +83,9 @@ changed that:
   of what actually matters here: scheduling, approvals, budgets, isolation, transcripts. 2026
   post-mortems consistently call them overkill for cron-style dispatch.
 
-Result: `runtime/builtin.py` owns the governed tool loop; `runtime/mock.py` is deterministic and offline.
+Result: `runtime/builtin.py` owns the governed production tool loop. The deterministic execution
+scenario under `tests/support/` exists only to exercise the tool and policy pipeline in tests;
+it is not installed or selectable by an application user.
 Legacy `pi` and `opencode` enum values fail closed before process creation. Their old adapters bypassed
 Hutch approvals and budgets, so they remain unavailable until sandboxing, permission brokering,
 provider reservations and protocol tests are complete.

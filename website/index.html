@@ -40,8 +40,8 @@
         <span class="brand-word">hutch<span class="brand-dot" aria-hidden="true">.</span></span>
       </a>
       <nav class="nav-links" aria-label="Sections">
-        <a href="#proof">Proof</a>
-        <a href="#workflow">Workflow</a>
+        <a href="#proof">Product</a>
+        <a href="#workflow">How it works</a>
         <a href="#runs">Where it runs</a>
         <a href="#control">Control</a>
         <a href="#get">Get it</a>
@@ -52,7 +52,7 @@
           <span class="fx-dot" aria-hidden="true"></span>effects: <span class="fx-state">full</span>
         </button>
         <a class="btn github" href="#get">Availability</a>
-        <a class="btn primary hero-cta-mirror" href="#proof">See it work</a>
+        <a class="btn primary hero-cta-mirror" href="#proof">See the real setup</a>
         <button class="menu-btn" id="menu-btn" type="button" aria-label="Open menu" aria-expanded="false">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
@@ -73,9 +73,9 @@
     </div>
     <h2 id="drawer-title" class="visually-hidden">Site menu</h2>
     <nav class="drawer-links" aria-label="Sections, mobile">
-      <a href="#proof">Proof</a>
+      <a href="#proof">Product</a>
       <a href="#receipts">Why it exists</a>
-      <a href="#workflow">Workflow</a>
+      <a href="#workflow">How it works</a>
       <a href="#runs">Where it runs</a>
       <a href="#control">Control</a>
       <a href="#cases">Use cases</a>
@@ -122,7 +122,7 @@
             <span class="w">h</span><span class="w">u</span><span class="w">t</span><span class="w w-front">c</span><span class="w">h</span>
           </div>
           <span class="weave-caption">
-            <span class="weave-caption-dot" aria-hidden="true"></span>agent&nbsp;001&nbsp;&middot;&nbsp;resident
+            <span class="weave-caption-dot" aria-hidden="true"></span>local control&nbsp;&middot;&nbsp;clear rules
           </span>
         </div>
       </div>
@@ -142,23 +142,26 @@
   <section class="band sunken" id="proof">
     <div class="wrap">
       <div class="proof-head">
-        <h2 class="section-heading">Watch a bot work,<br>then decide.</h2>
-        <p class="section-desc">A captured hutch screen using the deterministic mock model and seeded demo data. It shows the transcript and an approval wait; the screen is illustrative and no external action is running.</p>
+        <h2 class="section-heading">Start with a real<br>model route.</h2>
+        <p class="section-desc">This is Hutch’s actual first-run screen with an empty database. It asks you to connect a provider or start a local model before creating a bot. No sample conversation, generated run, or fake approval is shown.</p>
       </div>
       <figure class="proof-figure">
         <div class="proof-chrome">
-          <span class="proof-label">studio &middot; research-assistant &middot; mock/demo</span>
-          <span class="chip demo"><span class="chip-dot warn" aria-hidden="true"></span>Demo data &middot; real app</span>
+          <span class="proof-label">Studio &middot; empty first-run state</span>
+          <span class="chip"><span class="chip-dot ok" aria-hidden="true"></span>Real application</span>
         </div>
-        <img class="proof-img" src="assets/captures/proof-gate.webp" width="1280" height="889" loading="lazy" decoding="async"
-             alt="Hutch Studio with a bot roster, a persistent conversation and a pending report.md write. The inline approval offers Allow once, Always allow for this bot and Deny. Stop remains available while waiting.">
+        <picture>
+          <source media="(max-width: 640px)" srcset="assets/captures/setup-phone.webp" width="390" height="844">
+          <img class="proof-img" src="assets/captures/setup-desktop.webp" width="1440" height="1000" loading="lazy" decoding="async"
+               alt="The real Hutch Studio first-run screen: no bots or activity are seeded, and the user can configure a model connection or create a bot with a real route.">
+        </picture>
         <figcaption class="proof-legend">
           <ol>
-            <li><b>The task.</b> One sentence in chat is the entire setup; the bot keeps its own instructions, limits and workspace.</li>
-            <li><b>The history.</b> Inspect requested tool arguments and saved results. A missing action receipt is shown as uncertain, with a checked outcome recorded separately.</li>
-            <li><b>The gate.</b> Before this file-write action continues, the run pauses for a human. Silence expires to <i>denied</i>.</li>
+            <li><b>Connect.</b> Add a provider account or use a local model service you already run.</li>
+            <li><b>Configure.</b> Choose the model route, task instructions, tools and limits for a bot.</li>
+            <li><b>Supervise.</b> Run history and real approval requests appear as Hutch receives them.</li>
           </ol>
-          <p class="proof-meta">Captured 2026-10-08 from the local development build with isolated deterministic <code>mock/demo</code> data. Screenshots and verification records are retained in <code>docs/realignment/artifacts/navigation/</code>.</p>
+          <p class="proof-meta">Captured from the local application at desktop and phone viewport sizes on 2026-10-08. The state directory contained no bots, provider keys, or run records. The Live badge means the browser is connected to the local dashboard; no bot is running. Provider calls and live inference were not part of this capture.</p>
         </figcaption>
       </figure>
     </div>
@@ -222,14 +225,6 @@
           </div>
         </article>
       </div>
-      <figure class="proof-figure">
-        <div class="proof-chrome"><span class="proof-label">action review &middot; isolated fixture</span><span class="chip">Synthetic missing receipt &middot; real app</span></div>
-        <picture><source media="(max-width: 640px)" srcset="assets/captures/proof-receipt-phone.webp" width="390" height="844">
-          <img class="proof-img" src="assets/captures/proof-receipt.webp" width="1440" height="1000" loading="lazy" decoding="async"
-            alt="Hutch chat showing an action with a missing receipt, labelled Needs review, with Review action outcome beside the conversation. The unsent follow-up remains in the composer."></picture>
-        <figcaption class="proof-legend"><p>When an action may already have happened, inspect its saved intent in chat and check the destination. Record your findings as a human report; Hutch preserves the original execution status and transcript.</p>
-          <p class="proof-meta">Captured 2026-10-08 from isolated synthetic state. Browser checks cover a lost response after recording and an idempotent retry. This is not live-provider or physical-phone verification.</p></figcaption>
-      </figure>
     </div>
   </section>
 
@@ -238,57 +233,25 @@
     <div class="wrap">
       <div class="proof-head">
         <h2 class="section-heading">Delegate. Supervise.<br>Verify.</h2>
-        <p class="section-desc">A product preview of the local run loop. Demo images and scripted controls are labelled; live providers and external runtimes are not implied.</p>
+        <p class="section-desc">A configured Hutch run uses the selected model and actual tool responses. Human decisions, run status and saved history come from the local application.</p>
       </div>
       <ol class="steps">
         <li class="step">
           <span class="step-n" aria-hidden="true">1</span>
-          <h3>Hand it over</h3>
-          <p>A named bot accepts a task from Studio or a schedule. Conversation history and run records persist across restarts; the current workspace model is still per run.</p>
-          <figure class="step-shot">
-            <img src="assets/captures/proof-transcript.webp" width="1280" height="889" loading="lazy" decoding="async"
-                 alt="Completed mock conversation: report.md was written after approval, with ordered tool results and the bot's closing message.">
-          </figure>
+          <h3>Choose the route</h3>
+          <p>Connect a model you control or explicitly configure a hosted provider. Give a bot its task, tools and limits; Hutch does not create sample bots for you.</p>
         </li>
         <li class="step">
           <span class="step-n" aria-hidden="true">2</span>
           <h3>Keep control</h3>
-          <p>Risky or outward actions pause behind an approval gate with a countdown. Answer in the conversation, in the cross-bot Needs you drawer, or from the CLI; unanswered is denied.</p>
-          <figure class="step-shot">
-            <img src="assets/captures/proof-run-detail.webp" width="1280" height="889" loading="lazy" decoding="async"
-                 alt="Completed mock run detail with steps, elapsed time, recorded cost, reported tokens and model, tool and Hutch timing.">
-          </figure>
+          <p>When a governed action needs a decision, Hutch stores the exact request and pauses. Resolve it from the conversation, the cross-bot Needs you drawer or the CLI; an unanswered request is denied.</p>
         </li>
         <li class="step">
           <span class="step-n" aria-hidden="true">3</span>
           <h3>Check the work, not the vibes</h3>
-          <p>Inspect the run status, tool results and ordered event transcript. The assistant&rsquo;s summary is useful context; Hutch records reported usage separately from estimates.</p>
-          <figure class="step-shot">
-            <img src="assets/captures/proof-overview.webp" width="1280" height="889" loading="lazy" decoding="async"
-                 alt="Activity screen for ten demo bots, showing a waiting approval, paused bots, recorded cost and reported tokens.">
-          </figure>
+          <p>Inspect the actual run status, tool results and ordered event transcript. Hutch keeps provider-reported usage separate from estimates and leaves uncertain effects for review.</p>
         </li>
       </ol>
-      <div class="gate-demo" id="gate-demo">
-        <div class="gate-demo-head">
-          <h3>Try the gate. It&rsquo;s scripted.</h3>
-          <span class="chip demo"><span class="chip-dot" aria-hidden="true"></span>Illustrative demo &middot; nothing executes</span>
-        </div>
-        <div class="gate-card" id="gate-card">
-          <div class="gate-card-head">
-            <span class="gate-tag">Approval required</span>
-            <span class="gate-action">bot <b>sample</b> wants to <b>write report.md</b></span>
-          </div>
-          <p class="gate-detail">281 characters &middot; inside the run workspace &middot; medium risk &middot; fail-closed at 10:00</p>
-          <div class="gate-actions">
-            <button class="btn primary small" id="gate-allow" type="button">Allow once</button>
-            <button class="btn ghost small" id="gate-deny" type="button">Deny</button>
-            <button class="btn link small hidden" id="gate-reset" type="button">Reset demo</button>
-          </div>
-          <p class="gate-result" id="gate-result" role="status" hidden></p>
-        </div>
-        <p class="gate-note">In the real product, an approval is a server-side record: two browsers can race on it and the app reconciles to whatever the daemon decided.</p>
-      </div>
     </div>
   </section>
 
@@ -301,7 +264,7 @@
         <div class="spec-stack">
           <div class="spec">
             <dt class="spec-k">Inference</dt>
-            <dd class="spec-v">The offline mock works without credentials. Provider adapters cover OpenAI and Anthropic APIs, explicit OpenAI-compatible connections and Ollama&rsquo;s API. Calls use the connection you configure; live provider compatibility depends on that endpoint and has not been tested here.</dd>
+            <dd class="spec-v">There is no simulated or no-model run. Configure an actual OpenAI, Anthropic, OpenAI-compatible or local model route. Provider HTTP behavior has fixture coverage, but live provider and model compatibility depends on your endpoint and has not been verified here.</dd>
           </div>
           <div class="spec">
             <dt class="spec-k">Execution</dt>
@@ -416,10 +379,10 @@ trusted    <span class="t-c">runs without asking&hellip;</span>
   <section id="cases">
     <div class="wrap">
       <h2 class="section-heading">A few supervised workflows.</h2>
-      <p class="section-desc">Illustrative workflows can be exercised with the deterministic mock. These cards do not claim a hosted model or external service is configured.</p>
+      <p class="section-desc">These are workflows you can configure with Hutch&rsquo;s current tools; they are examples, not installed bots or prefilled sample activity.</p>
       <div class="cases-grid">
         <article class="case case-wide">
-          <span class="chip demo">Example workflow</span>
+          <span class="chip">Workflow example</span>
           <h3>The project review</h3>
           <p>Give a bot a read-only task in a disposable workspace, inspect the transcript and keep or discard the result. The example does not modify a real repository.</p>
           <pre class="case-code"><code>task: review a disposable project copy
@@ -427,7 +390,7 @@ inspect: ordered run events and tool results
 result: keep or discard the run workspace</code></pre>
         </article>
         <article class="case">
-          <span class="chip demo">Example workflow</span>
+          <span class="chip">Workflow example</span>
           <h3>The weekly briefing</h3>
           <p>A configured local schedule can start a run while Hutch&rsquo;s supervisor is running. A sleeping or disconnected host cannot execute work.</p>
           <pre class="case-code"><code>schedule: configured local time
@@ -435,7 +398,7 @@ requires: awake host + running supervisor
 missed work: shown for operator review</code></pre>
         </article>
         <article class="case">
-          <span class="chip demo">Example workflow</span>
+          <span class="chip">Workflow example</span>
           <h3>The folder tidy-up</h3>
           <p>When a governed action needs approval, the run pauses with the request and its status visible for review. This is not a claim that a particular folder workflow is preconfigured.</p>
           <pre class="case-code"><code>action request: visible to operator
@@ -451,10 +414,10 @@ run: stays stopping until process exits</code></pre>
     <div class="wrap get-grid">
       <div class="get-copy">
         <h2 class="section-heading">How to get hutch</h2>
-        <p class="section-desc">Hutch is an early alpha and its source repository is private. There is no public package or release, so visitors cannot install it from this page. The demo below is a captured interface; it does not grant access to a running service.</p>
+        <p class="section-desc">Hutch is an early alpha and its source repository is private. There is no public package or release, so visitors cannot install it from this page. The image above shows a real local first-run screen, not access to a running service.</p>
         <div class="get-status" role="list">
           <div class="get-row" role="listitem"><span class="gr-k">Public access</span><span class="gr-v">Private source; no anonymous download or public release</span><span class="chip"><span class="chip-dot warn" aria-hidden="true"></span>Unavailable</span></div>
-          <div class="get-row" role="listitem"><span class="gr-k">Supported</span><span class="gr-v">Linux executor, local SQLite state, deterministic offline mock and fixture-tested control flows</span><span class="chip"><span class="chip-dot ok" aria-hidden="true"></span>Supported</span></div>
+          <div class="get-row" role="listitem"><span class="gr-k">Supported</span><span class="gr-v">Linux executor, local SQLite state and fixture-tested lifecycle/control paths; actual runs require a configured model</span><span class="chip"><span class="chip-dot ok" aria-hidden="true"></span>Supported</span></div>
           <div class="get-row" role="listitem"><span class="gr-k">Experimental</span><span class="gr-v">Direct hosted-provider connections, local inference, and host-verified Strict Offline worker isolation; live provider/model checks vary</span><span class="chip"><span class="chip-dot info" aria-hidden="true"></span>Experimental</span></div>
           <div class="get-row" role="listitem"><span class="gr-k">Unavailable</span><span class="gr-v">macOS/Windows executor, remote phone control, browser handoff, OpenCode/Pi harnesses and ChatGPT sign-in</span><span class="chip"><span class="chip-dot warn" aria-hidden="true"></span>Unavailable</span></div>
           <div class="get-row" role="listitem"><span class="gr-k">Data movement</span><span class="gr-v">Hosted prompts go to the selected endpoint; local services and configured tools may have their own network access</span><span class="chip">Per configuration</span></div>
@@ -465,10 +428,10 @@ run: stays stopping until process exits</code></pre>
           <span>What is available today</span>
         </div>
         <div class="term-body">
-          <p><b>No-model preview:</b> the deterministic mock exercises the local run and approval flow without a model account; this is not strict offline enforcement.</p>
+          <p><b>First-run view:</b> an empty setup state until you configure a real provider connection or local model. Hutch does not simulate model output.</p>
           <p><b>Linux host:</b> required for the supported executor and optional bubblewrap isolation.</p>
           <p><b>Public installation:</b> not available while source access is private.</p>
-          <p><a href="#proof">View the labelled product capture</a> or <a href="#runs">read the support boundaries</a>.</p>
+          <p><a href="#proof">View the real setup screen</a> or <a href="#runs">read the support boundaries</a>.</p>
         </div>
       </div>
     </div>
@@ -481,7 +444,7 @@ run: stays stopping until process exits</code></pre>
       <div class="faq-list">
         <details class="faq-item">
           <summary>Do I need an API key, a credit card, or a GPU?</summary>
-          <p>The deterministic mock needs no model account. A real local model or hosted endpoint requires a configured compatible route; the providers and models available on your machine can differ, and live paid-provider checks have not been performed for this preview.</p>
+          <p>Yes. Every run requires a real configured route: an account and key for a hosted provider, or a local model service you already run. Hutch does not provide free simulated runs. Live provider and local-model checks have not been performed for this release.</p>
         </details>
         <details class="faq-item">
           <summary>What actually leaves my machine?</summary>

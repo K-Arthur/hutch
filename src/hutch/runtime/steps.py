@@ -124,7 +124,7 @@ def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolCont
 
 def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, args: dict[str, Any],
               timer: Optional[StepTimer] = None, output_chars: int = 2_000) -> ToolResult:
-    """Emit the call, run the tool (timed), emit the result. Used by the mock and builtin runtimes."""
+    """Emit the call, run the tool (timed), emit the result. Used by production and test runtimes."""
     if ctx.closed:                       # fenced: the run already ended (timeout, stop, recovery); nothing new may start
         return ToolResult(ok=False, output="error: this run has ended; the action was not started")
     try:

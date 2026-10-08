@@ -1,4 +1,4 @@
-"""Deterministic mock runtime — offline tests, demos, and marketing screenshots.
+"""Deterministic execution fixture used only by the test suite.
 
 Runs a canned but realistic script against the REAL tool layer (so policy,
 approvals, transcripts and the dashboard behave exactly as in production):
@@ -10,14 +10,14 @@ from __future__ import annotations
 
 from typing import Callable
 
-from ..models import Event, EventType, Run
-from ..tools import Tool, ToolContext
-from .base import RunAborted
-from .steps import StepTimer, call_tool, finish_step
+from hutch.models import Event, EventType, Run
+from hutch.tools import Tool, ToolContext
+from hutch.runtime.base import RunAborted
+from hutch.runtime.steps import StepTimer, call_tool, finish_step
 
 
-class MockRuntime:
-    kind = "mock"
+class TestScenarioRuntime:
+    kind = "test-scenario"
 
     def execute(
         self,
@@ -35,7 +35,7 @@ class MockRuntime:
             result = call_tool(run, ctx, tools, name, args, timer)
             run.steps += 1
             run.tokens += 350  # plausible per-step usage for the dashboard meter
-            finish_step(run, ctx, timer, model="mock/demo", prompt_tokens=250, completion_tokens=100)
+            finish_step(run, ctx, timer, model=ctx.bot.model or "test/scenario", prompt_tokens=250, completion_tokens=100)
             return result.output
 
         topic = ctx.bot.description or ctx.bot.name
@@ -61,21 +61,18 @@ class MockRuntime:
                 "content": (
                     f"# {flavor.title()}\n\n"
                     f"- bot: {ctx.bot.name}\n- asked: {run.prompt}\n\n"
-                    "## Findings (mock)\n"
-                    "1. Deterministic mock run — no model was contacted.\n"
-                    "2. The full tool/policy/approval pipeline executed normally.\n"
-                    "3. Swap the bot's model to openai/* or ollama/* for real runs.\n"
+                    "## Findings (test fixture)\n"
+                    "1. Deterministic scenario output — no model was contacted.\n"
+                    "2. The tool/policy/approval pipeline was exercised by the test fixture.\n"
                 ),
             })
 
         if "recall" in tools:
             call("recall", {"query": "last-run"})
 
-        final = (
-            f"Done — {flavor} for “{run.prompt[:100]}”. "
-            f"Used the enabled demo tools ({run.steps} tool steps, ~{run.tokens} tokens). Reference-fact proposals need human review. "
-            "This was a mock run; point the bot at a real model for live results."
-        )
+        final = (f"Test scenario finished for “{run.prompt[:100]}”. "
+                 f"The fixture exercised {run.steps} tool steps and {run.tokens} synthetic tokens. "
+                 "Reference-fact proposals need human review.")
         ctx.emit(Event(run_id=run.id, type=EventType.message,
                        data={"role": "assistant", "content": final}))
         return final

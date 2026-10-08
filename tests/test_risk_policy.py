@@ -215,10 +215,11 @@ def test_api_and_bot_page_round_trip_and_reject_bad_rules(tmp_path, monkeypatch)
     from hutch.server.app import create_app
     monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
     with TestClient(create_app()) as c:
-        r = c.post("/api/bots", json={"name": "guard", "risk_tier": "readonly",
+        r = c.post("/api/bots", json={"name": "guard", "model": "mock/demo", "risk_tier": "readonly",
                                       "command_rules": [{"verdict": "deny", "match": "git push*"}]})
         assert r.status_code == 201 and r.json()["risk_tier"] == "readonly"
-        assert c.post("/api/bots", json={"name": "bad", "command_rules": [{"verdict": "maybe", "match": "x"}]}).status_code == 422
+        assert c.post("/api/bots", json={"name": "bad", "model": "mock/demo",
+                                         "command_rules": [{"verdict": "maybe", "match": "x"}]}).status_code == 422
         p = c.patch("/api/bots/guard", json={"risk_tier": "trusted", "command_rules": []})
         assert p.json()["risk_tier"] == "trusted" and p.json()["command_rules"] == []
         page = c.get("/bots/guard").text

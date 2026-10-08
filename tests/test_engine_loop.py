@@ -127,7 +127,7 @@ def _alive(pid: int) -> bool:
 
 
 def test_stop_kills_child_processes_not_just_the_loop(store, config, monkeypatch):
-    import hutch.runtime.mock as mock_mod
+    import tests.support.runtime as mock_mod
 
     bot = store.create_bot(_bot(name="sleeper"))
     engine = Engine(config, store)
@@ -137,7 +137,7 @@ def test_stop_kills_child_processes_not_just_the_loop(store, config, monkeypatch
         tools["shell"].run({"command": "sleep 120 & echo $! > helper.pid; wait"}, ctx)
         return "done"
 
-    monkeypatch.setattr(mock_mod.MockRuntime, "execute", execute)
+    monkeypatch.setattr(mock_mod.TestScenarioRuntime, "execute", execute)
     run = engine.submit(bot, "start a long job")
     engine.dispatch_pending()
 
@@ -166,7 +166,7 @@ def test_stop_kills_child_processes_not_just_the_loop(store, config, monkeypatch
 
 
 def test_stop_unblocks_a_run_waiting_for_approval(store, config, monkeypatch):
-    import hutch.runtime.mock as mock_mod
+    import tests.support.runtime as mock_mod
     bot = store.create_bot(_bot(name="asker", approval_mode=ApprovalMode.ask))
     engine = Engine(config, store)
     run = engine.submit(bot, "write a report")

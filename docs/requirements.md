@@ -25,7 +25,7 @@ commits can cite them. Evidence for the *why* is in
 | UI-5 | Approvals inbox: parsed segments, rule, once/always/deny, countdown | MVP | done | approval card: parsed segments, rule, once/always/plan/deny, live countdown; outward never offers always |
 | UI-6 | Every waiting state names its cause and a fix | MVP | done | `views.explain_run`, `explain_outcome` and the stale cause: every wait names a cause and a fix |
 | UI-7 | New bot: template gallery → purpose, model preset, permissions+budget; YAML view | MVP | planned | |
-| UI-8 | First run: mock demo / local model that fits / API key; seeded demo bots | MVP | planned | |
+| UI-8 | First run clearly requests a configured real local or hosted model; no seeded bots or simulated runs | MVP | partial | CLI/app empty setup and fail-closed bot creation implemented; full visual/release validation pending |
 | UI-9 | Schedules page: next runs in each bot's zone, coalesced misses, pause all | MVP | planned | |
 | UI-10 | Memory page with provenance, edit, delete, export | Later | partial | bot page lists memory with the run that wrote it, delete; edit/export + dedicated page pending |
 | UI-11 | Usage page: spend by bot/provider/day; escalation log | Later | done | `/usage`: spend and tokens by day (local day), model and bot, today against each bot's caps, plan allowances, cache share, and the fallback/escalation/allowance-stop log |
@@ -103,7 +103,7 @@ commits can cite them. Evidence for the *why* is in
 | PF-8 | Browser launches on first use, closes when idle | idle close 5 min | MVP | planned | |
 | PF-9 | Coalesced live updates, paginated transcripts | usable at 10,000 events | MVP | done | the run page renders the last 200 events and paginates; a 10,000-event run is tested (`tests/test_dashboard.py`) |
 | PF-10 | Small router model stays loaded | — | Later | later | |
-| PF-11 | Per-step timing: model wait, tool time, Hutch overhead | overhead < 50 ms/step | MVP | done | `runtime/steps.py`; 0.25 ms/step (mock); recorded as `step` events |
+| PF-11 | Per-step timing: model wait, tool time, Hutch overhead | overhead < 50 ms/step | MVP | done | `runtime/steps.py`; source-only test scenario measurement; not production inference latency |
 | PF-12 | Benchmark suite in CI; fails on 20% regression | — | MVP | done | `benchmarks/run.py`, `baselines/local.json`, `.github/workflows/ci.yml` (CI not yet run remotely) |
 | PF-13 | Idle daemon small | < 150 MB resident | MVP | done | 39 MB daemon / 56 MB serve idle |
 
@@ -116,7 +116,7 @@ commits can cite them. Evidence for the *why* is in
 | 3 | Local model layer | LM-1…6, SR-1, SR-14 | self-check passes; swap latency measured for two model pairs | **built and tested; gate not met** - self-check and swap measurement pass against scripted servers (`tests/test_slots.py`, `tests/test_models_layer.py`); no real local models on the dev machine, so swap latency for two real pairs is **not measured** |
 | 4 | Reliability harness | LM-11, LM-13, SR-5 | ≥ 3 models profiled on the dev machine | **harness built and tested; gate not met** - three scripted models (good / needs repair / never calls tools) are ranked correctly in `tests/test_reliability.py`; **no real models were profiled** because the dev machine has ~3 GiB free and no Ollama. Run `hutch models bench <model>` on a real machine to meet it |
 | 5 | Presets, escalation, budgets | LM-7, 9, 10, 14, 15, SR-2, 8, 9, 12, PF-1…3 | escalation respects caps in tests | planned |
-| 6 | Collaboration | CO-1…11 | demo plan finishes on mock + one local model; misbehaving specialist is stopped by the engine | planned |
+| 6 | Collaboration | CO-1…11 | bounded delegation plan finishes on real local/hosted routes; a misbehaving child is stopped by its parent | planned |
 | 7 | v0.1 release | UI-7…9, UI-14, SR-4, SR-13, docs, site | README quickstart runs verbatim on a clean Linux machine | planned |
 
 ## Additions beyond the draft (driven by the Dots / Grok Bot research)

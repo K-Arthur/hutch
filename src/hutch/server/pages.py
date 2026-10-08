@@ -270,7 +270,11 @@ def register_pages(app: FastAPI) -> None:
         bot = TEMPLATES[template].model_copy(deep=True) if template else Bot(name=name)
         bot.name, bot.template = name, template or None
         bot.description = form.get("description") or bot.description
-        bot.model = form.get("model") or bot.model
+        from ..modelchoices import ModelNotUsable, validate_override
+        try:
+            bot.model = validate_override(config, store, bot, form.get("model"))
+        except ModelNotUsable as exc:
+            return go("/bots/new", error=f"{exc}. {exc.fix}" if exc.fix else str(exc))
         cron = form.get("cron").strip()
         if cron:
             try:

@@ -53,7 +53,7 @@ class BotCreate(BaseModel):
     template: Optional[str] = None
     description: str = ""
     instructions: str = ""
-    model: str = "mock/demo"
+    model: str = ""
     base_url: Optional[str] = None
     inference_mode: InferenceMode = InferenceMode.hybrid
     tools: list[str] = ["shell", "files", "memory"]
@@ -876,6 +876,11 @@ def create_app() -> FastAPI:
             validate_inference_mode(body.inference_mode, bot.model, base_url=body.base_url)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
+        from ..modelchoices import ModelNotUsable, validate_override
+        try:
+            bot.model = validate_override(config, store, bot, body.model)
+        except ModelNotUsable as exc:
+            raise HTTPException(422, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
         bot.inference_mode = body.inference_mode
         bot.base_url = body.base_url
         bot.tools = tools
@@ -917,6 +922,13 @@ def create_app() -> FastAPI:
         from ..providers.registry import validate_inference_mode, validate_offline_bot
         proposed_mode = body.inference_mode if body.inference_mode is not None else bot.inference_mode
         proposed_model = body.model if body.model is not None else bot.model
+        if body.model is not None:
+            from ..modelchoices import ModelNotUsable, validate_override
+            policy_bot = bot.model_copy(update={"inference_mode": proposed_mode})
+            try:
+                proposed_model = validate_override(config, store, policy_bot, body.model)
+            except ModelNotUsable as exc:
+                raise HTTPException(422, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
         try:
             validate_inference_mode(proposed_mode, proposed_model, base_url=bot.base_url)
         except ValueError as exc:
@@ -1028,6 +1040,7 @@ def create_app() -> FastAPI:
 
     @app.post("/api/bots/{ref}/run", status_code=201)
     def run_bot(ref: str, body: RunRequest) -> dict:
+        store.assert_execution_ready()
         bot = bot_or_404(ref)
         from ..modelchoices import ModelNotUsable, validate_override
         try:

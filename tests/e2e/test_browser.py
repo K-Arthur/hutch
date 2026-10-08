@@ -152,7 +152,7 @@ def test_spa_transcript_renders_a_live_run(browser, live, monkeypatch):
     """
     base, app = live
     store, engine = app.state.store, app.state.engine
-    import hutch.runtime.mock as mock_mod
+    import tests.support.runtime as mock_mod
 
     def chatty(self, run, ctx, tools, stop):
         for i in range(60):
@@ -162,7 +162,7 @@ def test_spa_transcript_renders_a_live_run(browser, live, monkeypatch):
                        data={"role": "assistant", "content": "done"}))
         return "done"
 
-    monkeypatch.setattr(mock_mod.MockRuntime, "execute", chatty)
+    monkeypatch.setattr(mock_mod.TestScenarioRuntime, "execute", chatty)
     bot = store.create_bot(Bot(name="drop-bot", model="mock/demo", approval_mode=ApprovalMode.auto))
     run = engine.submit(bot, "stream a lot")
     engine.dispatch_pending()

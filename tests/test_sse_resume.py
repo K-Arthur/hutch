@@ -82,7 +82,7 @@ def follow(base, run_id, cut_after=(12, 30), pause=0.25):
 def test_ten_concurrent_runs_stream_cut_and_resume_with_no_missing_events(live, monkeypatch):
     base, app = live
     store, engine = app.state.store, app.state.engine
-    import hutch.runtime.mock as mock_mod
+    import tests.support.runtime as mock_mod
 
     N = 80
 
@@ -92,7 +92,7 @@ def test_ten_concurrent_runs_stream_cut_and_resume_with_no_missing_events(live, 
             time.sleep(0.02)
         return "done"
 
-    monkeypatch.setattr(mock_mod.MockRuntime, "execute", chatty)
+    monkeypatch.setattr(mock_mod.TestScenarioRuntime, "execute", chatty)
     bots = [store.create_bot(Bot(name=f"stream-{i}", model="mock/demo", approval_mode=ApprovalMode.auto))
             for i in range(10)]
     runs = [engine.submit(b, f"go {i}") for i, b in enumerate(bots)]

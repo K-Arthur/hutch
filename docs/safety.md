@@ -205,8 +205,8 @@ execution is recorded as expired and cannot grant standing permission.
 ## Honest limits (read this)
 
 - **External runtimes** (`pi`, `opencode`) are disabled. They cannot currently satisfy Hutch's process ownership, approval,
-  credential routing, sandbox and usage-reservation requirements. The builtin runtime is the only supported model-backed executor;
-  mock mode is offline. Builtin calls reserve estimated tokens and priced currency before a request; provider billing can differ, and
+  credential routing, sandbox and usage-reservation requirements. The builtin runtime is the only production model-backed executor;
+  test scenarios are not available to application users. Builtin calls reserve estimated tokens and priced currency before a request; provider billing can differ, and
   uncertain outcomes remain held until an operator reconciles the provider record.
   Worker accounting requires current ownership, cannot change reservation identity, and cannot
   overwrite an uncertain hold. Outstanding holds do not disappear when an allowance window rolls over.

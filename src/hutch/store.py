@@ -488,6 +488,11 @@ class Store:
         if restore_id := cls._execution_hold(db):
             raise ExecutionHeld(restore_id)
 
+    def assert_execution_ready(self) -> None:
+        """Fail early with the restore hold before validating a request's execution details."""
+        with self._lock:
+            self._assert_execution_ready(self._db)
+
     def restoration_status(self) -> Optional[dict[str, Any]]:
         with self._lock:
             row = self._db.execute("SELECT * FROM state_restores WHERE superseded_by = '' ORDER BY created_at DESC LIMIT 1").fetchone()

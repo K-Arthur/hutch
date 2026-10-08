@@ -172,7 +172,7 @@ def test_survivors_are_reported_when_something_will_not_die():
 
 
 def test_after_a_stop_no_descendant_can_keep_mutating(store, config, monkeypatch, tmp_path):
-    import hutch.runtime.mock as mock_mod
+    import tests.support.runtime as mock_mod
     folder = tmp_path / "workfolder"
     folder.mkdir()
     bot = store.create_bot(Bot(name="writer", model="mock/demo", tools=["shell"], approval_mode=ApprovalMode.auto,
@@ -185,7 +185,7 @@ def test_after_a_stop_no_descendant_can_keep_mutating(store, config, monkeypatch
         call_tool(run, ctx, tools, "shell", {"command": "(while true; do echo tick >> tick.log; sleep 0.05; done) & wait"})
         return "done"
 
-    monkeypatch.setattr(mock_mod.MockRuntime, "execute", execute)
+    monkeypatch.setattr(mock_mod.TestScenarioRuntime, "execute", execute)
     engine = Engine(config, store)
     run = engine.submit(bot, "write forever")
     engine.dispatch_pending()
@@ -203,7 +203,7 @@ def test_after_a_stop_no_descendant_can_keep_mutating(store, config, monkeypatch
 
 def test_a_backgrounded_helper_does_not_outlive_its_run(store, config, monkeypatch):
     """The command returns at once and leaves `sleep` behind; finishing the run must still end it."""
-    import hutch.runtime.mock as mock_mod
+    import tests.support.runtime as mock_mod
     bot = store.create_bot(Bot(name="bg", model="mock/demo", tools=["shell"], approval_mode=ApprovalMode.auto))
     seen: dict = {}
 
@@ -213,7 +213,7 @@ def test_a_backgrounded_helper_does_not_outlive_its_run(store, config, monkeypat
         seen["alive_during"] = pid_alive(seen["pid"])
         return "done"
 
-    monkeypatch.setattr(mock_mod.MockRuntime, "execute", execute)
+    monkeypatch.setattr(mock_mod.TestScenarioRuntime, "execute", execute)
     engine = Engine(config, store)
     run = engine.run_blocking(bot, "start a helper")
     assert run.status is RunStatus.succeeded

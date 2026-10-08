@@ -426,7 +426,7 @@ def timing_split(run: Run) -> dict[str, float]:
 
 
 def timing_abs(run: Run) -> dict[str, float]:
-    """PF-11 in absolute terms. A percentage misleads when everything is sub-millisecond (a mock run
+    """PF-11 in absolute terms. A percentage misleads when everything is sub-millisecond (a test fixture run
     would read "Hutch = 46%"), so the UI shows milliseconds and the per-step overhead."""
     steps = max(run.steps, 1)
     return {"model_ms": run.model_ms, "tool_ms": run.tool_ms, "overhead_ms": run.overhead_ms,

@@ -30,7 +30,7 @@ from .models import (
 )
 from .lifecycle import TERMINAL
 from .store import Store
-from .templates import TEMPLATE_INFO, TEMPLATES, gallery, seed
+from .templates import TEMPLATE_INFO, TEMPLATES, gallery
 from .tools import ALL_TOOL_NAMES, expand_tools
 
 # NOTE (PF-6): Engine, the runtimes, providers, fastapi and playwright are imported inside the
@@ -79,22 +79,17 @@ def _require_run(store: Store, run_id: str) -> "Run":
 
 @app.command()
 def init() -> None:
-    """Create the state directory, database, and starter bot templates."""
+    """Create the state directory and database without inventing bots or model output."""
     config = get_config()
-    store = _store()
-    created = seed(store)
+    _store()
     config.ensure()
     console.print(Panel.fit(
         f"[green]hutch initialized[/green]\n"
         f"state dir: [cyan]{config.state_dir}[/cyan]\n"
         f"database:  [cyan]{config.db_path}[/cyan]",
         title="hutch init"))
-    if created:
-        for name in created:
-            console.print(f"  seeded bot [bold]{name}[/bold] (template, mock model — free to try)")
-    else:
-        console.print("  templates already present; nothing new seeded")
-    console.print("\nnext: [bold]hutch serve[/bold] → dashboard, or [bold]hutch run <bot> \"task\"[/bold]")
+    console.print("No bots were created. Configure a provider in Connections or start a local model, then create a bot.")
+    console.print("\nnext: [bold]hutch serve[/bold] → dashboard, or [bold]hutch bot create <name> --model <provider/model>[/bold]")
 
 
 @app.command()
@@ -125,7 +120,10 @@ def status() -> None:
         last_s = "never (stale)" if last is None else f"{dt.datetime.fromisoformat(last.finished_at or last.created_at).astimezone().strftime('%b %d %H:%M')}"
         sched = f"{bot.schedule.cron} ({bot.schedule.timezone})" if bot.schedule else "on demand"
         table.add_row(bot.name, bot.model, sched, "yes" if bot.paused else "no", nxt_s, last_s)
-    console.print(table)
+    if bots:
+        console.print(table)
+    else:
+        console.print("No bots are configured. Choose a real model route, then create a bot.")
 
     active = store.active_runs()
     pending = store.pending_approvals()
@@ -198,7 +196,7 @@ def bot_list() -> None:
     store = _store()
     bots = store.list_bots()
     if not bots:
-        console.print("no bots yet — try [bold]hutch init[/bold]")
+        console.print("No bots yet. Configure a real model route, then create one with `hutch bot create` or the dashboard.")
         return
     table = Table()
     for col in ("name", "model", "runtime", "tools", "schedule", "approvals", "paused"):
@@ -231,11 +229,9 @@ def bot_create(
     template: Optional[str] = typer.Option(None, "--template", "-t", help="Start from a template"),
     description: str = typer.Option("", "--description", "-d"),
     instructions: str = typer.Option("", "--instructions", "-i"),
-    model: str = typer.Option("mock/demo", "--model", "-m",
-                              help="provider/model, e.g. openai/gpt-4o-mini, ollama/llama3.2, mock/demo"),
+    model: Optional[str] = typer.Option(None, "--model", "-m",
+                                        help="required real route: provider/model, e.g. openai/gpt-4o-mini or ollama/llama3.2"),
     base_url: Optional[str] = typer.Option(None, "--base-url", help="OpenAI-compatible endpoint override"),
-    runtime: RuntimeKind = typer.Option(RuntimeKind.builtin, "--runtime",
-                                        help="builtin | mock | pi | opencode"),
     inference_mode: InferenceMode = typer.Option(
         InferenceMode.hybrid, "--inference-mode",
         help="hybrid | local model routes (tools may use the network) | offline (host isolation verified at run time)",
@@ -287,18 +283,28 @@ def bot_create(
         err.print(f"[red]unknown tools:[/red] {', '.join(unknown)} — valid: {', '.join(ALL_TOOL_NAMES)}")
         raise typer.Exit(code=1)
 
+    if not (model or "").strip():
+        err.print("[red]a real --model route is required[/red] (configure a provider or local model first)")
+        raise typer.Exit(code=1)
+
     bot.description = description or bot.description
     bot.instructions = instructions or bot.instructions
-    bot.model = model
+    bot.model = model.strip()
     from .providers.registry import validate_inference_mode
     try:
-        validate_inference_mode(inference_mode, model, base_url=base_url)
+        validate_inference_mode(inference_mode, bot.model, base_url=base_url)
     except ValueError as exc:
         err.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from None
+    from .modelchoices import ModelNotUsable, validate_override
+    try:
+        bot.model = validate_override(get_config(), store, bot, bot.model)
+    except ModelNotUsable as exc:
+        err.print(f"[red]{exc}[/red]" + (f" — {exc.fix}" if exc.fix else ""))
+        raise typer.Exit(code=1) from None
     bot.inference_mode = inference_mode
     bot.base_url = base_url
-    bot.runtime = runtime
+    bot.runtime = RuntimeKind.builtin
     bot.tools = tool_list
     bot.approval_mode = approval
     bot.risk_tier = risk_tier
@@ -416,6 +422,14 @@ def bot_update(
     proposed_model = model if model is not None else bot.model
     proposed_mode = inference_mode if inference_mode is not None else bot.inference_mode
     from .providers.registry import validate_inference_mode
+    if model is not None:
+        from .modelchoices import ModelNotUsable, validate_override
+        policy_bot = bot.model_copy(update={"inference_mode": proposed_mode})
+        try:
+            proposed_model = validate_override(get_config(), store, policy_bot, model)
+        except ModelNotUsable as exc:
+            err.print(f"[red]{exc}[/red]" + (f" — {exc.fix}" if exc.fix else ""))
+            raise typer.Exit(code=1) from None
     try:
         validate_inference_mode(proposed_mode, proposed_model, base_url=bot.base_url)
     except ValueError as exc:
@@ -514,7 +528,14 @@ def run(
     from .engine import Engine
     config = get_config()
     store = _store()
+    store.assert_execution_ready()
     bot = _require_bot(store, bot_ref)
+    from .modelchoices import ModelNotUsable, validate_override
+    try:
+        validate_override(config, store, bot, bot.model)
+    except ModelNotUsable as exc:
+        err.print(f"[red]{exc}[/red]" + (f" — {exc.fix}" if exc.fix else ""))
+        raise typer.Exit(code=1) from None
     engine = Engine(config, store, executor=os.environ.get("HUTCH_EXECUTOR") or "process")
 
     created = engine.submit(bot, prompt, origin="manual:cli", rehearsal=rehearse)
@@ -1116,27 +1137,6 @@ def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8787),
     console.print(f"[bold]hutch[/bold] dashboard → {scheme}://{host}:{port}")
     uvicorn.run("hutch.server.app:create_app", factory=True, host=host, port=port, log_level="warning",
                 ssl_certfile=tls_cert, ssl_keyfile=tls_key)
-
-
-# --------------------------------------------------------------------- demo
-
-demo_app = typer.Typer(help="Demo/screenshot helpers.")
-app.add_typer(demo_app, name="demo")
-
-
-@demo_app.command("seed")
-def demo_seed() -> None:
-    """Seed demo bots/runs (offline, mock models) for exploring the dashboard."""
-    from .demo import seed_demo
-    from .engine import Engine
-    config = get_config()
-    store = _store()
-    engine = Engine(config, store)
-    summary = seed_demo(config, store, engine)
-    console.print(f"seeded {len(summary['bots_created'])} new bot(s); demo runs:")
-    for r in summary["runs"]:
-        console.print(f"  {r['bot']:<20} {r['run']}  {r['status']}")
-    console.print("\ntry: [bold]hutch serve[/bold] → http://127.0.0.1:8787")
 
 
 def main() -> None:  # console_scripts entry point
