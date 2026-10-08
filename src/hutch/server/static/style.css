@@ -947,6 +947,7 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .modal-backdrop {
   position: fixed; inset: 0; z-index: var(--z-modal);
   background: rgba(2, 4, 7, 0.72);
+  color: inherit;   /* daisyUI's own .modal-backdrop sets color:#0000 (layered); ours must win or modal text inherits transparent */
   display: grid; place-items: center; padding: var(--s-4);
 }
 .modal-card {
