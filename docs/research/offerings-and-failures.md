@@ -139,7 +139,7 @@ Infinite hand-off loops (A→B→C→A) are reported as the top production failu
 limits on hops/tasks/parallelism/wall-clock/budget, duplicate-task detection that pauses the plan.**
 
 ### Fallbacks that become spend storms (SR-8, LM-9)
-"A single misconfigured fallback line turned a $40/month API bill into $2,300 in 48 hours"
+"A single misconfigured fallback line turned a $40/month API bill into $2,300 in 48 hours" *(quarantined 2026-10-07: no source was recorded and none could be found; the design rule it motivated stands on its own, without the figure)*
 ([DEV](https://dev.to/ai-gateway-veteran/the-2300-weekend-when-fallback-routing-goes-wrong-in-ai-gateways-1iip)).
 → **Fallback is an ordered chain with a spend ceiling; every escalation is logged and moves one step; the
 first hosted call from a local-default bot asks first (LM-10).**

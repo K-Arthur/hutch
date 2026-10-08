@@ -107,7 +107,7 @@ and to `transcript.jsonl` on disk. Run outcome is always terminal-state recorded
 ### D5 — Caps are enforced by the engine, not by model behavior
 
 - `max_steps` — agent turns per run
-- `timeout_seconds` — wall clock; the agent thread is abandoned and the run marked failed
+- `timeout_seconds` — wall clock; currently the agent thread is **abandoned** (it keeps running) and the run marked failed. This is a known defect, replaced by owned worker processes in ADR-0001/0004
 - `daily_token_cap` — measured usage when the provider reports it, estimate otherwise; the next
   model call aborts when the bot's day-total exceeds the cap
 
@@ -119,6 +119,10 @@ No separate daemon is required for dashboard-driven usage; `hutch daemon` is the
 equivalent.
 
 ## Concurrency model
+
+> **Superseded in part.** The in-memory ownership below is the as-built state at the baseline. The target design (SQLite claims,
+> leases and fencing, one worker process per run) is in `docs/adr/0001-control-plane-and-owned-execution.md`; the measured
+> problems with the as-built design are in `docs/realignment/baseline.md`.
 
 Workers are daemon threads. The engine holds a `_threads` map, a cancel `Event` per run, and a
 reference to the run's approval gate so `stop` unblocks an approval wait immediately. The browser

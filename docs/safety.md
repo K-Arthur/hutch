@@ -1,9 +1,21 @@
 # Safety model
 
 hutch assumes a **supervising human** is part of the system. It is not a formal security boundary
-against a determined adversary — it is a well-instrumented fence against the documented failure
-modes of autonomous agents. Each rule below traces to an incident class in
-`research/complaints.md`.
+against a determined adversary — it is a policy layer that checks what hutch's own tools are asked to
+do. Each rule below traces to a reported failure class in `research/complaints.md` (individual reports,
+not measured prevalence).
+
+**What is and is not contained today** (measured against commit `b3e4b15`; see `realignment/baseline.md`):
+
+| | Today |
+|---|---|
+| File tools (`read_file`, `write_file`, `list_files`) | path-jailed to the workspace |
+| Shell tool | policy-checked, then run **as your user** with `HOME` pointed at the workspace. **No OS containment**: `cat /home/you/.ssh/id_rsa` is denied by policy, but a script the bot writes and runs is not analysed and can read anything your user can read, or open any socket |
+| `web_fetch` / browser `goto` | URL checked as a *string*: literal private addresses are blocked; alternate forms (`[::1]`, `user@127.0.0.1`, decimal/hex IPs, IPv4-mapped IPv6), names that resolve to loopback, and redirects are **not** caught yet (slice S1 fixes this) |
+| External runtimes (Pi, OpenCode) | run with their own tools; OpenCode is started with `--auto` (blanket approval of anything it has not denied). Hutch's policy does not see their tool calls |
+| Stopping a run | within the process that owns it; a run owned by another process is not stopped by `hutch stop` (slice S3 fixes this) |
+
+The corrections above are being implemented; `realignment/ledger.md` records which have landed.
 
 ## The three verdicts
 
@@ -97,8 +109,10 @@ cannot eat the context window).
 ### Browser actions
 
 `goto` uses URL policy; `click` and `type` are ask-once with sticky allows (an agent that can
-click can buy things). Login/CAPTCHA/MFA walls emit a `pause_to_human` event — the bot waits for a
-human, it never attempts challenges. Browser automation is globally serialized (one GUI at a time).
+click can buy things). Login/CAPTCHA/MFA walls move the run to `waiting_human` — the bot waits for a
+human, it never attempts challenges. The browser currently launches headless, so there is nothing to look at,
+and one browser context is shared by every bot in the process (both are tracked defects, slice S7).
+Browser automation is globally serialized by a process-wide lock, which is held for the whole human wait.
 
 ## Rehearse (dry run)
 
@@ -143,6 +157,7 @@ still apply.
   environment and the timeout, not by the parser. Commands other than `>` redirects (`cp`, `tee`, `install`, `touch`
   with an absolute path) are not path-jailed either.
 - **Not a sandbox.** Threads share the process; a malicious `pip install` inside an approved
-  package-manager call runs with your user. Container-per-run isolation is on the roadmap.
+  package-manager call runs with your user. OS-level containment (bubblewrap on Linux; fail closed when unavailable) is
+  specified in `adr/0006-tool-authority-sandbox-and-browser-ownership.md` and tracked as slice S4.
 - Models can lie about completion. That's why artifacts (files written, command exits) are in the
   transcript, not just the model's claims.
