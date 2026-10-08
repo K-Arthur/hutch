@@ -1,16 +1,23 @@
 {
-  "captured_at": "2026-10-08T15:41:56.449105+00:00",
+  "captured_at": "2026-10-08T23:00:04.467922+00:00",
   "command": ".venv/bin/python docs/realignment/capture_marketing_top.py",
   "browser": "chromium",
   "browser_version": "153.0.8010.12",
   "playwright_version": "1.63.0",
   "python_version": "3.13.15",
+  "git_revision": "cf82f739dbb55b981720234795be25d0dbf029d2",
   "site": "anonymous local static site; no credentials or external requests",
   "reduced_motion": true,
   "source_sha256": {
-    "website/index.html": "45d41a0c7b5609a51c968e3ebba5744062044da3ac966c9156bea8a5514d2049",
-    "website/styles.css": "4e3bae94788f5ecb4b9a1068cd6b5d9903469feecd2860ca94579e176da2e7f5",
-    "website/site.js": "f4e97600ff561f77fa15979fc5e740984c4160b8baf40bff558389da51204a0b"
+    "website/index.html": "acfbc0a213b2bda82a0f129656197607ec888bd5e6da59cc7851922de5d3fa6f",
+    "website/styles.css": "b614bd35cb7c62d4212c9cba6c28d04987342fb2c4826a56cb04dceacf717cd2",
+    "website/site.js": "9a446ad76a657e55e2021bbf5aa033e7ef80593218ca02a4caf89e4ca8cc2e1b",
+    "website/app.css": "ed64d5aa000b207e26730bd72b3a93ef216b9370f50bcb54de4a82c059e27352",
+    "website/tokens.css": "dbd3a7db8613f71c70ed9bf8e0655232ef19705a607b71ce51140067f9e778e8",
+    "website/assets/captures/setup-desktop.webp": "bf5c0a80a272c7eb1a2d3f59c7831538dd5d7ba4085d5c99655d0d0895fb3501",
+    "website/assets/captures/setup-phone.webp": "7546d588b16b4d3ecc72dba889d0f2161338b831db7c0a2205471d859994bfc4",
+    "website/assets/hutch-agent.webp": "da73ea5e42ebe5a0f9af5c2e9071467be90bbb34508ae1767321160b9dce34b7",
+    "website/assets/fonts/archivo-latin-var.woff2": "e3a28eade21a900c7155a247757f4b2834c07bb7ef07ad7efa55cebaac1e8f5e"
   },
   "captures": [
     {
@@ -20,6 +27,7 @@
         1000
       ],
       "path": "docs/realignment/artifacts/marketing-top/desktop.png",
+      "full_page_path": "docs/realignment/artifacts/marketing-top/desktop-full.png",
       "horizontal_overflow": 0,
       "page_errors": [],
       "requests_same_origin": true
@@ -31,6 +39,7 @@
         1024
       ],
       "path": "docs/realignment/artifacts/marketing-top/tablet.png",
+      "full_page_path": "docs/realignment/artifacts/marketing-top/tablet-full.png",
       "horizontal_overflow": 0,
       "page_errors": [],
       "requests_same_origin": true
@@ -42,6 +51,7 @@
         844
       ],
       "path": "docs/realignment/artifacts/marketing-top/phone.png",
+      "full_page_path": "docs/realignment/artifacts/marketing-top/phone-full.png",
       "horizontal_overflow": 0,
       "page_errors": [],
       "requests_same_origin": true

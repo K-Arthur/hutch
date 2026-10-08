@@ -16,7 +16,7 @@
 @plugin "daisyui" {
   themes: false;
   logs: false;
-  include: button, badge, card, input, textarea, join, dropdown, modal, chat, avatar, table, alert, divider, loading, tooltip, skeleton, list, menu, status;
+  include: button, badge, card, input, textarea, join, dropdown, modal, chat, avatar, table, alert, divider, loading, tooltip, skeleton, list, menu;
 }
 
 @plugin "daisyui/theme" {

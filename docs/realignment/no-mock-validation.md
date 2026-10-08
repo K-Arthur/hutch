@@ -48,6 +48,13 @@ behavior, mobile menu focus restoration, no horizontal overflow, and the absence
 simulated approval controls. The marketing capture test output is in
 `artifacts/no-mock-setup/site/`.
 
+After the website redesign was merged, the actual app proof images were regenerated from the live local UI on 2026-10-08
+using the existing temporary empty state directory. `artifacts/no-mock-setup/results.json` records the exact application
+source hashes, Chromium/Playwright versions, empty API checks and image hashes. The desktop (1440×1000), tablet (768×1024)
+and phone (390×844) captures were opened and visually inspected; each had zero page errors and no horizontal overflow. The
+desktop and phone captures replace `website/assets/captures/setup-desktop.webp` and `setup-phone.webp`. The refreshed marketing
+viewport/full-page captures, including those embedded app images, are under `artifacts/marketing-top/`.
+
 Historical mock-based benchmark and lifecycle artifacts remain in the realignment evidence tree
 as records of earlier test methods. They are not product features and are no longer copied to the
 marketing site. Live Ollama, hosted providers, Pi/OpenCode execution, remote phone control, and

@@ -65,7 +65,8 @@ def test_executor_health_status_uses_a_steady_indicator(browser, live):
     try:
         page.goto(base + "/#/chat")
         pill = page.locator('#daemon-pill[data-state="live"]')
-        pill.wait_for()
+        pill.wait_for(state="attached")
+        assert pill.is_hidden(), "healthy idle executors stay quiet in the header"
         assert page.locator("#daemon-label").inner_text() == "live"
         assert page.locator(".daemon-dot").evaluate("el => getComputedStyle(el).animationName") == "none"
     finally:

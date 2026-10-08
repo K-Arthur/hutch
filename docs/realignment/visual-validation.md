@@ -107,10 +107,12 @@ views with reduced motion. The script also saves full-page captures for each res
 [phone](artifacts/marketing-top/phone.png) / [full page](artifacts/marketing-top/phone-full.png).
 
 All three viewports report zero horizontal overflow, no page errors and same-origin requests only. `artifacts/marketing-top/capture.json`
-records the actual `website/index.html`, `website/styles.css`, and `website/site.js` SHA-256 values alongside browser versions, dimensions
-and paths, so these images can be matched to the source revision. The anonymous website browser suite checks internal CTA targets and
-interaction. At desktop size the reduced-motion preference is reflected by the visible effects control; the capture intentionally keeps
-that user-facing setting visible. No hosted service or external request is needed for these captures.
+records the Git revision and SHA-256 values for `website/index.html`, `styles.css`, `site.js`, compiled `app.css`, token CSS, the loaded font,
+the mascot and the embedded desktop/phone app screenshots. The separate first-run capture report hashes all shipped Hutch Python and
+frontend sources. The anonymous website browser suite checks internal CTA targets and interaction. At desktop size the reduced-motion
+preference is reflected by the visible effects control; the capture intentionally keeps that user-facing setting visible. No hosted service
+or external request is needed for these captures. Local asset URLs, including product screenshots, are content-pinned to prevent browser
+caches from silently keeping an older image after the file is refreshed.
 
 ## Action intent review continuation
 

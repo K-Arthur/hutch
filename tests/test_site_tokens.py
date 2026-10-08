@@ -72,6 +72,19 @@ def test_built_tailwind_sheet_is_present():
 
 
 @pytest.mark.skipif(not TOKENS.exists(), reason="website tokens not present")
+def test_local_site_images_are_content_pinned():
+    """Updated product captures must not be hidden behind a stale browser cache."""
+    import hashlib
+    import re
+
+    site = ROOT / "website"
+    html = (site / "index.html").read_text()
+    for name in ("assets/captures/setup-desktop.webp", "assets/captures/setup-phone.webp"):
+        digest = hashlib.sha256((site / name).read_bytes()).hexdigest()[:8]
+        assert re.search(rf"{re.escape(name)}\?v={digest}(?:\s|\")", html), name
+
+
+@pytest.mark.skipif(not TOKENS.exists(), reason="website tokens not present")
 def test_tokens_declare_contrast_pairs():
     import json
 

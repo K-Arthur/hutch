@@ -21,12 +21,16 @@ from playwright.async_api import async_playwright
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUT = ROOT / "docs/realignment/artifacts/no-mock-setup"
 VIEWPORTS = (("desktop", 1440, 1000), ("tablet", 768, 1024), ("phone", 390, 844))
-SOURCE_FILES = (
-    "src/hutch/server/app.py",
-    "src/hutch/server/static/app.js",
-    "src/hutch/server/static/index.html",
-    "src/hutch/server/static/style.css",
-)
+def source_hashes() -> dict[str, str]:
+    """Tie screenshots to all shipped Hutch sources, including compiled UI styles."""
+    paths = sorted(
+        path for path in (ROOT / "src/hutch").rglob("*")
+        if path.is_file() and path.suffix in {".py", ".js", ".css", ".html"}
+    )
+    return {
+        path.relative_to(ROOT).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in paths
+    }
 
 
 def get_json(origin: str, path: str):
@@ -81,8 +85,7 @@ async def capture(url: str, out: Path) -> None:
                         "playwright": importlib.metadata.version("playwright")},
             "git_revision": subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, check=True,
                                            capture_output=True, text=True).stdout.strip(),
-            "source_sha256": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
-                              for name in SOURCE_FILES},
+            "source_sha256": source_hashes(),
             "screenshots": records,
             "scope": "real local first-run UI; empty temporary application database; no provider calls or external effects",
         }

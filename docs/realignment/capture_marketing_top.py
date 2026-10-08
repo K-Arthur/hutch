@@ -10,6 +10,7 @@ import hashlib
 import importlib.metadata
 import json
 import platform
+import subprocess
 
 from playwright.sync_api import sync_playwright
 
@@ -78,11 +79,24 @@ def main() -> None:
                 "browser_version": browser.version,
                 "playwright_version": importlib.metadata.version("playwright"),
                 "python_version": platform.python_version(),
+                "git_revision": subprocess.run(
+                    ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True, capture_output=True, text=True
+                ).stdout.strip(),
                 "site": "anonymous local static site; no credentials or external requests",
                 "reduced_motion": True,
                 "source_sha256": {
                     name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
-                    for name in ("website/index.html", "website/styles.css", "website/site.js")
+                    for name in (
+                        "website/index.html",
+                        "website/styles.css",
+                        "website/site.js",
+                        "website/app.css",
+                        "website/tokens.css",
+                        "website/assets/captures/setup-desktop.webp",
+                        "website/assets/captures/setup-phone.webp",
+                        "website/assets/hutch-agent.webp",
+                        "website/assets/fonts/archivo-latin-var.woff2",
+                    )
                 },
                 "captures": captures,
             }

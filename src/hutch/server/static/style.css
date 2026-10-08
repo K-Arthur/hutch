@@ -1219,7 +1219,9 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
   .app-shell { grid-template-rows: auto auto minmax(0, 1fr); }
   .app-top { grid-row: 1; }
   main#view { grid-row: 3; }
-  .attention-bar { position: static; grid-row: 2; grid-column: 1; transform: none; width: auto;
+  /* The reminder is in normal grid flow; it must stay behind the opened
+     workspace sheet so phone navigation remains reachable. */
+  .attention-bar { position: static; grid-row: 2; grid-column: 1; transform: none; z-index: auto; width: auto;
     margin: var(--s-2) var(--s-3); gap: var(--s-2); box-shadow: none; }
   .attention-bar .btn, .attention-bar .icon-btn { min-height: 44px; }
 }

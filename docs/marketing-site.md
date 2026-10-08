@@ -127,5 +127,13 @@ theme) governs.
   availability, FAQ, CTA), plus pointer-swap verification left/right and a measured check that the hero wordmark fits its
   column (about 18px slack each side).
 
+The merged-site review is also captured in `docs/realignment/artifacts/marketing-top/`. The anonymous static site was opened
+in Chromium 153.0.8010.12 / Playwright 1.63.0 at desktop 1440×1000, tablet 900×1024 and phone 390×844 with reduced motion.
+The viewport and full-page screenshots were opened and inspected. All three report zero horizontal overflow, zero page errors,
+and only same-origin requests. `capture.json` records the Git revision and SHA-256 hashes for the exact HTML, compiled/source
+CSS, JavaScript, font, mascot, and embedded app screenshots. The source-tree app capture report likewise records every shipped
+Hutch Python and frontend source file. These captures were regenerated after the main-site merge; source changes do not update
+screenshots automatically.
+
 Known gaps: no physical-device or screen-reader session; contrast is computed for declared token pairs, with rendered surfaces
 checked by eye at the two review widths; the frame grid is untested on very low-end GPUs.

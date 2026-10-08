@@ -79,7 +79,9 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert page.locator("img").evaluate_all("imgs => imgs.every(img => img.complete && img.naturalWidth > 0)")
     broken = [(url, status) for url, status in responses if status >= 400]
     assert not broken, broken
-    text = page.locator("body").inner_text().lower().replace("’", "'")
+    # Include closed FAQ answers: their risk and billing qualifications are
+    # intentionally collapsed until a visitor chooses to read them.
+    text = page.locator("body").text_content().lower().replace("’", "'")
     for retired in ("deterministic mock", "mock/offline", "scripted gate", "no telemetry"):
         assert retired not in text, retired
     assert "provider's own billing controls" in text
@@ -190,11 +192,11 @@ def test_real_setup_capture_is_truthful_and_fits_anonymous_viewports(browser, si
         requests = []
         page.on("request", lambda request: requests.append(request.url))
         page.goto(site_url, wait_until="networkidle")
-        image = page.locator("img[src='assets/captures/setup-desktop.webp']")
+        image = page.locator("img[src^='assets/captures/setup-desktop.webp']")
         image.evaluate("img => { img.loading='eager'; return img.decode(); }")
         figure = image.locator("xpath=ancestor::figure")
         assert image.evaluate("img => img.naturalWidth") == (390 if width <= 640 else 1440)
-        assert "empty state directory" in figure.inner_text()
+        assert "state directory was empty" in figure.inner_text()
         assert "no provider call" in figure.inner_text()
         assert page.locator("#gate-card, #gate-demo").count() == 0
         page.evaluate("window.scrollTo(0, 0)")
@@ -221,8 +223,8 @@ def test_real_setup_capture_is_truthful_and_fits_anonymous_viewports(browser, si
 def test_snapshot_and_workspace_limits_are_explained(browser, site_url):
     context, page, _ = _page(browser)
     page.goto(site_url, wait_until="networkidle")
-    text = page.locator("#runs").inner_text().lower()
-    for phrase in ("backup", "fresh per run", "managed folder", "survive bot deletion", "database snapshots"):
+    text = page.locator("#runs").text_content().lower()
+    for phrase in ("back up", "fresh per run", "managed folder", "survive bot deletion", "database snapshots"):
         assert phrase in text, phrase
     context.close()
 
