@@ -1055,3 +1055,21 @@ full rerun remains required. This proves transcript rendering for the tested fie
 not establish browser-page egress safety, permission isolation, or immunity to every authority
 escalation path. No application renderer code changed and no live page/provider was contacted.
 Implementation/evidence commit: `17a041c`.
+
+## Paired-device dashboard checkpoint (2026-10-08)
+
+The experimental pairing code now has a usable `/pair` page and a paired-device disclosure in Connections. A successful exchange
+stores the revocable device credential in an HttpOnly cookie; the typed device endpoint marks the current session server-side. The UI
+can revoke another device or itself, returning a self-revoked browser to `/pair`. Anonymous visitors can reach the pairing form without
+the app navigation or local state-directory disclosure. Marketing claims and operating instructions now describe this as experimental
+and retain the private-network/TLS boundary.
+
+Fixture coverage exercises invalid and single-use codes, current-device identification, both revocation paths, secure cookie flags,
+and the login-to-pair route. Chromium 153.0.8010.12 / Playwright 1.63.0 covered desktop (1440×1000), tablet (900×1024), phone
+(390×844), and compact phone (320×740), including keyboard focus, 44px touch targets, zero page errors and zero horizontal overflow.
+The inspected screenshots and a redacted interaction trace are in `artifacts/device-pairing/`. A raw Playwright trace briefly captured
+fixture credentials during development; it was removed before commit and is not retained. Anonymous website, templates and pairing
+tests passed **76 tests in 42.91s**; the dedicated pairing browser journey passed **1 test in 3.00s**. These are local fixtures, not a
+physical phone, remote-network or TLS deployment test. `git diff --check` passed. A full suite rerun follows this checkpoint.
+
+Implementation commit: `6ef14d8`.
