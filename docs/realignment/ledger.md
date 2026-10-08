@@ -371,3 +371,24 @@ cancelled notices were inspected. Six composer captures are additional to the 39
 admission fixtures were also refreshed. Website derivatives use the new isolated mock captures.
 Source hashes and versions are retained. Physical devices, screen readers and live providers
 remain separate verification gaps. This merge does not complete S5–S9 or permit final release.
+
+Shared composer merge commit: `3561c89` (parents `cb13791`, `d7d0029`).
+
+## Conversation control ownership (2026-10-08)
+
+Follow-up inspection found a later queued message could redirect header Stop from an older
+approval wait, and more than six turns could hide that request. Conversation resources now
+choose active control across all attached runs, preferring executing/waiting work and excluding
+other conversations. Chat binds Stop to this server target, retains its active attempt in the
+bounded window, follows its live subscription and preserves review details with Retry on failure.
+
+The initial Store regression reproduced the missing authority field (**1 failed in 0.49s**).
+Focused shell/conversation checks passed **12 tests in 1.83s**, including 105 turns with the active
+attempt outside message pagination. Two browser attempts each reported **1 passed, 2 failed**
+(91.07s/90.94s): the synthetic fixture persisted a request without its transcript request event.
+After supplying both, the real Stop/queue/failure journeys passed **3 tests in 20.47s**. The
+desktop/phone captures in `artifacts/conversation-authority/` were inspected at full size;
+failed refresh retains the inline request and primary Stop, with no page errors or overflow.
+Waits are synthetic; the Stop command and expiration transaction are real. No schema change.
+Full regression/browser repeats follow the next accounting checkpoint. Usage test additions in
+the working tree are separate, currently failing baselines, and excluded from this UI commit.

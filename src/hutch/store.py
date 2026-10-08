@@ -744,7 +744,24 @@ class Store:
                 "(SELECT r.run_id FROM conversation_runs r WHERE r.conversation_id = c.id "
                 "ORDER BY r.attached_at DESC LIMIT 1) AS latest_run_id "
                 "FROM conversations c WHERE c.id = ?", (conversation_id,)).fetchone()
-        return dict(row) if row else None
+            return self._with_conversation_authority(row) if row else None
+
+    def _with_conversation_authority(self, row: sqlite3.Row) -> dict[str, Any]:
+        """Choose control ownership from every attached run, independently of message pagination.
+
+        Call with the Store lock held. Executing/waiting work precedes queued turns;
+        the conversation boundary prevents another bot conversation becoming the Stop target.
+        """
+        from .lifecycle import LABELS
+        states = tuple(sorted(status.value for status in ACTIVE_STATUSES))
+        marks = ",".join("?" for _ in states)
+        active = self._db.execute(
+            "SELECT r.id, r.status FROM runs r JOIN conversation_runs cr ON cr.run_id = r.id "
+            f"WHERE cr.conversation_id = ? AND r.status IN ({marks}) "
+            "ORDER BY (r.status = 'pending'), r.created_at, r.id LIMIT 1", (row["id"], *states)).fetchone()
+        return {**dict(row), "active_run_id": active["id"] if active else None,
+                "active_run_status": active["status"] if active else None,
+                "active_run_status_label": LABELS[RunStatus(active["status"])] if active else None}
 
     def conversation_last_seq(self, conversation_id: str) -> int:
         with self._lock:
@@ -792,7 +809,7 @@ class Store:
         args.extend((limit, offset))
         with self._lock:
             rows = self._db.execute(query, args).fetchall()
-        return [dict(row) for row in rows]
+            return [self._with_conversation_authority(row) for row in rows]
 
     def list_conversation_messages(self, conversation_id: str, *, after: int = 0, limit: int = 100) -> list[dict[str, Any]]:
         with self._lock:

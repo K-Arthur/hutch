@@ -6,6 +6,10 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Fixed
 
+- Queued messages cannot replace an executing or waiting conversation attempt as the main Stop
+  target. Older active approvals stay visible beyond the chat window; failed refresh retains
+  review details with Retry instead of hiding the control or reporting completion.
+
 - Expired leases cannot renew or authorize owner actions, approvals, reservations, progress or
   status changes before recovery. Buffered worker replies validate ownership at commit, and late
   receipts cannot overwrite uncertain outcomes. Worker startup refuses an expired claim.

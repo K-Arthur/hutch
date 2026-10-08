@@ -165,3 +165,27 @@ def test_same_terminal_transition_cannot_project_a_zombie_reply(store, config):
         assert store.verify_chain(run.id)["ok"]
     finally:
         zombie.close()
+
+
+def test_conversation_authority_is_independent_of_message_page_and_other_conversations(store):
+    from hutch.models import Bot, Run, RunStatus, Task
+    bot = store.create_bot(Bot(name="long-active-chat", model="mock/demo", tools=[]))
+    other, _ = store.create_conversation(bot.id, "other", idem_key="other", request_hash="other")
+    unrelated = Run(bot_id=bot.id, prompt="another conversation", status=RunStatus.waiting_human)
+    store.submit_conversation_message(other["id"], unrelated.prompt, unrelated, Task(bot_id=bot.id, prompt=unrelated.prompt),
+                                      idem_key="other-send", request_hash="other-send")
+    conv, _ = store.create_conversation(bot.id, "long conversation", idem_key="long", request_hash="long")
+    first = None
+    for i in range(105):
+        run = Run(bot_id=bot.id, prompt=f"turn {i}", status=RunStatus.waiting_approval if i == 0 else RunStatus.pending)
+        store.submit_conversation_message(conv["id"], run.prompt, run, Task(bot_id=bot.id, prompt=run.prompt),
+                                          idem_key=f"send-{i}", request_hash=f"send-{i}")
+        first = first or run
+    detail = store.get_conversation(conv["id"])
+    assert detail["active_run_id"] == first.id
+    assert detail["active_run_status"] == "waiting_approval"
+    assert detail["active_run_status_label"] == "Waiting for you"
+    assert detail["latest_run_id"] != first.id
+    assert all(message["run_id"] != first.id for message in store.list_conversation_messages(conv["id"], after=5))
+    listed = next(c for c in store.list_conversations(bot.id) if c["id"] == conv["id"])
+    assert listed["active_run_id"] == first.id

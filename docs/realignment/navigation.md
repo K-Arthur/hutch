@@ -25,6 +25,9 @@ conversation command with idempotency. Stop is available in the header and indiv
 without an additional composer duplicate. Escape closes options and restores trigger focus;
 Send/options and Stop targets are 44px on phones. Cancelled attempts use the server label
 instead of a generic failed label, and recorded queue time remains visible without completed steps.
+The main Stop targets the server-selected active attempt within the conversation, even after
+new messages queue. That attempt and its approval stay visible beyond the six-attempt display
+window. Failed refresh retains the review with an explicit stale-details notice and Retry.
 
 Monitor contains Activity and Run history. These answer different questions (what needs
 attention now versus what happened), so combining them with conversation history would lose

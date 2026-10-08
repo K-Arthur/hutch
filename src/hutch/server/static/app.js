@@ -612,7 +612,6 @@ async function renderChatStudio(preferredBot = null) {
   currentStudioBot = bot.name;
   const detail = await api(`/bots/${encodeURIComponent(bot.name)}`);
   if (generation !== studioGeneration) return;
-  const runs = detail.recent_runs || [];
   currentConversations = await api(`/v1/conversations?bot=${encodeURIComponent(bot.id)}&include_legacy=true&limit=100`);
   if (generation !== studioGeneration) return;
   const rememberedConversation = storageGet(`hutch-conversation:${bot.id}`);
@@ -625,7 +624,10 @@ async function renderChatStudio(preferredBot = null) {
   if (generation !== studioGeneration) return;
   currentConversationId = selectedConversation.id;
   storageSet(`hutch-conversation:${bot.id}`, currentConversationId);
-  const activeRun = runs.find(r => r.conversation_id === currentConversationId && isActiveStatus(r.status, r.terminal)) || null;
+  const activeRun = selectedConversation.active_run_id ? {
+    id: selectedConversation.active_run_id, status: selectedConversation.active_run_status,
+    status_label: selectedConversation.active_run_status_label,
+  } : null;
   currentRunId = activeRun?.id || selectedConversation.latest_run_id || null;
 
   const state = botState(detail);
@@ -635,7 +637,7 @@ async function renderChatStudio(preferredBot = null) {
       <h1>${esc(bot.name)}</h1>
       <div class="ctx-meta">
         ${bot.paused ? '<span class="tag">paused</span>' : ""}
-        ${detail.active_run_id ? statusChip(detail.active_run_status, detail.active_run_status_label) : ""}
+        ${activeRun ? statusChip(activeRun.status, activeRun.status_label) : ""}
       </div>
     </div>
     <div class="ctx-actions">
@@ -645,7 +647,7 @@ async function renderChatStudio(preferredBot = null) {
       </select>
       <button class="btn ghost small" id="studio-new-conversation" type="button">${icon("plus")} New</button>
       ${!selectedConversation.is_legacy ? `<button class="btn ghost small" id="studio-archive-conversation" type="button" ${activeRun ? "hidden" : ""}>${selectedConversation.archived ? "Restore" : "Archive"}</button>` : ""}
-      <button class="btn danger small" id="studio-stop-run" type="button" ${activeRun ? "" : "hidden"}>${icon("stop")} Stop</button>
+      <button class="btn danger small" id="studio-stop-run" type="button" data-stop-target="${esc(activeRun?.id || "")}" ${activeRun ? "" : "hidden"}>${icon("stop")} Stop</button>
       <a class="btn ghost small" href="#/bot/${esc(bot.name)}">${icon("sliders")} Settings</a>
     </div>`);
 
@@ -782,7 +784,6 @@ async function renderChatStudio(preferredBot = null) {
         : (ACTIVE.has(r.status) && activeRun ? "Sent — queued behind the current run." : "Sent."));
       if (generation !== studioGeneration) { if (loadDraft(composerDraftId) === snapshot) saveDraft(composerDraftId, ""); return; }
       currentRunId = r.id;
-      syncStudioRunControls(r);
       // Clear only the submitted revision; anything typed since stays put.
       if (txt.value === snapshot) { txt.value = ""; saveDraft(composerDraftId, ""); autogrow(); }
       subscribeRun(r.id);
@@ -831,7 +832,7 @@ async function renderChatStudio(preferredBot = null) {
   box.addEventListener("keydown", ev => {
     if (ev.key === "Escape" && !menu.hidden) { ev.stopPropagation(); setMenu(false); menuBtn.focus(); }
   });
-  $("#studio-stop-run").onclick = () => requestStop(currentRunId, $("#studio-stop-run"));
+  $("#studio-stop-run").onclick = ev => requestStop(ev.currentTarget.dataset.stopTarget, ev.currentTarget);
 
   feedMode = "studio";
   if (activeRun) subscribeRun(activeRun.id);   // stream brings events; first paint below
@@ -857,6 +858,7 @@ function syncStudioRunControls(run) {
   const active = run && isActiveStatus(run.status, run.terminal);
   const stop = $("#studio-stop-run");
   if (stop) {
+    stop.dataset.stopTarget = active ? run.id : "";
     stop.hidden = !active;
     stop.disabled = run?.status === "cancelling";
     stop.innerHTML = `${icon("stop")} ${run?.status === "cancelling" ? "Stopping" : "Stop"}`;
@@ -935,7 +937,7 @@ async function renderChatFeed() {
 
   const conversationId = currentConversationId, generation = studioGeneration;
   const stillCurrent = () => generation === studioGeneration && conversationId === currentConversationId && stream.isConnected;
-  let messages;
+  let messages, authority;
   try {
     if (!currentConversationId) return;
     const summary = await api(`/v1/conversations/${encodeURIComponent(conversationId)}?after=0&limit=1`);
@@ -945,8 +947,10 @@ async function renderChatFeed() {
     const page = await api(`/v1/conversations/${encodeURIComponent(conversationId)}?after=${after}&limit=100`);
     if (!stillCurrent()) return;
     messages = page.messages || [];
+    authority = page;
   } catch { return; }
   const runIds = [...new Set(messages.filter(m => m.role === "user" && m.run_id).map(m => m.run_id))];
+  if (authority.active_run_id && !runIds.includes(authority.active_run_id)) runIds.unshift(authority.active_run_id);
   if (!runIds.length) {
     stream.innerHTML = welcomeHtml();
     wireWelcome();
@@ -956,12 +960,24 @@ async function renderChatFeed() {
   const wasNearBottom = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 90;
 
   const shown = runIds.slice(-6);
+  // An older live attempt (and its approval) must remain reachable even when
+  // later queued messages have pushed it out of the bounded history window.
+  if (authority.active_run_id && !shown.includes(authority.active_run_id)) {
+    shown.splice(0, shown.length >= 6 ? 1 : 0, authority.active_run_id);
+  }
+  currentRunId = authority.active_run_id || authority.latest_run_id || null;
   const parts = [];
   for (const runId of shown) {
     let html;
-    if (runId === currentRunId) html = await runBlockHtml(runId);
-    else if (terminalRunCache.has(runId)) html = terminalRunCache.get(runId);
-    else html = await runBlockHtml(runId);
+    try {
+      if (runId === currentRunId) html = await runBlockHtml(runId);
+      else if (terminalRunCache.has(runId)) html = terminalRunCache.get(runId);
+      else html = await runBlockHtml(runId);
+    } catch {
+      html = $$("[data-run-id]", stream).find(e => e.dataset.runId === runId)?.outerHTML || "";
+      html += `<p class="feed-refresh-error hint" role="status">Could not refresh this attempt. Retained details may be outdated.
+        <button class="btn ghost small" data-retry-feed type="button">Retry</button></p>`;
+    }
     parts.push(html);
   }
   if (!stillCurrent()) return;
@@ -997,14 +1013,17 @@ async function renderChatFeed() {
     slot.id = "typing-slot"; slot.className = "typing-slot"; slot.setAttribute("aria-hidden", "true");
     scroll.appendChild(slot);
   }
-  const active = currentRunId ? await api(`/runs/${encodeURIComponent(currentRunId)}`).catch(() => null) : null;
+  const active = currentRunId ? await api(`/runs/${encodeURIComponent(currentRunId)}`).catch(() =>
+    authority.active_run_id ? { id: authority.active_run_id, status: authority.active_run_status,
+      status_label: authority.active_run_status_label } : null) : null;
   if (!stillCurrent()) return;
   const thinking = active?.status === "running";
   if (thinking && !slot.innerHTML.trim()) slot.innerHTML = typingHtml();
   if (!thinking) slot.innerHTML = "";
   syncStudioRunControls(active);
   renderAttention();
-  if (!active || !isActiveStatus(active.status, active.terminal)) stopRunSubs();
+  if (active && isActiveStatus(active.status, active.terminal)) subscribeRun(active.id);
+  else if (active || !authority.active_run_id) stopRunSubs();
   if (active) announceRunLifecycle([active]);
 
   // The reader's place is sacred: follow the bottom only if they were there.
@@ -1025,6 +1044,7 @@ async function renderChatFeed() {
 
   wireApprovals();
   wireFeedInteractions();
+  $$("[data-retry-feed]", stream).forEach(button => button.onclick = () => scheduleFeedRender());
   updateTtls();
 }
 

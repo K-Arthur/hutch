@@ -113,6 +113,9 @@ class ConversationResource(BaseModel):
     message_count: int = 0
     last_seq: int = 0
     latest_run_id: Optional[str] = None
+    active_run_id: Optional[str] = None
+    active_run_status: Optional[str] = None
+    active_run_status_label: Optional[str] = None
 
 
 class ConversationMessageResource(BaseModel):

@@ -705,6 +705,8 @@ def test_queued_chat_keeps_earlier_approval_and_live_status_fresh(browser, live)
     second = page.locator("#chat-stream [data-run-id]").last
     page.wait_for_function("document.querySelectorAll('#chat-stream [data-run-id]').length === 2")
     assert "Queued" in second.inner_text()
+    assert page.locator("#studio-stop-run").get_attribute("data-stop-target") == first_run
+    assert "Waiting for you" in page.locator(".ctx-meta").inner_text()
     assert not page.locator("#typing-slot .typing").count()
     # The older active run must not enter the terminal HTML cache when currentRunId changes.
     page.locator(f'[data-approval-card="{first_approval}"] [data-approve="1"]').click()
@@ -712,6 +714,72 @@ def test_queued_chat_keeps_earlier_approval_and_live_status_fresh(browser, live)
     first.get_by_text("Done", exact=True).wait_for()
     second.locator("[data-approval-card] [data-approve='0']").wait_for()
     second.locator("[data-approval-card] [data-approve='0']").click()
+    page.close()
+
+
+@pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (390, 844, "phone")])
+def test_old_active_approval_survives_chat_window_and_header_stop_targets_it(browser, live, monkeypatch, width, height, size):
+    import hashlib
+    import json
+    from pathlib import Path
+    from datetime import timedelta
+    from hutch.approvals import action_fingerprint
+    from hutch.models import ApprovalRequest, Run, Task, iso, utcnow
+    base, app = live
+    store = app.state.store
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    bot = store.create_bot(Bot(name="active-window", model="mock/demo", tools=[]))
+    conv, _ = store.create_conversation(bot.id, "Long queue fixture", idem_key="create", request_hash="create")
+    runs = []
+    for i in range(8):
+        run = Run(bot_id=bot.id, prompt=f"Sanitized queued turn {i}",
+                  status=RunStatus.waiting_approval if i == 0 else RunStatus.pending)
+        store.submit_conversation_message(conv["id"], run.prompt, run, Task(bot_id=bot.id, prompt=run.prompt),
+                                          idem_key=f"turn-{i}", request_hash=f"turn-{i}")
+        runs.append(run)
+    detail = {"path": "fixture.txt", "content": "sanitized review"}
+    request = store.create_approval(ApprovalRequest(run_id=runs[0].id, bot_id=bot.id, tool="files",
+        action="write fixture.txt", detail=detail, action_hash=action_fingerprint("files", detail),
+        expires_at=iso(utcnow() + timedelta(minutes=10))))
+    store.append_event(Event(run_id=runs[0].id, type=EventType.approval_request,
+        data={"approval_id": request.id, "tool": request.tool, "action": request.action,
+              "detail": request.detail, "action_hash": request.action_hash, "expires_at": request.expires_at}))
+    store.flush_events()
+    page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(base + "/#/chat/active-window")
+    card = page.locator(f'#chat-stream [data-approval-card="{request.id}"]')
+    card.locator("[data-approve='1']").wait_for()
+    assert page.locator("#studio-stop-run").get_attribute("data-stop-target") == runs[0].id
+    assert "Waiting for you" in page.locator(".ctx-meta").inner_text()
+    assert not page.locator("#typing-slot .typing").count()
+    assert page.locator("#chat-stream [data-run-id]").count() == 6
+    page.route(f"**/api/runs/{runs[0].id}", lambda route: route.abort())
+    page.wait_for_timeout(4400)
+    assert card.is_visible(), "a failed refresh must retain the reviewable request"
+    assert "may be outdated" in page.locator(".feed-refresh-error").inner_text()
+    assert page.locator("#studio-stop-run").is_visible(), "a failed refresh cannot mean completion"
+    assert page.locator("#studio-stop-run").get_attribute("data-stop-target") == runs[0].id
+    page.unroute(f"**/api/runs/{runs[0].id}")
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/conversation-authority"
+    out.mkdir(parents=True, exist_ok=True)
+    page.screenshot(path=str(out / f"{size}.png"), full_page=True, animations="disabled")
+    overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+    assert overflow <= 1 and not errors
+    with page.expect_response(lambda response: response.url.endswith(f"/{runs[0].id}/stop")) as stopped:
+        page.locator("#studio-stop-run").click()
+    assert stopped.value.status == 200
+    assert store.get_run(runs[0].id).cancel_requested
+    assert not store.get_run(runs[-1].id).cancel_requested
+    assert store.get_approval(request.id).status.value == "expired"
+    (out / f"{size}.json").write_text(json.dumps({
+        "browser": browser.browser_type.name, "version": browser.version, "viewport": [width, height],
+        "captured_at": iso(utcnow()), "scenario": "synthetic old approval, seven queued turns, failed run refresh, real Stop command",
+        "page_errors": errors, "horizontal_overflow": overflow,
+        "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest()
+            for p in ("src/hutch/server/static/app.js", "src/hutch/store.py", "src/hutch/server/app.py")},
+    }, indent=2) + "\n")
     page.close()
 
 

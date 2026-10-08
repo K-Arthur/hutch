@@ -2,7 +2,7 @@
 
 This is the public contract for the local HTTP API and the dashboard. The v1 surface is partial; a resource is marked **landed** only
 when server tests cover its behavior. The Studio now selects, archives and submits conversations through the canonical endpoints;
-approvals, stop and other screens still use compatibility routes.
+inline approvals and Stop use idempotent v1 commands. Other screens retain compatibility routes.
 
 ## 1. Run status values and labels (landed with slice S2)
 
@@ -87,6 +87,13 @@ not automatically added to a model prompt.
 Schema v8 imports each historical run into its own legacy conversation. It does not infer continuity or combine contexts. The
 Studio lets the operator select these imported threads; the builtin runtime receives up to 12 prior messages and 16,000 characters.
 External runtimes do not consume this history.
+
+Conversation lists/detail expose `active_run_id`, `active_run_status` and
+`active_run_status_label`, chosen across all attached attempts. Executing/waiting work takes
+precedence over queued turns. This target is scoped to the conversation and independent of
+message pagination. Chat binds header Stop to that ID and keeps the active attempt visible
+inside its six-attempt window. Failed attempt refresh retains prior details with a Retry
+notice; it cannot turn a known wait into completion or hide the primary control.
 
 ## 6. Remote pairing (partial, experimental)
 
