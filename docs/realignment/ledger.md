@@ -1037,6 +1037,6 @@ run had **1,301 passed and 1 test-harness NameError** caused by a missing test i
 was restored, and the complete browser/website suite then passed **58 tests in 108.44s**.
 Desktop/tablet/phone Needs you captures were inspected. Updated anonymous marketing captures and
 their source metadata are retained under `artifacts/browser-alerts/website/`; all three show zero
-page errors and horizontal overflow. The 58-test repeat covers the latest alert source, but the
-all-repository release suite has not yet been rerun after this slice. Implementation commit:
-`ceb9369`.
+page errors and horizontal overflow. The full repository suite then passed **1,302 tests in
+368.81s** with `PytestUnhandledThreadExceptionWarning` and `SyntaxWarning` promoted to failures.
+Implementation commit: `ceb9369`; verification checkpoint: `5b8ea61`.
