@@ -1,4 +1,4 @@
-"""Real-browser checks (Chromium via Playwright) of what unit tests cannot see: the live stream surviving a
+"""Real-browser checks (Chromium or Firefox via Playwright) of what unit tests cannot see: the live stream surviving a
 network drop in the actual DOM, and the plain-POST controls doing what they say.
 
 Skipped automatically when Playwright or its Chromium build is not installed:
@@ -22,10 +22,16 @@ from hutch.server.app import create_app  # noqa: E402
 @pytest.fixture(scope="module")
 def browser():
     with pw.sync_playwright() as p:
-        try:
-            b = p.chromium.launch()
-        except Exception as exc:  # browser build not installed
-            pytest.skip(f"chromium unavailable: {exc}")
+        b = None
+        errors = []
+        for engine in (p.chromium, p.firefox):
+            try:
+                b = engine.launch()
+                break
+            except Exception as exc:  # browser build unavailable; try another local engine
+                errors.append(f"{engine.name}: {exc}")
+        if b is None:
+            pytest.skip("no Playwright browser is installed: " + "; ".join(errors))
         yield b
         b.close()
 
@@ -162,7 +168,7 @@ def test_spa_transcript_renders_a_live_run(browser, live, monkeypatch):
     errors: list[str] = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.goto(f"{base}/#/run/{run.id}")
-    page.wait_for_selector("#chat-stream .chat-msg.agent", timeout=30_000)
+    page.wait_for_selector("#chat-stream .spine .answer", timeout=30_000)
     assert "done" in page.inner_text("#chat-stream")
     assert not errors, errors
     ctx.close()
@@ -219,6 +225,28 @@ def test_a_stale_approval_click_shows_the_other_devices_decision(browser, live):
     page.wait_for_selector("#chat-stream .approval-card-chat.resolved")
     tag = page.inner_text("#chat-stream .approval-card-chat.resolved .tag")
     assert "Approved" in tag and "phone" in tag
+    ctx.close()
+
+
+def test_bot_limits_can_be_saved_from_the_phone_settings(browser, live):
+    base, app = live
+    store = app.state.store
+    store.create_bot(Bot(name="limit-bot", model="mock/demo", approval_mode=ApprovalMode.auto))
+    ctx = browser.new_context(viewport={"width": 390, "height": 844})
+    page = ctx.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(f"{base}/#/bot/limit-bot")
+    page.locator("#form-limits").wait_for()
+    assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+    page.locator('#form-limits [name="max_steps"]').fill("11")
+    page.locator('#form-limits [name="daily_token_cap"]').fill("7500")
+    page.locator('#form-limits [name="max_cost_usd"]').fill("0.65")
+    page.locator('#form-limits button[type="submit"]').click()
+    wait_for(lambda: store.get_bot("limit-bot").limits.max_steps == 11)
+    limits = store.get_bot("limit-bot").limits
+    assert limits.daily_token_cap == 7500 and limits.max_cost_usd == 0.65
+    assert not errors, errors
     ctx.close()
 
 

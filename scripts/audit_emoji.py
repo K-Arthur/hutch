@@ -92,7 +92,8 @@ SKIP_DIRS = {
     ".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache",
     ".ruff_cache", ".mypy_cache", "dist", "build", ".zcode",
     ".v2c", ".video_agent", ".hutch", "test-results", "playwright-report",
-    ".worktrees", ".zcodeignore-plans", ".superdesign",
+    ".worktrees", ".zcodeignore-plans", ".superdesign", ".agents", ".codex",
+    ".impeccable", ".opencode",
 }
 
 SKIP_FILES = {"uv.lock", "package-lock.json", "pnpm-lock.yaml", "yarn.lock"}
