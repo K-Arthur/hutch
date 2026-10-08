@@ -178,3 +178,26 @@ rather than treating a preview as complete. `/api/v1/usage` adds `unresolved_act
 cross-bot count; content-free `actions` changes invalidate these resources. Chat provides inline
 review and Needs you pages older unresolved actions. Original execution error remains inspectable
 when all action reports have been recorded.
+
+## Restore review (schema v14)
+
+`GET /api/v1/state/restore?limit=100&offset=0` returns a typed current report and bounded
+inventory page. Limits are 1–200 with nonnegative offset; invalid pagination returns 422.
+Report is null on an installation without restoration. It contains ID/date, schema, verified
+executor/UI fingerprint, validation counts, quarantine counts, excluded scopes and activation
+state/evidence. Inventory contains kind, resource ID and prior status, excluding prompts,
+arguments, private device labels and permission keys. `execution_held` is authoritative;
+`source_processes_stopped=false` and `old_work_will_resume=false` express the actual boundaries.
+
+Health and usage resources add `execution_held`. New work during the hold returns 409 with
+`code=restore_review_required`, the restore ID and actionable text. No message/task/attempt is
+admitted on that failed request; chat keeps its draft. Supervisor/worker/recovery claims are
+also held, so a client-side unpause cannot bypass restoration review. Content-free `state`
+invalidations refresh the global notice without rerouting chat. Activation has no HTTP endpoint;
+the local `hutch state activate RESTORE_ID --evidence ...` command records review once. An exact
+retry is harmless; changed/competing review conflicts. Activation never requeues old work,
+unpauses schedules or reinstates grants/devices. The `run_procs.detached_at` marker removes
+cleanup authority while keeping identity and `ended_at` evidence unchanged.
+
+State backups/restores are private local commands, not website download or control routes. See
+[Operations](../operations.md#database-migration-and-restore) for snapshot scope and cutover.

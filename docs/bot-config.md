@@ -24,6 +24,12 @@ dashboard, or the REST API, and live in `hutch.db`.
 | `sandbox` | enum | `strict` for new bots | `strict` uses Linux bubblewrap for shell commands and fails closed if unavailable; `off` runs shell commands without OS containment |
 | `paused` | bool | false | schedules skipped while paused |
 
+Database restoration sets every saved bot to `paused` and revokes standing tool grants. A separate
+installation-wide restore hold blocks new submissions and claims until local review is recorded.
+Unpausing a bot does not bypass the hold; activating the restore does not unpause schedules or
+resume old attempts. Review user-owned `workdir` paths separately because database snapshots do
+not include the files they reference. See [Operations](operations.md#database-migration-and-restore).
+
 ### Working folder
 
 Without a `workdir`, every run gets a fresh, empty workspace, so a bot cannot see your files. Set one and the run's

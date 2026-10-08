@@ -34,6 +34,7 @@ from ..engine import Engine, bot_prompt_for_schedule
 from ..lifecycle import LABELS
 from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, CommandRule, Limits, RiskTier, Run, RunStatus, Schedule, Task
 from ..store import IdempotencyConflict, Store
+from ..state_snapshot import ExecutionHeld
 from ..templates import TEMPLATE_INFO, TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
 from .security import DEVICE_COOKIE, SecurityMiddleware
@@ -62,6 +63,35 @@ class BotCreate(BaseModel):
     command_rules: list[CommandRule] = []
     workdir: Optional[str] = None
     limits: Optional[Limits] = None
+
+
+class RestoreReportResource(BaseModel):
+    id: str
+    created_at: str
+    execution_held: bool
+    counts: dict[str, int]
+    verification: dict[str, int]
+    source_schema: int
+    schema_version: int = Field(alias='schema')
+    excluded: list[str]
+    source_processes_stopped: bool
+    old_work_will_resume: bool
+    activated_at: Optional[str] = None
+    activation_evidence: str = ''
+    verified_code_hash: str
+
+
+class RestoreItemResource(BaseModel):
+    kind: Literal['runs', 'tasks', 'processes', 'approvals', 'devices', 'bots']
+    resource_id: str
+    prior_status: str
+
+
+class RestorePageResource(BaseModel):
+    report: Optional[RestoreReportResource]
+    items: list[RestoreItemResource]
+    limit: int
+    offset: int
 
 
 class BotPatch(BaseModel):
@@ -340,6 +370,11 @@ def create_app() -> FastAPI:
             for error in exc.errors()
         ]})
 
+    @app.exception_handler(ExecutionHeld)
+    async def execution_held(_request: Request, exc: ExecutionHeld):
+        return JSONResponse(status_code=409, content={'detail': str(exc), 'code': 'restore_review_required',
+                                                      'restore_id': exc.restore_id})
+
     # ------------------------------------------------------------- helpers
 
     def bot_or_404(ref: str) -> Bot:
@@ -402,7 +437,17 @@ def create_app() -> FastAPI:
     @app.get("/api/health")
     @app.get("/api/v1/health")
     def health() -> dict:
-        return {"status": "ok", "version": __version__, "schema": store.schema_version}
+        report = store.restoration_status()
+        return {"status": "ok", "version": __version__, "schema": store.schema_version,
+                "execution_held": bool(report and report['execution_held'])}
+
+    @app.get('/api/v1/state/restore', response_model=RestorePageResource)
+    def restoration_status(limit: int = 100, offset: int = 0) -> dict:
+        if not 1 <= limit <= 200 or offset < 0:
+            raise HTTPException(422, 'limit must be 1–200 and offset cannot be negative')
+        report = store.restoration_status()
+        return {'report': report, 'items': store.restoration_items(report['id'], limit=limit, offset=offset) if report else [],
+                'limit': limit, 'offset': offset}
 
     @app.get("/api/v1/events", response_model=EventPageResource)
     def global_events(after: int = 0, limit: int = 200) -> dict:
@@ -1048,6 +1093,7 @@ def create_app() -> FastAPI:
             "bots": len(bots), "paused": sum(1 for b in bots if b.paused),
             "active_runs": len(active), "pending_approvals": len(pending),
             "unresolved_actions": store.count_unresolved_actions(),
+            "execution_held": bool((report := store.restoration_status()) and report['execution_held']),
             "queued_tasks": len(store.pending_tasks()),
             "tokens_today": tokens_today,
             "tokens_measured_today": sum(row[0] for row in budgets),

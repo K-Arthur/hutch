@@ -274,7 +274,7 @@ const store$ = {
 
 let modalReturnFocus = null;
 
-function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confirm", confirmClass = "primary", wide = false, returnFocus = null }) {
+function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confirm", confirmClass = "primary", wide = false, returnFocus = null, showCancel = true }) {
   const root = $("#modal-root");
   modalReturnFocus = returnFocus || document.activeElement;
   root.innerHTML = `
@@ -286,7 +286,7 @@ function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confir
         </div>
         <div class="modal-body">${bodyHtml}</div>
         <div class="modal-footer">
-          <button class="btn ghost" id="modal-cancel">Cancel</button>
+          <button class="btn ghost" id="modal-cancel" ${showCancel ? '' : 'hidden'}>Cancel</button>
           <button class="btn ${confirmClass}" id="modal-confirm">${esc(confirmText)}</button>
         </div>
       </div>
@@ -298,11 +298,12 @@ function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confir
     document.removeEventListener("keydown", keyHandler, true);
     root.innerHTML = "";
     if (cancelled && onCancel) onCancel();
-    if (modalReturnFocus?.isConnected) modalReturnFocus.focus();
+    if (modalReturnFocus?.isConnected && modalReturnFocus.getClientRects().length) modalReturnFocus.focus();
     else if (modalReturnFocus?.dataset.receiptReview) {
       const target = $$('[data-receipt-review]').find(b => b.dataset.receiptReview === modalReturnFocus.dataset.receiptReview);
       (target || $('#chat-prompt') || $('#needs-you-open'))?.focus();
     }
+    else ($('#chat-prompt') || $('#nav-toggle'))?.focus();
   };
   const keyHandler = ev => {
     if (ev.key === "Escape") { ev.stopPropagation(); close(); return; }
@@ -537,7 +538,7 @@ async function pollHealth() {
   try {
     const h = await api("/health");
     lastHealthAt = Date.now();
-    setDaemon("live", `daemon live — v${h.version} · schema ${h.schema}`);
+    setDaemon(h.execution_held ? "held" : "live", `${h.execution_held ? 'Execution held for restore review' : 'daemon live'} — v${h.version} · schema ${h.schema}`);
   } catch {
     const recent = lastHealthAt && Date.now() - lastHealthAt < 3 * HEARTBEAT_MS;
     const state = recent ? "reconnecting" : "offline";
@@ -559,6 +560,7 @@ let unresolvedReceiptCount = 0;
 async function refreshBadge() {
   try {
     const stats = await api("/stats");
+    $('#execution-hold').hidden = !stats.execution_held;
     unresolvedReceiptCount = stats.unresolved_actions || 0;
     const n = (stats.pending_approvals || 0) + unresolvedReceiptCount;
     const previousPendingCount = lastPendingCount;
@@ -583,6 +585,26 @@ async function refreshBadge() {
     lastPendingCount = n;
   } catch {}
 }
+
+$('#restore-report-open').addEventListener('click', async () => {
+  const trigger = $('#restore-report-open');
+  trigger.disabled = true;
+  try {
+    const { report } = await api('/v1/state/restore?limit=1');
+    if (!report) throw new Error('No restore report is available.');
+    // The hold explanation remains in the header/dialog. Remove its prior
+    // submission toast so it cannot cover the dialog's Close control on phones.
+    $('#toast-root').replaceChildren();
+    openModal({ title: 'Restored history', confirmText: 'Close', showCancel: false, returnFocus: trigger,
+      bodyHtml: `<p>${report.execution_held ? 'Execution is paused for a local review on the executor.' : 'A local review was recorded; new work is allowed.'}</p>
+        <p>Old attempts will not resume. Restoration paused saved schedules and revoked standing permissions and device sessions.</p>
+        <p><strong>Source processes were not stopped by this restore.</strong> Stop the original services and check effects after the snapshot before activating this copy.</p>
+        <dl class="kv-list">${Object.entries(report.counts).map(([key, count]) => `<div><dt>${esc(key.replaceAll('_', ' '))}</dt><dd>${esc(count)}</dd></div>`).join('')}</dl>
+        <p>This database snapshot excludes credentials, browser profiles and user files. Preserve and review those separately.</p>
+        <p class="hint">On the executor, inspect <code>hutch state report ${esc(report.id)}</code>. Record the review with <code>hutch state activate</code> when ready.</p>` });
+  } catch (error) { toast(error.message, 'error'); }
+  finally { trigger.disabled = false; }
+});
 
 // The bar keeps pending approval discoverable from any surface (terminal,
 // artifact, phone sheet) without modal storms: one line, one action.
@@ -2587,10 +2609,11 @@ function refreshChangedResources(resources) {
     const changed = new Set(changedResources);
     changedResources.clear();
     if (["bots", "runs", "usage", "usage_reservations"].some(r => changed.has(r))) void refreshRoster();
-    if (["approvals", "runs", "actions"].some(r => changed.has(r))) {
+    if (["approvals", "runs", "actions", "state"].some(r => changed.has(r))) {
       void refreshBadge();
       if (needsYouDialog.open) void refreshApprovals();
     }
+    if (changed.has("state")) void pollHealth();
     if (["messages", "conversations", "runs", "approvals", "actions", "transcript_mirrors"].some(r => changed.has(r))) {
       const visibleHash = location.hash || "#/chat";
       if (/^#\/chat(?:\/|$)/.test(visibleHash) || /^#\/run\/[\w-]+$/.test(visibleHash)) scheduleFeedRender();

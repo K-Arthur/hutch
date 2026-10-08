@@ -6,6 +6,12 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Fixed
 
+- Schema v14 restores database snapshots into a new private directory with old work quarantined,
+  original process identities detached from cleanup authority, device sessions revoked and
+  schedules paused. Submission, worker and supervisor claims refuse execution until a local
+  operator review is recorded. Restoring never signals or modifies source processes. Snapshot
+  hashes, migration, transcript/intent validation and installed executor/UI fingerprint checks
+  precede activation; credentials, browser profiles and user files remain separately backed up.
 - Schema v13 snapshots arguments and reviewed authority before an effect, requires an unexpired
   fence for owned receipt writes, and atomically seals missing receipts with Needs review.
   Receipt storage failure stops further tools. Immutable operator reconciliation records checked

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import ipaddress
 import os
+import sqlite3
 import time
 from pathlib import Path
 from typing import Optional
@@ -46,6 +47,8 @@ conn_app = typer.Typer(no_args_is_help=True, help="Hosted endpoints and subscrip
 usage_app = typer.Typer(no_args_is_help=True, help="Inspect and reconcile model-usage reservations.")
 app.add_typer(conn_app, name="connections")
 app.add_typer(usage_app, name="usage")
+state_app = typer.Typer(no_args_is_help=True, help="Snapshot the database and review an isolated restore.")
+app.add_typer(state_app, name="state")
 
 console = Console()
 err = Console(stderr=True)
@@ -104,6 +107,10 @@ def status() -> None:
     """System overview: bots, active runs, queue, pending approvals."""
     from .scheduler import Scheduler
     store = _store()
+    restoration = store.restoration_status()
+    if restoration and restoration['execution_held']:
+        console.print('Restored history — execution held for local review.', style='yellow')
+        console.print(f"Inspect: hutch state report {restoration['id']}", markup=False)
     scheduler = Scheduler(store)
     bots = store.list_bots()
     table = Table(title="hutch status")
@@ -124,6 +131,62 @@ def status() -> None:
     console.print(f"active runs: [bold]{len(active)}[/bold]   queued tasks: {len(store.pending_tasks())}   pending approvals: [yellow]{len(pending)}[/yellow]")
     for req in pending:
         console.print(f"  [yellow]![/yellow] {req.id}  [{req.tool}] {req.action}")
+
+
+@state_app.command('backup')
+def state_backup(destination: Path = typer.Argument(..., help='New snapshot directory; must not exist.'),
+                 database: Optional[Path] = typer.Option(None, '--database', help='Optional pre-upgrade database backup to snapshot.')) -> None:
+    """Back up committed database history, including WAL pages. Excludes files and credentials."""
+    from .state_snapshot import backup
+    try:
+        manifest = backup(get_config(), destination, source_database=database)
+    except (OSError, ValueError, RuntimeError, sqlite3.Error) as exc:
+        err.print(str(exc), style='red', markup=False)
+        raise typer.Exit(1) from None
+    console.print_json(json.dumps(manifest))
+
+
+@state_app.command('restore')
+def state_restore(snapshot: Path, destination: Path = typer.Option(..., '--to', help='New private state directory.')) -> None:
+    """Verify/migrate a snapshot and quarantine old work. Does not stop source services or overwrite state."""
+    from .state_snapshot import restore
+    try:
+        report = restore(snapshot, destination)
+    except (OSError, ValueError, RuntimeError, sqlite3.Error) as exc:
+        err.print(str(exc), style='red', markup=False)
+        raise typer.Exit(1) from None
+    console.print_json(json.dumps(report))
+
+
+@state_app.command('report')
+def state_report(restore_id: str, limit: int = typer.Option(100, min=1, max=200),
+                 offset: int = typer.Option(0, min=0)) -> None:
+    """Inspect the current restore hold and a bounded page of quarantined resource IDs."""
+    store = _store()
+    try:
+        report = store.restoration_status()
+        if report is None or report['id'] != restore_id:
+            err.print('No current restore with that ID.', style='red')
+            raise typer.Exit(1)
+        console.print_json(json.dumps({'report': report, 'items': store.restoration_items(restore_id, limit=limit, offset=offset),
+                                      'limit': limit, 'offset': offset}))
+    finally:
+        store.close()
+
+
+@state_app.command('activate')
+def state_activate(restore_id: str, evidence: str = typer.Option(..., '--evidence',
+                   help='Record review of source-service shutdown, later effects, provider usage and excluded files.')) -> None:
+    """Record local review and allow new work. Old work stays quarantined and schedules stay paused."""
+    store = _store()
+    try:
+        store.activate_restoration(restore_id, evidence)
+    except (KeyError, ValueError, RuntimeError) as exc:
+        err.print(str(exc), style='red', markup=False)
+        raise typer.Exit(1) from None
+    finally:
+        store.close()
+    console.print('Review recorded. New work is allowed; old work will not resume. Activation does not unpause schedules.')
 
 
 # --------------------------------------------------------------------- bots

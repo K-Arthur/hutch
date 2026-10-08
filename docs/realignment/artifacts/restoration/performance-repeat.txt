@@ -1,0 +1,3 @@
+{"completed": "previous-8e1abae-restore-hold-repeat", "metrics": {"cli_version_ms": 479.9458530033007, "cli_status_ms": 683.6187809240073, "events_per_sec": 23733.076205956917, "step_overhead_ms": 0.11829910799860954, "idle_rss_daemon_mb": 42.4, "idle_cpu_daemon_s_per_hour": 0.0, "idle_rss_serve_mb": 63.8, "idle_cpu_serve_s_per_hour": 4.5}}
+{"completed": "current-8e1abae-restore-hold-repeat", "metrics": {"cli_version_ms": 234.70085603184998, "cli_status_ms": 253.48756404127926, "events_per_sec": 52624.95234717612, "step_overhead_ms": 0.0647316686809063, "idle_rss_daemon_mb": 42.4, "idle_cpu_daemon_s_per_hour": 0.0, "idle_rss_serve_mb": 64.1, "idle_cpu_serve_s_per_hour": 4.5}}
+{"regressions_vs_previous": []}

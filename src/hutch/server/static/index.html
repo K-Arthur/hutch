@@ -69,6 +69,10 @@
       <!-- The context header is filled by the current view: bot identity and state on
            the left, view actions on the right. -->
       <div class="app-top-context" id="app-top-context"></div>
+      <div id="execution-hold" class="execution-hold" role="status" hidden>
+        <span><strong>Restored history — execution paused.</strong> Review this copy on the executor before starting new work.</span>
+        <button type="button" class="btn ghost small" id="restore-report-open">Restore details</button>
+      </div>
     </header>
 
     <main id="view">

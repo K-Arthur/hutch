@@ -258,6 +258,7 @@ a:hover { text-decoration: underline; }
 .pill.live { color: var(--brand-hi); border-color: var(--brand-line); }
 .pill.live .daemon-dot { animation: daemon-pulse 2.2s var(--ease) infinite; }
 .pill.reconnecting { color: var(--warn); border-color: rgba(251, 191, 36, 0.4); }
+.pill.held { color: var(--warn); border-color: var(--line-strong); }
 .pill.offline { color: var(--danger); border-color: rgba(248, 113, 113, 0.45); }
 @keyframes daemon-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 :root.reduce-effects .pill.live .daemon-dot,
@@ -1086,8 +1087,20 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .receipt-card p { margin: var(--s-2) 0; overflow-wrap: anywhere; }
 .receipt-card[data-receipt-reviewed] { border-left-color: var(--brand-deep); }
 .receipt-json { max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-sm); }
+.app-top:has(.execution-hold:not([hidden])) { flex-wrap: wrap; height: auto; }
+.app-top:has(.execution-hold:not([hidden])) .app-top-context { height: auto; min-height: 44px; }
+.execution-hold { display: flex; flex: 1 0 100%; align-items: center; gap: var(--s-3); padding: var(--s-2) 0;
+  border-top: 1px solid var(--line); color: var(--warn); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.execution-hold[hidden] { display: none; }
+.execution-hold > span { flex: 1; min-width: 0; }
+.execution-hold > .btn { flex-shrink: 0; min-height: 44px; }
+.kv-list { display: grid; gap: var(--s-2); }
+.kv-list > div { display: flex; justify-content: space-between; gap: var(--s-3); }
+.kv-list dd { margin: 0; }
+.modal-footer button[hidden] { display: none; }
 .receipt-evidence { white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 600px) {
+  .modal-footer .btn, .modal-header .icon-btn { min-height: 44px; min-width: 44px; }
   .mhead { flex-wrap: wrap; }
   .mhead .status { flex-shrink: 0; max-width: 100%; white-space: normal; }
   .composer-send, .composer-util { width: 44px; height: 44px; }

@@ -166,3 +166,36 @@ The wrapper now supports `--summarize-only`; summarizing the preserved captures 
 remeasuring or altering their data. Finite/nonnegative samples, medians and matching harness/
 current source hashes were validated. Reproduce with
 `docs/realignment/artifacts/performance/capture_comparison.py` after other checks finish.
+
+### Held-restoration checkpoint, 2026-10-08
+
+Two sequential pairs use a clean `8e1abae` archive and the unchanged schema-v14 tree.
+All tests/captures had finished, but unrelated activity on the shared host was not controlled.
+The first pair crosses CLI/event median gates; the second reverses the direction.
+
+| Metric | First previous / current p50 (p90) | Repeat previous / current p50 (p90) | n each |
+|---|---:|---:|---:|
+| cli_version_ms | 229.3 (237.2) / 322.5 (338.4) | 479.9 (644.8) / 234.7 (252.4) | 11 |
+| cli_status_ms | 264.6 (283.3) / 362.8 (424.6) | 683.6 (742.1) / 253.5 (272.2) | 11 |
+| events_per_sec | 50488 (66271) / 35316 (44228) | 23733 (31200) / 52625 (64464) | 5 |
+| step_overhead_ms | 0.071 (0.080) / 0.087 (0.100) | 0.118 (0.198) / 0.065 (0.074) | 12 |
+| idle_rss_daemon_mb | 42.4 (42.7) / 42.4 (42.7) | 42.4 (42.7) / 42.4 (42.7) | 3 |
+| idle_rss_serve_mb | 63.9 (65.3) / 64.1 (64.2) | 63.8 (65.3) / 64.1 (64.2) | 3 |
+| idle_cpu_daemon_s_per_hour | 0.0 (4.5) / 0.0 (0.0) | 0.0 (0.0) / 0.0 (0.0) | 3 |
+| idle_cpu_serve_s_per_hour | 4.5 (4.5) / 4.5 (4.5) | 4.5 (4.5) / 4.5 (4.5) | 3 |
+
+The unchanged previous revision moves from 229.3 to 479.9 ms CLI startup and from
+50,488 to 23,733 events/s between pairs. Current startup moves from 322.5 to 234.7 ms,
+and events from 35,316 to 52,625/s. This demonstrates substantial timing variability; the
+first slowdown is not repeatable in this pair, without establishing an exclusive cause or
+a code improvement. The prior schema-v12 **29.0% event-throughput regression remains open**.
+Idle RSS stays 42.4 MB daemon / 64.1 MB dashboard in both current captures. CPU remains
+coarsely sampled; no improvement follows. These results exclude inference, model loading,
+provider/browser startup and queueing. Finite/nonnegative samples, medians, harness and
+current source hashes were checked.
+
+Raw JSON, source/load context and text logs are preserved as
+`{previous,current}-8e1abae-restore-hold{,-repeat}.{json,context.json,txt}` in
+[performance artifacts](artifacts/performance/). The wrapper refuses overwriting existing
+captures. Reproduce with `capture_comparison.py --previous 8e1abae --label NEW_LABEL
+--current-revision YOUR_REVIEWED_TREE` after other checks finish.

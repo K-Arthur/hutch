@@ -19,13 +19,13 @@ is a local `main` fast-forward only after all implementation and verification ga
 |---|---|---|
 | S0 research, baseline and claims audit | Landed before integration | The evidence ledger distinguishes direct observations, individual reports, fixed historical defects and unverified claims. Reported failures are design scenarios, not prevalence data. |
 | S1 credential routing and SSRF | Landed | Provider keys are host-scoped. Fetch checks resolved addresses, rejects non-public results, pins the connection and checks each redirect. Browser DNS is still not pinned. |
-| S2 lifecycle, claims, leases and recovery | Implemented; focused tests pass | Pending claims reserve global capacity. Recovery fences expired ownership before cleanup. SQLite migrations serialize and create SQLite-backup-API snapshots. Cleanup failure remains visible and nonterminal. |
+| S2 lifecycle, claims, leases and recovery | Implemented; focused tests pass | Pending claims reserve global capacity. Recovery fences expired ownership before cleanup. SQLite migrations serialize and create SQLite-backup-API snapshots. Schema v14 restores to a held new directory, detaches source process authority and quarantines old work. Cleanup failure remains visible and nonterminal. |
 | S3 supervised run processes and teardown | Implemented; focused tests pass | Production CLI/daemon/web execution uses owned processes, recorded boot/start identity and verified cleanup. Incomplete cleanup stays nonterminal. |
 | S4 shell containment and approval CAS | Implemented; focused tests pass | Bubblewrap tests pass on the present Linux host. This is namespace containment, not a VM; legacy bots retain their previous setting. Browser/external runtime tools remain outside this guarantee. |
 | S5 providers, budgets and external runtimes | Partial; shared usage reservations implemented, adapters fail closed | OpenCode v2.0.24 is installed and its CLI contract was inspected. Existing OpenCode/Pi adapters bypassed Hutch approvals and budgets, so execution now fails before process creation. Schema v10 reserves estimated tokens/currency atomically across Hutch runs and configured accounts, settles reported use once, and holds uncertain requests for terminal-only reconciliation. Price-based currency limits are estimates, not provider-billing guarantees. Re-enable external runtimes only after sandboxing, brokered permissions and protocol tests. Pi is unavailable; no live run or paid/provider request has been made. Local calls now use one kernel-owned slot and eight FIFO waiters; human waits release the slot. Native Ollama checks current headroom before generation; other local backends lack validated memory admission, and strict modes/provenance remain pending. The latest verified checkpoints are recorded below; live provider/adaptor access remains unavailable. |
 | S6 conversations and bounded collaboration | Conversation foundation partial; collaboration pending | Schema v8 stores conversations/messages, imports each old run separately, uses bounded context snapshots in builtin runs and explicit FTS5 message search. Studio supports thread switching, durable history and archive. Transactional idempotency is tested across restart. Standing tasks, workspaces/artifacts, scoped fact memory, notifications and delegation remain. |
 | S7 browser ownership and handoff | Partial | Browser context state is instance-owned and persistent profile paths are per-bot; fixture test verifies no profile crossover. Live handoff, pinned egress and browser process supervision remain unavailable. |
-| S8 versioned API and remote supervision | Partial; API replay improvements in `cd4f402` and `f5696ce`; remote remains experimental | `/api/v1` covers health/status labels, bounded bot/run/approval pages, conversations/search, cross-run transcript cursors, snapshot reconciliation, usage, connection metadata, schedules and capability records. Conversation create/message/archive, stop, and approval resolve commands are idempotent; changed arguments conflict. Schema v9 adds one-use pairing codes, hash-only revocable device sessions and per-source rate limits. Direct remote binding requires explicit TLS. Schema v11 adds transactional resource invalidations, history cursors, snapshot reconciliation and targeted Studio refresh. Schema v12 adds recoverable JSONL delivery and visible errors; v13 adds immutable action intents and separate outcome reconciliation. Automatic event pruning, workspaces/artifacts, phone UI, interactive control routes, trusted tunnel and live device/network checks remain. |
+| S8 versioned API and remote supervision | Partial; API replay improvements in `cd4f402` and `f5696ce`; remote remains experimental | `/api/v1` covers health/status labels, bounded bot/run/approval pages, conversations/search, cross-run transcript cursors, snapshot reconciliation, usage, connection metadata, schedules and capability records. Conversation create/message/archive, stop, and approval resolve commands are idempotent; changed arguments conflict. Schema v9 adds one-use pairing codes, hash-only revocable device sessions and per-source rate limits. Direct remote binding requires explicit TLS. Schema v11 adds transactional resource invalidations, history cursors, snapshot reconciliation and targeted Studio refresh. Schema v12 adds recoverable JSONL delivery and visible errors; v13 adds immutable action intents and separate outcome reconciliation; v14 adds a bounded authenticated restore report and execution-hold errors. Automatic event pruning, workspaces/artifacts, phone UI, interactive control routes, trusted tunnel and live device/network checks remain. |
 | S9 product integration, performance and visual validation | Partial; evidence captured in `896a774` | Final screenshots and traces cover desktop/tablet/phone, plus fixture-driven empty/loading/error/approval/cancelling/reconnecting UI states. Internal site CTA targets, phone overflow, page errors, reduced motion, tablist arrows and mobile-menu focus were checked. A misleading static `LIVE` badge is now `DEMO`. Same-harness baseline/current measurements retain raw repetitions. Current source-frozen repeats and inspected captures are recorded below. This is not screen-reader, real-device or full workflow certification. See `visual-validation.md` and `performance.md`. |
 
 ## Commits
@@ -51,6 +51,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `896a774` | Same-harness baseline/current artifacts, data-quality notebook, final screenshots and demo-label correction |
 | `4bdd936` | Schema-v12 recoverable transcript files, durable prerequisites, inspected UI errors and raw performance diagnosis |
 | `e09e0fa` | Schema-v13 immutable action intents, once-only human reconciliation, inline/cross-bot review, migration/exception/crash tests, inspected proof and raw comparison |
+| `8e1abae` | Retain exact comparison logs and the action-review commit in this ledger |
 | `33ac3ba` | Schema-v10 usage reservations, account-shared admission, uncertain-charge reconciliation, estimates and marketing copy; offline suite 1,003 passed, provider/reservation 45 passed, browser suite 15 passed |
 
 ## Verified behavior before this checkpoint
@@ -663,3 +664,64 @@ The supplemental anonymous site/viewport repeat passed **9 in 11.65s**. Physical
 was inspected: the receipt control and copy are readable, and the skip link remains offscreen
 without keyboard focus. Source hashes still match. This completes verification for the local
 schema-v13 slice; broader S5–S9 work and the throughput release gate remain open.
+
+## Schema-v14 held database restoration, 2026-10-08
+
+This slice adds database-only snapshots and an isolated, held restoration workflow. It does
+not stop source services, restore user files or switch production service configuration.
+The new directory cannot dispatch work until a local once-only review; old work remains
+quarantined. Source PID/boot/start records are retained as detached evidence, never cleanup
+authority. Completed run documents/transcript chains are preserved. Pending approvals expire,
+devices/standing grants revoke, saved schedules pause and uncertain usage remains reserved.
+See ADR-0015 and Operations for the actual commands and cutover boundaries.
+
+Nine snapshot/restore tests cover committed WAL capture, a genuine schema-v4 fixture, manifest
+damage, invalid history, linked inputs, SQLite sidecar rejection, restart, concurrent activation,
+typed API errors and CLI review against changed installed code. The source-alive fixture launches
+a real temporary Python process on this boot, confirms restoration neither signals it nor alters
+the source state, and terminates/reaps it in `finally`. It is not a production restore test.
+
+Initial restore checks found a raw-JSON hashing defect (fixed), a Pydantic field-name warning
+(fixed by a schema alias), and fixture mistakes in process identity and cursor names (corrected).
+An initial three-width browser repeat failed because button styling overrode the hidden Cancel
+control. Inspection then found desktop header overlap and a phone toast obscuring Close. Those
+defects were repaired and regression assertions cover unobscured controls, focus return and
+44px phone targets. The dialog remains read-only and uses the existing layout rather than a
+new page. Rejected submission preserves the draft; activation refreshes the hold through SSE.
+
+The initial full offline run was **1,148 passed, 1 failed in 259.64s**. The failing filesystem
+persistence fixture used fake inference with live hardware readings; its second run was correctly
+refused when host headroom changed. The fixture now uses deterministic RAM while asserting
+both successful status and written-file content. Production admission remains unchanged; low
+headroom refusal has separate tests. The focused repeat passed **45 in 11.99s**. The final full
+offline run passed **1,149 in 254.05s**, treating unhandled background-thread warnings as errors.
+
+Frozen-source browser/site collection passed **50 in 150.85s**. Three additional anonymous site
+scope checks initially failed on an incorrect metadata file name (`main.js` instead of the
+actual `site.js`); after correcting that fixture, all **12 website checks passed in 15.57s**.
+This is a 50-case full repeat plus a 12-case site repeat, not a claimed 53-case full repeat.
+Raw initial/final logs are retained under `artifacts/restoration/`.
+
+The matching 13:46 UTC navigation capture reports **39 views**, zero page errors/overflow and
+three traces. Desktop/tablet/phone inspection sheets were inspected, as were restored details,
+held/activated chat and the marketing State scope/physical viewport images at all three widths.
+Restoration captures retain nine application PNGs, six site PNGs, three application traces,
+versions and source hashes. Firefox 155.0, Playwright 1.63.0, Python 3.13.15 and Pillow 12.3
+were recorded. Runtime/site hashes match the final frozen source; JS syntax, compile, diff
+and emoji checks passed. Existing contrast tokens are reused. No screen-reader, physical-device,
+live provider, portal, browser-handoff, power-loss or production-cutover certification follows.
+
+Sequential repeated performance capture compares a clean `8e1abae` archive with this schema-v14
+tree after tests and visual capture finish. The same harness and source/load context are retained.
+Main remains `d7d0029`; unrelated root work is preserved. No fast-forward, paid call, push or
+publication has occurred. Broader S5–S9 work and the prior throughput release gate remain open.
+
+The first comparison crosses gates (CLI version/status +41%/+37%, events −30%). The next
+unchanged pair reverses direction: previous/current CLI medians **479.9/234.7 ms** and
+events **23,733/52,625 per second**. The unchanged archive itself became more than twice
+as slow; substantial unrelated browser activity was observed on this shared host. Both raw
+pairs and logs remain retained. This demonstrates variability, not a proved exclusive cause
+or improvement. The first slowdown is not repeatable in the second pair, and the prior v12
+29.0% throughput regression remains open. Current daemon/dashboard RSS is **42.4/64.1 MB**;
+CPU is still too coarse for optimization claims. Samples, medians and frozen hashes validate.
+See the performance report for p90, sample sizes, commands and all evidence boundaries.

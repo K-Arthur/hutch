@@ -46,6 +46,11 @@
 
 ## Current realignment progress
 
+- **Database restore: isolated workflow implemented.** Schema v14 validates snapshots in a new
+  private directory, detaches source process records, quarantines old work and holds new execution
+  for local review. Device sessions/standing grants are revoked and schedules paused. Snapshot
+  scope excludes credentials, profiles and user files. Production service cutover and power-cut
+  certification remain separate verification gaps; this is not rollback of external effects.
 - **Conversation persistence: partial.** Schema v8 stores canonical messages and maps runs to conversations. Historical runs are
   imported separately. The local v1 API snapshots at most 12 prior messages / 16,000 characters for builtin runs and supports
   FTS5 search. The Studio selects threads, displays restart-persistent history and archives without deleting it.

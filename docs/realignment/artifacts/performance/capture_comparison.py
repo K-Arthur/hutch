@@ -6,6 +6,7 @@ This does not update a baseline or compare against the legacy machine baseline.
 from __future__ import annotations
 
 import hashlib
+import argparse
 import io
 import json
 import os
@@ -51,20 +52,33 @@ def measure(root, name, revision):
 
 
 def main():
-    if sys.argv[1:] == ['--summarize-only']:
-        previous = json.loads((OUT/f'previous-{PREVIOUS}-{LABEL}.json').read_text())
-        current = json.loads((OUT/f'current-{PREVIOUS}-{LABEL}.json').read_text())
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--previous', default=PREVIOUS)
+    parser.add_argument('--label', default=LABEL)
+    parser.add_argument('--current-revision', default=PREVIOUS+'+schema13')
+    parser.add_argument('--summarize-only', action='store_true')
+    args = parser.parse_args()
+    # Metadata labels become file names, not shell commands or path traversal.
+    import re
+    if not all(re.fullmatch(r'[A-Za-z0-9_-]{1,80}', value) for value in (args.previous, args.label)):
+        parser.error('previous and label must be simple file-name components')
+    if args.summarize_only:
+        previous = json.loads((OUT/f'previous-{args.previous}-{args.label}.json').read_text())
+        current = json.loads((OUT/f'current-{args.previous}-{args.label}.json').read_text())
         summarize(current, previous)
         return
+    for name in (f'previous-{args.previous}-{args.label}', f'current-{args.previous}-{args.label}'):
+        if any((OUT / (name + suffix)).exists() for suffix in ('.json', '.context.json', '.log')):
+            parser.error('comparison artifacts already exist; choose a fresh label or summarize existing data')
     with tempfile.TemporaryDirectory(prefix='hutch-comparison-') as directory:
         source = Path(directory)/'source'
-        archive = subprocess.run(['git','archive',PREVIOUS],cwd=ROOT,check=True,capture_output=True).stdout
+        archive = subprocess.run(['git','archive',args.previous],cwd=ROOT,check=True,capture_output=True).stdout
         with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
             tar.extractall(source,filter='data')
         if source_hashes(source)['benchmarks/run.py'] != source_hashes(ROOT)['benchmarks/run.py']:
             raise RuntimeError('comparison requires identical benchmark harnesses')
-        previous = measure(source,f'previous-{PREVIOUS}-{LABEL}',PREVIOUS)
-        current = measure(ROOT,f'current-{PREVIOUS}-{LABEL}',PREVIOUS+'+schema13')
+        previous = measure(source,f'previous-{args.previous}-{args.label}',args.previous)
+        current = measure(ROOT,f'current-{args.previous}-{args.label}',args.current_revision)
     # Printed change ratios supplement raw distributions, not a claim about
     # live model loading/inference, browser startup or network/physical devices.
     summarize(current, previous)

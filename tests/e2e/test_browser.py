@@ -1179,3 +1179,101 @@ def test_needs_you_receipt_queue_pages_old_actions_and_stays_keyboard_reachable(
         assert page.evaluate('document.documentElement.scrollWidth-innerWidth') <= 1
     finally:
         page.close()
+
+
+@pytest.fixture()
+def restored_live(tmp_path, monkeypatch):
+    from hutch.config import hutchConfig
+    from hutch.models import Run, Task
+    from hutch.state_snapshot import backup, restore
+    from hutch.store import Store
+    original = hutchConfig(tmp_path / 'source')
+    source = Store(original)
+    bot = source.create_bot(Bot(name='restored-bot', tools=[]))
+    source.submit_run(Run(bot_id=bot.id, prompt='Sanitized unfinished snapshot fixture'),
+                      Task(bot_id=bot.id, prompt='Sanitized unfinished snapshot fixture'))
+    source.close()
+    backup(original, tmp_path / 'snapshot')
+    report = restore(tmp_path / 'snapshot', tmp_path / 'restored')
+    monkeypatch.setenv('HUTCH_STATE_DIR', str(tmp_path / 'restored'))
+    application = create_app()
+    server = uvicorn.Server(uvicorn.Config(application, host='127.0.0.1', port=0, log_level='warning'))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    try:
+        wait_for(lambda: server.started, timeout=10)
+        port = server.servers[0].sockets[0].getsockname()[1]
+        yield f'http://127.0.0.1:{port}', application, report
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+        assert not thread.is_alive()
+
+
+@pytest.mark.parametrize('width,height,size', [(1440,1000,'desktop'),(900,1024,'tablet'),(390,844,'phone')])
+def test_restored_state_is_visible_without_losing_chat_draft(browser, restored_live, width, height, size):
+    import hashlib
+    import json
+    from pathlib import Path
+    from hutch.models import iso, utcnow
+    from hutch.state_snapshot import code_hash
+    base, application, report = restored_live
+    context = browser.new_context(viewport={'width': width, 'height': height}, reduced_motion='reduce')
+    context.tracing.start(screenshots=True, snapshots=True, sources=True)
+    page, errors = context.new_page(), []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    out = Path(__file__).resolve().parents[2] / 'docs/realignment/artifacts/restoration'
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        page.goto(base + '/#/chat/restored-bot')
+        page.locator('#execution-hold').wait_for(state='visible')
+        page.locator('#chat-prompt').fill('Retain this unsent draft during restore review')
+        with page.expect_response(lambda r: r.request.method == 'POST' and r.url.endswith('/messages')) as sent:
+            page.locator('#chat-send').click()
+        assert sent.value.status == 409
+        assert application.state.store.active_runs() == []
+        assert page.locator('#chat-prompt').input_value() == 'Retain this unsent draft during restore review'
+        assert page.locator('#view').bounding_box()['y'] >= page.locator('#app-top-context').bounding_box()['y']
+        assert page.locator('#execution-hold').bounding_box()['y'] + page.locator('#execution-hold').bounding_box()['height'] <= page.locator('#view').bounding_box()['y'] + 1
+        page.locator('#restore-report-open').focus()
+        page.screenshot(path=str(out / f'{size}-held.png'), full_page=True, animations='disabled')
+        page.keyboard.press('Enter')
+        page.locator('#modal-title').get_by_text('Restored history', exact=True).wait_for()
+        assert 'Source processes were not stopped' in page.locator('.modal-body').inner_text()
+        assert 'Old attempts will not resume' in page.locator('.modal-body').inner_text()
+        assert not page.locator('#modal-cancel').is_visible()
+        assert page.locator('#modal-confirm').inner_text() == 'Close'
+        if size == 'phone':
+            for selector in ('#restore-report-open', '#modal-confirm', '#modal-close'):
+                assert page.locator(selector).bounding_box()['height'] >= 44
+        assert page.locator('#modal-confirm').evaluate("e => { const r = e.getBoundingClientRect(); return e.contains(document.elementFromPoint(r.x + r.width/2, r.y + r.height/2)); }")
+        assert page.locator('#modal-confirm').evaluate('e => e === document.activeElement')
+        page.keyboard.press('Tab')
+        assert page.locator('#modal-close').evaluate('e => e === document.activeElement')
+        page.keyboard.press('Shift+Tab')
+        assert page.locator('#modal-confirm').evaluate('e => e === document.activeElement')
+        page.screenshot(path=str(out / f'{size}-details.png'), full_page=True, animations='disabled')
+        page.keyboard.press('Escape')
+        assert page.locator('#restore-report-open').evaluate('e => e === document.activeElement')
+        assert page.locator('#chat-prompt').input_value().startswith('Retain this unsent')
+        assert application.state.store.pending_tasks() == []
+        # Represents a local CLI operator review, never a browser activation endpoint.
+        application.state.store.activate_restoration(report['id'], 'Sanitized isolated fixture: source stopped; excluded files reviewed')
+        page.locator('#execution-hold').wait_for(state='hidden')
+        assert page.locator('#chat-prompt').input_value().startswith('Retain this unsent')
+        assert application.state.store.get_bot('restored-bot').paused
+        page.screenshot(path=str(out / f'{size}-activated.png'), full_page=True, animations='disabled')
+        overflow = page.evaluate('document.documentElement.scrollWidth - innerWidth')
+        assert overflow <= 1 and not errors
+        (out / f'{size}.json').write_text(json.dumps({
+            'captured_at': iso(utcnow()), 'browser': browser.browser_type.name, 'version': browser.version,
+            'viewport': [width, height], 'page_errors': errors, 'horizontal_overflow': overflow,
+            'scenario': 'Real isolated database backup/restore with synthetic old work; no production restore or physical device',
+            'draft_and_keyboard_focus_preserved': True, 'executor_ui_code_hash': code_hash(),
+            'source_sha256': {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest() for p in (
+                'src/hutch/server/static/app.js', 'src/hutch/server/static/style.css', 'src/hutch/server/static/index.html',
+                'src/hutch/server/app.py', 'src/hutch/store.py', 'src/hutch/state_snapshot.py')},
+        }, indent=2) + '\n')
+    finally:
+        context.tracing.stop(path=str(out / f'{size}-trace.zip'))
+        context.close()

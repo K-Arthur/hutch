@@ -56,6 +56,12 @@ kernel boot id; cleanup uses pidfds and checks the recorded process-group identi
 A run remains `cancelling` or `recovering` while cleanup is incomplete or unverifiable; it becomes terminal only after owned
 processes are confirmed gone. Thread-mode test helpers are joined before persistence closes.
 
+Offline database restoration is a separate authority boundary: the new copy detaches retained
+source process identities and records unfinished work as Needs review without signalling or
+claiming cancellation of those source processes. The original installation still owns its
+cleanup. Activation permits new work only after local review; old work never resumes. See
+[ADR-0015](0015-held-database-restoration.md).
+
 ### Receipts, recovery, and "outcome unknown"
 
 Before a tool with an external or filesystem effect runs, the runtime writes an immutable *intent*

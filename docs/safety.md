@@ -218,6 +218,17 @@ execution is recorded as expired and cannot grant standing permission.
 - Models can lie about completion. That's why artifacts (files written, command exits) are in the
   transcript, not just the model's claims.
 
+## Database restoration boundary
+
+A snapshot copies committed database history and can lag external effects. Restore creates a
+new held installation, validates history, quarantines old work and detaches source process
+records from cleanup authority. It never claims the source was stopped. Devices and standing
+grants are revoked and schedules paused. A local review permits new work without requeueing
+old attempts. Snapshot hashes do not prove external outcomes or protect against a same-user
+administrator; credentials, browser profiles and user files need separate backups/review.
+See [Operations](operations.md#database-migration-and-restore). Isolated fixture tests do not
+certify a production cutover or storage power loss.
+
 ## Local inference admission boundary
 
 Hutch admits one local caller and up to eight waiting callers across processes sharing a state

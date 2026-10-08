@@ -46,32 +46,59 @@ managed infrastructure until trusted-proxy handling is documented and validated.
 
 ## Database migration and restore
 
-Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. This realignment branch uses schema v13;
-`hutch doctor` displays the current version. Stop Hutch services before restoring a backup.
-Validate a copy in a new isolated directory; preserve the original database, WAL/SHM and backups:
+Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. This
+realignment branch uses schema v14; `hutch doctor` displays the current version. Keep the matching
+release and pre-upgrade backups. A normal snapshot captures committed database history, including
+WAL pages; event buffers that have not committed yet are outside its scope:
 
 ```bash
-# Replace STATE and STATE_RESTORE with the original and a new validation directory.
-mkdir -m 700 STATE_RESTORE
-sqlite3 STATE/hutch.db.bak-vN '.backup STATE_RESTORE/hutch.db'
+# Replace STATE, SNAPSHOT and STATE_RESTORE; both destination directories must be new.
+HUTCH_STATE_DIR=STATE hutch state backup SNAPSHOT
+# Or convert an existing pre-upgrade backup to a manifest-backed snapshot:
+HUTCH_STATE_DIR=STATE hutch state backup SNAPSHOT_OLD --database STATE/hutch.db.bak-vN
+hutch state restore SNAPSHOT --to STATE_RESTORE
+HUTCH_STATE_DIR=STATE_RESTORE hutch status
+HUTCH_STATE_DIR=STATE_RESTORE hutch state report RESTORE_ID --limit 100 --offset 0
 ```
 
-For a restored schema-v11-or-newer database, rotate its resource-history epoch **before restarting
-services and reconnecting clients**. Keep all Hutch processes stopped while doing this:
+The restore validates copied bytes, integrity, transcript chains and immutable action intents;
+migrates offline; quarantines old unfinished work; revokes devices/standing grants; pauses
+schedules; and rotates resource history's epoch. It detaches source process records without
+signalling them or pretending cleanup occurred. The original installation and snapshots remain
+intact. Normal startup refuses incomplete restores and direct use of a snapshot as executor
+state. Inspect report pages until their full scope is reviewed. The web header also explains the
+hold; new chat submissions preserve their draft and return `restore_review_required`.
+
+Before production cutover, stop the original Hutch services and verify their owned executions
+have stopped. Review effects/charges after the snapshot, uncertain receipts, provider records
+and excluded files. Preserve credentials/connection files, browser profiles, workspaces,
+artifacts and filesystem transcripts separately; a database-only snapshot does not archive
+them. Its prompts/arguments/evidence can contain private material. Check user-owned `workdir`
+references before allowing new tasks to use them. Restart services on the verified installed
+release, never a mix of already-loaded old modules and newly installed code. Then record a
+local operator review using the restore ID printed by the command:
 
 ```bash
-sqlite3 STATE_RESTORE/hutch.db "UPDATE resource_outbox_meta SET epoch = lower(hex(randomblob(16))) WHERE singleton = 1;"
+HUTCH_STATE_DIR=STATE_RESTORE hutch state activate RESTORE_ID --evidence 'Record what you actually checked'
 ```
 
-An older backup has no outbox table; its forward migration creates a fresh epoch. A new epoch
-forces old resource cursors to reconcile instead of accepting reused IDs from a rewound
-history. Direct file replacement without this step is unsupported. Existing run/global numeric
-transcript cursors do not provide this epoch protection; close/reload clients after restore.
-Automatic production restore orchestration remains pending. Inspect the copy with
-`HUTCH_STATE_DIR=STATE_RESTORE hutch status` before running an executor. A backup cannot prove
-which external effects occurred after it was made; queued/inflight work requires reconciliation
-before dispatch. Restored device sessions also require revocation/re-pairing. This procedure
-validates persisted data, not a complete production rollback. Preserve transcript files separately.
+Activation rechecks integrity/history, the installed executor/UI fingerprint and absence of
+unexpected runnable work, then resolves once. It allows **new** explicit work; old work stays
+quarantined and device/standing grants revoked. Activation does not unpause saved schedules;
+an operator may explicitly change their paused setting during review. Re-pair devices and restore
+needed grants deliberately. If installed executor/UI bytes changed since validation, restore
+with that release into another new directory. Configure the service to use the reviewed state
+directory only after cutover checks; the CLI does not switch your service configuration.
+
+A new resource epoch forces stale clients to reconcile a rewound history. Existing numeric
+transcript cursors lack this protection: close/reload clients after restore. Direct replacement
+of a live database is unsupported. If a command failed, preserve its incomplete directory and
+error, repair the cause and retry into a new destination; do not delete its marker to force
+startup. Snapshot hash mismatch/SQLite sidecars require a new closed snapshot. Unexpected
+execution while held or invalid history requires inspection rather than requeueing. Hashes are
+integrity checks, not signatures or external-effect evidence. No production restore or hardware
+power-loss certification has been performed here. See [ADR-0015](adr/0015-held-database-restoration.md).
+
 Schema v12 reconstructs missing files from committed database events after startup. Existing
 partial, changed or ahead-of-restored-history files are retained as
 `transcript.preserved-*.jsonl`; inspect those copies before removing them. Do not replace an
@@ -100,6 +127,8 @@ Schema v8 gives every pre-existing run a separate imported legacy conversation. 
 revocable sessions; schema v11 adds content-free transactional invalidations and history cursors;
 schema v12 backfills recoverable transcript-file delivery without changing historic run IDs;
 schema v13 retains immutable action intents and separate checked outcome reports.
+Schema v14 records restore review and detached process identities without transferring source
+execution authority.
 Hutch does not infer that adjacent runs share a
 private context. New conversations and message submissions are written transactionally with their idempotency records. The
 `conversation_fts` index contains message text only; it excludes tool output, credentials, workspaces and bot memory.

@@ -1,0 +1,211 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+_ test_database_snapshot_scope_is_readable_and_has_no_executor_requests[1440-1000-desktop] _
+
+browser = <Browser type=<BrowserType name=firefox executable_path=/tmp/hutch-playwright-browsers/firefox-1543/firefox/firefox> version=155.0>
+site_url = 'http://127.0.0.1:50661/', width = 1440, height = 1000
+size = 'desktop'
+
+    @pytest.mark.parametrize('width,height,size',[(1440,1000,'desktop'),(900,1024,'tablet'),(390,844,'phone')])
+    def test_database_snapshot_scope_is_readable_and_has_no_executor_requests(browser, site_url, width, height, size):
+        import hashlib
+        import json
+        from hutch.models import iso, utcnow
+        context, page, errors = _page(browser, width=width, height=height, reduced_motion='reduce')
+        requests = []
+        page.on('request', lambda request: requests.append(request.url))
+        out = SITE_DIR.parent / 'docs/realignment/artifacts/restoration'
+        out.mkdir(parents=True, exist_ok=True)
+        try:
+            page.goto(site_url, wait_until='networkidle')
+            state = page.locator('#runs .spec').filter(has=page.get_by_text('State', exact=True))
+            text = state.inner_text()
+            assert 'execution held for review' in text and 'new directory' in text
+            assert 'Credentials, browser profiles and user files need separate backups' in text
+            state.scroll_into_view_if_needed()
+            state.screenshot(path=str(out / f'site-{size}-state.png'), animations='disabled')
+            page.screenshot(path=str(out / f'site-{size}-viewport.png'), animations='disabled')
+            overflow = page.evaluate('document.documentElement.scrollWidth - innerWidth')
+            assert overflow <= 1 and not errors
+            assert all(url.startswith(site_url) for url in requests), 'static site contacted another origin'
+            (out / f'site-{size}.json').write_text(json.dumps({
+                'captured_at': iso(utcnow()), 'browser': browser.browser_type.name, 'version': browser.version,
+                'viewport': [width, height], 'page_errors': errors, 'horizontal_overflow': overflow,
+                'scenario': 'Anonymous static database-snapshot scope; no executor requests or credentials',
+>               'source_sha256': {str(p.relative_to(SITE_DIR.parent)): hashlib.sha256(p.read_bytes()).hexdigest()
+                                                                                      ^^^^^^^^^^^^^^
+                                  for p in (SITE_DIR/'index.html', SITE_DIR/'styles.css', SITE_DIR/'main.js')},
+            }, indent=2) + '\n')
+
+tests/e2e/test_website.py:221: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/pathlib/_abc.py:625: in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/home/kevina/CodingProjects/hutch/.worktrees/realign/website/main.js')
+mode = 'rb', buffering = -1, encoding = None, errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/kevina/CodingProjects/hutch/.worktrees/realign/website/main.js'
+
+../../../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/pathlib/_local.py:537: FileNotFoundError
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [08/Oct/2026 06:48:17] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:17] "GET /assets/fonts/archivo-latin-var.woff2 HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:17] "GET /tokens.css HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:17] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:17] "GET /site.js HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:17] "GET /assets/hutch-agent.svg HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:17] "GET /assets/captures/proof-gate.webp HTTP/1.1" 200 -
+_ test_database_snapshot_scope_is_readable_and_has_no_executor_requests[900-1024-tablet] _
+
+browser = <Browser type=<BrowserType name=firefox executable_path=/tmp/hutch-playwright-browsers/firefox-1543/firefox/firefox> version=155.0>
+site_url = 'http://127.0.0.1:50661/', width = 900, height = 1024
+size = 'tablet'
+
+    @pytest.mark.parametrize('width,height,size',[(1440,1000,'desktop'),(900,1024,'tablet'),(390,844,'phone')])
+    def test_database_snapshot_scope_is_readable_and_has_no_executor_requests(browser, site_url, width, height, size):
+        import hashlib
+        import json
+        from hutch.models import iso, utcnow
+        context, page, errors = _page(browser, width=width, height=height, reduced_motion='reduce')
+        requests = []
+        page.on('request', lambda request: requests.append(request.url))
+        out = SITE_DIR.parent / 'docs/realignment/artifacts/restoration'
+        out.mkdir(parents=True, exist_ok=True)
+        try:
+            page.goto(site_url, wait_until='networkidle')
+            state = page.locator('#runs .spec').filter(has=page.get_by_text('State', exact=True))
+            text = state.inner_text()
+            assert 'execution held for review' in text and 'new directory' in text
+            assert 'Credentials, browser profiles and user files need separate backups' in text
+            state.scroll_into_view_if_needed()
+            state.screenshot(path=str(out / f'site-{size}-state.png'), animations='disabled')
+            page.screenshot(path=str(out / f'site-{size}-viewport.png'), animations='disabled')
+            overflow = page.evaluate('document.documentElement.scrollWidth - innerWidth')
+            assert overflow <= 1 and not errors
+            assert all(url.startswith(site_url) for url in requests), 'static site contacted another origin'
+            (out / f'site-{size}.json').write_text(json.dumps({
+                'captured_at': iso(utcnow()), 'browser': browser.browser_type.name, 'version': browser.version,
+                'viewport': [width, height], 'page_errors': errors, 'horizontal_overflow': overflow,
+                'scenario': 'Anonymous static database-snapshot scope; no executor requests or credentials',
+>               'source_sha256': {str(p.relative_to(SITE_DIR.parent)): hashlib.sha256(p.read_bytes()).hexdigest()
+                                                                                      ^^^^^^^^^^^^^^
+                                  for p in (SITE_DIR/'index.html', SITE_DIR/'styles.css', SITE_DIR/'main.js')},
+            }, indent=2) + '\n')
+
+tests/e2e/test_website.py:221: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/pathlib/_abc.py:625: in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/home/kevina/CodingProjects/hutch/.worktrees/realign/website/main.js')
+mode = 'rb', buffering = -1, encoding = None, errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/kevina/CodingProjects/hutch/.worktrees/realign/website/main.js'
+
+../../../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/pathlib/_local.py:537: FileNotFoundError
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [08/Oct/2026 06:48:18] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:18] "GET /assets/fonts/archivo-latin-var.woff2 HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:18] "GET /tokens.css HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:18] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:18] "GET /site.js HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:18] "GET /assets/hutch-agent.svg HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:18] "GET /assets/captures/proof-gate.webp HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:19] "GET /assets/captures/proof-overview.webp HTTP/1.1" 200 -
+_ test_database_snapshot_scope_is_readable_and_has_no_executor_requests[390-844-phone] _
+
+browser = <Browser type=<BrowserType name=firefox executable_path=/tmp/hutch-playwright-browsers/firefox-1543/firefox/firefox> version=155.0>
+site_url = 'http://127.0.0.1:50661/', width = 390, height = 844, size = 'phone'
+
+    @pytest.mark.parametrize('width,height,size',[(1440,1000,'desktop'),(900,1024,'tablet'),(390,844,'phone')])
+    def test_database_snapshot_scope_is_readable_and_has_no_executor_requests(browser, site_url, width, height, size):
+        import hashlib
+        import json
+        from hutch.models import iso, utcnow
+        context, page, errors = _page(browser, width=width, height=height, reduced_motion='reduce')
+        requests = []
+        page.on('request', lambda request: requests.append(request.url))
+        out = SITE_DIR.parent / 'docs/realignment/artifacts/restoration'
+        out.mkdir(parents=True, exist_ok=True)
+        try:
+            page.goto(site_url, wait_until='networkidle')
+            state = page.locator('#runs .spec').filter(has=page.get_by_text('State', exact=True))
+            text = state.inner_text()
+            assert 'execution held for review' in text and 'new directory' in text
+            assert 'Credentials, browser profiles and user files need separate backups' in text
+            state.scroll_into_view_if_needed()
+            state.screenshot(path=str(out / f'site-{size}-state.png'), animations='disabled')
+            page.screenshot(path=str(out / f'site-{size}-viewport.png'), animations='disabled')
+            overflow = page.evaluate('document.documentElement.scrollWidth - innerWidth')
+            assert overflow <= 1 and not errors
+            assert all(url.startswith(site_url) for url in requests), 'static site contacted another origin'
+            (out / f'site-{size}.json').write_text(json.dumps({
+                'captured_at': iso(utcnow()), 'browser': browser.browser_type.name, 'version': browser.version,
+                'viewport': [width, height], 'page_errors': errors, 'horizontal_overflow': overflow,
+                'scenario': 'Anonymous static database-snapshot scope; no executor requests or credentials',
+>               'source_sha256': {str(p.relative_to(SITE_DIR.parent)): hashlib.sha256(p.read_bytes()).hexdigest()
+                                                                                      ^^^^^^^^^^^^^^
+                                  for p in (SITE_DIR/'index.html', SITE_DIR/'styles.css', SITE_DIR/'main.js')},
+            }, indent=2) + '\n')
+
+tests/e2e/test_website.py:221: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/pathlib/_abc.py:625: in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/home/kevina/CodingProjects/hutch/.worktrees/realign/website/main.js')
+mode = 'rb', buffering = -1, encoding = None, errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/kevina/CodingProjects/hutch/.worktrees/realign/website/main.js'
+
+../../../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/pathlib/_local.py:537: FileNotFoundError
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [08/Oct/2026 06:48:19] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:19] "GET /assets/fonts/archivo-latin-var.woff2 HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:19] "GET /tokens.css HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:19] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:19] "GET /site.js HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:19] "GET /assets/hutch-agent.svg HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2026 06:48:19] "GET /assets/captures/proof-gate.webp HTTP/1.1" 200 -
+=========================== short test summary info ============================
+FAILED tests/e2e/test_website.py::test_database_snapshot_scope_is_readable_and_has_no_executor_requests[1440-1000-desktop]
+FAILED tests/e2e/test_website.py::test_database_snapshot_scope_is_readable_and_has_no_executor_requests[900-1024-tablet]
+FAILED tests/e2e/test_website.py::test_database_snapshot_scope_is_readable_and_has_no_executor_requests[390-844-phone]
+3 failed, 9 deselected in 5.88s

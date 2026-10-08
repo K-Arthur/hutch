@@ -1,0 +1,17 @@
+{
+  "captured_at": "2026-10-08T13:48:50.376758+00:00",
+  "browser": "firefox",
+  "version": "155.0",
+  "viewport": [
+    390,
+    844
+  ],
+  "page_errors": [],
+  "horizontal_overflow": 0,
+  "scenario": "Anonymous static database-snapshot scope; no executor requests or credentials",
+  "source_sha256": {
+    "website/index.html": "027fad199d75705d48aca715f4fd68bae6f9999e290aa995f96b76e11d6f87c6",
+    "website/styles.css": "145d8728b19c5ae976abf40625881f8bd1cc0d4ca22bb82f4ad1e6f08c762f2c",
+    "website/site.js": "fa3cbe9232880989044db5c32d143506a26306189068565ae4f11c7aef6df0eb"
+  }
+}

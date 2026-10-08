@@ -122,6 +122,16 @@ and wait for state changes. The CLI drives the same `Engine`.
 No separate daemon is required for dashboard-driven usage; `hutch daemon` is the headless
 equivalent.
 
+### D7 — A database restore transfers history, not execution authority
+
+Schema v14 records offline restore quarantine and process detachment. `hutch state backup`
+creates a private standalone SQLite snapshot and manifest. Restore validates copied bytes and
+history in a new directory without background workers, then holds submissions/claims and
+records old attempts as Needs review. Source processes are never signalled. Device sessions,
+standing grants and schedules are revoked/paused; an explicit local operator review permits
+new work without resuming old work. Files and credentials require separate preservation.
+See [ADR-0015](adr/0015-held-database-restoration.md) and [Operations](operations.md).
+
 ## Concurrency model
 
 > **Updated (realignment, slices S2-S3).** Ownership is no longer process memory. A run is *claimed* by one atomic SQL statement

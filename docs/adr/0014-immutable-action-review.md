@@ -61,3 +61,7 @@ Browser process affinity, pinned egress and live handoff remain pending. Generat
 destinations and third-party runtime permission brokering need further capability work. External
 notifications, scoped fact memory and production restore orchestration are not supplied by this
 slice. No paid provider or physical-device checks were performed.
+
+Subsequent schema-v14 work adds held database restoration in
+[ADR-0015](0015-held-database-restoration.md). The action-review slice itself remains separate
+from production service cutover and excluded-file preservation.

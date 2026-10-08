@@ -323,9 +323,14 @@ def _migrate_13(db: sqlite3.Connection) -> None:
     ))
 
 
+def _migrate_14(db: sqlite3.Connection) -> None:
+    from .state_snapshot import migrate
+    migrate(db)
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
-               _migrate_11, _migrate_12, _migrate_13]
+               _migrate_11, _migrate_12, _migrate_13, _migrate_14]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -354,8 +359,13 @@ EVENT_FLUSH_SECONDS = 0.02
 
 
 class Store:
-    def __init__(self, config: hutchConfig | None = None, bus: Bus | None = None):
+    def __init__(self, config: hutchConfig | None = None, bus: Bus | None = None, *, maintenance: bool = False):
         self.config = config or get_config()
+        self._maintenance = maintenance
+        if (self.config.state_dir / '.hutch-database-snapshot').exists():
+            raise RuntimeError('a database snapshot cannot be used as executor state; use hutch state restore --to a new directory')
+        if not maintenance and (self.config.state_dir / '.restore-in-progress').exists():
+            raise RuntimeError('this restore is incomplete; preserve the directory and restore into a new destination')
         self.config.ensure()
         self.bus = bus or Bus()
         self.hub = WakeHub(self.config.state_dir, self.bus)  # cross-process nudges (PF-5)
@@ -371,7 +381,12 @@ class Store:
             self._db.execute("PRAGMA synchronous=FULL")
             self._db.execute("PRAGMA busy_timeout=30000")
             self._db.execute("PRAGMA foreign_keys=ON")
-            self._upgrade()
+            try:
+                self._upgrade()
+            except BaseException:
+                self._db.close()
+                self.hub.close()
+                raise
         # ---- batched event writer (one writer thread, group commit)
         self._buf_cv = threading.Condition()
         self._pending: list[Event] = []
@@ -389,10 +404,12 @@ class Store:
         self._closed = False
         self._shutdown_hooks: list[weakref.WeakMethod] = []
         self._writer = threading.Thread(target=self._writer_loop, name="hutch-event-writer", daemon=True)
-        self._writer.start()
+        if not maintenance:
+            self._writer.start()
         from .transcript_mirror import TranscriptMirror
         self._mirror = TranscriptMirror(self)
-        self._mirror.start()
+        if not maintenance:
+            self._mirror.start()
         ref = weakref.ref(self)
         atexit.register(lambda: (s := ref()) and s.close())
 
@@ -452,6 +469,66 @@ class Store:
     def schema_version(self) -> int:
         with self._lock:
             return self._db.execute("PRAGMA user_version").fetchone()[0]
+
+    # -------------------------------------------------------- restore hold
+
+    @staticmethod
+    def _execution_hold(db: sqlite3.Connection) -> Optional[str]:
+        row = db.execute("SELECT id FROM state_restores WHERE activated_at IS NULL AND superseded_by = '' LIMIT 1").fetchone()
+        return row[0] if row else None
+
+    @classmethod
+    def _assert_execution_ready(cls, db: sqlite3.Connection) -> None:
+        from .state_snapshot import ExecutionHeld
+        if restore_id := cls._execution_hold(db):
+            raise ExecutionHeld(restore_id)
+
+    def restoration_status(self) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute("SELECT * FROM state_restores WHERE superseded_by = '' ORDER BY created_at DESC LIMIT 1").fetchone()
+        if row is None:
+            return None
+        report = json.loads(row['report_json'])
+        report.update(execution_held=row['activated_at'] is None, activated_at=row['activated_at'],
+                      activation_evidence=row['activation_evidence'], verified_code_hash=row['verified_code_hash'])
+        return report
+
+    def restoration_items(self, restore_id: str, *, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._db.execute('SELECT kind, resource_id, prior_status FROM state_restore_items '
+                                    'WHERE restore_id = ? ORDER BY kind, resource_id LIMIT ? OFFSET ?',
+                                    (restore_id, max(1, min(200, limit)), max(0, offset))).fetchall()
+        return [dict(row) for row in rows]
+
+    def activate_restoration(self, restore_id: str, evidence: str) -> bool:
+        """Local operator review permits NEW work; never requeue old work/grants."""
+        from .state_snapshot import code_hash, validate_history
+        evidence = evidence.strip()
+        if not evidence or len(evidence) > 4000:
+            raise ValueError('review evidence must contain 1–4000 characters')
+        evidence.encode('utf-8')
+        with self._tx() as db:
+            row = db.execute('SELECT * FROM state_restores WHERE id = ?', (restore_id,)).fetchone()
+            if row is None:
+                raise KeyError(restore_id)
+            if row['superseded_by']:
+                raise ValueError('this restore was superseded; inspect the current restore report')
+            if row['activated_at']:
+                if row['activation_evidence'] != evidence:
+                    raise ValueError('this restore already has a different review record')
+                return False
+            if row['verified_code_hash'] != code_hash():
+                raise ValueError('installed executor/UI changed since restore validation; restore with this release into a new directory')
+            if db.execute('PRAGMA integrity_check').fetchone()[0] != 'ok' or db.execute('PRAGMA foreign_key_check').fetchone():
+                raise ValueError('restored database integrity failed; preserve and inspect the copy')
+            validate_history(self)
+            if db.execute("SELECT 1 FROM runs WHERE status IN ('pending','running','loading_model','waiting_approval',"
+                          "'waiting_human','waiting_resources','recovering','cancelling') LIMIT 1").fetchone():
+                raise ValueError('unexpected runnable work appeared during restore review; preserve and inspect the copy')
+            db.execute('UPDATE state_restores SET activated_at = ?, activation_evidence = ? WHERE id = ? AND activated_at IS NULL',
+                       (iso(utcnow()), evidence, restore_id))
+        self.bus.notify('work', 'state')
+        return True
 
     # ---------------------------------------------------------- remote pairing
 
@@ -569,7 +646,8 @@ class Store:
                 with self._buf_cv:
                     self._closing = True
                     self._buf_cv.notify_all()
-        self._writer.join(timeout=5)
+        if self._writer.ident is not None:
+            self._writer.join(timeout=5)
         if self._writer.is_alive():
             # Do not close a connection still owned by the writer. Retain the
             # closing state (new events are refused); callers may retry closure
@@ -677,6 +755,7 @@ class Store:
 
     def enqueue_task(self, task: Task) -> Task:
         with self._lock:
+            self._assert_execution_ready(self._db)
             self._db.execute(
                 "INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done, state) VALUES (?, ?, ?, ?, ?, 0, 'queued')",
                 (task.id, task.bot_id, task.kind, task.prompt, task.created_at),
@@ -701,7 +780,7 @@ class Store:
 
     def pending_tasks(self, bot_id: Optional[str] = None) -> list[Task]:
         """Tasks that have not finished (queued, or claimed by a run that is still going)."""
-        q = "SELECT id, bot_id, kind, prompt, created_at FROM tasks WHERE done = 0"
+        q = "SELECT id, bot_id, kind, prompt, created_at FROM tasks WHERE done = 0 AND state IN ('queued', 'claimed')"
         args: tuple = ()
         if bot_id:
             q += " AND bot_id = ?"
@@ -714,6 +793,7 @@ class Store:
 
     def create_run(self, run: Run) -> Run:
         with self._lock:
+            self._assert_execution_ready(self._db)
             self._db.execute(
                 "INSERT INTO runs (id, bot_id, task_id, doc, status, created_at, conversation_id, conversation_context) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -730,6 +810,7 @@ class Store:
         The old path made three separate commits and marked the task done before anything had run."""
         run.task_id = task.id
         with self._tx() as db:
+            self._assert_execution_ready(db)
             db.execute("INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done, state, run_id) "
                        "VALUES (?, ?, ?, ?, ?, 0, 'queued', ?)",
                        (task.id, task.bot_id, task.kind, task.prompt, task.created_at, run.id))
@@ -887,6 +968,7 @@ class Store:
             replay = self._idempotency_replay(db, scope, idem_key, request_hash)
             if replay is not None:
                 return str(replay["run_id"]), False
+            self._assert_execution_ready(db)
             conversation = db.execute("SELECT bot_id, title, archived FROM conversations WHERE id = ?",
                                       (conversation_id,)).fetchone()
             if conversation is None:
@@ -950,6 +1032,7 @@ class Store:
         marker_key = f"schedule:{run.bot_id}:last_fire"
         run.task_id = task.id
         with self._tx() as db:
+            self._assert_execution_ready(db)
             row = db.execute("SELECT value FROM kv WHERE key = ?", (marker_key,)).fetchone()
             if (row["value"] if row else None) != expected_marker:
                 return None
@@ -1000,6 +1083,8 @@ class Store:
         if max_live:
             args += [*_LIVE_VALUES, stamp, max_live]
         with self._tx() as db:
+            if self._execution_hold(db):
+                return None
             if db.execute(sql, args).rowcount != 1:
                 return None
             db.execute("UPDATE tasks SET state = 'claimed' WHERE run_id = ? AND done = 0", (run_id,))
@@ -1055,6 +1140,8 @@ class Store:
         now = now or utcnow()
         stamp, expires = iso(now), iso(now + timedelta(seconds=lease_seconds))
         with self._tx() as db:
+            if self._execution_hold(db):
+                return False
             row = db.execute("SELECT owner, expires_at FROM supervisor_leases WHERE name = 'scheduler'").fetchone()
             if row is None:
                 db.execute("INSERT INTO supervisor_leases (name, owner, expires_at, fence) VALUES ('scheduler', ?, ?, 1)",
@@ -1394,14 +1481,15 @@ class Store:
 
     def end_proc(self, run_id: str, pid: int) -> None:
         with self._lock:
-            self._db.execute("UPDATE run_procs SET ended_at = ? WHERE run_id = ? AND pid = ? AND ended_at IS NULL",
+            self._db.execute("UPDATE run_procs SET ended_at = ? WHERE run_id = ? AND pid = ? AND ended_at IS NULL AND detached_at IS NULL",
                              (iso(utcnow()), run_id, pid))
             self._db.commit()
 
     def live_procs(self, run_id: str) -> list[dict[str, Any]]:
         """Processes recorded for the run that were never recorded as finished."""
         with self._lock:
-            rows = self._db.execute("SELECT pid, pgid, starttime, kind, boot_id FROM run_procs WHERE run_id = ? AND ended_at IS NULL",
+            rows = self._db.execute("SELECT pid, pgid, starttime, kind, boot_id FROM run_procs WHERE run_id = ? "
+                                    "AND ended_at IS NULL AND detached_at IS NULL",
                                     (run_id,)).fetchall()
         return [dict(r) for r in rows]
 
@@ -1416,6 +1504,8 @@ class Store:
         now = now or utcnow()
         stamp, expires = iso(now), iso(now + timedelta(seconds=lease_seconds))
         with self._tx() as db:
+            if self._execution_hold(db):
+                return None
             row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run.id,)).fetchone()
             if row is None or row["fence"] != run.fence or row["status"] != run.status.value:
                 return None
@@ -1466,10 +1556,10 @@ class Store:
     def close_procs(self, run_id: str, keep_pid: Optional[int] = None) -> None:
         with self._lock:
             if keep_pid is None:
-                self._db.execute("UPDATE run_procs SET ended_at = ? WHERE run_id = ? AND ended_at IS NULL",
+                self._db.execute("UPDATE run_procs SET ended_at = ? WHERE run_id = ? AND ended_at IS NULL AND detached_at IS NULL",
                                  (iso(utcnow()), run_id))
             else:
-                self._db.execute("UPDATE run_procs SET ended_at = ? WHERE run_id = ? AND ended_at IS NULL AND pid != ?",
+                self._db.execute("UPDATE run_procs SET ended_at = ? WHERE run_id = ? AND ended_at IS NULL AND detached_at IS NULL AND pid != ?",
                                  (iso(utcnow()), run_id, keep_pid))
             self._db.commit()
 
@@ -1692,6 +1782,8 @@ class Store:
         a supervisor recovering it); a per-process counter would give them colliding numbers and a broken chain. Reads call
         ``flush_events`` first, so every reader still sees its own writes."""
         with self._buf_cv:
+            if self._maintenance:
+                raise RuntimeError('maintenance stores do not queue background events')
             if self._closing:
                 raise RuntimeError("Hutch state is closing; new events are refused")
             if event.run_id in self._sealed:

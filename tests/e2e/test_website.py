@@ -190,3 +190,36 @@ def test_receipt_proof_is_labelled_and_fits_anonymous_viewports(browser, site_ur
         },indent=2)+'\n')
     finally:
         context.close()
+
+
+@pytest.mark.parametrize('width,height,size',[(1440,1000,'desktop'),(900,1024,'tablet'),(390,844,'phone')])
+def test_database_snapshot_scope_is_readable_and_has_no_executor_requests(browser, site_url, width, height, size):
+    import hashlib
+    import json
+    from hutch.models import iso, utcnow
+    context, page, errors = _page(browser, width=width, height=height, reduced_motion='reduce')
+    requests = []
+    page.on('request', lambda request: requests.append(request.url))
+    out = SITE_DIR.parent / 'docs/realignment/artifacts/restoration'
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        page.goto(site_url, wait_until='networkidle')
+        state = page.locator('#runs .spec').filter(has=page.get_by_text('State', exact=True))
+        text = state.inner_text()
+        assert 'execution held for review' in text and 'new directory' in text
+        assert 'Credentials, browser profiles and user files need separate backups' in text
+        state.scroll_into_view_if_needed()
+        state.screenshot(path=str(out / f'site-{size}-state.png'), animations='disabled')
+        page.screenshot(path=str(out / f'site-{size}-viewport.png'), animations='disabled')
+        overflow = page.evaluate('document.documentElement.scrollWidth - innerWidth')
+        assert overflow <= 1 and not errors
+        assert all(url.startswith(site_url) for url in requests), 'static site contacted another origin'
+        (out / f'site-{size}.json').write_text(json.dumps({
+            'captured_at': iso(utcnow()), 'browser': browser.browser_type.name, 'version': browser.version,
+            'viewport': [width, height], 'page_errors': errors, 'horizontal_overflow': overflow,
+            'scenario': 'Anonymous static database-snapshot scope; no executor requests or credentials',
+            'source_sha256': {str(p.relative_to(SITE_DIR.parent)): hashlib.sha256(p.read_bytes()).hexdigest()
+                              for p in (SITE_DIR/'index.html', SITE_DIR/'styles.css', SITE_DIR/'site.js')},
+        }, indent=2) + '\n')
+    finally:
+        context.close()

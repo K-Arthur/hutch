@@ -123,6 +123,13 @@ def test_run_time_check_reports_a_folder_that_vanished_or_became_forbidden(tmp_p
 
 @pytest.fixture()
 def eng(tmp_path, monkeypatch, config, store):
+    from hutch.hardware import Hardware
+    from hutch.runtime.builtin import BuiltinRuntime
+    # This fixture verifies actual file persistence against a fake model server.
+    # Admission tests separately vary measured headroom; unrelated host apps
+    # must not turn this filesystem journey into a live RAM-pressure test.
+    fixture_hardware = Hardware(os='Linux', ram_total_gb=16, ram_available_gb=12)
+    monkeypatch.setattr(BuiltinRuntime, '_hardware', lambda self: fixture_hardware)
     s = FakeOllama({"tiny:1b": {"params": "1B", "size": 500_000_000}})
     monkeypatch.setenv("OLLAMA_HOST", s.url)
     reset_provider_cache()
@@ -153,11 +160,14 @@ def test_a_run_works_in_the_real_folder_and_the_files_persist(eng, tmp_path):
 def test_a_second_run_sees_what_the_first_wrote(eng, tmp_path):
     folder = tmp_path / "persist"
     folder.mkdir()
-    drive(eng, folder, [{"name": "write_file", "arguments": {"path": "note.md", "content": "from run one"}}])
+    first, _, _ = drive(eng, folder, [{"name": "write_file", "arguments": {"path": "note.md", "content": "from run one"}}])
+    assert first.status is RunStatus.succeeded, first.error
+    assert (folder / 'note.md').read_text() == 'from run one'
     engine, store, fake, _ = eng
     fake.script = agent_script([{"content": "reading", "tool_calls": [{"name": "read_file", "arguments": {"path": "note.md"}}]},
                                 {"content": "finished"}])
     run = engine.run_blocking(store.get_bot("folk"), "again")
+    assert run.status is RunStatus.succeeded, run.error
     outs = [e.data["output"] for e in store.list_events(run.id) if e.type is EventType.tool_result]
     assert any("from run one" in o for o in outs)
 

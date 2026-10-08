@@ -90,3 +90,20 @@ reconciled. Marketing figure checks load anonymously at three widths and verify 
 copy and the responsive phone image. Inspection prompted this image-source improvement rather
 than accepting a technically fitting but unreadable desktop thumbnail. Final counts/boundaries
 are recorded in the continuation ledger.
+
+## Held restoration continuation
+
+The existing app header shows a restored-state execution hold on all routes. A read-only detail
+dialog explains quarantine, revoked authority, excluded files and the source-process boundary;
+there is no extra navigation page or browser activation control. Three real local-server
+journeys at 1440×1000, 900×1024 and 390×844 use an actual isolated database snapshot/restore with
+synthetic unfinished work. They check rejection before message admission, kept chat draft,
+keyboard focus/trapping/return, state invalidation after local operator activation, 44px phone
+controls, no header/content overlap and an unobscured Close button.
+
+Inspection found and repaired a desktop header overlap and a phone error toast covering Close.
+The new read-only dialog also needed an explicit hidden-button style because the shared button
+reset overrode the HTML hidden attribute. Captures/traces/source hashes are in
+[restoration](artifacts/restoration/). The broader navigation/site capture covers the updated
+database-only website specification. These checks are isolated fixtures, not production cutover,
+physical-device or screen-reader certification. Exact final counts are in the ledger.

@@ -8,6 +8,12 @@ preference is the effects setting in `localStorage`.
 
 ## Capability language
 
+The State specification now describes database-only snapshots and held restoration into a new
+directory. It explicitly excludes credentials, browser profiles and user files. Local fixture
+tests cover current/legacy database restoration and an active source PID; this does not certify
+production cutover, restore browser sessions or roll back external effects. The marketing site
+does not call the new state commands, expose private reports or gain executor access.
+
 | State shown publicly | Evidence and limit |
 |---|---|
 | Supported | Linux execution, local SQLite state, deterministic offline mock and fixture-tested lifecycle/API paths. This does not imply a public download or production service. |
