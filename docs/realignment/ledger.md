@@ -1086,3 +1086,11 @@ Each text snapshot is limited to 4 MB and generated/output artifacts share a 16 
 Backend verification: `.venv/bin/pytest -q tests/test_runtime_builtin.py tests/test_api.py` passed **54 tests in 34.16s**. Browser/site verification: the two artifact journeys plus `tests/e2e/test_website.py` passed **13 tests in 14.65s**. Chromium 153.0.8010.12 / Playwright 1.63.0 captured keyboard downloads at desktop 1440×1000, tablet 768×1024 and phone 390×844; all three screenshots recorded matching content hashes, zero page errors and zero horizontal overflow in `artifacts/generated-files/`. The anonymous marketing site also passed its internal-link and CTA checks and had no external requests. Captures were visually inspected. `compileall`, JavaScript syntax, `git diff --check` and the Impeccable detector passed (`[]`). These are local fixtures, not a live-provider or physical-device test.
 
 Implementation commit: `75a2641`.
+
+## S6 Studio file-discovery refinement (2026-10-08)
+
+The first generated-file link was inside the collapsed technical tool details. Studio now displays each verified write-file download as a compact attachment below the activity line, both for individual tool calls and for grouped calls. A snapshot failure also remains visible outside the collapsed details. This keeps file access in the ongoing chat and adds no separate navigation destination.
+
+The browser journey now submits a conversation-backed fixture run and confirms the file link is visible while tool details remain collapsed. Keyboard activation downloads the expected filename and bytes. The refreshed desktop, tablet and phone captures are visually inspected in `artifacts/generated-files/`; Chromium 153.0.8010.12 / Playwright 1.63.0 reports matching hashes, zero page errors and zero horizontal overflow. Focused Studio checks passed **3 tests in 5.12s**, covering generated-file chat access, existing clipped-output downloads and conversation reload/archive. `node --check`, `git diff --check` and the Impeccable detector passed (`[]`). Fixture only; no provider call or physical device was used.
+
+Implementation commit: `e39e51e`.
