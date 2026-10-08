@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .base import Tool, ToolContext, ToolResult, _schema, clip, rehearsed
+from .filewrite import destination, replace_reviewed, revision
 
 
 def _resolve(path: str, ctx: ToolContext):
@@ -77,20 +78,19 @@ class FilesWriteTool(Tool):
 
     def run(self, args: dict[str, Any], ctx: ToolContext) -> ToolResult:
         path, content = args.get("path", ""), args.get("content", "")
+        if not isinstance(path, str) or not path or not isinstance(content, str):
+            return ToolResult(ok=False, output="error: path and content must be strings, with a nonempty path")
         decision = ctx.policy.check_path(path, ctx.workspace, write=True)
         if ctx.dry_run:
             return rehearsed(f"write {path} ({len(content)} chars)", decision)
         try:
-            ctx.gate.decide("files", f"write {path} ({len(content)} chars)", {"path": path}, decision)
+            if decision.verdict.value == "deny":
+                ctx.gate.decide("files", f"write {path}", {"path": path, "content": content}, decision)
+            ws, parts = destination(path, ctx.workspace)
+            expected = revision(ws, parts)
+            detail = {"path": path, "content": content, "workspace": str(ws), "revision": expected}
+            ctx.gate.decide("files", f"write {path} ({len(content)} chars)", detail, decision)
+            replace_reviewed(ws, parts, content, expected, ctx.begin_effect)
         except Exception as exc:
             return ToolResult(ok=False, output=f"error: {exc}")
-        refusal = ctx.begin_effect()
-        if refusal:
-            return ToolResult(ok=False, output=f"error: {refusal}")
-        try:
-            ws, p = _resolve(path, ctx)
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(content)
-            return ToolResult(ok=True, output=f"wrote {path} ({len(content)} chars)", data={"path": path})
-        except OSError as exc:
-            return ToolResult(ok=False, output=f"error: {exc}")
+        return ToolResult(ok=True, output=f"wrote {path} ({len(content)} chars)", data={"path": path})

@@ -111,13 +111,35 @@ The current same-harness captures and data-quality notebook are in `artifacts/pe
 
 ## Main interface integration checkpoint (2026-10-07)
 
-Integrated main prerequisite `6fd979f` into the realignment branch, preserving the redesigned
+Merge `70c0dae` integrated main prerequisite `6fd979f` into the realignment branch, preserving the redesigned
 shell/site and canonical conversations, idempotent message submission, archived history and
 authoritative lifecycle labels. Live run detail now refreshes the correct transcript; the
 phone navigation sheet traps Tab and restores focus on Escape.
 
 Verification at this merge boundary: 103 focused backend tests passed; 17 Playwright browser
 and website tests passed; JavaScript syntax, generated site tokens/contrast and emoji audit
-passed. The first full offline run was interrupted before producing a summary; a new run is
-in progress. This checkpoint does not satisfy final release gates. Further navigation
+passed. The first full offline run was interrupted before producing a summary; the next run
+finished with 1,009 passed in 228.41s. This checkpoint does not satisfy final release gates. Further navigation
 consolidation requested by the user follows as a separate change.
+
+## Exact-action and mount review checkpoint (2026-10-08)
+
+The OpenBot reference review (`openbot-review.md`) led to concrete Hutch regressions and
+repairs. File approvals now store the complete contents, workspace and reviewed destination
+revision; the writer rejects revisions changed while waiting and uses descriptor-anchored
+atomic replacement without following symlinks. Browser click/type reviews bind the destination
+and profile, typing includes the text, and outward mutations always ask. Shell reviews include
+effective timeout, workspace and containment. Approval events expose the persisted action hash.
+
+A direct read-only-mount test reproduced hidden mounts under private `/tmp`. Mount order now
+preserves the configured grant; read/write/unlink/create checks pass inside actual bubblewrap.
+Grants reject credential descendants, outside symlinks, unreadable/oversized inspection and
+covering the writable workspace. Equal-content legacy memory stays independently accessible
+and deletable per bot. This does not finish reviewed/shared memory or browser account authority.
+
+Focused verification: `tests/test_file_approval.py tests/test_browser_profiles.py
+tests/test_sandbox.py tests/test_tools.py tests/test_approval_cas.py`: **50 passed in 5.79s**.
+The first full run started before the mount repair and reported **1,020 passed, 1 failed in
+219.06s** on the newly added mount regression. The repaired full run is pending at this
+checkpoint. Browser coverage remains fixture-only; sandbox tests are actual local Linux
+containment checks. No provider, real account, paid call or public exposure was used.

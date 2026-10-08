@@ -138,6 +138,18 @@ def test_memory_tools_scoped_to_bot(store, config, tmp_path):
     assert store.recall_all(other.id) == []  # no cross-bot leakage
 
 
+def test_memory_equal_content_keeps_bot_scope_through_recall_and_forget(store, config, tmp_path):
+    a = make_ctx(store, config, tmp_path)
+    b = make_ctx(store, config, tmp_path, bot=Bot(name="separate-memory", tools=["memory"]))
+    tools = build_tools(["memory"], a)
+    for ctx in (a, b):
+        assert tools["remember"].run({"key": "style", "value": "concise"}, ctx).ok
+        assert "style: concise" in tools["recall"].run({}, ctx).output
+    assert store.forget(a.bot.id, "style")
+    assert "style: concise" not in tools["recall"].run({}, a).output
+    assert "style: concise" in tools["recall"].run({}, b).output
+
+
 def test_webfetch_denies_private_and_allows_check(store, config, tmp_path, monkeypatch):
     ctx = make_ctx(store, config, tmp_path)
     tools = build_tools(["web_fetch"], ctx)

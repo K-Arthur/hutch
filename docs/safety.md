@@ -18,6 +18,12 @@ not measured prevalence).
 
 The realignment ledger records which behavior is tested, which is only documented, and which requires live provider or device access.
 
+Explicit extra read-only shell mounts are installed after private temporary mounts and the
+writable workspace so the declared mode survives execution. Credential descendants, symlinks
+outside the granted folder, unreadable trees and grants covering the workspace are refused;
+inspection is capped at 10,000 entries, with a narrower-folder error on exhaustion. These are
+launch-time checks on operator-owned configuration, not a filesystem watcher.
+
 ## The three verdicts
 
 Every action is classified **allow** (runs silently), **ask** (pauses for a human), or
@@ -101,6 +107,14 @@ Read/list must resolve inside the run workspace (real-path resolution, so `sub/.
 and `../../.ssh` does not). Writes additionally require approval (sticky `files:write`).
 Absolute paths outside the workspace are denied.
 
+File-write requests persist the full proposed contents, workspace and destination revision in
+their approval fingerprint. A file created or edited while a person reviews it requires a new
+request. Linux writes walk directory descriptors without following symlinks, serialize Hutch
+writers on the workspace, and atomically replace the file; replacing a hard link does not alter
+its other names. Temporary files are removed on ordinary failure. The lock coordinates Hutch
+writers, not arbitrary host applications: a hostile owner editing the directory concurrently
+is outside this boundary. Reads/listing still use real-path policy and are not descriptor-based.
+
 ### URLs
 
 `web_fetch` and the browser accept public `http(s)` only, decided on **addresses**, not spellings (`hutch/netguard.py`):
@@ -112,8 +126,11 @@ not by a URL pattern.
 
 ### Browser actions
 
-`goto` uses URL policy; `click` and `type` are ask-once with sticky allows (an agent that can
-click can buy things). Login/CAPTCHA/MFA walls move the run to `waiting_human` — the bot waits for a
+`goto` uses URL policy. `click` and `type` always ask because either can send data or buy something;
+sticky grants and auto mode cannot cover them. The request binds the selector/label, typed text,
+page URL and bot profile. A changed URL after review refuses the action. This does not verify an
+account identity or prevent a page changing its DOM at the same URL; governed live browser
+sessions remain incomplete. Login/CAPTCHA/MFA walls move the run to `waiting_human` — the bot waits for a
 human, it never attempts challenges. The browser currently launches headless. Each browser-tool instance owns a separate context
 and the profile path for its bot. Operations are serialized by a process-wide lock, held for the whole human wait.
 A durable same-session handoff is not implemented.

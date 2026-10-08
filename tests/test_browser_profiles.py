@@ -3,6 +3,8 @@ from __future__ import annotations
 import sys
 import types
 
+import pytest
+
 from hutch.models import Bot
 from hutch.tools.browser import BrowserTool
 
@@ -59,3 +61,39 @@ def test_browser_tool_instances_own_distinct_bot_profiles(monkeypatch, config):
     first._teardown()
     assert browser_a.closed and not hasattr(browser_b, "closed")
     second._teardown()
+
+
+@pytest.mark.parametrize("navigate_during_review", [False, True])
+def test_browser_typing_approval_binds_text_destination_and_profile(
+    monkeypatch, config, store, tmp_path, navigate_during_review
+):
+    from hutch.approvals import resolve_approval_ex
+    from hutch.models import ApprovalMode
+    from tests.test_tools import make_ctx
+    ctx = make_ctx(store, config, tmp_path, approval_mode=ApprovalMode.auto)
+    store.allow_sticky(ctx.bot.id, "browser:*")
+    args = {"action": "type", "selector": "#recipient", "text": "reviewed recipient"}
+    fills = []
+    page = types.SimpleNamespace(url="https://example.com/compose", fill=lambda *a, **kw: fills.append(a))
+    tool = BrowserTool()
+    monkeypatch.setattr(tool, "_ensure", lambda _: types.SimpleNamespace(pages=[page]))
+    wait = ctx.gate._wait
+
+    def human(req, action):
+        stored = store.get_approval(req.id)
+        assert stored.outward and not stored.sticky_key
+        assert stored.detail == {"action": "type", "selector": "#recipient", "text": "reviewed recipient",
+                                 "url": "https://example.com/compose", "profile_bot_id": ctx.bot.id}
+        args["text"] = "unreviewed recipient"
+        if navigate_during_review:
+            page.url = "https://elsewhere.example/compose"
+        assert resolve_approval_ex(store, req.id, True, expected_hash=stored.action_hash).won
+        return wait(req, action)
+
+    monkeypatch.setattr(ctx.gate, "_wait", human)
+    result = tool.run(args, ctx)
+    if navigate_during_review:
+        assert not result.ok and "navigated after review" in result.output
+        assert fills == []
+    else:
+        assert result.ok and fills == [("#recipient", "reviewed recipient")]

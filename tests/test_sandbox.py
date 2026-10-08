@@ -203,6 +203,33 @@ def test_ambient_readonly_mount_env_cannot_expose_home_secrets(tmp_path, monkeyp
         sandbox.shell_argv("true", sandbox.Policy(workspace=ws, extra_ro=(str(secret_dir),)))
 
 
+def test_explicit_readonly_mount_preserves_mode_at_execution(tmp_path):
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    reference = tmp_path / "reference"
+    reference.mkdir()
+    note = reference / "note.txt"
+    note.write_text("REFERENCE-CANARY")
+    policy = sandbox.Policy(workspace=ws, extra_ro=(str(reference),))
+    res = os_sandbox(f"cat {note}; echo changed > {note}; rm {note}; touch {reference}/new.txt", ws, policy=policy)
+    assert "REFERENCE-CANARY" in res.stdout
+    assert res.returncode != 0
+    assert note.read_text() == "REFERENCE-CANARY"
+    assert not (reference / "new.txt").exists()
+
+
+def test_readonly_mount_rejects_credential_ancestor_and_workspace_cover(tmp_path):
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    reference = tmp_path / "reference"
+    reference.mkdir()
+    (reference / ".env").write_text("SECRET-CANARY")
+    with pytest.raises(ValueError, match="credentials or secrets"):
+        sandbox.shell_argv("true", sandbox.Policy(workspace=ws, extra_ro=(str(reference),)))
+    with pytest.raises(ValueError, match="cover the writable workspace"):
+        sandbox.shell_argv("true", sandbox.Policy(workspace=ws, extra_ro=(str(ws),)))
+
+
 def test_new_bots_default_to_strict_on_a_capable_host_and_the_value_is_validated():
     assert Bot(name="fresh").sandbox == "strict"
     with pytest.raises(Exception):

@@ -138,6 +138,21 @@ def _extra_readonly_mounts(paths: tuple[str, ...]) -> list[str]:
             raise ValueError(f"read-only mount may expose credentials or secrets: {raw}")
         if source.is_file() and source.name.lower().startswith(".env"):
             raise ValueError(f"read-only mount may expose credentials or secrets: {raw}")
+        # Selecting an ancestor is not permission to expose secrets beneath it.
+        if resolved.is_dir():
+            count = 0
+            def cannot_inspect(exc):
+                raise ValueError(f"could not inspect the read-only mount safely: {exc}")
+            for root, dirs, files in os.walk(resolved, followlinks=False, onerror=cannot_inspect):
+                for name in dirs + files:
+                    count += 1
+                    if count > 10_000:
+                        raise ValueError("read-only mount inspection exceeds 10000 entries; choose a narrower folder")
+                    if name.lower() in _SENSITIVE_COMPONENTS or name.lower().startswith(".env"):
+                        raise ValueError(f"read-only mount may expose credentials or secrets beneath: {raw}")
+                    child = Path(root) / name
+                    if child.is_symlink() and not child.resolve(strict=True).is_relative_to(resolved):
+                        raise ValueError(f"read-only mount contains a symlink outside its granted folder: {raw}")
         out += ["--ro-bind", str(resolved), str(resolved)]
     return out
 
@@ -177,9 +192,16 @@ def shell_argv(command: str, policy: Policy, shell: str = "/bin/bash") -> list[s
     ws = str(policy.workspace.resolve())
     argv = [binary(), "--die-with-parent", "--new-session", "--unshare-all"]
     argv += ["--ro-bind", "/usr", "/usr", *_layout(), *_etc(policy.network)]
-    argv += _extra_readonly_mounts(policy.extra_ro)
     argv += ["--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--tmpfs", "/run",
-             "--bind", ws, ws, "--chdir", ws,
+             "--bind", ws, ws]
+    # Mount after private /tmp and the writable workspace: earlier mounts were
+    # hidden or widened by their parent mount, contradicting the declared grant.
+    for raw in policy.extra_ro:
+        source = Path(raw).expanduser().resolve(strict=True)
+        if Path(ws).is_relative_to(source):
+            raise ValueError("read-only mount cannot cover the writable workspace; choose a narrower folder")
+    argv += _extra_readonly_mounts(policy.extra_ro)
+    argv += ["--chdir", ws,
              "--clearenv", "--setenv", "PATH", DEFAULT_PATH, "--setenv", "HOME", ws, "--setenv", "LANG", "C.UTF-8",
              "--setenv", "TERM", "dumb", "--setenv", "TMPDIR", "/tmp",
              "--", shell, "-c", command]

@@ -120,7 +120,8 @@ class ApprovalGate:
                               "rule": req.rule, "risk": req.risk, "outward": outward,
                               "expires_at": req.expires_at, "detail": detail,
                               "segments": req.segments, "sticky_key": req.sticky_key,
-                              "plan_id": req.plan_id}))
+                              "plan_id": req.plan_id, "action_hash": req.action_hash,
+                              "conversation_id": self.run.conversation_id}))
         self._wait(req, action)
 
     def _wait(self, req: ApprovalRequest, action: str) -> None:

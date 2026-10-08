@@ -105,6 +105,7 @@ class BrowserTool(Tool):
         return {"click": "web", "type": "web", "screenshot": "fs"}.get(action, "")
 
     def run(self, args: dict[str, Any], ctx: ToolContext) -> ToolResult:
+        args = dict(args)  # a human wait must not resume from a mutable caller argument object
         action = (args.get("action") or "").strip()
         if action not in _ACTIONS:
             return ToolResult(ok=False, output=f"error: unknown action '{action}'")
@@ -152,7 +153,12 @@ class BrowserTool(Tool):
 
         if action == "click":
             target = args.get("selector") or args.get("label") or ""
-            ctx.gate.decide("browser", f"click {target or '(current focus)'}", {"target": target})
+            url = page.url
+            ctx.gate.decide("browser", f"click {target or '(current focus)'}", {
+                "action": action, "selector": args.get("selector", ""), "label": args.get("label", ""),
+                "url": url, "profile_bot_id": ctx.bot.id}, outward=True)
+            if page.url != url:
+                return ToolResult(ok=False, output="error: browser navigated after review; request a new approval")
             if (refusal := ctx.begin_effect()):
                 return ToolResult(ok=False, output=f"error: {refusal}")
             locator = page.locator(args["selector"]) if args.get("selector") else page.get_by_text(args.get("label", ""), exact=False)
@@ -161,7 +167,12 @@ class BrowserTool(Tool):
 
         if action == "type":
             selector, text = args.get("selector", ""), args.get("text", "")
-            ctx.gate.decide("browser", f"type into {selector}", {"selector": selector})
+            url = page.url
+            ctx.gate.decide("browser", f"type into {selector}", {
+                "action": action, "selector": selector, "text": text, "url": url,
+                "profile_bot_id": ctx.bot.id}, outward=True)
+            if page.url != url:
+                return ToolResult(ok=False, output="error: browser navigated after review; request a new approval")
             if (refusal := ctx.begin_effect()):
                 return ToolResult(ok=False, output=f"error: {refusal}")
             page.fill(selector, text, timeout=10_000)

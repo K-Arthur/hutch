@@ -55,7 +55,8 @@ class ShellTool(Tool):
         if ctx.dry_run and not (decision.verdict is Verdict.allow and is_read_only(command)):
             return rehearsed(f"run `{command}`", decision)         # reads still run; anything else is only described
         try:
-            ctx.gate.decide("shell", f"$ {command}", {"command": command}, decision)
+            ctx.gate.decide("shell", f"$ {command}", {"command": command, "timeout": timeout,
+                            "workspace": str(ctx.workspace.resolve()), "sandbox": mode}, decision)
         except Exception as exc:
             return ToolResult(ok=False, output=f"error: {exc}", data={"command": command})
 
