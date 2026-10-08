@@ -902,7 +902,7 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 
 /* ───────────────────────────── bots ───────────────────────────── */
 
-.bot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: var(--s-4); }
+.bot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr)); gap: var(--s-4); }
 .bot-card { display: flex; flex-direction: column; gap: var(--s-3); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-panel); box-shadow: var(--sh-1); padding: var(--s-4); }
 .bot-card:hover { border-color: var(--line-strong); }
 .bot-head { display: flex; align-items: center; gap: var(--s-3); }
@@ -953,6 +953,7 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .modal-backdrop {
   position: fixed; inset: 0; z-index: var(--z-modal);
   background: rgba(2, 4, 7, 0.72);
+  color: inherit;   /* daisyUI's own .modal-backdrop sets color:#0000 (layered); ours must win or modal text inherits transparent */
   display: grid; place-items: center; padding: var(--s-4);
 }
 .modal-card {
@@ -964,7 +965,9 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
   border-radius: var(--r-composer);
   box-shadow: var(--sh-pop);
   overflow: hidden;
+  animation: modal-in var(--dur) var(--ease);   /* 0ms under reduced motion */
 }
+@keyframes modal-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } }
 .modal-header { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-4) var(--s-5); border-bottom: 1px solid var(--line); flex: none; }
 .modal-header h3 { font-size: var(--fs-xl); }
 .modal-header .icon-btn { margin-left: auto; }
@@ -1016,6 +1019,7 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .welcome-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); font: 400 var(--fs-xs)/1.6 var(--mono); color: var(--text-3); }
 .welcome-list li { display: inline-flex; align-items: center; gap: 6px; }
 .welcome-list .icon { color: var(--text-3); }
+@media (min-width: 641px) { .welcome-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-2); } }
 
 /* hero mascot: the site workstream's transparent sprite set (620x880 webp),
    pointer-reactive on capable devices, static center frame otherwise */
@@ -1028,7 +1032,7 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 /* explore-agents: template gallery on the first-run welcome */
 .tpl-gal { width: 100%; text-align: left; }
 .tpl-h { font-size: var(--fs-lg); font-weight: 650; margin: var(--s-4) 0 var(--s-3); }
-.tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: var(--s-3); }
+.tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(196px, 100%), 1fr)); gap: var(--s-3); }
 .tpl-card {
   all: unset; box-sizing: border-box; cursor: pointer;
   display: grid; gap: 7px; padding: var(--s-3);
@@ -1038,8 +1042,16 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 }
 .tpl-card:hover { border-color: var(--line-hi); background: var(--raised); }
 .tpl-card:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.tpl-tile { display: grid; place-items: center; height: 78px; border-radius: var(--r-ctl); overflow: hidden; }
-.tpl-name { font-size: var(--fs-md); font-weight: 650; color: var(--text); }
+.tpl-tile { display: grid; place-items: center; height: 96px; border-radius: var(--r-ctl); overflow: hidden; }
+.tpl-tile .avatar { transition: transform var(--dur) var(--ease); }
+.tpl-card:hover .tpl-tile .avatar { transform: translateY(-3px); }
+.tpl-name { font-size: var(--fs-md); font-weight: 650; color: var(--text); display: flex; align-items: center; gap: 6px; }
+.tpl-go {
+  margin-left: auto; flex: none; color: var(--text-3);
+  opacity: 0; transform: translate(-5px, 3px);
+  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.tpl-card:hover .tpl-go, .tpl-card:focus-visible .tpl-go { opacity: 1; transform: none; color: var(--brand-hi); }
 .tpl-tag {
   font-size: var(--fs-xs); color: var(--text-3); line-height: 1.45;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
@@ -1106,8 +1118,9 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
   .tool-grid { grid-template-columns: 12px minmax(64px, auto) minmax(0, 1fr); }
   .app-top { height: 52px; }
   .approval-card-chat { padding: var(--s-3); }
-  .modal-backdrop { padding: var(--s-2); }
-  .modal-card { max-height: 94dvh; }
+  /* phone modals arrive as bottom sheets — thumb-reachable, full width */
+  .modal-backdrop { place-items: end stretch; padding: 0; }
+  .modal-card { width: 100%; max-height: 93dvh; border-radius: var(--r-composer) var(--r-composer) 0 0; border-bottom: 0; }
   .modal-body { padding: var(--s-4); }
   .modal-footer { padding: var(--s-3) var(--s-4); }
   .turn-meta { flex-wrap: wrap; }
