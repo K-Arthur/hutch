@@ -1054,4 +1054,4 @@ or horizontal overflow. The full **1,302-test** run in `8ee8c45` predates this a
 full rerun remains required. This proves transcript rendering for the tested fields only. It does
 not establish browser-page egress safety, permission isolation, or immunity to every authority
 escalation path. No application renderer code changed and no live page/provider was contacted.
-Implementation/evidence commit: pending.
+Implementation/evidence commit: `17a041c`.
