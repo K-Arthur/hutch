@@ -169,8 +169,9 @@ and OpenClaw's dashboard exposing management APIs on all interfaces with a beare
 [CVSS 9.0 write-up](https://dev.to/oolongtea2026/when-your-dashboard-leaks-the-keys-a-cvss-90-credential-exposure-in-openclaw-1bg0)).
 **Historical gap in Hutch v0.1, fixed locally in the realignment.** The dashboard now checks Host and Origin/Fetch-Metadata, uses a
 CSRF token for form actions, and atomically records approvals/stops. Remote access remains opt-in: direct non-loopback binding requires
-TLS and an operator-issued single-use device pairing code; sessions can be revoked. This implementation has fixture coverage only; no
-phone, physical network, or production exposure has been tested.
+TLS and an operator-issued single-use device pairing code; sessions can be revoked in Connections or by CLI. The pairing and device
+management UI has local browser-fixture coverage; no physical-device or network test has been performed, and no public exposure is
+supported.
 → **Acceptance boundary:** hostile cross-origin posts and Host rebinding fail closed; pairing is single-use and rate-limited; the host
 does not print bearer tokens in URLs or logs. See [ADR-0010](../adr/0010-api-transport-and-remote-supervision.md).
 

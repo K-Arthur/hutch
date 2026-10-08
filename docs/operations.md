@@ -36,13 +36,16 @@ hutch serve --host 0.0.0.0 --port 8787 --allow-remote --tls-cert /path/to/fullch
 
 Restrict reachability at the host/network firewall to your private network. Do not expose this port to the public internet. In another
 host terminal, `hutch pairing create` prints a single-use code valid for 60 seconds. Exchange it only with your own device at the
-HTTPS Hutch address. `hutch pairing list` shows active device ids and use times; revoke a lost device with
-`hutch pairing revoke <device-id>`. The browser holds an HttpOnly cookie; the raw session secret is never returned in the response or
-written to the database. Pairing throttles after five invalid attempts from one source IP in ten minutes.
+HTTPS Hutch address by opening `/pair` and entering the code. The code can be used once. Connections lists paired browsers, marks the
+current device, and can revoke another session or itself; a self-revoked browser returns to `/pair`. `hutch pairing list` shows active
+device ids and use times; revoke a lost device from Connections or with `hutch pairing revoke <device-id>`. The browser holds an
+HttpOnly cookie; the raw session secret is never returned in the response or written to the database. Pairing throttles after five
+invalid attempts from one source IP in ten minutes.
 
-The phone-facing UI and live browser/PTY controls are not complete, and this path has not been tested on physical devices or across an
-operator's network. Tunnel/reverse-proxy deployments are not supported by this command; keep it loopback-only behind externally
-managed infrastructure until trusted-proxy handling is documented and validated.
+The pairing form and responsive dashboard are implemented, but remote operation remains experimental: no physical-device or private
+network test has been performed. Browser handoff, authenticated PTY/desktop control and trusted tunnel/reverse-proxy support are not
+implemented. Tunnel/reverse-proxy deployments are not supported by this command; keep it loopback-only behind externally managed
+infrastructure until trusted-proxy handling is documented and validated.
 
 ## Database migration and restore
 

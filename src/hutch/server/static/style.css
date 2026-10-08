@@ -1115,8 +1115,20 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .fact-value { white-space: pre-wrap; overflow-wrap: anywhere; margin: var(--s-2) 0; }
 .fact-share { display: flex; gap: var(--s-2); align-items: center; margin: var(--s-3) 0; min-height: 44px; }
 .fact-panel details > summary { min-height: 44px; cursor: pointer; }
+.device-manager { margin: var(--s-4) 0; padding-top: var(--s-3); border-top: 1px solid var(--line); }
+.device-manager summary { display: flex; align-items: center; gap: var(--s-2); min-height: 44px; cursor: pointer; color: var(--text); }
+.device-manager > .hint { margin: var(--s-2) 0; max-width: 72ch; }
+.device-list { display: grid; gap: var(--s-2); margin: var(--s-3) 0; }
+.device-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-width: 0;
+  padding: var(--s-3); border: 1px solid var(--line); background: var(--panel); }
+.device-row > div { min-width: 0; }
+.device-row strong { overflow-wrap: anywhere; }
+.device-row .hint { margin: var(--s-1) 0 0; }
+.device-row .btn { min-height: 44px; flex: none; }
 @media (max-width: 600px) {
   .fact-card .btn { min-height: 44px; }
+  .device-row { align-items: stretch; flex-direction: column; }
+  .device-row .btn { width: 100%; }
   .modal-footer .btn, .modal-header .icon-btn { min-height: 44px; min-width: 44px; }
   .mhead { flex-wrap: wrap; }
   .mhead .status { flex-shrink: 0; max-width: 100%; white-space: normal; }

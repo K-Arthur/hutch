@@ -187,9 +187,10 @@ clients of the same model server. `HUTCH_MODEL_SLOTS` no longer widens inference
 ## What is deliberately NOT here (yet)
 
 Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, a cross-run artifact library, browser handoff,
-interactive remote supervision and Windows/macOS support — tracked in `docs/roadmap.md`.
-Experimental direct HTTPS pairing has no phone UI and is not a production support claim. The Linux shell has optional, fail-closed bubblewrap
-containment; it is not a VM and does not contain every tool or the browser.
+authenticated PTY/desktop controls and Windows/macOS support — tracked in `docs/roadmap.md`.
+Experimental direct HTTPS pairing has a one-time-code UI and revocable device inventory; no physical-device/network test or production
+remote-support claim exists. The Linux shell has optional, fail-closed bubblewrap containment; it is not a VM and does not contain every
+tool or the browser.
 
 The conversation-first shell keeps the bot roster and configuration ownership in one place.
 Approvals appear in their transcript and in an explicit cross-bot drawer, using the same card and

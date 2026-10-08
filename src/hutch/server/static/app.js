@@ -2624,13 +2624,29 @@ async function renderConnections() {
   let data;
   try { data = await api("/connections"); }
   catch (err) { view.innerHTML = errorState(err); return; }
+  let devices = [];
+  let devicesError = "";
+  try { devices = await api("/v1/devices"); }
+  catch (err) { devicesError = err.message; }
   setTopContext(`<div class="ctx-id"><h1>Connections</h1></div>
     <div class="ctx-actions"><button class="btn primary small" id="btn-add-conn">${icon("plus")} Add connection</button></div>`);
   const conns = data.connections || [];
   const windows = { "5h": "per 5 hours", "day": "per day", "week": "per week", "month": "per month" };
+  const devicesOpen = $(".device-manager")?.open || false;
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
       <p class="page-subtitle">A named hosted endpoint with its own key, terms, and allowance. Reference its models as <code class="mono">&lt;connection&gt;/&lt;model&gt;</code>.</p>
+      <details class="device-manager">
+        <summary>Paired devices <span class="tag">${devices.length}</span></summary>
+        <p class="hint">A paired browser can access this Hutch host while it is online. On the host, run <code>hutch pairing create</code>, then open <a href="/pair">/pair</a> on the device and enter the one-time code. For another device, Hutch must use <code>--allow-remote</code> with trusted TLS certificates; keep it on a private network.</p>
+        ${devicesError ? `<p class="hint bad" role="alert">Could not load paired devices: ${esc(devicesError)}</p>` : devices.length ? `
+          <div class="device-list" aria-label="Active paired devices">${devices.map(device => `
+            <div class="device-row" data-device="${esc(device.id)}">
+              <div><strong>${esc(device.label)}</strong> ${device.current ? '<span class="tag ok">this device</span>' : ''}
+                <p class="hint">Last active ${esc(new Date(device.last_used_at).toLocaleString())} · expires ${esc(new Date(device.expires_at).toLocaleDateString())}</p></div>
+              <button class="btn danger small" type="button" data-device-revoke="${esc(device.id)}">Revoke</button>
+            </div>`).join("")}</div>` : `<p class="hint">No active paired devices.</p>`}
+      </details>
       ${conns.length ? conns.map(c => `
         <div class="panel conn-card" data-conn="${esc(c.name)}">
           <div class="bot-head">
@@ -2665,6 +2681,7 @@ async function renderConnections() {
         </div>`}
       ${data.errors?.length ? `<p class="hint" style="color:var(--warn);">${esc(data.errors.join(" "))}</p>` : ""}
     </div></div>`;
+  $(".device-manager").open = devicesOpen;
 
   $("#btn-add-conn")?.addEventListener("click", () => {
     const tpls = data.templates || [];
@@ -2754,6 +2771,33 @@ async function renderConnections() {
         } catch (err) { show(err.message, false); }
         finally { btn.disabled = false; btn.textContent = action === "test" ? "Test" : action; }
       });
+    });
+  });
+
+  $$('[data-device-revoke]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const device = devices.find(item => item.id === button.dataset.deviceRevoke);
+      if (!device) return;
+      const confirmed = await confirmDialog({
+        title: "Revoke device",
+        body: `End Hutch access for <b>${esc(device.label)}</b>? This cannot be undone.`,
+        confirmText: "Revoke device",
+        danger: true,
+      });
+      if (!confirmed) return;
+      button.disabled = true;
+      try {
+        await api(`/v1/devices/${encodeURIComponent(device.id)}/revoke`, { method: "POST", body: {} });
+        if (device.current) {
+          location.assign("/pair");
+          return;
+        }
+        toast(`Revoked ${device.label}`);
+        await renderConnections();
+      } catch (err) {
+        button.disabled = false;
+        toast(err.message, true);
+      }
     });
   });
 }

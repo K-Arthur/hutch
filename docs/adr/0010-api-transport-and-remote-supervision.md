@@ -23,8 +23,10 @@ Status: partially implemented (2026-10-07). Slice: S8. Evidence: baseline "recon
 * **Remote supervision**: loopback by default. An operator can explicitly enable a direct remote listener with `--allow-remote`, a TLS
   certificate and key, and configured network reachability. `hutch pairing create` prints a one-time code (60 s); exchanging it over
   HTTPS creates an HttpOnly per-device session whose hash is stored, whose sliding expiry is 30 days, and which can be listed/revoked
-  from the CLI or API. Pairing attempts are limited per source IP. Host/Origin checks and HTTP/WebSocket device-token checks run before
-  remote access. No token appears in a URL or log. This is an experimental authenticated API boundary, not a complete phone product.
+  from the CLI or Connections. `/pair` exchanges the code without placing it in a URL; Connections labels the active browser and can
+  revoke any session. Pairing attempts are limited per source IP. Host/Origin checks and HTTP/WebSocket device-token checks run before
+  remote access. No token appears in a URL or log. The responsive dashboard is experimental for remote use; physical-device/network
+  checks, browser/PTY/desktop controls and tunnel handling are not complete.
 * **Terminal**: governed command execution first (exists). An interactive PTY (sandboxed, bounded scrollback 1 MiB, resize, cancel, text transcript)
   is built only after the WebSocket auth above lands; **control ownership is a lease** (`agent` | `human`) so input never races; stale or replayed
   frames carry a sequence number and are dropped after reconnect.
@@ -36,7 +38,7 @@ Status: partially implemented (2026-10-07). Slice: S8. Evidence: baseline "recon
 
 Current boundary: the local `/api/v1` surface and Studio conversation flow are partial. Some
 screens use compatibility routes; approval decisions and Stop use idempotent v1 commands.
-Pairing and revocable device sessions plus explicit direct HTTPS binding are implemented and fixture-tested.
-Cross-run transcript/resource replay and bounded reconciliation are implemented, but no mobile pairing UI, PTY or browser-control WebSocket route,
-configured tunnel support, physical-device test, event-retention policy, or production remote-support claim exists. Keep direct access
-private and operator-controlled.
+Pairing UX and revocable device sessions plus explicit direct HTTPS binding are implemented and browser-fixture-tested. Cross-run
+transcript/resource replay and bounded reconciliation are implemented, but no PTY or browser-control WebSocket route, configured tunnel
+support, physical-device test, event-retention policy, or production remote-support claim exists. Keep direct access private and
+operator-controlled.

@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-10-08T18:48:40.044433+00:00",
+  "captured_at": "2026-10-08T20:13:49.986929+00:00",
   "browser": "chromium",
   "version": "153.0.8010.12",
   "viewport": [
@@ -11,7 +11,7 @@
   "page_errors": [],
   "horizontal_overflow": 0,
   "source_sha256": {
-    "website/index.html": "2ac59a6ad4b3a558e2bce2f715bb4a62e5278a165eb9dd0904efd9b3ce3281a6",
+    "website/index.html": "c47d43221c0e16714f494c708a48561c08e12ae401d4846edff21ac08f95e2d0",
     "website/styles.css": "80c6cdb1edf0a80c97b1ce26b0f9c7dc0bd233c37fd1000536c9e8fc8879284c",
     "website/site.js": "bdbcb486cad0c71bb315d28c1da10cc7a56eafb85d1614a98f0a4a17f84bc9b5",
     "website/assets/captures/setup-desktop.webp": "404c8a4c0b5ed637a339cb7c1020d49b53a72307ed513ecf9d691656c8405ed3",

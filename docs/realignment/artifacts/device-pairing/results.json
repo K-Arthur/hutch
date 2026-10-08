@@ -1,0 +1,55 @@
+{
+  "captured_at": "2026-10-08T20:12:47.044796+00:00",
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_real_device_pairing_and_revocation_are_usable_at_all_viewports",
+  "screenshots": [
+    "compact-phone-device-manager.png",
+    "compact-phone-pair-entry.png",
+    "desktop-device-manager.png",
+    "desktop-pair-entry.png",
+    "phone-device-manager.png",
+    "phone-invalid-code.png",
+    "phone-pair-entry.png",
+    "phone-paired.png",
+    "tablet-device-manager.png",
+    "tablet-pair-entry.png"
+  ],
+  "viewport_sizes": {
+    "desktop": [
+      1440,
+      1000
+    ],
+    "tablet": [
+      900,
+      1024
+    ],
+    "phone": [
+      390,
+      844
+    ],
+    "compact_phone": [
+      320,
+      740
+    ]
+  },
+  "page_errors": [],
+  "horizontal_overflow": 0,
+  "journey": "Invalid code, successful one-use pairing, current-device labeling, other-device revoke, self-revoke",
+  "device_token_in_document_cookie": false,
+  "live_remote_network_or_physical_device": false,
+  "source_sha256": {
+    "src/hutch/server/app.py": "3b6c3e5f19507344b4ab33a259c2a0d2fd336fa7518d6243a37c5205e42d4d56",
+    "src/hutch/server/pages.py": "e5cd6b99199bc5d1b489cdaddf91d18412705b2dbdd3d16a9971fa4bb550ecae",
+    "src/hutch/server/security.py": "731fa360859a8a4029ea91a9a1f701cb075f9669eea44ac79b8e8b9fe3156b4d",
+    "src/hutch/server/templates/base.html": "b573147700adcdbfe3758363ecb657177b7d686de7730013b5d595920ad656f6",
+    "src/hutch/server/templates/pair.html": "c1973e831ca90df8a329e48356e4d0f2659f181120be0cb153ccf34ce2281605",
+    "src/hutch/server/templates/login.html": "20cb2028bae969744a160fb44804a590b00eafc6904214e1d7fe3771a81d0d21",
+    "src/hutch/server/static/pair.js": "3b24f43417d787edd6240540dea6ad54662c2fe64482a20b2f522b01f3756994",
+    "src/hutch/server/static/app.js": "6bd02227a238dd22601dad6077421d3e52a1dfbfae353c7d2c48b259ad2b6511",
+    "src/hutch/server/static/style.css": "628aa7c0fe2d0b2d35396a3d8dd4af14b2eb9967a485a253b71a3eb6e43b0161",
+    "src/hutch/server/static/hutch-pages.css": "64bf6454cfdaa3a45c61ab2a93579aef1d99afea132b51087fc55bab127d9c62",
+    "website/index.html": "c47d43221c0e16714f494c708a48561c08e12ae401d4846edff21ac08f95e2d0"
+  }
+}

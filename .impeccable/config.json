@@ -38,6 +38,15 @@
         ],
         "createdAt": "2026-10-08T19:56:38.072Z",
         "reason": "Agent: this typing indicator is rendered only while authoritative run status is running; waiting and terminal states clear it, and reduced-motion settings disable the animation."
+      },
+      {
+        "rule": "tight-leading",
+        "value": "*",
+        "files": [
+          "src/hutch/server/templates/base.html"
+        ],
+        "createdAt": "2026-10-08T20:07:45.833Z",
+        "reason": "Agent: the shared h1 style uses deliberate 1.15 title leading; rendered page titles stay on one line at the tested sizes, while the rule targets multi-line body copy"
       }
     ]
   }

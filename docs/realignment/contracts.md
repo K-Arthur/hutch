@@ -88,7 +88,9 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
 * Pairing codes expire after 60 seconds and are single use. They issue HttpOnly device sessions, hash-only at rest, with a sliding
   30-day expiry. Operators can list/revoke sessions using `hutch pairing list` and `hutch pairing revoke <device-id>`; pairing is
   limited to five failed attempts per source IP per ten minutes. Off-loopback binding requires `hutch serve --allow-remote` and direct
-TLS certificate/key files. This has fixture coverage but no phone UI or live network/device validation.
+TLS certificate/key files. The `/pair` page exchanges a code without exposing the token to JavaScript-readable storage. The Connections
+disclosure lists sessions, identifies the current device, and lets an operator revoke any active session. This has fixture/browser
+coverage, but no live network or physical-device validation.
 Workspace/artifact resources and verified capability records are not available; the marketing site cannot
 reach localhost.
 
@@ -124,12 +126,16 @@ notice; it cannot turn a known wait into completion or hide the primary control.
 ## 6. Remote pairing (partial, experimental)
 
 On the Hutch host, run `hutch pairing create`; the 14-character code is shown once and expires in 60 seconds. Exchange it over HTTPS
-with `POST /api/v1/pairing/exchange` and `{ "code": "…", "label": "Phone" }`. The response sets an HttpOnly, SameSite=Strict device
-cookie and returns only the device id and expiry. Authenticated `GET /api/v1/devices` lists active sessions; `POST
-/api/v1/devices/{id}/revoke` revokes one. Direct non-loopback binding requires `--allow-remote --tls-cert CERT --tls-key KEY`.
+by opening `/pair` on the device and submitting `{ "code": "…", "label": "Phone" }` to `POST /api/v1/pairing/exchange`. The response sets an HttpOnly, SameSite=Strict device
+cookie and returns only the device id and expiry. Authenticated `GET /api/v1/devices` returns typed active-session records with a
+server-derived `current` flag; it marks only the cookie belonging to the requesting device, not an operator token or another session.
+`POST /api/v1/devices/{id}/revoke` revokes one session, including the current one. The UI returns a self-revoked browser to `/pair`.
+Direct non-loopback binding requires `--allow-remote --tls-cert CERT --tls-key KEY`.
 The code exchange is intentionally the only unauthenticated remote write; it is source-IP rate limited and subject to Origin checks.
-The current Studio has no pairing UX, remote interactive control route, or persistent device-session management screen. Use the CLI to
-revoke a lost device. Do not expose the listener to the public internet. The marketing site cannot reach localhost.
+Connections provides a device-session disclosure with current-device status and revocation; self-revocation returns to `/pair`. The
+responsive Studio is reachable to paired browsers, but remote operation is experimental and has only local browser-fixture coverage.
+Do not expose the listener to the public internet. Browser/PTY handoff and trusted tunnel support remain unavailable; the marketing site
+cannot reach localhost.
 
 ## Navigation and approval review
 

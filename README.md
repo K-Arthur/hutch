@@ -77,9 +77,9 @@ approval expiry without the dashboard.
 - **Conversations (preview)** — the Studio stores separate threads across restarts, offers thread switching and archive, and sends a
   bounded recent history to the builtin runtime. The versioned API has SQLite full-text search, restart-safe command idempotency,
   cross-run transcript replay and bounded snapshot reconciliation after a cursor gap.
-- **Remote pairing (experimental)** — explicit direct HTTPS binding and one-use, revocable device sessions are implemented. The phone
-  control UI, browser/PTY handoff, trusted tunnel support and physical-device validation are still unavailable; loopback is the supported
-  service boundary. See [remote operations](docs/operations.md#remote-pairing-experimental).
+- **Remote pairing (experimental)** — a one-time code opens the responsive dashboard on a paired browser, and Connections can list and
+  revoke device sessions. Direct access requires explicit HTTPS binding; live network and physical-device checks are still open. Browser/PTY
+  handoff and a trusted tunnel are unavailable, and loopback remains the supported service boundary. See [remote operations](docs/operations.md#remote-pairing-experimental).
 - **Browser (experimental)** — optional Playwright extra and a persistent profile per bot. A run can pause at some detected login
   walls; live handoff in the same session and a pinned browser egress path are unavailable.
 - **External runtimes** — Pi and OpenCode are recognized in old bot configs but disabled before starting a process. Their

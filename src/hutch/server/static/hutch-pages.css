@@ -21,6 +21,32 @@
 .card-title { font-size: 14px; margin: 0 0 6px; }
 @media (max-width: 800px) { .conn-grid { grid-template-columns: 1fr; } }
 
+/* One-time device pairing */
+.pair-panel { margin-top: clamp(28px, 8vh, 76px) !important; }
+.pair-panel [hidden] { display: none !important; }
+.pair-panel h1 { margin-bottom: 10px; }
+.pair-panel .stack { margin-top: 22px; }
+.pair-panel .field { display: flex; flex-direction: column; gap: 6px; color: var(--dim); font-size: 13px; }
+.pair-panel input { width: 100%; min-height: 44px; }
+.pair-panel .btn { min-height: 44px; }
+.pair-panel .pair-message { margin-top: 12px; }
+.pair-success { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
+.pair-success h2 { margin-bottom: 5px; }
+.pair-success .btn { margin-top: 10px; }
+.device-list { display: grid; gap: 8px; margin-top: 12px; }
+.device-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-subtle); }
+.device-row > div { min-width: 0; }
+.device-row strong { overflow-wrap: anywhere; }
+.device-row .hint { margin: 3px 0 0; }
+.device-row .btn { flex: none; min-height: 40px; }
+.device-manager summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 8px; }
+.device-manager { border-top: 1px solid var(--border); margin-top: 20px; padding-top: 8px; }
+.device-manager .hint { max-width: 72ch; }
+@media (max-width: 560px) {
+  .device-row { align-items: flex-start; flex-direction: column; }
+  .device-row .btn { width: 100%; }
+}
+
 /* Models page */
 .fit-fits::before { background: var(--accent) !important; }
 .fit-tight::before { background: var(--amber) !important; }

@@ -83,9 +83,9 @@ realignment work.
   reconciliation. Uncertain receipt sealing is transactional; chat and Needs you surface review.
   Same-conversation repeat guards and bounded current builtin context notes are implemented.
   Browser/external-runtime authority gaps and live effect verification remain open.
-- **Remote pairing: experimental.** Direct off-loopback access requires explicit TLS binding. One-time codes issue revocable device
-  sessions; source-IP attempts are throttled. The phone UI, PTY/browser controls, tunnel path, and physical-device verification remain
-  open. Linux loopback remains the supported service boundary; do not present remote access as a shipped phone feature.
+- **Remote pairing: experimental.** Direct off-loopback access requires explicit TLS binding. `/pair` exchanges single-use codes and
+  Connections lists and revokes device sessions; browser/PTY/desktop controls and trusted-tunnel support remain open. Physical-device
+  and private-network verification have not been performed. Linux loopback remains the supported service boundary.
 - **Release posture.** Source is private and unpublished. A paired device cannot keep a sleeping host running or reach a service after
   disconnection.
 

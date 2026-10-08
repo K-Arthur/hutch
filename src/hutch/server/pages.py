@@ -625,6 +625,11 @@ def register_pages(app: FastAPI) -> None:
     def login_page(request: Request):
         return page(request, "login.html")
 
+    @app.get("/pair", response_class=HTMLResponse, include_in_schema=False)
+    def pair_page(request: Request):
+        """Exchange a host-issued one-time code for this browser's revocable device session."""
+        return page(request, "pair.html")
+
     @app.post("/login", include_in_schema=False)
     async def login(request: Request):
         import os

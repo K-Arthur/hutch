@@ -1,0 +1,58 @@
+{
+  "kind": "redacted_browser_interaction_trace",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_real_device_pairing_and_revocation_are_usable_at_all_viewports",
+  "sensitive_values": "Pairing codes, cookies, request bodies, and session tokens are deliberately omitted.",
+  "steps": [
+    {
+      "step": "open_pair_page",
+      "viewport": "desktop",
+      "http_status": 200
+    },
+    {
+      "step": "open_pair_page",
+      "viewport": "tablet",
+      "http_status": 200
+    },
+    {
+      "step": "open_pair_page",
+      "viewport": "phone",
+      "http_status": 200
+    },
+    {
+      "step": "open_pair_page",
+      "viewport": "compact-phone",
+      "http_status": 200
+    },
+    {
+      "step": "reject_invalid_code",
+      "result": "rejected",
+      "input": "[redacted]",
+      "field_cleared": true
+    },
+    {
+      "step": "exchange_one_time_code",
+      "result": "paired",
+      "code": "[redacted]",
+      "session_cookie_readable_to_script": false,
+      "focus": "Open Hutch"
+    },
+    {
+      "step": "list_paired_devices",
+      "active_count": 2,
+      "current_device_label": "Kevin phone"
+    },
+    {
+      "step": "revoke_other_device",
+      "label": "Old tablet",
+      "result": "revoked"
+    },
+    {
+      "step": "revoke_current_device",
+      "result": "revoked",
+      "returned_to": "/pair"
+    }
+  ]
+}

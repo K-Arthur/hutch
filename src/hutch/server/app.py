@@ -145,6 +145,27 @@ class PairingExchangeRequest(BaseModel):
     label: str = Field(default="Phone", max_length=80)
 
 
+class PairingExchangeResource(BaseModel):
+    id: str
+    label: str
+    paired: bool
+    expires_in_seconds: int
+
+
+class DeviceResource(BaseModel):
+    id: str
+    label: str
+    created_at: str
+    expires_at: str
+    last_used_at: Optional[str] = None
+    revoked_at: Optional[str] = None
+    current: bool
+
+
+class DeviceRevocationResource(BaseModel):
+    revoked: str
+
+
 class ConversationResource(BaseModel):
     id: str
     bot_id: str
@@ -750,7 +771,7 @@ def create_app() -> FastAPI:
                 "change_cursor": snap["change_cursor"], "limit": limit,
                 "items": items, "totals": snap["totals"], "truncated": snap["truncated"], "next": next_urls}
 
-    @app.post("/api/v1/pairing/exchange")
+    @app.post("/api/v1/pairing/exchange", response_model=PairingExchangeResource)
     def exchange_pairing(body: PairingExchangeRequest, request: Request, response: Response) -> dict:
         """Exchange a short-lived host-issued code for an HttpOnly, revocable device session."""
         remote = request.client.host if request.client else "unknown"
@@ -764,11 +785,14 @@ def create_app() -> FastAPI:
         return {"id": session["id"], "label": session["label"], "paired": True,
                 "expires_in_seconds": 30 * 24 * 3600}
 
-    @app.get("/api/v1/devices")
-    def list_devices() -> list[dict]:
-        return store.list_device_sessions()
+    @app.get("/api/v1/devices", response_model=list[DeviceResource])
+    def list_devices(request: Request) -> list[dict]:
+        token = request.cookies.get(DEVICE_COOKIE, "")
+        current = store.device_identity(token) if token else None
+        return [{**device, "current": device["id"] == current}
+                for device in store.list_device_sessions()]
 
-    @app.post("/api/v1/devices/{device_id}/revoke")
+    @app.post("/api/v1/devices/{device_id}/revoke", response_model=DeviceRevocationResource)
     def revoke_device(device_id: str) -> dict:
         if not store.revoke_device_session(device_id):
             raise HTTPException(404, "no active device session with that id")

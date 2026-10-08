@@ -208,6 +208,14 @@ uncertain action can produce a generic notice; it contains no bot name, conversa
 arguments. The click opens the local review queue. This is not push delivery and cannot reach a
 closed tab, sleeping host or disconnected device.
 
+### Remote dashboard access is experimental
+
+Hutch stays on loopback unless an operator enables direct remote binding with trusted TLS certificates. A host-issued pairing code can
+open the responsive dashboard in a browser; each browser receives its own HttpOnly, revocable session. Keep the listener on a private
+network and do not expose it to the public internet. Connections or the CLI can revoke a lost session. The pairing and session UI has
+local browser-fixture coverage, but no physical-device or private-network validation; the host must remain awake and connected.
+Authenticated PTY/desktop controls and live browser handoff are not implemented. The marketing site cannot reach Hutch on localhost.
+
 ## Honest limits (read this)
 
 - **External runtimes** (`pi`, `opencode`) are disabled. They cannot currently satisfy Hutch's process ownership, approval,

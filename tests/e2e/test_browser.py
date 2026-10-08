@@ -441,6 +441,136 @@ def test_approve_from_the_phone_ui_resumes_the_run(browser, live):
     ctx.close()
 
 
+def test_real_device_pairing_and_revocation_are_usable_at_all_viewports(browser, live):
+    """Exercise the one-time exchange, visible device inventory and both revoke paths."""
+    import hashlib
+    import json
+    from hutch.models import iso, utcnow
+
+    base, app = live
+    code = app.state.store.create_pairing_code()
+    other_code = app.state.store.create_pairing_code()
+    app.state.store.exchange_pairing_code(other_code, "Old tablet", "192.0.2.10")
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/device-pairing"
+    out.mkdir(parents=True, exist_ok=True)
+    errors = []
+    trace = []
+    context = browser.new_context(viewport={"width": 390, "height": 844}, reduced_motion="reduce")
+    page = context.new_page()
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        for label, width, height in (("desktop", 1440, 1000), ("tablet", 900, 1024), ("phone", 390, 844),
+                                     ("compact-phone", 320, 740)):
+            page.set_viewport_size({"width": width, "height": height})
+            response = page.goto(f"{base}/pair")
+            assert response and response.status == 200
+            assert page.get_by_role("heading", name="Pair this device").is_visible()
+            assert page.locator("#primary-nav").count() == 0
+            if label == "phone":
+                for selector in ("[name=label]", "[name=code]", "#pair-submit"):
+                    assert page.locator(selector).bounding_box()["height"] >= 44
+            page.screenshot(path=str(out / f"{label}-pair-entry.png"), full_page=True, animations="disabled")
+            trace.append({"step": "open_pair_page", "viewport": label, "http_status": response.status})
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+
+        page.locator("[name=label]").fill("Kevin phone")
+        page.locator("[name=code]").fill("AAAAAAAAAAAAAA")
+        page.get_by_role("button", name="Pair device").click()
+        page.locator("#pair-error").wait_for(state="visible")
+        assert "invalid" in page.locator("#pair-error").inner_text()
+        assert page.locator("[name=code]").input_value() == ""
+        assert page.locator("[name=code]").evaluate("e => e === document.activeElement")
+        trace.append({"step": "reject_invalid_code", "result": "rejected", "input": "[redacted]", "field_cleared": True})
+        page.screenshot(path=str(out / "phone-invalid-code.png"), full_page=True, animations="disabled")
+
+        page.locator("[name=code]").fill(code)
+        page.get_by_role("button", name="Pair device").click()
+        page.locator("#pair-success").wait_for(state="visible")
+        assert not page.locator("#pair-form").is_visible()
+        assert not page.locator("#pair-instructions").is_visible()
+        assert page.get_by_role("link", name="Open Hutch").evaluate("e => e === document.activeElement")
+        assert page.evaluate("document.cookie.includes('hutch_device')") is False
+        assert page.evaluate("pairingCode => Object.values(localStorage).every(value => !value.includes(pairingCode))", code)
+        trace.append({"step": "exchange_one_time_code", "result": "paired", "code": "[redacted]",
+                      "session_cookie_readable_to_script": False, "focus": "Open Hutch"})
+        page.screenshot(path=str(out / "phone-paired.png"), full_page=True, animations="disabled")
+        page.get_by_role("link", name="Open Hutch").click()
+        page.wait_for_selector("#view")
+        page.goto(f"{base}/#/connections")
+        page.get_by_role("heading", name="Connections").wait_for()
+        page.locator(".device-manager summary").click()
+        page.get_by_text("Kevin phone").wait_for()
+        page.get_by_text("Old tablet").wait_for()
+        current = page.locator(".device-row").filter(has_text="Kevin phone")
+        assert current.get_by_text("this device").is_visible()
+        assert page.locator(".device-row").filter(has_text="Old tablet").get_by_text("this device").count() == 0
+        trace.append({"step": "list_paired_devices", "active_count": 2, "current_device_label": "Kevin phone"})
+
+        for label, width, height in (("desktop", 1440, 1000), ("tablet", 900, 1024), ("phone", 390, 844),
+                                     ("compact-phone", 320, 740)):
+            page.set_viewport_size({"width": width, "height": height})
+            if label == "phone":
+                assert page.locator(".device-manager summary").bounding_box()["height"] >= 44
+                assert current.get_by_role("button", name="Revoke").bounding_box()["height"] >= 44
+            page.screenshot(path=str(out / f"{label}-device-manager.png"), full_page=True, animations="disabled")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+        old_tablet = page.locator(".device-row").filter(has_text="Old tablet")
+        old_revoke = old_tablet.get_by_role("button", name="Revoke")
+        old_revoke.focus()
+        page.keyboard.press("Enter")
+        page.locator("#modal-title").get_by_text("Revoke device", exact=True).wait_for()
+        assert page.locator("#modal-confirm").evaluate("e => e === document.activeElement")
+        page.keyboard.press("Escape")
+        assert old_revoke.evaluate("e => e === document.activeElement")
+        page.keyboard.press("Enter")
+        page.locator("#modal-confirm").wait_for(state="visible")
+        page.locator("#modal-confirm").click()
+        page.get_by_text("Revoked Old tablet").wait_for()
+        assert page.locator(".device-row").filter(has_text="Old tablet").count() == 0
+        assert app.state.store.list_device_sessions()[0]["label"] == "Kevin phone"
+        trace.append({"step": "revoke_other_device", "label": "Old tablet", "result": "revoked"})
+
+        current = page.locator(".device-row").filter(has_text="Kevin phone")
+        current.get_by_role("button", name="Revoke").click()
+        page.locator("#modal-confirm").click()
+        page.get_by_role("heading", name="Pair this device").wait_for()
+        assert app.state.store.list_device_sessions() == []
+        trace.append({"step": "revoke_current_device", "result": "revoked", "returned_to": "/pair"})
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow <= 1 and not errors, (overflow, errors)
+        (out / "trace.json").write_text(json.dumps({
+            "kind": "redacted_browser_interaction_trace",
+            "browser": browser.browser_type.name,
+            "browser_version": browser.version,
+            "playwright_version": package_version("playwright"),
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_real_device_pairing_and_revocation_are_usable_at_all_viewports",
+            "sensitive_values": "Pairing codes, cookies, request bodies, and session tokens are deliberately omitted.",
+            "steps": trace,
+        }, indent=2) + "\n")
+        (out / "results.json").write_text(json.dumps({
+            "captured_at": iso(utcnow()), "browser": browser.browser_type.name, "version": browser.version,
+            "playwright_version": package_version("playwright"),
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_real_device_pairing_and_revocation_are_usable_at_all_viewports",
+            "screenshots": sorted(path.name for path in out.glob("*.png")),
+            "viewport_sizes": {"desktop": [1440, 1000], "tablet": [900, 1024], "phone": [390, 844], "compact_phone": [320, 740]},
+            "page_errors": errors, "horizontal_overflow": 0,
+            "journey": "Invalid code, successful one-use pairing, current-device labeling, other-device revoke, self-revoke",
+            "device_token_in_document_cookie": False,
+            "live_remote_network_or_physical_device": False,
+            "source_sha256": {name: hashlib.sha256((out.parents[3] / name).read_bytes()).hexdigest() for name in (
+                "src/hutch/server/app.py", "src/hutch/server/pages.py", "src/hutch/server/security.py",
+                "src/hutch/server/templates/base.html", "src/hutch/server/templates/pair.html",
+                "src/hutch/server/templates/login.html",
+                "src/hutch/server/static/pair.js", "src/hutch/server/static/app.js",
+                "src/hutch/server/static/style.css", "src/hutch/server/static/hutch-pages.css",
+                "website/index.html")},
+        }, indent=2) + "\n")
+    finally:
+        context.close()
+
+
 def test_a_stale_approval_click_shows_the_other_devices_decision(browser, live):
     """One request, two devices. The device that loses the race must not report success
     it did not get — it reads the server's decision and shows that instead."""

@@ -35,7 +35,7 @@ CSRF_COOKIE = "hutch_csrf"
 AUTH_COOKIE = "hutch_auth"
 DEVICE_COOKIE = "hutch_device"
 LOOPBACK_NAMES = {"localhost", "localhost.localdomain"}
-OPEN_PATHS = ("/login", "/static/", "/api/health", "/api/v1/pairing/exchange")
+OPEN_PATHS = ("/login", "/pair", "/static/", "/api/health", "/api/v1/pairing/exchange")
 
 
 def _host_only(host_header: str) -> str:

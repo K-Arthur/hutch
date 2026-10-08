@@ -8,5 +8,6 @@
   <form method="post" action="/login" class="stack"><input type="hidden" name="csrf" value="{{ csrf }}">
     <label class="field"><span>Access token</span><input type="password" name="token" autocomplete="current-password" required autofocus></label>
     <button class="btn primary">Sign in</button></form>
+  <p class="hint" style="margin-top:16px">Pair a phone or another browser with a one-time code from the Hutch host: <a href="/pair">pair this device</a>.</p>
 </section>
 {% endblock %}
