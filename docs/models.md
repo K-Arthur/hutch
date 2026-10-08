@@ -23,7 +23,7 @@ Rules worth knowing:
   untouched, so scheduled runs keep using it. The choice is remembered per bot in your browser.
 - **A hosted pick is your explicit consent for that message.** The "ask before the first hosted call" rule exists
   to stop a *local-first bot* drifting off your machine on its own; it does not fire when you picked the hosted model
-  yourself. Spend caps and the exact per-call accounting still apply.
+  yourself. Estimate-based limits and exact response-usage recording still apply; provider billing can differ from Hutch's estimates.
 - **The runtime still protects you.** The override goes through the normal run path, so a model that cannot fit this
   machine is refused before it loads, and the run says so.
 - **The server re-validates on send.** Unknown provider, missing key and an unacknowledged connection are refused with the exact
@@ -89,19 +89,22 @@ on top, load of A again, and whether the runtime actually evicted A. It unloads 
 no tokens, so run it when the machine is idle. Results appear on the Models page. *Until you run it, the page says
 "not measured": Hutch does not guess swap cost.*
 
-## What a run can cost, before it starts
+## What a run may cost, before it starts
 
-Every bot page, `hutch bot estimate <bot> [--model X]` and `GET /api/bots/<name>/estimate` show a **ceiling**, not a
-guess: every step re-sends the whole prompt and uses its full per-turn budget, which is exactly the arithmetic the spend
-guard enforces, so the figure can never be exceeded. Typical runs cost far less. When the bot has its own per-run cap lower
-than the worst case, the cap is stated as the maximum. A flat-rate plan says so (and that calls still count against your
-allowance), a local model says "no per-token cost", and a hosted model **with no price on file has no ceiling and says
-why**: Hutch never invents one. The chat switcher's dialog shows the same ceiling beside each hosted model.
+Every bot page, `hutch bot estimate <bot> [--model X]` and `GET /api/bots/<name>/estimate` show Hutch's **price estimate**:
+the prompt-size estimate is multiplied by the configured step count and per-turn output limit. This is an admission signal,
+not a guarantee of the provider's final bill. Provider tokenization, price changes, and unreported usage can differ. Before
+each hosted call Hutch atomically reserves the same kind of estimate against the run, bot, and configured provider account;
+responses with reported usage settle measured tokens and cost. An unresolved request stays held until an operator checks the
+provider record and reconciles it. A configured cost limit refuses the next call when Hutch's estimate would cross it; it
+cannot guarantee that an outside provider never bills more than the limit. Use the provider's own spending controls for a
+separate external ceiling. A local model says "no per-token cost", a flat-rate plan says that calls still count against its
+declared allowance, and a hosted model with no price row is refused while a currency limit is set.
 
 ## Usage
 
-`/usage` answers "where did the money and the allowance go": spend and tokens by **local calendar day** (the same day the
-daily caps use), by model and by bot; today against each bot's token and spend caps; each plan's allowance meter; the
+`/usage` answers "where did the money and the allowance go": measured spend and tokens by **local calendar day** (the same day the
+daily limits use), by model and by bot; today against each bot's measured use plus held reservations; each plan's allowance meter; the
 share of prompt tokens served from cache; and a log of every time a run **fell back** (the model was unavailable),
 **escalated** (it was not up to the job) or **stopped at a plan allowance**, newest first. Local models read "free
 (local)" and flat plans read "flat plan" instead of a misleading `$0.00`.
@@ -111,7 +114,8 @@ share of prompt tokens served from cache; and a log of every time a run **fell b
 `prices.json` rows carry a source and a **verified** date; rows over 90 days old are flagged. Correct a row on the
 Models page and the new number is used immediately: it is written to `<state dir>/prices.json`, stamped today, and
 **Reset** restores the bundled row. Local models cannot have a price row. A hosted model with no row **cannot run
-under a spend cap**: Hutch refuses rather than guess.
+while a Hutch currency limit is set**: Hutch refuses rather than guess. Even a priced route uses an estimate, not a guarantee
+of the provider's final bill.
 
 ## `hutch doctor`
 
@@ -125,7 +129,7 @@ hutch doctor --json
 Checks: Python version; database integrity, WAL and schema version; state-directory and key-file permissions;
 runs orphaned by a dead process; the `hutch.service` user unit; each runtime (a stopped runtime is a failure only
 when a bot depends on it); each local bot's model fit and the context it will actually get; connection keys and
-terms; hosted bots with no spend cap; auto-approval combined with a shell. Exit status is non-zero only for a
+terms; hosted bots with no Hutch currency estimate limit; auto-approval combined with a shell. Exit status is non-zero only for a
 **FAIL**; warnings do not fail it, so it can gate a script.
 
 Per-runtime health (also on the Models page): each call's outcome is recorded; two consecutive failures mark a runtime

@@ -5,6 +5,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
+from hutch.models import Bot, Run
 from hutch.server.app import create_app
 
 
@@ -192,12 +193,25 @@ def test_versioned_connections_schedules_and_capabilities_are_typed_and_secret_f
     from hutch.connections import ConnectionBook
 
     book = ConnectionBook(client.app.state.config.state_dir)
-    book.add("custom-openai", name="private-route", base_url="https://models.example.test/v1")
+    book.add("custom-openai", name="private-route", base_url="https://models.example.test/v1",
+             account_id="api-account", account_daily_cost_cap_usd=5.0,
+             quota={"window": "day", "tokens": 5000})
     book.set_key("private-route", "never-return-this-key")
     connections = client.get("/api/v1/connections")
     assert connections.status_code == 200
     route = next(row for row in connections.json() if row["name"] == "private-route")
     assert route["key_present"] is True and route["protocol"] == "openai-chat"
+    assert route["account_id"] == "api-account" and route["account_daily_cost_cap_usd"] == 5.0
+    assert route["configured_account_daily_cost_cap_usd"] == 5.0
+    bot = client.app.state.store.create_bot(Bot(name="reservation-api"))
+    run = client.app.state.store.create_run(Run(bot_id=bot.id, prompt="api status"))
+    client.app.state.store.reserve_usage(run_id=run.id, bot_id=bot.id, provider="private-route",
+                                         account_id="api-account", model="m", reserved_tokens=123,
+                                         reserved_cost_usd=0.45)
+    reservations = client.get("/api/v1/usage/reservations").json()
+    assert reservations[0]["account_id"] == "api-account" and reservations[0]["reserved_tokens"] == 123
+    route = next(row for row in client.get("/api/v1/connections").json() if row["name"] == "private-route")
+    assert route["quota_reserved_tokens"] == 123 and route["account_daily_cost_reserved_usd"] == 0.45
     assert "never-return-this-key" not in connections.text
 
     bot = make_bot(client, name="scheduled-v1", cron="0 9 * * 1", timezone="America/Vancouver")

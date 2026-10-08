@@ -11,7 +11,7 @@ browser. "Live" means it needs something this host did not have and is skipped w
 | T-OCCURRENCE-RACE | Two schedulers for one occurrence create one run, also after a crash between steps | offline (multiprocess) | `tests/test_claims.py` | passing |
 | T-STATE-MACHINE | Only table transitions are possible; terminal is absorbing; stale fence rejected | offline (property) | `tests/test_lifecycle.py` | passing |
 | T-SHELL-READABLE | Readable command contexts preserve policy; ambiguous syntax fails closed rather than being assumed benign | offline (property) | `tests/test_shellparse.py` | passing |
-| T-MIGRATION-V8 | A v4 database with data migrates and backs up; ids, events, schedules survive; each historic run is imported separately | offline | `tests/test_migration.py` | passing |
+| T-MIGRATION-V10 | A v4 database with data migrates and backs up; ids, events, schedules and legacy usage grouping survive; each historic run is imported separately | offline | `tests/test_migration.py` | passing |
 | T-CROSS-PROCESS-STOP | `stop` from process B ends a run owned by process A | offline (multiprocess) | `tests/test_cancel.py` | passing |
 | T-CANCEL-DESCENDANTS | After terminal cancel no descendant process is alive and none can write | offline | `tests/test_procguard.py` | passing |
 | T-RECEIPT-RECOVERY | Crash after an effect but before its receipt ends `outcome_unknown` and is never replayed | offline | `tests/test_receipts.py` | passing |
@@ -23,7 +23,11 @@ browser. "Live" means it needs something this host did not have and is skipped w
 | T-COMPAT-MATRIX | Every route has state, evidence URL and date; unsupported fields are stripped | offline | `tests/test_compat.py` | planned |
 | T-PROVIDER-FIELD-REJECT | A provider rejection (auth, quota, field) leaves a recoverable state and no paid fallback | offline | `tests/test_provider_failures.py` | planned |
 | T-NO-SILENT-FALLBACK | Falling to another billing relationship needs approval | offline | `tests/test_provider_failures.py` | planned |
-| T-RESERVE | Parallel runs cannot over-reserve a shared budget | offline | `tests/test_reservations.py` | planned |
+| T-RESERVE | Concurrent SQLite connections cannot over-reserve a shared account; actual settlement is idempotent; uncertain charges stay held until terminal reconciliation | offline (concurrent connections) | `tests/test_reservations.py` | passing |
+| T-LEGACY-BUDGET | Migrated per-run counters still consume run and daily limits; terminal/stale owners cannot add reservations | offline | `tests/test_reservations.py` | passing |
+| T-OPENCLAW-138499 | Lost run owner cannot leave descendants active or report completion before cleanup | offline fixtures | `tests/test_cancel.py`, `tests/test_procguard.py` | passing |
+| T-MOBILE-30055 | Pending approval remains visible with decision controls on a phone-sized viewport | browser fixture | `docs/realignment/artifacts/visual-validation/app-phone-approvals.png` | passing; no physical-phone check |
+| T-PHONE-31656 | Navigation-menu open/close does not focus a text field; Escape restores focus to the menu toggle | browser viewport fixture | `docs/realignment/artifacts/visual-validation/capture-results.json` | passing; no iOS keyboard check |
 | T-STRICT-OFFLINE | Offline mode makes no non-loopback connection and refuses cloud-backed Ollama | offline | `tests/test_offline_mode.py` | planned |
 | T-ADMISSION | Admission waits or refuses by memory; approval waits release the slot | offline | `tests/test_admission.py` | planned |
 | T-CONVERSATION | Bounded follow-up context, isolated legacy import, idempotent create/message/archive, FTS search and restart persistence | offline | `tests/test_conversations.py`, `tests/test_migration.py` | partial; artifact/runtime-switch context not implemented |

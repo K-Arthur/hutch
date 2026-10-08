@@ -73,7 +73,7 @@
       "source": "https://docs.openclaw.ai/providers/xiaomi",
       "models_endpoint": true,
       "terms": {"url": "https://mimo.mi.com/", "requires_ack": false, "notice": ""},
-      "quota_hint": "Per-token billing needs a price row in prices.json (Settings > Prices) before a spend cap can be enforced."
+      "quota_hint": "Per-token billing needs a price row in prices.json (Settings > Prices) before Hutch can estimate currency use; provider billing can differ."
     },
     "custom-openai": {
       "title": "Custom OpenAI-compatible endpoint",

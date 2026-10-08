@@ -17,7 +17,7 @@ flowchart LR
   subgraph Core
     ENG["Engine<br/>dispatch · caps · transcripts · stop"]
     SCH["Scheduler<br/>croniter + IANA tz · catch-up"]
-    SCHED_STORE[("SQLite (WAL)<br/>bots · tasks · runs · events<br/>conversations · messages · approvals · devices")]
+    SCHED_STORE[("SQLite (WAL)<br/>bots · tasks · runs · events<br/>usage · reservations · conversations · approvals · devices")]
     POL["Policy engine<br/>compound-command parser · path jail · URL guards"]
     GATE["Approval gate<br/>fail-closed · sticky allows"]
   end
@@ -57,7 +57,7 @@ flowchart LR
 Everything lives under one directory (default `~/.local/state/hutch`, override `HUTCH_STATE_DIR`):
 
 ```
-hutch.db                      # SQLite (WAL): bots, tasks, runs, events, conversations, approvals, memory, receipts
+hutch.db                      # SQLite (WAL): bots, tasks, runs, events, usage/reservations, conversations, approvals, memory, receipts
 bots/<bot>/runs/<run_id>/
   transcript.jsonl              # append-only run transcript (mirror of events)
   workspace/                    # the bot's jailed world for this run
@@ -110,8 +110,9 @@ verified; otherwise `cancelling` or `recovering` remains visible with a reason. 
 
 - `max_steps` — agent turns per run
 - `timeout_seconds` — wall clock. `serve`, `daemon`, and `hutch run` execute one owned OS worker process per attempt. Cleanup verifies boot/start identities and keeps a run in `Stopping` or `Recovering` until no owned process remains. `HUTCH_EXECUTOR=thread` is for tests and compatibility; a stuck thread is joined before persistence closes, so it cannot be declared terminal while still running.
-- `daily_token_cap` — measured usage when the provider reports it, estimate otherwise; the next
-  model call aborts when the bot's day-total exceeds the cap
+- `daily_token_cap` — actual response usage plus pre-call prompt/reply estimates and unresolved reservations;
+  admission reserves the next estimate atomically across processes. Currency caps also reserve a price-based estimate;
+  provider-side billing can differ, so this is not an exact dollar guarantee.
 
 ### D6 — Web dashboard and CLI are the same engine
 

@@ -2,10 +2,10 @@
 
 The two products Hutch is measured against hide spend: Grok Bot shows no per-token rates, and Dots users report allowance
 vanishing "42% of weekly on day one" with no warning. Hutch shows a number *before* a run, and it is deliberately a
-**ceiling**: every step re-sends the whole prompt and uses its full per-turn budget. Real runs cost much less; the ceiling
-is what the spend guard will actually enforce, so it is the figure that can never be exceeded.
+**estimate**: every step re-sends the whole estimated prompt and uses its full per-turn output budget. Actual provider
+tokenization and billing can differ, so the estimate is an admission signal, not a guarantee of the final charge.
 
-A model with no price on file has no ceiling, and says so: the guess is never invented.
+A model with no price on file has no currency estimate, and says so: the guess is never invented.
 """
 
 from __future__ import annotations
@@ -31,17 +31,19 @@ class RunEstimate:
     prompt_tokens: int
     steps: int
     turn_tokens: int
-    worst_case_usd: Optional[float]  # None unless kind == priced
+    worst_case_usd: Optional[float]  # legacy field name; this is a local estimate, not a billing guarantee
     run_cap_usd: float               # the bot's per-run cap (0 = none)
     daily_cap_usd: float
     spent_today_usd: float
     tokens_today: int
     daily_token_cap: int
+    reserved_tokens_today: int = 0
+    reserved_cost_today_usd: float = 0.0
     note: str = ""
 
     @property
     def effective_ceiling_usd(self) -> Optional[float]:
-        """The most one run can spend: the lower of the worst case and the bot's per-run cap."""
+        """Legacy field name: the lower of Hutch's estimate and the configured per-run admission limit."""
         if self.worst_case_usd is None:
             return None
         return min(self.worst_case_usd, self.run_cap_usd) if self.run_cap_usd else self.worst_case_usd
@@ -53,16 +55,17 @@ class RunEstimate:
         if self.kind == "flat":
             return "Flat-rate plan: no per-token cost; every call still counts against your declared allowance."
         if self.kind == "unpriced":
-            return (f"No price on file for {self.spec}, so a worst case cannot be computed, and a hosted model with no "
-                    "price cannot run under a spend cap. Add one on the Models page.")
+            return (f"No price on file for {self.spec}, so a currency estimate cannot be computed, and a hosted model with no "
+                    "price cannot run while a currency limit is set. Add one on the Models page.")
         if self.run_cap_usd and self.run_cap_usd < (self.worst_case_usd or 0):
-            parts = [f"At most ${self.run_cap_usd:.2f} per run: that is this bot's cap (without it, {self.steps} steps at "
-                     f"full budget could reach ${self.worst_case_usd:.2f}; typical runs cost far less)"]
+            parts = [f"Estimated at up to ${self.run_cap_usd:.2f} per run under this bot's admission limit (without it, "
+                     f"{self.steps} steps at full budget estimate ${self.worst_case_usd:.2f}; provider billing can differ)"]
         else:
-            parts = [f"At most ${self.worst_case_usd:.2f} if all {self.steps} steps use their full budget "
-                     f"(typical runs cost far less)"]
+            parts = [f"Estimated at ${self.worst_case_usd:.2f} if all {self.steps} steps use their full budget; "
+                     "provider billing can differ"]
         if self.daily_cap_usd:
-            parts.append(f"${self.spent_today_usd:.2f} of the ${self.daily_cap_usd:.2f} daily cap used today")
+            parts.append(f"${self.spent_today_usd:.2f} measured + ${self.reserved_cost_today_usd:.2f} held of the "
+                         f"${self.daily_cap_usd:.2f} daily limit today")
         return "; ".join(parts) + "."
 
 
@@ -100,10 +103,12 @@ class RunEstimator:
             kind = "unpriced"
         else:
             kind = "priced"
+        measured_tokens, held_tokens, measured_cost, held_cost = self.store.bot_budget_today(self.bot.id)
         return RunEstimate(spec=spec, kind=kind, prompt_tokens=self.prompt_tokens, steps=lim.max_steps, turn_tokens=turn,
                            worst_case_usd=worst if kind == "priced" else None, run_cap_usd=lim.max_cost_usd,
-                           daily_cap_usd=lim.daily_cost_cap_usd, spent_today_usd=self.store.cost_today(self.bot.id),
-                           tokens_today=self.store.tokens_today(self.bot.id), daily_token_cap=lim.daily_token_cap)
+                           daily_cap_usd=lim.daily_cost_cap_usd, spent_today_usd=measured_cost,
+                           tokens_today=measured_tokens, daily_token_cap=lim.daily_token_cap,
+                           reserved_tokens_today=held_tokens, reserved_cost_today_usd=held_cost)
 
 
 def estimate_run(config: Any, store: Any, bot: Bot, prompt: str = "", model: Optional[str] = None) -> RunEstimate:

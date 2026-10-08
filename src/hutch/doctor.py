@@ -180,8 +180,8 @@ def run_doctor(config: Any, store: Any, hw: Any = None, deep: bool = False, onli
         lim = b.limits
         if not b.model.startswith(("mock/", "ollama/")) and not (lim.max_cost_usd or lim.daily_cost_cap_usd) \
                 and (b.model.split("/", 1)[0] in ("anthropic", "openai")):
-            add(f"nocap:{b.name}", f"{b.name}: hosted model with no spend cap", WARN,
-                f"{b.model} can spend without a ceiling", "set max_cost_usd and daily_cost_cap_usd on the bot")
+            add(f"nocap:{b.name}", f"{b.name}: hosted model with no Hutch currency estimate limit", WARN,
+                f"{b.model} has no Hutch currency admission limit", "set max_cost_usd and daily_cost_cap_usd on the bot")
 
     # ---- optional tools
     try:

@@ -30,7 +30,7 @@
       <button class="btn primary" type="submit">{{ icon("play", 15) }} Start run</button>
     </div>
     <p class="hint estimate" id="estimate">{{ icon("chart", 13) }} <strong>{{ estimate.spec }}:</strong> {{ estimate.summary }}</p>
-    <p class="hint">Limits for this bot: {{ bot.limits.max_steps }} steps, {{ bot.limits.timeout_seconds }}s wall clock, {{ bot.limits.daily_token_cap | tokens }} tokens/day ({{ tokens_today | tokens }} used today).</p>
+    <p class="hint">Limits for this bot: {{ bot.limits.max_steps }} steps and {{ bot.limits.timeout_seconds }}s wall clock. Token budget today: {{ (tokens_today - estimate.reserved_tokens_today) | tokens }} measured + {{ estimate.reserved_tokens_today | tokens }} held estimate of {{ bot.limits.daily_token_cap | tokens }}.</p>
   </form>
 </section>
 

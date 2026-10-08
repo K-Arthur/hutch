@@ -150,6 +150,9 @@ class StatusLabelResource(BaseModel):
 class ConnectionResource(BaseModel):
     name: str
     title: str
+    account_id: str
+    account_daily_cost_cap_usd: float
+    configured_account_daily_cost_cap_usd: float
     protocol: str
     model_protocols: dict[str, str]
     billing: str
@@ -159,6 +162,10 @@ class ConnectionResource(BaseModel):
     terms_url: str
     quota_window: str
     quota_tokens: int
+    quota_used_tokens: int
+    quota_reserved_tokens: int
+    account_daily_cost_used_usd: float
+    account_daily_cost_reserved_usd: float
     models_endpoint: bool
 
 
@@ -199,6 +206,20 @@ class SnapshotResource(BaseModel):
     totals: dict[str, int]
     truncated: dict[str, bool]
     next: dict[str, Optional[str]]
+
+
+class UsageReservationResource(BaseModel):
+    id: str
+    run_id: str
+    bot_id: str
+    provider: str
+    account_id: str
+    model: str
+    reserved_tokens: int
+    reserved_cost_usd: float
+    status: str
+    created_at: str
+    reason: str
 
 
 class ApproveRequest(BaseModel):
@@ -244,6 +265,7 @@ def create_app() -> FastAPI:
         last = store.last_successful_run(bot.id)
         active = store.active_run_for_bot(bot.id)
         stats = store.bot_stats().get(bot.id, {}).get("counts", {})
+        measured_tokens, reserved_tokens, measured_cost, reserved_cost = store.bot_budget_today(bot.id)
         return {
             **bot.model_dump(),
             "next_run": nxt.isoformat() if nxt else None,
@@ -251,7 +273,11 @@ def create_app() -> FastAPI:
             "last_success": last.finished_at or last.created_at if last else None,
             "active_run_id": active.id if active else None,
             "run_counts": stats,
-            "tokens_today": store.tokens_today(bot.id),
+            "tokens_today": measured_tokens + reserved_tokens,
+            "tokens_measured_today": measured_tokens,
+            "tokens_reserved_today": reserved_tokens,
+            "cost_measured_today_usd": measured_cost,
+            "cost_reserved_today_usd": reserved_cost,
             "memory_count": len(store.recall_all(bot.id)),
             "sticky_allows": store.list_sticky_allows(bot.id),
         }
@@ -409,11 +435,21 @@ def create_app() -> FastAPI:
         book = ConnectionBook(config.state_dir)
         rows = []
         for name, conn in sorted(book.configured().items()):
+            account_cap, _ = book.account_policy(conn.account_id)
+            quota_used = store.account_usage_tokens_since(conn.account_id, conn.quota.seconds) if conn.quota.tokens else 0
+            quota_reserved, _ = store.reserved_account_usage_since(conn.account_id, conn.quota.seconds)
+            account_cost_used, account_cost_reserved = store.account_daily_costs(conn.account_id)
             rows.append({"name": name, "title": conn.title, "protocol": conn.protocol,
+                         "account_id": conn.account_id,
+                         "account_daily_cost_cap_usd": account_cap,
+                         "configured_account_daily_cost_cap_usd": conn.account_daily_cost_cap_usd,
                          "model_protocols": conn.model_protocols, "billing": conn.billing,
                          "key_present": book.key(name) is not None, "key_source": book.key_source(name),
                          "terms_status": book.ack_status(store, name), "terms_url": conn.terms.url,
                          "quota_window": conn.quota.window, "quota_tokens": conn.quota.tokens,
+                         "quota_used_tokens": quota_used, "quota_reserved_tokens": quota_reserved,
+                         "account_daily_cost_used_usd": account_cost_used,
+                         "account_daily_cost_reserved_usd": account_cost_reserved,
                          "models_endpoint": conn.models_endpoint})
         return rows
 
@@ -657,7 +693,7 @@ def create_app() -> FastAPI:
 
     @app.get("/api/bots/{ref}/estimate")
     def bot_estimate(ref: str, model: Optional[str] = None, prompt: str = "") -> dict:
-        """What one run can cost, before it starts (SR-2): a ceiling, or why there is none."""
+        """Estimate one run's priced usage before it starts; actual provider billing can differ."""
         from dataclasses import asdict
         from ..estimate import estimate_run
         bot = bot_or_404(ref)
@@ -851,14 +887,23 @@ def create_app() -> FastAPI:
         bots = store.list_bots()
         active = store.active_runs()
         pending = store.pending_approvals()
-        tokens_today = sum(store.tokens_today(b.id) for b in bots)
+        budgets = [store.bot_budget_today(b.id) for b in bots]
+        tokens_today = sum(measured + held for measured, held, _, _ in budgets)
         return {
             "bots": len(bots), "paused": sum(1 for b in bots if b.paused),
             "active_runs": len(active), "pending_approvals": len(pending),
             "queued_tasks": len(store.pending_tasks()),
             "tokens_today": tokens_today,
+            "tokens_measured_today": sum(row[0] for row in budgets),
+            "tokens_reserved_today": sum(row[1] for row in budgets),
+            "cost_measured_today_usd": sum(row[2] for row in budgets),
+            "cost_reserved_today_usd": sum(row[3] for row in budgets),
             "version": __version__,
         }
+
+    @app.get("/api/v1/usage/reservations", response_model=list[UsageReservationResource])
+    def usage_reservations(limit: int = 100) -> list[dict]:
+        return store.unresolved_usage_reservations(max(1, min(limit, 500)))
 
     # ------------------------------------------------------- pages + static
 

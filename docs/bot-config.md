@@ -15,7 +15,7 @@ dashboard, or the REST API, and live in `hutch.db`.
 | `runtime` | enum | `builtin` | `builtin` · `mock`; legacy values `pi` and `opencode` are retained but fail closed as unsupported |
 | `tools` | list | `["shell","files","memory"]` | allowlist; groups expand (see below) |
 | `schedule` | obj? | null | `{cron, timezone, catch_up}` — omit for on-demand |
-| `limits` | obj | see below | hard caps |
+| `limits` | obj | see below | runtime limits and usage admission budgets |
 | `approval_mode` | enum | `ask` | `ask` · `auto` |
 | `memory_enabled` | bool | true | inject remembered facts into the system prompt |
 | `workdir` | path? | null | a folder of yours the bot works in, run after run (see below); null = a fresh empty workspace per run |
@@ -96,7 +96,11 @@ not silently join the host network. Check [operations](operations.md) for requir
 |---|---|---|
 | `max_steps` | 24 | agent turns per run; exceeding aborts (`steps_exceeded`) |
 | `timeout_seconds` | 900 | wall clock; the run is killed and marked failed (`timeout`) |
-| `daily_token_cap` | 200,000 | per-bot daily budget (measured or estimated); next model call aborts (`token_cap`) |
+| `daily_token_cap` | 200,000 | per-bot local-day budget; measured provider usage plus active/uncertain request reservations; the next request is refused if its estimate would pass the cap (`token_cap`) |
+
+Hosted currency limits reserve a local price-based estimate before the request. They require a matching price record, and a capped route with
+unknown pricing is refused. Provider billing can differ from Hutch's prompt-size estimate. See [Connections](connections.md) for shared
+provider-account caps and reservation reconciliation.
 
 ## Examples
 

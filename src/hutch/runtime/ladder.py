@@ -1,14 +1,14 @@
 """Which model runs the next turn, and may it be called? (SR-8, LM-9, LM-10, SR-2)
 
-Two different failures need two different responses, and conflating them is how fallback chains become spend storms
-(research: "a single misconfigured fallback line turned $40/month into $2,300 in 48 hours"):
+Two different failures need two different responses: availability failures move through configured fallbacks, while
+quality failures may take one explicitly configured escalation step.
 
 * **availability** (runtime down, rate-limited, out of memory, model not installed, refusal) -> *fallback*:
   the next model in ``bot.fallbacks``, in order (SR-8).
 * **quality** (malformed tool calls again and again, a loop, the prompt overflowing the window) -> *escalation*:
   ONE rung up ``bot.escalation.to`` (LM-9), never straight to the top and never restarting the run.
 
-Every hop to a hosted model passes the SpendGuard first: price known, run and daily caps not exceeded, and - for a
+Every hop to a hosted model passes the SpendGuard first: estimate-based run and daily limits are respected, and - for a
 bot that is local by default - a human said yes to the first hosted call (LM-10).
 """
 
@@ -21,6 +21,7 @@ from typing import Optional
 from ..models import Bot, Run, iso, utcnow
 from ..providers import Provider, make_provider, parse_spec
 from ..providers.pricing import PriceBook
+from ..store import UsageBudgetRefusal
 
 _PROVIDERS: dict[tuple[str, Optional[str]], Provider] = {}
 _LOCK = threading.Lock()
@@ -100,7 +101,7 @@ class Ladder:
 
 
 class SpendGuard:
-    """Hard caps for hosted spend. Refuses BEFORE a call that could exceed a cap, not after."""
+    """Estimate-based admission limits for hosted calls; provider billing can differ from Hutch's estimate."""
 
     def __init__(self, store, bot: Bot, run: Run, prices: PriceBook, connections=None):
         self.store, self.bot, self.run, self.prices = store, bot, run, prices
@@ -119,7 +120,30 @@ class SpendGuard:
         conn = self.connections.get(rung.provider) if self.connections else None
         if conn is None or not conn.quota.tokens:
             return None
-        return self.store.usage_tokens_since(rung.provider, conn.quota.seconds), conn.quota.tokens, conn.quota.window
+        used = self.store.account_usage_tokens_since(conn.account_id, conn.quota.seconds)
+        reserved, _ = self.store.reserved_account_usage_since(conn.account_id, conn.quota.seconds)
+        return used + reserved, conn.quota.tokens, conn.quota.window
+
+    def account_policy(self, rung: Rung) -> tuple[str, float, list[tuple[int, float]]]:
+        conn = self.connections.get(rung.provider) if self.connections else None
+        if conn is None:
+            return rung.provider, 0.0, []
+        cap, quotas = self.connections.account_policy(conn.account_id)
+        return conn.account_id, cap, quotas
+
+    def reserve(self, rung: Rung, est_prompt_tokens: int, max_turn_tokens: int) -> str:
+        """Acquire a cross-process reservation before this provider call may start."""
+        account_id, account_cap, quotas = self.account_policy(rung)
+        worst = self.prices.cost(rung.provider, rung.model, est_prompt_tokens, max_turn_tokens) or 0.0
+        try:
+            return self.store.reserve_usage(
+                run_id=self.run.id, bot_id=self.bot.id, provider=rung.provider, account_id=account_id,
+                model=rung.model, reserved_tokens=est_prompt_tokens + max_turn_tokens, reserved_cost_usd=worst,
+                daily_token_cap=self.bot.limits.daily_token_cap, max_run_cost_usd=self.bot.limits.max_cost_usd,
+                daily_bot_cost_cap_usd=self.bot.limits.daily_cost_cap_usd, expected_fence=self.run.fence,
+                daily_account_cost_cap_usd=account_cap, account_quotas=quotas)
+        except UsageBudgetRefusal:
+            raise
 
     def quota_refusal(self, rung: Rung, est_prompt_tokens: int, max_turn_tokens: int) -> Optional[str]:
         """CN-5: stop BEFORE the plan's allowance is spent, not after the vendor cuts you off (or bills overage)."""
@@ -141,13 +165,14 @@ class SpendGuard:
         """Why this call must not happen, or None. Local models are free and always allowed."""
         if rung.local:
             return None
+        _, account_cap, _ = self.account_policy(rung)
         quota = self.quota_refusal(rung, est_prompt_tokens, max_turn_tokens)
         if quota:
             return quota
         if not self.prices.has_price(rung.provider, rung.model):
-            if self.has_cost_caps:
-                return (f"{rung.spec} has no price in prices.json, so the spend cap cannot be enforced; add a row "
-                        "(or remove the cap) to use it")
+            if self.has_cost_caps or account_cap:
+                return (f"{rung.spec} has no price in prices.json, so Hutch cannot calculate a currency estimate "
+                        "for the configured limit; add a row (or remove the limit) to use it")
             return None
         worst = self.prices.cost(rung.provider, rung.model, est_prompt_tokens, max_turn_tokens) or 0.0
         lim = self.bot.limits

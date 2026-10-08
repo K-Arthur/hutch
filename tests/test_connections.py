@@ -92,6 +92,20 @@ def test_add_persists_and_reloads(config):
     assert json.loads((config.state_dir / "connections.json").read_text())["connections"]["opencode-go"]["template"] == "opencode-go"
 
 
+def test_account_policy_groups_connections_and_keeps_strictest_limits(book):
+    first = book.add("custom-openai", name="route-one", base_url="https://one.example.test/v1",
+                     account_id="vendor-billing", account_daily_cost_cap_usd=4.0,
+                     quota={"window": "day", "tokens": 2000})
+    second = book.add("custom-openai", name="route-two", base_url="https://two.example.test/v1",
+                      account_id="vendor-billing", account_daily_cost_cap_usd=2.0,
+                      quota={"window": "week", "tokens": 5000})
+    assert first.account_id == second.account_id == "vendor-billing"
+    assert book.account_policy("vendor-billing") == (2.0, [(2000, 86400.0), (5000, 604800.0)])
+    with pytest.raises(ValueError, match="quota window"):
+        book.add("custom-openai", name="bad-window", base_url="https://bad.example.test/v1",
+                 quota={"window": "fortnight", "tokens": 1})
+
+
 def test_bad_names_reserved_names_duplicates_and_unknown_templates_are_refused(book):
     with pytest.raises(ValueError, match="slug"):
         book.add("opencode-go", name="Bad Name!")
@@ -366,7 +380,8 @@ def test_usage_outside_the_window_does_not_count(store, config, tmp_path, oai, b
     book.set_quota("opencode-go", "5h", 1_000_000)
     ack(book, store, "opencode-go")
     oai.script = lambda b: {"content": "ok", "prompt_tokens": 50, "completion_tokens": 5}
-    ctx, run, emitted, tools = build(store, config, tmp_path, model="opencode-go/m", tools=("remember",))
+    ctx, run, emitted, tools = build(store, config, tmp_path, model="opencode-go/m", tools=("remember",),
+                                     limits=Limits(daily_token_cap=2_000_000))
     seed_usage(store, ctx.bot.id, "opencode-go", 999_999, age_seconds=6 * 3600)    # six hours ago: outside 5h
     assert run_it(runtime(), run, ctx, tools) == "ok"
 
@@ -377,7 +392,8 @@ def test_a_warning_is_logged_once_when_the_allowance_passes_its_threshold(store,
     ack(book, store, "opencode-go")
     oai.script = lambda b: {"tool_calls": [{"name": "recall", "arguments": {"query": str(time.time())}}],
                             "prompt_tokens": 100, "completion_tokens": 10} if len(oai.requests) < 3 else {"content": "done"}
-    ctx, run, emitted, tools = build(store, config, tmp_path, model="opencode-go/m", tools=("recall",))
+    ctx, run, emitted, tools = build(store, config, tmp_path, model="opencode-go/m", tools=("recall",),
+                                     limits=Limits(daily_token_cap=2_000_000))
     seed_usage(store, ctx.bot.id, "opencode-go", 850_000)
     run_it(runtime(), run, ctx, tools)
     warns = kinds(emitted, "quota")
@@ -446,10 +462,15 @@ def test_cli_add_list_ack_set_key_test_and_remove(config, oai, monkeypatch):
     out = runner.invoke(cli_app, ["connections", "templates"]).output
     assert "opencode-go" in out and "xiaomi-token-plan-sgp" in out
     r = runner.invoke(cli_app, ["connections", "add", "opencode-go", "--base-url", oai.url + "/v1",
-                                "--allowance-tokens", "500000", "--allowance-window", "week"])
+                                "--allowance-tokens", "500000", "--allowance-window", "week",
+                                "--account-id", "team-provider", "--account-daily-cap-usd", "20"])
     assert r.exit_code == 0 and "hutch connections ack opencode-go" in r.output
     listing = runner.invoke(cli_app, ["connections", "list"]).output
     assert "ACK REQUIRED" in listing and "missing" in listing and "0 / 500,000 tokens (week window)" in listing
+    assert "account: team-provider" in listing and "$20.00" in listing
+    cap = runner.invoke(cli_app, ["connections", "set-account-cap", "opencode-go", "24",
+                                  "--account-id", "team-provider"])
+    assert cap.exit_code == 0 and "$24.00" in cap.output
     secret = "cli-secret-key-777"
     r = runner.invoke(cli_app, ["connections", "set-key", "opencode-go"], input=secret + "\n")
     assert r.exit_code == 0 and secret not in r.output and "0600" in r.output
@@ -484,6 +505,11 @@ def test_dashboard_connection_flow_add_key_ack_allowance_remove(config, monkeypa
         post("/connections/opencode-go/key", key="k-123")
         page = post("/connections/opencode-go/allowance", tokens="40000", window="5h").text
         assert "40k" in page and "5h window" in page
+        page = post("/connections/opencode-go/account-cap", daily_usd="12.50").text
+        assert "$12.50" in page and "Shared daily currency cap" in page
+        assert "$0.0000 measured + $0.0000 held of the shared $12.50" in page and "measured" in page and "held" in page
+        page = post("/connections/opencode-go/account-cap", daily_usd="NaN").text
+        assert "finite non-negative" in page
         # bad input is refused politely
         assert "window must be one of" in post("/connections/opencode-go/allowance", tokens="5", window="fortnight").text
         assert "unknown template" in post("/connections/add", template="telepathy", name="").text

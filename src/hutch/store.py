@@ -282,8 +282,27 @@ def _migrate_9(db: sqlite3.Connection) -> None:
         remote_ip TEXT PRIMARY KEY, window_started_at TEXT NOT NULL, failures INTEGER NOT NULL DEFAULT 0)""")
 
 
+def _migrate_10(db: sqlite3.Connection) -> None:
+    """Shared, crash-safe provider/account usage reservations (ADR-0011)."""
+    db.execute("ALTER TABLE usage ADD COLUMN account_id TEXT NOT NULL DEFAULT ''")
+    db.execute("ALTER TABLE usage ADD COLUMN reservation_id TEXT")
+    db.execute("UPDATE usage SET account_id = provider WHERE account_id = ''")
+    db.execute("CREATE INDEX idx_usage_account_ts ON usage(account_id, ts)")
+    db.execute("CREATE UNIQUE INDEX idx_usage_reservation ON usage(reservation_id) WHERE reservation_id IS NOT NULL")
+    db.execute("""CREATE TABLE usage_reservations (
+        id TEXT PRIMARY KEY, run_id TEXT NOT NULL, bot_id TEXT NOT NULL, provider TEXT NOT NULL,
+        account_id TEXT NOT NULL, model TEXT NOT NULL, reserved_tokens INTEGER NOT NULL DEFAULT 0,
+        reserved_cost_usd REAL NOT NULL DEFAULT 0, status TEXT NOT NULL,
+        created_at TEXT NOT NULL, resolved_at TEXT, actual_prompt_tokens INTEGER,
+        actual_completion_tokens INTEGER, actual_cached_tokens INTEGER NOT NULL DEFAULT 0,
+        actual_cost_usd REAL, reason TEXT NOT NULL DEFAULT '')""")
+    db.execute("CREATE INDEX idx_usage_reservations_run ON usage_reservations(run_id, status, created_at)")
+    db.execute("CREATE INDEX idx_usage_reservations_bot ON usage_reservations(bot_id, status, created_at)")
+    db.execute("CREATE INDEX idx_usage_reservations_account ON usage_reservations(account_id, status, created_at)")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
-_MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9]
+_MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -302,6 +321,12 @@ EVENT_BATCH_MAX = 256
 
 class IdempotencyConflict(ValueError):
     """A command key was previously used for a different canonical request."""
+
+
+class UsageBudgetRefusal(ValueError):
+    """The requested model call cannot be reserved under a configured token or currency cap."""
+
+
 EVENT_FLUSH_SECONDS = 0.02
 
 
@@ -1089,7 +1114,7 @@ class Store:
             with self._buf_cv:
                 self._sealed.add(run_id)
         if emitted is not None or run.status is to:
-            self.bus.notify("work", "runs", f"run:{run_id}", "events")
+            self.bus.notify("work", "runs", f"run:{run_id}", "events", "usage")
         return run
 
     def _apply_transition(self, db: sqlite3.Connection, run_id: str, to: RunStatus, fence: Optional[int],
@@ -1127,6 +1152,11 @@ class Store:
             sets += ", lease_owner = '', lease_expires_at = NULL, sealed = 1"
         db.execute(f"UPDATE runs SET {sets} WHERE id = ?", (*args, run_id))
         if terminal:
+            # A crash can leave a reservation between admission and usage settlement. With no live caller to
+            # verify the outcome, keep it held until an operator reconciles the provider record.
+            db.execute("UPDATE usage_reservations SET status = 'uncertain', reason = "
+                       "CASE WHEN reason = '' THEN 'run ended before provider usage was settled' ELSE reason END "
+                       "WHERE run_id = ? AND status = 'reserved'", (run_id,))
             task_state = {RunStatus.succeeded: "done", RunStatus.skipped: "cancelled",
                           RunStatus.stopped: "cancelled"}.get(to, "failed")
             db.execute("UPDATE tasks SET state = ?, done = 1 WHERE run_id = ? OR id = ?",
@@ -1854,6 +1884,31 @@ class Store:
         """Hosted spend for the current local day, for one bot or for all (the daily cost cap)."""
         return sum(r.cost_usd for r in self._runs_today(bot_id, now))
 
+    def bot_budget_today(self, bot_id: str, now: Optional[datetime] = None) -> tuple[int, int, float, float]:
+        """Measured tokens/cost and held token/cost estimates for a bot's local day."""
+        start, end = local_day_bounds(now)
+        with self._lock:
+            measured = self._db.execute(
+                "SELECT COALESCE(SUM(prompt_tokens + completion_tokens), 0) AS tokens, "
+                "COALESCE(SUM(cost_usd), 0) AS cost FROM usage WHERE bot_id = ? AND ts >= ? AND ts < ?",
+                (bot_id, start, end)).fetchone()
+            held = self._db.execute(
+                "SELECT COALESCE(SUM(reserved_tokens), 0) AS tokens, COALESCE(SUM(reserved_cost_usd), 0) AS cost "
+                "FROM usage_reservations WHERE bot_id = ? AND created_at >= ? AND created_at < ? "
+                "AND status IN ('reserved', 'uncertain')", (bot_id, start, end)).fetchone()
+        # Older releases also wrote per-run totals. Taking the larger value preserves those totals without counting
+        # the same calls twice when both representations exist.
+        measured_tokens = max(int(measured["tokens"]), self.tokens_today(bot_id, now))
+        measured_cost = max(float(measured["cost"]), self.cost_today(bot_id, now))
+        return measured_tokens, int(held["tokens"]), measured_cost, float(held["cost"])
+
+    def run_reserved_usage(self, run_id: str) -> tuple[int, float]:
+        with self._lock:
+            row = self._db.execute(
+                "SELECT COALESCE(SUM(reserved_tokens), 0) AS tokens, COALESCE(SUM(reserved_cost_usd), 0) AS cost "
+                "FROM usage_reservations WHERE run_id = ? AND status IN ('reserved', 'uncertain')", (run_id,)).fetchone()
+        return int(row["tokens"]), float(row["cost"])
+
     def bot_stats(self) -> dict[str, dict[str, Any]]:
         """Per-bot aggregates for the dashboard: run counts + staleness."""
         bots = self.list_bots()
@@ -1870,16 +1925,265 @@ class Store:
 
     # -------------------------------------------------------------- usage
 
-    def add_usage(self, run_id: str, bot_id: str, provider: str, model: str, prompt_tokens: int,
-                  completion_tokens: int, cached_tokens: int = 0, cost_usd: float = 0.0, kind: str = "step") -> None:
-        with self._lock:
-            self._db.execute(
-                "INSERT INTO usage (ts, run_id, bot_id, provider, model, prompt_tokens, completion_tokens, "
-                "cached_tokens, cost_usd, kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (iso(utcnow()), run_id, bot_id, provider, model, prompt_tokens, completion_tokens, cached_tokens,
-                 cost_usd, kind))
-            self._db.commit()
+    def reserve_usage(self, *, run_id: str, bot_id: str, provider: str, account_id: str, model: str,
+                      reserved_tokens: int, reserved_cost_usd: float, daily_token_cap: int = 0,
+                      max_run_cost_usd: float = 0.0, daily_bot_cost_cap_usd: float = 0.0,
+                      daily_account_cost_cap_usd: float = 0.0,
+                      account_quotas: list[tuple[int, float]] | None = None,
+                      expected_fence: Optional[int] = None) -> str:
+        """Atomically reserve estimated tokens and worst-case cost before a provider call.
+
+        Reservations in `reserved` or `uncertain` state continue to consume caps. Only exact usage settlement or an
+        operator's explicit reconciliation releases the reservation.
+        """
+        from math import isfinite
+        from .models import new_id
+        reserved_tokens = int(reserved_tokens)
+        if reserved_tokens < 0:
+            raise ValueError("reserved tokens must be non-negative")
+        reserved_cost_usd = float(reserved_cost_usd)
+        if not isfinite(reserved_cost_usd) or reserved_cost_usd < 0:
+            raise ValueError("reserved cost must be finite and non-negative")
+        caps = (max_run_cost_usd, daily_bot_cost_cap_usd, daily_account_cost_cap_usd)
+        if any(not isfinite(float(cap)) or float(cap) < 0 for cap in caps):
+            raise ValueError("currency caps must be finite and non-negative")
+        daily_token_cap = int(daily_token_cap)
+        if daily_token_cap < 0:
+            raise ValueError("daily token cap must be non-negative")
+        for quota_tokens, seconds in account_quotas or []:
+            if int(quota_tokens) < 0 or not isfinite(float(seconds)) or float(seconds) <= 0:
+                raise ValueError("account quota windows require non-negative tokens and positive finite seconds")
+        now = utcnow()
+        now_text = iso(now)
+        day_start, day_end = local_day_bounds(now)
+        active = ("reserved", "uncertain")
+        reservation_id = new_id("rsv")
+
+        with self._tx() as db:
+            def totals(query: str, args: tuple) -> tuple[float, int]:
+                row = db.execute(query, args).fetchone()
+                return float(row["cost"] or 0.0), int(row["tokens"] or 0)
+
+            run_doc_row = db.execute("SELECT bot_id, status, fence, doc FROM runs WHERE id = ?", (run_id,)).fetchone()
+            if run_doc_row is None or run_doc_row["bot_id"] != bot_id:
+                raise ValueError("usage reservation must refer to an existing run owned by this bot")
+            if RunStatus(run_doc_row["status"]) in TERMINAL:
+                raise LeaseLost(run_id, f"cannot reserve usage for a terminal {run_doc_row['status']} run")
+            if expected_fence is not None and int(run_doc_row["fence"]) != expected_fence:
+                raise LeaseLost(run_id, f"fence {expected_fence} is stale (current {run_doc_row['fence']})")
+            legacy_run = json.loads(run_doc_row["doc"])
+            ledger_run_cost, _ = totals(
+                "SELECT SUM(cost_usd) AS cost, SUM(prompt_tokens + completion_tokens) AS tokens "
+                "FROM usage WHERE run_id = ?", (run_id,))
+            # Pre-v10 usage is represented only by the persisted Run document. Use the larger representation so
+            # migrated totals still protect run limits without double-counting calls already in the usage ledger.
+            spent = max(ledger_run_cost, float(legacy_run.get("cost_usd", 0) or 0))
+            held, _ = totals("SELECT SUM(reserved_cost_usd) AS cost, SUM(reserved_tokens) AS tokens "
+                             "FROM usage_reservations WHERE run_id = ? AND status IN (?, ?)",
+                             (run_id, *active))
+            if max_run_cost_usd and spent + held + reserved_cost_usd > max_run_cost_usd + 1e-9:
+                raise UsageBudgetRefusal(
+                    f"the next call could pass this run's ${max_run_cost_usd:.2f} cap; "
+                    f"${spent + held:.4f} is spent or reserved")
+
+            bot_ledger_spent, bot_ledger_tokens = totals(
+                "SELECT SUM(cost_usd) AS cost, SUM(prompt_tokens + completion_tokens) AS tokens FROM usage "
+                "WHERE bot_id = ? AND ts >= ? AND ts < ?", (bot_id, day_start, day_end))
+            legacy_bot_rows = db.execute("SELECT doc FROM runs WHERE bot_id = ? AND created_at >= ? AND created_at < ?",
+                                         (bot_id, day_start, day_end)).fetchall()
+            legacy_bot_spent = 0.0
+            legacy_bot_tokens = 0
+            for legacy_row in legacy_bot_rows:
+                doc = json.loads(legacy_row["doc"])
+                legacy_bot_spent += float(doc.get("cost_usd", 0) or 0)
+                legacy_bot_tokens += int(doc.get("tokens", 0) or 0)
+            bot_spent = max(bot_ledger_spent, legacy_bot_spent)
+            bot_tokens = max(bot_ledger_tokens, legacy_bot_tokens)
+            bot_held, bot_held_tokens = totals(
+                "SELECT SUM(reserved_cost_usd) AS cost, SUM(reserved_tokens) AS tokens FROM usage_reservations "
+                "WHERE bot_id = ? AND created_at >= ? AND created_at < ? AND status IN (?, ?)",
+                (bot_id, day_start, day_end, *active))
+            if daily_token_cap and bot_tokens + bot_held_tokens + reserved_tokens > daily_token_cap:
+                raise UsageBudgetRefusal(
+                    f"the next call could pass this bot's estimated {daily_token_cap:,}-token daily cap; "
+                    f"{bot_tokens + bot_held_tokens:,} tokens are used or reserved")
+            if daily_bot_cost_cap_usd and bot_spent + bot_held + reserved_cost_usd > daily_bot_cost_cap_usd + 1e-9:
+                raise UsageBudgetRefusal(
+                    f"the next call could pass this bot's ${daily_bot_cost_cap_usd:.2f} daily cap; "
+                    f"${bot_spent + bot_held:.4f} is spent or reserved")
+
+            account_spent, account_tokens = totals(
+                "SELECT SUM(cost_usd) AS cost, SUM(prompt_tokens + completion_tokens) AS tokens FROM usage "
+                "WHERE account_id = ? AND ts >= ? AND ts < ?", (account_id, day_start, day_end))
+            account_held, account_held_tokens = totals(
+                "SELECT SUM(reserved_cost_usd) AS cost, SUM(reserved_tokens) AS tokens FROM usage_reservations "
+                "WHERE account_id = ? AND created_at >= ? AND created_at < ? AND status IN (?, ?)",
+                (account_id, day_start, day_end, *active))
+            if daily_account_cost_cap_usd and account_spent + account_held + reserved_cost_usd > daily_account_cost_cap_usd + 1e-9:
+                raise UsageBudgetRefusal(
+                    f"the next call could pass billing account '{account_id}'s "
+                    f"${daily_account_cost_cap_usd:.2f} daily cap; ${account_spent + account_held:.4f} is spent or reserved")
+
+            for quota_tokens, seconds in account_quotas or []:
+                since = iso(now - timedelta(seconds=max(0.0, float(seconds))))
+                used = int(db.execute(
+                    "SELECT COALESCE(SUM(prompt_tokens + completion_tokens), 0) FROM usage "
+                    "WHERE account_id = ? AND ts >= ?", (account_id, since)).fetchone()[0])
+                reserved = int(db.execute(
+                    "SELECT COALESCE(SUM(reserved_tokens), 0) FROM usage_reservations "
+                    "WHERE account_id = ? AND created_at >= ? AND status IN (?, ?)",
+                    (account_id, since, *active)).fetchone()[0])
+                if used + reserved + reserved_tokens > quota_tokens:
+                    raise UsageBudgetRefusal(
+                        f"the next call could pass billing account '{account_id}'s {quota_tokens:,}-token allowance; "
+                        f"{used + reserved:,} tokens are used or reserved in its rolling window")
+
+            db.execute("INSERT INTO usage_reservations (id, run_id, bot_id, provider, account_id, model, "
+                       "reserved_tokens, reserved_cost_usd, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?)",
+                       (reservation_id, run_id, bot_id, provider, account_id, model, reserved_tokens,
+                        reserved_cost_usd, now_text))
         self.bus.notify("usage")
+        return reservation_id
+
+    def mark_usage_uncertain(self, reservation_id: str, reason: str) -> bool:
+        with self._tx() as db:
+            cur = db.execute("UPDATE usage_reservations SET status = 'uncertain', reason = ? "
+                             "WHERE id = ? AND status = 'reserved'", (reason[:500], reservation_id))
+        self.bus.notify("usage")
+        return cur.rowcount == 1
+
+    def release_usage_reservation(self, reservation_id: str, reason: str) -> bool:
+        """Release only when the caller knows the provider call never started."""
+        if not reason.strip():
+            raise ValueError("a reason is required")
+        with self._tx() as db:
+            cur = db.execute("UPDATE usage_reservations SET status = 'released', resolved_at = ?, reason = ? "
+                             "WHERE id = ? AND status = 'reserved'",
+                             (iso(utcnow()), reason[:500], reservation_id))
+        self.bus.notify("usage")
+        return cur.rowcount == 1
+
+    def unresolved_usage_reservations(self, limit: int = 100) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT id, run_id, bot_id, provider, account_id, model, reserved_tokens, reserved_cost_usd, "
+                "status, created_at, reason FROM usage_reservations WHERE status IN ('reserved', 'uncertain') "
+                "ORDER BY created_at LIMIT ?", (max(1, min(limit, 500)),)).fetchall()
+        return [dict(row) for row in rows]
+
+    def resolve_usage_reservation(self, reservation_id: str, *, not_charged: bool = False,
+                                  prompt_tokens: Optional[int] = None, completion_tokens: Optional[int] = None,
+                                  cached_tokens: int = 0, actual_cost_usd: Optional[float] = None,
+                                  reason: str = "") -> str:
+        """Reconcile a stranded reservation after its run is terminal and the billing record was checked."""
+        from math import isfinite
+        now_text = iso(utcnow())
+        with self._tx() as db:
+            row = db.execute("SELECT * FROM usage_reservations WHERE id = ?", (reservation_id,)).fetchone()
+            if row is None:
+                raise KeyError(reservation_id)
+            if row["status"] not in ("reserved", "uncertain"):
+                if row["status"] == "released" and not_charged:
+                    return "released"
+                if row["status"] == "settled" and not not_charged:
+                    same = (prompt_tokens == row["actual_prompt_tokens"]
+                            and completion_tokens == row["actual_completion_tokens"]
+                            and cached_tokens == row["actual_cached_tokens"]
+                            and actual_cost_usd is not None
+                            and abs(float(actual_cost_usd) - float(row["actual_cost_usd"] or 0.0)) < 1e-12)
+                    if same:
+                        return "settled"
+                raise ValueError("this reservation was already reconciled with a different outcome")
+            run = db.execute("SELECT status FROM runs WHERE id = ?", (row["run_id"],)).fetchone()
+            if run is None:
+                raise ValueError("the reservation's run no longer exists; preserve its receipt for manual review")
+            if RunStatus(run["status"]) in ACTIVE_STATUSES:
+                raise ValueError("the run is still active; reconcile this reservation after it finishes")
+            if not reason.strip():
+                raise ValueError("a reconciliation reason is required")
+            if not_charged:
+                db.execute("UPDATE usage_reservations SET status = 'released', resolved_at = ?, reason = ? WHERE id = ?",
+                           (now_text, reason[:500], reservation_id))
+                result = "released"
+            else:
+                if prompt_tokens is None or completion_tokens is None or actual_cost_usd is None:
+                    raise ValueError("charged usage requires prompt tokens, completion tokens and actual cost")
+                prompt_tokens, completion_tokens, cached_tokens = map(int, (prompt_tokens, completion_tokens, cached_tokens))
+                actual_cost_usd = float(actual_cost_usd)
+                if min(prompt_tokens, completion_tokens, cached_tokens) < 0 or not isfinite(actual_cost_usd) or actual_cost_usd < 0:
+                    raise ValueError("actual usage must be finite and non-negative")
+                db.execute("INSERT INTO usage (ts, run_id, bot_id, provider, model, prompt_tokens, completion_tokens, "
+                           "cached_tokens, cost_usd, kind, account_id, reservation_id) "
+                           "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'reconciled', ?, ?)",
+                           (now_text, row["run_id"], row["bot_id"], row["provider"], row["model"], prompt_tokens,
+                            completion_tokens, cached_tokens, actual_cost_usd, row["account_id"], reservation_id))
+                db.execute("UPDATE usage_reservations SET status = 'settled', resolved_at = ?, actual_prompt_tokens = ?, "
+                           "actual_completion_tokens = ?, actual_cached_tokens = ?, actual_cost_usd = ?, reason = ? WHERE id = ?",
+                           (now_text, prompt_tokens, completion_tokens, cached_tokens, actual_cost_usd,
+                            reason[:500], reservation_id))
+                result = "settled"
+        self.bus.notify("usage")
+        return result
+
+    def add_usage(self, run_id: str, bot_id: str, provider: str, model: str, prompt_tokens: int,
+                  completion_tokens: int, cached_tokens: int = 0, cost_usd: float = 0.0, kind: str = "step",
+                  account_id: str = "", reservation_id: Optional[str] = None) -> None:
+        from math import isfinite
+        prompt_tokens, completion_tokens, cached_tokens = map(int, (prompt_tokens, completion_tokens, cached_tokens))
+        cost_usd = float(cost_usd)
+        if min(prompt_tokens, completion_tokens, cached_tokens) < 0 or not isfinite(cost_usd) or cost_usd < 0:
+            raise ValueError("usage must contain non-negative token counts and a finite non-negative cost")
+        now_text = iso(utcnow())
+        with self._tx() as db:
+            account = account_id or provider
+            if reservation_id:
+                reservation = db.execute("SELECT status, account_id FROM usage_reservations WHERE id = ?",
+                                         (reservation_id,)).fetchone()
+                if reservation is None:
+                    raise KeyError(reservation_id)
+                if reservation["status"] == "settled":
+                    return
+                if reservation["status"] == "released":
+                    raise ValueError("the usage reservation was released and cannot be settled")
+                account = reservation["account_id"]
+            db.execute(
+                "INSERT INTO usage (ts, run_id, bot_id, provider, model, prompt_tokens, completion_tokens, "
+                "cached_tokens, cost_usd, kind, account_id, reservation_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (now_text, run_id, bot_id, provider, model, prompt_tokens, completion_tokens, cached_tokens,
+                 cost_usd, kind, account, reservation_id))
+            if reservation_id:
+                db.execute("UPDATE usage_reservations SET status = 'settled', resolved_at = ?, actual_prompt_tokens = ?, "
+                           "actual_completion_tokens = ?, actual_cached_tokens = ?, actual_cost_usd = ?, reason = '' WHERE id = ?",
+                           (now_text, prompt_tokens, completion_tokens, cached_tokens, cost_usd, reservation_id))
+        self.bus.notify("usage")
+
+    def reserved_account_usage_since(self, account_id: str, seconds: float) -> tuple[int, float]:
+        since = iso(utcnow() - timedelta(seconds=max(0.0, seconds)))
+        with self._lock:
+            row = self._db.execute(
+                "SELECT COALESCE(SUM(reserved_tokens), 0) AS tokens, COALESCE(SUM(reserved_cost_usd), 0) AS cost "
+                "FROM usage_reservations WHERE account_id = ? AND created_at >= ? AND status IN ('reserved','uncertain')",
+                (account_id, since)).fetchone()
+        return int(row["tokens"]), float(row["cost"])
+
+    def account_cost_since(self, account_id: str, seconds: float) -> float:
+        since = iso(utcnow() - timedelta(seconds=max(0.0, seconds)))
+        with self._lock:
+            row = self._db.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM usage WHERE account_id = ? AND ts >= ?",
+                                   (account_id, since)).fetchone()
+        return float(row[0])
+
+    def account_daily_costs(self, account_id: str) -> tuple[float, float]:
+        start, end = local_day_bounds()
+        with self._lock:
+            used = float(self._db.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM usage "
+                                          "WHERE account_id = ? AND ts >= ? AND ts < ?",
+                                          (account_id, start, end)).fetchone()[0])
+            reserved = float(self._db.execute("SELECT COALESCE(SUM(reserved_cost_usd), 0) FROM usage_reservations "
+                                              "WHERE account_id = ? AND created_at >= ? AND created_at < ? "
+                                              "AND status IN ('reserved','uncertain')",
+                                              (account_id, start, end)).fetchone()[0])
+        return used, reserved
 
     def usage_tokens_since(self, provider: str, seconds: float) -> int:
         """Tokens (prompt + completion) sent to ``provider`` in the trailing window."""
@@ -1889,6 +2193,14 @@ class Store:
             row = self._db.execute(
                 "SELECT COALESCE(SUM(prompt_tokens + completion_tokens), 0) AS n FROM usage "
                 "WHERE provider = ? AND ts >= ?", (provider, since)).fetchone()
+        return int(row["n"])
+
+    def account_usage_tokens_since(self, account_id: str, seconds: float) -> int:
+        since = iso(utcnow() - timedelta(seconds=max(0.0, seconds)))
+        with self._lock:
+            row = self._db.execute(
+                "SELECT COALESCE(SUM(prompt_tokens + completion_tokens), 0) AS n FROM usage "
+                "WHERE account_id = ? AND ts >= ?", (account_id, since)).fetchone()
         return int(row["n"])
 
     def save_profile(self, profile: Any) -> None:

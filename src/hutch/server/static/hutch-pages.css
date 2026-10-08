@@ -39,6 +39,20 @@
 /* global td is nowrap; these cells carry sentences */
 .models-table td { white-space: normal; vertical-align: top; }
 .models-table .small { max-width: 34ch; }
+@media (max-width: 560px) {
+  .usage-cap-table,
+  .usage-cap-table tbody,
+  .usage-cap-table tr,
+  .usage-cap-table td { display: block; width: 100%; }
+  .usage-cap-table thead { display: none; }
+  .usage-cap-table tr { padding: .45rem .8rem; border-bottom: 1px solid var(--border); }
+  .usage-cap-table tr:last-child { border-bottom: 0; }
+  .usage-cap-table td { display: grid; grid-template-columns: 6.25rem minmax(0, 1fr); gap: .7rem; align-items: start; border: 0; padding: .45rem 0; }
+  .usage-cap-table td::before { content: attr(data-label); color: var(--dim); font-family: var(--mono); font-weight: 600; font-size: .72rem; line-height: 1.4; }
+  .usage-cap-table td:first-child { display: block; padding-bottom: .6rem; margin-bottom: .15rem; border-bottom: 1px solid var(--border); }
+  .usage-cap-table td:first-child::before { display: inline-block; width: 6.25rem; margin-right: .7rem; }
+  .usage-cap-table .small { max-width: none; line-height: 1.45; overflow-wrap: anywhere; }
+}
 
 /* Usage page */
 .seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r); overflow: hidden; }

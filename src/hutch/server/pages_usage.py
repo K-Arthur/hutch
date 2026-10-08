@@ -39,18 +39,21 @@ def register_usage_page(app: FastAPI, page: Callable) -> None:
         caps = []
         for b in sorted(bots.values(), key=lambda x: x.name):
             lim = b.limits
-            tokens = store.tokens_today(b.id)
-            spent = store.cost_today(b.id)
-            caps.append({"name": b.name, "tokens": tokens, "token_cap": lim.daily_token_cap,
-                         "token_pct": min(100.0, tokens / lim.daily_token_cap * 100) if lim.daily_token_cap else 0.0,
-                         "spent": spent, "cost_cap": lim.daily_cost_cap_usd,
-                         "cost_pct": min(100.0, spent / lim.daily_cost_cap_usd * 100) if lim.daily_cost_cap_usd else 0.0})
+            tokens, tokens_held, spent, cost_held = store.bot_budget_today(b.id)
+            projected_tokens, projected_cost = tokens + tokens_held, spent + cost_held
+            caps.append({"name": b.name, "tokens": tokens, "tokens_held": tokens_held,
+                         "token_cap": lim.daily_token_cap,
+                         "token_pct": min(100.0, projected_tokens / lim.daily_token_cap * 100) if lim.daily_token_cap else 0.0,
+                         "spent": spent, "cost_held": cost_held, "cost_cap": lim.daily_cost_cap_usd,
+                         "cost_pct": min(100.0, projected_cost / lim.daily_cost_cap_usd * 100) if lim.daily_cost_cap_usd else 0.0})
         plans = []
         for name, c in book.configured().items():
             if c.quota.tokens:
-                used = store.usage_tokens_since(name, c.quota.seconds)
-                plans.append({"name": name, "title": c.title, "window": c.quota.window, "used": used, "cap": c.quota.tokens,
-                              "pct": min(100.0, used / c.quota.tokens * 100)})
+                used = store.account_usage_tokens_since(c.account_id, c.quota.seconds)
+                held, _ = store.reserved_account_usage_since(c.account_id, c.quota.seconds)
+                plans.append({"name": name, "title": c.title, "window": c.quota.window, "used": used, "held": held,
+                              "cap": c.quota.tokens,
+                              "pct": min(100.0, (used + held) / c.quota.tokens * 100)})
         today_start, _ = local_day_bounds()
         names = {b.id: b.name for b in bots.values()}
         changes = store.recent_rung_changes(25)

@@ -33,10 +33,11 @@ sends `OPENAI_API_KEY` to whatever URL it is given (baseline lead 5).
 4. **Capabilities are validated, not assumed.** Before the first call on a (connection, model) pair a cheap probe records what
    it can (model list, tool-call support from a 1-token canned request only when the user opts in to spend). Unknown stays unknown;
    a bot that needs `tools` on a model with unknown/unsupported tool support is refused with an actionable message.
-5. **Usage and money.** Ledger columns: measured tokens, estimated tokens, quota units, currency cost (each nullable). Plan limits and
-   reset times are displayed **only** when the provider reports them; otherwise "not reported". Before a hosted call Hutch takes a
-   **reservation** (worst-case tokens from prompt estimate + turn cap) in the same transaction as the cap check, and reconciles on
-   completion; interrupted or unreported calls keep the reservation as an estimate and are marked so.
+5. **Usage and money.** Persist actual token counts and cost when returned, separately from per-call reservation estimates. Provider
+   limits and reset times are displayed **only** when the provider reports them; otherwise "not reported". Before a hosted call Hutch
+   atomically reserves estimated prompt + requested reply tokens and priced currency cost with the cap check. Successful responses
+   settle actual usage; uncertain outcomes remain held until terminal-run reconciliation. See ADR-0011. Price and prompt estimates are
+   not an exact guarantee of provider billing.
 6. **No silent paid fallback.** Fallback to another *billing relationship* requires the bot's `fallbacks` entry **and** an approval
    (existing LM-10 rule extended to any change of connection class). No automatic plan upgrade, ever.
 

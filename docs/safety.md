@@ -151,7 +151,9 @@ still apply.
 ## Honest limits (read this)
 
 - **External runtimes** (`pi`, `opencode`) are disabled. They cannot currently satisfy Hutch's process ownership, approval,
-  credential routing and budget requirements. The builtin runtime is the only supported model-backed executor; mock mode is offline.
+  credential routing, sandbox and usage-reservation requirements. The builtin runtime is the only supported model-backed executor;
+  mock mode is offline. Builtin calls reserve estimated tokens and priced currency before a request; provider billing can differ, and
+  uncertain outcomes remain held until an operator reconciles the provider record.
 - **A supervised human is assumed.** Prompt injection can still produce plausible-but-wrong actions
   inside the allowed toolset; the transcripts, caps, and approvals bound the damage.
 - **Script contents are not analysed.** `bash script.sh`, `python3 x.py` and `python3 -c '...'` run what is in them: bots

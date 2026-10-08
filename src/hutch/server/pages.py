@@ -243,7 +243,8 @@ def register_pages(app: FastAPI) -> None:
             d.update(
                 next_run_local=nxt.astimezone().strftime("%a %d %b %H:%M") if nxt else None,
                 last_success=(last.finished_at or last.created_at) if last else None,
-                active_run_id=active.id if active else None, tokens_today=store.tokens_today(b.id),
+                active_run_id=active.id if active else None,
+                tokens_today=sum(store.bot_budget_today(b.id)[:2]),
                 memory_count=len(store.recall_all(b.id)))
             d["schedule"] = b.schedule
             d["approval_mode"] = b.approval_mode
@@ -286,10 +287,11 @@ def register_pages(app: FastAPI) -> None:
     @app.get("/bots/{name}", response_class=HTMLResponse, include_in_schema=False)
     def bot_page(request: Request, name: str):
         bot = bot_or_404(name)
+        measured_tokens, reserved_tokens, _, _ = store.bot_budget_today(bot.id)
         return page(request, "bot.html", nav="bots", bot=bot,
                     runs=[rv(r) for r in store.list_runs(bot.id, limit=8)],
                     memory=store.recall_all(bot.id), allows=store.list_sticky_allows(bot.id),
-                    tokens_today=store.tokens_today(bot.id), estimate=estimate_run(config, store, bot))
+                    tokens_today=measured_tokens + reserved_tokens, estimate=estimate_run(config, store, bot))
 
     @app.post("/bots/{name}/run", include_in_schema=False)
     async def bot_run(request: Request, name: str):
@@ -527,14 +529,21 @@ def register_pages(app: FastAPI) -> None:
     def conn_views(book: ConnectionBook):
         out = []
         for name, c in book.configured().items():
-            used = store.usage_tokens_since(name, c.quota.seconds) if c.quota.tokens else 0
-            day = store.usage_tokens_since(name, 86400)
+            used = store.account_usage_tokens_since(c.account_id, c.quota.seconds) if c.quota.tokens else 0
+            reserved, _ = store.reserved_account_usage_since(c.account_id, c.quota.seconds)
+            day = store.account_usage_tokens_since(c.account_id, 86400)
+            day_reserved, _ = store.reserved_account_usage_since(c.account_id, 86400)
+            cost_used, cost_reserved = store.account_daily_costs(c.account_id)
+            account_cost_cap, _ = book.account_policy(c.account_id)
+            projected = used + reserved
             out.append(_Obj({
                 "c": c, "key": book.key_source(name), "has_key": book.key(name) is not None,
-                "ack": book.ack_status(store, name), "used": used, "day": day,
-                "pct": min(100.0, used / c.quota.tokens * 100) if c.quota.tokens else 0.0,
-                "level": ("hot" if c.quota.tokens and used / c.quota.tokens >= 0.9 else
-                          "warn" if c.quota.tokens and used / c.quota.tokens >= c.quota.warn_at else "ok")}))
+                "ack": book.ack_status(store, name), "used": used, "reserved": reserved,
+                "day": day, "day_reserved": day_reserved, "cost_used": cost_used,
+                "cost_reserved": cost_reserved, "account_cost_cap": account_cost_cap,
+                "pct": min(100.0, projected / c.quota.tokens * 100) if c.quota.tokens else 0.0,
+                "level": ("hot" if c.quota.tokens and projected / c.quota.tokens >= 0.9 else
+                          "warn" if c.quota.tokens and projected / c.quota.tokens >= c.quota.warn_at else "ok")}))
         return out
 
     @app.get("/connections", response_class=HTMLResponse, include_in_schema=False)
@@ -587,6 +596,14 @@ def register_pages(app: FastAPI) -> None:
             except (ValueError, KeyError) as exc:
                 return go("/connections", error=str(exc))
             return go("/connections", notice="Allowance saved. Hutch will stop before it is spent.")
+        if action == "account-cap":
+            try:
+                raw = form.get("daily_usd").strip()
+                cap = float(raw or 0)
+                book.update(name, account_daily_cost_cap_usd=cap)
+            except (ValueError, KeyError) as exc:
+                return go("/connections", error=str(exc))
+            return go("/connections", notice=f"Shared daily account cap saved for {name}.")
         if action == "protocol":
             try:
                 book.set_model_protocol(name, form.get("model").strip(), form.get("protocol"))

@@ -131,7 +131,8 @@ def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, arg
 
 def finish_step(run: Run, ctx: ToolContext, timer: StepTimer, *, model: str = "",
                 prompt_tokens: int = 0, completion_tokens: int = 0, cached_tokens: int = 0,
-                cost_usd: float = 0.0, **extra: Any) -> None:
+                cost_usd: float = 0.0, account_id: str = "", reservation_id: Optional[str] = None,
+                **extra: Any) -> None:
     """Fold a step into the run's totals and append its ``step`` event."""
     total_ms = (time.perf_counter() - timer.t0) * 1000.0
     overhead_ms = max(0.0, total_ms - timer.model_ms - timer.tool_ms)
@@ -145,10 +146,12 @@ def finish_step(run: Run, ctx: ToolContext, timer: StepTimer, *, model: str = ""
     if model:
         run.model_used = model
     ctx.store.update_run(run)  # persist running totals so the meters (UI-4) are live, not end-of-run
-    if prompt_tokens or completion_tokens:
+    if reservation_id and not (prompt_tokens or completion_tokens):
+        ctx.store.mark_usage_uncertain(reservation_id, "provider response did not report token usage")
+    elif prompt_tokens or completion_tokens:
         provider, _, name = (model or run.model_used or "unknown/unknown").partition("/")
         ctx.store.add_usage(run.id, run.bot_id, provider, name or provider, prompt_tokens, completion_tokens,
-                            cached_tokens, cost_usd)
+                            cached_tokens, cost_usd, account_id=account_id, reservation_id=reservation_id)
     ctx.emit(Event(run_id=run.id, type=EventType.step, data={
         "n": run.steps, "model": model or run.model_used,
         "prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens,

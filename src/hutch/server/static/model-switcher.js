@@ -162,7 +162,7 @@
       const row = m => {
         const ok = usable(m);
         let sub = ok ? (m.note || "") : (m.fix || m.note || "");     // the fix already says why it is off
-        if (ok && m.worst_case_usd != null) sub += ` - at most $${m.worst_case_usd.toFixed(2)} per run`;
+        if (ok && m.worst_case_usd != null) sub += ` - estimated $${m.worst_case_usd.toFixed(2)} per run`;
         return `<label class="ms-row ${ok ? "" : "is-off"}" data-text="${escHtml((m.spec + " " + m.label + " " + m.group).toLowerCase())}">
           <input type="radio" name="ms-pick" value="${escHtml(m.spec)}" ${ok ? "" : "disabled"} ${m.spec === cur ? "checked" : ""}>
           <span class="ms-row-main"><span class="ms-row-name">${escHtml(m.label)}

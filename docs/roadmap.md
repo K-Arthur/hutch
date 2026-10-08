@@ -15,6 +15,7 @@
 - [x] Scheduler: IANA-timezone cron, DST-gap/ambiguity handling, catch-up coalescing,
       skip policy with visible markers, per-bot single-instance lock
 - [x] Caps: max_steps, wall-clock kill, daily token cap
+- [x] Atomic pre-call reservations for per-bot budgets and configured shared provider accounts; reconcile uncertain charges after checking the provider record. Currency limits remain price/prompt estimates.
 - [x] Append-only transcripts (SQLite + JSONL per run), staleness surfaced in dashboard
 - [x] Dashboard (live transcripts, approvals, meters, stop) + CLI + daemon
 - [x] Test suite (70 tests) covering safety parser, DST math, engine lifecycle, API, CLI

@@ -58,7 +58,7 @@ def capture(browser, target: str, url: str) -> list[dict]:
                     "closed": menu.get_attribute("aria-expanded"),
                     "focusRestored": page.evaluate("document.activeElement.id") == "menu-btn",
                 }
-        else:
+        elif target == "app":
             if size == "phone":
                 toggle = page.locator("#nav-toggle")
                 toggle.click()
@@ -88,7 +88,9 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:
         browser = p.firefox.launch(headless=True)
-        records = capture(browser, "site", args.site) + capture(browser, "app", args.app)
+        records = (capture(browser, "site", args.site) + capture(browser, "app", args.app)
+                   + capture(browser, "connections", args.app.rstrip("/") + "/connections")
+                   + capture(browser, "usage", args.app.rstrip("/") + "/usage"))
         browser_version = browser.version
         browser.close()
     report = {"browser": "Firefox", "browserVersion": browser_version, "screenshots": records}

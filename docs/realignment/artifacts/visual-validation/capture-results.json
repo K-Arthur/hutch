@@ -6,7 +6,7 @@
       "title": "hutch \u2014 your bots, your machine, your rules",
       "viewportWidth": 1440,
       "documentWidth": 1440,
-      "documentHeight": 8561,
+      "documentHeight": 8665,
       "mainPresent": true,
       "target": "site",
       "size": "desktop",
@@ -37,7 +37,7 @@
       "title": "hutch \u2014 your bots, your machine, your rules",
       "viewportWidth": 900,
       "documentWidth": 900,
-      "documentHeight": 8950,
+      "documentHeight": 9054,
       "mainPresent": true,
       "target": "site",
       "size": "tablet",
@@ -68,7 +68,7 @@
       "title": "hutch \u2014 your bots, your machine, your rules",
       "viewportWidth": 390,
       "documentWidth": 390,
-      "documentHeight": 13246,
+      "documentHeight": 13398,
       "mainPresent": true,
       "target": "site",
       "size": "phone",
@@ -140,6 +140,78 @@
         "tabWrapped": "chat",
         "focusRestored": true
       }
+    },
+    {
+      "title": "Connections - hutch",
+      "viewportWidth": 1440,
+      "documentWidth": 1440,
+      "documentHeight": 1843,
+      "mainPresent": true,
+      "target": "connections",
+      "size": "desktop",
+      "httpStatus": 200,
+      "screenshot": "connections-desktop.png",
+      "pageErrors": []
+    },
+    {
+      "title": "Connections - hutch",
+      "viewportWidth": 900,
+      "documentWidth": 900,
+      "documentHeight": 2520,
+      "mainPresent": true,
+      "target": "connections",
+      "size": "tablet",
+      "httpStatus": 200,
+      "screenshot": "connections-tablet.png",
+      "pageErrors": []
+    },
+    {
+      "title": "Connections - hutch",
+      "viewportWidth": 390,
+      "documentWidth": 390,
+      "documentHeight": 4129,
+      "mainPresent": true,
+      "target": "connections",
+      "size": "phone",
+      "httpStatus": 200,
+      "screenshot": "connections-phone.png",
+      "pageErrors": []
+    },
+    {
+      "title": "Usage - hutch",
+      "viewportWidth": 1440,
+      "documentWidth": 1440,
+      "documentHeight": 1299,
+      "mainPresent": true,
+      "target": "usage",
+      "size": "desktop",
+      "httpStatus": 200,
+      "screenshot": "usage-desktop.png",
+      "pageErrors": []
+    },
+    {
+      "title": "Usage - hutch",
+      "viewportWidth": 900,
+      "documentWidth": 900,
+      "documentHeight": 1513,
+      "mainPresent": true,
+      "target": "usage",
+      "size": "tablet",
+      "httpStatus": 200,
+      "screenshot": "usage-tablet.png",
+      "pageErrors": []
+    },
+    {
+      "title": "Usage - hutch",
+      "viewportWidth": 390,
+      "documentWidth": 390,
+      "documentHeight": 2243,
+      "mainPresent": true,
+      "target": "usage",
+      "size": "phone",
+      "httpStatus": 200,
+      "screenshot": "usage-phone.png",
+      "pageErrors": []
     }
   ]
 }

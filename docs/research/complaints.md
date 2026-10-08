@@ -145,6 +145,24 @@ fewer colours, non-colour state cues).
   hides behind hover. "The interface should ask less of the person." —
   [x.ai/news/designing-grok-bot](https://x.ai/news/designing-grok-bot)
 
+### Acceptance scenarios from recent individual reports
+
+These are test prompts derived from specific public reports, not evidence of prevalence:
+
+- [OpenClaw #138499](https://github.com/openclaw/openclaw/issues/138499) is an open, single-reporter issue with no deterministic reproduction; it
+  records one timed-out cron run whose session-scoped CLI task remained `running` for more than five hours and delayed restart. If Hutch loses an
+  execution owner, it must fence that owner, stop and verify its
+  descendants, keep cleanup incomplete visible, and never leave the run or owned task reported as completed while a child remains. Covered by
+  `tests/test_cancel.py` and `tests/test_procguard.py`; local fixtures only.
+- [Open WebUI #30055](https://github.com/open-webui/open-webui/issues/30055) is an open enhancement based on one report. It describes a mobile Call overlay covering an already-delivered
+  user-input approval, leaving the tool waiting without a visible prompt. When a Hutch approval is pending at a phone viewport, the prompt,
+  requesting action and decision controls must remain reachable without dismissing another mode or losing run context. The fixture approval
+  capture is `docs/realignment/artifacts/visual-validation/app-phone-approvals.png`; live phone behavior is unverified.
+- [Open WebUI #31656](https://github.com/open-webui/open-webui/issues/31656) was closed after an upstream fix; the report describes iOS opening the keyboard after menu/dropdown focus moved
+  into a text field without a text-field tap. Hutch navigation menus must restore focus to their own toggle, and opening or closing a menu must
+  not focus the composer or another text field. The desktop-browser phone-viewport check is recorded in `capture-results.json`; an actual iPhone
+  keyboard test remains unavailable.
+
 ---
 
 ## Fixable-in-MVP requirements → implementation traceability
@@ -154,7 +172,7 @@ fewer colours, non-colour state cues).
 | 1 | Catch-up for schedules missed while asleep | `scheduler.Scheduler.due()` counts missed windows; `coalesce` policy runs once with `missed_windows` tag; `skip` policy records a visible marker |
 | 2 | DST/timezone correctness; no double-fire/overlap | Cron math in the bot's IANA zone + round-trip DST-gap check (`scheduler._to_utc`); occurrence and run claims are transactional across processes (`Store.claim_occurrence`, `Store.claim_run`); six-process schedule race creates one run. |
 | 3 | Append-only transcripts; staleness visible | `engine._execute` mirrors every event to SQLite + `transcript.jsonl`; dashboard shows last-success age, flagged when stale |
-| 4 | Spend/step/time caps with hard kill | `limits` on every bot; the production executor enforces steps and time in an owned process. Token limits use measured usage or estimates; they are not currency caps. |
+| 4 | Spend/step/time limits with verified process cleanup | `limits` on every bot; the production executor enforces steps and time in an owned process. Per-bot and shared-account reservations include measured usage plus estimates. Currency checks need known prices and are not a hard provider-billing ceiling. |
 | 5 | Least-privilege workspace; no ambient home access | Per-run workspace; path jail for file tools (`safety.check_path`); strict Linux shell mode uses bubblewrap namespaces and a workspace-only writable mount. Existing bots migrated to `off`; external runtimes/browser are not covered. |
 | 6 | Compound-command-aware permissions | `safety.split_compound` + per-segment classification, worst-verdict-wins |
 | 7 | Approval presets + sticky allows (end permission fatigue) | `ApprovalGate` with sticky keys, `auto` mode for trusted bots; denylist always enforced |

@@ -68,7 +68,7 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 - **Scheduling that survives sleep and DST** — IANA-timezone cron, DST-correct, catch-up after sleep; each occurrence and each run is
   claimed in the database; one elected supervisor handles schedules and recovery, and one bot never overlaps itself
 - **Approvals that don't nag** — ask-once with sticky always-allows; unanswered = denied
-- **Caps** — steps, wall-clock, daily tokens per bot; spend caps for priced hosted models (a token cap is not a currency cap). `serve`, `daemon`, and `hutch run` use one owned worker process per attempt; cancellation stays visible until cleanup is verified
+- **Usage budgets** — steps and wall-clock limits plus atomic per-bot token and shared provider-account reservations. Currency checks use recorded prices and prompt estimates; unknown-price routes are refused while a currency cap is set, and provider billing can differ. `hutch usage reservations` lists uncertain charges for reconciliation. `serve`, `daemon`, and `hutch run` use one owned worker process per attempt; cancellation stays visible until cleanup is verified
 - **Workspace and shell containment** — file tools stay in the workspace. New bots request Linux bubblewrap strict mode for shell commands, with no shell network and bounded resources; unsupported hosts fail closed. Existing bots keep their saved setting, and `sandbox: off` is explicitly uncontained execution. This shell boundary is not a VM and does not contain the browser or external runtimes
 - **Run transcripts** — every run in SQLite + a JSONL mirror on disk
 - **Conversations (preview)** — the Studio stores separate threads across restarts, offers thread switching and archive, and sends a

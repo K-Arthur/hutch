@@ -39,6 +39,13 @@ class _Server:
         class H(BaseHTTPRequestHandler):
             protocol_version = "HTTP/1.1"
 
+            def handle(self):
+                try:
+                    super().handle()
+                except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+                    # Test clients intentionally close keep-alive/streaming sockets; this is not a server failure.
+                    pass
+
             def log_message(self, *a):  # silence
                 pass
 
@@ -69,6 +76,9 @@ class _Server:
     def close(self):
         self.httpd.shutdown()
         self.httpd.server_close()
+        self.thread.join(timeout=2)
+        if self.thread.is_alive():
+            raise RuntimeError("fake provider HTTP server did not stop")
 
     def record(self, method, path, body, headers=None):
         with self.lock:

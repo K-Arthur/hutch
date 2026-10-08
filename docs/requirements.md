@@ -12,7 +12,7 @@ commits can cite them. Evidence for the *why* is in
 > Performance numbers in the draft are *proposed targets*. Measured values live in
 > [performance.md](performance.md) and the committed `benchmarks/baseline.json`.
 
-*Status column last updated: Phase 3 built (local model layer), Connections, and the chat model switcher.*
+*Status column last updated: realignment S5 budget reservations; adapters and local/hybrid modes remain open.*
 
 ## Dashboard and app
 
@@ -45,7 +45,7 @@ commits can cite them. Evidence for the *why* is in
 | LM-6 | Models are scheduled resources; batching; cold load is a visible state | MVP | done | `slots.py` (batching, slot gate, fairness, visible wait reason); cold load is the `loading_model` state. Swap latency measurable with `hutch models swap-test`; not yet measured on real models |
 | LM-7 | Task presets: router, research, extraction, coding, planner, vision | MVP | partial | six presets resolve per machine, shown on `/models` and `hutch models presets`; picking one in bot creation arrives with the wizard (UI-7) |
 | LM-8 | Different presets for planner/executor/summarizer roles | Later | later | |
-| LM-9 | One-step escalation on malformed calls / loop / overflow, within spend cap | MVP | done | `runtime/ladder.py`: one-rung escalation inside the spend guard; tests |
+| LM-9 | One-step escalation on malformed calls / loop / overflow, within spend cap | MVP | partial | `runtime/ladder.py`: one-rung escalation uses the price-based estimate admission guard. Provider billing can differ; exact external dollar ceiling is unavailable |
 | LM-10 | Local-default bots ask before first hosted call | MVP | done | ask before the first hosted call for a local-default bot, even in auto mode; a hosted model picked in the chat switcher is explicit consent for that message |
 | LM-11 | Reliability harness per model/quant/runtime/template | MVP | done | `reliability.py` + `hutch models bench`: five tool probes + long-prompt recall, keyed by model/quant/runtime/template/digest/window, shown on `/models`, used by doctor. Verified against scripted models only; not yet run on real local models |
 | LM-12 | Re-measure when runtime or model file changes | Later | later | |
@@ -75,7 +75,7 @@ commits can cite them. Evidence for the *why* is in
 | ID | Requirement | Phase | Status | Where |
 |---|---|---|---|---|
 | SR-1 | One runtime/model crash affects only its own runs; health per runtime | MVP | done | orphan recovery, shutdown, per-run isolation and per-runtime health (`health.py`, Models page, doctor) |
-| SR-2 | Exact per-step token/cost accounting, visible before a run | MVP | done | per-step accounting, spend guard before every hosted call, plan note at run start, and a worst-case ceiling before a run: bot page, `hutch bot estimate`, `GET /api/bots/<name>/estimate`, the chat switcher (`estimate.py`) |
+| SR-2 | Exact per-step token/cost accounting, visible before a run | MVP | partial | Actual response usage is recorded per call; atomic pre-call reservations cover measured history plus prompt/reply estimates across Hutch runs and configured accounts. Currency reservations require known prices and are estimates, not provider billing guarantees; uncertain outcomes remain held for reconciliation. See ADR-0011 and `tests/test_reservations.py` |
 | SR-3 | Per-bot compact-now and fresh-session controls | Later | later | |
 | SR-4 | Outward-sending tools always ask, regardless of sticky allows | MVP | partial | shell: `git push`, `ssh`/`scp`/`rsync`/`ftp` always ask and are never sticky, an allow rule or the trusted tier cannot suppress them (tested); network uploads are denied. Browser actions that submit forms are not classified yet |
 | SR-5 | Small models: thinking off, per-turn token cap, loop detector | MVP | done | `think:false` only for thinking-capable models, per-turn token cap, loop detector that refuses a third identical call (`tests/test_providers.py`, `tests/test_runtime_builtin.py`) |

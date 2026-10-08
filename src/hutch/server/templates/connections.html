@@ -16,7 +16,7 @@
   <header class="conn-head">
     <div><h2>{{ icon("layers", 18) }} {{ c.title }}</h2>
       <div class="tags"><span class="tag mono">{{ c.name }}</span><span class="tag">{{ c.billing | replace("_", " ") }}</span>
-        <span class="tag">{{ c.protocol }}</span><span class="tag mono">{{ c.base_url }}</span></div></div>
+        <span class="tag">{{ c.protocol }}</span><span class="tag">account {{ c.account_id }}</span><span class="tag mono">{{ c.base_url }}</span></div></div>
     <form method="post" action="/connections/{{ c.name }}/remove" data-confirm="Remove {{ c.name }} and its stored key? Bots that use it will fall back or fail.">
       <input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn ghost small">{{ icon("trash", 14) }} Remove</button></form>
   </header>
@@ -38,9 +38,9 @@
       <h3>Usage allowance</h3>
       {% if c.quota.tokens %}
         <div class="meter lv-{{ v.level }}"><div class="meter-top"><span class="meter-label">{{ c.quota.window }} window</span>
-          <span class="meter-val">{{ v.used | tokens }}</span><span class="meter-cap">of {{ c.quota.tokens | tokens }} tokens</span></div>
+          <span class="meter-val">{{ (v.used + v.reserved) | tokens }}</span><span class="meter-cap">of {{ c.quota.tokens | tokens }} tokens incl. held</span></div>
           <div class="bar" role="progressbar" aria-label="Allowance used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ v.pct | round(0) | int }}"><i style="width: {{ v.pct }}%"></i></div></div>
-        <p class="hint">Hutch refuses a call that could pass this allowance, so you stop before the vendor does. Rolling window; the last 24 hours: {{ v.day | tokens }} tokens.</p>
+        <p class="hint">{{ v.used | tokens }} measured; {{ v.reserved | tokens }} held for active or uncertain calls. Shared across connections with this account ID. Rolling window; last 24 hours: {{ v.day | tokens }} measured + {{ v.day_reserved | tokens }} held.</p>
       {% else %}
         <p class="muted">No allowance declared. Flat-rate and credit plans have limits Hutch cannot see; declare yours so it can stop in time.</p>
       {% endif %}
@@ -50,6 +50,13 @@
         <select name="window" aria-label="Window">{% for w in windows %}<option value="{{ w }}" {{ 'selected' if w == c.quota.window }}>per {{ w }}</option>{% endfor %}</select>
         <button class="btn small">Save</button></form>
       {% if c.quota_hint %}<p class="hint">{{ c.quota_hint }}</p>{% endif %}
+      <h3>Shared daily currency cap</h3>
+      {% if v.account_cost_cap %}<p class="hint">${{ '%.4f'|format(v.cost_used) }} measured + ${{ '%.4f'|format(v.cost_reserved) }} held of the shared ${{ '%.2f'|format(v.account_cost_cap) }} daily cap today.</p>{% else %}<p class="hint">No currency cap is set for this account.</p>{% endif %}
+      <form method="post" action="/connections/{{ c.name }}/account-cap" class="inline-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="number" name="daily_usd" inputmode="decimal" min="0" step="0.01" value="{{ c.account_daily_cost_cap_usd or '' }}" placeholder="USD per local day (0 = none)" aria-label="Shared daily currency cap in USD for {{ c.name }}">
+        <button class="btn small">Save cap</button></form>
+      <p class="hint">This value applies to {{ c.account_id }}; the strictest cap declared by its connections is enforced. Account IDs default to the connection name; use <span class="mono">hutch connections set-account-cap</span> with <span class="mono">--account-id</span> to group them. Priced calls reserve estimated usage before starting. Unknown-price calls are refused while a currency cap is set. Uncertain outcomes stay held until reconciled with the provider record.</p>
     </div>
   </div>
 

@@ -103,7 +103,7 @@ class PriceBook:
 
     def estimate_run_ceiling(self, provider: str, model: str, prompt_tokens: int, max_turn_tokens: int,
                              max_steps: int) -> Optional[float]:
-        """Worst-case spend before a run starts (SR-2): every step re-sends the prompt and emits a full turn."""
+        """Local estimate before a run starts; provider tokenization and final billing can differ."""
         return self.cost(provider, model, prompt_tokens * max_steps, max_turn_tokens * max_steps)
 
     def rows(self) -> list[Price]:

@@ -26,25 +26,26 @@ def test_a_local_model_has_no_cost_and_says_so(config, store):
     assert e.kind == "local" and e.worst_case_usd is None and "no per-token cost" in e.summary
 
 
-def test_a_priced_model_gets_a_ceiling_that_is_the_spend_guards_arithmetic(config, store):
+def test_a_priced_model_gets_an_estimate_and_discloses_provider_billing_uncertainty(config, store):
     b = store.create_bot(Bot(name="h", model="anthropic/claude-opus-5-5", tools=["shell", "files"],
                              limits=Limits(max_steps=10, max_turn_tokens=1000)))
     e = estimate_run(config, store, b)
     assert e.kind == "priced" and e.steps == 10 and e.turn_tokens == 1000
     expected = (e.prompt_tokens * 10 * 4.0 + 1000 * 10 * 20.0) / 1_000_000          # $4 in / $20 out per 1M
-    assert e.worst_case_usd == pytest.approx(expected) and "typical runs cost far less" in e.summary
+    assert e.worst_case_usd == pytest.approx(expected) and "Estimated at $" in e.summary
+    assert "provider billing can differ" in e.summary
 
 
 def test_the_bots_own_run_cap_is_the_real_maximum_when_lower(config, store):
     b = store.create_bot(Bot(name="h", model="anthropic/claude-opus-5-5", limits=Limits(max_cost_usd=0.25, daily_cost_cap_usd=2.0)))
     e = estimate_run(config, store, b)
-    assert e.effective_ceiling_usd == 0.25 and "At most $0.25 per run" in e.summary and "$2.00 daily cap" in e.summary
+    assert e.effective_ceiling_usd == 0.25 and "Estimated at up to $0.25 per run" in e.summary and "$2.00 daily limit" in e.summary
 
 
 def test_an_unpriced_hosted_model_has_no_ceiling_and_says_why(config, store):
     b = store.create_bot(Bot(name="u", model="openai/some-new-model"))
     e = estimate_run(config, store, b)
-    assert e.kind == "unpriced" and e.worst_case_usd is None and "cannot run under a spend cap" in e.summary
+    assert e.kind == "unpriced" and e.worst_case_usd is None and "cannot run while a currency limit is set" in e.summary
 
 
 def test_a_flat_plan_is_not_priced_but_is_not_free_of_allowance(config, store):
@@ -72,22 +73,23 @@ def test_spend_today_is_included(config, store):
     b = store.create_bot(Bot(name="h", model="anthropic/claude-opus-5-5", limits=Limits(daily_cost_cap_usd=5.0)))
     store.create_run(Run(bot_id=b.id, prompt="x", cost_usd=1.25, tokens=900))
     e = estimate_run(config, store, b)
-    assert e.spent_today_usd == pytest.approx(1.25) and e.tokens_today == 900 and "$1.25 of the $5.00 daily cap" in e.summary
+    assert e.spent_today_usd == pytest.approx(1.25) and e.tokens_today == 900
+    assert "$1.25 measured + $0.00 held of the $5.00 daily limit" in e.summary
 
 
 def test_cli_estimate_and_api(tmp_path, monkeypatch):
     monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
     assert runner.invoke(cli_app, ["bot", "create", "est", "--model", "anthropic/claude-haiku-4-5"]).exit_code == 0
     out = runner.invoke(cli_app, ["bot", "estimate", "est"]).output
-    assert "At most $" in out and "claude-haiku-4-5" in out
+    assert "Estimated at $" in out and "claude-haiku-4-5" in out
     assert "no per-token cost" in runner.invoke(cli_app, ["bot", "estimate", "est", "--model", "ollama/x"]).output
     with TestClient(create_app()) as c:
         j = c.get("/api/bots/est/estimate").json()
-        assert j["kind"] == "priced" and j["worst_case_usd"] > 0 and j["summary"].startswith("At most")
+        assert j["kind"] == "priced" and j["worst_case_usd"] > 0 and j["summary"].startswith("Estimated at $")
         assert c.get("/api/bots/est/estimate", params={"model": "ollama/x"}).json()["kind"] == "local"
         assert c.get("/api/bots/nobody/estimate").status_code == 404
         page = c.get("/bots/est").text
-        assert 'id="estimate"' in page and "At most $" in page
+        assert 'id="estimate"' in page and "Estimated at $" in page
 
 
 def test_the_switchers_hosted_rows_carry_the_worst_case(config, store, monkeypatch):
@@ -97,7 +99,8 @@ def test_the_switchers_hosted_rows_carry_the_worst_case(config, store, monkeypat
     b = store.create_bot(Bot(name="s", model="mock/demo"))
     by = {c.spec: c for c in model_choices(config, store, b)}
     assert by["anthropic/claude-opus-5-5"].worst_case_usd and by["anthropic/claude-opus-5-5"].worst_case_usd > by["anthropic/claude-haiku-4-5"].worst_case_usd
-    assert any("worst case" in d for d in by["anthropic/claude-opus-5-5"].detail)
+    assert any("estimated $" in d and "provider billing can differ" in d
+               for d in by["anthropic/claude-opus-5-5"].detail)
 
 
 # ----------------------------------------------------------------------- usage page
@@ -126,7 +129,8 @@ def test_usage_page_totals_tables_and_caps(client):
     a, b = seed(client)
     t = client.get("/usage").text
     for needle in ("Where tokens and money went", "By day", "By model", "By bot", "Today against each bot", "researcher",
-                   "anthropic/claude-opus-5-5", "ollama/qwen3:4b", "free (local)", "$2.75", "$1.50 of $5.00"):
+                   "anthropic/claude-opus-5-5", "ollama/qwen3:4b", "free (local)", "$2.75",
+                   "$2.75 measured + $0 held estimate of $5.00 estimate limit"):
         assert needle in t, needle
     assert re.search(r'aria-valuenow="30"', t), "researcher used 3000 of 10000 tokens today"
     assert "Served from cache" in t

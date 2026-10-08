@@ -8,7 +8,7 @@ October 14" under a model, except ours says what is true here: "fits, 16k contex
 Switching is per message (a run's ``model_override``), never a silent edit of the bot: a scheduled run of the same bot
 keeps using the bot's own model. Picking a hosted model here is the person's explicit choice for that message, so it does
 not trigger the "ask before the first hosted call" rule that protects a local-first bot from drifting off the machine on
-its own; the menu says which entries send the chat elsewhere, and spend caps still apply.
+its own; the menu says which entries send the chat elsewhere, and estimate-based usage limits still apply.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ class Choice:
     fix: str = ""                # what to do when state != ready
     default: bool = False        # the bot's own model
     hosted: bool = False         # the chat leaves this machine
-    worst_case_usd: Optional[float] = None   # ceiling for one run on this model (SR-2), when it has a price
+    worst_case_usd: Optional[float] = None   # legacy name; local one-run cost estimate when priced
     detail: list[str] = field(default_factory=list)
 
 
@@ -169,7 +169,7 @@ def model_choices(config: Any, store: Any, bot: Bot, hw: Optional[Hardware] = No
             e = est.for_model(c.spec)
             c.worst_case_usd = e.worst_case_usd
             if e.worst_case_usd is not None:
-                c.detail.append(f"worst case ${e.worst_case_usd:.2f} for one run of up to {e.steps} steps")
+                c.detail.append(f"estimated ${e.worst_case_usd:.2f} for one run of up to {e.steps} steps; provider billing can differ")
     return choices
 
 

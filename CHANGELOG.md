@@ -5,6 +5,10 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 ## [Unreleased]
 
 ### Added
+- **Shared provider usage reservations (partial S5):** schema v10 atomically reserves per-bot tokens, per-run/per-bot currency estimates,
+  and configured shared-account quota/cost limits before builtin hosted calls. Successful replies settle actual usage once; uncertain
+  outcomes stay held until a terminal run is reconciled from the provider record. Connections page and `/api/v1` expose held values.
+  Currency checks are estimates and do not guarantee the provider's final bill. Pi/OpenCode remain disabled; live billing is unverified.
 - **Repeatable performance evidence:** the benchmark runner now retains raw repetitions and host/revision/harness metadata; the
   pre-realignment archive and current branch have same-harness captures with a data-quality notebook and explicit sampling limits.
 - **Marketing demo truth:** the scripted hero illustration is labeled “DEMO supervised run,” not “LIVE,” and its accessible name

@@ -29,6 +29,7 @@ from ..models import Event, EventType, Run, RunStatus
 from ..providers import ChatRequest, Provider, ProviderError
 from ..providers.base import ModelMeta
 from ..providers.pricing import PriceBook
+from ..store import UsageBudgetRefusal
 from ..safety import Decision, Verdict
 from ..tools import Tool, ToolContext
 from .base import RunAborted
@@ -340,7 +341,7 @@ class BuiltinRuntime:
         run.context_limit = session.num_ctx or 0
         run.model_used = session.rung.spec
         ctx.store.update_run(run)
-        cost_note = (f", worst case ${ceiling:.2f}" if ceiling else ", no per-token cost" if session.rung.local
+        cost_note = (f", estimated up to ${ceiling:.2f}" if ceiling else ", no per-token cost" if session.rung.local
                      else ", price unknown")
         self._log(ctx, run, "plan", f"{session.rung.spec}: ~{est_prompt:,} prompt tokens, up to "
                                     f"{ctx.bot.limits.max_steps} steps{cost_note}",
@@ -394,11 +395,22 @@ class BuiltinRuntime:
                 max_tokens=self._turn_cap(bot, session.rung), think=bot.think if bot.think is not None else False,
                 register_cancel=self._register_cancel(ctx), is_cancelled=stop, session_id=run.id,
                 keep_alive="30m" if _keep_resident(ctx, bot) else "10m")
+            try:
+                reservation_id = guard.reserve(session.rung, est_prompt, self._turn_cap(bot, session.rung))
+            except UsageBudgetRefusal as exc:
+                reason = str(exc)
+                code = "token_cap" if "token" in reason or "allowance" in reason else "cost_cap"
+                raise RunAborted(code, reason) from exc
+            account_id, _, _ = guard.account_policy(session.rung)
+            if stop():
+                ctx.store.release_usage_reservation(reservation_id, "run stopped before provider call started")
+                raise RunAborted("stopped", "user requested stop")
             t_call = time.perf_counter()
             try:
                 result = session.provider.chat(req)
                 record_outcome(ctx.store, session.rung.provider, True)
             except ProviderError as exc:
+                ctx.store.mark_usage_uncertain(reservation_id, f"provider outcome is uncertain ({exc.kind})")
                 if stop():
                     raise RunAborted("stopped", "user requested stop") from exc
                 record_outcome(ctx.store, session.rung.provider, False, f"{exc.kind}: {exc}")
@@ -414,6 +426,9 @@ class BuiltinRuntime:
                     raise RunAborted(_exit_reason(exc), f"model call failed ({session.rung.spec}): {exc}") from exc
                 session, rate_limited_once = nxt, False
                 continue
+            except Exception as exc:
+                ctx.store.mark_usage_uncertain(reservation_id, f"provider call ended with {type(exc).__name__}")
+                raise
             rate_limited_once = False
             timer.model(time.perf_counter() - t_call)
 
@@ -435,7 +450,8 @@ class BuiltinRuntime:
                 extra["tok_s"] = round(result.tokens_per_sec, 1)
             finish_step(run, ctx, timer, model=session.rung.spec, prompt_tokens=result.prompt_tokens,
                         completion_tokens=result.completion_tokens, cached_tokens=result.cached_tokens,
-                        cost_usd=cost or 0.0, prefix=prefix_hash, window=session.num_ctx or 0,
+                        cost_usd=cost or 0.0, account_id=account_id, reservation_id=reservation_id,
+                        prefix=prefix_hash, window=session.num_ctx or 0,
                         finish=result.finish_reason, streamed=result.streamed, **extra)
             # ---- context overflow is a quality failure (LM-9): the model lost the start of its prompt
             if result.prompt_truncated:
@@ -457,7 +473,7 @@ class BuiltinRuntime:
                 ctx.emit(Event(run_id=run.id, type=EventType.message, data={"role": "assistant", "content": final}))
                 return final
 
-            # a hard spend cap stops FURTHER spending; it never discards a final answer already paid for
+            # The estimate limit stops FURTHER model calls; it never discards a final answer already paid for.
             if bot.limits.max_cost_usd and run.cost_usd >= bot.limits.max_cost_usd:
                 raise RunAborted("cost_cap", f"run spend ${run.cost_usd:.4f} reached its "
                                              f"${bot.limits.max_cost_usd:.2f} cap")

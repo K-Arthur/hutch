@@ -91,14 +91,14 @@ class Schedule(BaseModel):
 
 
 class Limits(BaseModel):
-    """Hard caps enforced per run (and daily per bot for tokens / spend). 0 means "no cap" / "automatic"."""
+    """Run guards. Time/step limits are enforced; token/currency admission uses estimates. 0 means no configured limit."""
 
     max_steps: int = 24                # agent turns before forced stop
     timeout_seconds: int = 900         # wall-clock kill switch
     daily_token_cap: int = 200_000     # estimated tokens (prompt+completion)
     max_turn_tokens: int = 0           # per-turn generation cap (SR-5); 0 = provider default (local 2048, hosted 16000)
-    max_cost_usd: float = 0.0          # hard spend cap for ONE run, hosted models only (SR-2, LM-9)
-    daily_cost_cap_usd: float = 0.0    # hard spend cap per bot per day
+    max_cost_usd: float = 0.0          # priced estimate admission limit for ONE run, hosted models only (SR-2, LM-9)
+    daily_cost_cap_usd: float = 0.0    # priced estimate admission limit per bot per local day
 
     model_config = {"frozen": True}
 

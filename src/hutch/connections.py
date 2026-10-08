@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 from dataclasses import dataclass, field
@@ -74,6 +75,8 @@ class Connection:
     base_url: str
     api_key_env: str
     billing: str
+    account_id: str
+    account_daily_cost_cap_usd: float = 0.0
     anthropic_base_url: str = ""
     session_header: str = ""
     user_agent: str = ""
@@ -150,18 +153,33 @@ class ConnectionBook:
         billing = merged.get("billing", "per_token")
         if billing not in BILLING:
             raise ValueError(f"unknown billing mode '{billing}'")
+        account_id = str(merged.get("account_id") or name).strip().lower()
+        if not SLUG.fullmatch(account_id):
+            raise ValueError("account_id must be a lowercase slug: a-z, 0-9 and hyphens, 2-41 characters")
+        account_cap = float(merged.get("account_daily_cost_cap_usd", 0) or 0)
+        if not math.isfinite(account_cap) or account_cap < 0:
+            raise ValueError("account_daily_cost_cap_usd must be a finite non-negative number")
         for m, p in (merged.get("model_protocols") or {}).items():
             if p not in PROTOCOLS:
                 raise ValueError(f"model '{m}': protocol '{p}' is not supported")
+        quota_window = q.get("window", "month")
+        quota_tokens = int(q.get("tokens", 0) or 0)
+        quota_warn_at = float(q.get("warn_at", 0.8))
+        if quota_window not in WINDOWS:
+            raise ValueError(f"quota window must be one of {', '.join(WINDOWS)}")
+        if quota_tokens < 0:
+            raise ValueError("quota tokens must be non-negative")
+        if not math.isfinite(quota_warn_at) or not 0 <= quota_warn_at <= 1:
+            raise ValueError("quota warn_at must be between 0 and 1")
         return Connection(
             name=name, template=row.get("template", ""), title=merged.get("title", name), protocol=proto,
             base_url=merged["base_url"].rstrip("/"), api_key_env=merged.get("api_key_env", ""), billing=billing,
+            account_id=account_id, account_daily_cost_cap_usd=account_cap,
             anthropic_base_url=(merged.get("anthropic_base_url") or "").rstrip("/"),
             session_header=merged.get("session_header", ""),
             user_agent=(merged.get("user_agent") or f"hutch/{_version()}").replace("{version}", _version()),
             headers=dict(merged.get("headers") or {}), model_protocols=dict(merged.get("model_protocols") or {}),
-            quota=Quota(window=q.get("window", "month"), tokens=int(q.get("tokens", 0) or 0),
-                        warn_at=float(q.get("warn_at", 0.8))),
+            quota=Quota(window=quota_window, tokens=quota_tokens, warn_at=quota_warn_at),
             terms=Terms(url=terms.get("url", ""), notice=terms.get("notice", ""),
                         requires_ack=bool(terms.get("requires_ack"))),
             get_key_url=merged.get("get_key_url", ""), source=merged.get("source", ""),
@@ -192,6 +210,13 @@ class ConnectionBook:
 
     def flat_providers(self) -> set[str]:
         return {n for n, c in self._conns.items() if c.flat}
+
+    def account_policy(self, account_id: str) -> tuple[float, list[tuple[int, float]]]:
+        """Return the strictest declared cost cap and every token window shared by this billing account."""
+        members = [conn for conn in self._conns.values() if conn.account_id == account_id]
+        cost_caps = [conn.account_daily_cost_cap_usd for conn in members if conn.account_daily_cost_cap_usd > 0]
+        quotas = sorted({(conn.quota.tokens, float(conn.quota.seconds)) for conn in members if conn.quota.tokens > 0})
+        return (min(cost_caps) if cost_caps else 0.0), quotas
 
     # ----------------------------------------------------------------- keys
 

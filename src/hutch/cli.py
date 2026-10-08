@@ -43,7 +43,9 @@ app.add_typer(bot_app, name="bot")
 app.add_typer(run_app, name="runs")
 app.add_typer(apr_app, name="approvals")
 conn_app = typer.Typer(no_args_is_help=True, help="Hosted endpoints and subscription plans, each with its own key.")
+usage_app = typer.Typer(no_args_is_help=True, help="Inspect and reconcile model-usage reservations.")
 app.add_typer(conn_app, name="connections")
+app.add_typer(usage_app, name="usage")
 
 console = Console()
 err = Console(stderr=True)
@@ -242,7 +244,7 @@ def bot_create(
 @bot_app.command("estimate")
 def bot_estimate(name: str = typer.Argument(...), model: Optional[str] = typer.Option(None, "--model", help="price another model"),
                  prompt: str = typer.Option("", "--prompt", help="the task text, for a closer prompt size")) -> None:
-    """What one run of this bot can cost, before it starts: a worst-case ceiling, or why there is none."""
+    """Estimate one run's priced usage before it starts; provider billing can differ."""
     from .estimate import estimate_run
     store = _store()
     bot = _require_bot(store, name)
@@ -540,6 +542,8 @@ def conn_list() -> None:
     for name, c in conns.items():
         console.print(f"[bold]{name}[/bold]  {c.title}")
         console.print(f"  billing: {c.billing.replace('_', ' ')}   protocol: {c.protocol}   endpoint: {c.base_url}")
+        console.print(f"  account: {c.account_id}" + (f"   shared daily cap: ${c.account_daily_cost_cap_usd:.2f}"
+                                                          if c.account_daily_cost_cap_usd else ""))
         src = book.key_source(name)
         console.print("  key: " + (f"present ({src})" if src != "missing" else
                                    f"[red]missing[/red] - set ${c.api_key_env} or run "
@@ -567,11 +571,15 @@ def conn_add(
     billing: Optional[str] = typer.Option(None, "--billing", help="per_token | subscription | free"),
     quota_tokens: int = typer.Option(0, "--allowance-tokens", help="stop before this many tokens per window"),
     quota_window: str = typer.Option("month", "--allowance-window", help="5h | day | week | month"),
+    account_id: Optional[str] = typer.Option(None, "--account-id", help="share usage limits with connections using this ID"),
+    account_daily_cap: float = typer.Option(0.0, "--account-daily-cap-usd", min=0,
+                                            help="shared daily currency cap across this billing account"),
 ) -> None:
     """Add a connection from a template."""
     book = _book()
     try:
-        over: dict = {"api_key_env": key_env, "base_url": base_url, "billing": billing}
+        over: dict = {"api_key_env": key_env, "base_url": base_url, "billing": billing,
+                      "account_id": account_id, "account_daily_cost_cap_usd": account_daily_cap}
         if quota_tokens:
             over["quota"] = {"window": quota_window, "tokens": quota_tokens}
         c = book.add(template, name, **over)
@@ -659,12 +667,80 @@ def conn_set_allowance(name: str = typer.Argument(...), tokens: int = typer.Argu
     console.print(f"{name}: allowance {tokens:,} tokens per {window} (rolling window)")
 
 
+@conn_app.command("set-account-cap")
+def conn_set_account_cap(name: str = typer.Argument(...), daily_usd: float = typer.Argument(..., min=0),
+                         account_id: Optional[str] = typer.Option(None, "--account-id")) -> None:
+    """Set a shared account daily cap; reuse --account-id to group multiple connections."""
+    try:
+        book = _book()
+        fields = {"account_daily_cost_cap_usd": daily_usd}
+        if account_id is not None:
+            fields["account_id"] = account_id
+        c = book.update(name, **fields)
+    except (KeyError, ValueError) as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1)
+    console.print(f"{c.name}: account {c.account_id}, shared daily cap ${c.account_daily_cost_cap_usd:.2f}")
+
+
 @conn_app.command("remove")
 def conn_remove(name: str = typer.Argument(...), yes: bool = typer.Option(False, "--yes", "-y")) -> None:
     """Remove a connection and its stored key file."""
     if not yes and not typer.confirm(f"remove connection '{name}' and its stored key?"):
         raise typer.Exit()
     console.print("removed" if _book().remove(name) else "no such connection")
+
+
+@usage_app.command("reservations")
+def usage_reservations(limit: int = typer.Option(100, "--limit", min=1, max=500)) -> None:
+    """List live and uncertain reservations that still count against token or currency caps."""
+    store = _store()
+    try:
+        rows = store.unresolved_usage_reservations(limit)
+    finally:
+        store.close()
+    if not rows:
+        console.print("no unresolved usage reservations")
+        return
+    for row in rows:
+        console.print(f"[bold]{row['id']}[/bold]  {row['status']}  account={row['account_id']}  "
+                      f"provider={row['provider']}  held={row['reserved_tokens']:,} tokens / "
+                      f"${row['reserved_cost_usd']:.4f}")
+        console.print(f"  run={row['run_id']}  {row['reason'] or 'no additional reason'}")
+    console.print("Uncertain reservations remain held. Check the provider's usage record before reconciling one.")
+
+
+@usage_app.command("reconcile")
+def usage_reconcile(reservation_id: str = typer.Argument(...),
+                    not_charged: bool = typer.Option(False, "--not-charged", help="release after verifying no charge"),
+                    prompt_tokens: Optional[int] = typer.Option(None, "--prompt-tokens", min=0),
+                    completion_tokens: Optional[int] = typer.Option(None, "--completion-tokens", min=0),
+                    cached_tokens: int = typer.Option(0, "--cached-tokens", min=0),
+                    actual_cost_usd: Optional[float] = typer.Option(None, "--actual-cost-usd", min=0),
+                    reason: str = typer.Option(..., "--reason")) -> None:
+    """Release a verified no-charge reservation or settle it with exact provider usage."""
+    charged_fields = (prompt_tokens, completion_tokens, actual_cost_usd)
+    if len(reason.strip()) < 3:
+        err.print("[red]--reason must contain at least three non-space characters[/red]")
+        raise typer.Exit(code=2)
+    if not_charged and any(value is not None for value in charged_fields):
+        err.print("[red]use --not-charged or provide all exact usage fields, not both[/red]")
+        raise typer.Exit(code=2)
+    if not not_charged and any(value is None for value in charged_fields):
+        err.print("[red]provide --prompt-tokens, --completion-tokens and --actual-cost-usd, or use --not-charged[/red]")
+        raise typer.Exit(code=2)
+    store = _store()
+    try:
+        outcome = store.resolve_usage_reservation(
+            reservation_id, not_charged=not_charged, prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens, cached_tokens=cached_tokens,
+            actual_cost_usd=actual_cost_usd, reason=reason)
+    except (KeyError, ValueError) as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1)
+    finally:
+        store.close()
+    console.print(f"{reservation_id}: {outcome}")
 
 
 # ------------------------------------------------------------------ doctor

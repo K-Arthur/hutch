@@ -51,6 +51,9 @@ def test_upgrade_preserves_bot_ids_schedules_memory_and_allows(v4):
         assert store.list_sticky_allows(BRIEFING) == ["files:write"]
         assert store.kv_get(f"schedule:{BRIEFING}:last_fire") == "2026-10-05T09:00:00+00:00"   # the schedule position survives
         assert store.usage_tokens_since("mock", 10**9) == 3450      # the ledger written by the baseline, unchanged
+        legacy = store._db.execute("SELECT provider, account_id FROM usage ORDER BY id LIMIT 1").fetchone()
+        assert legacy["account_id"] == legacy["provider"] == "mock"  # pre-account usage retains its original grouping
+        assert store._db.execute("SELECT COUNT(*) FROM usage_reservations").fetchone()[0] == 0
     finally:
         store.close()
 

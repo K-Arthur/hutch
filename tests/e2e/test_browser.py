@@ -238,12 +238,27 @@ def test_mobile_navigation_traps_tab_and_restores_focus(browser, live):
     assert toggle.get_attribute("aria-expanded") == "true"
     links = page.locator("#primary-nav a")
     assert page.evaluate("document.activeElement.getAttribute('data-nav')") == "chat"
+    assert page.evaluate("document.activeElement.tagName") not in {"INPUT", "TEXTAREA"}
     links.last.focus()
     page.keyboard.press("Tab")
     assert page.evaluate("document.activeElement.getAttribute('data-nav')") == "chat"
     page.keyboard.press("Escape")
     assert toggle.get_attribute("aria-expanded") == "false"
     assert page.evaluate("document.activeElement.id") == "nav-toggle"
+    assert page.evaluate("document.activeElement.tagName") not in {"INPUT", "TEXTAREA"}
+    page.close()
+
+
+def test_usage_budget_table_uses_labelled_phone_cards(browser, live):
+    base, app = live
+    app.state.store.create_bot(Bot(name="usage-responsive"))
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    page.goto(f"{base}/usage", wait_until="domcontentloaded")
+    cell = page.locator('#caps td[data-label="Tokens today"]').first
+    cell.wait_for()
+    assert page.eval_on_selector('#caps td[data-label="Tokens today"]', "el => getComputedStyle(el).display") == "grid"
+    assert page.eval_on_selector('#caps td[data-label="Spend today"]', "el => el.getAttribute('data-label')") == "Spend today"
+    assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
     page.close()
 
 

@@ -196,7 +196,8 @@ def explain_outcome(run: Run, bot: Optional[Bot] = None) -> Optional[Wait]:
         return Wait(f"The bot reached its daily token cap ({fmt_tokens(lim.daily_token_cap) if lim else '?'}).",
                     "Raise daily_token_cap on the bot, or wait for tomorrow (UTC).", kind="error")
     if r == "cost_cap":
-        return Wait("The run reached its spend cap.", "Raise the cap on the bot if the spend is expected.",
+        return Wait("The next request estimate reached this bot's currency limit.",
+                    "Review the recorded price and prompt estimate before raising the limit.",
                     kind="error")
     if r == "approval_expired":
         return Wait("An approval went unanswered and was denied at its deadline.",
@@ -390,17 +391,22 @@ def run_meters(store, run: Run, bot: Optional[Bot], now: Optional[datetime] = No
 
     cap_usd = getattr(lim, "max_cost_usd", 0.0) if lim else 0.0
     if cap_usd:
-        pct = min(100.0, run.cost_usd / cap_usd * 100)
-        out.append(Meter("Spend", fmt_money(run.cost_usd), f"of {fmt_money(cap_usd)}", pct, _level(pct)))
+        _, reserved_cost = store.run_reserved_usage(run.id)
+        projected_cost = run.cost_usd + reserved_cost
+        pct = min(100.0, projected_cost / cap_usd * 100)
+        out.append(Meter("Spend", fmt_money(projected_cost), f"of {fmt_money(cap_usd)} estimate limit", pct,
+                         _level(pct), note=f"{fmt_money(run.cost_usd)} measured + {fmt_money(reserved_cost)} held estimate"))
     else:
-        note = "local model: no per-token cost" if (run.cost_usd == 0 and run.tokens) else "no spend cap set"
+        note = ("local model: no per-token cost" if (run.cost_usd == 0 and run.tokens)
+                else "no currency estimate limit set")
         out.append(Meter("Spend", fmt_money(run.cost_usd), "", 0, note=note))
 
     if bot and lim:
-        used = store.tokens_today(bot.id)
-        pct = min(100.0, used / max(lim.daily_token_cap, 1) * 100)
-        out.append(Meter("Tokens today", fmt_tokens(used), f"of {fmt_tokens(lim.daily_token_cap)}", pct,
-                         _level(pct), note="this bot, all runs"))
+        measured_tokens, reserved_tokens, _, _ = store.bot_budget_today(bot.id)
+        projected = measured_tokens + reserved_tokens
+        pct = min(100.0, projected / max(lim.daily_token_cap, 1) * 100)
+        out.append(Meter("Tokens today", fmt_tokens(projected), f"of {fmt_tokens(lim.daily_token_cap)}", pct,
+                         _level(pct), note=f"{fmt_tokens(measured_tokens)} measured + {fmt_tokens(reserved_tokens)} held estimate"))
     if run.context_limit:
         pct = min(100.0, run.context_used / run.context_limit * 100)
         out.append(Meter("Context", fmt_tokens(run.context_used), f"of {fmt_tokens(run.context_limit)}", pct,

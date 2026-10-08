@@ -18,14 +18,14 @@
 </div>
 
 <section class="panel" id="caps" aria-labelledby="caps-h">
-  <h2 id="caps-h" class="card-title">Today against each bot's caps</h2>
-  {% if caps %}<div class="table-wrap"><table class="models-table">
+      <h2 id="caps-h" class="card-title">Today against each bot's usage budgets</h2>
+  {% if caps %}<div class="table-wrap"><table class="models-table usage-cap-table">
     <thead><tr><th>Bot</th><th>Tokens today</th><th>Spend today</th></tr></thead><tbody>
-    {% for c in caps %}<tr><td><a href="/bots/{{ c.name }}">{{ c.name }}</a></td>
-      <td>{% if c.token_cap %}<div class="bar" role="progressbar" aria-label="Tokens used today by {{ c.name }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ c.token_pct | round(0) | int }}"><i style="width: {{ c.token_pct }}%"></i></div>{% endif %}
-        <span class="small">{{ c.tokens | tokens }}{% if c.token_cap %} of {{ c.token_cap | tokens }}{% else %} (no cap){% endif %}</span></td>
-      <td>{% if c.cost_cap %}<div class="bar" role="progressbar" aria-label="Spend today by {{ c.name }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ c.cost_pct | round(0) | int }}"><i style="width: {{ c.cost_pct }}%"></i></div>{% endif %}
-        <span class="small">{{ c.spent | money }}{% if c.cost_cap %} of {{ c.cost_cap | money }}{% else %} (no spend cap){% endif %}</span></td></tr>{% endfor %}
+    {% for c in caps %}<tr><td data-label="Bot"><a href="/bots/{{ c.name }}">{{ c.name }}</a></td>
+      <td data-label="Tokens today">{% if c.token_cap %}<div class="bar" role="progressbar" aria-label="Measured and reserved tokens today by {{ c.name }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ c.token_pct | round(0) | int }}"><i style="width: {{ c.token_pct }}%"></i></div>{% endif %}
+        <span class="small">{{ c.tokens | tokens }} measured + {{ c.tokens_held | tokens }} held{% if c.token_cap %} of {{ c.token_cap | tokens }}{% else %} (no cap){% endif %}</span></td>
+      <td data-label="Spend today">{% if c.cost_cap %}<div class="bar" role="progressbar" aria-label="Measured and reserved currency today by {{ c.name }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ c.cost_pct | round(0) | int }}"><i style="width: {{ c.cost_pct }}%"></i></div>{% endif %}
+        <span class="small">{{ c.spent | money }} measured + {{ c.cost_held | money }} held estimate{% if c.cost_cap %} of {{ c.cost_cap | money }} estimate limit{% else %} (no currency limit){% endif %}</span></td></tr>{% endfor %}
     </tbody></table></div>
   {% else %}<p class="muted">No bots yet.</p>{% endif %}
 </section>
@@ -33,10 +33,10 @@
 {% if plans %}
 <section class="panel" id="plans" aria-labelledby="plans-h">
   <h2 id="plans-h" class="card-title">Plan allowances</h2>
-  <p class="hint">Declared allowance per connection. Hutch stops before a call that could pass it. <a href="/connections">Edit on Connections</a>.</p>
+  <p class="hint">Declared rolling limits; the meter includes measured use and reservations held for active or uncertain calls. <a href="/connections">Edit on Connections</a>.</p>
   {% for p in plans %}<div class="meter lv-{{ 'hot' if p.pct >= 90 else 'warn' if p.pct >= 80 else 'ok' }}">
-    <div class="meter-top"><span class="meter-label">{{ p.title }} ({{ p.window }} window)</span><span class="meter-val">{{ p.used | tokens }}</span><span class="meter-cap">of {{ p.cap | tokens }} tokens</span></div>
-    <div class="bar" role="progressbar" aria-label="Allowance used for {{ p.name }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ p.pct | round(0) | int }}"><i style="width: {{ p.pct }}%"></i></div></div>{% endfor %}
+    <div class="meter-top"><span class="meter-label">{{ p.title }} ({{ p.window }} window)</span><span class="meter-val">{{ (p.used + p.held) | tokens }}</span><span class="meter-cap">of {{ p.cap | tokens }} tokens</span></div>
+    <div class="bar" role="progressbar" aria-label="Allowance used for {{ p.name }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ p.pct | round(0) | int }}"><i style="width: {{ p.pct }}%"></i></div><p class="hint">{{ p.used | tokens }} measured + {{ p.held | tokens }} held for this account.</p></div>{% endfor %}
 </section>
 {% endif %}
 

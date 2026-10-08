@@ -6,9 +6,11 @@ allowance and terms notice. Use one in any bot as `<connection>/<model>`:
 ```bash
 hutch connections templates                          # what Hutch knows how to talk to
 hutch connections add opencode-go --allowance-tokens 2000000 --allowance-window month
+hutch connections set-account-cap opencode-go 25 --account-id team-provider
 hutch connections set-key opencode-go                # hidden prompt; stored 0600, never printed
 hutch connections ack opencode-go                    # read the plan's terms notice, then accept it
 hutch connections test opencode-go                   # authenticates; spends no tokens
+hutch usage reservations                             # inspect held or uncertain usage
 hutch bot update my-bot --model opencode-go/zhipuai/glm-5.3
 ```
 
@@ -55,12 +57,32 @@ OpenAI, Anthropic, Ollama, LM Studio and llama.cpp keep their built-in provider 
   the Anthropic endpoint and Grok / Muse Spark on Responses, while models.dev lists every model as
   OpenAI-compatible; the two sources conflict, so Hutch ships no per-model overrides and tells you how to set one.
 - **Billing** (`CN-4`). `per_token` is priced from `prices.json`; with no price row a hosted model **cannot run
-  under a cost cap** (Hutch refuses rather than guess). `subscription` and `free` cost nothing per call, but every
+  while a Hutch currency limit is set** (Hutch refuses rather than guess). `subscription` and `free` cost nothing per call, but every
   call still lands in the usage ledger.
 - **Allowance** (`CN-5`). Declare tokens per rolling window (`5h`, `day`, `week`, `month`). Hutch refuses a call
   that *could* pass it (used + prompt + the reply reserve), warns once at 80%, and shows the meter on the
-  Connections page. The window is a rolling approximation: vendors may use fixed windows. Credits (Xiaomi) and
-  dollars (OpenCode Go) are not tokens; the allowance is a proxy you calibrate against the vendor's console.
+  Connections page. Requests reserve estimated prompt + reply tokens before they start, and the SQLite transaction
+  checks actual usage plus outstanding reservations across Hutch processes. The window is a rolling approximation:
+  vendors may use fixed windows. Credits (Xiaomi) and dollars (OpenCode Go) are not tokens; the allowance is a proxy
+  you calibrate against the vendor's console.
+- **Shared account and currency limits** (`ADR-0011`). Connections default to separate account IDs. Give connections
+  the same `--account-id` to share an account quota and currency admission limit. Example: `hutch connections set-account-cap
+  opencode-go 25 --account-id team-provider` sets the strictest declared daily cap for that group. Price-based currency
+  reservations use Hutch's prompt-size estimate and requested output-token limit; they are not an exact provider billing
+  guarantee. If a currency cap is set, a model without a known price is refused.
+- **Uncertain requests.** If Hutch cannot verify whether a provider accepted a request, its reservation stays held,
+  including across restarts. Check the provider's usage record after the run is terminal, then reconcile either exact
+  usage or a verified no-charge outcome:
+
+  ```bash
+  hutch usage reservations
+  hutch usage reconcile rsv_... --not-charged --reason "provider usage page confirms no charge"
+  # or: hutch usage reconcile rsv_... --prompt-tokens 900 --completion-tokens 120 \
+  #   --actual-cost-usd 0.0042 --reason "provider usage page checked"
+  ```
+
+  Reconciliation inserts usage once or releases a verified no-charge hold. Active runs cannot be reconciled. Never
+  release a reservation based only on a client timeout.
 - **Terms** (`CN-6`). Each template carries a notice. A bot cannot use the connection until it is acknowledged,
   and a changed notice requires acknowledging again. A run that hits an unacknowledged connection fails fast
   and tells you the command, or falls back to the next model if the bot has one.

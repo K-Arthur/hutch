@@ -46,8 +46,8 @@ managed infrastructure until trusted-proxy handling is documented and validated.
 
 ## Database migration and restore
 
-Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. The current schema version is displayed
-by `hutch doctor` (schema v9 in this realignment branch). Stop Hutch services before restoring a backup:
+Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. This realignment branch uses schema v10;
+`hutch doctor` displays the current version. Stop Hutch services before restoring a backup:
 
 ```bash
 # Replace STATE with the configured Hutch state directory.
@@ -67,6 +67,8 @@ private context. New conversations and message submissions are written transacti
 
 ## Limits and evidence boundaries
 
-Token estimates are not currency caps. A provider path without a firm pre-call price bound cannot claim a hard spend ceiling.
+Hutch's currency checks reserve a recorded-price estimate using its prompt-size estimate and requested reply-token cap. They are
+admission limits, not a guarantee against provider billing differences. Configure an independent limit with the provider when you
+need a separate external ceiling; do not treat Hutch's estimate as an exact dollar cap.
 The product support and verification matrix is in [the realignment ledger](realignment/ledger.md). Provider calls, real local models,
 Pi/OpenCode, browser binaries, mobile hardware, and physical desktop portals are reported separately from fixtures.
