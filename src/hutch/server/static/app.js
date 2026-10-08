@@ -309,6 +309,10 @@ function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confir
     }
     else if (modalReturnFocus?.isConnected && modalReturnFocus.getClientRects().length) modalReturnFocus.focus();
     else ($('#chat-prompt') || $('#nav-toggle'))?.focus();
+    if (feedRefreshPending) {
+      feedRefreshPending = false;
+      scheduleFeedRender();
+    }
   };
   const keyHandler = ev => {
     if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); close(); return; }
@@ -1013,7 +1017,7 @@ function budgetMeterHtml(bot) {
 
 /* -------------------------------------------------- live feed (SSE + render) */
 
-let runStream = null, statusTimer = null, renderTimer = null, subRunId = null;
+let runStream = null, statusTimer = null, renderTimer = null, subRunId = null, feedRefreshPending = false;
 let feedMode = "studio";   // "studio" (bot transcript) or "run" (single-run detail)
 
 function stopRunSubs() {
@@ -1076,6 +1080,7 @@ async function renderChatFeed() {
       .catch(error => ({facts:[], error:error.message}));
     if (!stillCurrent()) return;
   } catch { return; }
+  if ($("#modal-root .modal-card")) { feedRefreshPending = true; return; }
   const runIds = [...new Set(messages.filter(m => m.role === "user" && m.run_id).map(m => m.run_id))];
   if (authority.active_run_id && !runIds.includes(authority.active_run_id)) runIds.unshift(authority.active_run_id);
   if (!runIds.length) {
@@ -1112,6 +1117,7 @@ async function renderChatFeed() {
     parts.push(html);
   }
   if (!stillCurrent()) return;
+  if ($("#modal-root .modal-card")) { feedRefreshPending = true; return; }
   const reviewState = new Map($$("[data-approval-card] details", stream).map(d => [d.closest("[data-approval-card]").dataset.approvalCard, d.open]));
   const activityState = new Map($$("[data-run-id] .tool-stream", stream).map(d => [d.closest("[data-run-id]").dataset.runId, d.open]));
   const focused = document.activeElement;

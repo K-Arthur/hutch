@@ -1815,6 +1815,12 @@ def test_scoped_fact_review_revision_conflict_and_memory_off(browser, live, widt
             assert page.locator('.fact-share').bounding_box()['height']>=44
             assert page.locator('#modal-confirm').bounding_box()['height']>=44
         page.screenshot(path=str(out/f'{size}-review.png'), full_page=True, animations='disabled')
+        with page.expect_response(lambda response: '/facts?' in response.url and 'conversation_id=' in response.url) as refresh:
+            store.remember(bot.id, 'background-proposal', 'A refresh must not dismiss or steal the review dialog',
+                           conversation_id=a['id'])
+        assert refresh.value.status == 200
+        page.wait_for_timeout(100)
+        assert page.locator('.modal-card').is_visible()
         page.keyboard.press('Escape')
         wait_for(lambda: review_button.evaluate('e => e.matches(":focus")'), timeout=2)
         assert review_button.evaluate('e => e.matches(":focus")')

@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-10-08T20:49:06.894892+00:00",
+  "captured_at": "2026-10-08T21:07:50.188185+00:00",
   "browser": "chromium",
   "browser_version": "153.0.8010.12",
   "playwright": "1.63.0",
@@ -7,7 +7,7 @@
     "src/hutch/runtime/steps.py": "da05be64a1288a20be1582226bd1fcc6724a0c699c6757de4d6078497e56c4b5",
     "src/hutch/store.py": "53e19696434623c5be931d112ae492bb41b57f50ca71d3df86ed1e0cc3878096",
     "src/hutch/server/app.py": "1c747226c46265733fb4dc9164ec1c444c93a2329fe5a2520fd8e59679ef3e09",
-    "src/hutch/server/static/app.js": "b59b6f080fc4d1658a7f3249a8da967c4cedc437e928a785d31e889473db6ba0",
+    "src/hutch/server/static/app.js": "6e42b092e1614f00bf583bf765b00bfe6cc98fc374babbae3cabee444d3f718d",
     "src/hutch/server/static/style.css": "8388a0f7ccd930fe8f14b82ef4eb32e18a5b3af4a67cafbcb56934bc0f9f4c0c"
   },
   "screenshots": {
