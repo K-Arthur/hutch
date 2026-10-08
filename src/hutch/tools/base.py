@@ -25,6 +25,19 @@ class ToolResult:
     data: dict[str, Any] = field(default_factory=dict)
 
 
+def rehearsed(what: str, decision=None) -> ToolResult:
+    """What a mutating tool returns in Rehearse mode: nothing ran, and the policy's verdict on it is reported, so a
+    person (and the model) sees both what would happen and whether it would be allowed."""
+    if decision is not None and decision.verdict.value == "deny":
+        return ToolResult(ok=False, output=f"[rehearsal] would be BLOCKED: {decision.reason}. Nothing was changed.",
+                          data={"simulated": True, "blocked": True})
+    verdict = ""
+    if decision is not None:
+        verdict = {"allow": " Policy: allowed.", "ask": f" Policy: would pause for approval ({decision.reason})."}.get(
+            decision.verdict.value, "")
+    return ToolResult(ok=True, output=f"[rehearsal] would {what}.{verdict} Nothing was changed.", data={"simulated": True})
+
+
 class Tool:
     name: str = ""
     description: str = ""

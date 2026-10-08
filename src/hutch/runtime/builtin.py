@@ -55,8 +55,9 @@ Rules of engagement:
 Current date: {date} (UTC)
 {memory_block}"""
 
-REHEARSAL_NOTE = ("- This is a REHEARSAL (dry run): actions that would change anything are simulated and logged, "
-                  "not executed. Carry on as if they succeeded and describe what you would do.\n")
+REHEARSAL_NOTE = ("- This is a REHEARSAL (dry run). Reads run for real. Any tool that would change something does NOT run: it "
+                  "replies '[rehearsal] would ...' with the policy's verdict. Treat that as success, carry on, and describe "
+                  "what you would do and what would need approval.\n")
 
 DEFAULT_LOCAL_TURN_TOKENS = 2048     # SR-5: a small model rambling for 30k tokens is a failure, not an answer
 DEFAULT_HOSTED_TURN_TOKENS = 16000   # hosted models think inside max_tokens; a low cap truncates mid-thought

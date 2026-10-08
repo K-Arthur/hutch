@@ -73,6 +73,8 @@ def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, arg
     data: dict[str, Any] = {"tool": name, "ok": result.ok, "output": result.output[:output_chars]}
     if artifact:
         data.update(artifact=artifact, chars=full_chars)
+    if result.data.get("simulated"):
+        data["simulated"] = True                                 # Rehearse mode: nothing actually ran
     ctx.emit(Event(run_id=run.id, type=EventType.tool_result, data=data))
     return result
 

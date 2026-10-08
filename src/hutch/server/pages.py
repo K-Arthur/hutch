@@ -323,6 +323,12 @@ def register_pages(app: FastAPI) -> None:
                 bot.command_rules = [CommandRule(verdict=v, match=g) for v, g in parse_rules(form.get("command_rules"))]
             except ValueError as exc:
                 return go(nxt, error=f"Command rules not saved: {exc}")
+            from ..workdir import validate_workdir
+            wd = form.get("workdir").strip()
+            try:
+                bot.workdir = str(validate_workdir(wd, config.state_dir)) if wd else None
+            except ValueError as exc:
+                return go(nxt, error=f"Working folder not saved: {exc}")
             cron = form.get("cron").strip()
             if cron:
                 try:

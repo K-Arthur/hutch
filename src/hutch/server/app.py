@@ -53,6 +53,7 @@ class BotCreate(BaseModel):
     approval_mode: ApprovalMode = ApprovalMode.ask
     risk_tier: RiskTier = RiskTier.supervised
     command_rules: list[CommandRule] = []
+    workdir: Optional[str] = None
 
 
 class BotPatch(BaseModel):
@@ -62,6 +63,7 @@ class BotPatch(BaseModel):
     approval_mode: Optional[ApprovalMode] = None
     risk_tier: Optional[RiskTier] = None
     command_rules: Optional[list[CommandRule]] = None
+    workdir: Optional[str] = None          # "" clears it
     paused: Optional[bool] = None
     cron: Optional[str] = None
     clear_cron: bool = False
@@ -157,6 +159,13 @@ def create_app() -> FastAPI:
             for t in TEMPLATES.values()
         ]
 
+    def _checked_workdir(raw: str) -> str:
+        from ..workdir import validate_workdir
+        try:
+            return str(validate_workdir(raw, config.state_dir))
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+
     def _checked_rules(rules: list[CommandRule]) -> list[CommandRule]:
         from ..safety import MAX_RULES
         if len(rules) > MAX_RULES:
@@ -188,6 +197,8 @@ def create_app() -> FastAPI:
         bot.approval_mode = body.approval_mode
         bot.risk_tier = body.risk_tier
         bot.command_rules = _checked_rules(body.command_rules)
+        if body.workdir:
+            bot.workdir = _checked_workdir(body.workdir)
         if body.cron:
             try:
                 bot.schedule = Schedule(cron=body.cron, timezone=body.timezone,
@@ -214,6 +225,7 @@ def create_app() -> FastAPI:
         if body.approval_mode is not None: bot.approval_mode = body.approval_mode
         if body.risk_tier is not None: bot.risk_tier = body.risk_tier
         if body.command_rules is not None: bot.command_rules = _checked_rules(body.command_rules)
+        if body.workdir is not None: bot.workdir = _checked_workdir(body.workdir) if body.workdir else None
         if body.paused is not None: bot.paused = body.paused
         if body.clear_cron:
             bot.schedule = None

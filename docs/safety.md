@@ -100,6 +100,25 @@ cannot eat the context window).
 click can buy things). Login/CAPTCHA/MFA walls emit a `pause_to_human` event — the bot waits for a
 human, it never attempts challenges. Browser automation is globally serialized (one GUI at a time).
 
+## Rehearse (dry run)
+
+A run started with **Rehearse** changes nothing, whatever the model does. This is enforced by the tools, not requested
+in the prompt:
+
+- **Reads run for real**: `read_file`, `list_files`, `web_fetch`, browser `goto`/`read`/`wait`, `recall`, and shell commands
+  that are provably read-only.
+- **Everything else is only described.** `write_file`, `remember`, browser `click`/`type`/`screenshot` and any shell
+  command that is not read-only reply `[rehearsal] would ...` with the policy's verdict ("would pause for approval", or
+  "would be BLOCKED: ..."), and the transcript marks the result **simulated**. A simulated action asks nobody, because
+  nothing happens.
+- **Read-only is an allowlist, and unsure means simulated**: `ls`, `cat`, `grep`, `find` (without `-exec`/`-delete`), `git
+  status|log|diff|show`, `sort`, `wc`, `echo`, and similar, joined by pipes and `&&`. A write redirect, a background job, a
+  heredoc, a wrapper (`bash -c`, `env`, `xargs`), a substitution containing a non-read-only command, `sed`, `awk`, `tee`,
+  `python`, `curl` are all treated as mutating.
+
+Limits: a rehearsal still calls the model (and so can cost money on a hosted one), and a read that has a side effect on
+someone else's server (a `GET` that logs you out) still happens.
+
 ## Approval flow
 
 1. A tool hits an **ask** verdict → an `ApprovalRequest` row is created; the run enters

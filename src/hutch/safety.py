@@ -188,6 +188,52 @@ def _program(tokens: list[str]) -> str:
     return name
 
 
+#: programs that only ever read (rehearsal runs these for real; everything else is simulated)
+_READONLY_PROGRAMS = {
+    "ls", "cat", "head", "tail", "wc", "grep", "egrep", "fgrep", "rg", "pwd", "echo", "printf", "date", "stat", "du", "df",
+    "file", "uniq", "cut", "tr", "diff", "cmp", "which", "type", "tree", "basename", "dirname", "realpath", "readlink",
+    "sha256sum", "sha1sum", "md5sum", "jq", "true", "false", "test", "[", "[[", "seq", "expr", "id", "whoami", "uname",
+    "hostname", "uptime", "nproc", "sort", "find", "git", "cd",
+}
+_READONLY_GIT = {"status", "log", "diff", "show", "ls-files", "rev-parse", "describe", "shortlog", "blame", "grep"}
+_FIND_MUTATORS = {"-exec", "-execdir", "-ok", "-okdir", "-delete", "-fprint", "-fprint0", "-fprintf", "-fls"}
+
+
+def is_read_only(command: str, _depth: int = 0) -> bool:
+    """True only if EVERY part of the command is known to change nothing: a pipeline of read-only programs, no writing
+    redirect, no background job, and any nested command also read-only. When unsure the answer is False (rehearsal then
+    simulates the command instead of running it)."""
+    if _depth > MAX_DEPTH or not command.strip():
+        return False
+    try:
+        segments = split_compound(command)
+    except ParseError:
+        return False
+    if not segments:
+        return False
+    for seg in segments:
+        if seg.background or any(t not in _SAFE_REDIRECT_TARGETS for t in seg.redirects) or seg.heredoc:
+            return False
+        if seg.subshell:
+            pass
+        else:
+            toks = seg.tokens
+            prog = os.path.basename(toks[0]) if toks else ""
+            if prog not in _READONLY_PROGRAMS or any(SUBST in t for t in toks[:1]):
+                return False
+            if prog == "find" and any(t in _FIND_MUTATORS for t in toks):
+                return False
+            if prog == "sort" and any(t in ("-o", "--output") or t.startswith("--output=") or (t.startswith("-") and not t.startswith("--") and "o" in t[1:]) for t in toks[1:]):
+                return False
+            if prog == "git":
+                sub = next((t for t in toks[1:] if not t.startswith("-")), "")
+                if sub not in _READONLY_GIT or any(t in ("--output", "-o") or t.startswith("--output=") for t in toks):
+                    return False
+        if not all(is_read_only(inner, _depth + 1) for inner in seg.nested):
+            return False
+    return True
+
+
 RULE_VERDICTS = ("allow", "ask", "deny")
 MAX_RULES = 50
 MAX_RULE_LEN = 200

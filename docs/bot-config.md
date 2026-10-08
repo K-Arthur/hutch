@@ -18,7 +18,27 @@ dashboard, or the REST API, and live in `hutch.db`.
 | `limits` | obj | see below | hard caps |
 | `approval_mode` | enum | `ask` | `ask` · `auto` |
 | `memory_enabled` | bool | true | inject remembered facts into the system prompt |
+| `workdir` | path? | null | a folder of yours the bot works in, run after run (see below); null = a fresh empty workspace per run |
+| `risk_tier` | enum | `supervised` | `readonly` · `supervised` · `trusted`: what happens to medium-risk actions ([safety.md](safety.md)) |
+| `command_rules` | list | `[]` | `{match, verdict}` per-command `allow`/`ask`/`deny` globs ([safety.md](safety.md)) |
 | `paused` | bool | false | schedules skipped while paused |
+
+### Working folder
+
+Without a `workdir`, every run gets a fresh, empty workspace, so a bot cannot see your files. Set one and the run's
+workspace *is* that folder: file tools resolve inside it, the shell starts in it, and a path that escapes it is denied.
+Files persist from run to run, so a bot can sort `~/Downloads`, read a folder of CSVs, or keep a running report.
+
+```bash
+hutch bot create tidy --workdir ~/Downloads --risk-tier supervised
+hutch bot update tidy --clear-workdir
+```
+
+Because the folder is yours and live it is validated hard: it must already exist (Hutch never creates it), be readable, and
+not be a system location (`/etc`, `/usr`, `/proc`, ...), your whole home folder or a parent of it, Hutch's own state folder
+(it holds transcripts, memory and keys), or a credentials location (`~/.ssh`, `.aws`, ...). Symlinks are resolved first, and
+the check runs again at the start of every run: a folder that has vanished or become forbidden fails the run with the reason.
+Two bots may share a folder; Hutch does not coordinate between them. **Rehearse** runs never change it.
 
 ## Model specs
 

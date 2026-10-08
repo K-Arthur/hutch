@@ -18,7 +18,7 @@
     </details>
   {%- elif ev.type == "tool_result" %}
     <details class="toolline result {{ 'ok' if d.ok else 'bad' }}">
-      <summary>{{ icon("check" if d.ok else "x", 14) }}<span class="argsum">{{ d.output | outsum }}</span>{% if d.output and d.output | length > 140 %}<span class="more">{{ d.output | length }} chars</span>{% endif %}</summary>
+      <summary>{{ icon("check" if d.ok else "x", 14) }}{% if d.simulated %}<span class="tag" title="Rehearse mode: nothing actually ran">simulated</span> {% endif %}<span class="argsum">{{ d.output | outsum }}</span>{% if d.output and d.output | length > 140 %}<span class="more">{{ d.output | length }} chars</span>{% endif %}</summary>
       <pre>{{ d.output }}</pre>
     </details>
   {%- elif ev.type == "approval_request" %}

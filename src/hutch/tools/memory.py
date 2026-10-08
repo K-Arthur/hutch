@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .base import Tool, ToolContext, ToolResult, _schema, clip
+from .base import Tool, ToolContext, ToolResult, _schema, clip, rehearsed
 
 MAX_MEMORY_CHARS = 6_000
 
@@ -29,6 +29,8 @@ class MemorySaveTool(Tool):
         key, value = (args.get("key") or "").strip(), (args.get("value") or "").strip()
         if not key or not value:
             return ToolResult(ok=False, output="error: 'key' and 'value' are required")
+        if ctx.dry_run:
+            return rehearsed(f"remember '{key}'")
         ctx.store.remember(ctx.bot.id, key, clip(value, 2000), run_id=ctx.run.id)
         return ToolResult(ok=True, output=f"remembered '{key}'")
 

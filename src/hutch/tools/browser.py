@@ -20,7 +20,7 @@ from typing import Any, Callable, Optional
 
 from ..models import Event, EventType
 from ..approvals import DeniedError
-from .base import Tool, ToolContext, ToolResult, _schema, clip
+from .base import Tool, ToolContext, ToolResult, _schema, clip, rehearsed
 
 # One browser automation at a time on a single desktop.
 _GLOBAL_BROWSER_LOCK = threading.Lock()
@@ -99,6 +99,9 @@ class BrowserTool(Tool):
         if action not in _ACTIONS:
             return ToolResult(ok=False, output=f"error: unknown action '{action}'")
 
+        if ctx.dry_run and action in ("click", "type", "screenshot"):
+            # a click or keystroke can submit a form, send a message or buy something; a screenshot writes a file
+            return rehearsed(f"browser {action} {args.get('selector') or args.get('label') or ''}".strip())
         # Policy gates per action class
         if action == "goto":
             url = (args.get("url") or "").strip()

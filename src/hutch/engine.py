@@ -17,6 +17,7 @@ import os
 import threading
 import time
 import traceback
+from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 
@@ -34,6 +35,7 @@ from .models import (
 )
 from .runtime import RunAborted, get_runtime
 from .safety import PolicyEngine
+from .workdir import check_workdir_at_run
 from .scheduler import Scheduler
 from .store import Store
 from .tools import ToolContext, build_tools
@@ -179,8 +181,13 @@ class Engine:
 
     def _execute(self, bot: Bot, run: Run, cancel: threading.Event) -> None:
         run_dir = self.config.run_dir(bot.name, run.id)
-        workspace = run_dir / "workspace"
-        workspace.mkdir(parents=True, exist_ok=True)
+        workdir_error = check_workdir_at_run(bot.workdir, self.config.state_dir)
+        if bot.workdir:
+            workspace = Path(bot.workdir).resolve()                # the user's own folder: never created, never replaced
+        else:
+            workspace = run_dir / "workspace"
+            workspace.mkdir(parents=True, exist_ok=True)
+        run_dir.mkdir(parents=True, exist_ok=True)
         transcript = run_dir / "transcript.jsonl"
 
         def emit(ev: Event) -> None:
@@ -226,6 +233,8 @@ class Engine:
 
         def work() -> None:
             try:
+                if workdir_error:
+                    raise RunAborted("error", workdir_error)
                 result["final"] = runtime.execute(run, ctx, tools, stop)
             except RunAborted as exc:
                 result["aborted"] = exc

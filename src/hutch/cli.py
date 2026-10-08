@@ -167,6 +167,7 @@ def bot_create(
     tz: str = typer.Option("UTC", "--tz", help="IANA timezone for the schedule"),
     catch_up: CatchUpPolicy = typer.Option(CatchUpPolicy.coalesce, "--catch-up"),
     approval: ApprovalMode = typer.Option(ApprovalMode.ask, "--approvals", help="ask | auto"),
+    workdir: Optional[str] = typer.Option(None, "--workdir", help="a folder of yours the bot works in, e.g. ~/Downloads"),
     risk_tier: RiskTier = typer.Option(RiskTier.supervised, "--risk-tier",
                                        help="readonly (medium-risk actions blocked) | supervised (ask) | trusted (run)"),
     rule: list[str] = typer.Option([], "--rule", help="per-command rule, e.g. --rule 'deny: git push*' (repeatable)"),
@@ -208,6 +209,8 @@ def bot_create(
     bot.tools = tool_list
     bot.approval_mode = approval
     bot.risk_tier = risk_tier
+    if workdir:
+        bot.workdir = _check_workdir_option(workdir)
     if rule:
         bot.command_rules = _parse_rule_options(rule)
     bot.limits = Limits(max_steps=max_steps, timeout_seconds=timeout, daily_token_cap=token_cap)
@@ -230,6 +233,15 @@ def bot_estimate(name: str = typer.Argument(...), model: Optional[str] = typer.O
     console.print(e.summary)
     if e.kind == "priced" and e.daily_token_cap:
         console.print(f"[dim]tokens today: {e.tokens_today:,} of the {e.daily_token_cap:,} daily cap[/dim]")
+
+
+def _check_workdir_option(raw: str) -> str:
+    from .workdir import validate_workdir
+    try:
+        return str(validate_workdir(raw, get_config().state_dir))
+    except ValueError as exc:
+        err.print(f"[red]invalid --workdir:[/red] {exc}")
+        raise typer.Exit(code=1)
 
 
 def _parse_rule_options(rules: list[str]):
@@ -273,6 +285,8 @@ def bot_update(
     description: Optional[str] = typer.Option(None, "--description"),
     approval: Optional[ApprovalMode] = typer.Option(None, "--approvals"),
     risk_tier: Optional[RiskTier] = typer.Option(None, "--risk-tier", help="readonly | supervised | trusted"),
+    workdir: Optional[str] = typer.Option(None, "--workdir", help="a folder of yours the bot works in"),
+    clear_workdir: bool = typer.Option(False, "--clear-workdir", help="go back to a fresh empty workspace per run"),
     rule: list[str] = typer.Option([], "--rule", help="replace the bot's command rules, e.g. --rule 'deny: git push*'"),
     clear_rules: bool = typer.Option(False, "--clear-rules", help="remove all command rules"),
     cron: Optional[str] = typer.Option(None, "--cron", help="new cron expression"),
@@ -288,6 +302,8 @@ def bot_update(
     if description is not None: bot.description = description
     if approval is not None: bot.approval_mode = approval
     if risk_tier is not None: bot.risk_tier = risk_tier
+    if clear_workdir: bot.workdir = None
+    if workdir: bot.workdir = _check_workdir_option(workdir)
     if clear_rules: bot.command_rules = []
     if rule: bot.command_rules = _parse_rule_options(rule)
     if paused is not None: bot.paused = paused

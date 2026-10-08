@@ -10,6 +10,7 @@
     <div class="tags"><span class="tag">{{ bot.model }}</span><span class="tag">{{ bot.runtime.value }}</span>
       <span class="tag">{{ bot.schedule.cron ~ " (" ~ bot.schedule.timezone ~ ")" if bot.schedule else "on demand" }}</span>
       <span class="tag {{ 'warn' if bot.approval_mode.value == 'ask' else 'ok' }}">approvals: {{ bot.approval_mode.value }}</span>
+      {% if bot.workdir %}<span class="tag" title="The folder this bot works in">folder: {{ bot.workdir }}</span>{% endif %}
       <span class="tag {{ 'ok' if bot.risk_tier.value == 'readonly' else 'warn' if bot.risk_tier.value == 'trusted' else '' }}" title="What this bot may do without asking">tier: {{ bot.risk_tier.value }}{% if bot.command_rules %} + {{ bot.command_rules | length }} rule{{ '' if bot.command_rules | length == 1 else 's' }}{% endif %}</span>
       {% if bot.paused %}<span class="chip st-paused">paused</span>{% endif %}</div>
   </div>
@@ -69,6 +70,8 @@
     <label class="field"><span>Schedule (cron, blank = on demand)</span><input type="text" name="cron" value="{{ bot.schedule.cron if bot.schedule else '' }}" placeholder="0 9 * * 1"></label>
     <label class="field"><span>Schedule time zone</span><input type="text" name="timezone" value="{{ bot.schedule.timezone if bot.schedule else 'UTC' }}"></label>
     <label class="field"><span>Approvals</span><select name="approval_mode"><option value="ask" {{ 'selected' if bot.approval_mode.value == 'ask' }}>ask - pause for risky actions</option><option value="auto" {{ 'selected' if bot.approval_mode.value == 'auto' }}>auto - only the deny-list stops it</option></select></label>
+    <label class="field wide"><span>Working folder</span><input type="text" name="workdir" value="{{ bot.workdir or '' }}" placeholder="blank = a fresh empty workspace for every run" class="mono">
+      <small>A folder of yours the bot works in, run after run, for example <span class="mono">~/Downloads</span> or a project of CSVs. It can read and change anything inside it and nothing outside. Must already exist; system folders, your whole home and Hutch's own state are refused.</small></label>
     <label class="field"><span>Risk tier</span><select name="risk_tier">
       <option value="readonly" {{ 'selected' if bot.risk_tier.value == 'readonly' }}>read-only - anything that would ask is blocked</option>
       <option value="supervised" {{ 'selected' if bot.risk_tier.value == 'supervised' }}>supervised - medium-risk actions ask (default)</option>

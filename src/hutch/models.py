@@ -160,6 +160,7 @@ class Bot(BaseModel):
     limits: Limits = Field(default_factory=Limits)
     approval_mode: ApprovalMode = ApprovalMode.ask
     memory_enabled: bool = True
+    workdir: Optional[str] = None     # a folder of yours the bot works in, run after run; None = a fresh empty workspace per run
     paused: bool = False
     template: Optional[str] = None    # which starter template it came from
     preset: Optional[str] = None      # task preset this bot was configured from (LM-7)

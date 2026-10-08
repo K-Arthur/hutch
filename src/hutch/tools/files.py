@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from .base import Tool, ToolContext, ToolResult, _schema, clip
+from .base import Tool, ToolContext, ToolResult, _schema, clip, rehearsed
 
 
 def _resolve(path: str, ctx: ToolContext):
@@ -75,6 +75,8 @@ class FilesWriteTool(Tool):
     def run(self, args: dict[str, Any], ctx: ToolContext) -> ToolResult:
         path, content = args.get("path", ""), args.get("content", "")
         decision = ctx.policy.check_path(path, ctx.workspace, write=True)
+        if ctx.dry_run:
+            return rehearsed(f"write {path} ({len(content)} chars)", decision)
         try:
             ctx.gate.decide("files", f"write {path} ({len(content)} chars)", {"path": path}, decision)
         except Exception as exc:

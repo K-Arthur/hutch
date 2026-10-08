@@ -13,7 +13,8 @@ import signal
 import subprocess
 from typing import Any
 
-from .base import Tool, ToolContext, ToolResult, _schema, clip
+from ..safety import Verdict, is_read_only
+from .base import Tool, ToolContext, ToolResult, _schema, clip, rehearsed
 
 
 class ShellTool(Tool):
@@ -38,6 +39,8 @@ class ShellTool(Tool):
         timeout = min(int(args.get("timeout") or 120), 300)
 
         decision = ctx.policy.check_shell(command)
+        if ctx.dry_run and not (decision.verdict is Verdict.allow and is_read_only(command)):
+            return rehearsed(f"run `{command}`", decision)         # reads still run; anything else is only described
         try:
             ctx.gate.decide("shell", f"$ {command}", {"command": command}, decision)
         except Exception as exc:
