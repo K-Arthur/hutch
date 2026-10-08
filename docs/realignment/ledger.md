@@ -50,6 +50,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `cd4f402` | Cross-run transcript event pages/SSE, Last-Event-ID replay, bounded snapshot reconciliation and focused real-socket tests |
 | `896a774` | Same-harness baseline/current artifacts, data-quality notebook, final screenshots and demo-label correction |
 | `4bdd936` | Schema-v12 recoverable transcript files, durable prerequisites, inspected UI errors and raw performance diagnosis |
+| `e09e0fa` | Schema-v13 immutable action intents, once-only human reconciliation, inline/cross-bot review, migration/exception/crash tests, inspected proof and raw comparison |
 | `33ac3ba` | Schema-v10 usage reservations, account-shared admission, uncertain-charge reconciliation, estimates and marketing copy; offline suite 1,003 passed, provider/reservation 45 passed, browser suite 15 passed |
 
 ## Verified behavior before this checkpoint

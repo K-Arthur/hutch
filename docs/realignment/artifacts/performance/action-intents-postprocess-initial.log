@@ -1,0 +1,9 @@
+{"completed": "previous-4bdd936-action-intents", "metrics": {"cli_version_ms": 239.55974204000086, "cli_status_ms": 265.14527504332364, "events_per_sec": 51831.66455181406, "step_overhead_ms": 0.04307045601308346, "idle_rss_daemon_mb": 42.0, "idle_cpu_daemon_s_per_hour": 0.0, "idle_rss_serve_mb": 62.2, "idle_cpu_serve_s_per_hour": 9.0}}
+{"completed": "current-4bdd936-action-intents", "metrics": {"cli_version_ms": 236.41709692310542, "cli_status_ms": 255.11861592531204, "events_per_sec": 51262.107550402856, "step_overhead_ms": 0.06610858254134655, "idle_rss_daemon_mb": 42.1, "idle_cpu_daemon_s_per_hour": 0.0, "idle_rss_serve_mb": 63.6, "idle_cpu_serve_s_per_hour": 4.5}}
+Traceback (most recent call last):
+  File "/home/kevina/CodingProjects/hutch/.worktrees/realign/docs/realignment/artifacts/performance/capture_comparison.py", line 70, in <module>
+    main()
+    ~~~~^^
+  File "/home/kevina/CodingProjects/hutch/.worktrees/realign/docs/realignment/artifacts/performance/capture_comparison.py", line 65, in main
+    from benchmarks.run import compare
+ModuleNotFoundError: No module named 'benchmarks'

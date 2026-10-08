@@ -1,0 +1,11 @@
+metric                                 p50         p90     n    baseline    target
+cli_version_ms                     239.6ms     248.0ms    11     255.3ms         - 
+cli_status_ms                      265.1ms     298.2ms    11     275.0ms     300.0 ok
+events_per_sec                   51832ev/s   66916ev/s     5   52085ev/s    1000.0 ok
+step_overhead_ms                     0.0ms       0.0ms    12       0.2ms      50.0 ok
+idle_rss_daemon_mb                  42.0MB      42.3MB     3      39.4MB     150.0 ok
+idle_rss_serve_mb                   62.2MB      63.5MB     3      56.1MB     150.0 ok
+idle_cpu_daemon_s_per_hour          0.0s/h      0.0s/h     3      0.0s/h         - 
+idle_cpu_serve_s_per_hour           9.0s/h      9.0s/h     3      4.5s/h         - 
+
+machine: AMD Ryzen 3 5300U with Radeon Graphics (8 cores), python 3.13.15
