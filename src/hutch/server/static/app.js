@@ -285,18 +285,28 @@ function errorState(err) {
 
 function stopPolling() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  if (approvalsTimer) { clearInterval(approvalsTimer); approvalsTimer = null; }
 }
 
 window.addEventListener("hashchange", route);
 
+// App-wide attention: the Approvals nav item carries the pending count everywhere,
+// and a new arrival is announced once through the bounded live region.
+let lastPendingCount = null;
 async function refreshBadge() {
   try {
     const stats = await api("/stats");
+    const n = stats.pending_approvals || 0;
     const badge = $("#approval-badge");
     if (badge) {
-      badge.textContent = stats.pending_approvals;
-      badge.classList.toggle("hidden", stats.pending_approvals === 0);
+      badge.textContent = n;
+      badge.classList.toggle("hidden", n === 0);
     }
+    $('[data-nav="approvals"]')?.classList.toggle("attention", n > 0);
+    if (lastPendingCount !== null && n > lastPendingCount) {
+      announce(`${n} approval${n === 1 ? "" : "s"} waiting for you.`);
+    }
+    lastPendingCount = n;
   } catch {}
 }
 
@@ -825,29 +835,151 @@ function wireFeedInteractions(runId) {
   });
 }
 
-// Live fail-closed countdowns: any [data-deadline] (epoch ms) ticks down.
+// Live fail-closed countdowns: any [data-deadline] (epoch ms) ticks down, and at
+// zero the gate flips to its resolved state rather than leaving dead controls.
 function updateTtls() {
   $$("[data-deadline]").forEach(el => {
-    const target = el.querySelector("[data-ttl-text]") || el;
     const ms = Number(el.dataset.deadline) - Date.now();
     if (ms <= 0) {
-      target.textContent = "expired — denied";
-      el.classList.add("expired");
-      // A fail-closed gate must not offer live buttons once it has failed closed.
-      const card = el.closest(".approval-card-chat, .approval");
-      if (card) {
-        card.classList.add("expired");
-        card.querySelectorAll("[data-approve]").forEach(b => b.remove());
-        card.querySelector(".approval-always")?.remove();
+      const card = el.closest("[data-approval-card]");
+      if (card && !card.classList.contains("expired")) {
+        const action = card.querySelector(".approval-action-text")?.textContent || "";
+        card.outerHTML = approvalResolvedHtml({ approval_id: card.dataset.approvalCard, action }, "expired");
       }
       return;
     }
+    el.classList.remove("expired");
+    const target = el.querySelector("[data-ttl-text]");
+    if (!target) return;
     const m = Math.floor(ms / 60000);
     const s = Math.floor((ms % 60000) / 1000);
     target.textContent = `${m}:${String(s).padStart(2, "0")} left`;
   });
 }
 setInterval(updateTtls, 1000);
+
+// --------------------------------------------------------- approvals (shared)
+
+// One approval, rendered identically in the chat feed and the approvals queue:
+// the action in plain language first, the technical detail behind a disclosure, and
+// the exact scope of an "always allow" grant. System-generated cards stay visually
+// distinct from model prose so a message cannot impersonate a gate.
+function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
+  const id = a.approval_id || a.id;
+  if (resolved && resolved !== "pending") return approvalResolvedHtml(a, resolved, botName);
+
+  const action = a.action || "Perform action";
+  const tool = a.tool || "";
+  const rule = a.rule || "";
+  const risk = a.risk || "medium";
+  const outward = !!a.outward;
+  const deadline = a.deadline
+    || (a.expires_at ? new Date(a.expires_at).getTime()
+      : (a.created_at ? new Date(a.created_at).getTime() + 10 * 60 * 1000 : 0));
+  const expired = deadline && deadline <= Date.now();
+  const detail = a.detail && Object.keys(a.detail || {}).length ? JSON.stringify(a.detail, null, 2) : "";
+  const segments = a.segments || [];
+  const stickyKey = a.sticky_key || "";
+  const canAlways = !!(stickyKey && !outward);
+  const runId = a.run_id || "";
+
+  const rows = [
+    ["Tool", tool],
+    rule ? ["Why you are asked", rule] : null,
+    ["Reversibility", outward
+      ? "Sends data out of this machine — Stop cannot recall it once it has gone"
+      : "Confined to this machine's workspace"],
+  ].filter(Boolean).map(([k, v]) =>
+    `<div class="review-row"><span class="review-key">${esc(k)}</span><span>${esc(v)}</span></div>`).join("");
+
+  return `
+    <div class="approval-card-chat risk-${esc(risk)} ${outward ? "outward" : ""} ${expired ? "expired" : ""}"
+         data-approval-card="${esc(id)}" ${deadline ? `data-deadline="${deadline}"` : ""}>
+      <div class="approval-badge-bar">
+        <div class="approval-head-left">
+          <span class="tag warn">Approval required</span>
+          ${botName ? `<b class="approval-bot">${esc(botName)}</b>` : ""}
+          ${tool ? `<span class="tag">${esc(tool)}</span>` : ""}
+          <span class="tag ${risk === "high" ? "danger" : risk === "low" ? "" : "warn"}">${esc(risk)} risk</span>
+          ${outward ? `<span class="tag danger" title="Leaves this machine; always-allow is not offered">outward</span>` : ""}
+        </div>
+        <span class="ttl-countdown" data-deadline-parent>${icon("hourglass")}<span data-ttl-text>${expired ? "expired — denied" : ""}</span></span>
+      </div>
+      <div class="approval-action-text">${esc(action)}</div>
+      <details class="approval-review">
+        <summary>Review details</summary>
+        <div class="review-rows">${rows}</div>
+        ${segments.length ? `<div class="approval-segments">${segments.map(s => `
+          <div class="approval-seg">
+            <code>${esc(s.text)}</code>
+            <span class="tag ${s.verdict === "deny" ? "danger" : s.verdict === "ask" ? "warn" : ""}">${esc(s.verdict)}</span>
+            <span class="seg-why">${esc(s.reason || "")}</span>
+          </div>`).join("")}</div>` : ""}
+        ${detail ? `<span class="review-label">Raw request</span><pre class="approval-detail mono">${esc(detail)}</pre>` : ""}
+      </details>
+      ${canAlways
+        ? `<p class="hint approval-scope">Always-allow remembers <code>${esc(stickyKey)}</code> for this bot. Revoke it any time in the bot's Sticky permissions.</p>`
+        : outward
+          ? `<p class="hint approval-scope">This action leaves the machine, so always-allow is not offered — you decide each time.</p>`
+          : ""}
+      <div class="approval-buttons" data-approval="${esc(id)}">
+        <button class="primary small" data-approve="1">Allow once</button>
+        ${canAlways ? `<button class="ghost small" data-approve="always">Always allow for this bot</button>` : ""}
+        <button class="ghost small" data-approve="0">Deny</button>
+        ${runId ? `<a class="btn ghost small" href="#/run/${esc(runId)}">Open run</a>` : ""}
+      </div>
+    </div>`;
+}
+
+// A resolved gate. Server-authoritative: it names who decided and when, so two
+// devices racing to answer the same card end up agreeing rather than diverging.
+function approvalResolvedHtml(a, outcome, botName = "") {
+  const labels = {
+    approved: "Approved", denied: "Denied",
+    expired: "Expired — denied by timeout", missing: "No longer exists",
+  };
+  const ok = outcome === "approved";
+  const by = a.decided_by && outcome !== "expired" && outcome !== "missing" ? ` by ${esc(a.decided_by)}` : "";
+  const at = a.resolved_at ? ` · ${timeAgo(a.resolved_at)}` : "";
+  return `
+    <div class="approval-card-chat resolved ${ok ? "allowed" : "denied"}" data-approval-card="${esc(a.approval_id || a.id || "")}">
+      <div class="approval-badge-bar">
+        <span class="tag ${ok ? "ok" : "danger"}">${icon(ok ? "check" : "x")} ${esc(labels[outcome] || "Resolved")}${by}${at}</span>
+        ${botName ? `<b class="approval-bot">${esc(botName)}</b>` : ""}
+      </div>
+      ${a.action ? `<div class="approval-action-text muted">${esc(a.action)}</div>` : ""}
+    </div>`;
+}
+
+// Resolve, then reconcile against the real state on any failure (409 = answered
+// elsewhere, 404 = gone). We never claim a success the server did not confirm.
+async function resolveApproval(id, choice, card) {
+  const always = choice === "always";
+  const approve = choice === "1" || always;
+  const action = card?.querySelector(".approval-action-text")?.textContent || "";
+  card?.querySelectorAll("button").forEach(b => { b.disabled = true; });   // no double-submit
+  try {
+    await api(`/approvals/${encodeURIComponent(id)}/${approve ? "approve" : "deny"}`, {
+      method: "POST", body: approve ? { always } : {},
+    });
+    toast(approve ? (always ? "Allowed — remembered for this bot" : "Allowed once") : "Denied");
+    if (card) card.outerHTML = approvalResolvedHtml({ approval_id: id, action }, approve ? "approved" : "denied");
+  } catch (err) {
+    let current = null;
+    try { current = await api(`/approvals/${encodeURIComponent(id)}`); } catch { /* 404: gone */ }
+    if (current && current.status && current.status !== "pending") {
+      if (card) card.outerHTML = approvalResolvedHtml({ ...current, approval_id: id }, current.status, current.bot_name || "");
+      toast(`Already ${current.status}${current.decided_by ? ` by ${current.decided_by}` : ""} — nothing changed.`);
+    } else if (!current) {
+      if (card) card.outerHTML = approvalResolvedHtml({ approval_id: id, action }, "missing");
+      toast("This request no longer exists — it may have been replaced.", true);
+    } else {
+      card?.querySelectorAll("button").forEach(b => { b.disabled = false; });
+      toast(err.message || "Could not resolve approval", true);
+    }
+  }
+  refreshBadge();
+}
 
 function renderChatEvent(e) {
   const t = e.ts ? e.ts.slice(11, 19) : "";
@@ -867,26 +999,10 @@ function renderChatEvent(e) {
       `;
     }
     case "approval_request": {
-      const deadline = e.ts ? new Date(e.ts).getTime() + 10 * 60 * 1000 : 0;
-      const expired = deadline && deadline <= Date.now();
-      const detail = JSON.stringify(d.detail ?? {}, null, 2);
-      return `
-        <div class="approval-card-chat ${expired ? "expired" : ""}" data-approval-card="${esc(d.approval_id)}" ${deadline ? `data-deadline="${deadline}"` : ""}>
-          <div class="approval-badge-bar">
-            <span class="tag warn">Approval required</span>
-            <span class="ttl-countdown" data-deadline-parent>${icon("hourglass")}<span data-ttl-text>${expired ? "expired — denied" : "10:00 left"}</span></span>
-          </div>
-          <div class="approval-action-text">${esc(d.action || "Perform action")}</div>
-          ${detail === "{}" ? "" : `<pre class="approval-detail mono">${esc(detail)}</pre>`}
-          <div class="approval-buttons" data-approval="${esc(d.approval_id)}">
-            <button class="primary small" data-approve="1">Approve</button>
-            <button class="ghost small" data-approve="0">Deny</button>
-            <label class="approval-always">
-              <input type="checkbox" class="always"> always allow this action
-            </label>
-          </div>
-        </div>
-      `;
+      const deadline = d.expires_at ? new Date(d.expires_at).getTime()
+        : (e.ts ? new Date(e.ts).getTime() + 10 * 60 * 1000 : 0);
+      return approvalCardHtml({ ...d, deadline, run_id: currentRunId || e.run_id },
+        { botName: currentStudioBot || "" });
     }
     default:
       // tool_call / tool_result are consumed by pairToolEvents()
@@ -1171,47 +1287,40 @@ async function renderRuns(query = "") {
 
 // ------------------------------------------------------------- APPROVALS
 
+let approvalsTimer = null;
+
 async function renderApprovals() {
-  const approvals = await api("/approvals");
+  clearInterval(approvalsTimer);
   view.innerHTML = `
     <div class="container">
       <h1 class="page-title">Approvals</h1>
       <p class="page-subtitle">A bot wants to perform an irreversible action. Unanswered requests expire as <b>denied</b>.</p>
+      <div id="approvals-pending"></div>
+      <h2 class="section-sub">Recently decided</h2>
+      <div id="approvals-resolved"></div>
+    </div>`;
+  await refreshApprovals();
+  // Keep the queue honest across devices: a card answered on your phone (or by a
+  // timeout) must clear or update here without a manual reload.
+  approvalsTimer = setInterval(refreshApprovals, 5000);
+}
 
-      ${approvals.map(a => {
-        const deadline = a.created_at ? new Date(a.created_at).getTime() + 10 * 60 * 1000 : 0;
-        const expired = deadline && deadline <= Date.now();
-        const detail = JSON.stringify(a.detail ?? {}, null, 2);
-        return `
-        <div class="approval-card-chat ${expired ? "expired" : ""}" data-approval-card="${esc(a.id)}" ${deadline ? `data-deadline="${deadline}"` : ""}>
-          <div class="approval-badge-bar">
-            <div class="bot-header-chips">
-              <b>${esc(a.bot_name)}</b>
-              <span class="tag">${esc(a.tool)}</span>
-            </div>
-            <span class="ttl-countdown" data-deadline-parent>${icon("hourglass")}<span data-ttl-text>${expired ? "expired — denied" : "10:00 left"}</span></span>
-          </div>
-          <div class="approval-action-text">${esc(a.action)}</div>
-          ${detail === "{}" ? "" : `<pre class="approval-detail mono">${esc(detail)}</pre>`}
-          <div class="approval-buttons" data-approval="${esc(a.id)}">
-            <button class="primary small" data-approve="1">Approve</button>
-            <button class="ghost small" data-approve="0">Deny</button>
-            <label class="approval-always">
-              <input type="checkbox" class="always"> always allow for this bot
-            </label>
-            <a class="btn ghost small" href="#/run/${esc(a.run_id)}">Open run</a>
-          </div>
-        </div>
-        `;
-      }).join("") || `
-        <div class="empty-state">
-          ${icon("check", "icon-lg")}
-          <p>No pending approvals.</p>
-          <p class="hint">When a bot hits a gated action, it waits here for your decision.</p>
-        </div>
-      `}
-    </div>
-  `;
+async function refreshApprovals() {
+  const [pending, resolved] = await Promise.all([
+    api("/approvals").catch(() => []),
+    api("/approvals?status=resolved&limit=8").catch(() => []),
+  ]);
+  const list = $("#approvals-pending");
+  const done = $("#approvals-resolved");
+  if (!list || !done) return;                      // route changed mid-flight
+  list.innerHTML = pending.length
+    ? pending.map(a => approvalCardHtml(a, { botName: a.bot_name })).join("")
+    : `<div class="empty-state">${icon("check", "icon-lg")}
+         <p>No pending approvals.</p>
+         <p class="hint">When a bot hits a gated action, it waits here for your decision.</p></div>`;
+  done.innerHTML = (resolved || []).length
+    ? resolved.map(a => approvalResolvedHtml(a, a.status, a.bot_name)).join("")
+    : `<p class="hint">Decided approvals appear here.</p>`;
   wireApprovals();
   updateTtls();
 }
@@ -1380,22 +1489,10 @@ async function promptNewBot() {
 
 function wireApprovals() {
   $$("[data-approve]").forEach(btn => {
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", () => {
       const wrap = btn.closest("[data-approval]");
-      const id = wrap.dataset.approval;
-      const always = wrap.querySelector(".always")?.checked ?? false;
-      const approve = btn.dataset.approve === "1";
-      try {
-        await api(`/approvals/${id}/${approve ? "approve" : "deny"}`, {
-          method: "POST",
-          body: approve ? { always } : {}
-        });
-        toast(approve ? "Approved & continuing" : "Denied");
-        const card = wrap.closest("[data-approval-card]");
-        if (card) card.remove();
-      } catch (err) {
-        toast(err.message, true);
-      }
+      if (!wrap) return;
+      resolveApproval(wrap.dataset.approval, btn.dataset.approve, btn.closest("[data-approval-card]"));
     });
   });
 }

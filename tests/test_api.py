@@ -103,10 +103,16 @@ def test_approval_flow_via_api(client):
     assert approvals, "expected a write_file approval to appear"
     req = approvals[0]
     assert req["bot_name"] == "asker" and req["tool"] in ("files", "shell")
+    approval_id = req["id"]
+    assert client.get(f"/api/approvals/{approval_id}").json()["status"] == "pending"
 
-    assert client.post(f"/api/approvals/{req['id']}/approve", json={"always": True}).status_code == 200
+    assert client.post(f"/api/approvals/{approval_id}/approve", json={"always": True}).status_code == 200
     # duplicate resolution is rejected
-    assert client.post(f"/api/approvals/{req['id']}/approve", json={}).status_code == 409
+    assert client.post(f"/api/approvals/{approval_id}/approve", json={}).status_code == 409
+    decided = client.get(f"/api/approvals/{approval_id}").json()
+    assert decided["status"] == "approved" and decided["decided_by"]
+    assert any(a["id"] == approval_id for a in client.get("/api/approvals?status=resolved&limit=8").json())
+    assert client.get("/api/approvals/does-not-exist").status_code == 404
 
     deadline = time.time() + 20
     while time.time() < deadline:
