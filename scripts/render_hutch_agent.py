@@ -176,40 +176,49 @@ def build(pal):
     m_glass = principled("visor", pal["panel"], rough=0.06, coat=1.0)
     m_face = emissive("face", pal["face"], 16.0)
     m_glow = emissive("glow", pal["glow"], 24.0)
-    m_core = emissive("core", pal["core"], 3.2)
+    m_core = emissive("core", pal["core"], 1.9)
 
     def assign(obj, mat):
         obj.data.materials.clear()
         obj.data.materials.append(mat)
 
-    # rig root: the whole agent rotates toward the cursor via this empty
+    # rig root: whole-agent rotation; head group: visor/cap/face turn around the neck
     rig = bpy.data.objects.new("rig", None)
     rig.location = (0, 0, 0)
     link(rig)
+    head = bpy.data.objects.new("head", None)
+    head.location = (0, 0.02, 1.16)
+    link(head)
+    head.parent = rig
 
     parts = []
 
-    def reg(obj, mat):
+    def reg(obj, mat, headgroup=False):
         assign(obj, mat)
-        obj.parent = rig
+        if headgroup:
+            obj.parent = head
+            obj.location = (obj.location.x, obj.location.y - head.location.y,
+                            obj.location.z - head.location.z)
+        else:
+            obj.parent = rig
         parts.append(obj)
         return obj
 
     reg(sphere("body", (0, 0, 0), (1.10, 0.97, 1.55), 64, 32), m_body)
-    reg(torus("band", (0, 0, 1.42), 0.60, 0.045, scale_y=0.88), m_glow)
-    reg(sphere("cap", (0, 0.02, 1.62), (0.62, 0.58, 0.34)), m_cap)
-    reg(sphere("tip", (0, 0.02, 1.88), (0.26, 0.25, 0.16)), m_cap)
+    reg(torus("band", (0, 0, 1.42), 0.60, 0.045, scale_y=0.88), m_glow, True)
+    reg(sphere("cap", (0, 0.02, 1.62), (0.62, 0.58, 0.34)), m_cap, True)
+    reg(sphere("tip", (0, 0.02, 1.88), (0.26, 0.25, 0.16)), m_cap, True)
     for sx in (-1, 1):
-        f = sphere(f"flipper{sx}", (sx * 1.16, 0.06, -0.12), (0.16, 0.30, 0.52))
-        f.rotation_euler = (0, math.radians(-sx * 14), 0)
+        f = sphere(f"flipper{sx}", (sx * 1.16, 0.04, 0.18), (0.15, 0.30, 0.52))
+        f.rotation_euler = (0, math.radians(-sx * 16), 0)
         reg(f, m_flip)
     reg(rounded_panel("visor", (0, -0.90, 0.72), (0.78, 0.22, 0.50),
-                      rot=(math.radians(-6), 0, 0)), m_glass)
+                      rot=(math.radians(-6), 0, 0)), m_glass, True)
     y_face = -1.18
-    reg(arc("eye_l", -0.30, 0.92, 0.155, 30, 150, 0.026, y_face), m_face)
-    reg(arc("eye_r", 0.30, 0.92, 0.155, 30, 150, 0.026, y_face), m_face)
-    reg(arc("mouth", 0.0, 0.60, 0.10, -150, -30, 0.022, y_face), m_face)
-    reg(rounded_panel("core", (0, -0.84, -0.55), (0.34, 0.10, 0.52),
+    reg(arc("eye_l", -0.30, 0.92, 0.155, 30, 150, 0.026, y_face), m_face, True)
+    reg(arc("eye_r", 0.30, 0.92, 0.155, 30, 150, 0.026, y_face), m_face, True)
+    reg(arc("mouth", 0.0, 0.60, 0.10, -150, -30, 0.022, y_face), m_face, True)
+    reg(rounded_panel("core", (0, -0.84, -0.46), (0.30, 0.10, 0.44),
                       rot=(math.radians(8), 0, 0), bevel=0.5), m_core)
     reg(sphere("foot", (0, 0.04, -1.62), (0.52, 0.50, 0.30)), m_cap)
     reg(torus("footring", (0, 0.02, -1.46), 0.44, 0.028, scale_y=0.95), m_glow)
@@ -259,30 +268,10 @@ def build(pal):
     scene.render.image_settings.file_format = "PNG"
     scene.render.image_settings.color_mode = "RGBA"
 
-    # compositor fog-glow, tolerant of 4.x and 5.0 APIs
-    try:
-        try:
-            scene.use_nodes = True
-            nt = scene.node_tree
-        except AttributeError:
-            nt = bpy.data.node_groups.new("compositor", "CompositorNodeTree")
-            scene.compositing_node_group = nt
-        nt.nodes.clear()
-        rl = nt.nodes.new("CompositorNodeRLayers")
-        glare = nt.nodes.new("CompositorNodeGlare")
-        glare.glare_type = "FOG_GLOW"
-        glare.threshold = 1.0
-        try:
-            glare.size = 8
-        except TypeError:
-            glare.quality = "HIGH"
-        comp = nt.nodes.new("CompositorNodeComposite")
-        nt.links.new(rl.outputs["Image"], glare.inputs["Image"])
-        nt.links.new(glare.outputs["Image"], comp.inputs["Image"])
-    except Exception as exc:  # bloom is decorative, never fatal
-        print("compositor skipped:", exc)
+    # no compositor: Blender 5.0 headless compositor groups are brittle;
+    # emissive bloom is added in post by the webp conversion (magick).
 
-    return scene, rig
+    return scene, rig, head
 
 
 def render_still(scene, path):
@@ -299,10 +288,11 @@ def main():
     ap.add_argument("--grid", action="store_true", help="7x3 look-at-cursor frames")
     ap.add_argument("--outdir")
     args = ap.parse_args()
-    scene, rig = build(PALETTES[args.palette])
+    scene, rig, head = build(PALETTES[args.palette])
 
     if args.preview or args.out:
         rig.rotation_euler = (0, 0, 0)
+        head.rotation_euler = (0, 0, 0)
         render_still(scene, args.out or "/tmp/agent-preview.png")
     if args.grid:
         outdir = args.outdir or "/tmp/agent-frames"
@@ -310,7 +300,9 @@ def main():
         os.makedirs(outdir, exist_ok=True)
         for py, yaw in enumerate(YAWS):
             for px, pitch in enumerate(PITCHES):
-                rig.rotation_euler = (math.radians(pitch), math.radians(-yaw), 0)
+                # body follows gently; the head group turns most of the way
+                rig.rotation_euler = (math.radians(pitch * 0.32), math.radians(-yaw * 0.34), 0)
+                head.rotation_euler = (math.radians(pitch * 0.72), math.radians(-yaw * 0.72), 0)
                 render_still(scene, f"{outdir}/f{py}-p{px}.png")
     return 0
 

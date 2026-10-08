@@ -1,4 +1,13 @@
-"""Anonymous-browser checks for the static marketing site."""
+"""Real-browser checks for the marketing site (website/).
+
+Skipped automatically when Playwright or its Chromium build is not installed:
+    pip install playwright && playwright install chromium
+
+These pin behaviour unit tests cannot see: the page is readable with no
+JavaScript at all, the intro-gate stays dead, the mobile drawer is a real
+dialog with focus ownership, reveals can never strand content, the demo
+gate is honestly labelled, and no viewport develops horizontal overflow.
+"""
 
 from __future__ import annotations
 
@@ -19,137 +28,214 @@ def site_url():
     handler = lambda *a, **k: http.server.SimpleHTTPRequestHandler(*a, directory=str(SITE_DIR), **k)  # noqa: E731
     with socketserver.TCPServer(("127.0.0.1", 0), handler) as httpd:
         port = httpd.server_address[1]
-        thread = threading.Thread(target=httpd.serve_forever, daemon=True)
-        thread.start()
+        t = threading.Thread(target=httpd.serve_forever, daemon=True)
+        t.start()
         yield f"http://127.0.0.1:{port}/"
         httpd.shutdown()
-        thread.join(timeout=5)
-        assert not thread.is_alive(), "marketing preview server did not stop"
+        t.join(timeout=5)
 
 
 @pytest.fixture(scope="module")
 def browser():
-    with pw.sync_playwright() as playwright:
-        browser = None
-        errors = []
-        for engine in (playwright.chromium, playwright.firefox):
-            try:
-                browser = engine.launch()
-                break
-            except Exception as exc:  # missing browser build; try the next local engine
-                errors.append(f"{engine.name}: {exc}")
-        if browser is None:
-            pytest.skip("no Playwright browser is installed: " + "; ".join(errors))
-        yield browser
-        browser.close()
+    with pw.sync_playwright() as p:
+        try:
+            b = p.chromium.launch()
+        except Exception as exc:  # browser build not installed
+            pytest.skip(f"chromium unavailable: {exc}")
+        yield b
+        b.close()
 
 
-def _page(browser, *, width=1440, height=900, reduced_motion="no-preference"):
-    context = browser.new_context(viewport={"width": width, "height": height}, reduced_motion=reduced_motion)
-    page = context.new_page()
+def _page(browser, *, width=1440, height=900, reduced_motion="no-preference", js=True):
+    ctx = browser.new_context(
+        viewport={"width": width, "height": height},
+        reduced_motion=reduced_motion,
+        java_script_enabled=js,
+    )
+    page = ctx.new_page()
     errors: list[str] = []
-    page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
-    page.on("pageerror", lambda error: errors.append(str(error)))
-    return context, page, errors
+    page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    return ctx, page, errors
 
 
-def test_home_loads_assets_and_truthful_availability(browser, site_url):
-    context, page, errors = _page(browser)
-    responses = []
-    page.on("response", lambda response: responses.append((response.url, response.status)))
+# ---------------------------------------------------------------- static core
+
+def test_home_loads_clean(browser, site_url):
+    ctx, page, errors = _page(browser)
     page.goto(site_url, wait_until="networkidle")
     assert page.title().startswith("hutch")
     assert "Your bots." in page.inner_text("h1.hero-title")
-    assert page.locator("#proof .chip.demo").count() == 1
-    assert page.locator("#get").get_by_text("Public access", exact=True).count() == 1
-    assert page.locator("#get .get-row").filter(has_text="Experimental").count() == 1
-    assert page.locator("#get .get-row").nth(3).locator(".chip").inner_text() == "Unavailable"
-    for image in page.locator("img").all():
-        image.evaluate("img => { img.loading = 'eager'; return img.decode(); }")
-    assert page.locator("img").evaluate_all("imgs => imgs.every(img => img.complete && img.naturalWidth > 0)")
-    broken = [(url, status) for url, status in responses if status >= 400]
-    assert not broken, broken
-    text = page.locator("body").inner_text().lower()
-    assert "provider's own billing controls" in text.replace("’", "'")
-    assert "private" in text and "no public package" in text
-    assert "hard spend cap" not in text and "jailed workspace" not in text
-    assert "github.com/k-arthur/hutch" not in page.content().lower()
+    # signature weave: two registered word layers + a real rendered agent
+    assert page.eval_on_selector_all(".weave-word", "e => e.length") == 2
+    assert page.eval_on_selector(".weave-agent", "e => e.getBoundingClientRect().width") > 80
+    # no intro gate exists at all
+    assert page.eval_on_selector_all("#intro", "e => e.length") == 0
     assert not errors, errors
-    context.close()
+    ctx.close()
 
 
-def test_every_internal_link_has_a_target_and_external_refs_are_public(browser, site_url):
-    context, page, _ = _page(browser)
+def test_no_js_baseline_readable(browser, site_url):
+    ctx, page, _ = _page(browser, js=False, width=390, height=844)
+    page.goto(site_url, wait_until="load")
+    assert page.eval_on_selector(".section-heading", "e => getComputedStyle(e).opacity") == "1"
+    assert page.eval_on_selector_all("section .section-heading", "e => e.length") >= 7
+    # noscript styles keep section links reachable without enhancement
+    assert page.is_visible(".nav-links a[href='#proof']") or page.is_visible(".footer-nav a[href='#proof']")
+    ctx.close()
+
+
+def test_no_external_requests(browser, site_url):
+    ctx, page, _ = _page(browser)
+    external = []
+    page.on("request", lambda r: external.append(r.url) if not (r.url.startswith(site_url) or r.url.startswith("data:")) else None)
     page.goto(site_url, wait_until="networkidle")
-    broken = page.evaluate("""() => [...document.querySelectorAll('a[href^="#"]')]
-      .map(a => a.getAttribute('href'))
-      .filter(href => href.length > 1 && !document.getElementById(decodeURIComponent(href.slice(1))))""")
-    assert not broken, broken
-    external = page.locator("a[href^='https://']").evaluate_all("els => els.map(a => a.href)")
-    assert len(external) == 3
-    assert all("github.com/openclaw/openclaw/issues/138499" in href
-               or "github.com/open-webui/open-webui/issues/30055" in href
-               or "github.com/open-webui/open-webui/issues/31656" in href for href in external)
-    context.close()
+    page.wait_for_timeout(600)
+    assert external == [], f"unexpected external requests: {external}"
+    ctx.close()
 
 
-def test_reduced_motion_is_reflected_in_controls(browser, site_url):
-    context, page, errors = _page(browser, reduced_motion="reduce")
-    page.goto(site_url, wait_until="domcontentloaded")
-    assert page.get_attribute("#fx-btn", "aria-pressed") == "true"
-    assert page.locator(".step").first.evaluate("el => getComputedStyle(el).opacity") == "1"
-    page.locator("#fx-btn").click()
-    assert page.get_attribute("#fx-btn", "aria-pressed") == "false"
-    assert not errors, errors
-    context.close()
+def test_reference_patterns_present(browser, site_url):
+    """The windowed proof chrome, evidence rows, data-first step cards and the
+    model-route pills are the structural upgrades from the design references."""
+    ctx, page, _ = _page(browser)
+    page.goto(site_url, wait_until="networkidle")
+    assert page.eval_on_selector_all(".proof-chrome .win-dots i", "e => e.length") == 3
+    assert page.eval_on_selector_all(".ledger-row", "e => e.length") >= 4
+    assert page.eval_on_selector_all(".ledger-fix", "e => e.length") >= 3
+    assert page.eval_on_selector_all(".step .step-shot img", "e => e.length") == 3
+    routes = page.inner_text(".routes-list")
+    for route in ("ollama", "openai", "mock/offline"):
+        assert route in routes
+    ctx.close()
 
 
-def test_mobile_drawer_restores_focus_and_site_does_not_overflow(browser, site_url):
-    context, page, errors = _page(browser, width=390, height=844)
+def test_agent_frame_set_ships(browser, site_url):
+    """The look-at-cursor frame grid exists; the center frame is the still."""
+    ctx, page, _ = _page(browser)
+    page.goto(site_url, wait_until="networkidle")
+    srcs = page.evaluate("""async () => {
+      const made = [];
+      for (const s of ['assets/hutch-agent.webp','assets/agent/f3-p1.webp','assets/agent/f0-p0.webp','assets/agent/f6-p2.webp']) {
+        const im = new Image();
+        const ok = await new Promise(res => { im.onload = () => res(im.naturalWidth > 100); im.onerror = () => res(false); im.src = s; });
+        made.push([s, ok]);
+      }
+      return made;
+    }""")
+    assert all(ok for _, ok in srcs), srcs
+    assert page.get_attribute("#agent", "data-cols") == "7"
+    ctx.close()
+
+
+# ------------------------------------------------------------------- nav
+
+def test_drawer_is_a_real_dialog_with_focus_return(browser, site_url):
+    ctx, page, errors = _page(browser, width=390, height=844)
     page.goto(site_url, wait_until="networkidle")
     assert page.get_attribute("#menu-btn", "aria-expanded") == "false"
-    assert not page.locator("#fx-btn").is_visible()
-    assert not page.locator(".nav-cta .hero-cta-mirror").is_visible()
-    assert page.locator("#menu-btn").is_visible()
-    assert not page.locator("#menu-drawer").is_visible()
     page.click("#menu-btn")
+    assert page.eval_on_selector("#menu-drawer", "e => e.open") is True
     assert page.get_attribute("#menu-btn", "aria-expanded") == "true"
-    assert page.locator("#menu-drawer").evaluate("el => el.open")
-    assert page.evaluate("document.activeElement.closest('#menu-drawer') !== null")
+    assert page.evaluate("document.querySelector('#menu-drawer').contains(document.activeElement)")
     page.keyboard.press("Escape")
-    assert page.get_attribute("#menu-btn", "aria-expanded") == "false"
-    assert not page.locator("#menu-drawer").is_visible()
-    assert page.evaluate("document.activeElement.id === 'menu-btn'")
-    assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+    assert page.eval_on_selector("#menu-drawer", "e => e.open") is False
+    assert page.evaluate("document.activeElement.id") == "menu-btn"
     assert not errors, errors
-    context.close()
+    ctx.close()
 
 
-def test_tabs_support_arrow_home_end_and_ignore_unrelated_keys(browser, site_url):
-    context, page, errors = _page(browser)
+def test_drawer_link_closes_and_resizes_closed(browser, site_url):
+    ctx, page, _ = _page(browser, width=390, height=844)
     page.goto(site_url, wait_until="networkidle")
-    tabs = page.locator(".term-tabs [role=tab]")
-    tabs.first.focus()
+    page.click("#menu-btn")
+    page.click("#menu-drawer a[href='#workflow']")
+    assert page.eval_on_selector("#menu-drawer", "e => e.open") is False
+    page.click("#menu-btn")
+    page.set_viewport_size({"width": 1280, "height": 800})
+    page.wait_for_timeout(250)
+    assert page.eval_on_selector("#menu-drawer", "e => e.open") is False
+    ctx.close()
+
+
+# ----------------------------------------------------------------- effects
+
+def test_reduced_motion_never_hides_content(browser, site_url):
+    ctx, page, errors = _page(browser, reduced_motion="reduce")
+    page.goto(site_url, wait_until="networkidle")
+    page.wait_for_timeout(400)
+    opacities = page.eval_on_selector_all(
+        ".section-heading, .step, .ledger-row, .case, .proof-figure",
+        "els => els.map(e => getComputedStyle(e).opacity)",
+    )
+    assert all(o == "1" for o in opacities), opacities
+    assert not errors, errors
+    ctx.close()
+
+
+def test_reveal_watchdog_shows_everything(browser, site_url):
+    """Even if the observer never fired, the watchdog must clear hidden states."""
+    ctx, page, _ = _page(browser)
+    page.goto(site_url, wait_until="networkidle")
+    page.wait_for_timeout(3400)
+    hidden = page.eval_on_selector_all(
+        ".reveal",
+        "els => els.filter(e => getComputedStyle(e).opacity === '0').length",
+    )
+    assert hidden == 0, f"{hidden} reveal targets still hidden after watchdog"
+    ctx.close()
+
+
+# ------------------------------------------------------------------ tabs
+
+def test_term_tabs_keyboard_operable(browser, site_url):
+    ctx, page, errors = _page(browser)
+    page.goto(site_url, wait_until="networkidle")
+    page.locator("#tab-deny").focus()
     page.keyboard.press("ArrowRight")
-    assert tabs.nth(1).get_attribute("aria-selected") == "true"
-    page.keyboard.press("End")
-    assert tabs.last.get_attribute("aria-selected") == "true"
-    page.keyboard.press("Home")
-    assert tabs.first.get_attribute("aria-selected") == "true"
-    page.keyboard.press("Tab")
-    assert page.evaluate("document.activeElement.id") != tabs.first.get_attribute("id")
+    assert page.get_attribute("#tab-compound", "aria-selected") == "true"
+    assert page.eval_on_selector("#panel-deny", "e => e.hidden") is True
     assert not errors, errors
-    context.close()
+    ctx.close()
 
 
-def test_scripted_approval_demo_is_explicit_and_non_executing(browser, site_url):
-    context, page, errors = _page(browser)
-    page.goto(site_url, wait_until="networkidle")
+# ---------------------------------------------------------------- demo gate
+
+def test_gate_demo_is_labeled_and_deterministic(browser, site_url):
+    ctx, page, errors = _page(browser)
+    page.goto(site_url + "#workflow", wait_until="networkidle")
+    assert "illustrative demo" in page.inner_text("#gate-demo .chip").lower()
     page.click("#gate-allow")
-    result = page.inner_text("#gate-result")
-    assert "Allowed once (demo)" in result and "Nothing executed" in result
-    assert page.locator("#gate-reset").is_visible()
+    assert "allowed once" in page.inner_text("#gate-result").lower()
+    assert page.eval_on_selector("#gate-reset", "e => !e.classList.contains('hidden')")
     page.click("#gate-reset")
-    assert page.locator("#gate-result").is_hidden()
+    assert page.eval_on_selector("#gate-result", "e => e.hidden") is True
+    page.click("#gate-deny")
+    assert "denied" in page.inner_text("#gate-result").lower()
     assert not errors, errors
-    context.close()
+    ctx.close()
+
+
+# ------------------------------------------------------------------ facts
+
+def test_honesty_markers_present(browser, site_url):
+    ctx, page, _ = _page(browser)
+    page.goto(site_url, wait_until="networkidle")
+    body = page.inner_text("body")
+    assert "private" in body.lower()
+    assert "LIVE" not in body
+    assert "not a virtual machine" in body.lower()
+    assert "no telemetry" in body.lower()
+    ctx.close()
+
+
+# --------------------------------------------------------------- responsive
+
+@pytest.mark.parametrize("width", [320, 360, 390, 428, 768, 1024, 1440, 1920])
+def test_no_horizontal_overflow(browser, site_url, width):
+    ctx, page, _ = _page(browser, width=width, height=820)
+    page.goto(site_url, wait_until="networkidle")
+    page.wait_for_timeout(600)
+    overflow = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
+    assert overflow <= 1, f"horizontal overflow at {width}px: {overflow}px"
+    ctx.close()

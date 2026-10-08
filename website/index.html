@@ -24,7 +24,7 @@
   }
   </script>
   <noscript>
-    <style>.nav-links{display:flex !important}.menu-btn,.fx-btn{display:none !important}</style>
+    <style>.nav-links{display:flex !important}.menu-btn{display:none !important}</style>
   </noscript>
 </head>
 <body>
@@ -48,11 +48,11 @@
         <a href="#faq">FAQ</a>
       </nav>
       <div class="nav-cta">
-        <button class="fx-btn" id="fx-btn" type="button" aria-pressed="false">
-          <span class="fx-dot" aria-hidden="true"></span>effects: <span class="fx-state">full</span>
-        </button>
-        <a class="btn github" href="#get">Availability</a>
-        <a class="btn primary hero-cta-mirror" href="#proof">See it work</a>
+        <a class="btn ghost" href="https://github.com/K-Arthur/hutch" rel="noopener">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+          Source
+        </a>
+        <a class="btn primary" href="#proof">See it work</a>
         <button class="menu-btn" id="menu-btn" type="button" aria-label="Open menu" aria-expanded="false">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
@@ -83,10 +83,8 @@
       <a href="#faq">FAQ</a>
     </nav>
     <div class="drawer-foot wrap">
-        <a class="btn github" href="#get">Availability</a>
-      <button class="fx-btn" id="fx-btn-m" type="button" aria-pressed="false">
-        <span class="fx-dot" aria-hidden="true"></span>effects: <span class="fx-state">full</span>
-      </button>
+      <a class="btn ghost" href="https://github.com/K-Arthur/hutch" rel="noopener">Source on GitHub</a>
+      <a class="btn primary" href="#get">Check availability</a>
     </div>
   </dialog>
 
@@ -105,8 +103,8 @@
           <span class="chip"><span class="chip-dot ok" aria-hidden="true"></span>v0.1.0</span>
           <span class="chip"><span class="chip-dot info" aria-hidden="true"></span>Python&nbsp;&ge;&nbsp;3.11</span>
           <span class="chip">Linux first</span>
-          <span class="chip">Early preview</span>
-          <span class="chip">Local state</span>
+          <span class="chip">MIT licensed</span>
+          <span class="chip">No telemetry</span>
         </p>
       </div>
       <div class="hero-figure" aria-hidden="true">
@@ -114,17 +112,15 @@
           <div class="weave-word weave-back">
             <span class="w">h</span><span class="w">u</span><span class="w">t</span><span class="w w-front">c</span><span class="w">h</span>
           </div>
-          <div class="weave-subject">
-            <img class="weave-agent" src="assets/hutch-agent.svg" width="740" height="900"
+          <div class="weave-subject" id="agent" data-frames="assets/agent/f" data-cols="7" data-rows="3">
+            <img class="weave-agent" src="assets/hutch-agent.webp" width="560" height="680"
                  decoding="async" fetchpriority="high" alt="">
           </div>
           <div class="weave-word weave-front">
             <span class="w">h</span><span class="w">u</span><span class="w">t</span><span class="w w-front">c</span><span class="w">h</span>
           </div>
-          <span class="weave-caption">
-            <span class="weave-caption-dot" aria-hidden="true"></span>agent&nbsp;001&nbsp;&middot;&nbsp;resident
-          </span>
         </div>
+        <p class="weave-spec">unit 001 &middot; resident on your machine &middot; no hosted service</p>
       </div>
     </div>
     <svg class="hero-glow" viewBox="0 0 1440 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
@@ -141,25 +137,28 @@
   <!-- ================================================================ PROOF -->
   <section class="band sunken" id="proof">
     <div class="wrap">
-      <div class="proof-head">
-        <h2 class="section-heading">Watch a bot work,<br>then decide.</h2>
+      <div class="section-head">
+        <h2 class="section-heading">Watch a bot work, then decide.</h2>
         <p class="section-desc">A captured hutch screen using the deterministic mock model and seeded demo data. It shows the transcript and an approval wait; the screen is illustrative and no external action is running.</p>
       </div>
       <figure class="proof-figure">
         <div class="proof-chrome">
+          <span class="win-dots" aria-hidden="true"><i></i><i></i><i></i></span>
           <span class="proof-label">studio &middot; tidy-downloads &middot; run_44e6a03c</span>
-          <span class="chip demo"><span class="chip-dot warn" aria-hidden="true"></span>Demo data &middot; real app</span>
+          <span class="chip">Demo data &middot; real app</span>
         </div>
-        <img class="proof-img" src="assets/captures/proof-gate.webp" width="1280" height="578" loading="lazy" decoding="async"
-             alt="hutch studio showing the run “sort this week’s downloads into folders”: completed tool rows for remember, list_files and shell, a pending write_file row, and an amber approval card titled “Approval required” for writing report.md with Allow once, Always allow, and Deny buttons, a risk chip, and a 8:35 countdown.">
-        <figcaption class="proof-legend">
-          <ol>
-            <li><b>The task.</b> One sentence in chat is the entire setup; the bot keeps its own instructions, limits and workspace.</li>
-            <li><b>The receipts.</b> Every tool call becomes a row: what ran, what it returned, when. Nothing is hidden behind a spinner.</li>
-            <li><b>The gate.</b> Before this file-write action continues, the run pauses for a human. Silence expires to <i>denied</i>.</li>
-          </ol>
-          <p class="proof-meta">Captured 2026-10-07 (America/Vancouver) from v0.1.0 (<code>e96a4bf</code>) with <code>hutch demo seed</code> data. See the local provenance and support notes in <code>docs/marketing-site.md</code>.</p>
-        </figcaption>
+        <div class="proof-body">
+          <img class="proof-img" src="assets/captures/proof-gate.webp" width="1280" height="578" loading="lazy" decoding="async"
+               alt="hutch studio showing the run &ldquo;sort this week&rsquo;s downloads into folders&rdquo;: completed tool rows for remember, list_files and shell, a pending write_file row, and an amber approval card titled &ldquo;Approval required&rdquo; for writing report.md with Allow once, Always allow, and Deny buttons, a risk chip, and an 8:35 countdown.">
+          <figcaption class="proof-legend">
+            <ol>
+              <li><b>The task.</b> One sentence in chat is the entire setup; the bot keeps its own instructions, limits and workspace.</li>
+              <li><b>The receipts.</b> Every tool call becomes a row: what ran, what it returned, when. Nothing is hidden behind a spinner.</li>
+              <li><b>The gate.</b> Before this file-write action continues, the run pauses for a human. Silence expires to <i>denied</i>.</li>
+            </ol>
+            <p class="proof-meta">Captured 2026-10-07 (America/Vancouver) from v0.1.0 (<code>e96a4bf</code>) with <code>hutch demo seed</code> data. Provenance and support notes: <code>docs/marketing-site.md</code>.</p>
+          </figcaption>
+        </div>
       </figure>
     </div>
   </section>
@@ -167,11 +166,13 @@
   <!-- ============================================================ RECEIPTS -->
   <section id="receipts">
     <div class="wrap">
-      <h2 class="section-heading">Every safety rule here answers a real incident.</h2>
-      <p class="section-desc">A small set of public user reports informed acceptance checks. Each is one reported experience, not evidence of prevalence; links and reproduction limits are recorded in the local research notes.</p>
+      <div class="section-head">
+        <h2 class="section-heading">Every safety rule here answers a real incident.</h2>
+        <p class="section-desc">A small set of public user reports informed acceptance checks. Each is one reported experience, not evidence of prevalence; links and reproduction limits are recorded in the local research notes.</p>
+      </div>
 
-      <div class="ledger" role="list">
-        <article class="ledger-row" role="listitem">
+      <div class="ledger">
+        <article class="ledger-row">
           <div class="ledger-stamp">
             <span class="ledger-src">Usage controls</span>
             <span class="ledger-cat">estimates, not invoices</span>
@@ -179,9 +180,10 @@
           <div class="ledger-body">
             <h3>The bill that arrives after the loop won&rsquo;t stop</h3>
             <p>Long contexts and retry loops can increase usage. Hutch applies step and time limits and reserves a local estimate before priced hosted calls. Provider tokenization, prices and invoices can differ; use the provider&rsquo;s own billing controls for an external ceiling.</p>
+            <p class="ledger-fix"><span>hutch answer</span> <code>max_steps 24</code> <code>timeout 900s</code> <code>daily_token_cap 200k</code></p>
           </div>
         </article>
-        <article class="ledger-row" role="listitem">
+        <article class="ledger-row">
           <div class="ledger-stamp">
             <span class="ledger-src"><a href="https://github.com/openclaw/openclaw/issues/138499">OpenClaw #138499</a></span>
             <span class="ledger-cat">one reported lifecycle failure</span>
@@ -189,9 +191,10 @@
           <div class="ledger-body">
             <h3>The scheduled run that quietly never happened</h3>
             <p>One OpenClaw report describes a timed-out task remaining marked as running and delaying restart. Hutch keeps cancellation visible until owned execution stops and fences expired ownership before recovery. This is an acceptance scenario from one report, not a prevalence claim.</p>
+            <p class="ledger-fix"><span>hutch answer</span> <code>stopping until process exits</code> <code>ownership fenced</code></p>
           </div>
         </article>
-        <article class="ledger-row" role="listitem">
+        <article class="ledger-row">
           <div class="ledger-stamp">
             <span class="ledger-src"><a href="https://github.com/open-webui/open-webui/issues/30055">Open WebUI #30055</a></span>
             <span class="ledger-cat">mobile approval visibility</span>
@@ -199,9 +202,10 @@
           <div class="ledger-body">
             <h3>The approval hidden behind a phone overlay</h3>
             <p>This report says a full-screen mobile call overlay hid an approval that had already arrived. Hutch keeps approval status and actions in the responsive app view, with fixture checks at phone width. The report is one user&rsquo;s experience, not a rate estimate.</p>
+            <p class="ledger-fix"><span>hutch answer</span> <code>approvals reachable from any view</code></p>
           </div>
         </article>
-        <article class="ledger-row" role="listitem">
+        <article class="ledger-row">
           <div class="ledger-stamp">
             <span class="ledger-src"><a href="https://github.com/open-webui/open-webui/issues/31656">Open WebUI #31656</a></span>
             <span class="ledger-cat">phone focus and keyboard</span>
@@ -209,9 +213,10 @@
           <div class="ledger-body">
             <h3>Phone focus that opens the keyboard unexpectedly</h3>
             <p>The report describes a phone menu opening a text field and the on-screen keyboard unexpectedly. Hutch&rsquo;s mobile navigation has focus handling and restoration; fixture checks cover the phone view and pending-approval visibility.</p>
+            <p class="ledger-fix"><span>hutch answer</span> <code>drawer focuses links, not inputs</code></p>
           </div>
         </article>
-        <article class="ledger-row" role="listitem">
+        <article class="ledger-row">
           <div class="ledger-stamp">
             <span class="ledger-src">Data ownership</span>
             <span class="ledger-cat">separate retention scopes</span>
@@ -219,6 +224,7 @@
           <div class="ledger-body">
             <h3>Local agents with zero defaults and messy memory</h3>
             <p>Conversation history, approved memory facts, artifacts and credentials need different retention rules. Hutch currently stores conversation records and run receipts locally; fact memory and stable workspaces remain limited, not a complete personal knowledge system.</p>
+            <p class="ledger-fix"><span>hutch answer</span> <code>SQLite + JSONL on your disk</code> <code>inspect, back up, delete</code></p>
           </div>
         </article>
       </div>
@@ -228,43 +234,49 @@
   <!-- ============================================================ WORKFLOW -->
   <section class="band sunken" id="workflow">
     <div class="wrap">
-      <div class="proof-head">
-        <h2 class="section-heading">Delegate. Supervise.<br>Verify.</h2>
+      <div class="section-head">
+        <h2 class="section-heading">Delegate. Supervise. Verify.</h2>
         <p class="section-desc">A product preview of the local run loop. Demo images and scripted controls are labelled; live providers and external runtimes are not implied.</p>
       </div>
       <ol class="steps">
         <li class="step">
-          <span class="step-n" aria-hidden="true">1</span>
-          <h3>Hand it over</h3>
-          <p>A named bot accepts a task from Studio or a schedule. Conversation history and run records persist across restarts; the current workspace model is still per run.</p>
           <figure class="step-shot">
             <img src="assets/captures/proof-transcript.webp" width="1280" height="578" loading="lazy" decoding="async"
-                 alt="Completed studio transcript: five compact tool rows with checkmarks and timestamps, then the bot's closing message reporting report.md written and ~1750 tokens used.">
+                 alt="Completed studio transcript: five compact tool rows with checkmarks and timestamps, then the bot's closing message reporting report.md written and about 1750 tokens used.">
           </figure>
+          <div class="step-body">
+            <span class="step-n" aria-hidden="true">01</span>
+            <h3>Hand it over</h3>
+            <p>A named bot accepts a task from Studio or a schedule. Conversation history and run records persist across restarts; the current workspace model is still per run.</p>
+          </div>
         </li>
         <li class="step">
-          <span class="step-n" aria-hidden="true">2</span>
-          <h3>Keep control</h3>
-          <p>Risky or outward actions pause behind an approval gate with a countdown. You can answer from the dashboard or the CLI; unanswered is denied.</p>
+          <figure class="step-shot">
+            <img src="assets/captures/proof-gate.webp" width="1280" height="578" loading="lazy" decoding="async"
+                 alt="Studio mid-run: the approval card waits with an 8:35 countdown while the write_file step stays pending.">
+          </figure>
+          <div class="step-body">
+            <span class="step-n" aria-hidden="true">02</span>
+            <h3>Keep control</h3>
+            <p>Risky or outward actions pause behind an approval gate with a countdown. You can answer from the dashboard or the CLI; unanswered is denied.</p>
+          </div>
+        </li>
+        <li class="step">
           <figure class="step-shot">
             <img src="assets/captures/proof-run-detail.webp" width="1280" height="589" loading="lazy" decoding="async"
                  alt="Run detail screen with KPI tiles for steps, elapsed, spend and tokens, and a per-step timing bar split between model, tools and hutch overhead.">
           </figure>
-        </li>
-        <li class="step">
-          <span class="step-n" aria-hidden="true">3</span>
-          <h3>Check the work, not the vibes</h3>
-          <p>Inspect the run status, tool results and ordered event transcript. The assistant&rsquo;s summary is useful context; Hutch records reported usage separately from estimates.</p>
-          <figure class="step-shot">
-            <img src="assets/captures/proof-overview.webp" width="1280" height="603" loading="lazy" decoding="async"
-                 alt="Overview screen: tiles for needs-you, running and stale bots, with a failed run card explaining the timeout reason and the fix.">
-          </figure>
+          <div class="step-body">
+            <span class="step-n" aria-hidden="true">03</span>
+            <h3>Check the work, not the vibes</h3>
+            <p>Inspect the run status, tool results and ordered event transcript. The assistant&rsquo;s summary is useful context; Hutch records reported usage separately from estimates.</p>
+          </div>
         </li>
       </ol>
       <div class="gate-demo" id="gate-demo">
         <div class="gate-demo-head">
           <h3>Try the gate. It&rsquo;s scripted.</h3>
-          <span class="chip demo"><span class="chip-dot" aria-hidden="true"></span>Illustrative demo &middot; nothing executes</span>
+          <span class="chip"><span class="chip-dot warn" aria-hidden="true"></span>Illustrative demo &middot; nothing executes</span>
         </div>
         <div class="gate-card" id="gate-card">
           <div class="gate-card-head">
@@ -287,8 +299,10 @@
   <!-- ========================================================== WHERE IT RUNS -->
   <section id="runs">
     <div class="wrap">
-      <h2 class="section-heading">Your machine does the work.<br>Pick who does the thinking.</h2>
-      <p class="section-desc">Model and tool choices determine where data moves. Hutch keeps its control state on the host; prompts go to the configured model endpoint, and network tools contact their own destinations.</p>
+      <div class="section-head">
+        <h2 class="section-heading">Your machine does the work. Pick who does the thinking.</h2>
+        <p class="section-desc">Model and tool choices determine where data moves. Hutch keeps its control state on the host; prompts go to the configured model endpoint, and network tools contact their own destinations.</p>
+      </div>
       <div class="runs-grid">
         <div class="spec-stack">
           <div class="spec">
@@ -353,14 +367,22 @@
           <figcaption id="rd-cap">Conceptual, not measured traffic.</figcaption>
         </figure>
       </div>
+      <div class="routes">
+        <span class="routes-k">model routes</span>
+        <ul class="routes-list">
+          <li>ollama</li><li>llama.cpp</li><li>lm studio</li><li>openai</li><li>anthropic</li><li>openai-compatible</li><li>anthropic-compatible</li><li>mock/offline</li>
+        </ul>
+      </div>
     </div>
   </section>
 
   <!-- =============================================================== CONTROL -->
   <section class="band sunken" id="control">
     <div class="wrap">
-      <h2 class="section-heading">Govern actions.<br>Keep cancellation honest.</h2>
-      <p class="section-desc">Hutch checks shell requests before execution, records actions and approvals, and keeps a run visibly stopping until its owned process has exited.</p>
+      <div class="section-head">
+        <h2 class="section-heading">Govern actions. Keep cancellation honest.</h2>
+        <p class="section-desc">Hutch checks shell requests before execution, records actions and approvals, and keeps a run visibly stopping until its owned process has exited.</p>
+      </div>
       <div class="control-grid">
         <div class="term">
           <div class="term-tabs" role="tablist" aria-label="Policy engine">
@@ -408,11 +430,13 @@ trusted    <span class="t-c">runs without asking&hellip;</span>
   <!-- ============================================================= USE CASES -->
   <section id="cases">
     <div class="wrap">
-      <h2 class="section-heading">A few supervised workflows.</h2>
-      <p class="section-desc">Illustrative workflows can be exercised with the deterministic mock. These cards do not claim a hosted model or external service is configured.</p>
+      <div class="section-head">
+        <h2 class="section-heading">A few supervised workflows.</h2>
+        <p class="section-desc">Illustrative workflows can be exercised with the deterministic mock. These cards do not claim a hosted model or external service is configured.</p>
+      </div>
       <div class="cases-grid">
         <article class="case case-wide">
-          <span class="chip demo">Example workflow</span>
+          <span class="chip"><span class="chip-dot" aria-hidden="true"></span>Example workflow</span>
           <h3>The project review</h3>
           <p>Give a bot a read-only task in a disposable workspace, inspect the transcript and keep or discard the result. The example does not modify a real repository.</p>
           <pre class="case-code"><code>task: review a disposable project copy
@@ -420,7 +444,7 @@ inspect: ordered run events and tool results
 result: keep or discard the run workspace</code></pre>
         </article>
         <article class="case">
-          <span class="chip demo">Example workflow</span>
+          <span class="chip"><span class="chip-dot" aria-hidden="true"></span>Example workflow</span>
           <h3>The weekly briefing</h3>
           <p>A configured local schedule can start a run while Hutch&rsquo;s supervisor is running. A sleeping or disconnected host cannot execute work.</p>
           <pre class="case-code"><code>schedule: configured local time
@@ -428,7 +452,7 @@ requires: awake host + running supervisor
 missed work: shown for operator review</code></pre>
         </article>
         <article class="case">
-          <span class="chip demo">Example workflow</span>
+          <span class="chip"><span class="chip-dot" aria-hidden="true"></span>Example workflow</span>
           <h3>The folder tidy-up</h3>
           <p>When a governed action needs approval, the run pauses with the request and its status visible for review. This is not a claim that a particular folder workflow is preconfigured.</p>
           <pre class="case-code"><code>action request: visible to operator
@@ -444,7 +468,7 @@ run: stays stopping until process exits</code></pre>
     <div class="wrap get-grid">
       <div class="get-copy">
         <h2 class="section-heading">How to get hutch</h2>
-        <p class="section-desc">Hutch is an early alpha and its source repository is private. There is no public package or release, so visitors cannot install it from this page. The demo below is a captured interface; it does not grant access to a running service.</p>
+        <p class="section-desc">Hutch is an early alpha and its source repository is private. There is no public package or release, so visitors cannot install it from this page. The demo above is a captured interface; it does not grant access to a running service.</p>
         <div class="get-status" role="list">
           <div class="get-row" role="listitem"><span class="gr-k">Public access</span><span class="gr-v">Private source; no anonymous download or public release</span><span class="chip"><span class="chip-dot warn" aria-hidden="true"></span>Unavailable</span></div>
           <div class="get-row" role="listitem"><span class="gr-k">Supported</span><span class="gr-v">Linux executor, local SQLite state, deterministic offline mock and fixture-tested control flows</span><span class="chip"><span class="chip-dot ok" aria-hidden="true"></span>Supported</span></div>
@@ -453,24 +477,22 @@ run: stays stopping until process exits</code></pre>
           <div class="get-row" role="listitem"><span class="gr-k">Data movement</span><span class="gr-v">Prompts go to the selected hosted endpoint; network tools also contact their configured destinations</span><span class="chip">Per configuration</span></div>
         </div>
       </div>
-      <div class="get-term">
-        <div class="term-head">
-          <span>What is available today</span>
-        </div>
+      <aside class="get-term">
+        <div class="term-head"><span>What is available today</span></div>
         <div class="term-body">
           <p><b>Offline preview:</b> the deterministic mock exercises the local run and approval flow without a model account.</p>
           <p><b>Linux host:</b> required for the supported executor and optional bubblewrap isolation.</p>
           <p><b>Public installation:</b> not available while source access is private.</p>
           <p><a href="#proof">View the labelled product capture</a> or <a href="#runs">read the support boundaries</a>.</p>
         </div>
-      </div>
+      </aside>
     </div>
   </section>
 
   <!-- ================================================================== FAQ -->
   <section id="faq">
     <div class="wrap">
-      <h2 class="section-heading">What usually stops people</h2>
+      <h2 class="section-heading" style="margin-bottom:var(--space-12)">What usually stops people</h2>
       <div class="faq-list">
         <details class="faq-item">
           <summary>Do I need an API key, a credit card, or a GPU?</summary>
@@ -482,7 +504,7 @@ run: stays stopping until process exits</code></pre>
         </details>
         <details class="faq-item">
           <summary>What happens when my laptop sleeps on a schedule?</summary>
-            <p>Nothing runs while the machine is off. With the local supervisor running again, configured schedules detect missed windows and either coalesce them into one catch-up run or record a skip, according to the bot&rsquo;s policy.</p>
+          <p>Nothing runs while the machine is off. With the local supervisor running again, configured schedules detect missed windows and either coalesce them into one catch-up run or record a skip, according to the bot&rsquo;s policy.</p>
         </details>
         <details class="faq-item">
           <summary>Can I run it on my ChatGPT or Claude subscription?</summary>
@@ -494,17 +516,16 @@ run: stays stopping until process exits</code></pre>
         </details>
         <details class="faq-item">
           <summary>Is it safe to let an agent touch my files?</summary>
-          <p>Bubblewrap isolation is available only on Linux and must be enabled; it is not a virtual machine. Approval policy and transcripts provide operator control but do not guarantee safe decisions. Legacy bots may still have isolation disabled. Read the current support boundaries above before use.</p>
+          <p>Bubblewrap isolation is available only on Linux and must be enabled; it is not a virtual machine. Approval policy and transcripts provide operator control but do not guarantee safe decisions. Legacy bots may still have isolation disabled. Read the support boundaries above before use.</p>
         </details>
       </div>
-    </div>
-  </section>
+    </section>
 
   <!-- ================================================================== CTA -->
   <section class="cta">
     <div class="wrap cta-grid">
       <div class="cta-orb" aria-hidden="true">
-        <img src="assets/hutch-agent.svg" width="740" height="900" loading="lazy" decoding="async" alt="">
+        <img src="assets/hutch-agent.webp" width="560" height="680" loading="lazy" decoding="async" alt="">
       </div>
       <div class="cta-copy">
         <h2 class="section-heading">Run your own agents.<br>Keep the receipts.</h2>
@@ -538,12 +559,12 @@ run: stays stopping until process exits</code></pre>
         </nav>
         <div class="footer-docs">
           <p class="footer-h">Documentation</p>
-          <p class="footer-l">Safety, provider and configuration notes are included with the private source checkout and are not publicly available yet.</p>
+          <p class="footer-l">Safety, provider and configuration notes ship with the private source checkout and are not publicly available yet.</p>
         </div>
       </div>
       <div class="footer-base">
         <p>MIT-licensed source &middot; private alpha &middot; no public install</p>
-        <p>Accessibility: keyboard and reduced-motion behavior are fixture-checked; no WCAG certification has been completed. <a href="#fx-btn">Effects control</a> is in the header.</p>
+        <p>Accessibility: targeting WCAG&nbsp;2.2&nbsp;AA; keyboard paths and reduced motion are fixture-checked. Motion follows your system reduced-motion setting automatically.</p>
       </div>
     </div>
   </footer>
