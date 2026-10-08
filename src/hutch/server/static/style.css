@@ -301,7 +301,7 @@ a:hover { text-decoration: underline; }
 .pill { margin-left: auto; }
 .pill.daemon {
   display: inline-flex; align-items: center; gap: 7px;
-  background: transparent; border: 0; padding: 4px 2px;
+  background: transparent; border: 0; padding: 4px 9px;
   font: 500 var(--fs-2xs)/1 var(--mono); color: var(--text-3); white-space: nowrap;
 }
 .pill .daemon-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
@@ -749,8 +749,8 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 
 /* budget meter */
 .budget-meter { display: inline-flex; align-items: center; gap: var(--s-2); font: 400 var(--fs-2xs)/1 var(--mono); color: var(--text-3); }
-.meter-track { display: inline-block; width: 64px; height: 4px; background: rgba(255, 255, 255, 0.09); border: 1px solid var(--line); border-radius: 2px; overflow: hidden; }
-.meter-fill { display: block; height: 100%; background: var(--brand); }
+.meter-track { display: inline-block; width: 64px; height: 4px; background: rgba(255, 255, 255, 0.09); border: 1px solid var(--line); border-radius: var(--r-chip); overflow: hidden; }
+.meter-fill { display: block; height: 100%; background: var(--brand); border-radius: var(--r-chip); }
 .budget-meter.warn .meter-fill { background: var(--warn); }
 .budget-meter.over .meter-fill { background: var(--danger); }
 
