@@ -120,8 +120,16 @@ def test_builtin_loop_token_cap_aborts(store, config, tmp_path, monkeypatch):
     assert exc.value.reason == "token_cap"
 
 
-def test_external_runtimes_fail_closed_until_governance_exists(store, config, tmp_path):
+def test_external_runtimes_fail_closed_before_process_creation_until_governance_exists(
+    store, config, tmp_path, monkeypatch
+):
     ctx, run, _ = make_ctx(store, config, tmp_path)
+    import subprocess
+
+    def unexpected_spawn(*args, **kwargs):
+        raise AssertionError("an unsupported external runtime must not create a process")
+
+    monkeypatch.setattr(subprocess, "Popen", unexpected_spawn)
     with pytest.raises(RunAborted, match="disabled until Hutch can contain"):
         PiRuntime(binary="not-a-real-pi-binary").execute(run, ctx, {}, stop=lambda: False)
     with pytest.raises(RunAborted, match="disabled until Hutch can broker"):

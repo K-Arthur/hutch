@@ -159,3 +159,7 @@ reset overrode the HTML hidden attribute. Captures/traces/source hashes are in
 [restoration](artifacts/restoration/). The broader navigation/site capture covers the updated
 database-only website specification. These checks are isolated fixtures, not production cutover,
 physical-device or screen-reader certification. Exact final counts are in the ledger.
+
+# Design-hook triage (2026-10-08)
+
+The `pulsing-dot` finding on `src/hutch/server/static/index.html` is a scoped false positive. The animated dot is the `.workflow .working` indicator: it is rendered only while the refreshed API status reports active runs, and disappears when no run is working. A value-specific hook ignore is persisted for this file only in `.impeccable/config.json`; the other detector rules remain active.

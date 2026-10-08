@@ -37,7 +37,7 @@
           "src/hutch/server/static/index.html"
         ],
         "createdAt": "2026-10-08T19:56:38.072Z",
-        "reason": "Agent: this typing indicator is rendered only while authoritative run status is running; waiting and terminal states clear it, and reduced-motion settings disable the animation."
+        "reason": "False positive: the working dot is rendered only while live API data reports active runs and is refreshed with run status; it signals actual changing work."
       },
       {
         "rule": "tight-leading",

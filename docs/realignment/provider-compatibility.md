@@ -18,7 +18,7 @@ Hutch currently sends. Live providers, models, and paid connections were not use
 | Named OpenAI-compatible connection | Supported | Uses the common Chat Completions shape and `max_tokens`. Unknown dialect-specific fields are omitted. Tool-call behavior, usage, and context settings still depend on the configured server and model. |
 | OpenCode Go connection | Experimental | Uses a named API-key connection, configured user agent and stable session header. Eligibility for general assistant or unattended workloads is not established; review current plan terms. |
 | Sign in with ChatGPT token sharing | Experimental; not implemented | Requires a native Responses API request under the published preview contract. Hutch does not claim eligibility or send a request. Unsupported preview fields are listed in the matrix. |
-| OpenCode and Pi executors | Unavailable | Both fail before process creation until process ownership, permission/capability brokering and shared budget enforcement are complete. |
+| OpenCode and Pi executors | Unavailable | Both fail before process creation. Pi's `--no-tools` can disable its built-in, extension, custom and MCP tools, but direct model traffic still bypasses Hutch's connection and budget reservation path. OpenCode permissions and message/session endpoints need a tested once-only approval bridge and durable recovery around its volatile event stream. |
 | Consumer-plan OAuth/session reuse | Blocked | Hutch does not read or forward consumer-app cookies or session tokens. Use a supported API-key connection. |
 
 `hutch connections test` can authenticate against a model-list endpoint without spending tokens.

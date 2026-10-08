@@ -1215,3 +1215,22 @@ They remain local fixture evidence, not provider or device tests.
 
 The root checkout's local `main` remains at `307ce1d`; this branch contains the newer merges and refreshed evidence. Final fast-forward
 is still gated on the unfinished S5-S9 implementation and release checks above.
+
+## S5 restricted-runtime reassessment (2026-10-08)
+
+The current Pi CLI can start RPC with `--no-tools`, which disables built-in, extension, custom and MCP tools. That creates a possible
+future text-only capability profile, but it still sends model traffic outside Hutch's `ConnectionBook` and atomic `SpendGuard`
+reservations, and Hutch has not verified Pi's process behavior with an installed binary. The installed OpenCode v2.0.24 server API
+has message/session endpoints, but its event stream is volatile; no adapter yet proves recovery of every action and receipt or wires
+the once-only approval decision into Hutch's immutable intent record. Neither runtime is enabled. This avoids launching an
+ungoverned direct-provider process or claiming approval and spend guarantees that have not been verified.
+
+The assessment is recorded in ADR-0007 and the provider matrix with links to the current [Pi RPC](https://pi.dev/docs/latest/rpc),
+[Pi CLI](https://pi.dev/docs/latest/cli), [OpenCode permissions](https://docs.opencode.ai/docs/permissions/) and
+[OpenCode server API](https://opencode.ai/docs/server/) references. A regression now replaces `subprocess.Popen` with a failure in
+the adapter refusal test, proving both unsupported runtimes stop before process creation. `tests/test_runtime.py tests/test_compat.py`
+passed **14 tests in 0.83s**; compatibility JSON parsing, JavaScript syntax and `git diff --check` passed. No Pi binary, provider
+request, paid call or external runtime process was used. S5 remains open for governed adapters; this checkpoint does not complete it.
+
+The visual review also confirmed the pulsing working indicator is driven by live active-run status and is refreshed from API data.
+Its detector false positive is ignored only for `src/hutch/server/static/index.html`; other design checks remain enabled.
