@@ -19,10 +19,10 @@ is a local `main` fast-forward only after all implementation and verification ga
 |---|---|---|
 | S0 research, baseline and claims audit | Landed before integration | The evidence ledger distinguishes direct observations, individual reports, fixed historical defects and unverified claims. Reported failures are design scenarios, not prevalence data. |
 | S1 credential routing and SSRF | Landed | Provider keys are host-scoped. Fetch checks resolved addresses, rejects non-public results, pins the connection and checks each redirect. Browser DNS is still not pinned. |
-| S2 lifecycle, claims, leases and recovery | Implemented; focused tests pass | Pending claims reserve global capacity. Recovery fences expired ownership before cleanup. SQLite migrations serialize and create SQLite-backup-API snapshots. |
+| S2 lifecycle, claims, leases and recovery | Implemented; focused tests pass | Pending claims reserve global capacity. Recovery fences expired ownership before cleanup. SQLite migrations serialize and create SQLite-backup-API snapshots. Cleanup failure remains visible and nonterminal. |
 | S3 supervised run processes and teardown | Implemented; focused tests pass | Production CLI/daemon/web execution uses owned processes, recorded boot/start identity and verified cleanup. Incomplete cleanup stays nonterminal. |
 | S4 shell containment and approval CAS | Implemented; focused tests pass | Bubblewrap tests pass on the present Linux host. This is namespace containment, not a VM; legacy bots retain their previous setting. Browser/external runtime tools remain outside this guarantee. |
-| S5 providers and external runtimes | In progress | OpenCode v2.0.24 is installed and its CLI contract was inspected. Pi is unavailable; only offline protocol fixtures can be used here. No paid/provider request has been made. |
+| S5 providers and external runtimes | In progress | OpenCode v2.0.24 is installed and its CLI contract was inspected. Existing OpenCode/Pi adapters were found to bypass Hutch approvals and are being constrained before they can be called supported. Pi is unavailable; only offline protocol fixtures can be used here. No paid/provider request has been made. |
 | S6 conversations and bounded collaboration | Not started | Current persistent conversational model and restart behavior still need implementation and integration tests. |
 | S7 browser ownership and handoff | Not started | Browser profiles are process-shared; visible handoff is unavailable. Marketing and docs now state this plainly. |
 | S8 versioned API and remote supervision | Partial / not release-ready | Legacy routes and run SSE exist. `/api/v1`, durable global cursor replay, idempotency and safe phone pairing still need implementation. |
@@ -40,7 +40,8 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `bf42b77` | S4 approval compare-and-swap and partial sandbox checkpoint |
 | `eee309c`, `23cb0c4`, `6378dd3`, `5196655`, `309a7d3` | Local main: templates, approval reconciliation, website, Studio and research map |
 | `0ab3058` | Merge local `main` into `realign/platform` |
-| _next commits_ | S2–S4 audit repairs, docs, and truthful marketing copy; hashes recorded after commit |
+| `ed82ce1` | S2–S4 audit repairs, docs, test corrections and truthful marketing copy |
+| _next commits_ | Provider adapter, API/persistence, website and visual-validation work; hashes recorded after commit |
 
 ## Verified behavior before this checkpoint
 
@@ -61,8 +62,10 @@ is a local `main` fast-forward only after all implementation and verification ga
 The first post-merge full-suite run reported **972 passed, 1 failed, 2 warnings**. The failure was the thread-mode timeout test
 expecting a terminal status before an uncooperative Python thread ended; that test now asserts the run stays `cancelling`, releases
 its controlled blocker, and verifies the eventual timeout. The PytestUnhandledThreadExceptionWarning was from a polling test helper
-that survived fixture close; it now has an explicit stop event and is joined. The unrelated `SyntaxWarning` in
-`tests/test_shellparse.py` remains. A clean full-suite rerun is still required.
+that survived fixture close; it now has an explicit stop event and is joined. The next full-suite run reported **973 passed, 1
+warning**; the warning was invalid Python string escaping in shell parser fixtures, corrected and verified with
+`.venv/bin/python -W error::SyntaxWarning -m pytest -q tests/test_shellparse.py` (**111 passed**). A final full suite is required
+after the remaining implementation slices.
 
 ## Support and verification boundary
 
