@@ -1998,6 +1998,30 @@ class Store:
         """The newest ``limit`` events, oldest first — the default run-page window (PF-9)."""
         return self.events_before(run_id, before_seq=2**62, limit=limit)
 
+    def artifact_events(self, run_id: str, *, limit: int = 51, offset: int = 0) -> list[Event]:
+        """Return a bounded page of tool-result events that reference saved full outputs."""
+        self.flush_events()
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT id, run_id, seq, hash, ts, type, data FROM events "
+                "WHERE run_id = ? AND type = 'tool_result' AND json_type(data, '$.artifact') = 'text' "
+                "ORDER BY seq LIMIT ? OFFSET ?",
+                (run_id, max(1, min(limit, 101)), max(0, offset)),
+            ).fetchall()
+        return [self._event(row) for row in rows]
+
+    def artifact_event(self, run_id: str, artifact_path: str) -> Optional[Event]:
+        """Find the committed event that authorizes access to one run-local artifact path."""
+        self.flush_events()
+        with self._lock:
+            row = self._db.execute(
+                "SELECT id, run_id, seq, hash, ts, type, data FROM events "
+                "WHERE run_id = ? AND type = 'tool_result' AND json_extract(data, '$.artifact') = ? "
+                "ORDER BY seq DESC LIMIT 1",
+                (run_id, artifact_path),
+            ).fetchone()
+        return self._event(row) if row else None
+
     def last_seq(self, run_id: str) -> int:
         self.flush_events()
         with self._lock:

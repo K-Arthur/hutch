@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Optional
@@ -41,25 +43,48 @@ class StepTimer:
 DEFAULT_TOOL_LIMIT = 12_000   # chars shown to the model per tool call unless the bot overrides it (PF-2)
 
 
-def save_artifact(ctx: ToolContext, tool: str, text: str) -> str:
-    """Write a tool's full output under the run's artifacts/ directory; returns its path relative to the run."""
+MAX_ARTIFACT_BYTES = 4_000_000  # MAX_TOOL_OUTPUT is one million Unicode characters.
+
+
+def save_artifact(ctx: ToolContext, tool: str, text: str) -> tuple[str, str, int]:
+    """Write an immutable tool-output version and return its run-relative path, hash and byte size."""
     run_dir = ctx.config.run_dir(ctx.bot.name, ctx.run.id)
     art = run_dir / "artifacts"
-    art.mkdir(parents=True, exist_ok=True)
-    n = len(list(art.iterdir())) + 1
-    path = art / f"{n:03d}-{tool}.txt"
-    path.write_text(text, encoding="utf-8", errors="replace")
-    return str(path.relative_to(run_dir))
+    art.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if art.is_symlink():
+        raise OSError("artifact directory may not be a symbolic link")
+    content = text.encode("utf-8", errors="replace")
+    if len(content) > MAX_ARTIFACT_BYTES:
+        raise ValueError("artifact exceeds the 4 MB storage limit")
+    digest = hashlib.sha256(content).hexdigest()
+    slug = re.sub(r"[^a-z0-9_-]+", "-", tool.lower()).strip("-")[:40] or "tool"
+    for version in range(1, 1_000_000):
+        path = art / f"{version:03d}-{slug}.txt"
+        try:
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        except FileExistsError:
+            continue
+        try:
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(content)
+                stream.flush()
+                os.fchmod(stream.fileno(), 0o400)
+                os.fsync(stream.fileno())
+        except BaseException:
+            path.unlink(missing_ok=True)
+            raise
+        return str(path.relative_to(run_dir)), digest, len(content)
+    raise OSError("too many artifact versions in one run")
 
 
-def truncate_for_model(ctx: ToolContext, tool: str, output: str) -> tuple[str, Optional[str]]:
-    """PF-2: cap what the model sees to the tool's limit; the full output is kept as an artifact."""
+def truncate_for_model(ctx: ToolContext, tool: str, output: str) -> tuple[str, Optional[dict[str, Any]]]:
+    """PF-2: cap model context while keeping an immutable, verifiable copy of the full tool output."""
     limit = int(ctx.bot.tool_limits.get(tool, DEFAULT_TOOL_LIMIT))
     if limit <= 0 or len(output) <= limit:
         return output, None
-    rel = save_artifact(ctx, tool, output)
+    rel, digest, byte_size = save_artifact(ctx, tool, output)
     note = f"\n... [{len(output) - limit:,} of {len(output):,} characters omitted; full output saved as artifact {rel}]"
-    return output[:limit] + note, rel
+    return output[:limit] + note, {"path": rel, "sha256": digest, "bytes": byte_size}
 
 
 def _summary(name: str, args: dict[str, Any]) -> str:
@@ -150,7 +175,8 @@ def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, arg
     result.output, artifact = truncate_for_model(ctx, name, result.output)
     data: dict[str, Any] = {"tool": name, "ok": result.ok, "output": result.output[:output_chars]}
     if artifact:
-        data.update(artifact=artifact, chars=full_chars)
+        data.update(artifact=artifact["path"], artifact_sha256=artifact["sha256"],
+                    artifact_bytes=artifact["bytes"], chars=full_chars)
     if result.data.get("simulated"):
         data["simulated"] = True                                 # Rehearse mode: nothing actually ran
     ctx.emit(Event(run_id=run.id, type=EventType.tool_result, data=data))

@@ -66,9 +66,16 @@ Everything lives under one directory (default `~/.local/state/hutch`, override `
 hutch.db                      # SQLite (WAL): bots, tasks, runs, events, usage/reservations, conversations, approvals, memory, receipts
 bots/<bot>/runs/<run_id>/
   transcript.jsonl              # append-only run transcript (mirror of events)
+  artifacts/<version>-<tool>.txt # immutable full tool outputs when model context is clipped
   workspace/                    # the bot's jailed world for this run
 bots/<bot>/browser-profile/     # persistent Chromium profile (logins survive runs)
 ```
+
+Large tool outputs are linked to their committed `tool_result` event by run and event sequence.
+The event stores the byte size and SHA-256; the typed API lists these bounded run-scoped artifacts,
+and a download verifies the bytes again before sending them as plain text. The chat offers the
+download beside the clipped result. This does not yet provide a shared cross-run artifact library
+or stable Hutch-managed workspaces; artifacts stay with their source run and conversation context.
 
 ## Key decisions
 

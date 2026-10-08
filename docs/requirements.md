@@ -94,7 +94,7 @@ commits can cite them. Evidence for the *why* is in
 | ID | Requirement | Proposed target | Phase | Status | Where |
 |---|---|---|---|---|---|
 | PF-1 | Byte-identical system prompt + tool list across a run | cached-token share per run | MVP | done | frozen prompt prefix hash recorded on every step (`tests/test_runtime_builtin.py`) |
-| PF-2 | Per-tool output limit; full output saved as artifact | configurable per tool | MVP | done | per-tool output limit (configurable per bot); full output saved as an artifact (`runtime/steps.py`) |
+| PF-2 | Per-tool output limit; full output saved as artifact | configurable per tool | MVP | done | per-tool output limit (configurable per bot); full output saved as an immutable run-scoped artifact with a typed API listing and SHA-256-verified download (`runtime/steps.py`, `/api/v1/tasks/runs/{id}/artifacts`) |
 | PF-3 | Prompt includes only the bot's allowed tools | — | MVP | done | only the bot's allowed tools reach the prompt (`tests/test_runtime_builtin.py`) |
 | PF-4 | Compaction before the context limit | ~75% of context | Later | later | |
 | PF-5 | Scheduler sleeps until next due run or event; no polling | near-zero idle CPU | MVP | done | `engine.run_loop`/`next_wakeup`, `wake.py`; `tests/test_engine_loop.py`; 0.0 s/h idle CPU |

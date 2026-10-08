@@ -7,6 +7,7 @@ behaviours a real model would show (silent truncation, malformed calls, loops, s
 from __future__ import annotations
 
 import json
+import hashlib
 import threading
 import time
 
@@ -576,7 +577,11 @@ def test_huge_tool_output_is_truncated_for_the_model_and_kept_as_an_artifact(sto
     ev = next(e for e in emitted if e.type is EventType.tool_result)
     assert ev.data["chars"] == 100_000
     art = config.run_dir(ctx.bot.name, run.id) / ev.data["artifact"]
-    assert art.read_text() == "line\n" * 20_000
+    saved = art.read_bytes()
+    assert art.stat().st_mode & 0o222 == 0
+    assert saved.decode() == "line\n" * 20_000
+    assert ev.data["artifact_bytes"] == len(saved)
+    assert ev.data["artifact_sha256"] == hashlib.sha256(saved).hexdigest()
 
 
 # ============================================================ SR-9 surfaced in the transcript

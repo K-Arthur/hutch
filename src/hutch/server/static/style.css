@@ -542,6 +542,8 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .tool-line-label { display: inline; font-family: var(--mono); color: var(--text-3); }
 .tool-line-label::after { content: " "; }
 .tool-line-section + .tool-line-section { margin-top: 2px; }
+.tool-line-section.artifact-download { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 10px; }
+.artifact-download .hint { overflow-wrap: anywhere; }
 .tool-line-more { all: unset; cursor: pointer; display: inline-block; color: var(--focus); font: 400 var(--fs-xs)/1 var(--mono); margin-left: var(--s-2); }
 .tool-line-more:hover { text-decoration: underline; }
 .tool-log { padding: 1px 2px; }

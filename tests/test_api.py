@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import time
 
 import pytest
 from fastapi.testclient import TestClient
 
-from hutch.models import Bot, Run, RunStatus
+from hutch.models import Bot, Event, EventType, Run, RunStatus
 from hutch.server.app import create_app
 
 
@@ -35,6 +36,77 @@ def test_health_and_stats(client):
     assert client.get("/api/health").json()["status"] == "ok"
     stats = client.get("/api/stats").json()
     assert stats["bots"] == 0 and stats["pending_approvals"] == 0
+
+
+def test_run_output_artifacts_are_paged_scoped_and_hash_checked(client, tmp_path):
+    bot = make_bot(client, name="artifact-bot")
+    store, config = client.app.state.store, client.app.state.config
+    run = Run(bot_id=bot["id"], prompt="inspect a large result")
+    store.create_run(run)
+    artifact_dir = config.run_dir(bot["name"], run.id) / "artifacts"
+    artifact_dir.mkdir(parents=True)
+    filename = "001-read_file.txt"
+    payload = b"full output that was too large for model context\n"
+    (artifact_dir / filename).write_bytes(payload)
+    store.append_event(Event(run_id=run.id, type=EventType.tool_result, data={
+        "tool": "read_file", "ok": True, "output": "[clipped]", "chars": 5000,
+        "artifact": f"artifacts/{filename}", "artifact_sha256": hashlib.sha256(payload).hexdigest(),
+        "artifact_bytes": len(payload),
+    }))
+    second_filename = "002-read_file.txt"
+    second_payload = b"a later output from the same tool\n"
+    (artifact_dir / second_filename).write_bytes(second_payload)
+    store.append_event(Event(run_id=run.id, type=EventType.tool_result, data={
+        "tool": "read_file", "ok": True, "output": "[later clipped result]", "chars": 7000,
+        "artifact": f"artifacts/{second_filename}",
+        "artifact_sha256": hashlib.sha256(second_payload).hexdigest(),
+        "artifact_bytes": len(second_payload),
+    }))
+    store.append_event(Event(run_id=run.id, type=EventType.tool_result, data={
+        "tool": "read_file", "ok": True, "output": "[legacy clipped result]", "chars": 6000,
+        "artifact": "artifacts/003-read_file.txt",
+    }))
+
+    url = f"/api/v1/tasks/runs/{run.id}/artifacts"
+    first = client.get(url, params={"limit": 1})
+    assert first.status_code == 200, first.text
+    page = first.json()
+    assert page["next_offset"] == 1 and len(page["artifacts"]) == 1
+    artifact = page["artifacts"][0]
+    assert artifact["version"] > 0 and artifact["conversation_id"] == ""
+    assert artifact["filename"] == filename and artifact["state"] == "available"
+    assert artifact["sha256"] == hashlib.sha256(payload).hexdigest()
+
+    later = client.get(url, params={"limit": 1, "offset": 1}).json()["artifacts"][0]
+    assert later["state"] == "available" and later["filename"] == second_filename
+    assert later["version"] > artifact["version"] and later["id"] != artifact["id"]
+    assert client.get(later["download_url"]).content == second_payload
+
+    old = client.get(url, params={"limit": 1, "offset": 2}).json()["artifacts"][0]
+    assert old["state"] == "unverified" and old["download_url"] is None
+    assert client.get(url + "/not-a-generated-name").status_code == 404
+
+    download = client.get(artifact["download_url"])
+    assert download.status_code == 200 and download.content == payload
+    assert download.headers["x-hutch-artifact-verified"] == "sha256"
+    assert download.headers["etag"] == f'"{hashlib.sha256(payload).hexdigest()}"'
+
+    path = artifact_dir / filename
+    path.write_bytes(payload.replace(b"full", b"evil", 1))
+    changed = client.get(artifact["download_url"])
+    assert changed.status_code == 409 and "SHA-256" in changed.text
+    path.unlink()
+    outside = tmp_path / "outside.txt"
+    outside.write_bytes(payload)
+    path.symlink_to(outside)
+    assert client.get(artifact["download_url"]).status_code == 404
+    path.unlink()
+    safe_dir = artifact_dir.with_name("artifacts-safe")
+    artifact_dir.rename(safe_dir)
+    artifact_dir.symlink_to(tmp_path, target_is_directory=True)
+    assert client.get(artifact["download_url"]).status_code == 404
+    artifact_dir.unlink()
+    safe_dir.rename(artifact_dir)
 
 
 def test_bot_crud_and_validation(client):

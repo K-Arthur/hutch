@@ -1,0 +1,53 @@
+{
+  "captured_at": "2026-10-08T19:28:04.012133+00:00",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright": "1.63.0",
+  "source_sha256": {
+    "src/hutch/server/app.py": "edf82b02669796507ce0c1dc987d10dfbde109f02bba7028beb79f12a1d73ef6",
+    "src/hutch/server/static/app.js": "6382efae1eb1ef26fd719564512c92a1761170478d7f7e341296504ecfc4fd45",
+    "src/hutch/server/static/style.css": "c2c03098c45b8c09ff6eb31bbde4da825f3b6d1672c9eff2d66c623f1859899a",
+    "src/hutch/runtime/steps.py": "8ee6f5e6f317e21e78b9fd4efaba0261c3f34aba3e001bd3bb6d1ff88c8c74a8"
+  },
+  "artifacts": [
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        1000
+      ],
+      "screenshot": "desktop.png",
+      "screenshot_sha256": "e39109cca04dba1acdd643a7aa1e3439770b96c59247ee4b062d391208966d94",
+      "artifact_sha256": "605976e1632e185ce0f739439be988d2fb5f77b429842477e58b9df1a24cc13b",
+      "overflow_px": 0,
+      "page_errors": []
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        768,
+        1024
+      ],
+      "screenshot": "tablet.png",
+      "screenshot_sha256": "1ce6a5b0577decc47af7928046638ea05d5e06ffeb120801c54a52536249a0f4",
+      "artifact_sha256": "605976e1632e185ce0f739439be988d2fb5f77b429842477e58b9df1a24cc13b",
+      "overflow_px": 0,
+      "page_errors": []
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        390,
+        844
+      ],
+      "screenshot": "phone.png",
+      "screenshot_sha256": "0ee68cbd5271afd6d1cc3dbc2251e2b1cd01fed18780d43557d3a56eeaca7599",
+      "artifact_sha256": "605976e1632e185ce0f739439be988d2fb5f77b429842477e58b9df1a24cc13b",
+      "overflow_px": 0,
+      "page_errors": []
+    }
+  ],
+  "provider_calls": 0,
+  "runtime_fixture": "tests.support.TestScenarioRuntime",
+  "limitation": "Fixture execution only; no Ollama service or model was invoked."
+}

@@ -16,7 +16,9 @@ import json
 import os
 import platform
 import re
+import stat
 from pathlib import Path
+from pathlib import PurePosixPath
 from typing import Any, Literal, Optional
 
 from fastapi import FastAPI, HTTPException, Request, Response
@@ -43,6 +45,9 @@ from .sse import global_event_stream, resource_change_stream, resume_cursor, run
 
 _STATIC = Path(__file__).parent / "static"
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,40}$")
+_ARTIFACT_NAME_RE = re.compile(r"^[0-9]{3,6}-[a-z0-9_-]{1,40}\.txt$")
+_ARTIFACT_SHA_RE = re.compile(r"^[a-f0-9]{64}$")
+_MAX_ARTIFACT_BYTES = 4_000_000
 
 #: transcript window returned by default (PF-9): the run page stays usable at 10,000+ events
 DEFAULT_EVENT_WINDOW = 200
@@ -170,6 +175,29 @@ class ConversationDetail(ConversationResource):
     messages: list[ConversationMessageResource]
     last_seq: int
     has_more: bool
+
+
+class ArtifactResource(BaseModel):
+    id: str
+    run_id: str
+    bot_id: str
+    conversation_id: str = ""
+    version: int
+    source_tool: str
+    filename: str
+    sha256: str = ""
+    size_bytes: int = 0
+    chars: int = 0
+    created_at: str
+    state: Literal["available", "missing", "unverified"]
+    download_url: Optional[str] = None
+
+
+class ArtifactPageResource(BaseModel):
+    artifacts: list[ArtifactResource]
+    limit: int
+    offset: int
+    next_offset: Optional[int] = None
 
 
 class ConversationSearchResult(BaseModel):
@@ -506,6 +534,111 @@ def create_app() -> FastAPI:
             raise HTTPException(404, f"no such run: {run_id}")
         return run
 
+    def artifact_target(run, artifact_ref: str) -> Optional[Path]:
+        """Resolve only a recorded run-local artifact; reject traversal and every symlink component."""
+        if not isinstance(artifact_ref, str):
+            return None
+        relative = PurePosixPath(artifact_ref)
+        if (str(relative) != artifact_ref or len(relative.parts) != 2 or relative.parts[0] != "artifacts"
+                or not _ARTIFACT_NAME_RE.fullmatch(relative.name)
+                or not re.fullmatch(r"[a-zA-Z0-9_-]{4,80}", run.id)):
+            return None
+        root = config.bots_dir
+        try:
+            if root.is_symlink() or not root.is_dir():
+                return None
+            bot = store.get_bot(run.bot_id)
+            folders = [root / bot.name] if bot else list(root.iterdir())
+            matches = []
+            for folder in folders:
+                runs = folder / "runs"
+                run_dir = runs / run.id
+                if (folder.is_symlink() or runs.is_symlink() or run_dir.is_symlink()
+                        or not folder.is_dir() or not runs.is_dir() or not run_dir.is_dir()):
+                    continue
+                artifact_dir = run_dir / "artifacts"
+                target = artifact_dir / relative.name
+                if artifact_dir.is_symlink() or target.is_symlink() or not artifact_dir.is_dir():
+                    continue
+                info = target.lstat()
+                if stat.S_ISREG(info.st_mode) and info.st_size <= _MAX_ARTIFACT_BYTES:
+                    matches.append(target)
+            if len(matches) == 1:
+                return matches[0]
+        except OSError:
+            return None
+        return None
+
+    def artifact_resource(run, event) -> ArtifactResource:
+        data = event.data
+        artifact_ref = data.get("artifact", "")
+        name = PurePosixPath(artifact_ref).name if isinstance(artifact_ref, str) else ""
+        digest = data.get("artifact_sha256", "")
+        has_hash = isinstance(digest, str) and bool(_ARTIFACT_SHA_RE.fullmatch(digest))
+        target = artifact_target(run, artifact_ref) if has_hash else None
+        state = "unverified" if not has_hash else "available" if target else "missing"
+        size_bytes = data.get("artifact_bytes", 0)
+        chars = data.get("chars", 0)
+        return ArtifactResource(
+            id=f"{run.id}:event:{event.seq}", run_id=run.id, bot_id=run.bot_id,
+            conversation_id=run.conversation_id or "", version=event.seq,
+            source_tool=str(data.get("tool", "unknown"))[:80],
+            filename=name if _ARTIFACT_NAME_RE.fullmatch(name) else "", sha256=digest if has_hash else "",
+            size_bytes=(max(0, min(_MAX_ARTIFACT_BYTES, size_bytes)) if isinstance(size_bytes, int)
+                        and not isinstance(size_bytes, bool) else 0),
+            chars=(max(0, chars) if isinstance(chars, int) and not isinstance(chars, bool) else 0),
+            created_at=event.ts, state=state,
+            download_url=(f"/api/v1/tasks/runs/{run.id}/artifacts/{name}" if state == "available" else None),
+        )
+
+    def read_artifact_file(run, filename: str) -> Optional[bytes]:
+        """Read a run-local artifact through no-follow directory descriptors.
+
+        Each path component is opened relative to its already-open parent. This
+        prevents a replaced parent directory or symlink from redirecting the
+        download after the list endpoint checked the path.
+        """
+        if not _ARTIFACT_NAME_RE.fullmatch(filename) or not re.fullmatch(r"[a-zA-Z0-9_-]{4,80}", run.id):
+            return None
+        bot = store.get_bot(run.bot_id)
+        if bot is not None and not _SLUG_RE.fullmatch(bot.name):
+            return None
+        directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        file_flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            root_fd = os.open(config.bots_dir, directory_flags)
+        except OSError:
+            return None
+        matches: list[bytes] = []
+        try:
+            folder_names = [bot.name] if bot else os.listdir(root_fd)
+            for folder_name in folder_names:
+                descriptors: list[int] = []
+                parent_fd = root_fd
+                try:
+                    for component in (folder_name, "runs", run.id, "artifacts"):
+                        parent_fd = os.open(component, directory_flags, dir_fd=parent_fd)
+                        descriptors.append(parent_fd)
+                    file_fd = os.open(filename, file_flags, dir_fd=parent_fd)
+                    try:
+                        info = os.fstat(file_fd)
+                        if not stat.S_ISREG(info.st_mode) or info.st_size > _MAX_ARTIFACT_BYTES:
+                            continue
+                        with os.fdopen(file_fd, "rb", closefd=False) as stream:
+                            content = stream.read(_MAX_ARTIFACT_BYTES + 1)
+                        if len(content) <= _MAX_ARTIFACT_BYTES:
+                            matches.append(content)
+                    finally:
+                        os.close(file_fd)
+                except OSError:
+                    continue
+                finally:
+                    for descriptor in reversed(descriptors):
+                        os.close(descriptor)
+        finally:
+            os.close(root_fd)
+        return matches[0] if len(matches) == 1 else None
+
     def idempotency_key(request: Request) -> str:
         key = (request.headers.get("Idempotency-Key") or "").strip()
         if not key:
@@ -774,6 +907,10 @@ def create_app() -> FastAPI:
         bot = store.get_bot(conversation["bot_id"])
         if bot is None:
             raise HTTPException(404, "conversation bot no longer exists")
+        # A restore hold governs the whole executor. Report it before model
+        # setup or request-specific checks so a stale/unavailable route cannot
+        # obscure the operator review that is currently required.
+        store.assert_execution_ready()
         from ..modelchoices import ModelNotUsable, validate_override
         try:
             model = validate_override(config, store, bot, body.model or "")
@@ -1092,6 +1229,47 @@ def create_app() -> FastAPI:
         view["event_count"] = total
         view["events_truncated"] = bool(window) and window[0].seq > 1
         return view
+
+    @app.get("/api/v1/tasks/runs/{run_id}/artifacts", response_model=ArtifactPageResource)
+    def list_run_artifacts(run_id: str, limit: int = 50, offset: int = 0) -> ArtifactPageResource:
+        run = run_or_404(run_id)
+        if not 1 <= limit <= 100 or offset < 0:
+            raise HTTPException(422, "limit must be 1–100; offset must be nonnegative")
+        events = store.artifact_events(run.id, limit=limit + 1, offset=offset)
+        has_more = len(events) > limit
+        items = [artifact_resource(run, event) for event in events[:limit]]
+        return ArtifactPageResource(artifacts=items, limit=limit, offset=offset,
+                                    next_offset=offset + limit if has_more else None)
+
+    @app.get("/api/v1/tasks/runs/{run_id}/artifacts/{filename}")
+    def download_run_artifact(run_id: str, filename: str) -> Response:
+        run = run_or_404(run_id)
+        if not _ARTIFACT_NAME_RE.fullmatch(filename):
+            raise HTTPException(404, "no such artifact")
+        artifact_ref = f"artifacts/{filename}"
+        event = store.artifact_event(run.id, artifact_ref)
+        if event is None:
+            raise HTTPException(404, "no such artifact")
+        data = event.data
+        expected_hash = data.get("artifact_sha256", "")
+        expected_bytes = data.get("artifact_bytes")
+        if (not isinstance(expected_hash, str) or not _ARTIFACT_SHA_RE.fullmatch(expected_hash)
+                or not isinstance(expected_bytes, int) or isinstance(expected_bytes, bool)
+                or not 0 <= expected_bytes <= _MAX_ARTIFACT_BYTES):
+            raise HTTPException(409, "this historical artifact has no verifiable content hash")
+        content = read_artifact_file(run, filename)
+        if content is None:
+            raise HTTPException(404, "artifact file is missing or is not a regular run-local file")
+        if len(content) != expected_bytes:
+            raise HTTPException(409, "artifact size no longer matches its recorded version")
+        digest = hashlib.sha256(content).hexdigest()
+        if digest != expected_hash:
+            raise HTTPException(409, "artifact failed its recorded SHA-256 integrity check")
+        return Response(content=content, media_type="text/plain; charset=utf-8", headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store", "ETag": f'"{digest}"',
+            "X-Content-Type-Options": "nosniff", "X-Hutch-Artifact-Verified": "sha256",
+        })
 
     @app.get("/api/runs/{run_id}/events")
     @app.get("/api/v1/tasks/runs/{run_id}/events")

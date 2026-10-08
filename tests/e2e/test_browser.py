@@ -7,9 +7,11 @@ Skipped automatically when Playwright or its Chromium build is not installed:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import threading
 import time
+from datetime import datetime, timezone
 from importlib.metadata import version as package_version
 from pathlib import Path
 
@@ -18,7 +20,7 @@ import pytest
 pw = pytest.importorskip("playwright.sync_api")
 import uvicorn  # noqa: E402
 
-from hutch.models import ApprovalMode, Bot, Event, EventType, RunStatus  # noqa: E402
+from hutch.models import ApprovalMode, Bot, Event, EventType, RunStatus, RuntimeKind  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
 
 
@@ -176,6 +178,91 @@ def test_spa_transcript_renders_a_live_run(browser, live, monkeypatch):
     assert "done" in page.inner_text("#chat-stream")
     assert not errors, errors
     ctx.close()
+
+
+def test_saved_tool_output_is_downloadable_and_verified_at_all_viewports(browser, live, monkeypatch):
+    """Large tool results remain inspectable from the chat without trusting an unchecked disk path."""
+    base, app = live
+    store, engine = app.state.store, app.state.engine
+    import tests.support.runtime as scenario_runtime
+    from hutch.runtime.steps import call_tool
+
+    original = "\n".join(f"artifact row {n:04d}: preserved outside the model context" for n in range(1200))
+
+    def emit_large_result(self, run, ctx, tools, stop):
+        (ctx.workspace / "large.txt").write_text(original, encoding="utf-8")
+        call_tool(run, ctx, tools, "read_file", {"path": "large.txt"})
+        call_tool(run, ctx, tools, "read_file", {"path": "large.txt"})
+        run.steps += 1
+        ctx.emit(Event(run_id=run.id, type=EventType.message,
+                       data={"role": "assistant", "content": "The full result is available as a verified artifact."}))
+        return "The full result is available as a verified artifact."
+
+    monkeypatch.setattr(scenario_runtime.TestScenarioRuntime, "execute", emit_large_result)
+    bot = store.create_bot(Bot(name="artifact-bot", model="ollama/qwen3:4b", runtime=RuntimeKind.mock, tools=["files"],
+                               approval_mode=ApprovalMode.auto, tool_limits={"read_file": 256}))
+    run = engine.submit(bot, "read the large output")
+    engine.dispatch_pending()
+    assert wait_for(lambda: store.get_run(run.id).status is RunStatus.succeeded)
+    store.flush_transcripts()
+
+    artifact_events = [e for e in store.list_events(run.id) if e.type is EventType.tool_result]
+    assert [e.data["artifact"] for e in artifact_events] == [
+        "artifacts/001-read_file.txt", "artifacts/002-read_file.txt"]
+    artifacts = app.state.store.artifact_events(run.id)
+    assert len(artifacts) == 2 and artifacts[0].seq < artifacts[1].seq
+    artifact_event = artifact_events[0]
+    assert artifact_event.data["chars"] == len(original)
+    expected_hash = hashlib.sha256(original.encode()).hexdigest()
+    assert artifact_event.data["artifact_sha256"] == expected_hash
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/versioned-artifacts"
+    out.mkdir(parents=True, exist_ok=True)
+    records = []
+    for name, width, height in (("desktop", 1440, 1000), ("tablet", 768, 1024), ("phone", 390, 844)):
+        context = browser.new_context(viewport={"width": width, "height": height}, device_scale_factor=1)
+        page = context.new_page()
+        errors: list[str] = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
+        page.goto(f"{base}/#/run/{run.id}")
+        page.wait_for_selector(".tool-line-head", timeout=20_000)
+        page.locator(".tool-line-head").first.click()
+        link = page.locator(".artifact-download a").first
+        link.wait_for(state="visible")
+        href = link.get_attribute("href")
+        assert href and f"/api/v1/tasks/runs/{run.id}/artifacts/" in href
+        artifact_page = page.request.get(f"{base}/api/v1/tasks/runs/{run.id}/artifacts").json()
+        assert [item["filename"] for item in artifact_page["artifacts"]] == [
+            "001-read_file.txt", "002-read_file.txt"]
+        image_path = out / f"{name}.png"
+        page.screenshot(path=str(image_path), animations="disabled")
+        link.focus()
+        with page.expect_download() as download_info:
+            page.keyboard.press("Enter")
+        download = download_info.value
+        downloaded = Path(download.path()).read_bytes()
+        assert downloaded == original.encode("utf-8")
+        assert download.suggested_filename == Path(artifact_event.data["artifact"]).name
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow <= 1 and not errors, {"overflow": overflow, "errors": errors}
+        records.append({"viewport": name, "size": [width, height], "screenshot": image_path.name,
+                        "screenshot_sha256": hashlib.sha256(image_path.read_bytes()).hexdigest(),
+                        "artifact_sha256": hashlib.sha256(downloaded).hexdigest(), "overflow_px": overflow,
+                        "page_errors": errors})
+        context.close()
+
+    repo = Path(__file__).resolve().parents[2]
+    source_files = ("src/hutch/server/app.py", "src/hutch/server/static/app.js",
+                    "src/hutch/server/static/style.css", "src/hutch/runtime/steps.py")
+    (out / "results.json").write_text(json.dumps({
+        "captured_at": datetime.now(timezone.utc).isoformat(), "browser": browser.browser_type.name,
+        "browser_version": browser.version, "playwright": package_version("playwright"),
+        "source_sha256": {name: hashlib.sha256((repo / name).read_bytes()).hexdigest()
+                          for name in source_files},
+        "artifacts": records, "provider_calls": 0,
+        "runtime_fixture": "tests.support.TestScenarioRuntime",
+        "limitation": "Fixture execution only; no Ollama service or model was invoked.",
+    }, indent=2) + "\n")
 
 
 def test_studio_conversation_survives_reload_and_archive(browser, live):
@@ -407,7 +494,7 @@ def test_bot_limits_can_be_saved_from_the_phone_settings(browser, live):
 def test_model_route_setting_explains_host_gated_offline_mode_and_saves_on_phone(browser, live):
     base, app = live
     store = app.state.store
-    store.create_bot(Bot(name="route-bot", model="mock/demo", approval_mode=ApprovalMode.auto))
+    store.create_bot(Bot(name="route-bot", model="ollama/qwen3:4b", approval_mode=ApprovalMode.auto))
     ctx = browser.new_context(viewport={"width": 390, "height": 844})
     page = ctx.new_page()
     errors: list[str] = []
@@ -1273,7 +1360,8 @@ def test_scoped_fact_review_revision_conflict_and_memory_off(browser, live, widt
             assert page.locator('#modal-confirm').bounding_box()['height']>=44
         page.screenshot(path=str(out/f'{size}-review.png'), full_page=True, animations='disabled')
         page.keyboard.press('Escape')
-        assert review_button.evaluate('e => e === document.activeElement'), page.evaluate('({active:document.activeElement.outerHTML, modal:!!document.querySelector("#modal-title")})')
+        wait_for(lambda: review_button.evaluate('e => e.matches(":focus")'), timeout=2)
+        assert review_button.evaluate('e => e.matches(":focus")')
         review_button.click()
         newer = store.remember(bot.id, 'format', 'PRIVATE A REVISED: concise summary', conversation_id=a['id'])
         page.locator('#modal-confirm').click()

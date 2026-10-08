@@ -980,3 +980,35 @@ the package excludes `tests/`, `src/hutch/runtime/mock.py` and `src/hutch/demo.p
 local model, Pi/OpenCode invocation, remote phone control or physical-device check was performed.
 This closes the no-mock/product-truth slice only; the S5 adapter boundary, S6 workspaces/tasks and
 delegation, S7 live browser handoff, S8 remote interactive control, and final S9 release gates remain.
+
+## S6 Run-scoped, verifiable tool-output artifacts (2026-10-08)
+
+Tool results that exceed model context are now saved under their source run as exclusive,
+owner-read-only numbered files. The committed `tool_result` event records the run-relative path, byte
+size, character count and SHA-256. A bounded typed endpoint pages these versions in event order;
+the download endpoint verifies the recorded size and hash again, opens every path component through
+no-follow directory descriptors, and rejects missing, oversized, symlinked or changed content.
+Legacy artifact references without a recorded digest remain visible as `unverified` and cannot be
+downloaded. The chat puts the download next to the clipped output, with the digest prefix and byte
+size. This is per-run history, not yet a stable cross-run workspace or shared artifact library.
+
+The regression scenario writes two outputs from the same tool and checks that they receive distinct
+versions. API coverage checks ordered pagination, same-run scope, full downloads, event hashes,
+tampered bytes, final-file and parent-directory symlinks, and an old unverified event. The browser
+journey downloads the first version using keyboard activation at desktop (1440×1000), tablet
+(768×1024), and phone (390×844). Chromium 153.0.8010.12 / Playwright 1.63.0 recorded zero page
+errors, zero horizontal overflow and matching SHA-256 values. Screenshots and source hashes are in
+`docs/realignment/artifacts/versioned-artifacts/`. These captures use
+`tests.support.TestScenarioRuntime`; they make no Ollama or hosted-provider calls.
+
+That acceptance work also repaired the restore-held conversation response to return the restore
+review conflict before model-route validation, and uses a real local-model route in the settings
+journey rather than a retired mock route. The focus-return test waits for the equivalent review
+control after live transcript refresh replaces its DOM node.
+
+Focused verification passed **3 tests in 3.60s** after descriptor-relative file access and the final
+read-path cleanup. The complete offline suite, including all browser journeys, passed **1,301 tests
+in 370.98s** with
+`PytestUnhandledThreadExceptionWarning` and `SyntaxWarning` treated as failures. `git diff --check`
+passed. No real provider, model, phone or physical device was used. Implementation commit:
+pending.

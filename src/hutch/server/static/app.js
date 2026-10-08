@@ -1513,6 +1513,7 @@ function toolLineHtml(item, anchorEvent, runId) {
           <span class="tool-line-label">Input</span>
           ${esc(JSON.stringify(call?.d.args ?? {}, null, 2))}
         </div>
+        ${res ? artifactDownloadHtml(runId, res.d) : ""}
         ${res ? toolOutputHtml(res.d.output) : '<div class="tool-line-section"><span class="tool-line-label">Output</span>pending…</div>'}
       </div>
     </div>
@@ -1532,6 +1533,20 @@ function toolOutputHtml(output) {
       <span data-out-clip>${esc(text.slice(0, OUTPUT_CLIP))}</span><span data-out-full hidden>…${esc(text.slice(OUTPUT_CLIP))}</span>
       <button class="tool-line-more" type="button" data-show-more>Show ${text.length - OUTPUT_CLIP} more characters</button>
     </div>`;
+}
+
+function artifactDownloadHtml(runId, result) {
+  const match = /^artifacts\/([0-9]{3,6}-[a-z0-9_-]{1,40}\.txt)$/.exec(String(result.artifact || ""));
+  const digest = String(result.artifact_sha256 || "");
+  if (!match || !/^[a-f0-9]{64}$/.test(digest)) return "";
+  const bytes = Number(result.artifact_bytes);
+  const size = Number.isSafeInteger(bytes) && bytes >= 0 ? ` · ${bytes.toLocaleString()} bytes` : "";
+  const href = `/api/v1/tasks/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(match[1])}`;
+  return `<div class="tool-line-section artifact-download">
+    <span class="tool-line-label">Saved full output</span>
+    <a class="btn ghost small" href="${href}" title="The server verifies this file against its recorded SHA-256 before download">Download${size}</a>
+    <span class="hint mono">SHA-256 ${esc(digest.slice(0, 16))}…</span>
+  </div>`;
 }
 
 function toolGroupHtml(item, runId) {
