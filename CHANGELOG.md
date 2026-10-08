@@ -81,3 +81,6 @@ First MVP.
   accent glow; and a full-screen mobile menu for the header nav on the app, server dashboard
   and marketing site. The site also gains scroll-reveal animations, floating parallax cards and
   a stacked text echo. See [docs/design-system.md](docs/design-system.md).
+- **Studio → whole app + data viz:** the chat SPA is now self-contained with an **Overview** triage
+  view (`GET /api/overview`), a **bento** Bots grid, and a **Timeline** column on the Runs table
+  (per-run duration bars, blue/amber/red). See [docs/design-system.md](docs/design-system.md).

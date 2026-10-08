@@ -221,3 +221,14 @@ The palette was re-based from emerald to a blue/green system with neutral cards.
 - **Marketing only:** dot-grid background, scroll-reveal animations, floating parallax cards, stacked text echo, asymmetrical grids.
 
 These values supersede the emerald-era rows above wherever they conflict.
+
+### Layout patterns (Oct 2026)
+
+- **Bento grids** carry the Overview triage (Needs you is the wide feature tile, Running/Stale
+  smaller) and the Bots page (the first bot is a two-column feature tile). Every tile is a card:
+  `#0a0a0a`, 1px ring, 8px radius.
+- **Timeline tables** — the Runs table has a Timeline column: a per-run duration bar (blue
+  succeeded, amber waiting, red failed) with a monospace duration label beside it. Rows stay mono.
+- **The chat SPA is the whole app**: Studio (chat), Overview (triage), Bots, Runs, Approvals are all
+  SPA views on shared tokens; `GET /api/overview` feeds the triage from the same `views.home_state`
+  the server page uses, so there is one source of truth and no second chrome.
