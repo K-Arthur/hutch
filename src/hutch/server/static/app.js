@@ -97,10 +97,12 @@ const ICON_PATHS = {
   fileText: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
   hourglass: '<path d="M5 22h14M5 2h14M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/>',
   bot: '<rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>',
   chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
   send: '<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>',
   caret: '<path d="m9 18 6-6-6-6"/>',
+  up: '<path d="M12 19V5M5 12l7-7 7 7"/>',
   down: '<path d="m6 9 6 6 6-6"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   alert: '<path d="M12 3.5 22 20.5H2z"/><path d="M12 10v5"/><path d="M12 18.2v.01"/>',
@@ -490,7 +492,7 @@ async function renderChatStudio(preferredBot = null) {
       <h1>${esc(bot.name)}</h1>
       <div class="ctx-meta">
         <span class="tag mono" title="model">${esc(truncate(bot.model, 26))}</span>
-        ${bot.paused ? '<span class="tag warn">paused</span>' : ""}
+        ${bot.paused ? '<span class="tag">paused</span>' : ""}
         ${state === "running" ? '<span class="tag ok">working</span>' : ""}
       </div>
     </div>
@@ -506,29 +508,38 @@ async function renderChatStudio(preferredBot = null) {
         <div class="feed" id="chat-stream"></div>
       </div>
       <footer class="composer">
-        <div class="composer-drawer" id="composer-drawer" hidden>
-          <div class="quick-prompts" id="quick-prompts">
-            <button class="quick-prompt" type="button" data-quick="Sort this week's downloads and move invoices into folders">${icon("folder")} Sort downloads</button>
-            <button class="quick-prompt" type="button" data-quick="Research this week's AI news and write a short summary">${icon("fileText")} Research news</button>
-            <button class="quick-prompt" type="button" data-quick="Inspect this repository for TODOs and report findings">${icon("search")} Repo sweep</button>
-          </div>
-          <div class="composer-stats">
-            ${budgetMeterHtml(detail)}
-            <span>max ${esc(detail.limits?.max_steps ?? "?")} steps · ${esc((detail.tools || []).join(", ") || "no tools")}</span>
-            <label class="enter-setting"><input type="checkbox" id="enter-send-setting" checked> Enter sends</label>
-          </div>
-        </div>
         <form id="chat-form" autocomplete="off">
           <div class="composer-box" id="composer-box">
-            <div class="composer-input-row composer-row">
-              <button class="composer-util" type="button" id="composer-toggle" aria-label="Suggestions and budget" aria-expanded="false" aria-controls="composer-drawer">${icon("plus")}</button>
+            <div class="composer-row">
+              <div class="cmenu-wrap">
+                <button class="composer-util" type="button" id="composer-menu-btn" aria-label="Add options" aria-haspopup="true" aria-expanded="false" aria-controls="composer-menu">${icon("plus")}</button>
+                <div class="cmenu" id="composer-menu" hidden>
+                  <p class="cmenu-h">Start from a suggestion</p>
+                  <div class="quick-prompts" id="quick-prompts">
+                    <button type="button" data-quick="Sort this week's downloads and move invoices into folders">${icon("folder")} Sort downloads</button>
+                    <button type="button" data-quick="Research this week's AI news and write a short summary">${icon("fileText")} Research news</button>
+                    <button type="button" data-quick="Inspect this repository for TODOs and report findings">${icon("search")} Repo sweep</button>
+                  </div>
+                  <div class="cmenu-sep"></div>
+                  <label class="cmenu-row"><input type="checkbox" id="rehearse-opt">
+                    <span>Rehearse this run<span class="cmenu-sub">simulates writes and commands; model calls and reads still happen</span></span></label>
+                  <label class="cmenu-row"><input type="checkbox" id="enter-send-setting" checked>
+                    <span>Enter sends<span class="cmenu-sub">off: Enter adds a newline, use the send button</span></span></label>
+                  <div class="cmenu-sep"></div>
+                  <div class="cmenu-facts">${budgetMeterHtml(detail)}
+                    <span class="mono">${esc(detail.limits?.max_steps ?? "?")} steps max · ${esc((detail.tools || []).join(", ") || "no tools")}</span>
+                  </div>
+                </div>
+              </div>
               <label class="visually-hidden" for="chat-prompt">Message ${esc(bot.name)}</label>
               <textarea class="composer-textarea" id="chat-prompt" rows="1" placeholder="Message ${esc(bot.name)}…" aria-describedby="chat-help"></textarea>
               <div class="composer-actions">
                 <span class="model-switch-slot" id="model-switch-slot"></span>
-                <button class="composer-send" id="chat-send" type="submit" aria-label="Send message">${icon("send")}</button>
+                <button class="composer-send stop" id="chat-stop" type="button" aria-label="Stop the current run" ${activeRun ? "" : "hidden"}>${icon("stop")}</button>
+                <button class="composer-send" id="chat-send" type="submit" aria-label="Send message">${icon("up")}</button>
               </div>
             </div>
+            <div class="composer-strip" id="rehearse-flag" hidden>${icon("shield")} <b>Rehearsal</b> — writes and commands are simulated; model calls and reads still happen.</div>
           </div>
           <p class="visually-hidden" id="chat-help">Enter sends, Shift+Enter adds a newline. Your draft is kept for this bot if you navigate away.</p>
         </form>
@@ -619,6 +630,8 @@ async function renderChatStudio(preferredBot = null) {
   });
 
   let inflight = false;
+  const rehearseOpt = $("#rehearse-opt"), rflag = $("#rehearse-flag");
+  rehearseOpt?.addEventListener("change", () => { rflag.hidden = !rehearseOpt.checked; });
   const submit = async () => {
     const text = txt.value.trim();
     if (!text || inflight) return;
@@ -626,14 +639,17 @@ async function renderChatStudio(preferredBot = null) {
     box.classList.remove("has-error");
     sendBtn.disabled = true;
     sendBtn.classList.add("sending");
+    sendBtn.innerHTML = '<span class="spinner"></span>';
     sendBtn.setAttribute("aria-label", "Sending…");
     const snapshot = txt.value;
     lastPrompt = text;
     try {
       const r = await api(`/bots/${encodeURIComponent(bot.name)}/run`, {
-        method: "POST", body: { prompt: text, model: switcher?.selected() || undefined },
+        method: "POST",
+        body: { prompt: text, model: switcher?.selected() || undefined, rehearse: !!rehearseOpt?.checked },
       });
-      toast(ACTIVE.has(r.status) && activeRun ? "Sent — queued behind the current run." : "Sent.");
+      toast(rehearseOpt?.checked ? "Rehearsal started — model calls and reads still happen."
+        : (ACTIVE.has(r.status) && activeRun ? "Sent — queued behind the current run." : "Sent."));
       currentRunId = r.id;
       // Clear only the submitted revision; anything typed since stays put.
       if (txt.value === snapshot) { txt.value = ""; saveDraft(bot.name, ""); autogrow(); }
@@ -647,6 +663,7 @@ async function renderChatStudio(preferredBot = null) {
       inflight = false;
       sendBtn.disabled = false;
       sendBtn.classList.remove("sending");
+      sendBtn.innerHTML = icon("up");
       sendBtn.setAttribute("aria-label", "Send message");
     }
   };
@@ -662,18 +679,31 @@ async function renderChatStudio(preferredBot = null) {
     txt.value = chip.dataset.quick;
     saveDraft(bot.name, txt.value);
     autogrow(); txt.focus();
+    setMenu(false);
   });
-  const composerToggle = $("#composer-toggle"), drawer = $("#composer-drawer");
-  composerToggle.addEventListener("click", () => {
-    const open = drawer.hasAttribute("hidden");
-    drawer.toggleAttribute("hidden", !open);
-    composerToggle.setAttribute("aria-expanded", String(open));
+
+  // composer "+" menu: popover with rehearse, Enter behaviour, and live budget
+  const menu = $("#composer-menu"), menuBtn = $("#composer-menu-btn");
+  const setMenu = open => {
+    menu.hidden = !open;
+    menuBtn.setAttribute("aria-expanded", String(open));
+    if (open) $("input, button", menu)?.focus();
+  };
+  menuBtn.addEventListener("click", () => setMenu(menu.hidden));
+  if (window.__cmenuDoc) document.removeEventListener("click", window.__cmenuDoc);
+  window.__cmenuDoc = ev => { if (!menu.hidden && !ev.target.closest(".cmenu-wrap")) setMenu(false); };
+  document.addEventListener("click", window.__cmenuDoc);
+  box.addEventListener("keydown", ev => {
+    if (ev.key === "Escape" && !menu.hidden) { ev.stopPropagation(); setMenu(false); menuBtn.focus(); }
   });
-  $("#studio-stop-run")?.addEventListener("click", async () => {
+
+  const requestStop = async () => {
     if (!currentRunId) return;
     await api(`/runs/${currentRunId}/stop`, { method: "POST" });
     toast("Stop requested — already-finished steps are not undone.");
-  });
+  };
+  $("#chat-stop")?.addEventListener("click", requestStop);
+  $("#studio-stop-run")?.addEventListener("click", requestStop);
 
   feedMode = "studio";
   if (activeRun) subscribeRun(activeRun.id);   // stream brings events; first paint below
@@ -765,7 +795,11 @@ async function renderChatFeed() {
     let html;
     if (ACTIVE.has(r.status) || r.id === currentRunId) html = await runBlockHtml(r.id);
     else if (terminalRunCache.has(r.id)) html = terminalRunCache.get(r.id);
-    else { html = await runBlockHtml(r.id); terminalRunCache.set(r.id, html); }
+    else {
+      html = await runBlockHtml(r.id);
+      // cached copy must not replay its entrance animation on later re-renders
+      terminalRunCache.set(r.id, html.replace('class="thread enter"', 'class="thread"'));
+    }
     parts.push(html);
   }
   stream.innerHTML = parts.join("");
@@ -777,13 +811,31 @@ async function renderChatFeed() {
   if (!slot) {
     slot = document.createElement("div");
     slot.id = "typing-slot"; slot.className = "typing-slot"; slot.setAttribute("aria-hidden", "true");
-    scroll.insertBefore(slot, stream.nextSibling);
+    scroll.appendChild(slot);
   }
   const active = runs.find(r => ACTIVE.has(r.status));
+  const stopC = $("#chat-stop"); if (stopC) stopC.hidden = !active;
+  const stopH = $("#studio-stop-run"); if (stopH) stopH.hidden = !active;
   const thinking = !!active && active.status !== "waiting_approval";
   if (thinking && !slot.innerHTML.trim()) slot.innerHTML = typingHtml();
   if (!thinking) slot.innerHTML = "";
   if (!active) stopRunSubs();
+
+  // The reader's place is sacred: follow the bottom only if they were there.
+  let jump = $("#jump-latest");
+  if (!wasNearBottom) {
+    if (!jump) {
+      jump = document.createElement("button");
+      jump.id = "jump-latest"; jump.className = "jump-latest"; jump.type = "button";
+      jump.innerHTML = `${icon("down")} Jump to latest`;
+      scroll.appendChild(jump);
+      jump.addEventListener("click", () => { scroll.scrollTop = scroll.scrollHeight; jump.hidden = true; });
+    }
+    jump.hidden = false;
+  } else {
+    scroll.scrollTop = scroll.scrollHeight;
+    if (jump) jump.hidden = true;
+  }
 
   announceRunLifecycle(runs);
   wireApprovals();
@@ -1072,6 +1124,8 @@ function updateTtls() {
     el.classList.remove("expired");
     const target = el.querySelector("[data-ttl-text]");
     if (!target) return;
+    const ttlEl = el.querySelector(".ttl-countdown");
+    if (ttlEl) ttlEl.classList.toggle("urgent", ms < 120_000);   // amber only as it nears expiry
     const m = Math.floor(ms / 60000);
     const s = Math.floor((ms % 60000) / 1000);
     target.textContent = `${m}:${String(s).padStart(2, "0")} left`;
@@ -1116,10 +1170,10 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
          data-approval-card="${esc(id)}" ${deadline ? `data-deadline="${deadline}"` : ""}>
       <div class="approval-badge-bar">
         <div class="approval-head-left">
-          <span class="chip warn">${icon("shield")} Approval required</span>
+          <span class="chip">${icon("shield")} Approval required</span>
           ${botName ? `<b class="approval-bot">${esc(botName)}</b>` : ""}
           ${tool ? `<span class="tag">${esc(tool)}</span>` : ""}
-          <span class="tag ${risk === "high" ? "danger" : risk === "low" ? "" : "warn"}">${esc(risk)} risk</span>
+          <span class="tag ${risk === "high" ? "danger" : ""}">${esc(risk)} risk</span>
           ${outward ? `<span class="tag danger" title="Leaves this machine; always-allow is not offered">leaves machine</span>` : ""}
         </div>
         <span class="ttl-countdown">${icon("hourglass")}<span data-ttl-text>${expired ? "expired — denied" : ""}</span></span>
@@ -1267,7 +1321,7 @@ async function renderOverview() {
           ${!o.needs_count ? `<div class="empty-state">${icon("check", "icon-lg")}<p>Nothing needs you.</p></div>` : ""}
           ${(o.approvals || []).map(a => `
             <a class="ov-approval" href="#/approvals">
-              <span class="ov-approval-head"><b>${esc(a.bot_name)}</b> <span class="tag">${esc(a.tool)}</span> <span class="tag ${a.risk === "high" ? "danger" : "warn"}">${esc(a.risk)} risk</span></span>
+              <span class="ov-approval-head"><b>${esc(a.bot_name)}</b> <span class="tag">${esc(a.tool)}</span> <span class="tag ${a.risk === "high" ? "danger" : ""}">${esc(a.risk)} risk</span></span>
               <span class="ov-approval-action">${esc(a.action)}</span>
             </a>`).join("")}
           ${(o.humans || []).map(r => `<div class="ov-item">${row(r)}${waitBox(r.wait)}</div>`).join("")}

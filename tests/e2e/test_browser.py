@@ -168,7 +168,7 @@ def test_spa_transcript_renders_a_live_run(browser, live, monkeypatch):
     errors: list[str] = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.goto(f"{base}/#/run/{run.id}")
-    page.wait_for_selector("#chat-stream .spine .answer", timeout=30_000)
+    page.wait_for_selector("#chat-stream .thread .answer", timeout=30_000)
     assert "done" in page.inner_text("#chat-stream")
     assert not errors, errors
     ctx.close()

@@ -5,6 +5,9 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 ## [Unreleased]
 
 ### Added
+- Composer options collect suggestions, rehearsal and Enter behavior beside the model selector;
+  rehearsal labels disclose model calls and reads. Hidden Stop controls remain hidden.
+  Further integration uses the realignment branch’s canonical conversation/navigation contracts.
 - **UI-complaint research** ([docs/research/complaints.md](docs/research/complaints.md#7-ui--interface-complaints-design-signals)):
   documented interface failures across shipped agent UIs — Claude Code's saturated-on-black
   regression, ChatGPT accent churn, Codex role ambiguity, colour-only status dots — with a
