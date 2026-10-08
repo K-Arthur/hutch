@@ -22,7 +22,8 @@ def env(tmp_path, monkeypatch):
     for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OPENCODE_API_KEY"):
         monkeypatch.delenv(k, raising=False)
     fake = FakeOllama({"fake:8b": {}, "other:3b": {}, "tiny:1b": {"params": "1B", "size": 500_000_000},
-                       "huge:70b": {"params": "70B", "size": 45_000_000_000, "ctx": 131072}})
+                       "huge:70b": {"params": "70B", "size": 45_000_000_000, "ctx": 131072},
+                       "qwen3-coder:480b-cloud": {}, "glm-4.7:cloud": {}})
     monkeypatch.setenv("OLLAMA_HOST", fake.url)
     reset_provider_cache()
     reset_cache()
@@ -58,6 +59,59 @@ def test_the_bots_own_model_is_first_and_marked_default(env):
     ch = model_choices(env.config, env.store, bot)
     assert ch[0].spec == "ollama/fake:8b" and ch[0].default and ch[0].group == "This bot"
     assert [c.spec for c in ch].count("ollama/fake:8b") == 1, "the default must not be listed twice"
+
+
+def test_local_model_routes_filter_hosted_choices_and_cloud_tagged_ollama(env):
+    bot = mkbot(env, model="ollama/fake:8b", inference_mode="local")
+    specs = {c.spec for c in model_choices(env.config, env.store, bot)}
+    assert "ollama/fake:8b" in specs
+    assert not any(s.startswith(("openai/", "anthropic/")) for s in specs)
+    assert "ollama/qwen3-coder:480b-cloud" not in specs
+    assert "ollama/glm-4.7:cloud" not in specs
+
+
+def test_ollama_cloud_models_are_marked_hosted_in_hybrid_model_picker(env):
+    from hutch.estimate import RunEstimator
+
+    bot = mkbot(env, model="ollama/fake:8b")
+    by = {c.spec: c for c in model_choices(env.config, env.store, bot)}
+    cloud = by["ollama/qwen3-coder:480b-cloud"]
+    assert cloud.hosted and cloud.group == "Hosted" and cloud.state == "setup"
+    assert "inference runs on ollama.com" in cloud.note
+    assert any("cost caps refuse" in item for item in cloud.detail)
+    assert RunEstimator(env.config, env.store, bot).for_model(cloud.spec).kind == "unpriced"
+
+
+def test_local_model_route_rejects_hosted_message_override(env):
+    bot = mkbot(env, model="ollama/fake:8b", inference_mode="local")
+    with pytest.raises(ModelNotUsable, match="Local model routes"):
+        validate_override(env.config, env.store, bot, "openai/gpt-4o-mini")
+    with pytest.raises(ModelNotUsable, match="Local model routes"):
+        validate_override(env.config, env.store, bot, "ollama/qwen3-coder:480b-cloud")
+    from hutch.runtime.ladder import make_rung
+    assert not make_rung("ollama/qwen3-coder:480b-cloud", "fallback").local
+
+
+def test_legacy_bot_defaults_to_hybrid(env):
+    bot = mkbot(env)
+    assert bot.inference_mode.value == "hybrid"
+    assert env.get("/api/bots/chatty").json()["inference_mode"] == "hybrid"
+
+
+def test_api_requires_local_primary_when_local_mode_is_selected(env):
+    created = env.post("/api/bots", json={"name": "local-bot", "model": "ollama/fake:8b",
+                                          "inference_mode": "local", "tools": []})
+    assert created.status_code == 201 and created.json()["inference_mode"] == "local"
+    bad_create = env.post("/api/bots", json={"name": "hosted-bot", "model": "openai/gpt-4o-mini",
+                                              "inference_mode": "local", "tools": []})
+    assert bad_create.status_code == 422 and "not an allowed local model route" in bad_create.json()["detail"]
+    bad_patch = env.patch("/api/bots/local-bot", json={"model": "anthropic/claude-opus-5-5"})
+    assert bad_patch.status_code == 422
+    bad_override = env.post("/api/bots/local-bot/run", json={"prompt": "hello",
+                                                            "model": "ollama/qwen3-coder:480b-cloud"})
+    assert bad_override.status_code == 409 and "Local model routes" in bad_override.json()["detail"]
+    good_patch = env.patch("/api/bots/local-bot", json={"model": "mock/demo"})
+    assert good_patch.status_code == 200
 
 
 def test_installed_local_models_say_whether_they_fit(env):

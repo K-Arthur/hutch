@@ -402,6 +402,7 @@ class Engine:
         deadline = time.monotonic() + bot.limits.timeout_seconds
         emit(Event(run_id=run.id, type=EventType.log,
                    data={"runtime": runtime.kind, "model": bot.model,
+                         "inference_mode": bot.inference_mode.value,
                          "tools": sorted(tools), "limits": bot.limits.model_dump(),
                          **({"containment": sandbox.describe(bot)} if "shell" in tools else {}),
                          **({"rehearsal": True} if run.rehearsal else {})}))

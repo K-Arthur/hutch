@@ -74,9 +74,18 @@ def looks_like_ollama(base_url: Optional[str]) -> bool:
 
 
 def is_local(spec: str) -> bool:
-    from .pricing import LOCAL_PROVIDERS
-    provider, _ = parse_spec(spec)
-    return provider in LOCAL_PROVIDERS
+    from .pricing import is_local_route
+    provider, model = parse_spec(spec)
+    return is_local_route(provider, model)
+
+
+def validate_inference_mode(mode, spec: str) -> None:
+    """Reject a hosted primary model when the bot is configured for local-provider routing."""
+    if getattr(mode, "value", mode) == "local" and not is_local(spec):
+        raise ValueError(
+            f"{spec} is not an allowed local model route; choose a local model or switch inference mode to Hybrid. "
+            "This does not prevent a local inference service or network-capable tool from using the network."
+        )
 
 
 def make_provider(provider: str, base_url: Optional[str] = None, env: Optional[dict] = None) -> Provider:

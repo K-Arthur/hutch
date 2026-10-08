@@ -39,6 +39,20 @@ def test_bot_create_and_validation(state_env):
     assert "unknown tools" in bad_tool.output
 
 
+def test_local_model_route_mode_is_persisted_and_blocks_hosted_cli_updates(state_env):
+    assert runner.invoke(app, ["init"]).exit_code == 0
+    created = runner.invoke(app, ["bot", "create", "modebot", "--model", "mock/demo",
+                                 "--inference-mode", "local"])
+    assert created.exit_code == 0, created.output
+    blocked = runner.invoke(app, ["bot", "update", "modebot", "--model", "openai/gpt-4o-mini"])
+    assert blocked.exit_code != 0 and "not an allowed local model route" in blocked.output
+    shown = runner.invoke(app, ["bot", "show", "modebot"])
+    assert '"inference_mode": "local"' in shown.output and '"model": "mock/demo"' in shown.output
+    hybrid = runner.invoke(app, ["bot", "update", "modebot", "--inference-mode", "hybrid",
+                                 "--model", "openai/gpt-4o-mini"])
+    assert hybrid.exit_code == 0, hybrid.output
+
+
 def test_bot_limit_flags_create_and_update_estimate_controls(state_env):
     assert runner.invoke(app, ["init"]).exit_code == 0
     created = runner.invoke(app, ["bot", "create", "bounded", "--model", "mock/demo",

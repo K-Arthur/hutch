@@ -401,6 +401,25 @@ def test_bot_limits_can_be_saved_from_the_phone_settings(browser, live):
     ctx.close()
 
 
+def test_model_route_setting_is_explained_and_saved_on_phone(browser, live):
+    base, app = live
+    store = app.state.store
+    store.create_bot(Bot(name="route-bot", model="mock/demo", approval_mode=ApprovalMode.auto))
+    ctx = browser.new_context(viewport={"width": 390, "height": 844})
+    page = ctx.new_page()
+    page.goto(f"{base}/#/bot/route-bot")
+    mode = page.locator('#form-model select[name="inference_mode"]')
+    mode.wait_for()
+    assert mode.input_value() == "hybrid"
+    assert page.get_by_text("Strict offline mode is not available yet.").is_visible()
+    mode.select_option("local")
+    page.locator('#form-model button[type="submit"]').click()
+    wait_for(lambda: store.get_bot("route-bot").inference_mode.value == "local")
+    assert page.locator("#form-model").is_visible()
+    assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+    ctx.close()
+
+
 # ============================================================ model switcher (composer menu + all-models dialog)
 
 @pytest.fixture()

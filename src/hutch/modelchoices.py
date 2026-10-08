@@ -23,7 +23,7 @@ from .fit import estimate_fit
 from .hardware import Hardware, probe
 from .models import Bot
 from .providers.pricing import LOCAL_PROVIDERS, PriceBook
-from .providers.registry import parse_spec
+from .providers.registry import is_local, parse_spec
 
 HOSTED_KEYS = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
 LOCAL_RUNTIMES = {"ollama", "lmstudio", "llamacpp", "llama.cpp", "vllm"}
@@ -84,10 +84,18 @@ def _local_choices(bot: Bot, hw: Hardware, provider: Any) -> list[Choice]:
         return out
     want = bot.num_ctx or 16384
     for name, meta in sorted(_cached("installed", lambda: installed(provider)).items()):
+        spec = f"ollama/{name}"
+        if not is_local(spec):
+            out.append(Choice(spec=spec, label=name, group="Hosted", state="setup", hosted=True,
+                              note="Ollama Cloud model; inference runs on ollama.com",
+                              fix="Sign in to Ollama, then use this only with Hybrid routing.",
+                              detail=["Ollama classifies this tag as a cloud model",
+                                      "Hutch has no price row for this route; cost caps refuse it until priced"]))
+            continue
         fit = estimate_fit(meta, hw, want)
         ok = fit.status != "wont_fit"
         out.append(Choice(
-            spec=f"ollama/{name}", label=name, group="On this machine", state="ready" if ok else "wont_fit",
+            spec=spec, label=name, group="On this machine", state="ready" if ok else "wont_fit",
             note=(f"{'fits' if fit.status == 'fits' else 'tight fit'}, {fit.effective_ctx // 1024}k context"
                   if ok else "does not fit this machine"),
             fix="" if ok else fit.reason, detail=[fit.reason]))
@@ -150,12 +158,17 @@ def model_choices(config: Any, store: Any, bot: Bot, hw: Optional[Hardware] = No
     from .estimate import RunEstimator
     est = RunEstimator(config, store, bot)
     choices: list[Choice] = []
+    own_local = is_local(bot.model)
     own = Choice(spec=bot.model, label=short_label(bot.model), group="This bot", state="ready", default=True,
-                 hosted=parse_spec(bot.model)[0] not in LOCAL_PROVIDERS, note="this bot's own model")
+                 hosted=not own_local,
+                 note="this bot's own model" if own_local else "this bot's own hosted model route",
+                 detail=[] if own_local else ["this route sends the chat to a hosted model service"])
     choices.append(own)
     seen = {bot.model}
     for c in (_local_choices(bot, hw, provider) + _hosted_choices(bot, book)
               + _connection_choices(bot, store, cbook, known)):
+        if bot.inference_mode.value == "local" and not is_local(c.spec):
+            continue
         if c.spec in seen:
             # the bot's own model keeps its place but gains the real state/notes
             mine = next(x for x in choices if x.spec == c.spec)
@@ -184,6 +197,12 @@ def validate_override(config: Any, store: Any, bot: Bot, spec: str, hw: Optional
     provider, model = parse_spec(spec)
     if not model:
         raise ModelNotUsable(f"'{spec}' names a provider but no model", "add the model name after the slash", 422)
+    if bot.inference_mode.value == "local" and not is_local(spec):
+        raise ModelNotUsable(
+            f"{spec} is blocked by {bot.name}'s Local model routes setting",
+            "choose a local model, or change the bot's inference mode to Hybrid",
+            409,
+        )
     if bot.runtime.value not in ("builtin", "mock"):
         raise ModelNotUsable(f"{bot.name} runs on the {bot.runtime.value} runtime, which chooses its own model",
                              "switch models inside that runtime's own settings", 422)

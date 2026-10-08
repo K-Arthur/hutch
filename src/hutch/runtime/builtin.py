@@ -361,6 +361,11 @@ class BuiltinRuntime:
         A refusal sticks for the rest of the run: a human who said no, a cap that is already reached, or a model
         that would not start are never asked about / tried again on every later bad turn.
         """
+        if ctx.bot.inference_mode.value == "local" and not rung.local:
+            self._log(ctx, run, kind,
+                      f"cannot {kind} to {rung.spec}: Local model routes block hosted model requests", blocked=True)
+            ladder.blocked.add(rung.spec)
+            return None
         if rung.spec in ladder.blocked or (ladder.hosted_denied and not rung.local):
             return None
         refusal = guard.refusal(rung, est_prompt, self._turn_cap(ctx.bot, rung))
@@ -411,6 +416,12 @@ class BuiltinRuntime:
         if not rung.local:
             ladder.authorized_routes.add(self._route_identity(ctx, ladder, rung))  # explicit bot/message selection
         while True:
+            if ctx.bot.inference_mode.value == "local" and not rung.local:
+                self._log(ctx, run, "provider_route_blocked",
+                          f"{rung.spec} is not allowed by Local model routes; no provider request was sent",
+                          model=rung.spec, blocked=True)
+                raise RunAborted("provider_mode",
+                                 f"{rung.spec} is not an allowed local model route; no provider request was sent")
             ladder.current = rung
             try:
                 refusal = guard.refusal(rung, est_prompt, self._turn_cap(ctx.bot, rung))

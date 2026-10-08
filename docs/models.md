@@ -19,11 +19,13 @@ A field at the bottom takes any `provider/model`, for connection models that are
 
 Rules worth knowing:
 
+- **Local model routes are not offline mode.** A bot configured with `inference_mode=local` hides hosted choices and blocks hosted message overrides, fallbacks and escalation. Known Ollama cloud-tagged names are refused. A local model server may still proxy traffic and network tools keep their own egress rules. Select **Hybrid** to allow hosted routes. Strict offline enforcement is unavailable.
+
 - **Per message, never a silent edit.** The choice is stored on the run as `model_override`. The bot's own model is
   untouched, so scheduled runs keep using it. The choice is remembered per bot in your browser.
-- **A hosted pick is your explicit consent for that message.** The "ask before the first hosted call" rule exists
+- **In Hybrid, a hosted pick is your explicit consent for that message.** The "ask before the first hosted call" rule exists
   to stop a *local-first bot* drifting off your machine on its own; it does not fire when you picked the hosted model
-  yourself. Estimate-based limits and exact response-usage recording still apply; provider billing can differ from Hutch's estimates.
+  yourself. Local-route mode refuses hosted choices. Estimate-based limits and exact response-usage recording still apply; provider billing can differ from Hutch's estimates.
 - **The runtime still protects you.** The override goes through the normal run path, so a model that cannot fit this
   machine is refused before it loads, and the run says so.
 - **The server re-validates on send.** Unknown provider, missing key and an unacknowledged connection are refused with the exact

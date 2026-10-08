@@ -76,6 +76,13 @@ class RuntimeKind(str, Enum):
     opencode = "opencode"    # OpenCode, driven via `opencode run`
 
 
+class InferenceMode(str, Enum):
+    """Model routing policy. Local model routes do not mean the run is offline."""
+
+    local = "local"          # local model routes only; tools retain their own network policy
+    hybrid = "hybrid"        # hosted model routes remain available under Hutch's route governance
+
+
 class CatchUpPolicy(str, Enum):
     """What to do when the machine was asleep/off across a scheduled fire time."""
 
@@ -183,6 +190,7 @@ class Bot(BaseModel):
     model: str = "mock/demo"          # provider/model spec, e.g. openai/gpt-4o-mini, ollama/llama3.2
     base_url: Optional[str] = None    # override for OpenAI-compatible endpoints
     runtime: RuntimeKind = RuntimeKind.builtin
+    inference_mode: InferenceMode = InferenceMode.hybrid
     tools: list[str] = Field(default_factory=lambda: ["shell", "files", "memory"])
     schedule: Optional[Schedule] = None
     limits: Limits = Field(default_factory=Limits)

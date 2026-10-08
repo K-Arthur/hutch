@@ -277,6 +277,50 @@ def test_an_unreachable_primary_falls_back_in_order_and_says_so(store, config, t
     assert run.model_used == "lmstudio/some-model"
 
 
+def test_local_model_routes_never_fall_back_to_hosted_after_local_start_failure(store, config, tmp_path):
+    calls = []
+
+    def provider_factory(provider, base_url):
+        calls.append(provider)
+        if provider == "ollama":
+            return OllamaProvider("http://127.0.0.1:9")
+        raise AssertionError(f"hosted provider must not be constructed: {provider}")
+
+    ctx, run, emitted, tools = build(store, config, tmp_path, model="ollama/not-installed:7b",
+                                     fallbacks=["openai/gpt-4o-mini"], inference_mode="local")
+    with pytest.raises(RunAborted, match="not an allowed local model route") as error:
+        run_it(runtime(provider_factory=provider_factory), run, ctx, tools)
+    assert error.value.reason == "provider_mode"
+    assert calls == ["ollama"]
+    assert kinds(emitted, "provider_route_blocked")
+
+
+def test_local_model_routes_reject_cloud_tagged_ollama_fallback(store, config, tmp_path):
+    calls = []
+
+    def provider_factory(provider, base_url):
+        calls.append(provider)
+        return OllamaProvider("http://127.0.0.1:9")
+
+    ctx, run, emitted, tools = build(store, config, tmp_path, model="ollama/not-installed:7b",
+                                     fallbacks=["ollama/qwen3-coder:480b-cloud"], inference_mode="local")
+    with pytest.raises(RunAborted, match="not an allowed local model route"):
+        run_it(runtime(provider_factory=provider_factory), run, ctx, tools)
+    assert calls == ["ollama"]
+    assert kinds(emitted, "provider_route_blocked")
+
+
+def test_ollama_cloud_route_with_currency_cap_requires_a_price(store, config, tmp_path):
+    from hutch.providers.pricing import PriceBook
+    from hutch.runtime.ladder import SpendGuard, make_rung
+
+    ctx, run, emitted, tools = build(store, config, tmp_path, model="mock/demo",
+                                     limits=Limits(max_cost_usd=1.0))
+    guard = SpendGuard(ctx.store, ctx.bot, run, PriceBook(config.state_dir / "prices.json"))
+    refusal = guard.refusal(make_rung("ollama/qwen3-coder:480b-cloud", "fallback"), 100, 100)
+    assert refusal and "no price in prices.json" in refusal
+
+
 def test_a_missing_model_falls_back_instead_of_failing_the_run(store, config, tmp_path, ollama, oai):
     oai.script = lambda b: {"content": "ok"}
     ctx, run, emitted, tools = build(store, config, tmp_path, model="ollama/not-installed:7b", fallbacks=["lmstudio/m"])

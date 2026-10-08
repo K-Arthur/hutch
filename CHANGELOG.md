@@ -12,6 +12,13 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ## [Unreleased]
 
+### Added
+
+- Per-bot local model-route and Hybrid controls in Settings, the API, and CLI. Local-route mode
+  filters hosted models and blocks hosted message overrides/fallbacks, including recognized
+  Ollama cloud-tagged names. This setting does not promise strict offline behavior; local services
+  and network-capable tools can still use the network.
+
 ### Fixed
 
 - Schema v14 restores database snapshots into a new private directory with old work quarantined,

@@ -62,6 +62,7 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 
 - **Multiple named bots** — own model, tools, schedule, memory, workspace; pause/resume; templates
 - **Model choice, local first** — native Ollama (context size always set), Anthropic, OpenAI, and OpenAI- or Anthropic-compatible endpoints; free offline mock runtime. Tested against recorded fakes; live provider and Ollama runs depend on your setup
+- **Per-bot model routing** — choose local model routes only or Hybrid in Settings/CLI. This blocks known hosted choices and hosted fallbacks in local-route mode; it does not guarantee offline operation because a local service may proxy traffic and tools have their own network policy.
 - **Switch models from the chat** — a composer menu shows what fits this machine, what it costs and what is missing; per message, never a silent edit of the bot
 - **Subscription plans as connections** — OpenCode Go, Xiaomi MiMo Token Plan or your own endpoint, each with its own key, allowance meter and terms notice
 - **Local inference admission** — one caller and eight waiters across Hutch workers; releases capacity during human waits,

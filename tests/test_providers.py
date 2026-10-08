@@ -380,6 +380,17 @@ def test_price_book_costs_staleness_and_user_overlay(tmp_path):
     assert pb.has_price("ollama", "anything")
 
 
+def test_ollama_cloud_tag_is_hosted_for_price_and_routing_checks(tmp_path):
+    pb = PriceBook(tmp_path / "prices.json")
+    assert pb.is_local("ollama", "llama3.2")
+    assert not pb.is_local("ollama", "qwen3-coder:480b-cloud")
+    assert not pb.is_local("ollama", "glm-4.7:cloud")
+    assert pb.cost("ollama", "qwen3-coder:480b-cloud", 100, 100) is None
+    assert not pb.has_price("ollama", "qwen3-coder:480b-cloud")
+    assert pb.set_price("ollama/qwen3-coder:480b-cloud", 0.2, 0.5, source="operator estimate")
+    assert pb.has_price("ollama", "qwen3-coder:480b-cloud")
+
+
 def test_a_broken_user_price_file_is_reported_not_fatal(tmp_path):
     bad = tmp_path / "prices.json"
     bad.write_text("{not json")

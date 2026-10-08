@@ -10,6 +10,7 @@ and permanent scoped deletion/export remain required realignment work.
 
 - [x] Bot CRUD + starter templates (CLI, dashboard, REST)
 - [x] Built-in agent loop (OpenAI-compatible: OpenAI / Ollama / llama.cpp / LM Studio / custom base URL)
+- [x] Per-bot local-model-route and hybrid selection; known hosted route/fallback switching is blocked in local mode. This is not strict offline enforcement.
 - [x] Deterministic mock runtime — full pipeline offline, no API key
 - [ ] External runtime adapters (Pi, OpenCode): currently fail closed. Offline bounded protocol helpers exist; process I/O drainers, loss-recoverable OpenCode events, permission brokering, sandboxed process ownership, shared budget reservations and route/session mapping are required before re-enabling.
 - [x] Tools: shell (workspace-jailed, minimal env, HOME redirect), files (path jail),
@@ -30,6 +31,7 @@ and permanent scoped deletion/export remain required realignment work.
 
 - [ ] Container-per-run isolation (podman/docker) as an opt-in sandbox level
 - [ ] Configurable policy packs per bot (site-specific allowlists, egress domains)
+- [ ] Strict offline mode with verified provider provenance and network isolation; separate local-inference-with-online-tools mode
 - [ ] Run retries with backoff + idempotency keys for external actions
 - [ ] Approval notifications (desktop notification / webhook) beyond the dashboard badge
 - [ ] Snapshot/export of bot definitions (YAML in/out) for sharing

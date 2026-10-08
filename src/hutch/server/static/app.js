@@ -2232,14 +2232,20 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             <div class="form-grid row2">
               <label class="field">Default model
                 <input type="text" name="model" value="${esc(b.model || "")}">
-                <span class="hint">Used for new messages and scheduled runs. The chat model picker overrides one message.</span>
+                <span class="hint">Used for new messages and scheduled runs. Local routes block hosted models and fallbacks; Hybrid allows both. Your chat model choice follows the same rule.</span>
               </label>
               <label class="field">Runtime
                 <input type="text" disabled value="${esc(b.runtime || "builtin")}">
               </label>
             </div>
-            <p class="hint">Inference ${b.model && /ollama|llama|mock/.test(b.model) ? "runs on <b>this machine</b>." : "may <b>leave this machine</b> — the model string names where."} Tools always run here.</p>
-            <div class="btn-row"><button class="btn primary small" type="submit">Save model</button></div>
+            <label class="field">Model routing
+              <select name="inference_mode">
+                <option value="hybrid" ${(b.inference_mode || "hybrid") === "hybrid" ? "selected" : ""}>Hybrid · local and hosted routes</option>
+                <option value="local" ${b.inference_mode === "local" ? "selected" : ""}>Local model routes only</option>
+              </select>
+              <span class="hint">Local routes do not guarantee offline operation: a local service may proxy requests, and tools may use the network. Strict offline mode is not available yet.</span>
+            </label>
+            <div class="btn-row"><button class="btn primary small" type="submit">Save model settings</button></div>
           </form>
 
           <form class="panel form-grid" id="form-schedule">
@@ -2383,7 +2389,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   });
   $("#form-model").addEventListener("submit", ev => {
     ev.preventDefault();
-    patch({ model: new FormData(ev.target).get("model").trim() }, "Model saved.");
+    const fd = new FormData(ev.target);
+    patch({ model: fd.get("model").trim(), inference_mode: fd.get("inference_mode") }, "Model settings saved.");
   });
   $("#form-schedule").addEventListener("submit", ev => {
     ev.preventDefault();

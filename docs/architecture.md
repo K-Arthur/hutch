@@ -216,6 +216,12 @@ endpoint, protocol or revision requires outward review. Each call revalidates th
 and refreshes credential-aware clients. Streaming recovery keeps the first uncertain usage
 and reserves another attempt before retrying, using the same transactional account ledger.
 
+Each bot also stores an inference route mode. `local` filters hosted choices, refuses hosted
+per-message overrides, and fences both startup fallback and in-run escalation to hosted routes;
+`hybrid` retains the existing route governance. The classifier rejects recognized Ollama cloud
+tags, but does not prove that a custom local service is offline or prevent network-capable tools
+from egress. Strict offline mode remains a separate, unimplemented enforcement boundary.
+
 Owner mutations check both the fence and lease expiry in the write transaction, including the gap
 before recovery. Worker events retain their fence through buffering; commit rejects stale events
 before projecting replies into canonical history. Recovery and terminal receipts remain uncertain

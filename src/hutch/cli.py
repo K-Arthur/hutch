@@ -22,6 +22,7 @@ from .models import (
     Bot,
     CatchUpPolicy,
     Limits,
+    InferenceMode,
     RiskTier,
     RunStatus,
     RuntimeKind,
@@ -235,6 +236,10 @@ def bot_create(
     base_url: Optional[str] = typer.Option(None, "--base-url", help="OpenAI-compatible endpoint override"),
     runtime: RuntimeKind = typer.Option(RuntimeKind.builtin, "--runtime",
                                         help="builtin | mock | pi | opencode"),
+    inference_mode: InferenceMode = typer.Option(
+        InferenceMode.hybrid, "--inference-mode",
+        help="local model routes only (services/tools may still use network traffic) | hybrid",
+    ),
     tools: str = typer.Option("shell,files,memory", "--tools",
                               help=f"comma list; groups shell/files/memory/browser; all: {','.join(ALL_TOOL_NAMES)}"),
     cron: Optional[str] = typer.Option(None, "--cron", help="5-field cron schedule"),
@@ -285,6 +290,13 @@ def bot_create(
     bot.description = description or bot.description
     bot.instructions = instructions or bot.instructions
     bot.model = model
+    from .providers.registry import validate_inference_mode
+    try:
+        validate_inference_mode(inference_mode, model)
+    except ValueError as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from None
+    bot.inference_mode = inference_mode
     bot.base_url = base_url
     bot.runtime = runtime
     bot.tools = tool_list
@@ -369,6 +381,8 @@ def bot_show(name: str = typer.Argument(...)) -> None:
 def bot_update(
     name: str = typer.Argument(...),
     model: Optional[str] = typer.Option(None, "--model"),
+    inference_mode: Optional[InferenceMode] = typer.Option(
+        None, "--inference-mode", help="local model routes only (services/tools may still use network) | hybrid"),
     instructions: Optional[str] = typer.Option(None, "--instructions"),
     description: Optional[str] = typer.Option(None, "--description"),
     approval: Optional[ApprovalMode] = typer.Option(None, "--approvals"),
@@ -392,7 +406,16 @@ def bot_update(
     """Update bot settings."""
     store = _store()
     bot = _require_bot(store, name)
+    proposed_model = model if model is not None else bot.model
+    proposed_mode = inference_mode if inference_mode is not None else bot.inference_mode
+    from .providers.registry import validate_inference_mode
+    try:
+        validate_inference_mode(proposed_mode, proposed_model)
+    except ValueError as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from None
     if model is not None: bot.model = model
+    if inference_mode is not None: bot.inference_mode = inference_mode
     if instructions is not None: bot.instructions = instructions
     if description is not None: bot.description = description
     if approval is not None: bot.approval_mode = approval

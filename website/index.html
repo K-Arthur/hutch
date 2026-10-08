@@ -486,7 +486,7 @@ run: stays stopping until process exits</code></pre>
         </details>
         <details class="faq-item">
           <summary>What actually leaves my machine?</summary>
-          <p>Hutch stores its control state locally. A hosted model receives the prompt and context Hutch sends to it; network tools connect to their own destinations. A local model can still use online tools. Review the selected connection and tools before running a task.</p>
+          <p>Hutch stores its control state locally. Settings can limit model selection to classified local routes or use Hybrid routes; that choice does not guarantee offline operation. A local inference service may proxy requests, and network tools connect to their own destinations. Review the selected connection and tools before running a task.</p>
         </details>
         <details class="faq-item">
           <summary>What happens when my laptop sleeps on a schedule?</summary>

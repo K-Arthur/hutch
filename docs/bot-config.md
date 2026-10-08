@@ -19,6 +19,7 @@ dashboard, or the REST API, and live in `hutch.db`.
 | `description` | str | "" | one-liner shown in dashboards |
 | `instructions` | str | "" | standing system-prompt guidance, prepended every run |
 | `model` | provider/model | `mock/demo` | see model specs below |
+| `inference_mode` | enum | `hybrid` | `local` allows only classified local model routes and blocks known hosted routes/fallbacks; `hybrid` permits local and hosted routes. This is not strict offline mode. |
 | `base_url` | str? | null | override endpoint for OpenAI-compatible providers |
 | `runtime` | enum | `builtin` | `builtin` · `mock`; legacy values `pi` and `opencode` are retained but fail closed as unsupported |
 | `tools` | list | `["shell","files","memory"]` | allowlist; groups expand (see below) |
@@ -67,6 +68,15 @@ openai-compatible/<name>  any endpoint — set bot.base_url or HUTCH_BASE_URL. I
 ```
 
 Any `mock/*` model routes to the mock runtime regardless of the `runtime` field.
+
+Set the route policy with `hutch bot create helper --model ollama/llama3.2 --inference-mode local`
+or update it with `hutch bot update helper --inference-mode local`. The model must also be an
+allowed local route; change the model and mode together when moving a bot. Local-route mode
+blocks hosted per-message choices and fallback/escalation calls. It blocks currently recognized
+Ollama cloud-tagged names, but cannot prove that a configured local model service never proxies
+requests. Tools retain their own network policy. Use Hybrid for hosted model destinations, and
+review the selected connection and tools before a run. Strict offline enforcement is not yet
+available.
 
 ## Tools
 

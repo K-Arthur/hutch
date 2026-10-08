@@ -33,7 +33,7 @@ from ..config import get_config
 from ..durable_changes import SnapshotRequired
 from ..engine import Engine, bot_prompt_for_schedule
 from ..lifecycle import LABELS
-from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, CommandRule, Limits, MemoryItem, RiskTier, Run, RunStatus, Schedule, Task
+from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, CommandRule, InferenceMode, Limits, MemoryItem, RiskTier, Run, RunStatus, Schedule, Task
 from ..store import IdempotencyConflict, Store
 from ..state_snapshot import ExecutionHeld
 from ..templates import TEMPLATE_INFO, TEMPLATES
@@ -55,6 +55,7 @@ class BotCreate(BaseModel):
     instructions: str = ""
     model: str = "mock/demo"
     base_url: Optional[str] = None
+    inference_mode: InferenceMode = InferenceMode.hybrid
     tools: list[str] = ["shell", "files", "memory"]
     memory_enabled: bool = True
     cron: Optional[str] = None
@@ -100,6 +101,7 @@ class BotPatch(BaseModel):
     description: Optional[str] = None
     instructions: Optional[str] = None
     model: Optional[str] = None
+    inference_mode: Optional[InferenceMode] = None
     memory_enabled: Optional[bool] = None
     approval_mode: Optional[ApprovalMode] = None
     risk_tier: Optional[RiskTier] = None
@@ -814,6 +816,12 @@ def create_app() -> FastAPI:
         bot.description = body.description or bot.description
         bot.instructions = body.instructions or bot.instructions
         bot.model = body.model
+        from ..providers.registry import validate_inference_mode
+        try:
+            validate_inference_mode(body.inference_mode, bot.model)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        bot.inference_mode = body.inference_mode
         bot.base_url = body.base_url
         bot.tools = tools
         bot.memory_enabled = body.memory_enabled
@@ -846,9 +854,17 @@ def create_app() -> FastAPI:
     @app.patch("/api/bots/{ref}")
     def patch_bot(ref: str, body: BotPatch) -> dict:
         bot = bot_or_404(ref)
+        from ..providers.registry import validate_inference_mode
+        proposed_mode = body.inference_mode if body.inference_mode is not None else bot.inference_mode
+        proposed_model = body.model if body.model is not None else bot.model
+        try:
+            validate_inference_mode(proposed_mode, proposed_model)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
         if body.description is not None: bot.description = body.description
         if body.instructions is not None: bot.instructions = body.instructions
         if body.model is not None: bot.model = body.model
+        if body.inference_mode is not None: bot.inference_mode = body.inference_mode
         if body.memory_enabled is not None: bot.memory_enabled = body.memory_enabled
         if body.approval_mode is not None: bot.approval_mode = body.approval_mode
         if body.risk_tier is not None: bot.risk_tier = body.risk_tier

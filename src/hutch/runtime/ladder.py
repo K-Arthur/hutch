@@ -62,9 +62,9 @@ class Rung:
 
 
 def make_rung(spec: str, role: str) -> Rung:
-    from ..providers.pricing import LOCAL_PROVIDERS
+    from ..providers.pricing import is_local_route
     provider, model = parse_spec(spec)
-    return Rung(spec=spec, provider=provider, model=model, local=provider in LOCAL_PROVIDERS, role=role)
+    return Rung(spec=spec, provider=provider, model=model, local=is_local_route(provider, model), role=role)
 
 
 class Ladder:

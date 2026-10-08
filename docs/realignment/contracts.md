@@ -129,8 +129,11 @@ revoke a lost device. Do not expose the listener to the public internet. The mar
 ## Navigation and approval review
 
 Studio is the primary interface; `/api/v1` conversations own its messages and drafts. Bot resources
-now expose `active_run_status` and `active_run_status_label` alongside `active_run_id` so callers do
-not infer “working” from any active state. Approval list resources include `conversation_id` for
+expose `inference_mode` (`local` model routes or `hybrid`) alongside `model`; create and patch
+validate them together, and local mode rejects hosted per-message overrides and fallback routes.
+The route label is not an offline guarantee: local services and tools may still use the network.
+Bot resources also expose `active_run_status` and `active_run_status_label` alongside `active_run_id`
+so callers do not infer “working” from any active state. Approval list resources include `conversation_id` for
 contextual navigation. Approval events include `action_hash`, used by the shared inline/drawer
 review card for idempotent v1 decisions. Legacy routes stay valid; the UI uses history replacement
 for aliases. See [navigation.md](navigation.md) for the rationale and acceptance scenarios.

@@ -1,7 +1,8 @@
 # ADR-0009: Operating modes, offline guarantees, and resource admission
 
-Status: partially implemented (2026-10-08): one-call/eight-waiter admission and native Ollama
-headroom checks; operating modes and inference provenance remain pending. Slice: S5.
+Status: partially implemented (2026-10-08): one-call/eight-waiter admission, native Ollama
+headroom checks, and per-bot local-model-route versus hybrid selection. Strict offline, distinct
+local-plus-tools enforcement, and inference provenance remain pending. Slice: S5.
 Evidence: baseline lead 6, B8, A3; `tests/test_admission.py`, `tests/test_local_admission_runtime.py`.
 
 ## Decision
@@ -14,8 +15,10 @@ Evidence: baseline lead 6, B8, A3; `tests/test_admission.py`, `tests/test_local_
 | `local+tools` | local only | authorised tools and integrations may send data; each is shown as "data leaves this machine" | inference route check as above; tool network grants honoured |
 | `hybrid` | cloud routes explicitly enabled | normal | spend and data-movement notices per route |
 
-"localhost" is not proof of local inference. These mode checks are a target, not implemented
-guarantees. The [Ollama FAQ](https://docs.ollama.com/faq) documents cloud disabling in the server's
+"localhost" is not proof of local inference. The current per-bot UI/CLI `local` setting filters
+known hosted routes and recognized Ollama cloud-tagged model names. It cannot verify the actual
+endpoint process, disable cloud service configuration, or govern tool egress, so it is not one of
+the strict modes above. Those checks remain target requirements. The [Ollama FAQ](https://docs.ollama.com/faq) documents cloud disabling in the server's
 configuration or `OLLAMA_NO_CLOUD=1` and requires a restart. Setting a flag only in Hutch does
 not prove the serving process inherited it. Offline admission must establish the actual backend,
 model and enforced egress; unknown provenance must refuse. A loopback URL or model label alone
@@ -32,8 +35,9 @@ allocation avoids counting the same model twice; credit is capped by totals and 
 unknown multi-GPU placement. Missing GPU headroom refuses, and measured zero remains zero. Fit
 still estimates weights/KV cache. Other local protocols do not have validated memory admission.
 Hutch's queue does not govern unrelated model-server clients or prove backend cancellation.
-Browser/battery-aware admission, pressure-driven unloading and mode/provenance enforcement remain
-pending. Runtime keep-alive still follows the bot preset; unsafe environment slot widening is removed.
+Browser/battery-aware admission, pressure-driven unloading, strict network-mode enforcement and
+backend provenance remain pending. Runtime keep-alive still follows the bot preset; unsafe
+environment slot widening is removed.
 
 ## Consequences
 

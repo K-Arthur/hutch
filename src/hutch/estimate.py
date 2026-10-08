@@ -90,7 +90,7 @@ class RunEstimator:
         spec = spec or self.bot.model
         provider, model = parse_spec(spec)
         lim = self.bot.limits
-        local = self.prices.is_local(provider)
+        local = self.prices.is_local(provider, model)
         turn = lim.max_turn_tokens or (DEFAULT_LOCAL_TURN_TOKENS if local else DEFAULT_HOSTED_TURN_TOKENS)
         worst = self.prices.estimate_run_ceiling(provider, model, self.prompt_tokens, turn, lim.max_steps)
         if local:

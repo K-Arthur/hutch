@@ -10,6 +10,7 @@ cap, an estimate) refuses rather than guessing.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from importlib import resources
@@ -18,6 +19,14 @@ from typing import Optional
 
 STALE_DAYS = 90
 LOCAL_PROVIDERS = {"ollama", "lmstudio", "llamacpp", "llama.cpp", "vllm", "mock"}
+_OLLAMA_CLOUD_TAG = re.compile(r"(?:^|[:_-])cloud(?:$|[-_.])", re.IGNORECASE)
+
+
+def is_local_route(provider: str, model: str = "") -> bool:
+    """Classify known cloud-tagged Ollama models as hosted despite the local API endpoint."""
+    if provider == "ollama" and _OLLAMA_CLOUD_TAG.search(model):
+        return False
+    return provider in LOCAL_PROVIDERS
 
 
 @dataclass
@@ -77,20 +86,20 @@ class PriceBook:
                 self.errors.append(f"{path}: row '{key}' is invalid ({exc})")
 
     @staticmethod
-    def is_local(provider: str) -> bool:
-        return provider in LOCAL_PROVIDERS
+    def is_local(provider: str, model: str = "") -> bool:
+        return is_local_route(provider, model)
 
     def lookup(self, provider: str, model: str) -> Optional[Price]:
         return self.prices.get(f"{provider}/{model}")
 
     def has_price(self, provider: str, model: str) -> bool:
-        return (self.is_local(provider) or provider in self.flat_providers
+        return (self.is_local(provider, model) or provider in self.flat_providers
                 or self.lookup(provider, model) is not None)
 
     def cost(self, provider: str, model: str, prompt_tokens: int, completion_tokens: int,
              cached_tokens: int = 0, cache_write_tokens: int = 0) -> Optional[float]:
         """USD for one call, or None when the model has no price. Local models are free."""
-        if self.is_local(provider) or provider in self.flat_providers:
+        if self.is_local(provider, model) or provider in self.flat_providers:
             return 0.0
         p = self.lookup(provider, model)
         if p is None:
@@ -134,7 +143,7 @@ class PriceBook:
         provider, _, name = model.partition("/")
         if not provider or not name:
             raise ValueError("a price row is keyed 'provider/model', for example anthropic/claude-opus-5-5")
-        if self.is_local(provider):
+        if self.is_local(provider, name):
             raise ValueError(f"{provider} models run on your machine and cost nothing; they need no price row")
         for label, v in (("input", input), ("output", output), ("cache_read", cache_read), ("cache_write", cache_write)):
             if v is not None and (v != v or v < 0 or v > 100_000):
