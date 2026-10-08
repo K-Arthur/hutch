@@ -62,6 +62,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `dc14a13` | Fit architecture diagram node labels and explain tool destinations in the caption |
 | `d33941b` | Versioned provider route matrix/API, evidence boundary docs, exact OpenAI endpoint field selection |
 | `d6c4e83` | Narrow non-stream retries to streaming errors and verify auth/quota route approval |
+| `73db64a` | Host-gated Offline inference with bubblewrap network/PID namespaces, run-scoped loopback broker, masked provider credential files, responsive route controls/captures and updated support evidence; full suite 1,297 passed (the final explanatory copy then received its focused browser recapture) |
 
 ## Verified behavior before this checkpoint
 
