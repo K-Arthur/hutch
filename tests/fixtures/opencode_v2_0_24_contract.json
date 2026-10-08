@@ -1,0 +1,67 @@
+{
+  "installed_binary": "opencode v2.0.24",
+  "openapi": "3.1.0",
+  "info": {
+    "title": "opencode HttpApi",
+    "version": "0.0.1",
+    "description": "Experimental HttpApi surface for selected instance routes."
+  },
+  "paths": {
+    "/api/event": {
+      "get": {
+        "description": "Subscribe to native events. Volatile by contract: a slow consumer overflows and fails the stream, and events during disconnection are missed.",
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/V2EventEncoded"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/session/{sessionID}/permission/{requestID}/reply": {
+      "post": {}
+    },
+    "/api/session/{sessionID}/prompt": {
+      "post": {}
+    },
+    "/api/session/{sessionID}/interrupt": {
+      "post": {}
+    }
+  },
+  "components": {
+    "schemas": {
+      "V2EventEncoded": {
+        "type": "string",
+        "contentMediaType": "application/json"
+      },
+      "Permission.Request": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "sessionID": {"type": "string"},
+          "action": {"type": "string"},
+          "resources": {"type": "array", "items": {"type": "string"}},
+          "save": {"type": "array", "items": {"type": "string"}},
+          "metadata": {"type": "object"},
+          "source": {"type": "object"},
+          "message": {"type": "string"}
+        },
+        "required": ["id", "sessionID", "action", "resources"],
+        "additionalProperties": false
+      },
+      "Permission.Reply": {
+        "type": "string",
+        "enum": ["once", "always", "reject"]
+      }
+    }
+  }
+}

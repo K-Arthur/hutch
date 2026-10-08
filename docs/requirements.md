@@ -12,7 +12,7 @@ commits can cite them. Evidence for the *why* is in
 > Performance numbers in the draft are *proposed targets*. Measured values live in
 > [performance.md](performance.md) and the committed `benchmarks/baseline.json`.
 
-*Status column last updated: realignment S5 budget reservations; adapters and local/hybrid modes remain open.*
+*Status column last updated: realignment S5 shared budget reservations and offline adapter protocol helpers; external runtimes and local/hybrid modes remain open.*
 
 ## Dashboard and app
 

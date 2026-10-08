@@ -11,7 +11,7 @@ and permanent scoped deletion/export remain required realignment work.
 - [x] Bot CRUD + starter templates (CLI, dashboard, REST)
 - [x] Built-in agent loop (OpenAI-compatible: OpenAI / Ollama / llama.cpp / LM Studio / custom base URL)
 - [x] Deterministic mock runtime — full pipeline offline, no API key
-- [ ] External runtime adapters (Pi, OpenCode): currently fail closed. Permission brokering, sandboxed process ownership, bounded I/O and shared budget reservations are required before re-enabling.
+- [ ] External runtime adapters (Pi, OpenCode): currently fail closed. Offline bounded protocol helpers exist; process I/O drainers, loss-recoverable OpenCode events, permission brokering, sandboxed process ownership, shared budget reservations and route/session mapping are required before re-enabling.
 - [x] Tools: shell (workspace-jailed, minimal env, HOME redirect), files (path jail),
       memory (SQLite facts), web_fetch (SSRF guards, clipping), browser (Playwright optional,
       persistent per-bot profiles, pause-to-human)

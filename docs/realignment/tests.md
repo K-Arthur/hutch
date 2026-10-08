@@ -17,8 +17,8 @@ browser. "Live" means it needs something this host did not have and is skipped w
 | T-RECEIPT-RECOVERY | Crash after an effect but before its receipt ends `outcome_unknown` and is never replayed | offline | `tests/test_receipts.py` | passing |
 | T-APPROVAL-CAS | Two clients resolve one approval: exactly one wins; a revised action needs a new approval | offline | `tests/test_approval_cas.py` | passing |
 | T-SANDBOX | The shell cannot read the real home or open a socket without a grant; unsupported host fails closed | offline (skips without bwrap) | `tests/test_sandbox.py` | passing on this Linux host |
-| T-ADAPTER-CONTRACT-OPENCODE | OpenCode argv/event parsing matches the installed binary | offline fixtures + live-if-installed | `tests/test_runtime_opencode.py` | planned |
-| T-ADAPTER-CONTRACT-PI | Pi framing matches the published protocol; completion is `agent_settled` | offline fixtures | `tests/test_runtime_pi.py` | planned |
+| T-ADAPTER-CONTRACT-OPENCODE | Installed OpenCode 2.0.24 API fixture, bounded SSE framing, reviewed permission identity, and one-time/reject mapping | offline fixture; isolated local schema inspection | `tests/test_runtime_opencode.py` | partial passing; no permission round-trip and runtime stays disabled |
+| T-ADAPTER-CONTRACT-PI | Pi JSONL byte framing, correlated responses, streamed text, bounded output, prompt admission, settled completion and abort command | offline fixtures | `tests/test_runtime_pi.py` | partial passing; process drains/live binary unavailable |
 | T-PERMISSION-BROKER | OpenCode permission requests go through the Hutch approval gate | live-if-installed | `tests/test_runtime_opencode.py` | planned |
 | T-COMPAT-MATRIX | Every route has state, evidence URL and date; unsupported fields are stripped | offline | `tests/test_compat.py` | planned |
 | T-PROVIDER-FIELD-REJECT | A provider rejection (auth, quota, field) leaves a recoverable state and no paid fallback | offline | `tests/test_provider_failures.py` | planned |

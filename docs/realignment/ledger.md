@@ -22,7 +22,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | S2 lifecycle, claims, leases and recovery | Implemented; focused tests pass | Pending claims reserve global capacity. Recovery fences expired ownership before cleanup. SQLite migrations serialize and create SQLite-backup-API snapshots. Schema v14 restores to a held new directory, detaches source process authority and quarantines old work. Cleanup failure remains visible and nonterminal. |
 | S3 supervised run processes and teardown | Implemented; focused tests pass | Production CLI/daemon/web execution uses owned processes, recorded boot/start identity and verified cleanup. Incomplete cleanup stays nonterminal. |
 | S4 shell containment and approval CAS | Implemented; focused tests pass | Bubblewrap tests pass on the present Linux host. This is namespace containment, not a VM; legacy bots retain their previous setting. Browser/external runtime tools remain outside this guarantee. |
-| S5 providers, budgets and external runtimes | Partial; shared usage reservations implemented, adapters fail closed | OpenCode v2.0.24 is installed and its CLI contract was inspected. Existing OpenCode/Pi adapters bypassed Hutch approvals and budgets, so execution now fails before process creation. Schema v10 reserves estimated tokens/currency atomically across Hutch runs and configured accounts, settles reported use once, and holds uncertain requests for terminal-only reconciliation. Price-based currency limits are estimates, not provider-billing guarantees. Re-enable external runtimes only after sandboxing, brokered permissions and protocol tests. Pi is unavailable; no live run or paid/provider request has been made. Local calls now use one kernel-owned slot and eight FIFO waiters; human waits release the slot. Native Ollama checks current headroom before generation; other local backends lack validated memory admission, and strict modes/provenance remain pending. The latest verified checkpoints are recorded below; live provider/adaptor access remains unavailable. |
+| S5 providers, budgets and external runtimes | Partial; shared usage reservations implemented; adapters still fail closed | OpenCode v2.0.24's authenticated loopback OpenAPI contract was inspected in isolated temporary state; a minimal schema fixture and bounded SSE parser now capture the installed API's experimental and volatile event-stream limits. Pi's published JSONL framing, response correlation, streamed deltas, `agent_settled` completion and `abort` command have bounded offline helper coverage. These are protocol helpers, not process adapters: stdout/stderr drainers, brokered permission round-trips, model/instruction/session propagation, sandbox ownership, and strict offline routing remain. Schema v10 reserves estimated tokens/currency atomically across Hutch runs and configured accounts, settles reported use once, and holds uncertain requests for terminal-only reconciliation. Price-based currency limits are estimates, not provider-billing guarantees. No paid/provider request or Pi invocation was made. Local calls now use one kernel-owned slot and eight FIFO waiters; human waits release the slot. Native Ollama checks current headroom before generation; other local backends lack validated memory admission, and strict modes/provenance remain pending. |
 | S6 conversations and bounded collaboration | Conversation foundation partial; scoped reference facts implemented | Schema v8 stores conversations/messages and imports each old run separately. Schema v15 adds immutable versioned reference facts, private chat/run scope, explicit cross-chat sharing, human review, bounded FTS5 recall and paginated history. No fact is injected into system instructions. Standing tasks, stable workspaces/artifacts, notifications and bounded delegation remain. |
 | S7 browser ownership and handoff | Partial | Browser context state is instance-owned and persistent profile paths are per-bot; fixture test verifies no profile crossover. Live handoff, pinned egress and browser process supervision remain unavailable. |
 | S8 versioned API and remote supervision | Partial; API replay improvements in `cd4f402` and `f5696ce`; remote remains experimental | `/api/v1` covers health/status labels, bounded bot/run/approval pages, conversations/search, cross-run transcript cursors, snapshot reconciliation, usage, connection metadata, schedules and capability records. Conversation create/message/archive, stop, and approval resolve commands are idempotent; changed arguments conflict. Schema v9 adds one-use pairing codes, hash-only revocable device sessions and per-source rate limits. Direct remote binding requires explicit TLS. Schema v11 adds transactional resource invalidations, history cursors, snapshot reconciliation and targeted Studio refresh. Schema v12 adds recoverable JSONL delivery and visible errors; v13 adds immutable action intents and separate outcome reconciliation; v14 adds a bounded authenticated restore report and execution-hold errors. Automatic event pruning, workspaces/artifacts, phone UI, interactive control routes, trusted tunnel and live device/network checks remain. |
@@ -101,7 +101,8 @@ versions remain `sandbox=off` until an operator changes the setting.
 
 No live paid-provider call, Ollama inference, Pi run, real browser handoff, portal permission, screen-reader, or physical-device test has
 been performed in this environment. Playwright covered local fixture-server journeys and synthetic UI states only. These are gaps,
-not passes. The installed OpenCode binary reports `opencode v2.0.24`; only its version and help output have been inspected.
+not passes. The installed OpenCode binary reports `opencode v2.0.24`; its authenticated loopback OpenAPI schema was inspected in isolated
+temporary state without provider credentials. Its current event stream is volatile, so the external runtime remains disabled.
 
 ## Reproduction
 
@@ -786,3 +787,29 @@ and final local-main integration remain incomplete.
 
 The schema-v15 implementation and current screenshots are in `0161a7e`; this ledger's final
 verification record is committed separately so it can name the completed implementation hash.
+
+## S5 external adapter protocol boundary, 2026-10-08
+
+An isolated `opencode serve` v2.0.24 process bound only to `127.0.0.1`, used a generated local
+password plus temporary HOME/XDG directories and an empty project directory, and received no
+provider credentials. `/doc` served HTML; `/openapi.json` returned OpenAPI 3.1.0 labelled
+experimental API `0.0.1`. It describes `/api/event` as a volatile SSE stream that may fail on a
+slow consumer and lose events during disconnects. Permission requests carry a server request id,
+session id, action and resource list; replies include `once`, `always` and `reject`. Hutch's
+mapping deliberately sends only `once` or `reject`. The process group was terminated and joined;
+no session prompt, provider call, or external effect was issued. Current online routes differ from
+the installed version, so this slice pins a minimal local contract fixture rather than treating
+the online page as an installed binary specification.
+
+The Pi helpers follow the current primary RPC docs: split raw stdout bytes only on LF, accept a
+preceding CR, preserve U+2028/U+2029 inside JSON strings, correlate replies by unique id and
+command, continuously consume records, collect bounded `text_delta` output, and regard only
+`agent_settled` as completion. The `abort` command is framed, but no Pi executable is installed.
+These helpers do not yet start a process, drain both pipes, verify sandbox/capabilities, reserve a
+provider budget, or translate permission events. Both runtimes still fail before process creation.
+
+Focused verification: `.venv/bin/python -m pytest -q tests/test_runtime_opencode.py
+tests/test_runtime_pi.py tests/test_runtime.py` — **21 passed in 0.34s**. The installed schema
+was queried again through an authenticated temporary loopback server; no provider connection was
+made. This is protocol-fixture evidence only; the complete offline suite remains required after
+the implementation expands, and the OpenCode event loss is an explicit unresolved adapter gate.
