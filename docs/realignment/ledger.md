@@ -65,6 +65,8 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `73db64a` | Host-gated Offline inference with bubblewrap network/PID namespaces, run-scoped loopback broker, masked provider credential files, responsive route controls/captures and updated support evidence; full suite 1,297 passed (the final explanatory copy then received its focused browser recapture) |
 | `ba1e297` | Remove user-facing mock execution and demo seeding, require real model routes, replace marketing mock journeys with actual empty-state captures, and verify wheel excludes test fixtures; offline suite 1,243 passed |
 | `e5b9452` | Per-bot fresh/managed/folder workspace modes, isolated retained workspace directories, API/CLI/settings controls, refreshed truthful marketing copy and visual captures; 45 focused tests, five app-browser checks and eleven website checks passed |
+| `0b98ebb` | Defer Studio chat-feed replacement while review dialogs are open; preserve focus across a background refresh, with refreshed file-download and fact-review captures |
+| `a292608` | Correct the Stop all browser test to match the standalone login page |
 
 ## Verified behavior before this checkpoint
 
@@ -1094,3 +1096,34 @@ The first generated-file link was inside the collapsed technical tool details. S
 The browser journey now submits a conversation-backed fixture run and confirms the file link is visible while tool details remain collapsed. Keyboard activation downloads the expected filename and bytes. The refreshed desktop, tablet and phone captures are visually inspected in `artifacts/generated-files/`; Chromium 153.0.8010.12 / Playwright 1.63.0 reports matching hashes, zero page errors and zero horizontal overflow. Focused Studio checks passed **3 tests in 5.12s**, covering generated-file chat access, existing clipped-output downloads and conversation reload/archive. `node --check`, `git diff --check` and the Impeccable detector passed (`[]`). Fixture only; no provider call or physical device was used.
 
 Implementation commit: `e39e51e`.
+
+## Studio review focus and repository verification checkpoint (2026-10-08)
+
+A background conversation/fact refresh could replace chat content while a reference-fact review dialog
+was open. Closing the dialog then attempted to restore focus to an element that the refresh had
+removed. Studio now defers the feed's DOM replacement while a modal is open and applies the pending
+refresh after the modal restores focus. The browser regression triggers a real resource refresh while
+the review dialog is visible, checks that the dialog stays open, and confirms Escape returns focus to
+the review control. This guards dialog behavior when asynchronous chat data changes; it does not
+replace the existing server-side compare-and-swap authority checks.
+
+The latest offline suite passed **1,254 tests in 261.16s** using
+`.venv/bin/python -m pytest -q --ignore=tests/e2e -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning`.
+The dashboard regression test now asserts that Stop all is present in the application header and
+stops a run, while the standalone `/login` page has no application header. The latest full browser
+and anonymous-site suite passed **67 tests in 153.70s** using
+`.venv/bin/pytest -q tests/e2e -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning`.
+The first full browser attempt exposed the focus race; after adding the deferred-refresh behavior and
+regression, the complete suite passed. These were separate full-suite invocations, for **1,321
+passing test results combined**, not one single pytest run. A focused rerun of the generated-file and
+fact-review captures then passed **4 viewport cases in 9.14s**.
+
+Fresh Chromium 153.0.8010.12 / Playwright 1.63.0 captures and source hashes for generated-file chat
+downloads and fact-review dialogs are retained under `artifacts/generated-files/` and
+`artifacts/fact-memory/`. Desktop, tablet and phone captures were visually inspected; both journeys
+record zero page errors and zero horizontal overflow. The browser suite uses local fixtures: there
+were no paid-provider calls, live model requests, or physical-phone checks. These results close the
+focused chat review/file-discovery checkpoint only; final integrated visual validation and live
+provider, model, and device checks remain open.
+
+Implementation commits: `0b98ebb` (refresh-safe dialog focus) and `a292608` (login-header test scope).

@@ -66,6 +66,11 @@ realignment work.
 - **Conversation persistence: partial.** Schema v8 stores canonical messages and maps runs to conversations. Historical runs are
   imported separately. The local v1 API snapshots at most 12 prior messages / 16,000 characters for builtin runs and supports
   FTS5 search. The Studio selects threads, displays restart-persistent history and archives without deleting it.
+- **Studio navigation and approvals: consolidated.** Studio has one bot roster and one settings destination; the same exact-action
+  approval card appears in the originating chat and in the cross-chat Needs you drawer. Monitor holds activity and run history. Fleet
+  appears as a filtered view at ten bots; ten is a reversible operator heuristic, not a measured user threshold. This avoids a
+  second bot-management destination for small fleets while retaining a focused view for larger ones. Responsive and interaction
+  evidence is in `docs/realignment/navigation-visual-validation.md`.
 - **API: partial.** Versioned health, status labels, bots, conversations, search, runs, approvals and usage aliases are present.
   Create/message/archive, stop, and approval resolution use transactional idempotency. Cross-run ordered transcript SSE, bounded
   event pages and snapshot reconciliation are present. Schema v11 adds transactional resource invalidations,
