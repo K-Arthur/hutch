@@ -13,7 +13,9 @@ gate fails the build.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import math
 import os
 import platform
 import shutil
@@ -53,7 +55,7 @@ def _env(state: Path) -> dict[str, str]:
     return dict(os.environ, HUTCH_STATE_DIR=str(state))
 
 
-def bench_cli(state: Path, runs: int = 11) -> dict[str, float]:
+def bench_cli(state: Path, runs: int = 11) -> dict[str, list[float]]:
     subprocess.run(_hutch_cmd() + ["init"], env=_env(state), capture_output=True, check=True)
     out = {}
     for name, args in (("cli_version_ms", ["version"]), ("cli_status_ms", ["status"])):
@@ -63,11 +65,11 @@ def bench_cli(state: Path, runs: int = 11) -> dict[str, float]:
             t = time.perf_counter()
             subprocess.run(_hutch_cmd() + args, env=_env(state), capture_output=True, check=True)
             samples.append((time.perf_counter() - t) * 1000)
-        out[name] = round(min(samples), 1)  # min is the stable estimator of CPU-bound latency under noise
+        out[name] = samples
     return out
 
 
-def bench_events(state: Path, n: int = 20_000) -> dict[str, float]:
+def bench_events(state: Path, n: int = 20_000, runs: int = 5) -> dict[str, list[float]]:
     os.environ["HUTCH_STATE_DIR"] = str(state)
     from hutch.config import get_config
     from hutch.models import Bot, Event, EventType, Run
@@ -76,18 +78,18 @@ def bench_events(state: Path, n: int = 20_000) -> dict[str, float]:
     bot = store.create_bot(Bot(name="bench"))
     run = store.create_run(Run(bot_id=bot.id, prompt="bench"))
     rates = []
-    for _ in range(3):
+    for _ in range(runs):
         t = time.perf_counter()
         for i in range(n):
             store.append_event(Event(run_id=run.id, type=EventType.log, data={"i": i, "pad": "x" * 64}))
         store.flush_events()
         rates.append(n / (time.perf_counter() - t))
-    assert store.count_events(run.id) == 3 * n
+    assert store.count_events(run.id) == runs * n
     store.close()
-    return {"events_per_sec": round(statistics.median(rates))}
+    return {"events_per_sec": rates}
 
 
-def bench_step_overhead(state: Path, runs: int = 12) -> dict[str, float]:
+def bench_step_overhead(state: Path, runs: int = 12) -> dict[str, list[float]]:
     os.environ["HUTCH_STATE_DIR"] = str(state)
     from hutch.config import get_config
     from hutch.engine import Engine
@@ -98,13 +100,12 @@ def bench_step_overhead(state: Path, runs: int = 12) -> dict[str, float]:
     engine = Engine(config, store)
     bot = store.create_bot(Bot(name="steps", model="mock/demo", tools=["shell", "files", "memory"],
                                approval_mode=ApprovalMode.auto))
-    overhead = steps = 0.0
+    samples = []
     for _ in range(runs):
         run = engine.run_blocking(bot, "research the weekly news and summarize")
-        overhead += run.overhead_ms
-        steps += max(run.steps, 1)
+        samples.append(run.overhead_ms / max(run.steps, 1))
     store.close()
-    return {"step_overhead_ms": round(overhead / steps, 3)}
+    return {"step_overhead_ms": samples}
 
 
 def _rss_mb(pid: int) -> float:
@@ -148,25 +149,44 @@ def _idle_profile(argv: list[str], state: Path, ready, warm: float, window: floa
             os.killpg(proc.pid, signal.SIGKILL)
 
 
-def bench_idle(state: Path, window: float = 8.0) -> dict[str, float]:
-    out: dict[str, float] = {}
-    rss, cpu = _idle_profile(_hutch_cmd() + ["daemon"], state, ready=lambda: True, warm=2.5, window=window)
-    out["idle_rss_daemon_mb"], out["idle_cpu_daemon_s_per_hour"] = rss, cpu
-    port = _free_port()
+def bench_idle(state: Path, window: float = 8.0, runs: int = 3) -> dict[str, list[float]]:
+    out: dict[str, list[float]] = {"idle_rss_daemon_mb": [], "idle_cpu_daemon_s_per_hour": [],
+                                   "idle_rss_serve_mb": [], "idle_cpu_serve_s_per_hour": []}
+    for _ in range(runs):
+        rss, cpu = _idle_profile(_hutch_cmd() + ["daemon"], state, ready=lambda: True, warm=2.5, window=window)
+        out["idle_rss_daemon_mb"].append(rss)
+        out["idle_cpu_daemon_s_per_hour"].append(cpu)
 
-    def up() -> bool:
-        try:
-            urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=0.5).read()
-            return True
-        except Exception:
-            return False
+        port = _free_port()
 
-    rss, cpu = _idle_profile(_hutch_cmd() + ["serve", "--port", str(port)], state, ready=up, warm=2.5, window=window)
-    out["idle_rss_serve_mb"], out["idle_cpu_serve_s_per_hour"] = rss, cpu
+        def up() -> bool:
+            try:
+                urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=0.5).read()
+                return True
+            except Exception:
+                return False
+
+        rss, cpu = _idle_profile(_hutch_cmd() + ["serve", "--port", str(port)], state, ready=up, warm=2.5,
+                                 window=window)
+        out["idle_rss_serve_mb"].append(rss)
+        out["idle_cpu_serve_s_per_hour"].append(cpu)
     return out
 
 
-def machine() -> dict[str, str]:
+def _percentile(values: list[float], percentile: float) -> float:
+    """Nearest-rank percentile; the raw sample count is always reported alongside it."""
+    ordered = sorted(values)
+    return ordered[max(0, math.ceil(percentile * len(ordered)) - 1)]
+
+
+def summarize_samples(samples: list[float]) -> dict[str, float | int]:
+    if not samples:
+        raise ValueError("a benchmark metric must have at least one sample")
+    return {"n": len(samples), "median": statistics.median(samples), "p90": _percentile(samples, .90),
+            "min": min(samples), "max": max(samples)}
+
+
+def machine() -> dict[str, str | float | bool]:
     cpu = "unknown"
     try:
         for line in Path("/proc/cpuinfo").read_text().splitlines():
@@ -175,20 +195,42 @@ def machine() -> dict[str, str]:
                 break
     except OSError:
         pass
+    total_memory_mb: float | None = None
+    try:
+        for line in Path("/proc/meminfo").read_text().splitlines():
+            if line.startswith("MemTotal:"):
+                total_memory_mb = round(int(line.split()[1]) / 1024, 1)
+                break
+    except (OSError, ValueError, IndexError):
+        pass
+    try:
+        git_head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT.parent, text=True,
+                                            stderr=subprocess.DEVNULL).strip()
+        dirty = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT.parent, text=True,
+                                             stderr=subprocess.DEVNULL).strip())
+    except (OSError, subprocess.CalledProcessError):
+        git_head, dirty = "unknown", True
+    revision = os.environ.get("HUTCH_BENCH_SOURCE_REVISION", git_head)
+    harness_sha = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     return {"cpu": cpu, "cores": str(os.cpu_count()), "python": platform.python_version(),
-            "platform": platform.platform(), "measured_on": time.strftime("%Y-%m-%d")}
+            "platform": platform.platform(), "total_memory_mb": total_memory_mb or 0.0,
+            "source_revision": revision, "git_head": git_head, "working_tree_dirty": dirty,
+            "benchmark_harness_sha256": harness_sha, "sample_schema": 2,
+            "measured_on": time.strftime("%Y-%m-%d")}
 
 
 def measure(quick: bool = False) -> dict:
     work = Path(tempfile.mkdtemp(prefix="hutch-bench-"))
     try:
-        metrics: dict[str, float] = {}
-        metrics.update(bench_cli(work / "cli", runs=5 if quick else 11))
-        metrics.update(bench_events(work / "events", n=5_000 if quick else 20_000))
-        metrics.update(bench_step_overhead(work / "steps", runs=4 if quick else 12))
+        samples: dict[str, list[float]] = {}
+        samples.update(bench_cli(work / "cli", runs=5 if quick else 11))
+        samples.update(bench_events(work / "events", n=5_000 if quick else 20_000, runs=3 if quick else 5))
+        samples.update(bench_step_overhead(work / "steps", runs=4 if quick else 12))
         subprocess.run(_hutch_cmd() + ["init"], env=_env(work / "idle"), capture_output=True, check=True)
-        metrics.update(bench_idle(work / "idle", window=4.0 if quick else 8.0))
-        return {"meta": machine(), "metrics": metrics}
+        samples.update(bench_idle(work / "idle", window=4.0 if quick else 8.0, runs=2 if quick else 3))
+        distributions = {name: summarize_samples(values) for name, values in samples.items()}
+        metrics = {name: summary["median"] for name, summary in distributions.items()}
+        return {"meta": machine(), "metrics": metrics, "distributions": distributions, "samples": samples}
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
@@ -212,17 +254,29 @@ def compare(current: dict, baseline: dict) -> list[str]:
 
 
 def report(result: dict, baseline: dict | None) -> str:
-    rows = [f"{'metric':<30}{'value':>12}{'baseline':>12}{'target':>10}"]
+    def display(name: str, value: float | None) -> str:
+        if value is None:
+            return "-"
+        unit = METRICS[name][0]
+        if unit == "ev/s":
+            return f"{value:.0f}{unit}"
+        return f"{value:.1f}{unit}"
+
+    rows = [f"{'metric':<30}{'p50':>12}{'p90':>12}{'n':>6}{'baseline':>12}{'target':>10}"]
     for name, (unit, better, _floor, target) in METRICS.items():
         cur = result["metrics"].get(name)
         if cur is None:
             continue
+        distribution = result.get("distributions", {}).get(name, {})
+        p90 = distribution.get("p90")
+        count = distribution.get("n", 1)
         base = baseline["metrics"].get(name) if baseline else None
         mark = ""
         if target is not None:
             ok = cur <= target if better == "lower" else cur >= target
             mark = "ok" if ok else "MISS"
-        rows.append(f"{name:<30}{str(cur) + unit:>12}{(str(base) + unit) if base is not None else '-':>12}"
+        rows.append(f"{name:<30}{display(name, cur):>12}{display(name, p90):>12}"
+                    f"{count:>6}{display(name, base):>12}"
                     f"{(str(target) if target is not None else '-'):>10} {mark}")
     return "\n".join(rows)
 

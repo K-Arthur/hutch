@@ -1,8 +1,8 @@
-"""The regression gate itself (PF-12): >20% worse fails, noise below the floor does not."""
-
 from __future__ import annotations
 
-from benchmarks.run import METRICS, compare
+import pytest
+
+from benchmarks.run import METRICS, _percentile, compare, summarize_samples
 
 
 def _r(**m):
@@ -26,12 +26,29 @@ def test_higher_is_better_metrics_regress_downward():
 def test_tiny_absolute_changes_are_noise():
     # 0.26 ms -> 0.40 ms is +54% but far below the 0.5 ms floor
     assert compare(_r(step_overhead_ms=0.40), _r(step_overhead_ms=0.26)) == []
-    # one 10 ms clock tick in an 8 s window is ~4.5 s/hour: not a regression
+    # one 10 ms clock tick in an 8 s window is ~4.5 s/hour
     assert compare(_r(idle_cpu_serve_s_per_hour=9.0), _r(idle_cpu_serve_s_per_hour=4.5)) == []
 
 
 def test_every_draft_target_is_tracked():
     tracked = set(METRICS)
-    # PF-5 idle CPU, PF-6 CLI start, PF-7 events/s, PF-11 step overhead, PF-13 idle RSS
     assert {"idle_cpu_daemon_s_per_hour", "cli_status_ms", "events_per_sec",
             "step_overhead_ms", "idle_rss_daemon_mb"} <= tracked
+
+
+def test_benchmark_summary_uses_nearest_rank_and_keeps_sample_count() -> None:
+    values = [9.0, 1.0, 5.0, 3.0, 7.0]
+
+    assert _percentile(values, 0.90) == 9.0
+    assert summarize_samples(values) == {
+        "n": 5,
+        "median": 5.0,
+        "p90": 9.0,
+        "min": 1.0,
+        "max": 9.0,
+    }
+
+
+def test_benchmark_summary_rejects_missing_measurements() -> None:
+    with pytest.raises(ValueError, match="at least one sample"):
+        summarize_samples([])
