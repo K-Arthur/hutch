@@ -22,7 +22,8 @@ from ..models import Event, EventType
 from ..approvals import DeniedError
 from .base import Tool, ToolContext, ToolResult, _schema, clip, rehearsed
 
-# One browser automation at a time on a single desktop.
+# One browser automation at a time on a single desktop. Profiles and contexts
+# are instance-owned so a bot cannot inherit another bot's cookies or page.
 _GLOBAL_BROWSER_LOCK = threading.Lock()
 
 _LOGIN_WALL_RE = ("captcha", "are you a robot", "sign in", "log in", "two-factor",
@@ -60,44 +61,44 @@ class BrowserTool(Tool):
         },
     )
 
-    _pw = None
-    _browser = None
+    def __init__(self):
+        self._pw = None
+        self._browser = None
 
     def _ensure(self, ctx: ToolContext):
-        if BrowserTool._browser is not None:
-            return BrowserTool._browser
+        if self._browser is not None:
+            return self._browser
         try:
             from playwright.sync_api import sync_playwright
         except ImportError:
             raise BrowserUnavailable()
-        BrowserTool._pw = sync_playwright().start()
+        self._pw = sync_playwright().start()
         profile_dir = ctx.config.bot_profiles_dir(ctx.bot.name)
         profile_dir.mkdir(parents=True, exist_ok=True)
-        BrowserTool._browser = BrowserTool._pw.chromium.launch_persistent_context(
+        self._browser = self._pw.chromium.launch_persistent_context(
             user_data_dir=str(profile_dir),
             headless=ctx.headless,
             accept_downloads=True,
         )
         # every request the page makes (navigation, redirect, sub-resource) is judged by the same rules as web_fetch
         from ..netguard import RequestGuard
-        BrowserTool._browser.route("**/*", RequestGuard().route_handler(
+        self._browser.route("**/*", RequestGuard().route_handler(
             lambda url, why: ctx.emit and ctx.emit(Event(run_id=ctx.run.id, type=EventType.log,
                                                          data={"denied": url, "reason": why, "rule": "deny:private-address"}))))
         ctx.on_finish.append(self._teardown)
-        return BrowserTool._browser
+        return self._browser
 
-    @staticmethod
-    def _teardown():
-        if BrowserTool._browser is not None:
+    def _teardown(self):
+        if self._browser is not None:
             try:
-                BrowserTool._browser.close()
+                self._browser.close()
             finally:
-                BrowserTool._browser = None
-        if BrowserTool._pw is not None:
+                self._browser = None
+        if self._pw is not None:
             try:
-                BrowserTool._pw.stop()
+                self._pw.stop()
             finally:
-                BrowserTool._pw = None
+                self._pw = None
 
     def effect(self, args: dict[str, Any], ctx: ToolContext) -> str:
         action = (args.get("action") or "").strip()

@@ -70,10 +70,10 @@ kind, a command exit code). The engine evaluates them after the run and stores `
 
 ### Audit writes
 
-Event persistence is an outbox: the event row is committed with the state change; the JSONL mirror and notifications are derived
-from committed rows by a drainer and are retried. A failure to persist an event for a *consequential* action blocks that action
-(fail closed). For other events the run continues in a visibly **degraded** mode (a `log` event and a banner), never silently.
-`Store._commit_batch` stops dropping events after five tries; it raises and the run degrades.
+**Current implementation:** event rows are batched to SQLite, with status transitions and their buffered events committed together;
+the JSONL transcript is mirrored separately. There is no durable outbox table or retrying mirror drainer yet. A crash or mirror
+write failure is therefore not covered by the outbox design described for a future slice. Recovery and release docs must preserve
+this limitation until durable outbox delivery is implemented and tested.
 
 ## Alternatives rejected
 

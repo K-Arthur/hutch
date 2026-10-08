@@ -13,7 +13,7 @@ not measured prevalence).
 | Shell tool | New bots request Linux strict mode: bubblewrap gives a private mount/PID/network namespace, private `/tmp`, writable workspace, sanitized environment and bounded resources. `web_fetch` provides checked public-page access; shell networking is unavailable in strict mode. This is shell-only containment, not a VM. Existing bots retain `off` after migration; the UI labels that choice. If strict mode is unavailable, the command fails closed. |
 | `web_fetch` | the name is resolved and **every** answer must be a public address; redirects are followed by hutch and each hop re-checked; the connection is pinned to the validated address (no second lookup); credentials in URLs, internal names and every spelling of a loopback/metadata address (`[::1]`, `0x7f.0.0.1`, decimal, IPv4-mapped, NAT64, 6to4) are refused (`netguard.py`, `tests/test_netguard.py`) |
 | browser | each request is URL-checked, but the browser resolves and connects independently; a DNS rebinding window remains until browser traffic uses a pinned egress broker |
-| External runtimes (Pi, OpenCode) | run with their own tools; OpenCode is started with `--auto` (blanket approval of anything it has not denied). Hutch's policy does not see their tool calls |
+| External runtimes (Pi, OpenCode) | disabled before process creation. Existing adapters cannot yet broker tool approval, enforce spend limits or run inside the owned sandbox. Selecting them fails with an actionable message; they are not supported executors. |
 | Stopping a run | an intent recorded in the database: `hutch stop`, `stop-all` and the dashboard work on a run owned by any process. `serve`, `daemon`, and `hutch run` use one owned process per attempt. Recovery fences the old owner before cleanup and signals only boot/start-verified process identities through pidfds. `Stopping` or `Recovering` remains visible while cleanup is incomplete or cannot be verified; terminal cancellation waits for confirmed cleanup. |
 
 The realignment ledger records which behavior is tested, which is only documented, and which requires live provider or device access.
@@ -114,9 +114,9 @@ not by a URL pattern.
 
 `goto` uses URL policy; `click` and `type` are ask-once with sticky allows (an agent that can
 click can buy things). Login/CAPTCHA/MFA walls move the run to `waiting_human` — the bot waits for a
-human, it never attempts challenges. The browser currently launches headless, so there is nothing to look at,
-and one browser context is shared by every bot in the process (both are tracked defects, slice S7).
-Browser automation is globally serialized by a process-wide lock, which is held for the whole human wait.
+human, it never attempts challenges. The browser currently launches headless. Each browser-tool instance owns a separate context
+and the profile path for its bot. Operations are serialized by a process-wide lock, held for the whole human wait.
+A durable same-session handoff is not implemented.
 
 ## Rehearse (dry run)
 
@@ -150,10 +150,8 @@ still apply.
 
 ## Honest limits (read this)
 
-- **External runtimes** (`pi`, `opencode`) have their own tool and billing paths; Hutch does not broker their tool approvals,
-  report authoritative token/currency usage, or guarantee their configured permissions. Do not use these adapters for consequential
-  or paid work. Their current implementation is experimental and must be constrained to a read-only capability profile before it
-  can be considered supported. Hutch's `--auto` option is never passed by default.
+- **External runtimes** (`pi`, `opencode`) are disabled. They cannot currently satisfy Hutch's process ownership, approval,
+  credential routing and budget requirements. The builtin runtime is the only supported model-backed executor; mock mode is offline.
 - **A supervised human is assumed.** Prompt injection can still produce plausible-but-wrong actions
   inside the allowed toolset; the transcripts, caps, and approvals bound the damage.
 - **Script contents are not analysed.** `bash script.sh`, `python3 x.py` and `python3 -c '...'` run what is in them: bots

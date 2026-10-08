@@ -26,7 +26,7 @@ sends `OPENAI_API_KEY` to whatever URL it is given (baseline lead 5).
    | Direct API: Anthropic, OpenAI, OpenAI-compatible with an explicit connection | supported (contract-tested with recorded fixtures; live only when a key is supplied) | |
    | Ollama native | supported (offline contract tests; live only where Ollama is installed) | |
    | OpenCode Go / Zen as a **provider connection** | experimental | own `User-Agent`, `x-opencode-session` header; docs set no terms for non-coding workloads (B3) so the UI states "coding-agent workloads" |
-   | OpenCode / Pi as **harness** | experimental | ADR-0007 |
+   | OpenCode / Pi as **harness** | disabled; not supported executors | no approval broker, sandboxed process, or enforceable shared usage reservation; see ADR-0007 |
    | Sign in with ChatGPT (open-source/local apps) | experimental, not implemented as a route in this phase | Responses API, `store:false`, `stream:true`, many fields unsupported (B1, B2); needs a native Responses adapter; eligibility for Hutch unconfirmed |
    | Cookie scraping, spoofed client identity, credential laundering through a harness | blocked | never implemented |
 

@@ -50,4 +50,6 @@ that proves the mitigation (`T-…` IDs are defined in `docs/realignment/tests.m
 | D4 | `opencode run --help` | Confirms `--auto`, `--model`, `--session`, `--standalone`, `--server` exist on v2.0.22 |
 | D5 | `curl https://github.com/K-Arthur/hutch` anonymous | 404 - repository is private; `pypi.org/pypi/hutch/json` also 404 (name unclaimed) |
 | D6 | `opencode --version` and `opencode run --help` | Installed binary reports `opencode v2.0.24`; model, session, standalone, JSON format, and `--auto` are exposed by its CLI. No model request was made. |
-| D6 | Cited HN items (27 IDs) via the Algolia API | All exist; most are single **comments**, not incident reports |
+| D7 | Cited HN items (27 IDs) via the Algolia API | All exist; most are single **comments**, not incident reports |
+| D8 | Adapter/source audit on `realign/platform` | The implementation hard-coded OpenCode `--auto`, did not propagate model/instructions, and could block reading stdout while stderr filled. Pi sent a request shape inconsistent with its published RPC command framing. Neither had an approval broker or an enforceable external-provider reservation. Both adapters now fail before process creation. |
+| D9 | `tests/test_browser_profiles.py` | Browser contexts are owned by individual tool instances and receive distinct `bot_profiles_dir` paths. Fixture-level isolation check only; no live Playwright browser test. |

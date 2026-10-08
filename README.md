@@ -71,10 +71,10 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 - **Caps** — steps, wall-clock, daily tokens per bot; spend caps for priced hosted models (a token cap is not a currency cap). `serve`, `daemon`, and `hutch run` use one owned worker process per attempt; cancellation stays visible until cleanup is verified
 - **Workspace and shell containment** — file tools stay in the workspace. New bots request Linux bubblewrap strict mode for shell commands, with no shell network and bounded resources; unsupported hosts fail closed. Existing bots keep their saved setting, and `sandbox: off` is explicitly uncontained execution. This shell boundary is not a VM and does not contain the browser or external runtimes
 - **Run transcripts** — every run in SQLite + a JSONL mirror on disk
-- **Browser (experimental)** — optional Playwright extra; parks the run in a "needs you" state at CAPTCHA/MFA walls. Known gaps: one
-  browser context per process rather than per bot, and no visible handoff session yet
-- **Other runtimes (experimental)** — built-in loop (default), or delegate a bot to [Pi](https://pi.dev) / [OpenCode](https://opencode.ai).
-  These run with their own tools outside hutch's policy gate; see the current safety boundary before enabling one
+- **Browser (experimental)** — optional Playwright extra and a persistent profile per bot. A run can pause at some detected login
+  walls; live handoff in the same session and a pinned browser egress path are unavailable.
+- **External runtimes** — Pi and OpenCode are recognized in old bot configs but disabled before starting a process. Their
+  permission broker, process containment and provider budget path are not ready. Supported execution choices are builtin and offline mock.
 
 ## Documentation
 

@@ -12,7 +12,7 @@ dashboard, or the REST API, and live in `hutch.db`.
 | `instructions` | str | "" | standing system-prompt guidance, prepended every run |
 | `model` | provider/model | `mock/demo` | see model specs below |
 | `base_url` | str? | null | override endpoint for OpenAI-compatible providers |
-| `runtime` | enum | `builtin` | `builtin` · `mock` · `pi` · `opencode` |
+| `runtime` | enum | `builtin` | `builtin` · `mock`; legacy values `pi` and `opencode` are retained but fail closed as unsupported |
 | `tools` | list | `["shell","files","memory"]` | allowlist; groups expand (see below) |
 | `schedule` | obj? | null | `{cron, timezone, catch_up}` — omit for on-demand |
 | `limits` | obj | see below | hard caps |

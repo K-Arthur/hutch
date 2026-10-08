@@ -24,8 +24,7 @@ flowchart LR
   subgraph Runtimes
     BUILTIN["builtin loop<br/>(OpenAI-compatible)"]
     MOCK["mock<br/>(deterministic, offline)"]
-    PI["pi adapter<br/>(RPC over stdio)"]
-    OC["opencode adapter<br/>(headless run)"]
+    EXT["Pi / OpenCode<br/>(recognized; disabled)"]
   end
 
   subgraph Tools
@@ -40,7 +39,7 @@ flowchart LR
   UI --> ENG
   SCH --> ENG
   ENG --> SCHED_STORE
-  ENG --> BUILTIN & MOCK & PI & OC
+  ENG --> BUILTIN & MOCK & EXT
   BUILTIN & MOCK --> POL
   BUILTIN & MOCK --> SH & FI & ME & WF & BR
   SH & FI & WF --> POL
@@ -63,22 +62,21 @@ bots/<bot>/browser-profile/     # persistent Chromium profile (logins survive ru
 
 ## Key decisions
 
-### D1 — Own the agent loop; make runtimes pluggable
+### D1 — Own the agent loop; keep ungoverned runtimes disabled
 
 The original proposal (see `docs/research/orchestrators.md`) put OpenCode at the core. Research
 changed that:
 
 - **OpenCode's server is project-scoped**: N isolated bot workspaces would need N server processes
   on N ports, its Python SDK is alpha, and its HTTP API ships no stability promise.
-- **Pi** (earendil-works/pi) is the better external runtime — RPC over stdio, one process per bot,
-  documented Python pattern, strong local-model support — so it's a first-class adapter.
 - **Frameworks (CrewAI/LangGraph/AutoGen)** abstract the agent loop (the easy ~300 lines) and none
   of what actually matters here: scheduling, approvals, budgets, isolation, transcripts. 2026
   post-mortems consistently call them overkill for cron-style dispatch.
 
-Result: `runtime/builtin.py` is a thin loop over an OpenAI-compatible client; `runtime/pi.py` and
-`runtime/opencode.py` delegate to external harnesses when installed; `runtime/mock.py` is a
-deterministic offline runtime used by tests, demos, and first-run exploration.
+Result: `runtime/builtin.py` owns the governed tool loop; `runtime/mock.py` is deterministic and offline.
+Legacy `pi` and `opencode` enum values fail closed before process creation. Their old adapters bypassed
+Hutch approvals and budgets, so they remain unavailable until sandboxing, permission brokering,
+provider reservations and protocol tests are complete.
 
 ### D2 — Bots are configs, runs are executions
 
@@ -135,8 +133,8 @@ equivalent.
 
 Each production run has an owned worker process and a supervisor watcher. The worker holds a cancel `Event` and a reference to
 the run's approval gate so `stop` unblocks an approval wait immediately. In-process thread execution is only an explicit
-compatibility/test mode. The browser still uses a process-wide profile/lock today; per-bot profile isolation and live handoff
-remain open. SQLite access is serialized by an RLock in `Store`, and migration startup is additionally serialized across
+compatibility/test mode. The browser owns a distinct persistent profile per bot. Browser actions remain serialized by a process-wide
+lock, and live handoff remains open. SQLite access is serialized by an RLock in `Store`, and migration startup is additionally serialized across
 processes.
 
 ## What is deliberately NOT here (yet)

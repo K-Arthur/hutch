@@ -86,8 +86,8 @@ OpenAI, Anthropic, Ollama, LM Studio and llama.cpp keep their built-in provider 
 documentation says OAuth tokens from consumer plans are for use inside its own applications and that using them
 in other products or tools is not permitted; its consumer terms prohibit automated access except through an API
 key. Hutch therefore never reads, stores or proxies such tokens (`LM-15`). Plans that issue an **API key**
-(OpenCode Go, MiMo Token Plan, and the API products themselves) are supported. A vendor's own CLI remains
-usable through the `pi` and `opencode` runtime adapters, which carry their own authentication and terms.
+(OpenCode Go, MiMo Token Plan, and the API products themselves) are supported through Hutch's built-in provider clients. Vendor
+CLI harnesses (`pi`, `opencode`) are currently disabled; Hutch does not launch them or use their independent authentication.
 
 ## Limits worth knowing
 

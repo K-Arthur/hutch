@@ -102,11 +102,9 @@ def test_builtin_loop_token_cap_aborts(store, config, tmp_path, monkeypatch):
     assert exc.value.reason == "token_cap"
 
 
-def test_missing_external_runtime_binaries_fail_gracefully(store, config, tmp_path):
+def test_external_runtimes_fail_closed_until_governance_exists(store, config, tmp_path):
     ctx, run, _ = make_ctx(store, config, tmp_path)
-    with pytest.raises(RunAborted) as exc:
+    with pytest.raises(RunAborted, match="disabled until Hutch can contain"):
         PiRuntime(binary="not-a-real-pi-binary").execute(run, ctx, {}, stop=lambda: False)
-    assert "not found on PATH" in exc.value.detail
-    with pytest.raises(RunAborted) as exc:
+    with pytest.raises(RunAborted, match="disabled until Hutch can broker"):
         OpenCodeRuntime(binary="not-a-real-opencode-binary").execute(run, ctx, {}, stop=lambda: False)
-    assert "not found on PATH" in exc.value.detail

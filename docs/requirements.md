@@ -51,7 +51,7 @@ commits can cite them. Evidence for the *why* is in
 | LM-12 | Re-measure when runtime or model file changes | Later | later | |
 | LM-13 | Tool-call repair; ≤ 8 tools by default | MVP | partial | `runtime/toolrepair.py` coerce/validate/one retry; `hutch doctor` warns above 8 tools; the 8-tool default is not enforced at bot creation |
 | LM-14 | Editable hosted price file with verified-on date in UI | MVP | done | price table with source and verified date on `/models`; edit, reset; 90-day stale flag |
-| LM-15 | API key access; subscription only via vendor CLI behind a terms warning; no token extraction | MVP | partial | API keys and connection terms notices done ([connections.md](connections.md)); the `pi` / `opencode` vendor-CLI adapters do not yet show a terms warning |
+| LM-15 | API key access; subscription use behind a terms warning; no token extraction | MVP | partial | Hutch provider API routes and connection terms notices exist. Vendor CLI harnesses `pi` and `opencode` are disabled until permissions, process isolation and budget enforcement are governed. |
 | LM-16 | Show each model's license; flag non-Apache/MIT | Later | later | |
 
 ## Bot collaboration

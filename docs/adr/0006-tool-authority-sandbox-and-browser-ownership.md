@@ -1,13 +1,15 @@
 # ADR-0006: Tool authority, an OS sandbox, and who owns the browser
 
-Status: accepted (2026-10-07), implementation amended during realignment. S4 (Linux shell sandbox and approval CAS) is host-tested;
-S7 (per-bot browser ownership and live handoff) remains unimplemented. Evidence: baseline leads 8-9, D3, A1, B6.
+Status: accepted, partially implemented (2026-10-07). S4 Linux shell containment and approval CAS are host-tested; browser profile
+ownership is implemented and fixture-tested; same-session handoff and pinned browser egress remain unimplemented. Evidence: baseline
+leads 8-9, D3, A1, B6.
 
 ## Context
 
 Prompts, CWD and a redirected `HOME` are not a boundary: `cat /home/user/.ssh/id_rsa` worked in the baseline shell tool. The command
 parser is a useful *policy* layer and stays; it is not containment. Web fetch has since moved to resolved-address checks and pinned
-connections, while browser DNS is still not pinned (D3). The browser context is a class attribute shared by every bot in the process.
+connections, while browser DNS is still not pinned (D3). Browser contexts were previously class-shared; ownership is now per tool
+instance, with a distinct persistent profile directory for each bot.
 
 ## Decision
 
@@ -51,8 +53,9 @@ into system instructions. They cannot raise a tool's policy tier. Rendered conte
 
 ### Browser and desktop are different resources
 
-* **Isolated automation browser**: planned as one Playwright context per bot profile. Current code uses a process-wide shared browser
-  context and is experimental; do not claim cross-bot profile isolation or visible handoff.
+* **Isolated automation browser**: one Playwright context per tool instance, using that bot's persistent profile directory. This
+  is fixture-tested; no live browser check has been completed here. It remains experimental, with process-wide action serialization,
+  no pinned DNS/egress and no visible handoff.
 * **Physical desktop** (pointer/keyboard): one lease at a time system-wide (`resource_leases` row), not implemented in this phase and
   documented as such; Wayland capture/control needs an installed, authorised executor and portal permission.
 * **Human handoff**: a live session with an exclusive input lease is planned (ADR-0010), not implemented. Current runs can pause at

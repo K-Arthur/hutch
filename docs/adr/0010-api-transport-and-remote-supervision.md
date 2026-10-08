@@ -1,6 +1,6 @@
 # ADR-0010: API contracts, event transport, and phone supervision
 
-Status: accepted (2026-10-07). Slice: S8. Evidence: baseline "reconnect", `security.py` WebSocket gap, A1/A3, C2.
+Status: proposed target architecture; implementation pending (2026-10-07). Slice: S8. Evidence: baseline "reconnect", `security.py` WebSocket gap, A1/A3, C2.
 
 ## Decision
 
@@ -25,4 +25,5 @@ Status: accepted (2026-10-07). Slice: S8. Evidence: baseline "reconnect", `secur
 
 ## Consequences
 
-Rollback: v1 routes are additive. Pairing is off unless `--allow-remote` is passed, as today.
+Current boundary: `/api/v1`, pairing, device sessions, PTY WebSocket and remote binding controls are not implemented. The current
+service remains loopback-only; there is no `--allow-remote` option or pairing flow to enable.

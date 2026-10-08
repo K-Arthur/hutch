@@ -26,8 +26,9 @@ Rules worth knowing:
   yourself. Spend caps and the exact per-call accounting still apply.
 - **The runtime still protects you.** The override goes through the normal run path, so a model that cannot fit this
   machine is refused before it loads, and the run says so.
-- **The server re-validates on send.** Unknown provider, missing key, an unacknowledged connection and bots on an
-  adapter runtime (`pi`, `opencode`: they choose their own model) are refused with the exact fix, before a run exists.
+- **The server re-validates on send.** Unknown provider, missing key and an unacknowledged connection are refused with the exact
+  fix. Bots saved with legacy `pi` or `opencode` runtime values create a visible failed run with an `unsupported` reason; those
+  runtimes are disabled before an external process starts.
 
 API: `GET /api/bots/<name>/models` returns `{default, models:[{spec,label,group,state,note,fix,default,hosted,detail}]}`;
 `POST /api/bots/<name>/run` takes an optional `"model": "provider/model"` (409 = usable once set up, 422 = malformed

@@ -5,7 +5,7 @@
 - [x] Bot CRUD + starter templates (CLI, dashboard, REST)
 - [x] Built-in agent loop (OpenAI-compatible: OpenAI / Ollama / llama.cpp / LM Studio / custom base URL)
 - [x] Deterministic mock runtime — full pipeline offline, no API key
-- [x] External runtime adapters: Pi (RPC stdio), OpenCode (headless `run`)
+- [ ] External runtime adapters (Pi, OpenCode): currently fail closed. Permission brokering, sandboxed process ownership, bounded I/O and shared budget reservations are required before re-enabling.
 - [x] Tools: shell (workspace-jailed, minimal env, HOME redirect), files (path jail),
       memory (SQLite facts), web_fetch (SSRF guards, clipping), browser (Playwright optional,
       persistent per-bot profiles, pause-to-human)
@@ -33,8 +33,8 @@
 - [ ] Vector memory (local embeddings, sqlite-vec) with inspectable recall
 - [ ] Webhook/event triggers (file-watch, HTTP inbox) alongside cron
 - [ ] Multi-step workflow templates (chained runs, hand-off artifacts)
-- [ ] Pi adapter: full RPC event mapping (tool approvals bridged into hutch's gate)
-- [ ] Browser tool: DOM snapshots in transcripts; per-bot download dirs
+- [ ] Pi/OpenCode adapters: match published RPC/CLI contracts; broker approvals and provider budgets; strict process containment
+- [ ] Browser tool: same-session human handoff, pinned egress, and per-bot download dirs (profiles are now isolated)
 
 ## Phase 3 — scale-out (deliberately far)
 

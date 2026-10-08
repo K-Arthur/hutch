@@ -1,6 +1,6 @@
 # ADR-0009: Operating modes, offline guarantees, and resource admission
 
-Status: accepted (2026-10-07). Slice: S5. Evidence: baseline lead 6, B8, A3.
+Status: proposed target architecture; implementation pending (2026-10-07). Slice: S5. Evidence: baseline lead 6, B8, A3.
 
 ## Decision
 

@@ -22,9 +22,9 @@ is a local `main` fast-forward only after all implementation and verification ga
 | S2 lifecycle, claims, leases and recovery | Implemented; focused tests pass | Pending claims reserve global capacity. Recovery fences expired ownership before cleanup. SQLite migrations serialize and create SQLite-backup-API snapshots. Cleanup failure remains visible and nonterminal. |
 | S3 supervised run processes and teardown | Implemented; focused tests pass | Production CLI/daemon/web execution uses owned processes, recorded boot/start identity and verified cleanup. Incomplete cleanup stays nonterminal. |
 | S4 shell containment and approval CAS | Implemented; focused tests pass | Bubblewrap tests pass on the present Linux host. This is namespace containment, not a VM; legacy bots retain their previous setting. Browser/external runtime tools remain outside this guarantee. |
-| S5 providers and external runtimes | In progress | OpenCode v2.0.24 is installed and its CLI contract was inspected. Existing OpenCode/Pi adapters were found to bypass Hutch approvals and are being constrained before they can be called supported. Pi is unavailable; only offline protocol fixtures can be used here. No paid/provider request has been made. |
+| S5 providers and external runtimes | Partial; adapters fail closed | OpenCode v2.0.24 is installed and its CLI contract was inspected. Existing OpenCode/Pi adapters bypassed Hutch approvals and budgets, so execution now fails before process creation. Re-enable only after sandboxing, brokered permissions, usage reservations and protocol tests. Pi is unavailable; no live run or paid/provider request has been made. |
 | S6 conversations and bounded collaboration | Not started | Current persistent conversational model and restart behavior still need implementation and integration tests. |
-| S7 browser ownership and handoff | Not started | Browser profiles are process-shared; visible handoff is unavailable. Marketing and docs now state this plainly. |
+| S7 browser ownership and handoff | Partial | Browser context state is instance-owned and persistent profile paths are per-bot; fixture test verifies no profile crossover. Live handoff, pinned egress and browser process supervision remain unavailable. |
 | S8 versioned API and remote supervision | Partial / not release-ready | Legacy routes and run SSE exist. `/api/v1`, durable global cursor replay, idempotency and safe phone pairing still need implementation. |
 | S9 product integration, performance and visual validation | In progress | Merged desktop/tablet/mobile UI exists. The final screenshots, journey checks, accessibility review and comparable performance measurements remain open. |
 
@@ -41,7 +41,8 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `eee309c`, `23cb0c4`, `6378dd3`, `5196655`, `309a7d3` | Local main: templates, approval reconciliation, website, Studio and research map |
 | `0ab3058` | Merge local `main` into `realign/platform` |
 | `ed82ce1` | S2–S4 audit repairs, docs, test corrections and truthful marketing copy |
-| _next commits_ | Provider adapter, API/persistence, website and visual-validation work; hashes recorded after commit |
+| `98c630d` | Correct shell-test escapes and record full-suite verification boundary |
+| _next commits_ | External-runtime safety gate, per-bot browser profile ownership, website and visual-validation work; hashes recorded after commit |
 
 ## Verified behavior before this checkpoint
 

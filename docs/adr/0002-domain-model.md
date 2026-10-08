@@ -1,6 +1,6 @@
 # ADR-0002: Model the product, not just execution attempts
 
-Status: accepted (2026-10-07). Slice: S6 (conversations, workspaces). Evidence: baseline journey "continue a conversation", A2, A3.
+Status: proposed target architecture; implementation pending (2026-10-07). Slice: S6. Evidence: baseline journey "continue a conversation", A2, A3.
 
 ## Context
 
@@ -29,7 +29,7 @@ foreign keys on; JSON `doc` columns only for fields that are never queried.
 | **Usage Ledger / Reservation** | Measured use, estimated use, and holds taken before a call | Separate columns for tokens, quota units and currency; unknown is NULL not zero |
 | **Notification** | Something a person should see (approval waiting, handoff, failure) | Derived from state through the outbox (ADR-0003) |
 
-**Hutch owns the canonical conversation** even when an external runtime keeps its own session. Each runtime adapter declares
+**Target:** Hutch owns the canonical conversation even when an external runtime keeps its own session. Each runtime adapter declares
 how it maps (`session_id` stored per conversation + runtime), what it can resume, and what happens on a model or runtime
 switch: Hutch replays a bounded, summarised history into the new session and writes a visible system message saying so
 ("context carried over as a summary; tool state was not").
@@ -50,6 +50,7 @@ Running work is cancelled first; deleting a bot with a live run is refused until
 
 ## Consequences
 
-* Migration: new tables; `conversations` back-filled with one conversation per bot containing its past runs, so history is preserved.
+* Migration required: new tables and a separate legacy-run import strategy. No `conversations` table or history backfill exists yet;
+  old runs are not currently grouped into private contexts.
 * Cost: more tables; each is small and indexed on the foreign key.
 * Rollback: tables are additive; old code ignores them.

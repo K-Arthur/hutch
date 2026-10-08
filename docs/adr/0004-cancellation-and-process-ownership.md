@@ -20,7 +20,7 @@ Status: accepted (2026-10-07), amended during realignment. Slices: S2-S4. Eviden
 * **Production attempts are owned processes.** `serve`, `daemon`, and `hutch run` start one worker process per run. A run that
   exceeds `timeout_seconds` stays `cancelling` until cleanup is verified, then records `failed/timeout`.
 * **Late workers are fenced** (ADR-0003): after terminal state, DB writes raise `LeaseLost`, tools refuse (`ctx.closed`), and the event sink drops writes.
-* **External runtimes**: stdout and stderr are drained by concurrent reader threads into bounded buffers (stderr tail 64 KiB), reads never block the cancel loop, and the child is the head of its own session so the same ladder applies. OpenCode through a shared background service is a separate case (ADR-0007).
+* **External runtimes**: required behavior for any future adapter is concurrent bounded drains of both pipes, nonblocking cancellation, a privately owned process session and the same verified cleanup ladder. The present Pi and OpenCode adapters fail closed before process creation; see ADR-0007.
 * **Global stop** (`stop-all`, UI) sets `cancel_requested` for every active run; **parent cancellation** propagates to delegated child runs through lineage (ADR-0008). Neither signals a PID that is not recorded as owned by a Hutch run.
 * "Stopping" stays visible while `cancelling`. Thread execution is an explicit test/compatibility mode; a non-cooperative test
   thread is joined before terminal status or database shutdown. Docs state what Stop cannot do: undo an effect already committed,
