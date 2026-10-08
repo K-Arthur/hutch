@@ -179,7 +179,24 @@ class Bot(BaseModel):
     selfcheck: bool = True            # prove the context window works before the first run (LM-2)
     num_ctx: Optional[int] = None     # manual context override; None = computed from hardware and preset
     tool_limits: dict[str, int] = Field(default_factory=dict)   # per-tool output limits in chars (PF-2)
+    sandbox: str = Field(default_factory=lambda: _default_sandbox())   # strict | off: OS containment of the shell (ADR-0006)
+    shell_network: bool = False       # may commands in the sandbox use the network? (default: no)
     created_at: str = Field(default_factory=lambda: iso(utcnow()))
+
+
+    @field_validator("sandbox")
+    @classmethod
+    def _sandbox(cls, v: str) -> str:
+        v = (v or "").strip().lower()
+        if v not in ("strict", "off"):
+            raise ValueError("sandbox must be 'strict' or 'off'")
+        return v
+
+
+def _default_sandbox() -> str:
+    """New bots get OS containment where the host can provide it; bots from before it existed were migrated to 'off'."""
+    from .sandbox import default_mode
+    return default_mode()
 
 
 class Task(BaseModel):
@@ -301,6 +318,7 @@ class ApprovalRequest(BaseModel):
     rule: str = ""                    # the rule that triggered the prompt
     risk: str = "medium"              # low | medium | high
     outward: bool = False             # sends something out: sticky allows never apply (SR-4)
+    action_hash: str = ""             # fingerprint of the exact action shown; a decision is only valid for this action
     ttl_seconds: int = 600
     expires_at: Optional[str] = None  # default-deny deadline, shown as a countdown
     plan_id: Optional[str] = None     # tagged when the run belongs to a plan (CO-10)

@@ -14,6 +14,12 @@ def _allow_testclient_host(monkeypatch):
     monkeypatch.setenv("HUTCH_ALLOWED_HOSTS", "testserver")
 
 
+@pytest.fixture(autouse=True)
+def _sandbox_off_by_default(monkeypatch):
+    """The suite exercises policy, scheduling, approvals... with host commands; tests/test_sandbox.py turns containment on itself."""
+    monkeypatch.setenv("HUTCH_SANDBOX", "off")
+
+
 @pytest.fixture()
 def config(tmp_path, monkeypatch) -> hutchConfig:
     monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))

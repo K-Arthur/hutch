@@ -184,6 +184,11 @@ def _migrate_5(db: sqlite3.Connection) -> None:
         id INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT NOT NULL, pid INTEGER NOT NULL, pgid INTEGER NOT NULL,
         starttime INTEGER NOT NULL DEFAULT 0, kind TEXT NOT NULL DEFAULT 'tool', started_at TEXT NOT NULL, ended_at TEXT)""")
     db.execute("CREATE INDEX IF NOT EXISTS idx_run_procs_run ON run_procs(run_id, ended_at)")
+    db.execute("ALTER TABLE approvals ADD COLUMN action_hash TEXT NOT NULL DEFAULT ''")
+    db.execute("ALTER TABLE approvals ADD COLUMN expires_at TEXT")
+    db.execute("UPDATE approvals SET expires_at = json_extract(doc, '$.expires_at')")
+    # bots from before the OS sandbox existed keep running as they did; only bots created from now on default to it
+    db.execute("UPDATE bots SET doc = json_set(doc, '$.sandbox', 'off') WHERE json_extract(doc, '$.sandbox') IS NULL")
 
 
 #: schema upgrades applied in order; index + 2 == resulting user_version
@@ -1068,8 +1073,10 @@ class Store:
     def create_approval(self, req: ApprovalRequest) -> ApprovalRequest:
         with self._lock:
             self._db.execute(
-                "INSERT INTO approvals (id, run_id, bot_id, status, created_at, doc) VALUES (?, ?, ?, ?, ?, ?)",
-                (req.id, req.run_id, req.bot_id, req.status.value, req.created_at, req.model_dump_json()),
+                "INSERT INTO approvals (id, run_id, bot_id, status, created_at, doc, action_hash, expires_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (req.id, req.run_id, req.bot_id, req.status.value, req.created_at, req.model_dump_json(),
+                 req.action_hash, req.expires_at),
             )
             self._db.commit()
         self.bus.notify("approvals", "work", f"run:{req.run_id}")
@@ -1083,6 +1090,38 @@ class Store:
             )
             self._db.commit()
         self.bus.notify("approvals", "work", f"approval:{req.id}", f"run:{req.run_id}")
+
+    def decide_approval(self, approval_id: str, status: ApprovalStatus, by: str, *, expected_hash: Optional[str] = None,
+                        now: Optional[datetime] = None) -> tuple[Optional[ApprovalRequest], str]:
+        """Atomically move a PENDING approval to a decision. Returns ``(request, outcome)``.
+
+        outcome is ``won`` (this call decided it), ``already`` (somebody else did: the request shows who and what),
+        ``expired`` (its deadline passed, so it is recorded as expired and cannot be approved), ``mismatch`` (the caller was
+        shown a different action than the one stored) or ``missing``. One conditional UPDATE decides, so two clients, a client
+        and the timeout, or two processes can never both win; the old read-then-write let both succeed.
+        """
+        now = now or utcnow()
+        with self._tx() as db:
+            row = db.execute("SELECT doc, status, action_hash, expires_at FROM approvals WHERE id = ?", (approval_id,)).fetchone()
+            if row is None:
+                return None, "missing"
+            req = ApprovalRequest.model_validate_json(row["doc"])
+            req.status = ApprovalStatus(row["status"])
+            if req.status is not ApprovalStatus.pending:
+                return req, "already"
+            if expected_hash and row["action_hash"] and expected_hash != row["action_hash"]:
+                return req, "mismatch"
+            outcome = "won"
+            if status is ApprovalStatus.approved and row["expires_at"] and row["expires_at"] <= iso(now):
+                status, by, outcome = ApprovalStatus.expired, "timeout", "expired"      # silence is never consent: too late
+            patch = {"status": status.value, "resolved_at": iso(now), "decided_by": by}
+            cur = db.execute("UPDATE approvals SET status = ?, doc = json_patch(doc, ?) WHERE id = ? AND status = 'pending'",
+                             (status.value, json.dumps(patch), approval_id))
+            if cur.rowcount != 1:
+                return self.get_approval(approval_id), "already"
+            req.status, req.resolved_at, req.decided_by = status, patch["resolved_at"], by
+        self.bus.notify("approvals", "work", f"approval:{approval_id}", f"run:{req.run_id}")
+        return req, outcome
 
     def get_approval(self, approval_id: str) -> Optional[ApprovalRequest]:
         with self._lock:

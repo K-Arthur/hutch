@@ -32,7 +32,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 
-from . import procguard
+from . import procguard, sandbox
 from .approvals import ApprovalGate, expire_stale_approvals
 from .config import hutchConfig
 from .lifecycle import LIVE, TERMINAL as TERMINAL_STATUSES, IllegalTransition, LeaseLost
@@ -391,6 +391,7 @@ class Engine:
         emit(Event(run_id=run.id, type=EventType.log,
                    data={"runtime": runtime.kind, "model": bot.model,
                          "tools": sorted(tools), "limits": bot.limits.model_dump(),
+                         **({"containment": sandbox.describe(bot)} if "shell" in tools else {}),
                          **({"rehearsal": True} if run.rehearsal else {})}))
 
         outcome_status, outcome_reason, error = RunStatus.succeeded, "completed", ""
@@ -614,8 +615,7 @@ class Engine:
         self.store.flush_events()
         for req in self.store.pending_approvals():
             if req.run_id == run.id:
-                req.status, req.resolved_at, req.decided_by = ApprovalStatus.expired, iso(utcnow()), "interrupted"
-                self.store.update_approval(req)
+                self.store.decide_approval(req.id, ApprovalStatus.expired, "interrupted")
         return done_run
 
     def _end_recorded_processes(self, run: Run) -> list:

@@ -14,8 +14,11 @@ always ask — sticky allows and auto mode do not apply to them.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import time
 from datetime import timedelta
+from dataclasses import dataclass
 from typing import Callable, Optional
 
 from .models import (
@@ -35,6 +38,14 @@ from .store import Store
 #: safety re-check of the database while waiting. Normal wake-ups arrive over the bus (in-process)
 #: or the wake hub (other processes); this only bounds the damage if a datagram is ever lost.
 SAFETY_RECHECK_SECONDS = 30.0
+
+
+def action_fingerprint(tool: str, detail: dict, sticky_key: str = "", outward: bool = False) -> str:
+    """A short, stable fingerprint of exactly what is being asked for. A decision is bound to it: if the action changes (other
+    arguments, another destination) it is a different action and needs its own approval."""
+    canon = json.dumps({"tool": tool, "detail": detail, "sticky": sticky_key, "outward": outward},
+                       sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(canon.encode()).hexdigest()[:32]
 
 
 class DeniedError(Exception):
@@ -82,16 +93,11 @@ class ApprovalGate:
                             data={"denied": action, "reason": decision.reason, "rule": decision.rule}))
             raise DeniedError(f"denied by policy: {decision.reason}")
 
-        # Sticky allows and plan grants never cover outward actions (SR-4).
+        # Sticky allows never cover outward actions (SR-4).
         if not outward:
             if decision.sticky_key and self.store.is_sticky_allowed(self.bot.id, decision.sticky_key):
                 self.emit(Event(run_id=self.run.id, type=EventType.log,
                                 data={"note": f"sticky-allowed: {decision.sticky_key}"}))
-                return
-            if decision.sticky_key and self.run.plan_id and self.store.use_plan_grant(
-                    self.run.plan_id, decision.sticky_key, self.bot.name):
-                self.emit(Event(run_id=self.run.id, type=EventType.log,
-                                data={"note": f"plan-granted: {decision.sticky_key}", "plan": self.run.plan_id}))
                 return
             # "auto" mode skips asks (the hard-deny list already ran), but never for outward actions.
             if self.bot.approval_mode is ApprovalMode.auto and not ask_in_auto:
@@ -106,6 +112,7 @@ class ApprovalGate:
             risk=decision.risk or ("high" if outward else "medium"), outward=outward,
             ttl_seconds=self.ttl, expires_at=iso(now + timedelta(seconds=self.ttl)),
             plan_id=self.run.plan_id,
+            action_hash=action_fingerprint(tool, detail, "" if outward else decision.sticky_key, outward),
         )
         self.store.create_approval(req)
         self.emit(Event(run_id=self.run.id, type=EventType.approval_request,
@@ -145,7 +152,9 @@ class ApprovalGate:
                     raise DeniedError(f"action rejected ({status.value}): {action}")
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    self._resolve(req, ApprovalStatus.expired, "timeout")
+                    _, outcome = self.store.decide_approval(req.id, ApprovalStatus.expired, "timeout")
+                    if outcome == "already":
+                        continue          # a person decided in the same instant: honour that decision, not the timeout
                     self.emit(Event(run_id=self.run.id, type=EventType.approval_resolved,
                                     data={"approval_id": req.id, "result": "expired (denied)"}))
                     raise DeniedError(f"approval expired without answer: {action}")
@@ -196,35 +205,46 @@ class ApprovalGate:
                 self.store.set_status(self.run, prev if prev is not RunStatus.waiting_human else RunStatus.running)
 
     def _resolve(self, req: ApprovalRequest, status: ApprovalStatus, by: str) -> None:
-        req.status = status
-        req.resolved_at = iso(utcnow())
-        req.decided_by = by
-        self.store.update_approval(req)
+        self.store.decide_approval(req.id, status, by)
+
+
+@dataclass
+class Resolution:
+    """What a resolve call did: ``outcome`` is won | already | expired | mismatch | missing (see ``Store.decide_approval``)."""
+
+    request: Optional[ApprovalRequest]
+    outcome: str
+
+    @property
+    def won(self) -> bool:
+        return self.outcome == "won"
+
+
+def resolve_approval_ex(store: Store, approval_id: str, approve: bool, by: str = "human", sticky: bool = False,
+                        expected_hash: Optional[str] = None) -> Resolution:
+    """Resolve a pending approval from the CLI, dashboard or API - atomically, once.
+
+    Only the call that actually decided it (``won``) may grant an "always" rule; a request that lost the race, expired or was
+    shown a different action changes nothing. ``expected_hash`` is the ``action_hash`` the person was shown: if the stored action
+    is different, nothing is decided. ``sticky`` remembers "always allow" for the bot (refused for outward actions).
+    """
+    req, outcome = store.decide_approval(
+        approval_id, ApprovalStatus.approved if approve else ApprovalStatus.denied, by, expected_hash=expected_hash)
+    if outcome == "won" and approve and sticky and req is not None and req.sticky_key and not req.outward:
+        store.allow_sticky(req.bot_id, req.sticky_key)
+    return Resolution(req, outcome)
 
 
 def resolve_approval(store: Store, approval_id: str, approve: bool, by: str = "human",
                      sticky: bool = False, plan_scope: int = 0) -> Optional[ApprovalRequest]:
-    """Resolve a pending approval from CLI/dashboard.
-
-    ``sticky`` remembers "always allow" for the bot (refused for outward actions).
-    ``plan_scope`` > 0 grants the same action to the rest of the plan, bounded to that many uses (CO-10).
-    """
-    req = store.get_approval(approval_id)
-    if req is None or req.status is not ApprovalStatus.pending:
-        return req
-    req.status = ApprovalStatus.approved if approve else ApprovalStatus.denied
-    req.resolved_at = iso(utcnow())
-    req.decided_by = by
-    store.update_approval(req)
-    if approve and sticky and req.sticky_key and not req.outward:
-        store.allow_sticky(req.bot_id, req.sticky_key)
-    if approve and plan_scope > 0 and req.plan_id and req.sticky_key and not req.outward:
-        store.grant_plan(req.plan_id, req.sticky_key, max_uses=plan_scope, granted_by=by)
-    return req
+    """Back-compatible form of ``resolve_approval_ex``: returns the request as it now stands (decided by us or by someone
+    else). ``plan_scope`` is accepted and ignored: plan-wide grants were referenced but never implemented."""
+    return resolve_approval_ex(store, approval_id, approve, by=by, sticky=sticky).request
 
 
 def expire_stale_approvals(store: Store, ttl_seconds: int = 600) -> list[ApprovalRequest]:
-    """Deny-by-timeout any approval past its deadline; called by the scheduler loop."""
+    """Deny-by-timeout any approval past its deadline; called by the scheduler loop. Each is decided by the same atomic
+    compare-and-swap as a human decision, so a person answering at the last moment is not overwritten."""
     import datetime as _dt
     expired: list[ApprovalRequest] = []
     now = utcnow()
@@ -234,9 +254,7 @@ def expire_stale_approvals(store: Store, ttl_seconds: int = 600) -> list[Approva
         else:
             deadline = _dt.datetime.fromisoformat(req.created_at) + _dt.timedelta(seconds=ttl_seconds)
         if now > deadline:
-            req.status = ApprovalStatus.expired
-            req.resolved_at = iso(now)
-            req.decided_by = "timeout"
-            store.update_approval(req)
-            expired.append(req)
+            done, outcome = store.decide_approval(req.id, ApprovalStatus.expired, "timeout")
+            if outcome == "won" and done is not None:
+                expired.append(done)
     return expired

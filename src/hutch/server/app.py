@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .. import __version__
-from ..approvals import resolve_approval
+from ..approvals import resolve_approval, resolve_approval_ex
 from ..config import get_config
 from ..engine import Engine, bot_prompt_for_schedule
 from ..models import ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, CommandRule, RiskTier, Schedule
@@ -78,7 +78,8 @@ class RunRequest(BaseModel):
 
 class ApproveRequest(BaseModel):
     always: bool = False
-    plan_scope: int = 0
+    plan_scope: int = 0               # accepted and ignored: plan-wide grants were never implemented
+    action_hash: Optional[str] = None  # the fingerprint the person was shown; if the stored action differs nothing is decided
 
 
 def create_app() -> FastAPI:
@@ -367,8 +368,12 @@ def create_app() -> FastAPI:
             raise HTTPException(404, "no such approval")
         if existing.status is not ApprovalStatus.pending:
             raise HTTPException(409, f"approval already {existing.status.value}")
-        resolve_approval(store, approval_id, approve=True, by="api", sticky=body.always,
-                         plan_scope=body.plan_scope)
+        res = resolve_approval_ex(store, approval_id, approve=True, by="api", sticky=body.always,
+                                  expected_hash=body.action_hash)
+        if not res.won:
+            raise HTTPException(409, {"expired": "that approval expired before it was answered, so it was denied",
+                                      "mismatch": "the action changed since you reviewed it; review it again",
+                                      "already": "somebody already decided that approval"}.get(res.outcome, res.outcome))
         return {"approved": approval_id, "sticky": body.always and not existing.outward}
 
     @app.post("/api/approvals/{approval_id}/deny")
@@ -378,7 +383,9 @@ def create_app() -> FastAPI:
             raise HTTPException(404, "no such approval")
         if existing.status is not ApprovalStatus.pending:
             raise HTTPException(409, f"approval already {existing.status.value}")
-        resolve_approval(store, approval_id, approve=False, by="api")
+        res = resolve_approval_ex(store, approval_id, approve=False, by="api")
+        if not res.won:
+            raise HTTPException(409, "somebody already decided that approval" if res.outcome == "already" else res.outcome)
         return {"denied": approval_id}
 
     # --------------------------------------------------------------- stats

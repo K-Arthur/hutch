@@ -13,6 +13,7 @@ import signal
 import subprocess
 from typing import Any
 
+from .. import sandbox
 from ..safety import Verdict, is_read_only
 from .base import Tool, ToolContext, ToolResult, _schema, clip, rehearsed
 
@@ -50,6 +51,14 @@ class ShellTool(Tool):
         except Exception as exc:
             return ToolResult(ok=False, output=f"error: {exc}", data={"command": command})
 
+        mode = sandbox.mode_for(ctx.bot)
+        if mode == "strict":
+            st = sandbox.status()
+            if not st.ok:                 # fail closed: a bot that requires containment never runs uncontained by accident
+                return ToolResult(ok=False, data={"command": command, "sandbox": "unavailable"},
+                                  output=("error: this bot requires the OS sandbox and it is unavailable here: "
+                                          f"{st.reason}. Nothing was run. Fix it (`hutch doctor`), or set the bot's sandbox to "
+                                          "'off' to run commands uncontained."))
         refusal = ctx.begin_effect()
         if refusal:
             return ToolResult(ok=False, output=f"error: {refusal}", data={"command": command})
@@ -59,9 +68,12 @@ class ShellTool(Tool):
             "LANG": "C.UTF-8",
             "TERM": "dumb",
         }
+        argv = ["/bin/bash", "-c", command]
+        if mode == "strict":
+            argv = sandbox.shell_argv(command, sandbox.policy_for(ctx.bot, ctx.workspace))
         try:
             proc = subprocess.Popen(
-                ["/bin/bash", "-c", command],
+                argv,
                 cwd=ctx.workspace, env=env, text=True,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 start_new_session=True,  # own process group: Stop and timeouts kill the whole tree
@@ -86,5 +98,5 @@ class ShellTool(Tool):
         return ToolResult(
             ok=proc.returncode == 0,
             output=clip(f"exit={proc.returncode}\n{out.strip() or '(no output)'}"),
-            data={"command": command, "exit_code": proc.returncode},
+            data={"command": command, "exit_code": proc.returncode, "sandbox": mode},
         )

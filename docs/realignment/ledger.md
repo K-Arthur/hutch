@@ -31,7 +31,7 @@ Integration into `main` is a rebase/merge done only after the other session's tr
 | S1 | Credential routing and SSRF (`registry.py`, `netguard.py`) | A key is only ever sent to the host it belongs to; no URL form reaches a private address | **landed** |
 | S2 | Schema v5, lifecycle state machine, atomic claims, leases, fencing, schedule occurrences, tool receipts, cross-process Stop | One valid execution claim per run and per occurrence; a stale owner cannot write or start an action | **landed** |
 | S3 | Owned worker processes, process-group teardown verified, recovery of a crashed owner's processes, commit-time event sequencing | Stop works from any process; no descendant in the run's group outlives a terminal run | **landed** (limit: a fully detached daemon is unreachable without the S4 sandbox) |
-| S4 | OS sandbox, structured-tool boundary, approval CAS and identity binding | The shell cannot read `~/.ssh` or reach the network unless granted; one approval resolves once | planned |
+| S4 | OS sandbox, structured-tool boundary, approval CAS and identity binding | The shell cannot read `~/.ssh` or reach the network unless granted; one approval resolves once | **partial**: approval CAS + action fingerprint + expiry landed (`tests/test_approval_cas.py`, 9 pass). Sandbox (`sandbox.py`, bubblewrap) implemented and wired into the shell tool, bot field `sandbox`, fail-closed; `tests/test_sandbox.py` **11 pass, 3 FAIL** (`only_the_workspace_is_writable_and_tmp_is_private`, `no_network_without_a_grant...`, `a_file_size_limit...`) - not yet diagnosed; may be test bugs, may be real. **The full suite was NOT re-run after the S4 changes.** |
 | S5 | Runtime adapters (OpenCode, Pi) against captured contracts; compatibility matrix; offline mode | No `--auto` by default; model/session propagated; offline makes no non-loopback connection | planned |
 | S6 | Conversations, messages, stable workspaces, artifacts, scoped memory, bounded delegation | A follow-up sees prior context across restart; deletion semantics as ADR-0002 | planned |
 | S7 | Browser ownership and real human handoff | Bots never share a profile unless granted; automation is paused while a human holds control | planned |
@@ -59,6 +59,10 @@ _Filled in as slices land._
 | Cost of the process executor | `python docs/realignment/bench_worker.py` | dispatch to terminal for a 4-step mock run: **216 ms** median with a worker process vs **6 ms** in-process; a worker waiting on an approval holds **38 MB** RSS. Dormant bots hold nothing. Regression budget: process-mode start-up under 400 ms on this host. |
 | Control-plane benchmarks after S3 | `python -m benchmarks.run` | 75.6k events/s (baseline 52.1k; hashing moved to the writer), 0.053 ms/step (0.246), idle RSS 41/61 MB (39/56), idle CPU unchanged |
 | Whole suite | `pytest --ignore=tests/e2e` | **879 passed** (baseline 637) |
+
+## Not started (S5-S9) and other open work
+
+OpenCode/Pi adapters against captured contracts and no default `--auto` (S5), compatibility matrix and offline mode (S5), conversations/messages/workspaces/memory/delegation (S6), browser ownership and real human handoff (S7), `/api/v1` contract, pairing and remote auth (S8), end-to-end integration, marketing/doc alignment for S4+ (S9). Integration into `main` (rebase after the other session commits `cli.py`, `server/app.py`, `templates.py`) is not done; nothing was pushed.
 
 ## Unresolved risks and limits (carried)
 
