@@ -14,6 +14,11 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   and stale workers cannot admit a new request.
 
 ### Added
+- **Bounded local inference:** one caller and eight FIFO waiters across Hutch processes. The slot
+  releases before tools/human waits, Stop removes queued callers before reservation, and kernel
+  ownership expires on process death. Native Ollama rechecks measured memory headroom; fit remains
+  estimated and other local protocols lack validated memory admission. Recorded queue time is
+  separate from Hutch overhead; chat shows the wait reason. Strict offline modes remain pending.
 - **Provider authority and retry accounting:** hosted account/destination changes require a
   per-run outward decision, including from a hosted primary. Reviewed routes cannot change
   during approval or provider creation. Cached credentials refresh before calls; the unsafe

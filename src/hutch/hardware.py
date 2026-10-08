@@ -69,7 +69,7 @@ class Hardware:
     def budget_gb(self) -> float:
         """Memory available to model weights + KV cache, with headroom for the OS and runtime."""
         if self.accelerator == "gpu":
-            best = max((g.free_gb or g.vram_gb or 0.0) for g in self.gpus if not g.integrated)
+            best = max((g.free_gb if g.free_gb is not None else g.vram_gb or 0.0) for g in self.gpus if not g.integrated)
             return round(best * 0.92, 2)
         if self.accelerator == "unified":
             return round(min(self.ram_total_gb * 0.70, self.ram_available_gb * 0.90 + 0.1 * self.ram_total_gb), 2)
@@ -156,7 +156,7 @@ def _probe_memory(r: Readers) -> tuple[float, float]:
     tot = re.search(r"MemTotal:\s+(\d+) kB", info)
     avail = re.search(r"MemAvailable:\s+(\d+) kB", info)
     t = int(tot.group(1)) * 1024 / GIB if tot else 0.0
-    return t, (int(avail.group(1)) * 1024 / GIB if avail else t * 0.5)
+    return t, (int(avail.group(1)) * 1024 / GIB if avail else 0.0)
 
 
 def _probe_cpu(r: Readers) -> str:

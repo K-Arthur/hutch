@@ -1053,13 +1053,14 @@ async function runBlockHtml(runId) {
       </div>
       <div class="msg agent">
         <div class="mhead">
-          ${botAvatar(run.bot_name || currentStudioBot, 26, running ? "running" : "")}
+          ${botAvatar(run.bot_name || currentStudioBot, 26, run.status === "running" ? "running" : "")}
           <b>${esc(run.bot_name || currentStudioBot)}</b>
           ${statusChip(run.status, run.status_label)}
           ${running ? `<button class="btn ghost small" data-stop-run="${esc(runId)}" ${run.status === "cancelling" ? "disabled" : ""}>${run.status === "cancelling" ? "Stopping" : "Stop"}</button>` : ""}
           <a class="mrun mono" href="#/run/${esc(runId)}" title="${esc(runId)} · ${esc(run.origin || "manual")} · ${dur}">#${esc(runId.slice(4, 12))}</a>
         </div>
         ${cards.join("")}
+        ${run.status === "waiting_resources" && run.reason ? `<p class="run-wait">${esc(run.reason)}</p>` : ""}
         ${stepCount || running ? `
         <details class="tool-stream" ${running || stepCount < 4 ? "open" : ""}>
           <summary>${icon("gear")}${running ? esc(activityLabel) : `${stepCount} step${stepCount === 1 ? "" : "s"}`}${stepCount && !running ? ` · ${dur}` : ""} ${icon("caret", "tool-caret")}</summary>
@@ -2085,8 +2086,8 @@ async function renderRunDetail(runId) {
     </div>`);
   const steps = (r.events || []).filter(e => e.type === "step").map(e => e.data);
   const sum = (k) => steps.reduce((t, d) => t + (d[k] || 0), 0);
-  const model = sum("model_ms"), tool = sum("tool_ms"), over = sum("overhead_ms");
-  const total = Math.max(1, model + tool + over);
+  const model = sum("model_ms"), tool = sum("tool_ms"), over = sum("overhead_ms"), queue = sum("queue_ms");
+  const total = Math.max(1, model + tool + over + queue);
   const pct = (v) => (v / total * 100).toFixed(1);
   const dur = (r.finished_at ? new Date(r.finished_at) : Date.now()) - new Date(r.created_at);
   view.innerHTML = `
@@ -2100,21 +2101,24 @@ async function renderRunDetail(runId) {
         </div>
         ${steps.length ? `
         <div class="panel run-timing">
-          <div class="panel-title">Where the time went</div>
-          <div class="timeline-stack" role="img" aria-label="model ${Math.round(model)}ms, tools ${Math.round(tool)}ms, hutch ${Math.round(over)}ms">
+          <div class="panel-title">Recorded step timing</div>
+          ${r.queue_ms > 0 ? `<p class="run-queue-time">Recorded inference admission waits: ${fmtDur(r.queue_ms)} (startup and steps)</p>` : ""}
+          <div class="timeline-stack" role="img" aria-label="model ${Math.round(model)}ms, tools ${Math.round(tool)}ms, hutch ${Math.round(over)}ms, step queue ${Math.round(queue)}ms">
             <i class="s-model" style="width:${pct(model)}%"></i>
             <i class="s-tool" style="width:${pct(tool)}%"></i>
             <i class="s-over" style="width:${pct(over)}%"></i>
+            ${queue > 0 ? `<i class="s-queue" style="width:${pct(queue)}%"></i>` : ""}
           </div>
           <div class="timeline-legend">
             <span><i class="dot s-model"></i>model ${Math.round(model)}ms</span>
             <span><i class="dot s-tool"></i>tools ${Math.round(tool)}ms</span>
             <span><i class="dot s-over"></i>hutch ${Math.round(over)}ms</span>
+            ${queue > 0 ? `<span><i class="dot s-queue"></i>queue ${Math.round(queue)}ms</span>` : ""}
           </div>
           <div class="step-strip">
             ${steps.map(d => {
-              const t2 = (d.model_ms || 0) + (d.tool_ms || 0) + (d.overhead_ms || 0);
-              return `<span class="step-seg" title="step ${d.n}: ${fmtDur(t2)}" style="flex:${Math.max(1, t2)}"><i class="s-model" style="flex:${Math.max(0, d.model_ms || 0)}"></i><i class="s-tool" style="flex:${Math.max(0, d.tool_ms || 0)}"></i><i class="s-over" style="flex:${Math.max(0, d.overhead_ms || 0)}"></i></span>`;
+              const t2 = (d.model_ms || 0) + (d.tool_ms || 0) + (d.overhead_ms || 0) + (d.queue_ms || 0);
+              return `<span class="step-seg" title="step ${d.n}: ${fmtDur(t2)}" style="flex:${Math.max(1, t2)}"><i class="s-model" style="flex:${Math.max(0, d.model_ms || 0)}"></i><i class="s-tool" style="flex:${Math.max(0, d.tool_ms || 0)}"></i><i class="s-over" style="flex:${Math.max(0, d.overhead_ms || 0)}"></i>${d.queue_ms > 0 ? `<i class="s-queue" style="flex:${d.queue_ms}"></i>` : ""}</span>`;
             }).join("")}
           </div>
         </div>` : ""}

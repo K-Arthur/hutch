@@ -249,6 +249,7 @@ class Run(BaseModel):
     cached_tokens: int = 0
     cost_usd: float = 0.0
     model_ms: float = 0.0             # time waiting on the model
+    queue_ms: float = 0.0             # measured local-inference admission waits (also before startup)
     tool_ms: float = 0.0              # time inside tools
     overhead_ms: float = 0.0          # everything else: Hutch's own cost per step
     context_used: int = 0             # tokens in the last prompt

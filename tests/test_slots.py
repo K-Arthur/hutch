@@ -26,26 +26,24 @@ def running(store, bot):
     return store.create_run(Run(bot_id=bot.id, prompt="x", status=RunStatus.running))
 
 
-def test_capacity_follows_memory_tier_and_can_be_overridden(store, monkeypatch):
-    assert default_capacity("small") == 1 and default_capacity("xl") == 2
-    assert ModelSlots(store, tier="large").capacity == 2
+def test_one_inference_slot_cannot_be_widened_by_the_old_residency_setting(store, monkeypatch):
+    assert default_capacity("small") == 1 and default_capacity("xl") == 1
+    assert ModelSlots(store, tier="large").capacity == 1
     monkeypatch.setenv("HUTCH_MODEL_SLOTS", "3")
-    assert ModelSlots(store, tier="tiny").capacity == 3
+    assert ModelSlots(store, capacity=3, tier="tiny").capacity == 1
 
 
-def test_runs_sharing_the_busy_model_start_but_a_different_model_waits(store):
+def test_dispatch_prefers_the_loaded_model_without_holding_a_slot_for_an_entire_run(store):
     a, b, c = mk(store, "a", "ollama/llama"), mk(store, "b", "ollama/llama"), mk(store, "c", "ollama/qwen")
     active = [running(store, a)]
     p_b, p_c = pend(store, b), pend(store, c)
     slots = ModelSlots(store, capacity=1, loaded=lambda: {"ollama/llama"})
     allowed = slots.filter([p_c, p_b], active)
-    assert [r.id for r in allowed] == [p_b.id], "only the run that shares the loaded model may start"
-    assert "waiting for a model slot" in slots.last_blocked[p_c.id] and "ollama/llama" in slots.last_blocked[p_c.id]
-    w = slots.reason(p_c)
-    assert "HUTCH_MODEL_SLOTS" in w.fix and w.href == "/models"
+    assert [r.id for r in allowed] == [p_b.id, p_c.id]
+    assert slots.reason(p_c) is None, "the process-safe runtime records actual queue waits"
 
 
-def test_with_a_free_slot_a_second_model_may_load(store):
+def test_different_models_can_dispatch_to_the_same_per_call_queue(store):
     a, c = mk(store, "a", "ollama/llama"), mk(store, "c", "ollama/qwen")
     slots = ModelSlots(store, capacity=2, loaded=lambda: set())
     assert [r.id for r in slots.filter([pend(store, c)], [running(store, a)])] != []
@@ -58,7 +56,7 @@ def test_queued_runs_are_batched_by_the_already_loaded_model(store):
     slots = ModelSlots(store, capacity=1, loaded=lambda: {"ollama/qwen"})
     order = [store.get_bot(r.bot_id).name for r in slots.filter(runs, [])]
     assert order[0] == "b" and order[:3] == ["b", "b", "b"], order
-    assert len(order) == 3 and set(order) == {"b"}, "with one slot, only the loaded model's runs dispatch now"
+    assert len(order) == 6 and set(order) == {"a", "b"}
 
 
 def test_a_starving_run_jumps_the_queue(store):
@@ -78,18 +76,23 @@ def test_hosted_and_mock_runs_are_never_constrained_and_cause_no_http(store):
     assert not calls, "the runtime must not be queried when no local model is queued"
 
 
-def test_the_engine_installs_the_scheduler_and_explains_a_slot_wait(store, config, monkeypatch):
+def test_the_engine_installs_ordering_without_reserving_inference_during_human_waits(store, config, monkeypatch):
     monkeypatch.setenv("HUTCH_MODEL_SLOTS", "1")
     engine = Engine(config, store)
     assert engine.slot_filter == engine.slots.filter and engine.slot_reason == engine.slots.reason
     engine.slots._loaded_fn = lambda: set()
     a, c = mk(store, "a", "ollama/llama"), mk(store, "c", "ollama/qwen")
-    running(store, a)
+    store.create_run(Run(bot_id=a.id, prompt="human wait", status=RunStatus.waiting_human))
     waiting = pend(store, c)
-    assert engine.dispatch_pending() == 0, "a second local model must not start while the only slot is taken"
-    from hutch.views import explain_run
-    w = explain_run(store, waiting, engine, c)
-    assert "waiting for a model slot" in w.cause.lower()
+    assert engine.slot_filter([waiting], store.active_runs()) == [waiting]
+    assert engine.slot_reason(waiting) is None
+
+
+def test_per_message_override_controls_model_ordering(store):
+    bot = mk(store, "override", "anthropic/model")
+    run = store.create_run(Run(bot_id=bot.id, prompt="local turn", model_override="ollama/actual"))
+    slots = ModelSlots(store, loaded=lambda: {"ollama/actual"})
+    assert slots.model_of(run) == "ollama/actual"
 
 
 # ----------------------------------------------------------------- swap latency

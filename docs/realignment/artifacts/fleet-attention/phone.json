@@ -5,12 +5,12 @@
     390,
     844
   ],
-  "captured_at": "2026-10-08T08:27:20.197999+00:00",
+  "captured_at": "2026-10-08T09:29:28.492793+00:00",
   "scenario": "synthetic waits, 51 persisted requests, failed queue discovery; no live handoff",
   "page_errors": [],
   "horizontal_overflow": 0,
   "source_sha256": {
-    "src/hutch/server/static/app.js": "8b64d1d636be8b5d3133c41d6e87b5a960bc4ab352a9681dd78caef7e3cbc3a3",
-    "src/hutch/store.py": "4f1d0b598821164503d42c559c8ace4379be51f3c7948ec6ffbb4eac1f5bed4c"
+    "src/hutch/server/static/app.js": "aaabf65af945a319e6a37152a9ee36a59010c5d050826ec68a09b355ca6ba64e",
+    "src/hutch/store.py": "d6ef130e18ac2f4c5acf758a151becfb3f71a0d9285b672c37a4bbaf7bd29136"
   }
 }

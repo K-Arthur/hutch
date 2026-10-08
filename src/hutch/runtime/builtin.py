@@ -17,12 +17,15 @@ products lack:
 from __future__ import annotations
 
 import hashlib
+import copy
 import json
 import time
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from typing import Any, Callable, Optional
 
 from ..approvals import DeniedError
+from ..admission import AdmissionCancelled, AdmissionError, inference_slot
 from ..context import check_prompt, plan_context, prompt_tokens as estimate_prompt_tokens, run_selfcheck
 from ..hardware import Hardware, probe
 from ..models import Event, EventType, Run, RunStatus
@@ -113,9 +116,66 @@ class BuiltinRuntime:
     # --------------------------------------------------------------- helpers
 
     def _hardware(self) -> Hardware:
-        if self._hw is None:
-            self._hw = probe(with_runtimes=False)
-        return self._hw
+        # Injected snapshots are fixtures; production admission observes current
+        # headroom each time, including after a long tool or human wait.
+        return self._hw if self._hw is not None else probe(with_runtimes=False)
+
+    def _admission_memory(self, provider, model):
+        hw = copy.deepcopy(self._hardware())
+        if hw.ram_total_gb <= 0 or hw.ram_available_gb <= 0:
+            raise ProviderError("oom", "available RAM could not be measured or is exhausted; no model request was sent")
+        cards = [g for g in hw.gpus if not g.integrated and g.vendor in ("nvidia", "amd") and g.vram_gb]
+        if hw.accelerator == "gpu" and not any(g.free_gb is not None for g in cards):
+            raise ProviderError("oom", "free GPU memory could not be measured; repair the hardware probe before inference")
+        # A loaded model's allocation is already deducted from physical free
+        # memory. Credit only this model's reported allocation, capped by totals;
+        # multi-GPU placement is unknown, so no per-card credit is invented.
+        loaded = next((m for m in provider.ps() if m.get("name") == model or m.get("model") == model), None)
+        if loaded:
+            size, vram = loaded.get("size", 0), loaded.get("size_vram", 0)
+            if isinstance(size, (int, float)) and isinstance(vram, (int, float)) and 0 <= vram <= size:
+                hw.ram_available_gb = min(hw.ram_total_gb, hw.ram_available_gb + (size - vram) / 1024 ** 3)
+                if len(cards) == 1 and cards[0].free_gb is not None:
+                    cards[0].free_gb = min(cards[0].vram_gb, cards[0].free_gb + vram / 1024 ** 3)
+        return hw, loaded is not None
+
+    @contextmanager
+    def _inference(self, ctx: ToolContext, run: Run, rung: Rung, stop=None):
+        if not rung.local or rung.provider == "mock":
+            yield 0.0
+            return
+        previous, old_reason = run.status, run.reason
+        waited = False
+        started = time.perf_counter()
+
+        def cancelled():
+            return ctx.closed or ctx.gate.cancelled() or bool(stop and stop())
+
+        def waiting(position):
+            nonlocal waited
+            reason = f"waiting for local inference: queue position {position} of at most 8; one Hutch call at a time"
+            if not ctx.store.set_status(run, RunStatus.waiting_resources,
+                                        event={"model": rung.spec, "reason": reason, "queue_position": position},
+                                        fields={"reason": reason}):
+                raise AdmissionCancelled("the run cannot wait for inference")
+            run.reason, waited = reason, True
+
+        try:
+            with inference_slot(ctx.config.state_dir, run.id, rung.spec, cancelled, waiting):
+                queue_ms = (time.perf_counter() - started) * 1000 if waited else 0.0
+                if waited:
+                    if not ctx.store.set_status(run, previous, event={"model": rung.spec}, fields={"reason": old_reason}):
+                        raise AdmissionCancelled("the run stopped before inference started")
+                    run.reason = old_reason
+                    run.queue_ms += queue_ms
+                    ctx.store.update_run(run)
+                    self._log(ctx, run, "resource_wait", f"local inference admitted after {queue_ms / 1000:.2f}s in the queue",
+                              model=rung.spec, queue_ms=queue_ms, waiting_limit=8)
+                yield queue_ms
+        except AdmissionCancelled as exc:
+            raise RunAborted("stopped", str(exc)) from exc
+        except AdmissionError as exc:
+            raise RunAborted("resources", str(exc)) from exc
 
     def _connections(self, ctx: ToolContext) -> ConnectionBook:
         return ConnectionBook(ctx.config.state_dir)
@@ -126,9 +186,10 @@ class BuiltinRuntime:
         self._prices.flat_providers = self._connections(ctx).flat_providers()
         return self._prices
 
-    def _provider_for(self, ctx: ToolContext, ladder: Ladder, rung: Rung, *, expected_route: tuple | None = None) -> Provider:
+    def _provider_for(self, ctx: ToolContext, ladder: Ladder, rung: Rung, *, expected_route: tuple | None = None,
+                      book: ConnectionBook | None = None) -> Provider:
         """A configured Connection wins over a built-in provider name; its terms must be acknowledged first."""
-        book = self._connections(ctx)
+        book = book if book is not None else self._connections(ctx)
         if expected_route is not None and self._route_identity(ctx, ladder, rung, book=book) != expected_route:
             raise ProviderError("bad_request", "provider connection changed after review; no call was sent")
         conn = book.get(rung.provider)
@@ -188,6 +249,11 @@ class BuiltinRuntime:
 
     def _bring_online(self, ctx: ToolContext, run: Run, ladder: Ladder, rung: Rung, messages: list[dict],
                       specs: list[dict]) -> Session:
+        with self._inference(ctx, run, rung):
+            return self._prepare_session(ctx, run, ladder, rung, messages, specs)
+
+    def _prepare_session(self, ctx: ToolContext, run: Run, ladder: Ladder, rung: Rung, messages: list[dict],
+                         specs: list[dict]) -> Session:
         """Make a rung ready: window, pre-run check, cold load, self-check. Raises ProviderError on failure."""
         bot = ctx.bot
         route = None if rung.local else self._route_identity(ctx, ladder, rung)
@@ -209,7 +275,8 @@ class BuiltinRuntime:
             preset = load_presets(ctx.config.state_dir / "presets.json").get(bot.preset or "")
             want = bot.num_ctx or (preset.want_ctx if preset else DEFAULT_WANT_CTX)
             floor = min(want, preset.min_ctx if preset else 4096)
-            plan = plan_context(meta, self._hardware(), want, floor, local=True)
+            hardware, _ = self._admission_memory(provider, rung.model)
+            plan = plan_context(meta, hardware, want, floor, local=True)
             if plan.blocked or not plan.num_ctx:
                 raise ProviderError("oom", f"{rung.spec} does not fit this machine: {plan.note}", provider="ollama")
             num_ctx = plan.num_ctx
@@ -388,6 +455,55 @@ class BuiltinRuntime:
 
     # -------------------------------------------------------------------- loop
 
+    def _refresh_local_admission(self, ctx, run, session):
+        if session.rung.provider != "ollama" or session.meta is None or not session.num_ctx:
+            return  # other local protocols have slot limits, not validated memory admission
+        provider, model = session.provider, session.rung.model
+        current = provider.show(model)
+        if current is None:
+            raise ProviderError("model_missing", f"model '{model}' is no longer installed", provider="ollama")
+        if session.meta.digest and current.digest != session.meta.digest:
+            raise ProviderError("bad_request", "the local model build changed during this run; start a new turn", provider="ollama")
+        hardware, loaded = self._admission_memory(provider, model)
+        plan = plan_context(current, hardware, session.num_ctx, session.num_ctx, local=True)
+        if plan.blocked:
+            raise ProviderError("oom", f"insufficient current memory headroom for {session.rung.spec}: {plan.note}", provider="ollama")
+        if not loaded:
+            self._set_status(ctx, run, RunStatus.loading_model, session.rung.spec)
+            try:
+                elapsed = provider.preload(model, "10m")
+            finally:
+                self._set_status(ctx, run, RunStatus.running, session.rung.spec)
+            self._log(ctx, run, "load", f"reloaded {model} after another model used inference", load_ms=elapsed)
+
+    def _attempt(self, ctx, run, session, guard, req, est_prompt, stop, ladder, expected_route):
+        # Release admission before handling failures, switching routes, tools or
+        # approvals. A waiter has not sent a request and must not reserve usage.
+        with self._inference(ctx, run, session.rung, stop) as queue_ms:
+            book = self._connections(ctx)
+            session.provider = self._provider_for(ctx, ladder, session.rung, expected_route=expected_route, book=book)
+            guard.connections = book  # the reservation follows this reviewed account's current policy
+            self._refresh_local_admission(ctx, run, session)
+            try:
+                reservation = guard.reserve(session.rung, est_prompt, self._turn_cap(ctx.bot, session.rung))
+            except UsageBudgetRefusal as exc:
+                reason = str(exc)
+                code = "token_cap" if "token" in reason or "allowance" in reason else "cost_cap"
+                raise RunAborted(code, reason) from exc
+            if stop() or ctx.gate.cancelled():
+                ctx.store.release_usage_reservation(reservation, "run stopped before provider call started")
+                raise RunAborted("stopped", "user requested stop")
+            t_call = time.perf_counter()
+            try:
+                result = session.provider.chat(req)
+            except ProviderError as exc:
+                ctx.store.mark_usage_uncertain(reservation, f"provider outcome is uncertain ({exc.kind})")
+                raise
+            except Exception as exc:
+                ctx.store.mark_usage_uncertain(reservation, f"provider call ended with {type(exc).__name__}")
+                raise
+            return result, reservation, t_call, queue_ms
+
     def execute(self, run: Run, ctx: ToolContext, tools: dict[str, Tool], stop: Callable[[], bool]) -> str:
         bot = ctx.bot
         ladder = Ladder(bot)
@@ -417,6 +533,7 @@ class BuiltinRuntime:
                 raise RunAborted("steps_exceeded", f"hit max_steps={bot.limits.max_steps}")
             if ctx.store.tokens_today(bot.id) > bot.limits.daily_token_cap:
                 raise RunAborted("token_cap", f"daily cap {bot.limits.daily_token_cap} exceeded")
+            guard.connections = self._connections(ctx)
             refusal = guard.refusal(session.rung, est_prompt, self._turn_cap(bot, session.rung))
             if refusal:
                 raise RunAborted("cost_cap", refusal)
@@ -443,22 +560,12 @@ class BuiltinRuntime:
                 stream=session.stream, allow_stream_retry=False,
                 register_cancel=self._register_cancel(ctx), is_cancelled=stop, session_id=run.id,
                 keep_alive="30m" if _keep_resident(ctx, bot) else "10m")
-            try:
-                reservation_id = guard.reserve(session.rung, est_prompt, self._turn_cap(bot, session.rung))
-            except UsageBudgetRefusal as exc:
-                reason = str(exc)
-                code = "token_cap" if "token" in reason or "allowance" in reason else "cost_cap"
-                raise RunAborted(code, reason) from exc
             account_id, _, _ = guard.account_policy(session.rung)
-            if stop():
-                ctx.store.release_usage_reservation(reservation_id, "run stopped before provider call started")
-                raise RunAborted("stopped", "user requested stop")
-            t_call = time.perf_counter()
             try:
-                result = session.provider.chat(req)
+                result, reservation_id, t_call, timer.queue_ms = self._attempt(
+                    ctx, run, session, guard, req, est_prompt, stop, ladder, route)
                 record_outcome(ctx.store, session.rung.provider, True)
             except ProviderError as exc:
-                ctx.store.mark_usage_uncertain(reservation_id, f"provider outcome is uncertain ({exc.kind})")
                 if stop():
                     raise RunAborted("stopped", "user requested stop") from exc
                 record_outcome(ctx.store, session.rung.provider, False, f"{exc.kind}: {exc}")
@@ -480,8 +587,9 @@ class BuiltinRuntime:
                     raise RunAborted(_exit_reason(exc), f"model call failed ({session.rung.spec}): {exc}") from exc
                 session, rate_limited_once = nxt, False
                 continue
+            except RunAborted:
+                raise
             except Exception as exc:
-                ctx.store.mark_usage_uncertain(reservation_id, f"provider call ended with {type(exc).__name__}")
                 raise
             rate_limited_once = False
             timer.model(time.perf_counter() - t_call)

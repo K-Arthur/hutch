@@ -64,7 +64,9 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 - **Model choice, local first** — native Ollama (context size always set), Anthropic, OpenAI, and OpenAI- or Anthropic-compatible endpoints; free offline mock runtime. Tested against recorded fakes; live provider and Ollama runs depend on your setup
 - **Switch models from the chat** — a composer menu shows what fits this machine, what it costs and what is missing; per message, never a silent edit of the bot
 - **Subscription plans as connections** — OpenCode Go, Xiaomi MiMo Token Plan or your own endpoint, each with its own key, allowance meter and terms notice
-- **Knows your hardware** — fit/tight/won't-fit per model, model slots that batch runs, and `hutch doctor` that prints the fix for every problem
+- **Local inference admission** — one caller and eight waiters across Hutch workers; releases capacity during human waits,
+  rechecks native Ollama memory headroom, and shows queue reasons. Fit remains estimated; real models are unverified.
+  `hutch doctor` reports configuration problems with suggested fixes.
 - **Scheduling that survives sleep and DST** — IANA-timezone cron, DST-correct, catch-up after sleep; each occurrence and each run is
   claimed in the database; one elected supervisor handles schedules and recovery, and one bot never overlaps itself
 - **Approvals that don't nag** — ask-once with sticky always-allows; unanswered = denied

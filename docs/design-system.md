@@ -273,8 +273,11 @@ there is exactly one chrome and one look. The server keeps its fragments (`/_hom
 `/runs/{id}/events|meters|wait`), the JSON API, and the pages the SPA does not yet cover
 (`/connections`, `/models`, `/login`).
 
-Run detail carries a **KPI bento** (Steps / Elapsed / Spend / Tokens) and a **"Where the time went"**
-stacked bar — model (blue) / tools (green) / hutch (amber) — with a per-step timing strip.
+Run detail carries Steps / Elapsed / Recorded cost / Reported tokens and a **Recorded step timing**
+stacked bar — model (emerald), tools (azure), Hutch (amber), and inference queue (neutral metadata)
+— with a per-step strip. Recorded admission waits include startup and completed queue admissions;
+the elapsed clock also includes time outside recorded steps. Resource waits show their reason in
+chat, with no typing or working-avatar animation.
 
 ### Truthful shell state (Oct 2026)
 

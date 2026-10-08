@@ -1,20 +1,12 @@
-"""Local models are scheduled resources (LM-6).
+"""Prefer resident models when ordering runs, without retaining inference across human waits.
 
-A machine keeps one or two models resident. Every swap costs seconds to minutes of reload (measured, not guessed:
-``measure_swap``), and a naive queue that alternates between bots on different models spends its life swapping.
-So the dispatcher treats a model as a slot:
-
-* a run for a model that is already in use or resident shares it and may start at once;
-* a run for a different model starts only if a slot is free, otherwise it waits and says why (UI-6);
-* among waiting runs, those whose model is already loaded go first (batching), so runs that share a model run
-  together; a run that has waited longer than ``FAIRNESS_SECONDS`` jumps the queue so nothing starves;
-* hosted and mock runs are not constrained.
+Actual one-call/eight-waiter admission is process-safe in admission.py. This
+dispatcher preference is only an optimization; it grants no inference authority.
 """
 
 from __future__ import annotations
 
 import json
-import os
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -28,15 +20,15 @@ LOADED_CACHE_SECONDS = 3.0
 
 
 def default_capacity(tier: str) -> int:
-    """Models resident at once: one unless the machine has the memory for two."""
-    return 2 if tier in ("large", "xl") else 1
+    """Compatibility metadata; actual local inference has one slot on every tier."""
+    return 1
 
 
 class ModelSlots:
     def __init__(self, store, capacity: Optional[int] = None, tier: str = "small",
                  loaded: Optional[Callable[[], set[str]]] = None):
         self.store = store
-        self.capacity = capacity or int(os.environ.get("HUTCH_MODEL_SLOTS", "0") or 0) or default_capacity(tier)
+        self.capacity = default_capacity(tier)
         self._loaded_fn = loaded
         self._loaded_cache: tuple[float, set[str]] = (0.0, set())
         self.last_blocked: dict[str, str] = {}      # run id -> why it is waiting
@@ -48,7 +40,7 @@ class ModelSlots:
         bot = self.store.get_bot(run.bot_id)
         if bot is None:
             return None
-        provider, _, model = bot.model.partition("/")
+        provider, _, model = (run.model_override or bot.model).partition("/")
         if provider in ("ollama", "lmstudio", "llamacpp", "llama.cpp", "vllm"):
             return f"{provider}/{model}"
         return None
@@ -69,8 +61,8 @@ class ModelSlots:
     # ----------------------------------------------------------------- order
 
     def filter(self, pending: list[Run], active: list[Run]) -> list[Run]:
-        """Dispatch order for ``pending``: batch by loaded model, gate by free slots, keep fairness."""
-        busy = {m for r in active if r.status is not RunStatus.pending and (m := self.model_of(r))}
+        """Prefer resident models, retain starvation priority, never gate an entire run."""
+        busy = {m for r in active if r.status in (RunStatus.running, RunStatus.loading_model) and (m := self.model_of(r))}
         wants_local = any(self.model_of(r) for r in pending)
         resident = (self.loaded() if wants_local else set()) | busy      # no HTTP at all for hosted/mock queues
         now = utcnow()
@@ -87,35 +79,12 @@ class ModelSlots:
             sharing = m is None or m in resident
             return (0 if starving else 1, 0 if sharing else 1, r.created_at)
 
-        ordered = sorted(pending, key=rank)
-        taken = set(busy)
-        out: list[Run] = []
         self.last_blocked = {}
-        for r in ordered:
-            m = self.model_of(r)
-            if m is None or m in taken:
-                out.append(r)
-                continue
-            if len(taken) < self.capacity:
-                taken.add(m)
-                out.append(r)
-                continue
-            self.last_blocked[r.id] = (
-                f"waiting for a model slot: {', '.join(sorted(taken)) or 'another model'} "
-                f"{'is' if len(taken) == 1 else 'are'} in use, and this machine keeps {self.capacity} local "
-                f"model{'' if self.capacity == 1 else 's'} loaded at a time. Switching would unload "
-                f"{'it' if len(taken) == 1 else 'one'} mid-run, so this run starts when the model it needs is free")
-        return out
+        return sorted(pending, key=rank)
 
     def reason(self, run: Run):
         """UI-6: why a pending run is waiting for a model."""
-        from .views import Wait
-        why = self.last_blocked.get(run.id)
-        if not why:
-            return None
-        return Wait(cause=why[0].upper() + why[1:] + ".",
-                    fix=f"Wait for the running job, stop it, or raise HUTCH_MODEL_SLOTS if you have memory for more "
-                        f"(now {self.capacity}).", href="/models", link_text="Models")
+        return None  # active queue state/reason is persisted by the runtime
 
 
 # ------------------------------------------------------------- swap measurement

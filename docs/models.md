@@ -71,18 +71,33 @@ template is a different profile (the Models page flags "changed since measured")
 This is a profile of one model on one machine, not a leaderboard score. It has been exercised only against scripted
 models; run it on your own installed models to get real numbers.
 
-## Model slots
+## Local inference admission
 
-A machine keeps one or two local models resident, and every swap costs seconds to minutes. The dispatcher therefore
-treats a local model as a **slot**:
+One Hutch local-inference call may hold capacity at a time, with eight waiting calls across
+processes sharing the state directory. The same model has no concurrency exemption. Native
+Ollama startup, loading and self-check also hold capacity. A full queue refuses the next caller
+with an actionable error. A queued call records its position, can be stopped, and does not
+reserve provider usage before admission. Kernel locks release on process death; ticket files
+retain no authority after their owner exits. Do not remove or replace `state/inference/*.lock`
+while Hutch is running.
 
-- runs that share the loaded (or in-use) model start immediately;
-- a run that needs a different model starts only when a slot is free, and **says which model it is waiting for**;
-- queued runs are batched by loaded model, so alternating bots do not swap on every run;
-- a run that has waited over 15 minutes goes first, so nothing starves.
+Capacity is held per model call, then released before tools, approvals or human waits. Each
+later turn re-enters the FIFO queue. The dispatcher prefers already resident models and gives
+older runs priority after fifteen minutes, but that preference grants no inference capacity.
+The retired `HUTCH_MODEL_SLOTS` setting cannot widen this limit. Hosted and mock calls bypass
+this local admission queue. It does not control unrelated clients or prove that an external
+server has stopped working after a Hutch process dies.
 
-Slot count comes from the memory tier (1, or 2 on large machines); `HUTCH_MODEL_SLOTS=n` overrides it. Hosted and mock
-runs are never constrained, and they cause no request to the runtime.
+Native Ollama fit checks use current measured RAM/GPU headroom before generation, including
+after an approval wait. Unknown free GPU memory fails closed; measured zero is never replaced
+with total capacity. A model's reported resident allocation is credited against the physical
+free-memory snapshot, capped by totals; multi-GPU placement is not inferred. Footprint and KV
+cache fit remain estimates, not an OOM guarantee. Other local protocols have queue limits but
+lack validated memory admission. No real model was exercised here.
+
+Run details separate recorded inference admission waits from model/tool time and Hutch overhead.
+Step timing covers recorded steps; startup admission waits are included in the run's `queue_ms`
+total. Interrupted waits that never acquire capacity are not included in that admitted-wait total.
 
 `hutch models swap-test <model-a> <model-b>` measures what alternating a pair really costs: cold load of A, load of B
 on top, load of A again, and whether the runtime actually evicted A. It unloads and reloads your models and generates
@@ -137,7 +152,8 @@ Per-runtime health (also on the Models page): each call's outcome is recorded; t
 
 ## What is and is not verified
 
-- Verified by tests against scripted servers: fit arithmetic, slot ordering and gating, swap measurement logic,
+- Verified by kernel-lock process tests and scripted servers: bounded FIFO admission, crash release,
+  human-wait release, cancellation before reservation, fresh-memory refusal, fit arithmetic, ordering, swap measurement logic,
   override validation, the fit guard on an overridden run, price edits, doctor and health, and the switcher in a
   real browser (desktop and phone width).
 - **Not verified on real models.** The development machine has about 3 GiB free and no Ollama, so swap latency,

@@ -11,8 +11,8 @@ from hutch.models import RunStatus
 from hutch.providers.base import ProviderError
 from hutch.runtime import RunAborted
 from hutch.runtime.ladder import Ladder, get_provider, make_rung
-from hutch.models import Limits
-from tests.fakes import FakeOpenAI
+from hutch.models import ApprovalMode, Limits
+from tests.fakes import FakeOpenAI, agent_script
 from tests.test_runtime_builtin import build, run_it, runtime, factory
 
 
@@ -41,6 +41,34 @@ def pending(store):
             return requests[0]
         time.sleep(.01)
     pytest.fail("no outward approval appeared")
+
+
+def test_account_policy_is_refreshed_after_a_tool_approval(store, config, tmp_path, monkeypatch):
+    monkeypatch.setenv("HUTCH_TEST_ACCOUNT_KEY", "fixture-only-key")
+    server = FakeOpenAI()
+    book = ConnectionBook(config.state_dir)
+    book.add("custom-openai", name="metered", base_url=server.url + "/v1", account_id="original",
+             api_key_env="HUTCH_TEST_ACCOUNT_KEY", quota={"tokens": 100000, "window": "day"})
+    server.script = agent_script([
+        {"content": "write", "tool_calls": [{"name": "write_file", "arguments": {"path": "proof.txt", "content": "reviewed"}}],
+         "prompt_tokens": 10, "completion_tokens": 3},
+        {"content": "must not be requested", "prompt_tokens": 10, "completion_tokens": 3}])
+    ctx, run, emitted, tools = build(store, config, tmp_path, model="metered/m", mode=ApprovalMode.ask,
+                                     limits=Limits(max_turn_tokens=64))
+    store.set_status(run, RunStatus.running)
+    try:
+        with in_worker(ctx, lambda: run_it(runtime(), run, ctx, tools)) as result:
+            req = pending(store)
+            assert req.tool == "files"
+            book.update("metered", account_id="replacement", quota={"tokens": 1, "window": "day"})
+            assert resolve_approval(store, req.id, approve=True, by="fixture")
+        assert isinstance(result["error"], RunAborted) and "allowance" in result["error"].detail
+        assert len(server.of("/v1/chat/completions")) == 1
+        with store._lock:
+            rows = store._db.execute("SELECT account_id, status FROM usage_reservations WHERE run_id = ?", (run.id,)).fetchall()
+        assert [(r["account_id"], r["status"]) for r in rows] == [("original", "settled")]
+    finally:
+        server.close()
 
 
 def test_hosted_to_different_hosted_fallback_does_not_send_without_a_decision(store, config, tmp_path):

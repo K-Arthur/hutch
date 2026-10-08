@@ -1,6 +1,8 @@
 # ADR-0009: Operating modes, offline guarantees, and resource admission
 
-Status: proposed target architecture; implementation pending (2026-10-07). Slice: S5. Evidence: baseline lead 6, B8, A3.
+Status: partially implemented (2026-10-08): one-call/eight-waiter admission and native Ollama
+headroom checks; operating modes and inference provenance remain pending. Slice: S5.
+Evidence: baseline lead 6, B8, A3; `tests/test_admission.py`, `tests/test_local_admission_runtime.py`.
 
 ## Decision
 
@@ -12,16 +14,30 @@ Status: proposed target architecture; implementation pending (2026-10-07). Slice
 | `local+tools` | local only | authorised tools and integrations may send data; each is shown as "data leaves this machine" | inference route check as above; tool network grants honoured |
 | `hybrid` | cloud routes explicitly enabled | normal | spend and data-movement notices per route |
 
-"localhost" is not proof of local inference. The check asks Ollama (`/api/tags`, `/api/show`) and its server config; a model whose
-details show a remote/cloud backend, or a server with `OLLAMA_NO_CLOUD` unset **and** a cloud model requested, fails the offline check (B8).
-When Hutch cannot determine it, offline mode refuses with the reason (fail closed).
+"localhost" is not proof of local inference. These mode checks are a target, not implemented
+guarantees. The [Ollama FAQ](https://docs.ollama.com/faq) documents cloud disabling in the server's
+configuration or `OLLAMA_NO_CLOUD=1` and requires a restart. Setting a flag only in Hutch does
+not prove the serving process inherited it. Offline admission must establish the actual backend,
+model and enforced egress; unknown provenance must refuse. A loopback URL or model label alone
+cannot satisfy that check.
 
-**Resource admission** (`hutch/admission.py`): a run asks for `(model, est_ctx, needs_browser)` before it takes a model slot. Inputs: free
-RAM/VRAM from the existing hardware probe (not the model file size alone: KV cache = f(context, parallel), browser ~300-500 MB, battery state).
-Outputs: `admit`, `wait` (`waiting_resources` with a stated reason), or `refuse` (does not fit). Local inference is serial by default
-(`OLLAMA_NUM_PARALLEL=1` semantics) with a bounded queue (default 8, then refuse with "queue saturated"); keep-alive follows the bot's preset and
-unloads under memory pressure. **A run waiting for approval or a human releases its model slot** and re-admits afterwards.
+**Implemented admission:** `hutch/admission.py` uses kernel locks and a bounded FIFO ticket set
+across workers sharing one state directory: one call and eight waiting callers, including startup
+and self-check. It releases between provider calls, before tools or human waits. Stop can remove
+a waiter before usage reservation; process death releases locks without a lease timeout. The
+runtime persists `waiting_resources`, position/reason and recorded admission wait time.
+
+Native Ollama rechecks physical free RAM/GPU memory before generation. Its reported own resident
+allocation avoids counting the same model twice; credit is capped by totals and not assigned to
+unknown multi-GPU placement. Missing GPU headroom refuses, and measured zero remains zero. Fit
+still estimates weights/KV cache. Other local protocols do not have validated memory admission.
+Hutch's queue does not govern unrelated model-server clients or prove backend cancellation.
+Browser/battery-aware admission, pressure-driven unloading and mode/provenance enforcement remain
+pending. Runtime keep-alive still follows the bot preset; unsafe environment slot widening is removed.
 
 ## Consequences
 
-Cost: probing on the hot path is cached for 5 s. Honest limit: Hutch cannot see another process's GPU use beyond what the probe reports. Rollback: `HUTCH_MODE=hybrid` and admission `warn` instead of `wait`.
+Cost: native fit checks probe current hardware and query model metadata/residency. Live latency is
+unmeasured. Hardware/footprint signals have the limits above; this is no hard resource guarantee.
+Rollback restores a verified release and compatible database while preserving admission protections;
+it does not disable enforcement or silently enable hosted routes.

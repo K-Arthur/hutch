@@ -313,7 +313,7 @@ _TERMINAL_VALUES = tuple(sorted(st.value for st in TERMINAL))
 _LIVE_VALUES = tuple(sorted(st.value for st in ACTIVE_STATUSES if st is not RunStatus.pending))
 #: fields only the owner writes while a run is claimed: merged into the document in one statement (no read-modify-write)
 _PROGRESS_FIELDS = {"steps", "tokens", "workspace", "started_at", "prompt_tokens", "completion_tokens", "cached_tokens",
-                    "cost_usd", "model_ms", "tool_ms", "overhead_ms", "context_used", "context_limit", "model_used",
+                    "cost_usd", "model_ms", "queue_ms", "tool_ms", "overhead_ms", "context_used", "context_limit", "model_used",
                     "owner", "missed_windows", "reason", "verified", "task_id"}
 
 EVENT_BATCH_MAX = 256

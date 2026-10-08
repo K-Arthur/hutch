@@ -1,0 +1,17 @@
+{
+  "browser": "firefox",
+  "version": "155.0",
+  "viewport": [
+    1440,
+    1000
+  ],
+  "captured_at": "2026-10-08T09:28:50.608083+00:00",
+  "scenario": "synthetic queue and timing; not live inference",
+  "page_errors": [],
+  "horizontal_overflow": 0,
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "aaabf65af945a319e6a37152a9ee36a59010c5d050826ec68a09b355ca6ba64e",
+    "src/hutch/server/static/style.css": "b1f64e09f66e49aef4570353dd5e3e721896e5015fa0ad50336004bbce904d26",
+    "src/hutch/runtime/builtin.py": "61cafc8f81394cdd0127a14b339dbb5242c138986cc427a4b7ace1e76652ce77"
+  }
+}

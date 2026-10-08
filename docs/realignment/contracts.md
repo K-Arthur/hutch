@@ -106,3 +106,11 @@ not infer “working” from any active state. Approval list resources include `
 contextual navigation. Approval events include `action_hash`, used by the shared inline/drawer
 review card for idempotent v1 decisions. Legacy routes stay valid; the UI uses history replacement
 for aliases. See [navigation.md](navigation.md) for the rationale and acceptance scenarios.
+
+Local inference waits use `waiting_resources` with an authoritative `reason` and queue-position
+status events. Run `queue_ms` records waits that acquired capacity, including startup; step events
+carry their own `queue_ms`, excluded from `overhead_ms`. Interrupted waits without admission are
+not included. These fields default to zero in legacy history; no SQL schema upgrade is needed.
+Stop expires pending approvals in its cancellation transaction, and later requests persist as
+expired. New worker requests are fence-checked. A pending decision is never kept actionable merely
+because physical cleanup is still underway.

@@ -193,3 +193,14 @@ still apply.
   Approval admission checks the worker's fence, so a recovered worker cannot introduce another pending decision.
 - Models can lie about completion. That's why artifacts (files written, command exits) are in the
   transcript, not just the model's claims.
+
+## Local inference admission boundary
+
+Hutch admits one local caller and up to eight waiting callers across processes sharing a state
+directory. Startup/loading and each call hold the slot; tools and human waits release it. Stop
+removes a queued caller before usage reservation. Kernel locks release on process death, but
+this does not prove the model server stopped work or prevent unrelated clients from calling it.
+Native Ollama checks current RAM/GPU headroom and uses only backend-reported resident allocation
+credit. Fit remains an estimate; unknown GPU free memory refuses execution. Other local protocols
+have caller bounds but no validated memory admission. A local label or loopback address does not
+prove an offline backend; strict offline/local-tools/hybrid enforcement remains pending.

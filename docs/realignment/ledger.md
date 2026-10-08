@@ -22,7 +22,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | S2 lifecycle, claims, leases and recovery | Implemented; focused tests pass | Pending claims reserve global capacity. Recovery fences expired ownership before cleanup. SQLite migrations serialize and create SQLite-backup-API snapshots. Cleanup failure remains visible and nonterminal. |
 | S3 supervised run processes and teardown | Implemented; focused tests pass | Production CLI/daemon/web execution uses owned processes, recorded boot/start identity and verified cleanup. Incomplete cleanup stays nonterminal. |
 | S4 shell containment and approval CAS | Implemented; focused tests pass | Bubblewrap tests pass on the present Linux host. This is namespace containment, not a VM; legacy bots retain their previous setting. Browser/external runtime tools remain outside this guarantee. |
-| S5 providers, budgets and external runtimes | Partial; shared usage reservations implemented, adapters fail closed | OpenCode v2.0.24 is installed and its CLI contract was inspected. Existing OpenCode/Pi adapters bypassed Hutch approvals and budgets, so execution now fails before process creation. Schema v10 reserves estimated tokens/currency atomically across Hutch runs and configured accounts, settles reported use once, and holds uncertain requests for terminal-only reconciliation. Price-based currency limits are estimates, not provider-billing guarantees. Re-enable external runtimes only after sandboxing, brokered permissions and protocol tests. Pi is unavailable; no live run or paid/provider request has been made. Latest offline suite: 1,003 passed; provider and reservation focused suite: 45 passed. |
+| S5 providers, budgets and external runtimes | Partial; shared usage reservations implemented, adapters fail closed | OpenCode v2.0.24 is installed and its CLI contract was inspected. Existing OpenCode/Pi adapters bypassed Hutch approvals and budgets, so execution now fails before process creation. Schema v10 reserves estimated tokens/currency atomically across Hutch runs and configured accounts, settles reported use once, and holds uncertain requests for terminal-only reconciliation. Price-based currency limits are estimates, not provider-billing guarantees. Re-enable external runtimes only after sandboxing, brokered permissions and protocol tests. Pi is unavailable; no live run or paid/provider request has been made. Local calls now use one kernel-owned slot and eight FIFO waiters; human waits release the slot. Native Ollama checks current headroom before generation; other local backends lack validated memory admission, and strict modes/provenance remain pending. Latest offline suite: 1,056 passed; browser/site suite: 29 passed. |
 | S6 conversations and bounded collaboration | Conversation foundation partial; collaboration pending | Schema v8 stores conversations/messages, imports each old run separately, uses bounded context snapshots in builtin runs and explicit FTS5 message search. Studio supports thread switching, durable history and archive. Transactional idempotency is tested across restart. Standing tasks, workspaces/artifacts, scoped fact memory, notifications and delegation remain. |
 | S7 browser ownership and handoff | Partial | Browser context state is instance-owned and persistent profile paths are per-bot; fixture test verifies no profile crossover. Live handoff, pinned egress and browser process supervision remain unavailable. |
 | S8 versioned API and remote supervision | Partial; API replay improvements in `cd4f402`; remote remains experimental | `/api/v1` covers health/status labels, bounded bot/run/approval pages, conversations/search, cross-run transcript cursors, snapshot reconciliation, usage, connection metadata, schedules and capability records. Conversation create/message/archive, stop, and approval resolve commands are idempotent; changed arguments conflict. Schema v9 adds one-use pairing codes, hash-only revocable device sessions and per-source rate limits. Direct remote binding requires explicit TLS. A durable outbox for non-run resource changes, automatic event pruning, workspaces/artifacts, phone UI, interactive control routes, trusted tunnel and live device/network checks remain. |
@@ -263,3 +263,58 @@ treated as failures. The unreferenced admission module under development is not 
 shutdown verification or commit; it needs its own contention and runtime integration checks.
 After narrowing the new expiration guard to pending requests (preserving already decided import
 records), the approval/writer/worker suite again passed **35 tests in 18.89s**.
+
+Shutdown/Stop repair commit: `632add2`.
+
+## Local inference admission checkpoint (2026-10-08)
+
+The dispatcher previously let any number of same-model runs share its model reservation, counted
+human waits as busy, and looked up the bot default instead of the per-message override. Admission
+now uses one kernel-owned local caller and eight FIFO waiters across workers sharing the state
+directory. It is per startup/call, including loading/self-check, released before tools and human
+waits. Queue position/reason is persisted; Stop removes a waiter before usage reservation. Kernel
+ownership releases on process death; stale ticket text grants nothing. The old slot env setting
+cannot widen inference. Native Ollama rechecks current memory before generation, refuses unknown
+GPU headroom and preserves measured zero. Resident-allocation credit and footprint estimates have
+the limits documented in `models.md`; other local protocols lack validated memory admission.
+
+The first four kernel tests passed after replacing a test-only multiprocessing Event with a pipe:
+killing its waiting process could strand the Event's shared lock in test cleanup. The interrupted
+test run was **1 passed, interrupted at 175.60s**, not a pass or a product-queue deadlock. The repaired
+queue/same-model/crash/cancel/unreadable-ticket suite passed **4 tests in 0.68s**. Only the identified
+test process was interrupted; unrelated operator processes were untouched.
+
+The first runtime integration suite reported **65 passed, 1 failed in 31.06s**: moving reservations
+into the admitted attempt left an outer error handler referring to an unset reservation. It now
+marks uncertainty only around a sent request and preserves pre-call refusal/cancellation reasons.
+The expanded suite passed **92 tests in 36.98s** and then **93 tests in 37.93s**, including human-wait
+release, resumed-turn queuing, Stop without a second reservation, memory pressure and unknown/zero
+GPU measurements. A separate shared-account test verifies a changed account's current policy is
+used after a tool approval; provider/account snapshots refresh before each attempt.
+
+The first queue visual fixture targeted a noncanonical legacy run through an invalid chat route:
+**3 failed in 96.05s**. It now submits a canonical conversation/turn and exercises the real chat
+route. The corrected desktop/tablet/phone checks passed **3 tests in 7.95s**, capturing six views
+in `artifacts/inference-admission/`. These are synthetic queue/timing records, not real inference.
+Full-size phone wait/timing captures were inspected: reason wraps, controls remain reachable,
+there is no typing during a resource wait, and the queue segment/legend stays visible. Complete
+regression, browser/site validation and refreshed navigation captures follow this checkpoint.
+
+No schema upgrade: `queue_ms` defaults to zero in old run JSON and is now an owned progress field.
+Recorded step timing excludes admitted queue wait from Hutch overhead and shows it separately.
+Initial admission waits are included in the run total; interrupted waits without admission are not.
+This is no strict-offline, backend-cancellation or unrelated-client concurrency guarantee. S5 modes,
+provenance, browser/battery pressure and external adapter brokering remain open.
+
+Complete offline verification passed **1,056 tests in 240.21s** and browser/site verification
+passed **29 tests in 58.16s**. Full-size inspection also found the generic input width made the
+desktop bot filter exceed the sidebar by its horizontal margins. A scoped width and geometry
+regression repair that containment; the final viewport repeat and capture follow. This finding
+was component overlap despite the page-wide overflow measure staying zero.
+
+The final browser/site repeat passed **29 tests in 55.00s**. The 09:31 UTC capture
+refreshed **39 navigation/site screenshots**, three traces and three inspected contact sheets,
+with zero page errors or horizontal overflow. Source hashes pin `632add2` plus this admission
+working tree. The two Fleet captures and six admission captures are separate; admission shots
+use synthetic records. Full-size desktop queue inspection confirms the sidebar repair. Static
+site derivatives come from the refreshed mock captures, not live provider runs.

@@ -218,6 +218,7 @@ a:hover { text-decoration: underline; }
   padding: 7px var(--s-3);
 }
 .roster-search::placeholder { color: var(--text-3); }
+.ws-roster .roster-search { width: calc(100% - var(--s-3) - var(--s-3)); min-width: 0; }
 .roster-search:focus { border-color: var(--focus); outline: none; box-shadow: 0 0 0 1px var(--focus); }
 
 .roster-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 var(--s-2) var(--s-2); display: grid; gap: 1px; align-content: start; }
@@ -839,6 +840,10 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .s-model { background: var(--brand); }
 .s-tool { background: var(--focus); }
 .s-over { background: var(--warn); }
+.s-queue, .dot.s-queue { background: var(--text-3); }
+.run-wait { color: var(--text-2); font-size: var(--fs-sm); line-height: 1.5; padding: var(--s-3);
+  border: 1px solid var(--line); border-radius: var(--r-ctl); overflow-wrap: anywhere; }
+.run-queue-time { color: var(--text-2); font-size: var(--fs-xs); line-height: 1.5; margin: var(--s-2) 0; }
 .timeline-legend { display: flex; gap: var(--s-4); flex-wrap: wrap; margin-top: var(--s-2); font: 400 var(--fs-2xs)/1 var(--mono); color: var(--text-3); }
 .timeline-legend .dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; vertical-align: 0; }
 .dot.s-model { background: var(--brand); } .dot.s-tool { background: var(--focus); } .dot.s-over { background: var(--warn); }

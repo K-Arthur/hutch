@@ -1,8 +1,8 @@
 # Navigation functional and visual verification
 
-Captured 2026-10-08 at 08:28 UTC with Python 3.13.15, Playwright 1.63.0, Firefox 155
-and Pillow 12.3.0. The capture used `03706f2` with the Fleet attention and phone reminder
-refinement in its working tree. Source hashes are retained. This is local fixture
+Captured 2026-10-08 at 09:31 UTC with Python 3.13.15, Playwright 1.63.0, Firefox 155
+and Pillow 12.3.0. The capture used `632add2` with the bounded local-inference admission, timing and sidebar
+containment changes in its working tree. Source hashes are retained. This is local fixture
 evidence, not a physical-phone, screen-reader or live provider certification.
 
 ## Reproduce
@@ -28,9 +28,9 @@ they are sanitized demonstration material, not production telemetry.
 
 ## Results and inspection
 
-The full offline suite after the approval, history, provider and Fleet repairs passed **1,037 tests in
-229.68s**, with unhandled background-thread warnings promoted to failures. The browser and
-website suites passed **26 tests in 53.76s**. Conversation-order assertions verify
+The full offline suite after the approval, history, shutdown, provider and local-admission repairs passed **1,056 tests in
+240.21s**, with unhandled background-thread warnings promoted to failures. The browser and
+website suites passed **29 tests in 55.00s**. Conversation-order assertions verify
 one user prompt preceding its assistant block, with no prompt echoed as an assistant answer
 while waiting. A two-message queue checks that the earlier active run stays fresh after the
 later message becomes current.
@@ -44,13 +44,16 @@ error/reconnecting use intercepted failed requests. They do not prove physical c
 actual model loading or remote-device reconnection; backend regressions cover their authority.
 
 Inspected all three refreshed contact sheets for layout and state changes, plus individual full-size
-phone waiting/drawer, desktop completion, tablet error, phone cancellation and site fold
-captures. Earlier full-size desktop/tablet/Fleet checks informed the repairs. The full
+phone drawer/cancellation, desktop completion and desktop queue captures. Earlier individual
+phone waiting, tablet error and site fold captures were also inspected. Earlier full-size desktop/tablet/Fleet checks informed the repairs. The full
 website captures are retained; contact sheets show their first fold only. Two additional
 desktop/phone screenshots and metadata in `artifacts/fleet-attention/` cover failed queue
 discovery, 51 persisted requests and a human wait preceded by an older queued turn. Both
-were inspected, including the final full-size phone capture after the reminder moved into
-the layout. These waits are fixtures, not a real browser handoff.
+were inspected in the preceding refinement; the browser suite refreshed them against the current
+sources, with the same containment assertions. These waits are fixtures, not a real browser handoff. Six more captures and viewport/source
+metadata in `artifacts/inference-admission/` show a held queue and recorded step timing on all
+three sizes. Full-size desktop wait, phone wait/timing and tablet timing were inspected. These
+are synthetic records; cross-process and runtime HTTP fixtures verify actual admission separately.
 
 | Check | Observed result |
 |---|---|
@@ -60,11 +63,13 @@ the layout. These waits are fixtures, not a real browser handoff.
 | Large queues | A 51-request fixture pages all requests and resolves the final request once, then reconciles the remaining 50. No bulk approval is offered. |
 | Attention under failure | Both approval and human waits remain in Fleet's Needs you filter when queue discovery fails. The phone reminder ends above the content and has 44px Review/Dismiss targets. |
 | Failed refresh | Retained cards show a refresh error and Retry; failure never becomes an empty queue or success receipt. |
+| Inference queue | Queue position/reason is visible without typing. Recorded step timing separates queue wait; the sidebar filter fits within its own panel. |
 | Cancellation and usage | Stopping remains nonterminal and disables duplicate Stop. Run detail and Activity use recorded cost and reported-token labels. |
 | Reduced motion and keyboard | Reduced-motion capture, model-menu navigation, mobile-sheet focus/Tab/Escape and alias Back behavior are exercised by browser checks. |
 | Marketing | Local anonymous CTA targets resolve, screenshots match the current shell, and provider/runtime limitations remain visible. The static site requests only its own assets. |
 
-Initial inspection found a cramped identity row, clipped approval label, reminder overlap,
+The final queue inspection found a sidebar filter extending past its panel despite zero page-wide
+overflow. A scoped width and component geometry check repair this. Initial inspection found a cramped identity row, clipped approval label, reminder overlap,
 an incorrect mobile scrim layer and a leftover 52px header rule. Those were repaired and
 recaptured. The expanded full-payload request needed a bounded review region to keep phone
 decisions visible. Two capture attempts failed on fixture/dependency assumptions (the status

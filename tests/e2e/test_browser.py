@@ -235,6 +235,62 @@ def test_stopping_status_uses_human_label_and_stays_nonterminal(browser, live, m
     page.close()
 
 
+@pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (900, 1024, "tablet"), (390, 844, "phone")])
+def test_inference_queue_reason_and_timing_are_visible(browser, live, monkeypatch, width, height, size):
+    import hashlib
+    import json
+    from datetime import timedelta
+    from pathlib import Path
+    from hutch.models import Run, Task, iso, utcnow
+    base, app = live
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    bot = app.state.store.create_bot(Bot(name="queue-fixture", model="mock/demo", tools=[]))
+    reason = "waiting for local inference: queue position 2 of at most 8; one Hutch call at a time"
+    conversation, _ = app.state.store.create_conversation(bot.id, "Inference queue fixture", idem_key="queue", request_hash="queue")
+    run = Run(bot_id=bot.id, prompt="sanitized queue layout fixture", created_at=iso(utcnow() - timedelta(seconds=3)))
+    app.state.store.submit_conversation_message(conversation["id"], run.prompt, run,
+        Task(bot_id=bot.id, kind="conversation", prompt=run.prompt), idem_key="turn", request_hash="turn")
+    app.state.store.transition_run(run.id, RunStatus.waiting_resources, fields={"reason": reason})
+    page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/inference-admission"
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        page.goto(base + "/#/conversation/" + conversation["id"])
+        page.locator(".run-wait").wait_for()
+        assert page.locator(".run-wait").inner_text() == reason
+        if size == "desktop":
+            rail = page.locator(".ws-roster").bounding_box()
+            field = page.locator("#bot-search").bounding_box()
+            assert field["x"] >= rail["x"] and field["x"] + field["width"] <= rail["x"] + rail["width"]
+        assert not page.locator(".typing").count(), "resource waits must not claim ongoing inference"
+        page.screenshot(path=str(out / f"waiting-{size}.png"), full_page=True, animations="disabled")
+        app.state.store.transition_run(run.id, RunStatus.running)
+        app.state.store.append_event(Event(run_id=run.id, type=EventType.step,
+            data={"n": 1, "model_ms": 100, "tool_ms": 20, "overhead_ms": 10, "queue_ms": 1500}))
+        app.state.store.transition_run(run.id, RunStatus.succeeded, fields={"queue_ms": 1800, "reason": "", "steps": 1})
+        page.goto(base + "/#/run/" + run.id)
+        page.get_by_text("Recorded step timing", exact=True).wait_for()
+        assert "startup and steps" in page.locator(".run-queue-time").inner_text()
+        assert "queue 1500ms" in page.locator(".timeline-legend").inner_text()
+        chart = page.locator(".timeline-stack")
+        assert "hutch 10ms, step queue 1500ms" in chart.get_attribute("aria-label")
+        assert float(chart.locator(".s-queue").evaluate("el => el.style.width.slice(0,-1)")) > 90
+        page.screenshot(path=str(out / f"timing-{size}.png"), full_page=True, animations="disabled")
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow <= 1 and not errors
+        (out / f"{size}.json").write_text(json.dumps({
+            "browser": browser.browser_type.name, "version": browser.version, "viewport": [width, height],
+            "captured_at": iso(utcnow()), "scenario": "synthetic queue and timing; not live inference",
+            "page_errors": errors, "horizontal_overflow": overflow,
+            "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest()
+                for p in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css", "src/hutch/runtime/builtin.py")},
+        }, indent=2) + "\n")
+    finally:
+        page.close()
+
+
 def test_mobile_navigation_traps_tab_and_restores_focus(browser, live):
     base, _app = live
     page = browser.new_page(viewport={"width": 390, "height": 844})

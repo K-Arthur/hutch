@@ -151,6 +151,14 @@ The database closes only after the event writer exits. If the writer exceeds the
 closure fails visibly, keeps the connection open and refuses new buffered events; a later close
 can complete after the writer unblocks. A completed close is idempotent.
 
+`admission.py` owns one local-inference caller and eight waiters with kernel locks across worker
+processes sharing the state directory. Tickets order calls, not entire runs, and never survive
+their lock owner's exit as authority. Startup/self-check and generation hold capacity; tools and
+human waits do not. Queue position/reason and admitted wait time are persisted. Native Ollama
+checks current hardware headroom before generation; estimated fit and resident-allocation credit
+are qualified in `docs/models.md`. This is not strict-offline enforcement or control of other
+clients of the same model server. `HUTCH_MODEL_SLOTS` no longer widens inference concurrency.
+
 ## What is deliberately NOT here (yet)
 
 Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, artifact versioning, browser handoff,
