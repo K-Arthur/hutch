@@ -232,3 +232,14 @@ These values supersede the emerald-era rows above wherever they conflict.
 - **The chat SPA is the whole app**: Studio (chat), Overview (triage), Bots, Runs, Approvals are all
   SPA views on shared tokens; `GET /api/overview` feeds the triage from the same `views.home_state`
   the server page uses, so there is one source of truth and no second chrome.
+
+### Single UI (Oct 2026)
+
+The **studio SPA is the whole app**. The server-rendered `/overview`, `/bots`, `/bots/new`,
+`/bots/{name}`, `/runs`, `/runs/{id}` and `/approvals` now **302-redirect into it** (`/#/...`), so
+there is exactly one chrome and one look. The server keeps its fragments (`/_home`, `/_approvals`,
+`/runs/{id}/events|meters|wait`), the JSON API, and the pages the SPA does not yet cover
+(`/connections`, `/models`, `/login`).
+
+Run detail carries a **KPI bento** (Steps / Elapsed / Spend / Tokens) and a **"Where the time went"**
+stacked bar — model (blue) / tools (green) / hutch (amber) — with a per-step timing strip.

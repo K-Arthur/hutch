@@ -84,3 +84,5 @@ First MVP.
 - **Studio → whole app + data viz:** the chat SPA is now self-contained with an **Overview** triage
   view (`GET /api/overview`), a **bento** Bots grid, and a **Timeline** column on the Runs table
   (per-run duration bars, blue/amber/red). See [docs/design-system.md](docs/design-system.md).
+- **One UI:** the duplicate server pages redirect into the studio SPA; run detail gains a KPI bento
+  and a model/tools/hutch timing timeline. See [docs/design-system.md](docs/design-system.md).
