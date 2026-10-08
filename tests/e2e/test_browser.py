@@ -168,6 +168,25 @@ def test_spa_transcript_renders_a_live_run(browser, live, monkeypatch):
     ctx.close()
 
 
+def test_mobile_navigation_traps_tab_and_restores_focus(browser, live):
+    base, _app = live
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    page.goto(base, wait_until="domcontentloaded")
+    page.wait_for_selector("#btn-create-first")
+    toggle = page.locator("#nav-toggle")
+    toggle.click()
+    assert toggle.get_attribute("aria-expanded") == "true"
+    links = page.locator("#primary-nav a")
+    assert page.evaluate("document.activeElement.getAttribute('data-nav')") == "chat"
+    links.last.focus()
+    page.keyboard.press("Tab")
+    assert page.evaluate("document.activeElement.getAttribute('data-nav')") == "chat"
+    page.keyboard.press("Escape")
+    assert toggle.get_attribute("aria-expanded") == "false"
+    assert page.evaluate("document.activeElement.id") == "nav-toggle"
+    page.close()
+
+
 def test_approve_from_the_phone_ui_resumes_the_run(browser, live):
     """The data-approval card lives in the SPA now; the phone journey must still work."""
     base, app = live

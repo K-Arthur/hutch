@@ -26,7 +26,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | S6 conversations and bounded collaboration | Not started | Current persistent conversational model and restart behavior still need implementation and integration tests. |
 | S7 browser ownership and handoff | Partial | Browser context state is instance-owned and persistent profile paths are per-bot; fixture test verifies no profile crossover. Live handoff, pinned egress and browser process supervision remain unavailable. |
 | S8 versioned API and remote supervision | Partial / not release-ready | Legacy routes and run SSE exist. `/api/v1`, durable global cursor replay, idempotency and safe phone pairing still need implementation. |
-| S9 product integration, performance and visual validation | In progress | Merged desktop/tablet/mobile UI exists. The final screenshots, journey checks, accessibility review and comparable performance measurements remain open. |
+| S9 product integration, performance and visual validation | UI visual pass recorded; performance work remains | Screenshots and Playwright traces cover desktop/tablet/phone and empty/loading/error/approval/cancelling/reconnecting UI states. Internal site CTA targets, phone overflow, page errors, reduced motion, tablist arrows and mobile-menu focus were checked. This is not screen-reader, real-device or full workflow certification. Repeated comparable performance measurements remain open. See `visual-validation.md`. |
 
 ## Commits
 

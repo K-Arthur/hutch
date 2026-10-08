@@ -1529,12 +1529,48 @@ setInterval(pollHealth, HEARTBEAT_MS);
   const btn = document.getElementById("nav-toggle");
   const nav = document.getElementById("primary-nav");
   if (!btn || !nav) return;
+  const mobile = window.matchMedia("(max-width: 760px)");
   const setOpen = (open) => {
     nav.classList.toggle("open", open);
+    nav.inert = mobile.matches && !open;
     btn.setAttribute("aria-expanded", String(open));
     btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
   };
-  btn.addEventListener("click", () => setOpen(!nav.classList.contains("open")));
-  nav.addEventListener("click", (e) => { if (e.target.closest("a")) setOpen(false); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+  const focusFirst = () => requestAnimationFrame(() => nav.querySelector("a")?.focus());
+  setOpen(false);
+  mobile.addEventListener("change", () => {
+    if (!mobile.matches) setOpen(false);
+    else nav.inert = !nav.classList.contains("open");
+  });
+  btn.addEventListener("click", () => {
+    const open = !nav.classList.contains("open");
+    setOpen(open);
+    if (open) focusFirst();
+    else btn.focus();
+  });
+  nav.addEventListener("click", (e) => {
+    if (e.target.closest("a")) {
+      setOpen(false);
+      btn.focus();
+    }
+  });
+  nav.addEventListener("keydown", (e) => {
+    if (!mobile.matches || !nav.classList.contains("open") || e.key !== "Tab") return;
+    const links = [...nav.querySelectorAll("a")];
+    if (!links.length) return;
+    if (e.shiftKey && document.activeElement === links[0]) {
+      e.preventDefault();
+      links.at(-1).focus();
+    } else if (!e.shiftKey && document.activeElement === links.at(-1)) {
+      e.preventDefault();
+      links[0].focus();
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && mobile.matches && nav.classList.contains("open")) {
+      e.preventDefault();
+      setOpen(false);
+      btn.focus();
+    }
+  });
 })();

@@ -8,6 +8,8 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 - **Fail-closed external runtimes:** legacy Pi/OpenCode selections now stop before spawning a subprocess because their permissions,
   process containment and provider-budget paths are not governed. OpenCode `--auto` and the broken Pi RPC adapter are removed from
   the execution path. Browser profiles and contexts are instance-owned per bot; fixture tests verify separate profile directories.
+- **Phone menu keyboard control:** the Studio navigation now keeps Tab inside its full-screen mobile menu, moves focus to the first
+  link on open and restores focus to the toggle on Escape. Added a browser regression test and saved desktop/tablet/phone captures.
 - **Owned run cleanup and recovery:** production CLI, web, and daemon attempts use worker processes; recovery atomically fences expired
   owners before signalling; process records carry boot/start identity and pidfd cleanup never signals a reused PID/PGID. Incomplete
   cleanup remains visible and retries instead of claiming the run stopped. A leased supervisor coordinates schedule/recovery work.

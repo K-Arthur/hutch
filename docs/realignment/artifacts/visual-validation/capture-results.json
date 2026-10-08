@@ -1,0 +1,145 @@
+{
+  "browser": "Firefox",
+  "browserVersion": "155.0",
+  "screenshots": [
+    {
+      "title": "hutch \u2014 your bots, your machine, your rules",
+      "viewportWidth": 1440,
+      "documentWidth": 1440,
+      "documentHeight": 8457,
+      "mainPresent": true,
+      "target": "site",
+      "size": "desktop",
+      "httpStatus": 200,
+      "screenshot": "site-desktop.png",
+      "pageErrors": [],
+      "ctas": [
+        {
+          "text": "Install Now",
+          "href": "#quickstart"
+        },
+        {
+          "text": "Get Started",
+          "href": "#quickstart"
+        },
+        {
+          "text": "See the failure classes",
+          "href": "#why"
+        },
+        {
+          "text": "Install from source",
+          "href": "#quickstart"
+        }
+      ],
+      "internalCtaTargetsExist": true
+    },
+    {
+      "title": "hutch \u2014 your bots, your machine, your rules",
+      "viewportWidth": 900,
+      "documentWidth": 900,
+      "documentHeight": 8824,
+      "mainPresent": true,
+      "target": "site",
+      "size": "tablet",
+      "httpStatus": 200,
+      "screenshot": "site-tablet.png",
+      "pageErrors": [],
+      "ctas": [
+        {
+          "text": "Install Now",
+          "href": "#quickstart"
+        },
+        {
+          "text": "Get Started",
+          "href": "#quickstart"
+        },
+        {
+          "text": "See the failure classes",
+          "href": "#why"
+        },
+        {
+          "text": "Install from source",
+          "href": "#quickstart"
+        }
+      ],
+      "internalCtaTargetsExist": true
+    },
+    {
+      "title": "hutch \u2014 your bots, your machine, your rules",
+      "viewportWidth": 390,
+      "documentWidth": 390,
+      "documentHeight": 13086,
+      "mainPresent": true,
+      "target": "site",
+      "size": "phone",
+      "httpStatus": 200,
+      "screenshot": "site-phone.png",
+      "pageErrors": [],
+      "ctas": [
+        {
+          "text": "Install Now",
+          "href": "#quickstart"
+        },
+        {
+          "text": "Get Started",
+          "href": "#quickstart"
+        },
+        {
+          "text": "See the failure classes",
+          "href": "#why"
+        },
+        {
+          "text": "Install from source",
+          "href": "#quickstart"
+        }
+      ],
+      "internalCtaTargetsExist": true,
+      "mobileMenu": {
+        "opened": "true",
+        "closed": "false",
+        "focusRestored": true
+      }
+    },
+    {
+      "title": "hutch \u2014 your bots, your machine",
+      "viewportWidth": 1440,
+      "documentWidth": 1440,
+      "documentHeight": 1000,
+      "mainPresent": true,
+      "target": "app",
+      "size": "desktop",
+      "httpStatus": 200,
+      "screenshot": "app-desktop.png",
+      "pageErrors": []
+    },
+    {
+      "title": "hutch \u2014 your bots, your machine",
+      "viewportWidth": 900,
+      "documentWidth": 900,
+      "documentHeight": 1024,
+      "mainPresent": true,
+      "target": "app",
+      "size": "tablet",
+      "httpStatus": 200,
+      "screenshot": "app-tablet.png",
+      "pageErrors": []
+    },
+    {
+      "title": "hutch \u2014 your bots, your machine",
+      "viewportWidth": 390,
+      "documentWidth": 390,
+      "documentHeight": 844,
+      "mainPresent": true,
+      "target": "app",
+      "size": "phone",
+      "httpStatus": 200,
+      "screenshot": "app-phone.png",
+      "pageErrors": [],
+      "mobileMenu": {
+        "firstFocus": "chat",
+        "tabWrapped": "chat",
+        "focusRestored": true
+      }
+    }
+  ]
+}
