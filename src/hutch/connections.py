@@ -143,6 +143,15 @@ class ConnectionBook:
     def _build(self, name: str, row: dict[str, Any]) -> Connection:
         tpl = dict(self._templates.get(row.get("template", ""), {}))
         merged = {**tpl, **{k: v for k, v in row.items() if v is not None}}
+        from urllib.parse import urlsplit
+        for field_name in ("base_url", "anthropic_base_url"):
+            if endpoint := merged.get(field_name):
+                try:
+                    parts = urlsplit(endpoint)
+                    if parts.username is not None or parts.password is not None:
+                        raise ValueError("connection endpoints cannot embed credentials; use a key reference")
+                except ValueError:
+                    raise ValueError("connection endpoint is malformed or contains embedded credentials") from None
         terms = {**tpl.get("terms", {}), **row.get("terms", {})}
         q = row.get("quota") or {}
         proto = merged.get("protocol", "openai-chat")

@@ -328,7 +328,7 @@ def test_repeated_malformed_calls_escalate_one_rung_and_ask_first(store, config,
             pend = store.pending_approvals()
             if pend:
                 assert pend[0].tool == "escalation" and "hosted model openai/gpt-4o" in pend[0].action
-                assert pend[0].detail["what_is_sent"] and pend[0].sticky_key == "escalate:hosted"
+                assert pend[0].detail["what_is_sent"] and pend[0].sticky_key == "" and pend[0].outward
                 resolve_approval(store, pend[0].id, approve=True, by="test", sticky=True)
                 return
             time.sleep(0.02)
@@ -340,7 +340,7 @@ def test_repeated_malformed_calls_escalate_one_rung_and_ask_first(store, config,
     esc = kinds(emitted, "escalation")[0]
     assert esc["from_model"] == "ollama/fake:8b" and esc["to_model"] == "openai/gpt-4o" and esc["hosted"]
     assert "2 malformed" in esc["reason"]
-    assert store.is_sticky_allowed(ctx.bot.id, "escalate:hosted")           # later escalations will not nag
+    assert not store.is_sticky_allowed(ctx.bot.id, "escalate:hosted")     # another run requires its own authority
     assert run.cost_usd == pytest.approx((1000 * 2.5 + 100 * 10) / 1e6)     # priced from prices.json (LM-14)
 
 
@@ -385,12 +385,14 @@ def test_auto_mode_bots_still_ask_before_their_first_hosted_call(store, config, 
     assert kinds(emitted, "escalation")
 
 
-def test_escalation_moves_exactly_one_rung_at_a_time(store, config, tmp_path, ollama, oai, claude_srv=None):
+def test_escalation_moves_exactly_one_rung_at_a_time(store, config, tmp_path, ollama, oai, monkeypatch, claude_srv=None):
     ollama.script = agent_script([{"tool_calls": [{"name": "write_file", "arguments": {}}]}])
     oai.script = lambda b: {"tool_calls": [{"name": "write_file", "arguments": {}}]}
     ctx, run, emitted, tools = build(store, config, tmp_path, mode=ApprovalMode.auto,
                                      escalation=Escalation(to=["openai/gpt-4o-mini", "openai/gpt-4o"], after_malformed=2))
     store.allow_sticky(ctx.bot.id, "escalate:hosted")
+    # Approval behavior is covered separately; this test isolates one-rung model progression.
+    monkeypatch.setattr(ctx.gate, "decide", lambda *a, **kw: None)
     with pytest.raises(RunAborted):
         run_it(runtime(provider_factory=factory(ollama=ollama, oai=oai)), run, ctx, tools)
     path = [(c["from_model"], c["to_model"]) for c in kinds(emitted, "escalation") if "from_model" in c]

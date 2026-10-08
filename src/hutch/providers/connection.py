@@ -8,11 +8,11 @@ from ..connections import Connection, ConnectionBook
 from .base import Provider, ProviderError
 
 
-def provider_for_connection(book: ConnectionBook, name: str, model: str) -> Provider:
+def provider_for_connection(book: ConnectionBook, name: str, model: str, *, resolved_key: str | None = None) -> Provider:
     conn: Connection | None = book.get(name)
     if conn is None:
         raise ProviderError("bad_request", f"no connection named '{name}'", provider=name)
-    key = book.key(name)
+    key = book.key(name) if resolved_key is None else resolved_key
     if not key:
         raise ProviderError(
             "auth", f"no API key for connection '{name}': set {conn.api_key_env or 'an environment variable'} in the "

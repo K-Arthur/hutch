@@ -65,6 +65,7 @@ class ChatRequest:
     first_token_timeout: float = 600.0     # CPU inference of a long prompt can take minutes to first token
     idle_timeout: float = 90.0             # max silence between chunks once streaming has started
     stream: bool = True
+    allow_stream_retry: bool = True       # builtin accounting disables hidden attempts and reserves each retry itself
     # called with a close() function so Stop can abort the in-flight request; returns an unregister fn
     register_cancel: Callable[[Callable[[], None]], Callable[[], None]] = lambda fn: (lambda: None)
     #: True once the user pressed Stop. A cancelled call must never be "recovered" by the streaming retry
@@ -220,7 +221,7 @@ class Provider(ABC):
             try:
                 result = self._complete(req, stream=True)
             except ProviderError as exc:
-                if not exc.streaming_related or req.is_cancelled():
+                if not exc.streaming_related or req.is_cancelled() or not req.allow_stream_retry:
                     raise
                 result = self._complete(req, stream=False)
                 result.streamed = False

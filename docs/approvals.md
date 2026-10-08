@@ -2,6 +2,12 @@
 
 An approval is a request to perform one action, such as changing a file. The server owns its status and the decision. The dashboard and chat view show the same action summary, risk, reason, and relevant arguments. Open **Review details** before deciding, especially when the request can send data outside the machine.
 
+Decide in the conversation or open **Needs you** for requests across bots. Provider fallback
+reviews include the receiving account, endpoint, billing mode, revision and scope. An approved
+provider route covers calls within this run on that exact route, with usage reserved before each
+attempt. Another account or a changed connection needs another review. This outward permission
+cannot be remembered as an always-allow grant; a new run starts with fresh authority.
+
 The queue at `GET /api/approvals` lists pending requests. The same resources are available at `/api/v1/actions/approvals`. `GET /api/approvals/{id}` reads one request after a conflict or a reconnect. `GET /api/approvals?status=resolved&limit=8` shows recently decided requests. A decision uses `POST /api/approvals/{id}/approve` or `/deny`; a second decision returns a conflict. Only non-outward actions with a narrow sticky permission offer **Always allow for this bot**. Outward actions still require a person each time.
 
 The client does not remove a request as completed based on a local click alone. If another device decides first, it reads the server's result and shows that decision. Expired requests fail closed as denied. Stop does not undo effects that were already completed.

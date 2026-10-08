@@ -1,6 +1,6 @@
 # ADR-0005: Provider routes, credentials, and the compatibility matrix
 
-Status: accepted (2026-10-07). Slice: S5. Evidence: baseline lead 5, B1-B4.
+Status: accepted; account-change and credential-rotation repairs implemented (2026-10-08). Slice: S5. Evidence: baseline lead 5, B1-B4.
 
 ## Context
 
@@ -38,9 +38,22 @@ sends `OPENAI_API_KEY` to whatever URL it is given (baseline lead 5).
    atomically reserves estimated prompt + requested reply tokens and priced currency cost with the cap check. Successful responses
    settle actual usage; uncertain outcomes remain held until terminal-run reconciliation. See ADR-0011. Price and prompt estimates are
    not an exact guarantee of provider billing.
-6. **No silent paid fallback.** Fallback to another *billing relationship* requires the bot's `fallbacks` entry **and** an approval
-   (existing LM-10 rule extended to any change of connection class). No automatic plan upgrade, ever.
+6. **No silent paid fallback.** A configured fallback/escalation to another hosted account,
+   destination, protocol or connection revision requires outward approval even in auto mode and
+   from a hosted primary. The immutable review records account, destination, billing, revision,
+   selected model and per-run scope. Generic `escalate:hosted` sticky grants no longer apply.
+   Approved authority lasts for that exact route within this run; explicitly configured models
+   on the same route may proceed without another route approval. Every call still reserves usage.
+   Changing the connection while waiting or before provider creation refuses the call. The primary
+   bot/message model is an explicit selection; it does not authorize another account or service.
+   Credentials are refreshed before each builtin provider call, with cache keys scoped to state,
+   complete configuration and a credential digest. No automatic plan upgrade is implemented.
 
 ## Consequences
 
-Migration: existing `openai-compatible` bots with a `base_url` and an env key keep working only if the user creates a connection; `hutch doctor` lists them and `hutch connections adopt` writes the connection for them (one command). Until then calls go out **without** the key and fail with an explicit `auth` error naming the fix - a deliberate fail-closed change. Rollback: restore the `OPENAI_API_KEY` fallback behind `HUTCH_LEGACY_KEY_ROUTING=1` (documented as unsafe).
+Migration: existing `openai-compatible` bots with a custom endpoint must use that endpoint's
+own connection key or explicit `HUTCH_API_KEY`; they never receive the ambient OpenAI key.
+`HUTCH_LEGACY_KEY_ROUTING` is now ignored and cannot disable this boundary. Embedded HTTP basic
+credentials are refused before storing a connection or constructing a provider. Rollback uses a
+compatible database backup and verified release, not a credential-routing bypass. The proposed
+`connections adopt` command is not implemented; create the connection explicitly.

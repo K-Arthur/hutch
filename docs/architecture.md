@@ -157,3 +157,9 @@ Approvals appear in their transcript and in an explicit cross-bot drawer, using 
 v1 decision command. Activity and run history are secondary monitoring surfaces; Fleet adds
 search/state filtering at ten bots. [Navigation rationale](realignment/navigation.md) records
 compatibility, evidence and the limits of the threshold heuristic.
+
+Builtin provider sessions carry per-run route authority separately from model choice. The
+primary selection authorizes its receiving service; a configured hop that changes account,
+endpoint, protocol or revision requires outward review. Each call revalidates that authority
+and refreshes credential-aware clients. Streaming recovery keeps the first uncertain usage
+and reserves another attempt before retrying, using the same transactional account ledger.

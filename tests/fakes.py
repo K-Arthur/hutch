@@ -258,6 +258,7 @@ class FakeOpenAI(_Server):
         self.script: Callable[[dict], dict] = lambda body: {"content": "ok"}
         self.require_key: Optional[str] = None
         self.reject_stream_options = False
+        self.fail_stream_once = False
         self.force_status: Optional[tuple[int, dict, dict]] = None   # status, body, headers
         super().__init__()
 
@@ -291,6 +292,11 @@ class FakeOpenAI(_Server):
                                           "usage": usage})
             self.start_stream(h, "text/event-stream")
             ev = lambda obj: self.chunk(h, f"data: {json.dumps(obj)}\n\n".encode())
+            if self.fail_stream_once:
+                self.fail_stream_once = False
+                ev({"choices": [{"delta": {"content": "partial fixture answer"}}]})
+                h.connection.shutdown(2)
+                return
             half = max(1, len(content) // 2)
             if content:
                 ev({"model": body["model"], "choices": [{"delta": {"content": content[:half]}}]})

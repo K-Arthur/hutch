@@ -90,6 +90,9 @@ class ClaudeProvider(Provider):
                  provider_name: str = "anthropic", headers: Optional[dict[str, str]] = None,
                  session_header: str = ""):
         self.base_url = base_url or os.environ.get("ANTHROPIC_BASE_URL") or None
+        if self.base_url:
+            from .registry import reject_endpoint_credentials
+            reject_endpoint_credentials(self.base_url)
         self.key_withheld = ""
         if api_key is not None:
             self.api_key = api_key                                   # a Connection named this key and endpoint itself

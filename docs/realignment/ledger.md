@@ -190,3 +190,24 @@ Root main remains at `6fd979f`, with newer uncommitted composer/style work and u
 tooling files preserved. This branch is not a finished S5–S8 release and has not been pushed,
 published or integrated by advancing main. Reconcile newer coherent main work before the
 eventual final release validation and fast-forward.
+
+## Provider authority and retries checkpoint (2026-10-08)
+
+Audit found a hosted-to-hosted fallback bypassed the local-default-only approval rule, a
+generic sticky hosted grant could span accounts, and the provider cache keyed only on key
+presence. The repaired runtime approves each new hosted billing/destination authority within
+the run, binds account/endpoint/protocol/revision/scope, rejects configuration changed during
+review or provider creation, and refreshes credential-aware clients before calls. The unsafe
+legacy credential-routing override is removed; connection/provider URLs refuse basic credentials.
+
+The low-level stream retry also hid two model requests under one usage reservation. Builtin
+recovery now retains the uncertain first attempt and reserves the non-streaming retry separately;
+a constrained budget refuses that second request before sending it. No schema change is needed.
+Focused provider/connection/runtime/reservation/credential suite: **138 passed in 52.74s**.
+Two new retry tests initially used an unsupported fixture flag, not a broken HTTP stream; the
+fake now actually closes a partial stream and both reservation scenarios pass. Full regression
+verification follows this checkpoint. No live provider, paid call or new offline-mode claim.
+
+Full offline verification subsequently passed **1,036 tests in 223.69s**, with unhandled
+background-thread warnings promoted to failures. The navigation browser/capture boundary
+remains `4bd0e0d`; no frontend behavior or image changed in this provider repair.

@@ -19,7 +19,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any, Callable, Optional
 
 from ..approvals import DeniedError
@@ -80,6 +80,7 @@ class Session:
     provider: Provider
     num_ctx: Optional[int]
     meta: Optional[ModelMeta]
+    stream: bool = True
 
 
 class BuiltinRuntime:
@@ -91,6 +92,7 @@ class BuiltinRuntime:
         self._hw = hardware
         self._prices = prices
         self._factory = provider_factory or get_provider
+        self._production_factory = provider_factory is None
         self._sleep = sleep
 
     # ------------------------------------------------------------------ prompt
@@ -124,23 +126,30 @@ class BuiltinRuntime:
         self._prices.flat_providers = self._connections(ctx).flat_providers()
         return self._prices
 
-    def _provider_for(self, ctx: ToolContext, ladder: Ladder, rung: Rung) -> Provider:
+    def _provider_for(self, ctx: ToolContext, ladder: Ladder, rung: Rung, *, expected_route: tuple | None = None) -> Provider:
         """A configured Connection wins over a built-in provider name; its terms must be acknowledged first."""
         book = self._connections(ctx)
+        if expected_route is not None and self._route_identity(ctx, ladder, rung, book=book) != expected_route:
+            raise ProviderError("bad_request", "provider connection changed after review; no call was sent")
         conn = book.get(rung.provider)
         if conn is None:
-            return self._factory(rung.provider, ladder.base_url_for(rung))
+            provider = self._factory(rung.provider, ladder.base_url_for(rung))
+            if (self._production_factory and expected_route is not None
+                    and getattr(provider, "base_url", "").rstrip("/") != expected_route[4].rstrip("/")):
+                raise ProviderError("bad_request", "provider endpoint changed after review; no call was sent")
+            return provider
         status = book.ack_status(ctx.store, rung.provider)
         if status in ("required", "stale"):
             raise ProviderError(
                 "auth", f"the terms of '{conn.title}' have not been acknowledged{' (they changed)' if status == 'stale' else ''}: "
                         f"read them on the Connections page and acknowledge, or run `hutch connections ack {conn.name}`",
                 provider=conn.name)
-        key = (rung.provider, rung.model, conn.base_url, conn.protocol, str(sorted(conn.model_protocols.items())),
-               book.key(conn.name) is not None)
+        credential = book.key(conn.name) or ""
+        fingerprint = hashlib.sha256(json.dumps(asdict(conn), sort_keys=True).encode() + b"\0" + credential.encode()).hexdigest()
+        key = (str(ctx.config.state_dir.resolve()), rung.provider, rung.model, fingerprint)
         cached = _CONN_PROVIDERS.get(key)
         if cached is None:
-            cached = _CONN_PROVIDERS[key] = provider_for_connection(book, conn.name, rung.model)
+            cached = _CONN_PROVIDERS[key] = provider_for_connection(book, conn.name, rung.model, resolved_key=credential)
         return cached
 
     @staticmethod
@@ -181,7 +190,10 @@ class BuiltinRuntime:
                       specs: list[dict]) -> Session:
         """Make a rung ready: window, pre-run check, cold load, self-check. Raises ProviderError on failure."""
         bot = ctx.bot
-        provider = self._provider_for(ctx, ladder, rung)
+        route = None if rung.local else self._route_identity(ctx, ladder, rung)
+        if route is not None and route not in ladder.authorized_routes:
+            raise ProviderError("bad_request", "provider connection changed before startup; no call was sent")
+        provider = self._provider_for(ctx, ladder, rung, expected_route=route)
         if not rung.local:
             return Session(rung, provider, None, None)
         meta = provider.show(rung.model) if rung.provider == "ollama" else None
@@ -241,18 +253,43 @@ class BuiltinRuntime:
 
     # -------------------------------------------------------------- switching
 
-    def _ask_first_hosted(self, ctx: ToolContext, ladder: Ladder, rung: Rung, why: str, est_prompt: int) -> None:
-        """LM-10: a bot that is local by default asks before its FIRST hosted call (even in auto mode)."""
-        if not (ladder.local_default and not rung.local):
+    def _route_identity(self, ctx: ToolContext, ladder: Ladder, rung: Rung, *, book: ConnectionBook | None = None) -> tuple:
+        """Billing and destination authority, separate from the selected model and secret."""
+        conn = (book if book is not None else self._connections(ctx)).get(rung.provider)
+        if conn:
+            protocol, endpoint = conn.endpoint_for(rung.model)
+            revision = hashlib.sha256(json.dumps(asdict(conn), sort_keys=True).encode()).hexdigest()
+            return (conn.name, conn.account_id, conn.billing, protocol, endpoint, revision)
+        from ..providers.openai_compat import PRESET_URLS
+        import os
+        endpoint = ladder.base_url_for(rung) or PRESET_URLS.get(rung.provider, "")
+        if rung.provider == "anthropic":
+            endpoint = endpoint or os.environ.get("ANTHROPIC_BASE_URL") or "https://api.anthropic.com"
+        elif rung.provider == "openai-compatible":
+            endpoint = endpoint or os.environ.get("HUTCH_BASE_URL", "")
+        return (rung.provider, rung.provider, "per_token", rung.provider, endpoint, "builtin")
+
+    def _ask_first_hosted(self, ctx: ToolContext, ladder: Ladder, rung: Rung, why: str, est_prompt: int) -> tuple | None:
+        """Every new hosted billing/destination authority requires per-run outward approval."""
+        if rung.local:
             return
+        route = self._route_identity(ctx, ladder, rung)
+        if route in ladder.authorized_routes:
+            return route
         worst = self._prices_for(ctx).cost(rung.provider, rung.model, est_prompt, self._turn_cap(ctx.bot, rung))
-        decision = Decision(Verdict.ask, f"call hosted model {rung.spec}", "escalate:hosted",
+        decision = Decision(Verdict.ask, f"call hosted model {rung.spec}", "",
                             rule="ask:hosted-call", risk="medium")
         ctx.gate.decide(
             "escalation", f"send this run to the hosted model {rung.spec} ({why})",
             {"model": rung.spec, "reason": why, "worst_case_next_call_usd": worst,
+             "connection": route[0], "account": route[1], "billing": route[2], "protocol": route[3],
+             "destination": route[4], "revision": route[5], "scope": "provider calls in this run on this exact route",
              "what_is_sent": "the conversation so far, including tool results, goes to the model provider"},
-            decision, ask_in_auto=True)
+            decision, outward=True, ask_in_auto=True)
+        if self._route_identity(ctx, ladder, rung) != route:
+            raise DeniedError("the provider connection changed during review; no call was sent")
+        ladder.authorized_routes.add(route)
+        return route
 
     def _switch(self, ctx, run, ladder: Ladder, guard: SpendGuard, rung: Rung, why: str, kind: str, messages,
                 specs, est_prompt: int) -> Optional[Session]:
@@ -308,6 +345,8 @@ class BuiltinRuntime:
     def _start(self, ctx, run, ladder: Ladder, guard: SpendGuard, messages, specs, stop, est_prompt: int) -> Session:
         """Bring up the primary model; walk the fallback chain if it is unavailable (SR-8)."""
         rung = ladder.primary
+        if not rung.local:
+            ladder.authorized_routes.add(self._route_identity(ctx, ladder, rung))  # explicit bot/message selection
         while True:
             ladder.current = rung
             try:
@@ -368,6 +407,7 @@ class BuiltinRuntime:
         loop = LoopDetector()
         malformed_streak = loop_strikes = 0
         rate_limited_once = False
+        stream_retried = False
         warned_quota: set[str] = set()
 
         while True:
@@ -390,9 +430,17 @@ class BuiltinRuntime:
                           used=quota[0], limit=quota[1])
 
             timer = StepTimer()
+            try:
+                route = self._ask_first_hosted(ctx, ladder, session.rung, "the connection authority changed", est_prompt)
+                session.provider = self._provider_for(ctx, ladder, session.rung, expected_route=route)
+            except DeniedError as exc:
+                raise RunAborted("error", f"provider route was not approved: {exc}") from exc
+            except ProviderError as exc:
+                raise RunAborted(_exit_reason(exc), f"provider connection is no longer usable: {exc}") from exc
             req = ChatRequest(
                 model=session.rung.model, messages=messages, tools=specs, num_ctx=session.num_ctx,
                 max_tokens=self._turn_cap(bot, session.rung), think=bot.think if bot.think is not None else False,
+                stream=session.stream, allow_stream_retry=False,
                 register_cancel=self._register_cancel(ctx), is_cancelled=stop, session_id=run.id,
                 keep_alive="30m" if _keep_resident(ctx, bot) else "10m")
             try:
@@ -414,6 +462,12 @@ class BuiltinRuntime:
                 if stop():
                     raise RunAborted("stopped", "user requested stop") from exc
                 record_outcome(ctx.store, session.rung.provider, False, f"{exc.kind}: {exc}")
+                if exc.streaming_related and session.stream and not stream_retried:
+                    stream_retried = True
+                    session.stream = False
+                    self._log(ctx, run, "stream_retry", f"streaming failed ({exc}); next attempt without streaming. "
+                              "Previous usage remains reserved pending reconciliation.")
+                    continue  # the next attempt must acquire its own shared-account reservation
                 if (exc.kind == "rate_limit" and not rate_limited_once
                         and (exc.retry_after or 5.0) <= RATE_LIMIT_PAUSE_MAX):
                     rate_limited_once = True

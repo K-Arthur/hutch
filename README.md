@@ -101,6 +101,10 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 Marketing site: [website/](website/index.html) (static landing page; its claims are checked against the evidence ledger).
 Web Dashboard: conversation-first Studio (`http://127.0.0.1:8787/#/chat`) with one bot roster, inline approvals and a cross-bot Needs you drawer. Bot settings own memory, permissions and defaults. Monitor holds Activity and run history; a searchable Fleet view appears at ten bots. See [navigation decisions](docs/realignment/navigation.md).
 
+Configured fallback to another hosted account or destination requires a per-run review. A
+broken stream retains uncertain usage and a retry needs another usage reservation. These
+controls have fixture coverage; provider billing and live compatibility remain unverified.
+
 ## Development
 
 ```bash

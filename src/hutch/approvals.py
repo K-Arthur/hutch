@@ -79,9 +79,9 @@ class ApprovalGate:
                outward: bool = False, ask_in_auto: bool = False) -> None:
         """Raise DeniedError unless the action may proceed.
 
-        ``ask_in_auto``: ask even for a bot in auto mode (sticky allows and plan grants still apply). Used for the
-        first call to a hosted model (LM-10): spending money and sending the conversation to a third party is not
-        something "auto" should do silently on a bot that was set up to run locally.
+        ``ask_in_auto`` asks even for auto bots. ``outward`` also excludes sticky grants and
+        applies to provider account/destination changes: auto must not silently send a
+        conversation to another service or billing relationship.
         """
         if decision is None:
             decision = Decision(Verdict.ask, action, f"{tool}:*")

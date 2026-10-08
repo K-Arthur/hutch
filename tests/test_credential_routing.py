@@ -70,10 +70,27 @@ def test_a_withheld_key_is_explained_when_the_endpoint_rejects_the_request():
     assert "HUTCH_API_KEY" in str(err) and SECRET not in str(err)
 
 
-def test_legacy_routing_is_an_explicit_unsafe_opt_in():
+def test_legacy_routing_cannot_disable_provider_scoping():
     env = {"OPENAI_API_KEY": SECRET, "HUTCH_LEGACY_KEY_ROUTING": "1"}
     p = make_provider("openai-compatible", "http://evil.example/v1", env=env)
-    assert _bearer_seen(p) == f"Bearer {SECRET}"
+    assert _bearer_seen(p) is None
+
+
+def test_anthropic_factory_uses_the_supplied_environment(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "ambient-other-key")
+    assert make_provider("anthropic", env={"ANTHROPIC_API_KEY": SECRET}).api_key == SECRET
+    assert make_provider("anthropic", env={}).api_key == ""
+    with pytest.raises(ProviderError, match="credentials"):
+        make_provider("anthropic", "https://user:password@api.anthropic.com", env={"ANTHROPIC_API_KEY": SECRET})
+
+
+@pytest.mark.parametrize("provider,url", [
+    ("openai", "https://user:password@api.openai.com/v1"),
+    ("ollama", "http://user:password@127.0.0.1:11434"),
+])
+def test_provider_urls_cannot_embed_credentials(provider, url):
+    with pytest.raises(ProviderError, match="credentials"):
+        make_provider(provider, url, env={"OPENAI_API_KEY": SECRET})
 
 
 def test_anthropic_key_is_not_sent_to_a_custom_base_url(monkeypatch):

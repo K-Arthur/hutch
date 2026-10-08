@@ -37,6 +37,13 @@ share this reservation path and the rest of Hutch's process, isolation, and appr
 
 ## Verification boundary
 
+Builtin streaming recovery now performs a separately reserved non-streaming attempt. A partial
+first stream remains uncertain; it is not silently settled from the second response's usage.
+If another reservation would exceed the remaining account/bot limit, no second request is sent.
+Low-level provider diagnostics retain their optional retry behavior; they are explicit operator
+calls outside scheduled builtin-run budget admission. This distinction is exposed in the request
+contract through `allow_stream_retry`, disabled by the builtin runtime.
+
 Automated tests cover competing SQLite connections, account-shared token windows, exact settlement, uncertain holds,
 terminal-only reconciliation, migration, the typed API, and the dashboard. No live provider account, provider-side
 budget enforcement, pricing accuracy, or external-runtime billing behavior has been verified.

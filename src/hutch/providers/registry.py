@@ -23,9 +23,16 @@ OLLAMA_PORT = 11434
 #: A Connection (providers/connection.py) names its own key and endpoint on purpose and is not filtered here.
 OFFICIAL_HOSTS = {"openai": "api.openai.com", "anthropic": "api.anthropic.com"}
 
-#: Escape hatch that restores "any env key to any URL". It exists only so an upgrade is reversible; it is unsafe.
-LEGACY_KEY_ROUTING = "HUTCH_LEGACY_KEY_ROUTING"
 
+def reject_endpoint_credentials(url: str) -> str:
+    """No HTTP basic credentials in URLs: endpoints are visible in status, errors and reviews."""
+    try:
+        parts = urlsplit(url)
+        if parts.username is not None or parts.password is not None:
+            raise ProviderError("bad_request", "provider endpoints cannot embed credentials; use a connection key reference")
+    except ValueError as exc:
+        raise ProviderError("bad_request", "provider endpoint is malformed") from exc
+    return url
 
 def is_official_endpoint(provider: str, url: Optional[str]) -> bool:
     """True if ``url`` is exactly the provider's own HTTPS host (look-alikes, userinfo tricks and plain HTTP are not)."""
@@ -34,7 +41,8 @@ def is_official_endpoint(provider: str, url: Optional[str]) -> bool:
         return False
     try:
         parts = urlsplit(url.strip())
-        return parts.scheme == "https" and (parts.hostname or "").lower() == host and parts.port in (None, 443)
+        return (parts.scheme == "https" and (parts.hostname or "").lower() == host
+                and parts.port in (None, 443) and parts.username is None and parts.password is None)
     except ValueError:
         return False
 
@@ -45,7 +53,7 @@ def ambient_key(provider: str, url: Optional[str], env) -> tuple[str, str]:
     key = env.get(name, "") if name else ""
     if not key:
         return "", ""
-    if env.get(LEGACY_KEY_ROUTING) == "1" or is_official_endpoint(provider, url):
+    if is_official_endpoint(provider, url):
         return key, ""
     return "", (f"{name} is only ever sent to {OFFICIAL_HOSTS[provider]} (https). This endpoint is {url or 'custom'}, so no key "
                 "was sent: create a connection with its own key (`hutch connections`) or set HUTCH_API_KEY for a custom endpoint")
@@ -79,7 +87,11 @@ def make_provider(provider: str, base_url: Optional[str] = None, env: Optional[d
         return OllamaProvider(base_url or env.get("OLLAMA_HOST") or "http://localhost:11434")
     if provider == "anthropic":
         from .claude import ClaudeProvider
-        return ClaudeProvider(base_url=base_url)
+        url = base_url or env.get("ANTHROPIC_BASE_URL") or "https://api.anthropic.com"
+        key, hint = ambient_key("anthropic", url, env)
+        p = ClaudeProvider(api_key=key, base_url=url)
+        p.key_withheld = hint
+        return p
     from .openai_compat import PRESET_URLS, OpenAICompatProvider
     if provider == "openai-compatible":
         url = base_url or env.get("HUTCH_BASE_URL")
@@ -90,7 +102,7 @@ def make_provider(provider: str, base_url: Optional[str] = None, env: Optional[d
         # purpose for the endpoint named by HUTCH_BASE_URL / bot.base_url.
         key, hint = env.get("HUTCH_API_KEY", ""), ""
         if not key:
-            key, hint = ambient_key("openai", url, env)         # only the legacy escape hatch can return a key here
+            key, hint = ambient_key("openai", url, env)
         return OpenAICompatProvider(url, key, provider_name="openai-compatible", auth_hint=hint)
     if provider in PRESET_URLS:
         url = base_url or PRESET_URLS[provider]

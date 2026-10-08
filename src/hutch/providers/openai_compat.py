@@ -38,7 +38,8 @@ class OpenAICompatProvider(Provider):
 
     def __init__(self, base_url: str, api_key: str = "", provider_name: str = "openai-compatible",
                  headers: Optional[dict[str, str]] = None, session_header: str = "", auth_hint: str = ""):
-        self.base_url = base_url.rstrip("/")
+        from .registry import reject_endpoint_credentials
+        self.base_url = reject_endpoint_credentials(base_url).rstrip("/")
         self.api_key = api_key
         self.auth_hint = auth_hint        # why an ambient key was withheld, appended to auth failures
         self.name = provider_name

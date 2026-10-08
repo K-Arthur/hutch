@@ -5,6 +5,11 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 ## [Unreleased]
 
 ### Added
+- **Provider authority and retry accounting:** hosted account/destination changes require a
+  per-run outward decision, including from a hosted primary. Reviewed routes cannot change
+  during approval or provider creation. Cached credentials refresh before calls; the unsafe
+  legacy routing override is removed and basic credentials in endpoint URLs are refused.
+  A failed stream retains uncertain usage and each retry reserves another attempt.
 - **Exact-action and history repairs:** file approvals bind contents, destination and revision;
   descriptor-based writes refuse symlink or changed-revision destinations. Browser mutations
   bind text, URL and profile and always ask. Strict extra mounts retain their read-only grants

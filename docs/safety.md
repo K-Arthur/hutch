@@ -18,6 +18,12 @@ not measured prevalence).
 
 The realignment ledger records which behavior is tested, which is only documented, and which requires live provider or device access.
 
+Provider account/destination changes require per-run outward approval. The exact route and
+revision are checked again before provider creation; cached clients cannot retain a removed or
+rotated connection key. Generic hosted sticky grants and the old legacy key-routing escape
+cannot bypass that boundary. Streaming recovery reserves each attempt separately, retaining
+uncertain first usage. These are fixture-tested controls, not live billing certification.
+
 Explicit extra read-only shell mounts are installed after private temporary mounts and the
 writable workspace so the declared mode survives execution. Credential descendants, symlinks
 outside the granted folder, unreadable trees and grants covering the workspace are refused;

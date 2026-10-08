@@ -117,5 +117,14 @@ CLI harnesses (`pi`, `opencode`) are currently disabled; Hutch does not launch t
   --chat <model>` is the first diagnostic.
 - Model discovery is the vendor's `GET /models`; context windows are not read from it (the list does not carry
   them), so no window is assumed for hosted models.
-- A connection is **hosted**: a bot whose own model is local still asks before its first call to it
-  (`LM-10`), even in auto mode, because the conversation leaves the machine.
+- A connection is **hosted**. A fallback from a local or hosted primary to another account,
+  destination, protocol or connection revision requires outward approval, even in auto mode.
+  The review names the account and endpoint and grants only that route within the current run.
+  Generic hosted sticky grants cannot bypass it. Selecting the primary model explicitly does
+  not authorize a different service.
+- Rotation/removal of a connection key is effective before the next builtin call; the in-flight
+  request may already have reached the provider. Connection URLs cannot contain HTTP basic
+  credentials. `HUTCH_LEGACY_KEY_ROUTING` no longer bypasses provider scoping.
+- A broken stream keeps its uncertain usage reservation. A retry needs its own reservation;
+  reconcile the first from a provider record after the run is terminal. Currency remains a
+  price-based estimate, not a guaranteed provider bill.

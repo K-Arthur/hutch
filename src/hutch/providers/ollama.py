@@ -56,7 +56,8 @@ class OllamaProvider(Provider):
     name = "ollama"
 
     def __init__(self, base_url: str = DEFAULT_BASE_URL):
-        self.base_url = (base_url or DEFAULT_BASE_URL).rstrip("/")
+        from .registry import reject_endpoint_credentials
+        self.base_url = reject_endpoint_credentials(base_url or DEFAULT_BASE_URL).rstrip("/")
         if self.base_url.endswith("/v1"):  # people paste the OpenAI-style URL; we speak the native API
             self.base_url = self.base_url[:-3]
         self._client = None

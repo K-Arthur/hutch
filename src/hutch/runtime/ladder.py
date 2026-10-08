@@ -15,6 +15,8 @@ bot that is local by default - a human said yes to the first hosted call (LM-10)
 from __future__ import annotations
 
 import threading
+import hashlib
+import os
 from dataclasses import dataclass
 from typing import Optional
 
@@ -23,16 +25,21 @@ from ..providers import Provider, make_provider, parse_spec
 from ..providers.pricing import PriceBook
 from ..store import UsageBudgetRefusal
 
-_PROVIDERS: dict[tuple[str, Optional[str]], Provider] = {}
+_PROVIDERS: dict[tuple, Provider] = {}
 _LOCK = threading.Lock()
 
 
 def get_provider(provider: str, base_url: Optional[str]) -> Provider:
     """Providers are cached so HTTP connections and `show()` metadata are reused across runs."""
-    key = (provider, base_url)
+    # Long-lived executors must not retain revoked/rotated ambient credentials or endpoints.
+    ambient_env = dict(os.environ)
+    relevant = {k: ambient_env.get(k, "") for k in (
+        "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "HUTCH_API_KEY", "HUTCH_BASE_URL", "OLLAMA_HOST")}
+    digest = hashlib.sha256(repr(sorted(relevant.items())).encode()).hexdigest()
+    key = (provider, base_url, digest)
     with _LOCK:
         if key not in _PROVIDERS:
-            _PROVIDERS[key] = make_provider(provider, base_url)
+            _PROVIDERS[key] = make_provider(provider, base_url, env=ambient_env)
         return _PROVIDERS[key]
 
 
@@ -71,6 +78,7 @@ class Ladder:
         #: no to hosted calls: neither may be re-asked on every later bad turn (a denial must stick)
         self.blocked: set[str] = set()
         self.hosted_denied = False
+        self.authorized_routes: set[tuple] = set()   # per-run authority; never a generic standing hosted grant
 
     @property
     def local_default(self) -> bool:
