@@ -43,6 +43,17 @@
 - [ ] Optional remote access (tailscale/SSH guidance, or relay) — stays opt-in, never a cloud default
 - [ ] A2A collaboration between bots (scoped, auditable)
 
+## Current realignment progress
+
+- **Conversation persistence: partial.** Schema v8 stores canonical messages and maps runs to conversations. Historical runs are
+  imported separately. The local v1 API snapshots at most 12 prior messages / 16,000 characters for builtin runs and supports
+  FTS5 search. The Studio selects threads, displays restart-persistent history and archives without deleting it.
+- **API: partial.** Versioned health, status labels, bots, conversations, search, runs, approvals and usage aliases are present.
+  Create/message/archive commands use transactional idempotency keys. Global SSE replay, idempotent approval/cancel commands,
+  workspaces/artifacts, device pairing and authenticated remote control are not available.
+- **Release posture.** Source is private and unpublished. Linux loopback is the only supported service boundary; no hosted or
+  phone-pairing claim should imply that the dashboard can control a sleeping or disconnected host.
+
 ## Non-goals
 
 CAPTCHA solving, bot-detection evasion, acting as a hosted service, or autonomy without

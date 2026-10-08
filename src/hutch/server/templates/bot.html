@@ -38,7 +38,7 @@
   <section class="panel">
     <h2>{{ icon("list", 18) }} Recent runs</h2>
     {% if runs %}<ul class="runlist">
-      {% for r in runs %}<li><a href="/runs/{{ r.id }}"><span class="chip st-{{ r.status.value }}">{{ r.status.value | replace("_", " ") }}</span> <span class="snip">{{ r.prompt[:80] }}</span></a>
+      {% for r in runs %}<li><a href="/runs/{{ r.id }}"><span class="chip st-{{ r.status.value }}">{{ r.status_label }}</span> <span class="snip">{{ r.prompt[:80] }}</span></a>
         <span class="muted">{{ r | origin }} - {{ r.created_at | ago }}</span></li>{% endfor %}</ul>
     {% else %}<div class="empty">{{ icon("list", 24) }}<p>No runs yet.</p></div>{% endif %}
   </section>

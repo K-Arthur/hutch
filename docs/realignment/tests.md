@@ -10,12 +10,13 @@ browser. "Live" means it needs something this host did not have and is skipped w
 | T-CLAIM-RACE | Two processes racing for the same pending run: exactly one claim wins | offline (multiprocess) | `tests/test_claims.py` | passing |
 | T-OCCURRENCE-RACE | Two schedulers for one occurrence create one run, also after a crash between steps | offline (multiprocess) | `tests/test_claims.py` | passing |
 | T-STATE-MACHINE | Only table transitions are possible; terminal is absorbing; stale fence rejected | offline (property) | `tests/test_lifecycle.py` | passing |
-| T-MIGRATION-V5 | A v4 database with data migrates; ids, memory, transcripts, schedules survive | offline | `tests/test_migration.py` | passing |
+| T-SHELL-READABLE | Readable command contexts preserve policy; ambiguous syntax fails closed rather than being assumed benign | offline (property) | `tests/test_shellparse.py` | passing |
+| T-MIGRATION-V8 | A v4 database with data migrates and backs up; ids, events, schedules survive; each historic run is imported separately | offline | `tests/test_migration.py` | passing |
 | T-CROSS-PROCESS-STOP | `stop` from process B ends a run owned by process A | offline (multiprocess) | `tests/test_cancel.py` | passing |
 | T-CANCEL-DESCENDANTS | After terminal cancel no descendant process is alive and none can write | offline | `tests/test_procguard.py` | passing |
 | T-RECEIPT-RECOVERY | Crash after an effect but before its receipt ends `outcome_unknown` and is never replayed | offline | `tests/test_receipts.py` | passing |
-| T-APPROVAL-CAS | Two clients resolve one approval: exactly one wins; a revised action needs a new approval | offline | `tests/test_approval_cas.py` | planned |
-| T-SANDBOX | The shell cannot read the real home or open a socket without a grant; unsupported host fails closed | offline (skips without bwrap) | `tests/test_sandbox.py` | planned |
+| T-APPROVAL-CAS | Two clients resolve one approval: exactly one wins; a revised action needs a new approval | offline | `tests/test_approval_cas.py` | passing |
+| T-SANDBOX | The shell cannot read the real home or open a socket without a grant; unsupported host fails closed | offline (skips without bwrap) | `tests/test_sandbox.py` | passing on this Linux host |
 | T-ADAPTER-CONTRACT-OPENCODE | OpenCode argv/event parsing matches the installed binary | offline fixtures + live-if-installed | `tests/test_runtime_opencode.py` | planned |
 | T-ADAPTER-CONTRACT-PI | Pi framing matches the published protocol; completion is `agent_settled` | offline fixtures | `tests/test_runtime_pi.py` | planned |
 | T-PERMISSION-BROKER | OpenCode permission requests go through the Hutch approval gate | live-if-installed | `tests/test_runtime_opencode.py` | planned |
@@ -25,8 +26,9 @@ browser. "Live" means it needs something this host did not have and is skipped w
 | T-RESERVE | Parallel runs cannot over-reserve a shared budget | offline | `tests/test_reservations.py` | planned |
 | T-STRICT-OFFLINE | Offline mode makes no non-loopback connection and refuses cloud-backed Ollama | offline | `tests/test_offline_mode.py` | planned |
 | T-ADMISSION | Admission waits or refuses by memory; approval waits release the slot | offline | `tests/test_admission.py` | planned |
-| T-CONVERSATION | A follow-up uses prior messages and artifacts across restart and runtime change | offline | `tests/test_conversations.py` | planned |
-| T-DELETE-SEMANTICS | Delete/archive/export behave as ADR-0002 per data class | offline | `tests/test_conversations.py` | planned |
+| T-CONVERSATION | Bounded follow-up context, isolated legacy import, idempotent create/message/archive, FTS search and restart persistence | offline | `tests/test_conversations.py`, `tests/test_migration.py` | partial; artifact/runtime-switch context not implemented |
+| T-DELETE-SEMANTICS | Archive hides but retains a conversation; scoped delete/export remain unimplemented | offline | `tests/test_conversations.py` | partial |
+| T-IDEMPOTENCY | Same key + request maps to the same result; changed request conflicts; retry survives restart | offline | `tests/test_conversations.py` | passing for conversation commands only |
 | T-BROWSER-ISOLATION | Two bots never share profile, page or teardown | offline (fake driver) + live-if-Playwright | `tests/test_browser_ownership.py` | planned |
 | T-HANDOFF | `waiting_human` pauses automation and resumes after revalidation | offline (fake driver) | `tests/test_browser_ownership.py` | planned |
 | T-INJECTION | Tool-result text cannot add authority or become executable UI | offline | `tests/test_untrusted_content.py` | planned |

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>hutch — your bots, your machine, your rules</title>
-  <meta name="description" content="hutch is the local-first, open-source multi-bot agent platform. Run sovereign AI agents on your machine with hard spend caps, human approval gates, DST-safe cron, and full append-only transcripts.">
+  <meta name="description" content="hutch is a MIT-licensed, local-first multi-bot platform in private preview. Run bots on Linux with human approvals, DST-safe schedules, durable conversations, and enforceable usage limits.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 28 9v14L16 30 4 23V9z' fill='none' stroke='%2334d399' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%2334d399'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -65,7 +65,7 @@
   <div class="wrap hero-inner">
     <div class="kicker">
       <span class="kicker-dot"></span>
-      Local-first · sovereign multi-bot platform · MIT
+      Local-first · private preview · MIT
     </div>
     
     <h1 class="hero-title">
@@ -73,9 +73,9 @@
     </h1>
     
     <p class="hero-sub">
-      Named AI bots that live on your own computer. Each has its own model, tools, schedule and workspace.
-      Per-bot token and spend caps, DST-aware cron that catches up after sleep, and a human decision before
-      consequential actions. Early software: Linux first, installed from source.
+      Named bots, each with its own model, schedule, workspace and conversation threads. History survives restarts; only bounded recent context goes to the selected model.
+      Per-bot token limits and currency caps where pricing is known. Human approval gates consequential actions.
+      Early Linux software; the source repository is private and a checkout is available by invitation.
     </p>
     
     <div class="hero-actions">
@@ -364,6 +364,7 @@
         <ul class="bento-list">
           <li><b>Transcripts:</b> Prompts, tool calls, outputs and token counts are written to SQLite and a JSONL mirror with a hash chain.</li>
           <li><b>Caps:</b> Max steps, wall-clock timeout and daily token quota per bot; spend caps for priced hosted models.</li>
+          <li><b>Conversations:</b> Separate threads persist across restarts. Only a bounded recent slice is sent to the selected model; archive hides a thread and retains its data.</li>
           <li><b>Model choice:</b> Ollama, llama.cpp, LM Studio, OpenAI-compatible and Anthropic endpoints, or the offline mock runtime. Tested against recorded fakes; live runs depend on your setup.</li>
           <li><b>External harnesses:</b> Pi and OpenCode are currently unavailable because their tool permissions, process sandbox and provider budgets are not governed by Hutch.</li>
         </ul>
@@ -561,7 +562,7 @@
 
       <details class="faq-item">
           <summary>Does hutch phone home or send telemetry?</summary>
-          <p>hutch itself sends no telemetry and has no accounts; we searched the source for analytics and phone-home code and found none. Your data still leaves the machine whenever you configure something that sends it: a hosted model receives the conversation, and <code>web_fetch</code> and the browser contact the sites you point them at. With a local model and no web tools, nothing is sent. State lives in <code>~/.local/state/hutch</code> as SQLite and JSONL files you can inspect, back up or delete.</p>
+          <p>hutch itself sends no telemetry and has no accounts; we searched the source for analytics and phone-home code and found none. Your data still leaves the machine whenever you configure something that sends it: a hosted model receives the bounded conversation context, and <code>web_fetch</code> and the browser contact the sites you point them at. With a local model and no network-facing tools, run context stays on the machine. State lives in <code>~/.local/state/hutch</code> as SQLite and JSONL files you can inspect and back up.</p>
         </details>
 
       <details class="faq-item">

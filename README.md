@@ -2,7 +2,7 @@
 
 > Your bots. Your machine. Your rules.
 
-hutch is a **local-first, open-source multi-bot agent platform** (early software, Linux first). Run named AI bots on
+hutch is a **local-first, MIT-licensed multi-bot platform in private preview** (early software, Linux first). Run named AI bots on
 your own machine, each with its own model, tools, schedule, memory and workspace, with human approval gates,
 step/time/token caps and run transcripts.
 
@@ -71,6 +71,8 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 - **Caps** — steps, wall-clock, daily tokens per bot; spend caps for priced hosted models (a token cap is not a currency cap). `serve`, `daemon`, and `hutch run` use one owned worker process per attempt; cancellation stays visible until cleanup is verified
 - **Workspace and shell containment** — file tools stay in the workspace. New bots request Linux bubblewrap strict mode for shell commands, with no shell network and bounded resources; unsupported hosts fail closed. Existing bots keep their saved setting, and `sandbox: off` is explicitly uncontained execution. This shell boundary is not a VM and does not contain the browser or external runtimes
 - **Run transcripts** — every run in SQLite + a JSONL mirror on disk
+- **Conversations (preview)** — the Studio stores separate threads across restarts, offers thread switching and archive, and sends a
+  bounded recent history to the builtin runtime. The versioned API has SQLite full-text search and restart-safe command idempotency.
 - **Browser (experimental)** — optional Playwright extra and a persistent profile per bot. A run can pause at some detected login
   walls; live handoff in the same session and a pinned browser egress path are unavailable.
 - **External runtimes** — Pi and OpenCode are recognized in old bot configs but disabled before starting a process. Their
@@ -89,6 +91,7 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 | [Design system](docs/design-system.md) | shared UI tokens, components, icon/emoji policy, a11y rules |
 | [Roadmap](docs/roadmap.md) | phases: hardening → capability → scale-out |
 | [Realignment](docs/realignment/baseline.md) | measured baseline, evidence ledger, [architecture decisions](docs/adr/), continuation ledger |
+| [API and conversation contract](docs/realignment/contracts.md) | versioned local resources, idempotency, cursors and remaining remote-access gaps |
 | [Research](docs/research/) | orchestrator/runtime comparison; incident-based requirements |
 
 Marketing site: [website/](website/index.html) (static landing page; its claims are checked against the evidence ledger).

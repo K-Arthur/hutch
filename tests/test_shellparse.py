@@ -223,6 +223,14 @@ def test_an_ask_class_command_is_never_allowed_in_any_context(atom, chain):
 @given(st.sampled_from(BENIGN), benign_chain)
 def test_a_benign_command_is_never_blocked_in_any_context(atom, chain):
     cmd = wrap(atom, chain)
+    try:
+        split_compound(cmd)
+    except ParseError:
+        # Composition can create an ambiguous construct (notably nested quotes inside a
+        # $((...)) expansion). The analyser must reject it rather than promise that every
+        # generated shell form is safe to interpret.
+        assert v(cmd) == "deny", cmd
+        return
     assert v(cmd) == "allow", cmd
 
 
@@ -239,6 +247,13 @@ def test_ambiguous_arithmetic_is_analysed_as_a_command_too(cmd):
 def test_real_arithmetic_stays_arithmetic():
     for cmd in ("echo $((1+2))", "echo $(( x * 3 ))", "echo $(( (1+2) * 3 ))", "echo $((a<b && b<c))"):
         assert v(cmd) == "allow", cmd
+
+
+def test_ambiguous_nested_arithmetic_with_command_substitution_fails_closed():
+    cmd = 'echo "$(( echo "$(ls)" ))"'
+    with pytest.raises(ParseError):
+        split_compound(cmd)
+    assert v(cmd) == "deny"
 
 
 @FUZZ

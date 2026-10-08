@@ -54,5 +54,9 @@ def test_static_assets_expose_new_behaviour(client):
     assert "function announce(" in js
     assert "function pollHealth(" in js
     assert "function typingHtml(" in js
+    assert 'label: "Stopping"' in js
+    assert '"Status unavailable"' in js
+    assert "return statusInfo[status] ? !statusInfo[status].terminal : true" in js
+    assert 'status.replace("_", " ")' not in js
     assert ".typing-dots" in css
     assert "typing-bounce" in css

@@ -42,7 +42,9 @@ targeted existing internal sections and worked without authentication. The quick
 private and no PyPI package is published; anonymous visitors are not shown a dead public install link.
 
 The pending approval card and its decision buttons remain visible on the phone viewport. The Studio keeps the composer reachable on
-desktop, tablet and phone. The full-screen app menu now moves focus to its first link, wraps Tab within the menu, closes on Escape and
+desktop, tablet and phone. Conversation selector, New, Archive and Settings wrap onto a second row at phone width without clipping.
+Lifecycle chips use plain-language labels; the cancelling-state browser regression checks that “Stopping” remains visible while the
+run is nonterminal. The full-screen app menu now moves focus to its first link, wraps Tab within the menu, closes on Escape and
 returns focus to its toggle. The focused Playwright browser regression passed. The marketing-site menu also opened/closed by keyboard
 and restored focus; site tablists changed selection with arrow keys. Reduced-motion mode was used for the repeatable screenshot pass.
 

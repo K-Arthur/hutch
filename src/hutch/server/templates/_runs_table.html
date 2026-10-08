@@ -7,7 +7,7 @@
     <tr class="clickable" onclick="location.href='/runs/{{ r.id }}'">
       <td class="mono"><a href="/runs/{{ r.id }}">{{ r.id[4:16] }}</a></td>
       <td><a href="/bots/{{ r.bot_name }}">{{ r.bot_name }}</a></td>
-      <td><span class="chip st-{{ r.status.value }}">{{ r.status.value | replace("_", " ") }}</span>{% if r.rehearsal %} <span class="tag">rehearsal</span>{% endif %}</td>
+      <td><span class="chip st-{{ r.status.value }}">{{ r.status_label }}</span>{% if r.rehearsal %} <span class="tag">rehearsal</span>{% endif %}</td>
       <td class="muted">{{ r | origin }}</td>
       <td class="hide-sm snip">{{ r.prompt[:90] }}</td>
       <td class="num mono">{{ r.steps }}</td>

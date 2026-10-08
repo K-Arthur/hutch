@@ -52,7 +52,7 @@
     <article class="row">
       <header>
         <a href="/runs/{{ run.id }}"><strong>{{ bot_name }}</strong></a>
-        <span class="chip st-{{ run.status.value }}">{{ run.status.value | replace("_", " ") }}</span>
+        <span class="chip st-{{ run.status.value }}">{{ run.status_label }}</span>
         {% if run.rehearsal %}<span class="tag">rehearsal</span>{% endif %}
         <span class="muted">via {{ run | origin }}</span>
       </header>

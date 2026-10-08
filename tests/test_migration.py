@@ -68,6 +68,24 @@ def test_upgrade_preserves_transcripts_and_their_hash_chain(v4):
         store.close()
 
 
+def test_upgrade_keeps_legacy_run_contexts_separate(v4):
+    store = Store(v4)
+    try:
+        first = store.get_conversation(f"conv_legacy_{FINISHED_1}")
+        second = store.get_conversation(f"conv_legacy_{FINISHED_2}")
+        assert first and second and first["is_legacy"] and second["is_legacy"]
+        assert first["id"] != second["id"] and first["bot_id"] != second["bot_id"]
+        assert store.get_run(FINISHED_1).conversation_id == first["id"]
+        first_messages = store.list_conversation_messages(first["id"])
+        second_messages = store.list_conversation_messages(second["id"])
+        assert first_messages[0]["role"] == second_messages[0]["role"] == "user"
+        assert first_messages[0]["content"] != second_messages[0]["content"]
+        assert all(message["run_id"] == FINISHED_1 for message in first_messages)
+        assert all(message["run_id"] == FINISHED_2 for message in second_messages)
+    finally:
+        store.close()
+
+
 def test_a_backup_is_written_before_the_upgrade(v4):
     Store(v4).close()
     assert (v4.state_dir / "hutch.db.bak-v4").exists()

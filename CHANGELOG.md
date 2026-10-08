@@ -5,6 +5,11 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 ## [Unreleased]
 
 ### Added
+- **Canonical conversation persistence and v1 API (partial):** schema v8 imports each old run into a separate legacy conversation;
+  new conversation/message/archive commands use atomic `Idempotency-Key` records and reject key reuse with changed arguments. Run
+  admission snapshots up to 12 prior messages and 16,000 characters for the builtin runtime. FTS5 searches messages explicitly;
+  search results are not injected into prompts. Studio supports durable thread switching and archive. Global event replay and remote
+  pairing remain open.
 - **Fail-closed external runtimes:** legacy Pi/OpenCode selections now stop before spawning a subprocess because their permissions,
   process containment and provider-budget paths are not governed. OpenCode `--auto` and the broken Pi RPC adapter are removed from
   the execution path. Browser profiles and contexts are instance-owned per bot; fixture tests verify separate profile directories.
@@ -36,6 +41,10 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   The daemon badge no longer claims a hardcoded "live": health is established from `/api/health` with
   a heartbeat and degrades to `reconnecting`/`offline`. A 3-dot working indicator shows while a bot is
   actually computing (never for a waiting-for-human run). Contract tests in `tests/test_studio_shell.py`.
+- **Run status labels**: the Studio and server-rendered run lists show lifecycle labels such as
+  “Stopping” while owned cleanup is underway. Queued, resource-waiting, recovery and cancellation
+  states remain active in the UI; an unknown future status stays visible until the server provides
+  its label and terminal bit.
 - **Reference map** ([docs/research/reference-map.md](docs/research/reference-map.md)): verified
   this session against the Grok Bot changelog (v0.68.1) and the two Open WebUI issues (#31656
   closed, #30055 open) — observed patterns, evidence, Hutch equivalents, and the deliberate

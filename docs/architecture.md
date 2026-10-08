@@ -11,12 +11,13 @@ flowchart LR
   subgraph Clients
     CLI["hutch CLI<br/>(typer)"]
     UI["Dashboard<br/>(FastAPI + static SPA)"]
+    API["REST API<br/>legacy + partial v1"]
   end
 
   subgraph Core
     ENG["Engine<br/>dispatch · caps · transcripts · stop"]
     SCH["Scheduler<br/>croniter + IANA tz · catch-up"]
-    SCHED_STORE[("SQLite (WAL)<br/>bots · tasks · runs · events<br/>approvals · memory · allows")]
+    SCHED_STORE[("SQLite (WAL)<br/>bots · tasks · runs · events<br/>conversations · messages · approvals · memory")]
     POL["Policy engine<br/>compound-command parser · path jail · URL guards"]
     GATE["Approval gate<br/>fail-closed · sticky allows"]
   end
@@ -36,7 +37,10 @@ flowchart LR
   end
 
   CLI --> ENG
-  UI --> ENG
+  UI --> API
+  API --> ENG
+  API --> CONV["Conversation service<br/>bounded history · idempotency"]
+  CONV --> SCHED_STORE
   SCH --> ENG
   ENG --> SCHED_STORE
   ENG --> BUILTIN & MOCK & EXT
@@ -53,7 +57,7 @@ flowchart LR
 Everything lives under one directory (default `~/.local/state/hutch`, override `HUTCH_STATE_DIR`):
 
 ```
-hutch.db                      # SQLite (WAL): all entities + events
+hutch.db                      # SQLite (WAL): bots, tasks, runs, events, conversations, approvals, memory, receipts
 bots/<bot>/runs/<run_id>/
   transcript.jsonl              # append-only run transcript (mirror of events)
   workspace/                    # the bot's jailed world for this run
@@ -112,7 +116,7 @@ verified; otherwise `cancelling` or `recovering` remains visible with a reason. 
 ### D6 — Web dashboard and CLI are the same engine
 
 `hutch serve` runs FastAPI with a background supervisor loop, serving a dependency-free static SPA that polls `/api`. A durable
-SQLite lease elects one scheduler/recovery supervisor across dashboard workers and `hutch daemon`; other web workers submit work
+SQLite lease elects one scheduler/recovery supervisor across dashboard workers and `hutch daemon`; web workers submit work
 and wait for state changes. The CLI drives the same `Engine`.
 No separate daemon is required for dashboard-driven usage; `hutch daemon` is the headless
 equivalent.
@@ -135,10 +139,12 @@ Each production run has an owned worker process and a supervisor watcher. The wo
 the run's approval gate so `stop` unblocks an approval wait immediately. In-process thread execution is only an explicit
 compatibility/test mode. The browser owns a distinct persistent profile per bot. Browser actions remain serialized by a process-wide
 lock, and live handoff remains open. SQLite access is serialized by an RLock in `Store`, and migration startup is additionally serialized across
-processes.
+processes. Schema v8 stores canonical conversations, user/assistant messages and run links; old runs are imported one per legacy
+conversation to avoid guessing continuity. Versioned conversation writes and run admission are idempotent and transactional. The
+builtin runtime receives a capped snapshot of earlier messages; the dashboard composer still needs to move to these endpoints.
 
 ## What is deliberately NOT here (yet)
 
-Vector retrieval, webhook triggers, multi-user access, bounded agent-to-agent collaboration, browser handoff and remote
+Vector retrieval, webhook triggers, multi-user access, bounded agent-to-agent collaboration, artifact versioning, browser handoff and remote
 supervision, Windows/macOS support — tracked in `docs/roadmap.md`. The Linux shell has optional, fail-closed bubblewrap
 containment; it is not a VM and does not contain every tool or the browser.

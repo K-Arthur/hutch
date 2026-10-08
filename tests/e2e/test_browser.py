@@ -168,6 +168,66 @@ def test_spa_transcript_renders_a_live_run(browser, live, monkeypatch):
     ctx.close()
 
 
+def test_studio_conversation_survives_reload_and_archive(browser, live):
+    base, app = live
+    bot = app.state.store.create_bot(Bot(name="durable-chat", model="mock/demo", tools=[]))
+    context = browser.new_context(viewport={"width": 1100, "height": 800})
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(base + "/#/chat/durable-chat")
+    page.locator("#conversation-switcher").wait_for()
+    conversation_id = page.locator("#conversation-switcher").input_value()
+
+    page.locator("#chat-prompt").fill("First durable conversation")
+    with page.expect_response(lambda r: "/api/v1/conversations/" in r.url and r.url.endswith("/messages")
+                              and r.request.method == "POST") as first_response:
+        page.locator("#chat-send").click()
+    first_run = first_response.value.json()
+    assert first_run["conversation_id"] == conversation_id
+    wait_for(lambda: app.state.store.get_run(first_run["id"]).status.value == "succeeded")
+    page.locator("#chat-stream").get_by_text("First durable conversation", exact=True).wait_for()
+    page.locator(".chat-msg.agent .msg-text").filter(has_text="First durable conversation").wait_for()
+
+    page.reload()
+    page.locator("#conversation-switcher").wait_for()
+    page.locator("#chat-stream").get_by_text("First durable conversation", exact=True).wait_for()
+    page.locator(".chat-msg.agent .msg-text").filter(has_text="First durable conversation").wait_for()
+
+    page.locator("#chat-prompt").fill("Continue this conversation")
+    with page.expect_response(lambda r: "/api/v1/conversations/" in r.url and r.url.endswith("/messages")
+                              and r.request.method == "POST") as second_response:
+        page.locator("#chat-send").click()
+    second_run = second_response.value.json()
+    stored = app.state.store.get_run(second_run["id"])
+    assert stored.conversation_context[0] == {"role": "user", "content": "First durable conversation"}
+    wait_for(lambda: app.state.store.get_run(second_run["id"]).status.value == "succeeded")
+
+    page.locator("#studio-archive-conversation").click()
+    wait_for(lambda: page.locator("#conversation-switcher").input_value() != conversation_id)
+    archived = app.state.store.get_conversation(conversation_id)
+    assert archived["archived"] == 1
+    assert len(app.state.store.list_conversation_messages(conversation_id)) >= 4
+    assert not errors, errors
+    context.close()
+
+
+def test_stopping_status_uses_human_label_and_stays_nonterminal(browser, live):
+    base, app = live
+    bot = app.state.store.create_bot(Bot(name="status-bot", model="mock/demo", tools=[]))
+    run = app.state.engine.submit(bot, "wait for cancellation")
+    app.state.store.transition_run(run.id, RunStatus.cancelling)
+
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    page.goto(f"{base}/#/run/{run.id}")
+    chip = page.locator(".page-subtitle .status")
+    assert chip.inner_text() == "Stopping"
+    assert chip.get_attribute("class").endswith("cancelling")
+    assert page.get_by_text("cancelling", exact=True).count() == 0
+    assert app.state.store.get_run(run.id).terminal is False
+    page.close()
+
+
 def test_mobile_navigation_traps_tab_and_restores_focus(browser, live):
     base, _app = live
     page = browser.new_page(viewport={"width": 390, "height": 844})
@@ -265,7 +325,8 @@ def test_composer_switcher_menu_check_keyboard_and_per_message_override(browser,
     assert "is-custom" in btn.get_attribute("class")
 
     page.locator("#chat-prompt").fill("hello there")
-    with page.expect_response(lambda r: r.url.endswith("/api/bots/chatty/run") and r.request.method == "POST") as info:
+    with page.expect_response(lambda r: "/api/v1/conversations/" in r.url and r.url.endswith("/messages")
+                              and r.request.method == "POST") as info:
         page.locator("#chat-send").click()
     body = info.value.json()
     assert body["model_override"].startswith("ollama/") and body["model_override"] == "ollama/small:2b"

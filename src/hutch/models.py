@@ -239,6 +239,8 @@ class Run(BaseModel):
     plan_task_id: Optional[str] = None
     rehearsal: bool = False           # dry run: mutating actions are simulated
     model_override: str = ""          # the model picked for THIS message in the chat switcher (bot.model is untouched)
+    conversation_id: str = ""          # canonical conversation this run belongs to, if submitted through /api/v1
+    conversation_context: list[dict[str, str]] = Field(default_factory=list, exclude=True)
     owner: str = ""                   # pid of the process executing this run (kept for compatibility; see lease_owner)
     # --- ownership (ADR-0001/0003). These mirror columns; the columns are authoritative.
     fence: int = 0                    # bumped at every claim and recovery; a write with a stale fence is rejected

@@ -1,12 +1,12 @@
 # ADR-0002: Model the product, not just execution attempts
 
-Status: proposed target architecture; implementation pending (2026-10-07). Slice: S6. Evidence: baseline journey "continue a conversation", A2, A3.
+Status: partially implemented (2026-10-07). Slice: S6. Evidence: baseline journey "continue a conversation", A2, A3.
 
 ## Context
 
-Today a bot's "conversation" is a list of unrelated runs (baseline). Grok Bot and dots both treat the bot as a *durable
-teammate with its own conversation* whose context develops over time (A2, A3). Hutch has Bot, Task, Run, Event,
-ApprovalRequest, MemoryItem only.
+Before schema v8, a bot's "conversation" was a list of unrelated runs. Hutch now has canonical `conversations`, `messages`, and
+`conversation_runs` tables. The Studio selects and archives threads through the versioned API, displays persisted message history,
+and submits follow-up runs to the same conversation. Legacy run pages remain available.
 
 ## Decision
 
@@ -16,8 +16,8 @@ foreign keys on; JSON `doc` columns only for fields that are never queried.
 | Entity | Purpose | Key rules |
 |---|---|---|
 | **Bot** | Configuration and identity (exists) | Renaming never changes `id`; `upsert_bot` no longer rewrites ids |
-| **Conversation** | A thread between the operator and one bot | A bot has many; context is never shared across conversations unless the user attaches it; `archived_at` |
-| **Message** | A user or assistant turn, or a system notice | Owned by a conversation; points at the run that produced it; this is the canonical user-visible transcript |
+| **Conversation** | A thread between the operator and one bot (implemented) | A bot has many; context is never shared across conversations; archive hides it from default lists |
+| **Message** | A user or assistant turn (implemented) | Ordered by conversation sequence; points at the run that produced it; canonical user/assistant history |
 | **Task** (standing intent) | "Every Monday summarise X" or "finish the Q3 draft" | Separate from attempts; one task has many runs |
 | **Run / Attempt** | One execution (exists) | Belongs to a conversation and optionally a task; has a fence, lease, and ordered state history |
 | **ToolAction + Receipt** | An intended and a completed effect | Written *before* (intent) and *after* (receipt) the effect; basis for `outcome_unknown` |
@@ -50,7 +50,14 @@ Running work is cancelled first; deleting a bot with a live run is refused until
 
 ## Consequences
 
-* Migration required: new tables and a separate legacy-run import strategy. No `conversations` table or history backfill exists yet;
-  old runs are not currently grouped into private contexts.
+* Schema v8 migrates every old run into its own `is_legacy` conversation, with its prompt and assistant message events. It never
+  combines runs whose continuity was not recorded. Existing IDs and event chains remain unchanged.
+* New v1 conversation creation, message admission, archival, and their idempotency receipts are transactional. Each admitted run
+  stores a snapshot of up to 12 prior messages and 16,000 characters; only the governed builtin runtime currently consumes that
+  snapshot. Pi and OpenCode stay disabled, so external-session translation is not active.
+* SQLite FTS5 indexes canonical message text for explicit search. It does not index tool output, credentials, workspaces, or memory,
+  and search results are not automatically injected into prompts.
+* Durable facts, approval/edit workflows for bot-written memory, workspace artifacts, delegation, notification outbox, deletion,
+  and export remain future work. Current archive hides a thread; it does not delete its records.
 * Cost: more tables; each is small and indexed on the foreign key.
 * Rollback: tables are additive; old code ignores them.

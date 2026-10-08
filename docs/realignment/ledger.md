@@ -23,9 +23,9 @@ is a local `main` fast-forward only after all implementation and verification ga
 | S3 supervised run processes and teardown | Implemented; focused tests pass | Production CLI/daemon/web execution uses owned processes, recorded boot/start identity and verified cleanup. Incomplete cleanup stays nonterminal. |
 | S4 shell containment and approval CAS | Implemented; focused tests pass | Bubblewrap tests pass on the present Linux host. This is namespace containment, not a VM; legacy bots retain their previous setting. Browser/external runtime tools remain outside this guarantee. |
 | S5 providers and external runtimes | Partial; adapters fail closed | OpenCode v2.0.24 is installed and its CLI contract was inspected. Existing OpenCode/Pi adapters bypassed Hutch approvals and budgets, so execution now fails before process creation. Re-enable only after sandboxing, brokered permissions, usage reservations and protocol tests. Pi is unavailable; no live run or paid/provider request has been made. |
-| S6 conversations and bounded collaboration | Not started | Current persistent conversational model and restart behavior still need implementation and integration tests. |
+| S6 conversations and bounded collaboration | Conversation foundation partial; collaboration pending | Schema v8 stores conversations/messages, imports each old run separately, uses bounded context snapshots in builtin runs and explicit FTS5 message search. Studio supports thread switching, durable history and archive. Transactional idempotency is tested across restart. Standing tasks, workspaces/artifacts, scoped fact memory, notifications and delegation remain. |
 | S7 browser ownership and handoff | Partial | Browser context state is instance-owned and persistent profile paths are per-bot; fixture test verifies no profile crossover. Live handoff, pinned egress and browser process supervision remain unavailable. |
-| S8 versioned API and remote supervision | Partial / not release-ready | Legacy routes and run SSE exist. `/api/v1`, durable global cursor replay, idempotency and safe phone pairing still need implementation. |
+| S8 versioned API and remote supervision | Local API partial; remote unavailable | `/api/v1` currently covers health/status labels, bots, conversations/search, run/event aliases, approval aliases and usage summary. Conversation create/message/archive are idempotent, conflict on changed payloads, and survive restart. Global ordered SSE, retention-gap snapshots, idempotent approval/stop commands, workspace/artifact and capability resources, pairing, WebSocket auth and tunnel remain unimplemented. |
 | S9 product integration, performance and visual validation | UI visual pass recorded; performance work remains | Screenshots and Playwright traces cover desktop/tablet/phone and empty/loading/error/approval/cancelling/reconnecting UI states. Internal site CTA targets, phone overflow, page errors, reduced motion, tablist arrows and mobile-menu focus were checked. This is not screen-reader, real-device or full workflow certification. Repeated comparable performance measurements remain open. See `visual-validation.md`. |
 
 ## Commits
@@ -42,7 +42,9 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `0ab3058` | Merge local `main` into `realign/platform` |
 | `ed82ce1` | S2–S4 audit repairs, docs, test corrections and truthful marketing copy |
 | `98c630d` | Correct shell-test escapes and record full-suite verification boundary |
-| _next commits_ | External-runtime safety gate, per-bot browser profile ownership, website and visual-validation work; hashes recorded after commit |
+| `a148b29` | Fail-closed Pi/OpenCode, per-bot browser profile ownership, safety docs and truthful website claims |
+| `4a242af` | Phone menu focus handling, responsive visual validation report, screenshots and traces |
+| _next commit_ | Schema v8 conversations, migration, bounded context, FTS5, idempotency and partial `/api/v1` contracts; hash recorded after commit |
 
 ## Verified behavior before this checkpoint
 
@@ -57,6 +59,8 @@ is a local `main` fast-forward only after all implementation and verification ga
 | SSRF | `tests/test_netguard.py` | Hostile address forms and redirect targets are rejected; public requests use the validated address. |
 | Process teardown | `tests/test_procguard.py`, `tests/test_worker.py` | Boot/start identities and pidfds are used; survivor cleanup remains visible and retryable. |
 | Sandbox | `tests/test_sandbox.py` | **16 passed** on the present Linux host with bubblewrap and delegated systemd cgroups. |
+| Conversation migration and API | `tests/test_migration.py tests/test_conversations.py` | Historic run histories stay separate; new conversations/messages/archive use transactional idempotency; bounded context and FTS search survive restart. **13 passed** in the focused run. |
+| Run submission from web routes | `tests/test_api.py tests/test_dashboard.py tests/test_models_page.py` | Web handlers submit durable work; the elected background supervisor dispatches. **54 passed** with conversation/migration suites. |
 | Focused core, safety, and worker suites | `tests/test_claims.py tests/test_cancel.py tests/test_procguard.py tests/test_engine_loop.py tests/test_migration.py tests/test_tools.py tests/test_sandbox.py tests/test_engine.py tests/test_runtime.py` | **100 passed** after correcting the thread-mode timeout assertion and joining the approval test helper. |
 | Merged UI and templates | `tests/test_worker.py tests/test_api.py tests/test_dashboard.py tests/test_templates.py tests/test_studio_shell.py` | **98 passed**. |
 

@@ -1,8 +1,8 @@
-# Contracts shared with the frontend workstream
+# Versioned API and frontend contracts
 
-The frontend is a separate workstream (another session owns `server/static/*` and `server/pages.py`). Nothing here is built
-by editing those files. This page is the agreement about what the server will provide, so the two can proceed in parallel.
-It is a living document: a contract is marked **landed** only when the server tests for it pass on this branch.
+This is the public contract for the local HTTP API and the dashboard. The v1 surface is partial; a resource is marked **landed** only
+when server tests cover its behavior. The Studio now selects, archives and submits conversations through the canonical endpoints;
+approvals, stop and other screens still use compatibility routes.
 
 ## 1. Run status values and labels (landed with slice S2)
 
@@ -24,7 +24,10 @@ It is a living document: a contract is marked **landed** only when the server te
 | `outcome_unknown` | Needs review | yes | **yes** | an action may or may not have happened; list `unknown_actions` |
 | `skipped` | Skipped | yes | no | scheduled occurrence deliberately not run |
 
-A client that does not know a status must render its label from `GET /api/v1/status-labels` (landing with S8) and treat it as non-terminal.
+A client that does not know a status must render its label from `GET /api/v1/status-labels` and treat it as non-terminal. This endpoint
+is implemented and includes the label, terminal bit, and whether a person is needed. Run resources also carry `status_label` and
+`terminal`; show the label (for example, **Stopping**) and keep the run visible until `terminal` is true. If an unknown status arrives
+without a terminal bit, keep it visible and reconcile instead of guessing that it finished.
 
 ## 2. Authority split
 
@@ -32,17 +35,37 @@ A client that does not know a status must render its label from `GET /api/v1/sta
 * **Browser owns:** drafts, focus, scroll, view filters.
 * An optimistic UI may show "sending"; it must never show a tool as executed or a run as done before the server says so.
 
-## 3. Cursors, idempotency, pagination (landing with S8)
+## 3. Versioned resources, cursors, idempotency, pagination (partial S8)
 
-* Event streams: SSE, `id:` is the per-stream cursor, `Last-Event-ID` resumes, the server replays from the database. A gap returns the authoritative state.
-* Commands (submit, approve, deny, cancel, resume) accept `Idempotency-Key`; replaying one returns the original outcome.
-* Lists: `limit` (max 200) and `after`; never an unbounded response.
+* Landed local routes: `/api/v1/health`, `/api/v1/status-labels`, `/api/v1/bots`, `/api/v1/conversations`,
+  `/api/v1/search/messages`, `/api/v1/tasks/runs`, `/api/v1/actions/approvals`, and `/api/v1/usage`.
+* Conversation create, message submit, and archive require `Idempotency-Key`. Exact retries return the same resource/run; reusing the
+  key with different request content returns 409. An absent key returns 428.
+* Conversation history is cursor-paginated with `after` and a maximum page size of 100. Run events keep the existing per-run `seq`
+  cursor and SSE `Last-Event-ID` replay, including the versioned run alias.
+* Approval, stop, resume and legacy bot-run commands do not yet accept idempotency keys. There is no global ordered SSE cursor or
+  retention-gap snapshot endpoint yet.
+* Stable workspace/artifact resources, verified capability records, remote control sessions and phone pairing are not available.
+  The service remains loopback-only; the marketing site cannot reach localhost.
 
 ## 4. Frontend acceptance items taken from the evidence ledger
 
 | From | Requirement |
 |---|---|
-| C2 (Open WebUI #30055) | A pending approval or handoff must be visible on **every** view and mode, including full-screen overlays, with a visible count. |
+| C2 (Open WebUI #30055) | A pending approval or user question must be visible on **every** view and mode, including full-screen overlays, with a visible count. If the request expires, show the cancellation; the source report's 60–240s timeout is a recovery path, not a substitute for surfacing the request. |
 | C3 (Open WebUI #31656) | On phones, closing a menu must not move focus into a text field (no keyboard pop-up). |
 | A1, A3 | A person can open the live session and take over; the UI says who holds control. |
 | ADR-0003 | `cancelling` and `outcome_unknown` are first-class and explained in plain language. |
+
+## 5. Conversation resource (landed; broader S6 work pending)
+
+`POST /api/v1/conversations` takes `{bot, title}`. `POST /api/v1/conversations/{id}/messages` takes `{prompt, model?, rehearse?}`.
+Both require an `Idempotency-Key`. The server atomically appends the user message, stores a bounded history snapshot on the run, and
+admits the run. `GET /api/v1/conversations/{id}?after=0&limit=100` returns ordered messages, `last_seq`, and `has_more`; default and
+maximum page size is 100. `POST /api/v1/conversations/{id}/archive` hides/restores a conversation and retains its messages and run
+receipts. `GET /api/v1/search/messages?q=...` performs explicit FTS5 search over non-legacy conversations only; retrieved text is
+not automatically added to a model prompt.
+
+Schema v8 imports each historical run into its own legacy conversation. It does not infer continuity or combine contexts. The
+Studio lets the operator select these imported threads; the builtin runtime receives up to 12 prior messages and 16,000 characters.
+External runtimes do not consume this history.

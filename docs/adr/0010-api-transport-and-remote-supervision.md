@@ -1,14 +1,16 @@
 # ADR-0010: API contracts, event transport, and phone supervision
 
-Status: proposed target architecture; implementation pending (2026-10-07). Slice: S8. Evidence: baseline "reconnect", `security.py` WebSocket gap, A1/A3, C2.
+Status: partially implemented (2026-10-07). Slice: S8. Evidence: baseline "reconnect", `security.py` WebSocket gap, A1/A3, C2.
 
 ## Decision
 
-* **Contract first** (`docs/realignment/contracts.md`): typed Pydantic schemas, versioned under `/api/v1`, ordered per-stream cursors,
-  idempotent commands (`Idempotency-Key`), pagination (`limit`, `after`), and reconciliation (`GET` after a gap returns the authoritative
-  state). Existing `/api/*` routes stay as aliases until the frontend migrates.
-* **Transport**: SSE with `Last-Event-ID` for state and conversation events (exists for runs; extended with a global `/api/v1/events`
-  stream). The interactive terminal and browser-handoff input use a **separate WebSocket**, authenticated per message and gated by the
+* **Contract first** (`docs/realignment/contracts.md`): typed Pydantic schemas now cover health, status labels, conversations, messages,
+  search results, and selected run/approval aliases under `/api/v1`. Conversation creation, message submission, and archive commands
+  require an `Idempotency-Key`, persist the request hash and result in the same transaction, and return 409 if a key is reused with
+  different arguments. Conversation messages and lists are bounded and cursor-paginated. Other command families, global ordered
+  cursors, retention-gap snapshots, and full schemas remain to be implemented. Existing `/api/*` routes stay as compatibility paths.
+* **Transport**: legacy per-run SSE supports `Last-Event-ID`; the versioned per-run alias is available. Durable global replay for
+  conversations and all resources is not implemented. The interactive terminal and browser-handoff input use a **separate WebSocket**, authenticated per message and gated by the
   same middleware (the current middleware passes non-HTTP scopes through - fixed).
 * **Server owns** status, approval resolution, receipts, permissions and usage. The browser owns drafts, focus and view state. Optimistic UI
   may show "sending", never "done".
@@ -25,5 +27,6 @@ Status: proposed target architecture; implementation pending (2026-10-07). Slice
 
 ## Consequences
 
-Current boundary: `/api/v1`, pairing, device sessions, PTY WebSocket and remote binding controls are not implemented. The current
-service remains loopback-only; there is no `--allow-remote` option or pairing flow to enable.
+Current boundary: the local `/api/v1` surface and Studio conversation flow are partial; approvals, stops and other existing screens
+still use compatibility routes. Pairing, device sessions, PTY WebSocket, global replay and remote binding controls are not implemented. The current service remains
+loopback-only; there is no `--allow-remote` option or pairing flow to enable.

@@ -6,18 +6,36 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
 const view = $("#view");
 
-const ACTIVE = new Set(["pending", "running", "waiting_approval"]);
+const DEFAULT_STATUS_INFO = {
+  pending: { label: "Queued", terminal: false },
+  loading_model: { label: "Loading the model", terminal: false },
+  running: { label: "Working", terminal: false },
+  waiting_approval: { label: "Waiting for you", terminal: false },
+  waiting_human: { label: "Needs you", terminal: false },
+  waiting_resources: { label: "Waiting for a free slot or quota", terminal: false },
+  recovering: { label: "Recovering", terminal: false },
+  cancelling: { label: "Stopping", terminal: false },
+  succeeded: { label: "Done", terminal: true },
+  failed: { label: "Failed", terminal: true },
+  stopped: { label: "Cancelled", terminal: true },
+  outcome_unknown: { label: "Needs review", terminal: true },
+  skipped: { label: "Skipped", terminal: true },
+  stale: { label: "Stale", terminal: true },
+};
+let statusInfo = { ...DEFAULT_STATUS_INFO };
 let pollTimer = null;
 let currentStudioBot = null;
 let currentRunId = null;
+let currentConversationId = null;
+let currentConversations = [];
 let lastPrompt = "";
 
 // ------------------------------------------------------------------ utils
 
 async function api(path, opts = {}) {
   const res = await fetch(`/api${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...opts,
+    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   if (!res.ok) {
@@ -26,6 +44,59 @@ async function api(path, opts = {}) {
     throw new Error(msg);
   }
   return res.status === 204 ? null : res.json();
+}
+
+function newIdempotencyKey() {
+  return window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function storageGet(key) { try { return localStorage.getItem(key); } catch { return null; } }
+function storageSet(key, value) { try { localStorage.setItem(key, value); } catch {} }
+function storageRemove(key) { try { localStorage.removeItem(key); } catch {} }
+
+async function payloadFingerprint(body) {
+  const raw = JSON.stringify(body);
+  if (window.crypto?.subtle) {
+    const bytes = await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
+    return [...new Uint8Array(bytes)].map(x => x.toString(16).padStart(2, "0")).join("");
+  }
+  let hash = 2166136261;
+  for (let i = 0; i < raw.length; i++) hash = Math.imul(hash ^ raw.charCodeAt(i), 16777619);
+  return (hash >>> 0).toString(16);
+}
+
+async function messageIdempotencyKey(conversationId, body) {
+  const storageKey = `hutch-pending-message:${conversationId}`;
+  const fingerprint = await payloadFingerprint(body);
+  try {
+    const previous = JSON.parse(localStorage.getItem(storageKey) || "null");
+    if (previous?.fingerprint === fingerprint && previous?.key) return previous.key;
+  } catch { /* discard a damaged browser-local retry marker */ }
+  const key = newIdempotencyKey();
+  storageSet(storageKey, JSON.stringify({ key, fingerprint }));
+  return key;
+}
+
+function clearMessageIdempotencyKey(conversationId, key) {
+  const storageKey = `hutch-pending-message:${conversationId}`;
+  try {
+    const previous = JSON.parse(localStorage.getItem(storageKey) || "null");
+    if (previous?.key === key) localStorage.removeItem(storageKey);
+  } catch { storageRemove(storageKey); }
+}
+
+async function createStudioConversation(bot) {
+  const storageKey = `hutch-pending-conversation:${bot.id}`;
+  let key = storageGet(storageKey);
+  if (!key) {
+    key = newIdempotencyKey();
+    storageSet(storageKey, key);
+  }
+  const conversation = await api("/v1/conversations", {
+    method: "POST", headers: { "Idempotency-Key": key }, body: { bot: bot.id, title: "" },
+  });
+  storageRemove(storageKey);
+  return conversation;
 }
 
 function esc(s) {
@@ -75,8 +146,23 @@ function fmtTokens(n) {
   return String(n ?? 0);
 }
 
-function statusChip(status) {
-  return `<span class="status ${esc(status)}">${esc(status.replace("_", " "))}</span>`;
+function isActiveStatus(status, terminal = null) {
+  // Unknown statuses remain visible and polled until the server explains them.
+  if (typeof terminal === "boolean") return !terminal;
+  return statusInfo[status] ? !statusInfo[status].terminal : true;
+}
+
+function statusChip(status, label = null) {
+  const display = label || statusInfo[status]?.label || "Status unavailable";
+  return `<span class="status ${esc(status)}">${esc(display)}</span>`;
+}
+
+async function loadStatusInfo() {
+  try {
+    const labels = await api("/v1/status-labels");
+    statusInfo = Object.fromEntries(labels.map(item => [item.status, item]));
+    if (!statusInfo.stale) statusInfo.stale = DEFAULT_STATUS_INFO.stale;
+  } catch { /* use the bundled labels until the versioned API is reachable */ }
 }
 
 // Inline SVG icon set — the only permitted iconography (see scripts/audit_emoji.py).
@@ -363,10 +449,23 @@ async function renderChatStudio(preferredBot = null) {
             bots[0];
   currentStudioBot = bot.name;
 
-  // Fetch full details of current bot
+  // Fetch full details of current bot, then select one durable conversation.
   const botDetail = await api(`/bots/${encodeURIComponent(bot.name)}`);
-  const activeRun = botDetail.recent_runs.find(r => ACTIVE.has(r.status)) || botDetail.recent_runs[0] || null;
-  currentRunId = activeRun ? activeRun.id : null;
+  const activeRun = botDetail.recent_runs.find(r => isActiveStatus(r.status, r.terminal)) || null;
+  currentConversations = await api(`/v1/conversations?bot=${encodeURIComponent(bot.id)}&include_legacy=true&limit=100`);
+  const rememberedConversation = storageGet(`hutch-conversation:${bot.id}`);
+  let selectedConversation = currentConversations.find(c => c.id === rememberedConversation) || null;
+  if (!selectedConversation && activeRun?.conversation_id) {
+    selectedConversation = currentConversations.find(c => c.id === activeRun.conversation_id) || null;
+  }
+  if (!selectedConversation) selectedConversation = currentConversations.find(c => !c.is_legacy) || null;
+  if (!selectedConversation) {
+    selectedConversation = await createStudioConversation(bot);
+    currentConversations.unshift(selectedConversation);
+  }
+  currentConversationId = selectedConversation.id;
+  storageSet(`hutch-conversation:${bot.id}`, currentConversationId);
+  currentRunId = selectedConversation.latest_run_id || null;
 
   view.innerHTML = `
     <div class="studio-container">
@@ -399,8 +498,14 @@ async function renderChatStudio(preferredBot = null) {
             </div>
           </div>
           <div class="studio-header-actions">
-            ${activeRun && ACTIVE.has(activeRun.status) ? `
-              <button class="danger small" id="studio-stop-run">${icon("stop")} Stop run</button>
+            <label class="visually-hidden" for="conversation-switcher">Conversation</label>
+            <select class="conversation-select" id="conversation-switcher" aria-label="Conversation">
+              ${currentConversations.map(c => `<option value="${esc(c.id)}" ${c.id === currentConversationId ? "selected" : ""}>${c.is_legacy ? "Imported · " : ""}${esc(c.title || "New conversation")}</option>`).join("")}
+            </select>
+            <button class="btn ghost small" id="studio-new-conversation">${icon("plus")} New</button>
+            <button class="btn ghost small" id="studio-archive-conversation">Archive</button>
+            ${activeRun && isActiveStatus(activeRun.status, activeRun.terminal) ? `
+              <button class="danger small" id="studio-stop-run" data-run-id="${esc(activeRun.id)}">${icon("stop")} Stop run</button>
             ` : ""}
             <a class="btn ghost small" href="#/bot/${esc(bot.name)}">${icon("sliders")} Settings</a>
           </div>
@@ -507,6 +612,30 @@ async function renderChatStudio(preferredBot = null) {
     });
   });
 
+  // Wire conversation selection and archive/new controls.
+  $("#conversation-switcher")?.addEventListener("change", ev => {
+    storageSet(`hutch-conversation:${bot.id}`, ev.target.value);
+    renderChatStudio(bot.name);
+  });
+  $("#studio-new-conversation")?.addEventListener("click", async () => {
+    try {
+      const conversation = await createStudioConversation(bot);
+      storageSet(`hutch-conversation:${bot.id}`, conversation.id);
+      renderChatStudio(bot.name);
+    } catch (err) { toast(err.message, true); }
+  });
+  $("#studio-archive-conversation")?.addEventListener("click", async () => {
+    if (!currentConversationId) return;
+    try {
+      await api(`/v1/conversations/${encodeURIComponent(currentConversationId)}/archive`, {
+        method: "POST", headers: { "Idempotency-Key": newIdempotencyKey() }, body: { archived: true },
+      });
+      storageRemove(`hutch-conversation:${bot.id}`);
+      toast("Conversation archived; its history is retained");
+      renderChatStudio(bot.name);
+    } catch (err) { toast(err.message, true); }
+  });
+
   // Wire prompt submit & quick prompts
   const txt = $("#chat-prompt");
   const send = $("#chat-send");
@@ -517,7 +646,14 @@ async function renderChatStudio(preferredBot = null) {
     send.textContent = "Running…";
     lastPrompt = promptVal.trim();
     try {
-      const r = await api(`/bots/${encodeURIComponent(bot.name)}/run`, { method: "POST", body: { prompt: promptVal.trim(), model: switcher?.selected() || undefined } });
+      const body = { prompt: promptVal.trim(), rehearse: false, model: switcher?.selected() || null };
+      const key = await messageIdempotencyKey(currentConversationId, body);
+      const r = await api(`/v1/conversations/${encodeURIComponent(currentConversationId)}/messages`, {
+        method: "POST", headers: { "Idempotency-Key": key }, body,
+      });
+      clearMessageIdempotencyKey(currentConversationId, key);
+      const option = $("#conversation-switcher option:checked");
+      if (option && option.textContent.trim() === "New conversation") option.textContent = body.prompt.slice(0, 72);
       toast(`Run started`);
       currentRunId = r.id;
       txt.value = "";
@@ -561,9 +697,9 @@ async function renderChatStudio(preferredBot = null) {
 
   // Wire Stop Run
   const stopBtn = $("#studio-stop-run");
-  if (stopBtn && currentRunId) {
+  if (stopBtn) {
     stopBtn.addEventListener("click", async () => {
-      await api(`/runs/${currentRunId}/stop`, { method: "POST" });
+      await api(`/runs/${stopBtn.dataset.runId || currentRunId}/stop`, { method: "POST" });
       toast("Stop requested");
       stopBtn.remove();
     });
@@ -575,8 +711,8 @@ async function renderChatStudio(preferredBot = null) {
   } else {
     $("#chat-stream").innerHTML = `
       <div class="empty-state">
-        <p>No active runs for <b>${esc(bot.name)}</b>.</p>
-        <p class="hint">Type a prompt below or pick a suggestion to start working.</p>
+        <p>No messages in this conversation.</p>
+        <p class="hint">Type a prompt below to start a durable conversation with <b>${esc(bot.name)}</b>.</p>
       </div>
     `;
   }
@@ -594,16 +730,30 @@ async function renderChatFeed(runId) {
   if (!stream) return;
   stopPolling();
 
-  const run = await api(`/runs/${runId}`);
-  const events = await api(`/runs/${runId}/events?after=0`);
+  const run = await api(`/v1/tasks/runs/${runId}`);
+  const events = await api(`/v1/tasks/runs/${runId}/events?after=0`);
   const items = groupToolItems(pairToolEvents(events.events));
-
-  let html = `
-    <div class="chat-msg user">
-      <div class="msg-text">${esc(run.prompt)}</div>
-    </div>
-  `;
-  items.forEach(item => { html += renderFeedItem(item, runId); });
+  let html = "";
+  if (run.conversation_id) {
+    const summary = await api(`/v1/conversations/${encodeURIComponent(run.conversation_id)}?limit=1`);
+    const after = Math.max(0, summary.last_seq - 100);
+    const page = await api(`/v1/conversations/${encodeURIComponent(run.conversation_id)}?after=${after}&limit=100`);
+    const activity = items.filter(item => !(item.kind === "event" && item.e.type === "message"));
+    let insertedActivity = false;
+    for (const message of page.messages) {
+      html += conversationMessageHtml(message);
+      if (message.role === "user" && message.run_id === runId) {
+        activity.forEach(item => { html += renderFeedItem(item, runId); });
+        insertedActivity = true;
+      }
+    }
+    if (!insertedActivity && isActiveStatus(run.status, run.terminal)) {
+      activity.forEach(item => { html += renderFeedItem(item, runId); });
+    }
+  } else {
+    html = `<div class="chat-msg user"><div class="msg-text">${esc(run.prompt)}</div></div>`;
+    items.forEach(item => { html += renderFeedItem(item, runId); });
+  }
 
   if (run.error) {
     html += `
@@ -623,8 +773,8 @@ async function renderChatFeed(runId) {
     seenRunStatus.set(runId, run.status);
     if (run.status === "waiting_approval") {
       announce(`${run.bot_name || "A bot"} needs your approval before it can continue.`);
-    } else if (prevStatus && ACTIVE.has(prevStatus) && !ACTIVE.has(run.status)) {
-      announce(`Run ${run.status.replace(/_/g, " ")}.`);
+    } else if (prevStatus && isActiveStatus(prevStatus) && !isActiveStatus(run.status, run.terminal)) {
+      announce(`Run ${run.status_label || statusInfo[run.status]?.label || "status unavailable"}.`);
     }
   }
   if (run.status === "running" || run.status === "pending") {
@@ -638,7 +788,7 @@ async function renderChatFeed(runId) {
 
   // Cursor-based polling: only refetch events newer than the last one seen.
   const lastSeq = events.events.length ? events.events[events.events.length - 1].seq : 0;
-  if (ACTIVE.has(run.status)) {
+  if (isActiveStatus(run.status, run.terminal)) {
     pollTimer = setInterval(async () => {
       try {
         const updated = await api(`/runs/${runId}/events?after=${lastSeq}`);
@@ -646,6 +796,17 @@ async function renderChatFeed(runId) {
       } catch { /* transient poll errors retry on the next tick */ }
     }, 2000);
   }
+}
+
+function conversationMessageHtml(message) {
+  const time = message.created_at ? message.created_at.slice(11, 19) : "";
+  if (message.role === "user") {
+    return `<div class="chat-msg user"><div class="msg-text">${esc(message.content)}</div></div>`;
+  }
+  const hue = currentStudioBot ? botHue(currentStudioBot) : null;
+  return `<div class="chat-msg agent">${currentStudioBot ? hexAvatar(currentStudioBot, 30) : ""}
+    <div class="chat-msg-stack"><span class="msg-role"${hue ? ` style="color:${hue.fg}"` : ""}>${esc(currentStudioBot || "Agent")} <span class="msg-time">· ${time}</span></span>
+    <div class="msg-bubble"><div class="msg-text">${esc(message.content)}</div></div></div></div>`;
 }
 
 // Merge tool_call + tool_result pairs into single display items.
@@ -1018,7 +1179,7 @@ async function renderOverview() {
   const fmt = (n) => Number(n || 0).toLocaleString();
   const row = (r) => `
     <a class="ov-row" href="#/run/${esc(r.id)}">
-      <span class="ov-row-main"><b>${esc(r.bot_name)}</b>${statusChip(r.status)}</span>
+      <span class="ov-row-main"><b>${esc(r.bot_name)}</b>${statusChip(r.status, r.status_label)}</span>
       <span class="ov-row-prompt">${esc((r.prompt || "").slice(0, 84))}</span>
       <span class="ov-row-meta mono">${r.steps} steps · ${fmt(r.tokens)} tok</span>
     </a>`;
@@ -1230,7 +1391,7 @@ async function renderRuns(query = "") {
               <tr class="clickable" tabindex="0" role="link" aria-label="Open run ${esc(r.id)}" data-goto="#/run/${esc(r.id)}" title="${esc(r.created_at || "")}">
                 <td class="mono">${esc(r.id.slice(0, 16))}…</td>
                 <td><b>${esc(r.bot_name)}</b></td>
-                <td>${statusChip(r.status)}</td>
+                <td>${statusChip(r.status, r.status_label)}</td>
                 <td class="cell-truncate">${esc(r.prompt)}</td>
                 <td><span class="timeline"><span class="timeline-track"><i class="timeline-fill ${cls}" style="width:${Math.max(3, Math.round(d / maxDur * 100))}%"></i></span><span class="timeline-label">${fmtDur(d)}</span></span></td>
                 <td class="num">${r.steps}</td>
@@ -1391,7 +1552,7 @@ async function renderRunDetail(runId) {
         <div>
           <p class="crumb"><a href="#/runs">Runs</a></p>
           <h1 class="page-title">Run <span class="mono">${esc(r.id.slice(0, 16))}</span></h1>
-          <p class="page-subtitle">Bot: <a href="#/chat/${esc(r.bot_name)}">${esc(r.bot_name)}</a> &middot; ${statusChip(r.status)} &middot; started by ${esc(r.origin || "you")}</p>
+          <p class="page-subtitle">Bot: <a href="#/chat/${esc(r.bot_name)}">${esc(r.bot_name)}</a> &middot; ${statusChip(r.status, r.status_label)} &middot; started by ${esc(r.origin || "you")}</p>
         </div>
         <a class="btn ghost" href="#/runs">${icon("arrow-left")} Back to Runs</a>
       </div>
@@ -1519,6 +1680,7 @@ function wireCommon() {
 
 // ------------------------------------------------------------- BOOT
 
+void loadStatusInfo();
 route();
 setInterval(refreshBadge, 4000);
 pollHealth();

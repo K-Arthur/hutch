@@ -197,7 +197,8 @@ def register_pages(app: FastAPI) -> None:
         h = home_ctx()
 
         def rj(run, name, wait=None):
-            d = {"id": run.id, "bot_name": name, "status": run.status.value, "prompt": run.prompt,
+            d = {"id": run.id, "bot_name": name, "status": run.status.value, "status_label": run.status_label,
+                 "terminal": run.terminal, "prompt": run.prompt,
                  "steps": run.steps, "tokens": run.tokens, "cost_usd": run.cost_usd,
                  "created_at": run.created_at, "finished_at": run.finished_at,
                  "started_at": run.started_at}
@@ -300,7 +301,6 @@ def register_pages(app: FastAPI) -> None:
         if not prompt:
             return go(f"/bots/{name}", error="Write a task first.")
         run = engine.submit(bot, prompt, origin="manual:dashboard", rehearsal=form.flag("rehearse"))
-        engine.dispatch_pending()
         target = f"/runs/{run.id}" if not form.flag("standing") else safe_next(form.get("next"), f"/runs/{run.id}")
         return go(target, notice=f"Started {'a rehearsal of ' if form.flag('rehearse') else ''}{name}.")
 

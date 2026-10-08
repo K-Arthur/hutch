@@ -9,7 +9,7 @@
     <p class="crumb"><a href="/runs">Runs</a> / <a href="/bots/{{ run.bot_name }}">{{ run.bot_name }}</a></p>
     <h1>Run <span class="mono">{{ run.id }}</span></h1>
     <p class="sub" id="run-sub">
-      <span class="chip st-{{ run.status.value }}" id="run-status">{{ run.status.value | replace("_", " ") }}</span>
+      <span class="chip st-{{ run.status.value }}" id="run-status">{{ run.status_label }}</span>
       {% if run.rehearsal %}<span class="tag" title="Mutating actions were simulated, not executed.">rehearsal</span>{% endif %}
       started by <strong>{{ run | origin }}</strong>
       {% if run.plan_id %}- <a href="/plans/{{ run.plan_id }}">{{ icon("plan", 13) }} plan {{ run.plan_id[:12] }}</a>{% endif %}

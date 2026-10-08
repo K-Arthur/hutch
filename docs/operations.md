@@ -28,7 +28,7 @@ a numeric PID or process-group ID whose recorded boot/start identity does not ma
 ## Database migration and restore
 
 Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. The current schema version is displayed
-by `hutch doctor`. Stop Hutch services before restoring a backup:
+by `hutch doctor` (schema v8 in this realignment branch). Stop Hutch services before restoring a backup:
 
 ```bash
 # Replace STATE with the configured Hutch state directory.
@@ -36,10 +36,14 @@ sqlite3 STATE/hutch.db.bak-vN '.backup STATE/hutch.db.restore'
 mv STATE/hutch.db.restore STATE/hutch.db
 ```
 
-Keep the backup until the restored database opens and expected bots, runs, approvals, and transcripts are present. A backup from an
+Keep the backup until the restored database opens and expected bots, runs, approvals, transcripts, conversations and messages are present. A backup from an
 older schema will migrate forward on open, creating its own versioned backup first. Rollback to older Hutch code requires restoring
 the matching pre-upgrade backup; older code does not honor leases or fencing. Validate restoration against a copy before using it
 for production state.
+
+Schema v8 gives every pre-existing run a separate imported legacy conversation. Hutch does not infer that adjacent runs share a
+private context. New conversations and message submissions are written transactionally with their idempotency records. The
+`conversation_fts` index contains message text only; it excludes tool output, credentials, workspaces and bot memory.
 
 ## Limits and evidence boundaries
 

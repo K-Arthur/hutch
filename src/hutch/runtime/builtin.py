@@ -357,6 +357,7 @@ class BuiltinRuntime:
         specs = [tools[n].spec() for n in sorted(tools)]             # PF-1 / PF-3: frozen, deterministic, allowed only
         prefix_hash = hashlib.sha256((system + json.dumps(specs, sort_keys=True)).encode()).hexdigest()[:12]
         messages: list[dict[str, Any]] = [{"role": "system", "content": system},
+                                          *run.conversation_context,
                                           {"role": "user", "content": run.prompt}]
         mt, tt = estimate_prompt_tokens(messages, specs)
         est_prompt = mt + tt

@@ -135,7 +135,7 @@
       append(d.html);
       last = Math.max(last, d.last);
       const chip = $("#run-status");
-      if (chip && d.status) { chip.textContent = d.status.replace(/_/g, " "); chip.className = `chip st-${d.status}`; }
+      if (chip && d.status) { chip.textContent = d.status_label || "Status unavailable"; chip.className = `chip st-${d.status}`; }
       if (follow) window.scrollTo({ top: document.body.scrollHeight });
       refreshLive();
     });

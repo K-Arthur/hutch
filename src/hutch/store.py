@@ -17,6 +17,7 @@ import atexit
 import fcntl
 import hashlib
 import json
+import re
 import sqlite3
 import threading
 import time
@@ -202,14 +203,79 @@ def _migrate_7(db: sqlite3.Connection) -> None:
         name TEXT PRIMARY KEY, owner TEXT NOT NULL DEFAULT '', expires_at TEXT, fence INTEGER NOT NULL DEFAULT 0)""")
 
 
+def _migrate_8(db: sqlite3.Connection) -> None:
+    """Canonical conversations and restart-safe command idempotency (ADR-0010/0011)."""
+    db.execute("""CREATE TABLE conversations (
+        id TEXT PRIMARY KEY, bot_id TEXT NOT NULL, title TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL, archived INTEGER NOT NULL DEFAULT 0,
+        is_legacy INTEGER NOT NULL DEFAULT 0)""")
+    db.execute("CREATE INDEX idx_conversations_bot_updated ON conversations(bot_id, archived, updated_at DESC)")
+    db.execute("""CREATE TABLE messages (
+        id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, seq INTEGER NOT NULL,
+        run_id TEXT NOT NULL DEFAULT '', role TEXT NOT NULL CHECK(role IN ('user','assistant')),
+        content TEXT NOT NULL, created_at TEXT NOT NULL,
+        UNIQUE(conversation_id, seq))""")
+    db.execute("CREATE INDEX idx_messages_conversation_seq ON messages(conversation_id, seq)")
+    db.execute("""CREATE TABLE conversation_runs (
+        conversation_id TEXT NOT NULL, run_id TEXT NOT NULL UNIQUE, attached_at TEXT NOT NULL,
+        PRIMARY KEY(conversation_id, run_id))""")
+    db.execute("""CREATE TABLE idempotency_keys (
+        scope TEXT NOT NULL, key TEXT NOT NULL, request_hash TEXT NOT NULL,
+        response_json TEXT NOT NULL, created_at TEXT NOT NULL,
+        PRIMARY KEY(scope, key))""")
+    db.execute("ALTER TABLE runs ADD COLUMN conversation_id TEXT NOT NULL DEFAULT ''")
+    db.execute("ALTER TABLE runs ADD COLUMN conversation_context TEXT NOT NULL DEFAULT '[]'")
+    # FTS5 indexes only approved conversation text, never tool output, workspaces or secrets.
+    db.execute("CREATE VIRTUAL TABLE conversation_fts USING fts5(message_id UNINDEXED, conversation_id UNINDEXED, content)")
+
+    # Keep every historic run and its transcript in its own imported conversation. Combining runs here would
+    # silently join contexts whose ownership or intended continuity was never recorded by older releases.
+    runs = db.execute("SELECT id, bot_id, created_at, doc FROM runs ORDER BY created_at, id").fetchall()
+    for row in runs:
+        doc = json.loads(row["doc"])
+        conversation_id = f"conv_legacy_{row['id']}"
+        created_at = row["created_at"]
+        prompt = str(doc.get("prompt") or "")
+        title = (prompt.strip().replace("\n", " ")[:72] or f"Imported run {row['id']}")
+        db.execute("INSERT INTO conversations (id, bot_id, title, created_at, updated_at, is_legacy) "
+                   "VALUES (?, ?, ?, ?, ?, 1)",
+                   (conversation_id, row["bot_id"], title, created_at, created_at))
+        seq = 0
+        if prompt:
+            seq += 1
+            message_id = f"msg_legacy_{row['id']}_user"
+            db.execute("INSERT INTO messages (id, conversation_id, seq, run_id, role, content, created_at) "
+                       "VALUES (?, ?, ?, ?, 'user', ?, ?)",
+                       (message_id, conversation_id, seq, row["id"], prompt, created_at))
+            db.execute("INSERT INTO conversation_fts (message_id, conversation_id, content) VALUES (?, ?, ?)",
+                       (message_id, conversation_id, prompt))
+        events = db.execute("SELECT id, ts, data FROM events WHERE run_id = ? AND type = 'message' ORDER BY id",
+                            (row["id"],)).fetchall()
+        for event in events:
+            data = json.loads(event["data"])
+            content = data.get("content")
+            if data.get("role") != "assistant" or not isinstance(content, str) or not content:
+                continue
+            seq += 1
+            message_id = f"msg_legacy_{row['id']}_{event['id']}"
+            db.execute("INSERT INTO messages (id, conversation_id, seq, run_id, role, content, created_at) "
+                       "VALUES (?, ?, ?, ?, 'assistant', ?, ?)",
+                       (message_id, conversation_id, seq, row["id"], content, event["ts"]))
+            db.execute("INSERT INTO conversation_fts (message_id, conversation_id, content) VALUES (?, ?, ?)",
+                       (message_id, conversation_id, content))
+        db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
+                   (conversation_id, row["id"], created_at))
+        db.execute("UPDATE runs SET conversation_id = ? WHERE id = ?", (conversation_id, row["id"]))
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
-_MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7]
+_MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
 _RUN_COMPUTED = {"status_label", "terminal", "needs_person"}
 #: the run columns that are authoritative over whatever the JSON document says
-_RUN_COLS = "doc, status, fence, lease_owner, lease_expires_at, cancel_requested, pgid"
+_RUN_COLS = "doc, status, fence, lease_owner, lease_expires_at, cancel_requested, pgid, conversation_id, conversation_context"
 _TERMINAL_VALUES = tuple(sorted(st.value for st in TERMINAL))
 _LIVE_VALUES = tuple(sorted(st.value for st in ACTIVE_STATUSES if st is not RunStatus.pending))
 #: fields only the owner writes while a run is claimed: merged into the document in one statement (no read-modify-write)
@@ -218,6 +284,10 @@ _PROGRESS_FIELDS = {"steps", "tokens", "workspace", "started_at", "prompt_tokens
                     "owner", "missed_windows", "reason", "verified", "task_id"}
 
 EVENT_BATCH_MAX = 256
+
+
+class IdempotencyConflict(ValueError):
+    """A command key was previously used for a different canonical request."""
 EVENT_FLUSH_SECONDS = 0.02
 
 
@@ -418,6 +488,16 @@ class Store:
         return run.model_dump_json(exclude=_RUN_COMPUTED)
 
     @staticmethod
+    def _insert_conversation_message(db: sqlite3.Connection, *, message_id: str, conversation_id: str, seq: int,
+                                    run_id: str, role: str, content: str, created_at: str) -> None:
+        db.execute("INSERT INTO messages (id, conversation_id, seq, run_id, role, content, created_at) "
+                   "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                   (message_id, conversation_id, seq, run_id, role, content, created_at))
+        db.execute("INSERT INTO conversation_fts (message_id, conversation_id, content) VALUES (?, ?, ?)",
+                   (message_id, conversation_id, content))
+        db.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (created_at, conversation_id))
+
+    @staticmethod
     def _run(row: sqlite3.Row) -> Run:
         """A Run from its row: the columns, not the JSON, are authoritative for status, fence, lease and cancel."""
         run = Run.model_validate_json(row["doc"])
@@ -427,6 +507,8 @@ class Store:
         run.lease_expires_at = row["lease_expires_at"]
         run.cancel_requested = bool(row["cancel_requested"])
         run.pgid = row["pgid"]
+        run.conversation_id = row["conversation_id"]
+        run.conversation_context = json.loads(row["conversation_context"] or "[]")
         return run
 
     # ------------------------------------------------------------ tasks
@@ -471,8 +553,10 @@ class Store:
     def create_run(self, run: Run) -> Run:
         with self._lock:
             self._db.execute(
-                "INSERT INTO runs (id, bot_id, task_id, doc, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                (run.id, run.bot_id, run.task_id, self._run_json(run), run.status.value, run.created_at),
+                "INSERT INTO runs (id, bot_id, task_id, doc, status, created_at, conversation_id, conversation_context) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (run.id, run.bot_id, run.task_id, self._run_json(run), run.status.value, run.created_at,
+                 run.conversation_id, json.dumps(run.conversation_context, ensure_ascii=False)),
             )
             self._db.commit()
         self.bus.notify("work", "runs", f"run:{run.id}")
@@ -487,10 +571,202 @@ class Store:
             db.execute("INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done, state, run_id) "
                        "VALUES (?, ?, ?, ?, ?, 0, 'queued', ?)",
                        (task.id, task.bot_id, task.kind, task.prompt, task.created_at, run.id))
-            db.execute("INSERT INTO runs (id, bot_id, task_id, doc, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                       (run.id, run.bot_id, task.id, self._run_json(run), run.status.value, run.created_at))
+            db.execute("INSERT INTO runs (id, bot_id, task_id, doc, status, created_at, conversation_id, conversation_context) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                       (run.id, run.bot_id, task.id, self._run_json(run), run.status.value, run.created_at,
+                        run.conversation_id, json.dumps(run.conversation_context, ensure_ascii=False)))
         self.bus.notify("work", "runs", f"run:{run.id}")
         return run
+
+    @staticmethod
+    def _idempotency_replay(db: sqlite3.Connection, scope: str, key: str, request_hash: str) -> Optional[dict[str, Any]]:
+        row = db.execute("SELECT request_hash, response_json FROM idempotency_keys WHERE scope = ? AND key = ?",
+                         (scope, key)).fetchone()
+        if row is None:
+            return None
+        if row["request_hash"] != request_hash:
+            raise IdempotencyConflict("Idempotency-Key was already used for a different request")
+        return json.loads(row["response_json"])
+
+    def create_conversation(self, bot_id: str, title: str, *, idem_key: str, request_hash: str) -> tuple[dict[str, Any], bool]:
+        """Create a conversation and record its idempotency response in the same transaction."""
+        scope = f"api:v1:conversations:{bot_id}"
+        now = iso(utcnow())
+        conversation_id = f"conv_{uuid.uuid4().hex[:12]}"
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                row = db.execute("SELECT * FROM conversations WHERE id = ?", (replay["conversation_id"],)).fetchone()
+                if row is None:
+                    raise RuntimeError("idempotent conversation response points to missing state")
+                return dict(row), False
+            if db.execute("SELECT 1 FROM bots WHERE id = ?", (bot_id,)).fetchone() is None:
+                raise KeyError(bot_id)
+            db.execute("INSERT INTO conversations (id, bot_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+                       (conversation_id, bot_id, title.strip(), now, now))
+            db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash, _canonical({"conversation_id": conversation_id}), now))
+            row = db.execute("SELECT * FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
+        self.bus.notify("conversations", f"conversation:{conversation_id}")
+        return dict(row), True
+
+    def get_conversation(self, conversation_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute(
+                "SELECT c.*, (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) AS message_count, "
+                "(SELECT COALESCE(MAX(m.seq), 0) FROM messages m WHERE m.conversation_id = c.id) AS last_seq, "
+                "(SELECT r.run_id FROM conversation_runs r WHERE r.conversation_id = c.id "
+                "ORDER BY r.attached_at DESC LIMIT 1) AS latest_run_id "
+                "FROM conversations c WHERE c.id = ?", (conversation_id,)).fetchone()
+        return dict(row) if row else None
+
+    def conversation_last_seq(self, conversation_id: str) -> int:
+        with self._lock:
+            row = self._db.execute("SELECT COALESCE(MAX(seq), 0) AS seq FROM messages WHERE conversation_id = ?",
+                                   (conversation_id,)).fetchone()
+        return int(row["seq"])
+
+    def archive_conversation(self, conversation_id: str, archived: bool, *, idem_key: str,
+                             request_hash: str) -> tuple[dict[str, Any], bool]:
+        scope = f"api:v1:conversation:{conversation_id}:archive"
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                row = db.execute("SELECT * FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
+                if row is None:
+                    raise RuntimeError("idempotent archive response points to missing state")
+                return dict(row), False
+            row = db.execute("SELECT * FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
+            if row is None:
+                raise KeyError(conversation_id)
+            db.execute("UPDATE conversations SET archived = ?, updated_at = ? WHERE id = ?",
+                       (int(archived), now, conversation_id))
+            db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash,
+                        _canonical({"conversation_id": conversation_id, "archived": archived}), now))
+            result = db.execute("SELECT * FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
+        self.bus.notify("conversations", f"conversation:{conversation_id}")
+        return dict(result), True
+
+    def list_conversations(self, bot_id: Optional[str] = None, *, include_legacy: bool = False,
+                           limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
+        query = ("SELECT c.*, (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) AS message_count, "
+                 "(SELECT COALESCE(MAX(m.seq), 0) FROM messages m WHERE m.conversation_id = c.id) AS last_seq, "
+                 "(SELECT r.run_id FROM conversation_runs r WHERE r.conversation_id = c.id "
+                 "ORDER BY r.attached_at DESC LIMIT 1) AS latest_run_id "
+                 "FROM conversations c WHERE c.archived = 0")
+        args: list[Any] = []
+        if bot_id:
+            query += " AND c.bot_id = ?"
+            args.append(bot_id)
+        if not include_legacy:
+            query += " AND c.is_legacy = 0"
+        query += " ORDER BY c.updated_at DESC, c.id LIMIT ? OFFSET ?"
+        args.extend((limit, offset))
+        with self._lock:
+            rows = self._db.execute(query, args).fetchall()
+        return [dict(row) for row in rows]
+
+    def list_conversation_messages(self, conversation_id: str, *, after: int = 0, limit: int = 100) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._db.execute("SELECT * FROM messages WHERE conversation_id = ? AND seq > ? "
+                                    "ORDER BY seq LIMIT ?", (conversation_id, after, limit)).fetchall()
+        return [dict(row) for row in rows]
+
+    def search_conversation_messages(self, query: str, *, bot_id: Optional[str] = None, limit: int = 20) -> list[dict[str, Any]]:
+        terms = re.findall(r"[^\W_]+", query, flags=re.UNICODE)
+        if not terms:
+            return []
+        # Treat input as plain text, not FTS operators. Quoting terms avoids malformed MATCH syntax
+        # from punctuation and keeps the query language stable for API clients.
+        fts_query = " AND ".join(f'"{term}"' for term in terms)
+        sql = ("SELECT m.*, c.bot_id, c.title FROM conversation_fts "
+               "JOIN messages m ON m.id = conversation_fts.message_id "
+               "JOIN conversations c ON c.id = m.conversation_id "
+               "WHERE conversation_fts MATCH ? AND c.archived = 0 AND c.is_legacy = 0")
+        args: list[Any] = [fts_query]
+        if bot_id:
+            sql += " AND c.bot_id = ?"
+            args.append(bot_id)
+        sql += " ORDER BY rank LIMIT ?"
+        args.append(limit)
+        with self._lock:
+            rows = self._db.execute(sql, args).fetchall()
+        return [dict(row) for row in rows]
+
+    def submit_conversation_message(self, conversation_id: str, prompt: str, run: Run, task: Task, *,
+                                    idem_key: str, request_hash: str, context_messages: int = 12,
+                                    context_chars: int = 16_000) -> tuple[str, bool]:
+        """Append a user message and admit its run atomically, with a bounded context snapshot and durable idempotency."""
+        scope = f"api:v1:conversation:{conversation_id}:messages"
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                return str(replay["run_id"]), False
+            conversation = db.execute("SELECT bot_id, title, archived FROM conversations WHERE id = ?",
+                                      (conversation_id,)).fetchone()
+            if conversation is None:
+                raise KeyError(conversation_id)
+            if conversation["bot_id"] != run.bot_id:
+                raise PermissionError("conversation belongs to another bot")
+            if conversation["archived"]:
+                raise ValueError("conversation is archived")
+
+            recent = db.execute("SELECT role, content FROM messages WHERE conversation_id = ? "
+                                "ORDER BY seq DESC LIMIT ?", (conversation_id, context_messages)).fetchall()
+            context: list[dict[str, str]] = []
+            remaining = context_chars
+            for row in reversed(recent):
+                if remaining <= 0:
+                    break
+                content = str(row["content"])
+                if len(content) > remaining:
+                    marker = "[earlier text omitted]\n"
+                    content = (marker + content[-(remaining - len(marker)):]) if remaining > len(marker) else content[-remaining:]
+                if content:
+                    context.append({"role": row["role"], "content": content})
+                    remaining -= len(content)
+            run.conversation_id = conversation_id
+            run.conversation_context = context
+            run.task_id = task.id
+            seq = db.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM messages WHERE conversation_id = ?",
+                             (conversation_id,)).fetchone()[0]
+            message_id = f"msg_{uuid.uuid4().hex[:12]}"
+            self._insert_conversation_message(db, message_id=message_id, conversation_id=conversation_id, seq=seq,
+                                             run_id=run.id, role="user", content=prompt, created_at=now)
+            if not conversation["title"].strip():
+                title = prompt.strip().replace("\n", " ")[:72] or "Conversation"
+                db.execute("UPDATE conversations SET title = ? WHERE id = ?", (title, conversation_id))
+            db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
+                       (conversation_id, run.id, now))
+            db.execute("INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done, state, run_id) "
+                       "VALUES (?, ?, ?, ?, ?, 0, 'queued', ?)",
+                       (task.id, task.bot_id, task.kind, task.prompt, task.created_at, run.id))
+            db.execute("INSERT INTO runs (id, bot_id, task_id, doc, status, created_at, conversation_id, conversation_context) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                       (run.id, run.bot_id, task.id, self._run_json(run), run.status.value, run.created_at,
+                        conversation_id, json.dumps(context, ensure_ascii=False)))
+            user_event = Event(run_id=run.id, type=EventType.message,
+                               data={"role": "user", "content": prompt})
+            self._insert_events(db, run.id, [user_event])
+            db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash, _canonical({"run_id": run.id}), now))
+        # The user turn is already committed and hash-chained. Mirror it before waking the elected dispatcher so the
+        # worker's subsequent append-only transcript continues from the same first event.
+        bot = self.get_bot(run.bot_id)
+        if bot is not None:
+            transcript = self.config.run_dir(bot.name, run.id) / "transcript.jsonl"
+            try:
+                transcript.parent.mkdir(parents=True, exist_ok=True)
+                with transcript.open("a", encoding="utf-8") as fh:
+                    fh.write(json.dumps({"seq": user_event.seq, "ts": user_event.ts, "type": user_event.type.value,
+                                         "data": user_event.data, "hash": user_event.hash}, ensure_ascii=False) + "\n")
+            except OSError as exc:
+                self._sink_errors.setdefault(run.id, []).append(f"{type(exc).__name__}: {exc}")
+        self.bus.notify("work", "runs", f"run:{run.id}", "conversations", f"conversation:{conversation_id}")
+        return run.id, True
 
     def submit_scheduled(self, run: Run, task: Task, *, occurrence: str, expected_marker: Optional[str], new_marker: str,
                          claimed_by: str, note: Optional[dict] = None) -> Optional[Run]:
@@ -514,8 +790,10 @@ class Store:
             db.execute("INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done, state, run_id) "
                        "VALUES (?, ?, ?, ?, ?, 0, 'queued', ?)",
                        (task.id, task.bot_id, task.kind, task.prompt, task.created_at, run.id))
-            db.execute("INSERT INTO runs (id, bot_id, task_id, doc, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                       (run.id, run.bot_id, task.id, self._run_json(run), run.status.value, run.created_at))
+            db.execute("INSERT INTO runs (id, bot_id, task_id, doc, status, created_at, conversation_id, conversation_context) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                       (run.id, run.bot_id, task.id, self._run_json(run), run.status.value, run.created_at,
+                        run.conversation_id, json.dumps(run.conversation_context, ensure_ascii=False)))
             db.execute("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                        (marker_key, new_marker))
             if note is not None:
@@ -1105,11 +1383,23 @@ class Store:
                 stored: list[Event] = []
                 with self._tx() as db:
                     for run_id, evs in by_run.items():
-                        row = db.execute("SELECT sealed FROM runs WHERE id = ?", (run_id,)).fetchone()
+                        row = db.execute("SELECT sealed, conversation_id FROM runs WHERE id = ?", (run_id,)).fetchone()
                         if row is not None and row["sealed"]:
                             self.dropped_events += len(evs)
                             continue
                         self._insert_events(db, run_id, evs)
+                        conversation_id = row["conversation_id"] if row is not None else ""
+                        if conversation_id:
+                            for event in evs:
+                                content = event.data.get("content")
+                                if event.type is not EventType.message or event.data.get("role") != "assistant" \
+                                        or not isinstance(content, str) or not content:
+                                    continue
+                                seq = db.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM messages WHERE conversation_id = ?",
+                                                 (conversation_id,)).fetchone()[0]
+                                Store._insert_conversation_message(
+                                    db, message_id=f"msg_{uuid.uuid4().hex[:12]}", conversation_id=conversation_id,
+                                    seq=seq, run_id=run_id, role="assistant", content=content, created_at=event.ts)
                         stored += evs
                 for e in stored:                      # committed: observers see them in sequence order
                     self._fan_out(e)
