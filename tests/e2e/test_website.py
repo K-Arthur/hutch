@@ -81,7 +81,7 @@ def test_no_js_baseline_readable(browser, site_url):
     assert page.eval_on_selector(".section-heading", "e => getComputedStyle(e).opacity") == "1"
     assert page.eval_on_selector_all("section .section-heading", "e => e.length") >= 7
     # noscript styles keep section links reachable without enhancement
-    assert page.is_visible(".nav-links a[href='#proof']") or page.is_visible(".footer-nav a[href='#proof']")
+    assert page.is_visible(".navbar-center a[href='#proof']") or page.is_visible("footer a[href='#proof']")
     ctx.close()
 
 
@@ -101,17 +101,20 @@ def test_reference_patterns_present(browser, site_url):
     ctx, page, _ = _page(browser)
     page.goto(site_url, wait_until="networkidle")
     assert page.eval_on_selector_all(".proof-chrome .win-dots i", "e => e.length") == 3
-    # receipts are a real data table with an evidence pill per row
-    assert page.eval_on_selector_all(".rtable tbody tr", "e => e.length") >= 4
-    assert page.eval_on_selector_all(".rtable thead th", "e => e.length") == 5
-    assert page.eval_on_selector_all(".rtable .c-ans code", "e => e.length") >= 4
-    assert page.eval_on_selector_all(".rtable tbody .c-ev .chip", "e => e.length") >= 4
+    # receipts are a real data table with an evidence status per row
+    assert page.eval_on_selector_all(".receipts tbody tr", "e => e.length") >= 4
+    assert page.eval_on_selector_all(".receipts thead th", "e => e.length") == 5
+    assert page.eval_on_selector_all(".receipts .cell-ans", "e => e.length") >= 4
+    assert page.eval_on_selector_all(".receipts .cell-ev .ev", "e => e.length") >= 4
+    # DaisyUI components are in use
+    assert page.eval_on_selector_all("a.btn.btn-primary", "e => e.length") >= 3
+    assert page.eval_on_selector_all(".badge", "e => e.length") >= 8
     # feature cards are icon + title + copy; architecture is a separate block
     assert page.eval_on_selector_all("#runs .card-icon", "e => e.length") == 6
     assert page.eval_on_selector_all("#runs .card-title", "e => e.length") == 6
     assert page.eval_on_selector_all("#runs .arch svg", "e => e.length") == 1
     assert page.eval_on_selector_all(".limits-list li", "e => e.length") == 5
-    assert page.eval_on_selector_all(".step .step-shot img", "e => e.length") == 3
+    assert page.eval_on_selector_all(".step-card .step-shot img", "e => e.length") == 3
     routes = page.inner_text(".routes-list")
     for route in ("ollama", "openai", "mock/offline"):
         assert route in routes
@@ -191,7 +194,7 @@ def test_reduced_motion_never_hides_content(browser, site_url):
     page.goto(site_url, wait_until="networkidle")
     page.wait_for_timeout(400)
     opacities = page.eval_on_selector_all(
-        ".section-heading, .step, .rtable tbody tr, .case, .proof-figure",
+        ".section-heading, .step-card, .receipts tbody tr, .case, .proof-figure",
         "els => els.map(e => getComputedStyle(e).opacity)",
     )
     assert all(o == "1" for o in opacities), opacities
@@ -230,7 +233,7 @@ def test_term_tabs_keyboard_operable(browser, site_url):
 def test_gate_demo_is_labeled_and_deterministic(browser, site_url):
     ctx, page, errors = _page(browser)
     page.goto(site_url + "#workflow", wait_until="networkidle")
-    assert "illustrative demo" in page.inner_text("#gate-demo .chip").lower()
+    assert "illustrative demo" in page.inner_text("#gate-demo .badge").lower()
     page.click("#gate-allow")
     assert "allowed once" in page.inner_text("#gate-result").lower()
     assert page.eval_on_selector("#gate-reset", "e => !e.classList.contains('hidden')")

@@ -40,6 +40,37 @@ def test_generated_css_carries_the_brand_accent():
     assert "--radius-chip: 100px;" in css
 
 
+@pytest.mark.skipif(not CSS.exists(), reason="website tokens not built")
+def test_stylesheet_references_only_defined_tokens():
+    """A var(--x) with no definition collapses the whole declaration at
+    computed-value time, which is how ad-hoc spacing silently creeps in.
+    Every reference in the component sheet must resolve against tokens.css."""
+    import re
+
+    defined = set(re.findall(r"(--[a-z0-9-]+)\s*:", CSS.read_text()))
+    used = set(re.findall(r"var\((--[a-z0-9-]+)", (ROOT / "website" / "styles.css").read_text()))
+    missing = sorted(used - defined)
+    assert not missing, f"undefined token refs in styles.css: {missing}"
+
+
+@pytest.mark.skipif(not TOKENS.exists(), reason="website tokens not present")
+def test_built_tailwind_sheet_is_present():
+    """The marketing site ships the compiled Tailwind/DaisyUI sheet.
+
+    `npm run build:css` writes website/app.css from website/src/input.css. The
+    built file is committed so the page stays a static, no-build surface; this
+    guards against shipping markup whose utility classes have no CSS behind
+    them.
+    """
+    app = ROOT / "website" / "app.css"
+    assert app.exists(), "website/app.css missing — run `npm run build:css`"
+    css = app.read_text().replace(" ", "")
+    assert "--color-primary:#34d399" in css
+    assert "--radius-field:0rem" in css
+    for component in (".btn{", ".badge{", ".card{", ".navbar{", ".table{", ".collapse{"):
+        assert component in css, f"{component} missing from built sheet"
+
+
 @pytest.mark.skipif(not TOKENS.exists(), reason="website tokens not present")
 def test_tokens_declare_contrast_pairs():
     import json

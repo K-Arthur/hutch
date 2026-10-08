@@ -14,8 +14,8 @@
      A watchdog guarantees nothing can strand content: any element still
      hidden after load+2.5s or on pageshow is forced visible. */
   var revealTargets = Array.prototype.slice.call(document.querySelectorAll(
-    "#proof .section-head, #proof .proof-figure, .ledger-row, .step, .gate-demo, " +
-    ".runs-grid, .routes, .control-grid, .case, .get-grid, .cta-grid"
+    "#proof .proof-figure, .step-card, .gate-demo, .feature, .arch, " +
+    ".control-grid, .case, .get-grid, .cta-grid"
   ));
   var io = null;
   if ("IntersectionObserver" in window) {

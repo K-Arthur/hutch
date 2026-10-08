@@ -57,6 +57,23 @@ Pointer behaviour is an enhancement: it starts only on `(pointer: fine)` devices
 reduced-motion preference; the frame grid is fetched on idle after first paint, and any failed frame leaves the still image in
 place. Reduced motion, touch, and no-JS visitors get the static centre frame.
 
+## Build (Tailwind v4 + DaisyUI v5)
+
+The marketing surface is Tailwind + DaisyUI layered on the brand token source:
+
+- `website/src/input.css` — Tailwind v4 entry. DaisyUI v5 loads with an explicit component
+  include list (`button, badge, card, navbar, footer, table, collapse, alert, link, menu`)
+  and a custom `hutch` theme mapped to the pinned brand contract: emerald `#34d399`, 0px
+  fields (buttons), 100px selectors (badges/chips), 8px boxes (cards/panels), one dark theme.
+- `npm run build:css` compiles `website/app.css` (29-49 KiB minified, within the 40 KiB CSS
+  budget at the trimmed include list). The built file is committed so the page stays
+  static: no runtime external requests, no build step needed to serve it.
+- `website/styles.css` holds only hutch-specific pieces — hero weave, proof chrome, code
+  window, architecture diagram, receipts/availability tables, footer base, motion.
+- `website/tokens.css` remains the generated source of truth for brand/semantic values;
+  `tests/test_site_tokens.py` checks that every `var(--token)` in `styles.css` resolves, and
+  that the compiled `app.css` is present with the theme and components in place.
+
 ## Reference decisions (supplied design set, Oct 2026)
 
 Adopted: window chrome for product proof (traffic-dot trio, centred monospace title, status chip); the receipts as a real
