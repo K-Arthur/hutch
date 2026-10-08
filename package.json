@@ -2,7 +2,7 @@
   "name": "hutch-site",
   "private": true,
   "scripts": {
-    "build:css": "tailwindcss -i website/src/input.css -o website/app.css --minify",
+    "build:css": "tailwindcss -i website/src/input.css -o website/app.css --minify && node scripts/stamp_site_assets.mjs",
     "watch:css": "tailwindcss -i website/src/input.css -o website/app.css --watch"
   },
   "devDependencies": {
