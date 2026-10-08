@@ -77,15 +77,14 @@
         <p>Loading…</p>
       </div>
     </main>
+    <!-- Pending work elsewhere stays reachable without covering phone content. -->
+    <div id="attention-bar" class="attention-bar" hidden></div>
   </div>
 
   <!-- Bounded status announcer: only lifecycle changes (run started/finished,
        approval required, connection lost) are announced here — never the whole
        view on every render, and never each streamed token. -->
   <div id="live-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
-  <!-- App-wide attention: pending work discovered anywhere surfaces here once. -->
-  <div id="attention-bar" class="attention-bar" hidden></div>
-
   <dialog id="needs-you" class="needs-you" aria-labelledby="needs-you-title">
     <header class="needs-you-head"><h2 id="needs-you-title">Needs you</h2>
       <button class="icon-btn" id="needs-you-close" aria-label="Close needs-you drawer" type="button"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>

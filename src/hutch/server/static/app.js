@@ -245,6 +245,10 @@ function botStatusLabel(b) {
   return b.paused ? "Paused" : "Idle";
 }
 
+function botNeedsYou(b) {
+  return ["waiting_approval", "waiting_human"].includes(b.active_run_status) || attentionBots.includes(b.name);
+}
+
 function botState(b) {
   if (b.active_run_id) return b.active_run_status || "pending";
   if (b.paused) return "paused";
@@ -415,11 +419,10 @@ function renderRoster() {
     list.innerHTML = `<div class="roster-empty">${botsCache.length ? "No bot matches." : "No bots yet — create one."}</div>`;
     return;
   }
-  const waitingBots = new Set(attentionBots);
   list.innerHTML = bots.map(b => {
     const state = botState(b);
-    const pip = waitingBots.has(b.name) ? "waiting" : state === "running" ? "running" : state === "paused" ? "paused" : "";
-    const word = waitingBots.has(b.name) ? "Needs you" : botStatusLabel(b);
+    const pip = botNeedsYou(b) ? "waiting" : state === "running" ? "running" : state === "paused" ? "paused" : "";
+    const word = botNeedsYou(b) ? "Needs you" : botStatusLabel(b);
     return `
       <div class="roster-entry"><button class="roster-row" type="button" data-switch-bot="${esc(b.name)}"
         ${b.name === currentStudioBot && location.hash.startsWith("#/chat") ? 'aria-current="true"' : ""}
@@ -1574,7 +1577,7 @@ async function renderBots() {
     $$("[data-fleet-bot]").forEach(card => {
       const b = bots.find(x => x.name === card.dataset.fleetBot);
       const match = `${b.name} ${b.description || ""} ${b.model || ""}`.toLowerCase().includes(q)
-        && (state === "all" || state === "needs" && attentionBots.includes(b.name)
+        && (state === "all" || state === "needs" && botNeedsYou(b)
           || state === "active" && b.active_run_id || state === "paused" && b.paused);
       card.hidden = !match;
       if (match) visible++;

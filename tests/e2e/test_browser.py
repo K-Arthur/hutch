@@ -657,3 +657,55 @@ def test_queued_chat_keeps_earlier_approval_and_live_status_fresh(browser, live)
     second.locator("[data-approval-card] [data-approve='0']").wait_for()
     second.locator("[data-approval-card] [data-approve='0']").click()
     page.close()
+
+
+@pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (390, 844, "phone")])
+def test_fleet_attention_survives_queue_failure_and_includes_human_wait(browser, live, monkeypatch, width, height, size):
+    import hashlib
+    import json
+    from datetime import timedelta
+    from pathlib import Path
+    from hutch.approvals import action_fingerprint
+    from hutch.models import ApprovalRequest, Run, iso, utcnow
+    base, app = live
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    bots = [app.state.store.create_bot(Bot(name=f"attention-{i}", model="mock/demo", tools=[])) for i in range(10)]
+    app.state.store.create_run(Run(bot_id=bots[0].id, prompt="older queued fixture"))
+    app.state.store.create_run(Run(bot_id=bots[0].id, prompt="human session fixture", status=RunStatus.waiting_human))
+    run = app.state.store.create_run(Run(bot_id=bots[9].id, prompt="request queue fixture", status=RunStatus.waiting_approval))
+    for i in range(51):
+        detail = {"path": f"fixture-{i}.txt", "content": "sanitized draft"}
+        app.state.store.create_approval(ApprovalRequest(
+            run_id=run.id, bot_id=bots[9].id, tool="files", action=f"write fixture-{i}.txt", detail=detail,
+            action_hash=action_fingerprint("files", detail), expires_at=iso(utcnow() + timedelta(minutes=10))))
+    page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    # Queue discovery is unavailable: bot lifecycle metadata must still identify both waits.
+    page.route("**/api/approvals", lambda route: route.abort())
+    page.goto(base + "/#/bots")
+    page.locator("#fleet-state").select_option("needs")
+    assert page.locator("#fleet-count").inner_text() == "2 of 10 bots"
+    assert page.locator(".bot-card:visible").count() == 2
+    assert "Needs you" in page.locator('[data-fleet-bot="attention-0"]').inner_text()
+    assert "Waiting for you" in page.locator('[data-fleet-bot="attention-9"]').inner_text()
+    assert "Needs you" in page.locator('[data-switch-bot="attention-0"]').inner_text()
+    assert "Needs you" in page.locator('[data-switch-bot="attention-9"]').inner_text()
+    if size == "phone":
+        page.locator("#attention-bar").wait_for(state="visible")
+        notice = page.locator("#attention-bar").bounding_box()
+        content = page.locator("#view").bounding_box()
+        assert notice["y"] + notice["height"] <= content["y"] + 1, "the notice must not cover Fleet content"
+    overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+    assert overflow <= 1 and not errors
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/fleet-attention"
+    out.mkdir(parents=True, exist_ok=True)
+    page.screenshot(path=str(out / f"{size}.png"), full_page=True, animations="disabled")
+    (out / f"{size}.json").write_text(json.dumps({
+        "browser": browser.browser_type.name, "version": browser.version, "viewport": [width, height],
+        "captured_at": iso(utcnow()), "scenario": "synthetic waits, 51 persisted requests, failed queue discovery; no live handoff",
+        "page_errors": errors, "horizontal_overflow": overflow,
+        "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest()
+            for p in ("src/hutch/server/static/app.js", "src/hutch/store.py")},
+    }, indent=2) + "\n")
+    page.close()

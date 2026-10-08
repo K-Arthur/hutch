@@ -211,3 +211,26 @@ verification follows this checkpoint. No live provider, paid call or new offline
 Full offline verification subsequently passed **1,036 tests in 223.69s**, with unhandled
 background-thread warnings promoted to failures. The navigation browser/capture boundary
 remains `4bd0e0d`; no frontend behavior or image changed in this provider repair.
+
+Provider repair commit: `03706f2`.
+
+## Fleet attention refinement (2026-10-08)
+
+Fleet previously depended on asynchronous request discovery, omitting human waits and losing
+attention when that fetch failed. An older pending turn could mask already executing/waiting
+work in the bot summary. Lifecycle-based attention now covers both wait states and the summary
+prefers nonpending work. The legacy approval list currently returns all requests; this repair
+does not assert that it was truncated at fifty. The versioned drawer remains bounded/paginated.
+
+Desktop/phone fixtures persist 51 requests, fail queue discovery and include an older queued turn
+plus a human wait. Both waiting bots remain selectable. Inspection also found the phone notice
+covering Fleet metadata; it now occupies its own layout row, with 44px Review/Dismiss controls.
+Focused Store suite: **10 passed in 0.24s**. Complete browser/site suite after the flow repair:
+**26 passed in 53.76s**. The two new screenshots and browser/source metadata are in
+`artifacts/fleet-attention/`; they are synthetic lifecycle states, not live human handoff.
+
+The full offline suite passed **1,037 tests in 229.68s**, treating unhandled thread exceptions
+as failures. The refreshed navigation capture at 08:28 UTC contains **39 screenshots**, three
+traces and three current inspection sheets, with no page errors or horizontal overflow.
+The two Fleet attention screenshots are separate from those 39. Source hashes pin the
+`03706f2` plus refinement working tree; site derivatives now use these refreshed sources.

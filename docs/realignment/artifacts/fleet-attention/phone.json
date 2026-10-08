@@ -1,0 +1,16 @@
+{
+  "browser": "firefox",
+  "version": "155.0",
+  "viewport": [
+    390,
+    844
+  ],
+  "captured_at": "2026-10-08T08:27:20.197999+00:00",
+  "scenario": "synthetic waits, 51 persisted requests, failed queue discovery; no live handoff",
+  "page_errors": [],
+  "horizontal_overflow": 0,
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "8b64d1d636be8b5d3133c41d6e87b5a960bc4ab352a9681dd78caef7e3cbc3a3",
+    "src/hutch/store.py": "4f1d0b598821164503d42c559c8ace4379be51f3c7948ec6ffbb4eac1f5bed4c"
+  }
+}

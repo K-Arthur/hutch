@@ -171,6 +171,7 @@ def main():
                 image_python = os.environ.get('HUTCH_IMAGE_PYTHON', sys.executable)
                 image_script = '''
 from PIL import Image, __version__
+from PIL import ImageDraw, ImageFont
 from pathlib import Path
 import sys
 out, root = map(Path, sys.argv[1:])
@@ -180,6 +181,21 @@ for source, target in [('waiting', 'gate'), ('completion', 'transcript'),
         im.resize((1280, 889), Image.Resampling.LANCZOS).save(
             root / f'website/assets/captures/proof-{target}.webp', quality=88)
 print(__version__)
+states = ['empty', 'waiting', 'needs-you', 'settings', 'fleet', 'activity', 'completion',
+          'run-detail', 'loading', 'cancelling', 'error', 'reconnecting', 'site']
+for size, viewport in {'desktop': (1440, 1000), 'tablet': (900, 1024), 'phone': (390, 844)}.items():
+    sheet = Image.new('RGB', (1296, 1660), '#12181e')
+    draw = ImageDraw.Draw(sheet)
+    font = ImageFont.load_default(size=18)
+    for i, state in enumerate(states):
+        x, y = (i % 3) * 432, (i // 3) * 332
+        draw.text((x + 12, y + 8), f'{state} / {size}', fill='#e5eaf0', font=font)
+        with Image.open(out / f'{state}-{size}.png') as im:
+            if state == 'site':
+                im = im.crop((0, 0, im.width, min(viewport[1], im.height)))
+            im.thumbnail((408, 292), Image.Resampling.LANCZOS)
+            sheet.paste(im, (x + 12 + (408 - im.width) // 2, y + 34))
+    sheet.save(out / f'{size}-inspection.png')
 '''
                 pillow_version = subprocess.check_output([image_python, '-c', image_script, str(OUT), str(ROOT)], text=True).strip()
                 for size, page in pages.items():

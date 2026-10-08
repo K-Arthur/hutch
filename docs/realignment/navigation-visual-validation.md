@@ -1,8 +1,8 @@
 # Navigation functional and visual verification
 
-Captured 2026-10-08 at 07:42 UTC with Python 3.13.15, Playwright 1.63.0, Firefox 155
-and Pillow 12.3.0. The capture used `f4f8732` after the exact-action repair `956b925`, with
-navigation in its working tree. Source hashes are retained. This is local fixture
+Captured 2026-10-08 at 08:28 UTC with Python 3.13.15, Playwright 1.63.0, Firefox 155
+and Pillow 12.3.0. The capture used `03706f2` with the Fleet attention and phone reminder
+refinement in its working tree. Source hashes are retained. This is local fixture
 evidence, not a physical-phone, screen-reader or live provider certification.
 
 ## Reproduce
@@ -28,9 +28,9 @@ they are sanitized demonstration material, not production telemetry.
 
 ## Results and inspection
 
-The full offline suite after the approval, mount and history repairs passed **1,024 tests in
-261.64s**, with unhandled background-thread warnings promoted to failures. The browser and
-website suites passed **24 tests in 65.26s**. Conversation-order assertions verify
+The full offline suite after the approval, history, provider and Fleet repairs passed **1,037 tests in
+229.68s**, with unhandled background-thread warnings promoted to failures. The browser and
+website suites passed **26 tests in 53.76s**. Conversation-order assertions verify
 one user prompt preceding its assistant block, with no prompt echoed as an assistant answer
 while waiting. A two-message queue checks that the earlier active run stays fresh after the
 later message becomes current.
@@ -43,10 +43,14 @@ deterministic mock journeys. Loading/cancelling use held synthetic lifecycle rec
 error/reconnecting use intercepted failed requests. They do not prove physical cleanup,
 actual model loading or remote-device reconnection; backend regressions cover their authority.
 
-Inspected all three contact sheets for layout and state changes, plus individual full-size
+Inspected all three refreshed contact sheets for layout and state changes, plus individual full-size
 phone waiting/drawer, desktop completion, tablet error, phone cancellation and site fold
 captures. Earlier full-size desktop/tablet/Fleet checks informed the repairs. The full
-website captures are retained; contact sheets show their first fold only.
+website captures are retained; contact sheets show their first fold only. Two additional
+desktop/phone screenshots and metadata in `artifacts/fleet-attention/` cover failed queue
+discovery, 51 persisted requests and a human wait preceded by an older queued turn. Both
+were inspected, including the final full-size phone capture after the reminder moved into
+the layout. These waits are fixtures, not a real browser handoff.
 
 | Check | Observed result |
 |---|---|
@@ -54,6 +58,7 @@ website captures are retained; contact sheets show their first fold only.
 | Approval visibility | Chat decisions remain outside collapsed tool activity. Phone drawer details scroll within a bounded region so the decision buttons stay visible; full arguments remain keyboard-reachable. |
 | Focus and drafts | Escape restores menu focus, queue polls retain expanded review and focused decisions, and drafts survive immediate bot/conversation switches in their own scope. |
 | Large queues | A 51-request fixture pages all requests and resolves the final request once, then reconciles the remaining 50. No bulk approval is offered. |
+| Attention under failure | Both approval and human waits remain in Fleet's Needs you filter when queue discovery fails. The phone reminder ends above the content and has 44px Review/Dismiss targets. |
 | Failed refresh | Retained cards show a refresh error and Retry; failure never becomes an empty queue or success receipt. |
 | Cancellation and usage | Stopping remains nonterminal and disables duplicate Stop. Run detail and Activity use recorded cost and reported-token labels. |
 | Reduced motion and keyboard | Reduced-motion capture, model-menu navigation, mobile-sheet focus/Tab/Escape and alias Back behavior are exercised by browser checks. |

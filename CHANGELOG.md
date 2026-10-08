@@ -17,6 +17,8 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   together; sealed runs reject stale reply mutations. See the realignment continuation ledger.
 - **Conversation-first navigation:** one bot roster and settings destination; inline action decisions
   and a cross-bot Needs you drawer. Monitor contains Activity/history, with filtered Fleet at ten bots.
+  Human and approval waits remain visible during queue-discovery failures; phone reminders occupy
+  their own layout row, and an older queued turn cannot hide already executing work.
   Legacy navigation aliases preserve browser Back. Drafts belong to their conversation, stopping bots
   show “Stopping,” and queue failures retain requests. Approval commands carry immutable hashes and
   idempotency keys; expiry waits for server confirmation. See `docs/realignment/navigation.md`.

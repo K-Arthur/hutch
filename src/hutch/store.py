@@ -1286,7 +1286,8 @@ class Store:
 
     def active_run_for_bot(self, bot_id: str) -> Optional[Run]:
         runs = [r for r in self.active_runs() if r.bot_id == bot_id]
-        return runs[0] if runs else None
+        # A queued turn must not hide work already executing or waiting for a human.
+        return min(runs, key=lambda r: (r.status is RunStatus.pending, r.created_at, r.id)) if runs else None
 
     def last_successful_run(self, bot_id: str) -> Optional[Run]:
         with self._lock:

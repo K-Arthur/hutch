@@ -94,6 +94,15 @@ def test_active_runs_and_last_success(store):
     assert store.last_successful_run(bot.id).id == r1.id
 
 
+def test_bot_status_prefers_execution_or_human_wait_over_an_older_queue_entry(store):
+    bot = store.create_bot(make_bot())
+    queued = store.create_run(Run(bot_id=bot.id, prompt="queued first"))
+    waiting = store.create_run(Run(bot_id=bot.id, prompt="already waiting", status=RunStatus.waiting_human))
+    assert store.active_run_for_bot(bot.id).id == waiting.id
+    store.transition_run(waiting.id, RunStatus.failed, error="fixture ended")
+    assert store.active_run_for_bot(bot.id).id == queued.id
+
+
 def test_approvals_and_sticky_allows(store):
     bot = store.create_bot(make_bot())
     run = store.create_run(Run(bot_id=bot.id, prompt="x"))

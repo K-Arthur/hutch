@@ -14,6 +14,11 @@ hash; approvals use idempotent v1 commands. Old events without a hash first refr
 persisted request for another review. Client expiry disables decisions without inventing a
 server receipt. Refresh failures preserve requests and show an actionable error.
 
+Fleet and roster attention use authoritative bot lifecycle metadata as well as request discovery.
+A failed queue refresh cannot hide a waiting bot, and human waits remain visible without an
+approval request. The bot summary prefers executing/waiting work over older queued turns.
+On phones the reminder occupies a layout row instead of covering cards or conversation content.
+
 Monitor contains Activity and Run history. These answer different questions (what needs
 attention now versus what happened), so combining them with conversation history would lose
 useful inspection. At ten bots a searchable Fleet view also appears, with active, paused and
