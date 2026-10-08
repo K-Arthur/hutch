@@ -1039,4 +1039,4 @@ Desktop/tablet/phone Needs you captures were inspected. Updated anonymous market
 their source metadata are retained under `artifacts/browser-alerts/website/`; all three show zero
 page errors and horizontal overflow. The 58-test repeat covers the latest alert source, but the
 all-repository release suite has not yet been rerun after this slice. Implementation commit:
-pending.
+`ceb9369`.
