@@ -101,7 +101,7 @@ body {
   font: 400 var(--fs-base)/1.55 var(--sans);
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
-  overflow: hidden;                     /* app frame: panes scroll, page doesn't */
+  /* The viewport-sized app shell owns scrolling; keep fixed dialogs and notices unclipped. */
 }
 
 /* Themed browser surfaces: selection, caret, scrollbars belong to the system. */
@@ -567,12 +567,12 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .typing-slot:empty { margin: 0; padding: 0; }
 .typing { display: inline-flex; align-items: center; background: #10151d; border-radius: 18px 18px 18px 6px; padding: 13px 15px; }
 .typing-dots { display: inline-flex; gap: 5px; }
-.typing-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); animation: typing-bounce 1.3s var(--ease) infinite; }
+.typing-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); animation: typing-pulse 1.3s var(--ease) infinite; }
 .typing-dots span:nth-child(2) { animation-delay: 0.16s; }
 .typing-dots span:nth-child(3) { animation-delay: 0.32s; }
-@keyframes typing-bounce {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
-  30% { transform: translateY(-4px); opacity: 1; background: var(--brand); }
+@keyframes typing-pulse {
+  0%, 60%, 100% { transform: scale(0.86); opacity: 0.4; }
+  30% { transform: scale(1); opacity: 1; background: var(--brand); }
 }
 :root.reduce-effects .typing-dots span { animation: none; opacity: 0.8; transform: none; }
 @media (prefers-reduced-motion: reduce) { .typing-dots span { animation: none; opacity: 0.8; transform: none; } }
@@ -905,12 +905,12 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
   display: flex; align-items: center; gap: var(--s-3);
   background: var(--overlay); color: var(--text);
   border: 1px solid var(--line-strong);
-  border-left: 3px solid var(--brand);
   box-shadow: var(--sh-pop);
   padding: var(--s-3) var(--s-4); font-size: var(--fs-sm);
   animation: toast-in var(--dur-slow) var(--ease-out);
 }
-.toast.error { border-left-color: var(--danger); }
+.toast::before { content: ""; width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--brand); }
+.toast.error::before { background: var(--danger); }
 .toast-msg { flex: 1; }
 .toast-close { all: unset; cursor: pointer; color: var(--text-3); display: grid; place-items: center; }
 .toast-close:hover { color: var(--text); }
@@ -1083,9 +1083,11 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .cmenu { max-height: min(60dvh, 480px); overflow-y: auto; overscroll-behavior: contain; }
 .run-error.run-notice { color: var(--text-2); }
 .run-error.run-review { color: var(--warn); }
-.receipt-card { margin: var(--s-4) 0; padding: var(--s-4); border: 1px solid var(--line); border-left: 2px solid var(--warn); border-radius: var(--r-ctl); }
+.receipt-card { margin: var(--s-4) 0; padding: var(--s-4); border: 1px solid var(--line); border-radius: var(--r-ctl); }
+.receipt-card > b { display: flex; align-items: center; gap: var(--s-2); }
+.receipt-card > b::before { content: ""; width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--warn); }
+.receipt-card[data-receipt-reviewed] > b::before { background: var(--brand-deep); }
 .receipt-card p { margin: var(--s-2) 0; overflow-wrap: anywhere; }
-.receipt-card[data-receipt-reviewed] { border-left-color: var(--brand-deep); }
 .receipt-json { max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-sm); }
 .app-top:has(.execution-hold:not([hidden])) { flex-wrap: wrap; height: auto; }
 .app-top:has(.execution-hold:not([hidden])) .app-top-context { height: auto; min-height: 44px; }
