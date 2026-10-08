@@ -1,10 +1,10 @@
 # Navigation functional and visual verification
 
-Captured 2026-10-08 at 12:44 UTC; schema-v13 source hashes are recorded in `artifacts/navigation/results.json` with Python 3.13.15, Playwright 1.63.0, Firefox 155
-and Pillow 12.3.0. The latest capture used `4bdd936` with schema-v13 immutable action review
-in its working tree, after the resolved merge of `main` at `d7d0029` and conversation control fixes.
-Source hashes are retained. This is local fixture
-evidence, not a physical-phone, screen-reader or live provider certification.
+Captured 2026-10-08 at 16:24 UTC on `dc14a13`; application source hashes are recorded in
+`artifacts/navigation/results.json` with Python 3.13.15, Playwright 1.63.0, Firefox 155 and
+Pillow 12.3.0. The application sources matched the recorded revision; generated captures and
+this report were pending commit. This is local fixture evidence, not physical-phone, screen-reader
+or live-provider certification.
 
 ## Reproduce
 
@@ -50,13 +50,21 @@ one user prompt preceding its assistant block, with no prompt echoed as an assis
 while waiting. A two-message queue checks that the earlier active run stays fresh after the
 later message becomes current.
 
-`artifacts/navigation/results.json` records **39 screenshots**, with zero page errors and
+`artifacts/navigation/results.json` records **42 screenshots**, with zero page errors and
 zero horizontal overflow at 1440×1000, 900×1024 and 390×844. Each viewport covers empty,
-waiting, expanded Needs you, settings, Fleet, Activity, completion, run detail, model loading,
-cancelling, error, reconnecting and the website. The approval and completion are real
+waiting, expanded Needs you, default settings, the explicit local model-route setting, Fleet,
+Activity, completion, run detail, model loading, cancelling, error, reconnecting and the website.
+The routing control and offline-limit disclosure fit at all three sizes. The approval and completion are real
 deterministic mock journeys. Loading/cancelling use held synthetic lifecycle records;
 error/reconnecting use intercepted failed requests. They do not prove physical cleanup,
 actual model loading or remote-device reconnection; backend regressions cover their authority.
+The website fold was checked at desktop size; the tablet and phone captures were inspected around
+the architecture diagram and support FAQ. Inspection found diagram labels crossing node borders;
+the connector text and node subtitles now fit, and the caption explains that tools may reach their
+configured destinations. The recaptured diagram is legible at both narrower sizes.
+After the marketing correction, `tests/e2e/test_website.py` passed **12 tests in 11.79s** and
+the explicit phone model-route setting journey passed **1 test in 1.90s**. Their refreshed site
+proof metadata pins the corrected `website/index.html` hash and records no page errors or overflow.
 
 Three additional full-size captures in `artifacts/resource-replay/` were inspected at desktop,
 tablet and phone sizes. Their journey suppresses fallback timers and transcript hints,

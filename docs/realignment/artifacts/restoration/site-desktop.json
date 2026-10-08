@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-10-08T15:35:43.342247+00:00",
+  "captured_at": "2026-10-08T16:25:44.374025+00:00",
   "browser": "chromium",
   "version": "153.0.8010.12",
   "viewport": [
@@ -10,7 +10,7 @@
   "horizontal_overflow": 0,
   "scenario": "Anonymous static database-snapshot scope; no executor requests or credentials",
   "source_sha256": {
-    "website/index.html": "45d41a0c7b5609a51c968e3ebba5744062044da3ac966c9156bea8a5514d2049",
+    "website/index.html": "b3bbbfc1ad0b101d5f5cd5cb11f71d9b45e15d85d6c91324585a78681d3f59c5",
     "website/styles.css": "4e3bae94788f5ecb4b9a1068cd6b5d9903469feecd2860ca94579e176da2e7f5",
     "website/site.js": "f4e97600ff561f77fa15979fc5e740984c4160b8baf40bff558389da51204a0b"
   }

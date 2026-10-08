@@ -56,6 +56,10 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `33ac3ba` | Schema-v10 usage reservations, account-shared admission, uncertain-charge reconciliation, estimates and marketing copy; offline suite 1,003 passed, provider/reservation 45 passed, browser suite 15 passed |
 | `0161a7e` | Schema-v15 immutable scoped reference facts, human review/sharing, bounded FTS5 recall, chat/settings controls, truthful marketing copy and refreshed visual evidence; complete suite 1,220 passed |
 | `ae3226d` | Bounded OpenCode SSE and Pi JSONL protocol helpers, installed v2.0.24 contract fixture, safer permission mapping, updated support/evidence records |
+| `3a3b970` | Per-bot Local model route and Hybrid policy across Settings, API, CLI, model choices, fallback/escalation, cost estimates, docs, and marketing; known Ollama Cloud tags treated as hosted |
+| `bc8d856` | Keep fixed overlays unclipped; replace strong side accents and bouncing typing dots with quieter status markers and pulse motion |
+| `0a74f68` | Fix overlap between the marketing architecture diagram's connector text and model node |
+| `dc14a13` | Fit architecture diagram node labels and explain tool destinations in the caption |
 
 ## Verified behavior before this checkpoint
 
@@ -816,3 +820,38 @@ made. The full command `.venv/bin/python -m pytest -q
 -W error::pytest.PytestUnhandledThreadExceptionWarning` passed **1,235 tests in 361.62s**;
 This is protocol-fixture evidence only; no end-to-end broker was exercised, and OpenCode event
 loss is an explicit unresolved adapter gate.
+
+## S5 local and hybrid model routes; responsive site correction, 2026-10-08
+
+Bot settings now store an explicit `local` or `hybrid` inference policy. Local mode filters hosted
+model choices and refuses hosted one-message overrides and hosted fallback/escalation before a
+provider is constructed. API and CLI updates validate the selected route together with the bot's
+default model. Shared route classification recognizes known Ollama `:cloud` and `-cloud` tags as
+hosted for model choices, admission, estimates and currency caps; when pricing is unknown, a
+configured currency cap refuses the route rather than treating it as free. Local mode only
+recognizes known hosted routes: it does not enforce strict network isolation, constrain tools, or
+prevent a custom local endpoint from proxying requests. Settings and marketing copy state this
+limit, and strict offline mode remains unimplemented.
+
+The focused provider/API/CLI regression group
+(`tests/test_providers.py tests/test_model_switcher.py tests/test_runtime_builtin.py tests/test_api.py tests/test_cli.py`)
+passed **109 tests**. The complete non-browser suite
+`.venv/bin/python -m pytest -q --ignore=tests/e2e -W error::pytest.PytestUnhandledThreadExceptionWarning`
+passed **1,189 tests in 251.93s**. The phone route-setting journey passed separately; no live
+provider, local model, or paid call was used. After the site diagram correction, the anonymous
+website browser tests passed **12 tests in 11.79s**, and the phone route-setting journey passed
+**1 test in 1.90s**.
+
+The final Firefox/Playwright capture at `dc14a13` records **42 screenshots**, including explicit
+local-route Settings on desktop, tablet and phone, at 1440×1000, 900×1024 and 390×844. All
+reported page-error lists and horizontal-overflow counts are empty. Desktop site-fold, tablet
+architecture diagram, phone diagram and FAQ sections were visually inspected. The inspection
+found and corrected overlapping connector and node labels; the recaptured architecture diagram
+fits the narrower viewports. Metadata, source hashes, three traces and screenshots are under
+`docs/realignment/artifacts/navigation/`; browser fixtures are local demo data, not live-device or
+provider evidence. Impeccable's final static scan returned no findings for the application and
+marketing files.
+
+This closes the local/hybrid route-mode checkpoint only. Provider compatibility and failure
+matrices, verified external runtime adapters, enforceable strict-offline behavior, remaining S5
+work and S6–S9 release gates are open.

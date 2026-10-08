@@ -115,6 +115,14 @@ def main():
                     page.goto(base + '/#/bot/research-assistant')
                     page.locator('#form-limits').wait_for()
                     snap(page, 'settings', size)
+                for size, page in pages.items():
+                    mode = page.locator('#form-model select[name="inference_mode"]')
+                    mode.select_option('local')
+                    page.locator('#form-model button[type="submit"]').click()
+                    wait_for(lambda: store.get_bot('research-assistant').inference_mode.value == 'local')
+                    page.wait_for_function("document.querySelector('#form-model select[name=inference_mode]')?.value === 'local'")
+                    page.locator('#toast-root .toast').last.wait_for(state='detached', timeout=6000)
+                    snap(page, 'local-routes', size)
                 for i in range(7):
                     store.create_bot(Bot(name=f'fleet-helper-{i}', model='mock/demo', tools=[], paused=i == 3))
                 for size, page in pages.items():
@@ -181,7 +189,7 @@ for source, target in [('waiting', 'gate'), ('completion', 'transcript'),
         im.resize((1280, 889), Image.Resampling.LANCZOS).save(
             root / f'website/assets/captures/proof-{target}.webp', quality=88)
 print(__version__)
-states = ['empty', 'waiting', 'needs-you', 'settings', 'fleet', 'activity', 'completion',
+states = ['empty', 'waiting', 'needs-you', 'settings', 'local-routes', 'fleet', 'activity', 'completion',
           'run-detail', 'loading', 'cancelling', 'error', 'reconnecting', 'site']
 for size, viewport in {'desktop': (1440, 1000), 'tablet': (900, 1024), 'phone': (390, 844)}.items():
     sheet = Image.new('RGB', (1296, 1660), '#12181e')
@@ -221,7 +229,7 @@ for size, viewport in {'desktop': (1440, 1000), 'tablet': (900, 1024), 'phone': 
               'playwright': package_version('playwright'), 'captured_at': datetime.now(timezone.utc).isoformat(),
               'pillow': pillow_version,
               'revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
-              'tree': 'working tree after navigation and exact-action repairs',
+              'tree': 'application sources matched this revision; only generated docs/artifacts may be dirty',
               'fixture': 'isolated mock/demo; temporary state removed; loading/cancelling records synthetic', 'captures': records}
     if source_hashes() != source_before:
         raise RuntimeError('application sources changed during capture; repeat against a stable tree')
