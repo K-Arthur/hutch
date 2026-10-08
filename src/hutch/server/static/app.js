@@ -235,7 +235,7 @@ function confirmDialog({ title, body, confirmText = "Confirm", danger = false })
 
 const routes = [
   [/^#\/chat(?:\/([\w-]+))?$/, m => renderChatStudio(m ? m[1] : null), "chat"],
-  [/^#\/overview$/, () => renderChatStudio(), "chat"],
+  [/^#\/overview$/, renderOverview, "overview"],
   [/^#\/bots$/, renderBots, "bots"],
   [/^#\/runs(?:\?(.*))?$/, m => renderRuns(m ? m[1] : ""), "runs"],
   [/^#\/approvals$/, renderApprovals, "approvals"],
@@ -815,6 +815,57 @@ function renderChatEvent(e) {
 
 // ------------------------------------------------------------- BOTS VIEW
 
+async function renderOverview() {
+  const o = await api("/overview");
+  const s = o.stats || {};
+  const fmt = (n) => Number(n || 0).toLocaleString();
+  const row = (r) => `
+    <a class="ov-row" href="#/run/${esc(r.id)}">
+      <span class="ov-row-main"><b>${esc(r.bot_name)}</b>${statusChip(r.status)}</span>
+      <span class="ov-row-prompt">${esc((r.prompt || "").slice(0, 84))}</span>
+      <span class="ov-row-meta mono">${r.steps} steps · ${fmt(r.tokens)} tok</span>
+    </a>`;
+  const waitBox = (w) => w && w.cause ? `<div class="ov-wait banner ${esc(w.kind || "wait")}"><b>Why:</b> ${esc(w.cause)}<br><b>What to do:</b> ${esc(w.fix)}</div>` : "";
+  view.innerHTML = `
+    <div class="container">
+      <div class="page-head"><div><h1 class="page-title">Overview</h1>
+        <p class="page-subtitle">What needs you, what is running, and what has gone quiet.</p></div>
+        <a class="btn ghost" href="#/bots">All bots ${icon("arrow")}</a></div>
+      <div class="ov-stats">
+        <span><b>${fmt(s.bots)}</b> bots</span>
+        <span><b>${fmt(s.runs_today)}</b> runs today</span>
+        <span><b>${fmt(s.tokens_today)}</b> tokens</span>
+        <span><b>$${Number(s.spend_today || 0).toFixed(2)}</b> spent</span>
+      </div>
+      <div class="bento ov-grid">
+        <section class="card ov-col loud">
+          <h2 class="ov-h">${icon("inbox")} Needs you <span class="badge ${o.needs_count ? "" : "hidden"}">${o.needs_count}</span></h2>
+          ${o.needs_count ? "" : `<div class="empty-state">${icon("check", "icon-lg")}<p>Nothing needs you.</p></div>`}
+          ${(o.approvals || []).map(a => `
+            <a class="ov-approval" href="#/approvals">
+              <span class="kicker">Approval required</span>
+              <span class="ov-approval-head"><b>${esc(a.bot_name)}</b> <span class="tag">${esc(a.tool)}</span> <span class="tag ${a.risk === "high" ? "danger" : "warn"}">${esc(a.risk)} risk</span></span>
+              <span class="ov-approval-action">${esc(a.action)}</span>
+            </a>`).join("")}
+          ${(o.humans || []).map(r => `<div class="ov-item">${row(r)}${waitBox(r.wait)}</div>`).join("")}
+          ${(o.failures || []).map(r => `<div class="ov-item">${row(r)}${waitBox(r.wait)}</div>`).join("")}
+        </section>
+        <section class="card ov-col quiet">
+          <h2 class="ov-h">${icon("play")} Running now <span class="count">${(o.running || []).length}</span></h2>
+          ${(o.running || []).length ? (o.running || []).map(row).join("") : `<div class="empty-state"><p>Nothing is running.</p></div>`}
+        </section>
+        <section class="card ov-col quiet">
+          <h2 class="ov-h">${icon("clock")} Stale <span class="count">${(o.stale || []).length}</span></h2>
+          ${(o.stale || []).length ? (o.stale || []).map(x => `
+            <a class="ov-row" href="#/bot/${esc(x.bot_name)}">
+              <span class="ov-row-main"><b>${esc(x.bot_name)}</b>${statusChip("stale")}</span>
+              <span class="ov-row-meta">last success ${timeAgo(x.last_success)}</span>
+            </a>`).join("") : `<div class="empty-state">${icon("check", "icon-lg")}<p>Every scheduled bot is up to date.</p></div>`}
+        </section>
+      </div>
+    </div>`;
+}
+
 async function renderBots() {
   const bots = await api("/bots");
   view.innerHTML = `
@@ -952,6 +1003,14 @@ async function renderRuns(query = "") {
       });
     } else {
       const rows = filtered.slice(0, runsState.shown);
+      const nowMs = Date.now();
+      const durMs = (r) => {
+        const a = r.created_at ? new Date(r.created_at).getTime() : nowMs;
+        const b = r.finished_at ? new Date(r.finished_at).getTime() : nowMs;
+        return Math.max(0, b - a);
+      };
+      const fmtDur = (ms) => ms < 1000 ? `${ms}ms` : ms < 60000 ? `${(ms / 1000).toFixed(1)}s` : ms < 3600000 ? `${Math.round(ms / 60000)}m` : `${(ms / 3600000).toFixed(1)}h`;
+      const maxDur = Math.max(1, ...rows.map(durMs));
       wrap.innerHTML = `
         <table>
           <thead>
@@ -960,23 +1019,28 @@ async function renderRuns(query = "") {
               <th>Bot</th>
               <th>Status</th>
               <th>Prompt</th>
+              <th>Timeline</th>
               <th class="num">Steps</th>
               <th class="num">Tokens</th>
               <th>Executed</th>
             </tr>
           </thead>
           <tbody>
-            ${rows.map(r => `
+            ${rows.map(r => {
+              const d = durMs(r);
+              const cls = r.status === "failed" ? "bad" : r.status === "waiting_approval" ? "warn" : "";
+              return `
               <tr class="clickable" tabindex="0" role="link" aria-label="Open run ${esc(r.id)}" data-goto="#/run/${esc(r.id)}" title="${esc(r.created_at || "")}">
                 <td class="mono">${esc(r.id.slice(0, 16))}…</td>
                 <td><b>${esc(r.bot_name)}</b></td>
                 <td>${statusChip(r.status)}</td>
                 <td class="cell-truncate">${esc(r.prompt)}</td>
+                <td><span class="timeline"><span class="timeline-track"><i class="timeline-fill ${cls}" style="width:${Math.max(3, Math.round(d / maxDur * 100))}%"></i></span><span class="timeline-label">${fmtDur(d)}</span></span></td>
                 <td class="num">${r.steps}</td>
                 <td class="num">${fmtTokens(r.tokens)}</td>
                 <td class="mono" title="${esc(r.created_at || "")}">${timeAgo(r.created_at)}</td>
-              </tr>
-            `).join("")}
+              </tr>`;
+            }).join("")}
           </tbody>
         </table>
         ${filtered.length > runsState.shown ? `

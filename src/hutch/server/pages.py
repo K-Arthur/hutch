@@ -189,6 +189,34 @@ def register_pages(app: FastAPI) -> None:
     def home_partial(request: Request):
         return fragment(request, "_home_lists.html", home=home_ctx())
 
+    @app.get("/api/overview", include_in_schema=False)
+    def api_overview():
+        """The triage data the studio's Overview view renders (same source as /overview)."""
+        h = home_ctx()
+
+        def rj(run, name, wait=None):
+            d = {"id": run.id, "bot_name": name, "status": run.status.value, "prompt": run.prompt,
+                 "steps": run.steps, "tokens": run.tokens, "cost_usd": run.cost_usd,
+                 "created_at": run.created_at, "finished_at": run.finished_at,
+                 "started_at": run.started_at}
+            if wait:
+                d["wait"] = {"cause": wait.cause, "fix": wait.fix, "kind": wait.kind,
+                             "href": wait.href, "link_text": wait.link_text, "deadline": wait.deadline}
+            return d
+
+        return {
+            "stats": h.stats, "needs_count": h.needs_count,
+            "approvals": [{"id": a.id, "bot_name": name, "action": a.action, "tool": a.tool,
+                           "risk": a.risk, "outward": a.outward, "expires_at": a.expires_at}
+                          for a, name in h.approvals],
+            "humans": [rj(r, n, w) for r, n, w in h.humans],
+            "failures": [rj(r, n, w) for r, n, w in h.failures],
+            "running": [rj(r, n, w) for r, n, w in h.running],
+            "stale": [{"bot_name": s.bot.name, "cause": s.cause, "fix": s.fix,
+                       "last_success": s.last_success,
+                       "last_run_id": s.last_run.id if s.last_run else None} for s in h.stale],
+        }
+
     @app.get("/_badge", response_class=HTMLResponse, include_in_schema=False)
     def badge():
         return HTMLResponse(str(len(store.pending_approvals())))
@@ -285,8 +313,14 @@ def register_pages(app: FastAPI) -> None:
             bot.description = form.get("description")
             bot.model = form.get("model").strip() or bot.model
             bot.instructions = form.get("instructions")
-            from ..models import ApprovalMode
+            from ..models import ApprovalMode, CommandRule, RiskTier
+            from ..safety import parse_rules
             bot.approval_mode = ApprovalMode(form.get("approval_mode") or bot.approval_mode.value)
+            try:
+                bot.risk_tier = RiskTier(form.get("risk_tier") or bot.risk_tier.value)
+                bot.command_rules = [CommandRule(verdict=v, match=g) for v, g in parse_rules(form.get("command_rules"))]
+            except ValueError as exc:
+                return go(nxt, error=f"Command rules not saved: {exc}")
             cron = form.get("cron").strip()
             if cron:
                 try:
