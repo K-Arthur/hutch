@@ -61,6 +61,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `0a74f68` | Fix overlap between the marketing architecture diagram's connector text and model node |
 | `dc14a13` | Fit architecture diagram node labels and explain tool destinations in the caption |
 | `d33941b` | Versioned provider route matrix/API, evidence boundary docs, exact OpenAI endpoint field selection |
+| `d6c4e83` | Narrow non-stream retries to streaming errors and verify auth/quota route approval |
 
 ## Verified behavior before this checkpoint
 
@@ -881,3 +882,23 @@ tests/test_api.py` — **53 passed in 17.27s**; `compileall` passed for the chan
 tool probes, provider failure journeys, strict offline enforcement, paid account behavior, and
 external runtime adapters remain unverified or incomplete; the full regression gate remains open.
 Implementation commit: `d33941b`.
+
+## S5 provider rejection and paid-route approval, 2026-10-08
+
+Review found that every 400/422 response was treated as a possible streaming failure. That caused
+the builtin runtime to resend a provider's generic invalid-field response once with streaming
+disabled, even though the invalid field remained in the body. The retry predicate now requires
+the error to identify stream/SSE incompatibility; typed `stream` transport failures retain their
+existing bounded retry. A generic field rejection stops after one request and leaves its usage
+reservation `uncertain` for explicit reconciliation rather than assuming it was free.
+
+Fixture integration also covers an OpenAI key rejection and a quota response. The quota case
+exercises the existing single bounded retry on the same route; both cases reach an outward review
+before a different paid account is constructed, and denial leaves it uncalled. No live provider,
+paid account or billing behavior was tested. The existing hosted-to-hosted outage regression
+also confirms the exact authority review cannot be bypassed with a generic sticky grant.
+
+Focused command `.venv/bin/python -m pytest -q tests/test_providers.py
+tests/test_provider_authority.py tests/test_runtime_builtin.py
+-W error::pytest.PytestUnhandledThreadExceptionWarning` passed **85 tests in 47.40s**.
+`git diff --check` passed. Implementation commit: `d6c4e83`.
