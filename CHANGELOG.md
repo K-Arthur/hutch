@@ -9,12 +9,14 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   pre-realignment archive and current branch have same-harness captures with a data-quality notebook and explicit sampling limits.
 - **Marketing demo truth:** the scripted hero illustration is labeled “DEMO supervised run,” not “LIVE,” and its accessible name
   identifies it as a demo preview.
+- **Global transcript replay:** `/api/v1/events` provides bounded cross-run pages and `/api/v1/events/stream` resumes with
+  `Last-Event-ID`. A missing or future cursor directs the client to a bounded consistent snapshot and a replay watermark.
 - **Canonical conversation persistence and v1 API (partial):** schema v8 imports each old run into a separate legacy conversation;
   new conversation/message/archive commands use atomic `Idempotency-Key` records and reject key reuse with changed arguments. Run
   admission snapshots up to 12 prior messages and 16,000 characters for the builtin runtime. FTS5 searches messages explicitly;
   search results are not injected into prompts. Studio supports durable thread switching and archive. Versioned stop and approval
-  resolution also use idempotency keys. `/api/v1` now includes sanitized connection metadata, schedules and explicit capability
-  records; global event replay remains open.
+  resolution also use idempotency keys. `/api/v1` now includes sanitized connection metadata, schedules, explicit capability records,
+  and cross-run transcript replay with bounded snapshot reconciliation.
 - **Experimental remote pairing:** schema v9 adds single-use 60-second pairing codes and hash-only, revocable device sessions with
   sliding 30-day expiry. Direct off-loopback binding requires `--allow-remote` plus TLS certificate/key. Pairing attempts are
   rate-limited; the phone UI, live control routes, tunnel support and device validation remain unavailable.

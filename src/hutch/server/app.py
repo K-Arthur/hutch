@@ -17,7 +17,7 @@ import os
 import platform
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
@@ -33,7 +33,7 @@ from ..store import IdempotencyConflict, Store
 from ..templates import TEMPLATE_INFO, TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
 from .security import DEVICE_COOKIE, SecurityMiddleware
-from .sse import resume_cursor, run_event_stream
+from .sse import global_event_stream, resume_cursor, run_event_stream
 
 _STATIC = Path(__file__).parent / "static"
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,40}$")
@@ -182,6 +182,25 @@ class ScheduleResource(BaseModel):
     last_skip: Optional[dict] = None
 
 
+class EventPageResource(BaseModel):
+    events: list[dict[str, Any]]
+    after: int
+    next_after: int
+    high_watermark: int
+    oldest_event_id: int
+    has_more: bool
+
+
+class SnapshotResource(BaseModel):
+    event_cursor: int
+    replay_after: int
+    limit: int
+    items: dict[str, list[dict[str, Any]]]
+    totals: dict[str, int]
+    truncated: dict[str, bool]
+    next: dict[str, Optional[str]]
+
+
 class ApproveRequest(BaseModel):
     always: bool = False
     plan_scope: int = 0               # accepted and ignored: plan-wide grants were never implemented
@@ -265,6 +284,71 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/health")
     def health() -> dict:
         return {"status": "ok", "version": __version__, "schema": store.schema_version}
+
+    @app.get("/api/v1/events", response_model=EventPageResource)
+    def global_events(after: int = 0, limit: int = 200) -> dict:
+        """Read a bounded, globally ordered event page; per-run ``seq`` remains available on each event."""
+        if after < 0:
+            raise HTTPException(422, "after must be zero or a positive event ID")
+        limit = max(1, min(limit, 500))
+        oldest, high = store.global_event_bounds()
+        if after > high or (oldest and after < oldest - 1):
+            raise HTTPException(409, detail={"code": "snapshot_required", "reason": "event_cursor_unavailable",
+                                             "snapshot_url": "/api/v1/snapshot", "event_cursor": high})
+        events = store.list_global_events(after, limit)
+        next_after = events[-1].id if events else after
+        return {"events": [event.model_dump() for event in events], "after": after, "next_after": next_after,
+                "high_watermark": high, "oldest_event_id": oldest,
+                "has_more": bool(events) and next_after < high}
+
+    @app.get("/api/v1/events/stream")
+    async def global_events_stream(request: Request, after: int = 0) -> StreamingResponse:
+        """Global durable SSE. Reconnect using Last-Event-ID; fetch `/api/v1/snapshot` on `snapshot_required`."""
+        cursor = resume_cursor(request, after)
+        return StreamingResponse(global_event_stream(request, store, cursor), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    @app.get("/api/v1/snapshot", response_model=SnapshotResource)
+    def api_snapshot(limit: int = 100) -> dict:
+        """Bounded consistent state for resynchronizing after an expired event cursor.
+
+        Continue with each non-null `next` URL. Replay events after `replay_after` to include changes made during paging.
+        """
+        limit = max(1, min(limit, 500))
+        snap = store.reconciliation_snapshot(limit)
+        bots = [bot.model_dump(mode="json") for bot in snap["items"]["bots"]]
+        bot_names = {bot["id"]: bot["name"] for bot in bots}
+        def bot_name(bot_id: str) -> str:
+            if bot_id not in bot_names:
+                bot = store.get_bot(bot_id)
+                bot_names[bot_id] = bot.name if bot else "?"
+            return bot_names[bot_id]
+
+        runs = [{**run.model_dump(mode="json"), "bot_name": bot_name(run.bot_id)}
+                for run in snap["items"]["runs"]]
+        approvals = [{**req.model_dump(mode="json"), "bot_name": bot_name(req.bot_id)}
+                     for req in snap["items"]["approvals"]]
+        conversations = []
+        for row in snap["items"]["conversations"]:
+            conversations.append({**row, "archived": bool(row["archived"]), "is_legacy": bool(row["is_legacy"])})
+        items = {"bots": bots, "runs": runs, "approvals": approvals, "conversations": conversations}
+        paths = {
+            "bots": "/api/v1/bots",
+            "runs": "/api/v1/tasks/runs",
+            "approvals": "/api/v1/actions/approvals?status=pending",
+            "conversations": "/api/v1/conversations?include_legacy=true",
+        }
+        next_urls = {name: f"{paths[name]}&limit={limit}&offset={limit}" if "?" in paths[name]
+                     else f"{paths[name]}?limit={limit}&offset={limit}" if snap["truncated"][name] else None
+                     for name in paths}
+        # A query string already containing pagination parameters uses '&'; the base paths use '?'.
+        for name in paths:
+            if not snap["truncated"][name]:
+                next_urls[name] = None
+            elif "?" in paths[name]:
+                next_urls[name] = f"{paths[name]}&limit={limit}&offset={limit}"
+        return {"event_cursor": snap["event_cursor"], "replay_after": snap["event_cursor"], "limit": limit,
+                "items": items, "totals": snap["totals"], "truncated": snap["truncated"], "next": next_urls}
 
     @app.post("/api/v1/pairing/exchange")
     def exchange_pairing(body: PairingExchangeRequest, request: Request, response: Response) -> dict:
@@ -442,9 +526,14 @@ def create_app() -> FastAPI:
     # --------------------------------------------------------------- bots
 
     @app.get("/api/bots")
-    @app.get("/api/v1/bots")
     def list_bots() -> list[dict]:
         return [bot_view(b) for b in store.list_bots()]
+
+    @app.get("/api/v1/bots")
+    def list_bots_v1(limit: int = 100, offset: int = 0) -> list[dict]:
+        bots = store.list_bots()
+        start = max(0, offset)
+        return [bot_view(bot) for bot in bots[start:start + max(1, min(limit, 500))]]
 
     @app.get("/api/bots/templates")
     def bot_templates() -> list[dict]:
@@ -589,7 +678,7 @@ def create_app() -> FastAPI:
     def list_runs(bot: Optional[str] = None, status: Optional[str] = None, limit: int = 30,
                   offset: int = 0) -> list[dict]:
         bot_id = bot_or_404(bot).id if bot else None
-        return [run_view(r) for r in store.list_runs_page(bot_id, status, min(limit, 200), offset)]
+        return [run_view(r) for r in store.list_runs_page(bot_id, status, max(1, min(limit, 200)), max(0, offset))]
 
     @app.get("/api/runs/{run_id}")
     @app.get("/api/v1/tasks/runs/{run_id}")
@@ -663,7 +752,6 @@ def create_app() -> FastAPI:
     # ---------------------------------------------------------- approvals
 
     @app.get("/api/approvals")
-    @app.get("/api/v1/actions/approvals")
     def list_approvals(status: str = "pending", limit: int = 20) -> list[dict]:
         """``status=pending`` (default) lists the queue; ``status=resolved`` lists recently decided.
 
@@ -674,6 +762,18 @@ def create_app() -> FastAPI:
             reqs = store.recent_approvals(min(max(limit, 1), 50))
         else:
             reqs = store.pending_approvals()
+        return approval_views(reqs)
+
+    @app.get("/api/v1/actions/approvals")
+    def list_approvals_v1(status: str = "pending", limit: int = 50, offset: int = 0) -> list[dict]:
+        if status not in ("pending", "resolved"):
+            raise HTTPException(422, "status must be pending or resolved")
+        limit, offset = max(1, min(limit, 200)), max(0, offset)
+        reqs = (store.recent_approvals(limit, offset) if status == "resolved" else
+                store.pending_approvals(limit=limit, offset=offset))
+        return approval_views(reqs)
+
+    def approval_views(reqs: list) -> list[dict]:
         out = []
         for req in reqs:
             bot = store.get_bot(req.bot_id)

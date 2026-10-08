@@ -4,14 +4,16 @@ Status: partially implemented (2026-10-07). Slice: S8. Evidence: baseline "recon
 
 ## Decision
 
-* **Contract first** (`docs/realignment/contracts.md`): typed Pydantic schemas now cover health, status labels, conversations, messages,
-  search results, and selected run/approval aliases under `/api/v1`. Conversation creation, message submission, and archive commands
-  require an `Idempotency-Key`, persist the request hash and result in the same transaction, and return 409 if a key is reused with
-  different arguments. Conversation messages and lists are bounded and cursor-paginated. Other command families, global ordered
-  cursors, retention-gap snapshots, and full schemas remain to be implemented. Existing `/api/*` routes stay as compatibility paths.
-* **Transport**: legacy per-run SSE supports `Last-Event-ID`; the versioned per-run alias is available. Durable global replay for
-  conversations and all resources is not implemented. The interactive terminal and browser-handoff input use a **separate WebSocket**, authenticated per message and gated by the
-  same middleware (the current middleware passes non-HTTP scopes through - fixed).
+* **Contract first** (`docs/realignment/contracts.md`): Pydantic schemas cover health, status labels, conversations, messages, search
+  results, and selected run/approval aliases under `/api/v1`. Conversation creation, message submission, archive, stop and approval
+  resolution require an `Idempotency-Key` and persist request identity with the result. Versioned bot, run, approval, conversation
+  and event lists are bounded; other command families and complete resource schemas remain open. Existing `/api/*` routes stay as
+  compatibility paths.
+* **Transport**: per-run and cross-run transcript SSE streams use database-backed cursors and `Last-Event-ID`. The cross-run stream
+  orders transcript events by SQLite's committed event ID while preserving each run's local `seq`. Page reads detect a cursor outside
+  retained history; clients fetch the bounded resource snapshot and replay transcript events from its watermark. Events are not pruned
+  today, and bot/configuration changes are not yet published in this stream. No interactive terminal or browser-handoff WebSocket route
+  is implemented yet; those controls must use their own authenticated, sequenced contract.
 * **Server owns** status, approval resolution, receipts, permissions and usage. The browser owns drafts, focus and view state. Optimistic UI
   may show "sending", never "done".
 * **Remote supervision**: loopback by default. An operator can explicitly enable a direct remote listener with `--allow-remote`, a TLS
@@ -30,5 +32,6 @@ Status: partially implemented (2026-10-07). Slice: S8. Evidence: baseline "recon
 
 Current boundary: the local `/api/v1` surface and Studio conversation flow are partial; the Studio still uses compatibility routes for
 approval decisions and stop. Pairing and revocable device sessions plus explicit direct HTTPS binding are implemented and fixture-tested.
-There is no mobile pairing UI, PTY or browser-control WebSocket route, global event replay, configured tunnel support, physical-device test,
-or production support claim. Keep direct access private and operator-controlled.
+Cross-run event replay and bounded reconciliation are implemented, but no durable resource outbox, mobile pairing UI, PTY or browser-control WebSocket route,
+configured tunnel support, physical-device test, event-retention policy, or production remote-support claim exists. Keep direct access
+private and operator-controlled.

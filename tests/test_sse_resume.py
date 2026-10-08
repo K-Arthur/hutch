@@ -143,6 +143,75 @@ def test_last_event_id_wins_over_the_after_parameter(live, monkeypatch):
     assert got == [7, 8, 9, 10]
 
 
+def test_global_event_pages_and_sse_replay_use_one_durable_cursor(live):
+    base, app = live
+    store = app.state.store
+    from hutch.models import Run, RunStatus
+
+    for n, count in ((1, 3), (2, 2)):
+        bot = store.create_bot(Bot(name=f"global-{n}"))
+        run = store.create_run(Run(bot_id=bot.id, prompt="x", status=RunStatus.succeeded))
+        for i in range(count):
+            store.append_event(Event(run_id=run.id, type=EventType.log, data={"i": i}))
+    store.flush_events()
+
+    first = httpx.get(f"{base}/api/v1/events?after=0&limit=2").json()
+    assert len(first["events"]) == 2 and first["has_more"]
+    cursor = first["next_after"]
+    remaining = httpx.get(f"{base}/api/v1/events?after={cursor}&limit=20").json()
+    first_ids = [event["id"] for event in first["events"]]
+    later_ids = [event["id"] for event in remaining["events"]]
+    assert first_ids == sorted(first_ids) and later_ids == sorted(later_ids)
+    assert min(later_ids) > max(first_ids)
+    assert len(set(first_ids + later_ids)) == len(first_ids) + len(later_ids)
+    assert len({event["run_id"] for event in first["events"] + remaining["events"]}) == 2
+
+    first_batch = None
+    with httpx.stream("GET", f"{base}/api/v1/events/stream?after=0",
+                      headers={"Last-Event-ID": str(cursor)}, timeout=10) as response:
+        assert response.status_code == 200
+        for kind, stream_id, data in parse_sse(response.iter_lines()):
+            if kind == "events":
+                first_batch = (stream_id, json.loads(data))
+                break
+    assert first_batch
+    stream_id, payload = first_batch
+    ids = [event["id"] for event in payload["events"]]
+    assert stream_id == ids[-1]
+    assert ids and min(ids) > cursor
+
+
+def test_global_cursor_gap_returns_bounded_snapshot_and_resume_cursor(live):
+    base, app = live
+    store = app.state.store
+    bots = [store.create_bot(Bot(name=f"snapshot-{n}")) for n in range(2)]
+    response = httpx.get(f"{base}/api/v1/events?after=999999")
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["code"] == "snapshot_required" and detail["snapshot_url"] == "/api/v1/snapshot"
+    stream_gap = None
+    with httpx.stream("GET", f"{base}/api/v1/events/stream?after=999999", timeout=10) as response:
+        assert response.status_code == 200
+        for kind, event_id, data in parse_sse(response.iter_lines()):
+            if kind == "snapshot_required":
+                stream_gap = (event_id, json.loads(data))
+                break
+    assert stream_gap and stream_gap[0] is None
+    assert stream_gap[1]["snapshot_url"] == "/api/v1/snapshot"
+
+    snapshot = httpx.get(f"{base}{detail['snapshot_url']}?limit=1").json()
+    assert snapshot["event_cursor"] == snapshot["replay_after"]
+    assert snapshot["truncated"]["bots"] is True and snapshot["next"]["bots"]
+    first_names = {bot["name"] for bot in snapshot["items"]["bots"]}
+    second_page = httpx.get(f"{base}{snapshot['next']['bots']}").json()
+    assert len(first_names) == 1 and len(second_page) == 1
+    assert second_page[0]["name"] not in first_names
+    page = httpx.get(f"{base}/api/v1/events?after={snapshot['replay_after']}").json()
+    assert page["after"] == snapshot["event_cursor"]
+    assert all(event["id"] > snapshot["replay_after"] for event in page["events"])
+    assert len(bots) == 2
+
+
 def test_resume_survives_a_server_restart_because_the_database_is_the_source_of_truth(tmp_path, monkeypatch):
     """A ring buffer would be empty after a restart; replay-from-SQLite is not."""
     monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))

@@ -20,7 +20,7 @@ commits can cite them. Evidence for the *why* is in
 |---|---|---|---|---|
 | UI-1 | Home shows Needs you / Running now / Stale | MVP | done | `views.home_state` served at `/`: Needs you / Running now / Stale, each with cause and fix; `tests/test_views.py`, `tests/test_dashboard.py` |
 | UI-2 | Stop all in every header; per-run Stop kills child processes | MVP | done | Stop all in every header (plain POST + confirm); engine kills process groups; tested incl. forked helper |
-| UI-3 | Run detail streams over SSE and resumes gap-free via event sequence | MVP | done | SSE seq cursor + Last-Event-ID replay from SQLite; gate + real-Chromium TCP-cut test |
+| UI-3 | Run event streams resume from durable cursors and resources publish ordered updates | MVP | partial | Per-run `seq` and cross-run SQLite event IDs replay from `Last-Event-ID`; two-processes' transcript events are polled, pages are bounded, and missing cursors require a reconciliation snapshot. Non-run resource updates still need a durable outbox; real-socket tests are in `tests/test_sse_resume.py` |
 | UI-4 | Run detail: steps, elapsed, spend, context vs caps | MVP | done | `views.run_meters`: steps, elapsed, spend, tokens, context vs caps, plus absolute model/tool/Hutch timing |
 | UI-5 | Approvals inbox: parsed segments, rule, once/always/deny, countdown | MVP | done | approval card: parsed segments, rule, once/always/plan/deny, live countdown; outward never offers always |
 | UI-6 | Every waiting state names its cause and a fix | MVP | done | `views.explain_run`, `explain_outcome` and the stale cause: every wait names a cause and a fix |

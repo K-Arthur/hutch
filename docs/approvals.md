@@ -8,6 +8,7 @@ The client does not remove a request as completed based on a local click alone. 
 
 Approval CAS and reconciliation are live on both path families. The versioned approve/deny routes require `Idempotency-Key`; approve
 also requires the `action_hash` returned with the approval so a revised action cannot reuse the decision. Exact retries return the
-same result and changed request arguments conflict. Legacy routes remain available for the local Studio. Per-run SSE supports
-`Last-Event-ID`; global event replay and interactive remote-control routes remain unavailable. Device pairing is experimental; see
+same result and changed request arguments conflict. Legacy routes remain available for the local Studio. Per-run and cross-run transcript SSE
+support durable `Last-Event-ID` replay; a missing global cursor returns `snapshot_required` so the client can fetch `/api/v1/snapshot`
+and resume from its event watermark. Interactive remote-control routes remain unavailable. Device pairing is experimental; see
 [the API contract](realignment/contracts.md#6-remote-pairing-partial-experimental).

@@ -147,6 +147,6 @@ approval decisions are also idempotent.
 ## What is deliberately NOT here (yet)
 
 Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, artifact versioning, browser handoff,
-interactive remote supervision, global event replay and Windows/macOS support — tracked in `docs/roadmap.md`. Experimental direct HTTPS
-pairing has no phone UI and is not a production support claim. The Linux shell has optional, fail-closed bubblewrap
+interactive remote supervision, durable outbox events for non-run resources and Windows/macOS support — tracked in `docs/roadmap.md`.
+Experimental direct HTTPS pairing has no phone UI and is not a production support claim. The Linux shell has optional, fail-closed bubblewrap
 containment; it is not a VM and does not contain every tool or the browser.

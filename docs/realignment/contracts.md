@@ -39,20 +39,28 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
 
 * Landed local routes: `/api/v1/health`, `/api/v1/status-labels`, `/api/v1/bots`, `/api/v1/conversations`,
   `/api/v1/search/messages`, `/api/v1/tasks/runs`, `/api/v1/actions/approvals`, `/api/v1/usage`, `/api/v1/connections`,
-  `/api/v1/schedules`, `/api/v1/capabilities`, and partial remote device resources at `/api/v1/pairing/exchange` and
-  `/api/v1/devices`.
+  `/api/v1/schedules`, `/api/v1/capabilities`, cross-run transcript pages and stream at `/api/v1/events` and `/api/v1/events/stream`,
+  bounded reconciliation at `/api/v1/snapshot`, and partial remote device resources at `/api/v1/pairing/exchange` and
+  `/api/v1/devices`. Versioned bot, run and approval lists accept bounded `limit`/`offset` pages; the legacy bot and approval
+  aliases keep their prior response behavior.
 * Conversation create, message submit, and archive require `Idempotency-Key`. Exact retries return the same resource/run; reusing the
   key with different request content returns 409. An absent key returns 428.
 * Conversation history is cursor-paginated with `after` and a maximum page size of 100. Run events keep the existing per-run `seq`
-  cursor and SSE `Last-Event-ID` replay, including the versioned run alias.
+  cursor. Cross-run event pages and SSE use SQLite's committed global event `id`, include the run-local `seq`, and resume from
+  `Last-Event-ID`. Each page is bounded to 500 events. If a cursor is ahead of the restored database or falls behind retained
+  history, page reads return 409 `snapshot_required`; the stream emits the same event without advancing its SSE ID. Fetch the
+  bounded snapshot, continue every non-null `next` URL, then replay after `replay_after` to include changes made during paging.
 * Versioned stop and approval resolve commands require `Idempotency-Key`. Approvals also require the reviewed `action_hash`; reuse
-  with different arguments conflicts. Resume and legacy bot-run commands do not yet accept keys. There is no global ordered SSE cursor or
-  retention-gap snapshot endpoint yet.
+  with different arguments conflicts. Resume and legacy bot-run commands do not yet accept keys. Global replay currently retains
+  all events; automatic retention/pruning policy remains unimplemented. A missing leading range or a restored database behind a
+  client cursor is detected and requires snapshot reconciliation. This stream contains run transcript events; other resource changes
+  are not yet published as durable events.
 * Pairing codes expire after 60 seconds and are single use. They issue HttpOnly device sessions, hash-only at rest, with a sliding
   30-day expiry. Operators can list/revoke sessions using `hutch pairing list` and `hutch pairing revoke <device-id>`; pairing is
   limited to five failed attempts per source IP per ten minutes. Off-loopback binding requires `hutch serve --allow-remote` and direct
-  TLS certificate/key files. This has fixture coverage but no phone UI or live network/device validation. Global event replay,
-  workspace/artifact resources and verified capability records are not available; the marketing site cannot reach localhost.
+TLS certificate/key files. This has fixture coverage but no phone UI or live network/device validation. A durable outbox for
+non-run resource changes, workspace/artifact resources and verified capability records are not available; the marketing site cannot
+reach localhost.
 
 ## 4. Frontend acceptance items taken from the evidence ledger
 
@@ -84,4 +92,4 @@ cookie and returns only the device id and expiry. Authenticated `GET /api/v1/dev
 /api/v1/devices/{id}/revoke` revokes one. Direct non-loopback binding requires `--allow-remote --tls-cert CERT --tls-key KEY`.
 The code exchange is intentionally the only unauthenticated remote write; it is source-IP rate limited and subject to Origin checks.
 The current Studio has no pairing UX, remote interactive control route, or persistent device-session management screen. Use the CLI to
-revoke a lost device. Do not expose the listener to the public internet.
+revoke a lost device. Do not expose the listener to the public internet. The marketing site cannot reach localhost.

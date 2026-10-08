@@ -72,7 +72,8 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 - **Workspace and shell containment** — file tools stay in the workspace. New bots request Linux bubblewrap strict mode for shell commands, with no shell network and bounded resources; unsupported hosts fail closed. Existing bots keep their saved setting, and `sandbox: off` is explicitly uncontained execution. This shell boundary is not a VM and does not contain the browser or external runtimes
 - **Run transcripts** — every run in SQLite + a JSONL mirror on disk
 - **Conversations (preview)** — the Studio stores separate threads across restarts, offers thread switching and archive, and sends a
-  bounded recent history to the builtin runtime. The versioned API has SQLite full-text search and restart-safe command idempotency.
+  bounded recent history to the builtin runtime. The versioned API has SQLite full-text search, restart-safe command idempotency,
+  cross-run transcript replay and bounded snapshot reconciliation after a cursor gap.
 - **Remote pairing (experimental)** — explicit direct HTTPS binding and one-use, revocable device sessions are implemented. The phone
   control UI, browser/PTY handoff, trusted tunnel support and physical-device validation are still unavailable; loopback is the supported
   service boundary. See [remote operations](docs/operations.md#remote-pairing-experimental).

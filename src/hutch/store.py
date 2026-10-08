@@ -1582,6 +1582,68 @@ class Store:
     def count_events(self, run_id: str) -> int:
         return self.last_seq(run_id)
 
+    def global_event_bounds(self) -> tuple[int, int]:
+        """Return the oldest and newest globally ordered event IDs retained in SQLite."""
+        self.flush_events()
+        with self._lock:
+            row = self._db.execute("SELECT MIN(id) AS first, MAX(id) AS last FROM events").fetchone()
+        return int(row["first"] or 0), int(row["last"] or 0)
+
+    def list_global_events(self, after_id: int = 0, limit: int = 200) -> list[Event]:
+        """Read a bounded global event page in committed insertion order."""
+        self.flush_events()
+        limit = max(1, min(int(limit), 500))
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT id, run_id, seq, hash, ts, type, data FROM events WHERE id > ? ORDER BY id LIMIT ?",
+                (max(0, int(after_id)), limit)).fetchall()
+        return [self._event(r) for r in rows]
+
+    def reconciliation_snapshot(self, limit: int = 200) -> dict[str, Any]:
+        """Read a bounded, consistent resource snapshot and its event high-water mark.
+
+        The caller resumes event replay *after* the returned cursor. The read transaction pins a SQLite snapshot; events
+        committed after its high-water mark are replayed, so changes during reconciliation are not lost.
+        """
+        limit = max(1, min(int(limit), 500))
+        self.flush_events()
+        with self._lock:
+            self._db.execute("BEGIN")
+            try:
+                cursor = int(self._db.execute("SELECT COALESCE(MAX(id), 0) FROM events").fetchone()[0])
+                bot_rows = self._db.execute("SELECT doc FROM bots ORDER BY name LIMIT ?", (limit + 1,)).fetchall()
+                bot_total = int(self._db.execute("SELECT COUNT(*) FROM bots").fetchone()[0])
+                run_rows = self._db.execute(
+                    f"SELECT {_RUN_COLS} FROM runs ORDER BY created_at DESC, id LIMIT ?", (limit + 1,)).fetchall()
+                run_total = int(self._db.execute("SELECT COUNT(*) FROM runs").fetchone()[0])
+                approval_rows = self._db.execute(
+                    "SELECT doc FROM approvals WHERE status = ? ORDER BY created_at, id LIMIT ?",
+                    (ApprovalStatus.pending.value, limit + 1)).fetchall()
+                approval_total = int(self._db.execute(
+                    "SELECT COUNT(*) FROM approvals WHERE status = ?", (ApprovalStatus.pending.value,)).fetchone()[0])
+                conv_rows = self._db.execute(
+                    "SELECT c.*, (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) AS message_count, "
+                    "(SELECT COALESCE(MAX(m.seq), 0) FROM messages m WHERE m.conversation_id = c.id) AS last_seq, "
+                    "(SELECT r.run_id FROM conversation_runs r WHERE r.conversation_id = c.id "
+                    "ORDER BY r.attached_at DESC LIMIT 1) AS latest_run_id "
+                    "FROM conversations c WHERE c.archived = 0 ORDER BY c.updated_at DESC, c.id LIMIT ?",
+                    (limit + 1,)).fetchall()
+                conv_total = int(self._db.execute(
+                    "SELECT COUNT(*) FROM conversations WHERE archived = 0").fetchone()[0])
+                self._db.commit()
+            except BaseException:
+                self._db.rollback()
+                raise
+
+        bots = [Bot.model_validate_json(row["doc"]) for row in bot_rows[:limit]]
+        runs = [self._run(row) for row in run_rows[:limit]]
+        approvals = [ApprovalRequest.model_validate_json(row["doc"]) for row in approval_rows[:limit]]
+        conversations = [dict(row) for row in conv_rows[:limit]]
+        totals = {"bots": bot_total, "runs": run_total, "approvals": approval_total, "conversations": conv_total}
+        items = {"bots": bots, "runs": runs, "approvals": approvals, "conversations": conversations}
+        return {"event_cursor": cursor, "limit": limit, "items": items, "totals": totals,
+                "truncated": {name: total > limit for name, total in totals.items()}}
+
     @staticmethod
     def _event(r: sqlite3.Row) -> Event:
         return Event(id=r["id"], run_id=r["run_id"], seq=r["seq"], hash=r["hash"], ts=r["ts"],
@@ -1689,22 +1751,27 @@ class Store:
             row = self._db.execute("SELECT doc FROM approvals WHERE id = ?", (approval_id,)).fetchone()
         return ApprovalRequest.model_validate_json(row["doc"]) if row else None
 
-    def recent_approvals(self, limit: int = 10) -> list[ApprovalRequest]:
+    def recent_approvals(self, limit: int = 10, offset: int = 0) -> list[ApprovalRequest]:
         """Most recently decided approvals, newest first (the inbox's 'recently decided' list)."""
         with self._lock:
             rows = self._db.execute(
-                "SELECT doc FROM approvals WHERE status != ? ORDER BY created_at DESC LIMIT ?",
-                (ApprovalStatus.pending.value, limit)).fetchall()
+                "SELECT doc FROM approvals WHERE status != ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                (ApprovalStatus.pending.value, max(1, limit), max(0, offset))).fetchall()
         return [ApprovalRequest.model_validate_json(r["doc"]) for r in rows]
 
-    def pending_approvals(self, bot_id: Optional[str] = None) -> list[ApprovalRequest]:
+    def pending_approvals(self, bot_id: Optional[str] = None, limit: Optional[int] = None,
+                          offset: int = 0) -> list[ApprovalRequest]:
         q = "SELECT doc FROM approvals WHERE status = ?"
         args: tuple = (ApprovalStatus.pending.value,)
         if bot_id:
             q += " AND bot_id = ?"
             args = args + (bot_id,)
         with self._lock:
-            rows = self._db.execute(q + " ORDER BY created_at", args).fetchall()
+            query = q + " ORDER BY created_at, id"
+            if limit is not None:
+                query += " LIMIT ? OFFSET ?"
+                args += (max(1, limit), max(0, offset))
+            rows = self._db.execute(query, args).fetchall()
         return [ApprovalRequest.model_validate_json(r["doc"]) for r in rows]
 
     # ----------------------------------------------------- sticky allows

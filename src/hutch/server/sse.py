@@ -27,6 +27,7 @@ from ..models import Event, RunStatus
 BATCH = 200
 COALESCE_SECONDS = 0.08
 KEEPALIVE_SECONDS = 15.0
+GLOBAL_POLL_SECONDS = 1.0       # writers in another process cannot wake this Store's in-process bus
 FINISHED = tuple(TERMINAL)    # one definition: hutch.lifecycle
 
 
@@ -82,6 +83,50 @@ async def run_event_stream(request: Request, store, run_id: str, cursor: int,
                 await asyncio.wait_for(wake.wait(), timeout=KEEPALIVE_SECONDS)
             except asyncio.TimeoutError:
                 yield b": keepalive\n\n"
+    finally:
+        unsubscribe()
+
+
+async def global_event_stream(request: Request, store, cursor: int):
+    """Durable cross-run transcript replay ordered by SQLite's global event ID.
+
+    A restored database can be behind a device's Last-Event-ID, and future retention may remove old rows. In either case
+    replay cannot be complete: ask the client to reconcile from the bounded snapshot endpoint, without advancing its SSE ID.
+    """
+    bus = store.bus
+    loop = asyncio.get_running_loop()
+    wake = asyncio.Event()
+    unsubscribe = bus.subscribe(["events"], lambda: loop.call_soon_threadsafe(wake.set))
+    last_keepalive = loop.time()
+    try:
+        yield b"retry: 1500\n\n"
+        while True:
+            wake.clear()
+            oldest, high = await asyncio.to_thread(store.global_event_bounds)
+            if cursor > high or (oldest and cursor < oldest - 1):
+                yield sse_message("snapshot_required", {
+                    "reason": "event_cursor_unavailable",
+                    "snapshot_url": "/api/v1/snapshot",
+                    "event_cursor": high,
+                })
+                return
+            events = await asyncio.to_thread(store.list_global_events, cursor, BATCH)
+            if events:
+                if len(events) < BATCH:
+                    await asyncio.sleep(COALESCE_SECONDS)
+                    events += await asyncio.to_thread(store.list_global_events, events[-1].id, BATCH - len(events))
+                cursor = events[-1].id
+                yield sse_message("events", {"events": [event.model_dump() for event in events], "cursor": cursor}, cursor)
+                continue
+            if await request.is_disconnected():
+                return
+            timeout = min(GLOBAL_POLL_SECONDS, max(0.05, KEEPALIVE_SECONDS - (loop.time() - last_keepalive)))
+            try:
+                await asyncio.wait_for(wake.wait(), timeout=timeout)
+            except asyncio.TimeoutError:
+                if loop.time() - last_keepalive >= KEEPALIVE_SECONDS:
+                    yield b": keepalive\n\n"
+                    last_keepalive = loop.time()
     finally:
         unsubscribe()
 

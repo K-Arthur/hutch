@@ -34,6 +34,7 @@ browser. "Live" means it needs something this host did not have and is skipped w
 | T-INJECTION | Tool-result text cannot add authority or become executable UI | offline | `tests/test_untrusted_content.py` | planned |
 | T-DELEGATION | Depth, fan-out, cycle and budget limits hold | offline | `tests/test_delegation.py` | planned |
 | T-PAIRING | Pairing code is single-use under race, expired/replayed codes fail, IP attempts throttle, device session revokes, explicit remote bind requires TLS | offline fixtures | `tests/test_remote_pairing.py` | passing; no physical device/network test |
+| T-GLOBAL-SSE | Cross-run event pages and streams preserve global order, resume after disconnect and require bounded snapshot reconciliation when a cursor is unavailable | offline + real sockets | `tests/test_sse_resume.py` | passing; event pruning is not enabled |
 | T-HOST-SLEEP | Offline/queued state is reported honestly after the host was suspended | offline | `tests/test_cancel.py` (lease lapse, fenced zombie) | passing |
 | T-WORKER-PROCESS | A run executes in its own session; Stop, SIGKILL, a frozen worker and a dead supervisor are all handled | offline (real processes) | `tests/test_worker.py` | passing |
 | T-EVENT-CHAIN | Several processes writing one transcript keep one unbroken chain; a zombie is refused at the database | offline (real processes) | `tests/test_claims.py` | passing |
