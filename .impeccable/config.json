@@ -29,6 +29,15 @@
         ],
         "createdAt": "2026-10-08T15:01:55.333Z",
         "reason": "The static HTML scanner does not resolve custom-property heading styles: rendered section headings compute to 27–40px against 15px body text. Captures show a clear hierarchy."
+      },
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          "src/hutch/server/static/index.html"
+        ],
+        "createdAt": "2026-10-08T19:56:38.072Z",
+        "reason": "Agent: this typing indicator is rendered only while authoritative run status is running; waiting and terminal states clear it, and reduced-motion settings disable the animation."
       }
     ]
   }
