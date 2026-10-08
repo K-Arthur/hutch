@@ -28,7 +28,7 @@ commits can cite them. Evidence for the *why* is in
 | UI-8 | First run: mock demo / local model that fits / API key; seeded demo bots | MVP | planned | |
 | UI-9 | Schedules page: next runs in each bot's zone, coalesced misses, pause all | MVP | planned | |
 | UI-10 | Memory page with provenance, edit, delete, export | Later | partial | bot page lists memory with the run that wrote it, delete; edit/export + dedicated page pending |
-| UI-11 | Usage page: spend by bot/provider/day; escalation log | Later | planned *(pulled forward)* | |
+| UI-11 | Usage page: spend by bot/provider/day; escalation log | Later | done | `/usage`: spend and tokens by day (local day), model and bot, today against each bot's caps, plan allowances, cache share, and the fallback/escalation/allowance-stop log |
 | UI-12 | Server-rendered templates + HTMX, no build step; stop/approve are plain POSTs | MVP | done | Jinja2 + htmx 2.0.4 vendored, no build step; every action is a plain POST; CSRF + Host/Origin checks |
 | UI-13 | Approvals inbox usable at phone width | Later | done | approvals inbox verified at 390px in Chromium (full-width, thumb-sized actions) |
 | UI-14 | Localhost app run by a user-level systemd service; Tauri shell after v0.1 | MVP, then later | planned | |
@@ -75,7 +75,7 @@ commits can cite them. Evidence for the *why* is in
 | ID | Requirement | Phase | Status | Where |
 |---|---|---|---|---|
 | SR-1 | One runtime/model crash affects only its own runs; health per runtime | MVP | done | orphan recovery, shutdown, per-run isolation and per-runtime health (`health.py`, Models page, doctor) |
-| SR-2 | Exact per-step token/cost accounting, visible before a run | MVP | partial | exact per-step accounting, spend guard before every hosted call and the plan note at run start are done; the worst-case estimate before a run on the bot page, CLI and switcher is not built yet |
+| SR-2 | Exact per-step token/cost accounting, visible before a run | MVP | done | per-step accounting, spend guard before every hosted call, plan note at run start, and a worst-case ceiling before a run: bot page, `hutch bot estimate`, `GET /api/bots/<name>/estimate`, the chat switcher (`estimate.py`) |
 | SR-3 | Per-bot compact-now and fresh-session controls | Later | later | |
 | SR-4 | Outward-sending tools always ask, regardless of sticky allows | MVP | partial | shell: `git push`, `ssh`/`scp`/`rsync`/`ftp` always ask and are never sticky, an allow rule or the trusted tier cannot suppress them (tested); network uploads are denied. Browser actions that submit forms are not classified yet |
 | SR-5 | Small models: thinking off, per-turn token cap, loop detector | MVP | done | `think:false` only for thinking-capable models, per-turn token cap, loop detector that refuses a third identical call (`tests/test_providers.py`, `tests/test_runtime_builtin.py`) |

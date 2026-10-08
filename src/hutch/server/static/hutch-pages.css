@@ -39,3 +39,16 @@
 /* global td is nowrap; these cells carry sentences */
 .models-table td { white-space: normal; vertical-align: top; }
 .models-table .small { max-width: 34ch; }
+
+/* Usage page */
+.seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r); overflow: hidden; }
+.seg a { padding: 6px 12px; font-size: 13px; color: var(--dim); text-decoration: none; }
+.seg a.active { background: var(--elevated); color: var(--text); }
+.meter-val.big { font-size: 22px; font-weight: 600; margin: 2px 0; }
+.bar.thin { height: 6px; margin-bottom: 4px; }
+.bar.cost > i { background: var(--amber); }
+.moves li { padding: 8px 0; border-top: 1px solid var(--border); }
+.moves li:first-child { border-top: 0; }
+.estimate { display: flex; gap: 6px; align-items: baseline; color: var(--text); }
+/* grid children may not be wider than the track: lets a table-wrap scroll instead of widening the page */
+.two-col > * { min-width: 0; }

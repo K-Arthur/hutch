@@ -257,6 +257,15 @@ def create_app() -> FastAPI:
         engine.dispatch_pending()
         return run_view(store.get_run(run.id))
 
+    @app.get("/api/bots/{ref}/estimate")
+    def bot_estimate(ref: str, model: Optional[str] = None, prompt: str = "") -> dict:
+        """What one run can cost, before it starts (SR-2): a ceiling, or why there is none."""
+        from dataclasses import asdict
+        from ..estimate import estimate_run
+        bot = bot_or_404(ref)
+        e = estimate_run(config, store, bot, prompt, model)
+        return {**asdict(e), "effective_ceiling_usd": e.effective_ceiling_usd, "summary": e.summary}
+
     @app.get("/api/bots/{ref}/models")
     def bot_models(ref: str) -> dict:
         """The switcher's list for this bot: its own model first, then what is usable, then what needs setup."""

@@ -88,6 +88,23 @@ on top, load of A again, and whether the runtime actually evicted A. It unloads 
 no tokens, so run it when the machine is idle. Results appear on the Models page. *Until you run it, the page says
 "not measured": Hutch does not guess swap cost.*
 
+## What a run can cost, before it starts
+
+Every bot page, `hutch bot estimate <bot> [--model X]` and `GET /api/bots/<name>/estimate` show a **ceiling**, not a
+guess: every step re-sends the whole prompt and uses its full per-turn budget, which is exactly the arithmetic the spend
+guard enforces, so the figure can never be exceeded. Typical runs cost far less. When the bot has its own per-run cap lower
+than the worst case, the cap is stated as the maximum. A flat-rate plan says so (and that calls still count against your
+allowance), a local model says "no per-token cost", and a hosted model **with no price on file has no ceiling and says
+why**: Hutch never invents one. The chat switcher's dialog shows the same ceiling beside each hosted model.
+
+## Usage
+
+`/usage` answers "where did the money and the allowance go": spend and tokens by **local calendar day** (the same day the
+daily caps use), by model and by bot; today against each bot's token and spend caps; each plan's allowance meter; the
+share of prompt tokens served from cache; and a log of every time a run **fell back** (the model was unavailable),
+**escalated** (it was not up to the job) or **stopped at a plan allowance**, newest first. Local models read "free
+(local)" and flat plans read "flat plan" instead of a misleading `$0.00`.
+
 ## Hosted prices
 
 `prices.json` rows carry a source and a **verified** date; rows over 90 days old are flagged. Correct a row on the

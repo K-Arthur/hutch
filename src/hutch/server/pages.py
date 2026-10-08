@@ -26,6 +26,7 @@ from ..tools import ALL_TOOL_NAMES, expand_tools
 from .. import views
 from .security import AUTH_COOKIE, auth_digest, check_csrf
 from .sse import FINISHED, live_stream, resume_cursor, run_event_stream
+from ..estimate import estimate_run
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 PAGE_WINDOW = 200            # transcript events rendered on first paint (PF-9)
@@ -39,6 +40,7 @@ NAV = [
     ("runs", "/runs", "Runs", "list"),
     ("approvals", "/approvals", "Approvals", "shield"),
     ("models", "/models", "Models", "cpu"),
+    ("usage", "/usage", "Usage", "chart"),
     ("connections", "/connections", "Connections", "layers"),
 ]
 
@@ -284,7 +286,7 @@ def register_pages(app: FastAPI) -> None:
         return page(request, "bot.html", nav="bots", bot=bot,
                     runs=[rv(r) for r in store.list_runs(bot.id, limit=8)],
                     memory=store.recall_all(bot.id), allows=store.list_sticky_allows(bot.id),
-                    tokens_today=store.tokens_today(bot.id))
+                    tokens_today=store.tokens_today(bot.id), estimate=estimate_run(config, store, bot))
 
     @app.post("/bots/{name}/run", include_in_schema=False)
     async def bot_run(request: Request, name: str):
@@ -516,6 +518,8 @@ def register_pages(app: FastAPI) -> None:
 
     from .pages_models import register_model_pages
     register_model_pages(app, page, go, read_form)
+    from .pages_usage import register_usage_page
+    register_usage_page(app, page)
 
     # ----------------------------------------------------------- connections (CN)
 

@@ -780,6 +780,63 @@ class Store:
         return [{"key": r["k"], "calls": r["calls"], "prompt": r["prompt"] or 0, "completion": r["completion"] or 0,
                  "cached": r["cached"] or 0, "cost": r["cost"] or 0.0} for r in rows]
 
+    def usage_by_local_day(self, days: int = 30, now: Optional[datetime] = None) -> list[dict[str, Any]]:
+        """The ledger grouped by LOCAL calendar day (same day definition as the daily caps), newest first.
+
+        Aggregated in SQL by UTC hour and each hour is assigned to the local day of its midpoint, so a timezone with a
+        30/45-minute offset can misplace at most half an hour of usage across midnight."""
+        from datetime import timedelta
+        end_day = (now or utcnow()).astimezone().date()
+        since = iso(datetime.combine(end_day - timedelta(days=days - 1), datetime.min.time()).astimezone())
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT substr(ts, 1, 13) AS h, COUNT(*) AS calls, SUM(prompt_tokens) AS p, SUM(completion_tokens) AS c, "
+                "SUM(cached_tokens) AS k, SUM(cost_usd) AS cost FROM usage WHERE ts >= ? GROUP BY h", (since,)).fetchall()
+        out: dict[str, dict[str, Any]] = {}
+        for r in rows:
+            mid = datetime.fromisoformat(r["h"] + ":30:00+00:00").astimezone().date().isoformat()
+            d = out.setdefault(mid, {"day": mid, "calls": 0, "prompt": 0, "completion": 0, "cached": 0, "cost": 0.0})
+            d["calls"] += r["calls"]
+            d["prompt"] += r["p"] or 0
+            d["completion"] += r["c"] or 0
+            d["cached"] += r["k"] or 0
+            d["cost"] += r["cost"] or 0.0
+        return sorted(out.values(), key=lambda d: d["day"], reverse=True)
+
+    def usage_by(self, group: str, days: int = 30, now: Optional[datetime] = None) -> list[dict[str, Any]]:
+        """Ledger totals per bot, provider or provider/model over the last ``days`` LOCAL days."""
+        from datetime import timedelta
+        cols = {"bot": "bot_id", "provider": "provider", "model": "provider || '/' || model"}
+        if group not in cols:
+            raise ValueError(f"group must be one of {', '.join(cols)}")
+        end_day = (now or utcnow()).astimezone().date()
+        since = iso(datetime.combine(end_day - timedelta(days=days - 1), datetime.min.time()).astimezone())
+        with self._lock:
+            rows = self._db.execute(
+                f"SELECT {cols[group]} AS k, COUNT(*) AS calls, SUM(prompt_tokens) AS p, SUM(completion_tokens) AS c, "
+                "SUM(cached_tokens) AS cached, SUM(cost_usd) AS cost FROM usage WHERE ts >= ? GROUP BY k "
+                "ORDER BY cost DESC, (p + c) DESC", (since,)).fetchall()
+        return [{"key": r["k"], "calls": r["calls"], "prompt": r["p"] or 0, "completion": r["c"] or 0,
+                 "cached": r["cached"] or 0, "cost": r["cost"] or 0.0} for r in rows]
+
+    def recent_rung_changes(self, limit: int = 25) -> list[dict[str, Any]]:
+        """Fallbacks, escalations and allowance stops across all runs, newest first (the escalation log)."""
+        self.flush_events()
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT run_id, ts, data FROM events WHERE type = 'log' AND "
+                "json_extract(data, '$.kind') IN ('fallback', 'escalation', 'quota') ORDER BY id DESC LIMIT ?",
+                (limit,)).fetchall()
+        out = []
+        for r in rows:
+            try:
+                d = json.loads(r["data"])
+            except ValueError:
+                continue
+            out.append({"run_id": r["run_id"], "ts": r["ts"], "kind": d.get("kind"), "note": d.get("note", ""),
+                        "from": d.get("from_model", ""), "to": d.get("to_model", "")})
+        return out
+
     # ------------------------------------------------------- human pauses
 
     def resume_run(self, run_id: str) -> None:

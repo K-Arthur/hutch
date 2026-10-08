@@ -218,6 +218,20 @@ def bot_create(
                   f"(model {bot.model}, runtime {bot.runtime.value}, tools: {', '.join(bot.tools)})")
 
 
+@bot_app.command("estimate")
+def bot_estimate(name: str = typer.Argument(...), model: Optional[str] = typer.Option(None, "--model", help="price another model"),
+                 prompt: str = typer.Option("", "--prompt", help="the task text, for a closer prompt size")) -> None:
+    """What one run of this bot can cost, before it starts: a worst-case ceiling, or why there is none."""
+    from .estimate import estimate_run
+    store = _store()
+    bot = _require_bot(store, name)
+    e = estimate_run(get_config(), store, bot, prompt, model)
+    console.print(f"[bold]{e.spec}[/bold]: ~{e.prompt_tokens:,} prompt tokens, up to {e.steps} steps of {e.turn_tokens:,} tokens each")
+    console.print(e.summary)
+    if e.kind == "priced" and e.daily_token_cap:
+        console.print(f"[dim]tokens today: {e.tokens_today:,} of the {e.daily_token_cap:,} daily cap[/dim]")
+
+
 def _parse_rule_options(rules: list[str]):
     from .models import CommandRule
     from .safety import parse_rules

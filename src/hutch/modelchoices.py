@@ -42,6 +42,7 @@ class Choice:
     fix: str = ""                # what to do when state != ready
     default: bool = False        # the bot's own model
     hosted: bool = False         # the chat leaves this machine
+    worst_case_usd: Optional[float] = None   # ceiling for one run on this model (SR-2), when it has a price
     detail: list[str] = field(default_factory=list)
 
 
@@ -146,6 +147,8 @@ def model_choices(config: Any, store: Any, bot: Bot, hw: Optional[Hardware] = No
         known.update(s for s in [b.model, *b.fallbacks, *(b.escalation.to if b.escalation else [])])
     known.update(f"{p}/{m}" for p, m in store.usage_models())
 
+    from .estimate import RunEstimator
+    est = RunEstimator(config, store, bot)
     choices: list[Choice] = []
     own = Choice(spec=bot.model, label=short_label(bot.model), group="This bot", state="ready", default=True,
                  hosted=parse_spec(bot.model)[0] not in LOCAL_PROVIDERS, note="this bot's own model")
@@ -161,6 +164,12 @@ def model_choices(config: Any, store: Any, bot: Bot, hw: Optional[Hardware] = No
             continue
         seen.add(c.spec)
         choices.append(c)
+    for c in choices:
+        if c.hosted:
+            e = est.for_model(c.spec)
+            c.worst_case_usd = e.worst_case_usd
+            if e.worst_case_usd is not None:
+                c.detail.append(f"worst case ${e.worst_case_usd:.2f} for one run of up to {e.steps} steps")
     return choices
 
 

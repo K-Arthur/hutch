@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Usage{% endblock %}
+{% macro cost(v, billing="per token") -%}
+  {%- if billing == "local" %}free (local){% elif billing == "flat plan" %}flat plan{% else %}{{ v | money }}{% endif -%}
+{%- endmacro %}
+{% block content %}
+<div class="page-head"><div><h1>Usage</h1>
+  <p class="sub">Where tokens and money went. A day is your local calendar day, the same one the daily caps use.</p></div>
+  <nav class="seg" aria-label="Period">{% for p in periods %}<a href="/usage?days={{ p }}" class="{{ 'active' if p == days else '' }}"{% if p == days %} aria-current="true"{% endif %}>{{ p }} days</a>{% endfor %}</nav></div>
+
+<div class="meters">
+  <div class="meter"><div class="meter-top"><span class="meter-label">Spend ({{ days }} days)</span></div><div class="meter-val big">{{ totals.cost | money }}</div><div class="muted small">hosted, per-token models only</div></div>
+  <div class="meter"><div class="meter-top"><span class="meter-label">Tokens ({{ days }} days)</span></div><div class="meter-val big">{{ (totals.prompt + totals.completion) | tokens }}</div><div class="muted small">{{ totals.prompt | tokens }} in, {{ totals.completion | tokens }} out</div></div>
+  <div class="meter"><div class="meter-top"><span class="meter-label">Model calls</span></div><div class="meter-val big">{{ totals.calls }}</div><div class="muted small">one row per call in the ledger</div></div>
+  <div class="meter"><div class="meter-top"><span class="meter-label">Served from cache</span></div><div class="meter-val big">{{ ((totals.cached / totals.prompt * 100) if totals.prompt else 0) | round(0) | int }}%</div><div class="muted small">of prompt tokens (cheaper on hosted)</div></div>
+  <div class="meter"><div class="meter-top"><span class="meter-label">Today</span></div><div class="meter-val big">{{ today.cost | money if today else "$0.00" }}</div><div class="muted small">{{ ((today.prompt + today.completion) | tokens) if today else "0" }} tokens</div></div>
+</div>
+
+<section class="panel" id="caps" aria-labelledby="caps-h">
+  <h2 id="caps-h" class="card-title">Today against each bot's caps</h2>
+  {% if caps %}<div class="table-wrap"><table class="models-table">
+    <thead><tr><th>Bot</th><th>Tokens today</th><th>Spend today</th></tr></thead><tbody>
+    {% for c in caps %}<tr><td><a href="/bots/{{ c.name }}">{{ c.name }}</a></td>
+      <td>{% if c.token_cap %}<div class="bar" role="progressbar" aria-label="Tokens used today by {{ c.name }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ c.token_pct | round(0) | int }}"><i style="width: {{ c.token_pct }}%"></i></div>{% endif %}
+        <span class="small">{{ c.tokens | tokens }}{% if c.token_cap %} of {{ c.token_cap | tokens }}{% else %} (no cap){% endif %}</span></td>
+      <td>{% if c.cost_cap %}<div class="bar" role="progressbar" aria-label="Spend today by {{ c.name }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ c.cost_pct | round(0) | int }}"><i style="width: {{ c.cost_pct }}%"></i></div>{% endif %}
+        <span class="small">{{ c.spent | money }}{% if c.cost_cap %} of {{ c.cost_cap | money }}{% else %} (no spend cap){% endif %}</span></td></tr>{% endfor %}
+    </tbody></table></div>
+  {% else %}<p class="muted">No bots yet.</p>{% endif %}
+</section>
+
+{% if plans %}
+<section class="panel" id="plans" aria-labelledby="plans-h">
+  <h2 id="plans-h" class="card-title">Plan allowances</h2>
+  <p class="hint">Declared allowance per connection. Hutch stops before a call that could pass it. <a href="/connections">Edit on Connections</a>.</p>
+  {% for p in plans %}<div class="meter lv-{{ 'hot' if p.pct >= 90 else 'warn' if p.pct >= 80 else 'ok' }}">
+    <div class="meter-top"><span class="meter-label">{{ p.title }} ({{ p.window }} window)</span><span class="meter-val">{{ p.used | tokens }}</span><span class="meter-cap">of {{ p.cap | tokens }} tokens</span></div>
+    <div class="bar" role="progressbar" aria-label="Allowance used for {{ p.name }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ p.pct | round(0) | int }}"><i style="width: {{ p.pct }}%"></i></div></div>{% endfor %}
+</section>
+{% endif %}
+
+<section class="panel" id="daily" aria-labelledby="daily-h">
+  <h2 id="daily-h" class="card-title">By day</h2>
+  {% if by_day %}<div class="table-wrap"><table class="models-table">
+    <thead><tr><th>Day</th><th>Tokens</th><th>Spend</th><th>Calls</th></tr></thead><tbody>
+    {% for d in by_day %}{% set t = d.prompt + d.completion %}<tr><td class="mono">{{ d.day }}</td>
+      <td><div class="bar thin" aria-hidden="true"><i style="width: {{ (t / peak * 100) | round(1) }}%"></i></div><span class="small">{{ t | tokens }}</span></td>
+      <td>{% if d.cost %}<div class="bar thin cost" aria-hidden="true"><i style="width: {{ (d.cost / peak_cost * 100) | round(1) }}%"></i></div>{% endif %}<span class="small">{{ d.cost | money }}</span></td>
+      <td>{{ d.calls }}</td></tr>{% endfor %}</tbody></table></div>
+  {% else %}<div class="empty">{{ icon("chart", 24) }}<p>No model calls in the last {{ days }} days.</p></div>{% endif %}
+</section>
+
+<div class="two-col">
+  <section class="panel" id="by-model" aria-labelledby="bm-h">
+    <h2 id="bm-h" class="card-title">By model</h2>
+    {% if by_model %}<div class="table-wrap"><table class="models-table"><thead><tr><th>Model</th><th>Calls</th><th>Tokens</th><th>Cost</th></tr></thead><tbody>
+      {% for r in by_model %}<tr><td class="mono small">{{ r.key }}</td><td>{{ r.calls }}</td><td>{{ (r.prompt + r.completion) | tokens }}</td><td>{{ cost(r.cost, r.billing) }}</td></tr>{% endfor %}</tbody></table></div>
+    {% else %}<p class="muted">Nothing yet.</p>{% endif %}
+  </section>
+  <section class="panel" id="by-bot" aria-labelledby="bb-h">
+    <h2 id="bb-h" class="card-title">By bot</h2>
+    {% if by_bot %}<div class="table-wrap"><table class="models-table"><thead><tr><th>Bot</th><th>Calls</th><th>Tokens</th><th>Spend</th></tr></thead><tbody>
+      {% for r in by_bot %}<tr><td>{{ r.name }}</td><td>{{ r.calls }}</td><td>{{ (r.prompt + r.completion) | tokens }}</td><td>{{ r.cost | money }}</td></tr>{% endfor %}</tbody></table></div>
+    {% else %}<p class="muted">Nothing yet.</p>{% endif %}
+  </section>
+</div>
+
+<section class="panel" id="moves" aria-labelledby="mv-h">
+  <h2 id="mv-h" class="card-title">When a run moved to another model</h2>
+  <p class="hint">Fallbacks (the model was unavailable), escalations (it was not up to the job) and stops at a plan allowance. Newest first.</p>
+  {% if changes %}<ul class="plain moves">{% for c in changes %}
+    <li><span class="chip st-{{ {'fallback':'stale','escalation':'waiting_approval','quota':'failed'}.get(c.kind, 'stopped') }}">{{ c.kind }}</span>
+      <a href="/runs/{{ c.run_id }}">{{ c.bot }}</a> <span class="muted small">{{ c.ts | ago }}</span><div class="small">{{ c.note }}</div></li>{% endfor %}</ul>
+  {% else %}<p class="muted">None. Every run stayed on the model it started with.</p>{% endif %}
+</section>
+{% endblock %}
