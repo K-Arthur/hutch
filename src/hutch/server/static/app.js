@@ -140,16 +140,19 @@ function summarizeOutput(output) {
    overridden at creation or in settings — no two bots look alike, while the
    family stays one visual language. Identity never encodes status: status
    rides the pip, and the pip is always paired with a word (title/aria). */
-const ID_COLORS = ["#34d399", "#2dd4bf", "#38bdf8", "#818cf8", "#c084fc", "#d9a06b", "#94a3b8", "#f472b6"];
-const ID_SHAPES = [
-  "M20 5a15 15 0 1 1 -.01 0Z",                                        // circle
-  "M20 5c6.5 8.5 12.5 13.5 12.5 19.5a12.5 12.5 0 0 1-25 0C7.5 18.5 13.5 13.5 20 5Z", // droplet
-  "M14 6h12a8 8 0 0 1 8 8v12a8 8 0 0 1-8 8H14a8 8 0 0 1-8-8V14a8 8 0 0 1 8-8Z",      // squircle
-  "M12 12h16a8 8 0 0 1 0 16H12a8 8 0 0 1 0-16Z",                      // lozenge
-  "M20 6.5 33.4 28.9a3 3 0 0 1-2.6 4.6H9.2a3 3 0 0 1-2.6-4.6L18.4 6.5a1.9 1.9 0 0 1 3.2 0Z", // triangle
-  "M20 5l13 7.5v15L20 35 7 27.5v-15Z",                                // hexagon
-  `<g transform="rotate(45 20 20)"><rect x="10" y="10" width="20" height="20" rx="6"/></g>`,   // diamond
-  `<g transform="rotate(-20 20 20)"><rect x="7" y="13" width="26" height="14" rx="7"/></g>`,   // bean
+/* Identity palette — brighter, high-chroma, drawn from the mascot's mint
+   lineage (website/assets/hutch-agent.svg). Identity only: status never
+   rides here (the pip does that, always with a word). */
+const ID_COLORS = ["#3DE8C5", "#35C3F0", "#5B9BFF", "#9B7CFF", "#C77DFF", "#FF6FA5", "#FFA83C", "#7BD85A"];
+/* Icon-scale mascot: what survives at 24–40px is ONE legible silhouette, a
+   dark visor band, and two bright happy arcs. The layered cap/fins/core
+   version rendered as mud at roster size, so it was cut back to this.
+   Shape = shell silhouette; colour = shell tone; mouth only at ≥48px. */
+const ID_HEADS = [
+  { key: "capsule",  vy: 15.6, shape: '<rect x="9" y="6.5" width="22" height="29.5" rx="11"/>' },
+  { key: "round",    vy: 15.2, shape: '<circle cx="20" cy="20.5" r="13.2"/>' },
+  { key: "squircle", vy: 15.4, shape: '<rect x="7.6" y="8" width="24.8" height="25.4" rx="8.5"/>' },
+  { key: "loaf",     vy: 16,   shape: '<rect x="6.6" y="10" width="26.8" height="23" rx="11.5"/>' },
 ];
 
 function hash32(s) {
@@ -160,6 +163,11 @@ function hash32(s) {
 function tint(hex, amt) {
   const n = parseInt(hex.slice(1), 16);
   const m = c => Math.round(c + (255 - c) * amt);
+  return `rgb(${m(n >> 16)},${m((n >> 8) & 255)},${m(n & 255)})`;
+}
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const m = c => Math.round(c * amt);
   return `rgb(${m(n >> 16)},${m((n >> 8) & 255)},${m(n & 255)})`;
 }
 
@@ -175,28 +183,33 @@ const idStore = (() => {
 })();
 function sigilPair(name) {
   const over = idStore.all[name];
-  if (Array.isArray(over) && ID_COLORS[over[0]] && ID_SHAPES[over[1]]) return over;
+  if (Array.isArray(over) && ID_COLORS[over[0]] && ID_HEADS[over[1]]) return over;
   const h = hash32(name);
-  return [h % ID_COLORS.length, ((h >>> 5) ^ (h >>> 13)) % ID_SHAPES.length];
+  return [h % ID_COLORS.length, ((h >>> 5) ^ (h >>> 13)) % ID_HEADS.length];
 }
 function sigilSet(name, pair) { idStore.all[name] = pair; idStore.save(); }
 
-function sigilBody(pair) {
+function sigilBody(pair, size = 30) {
   const [ci, si] = pair;
-  const base = ID_COLORS[ci], light = tint(base, 0.5);
+  const base = ID_COLORS[ci], light = tint(base, 0.4), pale = tint(base, 0.82);
   const gid = `sg-${ci}`;
+  const h = ID_HEADS[si] || ID_HEADS[0];
+  const e1 = (h.vy + 6.1).toFixed(1), e2 = (h.vy + 6.3).toFixed(1);
   return `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="${light}"/><stop offset="1" stop-color="${base}"/>
     </linearGradient></defs>
-    <g fill="url(#${gid})">${String(ID_SHAPES[si]).startsWith("<") ? ID_SHAPES[si] : `<path d="${ID_SHAPES[si]}"/>`}</g>`;
+    <g fill="url(#${gid})" stroke="${shade(base, 0.68)}" stroke-width=".9">${h.shape}</g>
+    <rect x="10.6" y="${h.vy}" width="18.8" height="10" rx="5" fill="#070e16"/>
+    <g class="gl" fill="none" stroke-linecap="round">
+      <path d="M14.6 ${e2}c1.5-2.4 3.7-2.4 5.2 0" stroke="${pale}" stroke-opacity=".4" stroke-width="3.6"/>
+      <path d="M20.2 ${e2}c1.5-2.4 3.7-2.4 5.2 0" stroke="${pale}" stroke-opacity=".4" stroke-width="3.6"/>
+      <path d="M14.6 ${e1}c1.5-2.4 3.7-2.4 5.2 0" stroke="#fff" stroke-width="2"/>
+      <path d="M20.2 ${e1}c1.5-2.4 3.7-2.4 5.2 0" stroke="#fff" stroke-width="2"/>
+    </g>${size >= 48 ? `<path d="M18.5 ${(h.vy + 8.3).toFixed(1)}c1 1.1 2 1.1 3 0" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/>` : ""}`;
 }
 
 function avatarFromPair(pair, size, state = "") {
-  return `<span class="avatar" style="--av:${size}px" ${size >= 36 ? 'data-gaze' : ""} aria-hidden="true"><svg class="sig" viewBox="0 0 40 40">${sigilBody(pair)}
-      <g class="gl" fill="#fff" opacity=".92">
-        <ellipse cx="16.2" cy="13.8" rx="3" ry="1.9" transform="rotate(-26 16.2 13.8)"/>
-        <ellipse cx="23" cy="12.4" rx="1.8" ry="1.3" transform="rotate(-26 23 12.4)"/>
-      </g></svg>${state ? `<span class="a-pip ${esc(state)}"></span>` : ""}</span>`;
+  return `<span class="avatar" style="--av:${size}px" ${size >= 36 ? 'data-gaze' : ""} aria-hidden="true"><svg class="sig" viewBox="0 0 40 40">${sigilBody(pair, size)}</svg>${state ? `<span class="a-pip ${esc(state)}"></span>` : ""}</span>`;
 }
 
 function botAvatar(name, size = 32, state = "") {
@@ -240,9 +253,9 @@ function identityPickerHtml() {
       <div class="idp-row" data-idp-colors>${ID_COLORS.map((c, i) =>
         `<button type="button" class="sw" data-ci="${i}" style="background:${c}" aria-label="Colour ${i + 1}" aria-pressed="false"></button>`).join("")}</div>
       <p class="idp-lbl">Shape</p>
-      <div class="idp-row" data-idp-shapes>${ID_SHAPES.map((s, i) =>
-        `<button type="button" class="shp" data-si="${i}" aria-label="Shape ${i + 1}" aria-pressed="false">
-          <svg viewBox="0 0 40 40" aria-hidden="true"><g fill="currentColor">${String(s).startsWith("<") ? s : `<path d="${s}"/>`}</g></svg>
+      <div class="idp-row" data-idp-shapes>${ID_HEADS.map((hh, i) =>
+        `<button type="button" class="shp" data-si="${i}" aria-label="Head ${esc(hh.key)}" aria-pressed="false">
+          <svg viewBox="0 0 40 40" aria-hidden="true"><g fill="currentColor">${hh.shape}</g></svg>
         </button>`).join("")}</div>
       <button type="button" class="btn ghost small idp-shuffle" data-idp-shuffle>${icon("refresh")} Surprise me</button>
     </div>`;
@@ -251,7 +264,7 @@ function mountIdentityPicker(scope, name) {
   let sel = sigilPair(name).slice();
   const prev = $("[data-idp-prev]", scope);
   const render = () => {
-    prev.innerHTML = avatarFromPair(sel, 76);
+    prev.innerHTML = avatarFromPair(sel, 64);
     $$("[data-ci]", scope).forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.ci === sel[0])));
     $$("[data-si]", scope).forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.si === sel[1])));
   };
@@ -476,19 +489,56 @@ window.addEventListener("resize", () => { if (innerWidth > 900) closeWorkspace()
 $("#bot-search")?.addEventListener("input", renderRoster);
 $("#ws-close")?.addEventListener("keydown", ev => { if (ev.key === "Tab" && !ev.shiftKey) { ev.preventDefault(); $("#workspace a, #workspace button")?.focus(); } });
 
-// Persistent Reduce-effects control (independent of the OS media query).
-const effectsBtn = $("#effects-toggle");
-function applyEffects(reduced) {
-  document.documentElement.classList.toggle("reduce-effects", reduced);
-  effectsBtn?.setAttribute("aria-pressed", String(reduced));
+/* Effects follow the OS by default; the explicit override lives in
+   Preferences (sidebar footer) for the cases the OS setting does not cover. */
+function applyEffects() {
+  const stored = store$.get("hutch:reduce-effects", null);
+  const reduce = stored === null ? matchMedia("(prefers-reduced-motion: reduce)").matches : !!stored;
+  document.documentElement.classList.toggle("reduce-effects", reduce);
+  const cb = $("#pref-reduce"); if (cb) cb.checked = reduce;
 }
-applyEffects(store$.get("hutch:reduce-effects", matchMedia("(prefers-reduced-motion: reduce)").matches));
-effectsBtn?.addEventListener("click", () => {
-  const next = !document.documentElement.classList.contains("reduce-effects");
-  store$.set("hutch:reduce-effects", next);
-  applyEffects(next);
-  toast(next ? "Effects reduced" : "Effects restored");
-});
+applyEffects();
+matchMedia("(prefers-reduced-motion: reduce)").addEventListener?.("change", applyEffects);
+{
+  const t = $("#prefs-toggle"), pop = $("#prefs-pop");
+  if (t && pop) {
+    t.addEventListener("click", () => {
+      const open = pop.hidden;
+      pop.hidden = !open;
+      t.setAttribute("aria-expanded", String(open));
+    });
+    document.addEventListener("click", ev => {
+      if (!pop.hidden && !ev.target.closest(".pref-wrap")) { pop.hidden = true; t.setAttribute("aria-expanded", "false"); }
+    });
+    document.addEventListener("keydown", ev => {
+      if (ev.key === "Escape" && !pop.hidden) { pop.hidden = true; t.setAttribute("aria-expanded", "false"); }
+    });
+  }
+  const cb = $("#pref-reduce");
+  cb?.addEventListener("change", () => {
+    store$.set("hutch:reduce-effects", cb.checked);
+    applyEffects();
+    toast(cb.checked ? "Effects reduced" : "Effects restored");
+  });
+}
+
+/* Sidebar docking: collapse to an icon rail on desktop; remembered between
+   visits. Phones keep the full-width overlay sheet (the dock button hides). */
+{
+  const shell = $(".app-shell"), btn = $("#sidebar-toggle");
+  const setDocked = docked => {
+    shell.classList.toggle("collapsed", docked);
+    btn?.setAttribute("aria-expanded", String(!docked));
+    btn?.setAttribute("aria-label", docked ? "Expand sidebar" : "Collapse sidebar");
+    btn?.setAttribute("title", docked ? "Expand sidebar" : "Collapse sidebar");
+  };
+  setDocked(store$.get("hutch:sidebar-collapsed", false));
+  btn?.addEventListener("click", () => {
+    const next = !shell.classList.contains("collapsed");
+    store$.set("hutch:sidebar-collapsed", next);
+    setDocked(next);
+  });
+}
 
 /* --------------------------------------------- executor health (truthful) */
 
@@ -1034,7 +1084,7 @@ async function runBlockHtml(runId) {
         ${cards.join("")}
         ${stepCount || running ? `
         <details class="tool-stream" ${running || stepCount < 4 ? "open" : ""}>
-          <summary>${icon("gear")}${running ? "Working" : `${stepCount} step${stepCount === 1 ? "" : "s"}`}${stepCount && !running ? ` · ${dur}` : ""} ${icon("caret", "tool-caret")}</summary>
+          <summary>${running ? "Working" : `${stepCount} step${stepCount === 1 ? "" : "s"}`}${stepCount && !running ? ` · ${dur}` : ""} ${icon("caret", "tool-caret")}</summary>
           ${steps.join("")}
         </details>` : ""}
         ${message && message.data?.content ? `<div class="answer">${esc(message.data.content)}</div>` : ""}
@@ -1122,12 +1172,10 @@ function toolLineHtml(item, anchorEvent, runId) {
   return `
     <div class="tool-line ${cls}" data-tool-line="${esc(String(idx))}">
       <button class="tool-line-head" type="button" aria-expanded="${open}" aria-controls="tlb-${esc(String(idx))}" data-tool-toggle="${esc(String(idx))}">
-        <span class="tool-grid">
+        <span class="tool-grid" title="${t}">
           <span class="tool-verdict">${verdict}</span>
           <span class="tool-name">${esc(tool)}</span>
           <span class="tool-args">${icon("caret", "tool-arrow")}${esc(truncate(summary, 90))}</span>
-          <span class="tool-time">${t}</span>
-          <span class="tool-caret">${icon("caret")}</span>
         </span>
       </button>
       <div class="tool-line-body" id="tlb-${esc(String(idx))}" ${open ? "" : "hidden"}>
@@ -1384,8 +1432,11 @@ function renderChatEvent(e, resolvedMap) {
     case "human_needed":
       return `<div class="run-cause"><b>${icon("alert")} Needs a person:</b> ${esc(d.reason || d.note || "A login, CAPTCHA, or 2FA step is waiting.")} ${
         d.handoff ? `<br><span class="hint">${esc(d.handoff)}</span>` : ""}</div>`;
-    case "log":
-      return `<div class="tool-line"><div class="tool-grid tool-log"><span class="tool-verdict">·</span><span class="tool-args">${esc(truncate(d.note || d.message || "", 140))}</span><span class="tool-time">${t}</span><span></span><span></span></div></div>`;
+    case "log": {
+      const note = (d.note || d.message || "").trim();
+      if (!note) return "";   // empty log notes must not leave an orphan row
+      return `<div class="tool-line"><div class="tool-grid tool-log"><span class="tool-verdict"></span><span class="tool-args">${esc(truncate(note, 140))}</span></div></div>`;
+    }
     default:
       return "";   // message / tool_call / tool_result / approval_resolved are consumed elsewhere
   }

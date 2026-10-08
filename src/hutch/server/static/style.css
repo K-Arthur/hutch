@@ -245,13 +245,51 @@ a:hover { text-decoration: underline; }
 
 .ws-foot {
   border-top: 1px solid var(--line);
-  padding: var(--s-3) var(--s-4);
-  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4);
+  padding: var(--s-2) var(--s-3);
+  display: grid; gap: 1px;
   flex: none;
 }
-.ws-foot-link { background: none; border: 0; padding: 2px 0; font: inherit; font-size: var(--fs-sm); color: var(--text-3); cursor: pointer; }
-.ws-foot-link:hover, .ws-foot-link[aria-pressed="true"] { color: var(--text-2); }
-.ws-foot-link[aria-pressed="true"] { color: var(--brand-hi); }
+.ws-foot-link {
+  all: unset; box-sizing: border-box; cursor: pointer;
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px var(--s-3); border-radius: var(--r-ctl);
+  font-size: var(--fs-sm); color: var(--text-3);
+}
+.ws-foot-link:hover { color: var(--text); background: rgba(255, 255, 255, 0.045); }
+.ws-foot-link:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.ws-foot .pill { margin: var(--s-2) var(--s-2) var(--s-1); }
+
+.pref-wrap { position: relative; }
+.pref-pop {
+  position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 30;
+  width: 268px; max-width: calc(100vw - 32px);
+  background: var(--overlay); border: 1px solid var(--line-strong);
+  border-radius: var(--r-panel); box-shadow: var(--sh-pop);
+  padding: 6px;
+}
+.pref-pop[hidden] { display: none; }
+
+/* ── docked sidebar (desktop): an icon rail, labels dropped ── */
+@media (min-width: 901px) {
+  .app-shell.collapsed { grid-template-columns: 64px minmax(0, 1fr); }
+  .app-shell.collapsed .brand-name { display: none; }
+  .app-shell.collapsed .ws-brand { justify-content: center; padding: 0; }
+  .app-shell.collapsed .ws-nav a { font-size: 0; gap: 0; justify-content: center; padding: 9px 0; }
+  .app-shell.collapsed .roster-search,
+  .app-shell.collapsed .roster-manage,
+  .app-shell.collapsed .roster-title,
+  .app-shell.collapsed .roster-new { display: none; }
+  .app-shell.collapsed .roster-row { grid-template-columns: 30px; justify-content: center; padding: 7px 0; }
+  .app-shell.collapsed .roster-id { display: none; }
+  .app-shell.collapsed .roster-head { justify-content: center; padding: 0 0 var(--s-2); }
+  .app-shell.collapsed .ws-foot-link { font-size: 0; gap: 0; justify-content: center; padding: 9px 0; }
+  .app-shell.collapsed .pref-pop { left: 52px; bottom: 0; }
+  .app-shell.collapsed .ws-foot { justify-items: center; }
+  .app-shell.collapsed .ws-foot .pill { margin: var(--s-2) 0 var(--s-1); }
+}
+@media (max-width: 900px) {
+  .icon-btn.ws-dock { display: none; }
+}
 
 /* daemon pill: truthful health, icon dot + word, never color alone */
 .pill {
@@ -554,10 +592,11 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
   width: 100%; padding: 1px 2px;
 }
 .tool-line-head:focus-visible { outline: 2px solid var(--focus); outline-offset: -1px; }
-.tool-grid { display: grid; grid-template-columns: 14px minmax(70px, auto) minmax(0, 1fr) auto; align-items: baseline; gap: var(--s-2); font: 400 var(--fs-xs)/1.7 var(--mono); color: var(--text-3); }
+.tool-grid { display: grid; grid-template-columns: 12px minmax(64px, auto) minmax(0, 1fr); align-items: baseline; gap: var(--s-2); font: 400 var(--fs-xs)/1.7 var(--mono); color: var(--text-3); }
+.tool-line .icon { width: 12px; height: 12px; }
 .tool-line-head:hover .tool-grid { color: var(--text-2); }
-.tool-verdict { display: inline-grid; place-items: center; font-size: 10px; }
-.tool-line.success .tool-verdict { color: var(--brand-deep); }
+.tool-verdict { display: inline-grid; place-items: center; color: var(--text-3); }
+.tool-line.success .tool-verdict { color: var(--text-3); }
 .tool-line.error .tool-verdict { color: var(--danger); }
 .tool-line.running .tool-verdict { color: var(--brand); }
 .tool-name { color: var(--text-2); white-space: nowrap; }
@@ -577,6 +616,7 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .tool-line-more { all: unset; cursor: pointer; display: inline-block; color: var(--focus); font: 400 var(--fs-xs)/1 var(--mono); margin-left: var(--s-2); }
 .tool-line-more:hover { text-decoration: underline; }
 .tool-log { padding: 1px 2px; }
+.tool-log .tool-args { grid-column: 2 / -1; }
 
 /* grouped tool runs: one quiet line, expandable — no pill, no border */
 .feed-divider { padding: 0; }
@@ -936,17 +976,19 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 }
 .modal-card {
   width: min(640px, 100%);
-  max-height: min(88dvh, 880px); overflow-y: auto;
+  max-height: min(90dvh, 880px);
+  display: flex; flex-direction: column;
   background: var(--overlay);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-composer);
   box-shadow: var(--sh-pop);
+  overflow: hidden;
 }
-.modal-header { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-4) var(--s-5); border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--overlay); }
+.modal-header { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-4) var(--s-5); border-bottom: 1px solid var(--line); flex: none; }
 .modal-header h3 { font-size: var(--fs-xl); }
 .modal-header .icon-btn { margin-left: auto; }
-.modal-body { padding: var(--s-5); }
-.modal-footer { display: flex; justify-content: flex-end; gap: var(--s-2); padding: var(--s-4) var(--s-5); border-top: 1px solid var(--line); }
+.modal-body { padding: var(--s-5); flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.modal-footer { display: flex; justify-content: flex-end; gap: var(--s-2); padding: var(--s-4) var(--s-5); border-top: 1px solid var(--line); flex: none; }
 .confirm-body { font-size: var(--fs-md); color: var(--text-2); }
 .confirm-body b { color: var(--text); }
 
@@ -1052,12 +1094,13 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
   .form-grid .row2 { grid-template-columns: 1fr; }
   .runs-filter-bar input { width: 100%; }
   .ov-stats, .kpi-bento { grid-template-columns: 1fr 1fr; }
-  .tool-grid { grid-template-columns: 18px minmax(72px, auto) minmax(0, 1fr) 14px; }
-  .tool-time { display: none; }
+  .tool-grid { grid-template-columns: 12px minmax(64px, auto) minmax(0, 1fr); }
   .app-top { height: 52px; }
   .approval-card-chat { padding: var(--s-3); }
-  .modal-card { max-height: 92dvh; }
+  .modal-backdrop { padding: var(--s-2); }
+  .modal-card { max-height: 94dvh; }
   .modal-body { padding: var(--s-4); }
+  .modal-footer { padding: var(--s-3) var(--s-4); }
   .turn-meta { flex-wrap: wrap; }
 }
 
