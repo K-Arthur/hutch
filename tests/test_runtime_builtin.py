@@ -328,6 +328,31 @@ def test_a_missing_model_falls_back_instead_of_failing_the_run(store, config, tm
     assert "ollama pull not-installed:7b" in kinds(emitted, "fallback")[0]["reason"]
 
 
+def test_provider_field_rejection_is_not_retried_or_fallen_back(store, config, tmp_path):
+    server = FakeOpenAI()
+    server.force_status = (400, {"error": {"message": "Unknown field max_completion_tokens"}}, {})
+    calls = []
+
+    def provider_factory(provider, base_url):
+        calls.append(provider)
+        if provider == "openai":
+            return OpenAICompatProvider(server.url + "/v1", "fixture-key", "openai")
+        raise AssertionError(f"a rejected request must not trigger a fallback provider: {provider}")
+
+    try:
+        ctx, run, emitted, tools = build(store, config, tmp_path, model="openai/gpt-4o-mini",
+                                         fallbacks=["ollama/fake:8b"], tools=())
+        with pytest.raises(RunAborted, match="Unknown field max_completion_tokens") as error:
+            run_it(runtime(provider_factory=provider_factory), run, ctx, tools)
+        assert error.value.reason == "error"
+        assert calls and set(calls) == {"openai"}
+        assert len(server.of("/v1/chat/completions")) == 1
+        assert not kinds(emitted, "fallback")
+        assert [row["status"] for row in store.unresolved_usage_reservations()] == ["uncertain"]
+    finally:
+        server.close()
+
+
 def test_when_the_whole_chain_is_down_the_error_names_the_last_cause(store, config, tmp_path):
     ctx, run, emitted, tools = build(store, config, tmp_path, model="ollama/fake:8b")
     with pytest.raises(RunAborted) as e:

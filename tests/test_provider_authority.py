@@ -9,6 +9,7 @@ from hutch.approvals import DeniedError, resolve_approval
 from hutch.connections import ConnectionBook
 from hutch.models import RunStatus
 from hutch.providers.base import ProviderError
+from hutch.providers.openai_compat import OpenAICompatProvider
 from hutch.runtime import RunAborted
 from hutch.runtime.ladder import Ladder, get_provider, make_rung
 from hutch.models import ApprovalMode, Limits
@@ -92,6 +93,41 @@ def test_hosted_to_different_hosted_fallback_does_not_send_without_a_decision(st
         resolve_approval(store, req.id, approve=False, by="fixture")
     assert isinstance(result["error"], RunAborted)
     assert calls == ["openai"]
+
+
+@pytest.mark.parametrize(("status", "message", "headers", "expected_attempts"), [
+    (401, "invalid API key", {}, 1),
+    (429, "quota exceeded", {"retry-after": "1"}, 2),
+])
+def test_provider_auth_or_quota_rejection_waits_for_review_before_paid_fallback(
+        store, config, tmp_path, status, message, headers, expected_attempts):
+    server = FakeOpenAI()
+    server.force_status = (status, {"error": {"message": message}}, headers)
+    constructed = []
+
+    def provider_factory(provider, base_url):
+        constructed.append(provider)
+        if provider == "openai":
+            return OpenAICompatProvider(server.url + "/v1", "fixture-key", "openai")
+        pytest.fail(f"fallback provider {provider} must not start before approval")
+
+    try:
+        ctx, run, emitted, tools = build(store, config, tmp_path, model="openai/gpt-4o-mini",
+                                         fallbacks=["anthropic/claude-test"], tools=())
+        store.set_status(run, RunStatus.running)
+        with in_worker(ctx, lambda: run_it(runtime(provider_factory=provider_factory), run, ctx, tools)) as result:
+            req = pending(store)
+            assert req.outward and not req.sticky_key
+            assert req.detail["account"] == "anthropic"
+            assert message in req.detail["reason"]
+            assert constructed and set(constructed) == {"openai"}
+            assert len(server.of("/v1/chat/completions")) == expected_attempts
+            assert all(row["status"] == "uncertain" for row in store.unresolved_usage_reservations())
+            assert resolve_approval(store, req.id, approve=False, by="fixture")
+        assert isinstance(result["error"], RunAborted)
+        assert constructed and set(constructed) == {"openai"}
+    finally:
+        server.close()
 
 
 def test_connection_revision_change_during_review_is_refused(store, config, tmp_path, monkeypatch):

@@ -118,6 +118,10 @@ CLI harnesses (`pi`, `opencode`) are currently disabled; Hutch does not launch t
   tested its common wire contract; it does not guarantee that every endpoint or selected model supports tools, context
   limits, usage details, or retention behavior. `hutch connections test` checks a model list without spending tokens;
   per-model tool capability probing and persisted verification records are not implemented yet.
+- Provider field-validation errors stop without replaying the same invalid body. Hutch retries without streaming only
+  when a rejection identifies a stream/SSE incompatibility. If auth or quota failure leads to a different hosted
+  account or destination, Hutch pauses for outward approval before constructing that provider; unresolved usage stays
+  reserved until reconciliation.
 - Not tested against live accounts. If a plan's real behaviour differs from its docs, `hutch connections test
   --chat <model>` is the first diagnostic.
 - Model discovery is the vendor's `GET /models`; context windows are not read from it (the list does not carry

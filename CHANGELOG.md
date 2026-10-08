@@ -22,6 +22,9 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   route-level fixture support from unverified endpoint/model capabilities and lists dated sources.
 - OpenAI's `max_completion_tokens` is selected only for the exact official HTTPS API host; other
   OpenAI-compatible endpoints use `max_tokens` even when their URL contains a lookalike string.
+- Generic provider field errors no longer trigger a duplicate non-streaming request; that recovery
+  is reserved for errors that identify streaming/SSE incompatibility. Uncertain charges remain
+  reserved, and a different paid route still waits for outward approval.
 
 ### Fixed
 

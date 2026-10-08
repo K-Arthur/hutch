@@ -215,6 +215,17 @@ def test_openai_rejecting_stream_options_falls_back_to_non_streaming(oai):
     assert [r["body"].get("stream") for r in oai.of("/v1/chat/completions")] == [True, False]
 
 
+@pytest.mark.parametrize(("message", "should_retry"), [
+    ("stream_options is not supported", True),
+    ("server-sent event streaming is not supported", True),
+    ("Unknown field max_completion_tokens", False),
+    ("temperature is outside the allowed range", False),
+])
+def test_only_stream_specific_field_rejections_trigger_plain_retry(message, should_retry):
+    error = ProviderError("bad_request", message, status=400)
+    assert error.streaming_related is should_retry
+
+
 def test_openai_auth_rate_limit_and_context_errors_are_typed(oai):
     oai.require_key = "secret"
     with pytest.raises(ProviderError) as e:

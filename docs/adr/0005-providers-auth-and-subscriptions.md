@@ -52,6 +52,11 @@ sends `OPENAI_API_KEY` to whatever URL it is given (baseline lead 5).
    bot/message model is an explicit selection; it does not authorize another account or service.
    Credentials are refreshed before each builtin provider call, with cache keys scoped to state,
    complete configuration and a credential digest. No automatic plan upgrade is implemented.
+   Authentication and quota errors preserve the unresolved usage reservation. Switching from one
+   hosted billing authority to another waits for outward review; rejecting the review proves no
+   alternate provider is constructed. A generic 400/422 field error is not retried as a streaming
+   error. Only a response that identifies stream/SSE incompatibility can trigger the bounded
+   non-stream retry, and any uncertain first attempt remains held.
 
 ## Consequences
 

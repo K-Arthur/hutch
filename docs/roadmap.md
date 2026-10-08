@@ -71,7 +71,9 @@ and permanent scoped deletion/export remain required realignment work.
 - **Provider compatibility: route-level matrix implemented.** `GET /api/v1/compatibility` records supported,
   experimental, unavailable and blocked routes with dated sources, request fields Hutch sends/omits and fixture/live
   verification limits. Exact OpenAI host matching now selects its token-limit field. Per-connection/model capability
-  records, opt-in tool probes, provider failure journeys and strict offline enforcement remain open.
+  records, opt-in tool probes and strict offline enforcement remain open. Offline failure fixtures cover malformed
+  fields, auth/quota rejection, held uncertain usage and the outward approval required before switching paid routes;
+  live billing behavior remains unverified.
 - **Action review: local fixtures.** Schema v13 retains immutable intents and separate operator
   reconciliation. Uncertain receipt sealing is transactional; chat and Needs you surface review.
   Same-conversation repeat guards and bounded current builtin context notes are implemented.

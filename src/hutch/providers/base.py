@@ -45,8 +45,15 @@ class ProviderError(Exception):
 
     @property
     def streaming_related(self) -> bool:
-        """SR-9: would a non-streaming retry plausibly succeed where the streaming call failed?"""
-        return self.kind == "stream" or (self.kind == "bad_request" and self.status in (400, 422))
+        """Whether this failure specifically implicates streaming and merits one plain retry."""
+        if self.kind == "stream":
+            return True
+        if self.kind != "bad_request" or self.status not in (400, 422):
+            return False
+        # A generic validation error (for example, an unsupported token-limit field) is not a
+        # stream failure. Repeating it without streaming just sends the same invalid request again.
+        detail = str(self).casefold()
+        return "stream" in detail or "server-sent event" in detail or "sse" in detail
 
 
 # ------------------------------------------------------------------ request / result

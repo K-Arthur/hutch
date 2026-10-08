@@ -32,6 +32,9 @@ that work lands, a fixture-tested route must not be described as a live model ve
 that the typed endpoint exposes the same record. It also checks that the OpenAI token-limit field
 selection uses the exact official host, rejecting lookalike domains, embedded paths, insecure
 HTTP, and nonstandard ports. `tests/test_providers.py` exercises the request and response fixtures.
+The retry checks ensure a generic rejected field is not resent in a second request; only a
+stream/SSE-specific rejection can take the non-stream retry. `tests/test_provider_authority.py`
+confirms auth/quota failures cannot construct an alternate paid provider before outward approval.
 
 The official protocol sources checked for this matrix include the [OpenAI Chat Completions API](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create),
 [Anthropic Messages API](https://platform.claude.com/docs/en/api/messages/create), [Ollama chat API](https://docs.ollama.com/api/chat),
