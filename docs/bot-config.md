@@ -67,6 +67,12 @@ openai-compatible/<name>  any endpoint — set bot.base_url or HUTCH_BASE_URL. I
                            OPENAI_API_KEY is only ever sent to api.openai.com
 ```
 
+The versioned [provider compatibility matrix](realignment/provider-compatibility.md) describes
+the request Hutch sends for each route and the evidence behind its status. A supported route is
+fixture-tested at the protocol level; it does not establish that a particular endpoint/model can
+use tools or report all usage. `hutch connections test` can check model-list access, but the
+per-connection/model capability probe is not implemented.
+
 Any `mock/*` model routes to the mock runtime regardless of the `runtime` field.
 
 Set the route policy with `hutch bot create helper --model ollama/llama3.2 --inference-mode local`

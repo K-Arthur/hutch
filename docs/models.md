@@ -36,6 +36,11 @@ API: `GET /api/bots/<name>/models` returns `{default, models:[{spec,label,group,
 `POST /api/bots/<name>/run` takes an optional `"model": "provider/model"` (409 = usable once set up, 422 = malformed
 or unknown).
 
+The versioned provider compatibility matrix is available at `GET /api/v1/compatibility` and in
+[provider compatibility](realignment/provider-compatibility.md). It records Hutch's request mapping and evidence for each
+route. The route state describes the common protocol contract, not whether a particular live model can reliably use tools;
+the current model-list check does not verify that capability.
+
 ## The Models page (`/models`)
 
 The "everything" view behind the switcher: runtimes and connections with state and fix, installed models marked

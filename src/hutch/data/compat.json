@@ -1,0 +1,245 @@
+{
+  "version": 1,
+  "reviewed_on": "2026-10-08",
+  "routes": [
+    {
+      "id": "openai-chat-completions",
+      "title": "OpenAI API key",
+      "state": "supported",
+      "harness": "Hutch builtin runtime",
+      "api_shape": "OpenAI Chat Completions",
+      "auth_flow": "OPENAI_API_KEY is sent only to https://api.openai.com; a custom endpoint needs its own named connection key.",
+      "models": "GET /models can list models. Model-specific parameters and tool support can vary; Hutch has no live model capability probe.",
+      "streaming": "SSE is requested with stream_options.include_usage. An interrupted stream may omit final usage, so missing usage is not zero.",
+      "tool_calls": "Function-tool request and response framing is fixture-tested. Whether a particular model can use tools is not established by the endpoint alone.",
+      "structured_output": "Not sent by the current Hutch Chat Completions adapter.",
+      "vision": "Not exposed by the current Hutch chat UI/runtime path.",
+      "context_limits": "Model-specific. Hutch does not send a context-window override on this API.",
+      "cancellation": "Stop closes the response connection. The provider may already have processed or billed the request; uncertain usage stays reserved for reconciliation.",
+      "usage_reporting": "Prompt, completion and cached-token counts are recorded when returned. Interrupted streams may omit their final usage chunk.",
+      "quota_reporting": "Provider account quota and reset time are not queried.",
+      "retention": "Provider account and API data controls apply. Hutch does not claim zero retention for this route.",
+      "hutch_request_mapping": {
+        "sent": ["model", "messages", "tools", "stream", "stream_options.include_usage", "temperature when set", "max_completion_tokens"],
+        "omitted": ["num_ctx", "think", "effort", "reasoning_effort", "response_format"]
+      },
+      "verification": "Recorded HTTP fixtures cover body shape, streaming, tool-call assembly, usage and provider errors; no live OpenAI request was made.",
+      "verified_on": "2026-10-08",
+      "policy_evidence": [
+        {"title": "OpenAI Chat Completions API reference", "url": "https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create", "observed_on": "2026-10-08"}
+      ]
+    },
+    {
+      "id": "anthropic-messages",
+      "title": "Anthropic API key",
+      "state": "supported",
+      "harness": "Hutch builtin runtime",
+      "api_shape": "Anthropic Messages API",
+      "auth_flow": "ANTHROPIC_API_KEY is sent only to https://api.anthropic.com; a custom endpoint needs its own named connection key.",
+      "models": "Model ids are selected explicitly. The Anthropic API has no common model-list operation in Hutch's connection contract.",
+      "streaming": "Anthropic Messages streaming is used through the official SDK with its internal retries disabled.",
+      "tool_calls": "Tool-use request/response conversion and merged parallel tool results are fixture-tested. Model-level tool reliability remains unverified.",
+      "structured_output": "Not sent by the current Hutch Anthropic adapter.",
+      "vision": "Not exposed by the current Hutch chat UI/runtime path.",
+      "context_limits": "Model-specific. Hutch does not send a context-window override.",
+      "cancellation": "Stop closes the active response. If a request outcome cannot be verified, its usage reservation remains held.",
+      "usage_reporting": "Input, output, cache-read and cache-write counts are recorded when returned.",
+      "quota_reporting": "Provider account quota and reset time are not queried.",
+      "retention": "Provider account and API data controls apply. Hutch does not claim zero retention for this route.",
+      "hutch_request_mapping": {
+        "sent": ["model", "messages", "system", "tools", "stream", "max_tokens", "cache_control", "output_config.effort for allowlisted model prefixes"],
+        "omitted": ["temperature", "think", "num_ctx", "manual thinking budget", "structured output"]
+      },
+      "verification": "Recorded SDK/HTTP fixtures cover request shape, streaming, tool-use conversion, usage, refusal and typed failures; no live Anthropic request was made.",
+      "verified_on": "2026-10-08",
+      "policy_evidence": [
+        {"title": "Anthropic Messages API reference", "url": "https://platform.claude.com/docs/en/api/messages/create", "observed_on": "2026-10-08"},
+        {"title": "Anthropic effort controls", "url": "https://platform.claude.com/docs/en/build-with-claude/effort", "observed_on": "2026-10-08"}
+      ]
+    },
+    {
+      "id": "ollama-native",
+      "title": "Ollama local API",
+      "state": "supported",
+      "harness": "Hutch builtin runtime",
+      "api_shape": "Ollama native /api/chat",
+      "auth_flow": "No key is sent to the default loopback service. A custom endpoint requires explicit connection configuration.",
+      "models": "The local server reports installed models and per-model metadata. Cloud-tagged model names are classified as hosted, not local.",
+      "streaming": "Newline-delimited JSON streams are consumed through the done record.",
+      "tool_calls": "Native tool-call framing and streamed response aggregation are fixture-tested; per-model reliability still needs a local model probe.",
+      "structured_output": "Not sent by Hutch's current request builder.",
+      "vision": "Not exposed by the current Hutch chat UI/runtime path.",
+      "context_limits": "Hutch requires and sends num_ctx explicitly. Runtime-reported truncation is surfaced; fit and memory admission remain estimates.",
+      "cancellation": "Stop closes the active HTTP response. Local server teardown and inference-process state are not certified by this provider contract.",
+      "usage_reporting": "Prompt/evaluation token counts and runtime timings are recorded from completed responses.",
+      "quota_reporting": "No provider quota applies to local models. Ollama Cloud quota is not queried by Hutch.",
+      "retention": "Local service storage and any proxying are controlled by that service. Local route mode does not guarantee offline operation.",
+      "hutch_request_mapping": {
+        "sent": ["model", "messages", "tools", "stream", "options.num_ctx", "options.num_predict", "temperature when set", "keep_alive", "think when the model reports thinking capability"],
+        "omitted": ["effort", "reasoning_effort", "OpenAI-only stream_options", "structured output"]
+      },
+      "verification": "Recorded local HTTP fixtures cover request shape, context sizing, streaming, tools, usage and failure paths; Ollama was not installed for a live model check.",
+      "verified_on": "2026-10-08",
+      "policy_evidence": [
+        {"title": "Ollama chat API", "url": "https://docs.ollama.com/api/chat", "observed_on": "2026-10-08"},
+        {"title": "Ollama Cloud models", "url": "https://registry.ollama.com/blog/cloud-models", "observed_on": "2026-10-08"}
+      ]
+    },
+    {
+      "id": "openai-compatible-connection",
+      "title": "OpenAI-compatible connection",
+      "state": "supported",
+      "harness": "Hutch builtin runtime",
+      "api_shape": "OpenAI Chat Completions-compatible HTTP endpoint",
+      "auth_flow": "Each named connection owns its endpoint and key. The ambient OpenAI key is never sent to a custom host.",
+      "models": "A model-list request is used when the configured endpoint provides one; model capabilities are endpoint/model-specific and remain unknown without a verified probe.",
+      "streaming": "SSE is requested with include_usage. Hutch retries once without streaming when a compatible endpoint rejects stream options; live charge behavior is provider-specific.",
+      "tool_calls": "Function-tool framing is tested against a scripted endpoint. Compatibility does not prove that every server or model parses tools correctly.",
+      "structured_output": "Not sent by the current adapter.",
+      "vision": "Not exposed by the current Hutch chat UI/runtime path.",
+      "context_limits": "No context-window override is sent. The provider/model may use different defaults or limits.",
+      "cancellation": "Stop closes the response connection. The endpoint may continue work; unknown charges remain reserved until reconciliation.",
+      "usage_reporting": "Reported usage is recorded. Endpoint-specific omissions are not treated as zero.",
+      "quota_reporting": "Only operator-declared connection allowances are enforced; provider quotas and reset times are not queried.",
+      "retention": "The configured endpoint controls processing and retention. Review its terms before sending data.",
+      "hutch_request_mapping": {
+        "sent": ["model", "messages", "tools", "stream", "stream_options.include_usage", "temperature when set", "max_tokens"],
+        "omitted": ["num_ctx", "think", "effort", "reasoning_effort", "response_format"]
+      },
+      "verification": "Scripted HTTP contract tests exercise the common Chat Completions shape; each real endpoint still needs an operator connection check and capability verification.",
+      "verified_on": "2026-10-08",
+      "policy_evidence": [
+        {"title": "LM Studio OpenAI-compatible tool use", "url": "https://lmstudio.ai/docs/developer/openai-compat/tools", "observed_on": "2026-10-08"},
+        {"title": "llama.cpp server API", "url": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md", "observed_on": "2026-10-08"},
+        {"title": "vLLM OpenAI-compatible server", "url": "https://docs.vllm.ai/en/stable/serving/online_serving/openai_compatible_server/", "observed_on": "2026-10-08"}
+      ]
+    },
+    {
+      "id": "opencode-go-connection",
+      "title": "OpenCode Go API-key plan",
+      "state": "experimental",
+      "harness": "Hutch builtin runtime through a named connection",
+      "api_shape": "OpenAI Chat Completions-compatible endpoint",
+      "auth_flow": "User-supplied connection key; Hutch sends the configured User-Agent and stable per-run session header.",
+      "models": "Model list is endpoint-provided. Usage eligibility for general or unattended workloads is not established by Hutch.",
+      "streaming": "OpenAI-compatible streaming is requested; no live plan request was made.",
+      "tool_calls": "Common framing is fixture-tested, but no live model/plan tool-call check was made.",
+      "structured_output": "Not verified; not sent by Hutch.",
+      "vision": "Not verified; not exposed by Hutch.",
+      "context_limits": "Model-specific and not reported through the connection model list.",
+      "cancellation": "Connection-close behavior and billing after cancellation are not live-verified.",
+      "usage_reporting": "Hutch records endpoint-reported tokens; declared token allowance is a proxy, not the vendor's quota counter.",
+      "quota_reporting": "Provider quota/reset times are not queried. Configured Hutch allowances are operator estimates.",
+      "retention": "Provider model terms vary; review the plan's current terms before scheduling work.",
+      "hutch_request_mapping": {
+        "sent": ["OpenAI-compatible request fields", "configured User-Agent", "stable session header"],
+        "omitted": ["consumer OAuth session", "automatic paid fallback to another connection"]
+      },
+      "verification": "Offline connection/protocol fixtures only; no OpenCode Go credentials or live calls were used.",
+      "verified_on": "2026-10-08",
+      "policy_evidence": [
+        {"title": "OpenCode Go terms and request identity", "url": "https://opencode.ai/docs/go/", "observed_on": "2026-10-08"}
+      ]
+    },
+    {
+      "id": "sign-in-with-chatgpt",
+      "title": "Sign in with ChatGPT token sharing",
+      "state": "experimental",
+      "harness": "Not implemented",
+      "api_shape": "OpenAI Responses API contract required",
+      "auth_flow": "Not implemented. Eligibility and preview constraints must be confirmed before exposing this route.",
+      "models": "Not available through Hutch.",
+      "streaming": "The preview request contract requires streaming; Hutch has no native Responses adapter.",
+      "tool_calls": "Preview limitations exclude hosted MCP and several hosted tools; no Hutch tool path is implemented.",
+      "structured_output": "Unsupported fields must be omitted according to the current preview limitations.",
+      "vision": "Not available through Hutch.",
+      "context_limits": "Not available through Hutch.",
+      "cancellation": "Not available through Hutch.",
+      "usage_reporting": "Not available through Hutch.",
+      "quota_reporting": "Not available through Hutch.",
+      "retention": "The preview request contract requires store=false; no Hutch request is sent.",
+      "hutch_request_mapping": {
+        "sent": [],
+        "omitted": ["background", "conversation", "max_output_tokens", "max_tool_calls", "metadata", "temperature", "top_p", "truncation", "user", "previous_response_id", "system-role message"]
+      },
+      "verification": "Documentation review only. This is not an available login route and no eligibility was claimed.",
+      "verified_on": "2026-10-08",
+      "policy_evidence": [
+        {"title": "Sign in with ChatGPT token sharing", "url": "https://developers.openai.com/siwc/token-sharing-open-source", "observed_on": "2026-10-08"},
+        {"title": "Sign in with ChatGPT preview limitations", "url": "https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations", "observed_on": "2026-10-08"}
+      ]
+    },
+    {
+      "id": "opencode-harness",
+      "title": "OpenCode CLI/server as an executor",
+      "state": "unavailable",
+      "harness": "OpenCode is never launched by Hutch",
+      "api_shape": "Experimental server/SSE contract; permission events can be lost",
+      "auth_flow": "No independent runtime credential flow is accepted.",
+      "models": "Not available through Hutch's executor.",
+      "streaming": "Protocol inspection and bounded parser fixtures only; durable event delivery is not guaranteed.",
+      "tool_calls": "Unavailable until each permission is brokered and an exact action receipt is enforced.",
+      "structured_output": "Not available through Hutch's executor.",
+      "vision": "Not available through Hutch's executor.",
+      "context_limits": "Not available through Hutch's executor.",
+      "cancellation": "Not available through Hutch's executor.",
+      "usage_reporting": "No shared provider budget integration.",
+      "quota_reporting": "No provider quota integration.",
+      "retention": "Not available through Hutch's executor.",
+      "hutch_request_mapping": {"sent": [], "omitted": ["--auto", "unbrokered permission grants"]},
+      "verification": "Adapter-start refusal tests pass. Installed OpenCode 2.0.24 API inspection used only isolated loopback state; no model request was sent.",
+      "verified_on": "2026-10-08",
+      "policy_evidence": [
+        {"title": "OpenCode server documentation", "url": "https://opencode.ai/docs/server/", "observed_on": "2026-10-08"}
+      ]
+    },
+    {
+      "id": "pi-harness",
+      "title": "Pi RPC as an executor",
+      "state": "unavailable",
+      "harness": "Pi is never launched by Hutch",
+      "api_shape": "Documented JSONL RPC helpers only; process adapter unavailable",
+      "auth_flow": "No independent runtime credential flow is accepted.",
+      "models": "Not available through Hutch's executor.",
+      "streaming": "Offline framing and event-helper fixtures pass; no Pi binary was installed.",
+      "tool_calls": "Unavailable until permissions are brokered or tools are restricted and provider usage is reserved.",
+      "structured_output": "Not available through Hutch's executor.",
+      "vision": "Not available through Hutch's executor.",
+      "context_limits": "Not available through Hutch's executor.",
+      "cancellation": "The published abort command is fixture-tested; process cancellation is not implemented.",
+      "usage_reporting": "No shared provider budget integration.",
+      "quota_reporting": "No provider quota integration.",
+      "retention": "Not available through Hutch's executor.",
+      "hutch_request_mapping": {"sent": [], "omitted": ["unbrokered external tool calls"]},
+      "verification": "Protocol helpers only; no Pi binary, provider call or child process was used.",
+      "verified_on": "2026-10-08",
+      "policy_evidence": [
+        {"title": "Pi RPC protocol", "url": "https://pi.dev/docs/latest/rpc", "observed_on": "2026-10-08"}
+      ]
+    },
+    {
+      "id": "consumer-plan-oauth",
+      "title": "Consumer-plan OAuth/session tokens",
+      "state": "blocked",
+      "harness": "Not accepted by Hutch",
+      "api_shape": "Cookie/session reuse or token laundering",
+      "auth_flow": "Blocked. Hutch does not read, store or proxy consumer-app sessions.",
+      "models": "Not available through Hutch.",
+      "streaming": "Not applicable.",
+      "tool_calls": "Not applicable.",
+      "structured_output": "Not applicable.",
+      "vision": "Not applicable.",
+      "context_limits": "Not applicable.",
+      "cancellation": "Not applicable.",
+      "usage_reporting": "Not applicable.",
+      "quota_reporting": "Not applicable.",
+      "retention": "Not applicable.",
+      "hutch_request_mapping": {"sent": [], "omitted": ["consumer application cookie", "OAuth token used as an arbitrary API key"]},
+      "verification": "Static policy boundary; provider credentials remain scoped to documented API-key connections.",
+      "verified_on": "2026-10-08",
+      "policy_evidence": [
+        {"title": "Anthropic consumer/API terms boundary", "url": "https://www.anthropic.com/news/updates-to-our-consumer-terms?subjects=claude", "observed_on": "2026-10-08"}
+      ]
+    }
+  ]
+}

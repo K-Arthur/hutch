@@ -38,8 +38,9 @@ class OpenAICompatProvider(Provider):
 
     def __init__(self, base_url: str, api_key: str = "", provider_name: str = "openai-compatible",
                  headers: Optional[dict[str, str]] = None, session_header: str = "", auth_hint: str = ""):
-        from .registry import reject_endpoint_credentials
+        from .registry import is_official_endpoint, reject_endpoint_credentials
         self.base_url = reject_endpoint_credentials(base_url).rstrip("/")
+        self._official_openai = is_official_endpoint("openai", self.base_url)
         self.api_key = api_key
         self.auth_hint = auth_hint        # why an ambient key was withheld, appended to auth failures
         self.name = provider_name
@@ -143,8 +144,9 @@ class OpenAICompatProvider(Provider):
         if req.tools:
             body["tools"] = req.tools
         if req.max_tokens:
-            # newer OpenAI models reject max_tokens; compatible servers expect it
-            body["max_completion_tokens" if "api.openai.com" in self.base_url else "max_tokens"] = int(req.max_tokens)
+            # OpenAI's official host uses max_completion_tokens; compatible endpoints generally use max_tokens.
+            # Match the authority exactly so a proxy path or lookalike hostname cannot select the OpenAI dialect.
+            body["max_completion_tokens" if self._official_openai else "max_tokens"] = int(req.max_tokens)
         if req.temperature is not None:
             body["temperature"] = req.temperature
         if stream:

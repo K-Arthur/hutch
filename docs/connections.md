@@ -113,6 +113,11 @@ CLI harnesses (`pi`, `opencode`) are currently disabled; Hutch does not launch t
 
 ## Limits worth knowing
 
+- **Compatibility is route-level.** `GET /api/v1/compatibility` lists the HTTP shape, fields Hutch sends or omits,
+  implementation state, dated sources, and the fixture/live verification boundary. A `supported` route means Hutch has
+  tested its common wire contract; it does not guarantee that every endpoint or selected model supports tools, context
+  limits, usage details, or retention behavior. `hutch connections test` checks a model list without spending tokens;
+  per-model tool capability probing and persisted verification records are not implemented yet.
 - Not tested against live accounts. If a plan's real behaviour differs from its docs, `hutch connections test
   --chat <model>` is the first diagnostic.
 - Model discovery is the vendor's `GET /models`; context windows are not read from it (the list does not carry

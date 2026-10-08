@@ -99,6 +99,7 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 | [Operations](docs/operations.md) | Linux sandbox requirements, remote pairing, incomplete cleanup, migration backups and restore |
 | [Models](docs/models.md) | chat model switcher, fit, model slots, prices, `hutch doctor` |
 | [Connections](docs/connections.md) | subscription plans and custom endpoints, keys, allowances, what is unsupported and why |
+| [Provider compatibility](docs/realignment/provider-compatibility.md) | route status, request fields, evidence dates, and live-verification limits |
 | [Design system](docs/design-system.md) | shared UI tokens, components, icon/emoji policy, a11y rules |
 | [Roadmap](docs/roadmap.md) | phases: hardening → capability → scale-out |
 | [Realignment](docs/realignment/baseline.md) | measured baseline, evidence ledger, [architecture decisions](docs/adr/), continuation ledger |

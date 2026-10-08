@@ -216,6 +216,13 @@ endpoint, protocol or revision requires outward review. Each call revalidates th
 and refreshes credential-aware clients. Streaming recovery keeps the first uncertain usage
 and reserves another attempt before retrying, using the same transactional account ledger.
 
+Provider protocol claims are published in the versioned `GET /api/v1/compatibility` matrix
+([details](realignment/provider-compatibility.md)). Its `supported` state describes a common
+request/response contract with recorded fixtures. It is not a live connection or model capability
+check: endpoint variants and models can differ in tool use, context, usage and retention. Per-
+connection/model capability records and opt-in probes remain planned, and unknown capability
+must remain visibly unknown.
+
 Each bot also stores an inference route mode. `local` filters hosted choices, refuses hosted
 per-message overrides, and fences both startup fallback and in-run escalation to hosted routes;
 `hybrid` retains the existing route governance. The classifier rejects recognized Ollama cloud

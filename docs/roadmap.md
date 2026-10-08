@@ -68,6 +68,10 @@ and permanent scoped deletion/export remain required realignment work.
   epoch/committed-ID replay, canonical approval summaries and targeted UI refresh. Schema v12 adds
   recoverable bounded JSONL delivery, visible errors and FULL WAL synchronization. Automatic event retention,
   workspaces/artifacts, capability verification, and idempotent resume/bot-run commands remain open.
+- **Provider compatibility: route-level matrix implemented.** `GET /api/v1/compatibility` records supported,
+  experimental, unavailable and blocked routes with dated sources, request fields Hutch sends/omits and fixture/live
+  verification limits. Exact OpenAI host matching now selects its token-limit field. Per-connection/model capability
+  records, opt-in tool probes, provider failure journeys and strict offline enforcement remain open.
 - **Action review: local fixtures.** Schema v13 retains immutable intents and separate operator
   reconciliation. Uncertain receipt sealing is transactional; chat and Needs you surface review.
   Same-conversation repeat guards and bounded current builtin context notes are implemented.

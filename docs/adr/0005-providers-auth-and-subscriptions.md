@@ -1,6 +1,6 @@
 # ADR-0005: Provider routes, credentials, and the compatibility matrix
 
-Status: accepted; account-change and credential-rotation repairs implemented (2026-10-08). Slice: S5. Evidence: baseline lead 5, B1-B4.
+Status: accepted; route-level compatibility records implemented, per-model capability probing pending (2026-10-08). Slice: S5. Evidence: baseline lead 5, B1-B4.
 
 ## Context
 
@@ -17,8 +17,10 @@ sends `OPENAI_API_KEY` to whatever URL it is given (baseline lead 5).
    preset's own host; an override of `base_url` on a preset must be an explicit connection.
 2. **Compatibility matrix** (`hutch/compat.py`, data in `src/hutch/data/compat.json`, versioned). Each route records: harness,
    API shape, auth flow, models, streaming, tool calls, structured output, vision, context limits, cancellation, usage
-   reporting, quota reporting, retention, and **policy evidence (URL + date)**. State is `supported | experimental |
-   unavailable | blocked`. A route is `supported` only if a live or recorded contract test exists; otherwise `experimental`.
+   reporting, quota reporting, retention, request fields Hutch sends/omits, verification boundary, and **policy evidence
+   (URL + date)**. State is `supported | experimental | unavailable | blocked`. `supported` means a common route contract
+   has a live or recorded test; it does not certify every vendor version, endpoint, or model. Current test fixture
+   coverage is recorded separately from live provider/model verification.
 3. **Routes in scope**
 
    | Route | State | Notes |
@@ -30,9 +32,11 @@ sends `OPENAI_API_KEY` to whatever URL it is given (baseline lead 5).
    | Sign in with ChatGPT (open-source/local apps) | experimental, not implemented as a route in this phase | Responses API, `store:false`, `stream:true`, many fields unsupported (B1, B2); needs a native Responses adapter; eligibility for Hutch unconfirmed |
    | Cookie scraping, spoofed client identity, credential laundering through a harness | blocked | never implemented |
 
-4. **Capabilities are validated, not assumed.** Before the first call on a (connection, model) pair a cheap probe records what
-   it can (model list, tool-call support from a 1-token canned request only when the user opts in to spend). Unknown stays unknown;
-   a bot that needs `tools` on a model with unknown/unsupported tool support is refused with an actionable message.
+4. **Capabilities are validated, not assumed.** The route matrix is implemented and records protocol-level evidence, but it
+   does not validate capabilities for a (connection, model) pair. The current model-list check only authenticates/discovers
+   ids; tool-use capability probing, a persisted verification record, and refusal of unknown tool capability are pending.
+   Until those land, model-level tool support must be described as unknown without an opt-in live probe; passing request
+   fixtures are not live model evidence.
 5. **Usage and money.** Persist actual token counts and cost when returned, separately from per-call reservation estimates. Provider
    limits and reset times are displayed **only** when the provider reports them; otherwise "not reported". Before a hosted call Hutch
    atomically reserves estimated prompt + requested reply tokens and priced currency cost with the cap check. Successful responses

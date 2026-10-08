@@ -39,7 +39,7 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
 
 * Landed local routes: `/api/v1/health`, `/api/v1/status-labels`, `/api/v1/bots`, `/api/v1/conversations`,
   `/api/v1/search/messages`, `/api/v1/tasks/runs`, `/api/v1/actions/approvals`, `/api/v1/usage`, `/api/v1/connections`,
-  `/api/v1/schedules`, `/api/v1/capabilities`, cross-run transcript pages and stream at `/api/v1/events` and `/api/v1/events/stream`,
+  `/api/v1/schedules`, `/api/v1/capabilities`, `/api/v1/compatibility`, cross-run transcript pages and stream at `/api/v1/events` and `/api/v1/events/stream`,
   resource change pages and stream at `/api/v1/changes` and `/api/v1/changes/stream`,
   bounded reconciliation at `/api/v1/snapshot`, and partial remote device resources at `/api/v1/pairing/exchange` and
   `/api/v1/devices`. Versioned bot, run and approval lists accept bounded `limit`/`offset` pages; the legacy bot and approval
@@ -51,6 +51,11 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   Held values include all unresolved reservations, regardless of their age. Only measured ledger
   usage is windowed; a stale worker cannot settle/release a hold after losing ownership, and
   uncertain usage requires explicit reconciliation against the provider record.
+* `GET /api/v1/compatibility` returns a versioned provider/runtime route matrix. Each route has an implementation state,
+  Hutch's request fields, documented omissions, verification boundary, and dated policy/API sources. `supported` means
+  Hutch's common request/response contract has recorded tests; it does not certify every provider version, model, tool
+  capability, retention policy, quota, or live connection. Per-model tool-use capability records and the opt-in probe are
+  still pending; unknown remains unverified and is called out in the route description.
 * Conversation create, message submit, and archive require `Idempotency-Key`. Exact retries return the same resource/run; reusing the
   key with different request content returns 409. An absent key returns 428.
 * Conversation history is cursor-paginated with `after` and a maximum page size of 100. Run events keep the existing per-run `seq`

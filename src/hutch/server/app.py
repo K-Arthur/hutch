@@ -220,6 +220,46 @@ class CapabilityResource(BaseModel):
     verification: str
 
 
+class CompatibilityEvidenceResource(BaseModel):
+    title: str
+    url: str
+    observed_on: str
+
+
+class CompatibilityRequestMappingResource(BaseModel):
+    sent: list[str]
+    omitted: list[str]
+
+
+class CompatibilityRouteResource(BaseModel):
+    id: str
+    title: str
+    state: Literal["supported", "experimental", "unavailable", "blocked"]
+    harness: str
+    api_shape: str
+    auth_flow: str
+    models: str
+    streaming: str
+    tool_calls: str
+    structured_output: str
+    vision: str
+    context_limits: str
+    cancellation: str
+    usage_reporting: str
+    quota_reporting: str
+    retention: str
+    hutch_request_mapping: CompatibilityRequestMappingResource
+    verification: str
+    verified_on: str
+    policy_evidence: list[CompatibilityEvidenceResource]
+
+
+class CompatibilityMatrixResource(BaseModel):
+    version: int
+    reviewed_on: str
+    routes: list[CompatibilityRouteResource]
+
+
 class ScheduleResource(BaseModel):
     id: str
     bot_id: str
@@ -629,6 +669,11 @@ def create_app() -> FastAPI:
              "reason": "Pi and OpenCode lack governed permission, sandbox and budget integration",
              "verification": "adapter_start_refusal_tests"},
         ]
+
+    @app.get("/api/v1/compatibility", response_model=CompatibilityMatrixResource)
+    def compatibility() -> dict:
+        from ..compat import compatibility_matrix
+        return compatibility_matrix()
 
     @app.get("/api/v1/connections", response_model=list[ConnectionResource])
     def list_connections() -> list[dict]:
