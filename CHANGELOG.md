@@ -16,7 +16,7 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 - Bots can use a fresh workspace per run, a private Hutch-managed workspace shared across that bot's runs and chats, or a validated existing folder. The default remains fresh; managed files survive bot deletion and are excluded from database-only backups.
 - Executor health uses a steady status mark with text and connection-state changes instead of a decorative pulse between health checks.
-- Successful `write_file` actions now expose immutable, SHA-256-verified downloads in the originating run, up to 4 MB per file and 16 MB per run.
+- Successful `write_file` actions now expose immutable, SHA-256-verified downloads directly in Studio chat without expanding tool details, up to 4 MB per file and 16 MB per run.
 - Experimental phone/browser pairing now has a real `/pair` exchange page, a compact paired-device manager in Connections, current-device status, and one-click revocation with a safe self-revoke return. Device session and pairing responses have explicit v1 schemas; the marketing site now describes this path as experimental.
 - Optional, user-enabled browser notifications now bring a generic Needs you alert to a background tab. They disclose no chat, bot or action details, and work only while the Hutch tab remains open.
 - Full tool outputs clipped from model context are now immutable, run-scoped artifacts with recorded size and SHA-256. The chat provides a direct download; a bounded typed API lists versions, and downloads refuse missing, symlinked, oversized or hash-changed content.

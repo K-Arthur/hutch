@@ -541,6 +541,11 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .tool-line-section + .tool-line-section { margin-top: 2px; }
 .tool-line-section.artifact-download { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 10px; }
 .artifact-download .hint { overflow-wrap: anywhere; }
+.workspace-file-attachments { display: grid; gap: 5px; margin: 4px 0 10px 20px; min-width: 0; }
+.workspace-file-attachment { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; }
+.workspace-file-label { color: var(--text-3); font: 400 var(--fs-2xs)/1.4 var(--mono); }
+.workspace-file-meta { color: var(--text-3); font: 400 var(--fs-2xs)/1.4 var(--mono); overflow-wrap: anywhere; }
+.workspace-file-attachment .btn { min-height: 36px; }
 .tool-line-more { all: unset; cursor: pointer; display: inline-block; color: var(--focus); font: 400 var(--fs-xs)/1 var(--mono); margin-left: var(--s-2); }
 .tool-line-more:hover { text-decoration: underline; }
 .tool-log { padding: 1px 2px; }
@@ -1006,6 +1011,8 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
   .quick-prompt { padding: 10px var(--s-3); }
   .feed-pill { padding: 10px var(--s-3); }
   .ws-nav a { padding: 10px var(--s-3); }
+  .workspace-file-attachments { margin-left: 10px; }
+  .workspace-file-attachment .btn { min-height: 44px; }
 }
 
 /* forced colors: system paints what matters; state never rides on color alone */

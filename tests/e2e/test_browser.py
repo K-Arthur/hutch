@@ -20,7 +20,7 @@ import pytest
 pw = pytest.importorskip("playwright.sync_api")
 import uvicorn  # noqa: E402
 
-from hutch.models import ApprovalMode, Bot, Event, EventType, RunStatus, RuntimeKind  # noqa: E402
+from hutch.models import ApprovalMode, Bot, Event, EventType, Run, RunStatus, RuntimeKind, Task  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
 
 
@@ -279,7 +279,7 @@ def test_saved_tool_output_is_downloadable_and_verified_at_all_viewports(browser
 
 
 def test_generated_workspace_file_is_downloadable_from_its_chat(browser, live, monkeypatch):
-    """A successful write_file produces a verified download in the originating run's activity."""
+    """Studio exposes a verified file download without requiring tool details to be expanded."""
     base, app = live
     store, engine = app.state.store, app.state.engine
     import tests.support.runtime as scenario_runtime
@@ -297,11 +297,25 @@ def test_generated_workspace_file_is_downloadable_from_its_chat(browser, live, m
     monkeypatch.setattr(scenario_runtime.TestScenarioRuntime, "execute", create_report)
     bot = store.create_bot(Bot(name="generated-file-bot", model="mock/demo", runtime=RuntimeKind.mock,
                                tools=["files"], approval_mode=ApprovalMode.auto, workspace_mode="managed"))
-    run = engine.submit(bot, "create the monthly CSV report")
+    conversation, _ = store.create_conversation(bot.id, "Generated files", idem_key="generated-file-conversation",
+                                                request_hash="generated-file-conversation-request")
+    prompt = "create the monthly CSV report"
+    run = Run(bot_id=bot.id, prompt=prompt)
+    task = Task(bot_id=bot.id, kind="on_demand", prompt=prompt)
+    run_id, _ = store.submit_conversation_message(
+        conversation["id"], prompt, run, task, idem_key="generated-file-message",
+        request_hash="generated-file-message-request")
     engine.dispatch_pending()
-    assert wait_for(lambda: store.get_run(run.id).status is RunStatus.succeeded)
+    assert wait_for(lambda: store.get_run(run_id).status is RunStatus.succeeded)
     store.flush_transcripts()
-    event = next(e for e in store.list_events(run.id) if e.type is EventType.tool_result)
+
+    desktop_page = browser.new_page(viewport={"width": 1440, "height": 1000}, reduced_motion="reduce")
+    desktop_errors = []
+    desktop_page.on("pageerror", lambda error: desktop_errors.append(str(error)))
+    desktop_page.goto(f"{base}/#/chat/{bot.name}")
+    desktop_page.locator("#conversation-switcher").wait_for()
+    assert desktop_page.locator("#conversation-switcher").input_value() == conversation["id"]
+    event = next(e for e in store.list_events(run_id) if e.type is EventType.tool_result)
     descriptor = event.data["workspace_file"]
     assert descriptor["path"] == "reports/monthly.csv"
     assert hashlib.sha256(content.encode()).hexdigest() == descriptor["sha256"]
@@ -310,19 +324,21 @@ def test_generated_workspace_file_is_downloadable_from_its_chat(browser, live, m
     out.mkdir(parents=True, exist_ok=True)
     records = []
     for name, width, height in (("desktop", 1440, 1000), ("tablet", 768, 1024), ("phone", 390, 844)):
-        page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
-        errors = []
-        page.on("pageerror", lambda error: errors.append(str(error)))
+        page = desktop_page if name == "desktop" else browser.new_page(
+            viewport={"width": width, "height": height}, reduced_motion="reduce")
+        errors = desktop_errors if name == "desktop" else []
+        if name != "desktop":
+            page.on("pageerror", lambda error: errors.append(str(error)))
         try:
-            page.goto(f"{base}/#/run/{run.id}")
-            card = page.locator(".tool-line-head").first
-            card.wait_for()
-            card.click()
-            link = page.locator(".workspace-file-download a")
+            if name != "desktop":
+                page.goto(f"{base}/#/chat/{bot.name}")
+                page.locator("#conversation-switcher").wait_for()
+            page.locator(".tool-line[data-tool-line]").wait_for()
+            assert page.locator(".tool-line[data-tool-line] .tool-line-body").is_hidden(), "tool details should remain collapsed"
+            link = page.locator(".workspace-file-attachments a")
             link.wait_for(state="visible")
-            assert any("wrote reports/monthly.csv" in text for text in page.locator(".tool-line-section").all_inner_texts())
             assert "Download monthly.csv" in link.inner_text()
-            listed = page.request.get(f"{base}/api/v1/tasks/runs/{run.id}/artifacts").json()["artifacts"]
+            listed = page.request.get(f"{base}/api/v1/tasks/runs/{run_id}/artifacts").json()["artifacts"]
             artifact = next(item for item in listed if item["kind"] == "workspace_file")
             assert artifact["filename"] == "monthly.csv" and artifact["state"] == "available"
             image_path = out / f"{name}.png"
@@ -344,7 +360,7 @@ def test_generated_workspace_file_is_downloadable_from_its_chat(browser, live, m
 
     repo = Path(__file__).resolve().parents[2]
     source_files = ("src/hutch/runtime/steps.py", "src/hutch/store.py", "src/hutch/server/app.py",
-                    "src/hutch/server/static/app.js")
+                    "src/hutch/server/static/app.js", "src/hutch/server/static/style.css")
     (out / "results.json").write_text(json.dumps({
         "captured_at": datetime.now(timezone.utc).isoformat(), "browser": browser.browser_type.name,
         "browser_version": browser.version, "playwright": package_version("playwright"),

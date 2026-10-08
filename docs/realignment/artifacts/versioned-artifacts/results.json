@@ -1,12 +1,12 @@
 {
-  "captured_at": "2026-10-08T20:42:47.926203+00:00",
+  "captured_at": "2026-10-08T20:49:08.326691+00:00",
   "browser": "chromium",
   "browser_version": "153.0.8010.12",
   "playwright": "1.63.0",
   "source_sha256": {
     "src/hutch/server/app.py": "1c747226c46265733fb4dc9164ec1c444c93a2329fe5a2520fd8e59679ef3e09",
-    "src/hutch/server/static/app.js": "21c254e4ef1228db493023d080ab7f59f3762d537a1c7a7d210f83b468ad8fa9",
-    "src/hutch/server/static/style.css": "b6ffbc2c3a8186e935a0ed5840bcf976d33c70b04c51567de1eb625851016474",
+    "src/hutch/server/static/app.js": "b59b6f080fc4d1658a7f3249a8da967c4cedc437e928a785d31e889473db6ba0",
+    "src/hutch/server/static/style.css": "8388a0f7ccd930fe8f14b82ef4eb32e18a5b3af4a67cafbcb56934bc0f9f4c0c",
     "src/hutch/runtime/steps.py": "da05be64a1288a20be1582226bd1fcc6724a0c699c6757de4d6078497e56c4b5"
   },
   "artifacts": [
@@ -17,7 +17,7 @@
         1000
       ],
       "screenshot": "desktop.png",
-      "screenshot_sha256": "cb9e57b4325fcf96622e4bdc2e79e66ecc7d6818519a1c9f7b58f43b2780f42c",
+      "screenshot_sha256": "ba5a7c9a78d11dc5b115ead8af4c86606350f25e59d08db5f16c4beebea5c6d6",
       "artifact_sha256": "605976e1632e185ce0f739439be988d2fb5f77b429842477e58b9df1a24cc13b",
       "overflow_px": 0,
       "page_errors": []
@@ -29,7 +29,7 @@
         1024
       ],
       "screenshot": "tablet.png",
-      "screenshot_sha256": "43f0b63a9755f346f123e6a637b0415e6a281e67474f8bc52251d9618f031875",
+      "screenshot_sha256": "40b057548c7bbbee7bbc73730938b233ba356eb7224b5cc4c6d280a676f54e66",
       "artifact_sha256": "605976e1632e185ce0f739439be988d2fb5f77b429842477e58b9df1a24cc13b",
       "overflow_px": 0,
       "page_errors": []
@@ -41,7 +41,7 @@
         844
       ],
       "screenshot": "phone.png",
-      "screenshot_sha256": "eb17d9fb3f80e81e18fb14856a8b43a47afba7cb9507db85b1b1362508a8cae0",
+      "screenshot_sha256": "7498b29baba42bde46cab8412da9f2ec44af8ec99fb305bd49ae4ae7875a84b7",
       "artifact_sha256": "605976e1632e185ce0f739439be988d2fb5f77b429842477e58b9df1a24cc13b",
       "overflow_px": 0,
       "page_errors": []

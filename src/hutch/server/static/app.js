@@ -1549,7 +1549,7 @@ function renderFeedItem(item, runId, resolvedMap) {
   return renderChatEvent(item.e, resolvedMap);
 }
 
-function toolLineHtml(item, anchorEvent, runId) {
+function toolLineHtml(item, anchorEvent, runId, includeFileAttachments = true) {
   const idx = anchorEvent.seq ?? anchorEvent.ts;
   const call = item.call, res = item.result;
   const tool = (res || call).d.tool;
@@ -1564,7 +1564,7 @@ function toolLineHtml(item, anchorEvent, runId) {
     ? '<span class="spin-line" role="status" aria-label="running"></span>'
     : icon(ok ? "check" : "x");
 
-  return `
+  return `<div class="tool-line-wrap">
     <div class="tool-line ${cls}" data-tool-line="${esc(String(idx))}">
       <button class="tool-line-head" type="button" aria-expanded="${open}" aria-controls="tlb-${esc(String(idx))}" data-tool-toggle="${esc(String(idx))}">
         <span class="tool-grid">
@@ -1584,7 +1584,8 @@ function toolLineHtml(item, anchorEvent, runId) {
         ${res ? toolOutputHtml(res.d.output) : '<div class="tool-line-section"><span class="tool-line-label">Output</span>pending…</div>'}
       </div>
     </div>
-  `;
+    ${includeFileAttachments ? createdFilesHtml(runId, [{ result: res }]) : ""}
+  </div>`;
 }
 
 const OUTPUT_CLIP = 600;
@@ -1605,32 +1606,44 @@ function toolOutputHtml(output) {
 function artifactDownloadHtml(runId, result) {
   const match = /^artifacts\/([0-9]{3,6}-[a-z0-9_-]{1,40}\.txt)$/.exec(String(result.artifact || ""));
   const digest = String(result.artifact_sha256 || "");
-  const sections = [];
-  if (match && /^[a-f0-9]{64}$/.test(digest)) {
-    const bytes = Number(result.artifact_bytes);
-    const size = Number.isSafeInteger(bytes) && bytes >= 0 ? ` · ${bytes.toLocaleString()} bytes` : "";
-    const href = `/api/v1/tasks/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(match[1])}`;
-    sections.push(`<div class="tool-line-section artifact-download">
-      <span class="tool-line-label">Saved full output</span>
-      <a class="btn ghost small" href="${href}" title="The server verifies this file against its recorded SHA-256 before download">Download${size}</a>
-      <span class="hint mono">SHA-256 ${esc(digest.slice(0, 16))}…</span>
-    </div>`);
-  }
-  const file = result.workspace_file;
-  const fileMatch = /^artifacts\/([0-9]{3,6}-[a-z0-9_-]{1,40}\.txt)$/.exec(String(file?.artifact || ""));
-  if (fileMatch && /^[a-f0-9]{64}$/.test(String(file.sha256 || ""))) {
-    const bytes = Number(file.bytes);
-    const size = Number.isSafeInteger(bytes) && bytes >= 0 ? ` · ${bytes.toLocaleString()} bytes` : "";
-    const href = `/api/v1/tasks/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(fileMatch[1])}`;
-    sections.push(`<div class="tool-line-section artifact-download workspace-file-download">
-      <span class="tool-line-label">Created file</span>
-      <a class="btn ghost small" href="${href}" title="The server verifies this saved file against its recorded SHA-256 before download">Download ${esc(file.name || "file")}${size}</a>
-      <span class="hint mono">SHA-256 ${esc(String(file.sha256).slice(0, 16))}…</span>
-    </div>`);
-  } else if (file?.error) {
-    sections.push(`<div class="tool-line-section"><span class="tool-line-label">Created file</span><span class="hint">Saved in the workspace; download snapshot unavailable: ${esc(file.error)}</span></div>`);
-  }
-  return sections.join("");
+  if (!match || !/^[a-f0-9]{64}$/.test(digest)) return "";
+  const bytes = Number(result.artifact_bytes);
+  const size = Number.isSafeInteger(bytes) && bytes >= 0 ? ` · ${bytes.toLocaleString()} bytes` : "";
+  const href = `/api/v1/tasks/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(match[1])}`;
+  return `<div class="tool-line-section artifact-download">
+    <span class="tool-line-label">Saved full output</span>
+    <a class="btn ghost small" href="${href}" title="The server verifies this file against its recorded SHA-256 before download">Download${size}</a>
+    <span class="hint mono">SHA-256 ${esc(digest.slice(0, 16))}…</span>
+  </div>`;
+}
+
+function createdFilesHtml(runId, items) {
+  const files = items.filter(it => it.result?.d?.workspace_file).map(it => it.result.d.workspace_file);
+  if (!files.length) return "";
+  return `<div class="workspace-file-attachments" role="group" aria-label="Files created in this run">
+    ${files.map(file => {
+      const match = /^artifacts\/([0-9]{3,6}-[a-z0-9_-]{1,40}\.txt)$/.exec(String(file.artifact || ""));
+      const digest = String(file.sha256 || "");
+      if (match && /^[a-f0-9]{64}$/.test(digest)) {
+        const bytes = Number(file.bytes);
+        const size = Number.isSafeInteger(bytes) && bytes >= 0 ? `${bytes.toLocaleString()} bytes` : "text file";
+        const name = String(file.name || "file");
+        const href = `/api/v1/tasks/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(match[1])}`;
+        return `<div class="workspace-file-attachment">
+          <span class="workspace-file-label">Created file</span>
+          <a class="btn ghost small" href="${href}" title="The server verifies this file against its recorded SHA-256 before download">Download ${esc(name)}</a>
+          <span class="workspace-file-meta">${esc(size)} · SHA-256 ${esc(digest.slice(0, 16))}…</span>
+        </div>`;
+      }
+      if (file.error) {
+        return `<div class="workspace-file-attachment" role="status">
+          <span class="workspace-file-label">Created file</span>
+          <span class="workspace-file-meta">Saved in the workspace; download unavailable: ${esc(file.error)}</span>
+        </div>`;
+      }
+      return "";
+    }).join("")}
+  </div>`;
 }
 
 function toolGroupHtml(item, runId) {
@@ -1651,9 +1664,10 @@ function toolGroupHtml(item, runId) {
         </button>
       </div>
       <div class="tool-group-items" ${open ? "" : "hidden"}>
-        ${item.items.map(it => toolLineHtml(it, it.call?.e ?? it.result.e, runId)).join("")}
+        ${item.items.map(it => toolLineHtml(it, it.call?.e ?? it.result.e, runId, false)).join("")}
       </div>
-    </div>`;
+    </div>
+    ${createdFilesHtml(runId, item.items)}`;
 }
 
 function wireFeedInteractions() {

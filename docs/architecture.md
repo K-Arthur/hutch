@@ -76,7 +76,8 @@ Large tool outputs and files created with `write_file` are linked to their commi
 event by run and event sequence. The event stores the byte size and SHA-256; the typed API lists
 these bounded run-scoped artifacts, and a download verifies the bytes again before sending them as
 plain text. The chat offers file downloads beside the write result; snapshots are capped at 4 MB
-per file and 16 MB per run. Arbitrary shell-created files are not attached automatically. Bots
+per file and 16 MB per run. Studio shows write-file downloads outside the collapsed tool details.
+Arbitrary shell-created files are not attached automatically. Bots
 default to a fresh workspace per run; operators may select a private Hutch-managed directory
 shared only by that bot, or an existing validated user folder.
 These choices do not move files. Managed workspaces are separate from SQLite backups and survive
