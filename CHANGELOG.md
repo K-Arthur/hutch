@@ -75,3 +75,9 @@ First MVP.
 - Docs: architecture (decision log), safety model, bot-config reference, roadmap, and incident
   research with requirement traceability.
 - Tests: 70 tests covering the safety parser, DST math, engine lifecycle, API, and CLI.
+- **Design system → brutalist-modern (Oct 2026):** neutral `#0a0a0a` cards with a 1px glass
+  ring; accent blue `#52a8ff` for active states and success green `#62c073` for positive
+  indicators; square (0px) buttons, 100px pill chips, monospace data rows; a subtle radial
+  accent glow; and a full-screen mobile menu for the header nav on the app, server dashboard
+  and marketing site. The site also gains scroll-reveal animations, floating parallax cards and
+  a stacked text echo. See [docs/design-system.md](docs/design-system.md).

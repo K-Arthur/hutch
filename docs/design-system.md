@@ -197,3 +197,27 @@ All three surfaces now share the retired-violet / neutral-tint rule:
 Remaining website follow-up (optional, not blocking): re-verify every text token against the site's
 surfaces with the luminance formula, and confirm no comparison/incident section carries a second hue
 beyond emerald.
+
+## Current tokens (Oct 2026 — brutalist-modern)
+
+The palette was re-based from emerald to a blue/green system with neutral cards.
+
+| Role | Value | Notes |
+|---|---|---|
+| bg | `#050505` | page |
+| surface / card | `#0a0a0a` | every card, with a 1px glass ring (`inset 0 0 0 1px rgba(255,255,255,.08)`) |
+| surface raised | `#151515` | hover / raised |
+| text / dim / faint | `#f0f4f9` / `#9daebf` / `#7d8ea4` | unchanged (AA) |
+| accent (active) | `#52a8ff` | active nav, primary buttons, running state, focus |
+| accent ink | `#04121f` | text on the blue fill |
+| success | `#62c073` | succeeded, allowed, positive indicators |
+| warning | `#fbbf24` | approvals, stale, budget |
+| danger | `#f87171` | failure, deny, destructive |
+
+- **Shape:** 0px buttons (square), 100px pill chips with 12px text, 8px panels/controls.
+- **Atmosphere:** a subtle radial accent glow on the page background; glass panels (translucent + 1px ring + blur).
+- **Data:** every data row is monospace (table `th`/`td`); mono for tool names, ids, cron, timestamps, code.
+- **Navigation:** the header nav collapses to a full-screen mobile menu (hamburger, Escape, `aria-expanded`) on the app and the server dashboard; the marketing drawer is full-screen too.
+- **Marketing only:** dot-grid background, scroll-reveal animations, floating parallax cards, stacked text echo, asymmetrical grids.
+
+These values supersede the emerald-era rows above wherever they conflict.
