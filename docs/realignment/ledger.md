@@ -44,7 +44,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `98c630d` | Correct shell-test escapes and record full-suite verification boundary |
 | `a148b29` | Fail-closed Pi/OpenCode, per-bot browser profile ownership, safety docs and truthful website claims |
 | `4a242af` | Phone menu focus handling, responsive visual validation report, screenshots and traces |
-| _next commit_ | Schema v8 conversations, migration, bounded context, FTS5, idempotency and partial `/api/v1` contracts; hash recorded after commit |
+| `31b25f8` | Schema v8 conversations, migration, bounded context, FTS5, idempotency, Studio thread UI, readable status labels, evidence corrections and updated visual captures |
 
 ## Verified behavior before this checkpoint
 
@@ -61,6 +61,9 @@ is a local `main` fast-forward only after all implementation and verification ga
 | Sandbox | `tests/test_sandbox.py` | **16 passed** on the present Linux host with bubblewrap and delegated systemd cgroups. |
 | Conversation migration and API | `tests/test_migration.py tests/test_conversations.py` | Historic run histories stay separate; new conversations/messages/archive use transactional idempotency; bounded context and FTS search survive restart. **13 passed** in the focused run. |
 | Run submission from web routes | `tests/test_api.py tests/test_dashboard.py tests/test_models_page.py` | Web handlers submit durable work; the elected background supervisor dispatches. **54 passed** with conversation/migration suites. |
+| Full offline regression after S6/status work | `.venv/bin/python -m pytest -q --ignore=tests/e2e` | **978 passed in 241.56s**. One earlier run exposed a generated ambiguous arithmetic/substitution string that the parser correctly rejected; the property test now asserts fail-closed behavior for unreadable forms. |
+| Studio conversation and status UI | `tests/e2e/test_browser.py::test_studio_conversation_survives_reload_and_archive tests/e2e/test_browser.py::test_stopping_status_uses_human_label_and_stays_nonterminal` | **2 passed** in Playwright/Chromium against the local fixture service. This does not exercise real providers or a physical phone. |
+| Shell parser property suite | `.venv/bin/python -W error::SyntaxWarning -m pytest -q tests/test_shellparse.py` | **112 passed** after adding the ambiguous arithmetic fail-closed case. |
 | Focused core, safety, and worker suites | `tests/test_claims.py tests/test_cancel.py tests/test_procguard.py tests/test_engine_loop.py tests/test_migration.py tests/test_tools.py tests/test_sandbox.py tests/test_engine.py tests/test_runtime.py` | **100 passed** after correcting the thread-mode timeout assertion and joining the approval test helper. |
 | Merged UI and templates | `tests/test_worker.py tests/test_api.py tests/test_dashboard.py tests/test_templates.py tests/test_studio_shell.py` | **98 passed**. |
 
@@ -79,9 +82,9 @@ responsive for desktop and phone; a phone is not a remote supervisor until authe
 containment currently depends on bubblewrap, Linux namespaces, `prlimit`, and user systemd cgroups. Existing bots migrated from older
 versions remain `sandbox=off` until an operator changes the setting.
 
-No live paid-provider call, Ollama inference, Pi run, Playwright browser, portal permission, screen-reader, or physical-device test has
-been performed in this environment. These are gaps, not passes. The installed OpenCode binary reports `opencode v2.0.24`; only its
-version and help output have been inspected.
+No live paid-provider call, Ollama inference, Pi run, real browser handoff, portal permission, screen-reader, or physical-device test has
+been performed in this environment. Playwright covered local fixture-server journeys and synthetic UI states only. These are gaps,
+not passes. The installed OpenCode binary reports `opencode v2.0.24`; only its version and help output have been inspected.
 
 ## Reproduction
 
