@@ -3,10 +3,10 @@
   "version": "155.0",
   "python": "3.13.15",
   "playwright": "1.63.0",
-  "captured_at": "2026-10-08T16:24:47.454278+00:00",
+  "captured_at": "2026-10-08T23:21:07.472965+00:00",
   "pillow": "12.3.0",
-  "revision": "dc14a13dd5632bdd6e9836eaad3b586960f62864",
-  "tree": "application sources matched this revision; only generated docs/artifacts may be dirty",
+  "revision": "fdf6592dd1d659904b71770845954f7284eb8316",
+  "tree": "application or website sources differ from this revision; per-file source hashes are authoritative",
   "fixture": "isolated mock/demo; temporary state removed; loading/cancelling records synthetic",
   "captures": [
     {
@@ -14,6 +14,7 @@
       "size": "desktop",
       "pageErrors": [],
       "overflow": 0,
+      "heading": null,
       "screenshot": "empty-desktop.png"
     },
     {
@@ -21,6 +22,7 @@
       "size": "tablet",
       "pageErrors": [],
       "overflow": 0,
+      "heading": null,
       "screenshot": "empty-tablet.png"
     },
     {
@@ -28,6 +30,7 @@
       "size": "phone",
       "pageErrors": [],
       "overflow": 0,
+      "heading": null,
       "screenshot": "empty-phone.png"
     },
     {
@@ -35,6 +38,12 @@
       "size": "desktop",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "research-assistant",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "waiting-desktop.png"
     },
     {
@@ -42,6 +51,12 @@
       "size": "desktop",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "research-assistant",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "needs-you-desktop.png"
     },
     {
@@ -49,6 +64,12 @@
       "size": "desktop",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "research-assistant settings",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "settings-desktop.png"
     },
     {
@@ -56,6 +77,12 @@
       "size": "tablet",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "research-assistant",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "waiting-tablet.png"
     },
     {
@@ -63,6 +90,12 @@
       "size": "tablet",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "research-assistant",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "needs-you-tablet.png"
     },
     {
@@ -70,6 +103,12 @@
       "size": "tablet",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "research-assistant settings",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "settings-tablet.png"
     },
     {
@@ -77,6 +116,12 @@
       "size": "phone",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "research-assistant",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "waiting-phone.png"
     },
     {
@@ -84,6 +129,12 @@
       "size": "phone",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "research-assistant",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "needs-you-phone.png"
     },
     {
@@ -91,34 +142,25 @@
       "size": "phone",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "research-assistant settings",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "settings-phone.png"
-    },
-    {
-      "state": "local-routes",
-      "size": "desktop",
-      "pageErrors": [],
-      "overflow": 0,
-      "screenshot": "local-routes-desktop.png"
-    },
-    {
-      "state": "local-routes",
-      "size": "tablet",
-      "pageErrors": [],
-      "overflow": 0,
-      "screenshot": "local-routes-tablet.png"
-    },
-    {
-      "state": "local-routes",
-      "size": "phone",
-      "pageErrors": [],
-      "overflow": 0,
-      "screenshot": "local-routes-phone.png"
     },
     {
       "state": "fleet",
       "size": "desktop",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Fleet",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "fleet-desktop.png"
     },
     {
@@ -126,6 +168,12 @@
       "size": "desktop",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Activity",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "activity-desktop.png"
     },
     {
@@ -133,6 +181,12 @@
       "size": "tablet",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Fleet",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "fleet-tablet.png"
     },
     {
@@ -140,6 +194,12 @@
       "size": "tablet",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Activity",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "activity-tablet.png"
     },
     {
@@ -147,6 +207,12 @@
       "size": "phone",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Fleet",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "fleet-phone.png"
     },
     {
@@ -154,6 +220,12 @@
       "size": "phone",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Activity",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "activity-phone.png"
     },
     {
@@ -161,6 +233,12 @@
       "size": "desktop",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "research-assistant",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "completion-desktop.png"
     },
     {
@@ -168,6 +246,12 @@
       "size": "desktop",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Run #run_5a14abf8",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "run-detail-desktop.png"
     },
     {
@@ -175,6 +259,12 @@
       "size": "tablet",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "research-assistant",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "completion-tablet.png"
     },
     {
@@ -182,6 +272,12 @@
       "size": "tablet",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Run #run_5a14abf8",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "run-detail-tablet.png"
     },
     {
@@ -189,6 +285,12 @@
       "size": "phone",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "research-assistant",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "completion-phone.png"
     },
     {
@@ -196,6 +298,12 @@
       "size": "phone",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Run #run_5a14abf8",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "run-detail-phone.png"
     },
     {
@@ -203,6 +311,12 @@
       "size": "desktop",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Run #run_5f299fe5",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "loading-desktop.png"
     },
     {
@@ -210,6 +324,12 @@
       "size": "tablet",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Run #run_5f299fe5",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "loading-tablet.png"
     },
     {
@@ -217,6 +337,12 @@
       "size": "phone",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Run #run_5f299fe5",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "loading-phone.png"
     },
     {
@@ -224,6 +350,12 @@
       "size": "desktop",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Run #run_cf1dbcbf",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "cancelling-desktop.png"
     },
     {
@@ -231,6 +363,12 @@
       "size": "tablet",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Run #run_cf1dbcbf",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "cancelling-tablet.png"
     },
     {
@@ -238,6 +376,12 @@
       "size": "phone",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Run #run_cf1dbcbf",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "cancelling-phone.png"
     },
     {
@@ -245,6 +389,7 @@
       "size": "desktop",
       "pageErrors": [],
       "overflow": 0,
+      "heading": null,
       "screenshot": "error-desktop.png"
     },
     {
@@ -252,6 +397,7 @@
       "size": "tablet",
       "pageErrors": [],
       "overflow": 0,
+      "heading": null,
       "screenshot": "error-tablet.png"
     },
     {
@@ -259,6 +405,7 @@
       "size": "phone",
       "pageErrors": [],
       "overflow": 0,
+      "heading": null,
       "screenshot": "error-phone.png"
     },
     {
@@ -266,6 +413,12 @@
       "size": "desktop",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "research-assistant",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "reconnecting-desktop.png"
     },
     {
@@ -273,6 +426,12 @@
       "size": "tablet",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "research-assistant",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "reconnecting-tablet.png"
     },
     {
@@ -280,6 +439,12 @@
       "size": "phone",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "research-assistant",
+        "fontSize": "16px",
+        "lineHeight": "20.8px",
+        "ratio": 1.3
+      },
       "screenshot": "reconnecting-phone.png"
     },
     {
@@ -287,6 +452,12 @@
       "size": "desktop",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Your bots.\nYour machine.\nYour rules.",
+        "fontSize": "66px",
+        "lineHeight": "68.6333px",
+        "ratio": 1.039898484848485
+      },
       "screenshot": "site-desktop.png"
     },
     {
@@ -294,6 +465,12 @@
       "size": "tablet",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Your bots.\nYour machine.\nYour rules.",
+        "fontSize": "50.375px",
+        "lineHeight": "52.3833px",
+        "ratio": 1.0398669975186103
+      },
       "screenshot": "site-tablet.png"
     },
     {
@@ -301,6 +478,12 @@
       "size": "phone",
       "pageErrors": [],
       "overflow": 0,
+      "heading": {
+        "text": "Your bots.\nYour machine.\nYour rules.",
+        "fontSize": "40px",
+        "lineHeight": "41.6px",
+        "ratio": 1.04
+      },
       "screenshot": "site-phone.png"
     }
   ],
@@ -308,65 +491,68 @@
     "src/hutch/__init__.py": "568574ab401d0207b2e5bbf867341bdce1041794c04a41813720be38df26da74",
     "src/hutch/action_receipts.py": "974ccc618fdd9acfecee3fefea538f0b3de1fd71eff96ad3d2c1ff7769d26bba",
     "src/hutch/admission.py": "c48bae84921097823adcc460c6c60caf41636f3fe55f4fb467c86c309674d7c1",
-    "src/hutch/approvals.py": "c48ccfe7b3e7e9f7aeaacc28f6774f16553b240e97a8e139568344f6e2e6ba35",
-    "src/hutch/cli.py": "296268fec945b7a17b0bba57ef7e3a192b21e96d88384a551a0982e5af21bc99",
-    "src/hutch/config.py": "46c7afface25662558513a35afc2296abf14b39a9a209498b2d2893b5494c033",
+    "src/hutch/approvals.py": "8ace7b2913a3f35350b57fef485427458f75286a3a9ad89daca9494b5cf2f759",
+    "src/hutch/browser_proxy.py": "037eb4d37f12114d0e0bd171740e199751f3c55a7754e42e2b71ee83cd8dba98",
+    "src/hutch/cli.py": "d0b92f3e674143f9c77a6b6543127639b58dffa1a75f505e4672f955a73f525e",
+    "src/hutch/compat.py": "5451811836f0d33a42138c47d64365b68e5b438e0d3a61c368d46a5f55d6f88d",
+    "src/hutch/config.py": "e5dd02ee2903255b2f95df8657ce3c43415f7d90329f51669f73b54aacb9242b",
     "src/hutch/connections.py": "82ceb703061ea9dc657c5a3e8956ac9cebb2bddaba78a127fbecb0aba5a77490",
     "src/hutch/context.py": "9fcbaf51df102974fdeb724cd9718f2e5fc5f388c52a3c11fd61a7ce7db4f6c8",
-    "src/hutch/demo.py": "de4ee597e52b04d8f8f286107871340553cf65caff90e306be95b7f5a0cb6298",
-    "src/hutch/doctor.py": "f1494d2eb2780ca0ca39a8e56052c7ccb3112d29604af4201d7ab0b48475d357",
+    "src/hutch/doctor.py": "65db66b58f0b4a624c4116d29c0109e68cf3c3ce7ef0589538c2e834395ef498",
     "src/hutch/durable_changes.py": "60c2e893ea52b0583a2518642fef44b075243742589430e3c7c2c5165ca737bf",
-    "src/hutch/engine.py": "3864a71ee1ae328508dbfb3007c22795482193ee5989cde7d7972f13c07b87e0",
+    "src/hutch/engine.py": "977eb34b3d2c85a2b69906b2a585c8bc89eb8f4cb2ae79690755b69efdfbe6bf",
     "src/hutch/estimate.py": "4cf8932a0a141a0ec2c23e85e745c6c3b27e7aa4b6c35e78b09299a2d0abc006",
     "src/hutch/fact_memory.py": "7983fe527a6868e35d5baea0c6a479df9289d916a66723c51a156503c89f48e1",
     "src/hutch/fit.py": "8e205ccba3365bb181804f16d8904f5374fd171375903dc845a1242b617ffd09",
     "src/hutch/hardware.py": "1f6b51313cf40b10288ee67409a80a296b199abb6b15a230e53645781c9ffc3b",
     "src/hutch/health.py": "78232dc44b6637b400d06c55e4e42bd00a661eac41e5b9741f368b627c1181f0",
     "src/hutch/lifecycle.py": "93a6945fe093acd9e584f0846d5e3b960ce21d20d3ad557fa39da3c7f6858c07",
-    "src/hutch/modelchoices.py": "fb74646d5021e1ba2c467f7faa4120bb4a8e68ca11f86b9c5e42e8ee141fd5af",
-    "src/hutch/models.py": "9daccdb505b2ecd7505181b9523c05b6b20e62b01e1a08231a7866ea79742fcb",
+    "src/hutch/modelchoices.py": "f006486a2fa701df4c1e3237dd78f9c6f28f6e70204f17b004e1691fcce45771",
+    "src/hutch/models.py": "63a3c00148098ee6d4824914aca4f6532c59be651c43650ac909611b501b6f4b",
     "src/hutch/modelview.py": "fe1880f7c48863a4d92a0c057eadefe69423fbb3e676a4e36ceb4b5efde70d59",
-    "src/hutch/netguard.py": "520654b9feea36d7d1b524da96755dfe8e68a6132c382da79e3a8c8bfd927be0",
+    "src/hutch/netguard.py": "cab4b7e2111754659b30b211c901a617973ba7afffcfa476187f69092ca2e572",
+    "src/hutch/offline.py": "7dc7812de24ddc4a5cffcdea24088ce355289f7bc8342cc7f892e35925f0094c",
     "src/hutch/presets.py": "8220239d9e973e4371514f09a3198b65dd79b94be1e40e25fa296348ef8f066c",
     "src/hutch/procguard.py": "c7af96bbe5ae3505522c397e1b7b6bb97ba43f392c5cd0f83e8f6bc478f15aa7",
     "src/hutch/providers/__init__.py": "05130c0aba41093b65b09c961a48c48c4dea5d91bf49103f14eafaaa53e1a183",
-    "src/hutch/providers/base.py": "25b54235b77a43376f40c4402855c403eb821cd6a8b0573cb5cda2cbc8c53437",
+    "src/hutch/providers/base.py": "cdd05b40d1c8cfdc94f35336834ad4a5c54ac695953e9e9a7df744074912c1d0",
     "src/hutch/providers/claude.py": "a51af5561562c759e03ecc06d8d5561ffa6ddfa5394b96c1c77af1a72c281efc",
     "src/hutch/providers/connection.py": "4c9cd313c3a06e3b990d3fc505adbcdebf78043c247f2b01f623864735511047",
-    "src/hutch/providers/ollama.py": "dcbf076f4b4bd4486300b0ff028d409fb2f71d20db63b3cd00cfbf2a232d65e9",
-    "src/hutch/providers/openai_compat.py": "18a15fd35c373faed6e660a9ec2f938124cccf53422bdeb065fd5d01c6442a0c",
-    "src/hutch/providers/pricing.py": "74ae884125ce0f0a0fc2060b98d606aef6d008252b7cab178b64017e17fa2d99",
-    "src/hutch/providers/registry.py": "272a1e3c659ee8444ac424fbbefcc244804897daaeb7f7ceb6ac66b37e3880ae",
+    "src/hutch/providers/ollama.py": "c9aaacc835cf65f80d7f1f74b94ac8fb0efc9fef6b9288d6d9bc993a6d818d1b",
+    "src/hutch/providers/openai_compat.py": "a49ca8d5718ea762f6fec1db8266350f5fcc21149b39400d58c3eb0228d5b91d",
+    "src/hutch/providers/pricing.py": "e16c435898de4023e3e0aef53f0d30624b1616f1b339d58f72f655a25487fc81",
+    "src/hutch/providers/registry.py": "17afb51e6e7653d9893db2fdb3d1185d4c8e0376e273842644244f434b6954e7",
     "src/hutch/reliability.py": "dd89d685ce24c977cd7f17da8717461031008085a297209f70e8276c5eccb474",
-    "src/hutch/runtime/__init__.py": "f3177de292ffbe63d904d3ba595422bbcd1f4c487c6e26ef13f5e3f1292155e7",
+    "src/hutch/runtime/__init__.py": "8efd61d1e5a742868688bb9337291fcc87f42b94a3b0aa6d4f283e130ad00284",
     "src/hutch/runtime/base.py": "d7d347b2debb00b1174d1f0a9f111a2a83b10044682c62c2d77088408e0adf0d",
-    "src/hutch/runtime/builtin.py": "09635310710b791289db6cd482eff9820888c285b46f591d849daaf5e723c518",
+    "src/hutch/runtime/builtin.py": "baaef91d3e6df3b5aca3a5ec0dbc9a4ec65faa9d0e6a4cd68a5811578ccb1a70",
     "src/hutch/runtime/ladder.py": "dcc0b63ac07e7bb9672ef50e91993627e61c9067776de0ad9a6093eaeadacfff",
-    "src/hutch/runtime/mock.py": "dd7304a8e2eb8c63e8d2f9b97f75fa26207de5c99259fb5683804eedaf567dba",
     "src/hutch/runtime/opencode.py": "46cf3c0647d7229e5c7c032b1b875f2e68af2079f4ece9bd08f156282254f5c9",
     "src/hutch/runtime/opencode_protocol.py": "ca9be7a69bc93b7a60c5a3a7f4d9490f77725d17b0dd78cbdbf3cbf4279ff7dc",
     "src/hutch/runtime/pi.py": "981f6ff6d20f3ce22a4688c7a218215a4396e129eceb9ce6198335b1fc21fd05",
     "src/hutch/runtime/pi_protocol.py": "07766045051ab9176359862a5e174c98bbe29737d874be4205559f29281d14b4",
-    "src/hutch/runtime/steps.py": "2d9188eb0094fcf038718e5368d6f25ce0866a98bfcdeb012cf5950619a1b949",
+    "src/hutch/runtime/steps.py": "da05be64a1288a20be1582226bd1fcc6724a0c699c6757de4d6078497e56c4b5",
     "src/hutch/runtime/toolrepair.py": "1d03eadc6f853327b9e1fb221b2a5e0e2350c9a9e4811ce057098555c237aa0d",
     "src/hutch/safety.py": "e456e902c38b01f969aa3648920994006d87d3ad86f7ed10272f5b3ce5215ec5",
-    "src/hutch/sandbox.py": "818d8e088504dce42edfa9397f6b92d6d649ebdc4e7dae0a86ac712754d2a8b1",
+    "src/hutch/sandbox.py": "0e092c397fa75376bc19850c7d2bbe20957965ee1a1cc5a06c420b310e72fb54",
     "src/hutch/scheduler.py": "38ff2c1922347893b83c4c888ca50994d215a62b379c0cce9e85e7cde9094656",
     "src/hutch/server/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "src/hutch/server/app.py": "4a5905dbe00fc02e6694551b8b6fa47dea2f5bbcbfcd8362c8c5de2af6b28321",
-    "src/hutch/server/pages.py": "82a847cdc0dbd357e702f836c05acb61f1f17c43a9137b06ba939bb79904b0b0",
+    "src/hutch/server/app.py": "f75ced88fc4fdb1f754cde0b87ff6d39f8ddb4ae64e43f54ee49b928fe8a7362",
+    "src/hutch/server/pages.py": "c0567d13d78c84b91b7521adb063a2a9cc6b40b861a7aa6293b61892fc3acc14",
     "src/hutch/server/pages_models.py": "6412cd1d1497704f2f15bb9d62be916d6609b8970ddf52a5e71d5ca047b15aff",
-    "src/hutch/server/pages_usage.py": "ae60899c5e48ca8d86db293c9db250aaafc2b96e2121f6f6fcd37c3c389bddfd",
-    "src/hutch/server/security.py": "49edcc92e3ff3775b77a9d6a9a9d0fd2e6c393d0173bea8aefad5e5d8c6f0fda",
+    "src/hutch/server/pages_usage.py": "9f566e2fd212a756f2b490c197491dd0b27957eaf8fa7f20d586ec1d90574d0c",
+    "src/hutch/server/security.py": "731fa360859a8a4029ea91a9a1f701cb075f9669eea44ac79b8e8b9fe3156b4d",
     "src/hutch/server/sse.py": "60ce64e415724e5a6d3584c94e62466980ae8be653cfcb659ec90038966920fa",
-    "src/hutch/server/static/app.js": "38a754bcb48dc16d3d8664d6cd0bb47a827b7ed6736fa01b2cb72bf1046556bf",
-    "src/hutch/server/static/hutch-pages.css": "c86acd10ab38224a7fae6be0f8e8828efe82017ee5fde4dab0f070507c003202",
-    "src/hutch/server/static/hutch.css": "1f730f4753981bf6d2b95bbad81c4108bce0add8f5c3d2a52200989aae3205af",
+    "src/hutch/server/static/app.js": "664186b43bc193e1254e1860572b22e86c77be0e7fffc97cc227837e22dec6e0",
+    "src/hutch/server/static/hutch-pages.css": "64bf6454cfdaa3a45c61ab2a93579aef1d99afea132b51087fc55bab127d9c62",
+    "src/hutch/server/static/hutch.css": "d00e3ca8c64af1ba31f64d40be654d114163a7daf31974166b37a94ccb5ce1bd",
     "src/hutch/server/static/hutch.js": "f6eb4d61a2a97f707ab85163f2150a71a0d0b79936742964bb767a6b37b59339",
-    "src/hutch/server/static/index.html": "01aa5e6ddc8e293c983a0ec5d560fa21c77335ad0b022f1494a4c3390d20be99",
-    "src/hutch/server/static/model-switcher.css": "b3ce1ac3b666c933f8e1f8c8d31507872e13c572fd761ac024c85e7650e2ecdc",
+    "src/hutch/server/static/index.html": "6b7cb60a676950439fb6b131b1c593a0157e617674c91b424580b22e94802fe3",
+    "src/hutch/server/static/model-switcher.css": "7cd8974808cfcbb82b38c2521433801598f10bebdb61353c41b7bf8a349c02f6",
     "src/hutch/server/static/model-switcher.js": "6f58046d2ea49905962f7da5e833b53ec4200cde097e180638e8d29ed7a56581",
-    "src/hutch/server/static/style.css": "b902eec2e35c9a88c9b330484999b2d6f6eef67a98f64a8e228e8ec5f71957cf",
+    "src/hutch/server/static/pair.js": "3b24f43417d787edd6240540dea6ad54662c2fe64482a20b2f522b01f3756994",
+    "src/hutch/server/static/style.css": "7adab06a87c50699d340ccd01704749aba5c80d6285b50c7ce8b91a6beb22be5",
+    "src/hutch/server/static/ui.css": "7c6b704a94cdb7adcb3e52007e85e7fbdf2da8b72064035aa5b3a3bf0e64a126",
     "src/hutch/server/static/vendor/htmx.min.js": "e209dda5c8235479f3166defc7750e1dbcd5a5c1808b7792fc2e6733768fb447",
     "src/hutch/server/templates/_approval_card.html": "bf186f9a4163c4cfc33a94733537e916f9fb90125942dec861dbf6bb0c0d0137",
     "src/hutch/server/templates/_approval_list.html": "02697f612e2a72dd9e1922d7e5bf1a91a3a083533d0f844a6789156f4b048498",
@@ -381,39 +567,41 @@
     "src/hutch/server/templates/_wait.html": "d3f31bba53c1703a417b8f5e567e2a84a5a2f76833aae563f3c152831dc59800",
     "src/hutch/server/templates/_wait_fragment.html": "5b547c965e398722a5c0cefc33a1a768a02918c5ec45286b975e3dd0f0ca7257",
     "src/hutch/server/templates/approvals.html": "6adbeca7d8eaacfa86bb5ed821e54fb98fd09233b7b9c0a45553c0b7a6c8c644",
-    "src/hutch/server/templates/base.html": "54a481fb80ca57266b2ed9b1c10bb3b5f5967fa2f333fd3949cb126bc07a92ca",
-    "src/hutch/server/templates/bot.html": "06521df5eda84040916eb3bf50e587e283c6cf4aca9b9ef447197a1495050174",
-    "src/hutch/server/templates/bot_new.html": "2e0720053c0bfb1504b60c7966cb3631ac310cec98b1d46dfc26539e0be20823",
-    "src/hutch/server/templates/bots.html": "324adbfe0b3d0319011852bcc506146ca5095c4b5fa46d7463c1f83e938f29c3",
+    "src/hutch/server/templates/base.html": "b573147700adcdbfe3758363ecb657177b7d686de7730013b5d595920ad656f6",
+    "src/hutch/server/templates/bot.html": "7efe9afe4ec25b76b49867b14bc8f77d261fe267ddfb0a7fff180fb481fd5626",
+    "src/hutch/server/templates/bot_new.html": "0a7f7ad0b079005dd9d73a778cfac03bd08912aacb84cf9015e2636d960bb416",
+    "src/hutch/server/templates/bots.html": "35c8c7b6bc9458b973177edacffce997a811165d62e895c5050f5bf01dcc946e",
     "src/hutch/server/templates/connections.html": "2ce3ab5cb04b3fbe3cadb3387f67e19434c063edd7ab45a6971c3e7bc83ba922",
     "src/hutch/server/templates/error.html": "b4c3057ed9d84413d40dd6988fb5351dbfd471ed153009d6d70d3ed6f0f14367",
-    "src/hutch/server/templates/home.html": "fc91e9b2082f7c90779a345234ccea814db3f60e3a58d3e695a9f2234fe85488",
-    "src/hutch/server/templates/login.html": "3f2af21e0293d21ab510408a152c9f5b0d6ec131d3006cabcdddb106f5675e0e",
+    "src/hutch/server/templates/home.html": "f9dd86168dcb76923f806576b040834d9f413902a5871b6fa096050c48d1dcbf",
+    "src/hutch/server/templates/login.html": "20cb2028bae969744a160fb44804a590b00eafc6904214e1d7fe3771a81d0d21",
     "src/hutch/server/templates/models.html": "19198dbe1ccbf03564835b6f7c35bc20b875dfd55a2688d73b8c82352a98e8e9",
+    "src/hutch/server/templates/pair.html": "c1973e831ca90df8a329e48356e4d0f2659f181120be0cb153ccf34ce2281605",
     "src/hutch/server/templates/run.html": "07946f95e66435d6f4dd14367942d9274f2b54a4663d666489cfc86bba32f54c",
     "src/hutch/server/templates/runs.html": "91b6062228079fde7ea3c2e7f89aa3e3a29da92246420a16132539e7d3ef3e54",
     "src/hutch/server/templates/usage.html": "d07a55baf6e8a3413ad170d353937747125d9130273ffa192b02df5a6bc01db2",
     "src/hutch/shellparse.py": "f7d1c6db8d4afee6962b29638318ae7f898fdd0a55907392c64869cbc9ff5301",
-    "src/hutch/slots.py": "f834599436ae25c29824b84af148ae66e7de685a250cb64a76ecf5e0d9b6f455",
+    "src/hutch/slots.py": "d870ce69266fc361edf7b24688866ea3e66f37638e4083a30612253430af0242",
     "src/hutch/state_snapshot.py": "c983d26186a4b6a4c06541c67313c07cd8d3a2b70de5d130c608144397e21d6b",
-    "src/hutch/store.py": "bf4285b7b91c663c7cf068c21fe20fac544d6a4cff2d8bd56a6a23a074705d19",
-    "src/hutch/templates.py": "7e4a1c479cb2b8193b69948f010d471569645b948bc35bb8368fb701cf8896d6",
-    "src/hutch/tools/__init__.py": "0944a57c3b0cdf64c42aa760ce271538bca8ff483a5ee7deb1e01ef0f427ef82",
+    "src/hutch/store.py": "d2d7b41239e1d509005eb7a20b0faa5a83f719cb7590a8d0b57c6c2da8da14d6",
+    "src/hutch/templates.py": "914a828224a9df805e87c03739f933ee1bab0fdbc485d2d24c2bc61e311a5c70",
+    "src/hutch/tools/__init__.py": "9f7e818661e3c3f4c1c5962c43396bfe194edc1263faf8a9a69a23d106982d47",
     "src/hutch/tools/base.py": "5fb6a31ed2a042d9aef954e5ef2e18106545226df5ed52e36584c69fb3622e02",
-    "src/hutch/tools/browser.py": "d30818050dae818f4843dff405e8814bdaacd28d86b48fd573ecd2bc2103bdda",
+    "src/hutch/tools/browser.py": "fddb2ef0979a12205960eb6d35597a3e14f25c72bf92c7cb404188305b54d038",
     "src/hutch/tools/files.py": "999488a4ef3aa1f9a40b6ba9521b20baabf3c7cc7e4a62e1d0447a889e0096a8",
     "src/hutch/tools/filewrite.py": "33face5363c145529c8b61d1a9d8a6624256cd469f5420c5c817397c03b5f6cb",
     "src/hutch/tools/memory.py": "92d7bb1800f40017863667c23c774fd8741ccf826a0906a62401474044d49d3a",
     "src/hutch/tools/shell.py": "6f10558c38c00ec723a0eca85536d44858a17bbc253932598d93a6218b6b319d",
     "src/hutch/tools/webfetch.py": "308f234266273575d949dd2a9ba25c26c2372050d152bbe1f50168bfd9925f8e",
-    "src/hutch/transcript_mirror.py": "859eb126e420dfee55155f923ea28ef41d5669625e14fc905277c457f31e4428",
-    "src/hutch/views.py": "ec8d0dd05a2b38c2d8e5c72cbd85bdb8415b4cabf9b0fb4bcb5f25ce6ee00c9c",
+    "src/hutch/transcript_mirror.py": "7aee81da63ecd5abb51729940c2d2dc1061ee1a6239c7fe23a8532d8fbe380a2",
+    "src/hutch/views.py": "8256b4e305acbd977af6a3ecaeee72dc8ce22e022b31cead71113224793637b2",
     "src/hutch/wake.py": "2c8a376ff138330d11bf1e5ab3f50abc33cc0cf4e0088b30f13ed44f6251b55b",
     "src/hutch/workdir.py": "6ae06bda8ff2bbdefc20b892e140f4659077561a931e10b3555a6311f4d1f410",
     "src/hutch/worker.py": "60ae688205bc0cf6081420bd08400ea5dfa1183de34b772110250cf812ca71cc",
-    "website/index.html": "b3bbbfc1ad0b101d5f5cd5cb11f71d9b45e15d85d6c91324585a78681d3f59c5",
-    "website/site.js": "f4e97600ff561f77fa15979fc5e740984c4160b8baf40bff558389da51204a0b",
-    "website/styles.css": "4e3bae94788f5ecb4b9a1068cd6b5d9903469feecd2860ca94579e176da2e7f5",
+    "website/app.css": "ed64d5aa000b207e26730bd72b3a93ef216b9370f50bcb54de4a82c059e27352",
+    "website/index.html": "a27bfb47a9cafd294bcbc2bd6c69c09e3ac51aed24ed3eed0993d0f62e986e2f",
+    "website/site.js": "9a446ad76a657e55e2021bbf5aa033e7ef80593218ca02a4caf89e4ca8cc2e1b",
+    "website/styles.css": "b614bd35cb7c62d4212c9cba6c28d04987342fb2c4826a56cb04dceacf717cd2",
     "website/tokens.css": "dbd3a7db8613f71c70ed9bf8e0655232ef19705a607b71ce51140067f9e778e8"
   }
 }

@@ -114,6 +114,17 @@ preference is reflected by the visible effects control; the capture intentionall
 or external request is needed for these captures. Local asset URLs, including product screenshots, are content-pinned to prevent browser
 caches from silently keeping an older image after the file is refreshed.
 
+After main `307ce1d`'s app styling was merged at `fdf6592`, the empty-state app images were regenerated from the built application,
+re-encoded as the site's WebP proof images, and all local asset URLs were re-stamped. The app captures were opened beside the embedded
+proof images; the anonymous site was recaptured at all three sizes with its full-page screenshots and opened for visual review.
+`artifacts/no-mock-setup/results.json` and `artifacts/marketing-top/capture.json` pin the post-merge source hashes and image hashes.
+The separate navigation contact sheet had not been regenerated and still showed an older marketing page; its independent capture utility
+was rerun after correcting a wait for a hidden duplicate status label. All 39 current app/site captures and inspection sheets now pin
+the post-merge sources. The integrated browser suite passed 83 checks after the latest CSS build; the site/token suite passed 27 checks
+after the refreshed image URLs were built. A screenshot is a saved file, so merging a UI change alone does not update it; each capture
+generator and the asset-hash build step must be run. The empty first-run image remains visually similar because it does not show the
+modal, card and switcher components changed by main `307ce1d`; populated app states are available in the navigation capture set.
+
 ## Action intent review continuation
 
 Schema v13 adds an uncertain-action card in chat and paginated older/cross-bot receipts in

@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-10-08T23:02:48.394381+00:00",
+  "captured_at": "2026-10-08T23:18:07.988823+00:00",
   "browser": "chromium",
   "version": "153.0.8010.12",
   "viewport": [
@@ -10,12 +10,12 @@
   "page_errors": [],
   "horizontal_overflow": 0,
   "source_sha256": {
-    "website/index.html": "acfbc0a213b2bda82a0f129656197607ec888bd5e6da59cc7851922de5d3fa6f",
+    "website/index.html": "a27bfb47a9cafd294bcbc2bd6c69c09e3ac51aed24ed3eed0993d0f62e986e2f",
     "website/styles.css": "b614bd35cb7c62d4212c9cba6c28d04987342fb2c4826a56cb04dceacf717cd2",
     "website/site.js": "9a446ad76a657e55e2021bbf5aa033e7ef80593218ca02a4caf89e4ca8cc2e1b",
     "website/app.css": "ed64d5aa000b207e26730bd72b3a93ef216b9370f50bcb54de4a82c059e27352",
     "website/tokens.css": "dbd3a7db8613f71c70ed9bf8e0655232ef19705a607b71ce51140067f9e778e8",
-    "website/assets/captures/setup-desktop.webp": "bf5c0a80a272c7eb1a2d3f59c7831538dd5d7ba4085d5c99655d0d0895fb3501",
-    "website/assets/captures/setup-phone.webp": "7546d588b16b4d3ecc72dba889d0f2161338b831db7c0a2205471d859994bfc4"
+    "website/assets/captures/setup-desktop.webp": "409dc9f4c16c3939739e2db6e36e36db598a0622ccebddbeeeb7c6b9084d4284",
+    "website/assets/captures/setup-phone.webp": "2383d1e22a7c32429a38ffd901cedc0e21fc77d92c0961a08c3a64547a6df3e7"
   }
 }

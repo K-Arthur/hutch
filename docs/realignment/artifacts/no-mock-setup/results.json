@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-10-08T23:03:39.481816+00:00",
+  "captured_at": "2026-10-08T23:12:32.593983+00:00",
   "url": "http://127.0.0.1:18789/#/chat",
   "state_check": {
     "bots": [],
@@ -13,7 +13,7 @@
     "version": "153.0.8010.12",
     "playwright": "1.63.0"
   },
-  "git_revision": "cf82f739dbb55b981720234795be25d0dbf029d2",
+  "git_revision": "fdf6592dd1d659904b71770845954f7284eb8316",
   "source_sha256": {
     "src/hutch/__init__.py": "568574ab401d0207b2e5bbf867341bdce1041794c04a41813720be38df26da74",
     "src/hutch/action_receipts.py": "974ccc618fdd9acfecee3fefea538f0b3de1fd71eff96ad3d2c1ff7769d26bba",
@@ -75,11 +75,11 @@
     "src/hutch/server/static/hutch.css": "d00e3ca8c64af1ba31f64d40be654d114163a7daf31974166b37a94ccb5ce1bd",
     "src/hutch/server/static/hutch.js": "f6eb4d61a2a97f707ab85163f2150a71a0d0b79936742964bb767a6b37b59339",
     "src/hutch/server/static/index.html": "6b7cb60a676950439fb6b131b1c593a0157e617674c91b424580b22e94802fe3",
-    "src/hutch/server/static/model-switcher.css": "dbfd8352c05cfb989194f4af1cb96b6cff2e32bf020bf78246a5ccfbad766860",
+    "src/hutch/server/static/model-switcher.css": "7cd8974808cfcbb82b38c2521433801598f10bebdb61353c41b7bf8a349c02f6",
     "src/hutch/server/static/model-switcher.js": "6f58046d2ea49905962f7da5e833b53ec4200cde097e180638e8d29ed7a56581",
     "src/hutch/server/static/pair.js": "3b24f43417d787edd6240540dea6ad54662c2fe64482a20b2f522b01f3756994",
-    "src/hutch/server/static/style.css": "1c9b5cc01c570fa7b100b59b3d91aca59eee582de0202d094031246095044931",
-    "src/hutch/server/static/ui.css": "6adff7ebbff8227ef7a451692e83d00cd7490f325e8e486620f2465d252371a8",
+    "src/hutch/server/static/style.css": "7adab06a87c50699d340ccd01704749aba5c80d6285b50c7ce8b91a6beb22be5",
+    "src/hutch/server/static/ui.css": "7c6b704a94cdb7adcb3e52007e85e7fbdf2da8b72064035aa5b3a3bf0e64a126",
     "src/hutch/server/static/vendor/htmx.min.js": "e209dda5c8235479f3166defc7750e1dbcd5a5c1808b7792fc2e6733768fb447",
     "src/hutch/server/templates/_approval_card.html": "bf186f9a4163c4cfc33a94733537e916f9fb90125942dec861dbf6bb0c0d0137",
     "src/hutch/server/templates/_approval_list.html": "02697f612e2a72dd9e1922d7e5bf1a91a3a083533d0f844a6789156f4b048498",

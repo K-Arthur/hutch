@@ -1,5 +1,20 @@
 # Navigation functional and visual verification
 
+## Post-merge refresh (2026-10-08)
+
+The original navigation contact sheet still contained an older marketing-site capture even though the separate marketing-top images
+were current. `capture_navigation.py` is an independent generator; the site browser tests do not refresh its saved screenshots. The
+navigation capture utility now waits for the visible run-status chip instead of the first matching text node, which can be a hidden
+duplicate during route changes. Re-running it on `fdf6592` refreshed all **39** desktop/tablet/phone captures, including the site
+screenshots and inspection sheets. The refreshed sheets were opened and checked; they show the current "Start from a clean first-run
+screen" site section and record zero page errors or horizontal overflow. `artifacts/navigation/results.json` pins the exact app and
+website source hashes.
+
+The integrated browser suite passed **83 tests in 206.27s** after the latest CSS build. The anonymous site/token suite passed **27 tests
+in 27.17s** after the embedded app captures and asset URLs were refreshed. Both were run with background-thread and syntax warnings
+treated as errors. The fresh first-run app capture confirms its database contains no bots, runs, approvals, conversations or provider
+connections. Live provider and physical-device behavior remain untested.
+
 Captured 2026-10-08 at 16:24 UTC on `dc14a13`; application source hashes are recorded in
 `artifacts/navigation/results.json` with Python 3.13.15, Playwright 1.63.0, Firefox 155 and
 Pillow 12.3.0. The application sources matched the recorded revision; generated captures and
@@ -50,11 +65,13 @@ one user prompt preceding its assistant block, with no prompt echoed as an assis
 while waiting. A two-message queue checks that the earlier active run stays fresh after the
 later message becomes current.
 
-`artifacts/navigation/results.json` records **42 screenshots**, with zero page errors and
+`artifacts/navigation/results.json` records **39 screenshots**, with zero page errors and
 zero horizontal overflow at 1440×1000, 900×1024 and 390×844. Each viewport covers empty,
-waiting, expanded Needs you, default settings, the explicit local model-route setting, Fleet,
-Activity, completion, run detail, model loading, cancelling, error, reconnecting and the website.
-The routing control and offline-limit disclosure fit at all three sizes. The approval and completion are real
+waiting, expanded Needs you, default settings, Fleet, Activity, completion, run detail, model
+loading, cancelling, error, reconnecting and the website. The separate
+`artifacts/inference-admission/` evidence covers the local model-route setting. The chat heading
+metrics are recorded with each capture; the dashboard h1 computes to 20.8px on a 16px size
+(1.30 line-height), matching the page CSS, while body text uses 1.55. The approval and completion are real
 deterministic mock journeys. Loading/cancelling use held synthetic lifecycle records;
 error/reconnecting use intercepted failed requests. They do not prove physical cleanup,
 actual model loading or remote-device reconnection; backend regressions cover their authority.

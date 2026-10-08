@@ -6,9 +6,9 @@ implemented but not yet exercised against a live dependency.
 ## Ownership and integration
 
 The implementation branch is `realign/platform` in `.worktrees/realign`. It was based on the last coherent pre-realignment
-history, then merged with the local `main` history in commit `0ab3058` on 2026-10-07. The merge includes the website redesign,
-dashboard/Studio work, approvals reconciliation and role-based templates. It preserves both histories. Marketing copy is owned in
-this worktree. Application contracts and code are reconciled here with the merged UI. No push or publication is authorized.
+history, then merged with the local `main` history in commit `0ab3058` on 2026-10-07. Later main changes were reconciled by
+`cf82f73` (main `44ca869`) and `fdf6592` (main `307ce1d`). The merges preserve both histories. Marketing copy is owned in this
+worktree. Application contracts and code are reconciled here with the merged UI. No push or publication is authorized.
 
 The main checkout may contain unrelated local tooling artifacts; preserve them during final integration. The final integration step
 is a local `main` fast-forward only after all implementation and verification gates pass.
@@ -40,6 +40,9 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `bf42b77` | S4 approval compare-and-swap and partial sandbox checkpoint |
 | `eee309c`, `23cb0c4`, `6378dd3`, `5196655`, `309a7d3` | Local main: templates, approval reconciliation, website, Studio and research map |
 | `0ab3058` | Merge local `main` into `realign/platform` |
+| `cf82f73` | Merge newer main navigation, layout and template changes into `realign/platform` |
+| `73d58b6` | Refresh empty-state marketing proof images and content-hash site asset URLs |
+| `fdf6592` | Merge main `307ce1d` sigil, responsive modal/card and switcher styling changes |
 | `ed82ce1` | S2–S4 audit repairs, docs, test corrections and truthful marketing copy |
 | `98c630d` | Correct shell-test escapes and record full-suite verification boundary |
 | `a148b29` | Fail-closed Pi/OpenCode, per-bot browser profile ownership, safety docs and truthful website claims |
@@ -1190,3 +1193,24 @@ This is local fixture evidence only. No model/provider was called and no real he
 challenge, physical phone, remote control, or cross-browser matrix was exercised. Remote phone
 handoff, PTY/physical desktop access and non-HTTP browser egress remain open. UI audit limitations
 are recorded in `visual-validation.md`.
+
+## Post-merge screenshot refresh (2026-10-08)
+
+Marketing screenshots are generated artifacts; merging source code does not regenerate their PNG/WebP pixels. The marketing page
+now content-hashes every local asset URL, but that only invalidates browser caches after a screenshot file itself changes. The
+embedded app screenshots had last been refreshed before main `307ce1d` was merged. After that merge, the real first-run app was
+captured again from empty temporary state, converted to WebP, and the static asset URLs were re-stamped. The app images were visually
+inspected against the post-build PNGs and the anonymous marketing page was recaptured at desktop, tablet and phone sizes, including
+full-page views. There are no seeded records, provider calls or external requests in these captures.
+
+The current captures identify realignment revision `fdf6592dd1d659904b71770845954f7284eb8316`, Chromium 153.0.8010.12 and
+Playwright 1.63.0. All inspected sizes report zero horizontal overflow and no page errors; marketing requests stay same-origin.
+The full browser suite passed **83 tests in 206.27s** with background-thread and syntax warnings treated as errors. After the final
+WebP refresh and URL re-stamp, the focused anonymous-site/token suite passed **27 tests in 27.17s**. The older navigation sheet was
+also found to contain a prior marketing-site image; its independent generator was updated to wait for the visible status chip rather
+than a hidden duplicate, then refreshed all **39** app/site captures at desktop, tablet and phone sizes with no page errors or
+overflow. Captures and source hashes are under `artifacts/no-mock-setup/`, `artifacts/marketing-top/` and `artifacts/navigation/`.
+They remain local fixture evidence, not provider or device tests.
+
+The root checkout's local `main` remains at `307ce1d`; this branch contains the newer merges and refreshed evidence. Final fast-forward
+is still gated on the unfinished S5-S9 implementation and release checks above.

@@ -157,13 +157,15 @@ def main():
                 # Synthetic lifecycle fixtures supplement the real mock approval/completion.
                 # Hold the supervisor; these records do not represent actual model loading or cleanup.
                 app.state.engine.tick = lambda: None
-                for name, status, label in [('loading', RunStatus.loading_model, 'Loading the model'),
-                                             ('cancelling', RunStatus.cancelling, 'Stopping')]:
+                for name, status in [('loading', RunStatus.loading_model),
+                                     ('cancelling', RunStatus.cancelling)]:
                     bot = store.get_bot('research-assistant')
                     fixture = store.create_run(Run(bot_id=bot.id, prompt='Synthetic lifecycle fixture', status=status))
                     for size, page in pages.items():
                         page.goto(base + '/#/run/' + fixture.id)
-                        page.get_by_text(label, exact=True).first.wait_for()
+                        # During route transitions, a hidden status copy can precede the
+                        # visible run chip in the DOM. Wait for the actual state chip.
+                        page.locator(f'.status.{status.value}:visible').first.wait_for()
                         snap(page, name, size)
                 for size, page in pages.items():
                     page.route('**/api/bots/research-assistant', lambda route: route.abort())
