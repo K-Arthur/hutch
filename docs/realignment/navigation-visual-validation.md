@@ -1,8 +1,9 @@
 # Navigation functional and visual verification
 
-Captured 2026-10-08 at 09:31 UTC with Python 3.13.15, Playwright 1.63.0, Firefox 155
-and Pillow 12.3.0. The capture used `632add2` with the bounded local-inference admission, timing and sidebar
-containment changes in its working tree. Source hashes are retained. This is local fixture
+Captured 2026-10-08 at 09:58 UTC with Python 3.13.15, Playwright 1.63.0, Firefox 155
+and Pillow 12.3.0. The capture used `cb13791` with the resolved merge of `main` at
+`d7d0029`, including the composer, focus, cancellation-label and phone-target refinements.
+Source hashes are retained. This is local fixture
 evidence, not a physical-phone, screen-reader or live provider certification.
 
 ## Reproduce
@@ -28,9 +29,11 @@ they are sanitized demonstration material, not production telemetry.
 
 ## Results and inspection
 
-The full offline suite after the approval, history, shutdown, provider and local-admission repairs passed **1,056 tests in
-240.21s**, with unhandled background-thread warnings promoted to failures. The browser and
-website suites passed **29 tests in 55.00s**. Conversation-order assertions verify
+The full offline suite at `cb13791`, after the lease-expiry repair, passed **1,067 tests in
+261.60s**, with unhandled background-thread warnings promoted to failures. The subsequent
+frontend merge passed **32 browser/site tests in 68.78s** and **22 focused shell, conversation
+and approval tests in 4.54s**. The complete offline suite has not been repeated after this
+frontend-only merge. Conversation-order assertions verify
 one user prompt preceding its assistant block, with no prompt echoed as an assistant answer
 while waiting. A two-message queue checks that the earlier active run stays fresh after the
 later message becomes current.
@@ -43,8 +46,10 @@ deterministic mock journeys. Loading/cancelling use held synthetic lifecycle rec
 error/reconnecting use intercepted failed requests. They do not prove physical cleanup,
 actual model loading or remote-device reconnection; backend regressions cover their authority.
 
-Inspected all three refreshed contact sheets for layout and state changes, plus individual full-size
-phone drawer/cancellation, desktop completion and desktop queue captures. Earlier individual
+Inspected all three refreshed contact sheets for layout and state changes. Individual full-size
+composer options were inspected at desktop, tablet and phone sizes, plus tablet/phone cancelled
+notices, in the six additional captures in `artifacts/composer-integration/`. Their metadata
+distinguishes a real mock rehearsal from synthetic cancellation records. Earlier individual
 phone waiting, tablet error and site fold captures were also inspected. Earlier full-size desktop/tablet/Fleet checks informed the repairs. The full
 website captures are retained; contact sheets show their first fold only. Two additional
 desktop/phone screenshots and metadata in `artifacts/fleet-attention/` cover failed queue
@@ -65,6 +70,8 @@ are synthetic records; cross-process and runtime HTTP fixtures verify actual adm
 | Failed refresh | Retained cards show a refresh error and Retry; failure never becomes an empty queue or success receipt. |
 | Inference queue | Queue position/reason is visible without typing. Recorded step timing separates queue wait; the sidebar filter fits within its own panel. |
 | Cancellation and usage | Stopping remains nonterminal and disables duplicate Stop. Run detail and Activity use recorded cost and reported-token labels. |
+| Composer integration | Options fit above the composer and scroll within the viewport; Escape restores focus. Phone Send/options and Stop targets are 44px. Rehearsal discloses model calls/reads and submits through the canonical message API. |
+| Cancelled completion | A cancelled run uses its authoritative label and a neutral notice. Recorded admission time remains visible even when no model step completed; no step breakdown is invented. |
 | Reduced motion and keyboard | Reduced-motion capture, model-menu navigation, mobile-sheet focus/Tab/Escape and alias Back behavior are exercised by browser checks. |
 | Marketing | Local anonymous CTA targets resolve, screenshots match the current shell, and provider/runtime limitations remain visible. The static site requests only its own assets. |
 

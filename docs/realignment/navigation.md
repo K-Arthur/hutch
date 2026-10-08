@@ -19,6 +19,13 @@ A failed queue refresh cannot hide a waiting bot, and human waits remain visible
 approval request. The bot summary prefers executing/waiting work over older queued turns.
 On phones the reminder occupies a layout row instead of covering cards or conversation content.
 
+The shared composer has one options menu for suggestions, rehearsal and Enter behavior.
+Rehearsal labels disclose that reads and model calls still happen; requests use the canonical
+conversation command with idempotency. Stop is available in the header and individual attempt,
+without an additional composer duplicate. Escape closes options and restores trigger focus;
+Send/options and Stop targets are 44px on phones. Cancelled attempts use the server label
+instead of a generic failed label, and recorded queue time remains visible without completed steps.
+
 Monitor contains Activity and Run history. These answer different questions (what needs
 attention now versus what happened), so combining them with conversation history would lose
 useful inspection. At ten bots a searchable Fleet view also appears, with active, paused and

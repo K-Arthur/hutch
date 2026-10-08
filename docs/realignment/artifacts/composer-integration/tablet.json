@@ -1,0 +1,16 @@
+{
+  "browser": "firefox",
+  "version": "155.0",
+  "viewport": [
+    900,
+    1024
+  ],
+  "captured_at": "2026-10-08T09:58:28.872093+00:00",
+  "scenario": "real mock rehearsal; synthetic cancellation and admitted queue timing",
+  "page_errors": [],
+  "horizontal_overflow": 0,
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "9f2e1296354b5ca73506adbc25f294cbb785ed6424feec359ac0764c8c0b763c",
+    "src/hutch/server/static/style.css": "56b04b95f32d664fa0aca1e3f57c7b52f6d3300a9e046860b46dae9190120e94"
+  }
+}

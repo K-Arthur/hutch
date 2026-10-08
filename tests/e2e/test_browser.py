@@ -765,3 +765,69 @@ def test_fleet_attention_survives_queue_failure_and_includes_human_wait(browser,
             for p in ("src/hutch/server/static/app.js", "src/hutch/store.py")},
     }, indent=2) + "\n")
     page.close()
+
+
+@pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (900, 1024, "tablet"), (390, 844, "phone")])
+def test_composer_options_rehearsal_and_cancelled_notice(browser, live, width, height, size):
+    import hashlib
+    import json
+    from pathlib import Path
+    from hutch.models import Run, iso, utcnow
+    base, app = live
+    bot = app.state.store.create_bot(Bot(name="composer-fixture", model="mock/demo", tools=["files", "memory"],
+                                       approval_mode=ApprovalMode.auto))
+    page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(base + "/#/chat/composer-fixture")
+    page.locator("#conversation-switcher").wait_for()
+    assert not page.locator("#studio-stop-run").is_visible()
+    assert page.locator("#chat-stop").count() == 0, "do not duplicate the primary Stop beside Send"
+    page.locator("#composer-menu-btn").click()
+    menu = page.locator("#composer-menu")
+    assert menu.is_visible() and menu.get_attribute("role") == "dialog"
+    assert menu.locator("button").first.evaluate("e => e === document.activeElement")
+    box = menu.bounding_box()
+    assert 0 <= box["x"] and box["x"] + box["width"] <= width + 1
+    assert 0 <= box["y"] and box["y"] + box["height"] <= height + 1
+    menu.get_by_text("model calls and reads still happen", exact=False).wait_for()
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/composer-integration"
+    out.mkdir(parents=True, exist_ok=True)
+    page.screenshot(path=str(out / f"options-{size}.png"), full_page=True, animations="disabled")
+    menu.locator("#rehearse-opt").check()
+    page.keyboard.press("Escape")
+    assert not menu.is_visible()
+    assert page.locator("#composer-menu-btn").evaluate("e => e === document.activeElement")
+    assert "model calls and reads" in page.locator("#rehearse-flag").inner_text()
+    if size == "phone":
+        for control in ("#composer-menu-btn", "#chat-send"):
+            assert page.locator(control).bounding_box()["height"] >= 44
+    page.locator("#chat-prompt").fill("write a report")
+    with page.expect_response(lambda response: response.url.endswith("/messages") and response.request.method == "POST") as sent:
+        page.locator("#chat-send").click()
+    run = sent.value.json()
+    assert sent.value.request.post_data_json["rehearse"] is True
+    wait_for(lambda: app.state.store.get_run(run["id"]).terminal)
+    stored = app.state.store.get_run(run["id"])
+    assert stored.rehearsal and not (Path(stored.workspace) / "report.md").exists()
+    assert not app.state.store.recall_all(bot.id)
+    cancelled = app.state.store.create_run(Run(bot_id=bot.id, prompt="Sanitized cancellation notice fixture",
+        status=RunStatus.stopped, error="Cancelled before a model step completed", queue_ms=1250, finished_at=iso(utcnow())))
+    page.goto(base + f"/#/run/{cancelled.id}")
+    notice = page.locator(".run-error")
+    notice.wait_for()
+    assert notice.inner_text().startswith("Cancelled:") and "Failed:" not in notice.inner_text()
+    assert "run-notice" in notice.get_attribute("class")
+    assert "1.3s" in page.locator(".run-queue-time").inner_text()
+    assert not page.locator(".timeline-stack").count(), "no completed step means no fabricated timing breakdown"
+    overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+    assert overflow <= 1 and not errors
+    page.screenshot(path=str(out / f"cancelled-{size}.png"), full_page=True, animations="disabled")
+    (out / f"{size}.json").write_text(json.dumps({
+        "browser": browser.browser_type.name, "version": browser.version, "viewport": [width, height],
+        "captured_at": iso(utcnow()), "scenario": "real mock rehearsal; synthetic cancellation and admitted queue timing",
+        "page_errors": errors, "horizontal_overflow": overflow,
+        "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest()
+            for p in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css")},
+    }, indent=2) + "\n")
+    page.close()

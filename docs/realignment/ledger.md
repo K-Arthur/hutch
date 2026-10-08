@@ -343,3 +343,31 @@ The expanded authority/worker/history/reservation/provider suite passed **66 tes
 Full offline verification passed **1,067 tests in 261.60s**, with unhandled background-thread
 warnings treated as failures. Emoji audit is clean (244 files, nine retained waivers), and
 `git diff --check` passes. No paid provider, live model or UI source changed for this repair.
+
+Lease-expiry repair commit: `cb13791`.
+
+## Shared composer integration (2026-10-08)
+
+New shared-checkout frontend work was inspected before staging. Its rehearsal labels wrongly
+claimed nothing executes; reads and model calls still happen. Those labels were corrected and
+the old browser selector was updated to the existing thread structure, preserving completion
+and error assertions. The first root browser run was **12 passed, 1 failed in 60.94s**; the
+corrected run passed **13 tests in 36.20s**. Related changes only were committed on `main` as
+`d7d0029`; unrelated tooling and ignore-file work was preserved. No full backend repeat there.
+
+The merge retains canonical conversation submission, immutable approval hashes, idempotent
+Stop, scoped drafts and authoritative waits. The shared options menu gained Escape/focus
+restoration, viewport containment and 44px phone targets. The redundant composer Stop was
+omitted; header and per-attempt Stop remain. Cancelled notices now use their actual label, and
+recorded queue time is shown even without completed steps. No backend source changed.
+
+The merged browser/site suite passed **29 tests in 63.29s**. Three new viewport journeys then
+passed **3 tests in 8.18s**, exercising a real canonical mock rehearsal and synthetic cancellation
+records. The final repeat passed **32 tests in 68.78s**; focused shell/conversation/approval
+checks passed **22 tests in 4.54s**. The last full offline run remains `cb13791`'s 1,067 tests.
+The 09:58 UTC capture refreshed **39 views**, three traces and contact sheets with zero page
+errors/overflow. All three sheets and full-size desktop/tablet/phone options and tablet/phone
+cancelled notices were inspected. Six composer captures are additional to the 39; Fleet and
+admission fixtures were also refreshed. Website derivatives use the new isolated mock captures.
+Source hashes and versions are retained. Physical devices, screen readers and live providers
+remain separate verification gaps. This merge does not complete S5–S9 or permit final release.

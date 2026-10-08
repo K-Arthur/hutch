@@ -70,6 +70,11 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 - **Bounded shell execution:** captured stdout/stderr is drained into a fixed buffer; Linux strict mode uses bubblewrap plus a
   delegated systemd cgroup and fails closed. SQLite migrations serialize across processes, use the online backup API, and have a
   tested restore path. Store shutdown joins registered engine workers before closing the database.
+- Composer options collect suggestions, rehearsal and Enter behavior beside the model selector;
+  rehearsal labels disclose model calls and reads. Canonical messages, approvals and idempotent
+  Stop survive the shared-checkout merge. Options restore focus on Escape; phone primary controls
+  have 44px targets, cancelled notices use the actual status and recorded queue time remains visible
+  without completed model steps.
 - **UI-complaint research** ([docs/research/complaints.md](docs/research/complaints.md#7-ui--interface-complaints-design-signals)):
   documented interface failures across shipped agent UIs — Claude Code's saturated-on-black
   regression, ChatGPT accent churn, Codex role ambiguity, colour-only status dots — with a

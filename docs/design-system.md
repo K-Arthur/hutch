@@ -291,7 +291,16 @@ Two honesty rules for the studio shell, both regression-tested:
 - **Health is established, not asserted.** The daemon badge no longer ships `live` in static markup.
   `pollHealth()` reads `/api/health` and shows the real version/schema; on failure it degrades to
   `reconnecting` (recent) then `offline`, and the composer's working indicator only appears while a run
-  is `running`/`pending` — a `waiting_approval` run is waiting for a human, not computing.
+  is `running`. Queued, loading, resource and human waits use their authoritative labels;
+  waiting does not animate as computation.
+
+Composer options share one bounded, nonmodal dialog beside the model selector. It contains
+suggestions, rehearsal and Enter behavior; Escape returns focus to its trigger, and leaving
+the dialog closes it. Rehearsal explicitly simulates writes/commands while model calls and
+reads still happen. The submitted request determines the confirmation text. Phone Send,
+options and Stop controls have 44px targets. Stop remains in the conversation header and
+individual attempt; a third duplicate composer control is unnecessary. Cancellation notices
+use the server label and neutral text; uncertain outcomes remain warnings.
 
 The working indicator is the shared **3-dot bounce** (5px dots, 1.3s loop, 0.15s stagger), `aria-hidden`
 because the status chip carries the state for assistive tech. Its label is "Working…", not the bot's
@@ -318,8 +327,8 @@ chips pill) while carrying its own louder personality:
 - **Deliberate deviations from the brief**: the nav is a translucent blurred bar, *not*
   `mix-blend-difference` — inverting against the brand's accent panels hurt legibility, and the site is
   single-theme. Corner radii stay 8px rather than 24–48px so the site and the app share one shape
-  language. The "live" pill labels the interactive simulator (a real, running thing), not a fabricated
-  service status.
+  language. The scripted hero pill says "DEMO supervised run" and its accessible name
+  identifies a preview. Application health is shown only by the application.
 
 The hero gradient heading uses a solid accent fallback and applies `background-clip:text` only inside
 `@supports`: a `filter` on the same element made Chromium paint the whole text box as a solid block
