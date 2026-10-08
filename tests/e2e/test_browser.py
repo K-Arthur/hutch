@@ -192,6 +192,34 @@ def test_approve_from_the_phone_ui_resumes_the_run(browser, live):
     ctx.close()
 
 
+def test_a_stale_approval_click_shows_the_other_devices_decision(browser, live):
+    """One request, two devices. The device that loses the race must not report success
+    it did not get — it reads the server's decision and shows that instead."""
+    from hutch.approvals import resolve_approval
+
+    base, app = live
+    store, engine = app.state.store, app.state.engine
+    bot = store.create_bot(Bot(name="race-bot", model="mock/demo", tools=["files", "memory"],
+                               approval_mode=ApprovalMode.ask))
+    run = engine.submit(bot, "write a report")
+    engine.dispatch_pending()
+    wait_for(lambda: store.get_run(run.id).status is RunStatus.waiting_approval)
+
+    ctx = browser.new_context(viewport={"width": 1200, "height": 800})
+    page = ctx.new_page()
+    page.goto(f"{base}/#/run/{run.id}")
+    page.wait_for_selector("#chat-stream [data-approve]")
+    approval_id = page.get_attribute("#chat-stream [data-approval]", "data-approval")
+
+    resolve_approval(store, approval_id, approve=True, by="phone")     # the other device wins the race
+
+    page.click('#chat-stream [data-approve="1"]')                      # our click is now stale (409)
+    page.wait_for_selector("#chat-stream .approval-card-chat.resolved")
+    tag = page.inner_text("#chat-stream .approval-card-chat.resolved .tag")
+    assert "Approved" in tag and "phone" in tag
+    ctx.close()
+
+
 # ============================================================ model switcher (composer menu + all-models dialog)
 
 @pytest.fixture()

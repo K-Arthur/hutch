@@ -845,6 +845,79 @@ button.icon-btn, .icon-btn {
 }
 .approval-always input { accent-color: var(--accent-down); }
 
+/* Approval review (UI-5): the action in plain language first, the technical detail
+   behind a disclosure, the exact scope of an always-allow grant, and a resolved
+   state that names who decided. */
+.approval-card-chat.risk-high,
+.approval-card-chat.outward { border-left-color: var(--danger); }
+.approval-card-chat.resolved { border-left-color: var(--border); }
+.approval-card-chat.resolved.allowed { border-left-color: var(--accent); }
+.approval-card-chat.resolved.denied { border-left-color: var(--danger); }
+.approval-head-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.approval-bot { font-weight: 700; }
+.approval-action-text.muted { color: var(--text-dim); font-weight: 500; font-size: var(--fs-sm); }
+
+.approval-review { margin: 8px 0 4px; }
+.approval-review > summary {
+  cursor: pointer;
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 24px;
+}
+.approval-review > summary::-webkit-details-marker { display: none; }
+.approval-review > summary::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--dur) var(--ease);
+}
+.approval-review[open] > summary::before { transform: rotate(45deg); }
+.review-rows { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+.review-row { display: grid; grid-template-columns: 132px 1fr; gap: 10px; font-size: var(--fs-xs); }
+.review-row > span:last-child { color: var(--text); }
+.review-key { color: var(--text-faint); }
+.review-label {
+  display: block;
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  margin-top: 8px;
+}
+.approval-segments { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.approval-seg { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: var(--fs-xs); }
+.approval-seg code {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+}
+.seg-why { color: var(--text-faint); }
+.approval-scope { margin: 6px 0 0; }
+.section-sub { font-size: var(--fs-lg); margin: 28px 0 12px; }
+
+/* Attention: the Approvals nav item wears a pulsing dot while work waits, anywhere
+   in the app. Wording + count carry the meaning; the dot only reinforces it. */
+.topbar nav a.attention::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warning);
+  margin-left: 6px;
+  animation: pulse-dot 1.8s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .topbar nav a.attention::after { animation: none; }
+}
+
 /* Chat composer */
 .studio-composer {
   padding: var(--space-3) var(--space-4) var(--space-4);

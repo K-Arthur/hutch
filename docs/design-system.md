@@ -98,6 +98,24 @@ denied" in red at zero, the parsed segments, and the rule that fired. Actions:
 Allow once (emerald fill) / Always / For this plan / Deny (red outline). Same
 anatomy in the studio feed, the approvals queue, and the server-rendered cards.
 
+**Review before deciding.** The action summary is plain language; the technical
+detail sits behind a native `<details>` "Review details" disclosure (tool, why you
+are asked, reversibility, parsed segments, raw request). An always-allow grant shows
+its exact scope (`files:write` for this bot) and where to revoke it; outward actions
+never offer it.
+
+**Server-authoritative resolution.** The client never marks a request complete from
+its own click. If a decision loses a cross-device race (409), it reconciles against
+`GET /api/approvals/{id}` and renders the real state: "Approved by phone · just now",
+"Denied", or "Expired — denied by timeout". A card that expires mid-view flips to the
+resolved state rather than leaving dead buttons. The queue and a "Recently decided"
+list (`?status=resolved`) refresh every 5 s.
+
+**Attention.** The Approvals nav item carries the pending count and a pulsing dot
+anywhere in the app; a newly-arrived approval is announced once through the bounded
+live region. It is the same 6px dot + word pattern as every other status — never
+colour alone — and its pulse is disabled under `prefers-reduced-motion`.
+
 ### Status chip
 
 A neutral pill (surface + hairline border + dim text) with a 6px dot in the

@@ -25,6 +25,16 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   The daemon badge no longer claims a hardcoded "live": health is established from `/api/health` with
   a heartbeat and degrades to `reconnecting`/`offline`. A 3-dot working indicator shows while a bot is
   actually computing (never for a waiting-for-human run). Contract tests in `tests/test_studio_shell.py`.
+- **Approval review + app-wide attention**: the chat feed and the approvals queue share one
+  approval card — the action in plain language first, a "Review details" disclosure (tool, why you
+  are asked, reversibility, parsed segments, raw request), the exact scope of an "always allow"
+  grant with a pointer to revoke it, and no always-allow for outward actions. Decisions are
+  server-authoritative: a stale click that loses a cross-device race reconciles against
+  `GET /api/approvals/{id}` and shows who actually decided, and an expired gate flips to
+  "Expired — denied by timeout" instead of leaving dead controls. The Approvals nav item carries a
+  pulsing attention dot and the count everywhere in the app, and a new arrival is announced once
+  through the bounded live region. Queue + "Recently decided" (`?status=resolved`) refresh across
+  devices every 5s. Browser coverage: `tests/e2e/test_browser.py::test_a_stale_approval_click_shows_the_other_devices_decision`.
 - **Reference map** ([docs/research/reference-map.md](docs/research/reference-map.md)): verified
   this session against the Grok Bot changelog (v0.68.1) and the two Open WebUI issues (#31656
   closed, #30055 open) — observed patterns, evidence, Hutch equivalents, and the deliberate
