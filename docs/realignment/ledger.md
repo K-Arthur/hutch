@@ -60,6 +60,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `bc8d856` | Keep fixed overlays unclipped; replace strong side accents and bouncing typing dots with quieter status markers and pulse motion |
 | `0a74f68` | Fix overlap between the marketing architecture diagram's connector text and model node |
 | `dc14a13` | Fit architecture diagram node labels and explain tool destinations in the caption |
+| `d33941b` | Versioned provider route matrix/API, evidence boundary docs, exact OpenAI endpoint field selection |
 
 ## Verified behavior before this checkpoint
 
@@ -855,3 +856,28 @@ marketing files.
 This closes the local/hybrid route-mode checkpoint only. Provider compatibility and failure
 matrices, verified external runtime adapters, enforceable strict-offline behavior, remaining S5
 work and S6–S9 release gates are open.
+
+## S5 provider compatibility route matrix, 2026-10-08
+
+`GET /api/v1/compatibility` now returns a typed, versioned route matrix with request fields sent
+and omitted, dated API/policy sources, implementation status and an explicit fixture/live
+verification boundary. The matrix covers the built-in OpenAI, Anthropic and Ollama routes,
+generic compatible connections, OpenCode Go, Sign in with ChatGPT, disabled OpenCode/Pi
+executors, and the blocked consumer-session route. It is bundled in the wheel. `supported`
+means a common protocol contract has fixture coverage; model and endpoint capabilities remain
+unknown until separately probed. ADR-0005, architecture, connection/model configuration, tests,
+roadmap and changelog now state that distinction.
+
+The OpenAI-compatible adapter previously selected `max_completion_tokens` by looking for the
+string `api.openai.com` anywhere in the URL. It now selects that field only for the exact official
+HTTPS authority on the standard port; lookalike domains, proxy paths, HTTP and nonstandard ports
+use the compatible `max_tokens` field. This corrects the field dialect decision; it does not
+change provider credential routing.
+
+Verification: `.venv/bin/python -m pytest -q tests/test_compat.py tests/test_providers.py
+tests/test_api.py` — **53 passed in 17.27s**; `compileall` passed for the changed Python modules.
+`uv build --wheel` succeeded, and archive inspection confirmed both `hutch/compat.py` and
+`hutch/data/compat.json` are included. `git diff --check` passed. Live provider/model capability,
+tool probes, provider failure journeys, strict offline enforcement, paid account behavior, and
+external runtime adapters remain unverified or incomplete; the full regression gate remains open.
+Implementation commit: `d33941b`.
