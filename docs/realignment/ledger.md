@@ -49,7 +49,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `bf09d97` | Raw repeated benchmark samples, p50/p90 summary, machine/revision metadata and regression checks |
 | `cd4f402` | Cross-run transcript event pages/SSE, Last-Event-ID replay, bounded snapshot reconciliation and focused real-socket tests |
 | `896a774` | Same-harness baseline/current artifacts, data-quality notebook, final screenshots and demo-label correction |
-| Pending | Schema-v10 usage reservations, account-shared admission, uncertain-charge reconciliation, estimates and marketing copy |
+| `33ac3ba` | Schema-v10 usage reservations, account-shared admission, uncertain-charge reconciliation, estimates and marketing copy; offline suite 1,003 passed, provider/reservation 45 passed, browser suite 15 passed |
 
 ## Verified behavior before this checkpoint
 
