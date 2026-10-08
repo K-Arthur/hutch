@@ -35,4 +35,3 @@ Thumbs.db
 
 # Benchmark output (baselines under benchmarks/baselines/ ARE committed)
 benchmarks/results/
-node_modules/
