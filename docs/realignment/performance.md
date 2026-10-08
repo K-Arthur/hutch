@@ -46,6 +46,38 @@ raw repetitions; they remain historical context, not a controlled comparison. Th
 
 ## Limits
 
+### Navigation checkpoint repeat, 2026-10-08
+
+An initial navigation capture ran during substantial shared-host contention (observed load
+13.27). Its CLI version median was 795.7 ms and event throughput 18,500 events/s. Raw
+[`contended samples`](artifacts/performance/current-956b925-navigation-contended.json) and
+[`context`](artifacts/performance/current-956b925-navigation-contended.context.json) are retained;
+they cannot establish a code regression against the historical idle capture.
+
+After all Hutch tests/captures finished, the baseline archive and current tree were measured
+sequentially with the same interpreter and harness. Load at the two starts was 1.47 and 0.88.
+The current tree was `f4f8732` with the navigation subsequently committed as `4bd0e0d`.
+Shared-host activity was observed, not controlled. No safety setting was weakened.
+
+| Metric | Repeat baseline p50 / p90 (n) | Repeat current p50 / p90 (n) |
+|---|---:|---:|
+| CLI version | 243.4 / 280.5 ms (11) | 248.1 / 269.1 ms (11) |
+| CLI status | 251.5 / 272.2 ms (11) | 261.1 / 271.8 ms (11) |
+| Events | 59,669 / 62,206 events/s (5) | 77,820 / 80,255 events/s (5) |
+| Mock step overhead | 0.191 / 0.202 ms (12) | 0.043 / 0.049 ms (12) |
+| Idle daemon RSS | 40.5 / 40.5 MB (3) | 41.4 / 41.8 MB (3) |
+| Idle dashboard RSS | 59.5 / 61.1 MB (3) | 61.3 / 61.4 MB (3) |
+
+The harness median regression gate reports no regression above its 20% and absolute-noise
+thresholds. Samples are finite/nonnegative, their medians match the saved summaries and
+the harness hashes match. Raw [`baseline`](artifacts/performance/baseline-b3e4b15-navigation-repeat.json)
+and [`current`](artifacts/performance/current-f4f8732-navigation-repeat.json) files have accompanying
+context files with start/end load and timing. CPU remained below or at one observation tick;
+it still does not support an optimization claim. The earlier large slowdown is not reproduced
+in this pair; this supports a contention explanation, without proving its exclusive cause.
+
+### Interpretation boundary
+
 This is a local mock/control-plane benchmark, not a cost, provider, throughput-under-load, or user-experience measurement. CPU and
 memory represent the observed supervisor process while idle. Do not infer multi-user capacity or broad hardware performance from
 this single host. The 11, 5, and 3 sample distributions are diagnostic evidence, not stable production percentiles. Do not use them

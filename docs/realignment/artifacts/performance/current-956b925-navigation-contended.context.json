@@ -1,0 +1,6 @@
+{
+  "label": "diagnostic capture; compare only after accounting for host contention",
+  "observed_after_capture": "2026-10-08 07:37:35 UTC",
+  "loadavg": "13.27 12.17 8.72 15/3121 1181655",
+  "comparison": "historic samples are on the same host/harness, but not simultaneous; no causal attribution"
+}

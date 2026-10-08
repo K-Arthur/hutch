@@ -1,0 +1,7 @@
+{
+  "started_at_utc": "2026-10-08T07:52:23Z",
+  "load_start": "0.88 3.13 5.93 1/3130 1194963",
+  "method": "Sequential baseline then current, same harness/interpreter; no overlapping Hutch tests/captures. Shared host activity not controlled.",
+  "finished_at_utc": "2026-10-08T07:53:53Z",
+  "load_end": "1.04 2.61 5.49 1/3081 1195605"
+}

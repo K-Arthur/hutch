@@ -180,3 +180,13 @@ The OpenBot repository was reviewed at `59e2889`; individual reports became conc
 mount and memory regressions. The linked signed video could not be played and supplies no
 visual evidence. No remote media was downloaded. Remaining S5–S8 work and release gates above
 remain open; main is not advanced on the strength of this navigation checkpoint.
+
+Navigation commit: `4bd0e0d`. A sequential same-harness baseline/current repeat reports CLI
+status p50/p90 **251.5/272.2 → 261.1/271.8 ms**, dashboard RSS **59.5 → 61.3 MB**, and no
+median regression beyond the harness noise gate. A heavily contended earlier capture is also
+retained rather than discarded; `performance.md` records both and their inference limits.
+
+Root main remains at `6fd979f`, with newer uncommitted composer/style work and unrelated
+tooling files preserved. This branch is not a finished S5–S8 release and has not been pushed,
+published or integrated by advancing main. Reconcile newer coherent main work before the
+eventual final release validation and fast-forward.
