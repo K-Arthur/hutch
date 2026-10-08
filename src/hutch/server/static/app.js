@@ -47,6 +47,19 @@ function toast(msg, isError = false) {
   if (!isError) setTimeout(dismiss, 4200);
 }
 
+// Bounded screen-reader announcer. The main view is deliberately no longer a live
+// region: re-rendering it announced the entire page on every poll. Only deliberate
+// lifecycle changes go through here, and repeats are cleared first so assistive tech
+// does not swallow an identical message.
+let announceTimer = null;
+function announce(msg) {
+  const el = $("#live-status");
+  if (!el) return;
+  clearTimeout(announceTimer);
+  el.textContent = "";
+  announceTimer = setTimeout(() => { el.textContent = msg; }, 40);
+}
+
 function timeAgo(iso) {
   if (!iso) return "never";
   const s = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -285,6 +298,43 @@ async function refreshBadge() {
       badge.classList.toggle("hidden", stats.pending_approvals === 0);
     }
   } catch {}
+}
+
+// ------------------------------------------------------------- executor health
+
+// The old badge said "live" in static markup regardless of reality. Health is now
+// established from the server (version + schema) with a heartbeat, and degrades to
+// reconnecting/offline so a dead backend is never shown as green.
+const HEARTBEAT_MS = 15000;
+let lastHealthAt = 0;
+let lastDaemonState = "";
+
+function setDaemon(state, title) {
+  const pill = $("#daemon-pill");
+  if (!pill) return;
+  const label = { live: "live", reconnecting: "reconnecting", offline: "offline", connecting: "checking" }[state] || state;
+  if (lastDaemonState === state) { pill.title = title; return; }
+  lastDaemonState = state;
+  pill.dataset.state = state;
+  pill.className = `pill daemon ${state}${state === "live" ? " pulse" : ""}`;
+  pill.textContent = label;
+  pill.title = title;
+}
+
+async function pollHealth() {
+  try {
+    const h = await api("/health");
+    lastHealthAt = Date.now();
+    setDaemon("live", `daemon live — v${h.version} · schema ${h.schema}`);
+  } catch {
+    const recent = lastHealthAt && Date.now() - lastHealthAt < 3 * HEARTBEAT_MS;
+    const state = recent ? "reconnecting" : "offline";
+    const changed = lastDaemonState !== state;
+    setDaemon(state,
+      recent ? "Server unreachable — retrying on the next heartbeat"
+             : "Server offline — commands will not run until it returns");
+    if (changed) announce("Connection to the hutch server was lost. Commands are paused until it returns.");
+  }
 }
 
 // ------------------------------------------------------- CHAT STUDIO (CORE)
@@ -555,6 +605,21 @@ async function renderChatFeed(runId) {
   }
 
   stream.innerHTML = html;
+
+  // Announce lifecycle changes once (started -> waiting/finished), and show the
+  // working indicator only while the bot is actually computing.
+  const prevStatus = seenRunStatus.get(runId);
+  if (prevStatus !== run.status) {
+    seenRunStatus.set(runId, run.status);
+    if (run.status === "waiting_approval") {
+      announce(`${run.bot_name || "A bot"} needs your approval before it can continue.`);
+    } else if (prevStatus && ACTIVE.has(prevStatus) && !ACTIVE.has(run.status)) {
+      announce(`Run ${run.status.replace(/_/g, " ")}.`);
+    }
+  }
+  if (run.status === "running" || run.status === "pending") {
+    stream.insertAdjacentHTML("beforeend", typingHtml(run.bot_name || "the bot"));
+  }
   stream.scrollTop = stream.scrollHeight;
 
   wireApprovals();
@@ -617,6 +682,20 @@ function expandedStore(runId) {
   try { return new Set(JSON.parse(localStorage.getItem(`hutch-expanded:${runId}`)) || []); }
   catch { return new Set(); }
 }
+
+// Visual "the bot is working" indicator. Deliberately aria-hidden: the run status
+// chip and the bounded announcer convey state, so a screen reader is not told
+// "typing" on every poll. A waiting-for-human run is not computing, so it gets none.
+function typingHtml(botName) {
+  return `<div class="typing" aria-hidden="true">
+    <span class="typing-dots"><span></span><span></span><span></span></span>
+    <span class="typing-label">${esc(botName)} is working…</span>
+  </div>`;
+}
+
+// Remember the last status we rendered per run so lifecycle changes are announced
+// once (started -> waiting/finished) instead of on every poll.
+const seenRunStatus = new Map();
 
 function renderFeedItem(item, runId) {
   if (item.kind === "tool") return toolLineHtml(item, item.call?.e ?? item.result.e, runId);
@@ -1343,6 +1422,8 @@ function wireCommon() {
 
 route();
 setInterval(refreshBadge, 4000);
+pollHealth();
+setInterval(pollHealth, HEARTBEAT_MS);
 
 /* Full-screen mobile menu (header nav collapses to an overlay) */
 (function () {

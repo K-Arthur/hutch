@@ -30,16 +30,21 @@
     </button>
     <div class="topbar-right">
       <button class="primary small" id="topbar-new-bot">+ New Bot</button>
-      <span id="daemon-pill" class="pill pulse" title="daemon live — schedules, dispatch, approval expiry">live</span>
+      <span id="daemon-pill" class="pill daemon connecting" data-state="connecting" title="Checking executor health…">checking</span>
     </div>
   </header>
 
-  <main id="view" aria-live="polite">
+  <main id="view">
     <div class="empty-state">
       <div class="spinner" role="status" aria-label="Loading"></div>
       <p>Loading…</p>
     </div>
   </main>
+
+  <!-- Bounded status announcer: only lifecycle changes (run started/finished,
+       approval required, connection lost) are announced here — never the whole
+       view on every render, and never each streamed token. -->
+  <div id="live-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
 
   <div id="modal-root"></div>
   <div id="toast-root" class="toast-root" role="status" aria-live="polite"></div>
