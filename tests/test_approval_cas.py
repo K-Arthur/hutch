@@ -7,6 +7,7 @@ both pass the check, and "always allow" could be granted by the loser. An approv
 from __future__ import annotations
 
 import os
+import json
 import subprocess
 import sys
 import textwrap
@@ -62,6 +63,10 @@ def test_gate_request_and_wait_are_observed_atomically_before_gate_returns(store
         with sqlite3.connect(config.db_path) as observer:
             assert observer.execute("SELECT status FROM approvals WHERE id = ?", (req.id,)).fetchone()[0] == "pending"
             assert observer.execute("SELECT status FROM runs WHERE id = ?", (run.id,)).fetchone()[0] == "waiting_approval"
+            events = observer.execute("SELECT type, data FROM events WHERE run_id = ? ORDER BY seq", (run.id,)).fetchall()
+            requests = [json.loads(data) for kind, data in events if kind == "approval_request"]
+            assert len(requests) == 1 and requests[0]["approval_id"] == req.id
+            assert requests[0]["detail"] == req.detail and requests[0]["action_hash"] == req.action_hash
         assert store.decide_approval(req.id, ApprovalStatus.approved, "fixture")[1] == "won"
         return result
 

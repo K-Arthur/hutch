@@ -162,7 +162,7 @@ clients of the same model server. `HUTCH_MODEL_SLOTS` no longer widens inference
 ## What is deliberately NOT here (yet)
 
 Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, artifact versioning, browser handoff,
-interactive remote supervision, durable outbox events for non-run resources and Windows/macOS support — tracked in `docs/roadmap.md`.
+interactive remote supervision and Windows/macOS support — tracked in `docs/roadmap.md`.
 Experimental direct HTTPS pairing has no phone UI and is not a production support claim. The Linux shell has optional, fail-closed bubblewrap
 containment; it is not a VM and does not contain every tool or the browser.
 
@@ -171,6 +171,15 @@ Approvals appear in their transcript and in an explicit cross-bot drawer, using 
 v1 decision command. Activity and run history are secondary monitoring surfaces; Fleet adds
 search/state filtering at ten bots. [Navigation rationale](realignment/navigation.md) records
 compatibility, evidence and the limits of the threshold heuristic.
+
+Schema v11 commits resource invalidations with SQLite mutations through AFTER triggers. Typed
+`/api/v1/changes` pages/SSE replay identifiers from a durable epoch/committed-ID chain; gaps
+require a bounded snapshot whose resource state and cursor share one read transaction. A
+one-second safety poll catches silent cross-process commits. Targeted UI refreshes preserve
+drafts/settings rather than routing the page. Approval admission includes its review event;
+canonical decision summaries cover a missing worker response. Connection-file changes are
+excluded. This outbox does not repair the separate JSONL mirror after a crash. See
+[ADR-0012](adr/0012-resource-outbox-and-reconciliation.md) and restore precautions in operations.
 
 Builtin provider sessions carry per-run route authority separately from model choice. The
 primary selection authorizes its receiving service; a configured hop that changes account,

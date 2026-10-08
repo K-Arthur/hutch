@@ -12,7 +12,11 @@ Status: partially implemented (2026-10-07). Slice: S8. Evidence: baseline "recon
 * **Transport**: per-run and cross-run transcript SSE streams use database-backed cursors and `Last-Event-ID`. The cross-run stream
   orders transcript events by SQLite's committed event ID while preserving each run's local `seq`. Page reads detect a cursor outside
   retained history; clients fetch the bounded resource snapshot and replay transcript events from its watermark. Events are not pruned
-  today, and bot/configuration changes are not yet published in this stream. No interactive terminal or browser-handoff WebSocket route
+  today. A separate schema-v11 resource outbox publishes material SQLite changes at `/api/v1/changes`
+  and `/api/v1/changes/stream`, with history epochs, chained committed IDs and gap reconciliation.
+  Snapshot resource state and `change_cursor` share a read transaction; UI invalidations preserve
+  drafts/focus and include canonical approval decisions. See [ADR-0012](0012-resource-outbox-and-reconciliation.md).
+  Connection-file changes are excluded. No interactive terminal or browser-handoff WebSocket route
   is implemented yet; those controls must use their own authenticated, sequenced contract.
 * **Server owns** status, approval resolution, receipts, permissions and usage. The browser owns drafts, focus and view state. Optimistic UI
   may show "sending", never "done".
@@ -30,8 +34,9 @@ Status: partially implemented (2026-10-07). Slice: S8. Evidence: baseline "recon
 
 ## Consequences
 
-Current boundary: the local `/api/v1` surface and Studio conversation flow are partial; the Studio still uses compatibility routes for
-approval decisions and stop. Pairing and revocable device sessions plus explicit direct HTTPS binding are implemented and fixture-tested.
-Cross-run event replay and bounded reconciliation are implemented, but no durable resource outbox, mobile pairing UI, PTY or browser-control WebSocket route,
+Current boundary: the local `/api/v1` surface and Studio conversation flow are partial. Some
+screens use compatibility routes; approval decisions and Stop use idempotent v1 commands.
+Pairing and revocable device sessions plus explicit direct HTTPS binding are implemented and fixture-tested.
+Cross-run transcript/resource replay and bounded reconciliation are implemented, but no mobile pairing UI, PTY or browser-control WebSocket route,
 configured tunnel support, physical-device test, event-retention policy, or production remote-support claim exists. Keep direct access
 private and operator-controlled.

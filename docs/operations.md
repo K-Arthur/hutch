@@ -46,14 +46,33 @@ managed infrastructure until trusted-proxy handling is documented and validated.
 
 ## Database migration and restore
 
-Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. This realignment branch uses schema v10;
-`hutch doctor` displays the current version. Stop Hutch services before restoring a backup:
+Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. This realignment branch uses schema v11;
+`hutch doctor` displays the current version. Stop Hutch services before restoring a backup.
+Validate a copy in a new isolated directory; preserve the original database, WAL/SHM and backups:
 
 ```bash
-# Replace STATE with the configured Hutch state directory.
-sqlite3 STATE/hutch.db.bak-vN '.backup STATE/hutch.db.restore'
-mv STATE/hutch.db.restore STATE/hutch.db
+# Replace STATE and STATE_RESTORE with the original and a new validation directory.
+mkdir -m 700 STATE_RESTORE
+sqlite3 STATE/hutch.db.bak-vN '.backup STATE_RESTORE/hutch.db'
 ```
+
+For a restored schema-v11 database, rotate its resource-history epoch **before restarting
+services and reconnecting clients**. Keep all Hutch processes stopped while doing this:
+
+```bash
+sqlite3 STATE_RESTORE/hutch.db "UPDATE resource_outbox_meta SET epoch = lower(hex(randomblob(16))) WHERE singleton = 1;"
+```
+
+An older backup has no outbox table; its forward migration creates a fresh epoch. A new epoch
+forces old resource cursors to reconcile instead of accepting reused IDs from a rewound
+history. Direct file replacement without this step is unsupported. Existing run/global numeric
+transcript cursors do not provide this epoch protection; close/reload clients after restore.
+Automatic restore orchestration and JSONL mirror repair remain pending. Inspect the copy with
+`HUTCH_STATE_DIR=STATE_RESTORE hutch status` before running an executor. A backup cannot prove
+which external effects occurred after it was made; queued/inflight work requires reconciliation
+before dispatch. Restored device sessions also require revocation/re-pairing. This procedure
+validates persisted data, not a complete production rollback. Preserve transcript
+files separately; this migration's resource outbox does not make the mirror crash-safe.
 
 Keep the backup until the restored database opens and expected bots, runs, approvals, transcripts, conversations and messages are present. A backup from an
 older schema will migrate forward on open, creating its own versioned backup first. Rollback to older Hutch code requires restoring
@@ -61,7 +80,8 @@ the matching pre-upgrade backup; older code does not honor leases or fencing. Va
 for production state.
 
 Schema v8 gives every pre-existing run a separate imported legacy conversation. Schema v9 adds single-use pairing codes and hashed,
-revocable device sessions. Hutch does not infer that adjacent runs share a
+revocable sessions; schema v11 adds content-free transactional invalidations and history cursors.
+Hutch does not infer that adjacent runs share a
 private context. New conversations and message submissions are written transactionally with their idempotency records. The
 `conversation_fts` index contains message text only; it excludes tool output, credentials, workspaces and bot memory.
 

@@ -2,9 +2,9 @@
 
 One file, WAL mode, ONE writer connection (PF-7): FastAPI workers and daemon
 threads share it behind a lock, and event inserts are queued and committed in
-batches by a single writer thread. Every run's events are appended here AND
-mirrored to an append-only JSONL transcript on disk, so transcripts survive
-even a corrupt DB.
+batches by a single writer thread. Canonical events persist here; a separate
+JSONL mirror can lag after a crash/write failure. Transactional resource
+invalidations provide reconnectable state, not transcript-file delivery.
 
 Events carry a gap-free per-run ``seq`` (the resume cursor for SSE, UI-3) and a
 hash-chain link (SR-11). The schema is versioned with ``PRAGMA user_version``;
@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from .config import hutchConfig, get_config
+from . import durable_changes
 from .lifecycle import TERMINAL, IllegalTransition, LeaseLost, allowed
 from .models import (
     ACTIVE_STATUSES,
@@ -301,8 +302,14 @@ def _migrate_10(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX idx_usage_reservations_account ON usage_reservations(account_id, status, created_at)")
 
 
+def _migrate_11(db: sqlite3.Connection) -> None:
+    """Resource invalidations commit with their state; existing resources require a snapshot."""
+    durable_changes.migrate(db)
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
-_MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10]
+_MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
+               _migrate_11]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -1727,6 +1734,7 @@ class Store:
             self._db.execute("BEGIN")
             try:
                 cursor = int(self._db.execute("SELECT COALESCE(MAX(id), 0) FROM events").fetchone()[0])
+                change_epoch, change_tail = durable_changes.bounds(self._db)
                 bot_rows = self._db.execute("SELECT doc FROM bots ORDER BY name LIMIT ?", (limit + 1,)).fetchall()
                 bot_total = int(self._db.execute("SELECT COUNT(*) FROM bots").fetchone()[0])
                 run_rows = self._db.execute(
@@ -1746,6 +1754,7 @@ class Store:
                     (limit + 1,)).fetchall()
                 conv_total = int(self._db.execute(
                     "SELECT COUNT(*) FROM conversations WHERE archived = 0").fetchone()[0])
+                conversations = [self._with_conversation_authority(row) for row in conv_rows[:limit]]
                 self._db.commit()
             except BaseException:
                 self._db.rollback()
@@ -1754,11 +1763,28 @@ class Store:
         bots = [Bot.model_validate_json(row["doc"]) for row in bot_rows[:limit]]
         runs = [self._run(row) for row in run_rows[:limit]]
         approvals = [ApprovalRequest.model_validate_json(row["doc"]) for row in approval_rows[:limit]]
-        conversations = [dict(row) for row in conv_rows[:limit]]
         totals = {"bots": bot_total, "runs": run_total, "approvals": approval_total, "conversations": conv_total}
         items = {"bots": bots, "runs": runs, "approvals": approvals, "conversations": conversations}
-        return {"event_cursor": cursor, "limit": limit, "items": items, "totals": totals,
+        return {"event_cursor": cursor, "change_cursor": f"{change_epoch}:{change_tail}",
+                "limit": limit, "items": items, "totals": totals,
                 "truncated": {name: total > limit for name, total in totals.items()}}
+
+    def list_resource_changes(self, cursor: str | None = None, limit: int = 200) -> dict[str, Any]:
+        """Replay content-free invalidations in one read snapshot, across process restarts.
+
+        Polling this durable outbox does not depend on a post-commit bus notification.
+        Transcript delivery and external notifications are separate consumers.
+        """
+        self.flush_events()
+        with self._lock:
+            self._db.execute("BEGIN")
+            try:
+                page = durable_changes.read(self._db, cursor, limit)
+                self._db.commit()
+                return page
+            except BaseException:
+                self._db.rollback()
+                raise
 
     @staticmethod
     def _event(r: sqlite3.Row) -> Event:
@@ -1799,7 +1825,7 @@ class Store:
             while self._inflight:
                 self._buf_cv.wait(timeout=0.05)
             mine = [event for event in self._pending if event.run_id == req.run_id] if begin_wait else []
-            kept, emitted = [], None
+            kept, emitted, request_event = [], None, None
             waiting = False
             with self._tx() as db:
                 row = db.execute(f"SELECT bot_id, {_RUN_COLS} FROM runs WHERE id = ?", (req.run_id,)).fetchone()
@@ -1825,6 +1851,14 @@ class Store:
                     kept = self._worker_events(db, req.run_id, mine)
                     row, emitted = self._apply_transition(db, req.run_id, RunStatus.waiting_approval,
                         expected_fence, None, None, {"approval_id": req.id}, False, None, earlier=kept)
+                    request_event = Event(run_id=req.run_id, type=EventType.approval_request,
+                        data={"approval_id": req.id, "tool": req.tool, "action": req.action,
+                              "rule": req.rule, "risk": req.risk, "outward": req.outward,
+                              "expires_at": req.expires_at, "detail": req.detail,
+                              "segments": req.segments, "sticky_key": req.sticky_key,
+                              "plan_id": req.plan_id, "action_hash": req.action_hash,
+                              "conversation_id": row["conversation_id"]})
+                    self._insert_events(db, req.run_id, [request_event])
                     waiting = True
             if waiting:
                 self._run_status[req.run_id] = RunStatus.waiting_approval.value
@@ -1833,7 +1867,7 @@ class Store:
                 self._pending = [event for event in self._pending if id(event) not in done]
                 self._committed += len(mine)
                 self._buf_cv.notify_all()
-                for event in kept + ([emitted] if emitted is not None else []):
+                for event in kept + ([emitted] if emitted is not None else []) + [request_event]:
                     self._fan_out(event)
         self.bus.notify("approvals", "work", f"run:{req.run_id}")
         return req
@@ -1900,6 +1934,26 @@ class Store:
                             _canonical({"approval_id": approval_id, "outcome": outcome}), iso(now)))
         self.bus.notify("approvals", "work", f"approval:{approval_id}", f"run:{req.run_id}")
         return req, outcome
+
+    def approval_states_for_events(self, run_id: str, events: list[Event]) -> dict[str, Any]:
+        """Canonical decisions for review events, even if the worker never emitted its response.
+
+        Scope lookup to this run; bounded chunks also support explicit full-history reads.
+        Arguments remain in the immutable request/event, not duplicated in this summary.
+        """
+        ids = list({str(e.data["approval_id"]) for e in events if e.type is EventType.approval_request
+                    and e.data.get("approval_id")})
+        states = {}
+        with self._lock:
+            for offset in range(0, len(ids), 200):
+                part = ids[offset:offset + 200]
+                marks = ",".join("?" for _ in part)
+                rows = self._db.execute(f"SELECT id, status, json_extract(doc, '$.decided_by') AS decided_by, "
+                    f"json_extract(doc, '$.resolved_at') AS resolved_at FROM approvals "
+                    f"WHERE run_id = ? AND id IN ({marks})", (run_id, *part)).fetchall()
+                states.update({row["id"]: {"result": row["status"], "by": row["decided_by"],
+                                           "resolved_at": row["resolved_at"]} for row in rows})
+        return states
 
     def get_approval(self, approval_id: str) -> Optional[ApprovalRequest]:
         with self._lock:

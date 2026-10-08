@@ -31,6 +31,14 @@ window. Failed refresh retains the review with an explicit stale-details notice 
 A waiting conversation also exposes Review in the header. It scrolls and focuses the inline
 request without focusing the composer; if the request is unavailable, it opens Needs you.
 
+Transactional resource replay now refreshes visible chat, attention and roster after missed
+notifications or reconnect. A history gap reconciles a fresh snapshot. Automatic updates do
+not rebuild the composer/settings form; draft, focus and expanded review details remain local.
+Admission commits its review event with the wait, and canonical decisions replace stale asks
+even if the worker never emits a response. Desktop/tablet/phone fixtures suppress periodic
+fallback and transcript hints, inject a gap, then observe another client's decision. They
+verify local recovery behavior, not physical-device reconnection or user-completion rates.
+
 Monitor contains Activity and Run history. These answer different questions (what needs
 attention now versus what happened), so combining them with conversation history would lose
 useful inspection. At ten bots a searchable Fleet view also appears, with active, paused and

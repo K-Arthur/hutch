@@ -414,6 +414,9 @@ async function refreshRoster() {
 function renderRoster() {
   const list = $("#roster-list");
   if (!list) return;
+  const focus = document.activeElement;
+  const focusedBot = list.contains(focus) ? focus.dataset.switchBot : null;
+  const focusedSettings = list.contains(focus) ? focus.getAttribute("href") : null;
   $("#fleet-nav").hidden = botsCache.length < 10;
   const q = ($("#bot-search")?.value || "").trim().toLowerCase();
   const bots = q ? botsCache.filter(b => b.name.toLowerCase().includes(q) || (b.description || "").toLowerCase().includes(q)) : botsCache;
@@ -438,6 +441,12 @@ function renderRoster() {
   }).join("");
   $$("#roster-list [data-switch-bot]").forEach(row =>
     row.addEventListener("click", () => { location.hash = `#/chat/${encodeURIComponent(row.dataset.switchBot)}`; }));
+  if (focus && !focus.isConnected) {
+    const replacement = focusedBot
+      ? $$("[data-switch-bot]", list).find(el => el.dataset.switchBot === focusedBot)
+      : focusedSettings && $$("a", list).find(el => el.getAttribute("href") === focusedSettings);
+    (replacement || $("#bot-search"))?.focus({ preventScroll: true });
+  }
 }
 
 /* ---------------------------------------------------------------- shell */
@@ -1105,6 +1114,9 @@ async function runBlockHtml(runId) {
   for (const e of events) {
     if (e.type === "approval_resolved") resolvedMap.set((e.data || {}).approval_id, e.data || {});
   }
+  for (const [id, state] of Object.entries(run.approval_states || {})) {
+    if (state.result !== "pending") resolvedMap.set(id, state);
+  }
   const items = groupToolItems(pairToolEvents(events));
   const dur = fmtDur((run.finished_at ? new Date(run.finished_at) : Date.now()) - new Date(run.created_at));
   const running = ACTIVE.has(run.status);
@@ -1435,7 +1447,10 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
 function approvalResolvedHtml(a, outcome, botName = "") {
   const labels = {
     approved: "Approved", denied: "Denied",
-    expired: "Expired — denied by timeout", missing: "No longer exists",
+    expired: a.decided_by === "stopped" ? "Cancelled with this run"
+      : a.decided_by === "owner_expired" ? "Expired — execution lost ownership"
+      : a.decided_by === "timeout" ? "Expired — no decision in time" : "Expired — not approved",
+    missing: "No longer exists",
   };
   const ok = outcome === "approved";
   const by = a.decided_by && outcome !== "expired" && outcome !== "missing" ? ` by ${esc(a.decided_by)}` : "";
@@ -1511,10 +1526,10 @@ function renderChatEvent(e, resolvedMap) {
     case "approval_request": {
       const id = d.approval_id || d.id;
       const done = resolvedMap?.get(id);
-      if (done) {   // the transcript of a finished run shows the real outcome, not a stale ask
+      if (done) {   // canonical decisions survive a crash before the worker's response event
         const outcome = done.result === "approved" ? "approved"
           : String(done.result).startsWith("expired") ? "expired" : "denied";
-        return approvalResolvedHtml({ ...d, approval_id: id, decided_by: done.by || "" }, outcome);
+        return approvalResolvedHtml({ ...d, approval_id: id, decided_by: done.by || "", resolved_at: done.resolved_at || "" }, outcome);
       }
       const deadline = d.expires_at ? new Date(d.expires_at).getTime()
         : (e.ts ? new Date(e.ts).getTime() + 10 * 60 * 1000 : 0);
@@ -2151,8 +2166,11 @@ async function renderBotDetail(name) {
 /* ------------------------------------------------------------- run detail */
 
 async function renderRunDetail(runId) {
+  const generation = studioGeneration;
+  const stillCurrent = () => generation === studioGeneration && location.hash === `#/run/${runId}`;
   feedMode = "run";
   const r = await api(`/runs/${runId}`);
+  if (!stillCurrent()) return;
   currentStudioBot = r.bot_name;
   currentRunId = runId;
   setTopContext(`
@@ -2204,8 +2222,10 @@ async function renderRunDetail(runId) {
       </div>
     </div></div>`;
   // append the transcript block below the stats
+  const stream = $("#chat-stream");
   const block = await runBlockHtml(runId);
-  $("#chat-stream").insertAdjacentHTML("beforeend", block);
+  if (!stillCurrent() || !stream.isConnected) return;
+  stream.insertAdjacentHTML("beforeend", block);
   $("#stop-this-run")?.addEventListener("click", async () => {
     await api(`/runs/${runId}/stop`, { method: "POST" });
     toast("Stop requested — already-finished steps are not undone.");
@@ -2443,10 +2463,81 @@ function wireCommon() {
 
 /* ------------------------------------------------------------------ boot */
 
+// Replay identifiers, then fetch authoritative state. Keep drafts/settings and
+// their focus owned by the browser; resource updates never route the whole page.
+let resourceStream = null, resourceStarting = false, resourceRetry = null, resourceRefreshTimer = null;
+const changedResources = new Set();
+
+function refreshChangedResources(resources) {
+  resources.forEach(resource => changedResources.add(resource));
+  if (resourceRefreshTimer) return;
+  resourceRefreshTimer = setTimeout(() => {
+    resourceRefreshTimer = null;
+    const changed = new Set(changedResources);
+    changedResources.clear();
+    if (["bots", "runs", "usage", "usage_reservations"].some(r => changed.has(r))) void refreshRoster();
+    if (["approvals", "runs"].some(r => changed.has(r))) {
+      void refreshBadge();
+      if (needsYouDialog.open) void refreshApprovals();
+    }
+    if (["messages", "conversations", "runs", "approvals"].some(r => changed.has(r))) {
+      const visibleHash = location.hash || "#/chat";
+      if (/^#\/chat(?:\/|$)/.test(visibleHash) || /^#\/run\/[\w-]+$/.test(visibleHash)) scheduleFeedRender();
+    }
+  }, 250);
+}
+
+async function startResourceStream() {
+  if (resourceStarting || resourceStream || typeof EventSource === "undefined") return;
+  resourceStarting = true;
+  clearTimeout(resourceRetry);
+  try {
+    // A fresh page or a retention/history gap first reconciles state at a
+    // consistent cursor. The targeted readers cover the visible resources;
+    // snapshot items are not merged into potentially stale page state.
+    const snapshot = await api("/v1/snapshot?limit=1");
+    const source = new EventSource(`/api/v1/changes/stream?cursor=${encodeURIComponent(snapshot.change_cursor)}`);
+    resourceStream = source;
+    refreshChangedResources(["bots", "runs", "approvals", "conversations"]);
+    source.addEventListener("changes", event => {
+      if (source !== resourceStream) return;
+      try {
+        const page = JSON.parse(event.data);
+        for (const change of page.changes) {
+          if (change.context.run_id) terminalRunCache.delete(change.context.run_id);
+          if (change.resource === "runs") terminalRunCache.delete(change.resource_id);
+        }
+        refreshChangedResources(page.changes.map(change => change.resource));
+      } catch { reconcileResourceStream(source); }
+    });
+    source.addEventListener("snapshot_required", () => reconcileResourceStream(source));
+    // EventSource preserves Last-Event-ID on ordinary reconnect. Only a
+    // server-declared gap replaces its cursor; periodic readers remain fallback.
+  } catch {
+    resourceRetry = setTimeout(startResourceStream, 3000);
+  } finally { resourceStarting = false; }
+}
+
+function reconcileResourceStream(source) {
+  if (source !== resourceStream) return;
+  source.close();
+  resourceStream = null;
+  terminalRunCache.clear();
+  resourceRetry = setTimeout(startResourceStream, 1500);
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    refreshChangedResources(["bots", "runs", "approvals", "conversations"]);
+    void startResourceStream();
+  }
+});
+
 $("#topbar-new-bot")?.addEventListener("click", promptNewBot);
 route();
 void loadStatusInfo();
 refreshRoster();
+void startResourceStream();
 setInterval(() => { refreshBadge(); }, 6000);
 setInterval(refreshRoster, 20000);   // roster activity, gentle
 pollHealth();

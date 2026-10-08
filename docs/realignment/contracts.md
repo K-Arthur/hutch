@@ -40,6 +40,7 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
 * Landed local routes: `/api/v1/health`, `/api/v1/status-labels`, `/api/v1/bots`, `/api/v1/conversations`,
   `/api/v1/search/messages`, `/api/v1/tasks/runs`, `/api/v1/actions/approvals`, `/api/v1/usage`, `/api/v1/connections`,
   `/api/v1/schedules`, `/api/v1/capabilities`, cross-run transcript pages and stream at `/api/v1/events` and `/api/v1/events/stream`,
+  resource change pages and stream at `/api/v1/changes` and `/api/v1/changes/stream`,
   bounded reconciliation at `/api/v1/snapshot`, and partial remote device resources at `/api/v1/pairing/exchange` and
   `/api/v1/devices`. Versioned bot, run and approval lists accept bounded `limit`/`offset` pages; the legacy bot and approval
   aliases keep their prior response behavior.
@@ -60,13 +61,26 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
 * Versioned stop and approval resolve commands require `Idempotency-Key`. Approvals also require the reviewed `action_hash`; reuse
   with different arguments conflicts. Resume and legacy bot-run commands do not yet accept keys. Global replay currently retains
   all events; automatic retention/pruning policy remains unimplemented. A missing leading range or a restored database behind a
-  client cursor is detected and requires snapshot reconciliation. This stream contains run transcript events; other resource changes
-  are not yet published as durable events.
+  client cursor is detected and requires snapshot reconciliation. This stream contains run transcript events.
+* Schema v11 publishes content-free resource invalidations through `/api/v1/changes?cursor=...&limit=200`
+  (maximum 500). Each page returns `changes`, opaque `cursor`/`high_water` and `has_more`.
+  Changes contain resource/id, operation, timestamp and contextual bot/run/conversation IDs.
+  They exclude message/argument/fact content and secrets. Fetch authoritative resources after an
+  invalidation; never infer their current state from the operation. Routine lease/device touches
+  do not publish changes; connection files and unimplemented workspace/artifact resources are excluded.
+  SSE carries the page as `event: changes`, using the page cursor as its ID. `Last-Event-ID` wins
+  over the initial `cursor`, including invalid headers which require reconciliation. Missing
+  history, malformed/foreign/future cursors return 409 `snapshot_required` on pages, or the same
+  event without an ID before closing SSE. Fetch a snapshot and its remaining resource pages,
+  then replay from `change_cursor`; this cursor shares the snapshot's read transaction.
+  A new client starts with a snapshot; migration does not invent historic invalidations.
+  Retention remains manual. A restored v11 history needs epoch rotation before services/clients
+  restart; see [operations](../operations.md). This outbox does not deliver JSONL files.
 * Pairing codes expire after 60 seconds and are single use. They issue HttpOnly device sessions, hash-only at rest, with a sliding
   30-day expiry. Operators can list/revoke sessions using `hutch pairing list` and `hutch pairing revoke <device-id>`; pairing is
   limited to five failed attempts per source IP per ten minutes. Off-loopback binding requires `hutch serve --allow-remote` and direct
-TLS certificate/key files. This has fixture coverage but no phone UI or live network/device validation. A durable outbox for
-non-run resource changes, workspace/artifact resources and verified capability records are not available; the marketing site cannot
+TLS certificate/key files. This has fixture coverage but no phone UI or live network/device validation.
+Workspace/artifact resources and verified capability records are not available; the marketing site cannot
 reach localhost.
 
 ## 4. Frontend acceptance items taken from the evidence ledger
@@ -116,6 +130,12 @@ not infer “working” from any active state. Approval list resources include `
 contextual navigation. Approval events include `action_hash`, used by the shared inline/drawer
 review card for idempotent v1 decisions. Legacy routes stay valid; the UI uses history replacement
 for aliases. See [navigation.md](navigation.md) for the rationale and acceptance scenarios.
+
+Worker request, waiting status and review event commit in one transaction. Run detail/event
+responses include `approval_states`, scoped to review IDs in that run's event window, with
+canonical result, deciding actor and resolution time. This overrides a missing worker response
+event. Resource replay refreshes chat/roster/attention without rebuilding the composer or
+settings form; drafts, focus and review expansion remain browser-owned.
 
 Local inference waits use `waiting_resources` with an authoritative `reason` and queue-position
 status events. Run `queue_ms` records waits that acquired capacity, including startup; step events

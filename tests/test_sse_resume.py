@@ -36,7 +36,7 @@ def live(tmp_path, monkeypatch):
     t.join(timeout=10)
 
 
-def parse_sse(lines):
+def parse_sse(lines, *, text_ids=False):
     """Yield (event, id, data) from an iterator of SSE lines."""
     ev, id_, data = "message", None, []
     for line in lines:
@@ -47,7 +47,7 @@ def parse_sse(lines):
         elif line.startswith("event:"):
             ev = line[6:].strip()
         elif line.startswith("id:"):
-            id_ = int(line[3:].strip())
+            id_ = line[3:].strip() if text_ids else int(line[3:].strip())
         elif line.startswith("data:"):
             data.append(line[5:].strip())
 
@@ -210,6 +210,92 @@ def test_global_cursor_gap_returns_bounded_snapshot_and_resume_cursor(live):
     assert page["after"] == snapshot["event_cursor"]
     assert all(event["id"] > snapshot["replay_after"] for event in page["events"])
     assert len(bots) == 2
+
+
+def test_resource_stream_header_wins_and_silent_cross_process_write_is_polled(live):
+    import sqlite3
+    base, app = live
+    store = app.state.store
+    first = store.create_bot(Bot(name="changes-first"))
+    cursor = store.list_resource_changes()["cursor"]
+    second = Bot(name="changes-silent", instructions="DO NOT COPY THIS CONTENT")
+    # Start with no new rows and no notification. Another SQLite connection commits
+    # after response headers; the server's safety poll must discover it.
+    with httpx.stream("GET", f"{base}/api/v1/changes/stream?cursor=foreign:0",
+                      headers={"Last-Event-ID": cursor}, timeout=10) as response:
+        assert response.status_code == 200
+        with sqlite3.connect(store.config.db_path) as writer:
+            writer.execute("INSERT INTO bots(id,name,doc) VALUES (?, ?, ?)",
+                           (second.id, second.name, second.model_dump_json()))
+        for kind, event_id, data in parse_sse(response.iter_lines(), text_ids=True):
+            if kind == "changes":
+                payload = json.loads(data)
+                assert event_id == payload["cursor"]
+                assert [item["resource_id"] for item in payload["changes"]] == [second.id]
+                assert first.id not in data and second.instructions not in data
+                break
+            assert kind != "snapshot_required"
+
+
+def test_resource_pages_snapshot_and_retention_reconciliation(live):
+    base, app = live
+    store = app.state.store
+    for i in range(3):
+        store.create_bot(Bot(name=f"resource-page-{i}"))
+    first = httpx.get(f"{base}/api/v1/changes?limit=1").json()
+    assert len(first["changes"]) == 1 and first["has_more"]
+    later = httpx.get(f"{base}/api/v1/changes", params={"cursor": first["cursor"]}).json()
+    assert len(later["changes"]) == 2 and not later["has_more"]
+    assert first["cursor"] != later["cursor"] == later["high_water"]
+    snapshot = httpx.get(f"{base}/api/v1/snapshot?limit=1").json()
+    assert snapshot["change_cursor"] == later["cursor"] and snapshot["truncated"]["bots"]
+    assert httpx.get(f"{base}/api/v1/changes", params={"cursor": snapshot["change_cursor"]}).json()["changes"] == []
+    with store._tx() as db:
+        db.execute("DELETE FROM resource_outbox WHERE id = 2")
+    response = httpx.get(f"{base}/api/v1/changes", params={"cursor": first["cursor"]})
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "snapshot_required"
+    with httpx.stream("GET", f"{base}/api/v1/changes/stream", headers={"Last-Event-ID": first["cursor"]},
+                      timeout=10) as response:
+        for kind, event_id, data in parse_sse(response.iter_lines(), text_ids=True):
+            assert kind == "snapshot_required" and event_id is None
+            assert json.loads(data)["snapshot_url"] == "/api/v1/snapshot"
+            break
+
+
+def test_resource_cursor_survives_a_real_server_restart(tmp_path, monkeypatch):
+    import contextlib
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "resource-restart"))
+
+    @contextlib.contextmanager
+    def server_session():
+        app = create_app()
+        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=0, log_level="error", lifespan="on"))
+        thread = threading.Thread(target=server.run, daemon=True)
+        thread.start()
+        try:
+            deadline = time.monotonic() + 10
+            while not server.started and thread.is_alive() and time.monotonic() < deadline:
+                time.sleep(0.02)
+            assert server.started
+            yield f"http://127.0.0.1:{server.servers[0].sockets[0].getsockname()[1]}", app
+        finally:
+            server.should_exit = True
+            thread.join(10)
+            assert not thread.is_alive()
+
+    with server_session() as (base, app):
+        app.state.store.create_bot(Bot(name="before-resource-restart"))
+        cursor = httpx.get(f"{base}/api/v1/changes").json()["cursor"]
+    with server_session() as (base, app):
+        bot = app.state.store.create_bot(Bot(name="after-resource-restart"))
+        with httpx.stream("GET", f"{base}/api/v1/changes/stream", headers={"Last-Event-ID": cursor},
+                          timeout=10) as response:
+            for kind, event_id, data in parse_sse(response.iter_lines(), text_ids=True):
+                assert kind == "changes"
+                assert [item["resource_id"] for item in json.loads(data)["changes"]] == [bot.id]
+                assert event_id.startswith(cursor.split(":")[0] + ":")
+                break
 
 
 def test_resume_survives_a_server_restart_because_the_database_is_the_source_of_truth(tmp_path, monkeypatch):

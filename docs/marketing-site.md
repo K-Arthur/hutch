@@ -35,8 +35,8 @@ The site intentionally removed unattributed forum IDs, unsupported spend-guarant
 
 `website/assets/captures/proof-*.webp` are 1280×889 derivatives of the desktop waiting, completion,
 run-detail and Activity captures in `docs/realignment/artifacts/navigation/`. They show the
-conversation-control tree based on `82885e4` with provider-settlement repairs, captured at
-10:17 UTC on 2026-10-08, after the composer merge, lease-expiry and local-admission repairs.
+conversation-control tree based on `c40336e` with schema-v11 resource replay/atomic review events,
+captured at 10:57 UTC on 2026-10-08, after the composer merge, settlement, lease-expiry and local-admission repairs.
 `results.json` records source hashes, Python 3.13.15, Firefox 155,
 Playwright 1.63.0 and Pillow 12.3.0, with UTC capture time. The source used temporary isolated
 state, three demo bots followed by ten for Fleet, and deterministic `mock/demo` inference.
@@ -57,3 +57,10 @@ that a separate Approvals page is required. Activity and run history are monitor
 Fleet is progressive navigation at ten bots. The threshold is a product heuristic, not a measured
 user-research result. Sanitized captures are refreshed from isolated deterministic mock state;
 no executor credentials or localhost requests are added to the static site.
+
+Schema-v11 replay strengthens local chat/attention recovery and has viewport/browser fixtures.
+It does not change the site's remote-phone-control or provider support labels. New inspected
+captures in `realignment/artifacts/resource-replay/` demonstrate local admission and draft
+preservation; they are not physical-device or live-provider evidence. The site images retain
+their separately recorded 10:57 navigation-capture provenance. The four site proof images were
+refreshed from that capture, while public support labels retain the same limits.

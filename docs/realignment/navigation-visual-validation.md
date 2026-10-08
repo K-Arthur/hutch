@@ -1,8 +1,8 @@
 # Navigation functional and visual verification
 
-Captured 2026-10-08 at 10:17 UTC with Python 3.13.15, Playwright 1.63.0, Firefox 155
-and Pillow 12.3.0. The capture used `82885e4` with the provider-settlement repair in its
-working tree, after the resolved merge of `main` at `d7d0029` and conversation control fixes.
+Captured 2026-10-08 at 10:57 UTC with Python 3.13.15, Playwright 1.63.0, Firefox 155
+and Pillow 12.3.0. The capture used `c40336e` with schema-v11 resource replay and atomic review
+events in its working tree, after the resolved merge of `main` at `d7d0029` and conversation control fixes.
 Source hashes are retained. This is local fixture
 evidence, not a physical-phone, screen-reader or live provider certification.
 
@@ -35,8 +35,16 @@ frontend merge passed **32 browser/site tests in 68.78s** and **22 focused shell
 and approval tests in 4.54s**. After the control/Review and provider-settlement fixes the
 browser/site repeat passed **34 tests in 103.12s**. After atomic approval-wait admission,
 the full offline repeat passed **1,089 tests in 233.42s** and browser/site repeat passed
-**34 tests in 89.16s**. That later repair changed backend source; the 10:17 navigation/site
-images predate it, while the browser-generated scenarios have their own current hashes.
+**34 tests in 89.16s**. Resource replay then passed **1,104 offline tests in 240.52s**;
+the added scoped-decision/restore checks passed **24 tests in 1.49s**, and the final focused
+core/API/replay suite passed **59 tests in 13.16s**. The full run collected before the final
+scoped-decision test was added. Browser checks passed **37 tests in 110.99s** before the
+visible-route guard; the expanded run reported **36 passed, 1 failed in 129.41s** because the
+tablet fixture edited the old form before navigation loaded. Waiting for the new heading
+preserves the intended late-response assertion; all three viewport journeys then passed
+**3 tests in 22.87s**. The corrected full browser/site repeat passed **37 tests in 118.02s**.
+The 10:57 navigation capture
+pins the completed application source; browser-generated scenarios have their own current hashes.
 Conversation-order assertions verify
 one user prompt preceding its assistant block, with no prompt echoed as an assistant answer
 while waiting. A two-message queue checks that the earlier active run stays fresh after the
@@ -49,6 +57,14 @@ cancelling, error, reconnecting and the website. The approval and completion are
 deterministic mock journeys. Loading/cancelling use held synthetic lifecycle records;
 error/reconnecting use intercepted failed requests. They do not prove physical cleanup,
 actual model loading or remote-device reconnection; backend regressions cover their authority.
+
+Three additional full-size captures in `artifacts/resource-replay/` were inspected at desktop,
+tablet and phone sizes. Their journey suppresses fallback timers and transcript hints,
+reconciles an injected history gap, observes real atomic approval admission, preserves an
+unsent draft/focus, and reflects a second client's denial without a worker resolution event.
+It then checks unsaved settings survive other resource changes and a delayed run response.
+The waiting view is captured before denial; the final settings assertions are browser evidence,
+not screenshots of physical-device behavior. Source hashes accompany each viewport.
 
 Inspected all three refreshed contact sheets for layout and state changes. Individual full-size
 composer options were inspected at desktop, tablet and phone sizes, plus tablet/phone cancelled
@@ -65,7 +81,7 @@ three sizes. Full-size desktop wait, phone wait/timing and tablet timing were in
 are synthetic records; cross-process and runtime HTTP fixtures verify actual admission separately.
 The two additional `artifacts/conversation-authority/` captures were inspected after exercising
 header Review, failure retention and real Stop against a synthetic old wait and seven queued turns.
-All three 10:17 contact sheets and the full-size phone wait were inspected after recapture;
+All three 10:57 contact sheets and the full-size phone wait were inspected after recapture;
 Review and the complete waiting label remain visible, with decisions above the composer.
 
 | Check | Observed result |

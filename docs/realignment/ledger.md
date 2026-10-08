@@ -25,7 +25,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | S5 providers, budgets and external runtimes | Partial; shared usage reservations implemented, adapters fail closed | OpenCode v2.0.24 is installed and its CLI contract was inspected. Existing OpenCode/Pi adapters bypassed Hutch approvals and budgets, so execution now fails before process creation. Schema v10 reserves estimated tokens/currency atomically across Hutch runs and configured accounts, settles reported use once, and holds uncertain requests for terminal-only reconciliation. Price-based currency limits are estimates, not provider-billing guarantees. Re-enable external runtimes only after sandboxing, brokered permissions and protocol tests. Pi is unavailable; no live run or paid/provider request has been made. Local calls now use one kernel-owned slot and eight FIFO waiters; human waits release the slot. Native Ollama checks current headroom before generation; other local backends lack validated memory admission, and strict modes/provenance remain pending. Latest offline suite: 1,056 passed; browser/site suite: 29 passed. |
 | S6 conversations and bounded collaboration | Conversation foundation partial; collaboration pending | Schema v8 stores conversations/messages, imports each old run separately, uses bounded context snapshots in builtin runs and explicit FTS5 message search. Studio supports thread switching, durable history and archive. Transactional idempotency is tested across restart. Standing tasks, workspaces/artifacts, scoped fact memory, notifications and delegation remain. |
 | S7 browser ownership and handoff | Partial | Browser context state is instance-owned and persistent profile paths are per-bot; fixture test verifies no profile crossover. Live handoff, pinned egress and browser process supervision remain unavailable. |
-| S8 versioned API and remote supervision | Partial; API replay improvements in `cd4f402`; remote remains experimental | `/api/v1` covers health/status labels, bounded bot/run/approval pages, conversations/search, cross-run transcript cursors, snapshot reconciliation, usage, connection metadata, schedules and capability records. Conversation create/message/archive, stop, and approval resolve commands are idempotent; changed arguments conflict. Schema v9 adds one-use pairing codes, hash-only revocable device sessions and per-source rate limits. Direct remote binding requires explicit TLS. A durable outbox for non-run resource changes, automatic event pruning, workspaces/artifacts, phone UI, interactive control routes, trusted tunnel and live device/network checks remain. |
+| S8 versioned API and remote supervision | Partial; API replay improvements in `cd4f402`; remote remains experimental | `/api/v1` covers health/status labels, bounded bot/run/approval pages, conversations/search, cross-run transcript cursors, snapshot reconciliation, usage, connection metadata, schedules and capability records. Conversation create/message/archive, stop, and approval resolve commands are idempotent; changed arguments conflict. Schema v9 adds one-use pairing codes, hash-only revocable device sessions and per-source rate limits. Direct remote binding requires explicit TLS. Schema v11 adds transactional resource invalidations, history cursors, snapshot reconciliation and targeted Studio refresh. Durable JSONL delivery, automatic event pruning, workspaces/artifacts, phone UI, interactive control routes, trusted tunnel and live device/network checks remain. |
 | S9 product integration, performance and visual validation | Partial; evidence captured in `896a774` | Final screenshots and traces cover desktop/tablet/phone, plus fixture-driven empty/loading/error/approval/cancelling/reconnecting UI states. Internal site CTA targets, phone overflow, page errors, reduced motion, tablist arrows and mobile-menu focus were checked. A misleading static `LIVE` badge is now `DEMO`. Same-harness baseline/current measurements retain raw repetitions. The full regression suite still needs to run after the latest slices. This is not screen-reader, real-device or full workflow certification. See `visual-validation.md` and `performance.md`. |
 
 ## Commits
@@ -453,3 +453,48 @@ browser/site repeat passed **34 tests in 89.16s** after the atomic-wait source c
 Emoji audit and diff checks passed. The unreferenced durable-change module and its standalone
 tests were added after full-suite collection; they are excluded from this verification and
 commit and need their own Store/API integration. No paid call, push or final release.
+
+Authority checkpoint commit: `c40336e`.
+
+## Transactional resource replay and atomic review events (2026-10-08)
+
+Schema v11 installs content-free invalidations in the same SQL transaction as material
+resource changes. Chained committed IDs and a stable epoch detect missing ranges, including
+an empty retained log, without assuming consecutive AUTOINCREMENT IDs. Typed pages/SSE share
+the cursor; snapshots pin state/cursor together. A one-second poll catches silent writers.
+Migration preserves v10 data with a SQLite-backup-API snapshot. Restoring/upgrading that copy
+creates a distinct history. Existing resources require a fresh snapshot; connection-file
+updates and automatic retention are excluded. This is not JSONL delivery or remote control.
+
+The initial Store/API/migration integration passed **30 tests in 2.80s**. Process-death,
+competing-writer, snapshot, v10 migration and real-socket replay checks passed **43 tests in
+9.46s**, then crash/replay checks passed **20 tests in 6.81s**. Audit found review-event
+publication still followed approval/wait admission; all three now commit together. Run/event
+resources also return scoped canonical decisions, preventing a missing worker response
+leaving a stale ask. The first expanded check reported **63 passed, 1 failed in 32.72s** due
+to a missing json import in the new observer assertion, corrected without removing it.
+The repeat passed **95 tests in 40.90s**. The full offline run passed **1,104 tests in 240.52s**
+with unhandled thread warnings as failures. A later scoped-decision and v10 backup-restore
+addition passed **24 tests in 1.49s** and **59 focused tests in 13.16s**; the full collection
+predates that final added test, while production backend behavior is unchanged.
+
+Three replay journeys passed **3 tests in 12.11s**, then added second-client decisions passed
+**3 in 14.62s**. All three full-size captures were inspected. The browser/site run passed
+**37 tests in 110.99s** before a visible-route guard. Diff review found old run-mode metadata
+could refresh run detail after navigation to settings; the guard now checks the visible hash
+and discards delayed run responses after navigation. The expanded run reported **36 passed,
+1 failed in 129.41s** because the tablet fixture filled the old form before the new settings
+response arrived. Waiting for the loaded heading keeps the late-response check meaningful;
+all three corrected journeys passed **3 tests in 22.87s**. A corrected full repeat follows.
+
+The corrected full browser/site repeat passed **37 tests in 118.02s**. Final source hashes
+accompany the three refreshed replay views; the source-frozen navigation capture uses the
+same application source. No source changed after its capture.
+
+The 10:57 UTC source-frozen application/site capture returned **39 views**, no errors or
+overflow, three traces and refreshed proof WebPs. All three inspection sheets and the
+full-size phone wait were inspected. Captures use temporary mock state, not provider or
+physical-device access. Operations now validates restore into an isolated directory and
+documents epoch rotation, device revocation and uncertain post-backup effects; safe automatic
+production rollback and recoverable JSONL delivery remain pending. Diff, JS syntax, token
+contrast and emoji checks passed. No paid call, publication or final integration.

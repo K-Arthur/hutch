@@ -51,7 +51,8 @@
   FTS5 search. The Studio selects threads, displays restart-persistent history and archives without deleting it.
 - **API: partial.** Versioned health, status labels, bots, conversations, search, runs, approvals and usage aliases are present.
   Create/message/archive, stop, and approval resolution use transactional idempotency. Cross-run ordered transcript SSE, bounded
-  event pages and snapshot reconciliation are present; a durable outbox for non-run resource changes, event retention,
+  event pages and snapshot reconciliation are present. Schema v11 adds transactional resource invalidations,
+  epoch/committed-ID replay, canonical approval summaries and targeted UI refresh. Durable JSONL delivery, event retention,
   workspaces/artifacts, capability verification, and idempotent resume/bot-run commands remain open.
 - **Remote pairing: experimental.** Direct off-loopback access requires explicit TLS binding. One-time codes issue revocable device
   sessions; source-IP attempts are throttled. The phone UI, PTY/browser controls, tunnel path, and physical-device verification remain

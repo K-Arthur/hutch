@@ -1,0 +1,19 @@
+{
+  "captured_at": "2026-10-08T11:02:52.604377+00:00",
+  "browser": "firefox",
+  "version": "155.0",
+  "viewport": [
+    1440,
+    1000
+  ],
+  "scenario": "real approval admission, fixture gap, fallback timers/transcript hints disabled",
+  "page_errors": [],
+  "horizontal_overflow": 0,
+  "draft_and_focus_preserved": true,
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "d4a46ec27ae2b4654b296262228b36e7949ee70a258e063679f6c327ff0279b0",
+    "src/hutch/store.py": "832d02ede189b37f2e13e4447391356a69649e57f0a83a9144aee3021e513a35",
+    "src/hutch/server/app.py": "6f025cb8d71e2fedb8e19878792e1c38745cfc0ce874341ef7e7c9c76470d245",
+    "src/hutch/approvals.py": "ec990a03df776b431c0a2c029b0f755ed6557fbd2f0ed72d9334b3584c522958"
+  }
+}

@@ -29,6 +29,11 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   and stale workers cannot admit a new request.
 
 ### Added
+- **Transactional resource replay:** schema v11 adds content-free invalidations with typed pages/SSE,
+  history cursors, gap detection and consistent snapshot reconciliation. Silent process commits
+  remain replayable; chat/attention updates preserve drafts and focus. Approval admission includes
+  its inline review event, and canonical decisions survive a missing worker response. The separate
+  JSONL mirror still needs recoverable delivery; no remote-support claim is added.
 - **Bounded local inference:** one caller and eight FIFO waiters across Hutch processes. The slot
   releases before tools/human waits, Stop removes queued callers before reservation, and kernel
   ownership expires on process death. Native Ollama rechecks measured memory headroom; fit remains

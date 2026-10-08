@@ -18,6 +18,14 @@ not measured prevalence).
 
 The realignment ledger records which behavior is tested, which is only documented, and which requires live provider or device access.
 
+Worker review requests, wait state and inline review events commit together. Canonical decision
+summaries override stale transcript asks after a worker crash. Schema v11 resource replay
+contains identifiers rather than message, argument or secret content; clients fetch current
+resources and preserve draft/focus during refresh. Gaps require snapshot reconciliation, and
+restored histories need epoch rotation. This outbox does not repair the separate JSONL mirror;
+SQLite remains the canonical transcript source. See [operations](operations.md) and
+[ADR-0012](adr/0012-resource-outbox-and-reconciliation.md).
+
 Provider account/destination changes require per-run outward approval. The exact route and
 revision are checked again before provider creation; cached clients cannot retain a removed or
 rotated connection key. Generic hosted sticky grants and the old legacy key-routing escape

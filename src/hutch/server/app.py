@@ -17,7 +17,7 @@ import os
 import platform
 import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
@@ -27,6 +27,7 @@ from pydantic import BaseModel, Field
 from .. import __version__
 from ..approvals import resolve_approval, resolve_approval_ex
 from ..config import get_config
+from ..durable_changes import SnapshotRequired
 from ..engine import Engine, bot_prompt_for_schedule
 from ..lifecycle import LABELS
 from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, CommandRule, Limits, RiskTier, Run, RunStatus, Schedule, Task
@@ -34,7 +35,7 @@ from ..store import IdempotencyConflict, Store
 from ..templates import TEMPLATE_INFO, TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
 from .security import DEVICE_COOKIE, SecurityMiddleware
-from .sse import global_event_stream, resume_cursor, run_event_stream
+from .sse import global_event_stream, resource_change_stream, resume_cursor, run_event_stream
 
 _STATIC = Path(__file__).parent / "static"
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,40}$")
@@ -204,9 +205,27 @@ class EventPageResource(BaseModel):
     has_more: bool
 
 
+class ResourceChange(BaseModel):
+    id: int
+    resource: Literal["bots", "conversations", "messages", "runs", "tasks", "approvals", "actions", "usage",
+                      "usage_reservations", "memory", "permissions", "devices"]
+    resource_id: str
+    operation: Literal["created", "updated", "deleted"]
+    ts: str
+    context: dict[str, Optional[str]]
+
+
+class ChangePageResource(BaseModel):
+    changes: list[ResourceChange]
+    cursor: str
+    high_water: str
+    has_more: bool
+
+
 class SnapshotResource(BaseModel):
     event_cursor: int
     replay_after: int
+    change_cursor: str
     limit: int
     items: dict[str, list[dict[str, Any]]]
     totals: dict[str, int]
@@ -356,6 +375,22 @@ def create_app() -> FastAPI:
         return StreamingResponse(global_event_stream(request, store, cursor), media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
+    @app.get("/api/v1/changes", response_model=ChangePageResource)
+    def resource_changes(cursor: Optional[str] = None, limit: int = 200) -> dict:
+        """Ordered, content-free resource invalidations. Fetch each changed resource's authoritative state."""
+        try:
+            return store.list_resource_changes(cursor, limit)
+        except SnapshotRequired as exc:
+            raise HTTPException(409, detail={"code": "snapshot_required", "reason": "change_cursor_unavailable",
+                                             "message": str(exc), "snapshot_url": "/api/v1/snapshot"}) from exc
+
+    @app.get("/api/v1/changes/stream")
+    async def resource_changes_stream(request: Request, cursor: Optional[str] = None) -> StreamingResponse:
+        """Last-Event-ID overrides the initial cursor, including malformed IDs requiring reconciliation."""
+        cursor = request.headers.get("last-event-id", cursor)
+        return StreamingResponse(resource_change_stream(request, store, cursor), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
     @app.get("/api/v1/snapshot", response_model=SnapshotResource)
     def api_snapshot(limit: int = 100) -> dict:
         """Bounded consistent state for resynchronizing after an expired event cursor.
@@ -395,7 +430,8 @@ def create_app() -> FastAPI:
                 next_urls[name] = None
             elif "?" in paths[name]:
                 next_urls[name] = f"{paths[name]}&limit={limit}&offset={limit}"
-        return {"event_cursor": snap["event_cursor"], "replay_after": snap["event_cursor"], "limit": limit,
+        return {"event_cursor": snap["event_cursor"], "replay_after": snap["event_cursor"],
+                "change_cursor": snap["change_cursor"], "limit": limit,
                 "items": items, "totals": snap["totals"], "truncated": snap["truncated"], "next": next_urls}
 
     @app.post("/api/v1/pairing/exchange")
@@ -750,6 +786,7 @@ def create_app() -> FastAPI:
         total = store.count_events(run_id)
         window = store.tail_events(run_id, events) if events else store.list_events(run_id)
         view["events"] = [e.model_dump() for e in window]
+        view["approval_states"] = store.approval_states_for_events(run_id, window)
         view["event_count"] = total
         view["events_truncated"] = bool(window) and window[0].seq > 1
         return view
@@ -762,7 +799,8 @@ def create_app() -> FastAPI:
         limit = max(1, min(limit, 1000))
         evs = (store.events_before(run_id, before, limit) if before
                else store.list_events(run_id, after_seq=after, limit=limit))
-        return {"events": [e.model_dump() for e in evs], "status": run.status.value,
+        return {"events": [e.model_dump() for e in evs], "approval_states": store.approval_states_for_events(run_id, evs),
+                "status": run.status.value,
                 "last_seq": store.last_seq(run_id)}
 
     @app.get("/api/runs/{run_id}/stream")

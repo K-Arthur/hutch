@@ -717,6 +717,106 @@ def test_queued_chat_keeps_earlier_approval_and_live_status_fresh(browser, live)
     page.close()
 
 
+@pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (900, 1024, "tablet"), (390, 844, "phone")])
+def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(browser, live, monkeypatch, width, height, size):
+    import hashlib
+    import json
+    from pathlib import Path
+    from hutch.approvals import ApprovalGate
+    from hutch.models import Run, Task, iso, utcnow
+    from hutch.safety import PolicyEngine
+    base, app = live
+    store = app.state.store
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    bot = store.create_bot(Bot(name="resource-replay", model="mock/demo", approval_mode=ApprovalMode.ask))
+    conv, _ = store.create_conversation(bot.id, "Replay fixture", idem_key="create", request_hash="create")
+    run = Run(bot_id=bot.id, prompt="Sanitized replay request", status=RunStatus.running)
+    store.submit_conversation_message(conv["id"], run.prompt, run, Task(bot_id=bot.id, prompt=run.prompt),
+                                     idem_key="turn", request_hash="turn")
+    page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    # Disable the existing slow fallback readers. This must pass using durable
+    # resource replay, including when no run transcript SSE hint is delivered.
+    page.add_init_script("""const originalInterval = window.setInterval;
+      window.setInterval = (fn, delay, ...args) => delay >= 4000 ? 0 : originalInterval(fn, delay, ...args);""")
+    gap_count = []
+    def gap_once(route):
+        if not gap_count:
+            gap_count.append(1)
+            route.fulfill(status=200, content_type="text/event-stream", body=
+                'event: snapshot_required\ndata: {"snapshot_url":"/api/v1/snapshot"}\n\n')
+        else:
+            route.continue_()
+    page.route("**/api/v1/changes/stream?*", gap_once)
+    page.route(f"**/api/runs/{run.id}/stream", lambda route: route.fulfill(status=200,
+               content_type="text/event-stream", body=": held transcript fixture\n\n"))
+    page.goto(base + "/#/chat/resource-replay")
+    page.locator("#chat-prompt").fill("My unsent draft stays here")
+    page.locator("#chat-prompt").focus()
+    page.wait_for_function("resourceStream && resourceStream.readyState === EventSource.OPEN")
+    gate = ApprovalGate(store, bot, run, PolicyEngine(), store.append_event)
+    # Admission commits the real request/event/wait; only the subsequent human
+    # wait is held so the test can act as the second client.
+    monkeypatch.setattr(gate, "_wait", lambda *args, **kwargs: None)
+    gate.decide("files", "write reviewed.txt", {"path": "reviewed.txt", "content": "Sanitized review"})
+    request = store.pending_approvals()[0]
+    card = page.locator(f'#chat-stream [data-approval-card="{request.id}"]')
+    card.locator('[data-approve="1"]').wait_for(timeout=15000)
+    assert "Waiting for you" in page.locator(".ctx-meta").inner_text()
+    assert page.locator("#chat-prompt").input_value() == "My unsent draft stays here"
+    assert page.locator("#chat-prompt").evaluate("e => e === document.activeElement")
+    assert gap_count, "exercise explicit reconciliation before live replay"
+    page.locator("#studio-review-run").click()
+    box, feed = card.bounding_box(), page.locator("#chat-scroll").bounding_box()
+    assert box["y"] >= feed["y"] - 1 and box["y"] + box["height"] <= feed["y"] + feed["height"] + 1
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/resource-replay"
+    out.mkdir(parents=True, exist_ok=True)
+    page.screenshot(path=str(out / f"{size}.png"), full_page=True, animations="disabled")
+    overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+    assert overflow <= 1 and not errors
+    (out / f"{size}.json").write_text(json.dumps({
+        "captured_at": iso(utcnow()), "browser": browser.browser_type.name, "version": browser.version,
+        "viewport": [width, height], "scenario": "real approval admission, fixture gap, fallback timers/transcript hints disabled",
+        "page_errors": errors, "horizontal_overflow": overflow, "draft_and_focus_preserved": True,
+        "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest()
+            for p in ("src/hutch/server/static/app.js", "src/hutch/store.py", "src/hutch/server/app.py", "src/hutch/approvals.py")},
+    }, indent=2) + "\n")
+    # A second client's durable decision must replace the inline ask without
+    # relying on a worker resolution event, which can be lost during a crash.
+    from hutch.models import ApprovalStatus
+    store.decide_approval(request.id, ApprovalStatus.denied, "second-fixture-client")
+    card.locator(".tag.danger").wait_for(timeout=15000)
+    assert "Denied" in card.inner_text() and not card.locator("[data-approve]").count()
+    assert page.locator("#chat-prompt").input_value() == "My unsent draft stays here"
+    page.evaluate("id => { location.hash = '#/run/' + id; }", run.id)
+    page.wait_for_function("feedMode === 'run'")
+    page.evaluate("location.hash = '#/bot/resource-replay'")
+    settings = page.locator('#form-identity textarea[name="instructions"]')
+    settings.fill("Unsaved instructions stay intact")
+    settings.focus()
+    before = store.list_resource_changes()["cursor"]
+    other, _ = store.create_conversation(bot.id, "Other fixture conversation", idem_key="other", request_hash="other")
+    assert store.list_resource_changes(before)["changes"]
+    page.wait_for_timeout(1700)
+    assert settings.input_value() == "Unsaved instructions stay intact"
+    assert settings.evaluate("e => e === document.activeElement")
+    assert page.url.endswith("#/bot/resource-replay") and not errors
+    held = []
+    page.route(f"**/api/runs/{run.id}", lambda route: held.append(route))
+    page.evaluate("id => { location.hash = '#/run/' + id; }", run.id)
+    page.wait_for_timeout(150)
+    assert held, "hold a run response across navigation"
+    page.evaluate("location.hash = '#/bot/resource-replay'")
+    page.get_by_role("heading", name="resource-replay settings", exact=True).wait_for()
+    settings.fill("Late run responses cannot replace this form")
+    for route in held:
+        route.continue_()
+    page.wait_for_timeout(700)
+    assert settings.input_value() == "Late run responses cannot replace this form" and not errors
+    page.close()
+
+
 @pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (390, 844, "phone")])
 def test_old_active_approval_survives_chat_window_and_header_stop_targets_it(browser, live, monkeypatch, width, height, size):
     import hashlib

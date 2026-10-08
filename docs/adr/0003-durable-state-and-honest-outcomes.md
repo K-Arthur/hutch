@@ -48,7 +48,7 @@ supervisor takes over. Heartbeat extends only an unexpired lease; it cannot revi
 Progress, process-group assignment, approval creation and usage reservation check the same authority.
 Settlement, unsent-call release and uncertainty writes also require the worker fence; uncertain
 holds require explicit reconciliation and cannot disappear at allowance rollover. Worker gates
-commit their request and waiting state together. Requests cannot be rewritten, and expired/stopped
+commit their request, waiting state and inline review event together. Requests cannot be rewritten, and expired/stopped
 execution cannot receive a late approval or standing grant.
 Worker events carry their fence through buffering and validate it when committed, preventing stale
 replies from entering either transcript or canonical conversation history. Process records pair PID and start ticks with the
@@ -82,9 +82,10 @@ has no task-expectation evaluator yet. Artifact/receipt/command expectations and
 ### Audit writes
 
 **Current implementation:** event rows are batched to SQLite, with status transitions and their buffered events committed together;
-the JSONL transcript is mirrored separately. There is no durable outbox table or retrying mirror drainer yet. A crash or mirror
-write failure is therefore not covered by the outbox design described for a future slice. Recovery and release docs must preserve
-this limitation until durable outbox delivery is implemented and tested.
+the JSONL transcript is mirrored separately. Schema v11 adds a transactional resource-invalidation
+outbox for reconnecting clients ([ADR-0012](0012-resource-outbox-and-reconciliation.md)). It does
+not deliver transcript files: a crash or mirror-write failure can still leave JSONL behind SQLite.
+Recovery and release docs must preserve this limitation until a retrying mirror drainer is tested.
 
 ## Alternatives rejected
 
@@ -96,5 +97,5 @@ this limitation until durable outbox delivery is implemented and tested.
 Migration: ownership/receipt fields began in schema v5; process boot identities and the elected supervisor lease are added by
 schema v7. Migrations are serialized and a pre-migration backup is made with SQLite's backup API. Restore from the matching
 `.db.bak-vN` file before rolling back. Older code ignores new columns but does not honour fences, so do not run old and new
-supervisors against one database at the same time. There is no `outbox` table yet; ordered durable events are committed with the
-state transition and the JSONL mirror follows committed rows.
+supervisors against one database at the same time. Ordered transcript events and resource
+invalidations commit with state; the separate JSONL mirror follows committed events.

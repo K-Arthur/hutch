@@ -22,6 +22,7 @@ from typing import Any, Callable, Optional
 from starlette.requests import Request
 
 from ..lifecycle import TERMINAL
+from ..durable_changes import SnapshotRequired
 from ..models import Event, RunStatus
 
 BATCH = 200
@@ -31,7 +32,7 @@ GLOBAL_POLL_SECONDS = 1.0       # writers in another process cannot wake this St
 FINISHED = tuple(TERMINAL)    # one definition: hutch.lifecycle
 
 
-def sse_message(event: str, payload: dict[str, Any], id_: Optional[int] = None) -> bytes:
+def sse_message(event: str, payload: dict[str, Any], id_: int | str | None = None) -> bytes:
     """JSON payloads keep multi-line HTML on one ``data:`` line, as the SSE framing requires."""
     head = f"id: {id_}\n" if id_ is not None else ""
     return f"{head}event: {event}\ndata: {json.dumps(payload, separators=(',', ':'))}\n\n".encode()
@@ -123,6 +124,45 @@ async def global_event_stream(request: Request, store, cursor: int):
             timeout = min(GLOBAL_POLL_SECONDS, max(0.05, KEEPALIVE_SECONDS - (loop.time() - last_keepalive)))
             try:
                 await asyncio.wait_for(wake.wait(), timeout=timeout)
+            except asyncio.TimeoutError:
+                if loop.time() - last_keepalive >= KEEPALIVE_SECONDS:
+                    yield b": keepalive\n\n"
+                    last_keepalive = loop.time()
+    finally:
+        unsubscribe()
+
+
+async def resource_change_stream(request: Request, store, cursor: str | None):
+    """Replay transactional resource invalidations; missed wakeups only delay polling.
+
+    A gap ends this stream without an SSE ID so a client cannot silently skip it.
+    Reconcile current resources, then open a new stream at snapshot.change_cursor.
+    """
+    loop = asyncio.get_running_loop()
+    wake = asyncio.Event()
+    topics = ["events", "bots", "conversations", "approvals", "work"]
+    unsubscribe = store.bus.subscribe(topics, lambda: loop.call_soon_threadsafe(wake.set))
+    last_keepalive = loop.time()
+    try:
+        yield b"retry: 1500\n\n"
+        while True:
+            wake.clear()
+            try:
+                page = await asyncio.to_thread(store.list_resource_changes, cursor, BATCH)
+            except SnapshotRequired as exc:
+                yield sse_message("snapshot_required", {
+                    "reason": "change_cursor_unavailable", "message": str(exc),
+                    "snapshot_url": "/api/v1/snapshot",
+                })
+                return
+            if page["changes"]:
+                cursor = page["cursor"]
+                yield sse_message("changes", page, cursor)
+                continue
+            if await request.is_disconnected():
+                return
+            try:
+                await asyncio.wait_for(wake.wait(), timeout=GLOBAL_POLL_SECONDS)
             except asyncio.TimeoutError:
                 if loop.time() - last_keepalive >= KEEPALIVE_SECONDS:
                     yield b": keepalive\n\n"

@@ -122,13 +122,8 @@ class ApprovalGate:
             raise DeniedError("run stopped before the approval request was admitted")
         from .models import RunStatus
         self.run.status = RunStatus.waiting_approval
-        self.emit(Event(run_id=self.run.id, type=EventType.approval_request,
-                        data={"approval_id": req.id, "tool": tool, "action": action,
-                              "rule": req.rule, "risk": req.risk, "outward": outward,
-                              "expires_at": req.expires_at, "detail": detail,
-                              "segments": req.segments, "sticky_key": req.sticky_key,
-                              "plan_id": req.plan_id, "action_hash": req.action_hash,
-                              "conversation_id": self.run.conversation_id}))
+        # Store commits the review event with admission and status. A crash
+        # here cannot leave a waiting run without its inline review details.
         self._wait(req, action, prev_status=prev_status)
 
     def _wait(self, req: ApprovalRequest, action: str, *, prev_status=None) -> None:
