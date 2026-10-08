@@ -1025,6 +1025,70 @@ def test_transcript_mirror_error_preserves_done_and_recovers_without_losing_draf
         page.close()
 
 
+@pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (390, 844, "phone")])
+def test_untrusted_run_content_is_text_not_executable_html(browser, live, monkeypatch, width, height, size):
+    """Prompts, model output, and tool output remain inert even when they contain HTML payloads."""
+    from hutch.models import Run, Task
+
+    base, app = live
+    store = app.state.store
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    bot = store.create_bot(Bot(name="untrusted-fixture", model="ollama/qwen3:4b", tools=["files"]))
+    conversation, _ = store.create_conversation(bot.id, "Untrusted content fixture",
+                                                 idem_key="create", request_hash="create")
+    payload = '<img src=x onerror="window.__hutchXss=1"><svg onload="window.__hutchXss=2"></svg><a href="javascript:window.__hutchXss=3">run</a>'
+    run = Run(bot_id=bot.id, prompt=payload)
+    store.submit_conversation_message(conversation["id"], payload, run,
+                                      Task(bot_id=bot.id, kind="conversation", prompt=payload),
+                                      idem_key="turn", request_hash="turn")
+    store.transition_run(run.id, RunStatus.running)
+    store.append_event(Event(run_id=run.id, type=EventType.tool_call,
+                             data={"tool": "files", "args": {"path": payload}}))
+    store.append_event(Event(run_id=run.id, type=EventType.tool_result,
+                             data={"tool": "files", "ok": True, "output": payload + " filler " * 100}))
+    store.append_event(Event(run_id=run.id, type=EventType.message,
+                             data={"role": "assistant", "content": payload}))
+    store.transition_run(run.id, RunStatus.succeeded)
+
+    page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+    page.add_init_script("window.__hutchXss = 0")
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/untrusted-content"
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        page.goto(base + "/#/conversation/" + conversation["id"])
+        page.locator(f'[data-run-id="{run.id}"] .answer').wait_for()
+        answer = page.locator(f'[data-run-id="{run.id}"] .answer')
+        assert answer.text_content() == payload
+        assert page.locator(f'[data-run-id="{run.id}"] .bubble').text_content() == payload
+        page.locator(f'[data-run-id="{run.id}"] .tool-line-head').click()
+        tool = page.locator(f'[data-run-id="{run.id}"] .tool-line-section').filter(has_text="Output")
+        assert payload in tool.text_content()
+        assert answer.locator("*").count() == 0
+        assert page.locator(f'[data-run-id="{run.id}"] .tool-line-section img, [data-run-id="{run.id}"] .tool-line-section svg[onload]').count() == 0
+        assert page.locator(f'[data-run-id="{run.id}"] a[href^="javascript:"]').count() == 0
+        page.screenshot(path=str(out / f"{size}.png"), full_page=True, animations="disabled")
+        page.locator(f'[data-run-id="{run.id}"] [data-show-more]').click()
+        assert page.locator(f'[data-run-id="{run.id}"] .tool-line-section img').count() == 0
+        page.wait_for_timeout(100)
+        assert page.evaluate("window.__hutchXss") == 0
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow <= 1 and not errors
+        records = {"viewport": [width, height], "page_errors": errors, "horizontal_overflow": overflow,
+                   "inert_payload": True,
+                   "screenshot_sha256": hashlib.sha256((out / f"{size}.png").read_bytes()).hexdigest()}
+        (out / f"{size}.json").write_text(json.dumps({
+            "browser": browser.browser_type.name, "version": browser.version,
+            "playwright": package_version("playwright"), "scenario": "synthetic hostile prompt/model/tool content",
+            **records,
+            "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                              for name in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css")},
+        }, indent=2) + "\n")
+    finally:
+        page.close()
+
+
 @pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (900, 1024, "tablet"), (390, 844, "phone")])
 def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(browser, live, monkeypatch, width, height, size):
     import hashlib

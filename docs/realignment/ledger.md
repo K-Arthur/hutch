@@ -1040,3 +1040,18 @@ their source metadata are retained under `artifacts/browser-alerts/website/`; al
 page errors and horizontal overflow. The full repository suite then passed **1,302 tests in
 368.81s** with `PytestUnhandledThreadExceptionWarning` and `SyntaxWarning` promoted to failures.
 Implementation commit: `ceb9369`; verification checkpoint: `5b8ea61`.
+
+## S4 rendered untrusted-content regression (2026-10-08)
+
+The existing renderer escapes prompt text, assistant answers, tool arguments and tool output before
+inserting the surrounding trusted UI markup. A hostile fixture containing an image `onerror`, SVG
+`onload` and `javascript:` link stays literal text; no injected nodes or handler execution appear
+before or after revealing clipped output. The browser check runs at desktop and phone sizes and
+stores inspected captures plus browser/source metadata in `artifacts/untrusted-content/`.
+
+Focused Chromium/Playwright verification passed **2 viewport cases in 2.86s**, with no page errors
+or horizontal overflow. The full **1,302-test** run in `8ee8c45` predates this added test; a final
+full rerun remains required. This proves transcript rendering for the tested fields only. It does
+not establish browser-page egress safety, permission isolation, or immunity to every authority
+escalation path. No application renderer code changed and no live page/provider was contacted.
+Implementation/evidence commit: pending.

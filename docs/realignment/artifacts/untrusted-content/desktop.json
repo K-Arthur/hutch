@@ -1,0 +1,18 @@
+{
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "playwright": "1.63.0",
+  "scenario": "synthetic hostile prompt/model/tool content",
+  "viewport": [
+    1440,
+    1000
+  ],
+  "page_errors": [],
+  "horizontal_overflow": 0,
+  "inert_payload": true,
+  "screenshot_sha256": "bbd0eec34f1d128813048f6cf1fc2948a3c892a9308984cf92cd0e14d4d48689",
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "fcb24ea11bc804caa7f1d40930fa6ca039620ef0fe0aa2839201c20bc9dcb137",
+    "src/hutch/server/static/style.css": "82fdeec8d5489d17e743e847a1a9d6279bb21221fb2c89770a1b2a5e931231df"
+  }
+}
