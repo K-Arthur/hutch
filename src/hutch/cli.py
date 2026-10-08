@@ -26,7 +26,7 @@ from .models import (
 )
 from .lifecycle import TERMINAL
 from .store import Store
-from .templates import TEMPLATES, seed
+from .templates import TEMPLATE_INFO, TEMPLATES, gallery, seed
 from .tools import ALL_TOOL_NAMES, expand_tools
 
 # NOTE (PF-6): Engine, the runtimes, providers, fastapi and playwright are imported inside the
@@ -144,12 +144,17 @@ def bot_list() -> None:
 
 @bot_app.command("templates")
 def bot_templates() -> None:
-    """Show starter templates."""
-    table = Table()
-    table.add_column("template"); table.add_column("description"); table.add_column("default tools")
-    for t in TEMPLATES.values():
-        table.add_row(t.name, t.description, ",".join(t.tools))
-    console.print(table)
+    """Show starter templates, grouped by what they are for."""
+    for category, items in gallery():
+        console.print(f"[bold]{category}[/bold]")
+        table = Table(show_header=False, box=None, padding=(0, 2, 0, 2))
+        table.add_column(no_wrap=True, style="cyan")
+        table.add_column()
+        table.add_column(no_wrap=True, style="dim")
+        for i in items:
+            table.add_row(i.key, i.tagline, "needs a folder" if i.needs_folder else "")
+        console.print(table)
+    console.print("\n[dim]hutch bot create <name> --template <template> [--workdir ~/folder][/dim]")
 
 
 @bot_app.command("create")
@@ -219,6 +224,10 @@ def bot_create(
     if cron:
         bot.schedule = Schedule(cron=cron, timezone=tz, catch_up=catch_up)
     store.create_bot(bot)
+    info = TEMPLATE_INFO.get(template or "")
+    if info and info.needs_folder and not bot.workdir:
+        console.print(f"[yellow]note:[/yellow] {template} reads files ({info.reads}). It has no working folder yet, so it starts "
+                      f"with an empty workspace: set one with `hutch bot update {name} --workdir <folder>`.")
     console.print(f"[green]created[/green] [bold]{name}[/bold] "
                   f"(model {bot.model}, runtime {bot.runtime.value}, tools: {', '.join(bot.tools)})")
 

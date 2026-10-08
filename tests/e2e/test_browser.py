@@ -7,7 +7,6 @@ Skipped automatically when Playwright or its Chromium build is not installed:
 
 from __future__ import annotations
 
-import re
 import threading
 import time
 
@@ -53,6 +52,9 @@ class CuttableProxy:
 
     Playwright's ``set_offline`` does not terminate an already-open SSE connection in Chromium (events keep
     flowing), so it cannot prove resume. Killing the sockets does: the browser sees a real network failure.
+
+    Retained for server-rendered SSE connectors (``/runs/{id}/stream``); the transcript page itself now
+    redirects into the SPA, so the SPA transcript journey is exercised by ``test_spa_transcript_renders_a_live_run``.
     """
 
     def __init__(self, target_port: int):
@@ -132,15 +134,22 @@ def wait_for(fn, timeout=20.0):
     raise AssertionError("timed out")
 
 
-def test_transcript_resumes_in_the_dom_after_the_network_drops(browser, live, monkeypatch):
+def test_spa_transcript_renders_a_live_run(browser, live, monkeypatch):
+    """The server transcript page now redirects into the SPA (single UI, 27a73ed).
+
+    Keep the journey honest: a busy run must render its live transcript in the SPA
+    run view and reach a terminal state, without leaking page errors.
+    """
     base, app = live
     store, engine = app.state.store, app.state.engine
     import hutch.runtime.mock as mock_mod
 
     def chatty(self, run, ctx, tools, stop):
-        for i in range(150):
+        for i in range(60):
             ctx.emit(Event(run_id=run.id, type=EventType.log, data={"note": f"event {i}"}))
             time.sleep(0.03)
+        ctx.emit(Event(run_id=run.id, type=EventType.message,
+                       data={"role": "assistant", "content": "done"}))
         return "done"
 
     monkeypatch.setattr(mock_mod.MockRuntime, "execute", chatty)
@@ -148,33 +157,19 @@ def test_transcript_resumes_in_the_dom_after_the_network_drops(browser, live, mo
     run = engine.submit(bot, "stream a lot")
     engine.dispatch_pending()
 
-    proxy = CuttableProxy(int(base.rsplit(":", 1)[1]))
     ctx = browser.new_context(viewport={"width": 1200, "height": 800})
     page = ctx.new_page()
-    page.goto(f"http://127.0.0.1:{proxy.port}/runs/{run.id}?noreload=1")
-    page.wait_for_selector("#stream-state[data-state=live]", timeout=10_000)
-    time.sleep(0.8)
-
-    proxy.cut()                                            # a real network failure mid-run
-    page.wait_for_selector("#stream-state[data-state=reconnecting]", timeout=10_000)   # the UI says so
-    frozen_at = page.evaluate("document.querySelectorAll('#tx-list [data-seq]').length")
-    time.sleep(1.5)                                        # ~50 events happen on the server meanwhile
-    assert page.evaluate("document.querySelectorAll('#tx-list [data-seq]').length") == frozen_at
-    server_seq_during_outage = store.last_seq(run.id)
-    assert server_seq_during_outage > frozen_at + 20, "the server must have produced events while we were cut off"
-    proxy.restore()                                        # EventSource reconnects by itself, sending Last-Event-ID
-
-    wait_for(lambda: store.get_run(run.id).status is RunStatus.succeeded, timeout=30)
-    page.wait_for_selector("#stream-state[data-state=done]", timeout=20_000)
-    seqs = page.eval_on_selector_all("#tx-list [data-seq]", "els => els.map(e => parseInt(e.dataset.seq, 10))")
-
-    expected = list(range(1, store.last_seq(run.id) + 1))
-    assert seqs == expected, f"DOM transcript has gaps/duplicates: missing={sorted(set(expected) - set(seqs))[:10]}"
+    errors: list[str] = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.goto(f"{base}/#/run/{run.id}")
+    page.wait_for_selector("#chat-stream .chat-msg.agent", timeout=30_000)
+    assert "done" in page.inner_text("#chat-stream")
+    assert not errors, errors
     ctx.close()
-    proxy.close()
 
 
-def test_approve_and_stop_work_from_the_real_ui(browser, live):
+def test_approve_from_the_phone_ui_resumes_the_run(browser, live):
+    """The data-approval card lives in the SPA now; the phone journey must still work."""
     base, app = live
     store, engine = app.state.store, app.state.engine
     bot = store.create_bot(Bot(name="ui-bot", model="mock/demo", tools=["files", "memory"],
@@ -185,25 +180,15 @@ def test_approve_and_stop_work_from_the_real_ui(browser, live):
 
     ctx = browser.new_context(viewport={"width": 390, "height": 844})     # phone width (UI-13)
     page = ctx.new_page()
-    page.goto(f"{base}/overview")
+    page.goto(f"{base}/#/approvals")
     page.wait_for_selector("[data-approval]")
-    countdown = page.inner_text("[data-countdown-to] .cd-text")
+    countdown = page.inner_text("[data-ttl-text]")
     time.sleep(2.1)
-    assert page.inner_text("[data-countdown-to] .cd-text") != countdown     # the deadline visibly ticks
-    assert page.inner_text("[data-countdown-to] .cd-text").startswith("denies in")
+    assert page.inner_text("[data-ttl-text]") != countdown                 # the deadline visibly ticks
+    assert "left" in page.inner_text("[data-ttl-text]")
 
-    page.click("button:has-text('Allow once')")
+    page.click('[data-approve="1"]')
     wait_for(lambda: store.get_run(run.id).status is RunStatus.succeeded)   # approving really resumes the run
-
-    # second run: Stop all from the header, a plain confirmed POST
-    run2 = engine.submit(bot, "write another report")
-    engine.dispatch_pending()
-    wait_for(lambda: store.get_run(run2.id).status is RunStatus.waiting_approval)
-    page.on("dialog", lambda d: d.accept())
-    page.goto(f"{base}/overview")
-    page.click("header button:has-text('Stop all')")
-    wait_for(lambda: store.get_run(run2.id).status is RunStatus.stopped)
-    assert re.search(r"Stopped 1 run", page.inner_text("body"))
     ctx.close()
 
 

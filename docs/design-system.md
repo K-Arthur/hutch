@@ -232,3 +232,60 @@ These values supersede the emerald-era rows above wherever they conflict.
 - **The chat SPA is the whole app**: Studio (chat), Overview (triage), Bots, Runs, Approvals are all
   SPA views on shared tokens; `GET /api/overview` feeds the triage from the same `views.home_state`
   the server page uses, so there is one source of truth and no second chrome.
+
+### Single UI (Oct 2026)
+
+The **studio SPA is the whole app**. The server-rendered `/overview`, `/bots`, `/bots/new`,
+`/bots/{name}`, `/runs`, `/runs/{id}` and `/approvals` now **302-redirect into it** (`/#/...`), so
+there is exactly one chrome and one look. The server keeps its fragments (`/_home`, `/_approvals`,
+`/runs/{id}/events|meters|wait`), the JSON API, and the pages the SPA does not yet cover
+(`/connections`, `/models`, `/login`).
+
+Run detail carries a **KPI bento** (Steps / Elapsed / Spend / Tokens) and a **"Where the time went"**
+stacked bar — model (blue) / tools (green) / hutch (amber) — with a per-step timing strip.
+
+### Truthful shell state (Oct 2026)
+
+Two honesty rules for the studio shell, both regression-tested:
+
+- **Live regions are bounded.** The whole `<main>` used to be `aria-live="polite"`, so every poll
+  re-announced the entire page. Announcements now go through a single visually-hidden `#live-status`
+  region that speaks only on deliberate transitions (run started/waiting/finished, approval required,
+  connection lost) and is cleared before each message so repeats are not swallowed. The streamed
+  transcript is never announced token by token.
+- **Health is established, not asserted.** The daemon badge no longer ships `live` in static markup.
+  `pollHealth()` reads `/api/health` and shows the real version/schema; on failure it degrades to
+  `reconnecting` (recent) then `offline`, and the composer's working indicator only appears while a run
+  is `running`/`pending` — a `waiting_approval` run is waiting for a human, not computing.
+
+The working indicator is the shared **3-dot bounce** (5px dots, 1.3s loop, 0.15s stagger), `aria-hidden`
+because the status chip carries the state for assistive tech. Its label is "Working…", not the bot's
+name — the reference product dropped the name from its working status (v0.67.0) and the chat header
+already identifies the bot. See [research/reference-map.md](research/reference-map.md).
+
+### Marketing site signature system (Oct 2026)
+
+The site keeps the dashboard's token values and squared-off shape language (buttons 0, panels 8px,
+chips pill) while carrying its own louder personality:
+
+- **Intro stage** — a fixed panel with one lowercase line, fading/lifting out; deleted entirely under
+  `prefers-reduced-motion` and skipped on repeat visits in a session.
+- **Type/subject occlusion weave** — a poster wordmark ("hutch.") rendered as two exactly-registered
+  absolutely-positioned layers (back z1 / front z3) with the aurora character at z2. Each layer holds
+  every letter with the unowned ones `visibility:hidden`, so the flex metrics match; exactly one letter
+  sits in front of the character. This is the only way to get the effect without transforms trapping
+  each letter's stacking context.
+- **Character** — a diffused aurora sphere (brand blue→green) with a geometric line face (high curved
+  eyebrows, dot eyes, L-shaped nose), built from CSS gradients + one inline SVG.
+- **Motion** — neural connection lines (pulsing + dashed flow), a scroll-linked receding hero heading,
+  spotlight cursor tracking (`--mouse-x/y`), morphing card glows, and hover-revealed card actions.
+  Every effect is disabled under `prefers-reduced-motion`.
+- **Deliberate deviations from the brief**: the nav is a translucent blurred bar, *not*
+  `mix-blend-difference` — inverting against the brand's accent panels hurt legibility, and the site is
+  single-theme. Corner radii stay 8px rather than 24–48px so the site and the app share one shape
+  language. The "live" pill labels the interactive simulator (a real, running thing), not a fabricated
+  service status.
+
+The hero gradient heading uses a solid accent fallback and applies `background-clip:text` only inside
+`@supports`: a `filter` on the same element made Chromium paint the whole text box as a solid block
+(caught in the pre-change baseline).

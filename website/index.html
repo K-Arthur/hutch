@@ -9,6 +9,10 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div id="intro" aria-hidden="true">
+    <p class="intro-line">your bots. your machine.</p>
+  </div>
+
   <a class="skip-link" href="#main">Skip to content</a>
 
 <nav class="nav">
@@ -18,7 +22,7 @@
         <path d="M16 2 28 9v14L16 30 4 23V9z" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
         <circle cx="16" cy="16" r="4" fill="var(--accent)"/>
       </svg>
-      hutch
+      <span class="brand-word">hutch<span class="brand-dot" aria-hidden="true">.</span></span>
     </a>
     <div class="nav-links">
       <a href="#why">Failure classes</a>
@@ -30,7 +34,7 @@
     </div>
     <div class="nav-cta">
       <a class="btn ghost" href="#quickstart">Install Now</a>
-      <button class="mobile-menu-btn" id="menu-btn" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-drawer" aria-expanded="false">
+      <button class="mobile-menu-btn" id="menu-btn" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-drawer">
         <svg class="ic" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
     </div>
@@ -47,6 +51,17 @@
 
 <main id="main">
 <header class="hero">
+  <svg class="hero-neural" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="nodeGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#7cc0ff" stop-opacity="0.85"/>
+        <stop offset="100%" stop-color="#62c073" stop-opacity="0.2"/>
+      </linearGradient>
+    </defs>
+    <path class="node-line pulse" d="M120 640 C 360 520, 520 760, 760 620 S 1180 470, 1360 560" stroke="url(#nodeGrad)"/>
+    <path class="node-line dash" d="M40 360 C 320 300, 480 200, 700 260 S 1120 360, 1420 300" stroke="url(#nodeGrad)"/>
+    <path class="node-line pulse" d="M200 150 C 420 250, 560 120, 800 190" stroke="url(#nodeGrad)"/>
+  </svg>
   <div class="wrap hero-inner">
     <div class="kicker">
       <span class="kicker-dot"></span>
@@ -77,6 +92,38 @@
       <span>Offline mock model included</span>
       <span>Ollama, llama.cpp, OpenAI-compatible APIs</span>
       <span>No telemetry in hutch itself</span>
+    </div>
+
+    <!-- Signature move: a poster-scale wordmark the hutch character passes through.
+         Two exactly-registered layers (back z1 / front z3) carry the subject (z2)
+         between them; each layer holds every letter with the unowned ones
+         visibility:hidden so the flex metrics stay identical and the layers
+         register. Exactly one letter ("t") sits in front of the character. -->
+    <div class="wordweave" aria-hidden="true">
+      <div class="wordweave-word wordweave-back">
+        <span>h</span><span>u</span><span class="w-owned">t</span><span>c</span><span>h</span>
+      </div>
+      <div class="wordweave-subject">
+        <div class="aurora">
+          <span class="aurora-glow"></span>
+          <span class="aurora-core"></span>
+          <svg class="aurora-face" viewBox="0 0 120 120">
+            <path d="M33 54 q11 -13 22 -4"/>
+            <path d="M65 50 q11 -9 22 4"/>
+            <circle cx="44" cy="63" r="3.4"/>
+            <circle cx="77" cy="63" r="3.4"/>
+            <path d="M60 60 v15 h-9"/>
+          </svg>
+        </div>
+      </div>
+      <div class="wordweave-word wordweave-front">
+        <span class="w-hide">h</span><span class="w-hide">u</span><span class="w-owned">t</span><span class="w-hide">c</span><span class="w-hide">h</span>
+      </div>
+      <span class="live-pill">
+        <span class="dot" aria-hidden="true"></span>
+        <span class="k">LIVE</span>
+        <span class="v">supervised run</span>
+      </span>
     </div>
 
     <!-- Interactive Agent Studio Simulator -->
@@ -115,6 +162,11 @@
             <span><svg class="ic ic-zap" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h7l-1 8 11-12h-7l1-8z"/></svg> <b>list_files</b> {"dir": "~/Downloads"}</span>
             <span style="color:var(--text-dim)">42 files found</span>
           </div>
+        </div>
+
+        <div class="sim-typing-row">
+          <span class="sim-typing" aria-hidden="true"><span></span><span></span><span></span></span>
+          <span>agent is working…</span>
         </div>
 
         <!-- Approval Interceptor -->
@@ -265,20 +317,21 @@
     </p>
 
     <div class="bento-grid">
-      <div class="bento-card">
-        <span class="bento-tag">POLICY &amp; PATH JAIL</span>
-        <h3>Policy Engine &amp; Workspace Path Jail</h3>
-        <p>A policy layer checks every tool call before it runs. It is a safeguard against mistakes, not an operating-system sandbox.</p>
+      <div class="bento-card" data-spotlight data-glow>
+        <span class="bento-tag">POLICY &amp; LINUX SANDBOX</span>
+        <h3>Policy Engine &amp; Optional OS Containment</h3>
+        <p>Hutch checks tool calls against policy. On Linux, the shell can also run inside a bubblewrap sandbox; it is not a hardened virtual machine, and availability depends on host support and bot settings.</p>
         <ul class="bento-list">
           <li><b>Path containment:</b> File tools cannot resolve paths outside the workspace.</li>
           <li><b>Environment scrub:</b> Shell commands run with a synthetic HOME and a minimal environment.</li>
           <li><b>Compound-command aware:</b> Splits chained commands, pipes, substitutions and wrappers and applies the worst verdict.</li>
           <li><b>Fetch checks:</b> web fetches resolve the name, require every address to be public, re-check each redirect and pin the connection to the checked address.</li>
-          <li><b>Not yet:</b> OS-level containment of the shell. It is in progress; until then a bot's script can read files your user can.</li>
+          <li><b>Linux shell sandbox:</b> strict mode gives the command a private temporary directory and process namespace and a writable workspace. It does not cover every tool or desktop session.</li>
         </ul>
+        <span class="bento-action">See the safety model <span class="arr" aria-hidden="true"></span></span>
       </div>
 
-      <div class="bento-card">
+      <div class="bento-card" data-spotlight data-glow>
         <span class="bento-tag">DETERMINISTIC SCHEDULING</span>
         <h3>Cron that Survives Real Life</h3>
         <p>Engineered for real computers that sleep, reboot, travel across timezones, and change DST.</p>
@@ -288,9 +341,10 @@
           <li><b>One run per bot:</b> A database claim decides which process owns a run and a bot never overlaps itself, even with the dashboard and the daemon both running.</li>
           <li><b>Staleness monitors:</b> Flags bots whose last success timestamp exceeds their schedule expectation.</li>
         </ul>
+        <span class="bento-action">Read the scheduler notes <span class="arr" aria-hidden="true"></span></span>
       </div>
 
-      <div class="bento-card">
+      <div class="bento-card" data-spotlight data-glow>
         <span class="bento-tag">HUMAN-IN-THE-LOOP</span>
         <h3>Kind Approvals &middot; Fail-Closed</h3>
         <p>Supervision that respects developer time without compromising safety.</p>
@@ -300,9 +354,10 @@
           <li><b>Browser pauses (experimental):</b> The run parks in a "needs you" state at a login or CAPTCHA wall instead of guessing. A visible handoff session is in progress.</li>
           <li><b>Persistent logins (experimental):</b> Chromium profiles persist per bot. Optional Playwright extra, untested on this release without browsers installed.</li>
         </ul>
+        <span class="bento-action">How approvals work <span class="arr" aria-hidden="true"></span></span>
       </div>
 
-      <div class="bento-card">
+      <div class="bento-card" data-spotlight data-glow>
         <span class="bento-tag">LOCAL SOVEREIGNTY</span>
         <h3>Transcripts, Budgets &amp; Pluggable Runtimes</h3>
         <p>Everything lives in one directory on your disk, in files you can inspect, back up or delete.</p>
@@ -312,6 +367,7 @@
           <li><b>Model choice:</b> Ollama, llama.cpp, LM Studio, OpenAI-compatible and Anthropic endpoints, or the offline mock runtime. Tested against recorded fakes; live runs depend on your setup.</li>
           <li><b>Other harnesses (experimental):</b> The built-in agent loop by default, or delegate a bot to Pi or OpenCode. Those run with their own tools, outside hutch's policy gate.</li>
         </ul>
+        <span class="bento-action">Where your data lives <span class="arr" aria-hidden="true"></span></span>
       </div>
     </div>
   </div>
@@ -640,36 +696,72 @@ if (menuBtn && drawer) {
 </script>
 
 <script>
-/* Motion layer: scroll reveals + floating parallax cards. */
+/* Motion layer: intro stage, scroll reveals, receding hero, floating preview,
+   spotlight cursor tracking. Every effect is disabled under reduced motion. */
 (function () {
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var targets = document.querySelectorAll('main > section, .bento-card, .incident, .matrix, .interactive-preview, .section-heading');
+
+  /* Intro stage: one lowercase line, in -> lift -> gone. Removed entirely under
+     reduced motion, and skipped on repeat visits within a session. */
+  var intro = document.getElementById('intro');
+  if (intro) {
+    var seen = false;
+    try { seen = sessionStorage.getItem('hutch-intro') === '1'; } catch (e) {}
+    if (reduce || seen) {
+      intro.remove();
+    } else {
+      try { sessionStorage.setItem('hutch-intro', '1'); } catch (e) {}
+      requestAnimationFrame(function () { requestAnimationFrame(function () { intro.classList.add('show'); }); });
+      setTimeout(function () { intro.classList.add('lift'); }, 1500);
+      setTimeout(function () { intro.classList.add('gone'); }, 2050);
+      setTimeout(function () { intro.remove(); }, 2700);
+    }
+  }
+
+  /* Scroll reveals: translate up 20px + fade, triggered once, then unobserved. */
+  var targets = document.querySelectorAll('main > section, .bento-card, .incident, .matrix, .section-heading');
   if (!reduce && 'IntersectionObserver' in window) {
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
     }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
     targets.forEach(function (el, i) { el.classList.add('reveal'); el.style.transitionDelay = (i % 4) * 60 + 'ms'; io.observe(el); });
   }
-  if (!reduce) {
-    var px = Array.prototype.slice.call(document.querySelectorAll('.bento-card, .interactive-preview'));
-    var ticking = false;
-    function onScroll() {
-      if (ticking) return; ticking = true;
-      requestAnimationFrame(function () {
-        var vh = window.innerHeight;
-        px.forEach(function (el) {
-          var r = el.getBoundingClientRect();
-          if (r.bottom < 0 || r.top > vh) return;
-          var depth = parseFloat(el.dataset.depth || '12');
-          var offset = ((r.top + r.height / 2) - vh / 2) / vh;
-          el.style.transform = 'translateY(' + (-offset * depth).toFixed(1) + 'px)';
-        });
-        ticking = false;
+
+  if (reduce) return;
+
+  /* Floating preview + receding hero heading, driven off one rAF-throttled scroll. */
+  var px = Array.prototype.slice.call(document.querySelectorAll('.interactive-preview'));
+  var title = document.querySelector('h1.hero-title');
+  var ticking = false;
+  function onScroll() {
+    if (ticking) return; ticking = true;
+    requestAnimationFrame(function () {
+      var vh = window.innerHeight;
+      if (title) {
+        var t = Math.min(1, Math.max(0, window.scrollY / (vh * 0.3)));
+        title.style.setProperty('--hero-scale', (1 - 0.11 * t).toFixed(3));
+      }
+      px.forEach(function (el) {
+        var r = el.getBoundingClientRect();
+        if (r.bottom < 0 || r.top > vh) return;
+        var depth = parseFloat(el.dataset.depth || '12');
+        var offset = ((r.top + r.height / 2) - vh / 2) / vh;
+        el.style.transform = 'translateY(' + (-offset * depth).toFixed(1) + 'px)';
       });
-    }
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
+      ticking = false;
+    });
   }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  /* Spotlight cursor tracking (the CSS reads --mouse-x / --mouse-y). */
+  document.querySelectorAll('[data-spotlight]').forEach(function (card) {
+    card.addEventListener('pointermove', function (ev) {
+      var r = card.getBoundingClientRect();
+      card.style.setProperty('--mouse-x', ((ev.clientX - r.left) / r.width * 100).toFixed(1) + '%');
+      card.style.setProperty('--mouse-y', ((ev.clientY - r.top) / r.height * 100).toFixed(1) + '%');
+    });
+  });
 })();
 </script>
 

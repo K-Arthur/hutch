@@ -47,6 +47,19 @@ function toast(msg, isError = false) {
   if (!isError) setTimeout(dismiss, 4200);
 }
 
+// Bounded screen-reader announcer. The main view is deliberately no longer a live
+// region: re-rendering it announced the entire page on every poll. Only deliberate
+// lifecycle changes go through here, and repeats are cleared first so assistive tech
+// does not swallow an identical message.
+let announceTimer = null;
+function announce(msg) {
+  const el = $("#live-status");
+  if (!el) return;
+  clearTimeout(announceTimer);
+  el.textContent = "";
+  announceTimer = setTimeout(() => { el.textContent = msg; }, 40);
+}
+
 function timeAgo(iso) {
   if (!iso) return "never";
   const s = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -272,19 +285,66 @@ function errorState(err) {
 
 function stopPolling() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  if (approvalsTimer) { clearInterval(approvalsTimer); approvalsTimer = null; }
 }
 
 window.addEventListener("hashchange", route);
 
+// App-wide attention: the Approvals nav item carries the pending count everywhere,
+// and a new arrival is announced once through the bounded live region.
+let lastPendingCount = null;
 async function refreshBadge() {
   try {
     const stats = await api("/stats");
+    const n = stats.pending_approvals || 0;
     const badge = $("#approval-badge");
     if (badge) {
-      badge.textContent = stats.pending_approvals;
-      badge.classList.toggle("hidden", stats.pending_approvals === 0);
+      badge.textContent = n;
+      badge.classList.toggle("hidden", n === 0);
     }
+    $('[data-nav="approvals"]')?.classList.toggle("attention", n > 0);
+    if (lastPendingCount !== null && n > lastPendingCount) {
+      announce(`${n} approval${n === 1 ? "" : "s"} waiting for you.`);
+    }
+    lastPendingCount = n;
   } catch {}
+}
+
+// ------------------------------------------------------------- executor health
+
+// The old badge said "live" in static markup regardless of reality. Health is now
+// established from the server (version + schema) with a heartbeat, and degrades to
+// reconnecting/offline so a dead backend is never shown as green.
+const HEARTBEAT_MS = 15000;
+let lastHealthAt = 0;
+let lastDaemonState = "";
+
+function setDaemon(state, title) {
+  const pill = $("#daemon-pill");
+  if (!pill) return;
+  const label = { live: "live", reconnecting: "reconnecting", offline: "offline", connecting: "checking" }[state] || state;
+  if (lastDaemonState === state) { pill.title = title; return; }
+  lastDaemonState = state;
+  pill.dataset.state = state;
+  pill.className = `pill daemon ${state}${state === "live" ? " pulse" : ""}`;
+  pill.textContent = label;
+  pill.title = title;
+}
+
+async function pollHealth() {
+  try {
+    const h = await api("/health");
+    lastHealthAt = Date.now();
+    setDaemon("live", `daemon live — v${h.version} · schema ${h.schema}`);
+  } catch {
+    const recent = lastHealthAt && Date.now() - lastHealthAt < 3 * HEARTBEAT_MS;
+    const state = recent ? "reconnecting" : "offline";
+    const changed = lastDaemonState !== state;
+    setDaemon(state,
+      recent ? "Server unreachable — retrying on the next heartbeat"
+             : "Server offline — commands will not run until it returns");
+    if (changed) announce("Connection to the hutch server was lost. Commands are paused until it returns.");
+  }
 }
 
 // ------------------------------------------------------- CHAT STUDIO (CORE)
@@ -555,6 +615,21 @@ async function renderChatFeed(runId) {
   }
 
   stream.innerHTML = html;
+
+  // Announce lifecycle changes once (started -> waiting/finished), and show the
+  // working indicator only while the bot is actually computing.
+  const prevStatus = seenRunStatus.get(runId);
+  if (prevStatus !== run.status) {
+    seenRunStatus.set(runId, run.status);
+    if (run.status === "waiting_approval") {
+      announce(`${run.bot_name || "A bot"} needs your approval before it can continue.`);
+    } else if (prevStatus && ACTIVE.has(prevStatus) && !ACTIVE.has(run.status)) {
+      announce(`Run ${run.status.replace(/_/g, " ")}.`);
+    }
+  }
+  if (run.status === "running" || run.status === "pending") {
+    stream.insertAdjacentHTML("beforeend", typingHtml());
+  }
   stream.scrollTop = stream.scrollHeight;
 
   wireApprovals();
@@ -617,6 +692,22 @@ function expandedStore(runId) {
   try { return new Set(JSON.parse(localStorage.getItem(`hutch-expanded:${runId}`)) || []); }
   catch { return new Set(); }
 }
+
+// Visual "the bot is working" indicator. Deliberately aria-hidden: the run status
+// chip and the bounded announcer convey state, so a screen reader is not told
+// "typing" on every poll. A waiting-for-human run is not computing, so it gets none.
+// Reference: Grok Bot dropped the Bot's name from its working status (v0.67.0) — the
+// chat header already identifies the bot, so repeating it in a busy region is noise.
+function typingHtml() {
+  return `<div class="typing" aria-hidden="true">
+    <span class="typing-dots"><span></span><span></span><span></span></span>
+    <span class="typing-label">Working…</span>
+  </div>`;
+}
+
+// Remember the last status we rendered per run so lifecycle changes are announced
+// once (started -> waiting/finished) instead of on every poll.
+const seenRunStatus = new Map();
 
 function renderFeedItem(item, runId) {
   if (item.kind === "tool") return toolLineHtml(item, item.call?.e ?? item.result.e, runId);
@@ -744,29 +835,151 @@ function wireFeedInteractions(runId) {
   });
 }
 
-// Live fail-closed countdowns: any [data-deadline] (epoch ms) ticks down.
+// Live fail-closed countdowns: any [data-deadline] (epoch ms) ticks down, and at
+// zero the gate flips to its resolved state rather than leaving dead controls.
 function updateTtls() {
   $$("[data-deadline]").forEach(el => {
-    const target = el.querySelector("[data-ttl-text]") || el;
     const ms = Number(el.dataset.deadline) - Date.now();
     if (ms <= 0) {
-      target.textContent = "expired — denied";
-      el.classList.add("expired");
-      // A fail-closed gate must not offer live buttons once it has failed closed.
-      const card = el.closest(".approval-card-chat, .approval");
-      if (card) {
-        card.classList.add("expired");
-        card.querySelectorAll("[data-approve]").forEach(b => b.remove());
-        card.querySelector(".approval-always")?.remove();
+      const card = el.closest("[data-approval-card]");
+      if (card && !card.classList.contains("expired")) {
+        const action = card.querySelector(".approval-action-text")?.textContent || "";
+        card.outerHTML = approvalResolvedHtml({ approval_id: card.dataset.approvalCard, action }, "expired");
       }
       return;
     }
+    el.classList.remove("expired");
+    const target = el.querySelector("[data-ttl-text]");
+    if (!target) return;
     const m = Math.floor(ms / 60000);
     const s = Math.floor((ms % 60000) / 1000);
     target.textContent = `${m}:${String(s).padStart(2, "0")} left`;
   });
 }
 setInterval(updateTtls, 1000);
+
+// --------------------------------------------------------- approvals (shared)
+
+// One approval, rendered identically in the chat feed and the approvals queue:
+// the action in plain language first, the technical detail behind a disclosure, and
+// the exact scope of an "always allow" grant. System-generated cards stay visually
+// distinct from model prose so a message cannot impersonate a gate.
+function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
+  const id = a.approval_id || a.id;
+  if (resolved && resolved !== "pending") return approvalResolvedHtml(a, resolved, botName);
+
+  const action = a.action || "Perform action";
+  const tool = a.tool || "";
+  const rule = a.rule || "";
+  const risk = a.risk || "medium";
+  const outward = !!a.outward;
+  const deadline = a.deadline
+    || (a.expires_at ? new Date(a.expires_at).getTime()
+      : (a.created_at ? new Date(a.created_at).getTime() + 10 * 60 * 1000 : 0));
+  const expired = deadline && deadline <= Date.now();
+  const detail = a.detail && Object.keys(a.detail || {}).length ? JSON.stringify(a.detail, null, 2) : "";
+  const segments = a.segments || [];
+  const stickyKey = a.sticky_key || "";
+  const canAlways = !!(stickyKey && !outward);
+  const runId = a.run_id || "";
+
+  const rows = [
+    ["Tool", tool],
+    rule ? ["Why you are asked", rule] : null,
+    ["Reversibility", outward
+      ? "Sends data out of this machine — Stop cannot recall it once it has gone"
+      : "Confined to this machine's workspace"],
+  ].filter(Boolean).map(([k, v]) =>
+    `<div class="review-row"><span class="review-key">${esc(k)}</span><span>${esc(v)}</span></div>`).join("");
+
+  return `
+    <div class="approval-card-chat risk-${esc(risk)} ${outward ? "outward" : ""} ${expired ? "expired" : ""}"
+         data-approval-card="${esc(id)}" ${deadline ? `data-deadline="${deadline}"` : ""}>
+      <div class="approval-badge-bar">
+        <div class="approval-head-left">
+          <span class="tag warn">Approval required</span>
+          ${botName ? `<b class="approval-bot">${esc(botName)}</b>` : ""}
+          ${tool ? `<span class="tag">${esc(tool)}</span>` : ""}
+          <span class="tag ${risk === "high" ? "danger" : risk === "low" ? "" : "warn"}">${esc(risk)} risk</span>
+          ${outward ? `<span class="tag danger" title="Leaves this machine; always-allow is not offered">outward</span>` : ""}
+        </div>
+        <span class="ttl-countdown" data-deadline-parent>${icon("hourglass")}<span data-ttl-text>${expired ? "expired — denied" : ""}</span></span>
+      </div>
+      <div class="approval-action-text">${esc(action)}</div>
+      <details class="approval-review">
+        <summary>Review details</summary>
+        <div class="review-rows">${rows}</div>
+        ${segments.length ? `<div class="approval-segments">${segments.map(s => `
+          <div class="approval-seg">
+            <code>${esc(s.text)}</code>
+            <span class="tag ${s.verdict === "deny" ? "danger" : s.verdict === "ask" ? "warn" : ""}">${esc(s.verdict)}</span>
+            <span class="seg-why">${esc(s.reason || "")}</span>
+          </div>`).join("")}</div>` : ""}
+        ${detail ? `<span class="review-label">Raw request</span><pre class="approval-detail mono">${esc(detail)}</pre>` : ""}
+      </details>
+      ${canAlways
+        ? `<p class="hint approval-scope">Always-allow remembers <code>${esc(stickyKey)}</code> for this bot. Revoke it any time in the bot's Sticky permissions.</p>`
+        : outward
+          ? `<p class="hint approval-scope">This action leaves the machine, so always-allow is not offered — you decide each time.</p>`
+          : ""}
+      <div class="approval-buttons" data-approval="${esc(id)}">
+        <button class="primary small" data-approve="1">Allow once</button>
+        ${canAlways ? `<button class="ghost small" data-approve="always">Always allow for this bot</button>` : ""}
+        <button class="ghost small" data-approve="0">Deny</button>
+        ${runId ? `<a class="btn ghost small" href="#/run/${esc(runId)}">Open run</a>` : ""}
+      </div>
+    </div>`;
+}
+
+// A resolved gate. Server-authoritative: it names who decided and when, so two
+// devices racing to answer the same card end up agreeing rather than diverging.
+function approvalResolvedHtml(a, outcome, botName = "") {
+  const labels = {
+    approved: "Approved", denied: "Denied",
+    expired: "Expired — denied by timeout", missing: "No longer exists",
+  };
+  const ok = outcome === "approved";
+  const by = a.decided_by && outcome !== "expired" && outcome !== "missing" ? ` by ${esc(a.decided_by)}` : "";
+  const at = a.resolved_at ? ` · ${timeAgo(a.resolved_at)}` : "";
+  return `
+    <div class="approval-card-chat resolved ${ok ? "allowed" : "denied"}" data-approval-card="${esc(a.approval_id || a.id || "")}">
+      <div class="approval-badge-bar">
+        <span class="tag ${ok ? "ok" : "danger"}">${icon(ok ? "check" : "x")} ${esc(labels[outcome] || "Resolved")}${by}${at}</span>
+        ${botName ? `<b class="approval-bot">${esc(botName)}</b>` : ""}
+      </div>
+      ${a.action ? `<div class="approval-action-text muted">${esc(a.action)}</div>` : ""}
+    </div>`;
+}
+
+// Resolve, then reconcile against the real state on any failure (409 = answered
+// elsewhere, 404 = gone). We never claim a success the server did not confirm.
+async function resolveApproval(id, choice, card) {
+  const always = choice === "always";
+  const approve = choice === "1" || always;
+  const action = card?.querySelector(".approval-action-text")?.textContent || "";
+  card?.querySelectorAll("button").forEach(b => { b.disabled = true; });   // no double-submit
+  try {
+    await api(`/approvals/${encodeURIComponent(id)}/${approve ? "approve" : "deny"}`, {
+      method: "POST", body: approve ? { always } : {},
+    });
+    toast(approve ? (always ? "Allowed — remembered for this bot" : "Allowed once") : "Denied");
+    if (card) card.outerHTML = approvalResolvedHtml({ approval_id: id, action }, approve ? "approved" : "denied");
+  } catch (err) {
+    let current = null;
+    try { current = await api(`/approvals/${encodeURIComponent(id)}`); } catch { /* 404: gone */ }
+    if (current && current.status && current.status !== "pending") {
+      if (card) card.outerHTML = approvalResolvedHtml({ ...current, approval_id: id }, current.status, current.bot_name || "");
+      toast(`Already ${current.status}${current.decided_by ? ` by ${current.decided_by}` : ""} — nothing changed.`);
+    } else if (!current) {
+      if (card) card.outerHTML = approvalResolvedHtml({ approval_id: id, action }, "missing");
+      toast("This request no longer exists — it may have been replaced.", true);
+    } else {
+      card?.querySelectorAll("button").forEach(b => { b.disabled = false; });
+      toast(err.message || "Could not resolve approval", true);
+    }
+  }
+  refreshBadge();
+}
 
 function renderChatEvent(e) {
   const t = e.ts ? e.ts.slice(11, 19) : "";
@@ -786,26 +999,10 @@ function renderChatEvent(e) {
       `;
     }
     case "approval_request": {
-      const deadline = e.ts ? new Date(e.ts).getTime() + 10 * 60 * 1000 : 0;
-      const expired = deadline && deadline <= Date.now();
-      const detail = JSON.stringify(d.detail ?? {}, null, 2);
-      return `
-        <div class="approval-card-chat ${expired ? "expired" : ""}" data-approval-card="${esc(d.approval_id)}" ${deadline ? `data-deadline="${deadline}"` : ""}>
-          <div class="approval-badge-bar">
-            <span class="tag warn">Approval required</span>
-            <span class="ttl-countdown" data-deadline-parent>${icon("hourglass")}<span data-ttl-text>${expired ? "expired — denied" : "10:00 left"}</span></span>
-          </div>
-          <div class="approval-action-text">${esc(d.action || "Perform action")}</div>
-          ${detail === "{}" ? "" : `<pre class="approval-detail mono">${esc(detail)}</pre>`}
-          <div class="approval-buttons" data-approval="${esc(d.approval_id)}">
-            <button class="primary small" data-approve="1">Approve</button>
-            <button class="ghost small" data-approve="0">Deny</button>
-            <label class="approval-always">
-              <input type="checkbox" class="always"> always allow this action
-            </label>
-          </div>
-        </div>
-      `;
+      const deadline = d.expires_at ? new Date(d.expires_at).getTime()
+        : (e.ts ? new Date(e.ts).getTime() + 10 * 60 * 1000 : 0);
+      return approvalCardHtml({ ...d, deadline, run_id: currentRunId || e.run_id },
+        { botName: currentStudioBot || "" });
     }
     default:
       // tool_call / tool_result are consumed by pairToolEvents()
@@ -831,11 +1028,11 @@ async function renderOverview() {
       <div class="page-head"><div><h1 class="page-title">Overview</h1>
         <p class="page-subtitle">What needs you, what is running, and what has gone quiet.</p></div>
         <a class="btn ghost" href="#/bots">All bots ${icon("arrow")}</a></div>
-      <div class="ov-stats">
-        <span><b>${fmt(s.bots)}</b> bots</span>
-        <span><b>${fmt(s.runs_today)}</b> runs today</span>
-        <span><b>${fmt(s.tokens_today)}</b> tokens</span>
-        <span><b>$${Number(s.spend_today || 0).toFixed(2)}</b> spent</span>
+      <div class="bento kpi-bento">
+        <div class="card kpi"><span class="kpi-label">Bots</span><span class="kpi-val mono">${fmt(s.bots)}</span></div>
+        <div class="card kpi"><span class="kpi-label">Runs today</span><span class="kpi-val mono">${fmt(s.runs_today)}</span></div>
+        <div class="card kpi"><span class="kpi-label">Tokens today</span><span class="kpi-val mono">${fmt(s.tokens_today)}</span></div>
+        <div class="card kpi"><span class="kpi-label">Spend today</span><span class="kpi-val mono">$${Number(s.spend_today || 0).toFixed(2)}</span></div>
       </div>
       <div class="bento ov-grid">
         <section class="card ov-col loud">
@@ -1090,47 +1287,40 @@ async function renderRuns(query = "") {
 
 // ------------------------------------------------------------- APPROVALS
 
+let approvalsTimer = null;
+
 async function renderApprovals() {
-  const approvals = await api("/approvals");
+  clearInterval(approvalsTimer);
   view.innerHTML = `
     <div class="container">
       <h1 class="page-title">Approvals</h1>
       <p class="page-subtitle">A bot wants to perform an irreversible action. Unanswered requests expire as <b>denied</b>.</p>
+      <div id="approvals-pending"></div>
+      <h2 class="section-sub">Recently decided</h2>
+      <div id="approvals-resolved"></div>
+    </div>`;
+  await refreshApprovals();
+  // Keep the queue honest across devices: a card answered on your phone (or by a
+  // timeout) must clear or update here without a manual reload.
+  approvalsTimer = setInterval(refreshApprovals, 5000);
+}
 
-      ${approvals.map(a => {
-        const deadline = a.created_at ? new Date(a.created_at).getTime() + 10 * 60 * 1000 : 0;
-        const expired = deadline && deadline <= Date.now();
-        const detail = JSON.stringify(a.detail ?? {}, null, 2);
-        return `
-        <div class="approval-card-chat ${expired ? "expired" : ""}" data-approval-card="${esc(a.id)}" ${deadline ? `data-deadline="${deadline}"` : ""}>
-          <div class="approval-badge-bar">
-            <div class="bot-header-chips">
-              <b>${esc(a.bot_name)}</b>
-              <span class="tag">${esc(a.tool)}</span>
-            </div>
-            <span class="ttl-countdown" data-deadline-parent>${icon("hourglass")}<span data-ttl-text>${expired ? "expired — denied" : "10:00 left"}</span></span>
-          </div>
-          <div class="approval-action-text">${esc(a.action)}</div>
-          ${detail === "{}" ? "" : `<pre class="approval-detail mono">${esc(detail)}</pre>`}
-          <div class="approval-buttons" data-approval="${esc(a.id)}">
-            <button class="primary small" data-approve="1">Approve</button>
-            <button class="ghost small" data-approve="0">Deny</button>
-            <label class="approval-always">
-              <input type="checkbox" class="always"> always allow for this bot
-            </label>
-            <a class="btn ghost small" href="#/run/${esc(a.run_id)}">Open run</a>
-          </div>
-        </div>
-        `;
-      }).join("") || `
-        <div class="empty-state">
-          ${icon("check", "icon-lg")}
-          <p>No pending approvals.</p>
-          <p class="hint">When a bot hits a gated action, it waits here for your decision.</p>
-        </div>
-      `}
-    </div>
-  `;
+async function refreshApprovals() {
+  const [pending, resolved] = await Promise.all([
+    api("/approvals").catch(() => []),
+    api("/approvals?status=resolved&limit=8").catch(() => []),
+  ]);
+  const list = $("#approvals-pending");
+  const done = $("#approvals-resolved");
+  if (!list || !done) return;                      // route changed mid-flight
+  list.innerHTML = pending.length
+    ? pending.map(a => approvalCardHtml(a, { botName: a.bot_name })).join("")
+    : `<div class="empty-state">${icon("check", "icon-lg")}
+         <p>No pending approvals.</p>
+         <p class="hint">When a bot hits a gated action, it waits here for your decision.</p></div>`;
+  done.innerHTML = (resolved || []).length
+    ? resolved.map(a => approvalResolvedHtml(a, a.status, a.bot_name)).join("")
+    : `<p class="hint">Decided approvals appear here.</p>`;
   wireApprovals();
   updateTtls();
 }
@@ -1179,20 +1369,59 @@ async function renderBotDetail(name) {
   });
 }
 
+function fmtDur(ms) {
+  ms = Math.max(0, ms || 0);
+  return ms < 1000 ? `${Math.round(ms)}ms` : ms < 60000 ? `${(ms / 1000).toFixed(1)}s`
+    : ms < 3600000 ? `${Math.round(ms / 60000)}m` : `${(ms / 3600000).toFixed(1)}h`;
+}
+
 async function renderRunDetail(runId) {
   const r = await api(`/runs/${runId}`);
+  const nowMs = Date.now();
+  const a = r.created_at ? new Date(r.created_at).getTime() : nowMs;
+  const b = r.finished_at ? new Date(r.finished_at).getTime() : nowMs;
+  const steps = (r.events || []).filter(e => e.type === "step").map(e => e.data);
+  const sum = (k) => steps.reduce((t, d) => t + (d[k] || 0), 0);
+  const model = sum("model_ms"), tool = sum("tool_ms"), over = sum("overhead_ms");
+  const total = Math.max(1, model + tool + over);
+  const pct = (v) => (v / total * 100).toFixed(1);
   view.innerHTML = `
     <div class="container">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div class="page-head">
         <div>
-          <h1>Run <span class="mono">${esc(r.id)}</span></h1>
-          <p class="page-subtitle">Bot: <a href="#/chat/${esc(r.bot_name)}">${esc(r.bot_name)}</a> &middot; Status: ${statusChip(r.status)}</p>
+          <p class="crumb"><a href="#/runs">Runs</a></p>
+          <h1 class="page-title">Run <span class="mono">${esc(r.id.slice(0, 16))}</span></h1>
+          <p class="page-subtitle">Bot: <a href="#/chat/${esc(r.bot_name)}">${esc(r.bot_name)}</a> &middot; ${statusChip(r.status)} &middot; started by ${esc(r.origin || "you")}</p>
         </div>
-        <a class="btn ghost" href="#/runs">Back to Runs</a>
+        <a class="btn ghost" href="#/runs">${icon("arrow-left")} Back to Runs</a>
       </div>
-      <div class="panel" style="margin-bottom:16px;">
-        <b>Prompt:</b><br><span style="color:var(--text-dim)">${esc(r.prompt)}</span>
+      <div class="bento kpi-bento">
+        <div class="card kpi"><span class="kpi-label">Steps</span><span class="kpi-val mono">${r.steps}</span></div>
+        <div class="card kpi"><span class="kpi-label">Elapsed</span><span class="kpi-val mono">${fmtDur(Math.max(0, b - a))}</span></div>
+        <div class="card kpi"><span class="kpi-label">Spend</span><span class="kpi-val mono">$${(r.cost_usd || 0).toFixed(4)}</span></div>
+        <div class="card kpi"><span class="kpi-label">Tokens</span><span class="kpi-val mono">${fmtTokens(r.tokens)}</span></div>
       </div>
+      ${steps.length ? `
+      <div class="card run-timing">
+        <h2 class="ov-h">${icon("chart")} Where the time went</h2>
+        <div class="timeline-stack" role="img" aria-label="model ${Math.round(model)}ms, tools ${Math.round(tool)}ms, hutch ${Math.round(over)}ms">
+          <i class="s-model" style="width:${pct(model)}%"></i>
+          <i class="s-tool" style="width:${pct(tool)}%"></i>
+          <i class="s-over" style="width:${pct(over)}%"></i>
+        </div>
+        <div class="timeline-legend mono">
+          <span><i class="dot s-model"></i>model ${Math.round(model)}ms</span>
+          <span><i class="dot s-tool"></i>tools ${Math.round(tool)}ms</span>
+          <span><i class="dot s-over"></i>hutch ${Math.round(over)}ms</span>
+        </div>
+        <div class="step-strip" aria-hidden="true">
+          ${steps.map(d => {
+            const tot = (d.model_ms || 0) + (d.tool_ms || 0) + (d.overhead_ms || 0);
+            return `<span class="step-seg" title="step ${d.n}" style="flex:${Math.max(1, tot)}"><i class="s-model" style="flex:${Math.max(0, d.model_ms || 0)}"></i><i class="s-tool" style="flex:${Math.max(0, d.tool_ms || 0)}"></i><i class="s-over" style="flex:${Math.max(0, d.overhead_ms || 0)}"></i></span>`;
+          }).join("")}
+        </div>
+      </div>` : ""}
+      <div class="card" style="margin-bottom:16px;"><b>Prompt:</b><br><span style="color:var(--text-dim)">${esc(r.prompt)}</span></div>
       <div id="chat-stream"></div>
     </div>
   `;
@@ -1260,22 +1489,10 @@ async function promptNewBot() {
 
 function wireApprovals() {
   $$("[data-approve]").forEach(btn => {
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", () => {
       const wrap = btn.closest("[data-approval]");
-      const id = wrap.dataset.approval;
-      const always = wrap.querySelector(".always")?.checked ?? false;
-      const approve = btn.dataset.approve === "1";
-      try {
-        await api(`/approvals/${id}/${approve ? "approve" : "deny"}`, {
-          method: "POST",
-          body: approve ? { always } : {}
-        });
-        toast(approve ? "Approved & continuing" : "Denied");
-        const card = wrap.closest("[data-approval-card]");
-        if (card) card.remove();
-      } catch (err) {
-        toast(err.message, true);
-      }
+      if (!wrap) return;
+      resolveApproval(wrap.dataset.approval, btn.dataset.approve, btn.closest("[data-approval-card]"));
     });
   });
 }
@@ -1304,6 +1521,8 @@ function wireCommon() {
 
 route();
 setInterval(refreshBadge, 4000);
+pollHealth();
+setInterval(pollHealth, HEARTBEAT_MS);
 
 /* Full-screen mobile menu (header nav collapses to an overlay) */
 (function () {

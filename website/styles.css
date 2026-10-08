@@ -275,10 +275,11 @@ h1.hero-title {
   max-width: 840px;
 }
 h1.hero-title .accent-gradient {
-  background: linear-gradient(135deg, #34d399 0%, #6ee7b7 60%, #a7f3d0 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 30px rgba(52, 211, 153, 0.3));
+  /* Fallback stays a legible solid accent. The gradient is applied only where
+     background-clip:text is supported, and the glow lives on the parent — with a
+     `filter` on this same element Chromium can paint the whole text box as a solid
+     block instead of clipping to the glyphs (seen in the pre-change baseline). */
+  color: var(--accent);
 }
 
 .hero-sub {
@@ -1113,9 +1114,13 @@ footer.site {
   --success: #62c073;
   --bg-card: rgba(10, 10, 10, 0.75); --bg-card-raised: #0a0a0a;
 }
-h1.hero-title .accent-gradient {
-  background-image: linear-gradient(135deg, #52a8ff 0%, #7cc0ff 60%, #a9d4ff 100%);
-  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+@supports ((background-clip: text) or (-webkit-background-clip: text)) {
+  h1.hero-title .accent-gradient {
+    background-image: linear-gradient(135deg, #52a8ff 0%, #7cc0ff 60%, #a9d4ff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
 }
 .btn.primary { box-shadow: 0 2px 16px rgba(82, 168, 255, 0.35); }
 .btn.primary:hover { box-shadow: 0 4px 24px rgba(82, 168, 255, 0.5); }
@@ -1123,3 +1128,298 @@ h1.hero-title .accent-gradient {
 .pill-check.yes { color: var(--success); }
 .pill-check, .bento-tag { font-size: 12px; }
 @media (max-width: 900px) { .nav { backdrop-filter: none; -webkit-backdrop-filter: none; } }
+
+/* =========================================================================
+   SQUARED-OFF NORMALISATION (Oct 2026)
+   The site reads more architectural with sharp edges: controls are square (0),
+   panels are 8px, and status chips stay pills. This mirrors the dashboard
+   (buttons 0, panels 8, chips 100) so the two surfaces share one shape language.
+   ========================================================================= */
+.interactive-preview,
+.term,
+.matrix-wrapper,
+.bento-card,
+.sim-approval-interceptor { border-radius: var(--radius-sm); }
+.sim-tool-card { border-radius: var(--radius-xs); }
+.sim-user-bubble { border-radius: var(--radius-sm) var(--radius-sm) 0 var(--radius-sm); }
+.sim-approve-btn,
+.sim-deny-btn,
+.copy-install-bar,
+.copy-btn,
+.github-pill,
+.mobile-menu-btn,
+.btn { border-radius: 0; }
+.matrix-wrapper,
+.interactive-preview,
+.term { border-radius: var(--radius-sm); }
+
+/* Wordmark trailing period */
+.brand-word { white-space: nowrap; }
+.brand-dot { color: var(--accent); }
+
+/* =========================================================================
+   INTRO STAGE — fixed panel, one lowercase line, removed under reduced motion
+   ========================================================================= */
+#intro {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  transition: opacity 0.45s ease;
+}
+#intro .intro-line {
+  margin: 0;
+  font-size: clamp(2.2rem, 7vw, 5rem);
+  font-weight: 200;
+  letter-spacing: -0.05em;
+  color: var(--text-main);
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+#intro.show .intro-line { opacity: 1; transform: none; }
+#intro.lift .intro-line { opacity: 0; transform: translateY(-14px); }
+#intro.gone { opacity: 0; visibility: hidden; pointer-events: none; }
+
+/* =========================================================================
+   HERO: full-bleed stage, neural lines, wordmark weave, aurora character
+   ========================================================================= */
+.hero {
+  min-height: auto;
+  padding: 48px 0 40px;
+  overflow: clip;
+}
+.hero-inner { z-index: 2; }
+.hero-neural {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4%;
+  height: 46%;
+  width: 100%;
+  z-index: 0;
+  opacity: 0.55;
+  pointer-events: none;
+}
+.node-line { fill: none; stroke-width: 2.5; }
+.node-line.pulse { animation: pulsing-branch 5s ease-in-out infinite; }
+.node-line.dash { stroke-dasharray: 5 15; animation: flow-dash 7s linear infinite; }
+@keyframes pulsing-branch { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.7; } }
+@keyframes flow-dash { to { stroke-dashoffset: -200; } }
+
+.wordweave {
+  position: relative;
+  isolation: isolate;
+  height: clamp(120px, 16vw, 250px);
+  margin: 40px 0 6px;
+  overflow: clip;                    /* crops the first and last letters */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+.wordweave-word {
+  position: absolute;
+  top: 0;
+  left: -2.5%;
+  width: 105%;
+  height: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: "Inter", "Inter Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: clamp(80px, 17vw, 258px);
+  font-weight: 900;
+  line-height: 0.74;
+  letter-spacing: -0.055em;
+  text-transform: lowercase;
+  color: var(--text-main);
+  transform: translateY(0.1em);
+  user-select: none;
+  pointer-events: none;
+  will-change: transform;
+}
+.wordweave-back { z-index: 1; }
+.wordweave-front { z-index: 3; }
+.wordweave-back .w-owned { visibility: hidden; }
+.wordweave-front .w-hide { visibility: hidden; }
+.wordweave-subject {
+  position: absolute;
+  z-index: 2;
+  left: 59%;
+  top: 50%;
+  width: clamp(150px, 19vw, 240px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+}
+
+/* The hutch character: a diffused aurora sphere with a geometric line face. */
+.aurora { position: absolute; inset: 0; }
+.aurora-glow {
+  position: absolute;
+  inset: -30%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 42% 34%, rgba(124, 192, 255, 0.6), rgba(98, 192, 115, 0.34) 46%, rgba(5, 7, 10, 0) 72%);
+  filter: blur(30px);
+  animation: aurora-drift 9s ease-in-out infinite;
+}
+.aurora-core {
+  position: absolute;
+  inset: 14%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 36% 28%, rgba(255, 255, 255, 0.82), rgba(124, 192, 255, 0.55) 26%, rgba(98, 192, 115, 0.44) 52%, rgba(82, 168, 255, 0.26) 70%, rgba(5, 7, 10, 0) 82%);
+  filter: blur(6px);
+  box-shadow: 0 0 70px rgba(98, 192, 115, 0.28), 0 0 90px rgba(82, 168, 255, 0.2);
+}
+.aurora-face { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.aurora-face path {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.aurora-face circle { fill: rgba(255, 255, 255, 0.97); }
+@keyframes aurora-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, -7px, 0) scale(1.05); }
+}
+
+/* Live status pill (glass, breathing dot). */
+.live-pill {
+  position: absolute;
+  right: 2%;
+  top: 0;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 100px;
+  background: rgba(10, 10, 10, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-family: var(--font-mono);
+}
+.live-pill .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: pulse-dot 1.8s infinite;
+}
+.live-pill .k { font-size: 9px; font-weight: 800; letter-spacing: 0.14em; color: var(--success); }
+.live-pill .v { font-size: 12px; color: var(--text-main); }
+
+/* =========================================================================
+   SPOTLIGHT + MORPHING GLOW CARDS (cursor-tracked)
+   ========================================================================= */
+[data-spotlight] { position: relative; }
+[data-spotlight]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(82, 168, 255, 0.1), transparent 40%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+[data-spotlight]:hover::before,
+[data-spotlight]:focus-within::before { opacity: 1; }
+
+[data-glow]::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.55;
+  background: linear-gradient(120deg, transparent, rgba(82, 168, 255, 0.1), rgba(98, 192, 115, 0.08), transparent);
+  background-size: 200% 200%;
+  animation: glow-shift 14s ease-in-out infinite;
+}
+@keyframes glow-shift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+.bento-card > * { position: relative; z-index: 1; }
+
+/* Interactive project card: metadata + action reveal on hover. */
+.bento-card .bento-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: auto;
+  padding-top: 18px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 650;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.bento-card:hover .bento-action,
+.bento-card:focus-within .bento-action { opacity: 1; transform: none; }
+.bento-action .arr {
+  width: 13px;
+  height: 13px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* Site typing indicator (matches the studio: 3 dots, 5px, 1.3s, 0.15s stagger). */
+.sim-typing-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 4px;
+  color: var(--text-dim);
+  font-size: 12.5px;
+}
+.sim-typing { display: inline-flex; gap: 5px; }
+.sim-typing span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  animation: typing-bounce 1.3s infinite ease-in-out both;
+}
+.sim-typing span:nth-child(2) { animation-delay: 0.15s; }
+.sim-typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.25; }
+  30% { transform: translateY(-3px); opacity: 0.75; }
+}
+
+/* Scroll-linked receding hero heading (JS sets --hero-scale). */
+h1.hero-title { transform: scale(var(--hero-scale, 1)); transform-origin: 50% 12%; will-change: transform; }
+
+/* =========================================================================
+   REVEAL + REDUCED MOTION
+   ========================================================================= */
+.reveal { opacity: 0; transform: translateY(20px); }
+.reveal.in {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1), transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #intro { display: none !important; }
+  .node-line,
+  .aurora-glow,
+  [data-glow]::after,
+  .live-pill .dot,
+  .sim-typing span { animation: none !important; }
+  h1.hero-title { transform: none !important; }
+  .bento-action { opacity: 1 !important; transform: none !important; }
+  .reveal { opacity: 1 !important; transform: none !important; }
+  .wordweave-word { transform: translateY(0.1em) !important; }
+}
+
+@media (max-width: 900px) {
+  .wordweave { height: clamp(110px, 30vw, 190px); }
+  .wordweave-subject { width: clamp(120px, 34vw, 200px); }
+  .live-pill { right: 0; top: 4%; }
+}

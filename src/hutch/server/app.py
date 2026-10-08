@@ -27,7 +27,7 @@ from ..config import get_config
 from ..engine import Engine, bot_prompt_for_schedule
 from ..models import ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, CommandRule, RiskTier, Schedule
 from ..store import Store
-from ..templates import TEMPLATES
+from ..templates import TEMPLATE_INFO, TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
 from .security import SecurityMiddleware
 from .sse import resume_cursor, run_event_stream
@@ -155,9 +155,12 @@ def create_app() -> FastAPI:
     @app.get("/api/bots/templates")
     def bot_templates() -> list[dict]:
         return [
-            {"name": t.name, "description": t.description, "tools": t.tools,
-             "schedule": t.schedule.model_dump() if t.schedule else None}
-            for t in TEMPLATES.values()
+            {"name": i.key, "description": i.bot.description, "tools": i.bot.tools, "category": i.category,
+             "tagline": i.tagline, "reads": i.reads, "produces": i.produces, "safety": i.safety,
+             "needs_folder": i.needs_folder, "preset": i.bot.preset, "risk_tier": i.bot.risk_tier.value,
+             "rules": [{"match": r.match, "verdict": r.verdict} for r in i.bot.command_rules],
+             "schedule": i.bot.schedule.model_dump() if i.bot.schedule else None}
+            for i in TEMPLATE_INFO.values()
         ]
 
     def _checked_workdir(raw: str) -> str:
@@ -354,12 +357,34 @@ def create_app() -> FastAPI:
     # ---------------------------------------------------------- approvals
 
     @app.get("/api/approvals")
-    def list_approvals() -> list[dict]:
+    def list_approvals(status: str = "pending", limit: int = 20) -> list[dict]:
+        """``status=pending`` (default) lists the queue; ``status=resolved`` lists recently decided.
+
+        Both carry ``bot_name`` and the resolution fields so the UI can show "already resolved
+        elsewhere" honestly instead of guessing.
+        """
+        if status == "resolved":
+            reqs = store.recent_approvals(min(max(limit, 1), 50))
+        else:
+            reqs = store.pending_approvals()
         out = []
-        for req in store.pending_approvals():
+        for req in reqs:
             bot = store.get_bot(req.bot_id)
             out.append({**req.model_dump(), "bot_name": bot.name if bot else "?"})
         return out
+
+    @app.get("/api/approvals/{approval_id}")
+    def get_approval(approval_id: str) -> dict:
+        """One approval in any state — the reconciliation endpoint after a 409/404.
+
+        Approvals are atomically resolved: two devices racing to answer the same card
+        must be able to learn who won rather than silently disagreeing.
+        """
+        req = store.get_approval(approval_id)
+        if req is None:
+            raise HTTPException(404, "no such approval")
+        bot = store.get_bot(req.bot_id)
+        return {**req.model_dump(), "bot_name": bot.name if bot else "?"}
 
     @app.post("/api/approvals/{approval_id}/approve")
     def approve(approval_id: str, body: ApproveRequest) -> dict:

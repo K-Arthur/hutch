@@ -241,6 +241,23 @@ a:hover { color: var(--accent-strong); }
 }
 @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
+/* Daemon health pill — real state, never a hardcoded "live" (see app.js pollHealth). */
+.pill.daemon.live { color: var(--accent); background: var(--accent-bg); border-color: var(--accent-border); }
+.pill.daemon.reconnecting { color: var(--warning); background: var(--neutral-tint); border-color: var(--warning-border); }
+.pill.daemon.offline { color: var(--danger); background: var(--neutral-tint); border-color: var(--danger-border); }
+.pill.daemon.connecting { color: var(--text-faint); background: var(--neutral-tint); border-color: var(--border); }
+.pill.daemon.connecting::before,
+.pill.daemon.reconnecting::before,
+.pill.daemon.offline::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.pill.daemon.connecting::before { background: var(--text-faint); animation: pulse-dot 1.2s infinite; }
+.pill.daemon.reconnecting::before { background: var(--warning); animation: pulse-dot 1.2s infinite; }
+.pill.daemon.offline::before { background: var(--danger); }
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -399,6 +416,34 @@ button.icon-btn, .icon-btn {
   border-top-color: var(--info);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+
+/* Typing indicator: 3 dots, 5px, bounce 3px, 1.3s loop, 0.15s stagger.
+   aria-hidden in the DOM — this is a visual affordance only. */
+.typing {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px 2px;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+.typing-dots { display: inline-flex; gap: 5px; }
+.typing-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  animation: typing-bounce 1.3s infinite ease-in-out both;
+}
+.typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.25; }
+  30% { transform: translateY(-3px); opacity: 0.75; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .typing-dots span { animation: none; opacity: 0.55; }
 }
 
 .visually-hidden {
@@ -814,7 +859,7 @@ button.icon-btn, .icon-btn {
 }
 .composer-pill:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-glow);
+  box-shadow: 0 0 0 2px var(--accent-glow), 0 0 30px -8px var(--accent-glow);
 }
 .composer-meta-row {
   display: flex;
@@ -1439,3 +1484,21 @@ table th, table td { font-family: var(--font-mono); }
 @media (max-width: 1000px) { .bot-grid { grid-template-columns: 1fr 1fr; } .bot-grid > :first-child { grid-column: 1 / -1; } }
 @media (max-width: 640px) { .bot-grid { grid-template-columns: 1fr; } }
 .icon-lg { color: var(--text-dim); }
+
+/* ------------------------------------------------------- KPI bento + run timing timeline */
+.kpi-bento { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 18px; }
+.kpi { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; }
+.kpi-label { color: var(--text-faint); font: 600 11px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
+.kpi-val { font-size: 20px; font-weight: 700; }
+.run-timing { margin-bottom: 16px; }
+.timeline-stack { display: flex; height: 10px; background: var(--surface-3); border-radius: 0; overflow: hidden; margin-bottom: 8px; }
+.timeline-stack i { display: block; height: 100%; }
+.s-model { background: var(--accent); }
+.s-tool { background: var(--success); }
+.s-over { background: var(--warning); }
+.timeline-legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--text-faint); font-size: 11px; margin-bottom: 10px; }
+.timeline-legend .dot { display: inline-block; width: 8px; height: 8px; margin-right: 5px; vertical-align: middle; }
+.step-strip { display: flex; gap: 2px; height: 16px; align-items: stretch; }
+.step-seg { display: flex; min-width: 2px; background: var(--surface-3); }
+.step-seg i { display: block; height: 100%; }
+@media (max-width: 760px) { .kpi-bento { grid-template-columns: 1fr 1fr; } }

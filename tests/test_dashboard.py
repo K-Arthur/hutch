@@ -22,7 +22,7 @@ def client(tmp_path, monkeypatch):
 
 
 def token(client) -> str:
-    html = client.get("/overview").text
+    html = client.get("/connections").text
     return re.search(r'<meta name="csrf" content="([^"]+)"', html).group(1)
 
 
@@ -49,24 +49,26 @@ def wait_for(fn, timeout=15.0):
 
 # ------------------------------------------------------------------ pages render
 
-def test_every_page_renders_on_an_empty_install(client):
-    for path in ("/", "/overview", "/bots", "/bots/new", "/runs", "/approvals", "/_home", "/_badge"):
-        r = client.get(path)
-        assert r.status_code == 200, path
-    assert "No bots yet" in client.get("/overview").text
+def test_retired_pages_redirect_to_the_studio(client):
+    for path in ("/overview", "/bots", "/bots/new", "/runs", "/approvals"):
+        r = client.get(path, follow_redirects=False)
+        assert r.status_code == 302 and r.headers["location"].startswith("/#/"), path
+    assert client.get("/").status_code == 200          # the app home is the chat studio
+    for path in ("/_home", "/_badge"):
+        assert client.get(path).status_code == 200, path
 
 
 def test_pages_are_server_rendered_with_htmx_and_no_build_step(client):
-    html = client.get("/overview").text
+    html = client.get("/connections").text
     assert "/static/vendor/htmx.min.js" in html and "/static/hutch.js" in html
     assert client.get("/static/vendor/htmx.min.js").status_code == 200
     assert "<script" in html and "node_modules" not in html
 
 
-def test_home_has_the_three_questions(client):
+def test_overview_api_has_the_three_questions(client):
     make_bot(client)
-    html = client.get("/overview").text
-    assert "Needs you" in html and "Running now" in html and "Stale" in html
+    d = client.get("/api/overview").json()
+    assert {"approvals", "running", "stale", "stats", "needs_count"} <= set(d)
 
 
 def test_unknown_page_is_a_helpful_404_not_a_stack_trace(client):
@@ -103,7 +105,7 @@ def seed_pending_shell_approval(client):
 
 def test_approval_card_shows_segments_rule_choices_and_countdown(client):
     _, _, req = seed_pending_shell_approval(client)
-    html = client.get("/approvals").text
+    html = client.get("/_approvals").text
     assert "Parsed into 2 segments" in html
     assert "git status" in html and "rm -rf build/" in html
     assert "ask:rm" in html                                   # the rule that fired
@@ -143,7 +145,7 @@ def test_outward_actions_never_offer_always(client):
     req = store.create_approval(ApprovalRequest(
         run_id=run.id, bot_id=bot.id, tool="shell", action="$ git push origin main", sticky_key="shell:git",
         outward=True, risk="high", rule="ask:git-push"))
-    html = client.get("/approvals").text
+    html = client.get("/_approvals").text
     assert "Always for this bot" not in html and "outward" in html
     post(client, f"/approvals/{req.id}/decide", choice="always")
     assert not store.is_sticky_allowed(bot.id, "shell:git")     # even a forged 'always' is ignored
@@ -153,7 +155,7 @@ def test_outward_actions_never_offer_always(client):
 
 def test_stop_all_is_in_every_header_and_stops_a_run(client):
     bot = make_bot(client)
-    for path in ("/overview", "/bots", "/runs", "/approvals"):
+    for path in ("/connections", "/login"):
         assert "/stop-all" in client.get(path).text, path
     store, engine = client.app_.state.store, client.app_.state.engine
     run = engine.submit(bot, "write a report")
@@ -170,8 +172,6 @@ def test_per_run_stop_form_is_a_plain_post(client):
     run = engine.submit(bot, "write a report")
     engine.dispatch_pending()
     wait_for(lambda: store.get_run(run.id).status is RunStatus.waiting_approval)
-    html = client.get(f"/runs/{run.id}").text
-    assert f'action="/runs/{run.id}/stop"' in html and 'method="post"' in html
     post(client, f"/runs/{run.id}/stop")
     wait_for(lambda: store.get_run(run.id).status is RunStatus.stopped)
 
@@ -184,10 +184,10 @@ def test_waiting_run_page_names_cause_and_fix(client):
     run = engine.submit(bot, "write a report")
     engine.dispatch_pending()
     wait_for(lambda: store.get_run(run.id).status is RunStatus.waiting_approval)
-    html = client.get(f"/runs/{run.id}").text
-    assert "Why:" in html and "What to do:" in html and "Needs your decision" in html
-    assert "Steps" in html and "Elapsed" in html and "Spend" in html and "Context" in html   # UI-4 meters
-    assert "started by <strong>manual" not in html   # origin shown as a readable label
+    wait = client.get(f"/runs/{run.id}/wait")
+    assert "Why:" in wait.text and "What to do:" in wait.text
+    meters = client.get(f"/runs/{run.id}/meters")                       # UI-4 meters
+    assert "Steps" in meters.text and "Elapsed" in meters.text and "Spend" in meters.text and "Context" in meters.text
     client.app_.state.engine.stop_all()
 
 
@@ -196,7 +196,7 @@ def test_failed_run_page_explains_the_failure(client):
     store = client.app_.state.store
     run = store.create_run(Run(bot_id=bot.id, prompt="x", status=RunStatus.failed, exit_reason="steps_exceeded",
                                finished_at=iso(utcnow())))
-    html = client.get(f"/runs/{run.id}").text
+    html = client.get(f"/runs/{run.id}/wait").text
     assert "used all 24 steps" in html and "max_steps" in html
 
 
@@ -209,12 +209,9 @@ def test_ten_thousand_event_run_page_is_paginated_and_fast(client):
         store.append_event(Event(run_id=run.id, type=EventType.log, data={"note": f"step {i}"}))
     store.flush_events()
     t0 = time.perf_counter()
-    r = client.get(f"/runs/{run.id}")
+    r = client.get(f"/runs/{run.id}", follow_redirects=False)
     dt = time.perf_counter() - t0
-    assert r.status_code == 200
-    assert r.text.count('data-seq="') == 200                       # newest window only
-    assert "9800 hidden" in r.text and "Load 200 earlier" in r.text
-    assert dt < 1.5, f"run page took {dt:.2f}s at 10k events"
+    assert r.status_code == 302 and dt < 1.5        # retired: the studio owns run detail now
     older = client.get(f"/runs/{run.id}/events?before=9801")
     assert older.status_code == 200 and older.text.count('data-seq="') == 200
     assert 'data-seq="9601"' in older.text and 'data-seq="9800"' in older.text

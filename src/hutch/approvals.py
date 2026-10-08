@@ -119,7 +119,8 @@ class ApprovalGate:
                         data={"approval_id": req.id, "tool": tool, "action": action,
                               "rule": req.rule, "risk": req.risk, "outward": outward,
                               "expires_at": req.expires_at, "detail": detail,
-                              "segments": req.segments}))
+                              "segments": req.segments, "sticky_key": req.sticky_key,
+                              "plan_id": req.plan_id}))
         self._wait(req, action)
 
     def _wait(self, req: ApprovalRequest, action: str) -> None:

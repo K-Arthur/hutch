@@ -19,6 +19,23 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   UI iconography is inline SVG only.
 - Runs view: wired status filters and search (previously rendered with no listeners), shareable
   `#/runs?status=…&q=…` state, "show more" pagination, keyboard-operable rows, distinct empty states.
+- **Studio shell truthfulness + a11y**: the whole `<main>` is no longer a live region (it announced
+  the entire page on every poll); announcements go through a bounded `#live-status` region that
+  reports lifecycle changes only — run started/waited/finished, approval required, connection lost.
+  The daemon badge no longer claims a hardcoded "live": health is established from `/api/health` with
+  a heartbeat and degrades to `reconnecting`/`offline`. A 3-dot working indicator shows while a bot is
+  actually computing (never for a waiting-for-human run). Contract tests in `tests/test_studio_shell.py`.
+- **Reference map** ([docs/research/reference-map.md](docs/research/reference-map.md)): verified
+  this session against the Grok Bot changelog (v0.68.1) and the two Open WebUI issues (#31656
+  closed, #30055 open) — observed patterns, evidence, Hutch equivalents, and the deliberate
+  decisions, with the unverified gaps stated. This pass' typing label follows the reference
+  (the bot's name is dropped from the working status).
+- **Marketing site signature system**: an intro stage, a poster wordmark the hutch character passes
+  through (two exactly-registered layers with the subject between them), an aurora-light character with
+  a geometric line face, neural connection lines, a live status pill, a scroll-linked receding hero
+  heading, spotlight cursor tracking and morphing glows on the bento cards, and a hover-revealed action
+  on each project card. All motion is removed under `prefers-reduced-motion` (intro deleted, reveals
+  forced visible, zoom/parallax off). Browser tests in `tests/e2e/test_website.py`.
 
 ### Changed
 - **Dashboard (server-rendered): monochrome-first pass.** Retired the tinted status fills and the
@@ -45,6 +62,12 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   accessible mobile drawer (`aria-expanded`, Escape, focus return).
 - **Server-rendered dashboard**: token values aligned onto the shared system (obsidian surfaces,
   12/8px radii, emerald focus rings) without structural changes.
+- **Hero gradient-text bug fixed**: `filter` + `background-clip: text` on the same element painted the
+  whole text box as a solid block in Chromium (visible in the pre-change baseline). The heading now
+  falls back to a solid accent and only applies the clipped gradient inside `@supports`.
+- **Stale browser tests re-pointed at the single UI** (the server transcript/overview pages redirect
+  into the SPA since 27a73ed): the phone approval journey now targets `#/approvals`, and a live SPA
+  transcript journey replaces the retired server SSE DOM test.
 
 ## [0.1.0] — 2026-10-07
 
@@ -84,3 +107,5 @@ First MVP.
 - **Studio → whole app + data viz:** the chat SPA is now self-contained with an **Overview** triage
   view (`GET /api/overview`), a **bento** Bots grid, and a **Timeline** column on the Runs table
   (per-run duration bars, blue/amber/red). See [docs/design-system.md](docs/design-system.md).
+- **One UI:** the duplicate server pages redirect into the studio SPA; run detail gains a KPI bento
+  and a model/tools/hutch timing timeline. See [docs/design-system.md](docs/design-system.md).

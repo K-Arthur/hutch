@@ -21,7 +21,7 @@ from .. import __version__
 from ..approvals import resolve_approval
 from ..engine import bot_prompt_for_schedule
 from ..models import ApprovalStatus, Bot, CatchUpPolicy, EventType, RunStatus, Schedule
-from ..templates import TEMPLATES
+from ..templates import TEMPLATE_INFO, TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
 from .. import views
 from .security import AUTH_COOKIE, auth_digest, check_csrf
@@ -185,7 +185,7 @@ def register_pages(app: FastAPI) -> None:
 
     @app.get("/overview", response_class=HTMLResponse, include_in_schema=False)
     def overview(request: Request):
-        return page(request, "home.html", nav="overview", home=home_ctx(), has_bots=bool(store.list_bots()))
+        return RedirectResponse("/#/overview", status_code=302)
 
     @app.get("/_home", response_class=HTMLResponse, include_in_schema=False)
     def home_partial(request: Request):
@@ -247,12 +247,11 @@ def register_pages(app: FastAPI) -> None:
             d["schedule"] = b.schedule
             d["approval_mode"] = b.approval_mode
             views_.append(_Obj(d))
-        return page(request, "bots.html", nav="bots", bots=views_)
+        return RedirectResponse("/#/bots", status_code=302)
 
     @app.get("/bots/new", response_class=HTMLResponse, include_in_schema=False)
     def bot_new(request: Request):
-        return page(request, "bot_new.html", nav="bots", templates=list(TEMPLATES.values()),
-                    picked=request.query_params.get("template", ""))
+        return RedirectResponse("/#/bots", status_code=302)
 
     @app.post("/bots", include_in_schema=False)
     async def bot_create(request: Request):
@@ -278,7 +277,10 @@ def register_pages(app: FastAPI) -> None:
             except Exception:
                 return go("/bots/new", error="That cron expression is not valid (5 fields, e.g. 0 9 * * 1).")
         store.create_bot(bot)
-        return go(f"/bots/{name}", notice=f"Created {name}.")
+        info = TEMPLATE_INFO.get(template or "")
+        hint = (f" It reads files ({info.reads}): set a working folder under Settings or it starts with nothing to look at."
+                if info and info.needs_folder and not bot.workdir else "")
+        return go(f"/bots/{name}", notice=f"Created {name}.{hint}")
 
     @app.get("/bots/{name}", response_class=HTMLResponse, include_in_schema=False)
     def bot_page(request: Request, name: str):
@@ -375,25 +377,12 @@ def register_pages(app: FastAPI) -> None:
                    next_offset=offset + RUNS_PAGE, query=query)
         if request.query_params.get("fragment"):
             return fragment(request, "_runs_table.html", **ctx)
-        return page(request, "runs.html", nav="runs", bots=store.list_bots(), f_bot=bot, f_status=status, **ctx)
+        return RedirectResponse("/#/runs", status_code=302)
 
     @app.get("/runs/{run_id}", response_class=HTMLResponse, include_in_schema=False)
     def run_page(request: Request, run_id: str):
-        run = run_or_404(run_id)
-        bot = store.get_bot(run.bot_id)
-        active = run.status in views.ACTIVE_STATUSES
-        total = store.count_events(run_id)
-        evs = store.tail_events(run_id, PAGE_WINDOW)
-        first_seq = evs[0].seq if evs else 1
-        wait = views.explain_run(store, run, engine, bot) if active else views.explain_outcome(run, bot)
-        meters = views.run_meters(store, run, bot)
-        view = rv(run)
-        return page(request, "run.html", nav="runs", run=view, active=active, wait=wait,
-                    meters=meters, split=views.timing_split(run), timing=views.timing_abs(run), evs=evs, first_seq=first_seq,
-                    hidden=max(0, first_seq - 1), last_seq=evs[-1].seq if evs else 0, event_count=total,
-                    bot_model=bot.model if bot else "?", verify=store.verify_chain(run_id) if not active else {},
-                    approvals={a.id: a for a in (store.get_approval(e.data.get("approval_id", ""))
-                                                 for e in evs if e.type is EventType.approval_request) if a})
+        run_or_404(run_id)
+        return RedirectResponse(f"/#/run/{run_id}", status_code=302)
 
     @app.get("/runs/{run_id}/events", response_class=HTMLResponse, include_in_schema=False)
     def run_events_fragment(request: Request, run_id: str, before: int = 0, after: int = 0, upto: int = 0):
@@ -498,7 +487,7 @@ def register_pages(app: FastAPI) -> None:
 
     @app.get("/approvals", response_class=HTMLResponse, include_in_schema=False)
     def approvals_page(request: Request):
-        return page(request, "approvals.html", nav="approvals", items=approvals_ctx(), recent=recent_decided())
+        return RedirectResponse("/#/approvals", status_code=302)
 
     @app.get("/_approvals", response_class=HTMLResponse, include_in_schema=False)
     def approvals_partial(request: Request):
