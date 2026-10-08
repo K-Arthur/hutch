@@ -8,8 +8,12 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 - **Canonical conversation persistence and v1 API (partial):** schema v8 imports each old run into a separate legacy conversation;
   new conversation/message/archive commands use atomic `Idempotency-Key` records and reject key reuse with changed arguments. Run
   admission snapshots up to 12 prior messages and 16,000 characters for the builtin runtime. FTS5 searches messages explicitly;
-  search results are not injected into prompts. Studio supports durable thread switching and archive. Global event replay and remote
-  pairing remain open.
+  search results are not injected into prompts. Studio supports durable thread switching and archive. Versioned stop and approval
+  resolution also use idempotency keys. `/api/v1` now includes sanitized connection metadata, schedules and explicit capability
+  records; global event replay remains open.
+- **Experimental remote pairing:** schema v9 adds single-use 60-second pairing codes and hash-only, revocable device sessions with
+  sliding 30-day expiry. Direct off-loopback binding requires `--allow-remote` plus TLS certificate/key. Pairing attempts are
+  rate-limited; the phone UI, live control routes, tunnel support and device validation remain unavailable.
 - **Fail-closed external runtimes:** legacy Pi/OpenCode selections now stop before spawning a subprocess because their permissions,
   process containment and provider-budget paths are not governed. OpenCode `--auto` and the broken Pi RPC adapter are removed from
   the execution path. Browser profiles and contexts are instance-owned per bot; fixture tests verify separate profile directories.

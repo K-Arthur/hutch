@@ -49,10 +49,13 @@
   imported separately. The local v1 API snapshots at most 12 prior messages / 16,000 characters for builtin runs and supports
   FTS5 search. The Studio selects threads, displays restart-persistent history and archives without deleting it.
 - **API: partial.** Versioned health, status labels, bots, conversations, search, runs, approvals and usage aliases are present.
-  Create/message/archive commands use transactional idempotency keys. Global SSE replay, idempotent approval/cancel commands,
-  workspaces/artifacts, device pairing and authenticated remote control are not available.
-- **Release posture.** Source is private and unpublished. Linux loopback is the only supported service boundary; no hosted or
-  phone-pairing claim should imply that the dashboard can control a sleeping or disconnected host.
+  Create/message/archive, stop, and approval resolution use transactional idempotency. Global SSE replay, workspaces/artifacts,
+  capability records and idempotent resume/bot-run commands remain open.
+- **Remote pairing: experimental.** Direct off-loopback access requires explicit TLS binding. One-time codes issue revocable device
+  sessions; source-IP attempts are throttled. The phone UI, PTY/browser controls, tunnel path, and physical-device verification remain
+  open. Linux loopback remains the supported service boundary; do not present remote access as a shipped phone feature.
+- **Release posture.** Source is private and unpublished. A paired device cannot keep a sleeping host running or reach a service after
+  disconnection.
 
 ## Non-goals
 

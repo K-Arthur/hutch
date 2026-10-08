@@ -6,4 +6,8 @@ The queue at `GET /api/approvals` lists pending requests. The same resources are
 
 The client does not remove a request as completed based on a local click alone. If another device decides first, it reads the server's result and shows that decision. Expired requests fail closed as denied. Stop does not undo effects that were already completed.
 
-Approval CAS and reconciliation are live on both path families, but approval commands do not yet accept `Idempotency-Key`; retries should read the approval resource after a conflict. Per-run SSE supports `Last-Event-ID`. Global event replay, remote device pairing and authenticated control sessions are not available.
+Approval CAS and reconciliation are live on both path families. The versioned approve/deny routes require `Idempotency-Key`; approve
+also requires the `action_hash` returned with the approval so a revised action cannot reuse the decision. Exact retries return the
+same result and changed request arguments conflict. Legacy routes remain available for the local Studio. Per-run SSE supports
+`Last-Event-ID`; global event replay and interactive remote-control routes remain unavailable. Device pairing is experimental; see
+[the API contract](realignment/contracts.md#6-remote-pairing-partial-experimental).

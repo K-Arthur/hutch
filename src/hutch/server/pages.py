@@ -612,7 +612,8 @@ def register_pages(app: FastAPI) -> None:
         import hmac
         if token and hmac.compare_digest(form.get("token"), token):
             resp = RedirectResponse("/", status_code=303)
-            resp.set_cookie(AUTH_COOKIE, auth_digest(token), httponly=True, samesite="strict", max_age=86400 * 7)
+            resp.set_cookie(AUTH_COOKIE, auth_digest(token), httponly=True, secure=request.url.scheme == "https",
+                            samesite="strict", max_age=86400 * 7)
             return resp
         return go("/login", error="That token is not right.")
 

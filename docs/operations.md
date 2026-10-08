@@ -25,10 +25,29 @@ Inspect the latest run events and worker log (`hutch bot show <name>` and the bo
 prevents pidfd signalling or process visibility, resolve that host restriction and let the supervisor retry. Hutch will not signal
 a numeric PID or process-group ID whose recorded boot/start identity does not match.
 
+## Remote pairing (experimental)
+
+The dashboard binds to loopback unless `--allow-remote` is explicit. For a direct private-network listener, use a certificate and key
+trusted by the devices that will connect:
+
+```bash
+hutch serve --host 0.0.0.0 --port 8787 --allow-remote --tls-cert /path/to/fullchain.pem --tls-key /path/to/private-key.pem
+```
+
+Restrict reachability at the host/network firewall to your private network. Do not expose this port to the public internet. In another
+host terminal, `hutch pairing create` prints a single-use code valid for 60 seconds. Exchange it only with your own device at the
+HTTPS Hutch address. `hutch pairing list` shows active device ids and use times; revoke a lost device with
+`hutch pairing revoke <device-id>`. The browser holds an HttpOnly cookie; the raw session secret is never returned in the response or
+written to the database. Pairing throttles after five invalid attempts from one source IP in ten minutes.
+
+The phone-facing UI and live browser/PTY controls are not complete, and this path has not been tested on physical devices or across an
+operator's network. Tunnel/reverse-proxy deployments are not supported by this command; keep it loopback-only behind externally
+managed infrastructure until trusted-proxy handling is documented and validated.
+
 ## Database migration and restore
 
 Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. The current schema version is displayed
-by `hutch doctor` (schema v8 in this realignment branch). Stop Hutch services before restoring a backup:
+by `hutch doctor` (schema v9 in this realignment branch). Stop Hutch services before restoring a backup:
 
 ```bash
 # Replace STATE with the configured Hutch state directory.
@@ -41,7 +60,8 @@ older schema will migrate forward on open, creating its own versioned backup fir
 the matching pre-upgrade backup; older code does not honor leases or fencing. Validate restoration against a copy before using it
 for production state.
 
-Schema v8 gives every pre-existing run a separate imported legacy conversation. Hutch does not infer that adjacent runs share a
+Schema v8 gives every pre-existing run a separate imported legacy conversation. Schema v9 adds single-use pairing codes and hashed,
+revocable device sessions. Hutch does not infer that adjacent runs share a
 private context. New conversations and message submissions are written transactionally with their idempotency records. The
 `conversation_fts` index contains message text only; it excludes tool output, credentials, workspaces and bot memory.
 

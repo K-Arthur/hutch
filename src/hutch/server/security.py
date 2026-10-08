@@ -33,8 +33,9 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 UNSAFE = {"POST", "PUT", "PATCH", "DELETE"}
 CSRF_COOKIE = "hutch_csrf"
 AUTH_COOKIE = "hutch_auth"
+DEVICE_COOKIE = "hutch_device"
 LOOPBACK_NAMES = {"localhost", "localhost.localdomain"}
-OPEN_PATHS = ("/login", "/static/", "/api/health")
+OPEN_PATHS = ("/login", "/static/", "/api/health", "/api/v1/pairing/exchange")
 
 
 def _host_only(host_header: str) -> str:
@@ -65,13 +66,19 @@ def auth_digest(token: str) -> str:
 class SecurityMiddleware:
     """Pure ASGI middleware: Host allow-list, same-origin checks, CSRF cookie, optional token auth."""
 
-    def __init__(self, app: ASGIApp, *, extra_hosts: Iterable[str] = (), auth_token: Optional[str] = None):
+    def __init__(self, app: ASGIApp, *, extra_hosts: Iterable[str] = (), auth_token: Optional[str] = None,
+                 device_auth=None):
         self.app = app
         self.extra_hosts = {h.lower() for h in extra_hosts} | allowed_hosts_from_env()
         self.auth_token = auth_token
         self._digest = auth_digest(auth_token) if auth_token else None
+        self.device_auth = device_auth
+        self.remote_enabled = os.environ.get("HUTCH_REMOTE_ENABLED") == "1"
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "websocket":
+            await self._websocket(scope, receive, send)
+            return
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
@@ -81,10 +88,20 @@ class SecurityMiddleware:
 
         # 1. DNS rebinding: only loopback / explicitly allowed names. With a token configured the
         #    attacker cannot authenticate anyway, so remote names are permitted.
-        if not (is_loopback_host(host) or host in self.extra_hosts or self.auth_token):
+        peer_is_local = self._peer_is_local(scope)
+        if is_loopback_host(host) and not peer_is_local:
+            await PlainTextResponse("hutch: a remote connection cannot use a loopback Host header.",
+                                    status_code=421)(scope, receive, send)
+            return
+        if not (is_loopback_host(host) or host in self.extra_hosts or self.auth_token or self.remote_enabled):
             await PlainTextResponse(
                 f"hutch: unexpected Host '{host_header}'. Use http://127.0.0.1:<port>, or set "
                 "HUTCH_ALLOWED_HOSTS to allow this name.", status_code=421)(scope, receive, send)
+            return
+
+        remote_request = not peer_is_local or (not is_loopback_host(host) and host not in self.extra_hosts)
+        if remote_request and scope.get("scheme") != "https":
+            await PlainTextResponse("hutch: remote access requires HTTPS.", status_code=426)(scope, receive, send)
             return
 
         # 2. CSRF: unsafe methods must be same-origin (browsers always send Origin on cross-site POST).
@@ -95,7 +112,8 @@ class SecurityMiddleware:
 
         # 3. Auth (only when a token is configured, i.e. remote binding).
         path = request.url.path
-        if self._digest and not path.startswith(OPEN_PATHS) and not self._authed(request):
+        if (self._digest or (remote_request and self.remote_enabled)) and not path.startswith(OPEN_PATHS) \
+                and not self._authed(request):
             if request.method == "GET" and "text/html" in request.headers.get("accept", ""):
                 await RedirectResponse("/login", status_code=303)(scope, receive, send)
             else:
@@ -136,8 +154,57 @@ class SecurityMiddleware:
         if self._digest and hmac.compare_digest(cookie, self._digest):
             return True
         bearer = request.headers.get("authorization", "")
-        return bool(self.auth_token and bearer.startswith("Bearer ")
-                    and hmac.compare_digest(bearer[7:], self.auth_token))
+        if self.auth_token and bearer.startswith("Bearer ") and hmac.compare_digest(bearer[7:], self.auth_token):
+            return True
+        device_token = bearer[7:] if bearer.startswith("Bearer ") else request.cookies.get(DEVICE_COOKIE, "")
+        return bool(device_token and self.device_auth and self.device_auth(device_token))
+
+    @staticmethod
+    def _peer_is_local(scope: Scope) -> bool:
+        client = scope.get("client")
+        if not client:
+            return True
+        try:
+            return ipaddress.ip_address(client[0]).is_loopback
+        except ValueError:  # Starlette's in-process TestClient uses "testclient".
+            return True
+
+    async def _websocket(self, scope: Scope, receive: Receive, send: Send) -> None:
+        headers = {k.lower(): v for k, v in scope.get("headers", [])}
+        host_header = headers.get(b"host", b"").decode("latin-1")
+        host = _host_only(host_header)
+        origin = headers.get(b"origin", b"").decode("latin-1")
+        peer_is_local = self._peer_is_local(scope)
+        if is_loopback_host(host) and not peer_is_local:
+            await send({"type": "websocket.close", "code": 4403, "reason": "remote loopback Host refused"})
+            return
+        if not (is_loopback_host(host) or host in self.extra_hosts or self.auth_token or self.remote_enabled):
+            await send({"type": "websocket.close", "code": 4403, "reason": "unexpected Host"})
+            return
+        if origin:
+            from urllib.parse import urlsplit
+            parts = urlsplit(origin)
+            if origin == "null" or parts.netloc.lower() != host_header.strip().lower():
+                await send({"type": "websocket.close", "code": 4403, "reason": "cross-origin WebSocket refused"})
+                return
+        remote_request = not peer_is_local or (not is_loopback_host(host) and host not in self.extra_hosts)
+        if remote_request and scope.get("scheme") != "wss":
+            await send({"type": "websocket.close", "code": 4403, "reason": "remote WebSocket requires TLS"})
+            return
+        if self._digest or (remote_request and self.remote_enabled):
+            bearer = headers.get(b"authorization", b"").decode("latin-1")
+            cookie = headers.get(b"cookie", b"").decode("latin-1")
+            device_cookie = next((part.split("=", 1)[1] for part in cookie.split("; ")
+                                  if part.startswith(DEVICE_COOKIE + "=")), "")
+            auth_ok = bool(self.auth_token and bearer.startswith("Bearer ")
+                           and hmac.compare_digest(bearer[7:], self.auth_token))
+            if not auth_ok:
+                token = bearer[7:] if bearer.startswith("Bearer ") else device_cookie
+                auth_ok = bool(token and self.device_auth and self.device_auth(token))
+            if not auth_ok:
+                await send({"type": "websocket.close", "code": 4401, "reason": "authentication required"})
+                return
+        await self.app(scope, receive, send)
 
 
 def check_csrf(request: Request, submitted: Optional[str]) -> bool:

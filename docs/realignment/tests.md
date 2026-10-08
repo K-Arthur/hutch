@@ -33,7 +33,7 @@ browser. "Live" means it needs something this host did not have and is skipped w
 | T-HANDOFF | `waiting_human` pauses automation and resumes after revalidation | offline (fake driver) | `tests/test_browser_ownership.py` | planned |
 | T-INJECTION | Tool-result text cannot add authority or become executable UI | offline | `tests/test_untrusted_content.py` | planned |
 | T-DELEGATION | Depth, fan-out, cycle and budget limits hold | offline | `tests/test_delegation.py` | planned |
-| T-PAIRING | Pairing code is single-use; stale/replayed input is dropped; WebSocket needs auth | offline | `tests/test_pairing.py` | planned |
+| T-PAIRING | Pairing code is single-use under race, expired/replayed codes fail, IP attempts throttle, device session revokes, explicit remote bind requires TLS | offline fixtures | `tests/test_remote_pairing.py` | passing; no physical device/network test |
 | T-HOST-SLEEP | Offline/queued state is reported honestly after the host was suspended | offline | `tests/test_cancel.py` (lease lapse, fenced zombie) | passing |
 | T-WORKER-PROCESS | A run executes in its own session; Stop, SIGKILL, a frozen worker and a dead supervisor are all handled | offline (real processes) | `tests/test_worker.py` | passing |
 | T-EVENT-CHAIN | Several processes writing one transcript keep one unbroken chain; a zombie is refused at the database | offline (real processes) | `tests/test_claims.py` | passing |

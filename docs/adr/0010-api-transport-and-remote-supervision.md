@@ -14,10 +14,11 @@ Status: partially implemented (2026-10-07). Slice: S8. Evidence: baseline "recon
   same middleware (the current middleware passes non-HTTP scopes through - fixed).
 * **Server owns** status, approval resolution, receipts, permissions and usage. The browser owns drafts, focus and view state. Optimistic UI
   may show "sending", never "done".
-* **Remote supervision**: loopback by default. Pairing = a one-time code shown on the host terminal/UI (60 s, single use) exchanged for a
-  per-device token (hash stored, revocable, 30-day sliding expiry, listed in the UI). Requirements before off-loopback binding is allowed:
-  token auth, TLS (or an explicit `--insecure-lan` acknowledgement printed every start), Host/Origin validation, CSRF on cookie sessions,
-  per-IP and per-device brute-force limits, WebSocket auth. Hutch will not bind a LAN/Internet address without all of these.
+* **Remote supervision**: loopback by default. An operator can explicitly enable a direct remote listener with `--allow-remote`, a TLS
+  certificate and key, and configured network reachability. `hutch pairing create` prints a one-time code (60 s); exchanging it over
+  HTTPS creates an HttpOnly per-device session whose hash is stored, whose sliding expiry is 30 days, and which can be listed/revoked
+  from the CLI or API. Pairing attempts are limited per source IP. Host/Origin checks and HTTP/WebSocket device-token checks run before
+  remote access. No token appears in a URL or log. This is an experimental authenticated API boundary, not a complete phone product.
 * **Terminal**: governed command execution first (exists). An interactive PTY (sandboxed, bounded scrollback 1 MiB, resize, cancel, text transcript)
   is built only after the WebSocket auth above lands; **control ownership is a lease** (`agent` | `human`) so input never races; stale or replayed
   frames carry a sequence number and are dropped after reconnect.
@@ -27,6 +28,7 @@ Status: partially implemented (2026-10-07). Slice: S8. Evidence: baseline "recon
 
 ## Consequences
 
-Current boundary: the local `/api/v1` surface and Studio conversation flow are partial; approvals, stops and other existing screens
-still use compatibility routes. Pairing, device sessions, PTY WebSocket, global replay and remote binding controls are not implemented. The current service remains
-loopback-only; there is no `--allow-remote` option or pairing flow to enable.
+Current boundary: the local `/api/v1` surface and Studio conversation flow are partial; the Studio still uses compatibility routes for
+approval decisions and stop. Pairing and revocable device sessions plus explicit direct HTTPS binding are implemented and fixture-tested.
+There is no mobile pairing UI, PTY or browser-control WebSocket route, global event replay, configured tunnel support, physical-device test,
+or production support claim. Keep direct access private and operator-controlled.

@@ -14,6 +14,7 @@ import contextlib
 import hashlib
 import json
 import os
+import platform
 import re
 from pathlib import Path
 from typing import Optional
@@ -31,7 +32,7 @@ from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, CatchUp
 from ..store import IdempotencyConflict, Store
 from ..templates import TEMPLATE_INFO, TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
-from .security import SecurityMiddleware
+from .security import DEVICE_COOKIE, SecurityMiddleware
 from .sse import resume_cursor, run_event_stream
 
 _STATIC = Path(__file__).parent / "static"
@@ -93,6 +94,11 @@ class ConversationArchiveRequest(BaseModel):
     archived: bool = True
 
 
+class PairingExchangeRequest(BaseModel):
+    code: str = Field(min_length=14, max_length=24)
+    label: str = Field(default="Phone", max_length=80)
+
+
 class ConversationResource(BaseModel):
     id: str
     bot_id: str
@@ -141,6 +147,41 @@ class StatusLabelResource(BaseModel):
     needs_person: bool
 
 
+class ConnectionResource(BaseModel):
+    name: str
+    title: str
+    protocol: str
+    model_protocols: dict[str, str]
+    billing: str
+    key_present: bool
+    key_source: str
+    terms_status: str
+    terms_url: str
+    quota_window: str
+    quota_tokens: int
+    models_endpoint: bool
+
+
+class CapabilityResource(BaseModel):
+    id: str
+    status: str
+    reason: str
+    verification: str
+
+
+class ScheduleResource(BaseModel):
+    id: str
+    bot_id: str
+    bot_name: str
+    cron: str
+    timezone: str
+    catch_up: str
+    paused: bool
+    next_fire: Optional[str] = None
+    last_dispatched: Optional[str] = None
+    last_skip: Optional[dict] = None
+
+
 class ApproveRequest(BaseModel):
     always: bool = False
     plan_scope: int = 0               # accepted and ignored: plan-wide grants were never implemented
@@ -168,7 +209,8 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="hutch", version=__version__, docs_url="/api/openapi.json", lifespan=lifespan)
     app.state.config, app.state.store, app.state.engine, app.state.scheduler = config, store, engine, scheduler
-    app.add_middleware(SecurityMiddleware, auth_token=os.environ.get("HUTCH_AUTH_TOKEN") or None)
+    app.add_middleware(SecurityMiddleware, auth_token=os.environ.get("HUTCH_AUTH_TOKEN") or None,
+                       device_auth=store.validate_device_token)
 
     # ------------------------------------------------------------- helpers
 
@@ -224,11 +266,87 @@ def create_app() -> FastAPI:
     def health() -> dict:
         return {"status": "ok", "version": __version__, "schema": store.schema_version}
 
+    @app.post("/api/v1/pairing/exchange")
+    def exchange_pairing(body: PairingExchangeRequest, request: Request, response: Response) -> dict:
+        """Exchange a short-lived host-issued code for an HttpOnly, revocable device session."""
+        remote = request.client.host if request.client else "unknown"
+        session, outcome = store.exchange_pairing_code(body.code, body.label, remote)
+        if outcome == "rate_limited":
+            raise HTTPException(429, "pairing attempts are temporarily limited; try again in ten minutes")
+        if session is None:
+            raise HTTPException(401, "pairing code is invalid, expired, or already used")
+        response.set_cookie(DEVICE_COOKIE, session["token"], httponly=True, secure=request.url.scheme == "https",
+                            samesite="strict", max_age=30 * 24 * 3600, path="/")
+        return {"id": session["id"], "label": session["label"], "paired": True,
+                "expires_in_seconds": 30 * 24 * 3600}
+
+    @app.get("/api/v1/devices")
+    def list_devices() -> list[dict]:
+        return store.list_device_sessions()
+
+    @app.post("/api/v1/devices/{device_id}/revoke")
+    def revoke_device(device_id: str) -> dict:
+        if not store.revoke_device_session(device_id):
+            raise HTTPException(404, "no active device session with that id")
+        return {"revoked": device_id}
+
     @app.get("/api/v1/status-labels", response_model=list[StatusLabelResource])
     def status_labels() -> list[dict]:
         from ..lifecycle import LABELS, NEEDS_PERSON
         return [{"status": status.value, "label": LABELS[status], "terminal": status not in ACTIVE_STATUSES,
                  "needs_person": status in NEEDS_PERSON} for status in RunStatus]
+
+    @app.get("/api/v1/capabilities", response_model=list[CapabilityResource])
+    def capabilities() -> list[dict]:
+        linux = platform.system() == "Linux"
+        return [
+            {"id": "process_executor", "status": "supported" if linux else "unavailable",
+             "reason": "Linux process groups and boot/start identity are supported" if linux else
+                       "Only Linux is supported for process execution", "verification": "offline_process_tests"},
+            {"id": "strict_shell", "status": "experimental" if linux else "unavailable",
+             "reason": "Linux bubblewrap/cgroup containment is required; shell networking is disabled",
+             "verification": "host_dependent_sandbox_tests" if linux else "not_tested"},
+            {"id": "remote_pairing", "status": "experimental",
+             "reason": "Direct HTTPS pairing is fixture-tested; no live network or phone validation",
+             "verification": "offline_fixtures"},
+            {"id": "phone_control", "status": "unavailable",
+             "reason": "No phone control surface or authenticated interactive control route is implemented",
+             "verification": "not_tested"},
+            {"id": "browser_handoff", "status": "unavailable",
+             "reason": "Same-session human browser control is not implemented", "verification": "not_tested"},
+            {"id": "external_runtimes", "status": "unavailable",
+             "reason": "Pi and OpenCode lack governed permission, sandbox and budget integration",
+             "verification": "adapter_start_refusal_tests"},
+        ]
+
+    @app.get("/api/v1/connections", response_model=list[ConnectionResource])
+    def list_connections() -> list[dict]:
+        from ..connections import ConnectionBook
+        book = ConnectionBook(config.state_dir)
+        rows = []
+        for name, conn in sorted(book.configured().items()):
+            rows.append({"name": name, "title": conn.title, "protocol": conn.protocol,
+                         "model_protocols": conn.model_protocols, "billing": conn.billing,
+                         "key_present": book.key(name) is not None, "key_source": book.key_source(name),
+                         "terms_status": book.ack_status(store, name), "terms_url": conn.terms.url,
+                         "quota_window": conn.quota.window, "quota_tokens": conn.quota.tokens,
+                         "models_endpoint": conn.models_endpoint})
+        return rows
+
+    @app.get("/api/v1/schedules", response_model=list[ScheduleResource])
+    def list_schedules() -> list[dict]:
+        rows = []
+        for bot in store.list_bots():
+            if not bot.schedule:
+                continue
+            nxt = scheduler.next_fire(bot)
+            rows.append({"id": f"schedule:{bot.id}", "bot_id": bot.id, "bot_name": bot.name,
+                         "cron": bot.schedule.cron, "timezone": bot.schedule.timezone,
+                         "catch_up": bot.schedule.catch_up.value, "paused": bot.paused,
+                         "next_fire": nxt.isoformat() if nxt else None,
+                         "last_dispatched": scheduler._last_dispatched(bot).isoformat(),
+                         "last_skip": scheduler.last_skip(bot)})
+        return rows
 
     # ------------------------------------------------------ conversations
 
@@ -520,9 +638,16 @@ def create_app() -> FastAPI:
 
     @app.post("/api/runs/{run_id}/stop")
     @app.post("/api/v1/tasks/runs/{run_id}/stop")
-    def stop_run(run_id: str) -> dict:
+    def stop_run(run_id: str, request: Request) -> dict:
         run_or_404(run_id)
-        engine.stop_run(run_id)
+        idem_key = request_hash = None
+        if request.url.path.startswith("/api/v1/"):
+            idem_key = idempotency_key(request)
+            request_hash = request_digest({"command": "stop", "run_id": run_id})
+        try:
+            engine.stop_run(run_id, idem_key=idem_key, request_hash=request_hash)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
         return {"stopping": run_id}
 
     @app.post("/api/runs/{run_id}/resume")
@@ -571,15 +696,26 @@ def create_app() -> FastAPI:
 
     @app.post("/api/approvals/{approval_id}/approve")
     @app.post("/api/v1/actions/approvals/{approval_id}/approve")
-    def approve(approval_id: str, body: ApproveRequest) -> dict:
+    def approve(approval_id: str, body: ApproveRequest, request: Request) -> dict:
         existing = store.get_approval(approval_id)
         if existing is None:
             raise HTTPException(404, "no such approval")
-        if existing.status is not ApprovalStatus.pending:
+        idem_key = request_hash = None
+        if request.url.path.startswith("/api/v1/"):
+            idem_key = idempotency_key(request)
+            if not body.action_hash:
+                raise HTTPException(422, "action_hash from the approval resource is required")
+            request_hash = request_digest({"command": "approve", "approval_id": approval_id,
+                                           **body.model_dump()})
+        if existing.status is not ApprovalStatus.pending and idem_key is None:
             raise HTTPException(409, f"approval already {existing.status.value}")
-        res = resolve_approval_ex(store, approval_id, approve=True, by="api", sticky=body.always,
-                                  expected_hash=body.action_hash)
-        if not res.won:
+        try:
+            res = resolve_approval_ex(store, approval_id, approve=True, by="api", sticky=body.always,
+                                      expected_hash=body.action_hash, idem_key=idem_key, request_hash=request_hash)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        if not res.won and not (res.outcome == "replayed" and res.request is not None
+                                and res.request.status is ApprovalStatus.approved):
             raise HTTPException(409, {"expired": "that approval expired before it was answered, so it was denied",
                                       "mismatch": "the action changed since you reviewed it; review it again",
                                       "already": "somebody already decided that approval"}.get(res.outcome, res.outcome))
@@ -587,14 +723,23 @@ def create_app() -> FastAPI:
 
     @app.post("/api/approvals/{approval_id}/deny")
     @app.post("/api/v1/actions/approvals/{approval_id}/deny")
-    def deny(approval_id: str) -> dict:
+    def deny(approval_id: str, request: Request) -> dict:
         existing = store.get_approval(approval_id)
         if existing is None:
             raise HTTPException(404, "no such approval")
-        if existing.status is not ApprovalStatus.pending:
+        idem_key = request_hash = None
+        if request.url.path.startswith("/api/v1/"):
+            idem_key = idempotency_key(request)
+            request_hash = request_digest({"command": "deny", "approval_id": approval_id})
+        if existing.status is not ApprovalStatus.pending and idem_key is None:
             raise HTTPException(409, f"approval already {existing.status.value}")
-        res = resolve_approval_ex(store, approval_id, approve=False, by="api")
-        if not res.won:
+        try:
+            res = resolve_approval_ex(store, approval_id, approve=False, by="api", idem_key=idem_key,
+                                      request_hash=request_hash)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        if not res.won and not (res.outcome == "replayed" and res.request is not None
+                                and res.request.status is ApprovalStatus.denied):
             raise HTTPException(409, "somebody already decided that approval" if res.outcome == "already" else res.outcome)
         return {"denied": approval_id}
 

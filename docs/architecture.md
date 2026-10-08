@@ -17,7 +17,7 @@ flowchart LR
   subgraph Core
     ENG["Engine<br/>dispatch · caps · transcripts · stop"]
     SCH["Scheduler<br/>croniter + IANA tz · catch-up"]
-    SCHED_STORE[("SQLite (WAL)<br/>bots · tasks · runs · events<br/>conversations · messages · approvals · memory")]
+    SCHED_STORE[("SQLite (WAL)<br/>bots · tasks · runs · events<br/>conversations · messages · approvals · devices")]
     POL["Policy engine<br/>compound-command parser · path jail · URL guards"]
     GATE["Approval gate<br/>fail-closed · sticky allows"]
   end
@@ -139,12 +139,14 @@ Each production run has an owned worker process and a supervisor watcher. The wo
 the run's approval gate so `stop` unblocks an approval wait immediately. In-process thread execution is only an explicit
 compatibility/test mode. The browser owns a distinct persistent profile per bot. Browser actions remain serialized by a process-wide
 lock, and live handoff remains open. SQLite access is serialized by an RLock in `Store`, and migration startup is additionally serialized across
-processes. Schema v8 stores canonical conversations, user/assistant messages and run links; old runs are imported one per legacy
+processes. Schema v9 stores canonical conversations, user/assistant messages, run links and revocable device sessions; old runs are imported one per legacy
 conversation to avoid guessing continuity. Versioned conversation writes and run admission are idempotent and transactional. The
-builtin runtime receives a capped snapshot of earlier messages; the dashboard composer still needs to move to these endpoints.
+builtin runtime receives a capped snapshot of earlier messages; Studio uses the versioned conversation endpoints. Versioned stop and
+approval decisions are also idempotent.
 
 ## What is deliberately NOT here (yet)
 
-Vector retrieval, webhook triggers, multi-user access, bounded agent-to-agent collaboration, artifact versioning, browser handoff and remote
-supervision, Windows/macOS support — tracked in `docs/roadmap.md`. The Linux shell has optional, fail-closed bubblewrap
+Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, artifact versioning, browser handoff,
+interactive remote supervision, global event replay and Windows/macOS support — tracked in `docs/roadmap.md`. Experimental direct HTTPS
+pairing has no phone UI and is not a production support claim. The Linux shell has optional, fail-closed bubblewrap
 containment; it is not a VM and does not contain every tool or the browser.

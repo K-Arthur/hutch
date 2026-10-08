@@ -222,7 +222,8 @@ class Resolution:
 
 
 def resolve_approval_ex(store: Store, approval_id: str, approve: bool, by: str = "human", sticky: bool = False,
-                        expected_hash: Optional[str] = None) -> Resolution:
+                        expected_hash: Optional[str] = None, idem_key: Optional[str] = None,
+                        request_hash: Optional[str] = None) -> Resolution:
     """Resolve a pending approval from the CLI, dashboard or API - atomically, once.
 
     Only the call that actually decided it (``won``) may grant an "always" rule; a request that lost the race, expired or was
@@ -230,9 +231,8 @@ def resolve_approval_ex(store: Store, approval_id: str, approve: bool, by: str =
     is different, nothing is decided. ``sticky`` remembers "always allow" for the bot (refused for outward actions).
     """
     req, outcome = store.decide_approval(
-        approval_id, ApprovalStatus.approved if approve else ApprovalStatus.denied, by, expected_hash=expected_hash)
-    if outcome == "won" and approve and sticky and req is not None and req.sticky_key and not req.outward:
-        store.allow_sticky(req.bot_id, req.sticky_key)
+        approval_id, ApprovalStatus.approved if approve else ApprovalStatus.denied, by, expected_hash=expected_hash,
+        sticky=sticky, idem_key=idem_key, request_hash=request_hash)
     return Resolution(req, outcome)
 
 

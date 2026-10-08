@@ -304,10 +304,11 @@ class Engine:
 
     # -------------------------------------------------------------- stopping
 
-    def stop_run(self, run_id: str) -> bool:
+    def stop_run(self, run_id: str, *, idem_key: Optional[str] = None,
+                 request_hash: Optional[str] = None) -> bool:
         """Stop one run. The intent is recorded in the database, so it works from any process; if this process owns the run it
         also takes the fast path: cancel flag, abort model I/O, unblock approvals, kill child process groups."""
-        run = self.store.request_cancel(run_id)
+        run = self.store.request_cancel(run_id, idem_key=idem_key, request_hash=request_hash)
         if run is None:
             return False
         cancel = self._cancels.get(run_id)

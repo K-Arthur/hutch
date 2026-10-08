@@ -167,10 +167,12 @@ MCP Inspector RCE [CVE-2025-49596](https://www.oligo.security/blog/critical-rce-
 and OpenClaw's dashboard exposing management APIs on all interfaces with a bearer token printed in a log URL
 ([#27323](https://github.com/openclaw/openclaw/issues/27323),
 [CVSS 9.0 write-up](https://dev.to/oolongtea2026/when-your-dashboard-leaks-the-keys-a-cvss-90-credential-exposure-in-openclaw-1bg0)).
-**This is a gap in Hutch v0.1** — the dashboard binds to loopback but has no Host/Origin validation, and
-approve/stop are about to become plain POSTs.
-→ **Host allow-list, Origin / Fetch-Metadata checks on every unsafe request, per-session CSRF token, and
-refusal to bind a non-loopback address without an explicit flag and an auth token that is never logged in a URL.**
+**Historical gap in Hutch v0.1, fixed locally in the realignment.** The dashboard now checks Host and Origin/Fetch-Metadata, uses a
+CSRF token for form actions, and atomically records approvals/stops. Remote access remains opt-in: direct non-loopback binding requires
+TLS and an operator-issued single-use device pairing code; sessions can be revoked. This implementation has fixture coverage only; no
+phone, physical network, or production exposure has been tested.
+→ **Acceptance boundary:** hostile cross-origin posts and Host rebinding fail closed; pairing is single-use and rate-limited; the host
+does not print bearer tokens in URLs or logs. See [ADR-0010](../adr/0010-api-transport-and-remote-supervision.md).
 
 ### Silent non-runs (UI-1, UI-9)
 n8n: "active" only means the trigger is armed; a workflow that stopped running produces zero failures and zero

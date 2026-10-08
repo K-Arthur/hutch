@@ -18,6 +18,7 @@ import fcntl
 import hashlib
 import json
 import re
+import secrets
 import sqlite3
 import threading
 import time
@@ -268,8 +269,21 @@ def _migrate_8(db: sqlite3.Connection) -> None:
         db.execute("UPDATE runs SET conversation_id = ? WHERE id = ?", (conversation_id, row["id"]))
 
 
+def _migrate_9(db: sqlite3.Connection) -> None:
+    """Single-use remote pairing and revocable device sessions (ADR-0010)."""
+    db.execute("""CREATE TABLE pairing_codes (
+        code_hash TEXT PRIMARY KEY, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, consumed_at TEXT)""")
+    db.execute("""CREATE TABLE device_sessions (
+        id TEXT PRIMARY KEY, label TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL, expires_at TEXT NOT NULL, last_used_at TEXT,
+        revoked_at TEXT)""")
+    db.execute("CREATE INDEX idx_device_sessions_active ON device_sessions(revoked_at, expires_at)")
+    db.execute("""CREATE TABLE pairing_attempts (
+        remote_ip TEXT PRIMARY KEY, window_started_at TEXT NOT NULL, failures INTEGER NOT NULL DEFAULT 0)""")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
-_MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8]
+_MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -384,6 +398,85 @@ class Store:
     def schema_version(self) -> int:
         with self._lock:
             return self._db.execute("PRAGMA user_version").fetchone()[0]
+
+    # ---------------------------------------------------------- remote pairing
+
+    @staticmethod
+    def _secret_hash(value: str) -> str:
+        return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+    def create_pairing_code(self, ttl_seconds: int = 60) -> str:
+        """Create a one-use, short-lived pairing code. Only the hash reaches SQLite."""
+        alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+        raw = "".join(secrets.choice(alphabet) for _ in range(14))
+        code = "-".join((raw[:4], raw[4:8], raw[8:12], raw[12:]))
+        now = utcnow()
+        with self._tx() as db:
+            db.execute("DELETE FROM pairing_codes WHERE expires_at <= ? OR consumed_at IS NOT NULL", (iso(now),))
+            db.execute("INSERT INTO pairing_codes(code_hash, created_at, expires_at) VALUES (?, ?, ?)",
+                       (self._secret_hash(raw), iso(now), iso(now + timedelta(seconds=ttl_seconds))))
+        return code
+
+    def exchange_pairing_code(self, code: str, label: str, remote_ip: str) -> tuple[dict[str, Any] | None, str]:
+        """Consume a pairing code once and mint one sliding 30-day revocable device session."""
+        normalized = "".join(ch for ch in code.upper() if ch.isalnum())
+        code_hash = self._secret_hash(normalized)
+        now = utcnow()
+        now_text = iso(now)
+        token = secrets.token_urlsafe(32)
+        device_id = f"dev_{uuid.uuid4().hex[:16]}"
+        with self._tx() as db:
+            attempt = db.execute("SELECT window_started_at, failures FROM pairing_attempts WHERE remote_ip = ?",
+                                 (remote_ip,)).fetchone()
+            if attempt:
+                started = datetime.fromisoformat(attempt["window_started_at"])
+                if (now - started).total_seconds() < 600 and attempt["failures"] >= 5:
+                    return None, "rate_limited"
+                if (now - started).total_seconds() >= 600:
+                    db.execute("DELETE FROM pairing_attempts WHERE remote_ip = ?", (remote_ip,))
+            row = db.execute("SELECT expires_at, consumed_at FROM pairing_codes WHERE code_hash = ?",
+                             (code_hash,)).fetchone()
+            if row is None or row["consumed_at"] is not None or row["expires_at"] <= now_text:
+                db.execute("INSERT INTO pairing_attempts(remote_ip, window_started_at, failures) VALUES (?, ?, 1) "
+                           "ON CONFLICT(remote_ip) DO UPDATE SET failures = failures + 1",
+                           (remote_ip, now_text))
+                return None, "invalid"
+            db.execute("UPDATE pairing_codes SET consumed_at = ? WHERE code_hash = ? AND consumed_at IS NULL",
+                       (now_text, code_hash))
+            db.execute("INSERT INTO device_sessions(id, label, token_hash, created_at, expires_at, last_used_at) "
+                       "VALUES (?, ?, ?, ?, ?, ?)",
+                       (device_id, label.strip()[:80] or "Phone", self._secret_hash(token), now_text,
+                        iso(now + timedelta(days=30)), now_text))
+            db.execute("DELETE FROM pairing_attempts WHERE remote_ip = ?", (remote_ip,))
+        return {"id": device_id, "label": label.strip()[:80] or "Phone", "token": token}, "ok"
+
+    def validate_device_token(self, token: str) -> bool:
+        if not token or len(token) > 256:
+            return False
+        now = utcnow()
+        with self._tx() as db:
+            row = db.execute("SELECT id, expires_at, revoked_at FROM device_sessions WHERE token_hash = ?",
+                             (self._secret_hash(token),)).fetchone()
+            if row is None or row["revoked_at"] is not None or row["expires_at"] <= iso(now):
+                return False
+            # Sliding expiry is limited to the session's existing 30-day lifetime per active use.
+            db.execute("UPDATE device_sessions SET last_used_at = ?, expires_at = ? WHERE id = ?",
+                       (iso(now), iso(now + timedelta(days=30)), row["id"]))
+            return True
+
+    def list_device_sessions(self) -> list[dict[str, Any]]:
+        now = iso(utcnow())
+        with self._lock:
+            rows = self._db.execute("SELECT id, label, created_at, expires_at, last_used_at, revoked_at "
+                                    "FROM device_sessions WHERE revoked_at IS NULL AND expires_at > ? "
+                                    "ORDER BY created_at DESC", (now,)).fetchall()
+        return [dict(row) for row in rows]
+
+    def revoke_device_session(self, device_id: str) -> bool:
+        with self._tx() as db:
+            cur = db.execute("UPDATE device_sessions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL",
+                             (iso(utcnow()), device_id))
+        return cur.rowcount == 1
 
     # ----------------------------------------------------------- lifecycle
 
@@ -583,6 +676,9 @@ class Store:
         row = db.execute("SELECT request_hash, response_json FROM idempotency_keys WHERE scope = ? AND key = ?",
                          (scope, key)).fetchone()
         if row is None:
+            used = db.execute("SELECT scope FROM idempotency_keys WHERE key = ? LIMIT 1", (key,)).fetchone()
+            if used is not None:
+                raise IdempotencyConflict("Idempotency-Key was already used by a different command")
             return None
         if row["request_hash"] != request_hash:
             raise IdempotencyConflict("Idempotency-Key was already used for a different request")
@@ -1060,7 +1156,8 @@ class Store:
         run.status = fresh.status
         return True
 
-    def request_cancel(self, run_id: str) -> Optional[Run]:
+    def request_cancel(self, run_id: str, *, idem_key: Optional[str] = None,
+                       request_hash: Optional[str] = None) -> Optional[Run]:
         """Record that a person wants this run stopped. ANY process may call this; the owner (or recovery) acts on it.
 
         A queued run nobody owns is ended here. A claimed or live run moves to ``cancelling`` and stays there until the
@@ -1068,12 +1165,24 @@ class Store:
         process that owned the run.)
         """
         with self._tx() as db:
+            scope = f"api:v1:run:{run_id}:stop"
+            replay = None
+            if idem_key is not None:
+                if request_hash is None:
+                    raise ValueError("request_hash is required with an idempotency key")
+                replay = self._idempotency_replay(db, scope, idem_key, request_hash)
             row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
             if row is None:
                 return None
-            if RunStatus(row["status"]) in TERMINAL:
+            if replay is None:
+                if RunStatus(row["status"]) not in TERMINAL:
+                    db.execute("UPDATE runs SET cancel_requested = 1 WHERE id = ?", (run_id,))
+                if idem_key is not None:
+                    db.execute("INSERT INTO idempotency_keys(scope, key, request_hash, response_json, created_at) "
+                               "VALUES (?, ?, ?, ?, ?)",
+                               (scope, idem_key, request_hash, _canonical({"run_id": run_id}), iso(utcnow())))
+            elif RunStatus(row["status"]) in TERMINAL:
                 return self._run(row)
-            db.execute("UPDATE runs SET cancel_requested = 1 WHERE id = ?", (run_id,))
         run = self.get_run(run_id)
         assert run is not None
         try:
@@ -1523,7 +1632,8 @@ class Store:
         self.bus.notify("approvals", "work", f"approval:{req.id}", f"run:{req.run_id}")
 
     def decide_approval(self, approval_id: str, status: ApprovalStatus, by: str, *, expected_hash: Optional[str] = None,
-                        now: Optional[datetime] = None) -> tuple[Optional[ApprovalRequest], str]:
+                        now: Optional[datetime] = None, sticky: bool = False, idem_key: Optional[str] = None,
+                        request_hash: Optional[str] = None) -> tuple[Optional[ApprovalRequest], str]:
         """Atomically move a PENDING approval to a decision. Returns ``(request, outcome)``.
 
         outcome is ``won`` (this call decided it), ``already`` (somebody else did: the request shows who and what),
@@ -1533,6 +1643,18 @@ class Store:
         """
         now = now or utcnow()
         with self._tx() as db:
+            scope = f"api:v1:approval:{approval_id}:resolve"
+            if idem_key is not None:
+                if request_hash is None:
+                    raise ValueError("request_hash is required with an idempotency key")
+                replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+                if replay is not None:
+                    row = db.execute("SELECT doc, status FROM approvals WHERE id = ?", (approval_id,)).fetchone()
+                    if row is None:
+                        return None, "missing"
+                    req = ApprovalRequest.model_validate_json(row["doc"])
+                    req.status = ApprovalStatus(row["status"])
+                    return req, "replayed" if replay.get("outcome") == "won" else f"replayed_{replay.get('outcome')}"
             row = db.execute("SELECT doc, status, action_hash, expires_at FROM approvals WHERE id = ?", (approval_id,)).fetchone()
             if row is None:
                 return None, "missing"
@@ -1551,6 +1673,14 @@ class Store:
             if cur.rowcount != 1:
                 return self.get_approval(approval_id), "already"
             req.status, req.resolved_at, req.decided_by = status, patch["resolved_at"], by
+            if status is ApprovalStatus.approved and sticky and req.sticky_key and not req.outward:
+                db.execute("INSERT OR REPLACE INTO tool_allows(bot_id, sticky_key, created_at) VALUES (?, ?, ?)",
+                           (req.bot_id, req.sticky_key, iso(now)))
+            if idem_key is not None:
+                db.execute("INSERT INTO idempotency_keys(scope, key, request_hash, response_json, created_at) "
+                           "VALUES (?, ?, ?, ?, ?)",
+                           (scope, idem_key, request_hash,
+                            _canonical({"approval_id": approval_id, "outcome": outcome}), iso(now)))
         self.bus.notify("approvals", "work", f"approval:{approval_id}", f"run:{req.run_id}")
         return req, outcome
 

@@ -123,7 +123,7 @@ commits can cite them. Evidence for the *why* is in
 
 | Item | Why | Status |
 |---|---|---|
-| Dashboard CSRF / DNS-rebinding defence (Host allow-list, Origin + Fetch-Metadata, CSRF token, token auth for `--allow-remote`) | Local approval endpoints are drivable from any web page ([research §3](research/offerings-and-failures.md)) | done - `server/security.py`; refusal of non-loopback bind without a token lands with the CLI work |
+| Dashboard CSRF / DNS-rebinding defence and device pairing | Local approval endpoints are drivable from any web page ([research §3](research/offerings-and-failures.md)) | local protections plus single-use device sessions are implemented; direct remote bind now requires `--allow-remote` and TLS. Phone UI, control WebSockets, tunnel validation and live network tests remain open |
 | **Rehearse** (dry-run) mode: mutating actions simulated and logged | Grok Bot: "no dry-run mode; testing performs real work" | done - enforced by the tools (`tools/base.rehearsed`, `safety.is_read_only`), not just the prompt; `tests/test_rehearsal.py` checks the disk, memory and approvals. (An earlier version only added a sentence to the prompt: no tool honoured it.) |
 | **Working folder** per bot: the run's workspace is a folder of yours, validated hard, persistent across runs | Grok and Dots bots work on your real data; a fresh empty workspace per run made file-based bots a demo | done - `workdir.py`, [bot-config.md](bot-config.md); `tests/test_workdir.py` |
 | Role templates (sales, PM, marketing, analytics) in the gallery | Team Bots ships role templates | planned |

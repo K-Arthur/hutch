@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import ipaddress
 import os
 import time
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -853,12 +855,74 @@ def daemon() -> None:
 
 
 @app.command()
-def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8787)) -> None:
-    """Serve the web dashboard + API."""
+def pairing(action: str = typer.Argument(..., help="create, list, or revoke"),
+            device_id: Optional[str] = typer.Argument(None)) -> None:
+    """Create a one-use phone pairing code or inspect/revoke paired devices."""
+    store = _store()
+    try:
+        if action == "create":
+            if device_id:
+                raise typer.BadParameter("create does not accept a device id")
+            code = store.create_pairing_code()
+            console.print(f"Pairing code (expires in 60 seconds; show it only to your device): [bold]{code}[/bold]")
+            console.print("Open the Hutch address on the device and enter this code. It can be used once.")
+        elif action == "list":
+            if device_id:
+                raise typer.BadParameter("list does not accept a device id")
+            rows = store.list_device_sessions()
+            if not rows:
+                console.print("No active paired devices.")
+            for row in rows:
+                console.print(f"{row['id']}  {row['label']}  expires {row['expires_at']}  last used {row['last_used_at'] or 'never'}")
+        elif action == "revoke":
+            if not device_id:
+                raise typer.BadParameter("revoke requires a device id")
+            if not store.revoke_device_session(device_id):
+                err.print(f"[red]no active device session:[/red] {device_id}")
+                raise typer.Exit(code=1)
+            console.print(f"Revoked device {device_id}.")
+        else:
+            raise typer.BadParameter("choose create, list, or revoke")
+    finally:
+        store.close()
+
+
+def _loopback_bind(host: str) -> bool:
+    if host.lower() in ("localhost", "localhost.localdomain") or host.lower().endswith(".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+@app.command()
+def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8787),
+          allow_remote: bool = typer.Option(False, "--allow-remote"),
+          tls_cert: Optional[str] = typer.Option(None, "--tls-cert"),
+          tls_key: Optional[str] = typer.Option(None, "--tls-key")) -> None:
+    """Serve locally, or allow explicitly paired devices over direct HTTPS."""
     import uvicorn
+    loopback = _loopback_bind(host)
+    if not loopback and not allow_remote:
+        err.print("[red]refusing a non-loopback bind without --allow-remote[/red]")
+        raise typer.Exit(code=2)
+    if allow_remote:
+        if not tls_cert or not tls_key or not Path(tls_cert).is_file() or not Path(tls_key).is_file():
+            err.print("[red]--allow-remote requires readable --tls-cert and --tls-key files[/red]")
+            raise typer.Exit(code=2)
+        os.environ["HUTCH_REMOTE_ENABLED"] = "1"
+        console.print("Remote HTTPS is enabled. Pair each device with `hutch pairing create`; revoke with "
+                      "`hutch pairing list` / `hutch pairing revoke <id>`. Do not forward this listener publicly.")
+    elif tls_cert or tls_key:
+        if not tls_cert or not tls_key or not Path(tls_cert).is_file() or not Path(tls_key).is_file():
+            err.print("[red]both --tls-cert and --tls-key must name readable files[/red]")
+            raise typer.Exit(code=2)
     os.environ.setdefault("HUTCH_EXECUTOR", "process")      # the dashboard's runs are worker processes: Stop is a real kill
-    console.print(f"[bold]hutch[/bold] dashboard → http://{host}:{port}")
-    uvicorn.run("hutch.server.app:create_app", factory=True, host=host, port=port, log_level="warning")
+    scheme = "https" if tls_cert else "http"
+    console.print(f"[bold]hutch[/bold] dashboard → {scheme}://{host}:{port}")
+    uvicorn.run("hutch.server.app:create_app", factory=True, host=host, port=port, log_level="warning",
+                ssl_certfile=tls_cert, ssl_keyfile=tls_key)
 
 
 # --------------------------------------------------------------------- demo

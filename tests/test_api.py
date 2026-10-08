@@ -150,3 +150,63 @@ def test_sticky_and_memory_deletion(client):
     res_sticky = client.delete("/api/bots/mem-bot/sticky-allows/shell:echo")
     assert res_sticky.status_code == 200
     assert res_sticky.json() == {"revoked": "shell:echo"}
+
+
+def test_versioned_stop_is_idempotent_and_rejects_key_reuse(client):
+    from hutch.models import Bot, Run
+
+    bot = client.app.state.store.create_bot(Bot(name="idem-stop", model="mock/demo"))
+    first = client.app.state.store.create_run(Run(bot_id=bot.id, prompt="first"))
+    second = client.app.state.store.create_run(Run(bot_id=bot.id, prompt="second"))
+    url = f"/api/v1/tasks/runs/{first.id}/stop"
+    assert client.post(url).status_code == 428
+    headers = {"Idempotency-Key": "stop-one"}
+    assert client.post(url, headers=headers).status_code == 200
+    assert client.post(url, headers=headers).status_code == 200
+    conflict = client.post(f"/api/v1/tasks/runs/{second.id}/stop", headers=headers)
+    assert conflict.status_code == 409
+
+
+def test_versioned_approval_resolution_is_idempotent_and_hash_bound(client):
+    from hutch.models import ApprovalRequest, Bot, Run
+
+    store = client.app.state.store
+    bot = store.create_bot(Bot(name="idem-approval", model="mock/demo"))
+    run = store.create_run(Run(bot_id=bot.id, prompt="approve this"))
+    request = store.create_approval(ApprovalRequest(run_id=run.id, bot_id=bot.id, tool="files",
+                                                    action="write report", detail={"path": "report.txt"},
+                                                    sticky_key="files:write:report.txt", action_hash="fingerprint"))
+    url = f"/api/v1/actions/approvals/{request.id}/approve"
+    body = {"always": True, "action_hash": request.action_hash}
+    assert client.post(url, json=body).status_code == 428
+    headers = {"Idempotency-Key": "approve-one"}
+    approved = client.post(url, json=body, headers=headers)
+    assert approved.status_code == 200, approved.text
+    assert client.post(url, json=body, headers=headers).status_code == 200
+    assert store.is_sticky_allowed(bot.id, request.sticky_key)
+    changed = client.post(url, json={**body, "always": False}, headers=headers)
+    assert changed.status_code == 409
+
+
+def test_versioned_connections_schedules_and_capabilities_are_typed_and_secret_free(client):
+    from hutch.connections import ConnectionBook
+
+    book = ConnectionBook(client.app.state.config.state_dir)
+    book.add("custom-openai", name="private-route", base_url="https://models.example.test/v1")
+    book.set_key("private-route", "never-return-this-key")
+    connections = client.get("/api/v1/connections")
+    assert connections.status_code == 200
+    route = next(row for row in connections.json() if row["name"] == "private-route")
+    assert route["key_present"] is True and route["protocol"] == "openai-chat"
+    assert "never-return-this-key" not in connections.text
+
+    bot = make_bot(client, name="scheduled-v1", cron="0 9 * * 1", timezone="America/Vancouver")
+    schedules = client.get("/api/v1/schedules").json()
+    schedule = next(row for row in schedules if row["bot_id"] == bot["id"])
+    assert schedule["cron"] == "0 9 * * 1" and schedule["timezone"] == "America/Vancouver"
+    assert schedule["next_fire"] and schedule["last_dispatched"]
+
+    capabilities = {row["id"]: row for row in client.get("/api/v1/capabilities").json()}
+    assert capabilities["remote_pairing"]["status"] == "experimental"
+    assert capabilities["phone_control"]["status"] == "unavailable"
+    assert capabilities["external_runtimes"]["status"] == "unavailable"

@@ -73,6 +73,9 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 - **Run transcripts** — every run in SQLite + a JSONL mirror on disk
 - **Conversations (preview)** — the Studio stores separate threads across restarts, offers thread switching and archive, and sends a
   bounded recent history to the builtin runtime. The versioned API has SQLite full-text search and restart-safe command idempotency.
+- **Remote pairing (experimental)** — explicit direct HTTPS binding and one-use, revocable device sessions are implemented. The phone
+  control UI, browser/PTY handoff, trusted tunnel support and physical-device validation are still unavailable; loopback is the supported
+  service boundary. See [remote operations](docs/operations.md#remote-pairing-experimental).
 - **Browser (experimental)** — optional Playwright extra and a persistent profile per bot. A run can pause at some detected login
   walls; live handoff in the same session and a pinned browser egress path are unavailable.
 - **External runtimes** — Pi and OpenCode are recognized in old bot configs but disabled before starting a process. Their
@@ -85,7 +88,7 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 | [Architecture](docs/architecture.md) | component map, decision log, concurrency model |
 | [Safety model](docs/safety.md) | deny/ask/allow rules, approval flow, honest limits |
 | [Bot configuration](docs/bot-config.md) | fields, model specs, schedules, limits, examples |
-| [Operations](docs/operations.md) | Linux sandbox requirements, incomplete cleanup, migration backups and restore |
+| [Operations](docs/operations.md) | Linux sandbox requirements, remote pairing, incomplete cleanup, migration backups and restore |
 | [Models](docs/models.md) | chat model switcher, fit, model slots, prices, `hutch doctor` |
 | [Connections](docs/connections.md) | subscription plans and custom endpoints, keys, allowances, what is unsupported and why |
 | [Design system](docs/design-system.md) | shared UI tokens, components, icon/emoji policy, a11y rules |

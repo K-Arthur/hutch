@@ -38,15 +38,21 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
 ## 3. Versioned resources, cursors, idempotency, pagination (partial S8)
 
 * Landed local routes: `/api/v1/health`, `/api/v1/status-labels`, `/api/v1/bots`, `/api/v1/conversations`,
-  `/api/v1/search/messages`, `/api/v1/tasks/runs`, `/api/v1/actions/approvals`, and `/api/v1/usage`.
+  `/api/v1/search/messages`, `/api/v1/tasks/runs`, `/api/v1/actions/approvals`, `/api/v1/usage`, `/api/v1/connections`,
+  `/api/v1/schedules`, `/api/v1/capabilities`, and partial remote device resources at `/api/v1/pairing/exchange` and
+  `/api/v1/devices`.
 * Conversation create, message submit, and archive require `Idempotency-Key`. Exact retries return the same resource/run; reusing the
   key with different request content returns 409. An absent key returns 428.
 * Conversation history is cursor-paginated with `after` and a maximum page size of 100. Run events keep the existing per-run `seq`
   cursor and SSE `Last-Event-ID` replay, including the versioned run alias.
-* Approval, stop, resume and legacy bot-run commands do not yet accept idempotency keys. There is no global ordered SSE cursor or
+* Versioned stop and approval resolve commands require `Idempotency-Key`. Approvals also require the reviewed `action_hash`; reuse
+  with different arguments conflicts. Resume and legacy bot-run commands do not yet accept keys. There is no global ordered SSE cursor or
   retention-gap snapshot endpoint yet.
-* Stable workspace/artifact resources, verified capability records, remote control sessions and phone pairing are not available.
-  The service remains loopback-only; the marketing site cannot reach localhost.
+* Pairing codes expire after 60 seconds and are single use. They issue HttpOnly device sessions, hash-only at rest, with a sliding
+  30-day expiry. Operators can list/revoke sessions using `hutch pairing list` and `hutch pairing revoke <device-id>`; pairing is
+  limited to five failed attempts per source IP per ten minutes. Off-loopback binding requires `hutch serve --allow-remote` and direct
+  TLS certificate/key files. This has fixture coverage but no phone UI or live network/device validation. Global event replay,
+  workspace/artifact resources and verified capability records are not available; the marketing site cannot reach localhost.
 
 ## 4. Frontend acceptance items taken from the evidence ledger
 
@@ -69,3 +75,13 @@ not automatically added to a model prompt.
 Schema v8 imports each historical run into its own legacy conversation. It does not infer continuity or combine contexts. The
 Studio lets the operator select these imported threads; the builtin runtime receives up to 12 prior messages and 16,000 characters.
 External runtimes do not consume this history.
+
+## 6. Remote pairing (partial, experimental)
+
+On the Hutch host, run `hutch pairing create`; the 14-character code is shown once and expires in 60 seconds. Exchange it over HTTPS
+with `POST /api/v1/pairing/exchange` and `{ "code": "…", "label": "Phone" }`. The response sets an HttpOnly, SameSite=Strict device
+cookie and returns only the device id and expiry. Authenticated `GET /api/v1/devices` lists active sessions; `POST
+/api/v1/devices/{id}/revoke` revokes one. Direct non-loopback binding requires `--allow-remote --tls-cert CERT --tls-key KEY`.
+The code exchange is intentionally the only unauthenticated remote write; it is source-IP rate limited and subject to Origin checks.
+The current Studio has no pairing UX, remote interactive control route, or persistent device-session management screen. Use the CLI to
+revoke a lost device. Do not expose the listener to the public internet.
