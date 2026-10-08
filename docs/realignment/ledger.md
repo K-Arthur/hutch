@@ -43,6 +43,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `cf82f73` | Merge newer main navigation, layout and template changes into `realign/platform` |
 | `73d58b6` | Refresh empty-state marketing proof images and content-hash site asset URLs |
 | `fdf6592` | Merge main `307ce1d` sigil, responsive modal/card and switcher styling changes |
+| `02b0092` | Refresh integrated desktop/tablet/phone screenshots after main merge, fix capture wait and pin updated evidence |
 | `ed82ce1` | S2–S4 audit repairs, docs, test corrections and truthful marketing copy |
 | `98c630d` | Correct shell-test escapes and record full-suite verification boundary |
 | `a148b29` | Fail-closed Pi/OpenCode, per-bot browser profile ownership, safety docs and truthful website claims |
