@@ -284,8 +284,11 @@ def register_pages(app: FastAPI) -> None:
 
     @app.get("/bots/{name}", response_class=HTMLResponse, include_in_schema=False)
     def bot_page(request: Request, name: str):
-        bot_or_404(name)
-        return RedirectResponse(f"/#/bot/{quote(name)}", status_code=302)
+        bot = bot_or_404(name)
+        return page(request, "bot.html", nav="bots", bot=bot,
+                    runs=[rv(r) for r in store.list_runs(bot.id, limit=8)],
+                    memory=store.recall_all(bot.id), allows=store.list_sticky_allows(bot.id),
+                    tokens_today=store.tokens_today(bot.id), estimate=estimate_run(config, store, bot))
 
     @app.post("/bots/{name}/run", include_in_schema=False)
     async def bot_run(request: Request, name: str):
