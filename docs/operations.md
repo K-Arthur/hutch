@@ -17,6 +17,15 @@ New bots request strict mode. Existing bots migrated from older versions stay `o
 run. `HUTCH_SANDBOX=off` is an explicit operator rollback that disables containment for all bots in that process. Shell network
 requests are unavailable under strict mode; use `web_fetch`, which validates and pins the address for each redirect.
 
+## Workspace continuity
+
+New bots use a new empty workspace per run. To keep files across runs and conversations for one bot, use
+`hutch bot update <name> --workspace-mode managed`; this creates a private folder under Hutch's state directory, isolated by the
+bot's immutable ID. `--workspace-mode fresh` returns to per-run folders. An existing user folder is explicit:
+`hutch bot update <name> --workspace-mode folder --workdir /absolute/path`. The folder must already exist and pass Hutch's path checks.
+Changing modes does not copy or remove files. Deleting a bot preserves its managed workspace, and database-only snapshots/restores do not
+include managed workspaces or user folders; back these up separately.
+
 ## Stop and incomplete cleanup
 
 Run status remains `Stopping` or `Recovering` when an owned process is still alive or its identity cannot be verified. Hutch records

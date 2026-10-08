@@ -69,6 +69,7 @@ class BotCreate(BaseModel):
     approval_mode: ApprovalMode = ApprovalMode.ask
     risk_tier: RiskTier = RiskTier.supervised
     command_rules: list[CommandRule] = []
+    workspace_mode: Optional[Literal["fresh", "managed", "folder"]] = None
     workdir: Optional[str] = None
     limits: Optional[Limits] = None
 
@@ -111,6 +112,7 @@ class BotPatch(BaseModel):
     approval_mode: Optional[ApprovalMode] = None
     risk_tier: Optional[RiskTier] = None
     command_rules: Optional[list[CommandRule]] = None
+    workspace_mode: Optional[Literal["fresh", "managed", "folder"]] = None
     workdir: Optional[str] = None          # "" clears it
     limits: Optional[Limits] = None
     paused: Optional[bool] = None
@@ -526,6 +528,9 @@ def create_app() -> FastAPI:
         measured_tokens, reserved_tokens, measured_cost, reserved_cost = store.bot_budget_today(bot.id)
         return {
             **bot.model_dump(),
+            # Older records may have a workdir but no workspace_mode. Present the
+            # effective choice so the settings control never hides an active folder.
+            "workspace_mode": "folder" if bot.workdir else bot.workspace_mode,
             "next_run": nxt.isoformat() if nxt else None,
             "next_run_local": nxt.astimezone().strftime("%a %d %b %H:%M") if nxt else None,
             "last_success": last.finished_at or last.created_at if last else None,
@@ -1052,7 +1057,17 @@ def create_app() -> FastAPI:
         if body.limits is not None:
             bot.limits = body.limits
         if body.workdir:
+            if body.workspace_mode not in (None, "folder"):
+                raise HTTPException(422, "choose folder workspace mode when supplying a folder path")
             bot.workdir = _checked_workdir(body.workdir)
+            bot.workspace_mode = "folder"
+        if body.workspace_mode is not None:
+            if body.workspace_mode == "folder":
+                if not bot.workdir:
+                    raise HTTPException(422, "folder workspace mode requires an existing workdir")
+            else:
+                bot.workdir = None
+            bot.workspace_mode = body.workspace_mode
         if body.cron:
             try:
                 bot.schedule = Schedule(cron=body.cron, timezone=body.timezone,
@@ -1104,6 +1119,15 @@ def create_app() -> FastAPI:
         if body.limits is not None: bot.limits = body.limits
         if body.command_rules is not None: bot.command_rules = _checked_rules(body.command_rules)
         if body.workdir is not None: bot.workdir = _checked_workdir(body.workdir) if body.workdir else None
+        if body.workspace_mode is not None:
+            if body.workspace_mode == "folder":
+                if not bot.workdir:
+                    raise HTTPException(422, "folder workspace mode requires an existing workdir")
+            else:
+                bot.workdir = None
+            bot.workspace_mode = body.workspace_mode
+        elif body.workdir is not None:
+            bot.workspace_mode = "folder" if bot.workdir else "fresh"
         if body.paused is not None: bot.paused = body.paused
         if body.clear_cron:
             bot.schedule = None

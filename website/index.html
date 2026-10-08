@@ -143,7 +143,7 @@
     <div class="wrap">
       <div class="proof-head">
         <h2 class="section-heading">Start with a real<br>model route.</h2>
-        <p class="section-desc">This is Hutch’s actual first-run screen with an empty database. It asks you to connect a provider or start a local model before creating a bot. No sample conversation, generated run, or fake approval is shown.</p>
+        <p class="section-desc">This is Hutch’s actual first-run screen with an empty database. Connect a provider or start a local model before creating a bot; the capture begins clean, before any conversations, runs or approvals have been created.</p>
       </div>
       <figure class="proof-figure">
         <div class="proof-chrome">
@@ -161,7 +161,7 @@
             <li><b>Configure.</b> Choose the model route, task instructions, tools and limits for a bot.</li>
             <li><b>Supervise.</b> Run history and real approval requests appear as Hutch receives them.</li>
           </ol>
-          <p class="proof-meta">Captured from the local application at desktop and phone viewport sizes on 2026-10-08. The state directory contained no bots, provider keys, or run records. The Live badge means the browser is connected to the local dashboard; no bot is running. Provider calls and live inference were not part of this capture.</p>
+          <p class="proof-meta">Captured from the local application at desktop and phone viewport sizes on 2026-10-08. The state directory had no bots, provider keys or run records. The Live badge marks the browser’s connection to the local dashboard; the executor was idle during capture. Provider calls and live inference were outside this capture.</p>
         </figcaption>
       </figure>
     </div>
@@ -221,7 +221,7 @@
           </div>
           <div class="ledger-body">
             <h3>Local agents with zero defaults and messy memory</h3>
-            <p>Hutch keeps chat history, reference facts and action receipts separate. Facts start as proposals for their chat, require human review before recall, and need explicit sharing for other chats. Memory can be disabled while records remain manageable. Archive keeps history and backups; stable workspaces and permanent scoped deletion remain unfinished.</p>
+            <p>Hutch keeps chat history, reference facts, workspaces and action receipts separate. Facts start as proposals for their chat, require human review before recall, and need explicit sharing for other chats. Memory can be disabled while records remain manageable; archiving retains fact and review history. Fresh workspaces are the default; a bot can opt into a private managed folder across its chats. Database snapshots exclude workspace files, and permanent scoped deletion remains unfinished.</p>
           </div>
         </article>
       </div>
@@ -264,7 +264,7 @@
         <div class="spec-stack">
           <div class="spec">
             <dt class="spec-k">Inference</dt>
-            <dd class="spec-v">There is no simulated or no-model run. Configure an actual OpenAI, Anthropic, OpenAI-compatible or local model route. Provider HTTP behavior has fixture coverage, but live provider and model compatibility depends on your endpoint and has not been verified here.</dd>
+            <dd class="spec-v">Every run uses a configured OpenAI, Anthropic, OpenAI-compatible or local model route. Provider HTTP behavior has fixture coverage, but live provider and model compatibility depends on your endpoint and has not been verified here.</dd>
           </div>
           <div class="spec">
             <dt class="spec-k">Execution</dt>
@@ -272,7 +272,7 @@
           </div>
           <div class="spec">
             <dt class="spec-k">State</dt>
-            <dd class="spec-v">SQLite history is stored under <code>~/.local/state/hutch</code> by default. Hutch can snapshot committed database history and restore it into a new directory with execution held for review. Reference facts require human review before recall; sharing across a bot&rsquo;s chats is explicit. Archiving retains fact and review history in later snapshots. Stable workspaces and permanent scoped deletion remain unfinished. Credentials, browser profiles and user files need separate backups.</dd>
+            <dd class="spec-v">SQLite history is stored under <code>~/.local/state/hutch</code> by default. Hutch can snapshot committed database history and restore it into a new directory with execution held for review. Reference facts require human review before recall; sharing across a bot&rsquo;s chats is explicit. Archiving retains fact and review history in later snapshots. Managed workspaces persist per bot when selected but are outside database snapshots. Credentials, browser profiles and user files need separate backups; permanent scoped deletion remains unfinished.</dd>
           </div>
           <div class="spec">
             <dt class="spec-k">Scheduling</dt>
@@ -414,7 +414,7 @@ run: stays stopping until process exits</code></pre>
     <div class="wrap get-grid">
       <div class="get-copy">
         <h2 class="section-heading">How to get hutch</h2>
-        <p class="section-desc">Hutch is an early alpha and its source repository is private. There is no public package or release, so visitors cannot install it from this page. The image above shows a real local first-run screen, not access to a running service.</p>
+        <p class="section-desc">Hutch is an early alpha with a private source repository. Public releases and anonymous downloads are not available yet, so visitors cannot install it from this page. The image above shows the local first-run interface.</p>
         <div class="get-status" role="list">
           <div class="get-row" role="listitem"><span class="gr-k">Public access</span><span class="gr-v">Private source; no anonymous download or public release</span><span class="chip"><span class="chip-dot warn" aria-hidden="true"></span>Unavailable</span></div>
           <div class="get-row" role="listitem"><span class="gr-k">Supported</span><span class="gr-v">Linux executor, local SQLite state and fixture-tested lifecycle/control paths; actual runs require a configured model</span><span class="chip"><span class="chip-dot ok" aria-hidden="true"></span>Supported</span></div>
@@ -456,7 +456,7 @@ run: stays stopping until process exits</code></pre>
         </details>
         <details class="faq-item">
           <summary>Can I run it on my ChatGPT or Claude subscription?</summary>
-          <p>ChatGPT sign-in and consumer chat-plan OAuth are not implemented. Hutch accepts explicitly configured provider connections; OpenCode Go is experimental and its published terms describe coding-agent use. No subscription is silently upgraded or used as a fallback.</p>
+          <p>ChatGPT sign-in and consumer chat-plan OAuth are not implemented. Hutch uses explicitly configured provider connections; OpenCode Go remains experimental under its published workload terms. Hutch does not switch a consumer subscription into a provider route.</p>
         </details>
         <details class="faq-item">
           <summary>What does a runaway bot cost me?</summary>
@@ -478,7 +478,7 @@ run: stays stopping until process exits</code></pre>
       </div>
       <div class="cta-copy">
         <h2 class="section-heading">Run your own agents.<br>Keep the receipts.</h2>
-        <p class="section-desc">Hutch is MIT-licensed, but source and downloads are private today. The preview shows local control flows, not a hosted service or a supported remote supervisor.</p>
+        <p class="section-desc">Hutch is MIT-licensed, with source and downloads private today. The preview demonstrates local control flows; remote supervision remains experimental.</p>
         <div class="hero-actions">
           <a class="btn primary" href="#get">Check availability</a>
           <a class="btn ghost" href="#proof">View the product capture</a>
@@ -496,7 +496,7 @@ run: stays stopping until process exits</code></pre>
             <svg class="brand-mark" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 28 9v14L16 30 4 23V9z" fill="none" stroke="var(--color-semantic-brand)" stroke-width="2.5"/><circle cx="16" cy="16" r="4" fill="var(--color-semantic-brand)"/></svg>
             <span class="brand-word">hutch<span class="brand-dot" aria-hidden="true">.</span></span>
           </span>
-          <p class="footer-tag">Local-first agent platform.<br>No hosted service to rent.</p>
+          <p class="footer-tag">Local-first agent platform.<br>Run it on your machine.</p>
         </div>
         <nav class="footer-nav" aria-label="Site">
           <a href="#proof">Proof</a>

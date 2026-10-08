@@ -59,6 +59,19 @@ def live(tmp_path, monkeypatch):
     assert not t.is_alive()
 
 
+def test_executor_health_status_uses_a_steady_indicator(browser, live):
+    base, _ = live
+    page = browser.new_page(viewport={"width": 1100, "height": 800})
+    try:
+        page.goto(base + "/#/chat")
+        pill = page.locator('#daemon-pill[data-state="live"]')
+        pill.wait_for()
+        assert page.locator("#daemon-label").inner_text() == "live"
+        assert page.locator(".daemon-dot").evaluate("el => getComputedStyle(el).animationName") == "none"
+    finally:
+        page.close()
+
+
 class CuttableProxy:
     """A TCP forwarder between the browser and the server whose connections we can sever on demand.
 
@@ -827,6 +840,85 @@ def test_small_workspace_has_one_roster_and_legacy_routes_do_not_trap_back(brows
     page.go_back()
     page.get_by_role("heading", name="Activity", exact=True).wait_for()
     page.close()
+
+
+@pytest.mark.parametrize("width,height,size", [(1440,1000,"desktop"),(900,1024,"tablet"),(390,844,"phone"),(320,740,"compact-phone")])
+def test_bot_workspace_modes_are_clear_and_persist_across_settings(browser, live, tmp_path, width, height, size):
+    import hashlib
+    import json
+    from hutch.models import iso, utcnow
+
+    base, app = live
+    app.state.store.create_bot(Bot(name="workspace-helper", model="mock/demo", tools=["files"]))
+    folder = tmp_path / "existing-workspace"
+    folder.mkdir()
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/managed-workspaces"
+    out.mkdir(parents=True, exist_ok=True)
+    page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        page.goto(base + "/#/bot/workspace-helper")
+        page.get_by_role("heading", name="workspace-helper settings", exact=True).wait_for()
+        mode = page.locator('#form-risk [name="workspace_mode"]')
+        assert mode.input_value() == "fresh"
+        if width <= 390:
+            assert mode.bounding_box()["height"] >= 44
+        assert page.locator("#workspace-folder-field").is_hidden()
+
+        mode.select_option("managed")
+        old_form = page.locator("#form-risk").element_handle()
+        with page.expect_response(lambda response: response.url.endswith("/api/bots/workspace-helper")
+                                  and response.request.method == "PATCH") as saved:
+            page.locator('#form-risk button[type="submit"]').click()
+        assert saved.value.status == 200, saved.value.text()
+        page.wait_for_function("form => !form.isConnected", arg=old_form)
+        page.locator("#form-risk").wait_for(state="visible")
+        page.get_by_text("Policy and workspace saved.", exact=True).wait_for()
+        assert app.state.store.get_bot("workspace-helper").workspace_mode == "managed"
+        assert app.state.store.get_bot("workspace-helper").workdir is None
+        assert mode.input_value() == "managed" and page.locator("#workspace-folder-field").is_hidden()
+        page.locator("#form-risk").scroll_into_view_if_needed()
+        page.locator(".toast-root .toast").wait_for(state="detached")
+        page.screenshot(path=str(out / f"{size}-managed.png"), animations="disabled")
+
+        mode.select_option("folder")
+        field = page.locator("#workspace-folder-field")
+        assert field.is_visible() and field.locator("input").evaluate("e => e === document.activeElement")
+        assert field.locator("input").get_attribute("required") is not None
+        if width <= 390:
+            assert field.locator("input").bounding_box()["height"] >= 44
+        field.locator("input").fill(str(folder))
+        old_form = page.locator("#form-risk").element_handle()
+        with page.expect_response(lambda response: response.url.endswith("/api/bots/workspace-helper")
+                                  and response.request.method == "PATCH") as saved:
+            page.locator('#form-risk button[type="submit"]').click()
+        assert saved.value.status == 200, saved.value.text()
+        page.wait_for_function("form => !form.isConnected", arg=old_form)
+        page.locator("#form-risk").wait_for(state="visible")
+        stored = app.state.store.get_bot("workspace-helper")
+        assert stored.workspace_mode == "folder" and stored.workdir == str(folder.resolve())
+        assert mode.input_value() == "folder" and field.is_visible()
+        page.locator("#form-risk").scroll_into_view_if_needed()
+        page.locator(".toast-root .toast").wait_for(state="detached")
+        page.screenshot(path=str(out / f"{size}-folder.png"), animations="disabled")
+
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow <= 1 and not errors, (overflow, errors)
+        (out / f"{size}.json").write_text(json.dumps({
+            "captured_at": iso(utcnow()), "browser": browser.browser_type.name, "version": browser.version,
+            "playwright_version": package_version("playwright"), "viewport": [width, height],
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_bot_workspace_modes_are_clear_and_persist_across_settings",
+            "journey": ["fresh default", "managed workspace saved", "existing folder selected and saved"],
+            "screenshots": [f"{size}-managed.png", f"{size}-folder.png"],
+            "folder_path": "[local fixture path omitted]", "page_errors": errors, "horizontal_overflow": overflow,
+            "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest() for p in (
+                "src/hutch/server/static/app.js", "src/hutch/server/static/style.css", "src/hutch/engine.py",
+                "src/hutch/config.py", "src/hutch/models.py", "src/hutch/cli.py", "src/hutch/server/app.py",
+                "src/hutch/server/pages.py", "src/hutch/server/templates/bot.html")},
+        }, indent=2) + "\n")
+    finally:
+        page.close()
 
 
 def test_fleet_appears_at_ten_bots_with_search_and_state_filters(browser, live):

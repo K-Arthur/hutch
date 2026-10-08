@@ -8,6 +8,7 @@ HUTCH_STATE_DIR environment variable.
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -50,6 +51,34 @@ class hutchConfig:
 
     def workspace(self, bot_name: str, run_id: str) -> Path:
         return self.run_dir(bot_name, run_id) / "workspace"
+
+    def managed_workspace_path(self, bot_id: str) -> Path:
+        """Return the identity-scoped managed workspace path without creating it."""
+        if not re.fullmatch(r"bot_[0-9a-f]{12}", bot_id):
+            raise ValueError("invalid bot identity for managed workspace")
+        return self.state_dir / "workspaces" / bot_id
+
+    def ensure_managed_workspace(self, bot_id: str) -> Path:
+        """Create or open a private per-bot folder without following a bot-folder symlink."""
+        path = self.managed_workspace_path(bot_id)
+        parent = path.parent
+        parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        parent_fd = os.open(parent, flags)
+        try:
+            try:
+                os.mkdir(path.name, 0o700, dir_fd=parent_fd)
+            except FileExistsError:
+                pass
+            workspace_fd = os.open(path.name, flags, dir_fd=parent_fd)
+            try:
+                os.fchmod(workspace_fd, 0o700)
+            finally:
+                os.close(workspace_fd)
+        finally:
+            os.close(parent_fd)
+        os.chmod(parent, 0o700)
+        return path
 
     def ensure(self) -> None:
         """Create the state directory PRIVATE (0700): it holds transcripts, memory and, optionally, API keys.

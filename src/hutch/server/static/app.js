@@ -2377,9 +2377,17 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
                 </select>
               </label>
             </div>
-            <label class="field">Working folder
-              <input type="text" name="workdir" value="${esc(b.workdir || "")}" placeholder="absolute path or blank">
-              <span class="hint">File tools use this folder. Shell isolation depends on the Linux sandbox setting; blank uses Hutch's per-bot folder.</span>
+            <label class="field workspace-mode-field">Workspace
+              <select name="workspace_mode" aria-describedby="workspace-mode-help">
+                <option value="fresh" ${(b.workspace_mode || (b.workdir ? "folder" : "fresh")) === "fresh" ? "selected" : ""}>Fresh each run</option>
+                <option value="managed" ${b.workspace_mode === "managed" ? "selected" : ""}>Hutch-managed</option>
+                <option value="folder" ${b.workspace_mode === "folder" ? "selected" : ""}>Existing folder</option>
+              </select>
+              <span class="hint" id="workspace-mode-help">Fresh starts each run in a new folder. Managed reuses one private folder for this bot’s runs and chats. Folder uses the existing path below. Changing modes never moves or deletes files; deleting a bot keeps its managed folder.</span>
+            </label>
+            <label class="field workspace-folder-field" id="workspace-folder-field" ${b.workspace_mode === "folder" ? "" : "hidden"}>Existing folder
+              <input type="text" name="workdir" value="${esc(b.workdir || "")}" placeholder="absolute path, for example ~/Projects/report" ${b.workspace_mode === "folder" ? "required" : ""}>
+              <span class="hint">Choose a folder that already exists. System folders, your whole home, and Hutch’s private state are refused.</span>
             </label>
             <div class="btn-row">
               <button class="btn primary small" type="submit">Save policy</button>
@@ -2498,7 +2506,16 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   $("#form-risk").addEventListener("submit", ev => {
     ev.preventDefault();
     const fd = new FormData(ev.target);
-    patch({ approval_mode: fd.get("approval_mode"), risk_tier: fd.get("risk_tier"), workdir: fd.get("workdir").trim() }, "Policy saved.");
+    patch({ approval_mode: fd.get("approval_mode"), risk_tier: fd.get("risk_tier"),
+      workspace_mode: fd.get("workspace_mode"), workdir: fd.get("workdir").trim() }, "Policy and workspace saved.");
+  });
+  $('#form-risk [name="workspace_mode"]').addEventListener("change", ev => {
+    const folder = ev.target.value === "folder";
+    const field = $("#workspace-folder-field");
+    field.hidden = !folder;
+    const input = field.querySelector("input");
+    input.required = folder;
+    if (folder) input.focus();
   });
   $("#form-limits").addEventListener("submit", ev => {
     ev.preventDefault();

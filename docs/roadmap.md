@@ -5,7 +5,7 @@ bounded FTS5 recall and retained review history. Memory disabled in bot settings
 runtime use while retaining human management. Facts are not automatically injected into system
 prompts. Large clipped tool outputs now have run-scoped version records and SHA-256-verified
 downloads. Optional generic browser alerts work while the Hutch tab is open; they do not provide
-background push. Stable Hutch-managed workspaces, cross-run artifact sharing, standing tasks,
+background push. Per-bot Hutch-managed workspaces now persist when explicitly selected; cross-run artifact sharing, standing tasks,
 webhook/push notifications, bounded delegation and permanent scoped deletion/export remain required
 realignment work.
 
@@ -70,7 +70,7 @@ realignment work.
   event pages and snapshot reconciliation are present. Schema v11 adds transactional resource invalidations,
   epoch/committed-ID replay, canonical approval summaries and targeted UI refresh. Schema v12 adds
   recoverable bounded JSONL delivery, visible errors and FULL WAL synchronization. Automatic event retention,
-  stable Hutch-managed workspaces, cross-run artifact sharing, capability verification, and idempotent resume/bot-run commands remain open.
+  cross-run artifact sharing, capability verification, and idempotent resume/bot-run commands remain open.
 - **Provider compatibility: route-level matrix implemented.** `GET /api/v1/compatibility` records supported,
   experimental, unavailable and blocked routes with dated sources, request fields Hutch sends/omits and fixture/live
   verification limits. Exact OpenAI host matching now selects its token-limit field. Per-connection/model capability

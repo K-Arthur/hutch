@@ -24,6 +24,10 @@ protocols lack validated memory admission. Hutch reserves token and price estima
 eligible hosted calls, but provider invoices can differ. Bubblewrap is a Linux namespace sandbox,
 not a VM; migrated bots remain unsandboxed until an operator enables the setting.
 
+Workspace copy may say that fresh per-run folders are the default, and that an operator can choose a private Hutch-managed folder per bot
+or a validated existing folder. It must also say that managed folders survive bot deletion and are excluded from database-only backup;
+the site must not imply that files are automatically moved or copied when the setting changes.
+
 The product preview is a real first-run application capture with an empty state directory. It
 contains no seeded bots, conversations, runs, approvals, credentials, or provider output. Older
 fixture-generated images have been removed from `website/assets/captures`; their source artifacts

@@ -14,7 +14,7 @@ from datetime import datetime, time, timedelta, timezone
 from enum import Enum
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field, computed_field, field_validator
+from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
 
 
 def utcnow() -> datetime:
@@ -197,7 +197,8 @@ class Bot(BaseModel):
     limits: Limits = Field(default_factory=Limits)
     approval_mode: ApprovalMode = ApprovalMode.ask
     memory_enabled: bool = True
-    workdir: Optional[str] = None     # a folder of yours the bot works in, run after run; None = a fresh empty workspace per run
+    workspace_mode: Literal["fresh", "managed", "folder"] = "fresh"
+    workdir: Optional[str] = None     # an existing user folder; overrides the managed workspace
     paused: bool = False
     template: Optional[str] = None    # which starter template it came from
     preset: Optional[str] = None      # task preset this bot was configured from (LM-7)
@@ -213,6 +214,17 @@ class Bot(BaseModel):
     shell_network: bool = False       # may commands in the sandbox use the network? (default: no)
     created_at: str = Field(default_factory=lambda: iso(utcnow()))
 
+    @model_validator(mode="after")
+    def folder_workspace_requires_path(self) -> "Bot":
+        # Existing bot JSON only has ``workdir``. When a pre-mode record loads,
+        # preserve its actual behavior and surface it as the folder choice.
+        if self.workdir and self.workspace_mode == "fresh":
+            self.workspace_mode = "folder"
+        elif self.workdir and self.workspace_mode != "folder":
+            raise ValueError("workdir can only be used with folder workspace mode")
+        if self.workspace_mode == "folder" and not self.workdir:
+            raise ValueError("folder workspace mode requires an existing workdir")
+        return self
 
     @field_validator("sandbox")
     @classmethod

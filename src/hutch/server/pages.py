@@ -333,10 +333,19 @@ def register_pages(app: FastAPI) -> None:
                 return go(nxt, error=f"Command rules not saved: {exc}")
             from ..workdir import validate_workdir
             wd = form.get("workdir").strip()
-            try:
-                bot.workdir = str(validate_workdir(wd, config.state_dir)) if wd else None
-            except ValueError as exc:
-                return go(nxt, error=f"Working folder not saved: {exc}")
+            workspace_mode = form.get("workspace_mode") or ("folder" if wd else "fresh")
+            if workspace_mode not in ("fresh", "managed", "folder"):
+                return go(nxt, error="Workspace not saved: choose fresh, managed, or an existing folder.")
+            if workspace_mode == "folder":
+                try:
+                    bot.workdir = str(validate_workdir(wd, config.state_dir)) if wd else None
+                    if not bot.workdir:
+                        return go(nxt, error="Workspace not saved: folder mode needs an existing folder path.")
+                except ValueError as exc:
+                    return go(nxt, error=f"Working folder not saved: {exc}")
+            else:
+                bot.workdir = None
+            bot.workspace_mode = workspace_mode
             cron = form.get("cron").strip()
             if cron:
                 try:

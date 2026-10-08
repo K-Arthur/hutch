@@ -418,11 +418,17 @@ class Engine:
             return
         run_dir = self.config.run_dir(bot.name, run.id)
         workdir_error = check_workdir_at_run(bot.workdir, self.config.state_dir)
-        if bot.workdir:
-            workspace = Path(bot.workdir).resolve()                # the user's own folder: never created, never replaced
-        else:
+        try:
+            if bot.workdir:
+                workspace = Path(bot.workdir).resolve()             # the user's own folder: never created, never replaced
+            elif bot.workspace_mode == "managed":
+                workspace = self.config.ensure_managed_workspace(bot.id)
+            else:
+                workspace = run_dir / "workspace"
+                workspace.mkdir(parents=True, exist_ok=True)
+        except (OSError, ValueError) as exc:
             workspace = run_dir / "workspace"
-            workspace.mkdir(parents=True, exist_ok=True)
+            workdir_error = f"Could not prepare the managed workspace: {exc}"
         run_dir.mkdir(parents=True, exist_ok=True)
         closed = threading.Event()          # set once the run is over: a late worker's events and tool calls are dropped
         degraded: list[str] = []            # audit writes that failed: shown, never silent

@@ -25,6 +25,10 @@ not measured prevalence).
 | External runtimes (Pi, OpenCode) | disabled before process creation. Offline protocol helpers cover selected wire formats, but Hutch cannot yet drain/own both process streams, broker permissions end to end, enforce provider budgets, or run either harness inside the owned sandbox. OpenCode 2.0.24's event stream can lose records on disconnect/overflow. Selecting these runtimes fails with an actionable message; they are not supported executors. |
 | Stopping a run | an intent recorded in the database: `hutch stop`, `stop-all` and the dashboard work on a run owned by any process. `serve`, `daemon`, and `hutch run` use one owned process per attempt. Recovery fences the old owner before cleanup and signals only boot/start-verified process identities through pidfds. `Stopping` or `Recovering` remains visible while cleanup is incomplete or cannot be verified; terminal cancellation waits for confirmed cleanup. |
 
+Bots start with a fresh workspace for every run. The optional Hutch-managed mode reuses a private, 0700 folder for one bot across its
+runs and conversations; the existing-folder mode is explicit and validated. Files never move automatically when a mode changes. Deleting
+a bot preserves its managed workspace, and database snapshots do not include managed workspaces or user folders; back them up separately.
+
 The realignment ledger records which behavior is tested, which is only documented, and which requires live provider or device access.
 
 Worker review requests, wait state and inline review events commit together. Canonical decision

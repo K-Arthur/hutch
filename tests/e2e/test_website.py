@@ -73,7 +73,7 @@ def test_home_loads_assets_and_truthful_availability(browser, site_url):
     assert not broken, broken
     text = page.locator("body").inner_text().lower()
     assert "provider's own billing controls" in text.replace("’", "'")
-    assert "private" in text and "no public package" in text
+    assert "private" in text and "public releases and anonymous downloads are not available yet" in text
     assert "hard spend cap" not in text and "jailed workspace" not in text
     assert "github.com/k-arthur/hutch" not in page.content().lower()
     text = text.replace("’", "'")
@@ -162,8 +162,8 @@ def test_real_setup_capture_is_truthful_and_fits_anonymous_viewports(browser, si
         figure = image.locator('xpath=ancestor::figure')
         assert image.evaluate('img=>img.naturalWidth') == (390 if width <= 640 else 1440)
         assert 'Real application' in figure.inner_text()
-        assert 'state directory contained no bots' in figure.inner_text()
-        assert 'no bot is running' in figure.inner_text()
+        assert 'state directory had no bots' in figure.inner_text()
+        assert 'executor was idle during capture' in figure.inner_text()
         assert page.locator('#gate-card').count() == 0
         page.evaluate('window.scrollTo(0, 0)')
         page.screenshot(path=str(out/f'site-{size}.png'),animations='disabled',full_page=True)
@@ -204,7 +204,8 @@ def test_database_snapshot_scope_is_readable_and_has_no_executor_requests(browse
         assert 'Credentials, browser profiles and user files need separate backups' in text
         state_text = text.lower()
         assert 'require human review before recall' in state_text and 'sharing across a bot' in state_text
-        assert 'archiving retains fact and review history' in state_text and 'permanent scoped deletion remain unfinished' in state_text
+        assert 'archiving retains fact and review history' in state_text
+        assert 'permanent scoped deletion remains unfinished' in state_text and 'outside database snapshots' in state_text
         state.scroll_into_view_if_needed()
         state.screenshot(path=str(out / f'site-{size}-state.png'), animations='disabled')
         page.screenshot(path=str(out / f'site-{size}-viewport.png'), animations='disabled')

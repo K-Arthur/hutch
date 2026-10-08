@@ -140,9 +140,9 @@ a:hover { text-decoration: underline; }
 /* Reduce-effects control (persistent, app-wide) + system preference both land here. */
 @media (prefers-reduced-motion: reduce) { :root { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; } }
 :root.reduce-effects { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; }
-@media (prefers-reduced-motion: reduce) { .spine-pulse, .typing-dots span, .toast, .pill.live .daemon-dot { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .spine-pulse, .typing-dots span, .toast { animation: none !important; } }
 :root.reduce-effects .spine-pulse, :root.reduce-effects .typing-dots span,
-:root.reduce-effects .toast, :root.reduce-effects .pill.live .daemon-dot { animation: none !important; }
+:root.reduce-effects .toast { animation: none !important; }
 
 .icon { flex: none; vertical-align: -2px; }
 .icon-lg { width: 22px; height: 22px; }
@@ -256,13 +256,10 @@ a:hover { text-decoration: underline; }
 .pill .daemon-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .pill.connecting { color: var(--text-3); }
 .pill.live { color: var(--brand-hi); border-color: var(--brand-line); }
-.pill.live .daemon-dot { animation: daemon-pulse 2.2s var(--ease) infinite; }
 .pill.reconnecting { color: var(--warn); border-color: rgba(251, 191, 36, 0.4); }
 .pill.held { color: var(--warn); border-color: var(--line-strong); }
 .pill.offline { color: var(--danger); border-color: rgba(248, 113, 113, 0.45); }
 @keyframes daemon-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-:root.reduce-effects .pill.live .daemon-dot,
-@media (prefers-reduced-motion: reduce) { .pill.live .daemon-dot { animation: none; } }
 
 /* ── top bar (context header of the current view) ── */
 .app-top {
@@ -943,6 +940,8 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 
 .detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--s-4); align-items: start; }
 .form-grid { display: grid; gap: var(--s-4); }
+.workspace-mode-field select, .workspace-folder-field input { min-height: 44px; }
+.workspace-folder-field[hidden] { display: none !important; }
 .form-grid .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
 .settings-list { display: grid; gap: 0; }
 .settings-list .meta-row { padding: var(--s-3) 0; border-bottom: 1px solid var(--line); }

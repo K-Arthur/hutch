@@ -1,0 +1,34 @@
+{
+  "captured_at": "2026-10-08T20:28:30.303654+00:00",
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewport": [
+    320,
+    740
+  ],
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_bot_workspace_modes_are_clear_and_persist_across_settings",
+  "journey": [
+    "fresh default",
+    "managed workspace saved",
+    "existing folder selected and saved"
+  ],
+  "screenshots": [
+    "compact-phone-managed.png",
+    "compact-phone-folder.png"
+  ],
+  "folder_path": "[local fixture path omitted]",
+  "page_errors": [],
+  "horizontal_overflow": 0,
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "5687627f91c5d696c9e47a2e62b9941e65e60af51ec7b8e2b0788eefa061d36a",
+    "src/hutch/server/static/style.css": "b6ffbc2c3a8186e935a0ed5840bcf976d33c70b04c51567de1eb625851016474",
+    "src/hutch/engine.py": "70ae302506c3a5446e2ac7193999ab99a84b2cf4e6535d9a99f42cbaadcf6af8",
+    "src/hutch/config.py": "e5dd02ee2903255b2f95df8657ce3c43415f7d90329f51669f73b54aacb9242b",
+    "src/hutch/models.py": "5d570ad659e67789fd86137c27bfd3f021b443fcd66dd917443fe73782b2fa71",
+    "src/hutch/cli.py": "19d89e1eccb8642ad79a7ab942ae3bff60d1deec56c95b4e071f0a6702db9beb",
+    "src/hutch/server/app.py": "6bbe24749346c82012a3dd1265efa0d21de8c654a7b457de78b6818f65cf618e",
+    "src/hutch/server/pages.py": "69318557cb076bfbe96bbae8f13ac3681352fa3edb176de1ac7a180fcffb7f03",
+    "src/hutch/server/templates/bot.html": "5314044f8cc58affc5da398fb9626b441208b6b2aec86ce92a44c55631da8d14"
+  }
+}

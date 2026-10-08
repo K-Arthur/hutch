@@ -1,4 +1,4 @@
-"""A bot's working folder: validated hard, used for real, never created for you."""
+"""Workspace choices: fresh runs, Hutch-managed continuity, or a validated user folder."""
 
 from __future__ import annotations
 
@@ -119,6 +119,41 @@ def test_run_time_check_reports_a_folder_that_vanished_or_became_forbidden(tmp_p
     assert "does not exist" in check_workdir_at_run(str(d), state)
 
 
+def test_managed_workspace_is_private_stable_and_bot_scoped(config, tmp_path):
+    from stat import S_IMODE
+
+    one = config.ensure_managed_workspace("bot_0123456789ab")
+    again = config.ensure_managed_workspace("bot_0123456789ab")
+    other = config.ensure_managed_workspace("bot_abcdef012345")
+    assert one == again and one != other
+    assert one.parent == config.state_dir / "workspaces"
+    assert S_IMODE(one.stat().st_mode) == 0o700
+    assert S_IMODE(one.parent.stat().st_mode) == 0o700
+    with pytest.raises(ValueError, match="invalid bot identity"):
+        config.ensure_managed_workspace("../outside")
+
+
+def test_legacy_bot_json_with_workdir_loads_as_folder_mode(tmp_path):
+    folder = tmp_path / "existing"
+    folder.mkdir()
+    old_record = Bot(name="legacy-folder", workdir=str(folder), model="ollama/tiny:1b").model_dump_json(
+        exclude={"workspace_mode"})
+    restored = Bot.model_validate_json(old_record)
+    assert restored.workdir == str(folder) and restored.workspace_mode == "folder"
+
+
+def test_managed_workspace_never_follows_a_bot_folder_symlink(config, tmp_path):
+    target = tmp_path / "outside"
+    target.mkdir()
+    config.state_dir.mkdir(parents=True)
+    parent = config.state_dir / "workspaces"
+    parent.mkdir(mode=0o700)
+    (parent / "bot_0123456789ab").symlink_to(target, target_is_directory=True)
+    with pytest.raises(OSError):
+        config.ensure_managed_workspace("bot_0123456789ab")
+    assert list(target.iterdir()) == []
+
+
 # ------------------------------------------------------------------------ through a real run
 
 @pytest.fixture()
@@ -207,6 +242,39 @@ def test_a_bot_without_a_folder_still_gets_a_fresh_workspace(eng):
     assert (Path(run.workspace) / "a.txt").exists()
 
 
+def test_managed_workspace_persists_by_bot_and_is_retained_after_deletion(eng):
+    from pathlib import Path
+    from hutch.engine import Engine
+    from hutch.store import Store
+
+    engine, store, fake, config = eng
+    bot = store.create_bot(Bot(name="managed", model="ollama/tiny:1b", tools=["files"], selfcheck=False,
+                               workspace_mode="managed"))
+    fake.script = agent_script([{"content": "finished"}])
+    first = engine.run_blocking(bot, "first run")
+    assert first.status is RunStatus.succeeded
+    workspace = Path(first.workspace)
+    marker = workspace / "kept.txt"
+    marker.write_text("same bot, next run")
+    reopened = Store(config)
+    try:
+        persisted_bot = reopened.get_bot(bot.id)
+        assert persisted_bot.workspace_mode == "managed"
+        reloaded_engine = Engine(config, reopened)
+        second = reloaded_engine.run_blocking(persisted_bot, "second run after reopening SQLite")
+        assert second.status is RunStatus.succeeded and Path(second.workspace) == workspace
+        assert marker.read_text() == "same bot, next run"
+
+        other_bot = reopened.create_bot(Bot(name="managed-other", model="ollama/tiny:1b", tools=["files"], selfcheck=False,
+                                            workspace_mode="managed"))
+        other = reloaded_engine.run_blocking(other_bot, "separate bot")
+        assert other.status is RunStatus.succeeded and Path(other.workspace) != workspace
+        assert reopened.delete_bot(bot.id)
+        assert marker.read_text() == "same bot, next run"
+    finally:
+        reopened.close()
+
+
 def test_rehearsal_does_not_change_the_users_folder(eng, tmp_path):
     folder = tmp_path / "rehearse"
     folder.mkdir()
@@ -227,10 +295,18 @@ def test_cli_sets_validates_and_clears_the_folder(tmp_path, monkeypatch):
     d.mkdir()
     assert runner.invoke(cli_app, ["bot", "create", "tidy", "--model", "mock/demo", "--workdir", str(d)]).exit_code == 0
     assert str(d.resolve()) in runner.invoke(cli_app, ["bot", "show", "tidy"]).output
+    assert '"workspace_mode": "folder"' in runner.invoke(cli_app, ["bot", "show", "tidy"]).output
     bad = runner.invoke(cli_app, ["bot", "update", "tidy", "--workdir", "/etc"])
     assert bad.exit_code == 1 and "system location" in bad.output
+    managed = runner.invoke(cli_app, ["bot", "update", "tidy", "--workspace-mode", "managed"])
+    assert managed.exit_code == 0
+    assert '"workspace_mode": "managed"' in runner.invoke(cli_app, ["bot", "show", "tidy"]).output
+    assert '"workdir": null' in runner.invoke(cli_app, ["bot", "show", "tidy"]).output
+    invalid = runner.invoke(cli_app, ["bot", "update", "tidy", "--workspace-mode", "folder"])
+    assert invalid.exit_code == 1 and "requires an existing --workdir" in invalid.output
     assert runner.invoke(cli_app, ["bot", "update", "tidy", "--clear-workdir"]).exit_code == 0
     assert '"workdir": null' in runner.invoke(cli_app, ["bot", "show", "tidy"]).output
+    assert '"workspace_mode": "fresh"' in runner.invoke(cli_app, ["bot", "show", "tidy"]).output
 
 
 def test_api_and_bot_page(tmp_path, monkeypatch):
@@ -240,11 +316,21 @@ def test_api_and_bot_page(tmp_path, monkeypatch):
     d.mkdir()
     with TestClient(create_app()) as c:
         assert c.post("/api/bots", json={"name": "wd", "workdir": "/etc", "model": "mock/demo"}).status_code == 422
+        assert c.post("/api/bots", json={"name": "missing-folder", "model": "mock/demo",
+                                          "workspace_mode": "folder"}).status_code == 422
         r = c.post("/api/bots", json={"name": "wd", "workdir": str(d), "model": "mock/demo"})
         assert r.status_code == 201 and r.json()["workdir"] == str(d.resolve())
+        assert r.json()["workspace_mode"] == "folder"
         assert c.patch("/api/bots/wd", json={"workdir": "/nope/nope"}).status_code == 422
         assert c.patch("/api/bots/wd", json={"workdir": ""}).json()["workdir"] is None
+        assert c.patch("/api/bots/wd", json={"workspace_mode": "folder"}).status_code == 422
         c.patch("/api/bots/wd", json={"workdir": str(d)})
+        saved = c.patch("/api/bots/wd", json={"workspace_mode": "managed"}).json()
+        assert saved["workspace_mode"] == "managed" and saved["workdir"] is None
+        saved = c.patch("/api/bots/wd", json={"workspace_mode": "fresh"}).json()
+        assert saved["workspace_mode"] == "fresh"
+        saved = c.patch("/api/bots/wd", json={"workdir": str(d)}).json()
+        assert saved["workspace_mode"] == "folder"
         page = c.get("/bots/wd").text
         assert "folder: " in page and 'name="workdir"' in page
         tok = re.search(r'name="csrf" content="([^"]+)"', page).group(1)

@@ -147,6 +147,11 @@ routes while leaving tools under their own network policy. Offline is offered on
 rejects hosted routes and hosted overrides, withholds browser/web-fetch tools, and requires the
 strict shell sandbox when shell is configured. The status is host-specific, and the separate local
 inference service may still use the network.
+Bot records include `workspace_mode`: `fresh` (default), `managed`, or `folder`. Existing bot JSON
+with a saved `workdir` is loaded as `folder` without a schema migration. `managed` uses a private
+directory keyed by immutable bot ID; `folder` requires a validated existing `workdir`. Selecting
+`fresh` or `managed` clears the active `workdir` reference but never moves or deletes its files.
+Bot deletion keeps managed folders, and database snapshots exclude workspace files.
 Bot resources also expose `active_run_status` and `active_run_status_label` alongside `active_run_id`
 so callers do not infer “working” from any active state. Approval list resources include `conversation_id` for
 contextual navigation. Approval events include `action_hash`, used by the shared inline/drawer

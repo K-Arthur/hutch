@@ -8,7 +8,7 @@ import os
 import sqlite3
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import typer
 from rich.console import Console
@@ -220,7 +220,7 @@ def bot_templates() -> None:
         for i in items:
             table.add_row(i.key, i.tagline, "needs a folder" if i.needs_folder else "")
         console.print(table)
-    console.print("\n[dim]hutch bot create <name> --template <template> [--workdir ~/folder][/dim]")
+    console.print("\n[dim]hutch bot create <name> --template <template> [--workspace-mode managed | --workdir ~/folder][/dim]")
 
 
 @bot_app.command("create")
@@ -243,6 +243,8 @@ def bot_create(
     catch_up: CatchUpPolicy = typer.Option(CatchUpPolicy.coalesce, "--catch-up"),
     approval: ApprovalMode = typer.Option(ApprovalMode.ask, "--approvals", help="ask | auto"),
     workdir: Optional[str] = typer.Option(None, "--workdir", help="a folder of yours the bot works in, e.g. ~/Downloads"),
+    workspace_mode: Optional[Literal["fresh", "managed", "folder"]] = typer.Option(
+        None, "--workspace-mode", help="fresh | managed (retained between runs) | folder (requires --workdir)"),
     risk_tier: RiskTier = typer.Option(RiskTier.supervised, "--risk-tier",
                                        help="readonly (medium-risk actions blocked) | supervised (ask) | trusted (run)"),
     sandbox_mode: str = typer.Option("strict", "--sandbox", help="strict (Linux bubblewrap) | off (uncontained shell)"),
@@ -310,7 +312,16 @@ def bot_create(
     bot.risk_tier = risk_tier
     bot.sandbox = sandbox_mode
     if workdir:
+        if workspace_mode not in (None, "folder"):
+            err.print("[red]--workdir requires --workspace-mode folder[/red]")
+            raise typer.Exit(code=1)
         bot.workdir = _check_workdir_option(workdir)
+        bot.workspace_mode = "folder"
+    elif workspace_mode is not None:
+        if workspace_mode == "folder":
+            err.print("[red]--workspace-mode folder requires --workdir[/red]")
+            raise typer.Exit(code=1)
+        bot.workspace_mode = workspace_mode
     if rule:
         bot.command_rules = _parse_rule_options(rule)
     bot.limits = Limits(max_steps=max_steps, timeout_seconds=timeout, max_turn_tokens=max_turn_tokens,
@@ -402,6 +413,8 @@ def bot_update(
     risk_tier: Optional[RiskTier] = typer.Option(None, "--risk-tier", help="readonly | supervised | trusted"),
     sandbox_mode: Optional[str] = typer.Option(None, "--sandbox", help="strict (Linux bubblewrap) | off (uncontained shell)"),
     workdir: Optional[str] = typer.Option(None, "--workdir", help="a folder of yours the bot works in"),
+    workspace_mode: Optional[Literal["fresh", "managed", "folder"]] = typer.Option(
+        None, "--workspace-mode", help="fresh | managed | folder (folder mode needs --workdir)"),
     clear_workdir: bool = typer.Option(False, "--clear-workdir", help="go back to a fresh empty workspace per run"),
     rule: list[str] = typer.Option([], "--rule", help="replace the bot's command rules, e.g. --rule 'deny: git push*'"),
     clear_rules: bool = typer.Option(False, "--clear-rules", help="remove all command rules"),
@@ -446,8 +459,24 @@ def bot_update(
             err.print("[red]--sandbox must be 'strict' or 'off'[/red]")
             raise typer.Exit(code=1)
         bot.sandbox = sandbox_mode
-    if clear_workdir: bot.workdir = None
-    if workdir: bot.workdir = _check_workdir_option(workdir)
+    if workdir:
+        if workspace_mode not in (None, "folder") or clear_workdir:
+            err.print("[red]--workdir cannot be combined with --clear-workdir or a different --workspace-mode[/red]")
+            raise typer.Exit(code=1)
+        bot.workdir = _check_workdir_option(workdir)
+        bot.workspace_mode = "folder"
+    elif workspace_mode is not None:
+        if clear_workdir and workspace_mode == "folder":
+            err.print("[red]--clear-workdir cannot be combined with --workspace-mode folder[/red]")
+            raise typer.Exit(code=1)
+        if workspace_mode == "folder" and not bot.workdir:
+            err.print("[red]--workspace-mode folder requires an existing --workdir[/red]")
+            raise typer.Exit(code=1)
+        if workspace_mode != "folder": bot.workdir = None
+        bot.workspace_mode = workspace_mode
+    elif clear_workdir:
+        bot.workdir = None
+        bot.workspace_mode = "fresh"
     if clear_rules: bot.command_rules = []
     if rule: bot.command_rules = _parse_rule_options(rule)
     if paused is not None: bot.paused = paused
