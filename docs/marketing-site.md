@@ -59,23 +59,31 @@ place. Reduced motion, touch, and no-JS visitors get the static centre frame.
 
 ## Reference decisions (supplied design set, Oct 2026)
 
-Adopted: window chrome for product proof (traffic-dot trio, centred monospace title, status chip); evidence-first rows with a
-machine-readable "hutch answer" line; data-first workflow cards (capture on top, number + title + one-line caption); a
-model-route pill row; deliberate crop of the poster wordmark behind a dimensional subject with exactly one front glyph; a
-monospace spec line under the hero subject.
+Adopted: window chrome for product proof (traffic-dot trio, centred monospace title, status chip); the receipts as a real
+data table (# / Source / Reported failure / hutch answer / Evidence) with fixed columns, hairline rows, right-aligned
+evidence pills and a mobile card stack; icon + title + copy feature cards in a three-up grid; a separately headed
+"How a run is wired" architecture block (SVG diagram on desktop, readable list on phones) kept apart from the feature cards;
+data-first workflow cards (capture on top, number + title + one-line caption); a model-route pill row; the poster wordmark
+sized to sit fully inside its column (no sliced strokes) behind a dimensional subject with exactly one front glyph; a
+monospace spec line under the hero subject; and syntax-coloured code windows (chrome bar, coloured keys, terminal status bar).
 
-Rejected: purple aurora gradient heroes, gradient display type, warm-beige editorial palettes, uniform six-card icon grids,
-collage-of-floating-cards backgrounds, and the 24-48px translucent container look. The pinned brand contract (emerald accent,
-0px controls / 8px panels / 100px chips, one dark theme) governs.
+Rejected: purple aurora gradient heroes, gradient display type, warm-beige editorial palettes, collage-of-floating-cards
+backgrounds, and the 24-48px translucent container look. Also rejected after review: a page-level emerald hero wash (removed
+in favour of the artwork's own contained glow), a box-in-box "limits" panel with an orphan card (now a plain hairline list),
+a half-empty wide use-case card (now three even columns), a container wrapped around the receipts table, and a poster wordmark
+cropped past the scene edge. The pinned brand contract (emerald accent, 0px controls / 8px panels / 100px chips, one dark
+theme) governs.
 
 ## Verification (Oct 2026 rework)
 
 - `tests/test_site_tokens.py`: token compilation, contrast pairs, drift.
-- `tests/e2e/test_website.py` (23 checks, all passing): no-JS readability, no external requests, reference-pattern presence,
-  agent frame set, dialog drawer focus/Escape/resize, reduce-motion visibility, reveal watchdog, tab keyboard operation, demo
-  gate states, honesty markers, and zero horizontal overflow at 320/360/390/428/768/1024/1440/1920.
-- Screenshot review at 1440 and 390 (hero, proof chrome, workflow, runs, control, use cases, availability, FAQ, CTA), plus
-  pointer-swap verification left/right.
+- `tests/e2e/test_website.py` (24 checks, all passing): no-JS readability, no external requests, reference-pattern presence
+  (table shape, icon cards, architecture block, route pills), agent frame set, distinct code styling, dialog drawer
+  focus/Escape/resize, reduce-motion visibility, reveal watchdog, tab keyboard operation, demo gate states, honesty markers,
+  and zero horizontal overflow at 320/360/390/428/768/1024/1440/1920.
+- Screenshot review at 1440 and 390 (hero, proof chrome, receipts table, workflow, runs + architecture, control, use cases,
+  availability, FAQ, CTA), plus pointer-swap verification left/right and a measured check that the hero wordmark fits its
+  column (about 18px slack each side).
 
 Known gaps: no physical-device or screen-reader session; contrast is computed for declared token pairs, with rendered surfaces
 checked by eye at the two review widths; the frame grid is untested on very low-end GPUs.

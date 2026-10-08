@@ -101,12 +101,38 @@ def test_reference_patterns_present(browser, site_url):
     ctx, page, _ = _page(browser)
     page.goto(site_url, wait_until="networkidle")
     assert page.eval_on_selector_all(".proof-chrome .win-dots i", "e => e.length") == 3
-    assert page.eval_on_selector_all(".ledger-row", "e => e.length") >= 4
-    assert page.eval_on_selector_all(".ledger-fix", "e => e.length") >= 3
+    # receipts are a real data table with an evidence pill per row
+    assert page.eval_on_selector_all(".rtable tbody tr", "e => e.length") >= 4
+    assert page.eval_on_selector_all(".rtable thead th", "e => e.length") == 5
+    assert page.eval_on_selector_all(".rtable .c-ans code", "e => e.length") >= 4
+    assert page.eval_on_selector_all(".rtable tbody .c-ev .chip", "e => e.length") >= 4
+    # feature cards are icon + title + copy; architecture is a separate block
+    assert page.eval_on_selector_all("#runs .card-icon", "e => e.length") == 6
+    assert page.eval_on_selector_all("#runs .card-title", "e => e.length") == 6
+    assert page.eval_on_selector_all("#runs .arch svg", "e => e.length") == 1
+    assert page.eval_on_selector_all(".limits-list li", "e => e.length") == 5
     assert page.eval_on_selector_all(".step .step-shot img", "e => e.length") == 3
     routes = page.inner_text(".routes-list")
     for route in ("ollama", "openai", "mock/offline"):
         assert route in routes
+    ctx.close()
+
+
+def test_code_samples_are_distinct_from_prose(browser, site_url):
+    """Code lives in chrome-headed windows and colourised blocks, not body text."""
+    ctx, page, _ = _page(browser)
+    page.goto(site_url, wait_until="networkidle")
+    # window chrome on the terminal and the availability panel
+    assert page.eval_on_selector_all(".term-head .win-dots i", "e => e.length") >= 3
+    assert page.eval_on_selector_all(".term-head .term-title", "e => e.length") >= 2
+    # inline code inside the case cards is syntax-coloured, not plain
+    keys = page.eval_on_selector_all(
+        ".case-code .k",
+        "els => els.map(e => getComputedStyle(e).color)",
+    )
+    assert len(keys) >= 6
+    body = page.eval_on_selector("body", "e => getComputedStyle(e).color")
+    assert all(c != body for c in keys), keys
     ctx.close()
 
 
@@ -165,7 +191,7 @@ def test_reduced_motion_never_hides_content(browser, site_url):
     page.goto(site_url, wait_until="networkidle")
     page.wait_for_timeout(400)
     opacities = page.eval_on_selector_all(
-        ".section-heading, .step, .ledger-row, .case, .proof-figure",
+        ".section-heading, .step, .rtable tbody tr, .case, .proof-figure",
         "els => els.map(e => getComputedStyle(e).opacity)",
     )
     assert all(o == "1" for o in opacities), opacities
