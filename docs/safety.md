@@ -165,11 +165,12 @@ someone else's server (a `GET` that logs you out) still happens.
 1. A tool hits an **ask** verdict → an `ApprovalRequest` row is created; the run enters
    `waiting_approval` and the dashboard/CLI show the exact action and arguments.
 2. A human approves (optionally **always allow** for that bot+action-key) or denies.
-3. Unanswered requests expire after **10 minutes and are recorded as denied**. Silence is never
+3. Unanswered requests expire after **10 minutes and are recorded as expired**. Silence is never
    consent; a stopped dashboard cannot leave a bot waiting forever without that being visible.
 
 `approval_mode: auto` skips asks (allowlist-only mode) for bots you trust — the hard-deny classes
-still apply.
+still apply. Outward browser/provider-route actions require review even in auto mode.
+An expired owner cannot create a new approval or reserve another provider call, even before recovery.
 
 ## Honest limits (read this)
 

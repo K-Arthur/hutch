@@ -21,7 +21,7 @@ import threading
 
 from .config import get_config
 from .engine import Engine
-from .lifecycle import LIVE
+from .lifecycle import LIVE, LeaseLost
 from .models import RunStatus
 from .store import Store
 
@@ -59,7 +59,11 @@ def main(argv: list[str] | None = None) -> int:
             bot = bot.model_copy(update={"model": run.model_override})
 
         engine = Engine(config, store, owner_id=args.owner, light=True)
-        store.set_pgid(run.id, run.fence, os.getpgrp())
+        try:
+            store.set_pgid(run.id, run.fence, os.getpgrp())
+        except LeaseLost:
+            print(f"hutch.worker: {args.run_id} claim expired before execution", file=sys.stderr)
+            return EXIT_NOT_OURS
         def on_term(_sig, _frm) -> None:
             stop_requested.set()                    # a signal handler only records; a thread does the work
 

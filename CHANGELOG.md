@@ -6,6 +6,10 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Fixed
 
+- Expired leases cannot renew or authorize owner actions, approvals, reservations, progress or
+  status changes before recovery. Buffered worker replies validate ownership at commit, and late
+  receipts cannot overwrite uncertain outcomes. Worker startup refuses an expired claim.
+
 - Join worker signal listeners on completion and execution errors, and join cancellation cleanup
   before terminal status. Serialize cleanup verification so a stale survivor report cannot win.
 - Refuse database closure while the event writer remains alive; preserve its connection and allow

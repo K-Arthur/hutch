@@ -14,7 +14,7 @@ are swallowed. "Succeeded" currently means "the model stopped calling tools".
 
 | Stored value | Label shown to people | Meaning |
 |---|---|---|
-| `pending` | Queued | admitted, nobody owns it yet |
+| `pending` | Queued | queued; an atomic startup reservation may already own a lease |
 | `loading_model` | Loading the model | owner is bringing a local model up |
 | `running` | Working | owner is executing |
 | `waiting_approval` | Waiting for you | an approval request is pending |
@@ -22,7 +22,7 @@ are swallowed. "Succeeded" currently means "the model stopped calling tools".
 | `waiting_resources` *(new)* | Waiting for a free slot or quota | resource admission or an allowance reset |
 | `recovering` *(new)* | Recovering | lease expired; recovery decides the outcome |
 | `cancelling` *(new)* | Stopping | cancel requested; not yet verified stopped |
-| `succeeded` | Done | run finished and (where an expectation exists) it was verified |
+| `succeeded` | Done | executor finished; task expectation verification is not implemented yet |
 | `failed` | Failed | run ended with an error |
 | `stopped` | Cancelled | cancel completed and descendants verified gone |
 | `outcome_unknown` *(new)* | Needs review | the process died after an effect started but before its receipt |
@@ -33,8 +33,8 @@ are swallowed. "Succeeded" currently means "the model stopped calling tools".
 
 ### Transitions are a table, applied in SQL
 
-`lifecycle.TRANSITIONS` is the only definition. `Store.transition_run(run_id, to, fence=…, expect=…)` runs
-`UPDATE runs SET status=? WHERE id=? AND status IN (<allowed from>) AND fence=?` and appends the `status` event in the **same
+`lifecycle.TRANSITIONS` is the only definition. `Store.transition_run(run_id, to, fence=…)` checks the current lifecycle, fence and
+unexpired owned lease inside `BEGIN IMMEDIATE`, then updates the row and appends the `status` event in the **same
 transaction**. A rejected transition raises `IllegalTransition` or `LeaseLost`; callers treat `LeaseLost` as "stop now".
 Progress writes (`steps`, `tokens`, cost) go through `update_run`, which is also fenced and refuses to touch a terminal row.
 Cancel is a separate column (`cancel_requested`) so a client can set it without racing the owner's document writes.
@@ -43,7 +43,11 @@ Cancel is a separate column (`cancel_requested`) so a client can set it without 
 
 Each claim and each recovery increments `runs.fence`. Recovery compares the observed owner, status, fence and lease expiry and
 claims the run in one transaction **before it signals anything**. The owner's `Run` object carries the fence. A worker that lost
-its lease gets `LeaseLost` on its next write and cannot start another effect. Process records pair PID and start ticks with the
+its lease gets `LeaseLost` on its next write and cannot start another effect, even before another
+supervisor takes over. Heartbeat extends only an unexpired lease; it cannot revive a paused owner.
+Progress, process-group assignment, approval creation and usage reservation check the same authority.
+Worker events carry their fence through buffering and validate it when committed, preventing stale
+replies from entering either transcript or canonical conversation history. Process records pair PID and start ticks with the
 kernel boot id; cleanup uses pidfds and checks the recorded process-group identity, never a raw PID or PGID after a check race.
 A run remains `cancelling` or `recovering` while cleanup is incomplete or unverifiable; it becomes terminal only after owned
 processes are confirmed gone. Thread-mode test helpers are joined before persistence closes.
@@ -56,17 +60,20 @@ Before a tool with an external or filesystem effect runs, the runtime writes an 
 
 * no `started` action -> `failed` with reason `interrupted`;
 * a `started` action without a receipt -> `outcome_unknown`; the action is marked `unknown`, shown to the operator with
-  its exact arguments, and **never replayed automatically**. Local idempotency keys prevent a duplicate *from Hutch*; they are
-  not a promise of exactly-once effects at a remote service, and the UI says so.
+  its retained summary, and **never replayed automatically**. Receipts currently retain the tool,
+  effect, argument fingerprint and a bounded summary, not the full immutable arguments. The argument
+  fingerprint is a correlation key; repeated identical tool calls are not deduplicated. A late
+  worker cannot replace a recovered uncertain receipt. Explicit reconciliation remains required;
+  these records do not promise exactly-once effects at a remote service.
 
-Hutch never resumes a run in the middle. "Continue" starts a new run in the same conversation with a system note listing
-unknown actions.
+Hutch never resumes a run in the middle. New messages can start new attempts in their canonical
+conversation. Automatic context notes listing uncertain actions are still pending.
 
 ### Succeeded versus verified
 
-`succeeded` records execution. A task may declare expectations (an artifact path exists and is non-empty, a receipt of a given
-kind, a command exit code). The engine evaluates them after the run and stores `verified: true|false|n/a`; a model saying
-"done" with a failed expectation ends as `failed` with `exit_reason=expectation_unmet`, a partial result is kept and labelled.
+`succeeded` records executor completion. `Run.verified` exists as an optional field, but the engine
+has no task-expectation evaluator yet. Artifact/receipt/command expectations and an
+`expectation_unmet` outcome are planned; do not describe a Done label as independent task verification.
 
 ### Audit writes
 

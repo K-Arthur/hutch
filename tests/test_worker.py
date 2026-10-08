@@ -14,13 +14,14 @@ import textwrap
 import time
 import threading
 from pathlib import Path
+from datetime import timedelta
 
 import pytest
 
 from hutch import procguard
 from hutch.approvals import resolve_approval
 from hutch.engine import Engine
-from hutch.models import ApprovalMode, Bot, Run, RunStatus
+from hutch.models import ApprovalMode, Bot, Run, RunStatus, iso, utcnow
 from hutch.store import Store
 
 pytestmark = pytest.mark.skipif(not procguard.available(), reason="needs /proc (Linux)")
@@ -236,3 +237,25 @@ def test_a_worker_outlives_a_dead_supervisor_and_is_adopted_by_the_next(store, c
             sup.kill()
         if worker_pgid and alive(worker_pgid):
             os.kill(worker_pgid, signal.SIGKILL)
+
+
+def test_worker_refuses_expired_startup_claim_before_runtime_or_process_group_change(store, config, monkeypatch):
+    import hutch.worker as worker
+    bot = store.create_bot(Bot(name="expired-startup", model="mock/demo", tools=[]))
+    run = store.create_run(Run(bot_id=bot.id, prompt="fixture"))
+    claimed = store.claim_run(run.id, "paused-owner", 30)
+    with store._tx() as db:
+        db.execute("UPDATE runs SET lease_expires_at = ? WHERE id = ?", (iso(utcnow() - timedelta(seconds=1)), run.id))
+
+    class RefusedEngine:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def _execute(self, *args, **kwargs):
+            pytest.fail("expired worker must not reach execution")
+
+    monkeypatch.setattr(worker, "get_config", lambda: config)
+    monkeypatch.setattr(worker, "Engine", RefusedEngine)
+    assert worker.main([run.id, "--owner", claimed.lease_owner, "--fence", str(claimed.fence)]) == worker.EXIT_NOT_OURS
+    after = store.get_run(run.id)
+    assert after.status is RunStatus.pending and after.pgid == 0 and after.steps == 0

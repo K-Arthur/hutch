@@ -29,7 +29,7 @@ browser. "Live" means it needs something this host did not have and is skipped w
 | T-MOBILE-30055 | Pending approval remains visible with decision controls on a phone-sized viewport | browser fixture | `docs/realignment/artifacts/visual-validation/app-phone-approvals.png` | passing; no physical-phone check |
 | T-PHONE-31656 | Navigation-menu open/close does not focus a text field; Escape restores focus to the menu toggle | browser viewport fixture | `docs/realignment/artifacts/visual-validation/capture-results.json` | passing; no iOS keyboard check |
 | T-STRICT-OFFLINE | Offline mode makes no non-loopback connection and refuses cloud-backed Ollama | offline | `tests/test_offline_mode.py` | planned |
-| T-ADMISSION | Admission waits or refuses by memory; approval waits release the slot | offline | `tests/test_admission.py` | planned |
+| T-ADMISSION | One caller/eight FIFO waiters across processes, crash/cancel release, approval waits release the slot, current native Ollama headroom rejects unknown/zero pressure | offline kernel + HTTP fixtures | `tests/test_admission.py`, `tests/test_local_admission_runtime.py` | passing; no real model |
 | T-CONVERSATION | Bounded follow-up context, isolated legacy import, idempotent create/message/archive, FTS search and restart persistence | offline | `tests/test_conversations.py`, `tests/test_migration.py` | partial; artifact/runtime-switch context not implemented |
 | T-DELETE-SEMANTICS | Archive hides but retains a conversation; scoped delete/export remain unimplemented | offline | `tests/test_conversations.py` | partial |
 | T-IDEMPOTENCY | Same key + request maps to the same result; changed request conflicts; retry survives restart | offline | `tests/test_conversations.py` | passing for conversation commands only |
@@ -39,6 +39,7 @@ browser. "Live" means it needs something this host did not have and is skipped w
 | T-DELEGATION | Depth, fan-out, cycle and budget limits hold | offline | `tests/test_delegation.py` | planned |
 | T-PAIRING | Pairing code is single-use under race, expired/replayed codes fail, IP attempts throttle, device session revokes, explicit remote bind requires TLS | offline fixtures | `tests/test_remote_pairing.py` | passing; no physical device/network test |
 | T-GLOBAL-SSE | Cross-run event pages and streams preserve global order, resume after disconnect and require bounded snapshot reconciliation when a cursor is unavailable | offline + real sockets | `tests/test_sse_resume.py` | passing; event pruning is not enabled |
+| T-LEASE-EXPIRY-AUTHORITY | Expired owners cannot renew, mutate, admit effects/usage/approvals, start workers, commit buffered replies or overwrite uncertain receipts before takeover | offline | `tests/test_lease_authority.py`, `tests/test_worker.py` | passing |
 | T-HOST-SLEEP | Offline/queued state is reported honestly after the host was suspended | offline | `tests/test_cancel.py` (lease lapse, fenced zombie) | passing |
 | T-WORKER-PROCESS | A run executes in its own session; Stop, SIGKILL, a frozen worker and a dead supervisor are all handled | offline (real processes) | `tests/test_worker.py` | passing |
 | T-EVENT-CHAIN | Several processes writing one transcript keep one unbroken chain; a zombie is refused at the database | offline (real processes) | `tests/test_claims.py` | passing |

@@ -189,7 +189,12 @@ class Engine:
         if identity is not None:
             self.store.add_proc(run.id, proc.pid, proc.pid, identity.starttime, "worker", procguard.boot_id())
         self._procs[run.id] = proc
-        self.store.set_pgid(run.id, run.fence, proc.pid)
+        try:
+            self.store.set_pgid(run.id, run.fence, proc.pid)
+        except LeaseLost:
+            # The child validates the claim again before execution. Always watch
+            # and reap the process we started, even if the claim expired at spawn.
+            self._signal_group(proc, signal.SIGTERM)
         self._ensure_heartbeat()
         t = threading.Thread(target=self._watch_process, args=(run, proc), name=f"hutch-watch-{run.id}", daemon=True)
         self._threads[run.id] = t
@@ -373,6 +378,7 @@ class Engine:
             if closed.is_set():
                 return                      # a worker that outlived its run must not extend the transcript
             try:
+                ev.owner_fence = run.fence
                 self.store.append_event(ev)
             except Exception as exc:
                 degraded.append(f"{type(exc).__name__}: {exc}")     # recorded on the run's final event, not swallowed

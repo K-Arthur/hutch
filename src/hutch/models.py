@@ -313,6 +313,7 @@ class Event(BaseModel):
     ts: str = Field(default_factory=lambda: iso(utcnow()))
     type: EventType
     data: dict[str, Any] = Field(default_factory=dict)
+    owner_fence: Optional[int] = Field(default=None, exclude=True)  # commit-time worker authority, not transcript data
 
     def json(self) -> str:
         return json.dumps(self.data, ensure_ascii=False)

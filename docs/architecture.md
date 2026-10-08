@@ -126,7 +126,7 @@ equivalent.
 
 > **Updated (realignment, slices S2-S3).** Ownership is no longer process memory. A run is *claimed* by one atomic SQL statement
 > that also enforces the per-bot rule across processes; the owner heartbeats a lease; every owner write carries a fence;
-> recovery bumps the fence so a stalled worker cannot write; status changes only through `Store.transition_run` against the
+> expired leases already refuse owner writes and cannot be revived by heartbeat; recovery bumps the fence; status changes only through `Store.transition_run` against the
 > table in `lifecycle.py`; schedule occurrences are claimed in the same transaction as the run they create. Stop is an intent in
 > the database. Under `serve` and `daemon` each run is its own OS process (`hutch.worker`) in its own session, so a kill is a real
 > kill, and a worker outlives a dead supervisor and is adopted by the next one (`HUTCH_EXECUTOR=thread` is an explicit
@@ -177,3 +177,8 @@ primary selection authorizes its receiving service; a configured hop that change
 endpoint, protocol or revision requires outward review. Each call revalidates that authority
 and refreshes credential-aware clients. Streaming recovery keeps the first uncertain usage
 and reserves another attempt before retrying, using the same transactional account ledger.
+
+Owner mutations check both the fence and lease expiry in the write transaction, including the gap
+before recovery. Worker events retain their fence through buffering; commit rejects stale events
+before projecting replies into canonical history. Recovery and terminal receipts remain uncertain
+when a late owner returns; finishing an old action cannot overwrite that outcome.

@@ -318,3 +318,28 @@ with zero page errors or horizontal overflow. Source hashes pin `632add2` plus t
 working tree. The two Fleet captures and six admission captures are separate; admission shots
 use synthetic records. Full-size desktop queue inspection confirms the sidebar repair. Static
 site derivatives come from the refreshed mock captures, not live provider runs.
+
+Local inference admission and refreshed visual evidence commit: `819adf0`.
+
+## Lease-expiry authority follow-up (2026-10-08)
+
+Inspection found heartbeat could revive an expired lease before recovery; fence-only checks also
+allowed actions, approvals, reservations, progress and status writes during that gap. Regression
+setup initially reported nine failures in 0.41s: seven demonstrated current authority defects,
+one required the new receipt-fence API, and one used the wrong conversation fixture signature.
+The corrected event fixture separately reproduced a stale assistant reply entering canonical
+history (**1 failed in 0.49s**). An initial focused command named a nonexistent test file and ran
+no tests; the corrected suite passed **103 tests in 44.20s**.
+
+Owner writes now check unexpired ownership in their transaction, heartbeat cannot revive an
+expired owner, startup refuses expired process-group assignment, worker batches retain their
+fence through commit, and late receipts cannot replace recovered uncertainty. Additional checks
+hold a reply in the buffer across expiry and cover both writer and recovery-transition drains.
+ADRs now distinguish executor completion from the still-unimplemented expectation evaluator and
+receipt correlation fingerprints from deduplication/full immutable receipt arguments. No schema
+upgrade or frontend change is included in this repair. Expanded/full verification follows.
+
+The expanded authority/worker/history/reservation/provider suite passed **66 tests in 26.52s**.
+Full offline verification passed **1,067 tests in 261.60s**, with unhandled background-thread
+warnings treated as failures. Emoji audit is clean (244 files, nine retained waivers), and
+`git diff --check` passes. No paid provider, live model or UI source changed for this repair.

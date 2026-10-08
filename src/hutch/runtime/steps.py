@@ -101,7 +101,8 @@ def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolCont
         if "id" in began:              # an action that never began (denied, expired, refused) has nothing to receipt
             try:
                 ctx.store.finish_action(began["id"], "done" if result.ok else "failed",
-                                        hashlib.sha256(result.output.encode(errors="replace")).hexdigest()[:16])
+                                        hashlib.sha256(result.output.encode(errors="replace")).hexdigest()[:16],
+                                        expected_fence=run.fence)
             except Exception:
                 pass                   # the row stays 'started': an honest "unknown" is better than a made-up receipt
 

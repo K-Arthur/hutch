@@ -969,7 +969,8 @@ class Store:
         with self._lock:
             rows = self._db.execute(
                 f"UPDATE runs SET lease_expires_at = ?, heartbeat_at = ? WHERE lease_owner = ? AND status NOT IN ({marks}) "
-                "RETURNING id", (iso(now + timedelta(seconds=lease_seconds)), iso(now), owner, *_TERMINAL_VALUES)).fetchall()
+                "AND lease_expires_at >= ? RETURNING id",
+                (iso(now + timedelta(seconds=lease_seconds)), iso(now), owner, *_TERMINAL_VALUES, iso(now))).fetchall()
             self._db.commit()
         return [r["id"] for r in rows]
 
@@ -1040,9 +1041,26 @@ class Store:
         return [self._run(r) for r in rows]
 
     def set_pgid(self, run_id: str, fence: int, pgid: int) -> None:
-        with self._lock:
-            self._db.execute("UPDATE runs SET pgid = ? WHERE id = ? AND fence = ?", (pgid, run_id, fence))
-            self._db.commit()
+        with self._tx() as db:
+            row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
+            self._check_lease(row, run_id, fence)
+            if RunStatus(row["status"]) in TERMINAL:
+                raise LeaseLost(run_id, "cannot change process ownership after completion")
+            db.execute("UPDATE runs SET pgid = ? WHERE id = ? AND fence = ?", (pgid, run_id, fence))
+
+    @staticmethod
+    def _check_lease(row, run_id: str, fence: int) -> None:
+        """Validate at the mutation transaction, including the gap before takeover.
+
+        Fence-zero imports/fixtures have no lease. Claimed owners cannot revive an
+        expired lease; recovery must acquire a new fence. Terminal no-op reads are
+        checked by their callers because successful completion clears the lease.
+        """
+        if row is None or row["fence"] != fence:
+            raise LeaseLost(run_id, "this worker no longer owns the run")
+        if row["fence"] and (not row["lease_owner"] or not row["lease_expires_at"]
+                             or row["lease_expires_at"] < iso(utcnow())):
+            raise LeaseLost(run_id, "ownership lease expired; recovery must acquire a new fence")
 
     def update_run(self, run: Run) -> None:
         """Persist a run's progress.
@@ -1052,30 +1070,26 @@ class Store:
         just the progress fields (never status, which changes through ``transition_run``), and is refused once the run is
         finished. A stale writer gets ``LeaseLost`` instead of silently overwriting the outcome.
         """
-        with self._lock:
-            row = self._db.execute("SELECT fence, status FROM runs WHERE id = ?", (run.id,)).fetchone()
+        with self._tx() as db:
+            row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run.id,)).fetchone()
             if row is None:
                 return
             if row["fence"] == 0 and run.fence == 0:
-                cur = self._db.execute("UPDATE runs SET doc = ?, status = ? WHERE id = ? AND fence = 0",
-                                       (self._run_json(run), run.status.value, run.id))
-                self._db.commit()
-                if cur.rowcount == 1:
-                    self._notify_run(run)
-                    return
-                row = self._db.execute("SELECT fence, status FROM runs WHERE id = ?", (run.id,)).fetchone()
-            if row["fence"] != run.fence:
-                raise LeaseLost(run.id, f"fence {run.fence} is stale (current {row['fence']})")
-            if RunStatus(row["status"]) in TERMINAL:
-                raise LeaseLost(run.id, f"already {row['status']}")
-            patch = json.dumps(run.model_dump(include=_PROGRESS_FIELDS), default=str)
-            marks = ",".join("?" for _ in _TERMINAL_VALUES)
-            cur = self._db.execute(
-                f"UPDATE runs SET doc = json_patch(doc, ?) WHERE id = ? AND fence = ? AND status NOT IN ({marks})",
-                (patch, run.id, run.fence, *_TERMINAL_VALUES))
-            self._db.commit()
-            if cur.rowcount != 1:
-                raise LeaseLost(run.id, "ownership changed while saving progress")
+                db.execute("UPDATE runs SET doc = ?, status = ? WHERE id = ? AND fence = 0",
+                           (self._run_json(run), run.status.value, run.id))
+            else:
+                if row["fence"] != run.fence:
+                    raise LeaseLost(run.id, f"fence {run.fence} is stale (current {row['fence']})")
+                if RunStatus(row["status"]) in TERMINAL:
+                    raise LeaseLost(run.id, f"already {row['status']}")
+                self._check_lease(row, run.id, run.fence)
+                patch = json.dumps(run.model_dump(include=_PROGRESS_FIELDS), default=str)
+                marks = ",".join("?" for _ in _TERMINAL_VALUES)
+                cur = db.execute(
+                    f"UPDATE runs SET doc = json_patch(doc, ?) WHERE id = ? AND fence = ? AND status NOT IN ({marks})",
+                    (patch, run.id, run.fence, *_TERMINAL_VALUES))
+                if cur.rowcount != 1:
+                    raise LeaseLost(run.id, "ownership changed while saving progress")
         self._notify_run(run)
 
     def _notify_run(self, run: Run) -> None:
@@ -1104,14 +1118,16 @@ class Store:
                 self._buf_cv.wait(timeout=0.05)
             mine = [e for e in self._pending if e.run_id == run_id]
             with self._tx() as db:
+                kept = self._worker_events(db, run_id, mine)
                 row, emitted = self._apply_transition(db, run_id, to, fence, exit_reason, error, event, bump_fence, fields,
-                                                      earlier=mine, cancel_wins=cancel_wins)
+                                                      earlier=kept, cancel_wins=cancel_wins)
+            self.dropped_events += len(mine) - len(kept)
             if mine:
                 done = {id(e) for e in mine}
                 self._pending = [e for e in self._pending if id(e) not in done]
                 self._committed += len(mine)                      # they are committed now; flush_events must not wait for them
                 self._buf_cv.notify_all()
-            for e in mine + ([emitted] if emitted is not None else []):
+            for e in kept + ([emitted] if emitted is not None else []):
                 self._fan_out(e)                                 # committed: now observers see them, in sequence order
         run = self._run(row)
         self._run_status[run_id] = run.status.value
@@ -1133,6 +1149,8 @@ class Store:
         cur = RunStatus(row["status"])
         if fence is not None and row["fence"] != fence:
             raise LeaseLost(run_id, f"fence {fence} is stale (current {row['fence']})")
+        if fence is not None and cur not in TERMINAL:
+            self._check_lease(row, run_id, fence)
         if cancel_wins and to in (RunStatus.failed, RunStatus.succeeded) and row["cancel_requested"]:
             to, exit_reason, error = RunStatus.stopped, "stopped", "stopped after owned processes were verified gone"
             event = {**(event or {}), "reason": "stopped", "error": error}
@@ -1409,9 +1427,10 @@ class Store:
         action_id = new_id("act")
         with self._tx() as db:
             if fence is not None:
-                row = db.execute("SELECT fence, status, cancel_requested FROM runs WHERE id = ?", (run_id,)).fetchone()
+                row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
                 if row is None or row["fence"] != fence:
                     raise LeaseLost(run_id, "this worker no longer owns the run")
+                self._check_lease(row, run_id, fence)
                 st = RunStatus(row["status"])
                 if st in TERMINAL or st in (RunStatus.cancelling, RunStatus.recovering) or row["cancel_requested"]:
                     raise LeaseLost(run_id, f"the run is {st.value}; no new action may start")
@@ -1421,12 +1440,20 @@ class Store:
                 (action_id, run_id, tool, idem_key, effect, summary[:500], iso(utcnow())))
         return action_id
 
-    def finish_action(self, action_id: str, status: str, result_digest: str = "") -> None:
+    def finish_action(self, action_id: str, status: str, result_digest: str = "", *,
+                      expected_fence: Optional[int] = None) -> None:
         assert status in ("done", "failed")
-        with self._lock:
-            self._db.execute("UPDATE tool_actions SET status = ?, finished_at = ?, result_digest = ? WHERE id = ?",
-                             (status, iso(utcnow()), result_digest, action_id))
-            self._db.commit()
+        with self._tx() as db:
+            action = db.execute("SELECT run_id, status FROM tool_actions WHERE id = ?", (action_id,)).fetchone()
+            if action is None:
+                raise KeyError(action_id)
+            row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (action["run_id"],)).fetchone()
+            if expected_fence is not None:
+                self._check_lease(row, action["run_id"], expected_fence)
+            if row is None or RunStatus(row["status"]) in TERMINAL or action["status"] != "started":
+                raise LeaseLost(action["run_id"], "receipt is sealed or uncertain; reconcile instead of overwriting it")
+            db.execute("UPDATE tool_actions SET status = ?, finished_at = ?, result_digest = ? WHERE id = ? AND status = 'started'",
+                       (status, iso(utcnow()), result_digest, action_id))
 
     def actions_in_doubt(self, run_id: str) -> list[dict[str, Any]]:
         with self._lock:
@@ -1548,14 +1575,18 @@ class Store:
         for attempt in range(5):
             try:
                 stored: list[Event] = []
+                dropped = 0
                 with self._tx() as db:
                     for run_id, evs in by_run.items():
                         row = db.execute("SELECT sealed FROM runs WHERE id = ?", (run_id,)).fetchone()
                         if row is not None and row["sealed"]:
-                            self.dropped_events += len(evs)
+                            dropped += len(evs)
                             continue
-                        self._insert_events(db, run_id, evs)
-                        stored += evs
+                        kept = self._worker_events(db, run_id, evs)
+                        dropped += len(evs) - len(kept)
+                        self._insert_events(db, run_id, kept)
+                        stored += kept
+                self.dropped_events += dropped
                 for e in stored:                      # committed: observers see them in sequence order
                     self._fan_out(e)
                 return stored
@@ -1574,6 +1605,28 @@ class Store:
         self.dropped_events += len(batch)
         print(f"hutch: DROPPED {len(batch)} events after repeated DB errors: {last}", file=sys.stderr)
         return []
+
+    @staticmethod
+    def _worker_events(db: sqlite3.Connection, run_id: str, events: list[Event]) -> list[Event]:
+        """Check worker authority when committing, including buffered messages.
+
+        Client/supervisor events have no owner fence. Worker events retain their
+        claimed fence in memory; a stale batch cannot extend transcript or history.
+        """
+        if not any(e.owner_fence is not None for e in events):
+            return events
+        row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
+        kept = []
+        for event in events:
+            if event.owner_fence is not None:
+                try:
+                    Store._check_lease(row, run_id, event.owner_fence)
+                    if RunStatus(row["status"]) in TERMINAL:
+                        continue
+                except LeaseLost:
+                    continue
+            kept.append(event)
+        return kept
 
     def flush_events(self, timeout: float = 10.0) -> None:
         """Block until every event appended so far is committed."""
@@ -1720,11 +1773,13 @@ class Store:
 
     def create_approval(self, req: ApprovalRequest, *, expected_fence: Optional[int] = None) -> ApprovalRequest:
         with self._tx() as db:
-            row = db.execute("SELECT status, cancel_requested, fence FROM runs WHERE id = ?", (req.run_id,)).fetchone()
+            row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (req.run_id,)).fetchone()
             if row is None:
                 raise KeyError(req.run_id)
             if expected_fence is not None and row["fence"] != expected_fence:
                 raise LeaseLost(req.run_id, "cannot request approval with stale ownership")
+            if expected_fence is not None and RunStatus(row["status"]) not in TERMINAL:
+                self._check_lease(row, req.run_id, expected_fence)
             if req.status is ApprovalStatus.pending and (
                     row["cancel_requested"] or RunStatus(row["status"]) in TERMINAL | {RunStatus.cancelling, RunStatus.recovering}):
                 req.status, req.resolved_at, req.decided_by = ApprovalStatus.expired, iso(utcnow()), "stopped"
@@ -1987,13 +2042,17 @@ class Store:
                 row = db.execute(query, args).fetchone()
                 return float(row["cost"] or 0.0), int(row["tokens"] or 0)
 
-            run_doc_row = db.execute("SELECT bot_id, status, fence, doc FROM runs WHERE id = ?", (run_id,)).fetchone()
+            run_doc_row = db.execute(f"SELECT bot_id, {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
             if run_doc_row is None or run_doc_row["bot_id"] != bot_id:
                 raise ValueError("usage reservation must refer to an existing run owned by this bot")
             if RunStatus(run_doc_row["status"]) in TERMINAL:
                 raise LeaseLost(run_id, f"cannot reserve usage for a terminal {run_doc_row['status']} run")
             if expected_fence is not None and int(run_doc_row["fence"]) != expected_fence:
                 raise LeaseLost(run_id, f"fence {expected_fence} is stale (current {run_doc_row['fence']})")
+            if expected_fence is not None:
+                self._check_lease(run_doc_row, run_id, expected_fence)
+            if run_doc_row["cancel_requested"] or RunStatus(run_doc_row["status"]) in (RunStatus.cancelling, RunStatus.recovering):
+                raise LeaseLost(run_id, "the run is stopping or recovering; no new provider call may start")
             legacy_run = json.loads(run_doc_row["doc"])
             ledger_run_cost, _ = totals(
                 "SELECT SUM(cost_usd) AS cost, SUM(prompt_tokens + completion_tokens) AS tokens "
