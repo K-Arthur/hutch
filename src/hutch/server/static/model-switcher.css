@@ -18,14 +18,15 @@
 
 .ms-menu {
   position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 30; width: 320px; max-width: calc(100vw - 24px);
-  padding: 6px; border: 1px solid var(--line-strong); background: var(--overlay);
-  box-shadow: var(--sh-pop);
+  padding: 8px; border: 1px solid var(--line-strong); background: var(--overlay);
+  border-radius: var(--r-panel); box-shadow: var(--sh-pop);
 }
 .ms-menu[hidden] { display: none; }
 .ms-item {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left;
-  padding: 9px 10px; border: 0; background: transparent; color: var(--text); cursor: pointer;
+  padding: 9px 10px; border: 0; border-radius: var(--r-ctl); background: transparent; color: var(--text); cursor: pointer;
   font: inherit; min-height: 40px;
+  transition: background var(--dur-fast) var(--ease);
 }
 .ms-item:hover { background: var(--raised); }
 .ms-item:focus-visible { background: var(--raised); outline: 2px solid var(--focus); outline-offset: -2px; }
@@ -36,8 +37,8 @@
 .ms-sep { height: 1px; margin: 4px 6px; background: var(--line); }
 .ms-more .ms-item-name { color: var(--text); }
 .ms-tag {
-  display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px;
-  border: 1px solid var(--line);
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px;
+  border: 1px solid var(--line); border-radius: var(--r-chip);
   font: var(--fs-2xs)/1.4 var(--mono); color: var(--text-3); background: var(--panel);
 }
 .ms-tag.ms-warn { color: var(--warn); border-color: rgba(251, 191, 36, 0.4); }
@@ -45,11 +46,19 @@
 
 /* all-models dialog */
 .ms-all { display: flex; flex-direction: column; gap: 12px; width: 100%; min-width: 0; }
-.ms-search, .ms-custom { width: 100%; }
+.ms-search, .ms-custom {
+  width: 100%; min-height: 36px; padding: 7px 12px;
+  background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-ctl);
+  color: var(--text); font: inherit; font-size: var(--fs-md);
+  transition: border-color var(--dur-fast) var(--ease);
+}
+.ms-search::placeholder, .ms-custom::placeholder { color: var(--text-3); }
+.ms-search:hover, .ms-custom:hover { border-color: var(--line-hi); }
+.ms-search:focus-visible, .ms-custom:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--line-hi); }
 .ms-groups { max-height: 46dvh; overflow: auto; padding-right: 4px; }
 .ms-group { margin-bottom: 12px; }
 .ms-group h4 { margin: 0 0 4px; font: 600 var(--fs-2xs)/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
-.ms-row { display: flex; gap: 10px; align-items: flex-start; padding: 8px; cursor: pointer; }
+.ms-row { display: flex; gap: 10px; align-items: flex-start; padding: 9px 10px; border-radius: var(--r-ctl); cursor: pointer; transition: background var(--dur-fast) var(--ease); }
 .ms-row:hover { background: var(--raised); }
 .ms-row[hidden], .ms-group[hidden], .ms-empty[hidden] { display: none; }
 /* radios are drawn here: the browser's default renders unchecked ones as solid discs on this dark theme */
@@ -70,6 +79,6 @@
 .ms-foot a { color: var(--focus); }
 
 @media (max-width: 560px) {
-  .ms-btn { max-width: 120px; padding: 0 8px; gap: 5px; }
+  .ms-btn { max-width: 120px; min-height: 36px; padding: 0 9px; gap: 5px; }
   .ms-menu { left: 0; right: 0; width: auto; max-width: none; }
 }

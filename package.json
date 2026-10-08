@@ -1,0 +1,20 @@
+{
+  "name": "hutch",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hutch build toolchain: Tailwind + daisyUI for app and marketing site",
+  "scripts": {
+    "build:css": "npm run build:css:site && npm run build:css:app",
+    "build:css:site": "tailwindcss -i website/src/input.css -o website/app.css --minify && node scripts/stamp_site_assets.mjs",
+    "build:css:app": "tailwindcss -i app/src/input.css -o src/hutch/server/static/ui.css --minify",
+    "watch:css": "tailwindcss -i website/src/input.css -o website/app.css --watch",
+    "watch:css:app": "tailwindcss -i app/src/input.css -o src/hutch/server/static/ui.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "daisyui": "^5.7.47",
+    "open-props": "^1.7.23",
+    "tailwindcss": "^4.3.3"
+  }
+}
