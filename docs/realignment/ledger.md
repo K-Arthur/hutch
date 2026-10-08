@@ -55,6 +55,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `a5d2993` | Schema-v14 held database snapshots/restoration, no source cleanup authority, local review, restore UI, isolated migration tests, inspected screenshots and both raw performance pairs |
 | `33ac3ba` | Schema-v10 usage reservations, account-shared admission, uncertain-charge reconciliation, estimates and marketing copy; offline suite 1,003 passed, provider/reservation 45 passed, browser suite 15 passed |
 | `0161a7e` | Schema-v15 immutable scoped reference facts, human review/sharing, bounded FTS5 recall, chat/settings controls, truthful marketing copy and refreshed visual evidence; complete suite 1,220 passed |
+| `ae3226d` | Bounded OpenCode SSE and Pi JSONL protocol helpers, installed v2.0.24 contract fixture, safer permission mapping, updated support/evidence records |
 
 ## Verified behavior before this checkpoint
 
@@ -811,5 +812,7 @@ provider budget, or translate permission events. Both runtimes still fail before
 Focused verification: `.venv/bin/python -m pytest -q tests/test_runtime_opencode.py
 tests/test_runtime_pi.py tests/test_runtime.py` — **21 passed in 0.34s**. The installed schema
 was queried again through an authenticated temporary loopback server; no provider connection was
-made. This is protocol-fixture evidence only; the complete offline suite remains required after
-the implementation expands, and the OpenCode event loss is an explicit unresolved adapter gate.
+made. The full command `.venv/bin/python -m pytest -q
+-W error::pytest.PytestUnhandledThreadExceptionWarning` passed **1,235 tests in 361.62s**;
+This is protocol-fixture evidence only; no end-to-end broker was exercised, and OpenCode event
+loss is an explicit unresolved adapter gate.
