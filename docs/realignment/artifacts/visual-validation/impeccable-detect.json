@@ -1,0 +1,562 @@
+{
+  "tool": "impeccable detect --json",
+  "date": "2026-10-07",
+  "exit_code": 2,
+  "targets": [
+    "website/index.html",
+    "website/styles.css",
+    "src/hutch/server/static/app.js",
+    "src/hutch/server/static/hutch.js",
+    "src/hutch/server/static/index.html",
+    "src/hutch/server/static/style.css",
+    "src/hutch/server/templates/_home_lists.html",
+    "src/hutch/server/templates/_runs_table.html",
+    "src/hutch/server/templates/bot.html",
+    "src/hutch/server/templates/run.html"
+  ],
+  "findings": [
+    {
+      "antipattern": "side-tab",
+      "name": "Side-tab accent border",
+      "description": "Thick colored border on one side of a card \u2014 the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "border-left: 3px + border-radius: 4px"
+    },
+    {
+      "antipattern": "side-tab",
+      "name": "Side-tab accent border",
+      "description": "Thick colored border on one side of a card \u2014 the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "border-left: 3px + border-radius: 4px"
+    },
+    {
+      "antipattern": "side-tab",
+      "name": "Side-tab accent border",
+      "description": "Thick colored border on one side of a card \u2014 the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "border-left: 3px + border-radius: 4px"
+    },
+    {
+      "antipattern": "side-tab",
+      "name": "Side-tab accent border",
+      "description": "Thick colored border on one side of a card \u2014 the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "border-left: 3px + border-radius: 4px"
+    },
+    {
+      "antipattern": "gradient-text",
+      "name": "Gradient text",
+      "description": "Gradient text is decorative rather than meaningful \u2014 a common AI tell, especially on headings and metrics. Use solid colors for text.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "background-clip: text + gradient"
+    },
+    {
+      "antipattern": "dark-glow",
+      "name": "Glowing shadow accents",
+      "description": "Colored glow shadows \u2014 a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background \u2014 are the default \"cool\" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "Colored box-shadow glow (#52a8ff) on dark background"
+    },
+    {
+      "antipattern": "dark-glow",
+      "name": "Glowing shadow accents",
+      "description": "Colored glow shadows \u2014 a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background \u2014 are the default \"cool\" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "Zero-offset box-shadow glow (#62c073)"
+    },
+    {
+      "antipattern": "dark-glow",
+      "name": "Glowing shadow accents",
+      "description": "Colored glow shadows \u2014 a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background \u2014 are the default \"cool\" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "Colored box-shadow glow (#fbbf24) on dark background"
+    },
+    {
+      "antipattern": "extreme-negative-tracking",
+      "name": "Crushed letter spacing",
+      "description": "Letter-spacing pulled tighter than the point where characters keep their own shapes costs legibility. Tighten display type optically, not destructively.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "letter-spacing: -0.05em \u2014 \"your bots. your machine.\""
+    },
+    {
+      "antipattern": "tiny-text",
+      "name": "Tiny body text",
+      "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+      "severity": "warning",
+      "category": "quality",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "11.5px body text"
+    },
+    {
+      "antipattern": "wide-tracking",
+      "name": "Wide letter spacing on body text",
+      "description": "Letter spacing above 0.05em on body text disrupts natural character groupings and slows reading. Reserve wide tracking for short uppercase labels only.",
+      "severity": "warning",
+      "category": "quality",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "letter-spacing: 0.06em on body text"
+    },
+    {
+      "antipattern": "wide-tracking",
+      "name": "Wide letter spacing on body text",
+      "description": "Letter spacing above 0.05em on body text disrupts natural character groupings and slows reading. Reserve wide tracking for short uppercase labels only.",
+      "severity": "warning",
+      "category": "quality",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "letter-spacing: 0.06em on body text"
+    },
+    {
+      "antipattern": "wide-tracking",
+      "name": "Wide letter spacing on body text",
+      "description": "Letter spacing above 0.05em on body text disrupts natural character groupings and slows reading. Reserve wide tracking for short uppercase labels only.",
+      "severity": "warning",
+      "category": "quality",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "letter-spacing: 0.07em on body text"
+    },
+    {
+      "antipattern": "undersized-ui-text",
+      "name": "Undersized functional text",
+      "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+      "severity": "warning",
+      "category": "quality",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "10.5px functional text \"Runaway spend\" (below 11px floor)"
+    },
+    {
+      "antipattern": "undersized-ui-text",
+      "name": "Undersized functional text",
+      "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+      "severity": "warning",
+      "category": "quality",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "10.5px functional text \"Silent failure\" (below 11px floor)"
+    },
+    {
+      "antipattern": "undersized-ui-text",
+      "name": "Undersized functional text",
+      "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+      "severity": "warning",
+      "category": "quality",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "10.5px functional text \"Privacy leak\" (below 11px floor)"
+    },
+    {
+      "antipattern": "undersized-ui-text",
+      "name": "Undersized functional text",
+      "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+      "severity": "warning",
+      "category": "quality",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "10.5px functional text \"Permission fatigue\" (below 11px floor)"
+    },
+    {
+      "antipattern": "undersized-ui-text",
+      "name": "Undersized functional text",
+      "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+      "severity": "warning",
+      "category": "quality",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "10.5px functional text \"Orphaned work\" (below 11px floor)"
+    },
+    {
+      "antipattern": "wide-tracking",
+      "name": "Wide letter spacing on body text",
+      "description": "Letter spacing above 0.05em on body text disrupts natural character groupings and slows reading. Reserve wide tracking for short uppercase labels only.",
+      "severity": "warning",
+      "category": "quality",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "letter-spacing: 0.07em on body text"
+    },
+    {
+      "antipattern": "wide-tracking",
+      "name": "Wide letter spacing on body text",
+      "description": "Letter spacing above 0.05em on body text disrupts natural character groupings and slows reading. Reserve wide tracking for short uppercase labels only.",
+      "severity": "warning",
+      "category": "quality",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "letter-spacing: 0.07em on body text"
+    },
+    {
+      "antipattern": "wide-tracking",
+      "name": "Wide letter spacing on body text",
+      "description": "Letter spacing above 0.05em on body text disrupts natural character groupings and slows reading. Reserve wide tracking for short uppercase labels only.",
+      "severity": "warning",
+      "category": "quality",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "letter-spacing: 0.07em on body text"
+    },
+    {
+      "antipattern": "wide-tracking",
+      "name": "Wide letter spacing on body text",
+      "description": "Letter spacing above 0.05em on body text disrupts natural character groupings and slows reading. Reserve wide tracking for short uppercase labels only.",
+      "severity": "warning",
+      "category": "quality",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "letter-spacing: 0.07em on body text"
+    },
+    {
+      "antipattern": "cramped-padding",
+      "name": "Cramped padding",
+      "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the space between the rendered text and the border box is too small for the font size, and (2) a wrapper whose children's text lands flush against a visible boundary (border, outline, or non-transparent background) with nothing to inset it. Add at least 8px (ideally 12\u201316px) of space inside bordered, outlined, or colored containers.",
+      "severity": "warning",
+      "category": "quality",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "<div> \"faq-list\": children flush against border-top on top (no inset)"
+    },
+    {
+      "antipattern": "clipped-overflow-container",
+      "name": "Positioned child clipped by overflow container",
+      "description": "A clipping container (overflow hidden or clip) wrapping an absolutely-positioned child cuts off tooltips, menus, and popovers that need to escape. Let the overflow be visible, or move the positioned layer out of the clip.",
+      "severity": "warning",
+      "category": "quality",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "body clips a positioned child"
+    },
+    {
+      "antipattern": "gpt-thin-border-wide-shadow",
+      "name": "Hairline border with wide shadow",
+      "description": "A hairline border paired with a wide, diffuse shadow is a recurring generated-UI signature. Commit to one \u2014 a defined edge or a soft elevation \u2014 rather than both at once.",
+      "severity": "advisory",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "1px border + 16px shadow blur",
+      "advisory": true
+    },
+    {
+      "antipattern": "gpt-thin-border-wide-shadow",
+      "name": "Hairline border with wide shadow",
+      "description": "A hairline border paired with a wide, diffuse shadow is a recurring generated-UI signature. Commit to one \u2014 a defined edge or a soft elevation \u2014 rather than both at once.",
+      "severity": "advisory",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "1px border + 24px shadow blur",
+      "advisory": true
+    },
+    {
+      "antipattern": "gpt-thin-border-wide-shadow",
+      "name": "Hairline border with wide shadow",
+      "description": "A hairline border paired with a wide, diffuse shadow is a recurring generated-UI signature. Commit to one \u2014 a defined edge or a soft elevation \u2014 rather than both at once.",
+      "severity": "advisory",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "1px border + 16px shadow blur",
+      "advisory": true
+    },
+    {
+      "antipattern": "overused-font",
+      "name": "Overused font",
+      "description": "Inter, Roboto, Fraunces, Geist, Plus Jakarta Sans, and Space Grotesk are used on so many sites they no longer feel distinctive. Each new wave of AI-generated UIs converges on the same handful of faces. Choose a face that gives your interface personality.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "Primary font: inter"
+    },
+    {
+      "antipattern": "kicker-above-heading",
+      "name": "Kicker / eyebrow label above heading",
+      "description": "A tiny tracked uppercase or small-caps label sitting as its own block directly above a heading is banned outright, repeated or not. Generated kickers never earn their place: the heading carries its own weight. Delete the label and let the heading speak; if the words matter, work them into the heading or the body.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "kicker \"POLICY & LINUX SANDBOX\" above h3 \"Policy Engine & Optional OS Containment\""
+    },
+    {
+      "antipattern": "kicker-above-heading",
+      "name": "Kicker / eyebrow label above heading",
+      "description": "A tiny tracked uppercase or small-caps label sitting as its own block directly above a heading is banned outright, repeated or not. Generated kickers never earn their place: the heading carries its own weight. Delete the label and let the heading speak; if the words matter, work them into the heading or the body.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "kicker \"DETERMINISTIC SCHEDULING\" above h3 \"Cron that Survives Real Life\""
+    },
+    {
+      "antipattern": "kicker-above-heading",
+      "name": "Kicker / eyebrow label above heading",
+      "description": "A tiny tracked uppercase or small-caps label sitting as its own block directly above a heading is banned outright, repeated or not. Generated kickers never earn their place: the heading carries its own weight. Delete the label and let the heading speak; if the words matter, work them into the heading or the body.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "kicker \"HUMAN-IN-THE-LOOP\" above h3 \"Kind Approvals \u00b7 Fail-Closed\""
+    },
+    {
+      "antipattern": "kicker-above-heading",
+      "name": "Kicker / eyebrow label above heading",
+      "description": "A tiny tracked uppercase or small-caps label sitting as its own block directly above a heading is banned outright, repeated or not. Generated kickers never earn their place: the heading carries its own weight. Delete the label and let the heading speak; if the words matter, work them into the heading or the body.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "kicker \"LOCAL SOVEREIGNTY\" above h3 \"Transcripts, Budgets & Model Choices\""
+    },
+    {
+      "antipattern": "nested-cards",
+      "name": "Nested cards",
+      "description": "Cards inside cards create visual noise and excessive depth. Flatten the hierarchy \u2014 use spacing, typography, and dividers instead of nesting containers.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "Card inside card (div)"
+    },
+    {
+      "antipattern": "gradient-text",
+      "name": "Gradient text",
+      "description": "Gradient text is decorative rather than meaningful \u2014 a common AI tell, especially on headings and metrics. Use solid colors for text.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "background-clip: text + gradient"
+    },
+    {
+      "antipattern": "pulsing-dot",
+      "name": "Pulsing status dot",
+      "description": "Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.",
+      "severity": "error",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": ".kicker-dot \u2014 6x6px dot with infinite \"pulse-dot\" animation in header/nav"
+    },
+    {
+      "antipattern": "pulsing-dot",
+      "name": "Pulsing status dot",
+      "description": "Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.",
+      "severity": "error",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": ".live-pill .dot \u2014 8x8px dot with infinite \"pulse-dot\" animation in header/nav"
+    },
+    {
+      "antipattern": "pulsing-dot",
+      "name": "Pulsing status dot",
+      "description": "Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": ".sim-typing span \u2014 5x5px dot with infinite \"typing-bounce\" animation"
+    },
+    {
+      "antipattern": "dark-glow",
+      "name": "Glowing shadow accents",
+      "description": "Colored glow shadows \u2014 a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background \u2014 are the default \"cool\" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/index.html",
+      "line": 0,
+      "snippet": "Colored box-shadow glow (#10b981) on dark page"
+    },
+    {
+      "antipattern": "side-tab",
+      "name": "Side-tab accent border",
+      "description": "Thick colored border on one side of a card \u2014 the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/styles.css",
+      "line": 435,
+      "snippet": "border-left: 3px solid var(--blue)"
+    },
+    {
+      "antipattern": "overused-font",
+      "name": "Overused font",
+      "description": "Inter, Roboto, Fraunces, Geist, Plus Jakarta Sans, and Space Grotesk are used on so many sites they no longer feel distinctive. Each new wave of AI-generated UIs converges on the same handful of faces. Choose a face that gives your interface personality.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/styles.css",
+      "line": 1230,
+      "snippet": "font-family: \"Inter"
+    },
+    {
+      "antipattern": "gradient-text",
+      "name": "Gradient text",
+      "description": "Gradient text is decorative rather than meaningful \u2014 a common AI tell, especially on headings and metrics. Use solid colors for text.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/styles.css",
+      "line": 1117,
+      "snippet": "background-clip: text + gradient"
+    },
+    {
+      "antipattern": "gradient-text",
+      "name": "Gradient text",
+      "description": "Gradient text is decorative rather than meaningful \u2014 a common AI tell, especially on headings and metrics. Use solid colors for text.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/styles.css",
+      "line": 1120,
+      "snippet": "background-clip: text + gradient"
+    },
+    {
+      "antipattern": "bounce-easing",
+      "name": "Bounce or elastic easing",
+      "description": "Bounce and elastic easing feel dated and tacky. Real objects decelerate smoothly \u2014 use exponential easing (ease-out-quart/quint/expo) instead.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "website/styles.css",
+      "line": 1386,
+      "snippet": "animation: typing-bounce"
+    },
+    {
+      "antipattern": "undersized-ui-text",
+      "name": "Undersized functional text",
+      "description": "Interactive and content-bearing UI text (links, buttons, nav items, labels, table cells, meta rows, timecodes) below 11px is a legibility failure, not a style choice. WCAG sets no absolute pixel floor, but functional text under 11px is a defensible quality bar: it fails on high-DPI and small viewports and it degrades tap and read targets. The 11px floor holds even inside a footer; only non-interactive legal smallprint gets the softer 10px floor. Being ON the DESIGN.md size ramp does not exempt a value here: adding 8px to the ramp launders the token but not the legibility problem, and that is exactly the escape hatch this rule closes. Exempts sup/sub, visually-hidden (sr-only) text, and code/terminal contexts. Decorative letterspaced micro-labels are still functional and stay in scope.",
+      "severity": "warning",
+      "category": "quality",
+      "file": "src/hutch/server/static/index.html",
+      "line": 0,
+      "snippet": "10px functional text \"checking\" (below 11px floor)"
+    },
+    {
+      "antipattern": "pulsing-dot",
+      "name": "Pulsing status dot",
+      "description": "Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.",
+      "severity": "error",
+      "category": "slop",
+      "file": "src/hutch/server/static/index.html",
+      "line": 0,
+      "snippet": ".pill.pulse::before \u2014 6x6px dot with infinite \"pulse-dot\" animation in header/nav"
+    },
+    {
+      "antipattern": "pulsing-dot",
+      "name": "Pulsing status dot",
+      "description": "Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.",
+      "severity": "error",
+      "category": "slop",
+      "file": "src/hutch/server/static/index.html",
+      "line": 0,
+      "snippet": ".pill.daemon.connecting::before \u2014 6x6px dot with infinite \"pulse-dot\" animation in header/nav"
+    },
+    {
+      "antipattern": "pulsing-dot",
+      "name": "Pulsing status dot",
+      "description": "Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.",
+      "severity": "error",
+      "category": "slop",
+      "file": "src/hutch/server/static/index.html",
+      "line": 0,
+      "snippet": ".pill.daemon.reconnecting::before \u2014 6x6px dot with infinite \"pulse-dot\" animation in header/nav"
+    },
+    {
+      "antipattern": "pulsing-dot",
+      "name": "Pulsing status dot",
+      "description": "Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "src/hutch/server/static/index.html",
+      "line": 0,
+      "snippet": ".typing-dots span \u2014 5x5px dot with infinite \"typing-bounce\" animation"
+    },
+    {
+      "antipattern": "dark-glow",
+      "name": "Glowing shadow accents",
+      "description": "Colored glow shadows \u2014 a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background \u2014 are the default \"cool\" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "src/hutch/server/static/index.html",
+      "line": 0,
+      "snippet": "Zero-offset box-shadow glow (#34d399)"
+    },
+    {
+      "antipattern": "side-tab",
+      "name": "Side-tab accent border",
+      "description": "Thick colored border on one side of a card \u2014 the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "src/hutch/server/static/style.css",
+      "line": 770,
+      "snippet": "border-left: 2px solid var(--danger)"
+    },
+    {
+      "antipattern": "side-tab",
+      "name": "Side-tab accent border",
+      "description": "Thick colored border on one side of a card \u2014 the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "src/hutch/server/static/style.css",
+      "line": 783,
+      "snippet": "border-left: 3px solid var(--warning)"
+    },
+    {
+      "antipattern": "side-tab",
+      "name": "Side-tab accent border",
+      "description": "Thick colored border on one side of a card \u2014 the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "src/hutch/server/static/style.css",
+      "line": 1205,
+      "snippet": "border-left: 3px solid var(--accent)"
+    },
+    {
+      "antipattern": "bounce-easing",
+      "name": "Bounce or elastic easing",
+      "description": "Bounce and elastic easing feel dated and tacky. Real objects decelerate smoothly \u2014 use exponential easing (ease-out-quart/quint/expo) instead.",
+      "severity": "warning",
+      "category": "slop",
+      "file": "src/hutch/server/static/style.css",
+      "line": 437,
+      "snippet": "animation: typing-bounce"
+    },
+    {
+      "antipattern": "layout-transition",
+      "name": "Layout property animation",
+      "description": "Animating width, height, padding, or margin causes layout thrash and janky performance. Use transform and opacity instead, or grid-template-rows for height animations.",
+      "severity": "warning",
+      "category": "quality",
+      "file": "src/hutch/server/static/style.css",
+      "line": 976,
+      "snippet": "transition: width"
+    }
+  ]
+}

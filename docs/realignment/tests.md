@@ -38,4 +38,4 @@ browser. "Live" means it needs something this host did not have and is skipped w
 | T-WORKER-PROCESS | A run executes in its own session; Stop, SIGKILL, a frozen worker and a dead supervisor are all handled | offline (real processes) | `tests/test_worker.py` | passing |
 | T-EVENT-CHAIN | Several processes writing one transcript keep one unbroken chain; a zombie is refused at the database | offline (real processes) | `tests/test_claims.py` | passing |
 | T-RECEIPT-SEMANTICS | An intent brackets the effect, not an approval wait; a refused or denied action has no receipt | offline | `tests/test_receipts.py` | passing |
-| T-PERF-BUDGET | Control-plane regression budgets hold against the pre-change baseline | offline | `benchmarks/run.py --check` | planned |
+| T-PERF-BUDGET | Control-plane regression budgets hold against the pre-change baseline | offline | `benchmarks/run.py --check`, `benchmarks/quality_audit.ipynb` | captured on this host; CLI p50 is about 5% slower, event throughput higher, mock step overhead lower; see raw samples and limits |

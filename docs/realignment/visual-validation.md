@@ -1,24 +1,25 @@
 # Visual validation record
 
-Captured 2026-10-07 from the `realign/platform` worktree after the template and Studio changes were integrated. The marketing site
-was served from this worktree. Hutch used `/tmp/hutch-visual.20261007`, a disposable state directory populated with the built-in
-demo; no account keys or personal workspace files were used.
+Captured 2026-10-07 from the `realign/platform` worktree after the template, Studio and marketing-copy changes were integrated. The
+marketing site was served from this worktree. Hutch used `/tmp/hutch-visual-final`, a disposable state directory populated with the
+built-in demo; no account keys or personal workspace files were used. The final capture bound both servers to loopback only.
 
 ## Reproduction
 
 ```bash
-env HUTCH_STATE_DIR=/tmp/hutch-visual.20261007 .venv/bin/hutch init
-env HUTCH_STATE_DIR=/tmp/hutch-visual.20261007 .venv/bin/hutch demo seed
-python3 -m http.server 8001 --directory website
-env HUTCH_STATE_DIR=/tmp/hutch-visual.20261007 .venv/bin/hutch serve --port 18787
+env HUTCH_STATE_DIR=/tmp/hutch-visual-final .venv/bin/hutch init
+env HUTCH_STATE_DIR=/tmp/hutch-visual-final .venv/bin/hutch demo seed
+python3 -m http.server 18001 --bind 127.0.0.1 --directory website
+env HUTCH_STATE_DIR=/tmp/hutch-visual-final .venv/bin/hutch serve --port 18877
 PLAYWRIGHT_BROWSERS_PATH=/tmp/hutch-playwright-browsers .venv/bin/python \
   docs/realignment/capture_visual_validation.py \
-  --site http://127.0.0.1:8001/ --app http://127.0.0.1:18787/
+  --site http://127.0.0.1:18001/ --app http://127.0.0.1:18877/
 ```
 
 Capture environment: Python 3.13.15, Playwright 1.63.0, bundled Firefox 155.0. The app and marketing site both returned HTTP 200.
 The three viewports were 1440×1000 desktop, 900×1024 tablet and 390×844 phone. `capture-results.json` records page dimensions,
-CTA targets, errors and phone-menu behavior. Each desktop page has a Playwright trace with screenshots and DOM snapshots.
+CTA targets, errors and phone-menu behavior. Each desktop page has a Playwright trace with screenshots and DOM snapshots. Both
+servers were stopped after the capture.
 
 ## Inspected artifacts
 
@@ -41,12 +42,24 @@ All site and app viewports had `document.scrollWidth == innerWidth`; captured pa
 targeted existing internal sections and worked without authentication. The quickstart section truthfully says the source repository is
 private and no PyPI package is published; anonymous visitors are not shown a dead public install link.
 
-The pending approval card and its decision buttons remain visible on the phone viewport. The Studio keeps the composer reachable on
-desktop, tablet and phone. Conversation selector, New, Archive and Settings wrap onto a second row at phone width without clipping.
+The final site screenshot shows the illustrated run badge as **DEMO supervised run** with an accessible name that calls it a demo
+preview; it no longer suggests that an example is live system activity. The pending approval card and its decision buttons remain
+visible on the phone viewport. The Studio keeps the composer reachable on desktop, tablet and phone. Conversation selector, New,
+Archive and Settings wrap onto a second row at phone width without clipping.
 Lifecycle chips use plain-language labels; the cancelling-state browser regression checks that “Stopping” remains visible while the
 run is nonterminal. The full-screen app menu now moves focus to its first link, wraps Tab within the menu, closes on Escape and
 returns focus to its toggle. The focused Playwright browser regression passed. The marketing-site menu also opened/closed by keyboard
 and restored focus; site tablists changed selection with arrow keys. Reduced-motion mode was used for the repeatable screenshot pass.
 
-These are local UI checks, not a screen-reader certification, live phone test, or test of a real supervised browser session. Provider,
-Pi, local-model, portal and physical-device workflows remain separate verification gaps in [the continuation ledger](ledger.md).
+The final Impeccable detector run covered the ten listed site/app targets and returned 54 heuristic findings: 5 error-level motion
+matches, 46 warnings and 3 advisories. The motion matches include the app's actual connected, connecting and reconnecting states;
+the live connection label is backed by the health poll and the reconnecting indicator reflects an active retry. The site also has
+decorative pulsing dots and the `DEMO` text now makes the illustrated badge's meaning explicit. Other recurring matches concern
+the incumbent site's section labels, accents, gradients/glows and small text. These are scan candidates, not 54 verified defects;
+the complete machine-readable output is in
+[`impeccable-detect.json`](artifacts/visual-validation/impeccable-detect.json). No automated contrast calculation or screen-reader
+audit was performed.
+
+These are local UI checks, not a screen-reader certification, physical phone test, or test of a real supervised browser session.
+Playwright used desktop Firefox at phone/tablet viewport sizes; it did not emulate touch input. Provider, Pi, local-model, portal
+and physical-device workflows remain separate verification gaps in [the continuation ledger](ledger.md).

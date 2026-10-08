@@ -5,6 +5,10 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 ## [Unreleased]
 
 ### Added
+- **Repeatable performance evidence:** the benchmark runner now retains raw repetitions and host/revision/harness metadata; the
+  pre-realignment archive and current branch have same-harness captures with a data-quality notebook and explicit sampling limits.
+- **Marketing demo truth:** the scripted hero illustration is labeled “DEMO supervised run,” not “LIVE,” and its accessible name
+  identifies it as a demo preview.
 - **Canonical conversation persistence and v1 API (partial):** schema v8 imports each old run into a separate legacy conversation;
   new conversation/message/archive commands use atomic `Idempotency-Key` records and reject key reuse with changed arguments. Run
   admission snapshots up to 12 prior messages and 16,000 characters for the builtin runtime. FTS5 searches messages explicitly;
