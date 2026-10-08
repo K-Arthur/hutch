@@ -1235,3 +1235,12 @@ Checkpoint commit: `59a75f1`.
 
 The visual review also confirmed the pulsing working indicator is driven by live active-run status and is refreshed from API data.
 Its detector false positive is ignored only for `src/hutch/server/static/index.html`; other design checks remain enabled.
+
+## Integrated offline-suite checkpoint (2026-10-08)
+
+After the post-merge website capture commits and S5 runtime-gate documentation, the complete non-browser suite passed **1,272 tests
+in 283.53s** with `PytestUnhandledThreadExceptionWarning` and `SyntaxWarning` promoted to errors. The separate browser suite at the
+post-merge source boundary passed **83 tests in 206.27s**, and the final anonymous-site/token suite passed **27 tests in 27.17s**;
+their capture and source details remain in the preceding visual checkpoint. These are distinct invocations, not one combined suite.
+No Pi process, live model, paid provider, physical device, or remote deployment was used. This closes the latest integrated offline
+regression pass, not the remaining S5-S9 capability and live-verification gates.
