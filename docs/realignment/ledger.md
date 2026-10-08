@@ -1008,7 +1008,6 @@ control after live transcript refresh replaces its DOM node.
 
 Focused verification passed **3 tests in 3.60s** after descriptor-relative file access and the final
 read-path cleanup. The complete offline suite, including all browser journeys, passed **1,301 tests
-in 370.98s** with
-`PytestUnhandledThreadExceptionWarning` and `SyntaxWarning` treated as failures. `git diff --check`
-passed. No real provider, model, phone or physical device was used. Implementation commit:
-pending.
+in 370.98s** with `PytestUnhandledThreadExceptionWarning` and `SyntaxWarning` treated as failures.
+`git diff --check` passed. No real provider, model, phone or physical device was used.
+Implementation commit: `b68ad95`.
