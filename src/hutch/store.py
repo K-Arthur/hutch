@@ -1134,6 +1134,8 @@ class Store:
         if not allowed(cur, to) and cur is not to:
             raise IllegalTransition(run_id, cur, to)
         if cur is to:
+            if cur in TERMINAL and earlier:
+                raise LeaseLost(run_id, "terminal runs refuse buffered late events")
             if earlier:              # nothing to change, but the buffered events still commit
                 self._insert_events(db, run_id, list(earlier))
             return row, None
@@ -1486,6 +1488,21 @@ class Store:
             prev = e.hash
             rows.append((run_id, seq, e.hash, e.ts, e.type.value, data_json))
         db.executemany("INSERT INTO events (run_id, seq, hash, ts, type, data) VALUES (?, ?, ?, ?, ?, ?)", rows)
+        # Every event insertion path projects canonical replies in the same transaction.
+        # Terminal transitions drain the buffer here rather than through _commit_batch;
+        # projecting only in that writer lost replies when completion won the race.
+        replies = [e for e in events if e.type is EventType.message and e.data.get("role") == "assistant"
+                   and isinstance(e.data.get("content"), str) and e.data["content"]]
+        if replies:
+            run = db.execute("SELECT conversation_id FROM runs WHERE id = ?", (run_id,)).fetchone()
+            conversation_id = run["conversation_id"] if run is not None else ""
+            if conversation_id:
+                next_seq = db.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM messages WHERE conversation_id = ?",
+                                      (conversation_id,)).fetchone()[0]
+                for offset, e in enumerate(replies):
+                    Store._insert_conversation_message(
+                        db, message_id=f"msg_{uuid.uuid4().hex[:12]}", conversation_id=conversation_id,
+                        seq=next_seq + offset, run_id=run_id, role="assistant", content=e.data["content"], created_at=e.ts)
 
     def _writer_loop(self) -> None:
         while True:
@@ -1522,23 +1539,11 @@ class Store:
                 stored: list[Event] = []
                 with self._tx() as db:
                     for run_id, evs in by_run.items():
-                        row = db.execute("SELECT sealed, conversation_id FROM runs WHERE id = ?", (run_id,)).fetchone()
+                        row = db.execute("SELECT sealed FROM runs WHERE id = ?", (run_id,)).fetchone()
                         if row is not None and row["sealed"]:
                             self.dropped_events += len(evs)
                             continue
                         self._insert_events(db, run_id, evs)
-                        conversation_id = row["conversation_id"] if row is not None else ""
-                        if conversation_id:
-                            for event in evs:
-                                content = event.data.get("content")
-                                if event.type is not EventType.message or event.data.get("role") != "assistant" \
-                                        or not isinstance(content, str) or not content:
-                                    continue
-                                seq = db.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM messages WHERE conversation_id = ?",
-                                                 (conversation_id,)).fetchone()[0]
-                                Store._insert_conversation_message(
-                                    db, message_id=f"msg_{uuid.uuid4().hex[:12]}", conversation_id=conversation_id,
-                                    seq=seq, run_id=run_id, role="assistant", content=content, created_at=event.ts)
                         stored += evs
                 for e in stored:                      # committed: observers see them in sequence order
                     self._fan_out(e)

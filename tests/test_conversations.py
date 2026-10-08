@@ -114,3 +114,54 @@ def test_versioned_resources_are_documented(tmp_path, monkeypatch):
         paths = client.get("/openapi.json").json()["paths"]
         assert "/api/v1/conversations" in paths
         assert "/api/v1/tasks/runs/{run_id}" in paths
+
+
+def submitted_conversation(store):
+    from hutch.models import Bot, Run, RunStatus, Task
+    bot = store.create_bot(Bot(name="transactional-chat", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(bot.id, "durable replies", idem_key="create", request_hash="create")
+    run = Run(bot_id=bot.id, prompt="hello")
+    store.submit_conversation_message(conversation["id"], "hello", run, Task(bot_id=bot.id, prompt="hello"),
+                                      idem_key="message", request_hash="message")
+    claimed = store.claim_run(run.id, "worker", 60)
+    store.transition_run(run.id, RunStatus.running, fence=claimed.fence)
+    return conversation["id"], claimed
+
+
+def test_terminal_drain_commits_reply_and_history_atomically(store, config):
+    import sqlite3
+    from hutch.models import Event, EventType, RunStatus
+    conversation_id, run = submitted_conversation(store)
+    with store._buf_cv:  # deterministic: hold the writer until the transition drains this reply
+        store.append_event(Event(run_id=run.id, type=EventType.message, data={"role": "assistant", "content": "durable answer"}))
+        store.transition_run(run.id, RunStatus.succeeded, fence=run.fence, event={"reason": "completed"})
+        with sqlite3.connect(config.db_path) as observer:
+            assert observer.execute("SELECT status FROM runs WHERE id = ?", (run.id,)).fetchone()[0] == "succeeded"
+            assert observer.execute("SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY seq",
+                                    (conversation_id,)).fetchall() == [("user", "hello"), ("assistant", "durable answer")]
+    store.archive_conversation(conversation_id, True, idem_key="archive", request_hash="archive")
+    store.flush_events()
+    assert len(store.list_conversation_messages(conversation_id)) == 2
+    assert store.verify_chain(run.id)["ok"]
+
+
+def test_same_terminal_transition_cannot_project_a_zombie_reply(store, config):
+    import pytest
+    from hutch.models import Event, EventType, RunStatus
+    from hutch.store import Store
+    from hutch.lifecycle import LeaseLost
+    conversation_id, run = submitted_conversation(store)
+    zombie = Store(config)
+    try:
+        store.transition_run(run.id, RunStatus.succeeded, fence=run.fence)
+        with zombie._buf_cv:
+            zombie.append_event(Event(run_id=run.id, type=EventType.message,
+                                      data={"role": "assistant", "content": "too late"}))
+            with pytest.raises(LeaseLost, match="terminal runs refuse"):
+                zombie.transition_run(run.id, RunStatus.succeeded, fence=run.fence)
+        zombie.flush_events()
+        assert [m["role"] for m in store.list_conversation_messages(conversation_id)] == ["user"]
+        assert zombie.dropped_events == 1
+        assert store.verify_chain(run.id)["ok"]
+    finally:
+        zombie.close()

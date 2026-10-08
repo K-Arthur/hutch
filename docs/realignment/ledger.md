@@ -143,3 +143,16 @@ The first full run started before the mount repair and reported **1,020 passed, 
 219.06s** on the newly added mount regression. The repaired full run is pending at this
 checkpoint. Browser coverage remains fixture-only; sandbox tests are actual local Linux
 containment checks. No provider, real account, paid call or public exposure was used.
+
+The repaired tree subsequently passed **1,022 offline tests in 240.14s** with background-thread
+exceptions treated as failures. Commit `956b925` contains the exact-action and mount repairs.
+
+## Conversation projection repair checkpoint (2026-10-08)
+
+The next browser suite reported 23 passed and one failed archive/reload journey: a final
+assistant event drained at completion was not projected into canonical conversation history.
+Projection now shares the event/status transaction on every insertion path, and a repeated
+terminal transition refuses a stale process's buffered reply. The deterministic regressions
+hold the buffer and inspect a second connection. Focused conversations/claims/cancellation/
+Store suite: **43 passed in 26.96s**. See `conversation-transactions.md`; no schema change,
+historic automatic repair, paid call or new support claim is involved.
