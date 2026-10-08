@@ -267,6 +267,59 @@ const hexAvatar = botAvatar;   // shared renderers still call this name
   }, { passive: true });
 })();
 
+/* Hero mascot look-at-cursor: the site workstream's 7x3 sprite set (the same
+   character, transparent webp). Only on capable pointers with effects allowed;
+   the center frame is the static fallback and the only frame loaded up front —
+   the rest preload after the first pointer move over the hero. */
+(function heroGaze() {
+  if (!window.matchMedia || !matchMedia("(pointer: fine)").matches) return;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (navigator.connection && navigator.connection.saveData) return;
+  if ((navigator.hardwareConcurrency || 4) < 4) return;
+  const COLS = 7, ROWS = 3, CC = 3, CR = 1;          // center frame = f3-p1
+  const srcFor = (c, r) => `/static/agent/f${c}-p${r}.webp`;
+  const loaded = new Set(["3-1"]);
+  let failed = false, prerested = false, raf = 0, cur = "3-1", tgt = { c: CC, r: CR };
+  const img = () => document.querySelector("#hero-agent .hero-img");
+  function show(c, r) {
+    const el = img(); if (!el || failed) return;
+    const k = `${c}-${r}`; if (k === cur) return;
+    if (!loaded.has(k)) {
+      const im = new Image();
+      im.onload = () => { loaded.add(k); if (`${tgt.c}-${tgt.r}` === k) { el.src = srcFor(c, r); cur = k; } };
+      im.onerror = () => { failed = true; };   // missing set: stay on the center frame
+      im.src = srcFor(c, r);
+      return;
+    }
+    el.src = srcFor(c, r); cur = k;
+  }
+  function preloadRest() {
+    if (prerested) return; prerested = true;
+    for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) {
+      const k = `${c}-${r}`; if (loaded.has(k)) continue;
+      const im = new Image();
+      im.onload = () => loaded.add(k);
+      im.onerror = () => { failed = true; };
+      im.src = srcFor(c, r);
+    }
+  }
+  document.addEventListener("pointermove", ev => {
+    if (document.hidden || failed) return;
+    const hero = document.getElementById("hero-agent");
+    if (!hero) return;
+    preloadRest();
+    const rect = hero.getBoundingClientRect();
+    const nx = (ev.clientX - (rect.left + rect.width / 2)) / (rect.width * 2.2);
+    const ny = (ev.clientY - (rect.top + rect.height / 2)) / (rect.height * 2.6);
+    const c = Math.round(CC + Math.max(-0.5, Math.min(0.5, nx)) * (COLS - 1));
+    const r = Math.round(CR + Math.max(-0.5, Math.min(0.5, ny)) * (ROWS - 1));
+    if (c !== tgt.c || r !== tgt.r) {
+      tgt = { c, r };
+      if (!raf) raf = requestAnimationFrame(() => { raf = 0; show(tgt.c, tgt.r); });
+    }
+  }, { passive: true });
+})();
+
 // shared identity picker (creation modal + bot settings)
 function identityPickerHtml() {
   return `
@@ -1072,7 +1125,9 @@ function welcomeHtml() {
   return `
     <div class="welcome">
       <div class="welcome-hero">
-        ${botAvatar(b.name, 56)}
+        <div class="hero-agent" id="hero-agent" aria-hidden="true">
+          <img class="hero-img" src="/static/agent/f3-p1.webp" alt="" width="160" height="227" decoding="async">
+        </div>
         <h2>${esc(b.name)}</h2>
         <p class="hint">${esc(b.description || "No description yet.")}</p>
       </div>
@@ -1084,10 +1139,38 @@ function welcomeHtml() {
           <li>${icon("brain")} ${b.memory_count ? `${b.memory_count} memories` : "No memories yet"}</li>
         </ul>
       </div>
+      <div class="tpl-gal" id="tpl-gal" hidden>
+        <h3 class="tpl-h">Start from a template</h3>
+        <div class="tpl-grid" id="tpl-grid"></div>
+      </div>
     </div>`;
 }
 
-function wireWelcome() { /* the composer is the call to action; nothing to wire yet */ }
+async function wireWelcome() {
+  /* Explore-agents gallery: real templates from the API, fetched lazily —
+     never seeded. Picking one opens the create dialog with it preselected. */
+  try {
+    const templates = await api("/bots/templates");
+    const grid = $("#tpl-grid"), gal = $("#tpl-gal");
+    if (!grid || !templates.length) return;
+    grid.innerHTML = templates.slice(0, 6).map((t, i) => {
+      const ci = i % ID_COLORS.length;
+      const si = hash32(t.name) % ID_HEADS.length;
+      const hue = ID_COLORS[ci];
+      const tile = `linear-gradient(135deg, ${tint(hue, 0.34)}, ${hue} 55%, ${shade(hue, 0.5)})`;
+      return `<button class="tpl-card" type="button" data-tpl="${esc(t.name)}">
+        <span class="tpl-tile" style="background:${tile}">${avatarFromPair([ci, si], 40)}</span>
+        <span class="tpl-name">${esc(t.name)}</span>
+        <span class="tpl-tag">${esc(t.tagline || t.description || "")}</span>
+      </button>`;
+    }).join("");
+    gal.hidden = false;
+    grid.addEventListener("click", ev => {
+      const card = ev.target.closest("[data-tpl]");
+      if (card) promptNewBot(card.dataset.tpl);
+    });
+  } catch { /* gallery is an enhancement — welcome works without it */ }
+}
 
 /* One run = one conversation thread: the prompt bubble, the visible work,
    the answer. Tool activity is a quiet collapsed strip — approvals are never
@@ -2249,7 +2332,7 @@ async function renderConnections() {
 
 /* -------------------------------------------------------- new-bot modal */
 
-async function promptNewBot() {
+async function promptNewBot(preselect = "") {
   const templates = await api("/bots/templates");
   const html = `
     <form id="modal-bot-form" class="form-grid">
@@ -2318,6 +2401,7 @@ async function promptNewBot() {
       : `${t.tagline || ""} ${t.reads ? `Reads: ${t.reads}. ` : ""}${t.produces ? `Produces: ${t.produces}. ` : ""}${t.needs_folder ? "Needs a working folder." : ""}`;
   };
   sel.addEventListener("change", describe);
+  if (preselect && templates.some(x => x.name === preselect)) sel.value = preselect;
   describe();
 }
 
