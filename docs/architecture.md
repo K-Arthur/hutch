@@ -182,3 +182,11 @@ Owner mutations check both the fence and lease expiry in the write transaction, 
 before recovery. Worker events retain their fence through buffering; commit rejects stale events
 before projecting replies into canonical history. Recovery and terminal receipts remain uncertain
 when a late owner returns; finishing an old action cannot overwrite that outcome.
+Provider settlement and unsent-call release use the same ownership boundary. Reservation
+identity is immutable, changed duplicate settlements conflict, and uncertain records require
+explicit terminal-run reconciliation. All unresolved holds consume the current allowance;
+clock rollover cannot establish whether a provider charged the request.
+Worker approval admission commits the request and run wait together, draining prior buffered
+events through the same ownership check. Failed admission rolls back both without losing
+the buffer. Expired execution cannot receive a new approval or standing grant; decisions still
+resolve once through compare-and-swap, and full-request rewrites are refused.

@@ -14,11 +14,11 @@ from tests.test_tools import make_ctx
 def decide_at_wait(ctx, monkeypatch, review):
     wait = ctx.gate._wait
 
-    def human(req, action):
+    def human(req, action, **wait_args):
         stored = ctx.store.get_approval(req.id)
         review(stored)
         assert resolve_approval_ex(ctx.store, req.id, True, expected_hash=stored.action_hash).won
-        return wait(req, action)
+        return wait(req, action, **wait_args)
 
     monkeypatch.setattr(ctx.gate, "_wait", human)
 

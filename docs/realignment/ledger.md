@@ -405,3 +405,51 @@ Phone inspection found the attempt's waiting label clipped in a tight row. It no
 row without shrinking the status, and the final four journeys passed **4 tests in 25.91s**.
 The refreshed full-size phone capture was inspected: complete waiting label, Review/Stop,
 inline decision buttons and failed-refresh notice are all within their intended regions.
+
+Review visibility refinement commit: `82885e4`.
+
+## Provider settlement authority and rollover (2026-10-08)
+
+Late settlement previously accepted a recovered/uncertain reservation, could rebind its usage
+to another run/bot/model/provider, and silently ignored conflicting duplicates. Worker
+accounting now supplies and checks unexpired ownership inside the settlement/release/uncertainty
+transaction. Reservation identity remains fixed; an uncertain hold requires terminal-run
+reconciliation. Normal duplicate settlement is exact and changed outcomes conflict. Legacy
+diagnostic/import ledger rows remain separate from owned worker mutation.
+
+The initial targeted baseline was **13 failed in 0.63s**: seven exercised existing identity,
+uncertainty and missing-fence defects; six required the new accounting fence argument. A
+mistyped focused filename ran no tests, then the corrected authority/accounting suite passed
+**87 tests in 13.81s** and runtime suites passed **42 tests in 32.36s**. Further audit found
+outstanding holds aged out at midnight/rolling-window boundaries. The rollover baseline was
+**3 failed, 1 passed in 0.57s**; the passing case verifies atomic account admission in two
+spawned processes. All unresolved holds now continue consuming each current allowance; only
+measured ledger usage is windowed. The expanded suite passed **127 tests in 44.95s**.
+No schema change or live billing claim. Full offline and browser/capture repeats follow.
+
+The full run reported **1,084 passed, 1 failed in 257.91s**. It exposed request admission
+before the run entered its human wait, so a reader saw a pending request alongside Working.
+The gate now admits the request and wait in one transaction, with prior buffered events;
+an invalid transition rolls back admission without losing the buffer. A deterministic second
+connection verifies the boundary before the gate returns. Focused approval/admission/provider
+checks passed **83 tests in 37.01s**. Follow-up checks refuse the obsolete full-request updater
+and prevent an expired/stopped execution receiving approval or a sticky grant. No schema change.
+
+Before that additional atomic-wait repair, browser/site verification passed **34 tests in 103.12s**
+and the 10:17 UTC capture returned **39 views**, no page errors/overflow, three refreshed traces
+and sheets. All three sheets and the full-size phone wait were inspected; the phone Review,
+complete waiting label and decision region fit. Source hashes pin `82885e4` plus settlement
+changes, excluding this later approval repair. New runtime/full/browser repeats follow; the
+images are fixture evidence and do not prove live provider or physical-device behavior.
+
+The expanded approval/admission/usage/history/cancellation suite passed **90 tests in 44.37s**.
+The next full run reported **1,082 passed, 7 failed in 251.14s**, all obsolete test entry points:
+two browser and four file review fixtures did not forward the new prior-state argument, and
+one Store fixture still used the prohibited whole-request updater. They now preserve/forward
+the real wait state and resolve through compare-and-swap, retaining their payload/revision
+assertions. The corrected review suite passed **31 tests in 7.04s**. The final full offline
+repeat passed **1,089 tests in 233.42s**, with background-thread warnings as failures. The
+browser/site repeat passed **34 tests in 89.16s** after the atomic-wait source change.
+Emoji audit and diff checks passed. The unreferenced durable-change module and its standalone
+tests were added after full-suite collection; they are excluded from this verification and
+commit and need their own Store/API integration. No paid call, push or final release.

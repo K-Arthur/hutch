@@ -47,6 +47,9 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   `account_id`, the configured account daily cost cap, measured rolling-window tokens, reserved tokens, and measured/reserved daily
   currency. Keys and provider credentials never appear. These fields are operator estimates where identified; they do not report
   provider-side quota or billing unless the provider supplied it.
+  Held values include all unresolved reservations, regardless of their age. Only measured ledger
+  usage is windowed; a stale worker cannot settle/release a hold after losing ownership, and
+  uncertain usage requires explicit reconciliation against the provider record.
 * Conversation create, message submit, and archive require `Idempotency-Key`. Exact retries return the same resource/run; reusing the
   key with different request content returns 409. An absent key returns 428.
 * Conversation history is cursor-paginated with `after` and a maximum page size of 100. Run events keep the existing per-run `seq`

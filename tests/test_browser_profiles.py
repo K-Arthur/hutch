@@ -79,7 +79,7 @@ def test_browser_typing_approval_binds_text_destination_and_profile(
     monkeypatch.setattr(tool, "_ensure", lambda _: types.SimpleNamespace(pages=[page]))
     wait = ctx.gate._wait
 
-    def human(req, action):
+    def human(req, action, **wait_args):
         stored = store.get_approval(req.id)
         assert stored.outward and not stored.sticky_key
         assert stored.detail == {"action": "type", "selector": "#recipient", "text": "reviewed recipient",
@@ -88,7 +88,7 @@ def test_browser_typing_approval_binds_text_destination_and_profile(
         if navigate_during_review:
             page.url = "https://elsewhere.example/compose"
         assert resolve_approval_ex(store, req.id, True, expected_hash=stored.action_hash).won
-        return wait(req, action)
+        return wait(req, action, **wait_args)
 
     monkeypatch.setattr(ctx.gate, "_wait", human)
     result = tool.run(args, ctx)

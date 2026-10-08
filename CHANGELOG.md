@@ -6,6 +6,12 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Fixed
 
+- Provider settlement/release requires unexpired worker ownership and cannot change the reserved
+  run, bot, model, provider or account. Changed duplicate settlement conflicts; uncertain usage
+  requires explicit reconciliation. Unresolved holds stay counted across midnight/quota rollover.
+- Admit a worker approval and its waiting state atomically. Refuse full-request overwrites and
+  expire decisions for lost/stopped execution before they can grant standing permission.
+
 - Queued messages cannot replace an executing or waiting conversation attempt as the main Stop
   target. Older active approvals stay visible beyond the chat window; failed refresh retains
   review details with Retry instead of hiding the control or reporting completion.

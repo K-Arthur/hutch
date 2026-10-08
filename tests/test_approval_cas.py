@@ -49,6 +49,68 @@ def test_stale_worker_cannot_create_an_approval_after_ownership_changed(store):
     assert store.pending_approvals() == []
 
 
+def test_gate_request_and_wait_are_observed_atomically_before_gate_returns(store, config, monkeypatch):
+    import sqlite3
+    bot = store.create_bot(Bot(name="atomic-review", approval_mode=ApprovalMode.ask))
+    run = store.create_run(Run(bot_id=bot.id, prompt="review", status=RunStatus.running))
+    gate = ApprovalGate(store, bot, run, PolicyEngine(), store.append_event)
+    original = store.create_approval
+
+    def observe_then_resolve(req, **kwargs):
+        result = original(req, **kwargs)
+        # A different connection observes the boundary before Gate can do another write.
+        with sqlite3.connect(config.db_path) as observer:
+            assert observer.execute("SELECT status FROM approvals WHERE id = ?", (req.id,)).fetchone()[0] == "pending"
+            assert observer.execute("SELECT status FROM runs WHERE id = ?", (run.id,)).fetchone()[0] == "waiting_approval"
+        assert store.decide_approval(req.id, ApprovalStatus.approved, "fixture")[1] == "won"
+        return result
+
+    monkeypatch.setattr(store, "create_approval", observe_then_resolve)
+    gate.decide("files", "write fixture", {"content": "fixture"})
+    assert store.get_run(run.id).status is RunStatus.running
+
+
+def test_invalid_wait_rolls_back_request_and_preserves_buffered_events(store):
+    from hutch.lifecycle import IllegalTransition
+    from hutch.models import Event, EventType
+    bot = store.create_bot(Bot(name="invalid-review"))
+    run = store.create_run(Run(bot_id=bot.id, prompt="not started"))
+    with store._buf_cv:
+        store.append_event(Event(run_id=run.id, type=EventType.log, data={"note": "before request"}))
+        with pytest.raises(IllegalTransition):
+            store.create_approval(ApprovalRequest(run_id=run.id, bot_id=bot.id, tool="files", action="fixture"), begin_wait=True)
+    assert store.pending_approvals() == []
+    assert store.get_run(run.id).status is RunStatus.pending
+    assert [event.data["note"] for event in store.list_events(run.id)] == ["before request"]
+
+
+def test_full_request_overwrite_is_refused(store):
+    req = make_req(store)
+    revised = req.model_copy(deep=True)
+    revised.detail["command"] = "different command"
+    with pytest.raises(ValueError, match="arguments are immutable"):
+        store.update_approval(revised)
+    assert store.get_approval(req.id).detail == req.detail
+    assert store.get_approval(req.id).action_hash == req.action_hash
+
+
+def test_expired_execution_cannot_receive_a_late_decision_or_sticky_grant(store):
+    bot = store.create_bot(Bot(name="expired-decision"))
+    queued = store.create_run(Run(bot_id=bot.id, prompt="fixture"))
+    run = store.claim_run(queued.id, "owner", 30)
+    store.transition_run(run.id, RunStatus.running, fence=run.fence)
+    detail = {"command": "fixture"}
+    req = store.create_approval(ApprovalRequest(run_id=run.id, bot_id=bot.id, tool="shell", action="fixture",
+        detail=detail, sticky_key="shell:fixture", action_hash=action_fingerprint("shell", detail, "shell:fixture")),
+        expected_fence=run.fence, begin_wait=True)
+    with store._tx() as db:
+        db.execute("UPDATE runs SET lease_expires_at = ? WHERE id = ?", (iso(utcnow() - timedelta(seconds=1)), run.id))
+    result = resolve_approval_ex(store, req.id, True, by="late-review", sticky=True)
+    assert result.outcome == "expired" and not result.won
+    assert store.get_approval(req.id).decided_by == "owner_expired"
+    assert not store.is_sticky_allowed(bot.id, "shell:fixture")
+
+
 def make_req(store, **kw) -> ApprovalRequest:
     bot = store.get_bot("b") or store.create_bot(Bot(name="b", model="mock/demo", tools=["shell"]))
     run = store.create_run(Run(bot_id=bot.id, prompt="x", status=RunStatus.running))

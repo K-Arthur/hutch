@@ -114,11 +114,14 @@ class ApprovalGate:
             plan_id=self.run.plan_id,
             action_hash=action_fingerprint(tool, detail, "" if outward else decision.sticky_key, outward),
         )
-        self.store.create_approval(req, expected_fence=self.run.fence)
+        prev_status = self.run.status
+        self.store.create_approval(req, expected_fence=self.run.fence, begin_wait=True)
         if req.status is ApprovalStatus.expired:
             self.emit(Event(run_id=self.run.id, type=EventType.approval_resolved,
                             data={"approval_id": req.id, "result": "expired", "by": req.decided_by}))
             raise DeniedError("run stopped before the approval request was admitted")
+        from .models import RunStatus
+        self.run.status = RunStatus.waiting_approval
         self.emit(Event(run_id=self.run.id, type=EventType.approval_request,
                         data={"approval_id": req.id, "tool": tool, "action": action,
                               "rule": req.rule, "risk": req.risk, "outward": outward,
@@ -126,16 +129,16 @@ class ApprovalGate:
                               "segments": req.segments, "sticky_key": req.sticky_key,
                               "plan_id": req.plan_id, "action_hash": req.action_hash,
                               "conversation_id": self.run.conversation_id}))
-        self._wait(req, action)
+        self._wait(req, action, prev_status=prev_status)
 
-    def _wait(self, req: ApprovalRequest, action: str) -> None:
+    def _wait(self, req: ApprovalRequest, action: str, *, prev_status=None) -> None:
         from .models import RunStatus
         self.store.ensure_listening()  # so an approval from another process wakes us immediately
         bus = self.store.bus
         topics = {f"approval:{req.id}": 0, f"approval:wake:{self.run.id}": 0}
         deadline = time.monotonic() + self.ttl
-        prev_status = self.run.status
-        if not self.store.set_status(self.run, RunStatus.waiting_approval):
+        prev_status = prev_status or self.run.status
+        if self.run.status is not RunStatus.waiting_approval and not self.store.set_status(self.run, RunStatus.waiting_approval):
             self._resolve(req, ApprovalStatus.expired, "stopped")          # the run cannot wait now (stopping, ended): do not
             raise DeniedError(f"the run is {self.run.status.value}; the action was not approved")
         try:

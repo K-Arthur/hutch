@@ -66,6 +66,68 @@ def test_shared_account_token_windows_count_reservations_across_connections(stor
         _reserve(store, second_bot, second_run, tokens=31, cost=0.0, account_quotas=[(100, 3600)])
 
 
+@pytest.mark.parametrize("cap", ["account_cost", "bot_cost", "quota"])
+def test_unresolved_holds_do_not_age_out_at_midnight_or_quota_rollover(store, cap):
+    from hutch.models import iso
+    bot, first = _run(store)
+    reservation = _reserve(store, bot, first, tokens=80, cost=0.80)
+    store.mark_usage_uncertain(reservation, "provider response missing")
+    with store._tx() as db:
+        db.execute("UPDATE usage_reservations SET created_at = ? WHERE id = ?",
+                   (iso(utcnow() - timedelta(days=2)), reservation))
+    next_run = store.create_run(Run(bot_id=bot.id, prompt="next attempt"))
+    caps = {"account_cost": {"daily_account_cost_cap_usd": 1.0},
+            "bot_cost": {"daily_bot_cost_cap_usd": 1.0}, "quota": {"account_quotas": [(100, 3600)]}}[cap]
+    with pytest.raises(UsageBudgetRefusal):
+        _reserve(store, bot, next_run, tokens=30, cost=0.30, **caps)
+    assert store.bot_budget_today(bot.id)[1::2] == (80, pytest.approx(0.80))
+    assert store.reserved_account_usage_since("shared-account", 3600) == (80, pytest.approx(0.80))
+
+
+def _process_account_claim(state_dir, bot_id, run_id, ready, start, results):
+    from pathlib import Path
+    from hutch.config import hutchConfig
+    own = Store(hutchConfig(state_dir=Path(state_dir)))
+    try:
+        ready.put(True)
+        if not start.wait(10):
+            raise AssertionError("parent did not release contenders")
+        try:
+            own.reserve_usage(run_id=run_id, bot_id=bot_id, provider="vendor-a", account_id="one-billing-account",
+                              model="fixture", reserved_tokens=80, reserved_cost_usd=0, account_quotas=[(100, 3600)])
+            results.put("reserved")
+        except UsageBudgetRefusal:
+            results.put("refused")
+    finally:
+        own.close()
+
+
+def test_shared_account_reservation_is_atomic_across_spawned_processes(store, config):
+    import multiprocessing
+    ctx = multiprocessing.get_context("spawn")
+    ready, results, start = ctx.Queue(), ctx.Queue(), ctx.Event()
+    pairs = [_run(store), _run(store)]
+    workers = [ctx.Process(target=_process_account_claim, args=(str(config.state_dir), bot.id, run.id,
+                                                               ready, start, results)) for bot, run in pairs]
+    try:
+        for worker in workers:
+            worker.start()
+        for _ in workers:
+            assert ready.get(timeout=10)
+        start.set()
+        assert sorted(results.get(timeout=10) for _ in workers) == ["refused", "reserved"]
+        for worker in workers:
+            worker.join(10)
+            assert worker.exitcode == 0
+    finally:
+        for worker in workers:
+            if worker.is_alive():
+                worker.terminate()
+                worker.join(10)
+        ready.close()
+        results.close()
+
+
 def test_migrated_run_counters_still_consume_run_and_daily_limits(store):
     bot, run = _run(store)
     # Versions before schema v10 stored accounting only on the Run document.
@@ -102,7 +164,7 @@ def test_settlement_is_atomic_idempotent_and_charges_actual_usage(store):
     reservation = _reserve(store, bot, run)
 
     store.add_usage(run.id, bot.id, "vendor-a", "model-a", 12, 3, cached_tokens=2,
-                    cost_usd=0.12, account_id="ignored-after-reservation", reservation_id=reservation)
+                    cost_usd=0.12, account_id="shared-account", reservation_id=reservation)
     store.add_usage(run.id, bot.id, "vendor-a", "model-a", 12, 3, cached_tokens=2,
                     cost_usd=0.12, reservation_id=reservation)
 
@@ -120,6 +182,70 @@ def test_budget_snapshot_separates_measured_usage_from_held_estimates(store):
     reservation = _reserve(store, bot, run, tokens=40, cost=0.35)
     store.mark_usage_uncertain(reservation, "provider timed out")
     assert store.bot_budget_today(bot.id) == (15, 40, pytest.approx(0.12), pytest.approx(0.35))
+
+
+@pytest.mark.parametrize("field", ["run_id", "bot_id", "provider", "model", "account_id"])
+def test_settlement_cannot_rebind_a_reservation(store, field):
+    bot, run = _run(store)
+    reservation = _reserve(store, bot, run)
+    args = dict(run_id=run.id, bot_id=bot.id, provider="vendor-a", model="model-a",
+                prompt_tokens=12, completion_tokens=3, account_id="shared-account", reservation_id=reservation)
+    args[field] = "different-authority"
+    with pytest.raises(ValueError, match="reservation.*identity"):
+        store.add_usage(**args)
+    assert store.unresolved_usage_reservations()[0]["status"] == "reserved"
+    assert store._db.execute("SELECT COUNT(*) FROM usage").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize("operation", ["settle", "release", "uncertain"])
+@pytest.mark.parametrize("stage", ["expired", "recovered"])
+def test_late_provider_worker_cannot_change_a_hold(store, operation, stage):
+    from hutch.models import iso
+    bot, queued = _run(store)
+    run = store.claim_run(queued.id, "provider-worker", 30)
+    store.transition_run(run.id, RunStatus.running, fence=run.fence)
+    reservation = _reserve(store, bot, run, expected_fence=run.fence)
+    with store._tx() as db:
+        db.execute("UPDATE runs SET lease_expires_at = ? WHERE id = ?", (iso(utcnow() - timedelta(seconds=1)), run.id))
+    if stage == "recovered":
+        recovery = store.claim_recovery(store.get_run(run.id), "recoverer", 30)
+        store.transition_run(run.id, RunStatus.outcome_unknown, fence=recovery.fence)
+    before = dict(store._db.execute("SELECT * FROM usage_reservations WHERE id = ?", (reservation,)).fetchone())
+    calls = {
+        "settle": lambda: store.add_usage(run.id, bot.id, "vendor-a", "model-a", 12, 3,
+                                           cost_usd=0.12, reservation_id=reservation, expected_fence=run.fence),
+        "release": lambda: store.release_usage_reservation(reservation, "unsent", expected_fence=run.fence),
+        "uncertain": lambda: store.mark_usage_uncertain(reservation, "late provider error", expected_fence=run.fence),
+    }
+    with pytest.raises(LeaseLost):
+        calls[operation]()
+    assert dict(store._db.execute("SELECT * FROM usage_reservations WHERE id = ?", (reservation,)).fetchone()) == before
+    assert store._db.execute("SELECT COUNT(*) FROM usage").fetchone()[0] == 0
+
+
+def test_uncertain_hold_requires_explicit_reconciliation_even_with_live_owner(store):
+    bot, run = _run(store)
+    reservation = _reserve(store, bot, run)
+    store.mark_usage_uncertain(reservation, "provider timed out")
+    with pytest.raises(ValueError, match="reconciliation"):
+        store.add_usage(run.id, bot.id, "vendor-a", "model-a", 12, 3, reservation_id=reservation)
+    assert store.unresolved_usage_reservations()[0]["status"] == "uncertain"
+
+
+def test_changed_duplicate_settlement_conflicts_and_unfenced_worker_cannot_release(store):
+    bot, queued = _run(store)
+    run = store.claim_run(queued.id, "provider-worker", 30)
+    with pytest.raises(LeaseLost, match="fence.*required"):
+        _reserve(store, bot, run)
+    reservation = _reserve(store, bot, run, expected_fence=run.fence)
+    with pytest.raises(LeaseLost, match="fence.*required"):
+        store.release_usage_reservation(reservation, "unsent")
+    kwargs = dict(run_id=run.id, bot_id=bot.id, provider="vendor-a", model="model-a", prompt_tokens=12,
+                  completion_tokens=3, cost_usd=0.12, reservation_id=reservation, expected_fence=run.fence)
+    store.add_usage(**kwargs)
+    with pytest.raises(ValueError, match="different outcome"):
+        store.add_usage(**{**kwargs, "prompt_tokens": 13})
+    assert store._db.execute("SELECT COUNT(*) FROM usage").fetchone()[0] == 1
 
 
 def test_uncertain_usage_stays_held_until_terminal_run_is_reconciled(store):

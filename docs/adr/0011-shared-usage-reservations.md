@@ -17,10 +17,15 @@ an uncertain charge.
    allowance windows; the strictest declared daily currency cap applies across the account. Per-bot token and cost
    caps and per-run cost caps use the same transaction.
 3. On a response with usage counts, settlement inserts actual usage and changes the reservation to `settled` in one
-   transaction. Duplicate settlement for the same reservation does not duplicate usage.
+   transaction. Run, bot, provider, model and account identity cannot change. Exact duplicate
+   settlement does not duplicate usage; a changed outcome conflicts. Owned workers must supply
+   a current, unexpired fence for reservation, settlement, release and uncertainty writes.
 4. When the provider may have accepted a request but Hutch did not receive verifiable usage, the reservation becomes
    `uncertain` and continues counting against caps. An operator can list unresolved reservations and reconcile only
    after the run is terminal, using either exact provider usage or a verified no-charge finding.
+   Neither midnight nor a rolling-window boundary releases an unresolved hold. Measured usage
+   uses the requested accounting window; all outstanding reservations still consume it.
+   A late reply cannot settle an uncertain hold through the normal worker path.
 5. Currency reserves are based on a local price record and prompt-size estimate plus the requested reply-token cap.
    A currency-capped call with no price row fails closed. These estimates are conservative admission controls, not a
    guarantee against provider-side billing differences; no marketing or API field may describe them as exact hard
@@ -44,6 +49,6 @@ Low-level provider diagnostics retain their optional retry behavior; they are ex
 calls outside scheduled builtin-run budget admission. This distinction is exposed in the request
 contract through `allow_stream_retry`, disabled by the builtin runtime.
 
-Automated tests cover competing SQLite connections, account-shared token windows, exact settlement, uncertain holds,
+Automated tests cover competing SQLite connections and spawned processes, account-shared token windows, exact settlement, uncertain holds,
 terminal-only reconciliation, migration, the typed API, and the dashboard. No live provider account, provider-side
 budget enforcement, pricing accuracy, or external-runtime billing behavior has been verified.

@@ -1,8 +1,8 @@
 # Navigation functional and visual verification
 
-Captured 2026-10-08 at 09:58 UTC with Python 3.13.15, Playwright 1.63.0, Firefox 155
-and Pillow 12.3.0. The capture used `cb13791` with the resolved merge of `main` at
-`d7d0029`, including the composer, focus, cancellation-label and phone-target refinements.
+Captured 2026-10-08 at 10:17 UTC with Python 3.13.15, Playwright 1.63.0, Firefox 155
+and Pillow 12.3.0. The capture used `82885e4` with the provider-settlement repair in its
+working tree, after the resolved merge of `main` at `d7d0029` and conversation control fixes.
 Source hashes are retained. This is local fixture
 evidence, not a physical-phone, screen-reader or live provider certification.
 
@@ -32,8 +32,12 @@ they are sanitized demonstration material, not production telemetry.
 The full offline suite at `cb13791`, after the lease-expiry repair, passed **1,067 tests in
 261.60s**, with unhandled background-thread warnings promoted to failures. The subsequent
 frontend merge passed **32 browser/site tests in 68.78s** and **22 focused shell, conversation
-and approval tests in 4.54s**. The complete offline suite has not been repeated after this
-frontend-only merge. Conversation-order assertions verify
+and approval tests in 4.54s**. After the control/Review and provider-settlement fixes the
+browser/site repeat passed **34 tests in 103.12s**. After atomic approval-wait admission,
+the full offline repeat passed **1,089 tests in 233.42s** and browser/site repeat passed
+**34 tests in 89.16s**. That later repair changed backend source; the 10:17 navigation/site
+images predate it, while the browser-generated scenarios have their own current hashes.
+Conversation-order assertions verify
 one user prompt preceding its assistant block, with no prompt echoed as an assistant answer
 while waiting. A two-message queue checks that the earlier active run stays fresh after the
 later message becomes current.
@@ -59,12 +63,17 @@ sources, with the same containment assertions. These waits are fixtures, not a r
 metadata in `artifacts/inference-admission/` show a held queue and recorded step timing on all
 three sizes. Full-size desktop wait, phone wait/timing and tablet timing were inspected. These
 are synthetic records; cross-process and runtime HTTP fixtures verify actual admission separately.
+The two additional `artifacts/conversation-authority/` captures were inspected after exercising
+header Review, failure retention and real Stop against a synthetic old wait and seven queued turns.
+All three 10:17 contact sheets and the full-size phone wait were inspected after recapture;
+Review and the complete waiting label remain visible, with decisions above the composer.
 
 | Check | Observed result |
 |---|---|
 | Identity and conversation controls | Phone title truncates within its row; conversation, New, Stop and settings wrap below without overlapping the feed. A geometry regression checks header containment. |
 | Approval visibility | Chat decisions remain outside collapsed tool activity. Phone drawer details scroll within a bounded region so the decision buttons stay visible; full arguments remain keyboard-reachable. |
 | Focus and drafts | Escape restores menu focus, queue polls retain expanded review and focused decisions, and drafts survive immediate bot/conversation switches in their own scope. |
+| Older active requests | Server control targets are independent of pagination and newer queued turns. Header Review brings the inline decision into view; failed refresh retains details and Retry. |
 | Large queues | A 51-request fixture pages all requests and resolves the final request once, then reconciles the remaining 50. No bulk approval is offered. |
 | Attention under failure | Both approval and human waits remain in Fleet's Needs you filter when queue discovery fails. The phone reminder ends above the content and has 44px Review/Dismiss targets. |
 | Failed refresh | Retained cards show a refresh error and Retry; failure never becomes an empty queue or success receipt. |

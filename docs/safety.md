@@ -143,8 +143,8 @@ A durable same-session handoff is not implemented.
 
 ## Rehearse (dry run)
 
-A run started with **Rehearse** changes nothing, whatever the model does. This is enforced by the tools, not requested
-in the prompt:
+A run started with **Rehearse** simulates the builtin tools' mutating operations. Reads and model
+calls still happen; rehearsal is not a network-disconnected preview. The tools enforce simulation:
 
 - **Reads run for real**: `read_file`, `list_files`, `web_fetch`, browser `goto`/`read`/`wait`, `recall`, and shell commands
   that are provably read-only.
@@ -163,7 +163,7 @@ someone else's server (a `GET` that logs you out) still happens.
 ## Approval flow
 
 1. A tool hits an **ask** verdict → an `ApprovalRequest` row is created; the run enters
-   `waiting_approval` and the dashboard/CLI show the exact action and arguments.
+   `waiting_approval` in the same transaction, and the dashboard/CLI show the exact action and arguments.
 2. A human approves (optionally **always allow** for that bot+action-key) or denies.
 3. Unanswered requests expire after **10 minutes and are recorded as expired**. Silence is never
    consent; a stopped dashboard cannot leave a bot waiting forever without that being visible.
@@ -171,6 +171,8 @@ someone else's server (a `GET` that logs you out) still happens.
 `approval_mode: auto` skips asks (allowlist-only mode) for bots you trust — the hard-deny classes
 still apply. Outward browser/provider-route actions require review even in auto mode.
 An expired owner cannot create a new approval or reserve another provider call, even before recovery.
+Approval arguments cannot be rewritten after admission. A decision for an expired/stopped
+execution is recorded as expired and cannot grant standing permission.
 
 ## Honest limits (read this)
 
@@ -178,6 +180,8 @@ An expired owner cannot create a new approval or reserve another provider call, 
   credential routing, sandbox and usage-reservation requirements. The builtin runtime is the only supported model-backed executor;
   mock mode is offline. Builtin calls reserve estimated tokens and priced currency before a request; provider billing can differ, and
   uncertain outcomes remain held until an operator reconciles the provider record.
+  Worker accounting requires current ownership, cannot change reservation identity, and cannot
+  overwrite an uncertain hold. Outstanding holds do not disappear when an allowance window rolls over.
 - **A supervised human is assumed.** Prompt injection can still produce plausible-but-wrong actions
   inside the allowed toolset; the transcripts, caps, and approvals bound the damage.
 - **Script contents are not analysed.** `bash script.sh`, `python3 x.py` and `python3 -c '...'` run what is in them: bots

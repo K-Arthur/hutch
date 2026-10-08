@@ -150,11 +150,12 @@ def finish_step(run: Run, ctx: ToolContext, timer: StepTimer, *, model: str = ""
         run.model_used = model
     ctx.store.update_run(run)  # persist running totals so the meters (UI-4) are live, not end-of-run
     if reservation_id and not (prompt_tokens or completion_tokens):
-        ctx.store.mark_usage_uncertain(reservation_id, "provider response did not report token usage")
+        ctx.store.mark_usage_uncertain(reservation_id, "provider response did not report token usage", expected_fence=run.fence)
     elif prompt_tokens or completion_tokens:
         provider, _, name = (model or run.model_used or "unknown/unknown").partition("/")
         ctx.store.add_usage(run.id, run.bot_id, provider, name or provider, prompt_tokens, completion_tokens,
-                            cached_tokens, cost_usd, account_id=account_id, reservation_id=reservation_id)
+                            cached_tokens, cost_usd, account_id=account_id, reservation_id=reservation_id,
+                            expected_fence=run.fence)
     ctx.emit(Event(run_id=run.id, type=EventType.step, data={
         "n": run.steps, "model": model or run.model_used,
         "prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens,

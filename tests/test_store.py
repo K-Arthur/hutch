@@ -115,8 +115,8 @@ def test_approvals_and_sticky_allows(store):
     store.allow_sticky(bot.id, "shell:rm")
     assert store.is_sticky_allowed(bot.id, "shell:rm") is True
 
-    req.status = ApprovalStatus.approved
-    store.update_approval(req)
+    decided, outcome = store.decide_approval(req.id, ApprovalStatus.approved, "fixture")
+    assert outcome == "won" and decided.status is ApprovalStatus.approved
     assert store.pending_approvals() == []
     assert store.get_approval(req.id).status.value == "approved"
 

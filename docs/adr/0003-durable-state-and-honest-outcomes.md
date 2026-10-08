@@ -46,6 +46,10 @@ claims the run in one transaction **before it signals anything**. The owner's `R
 its lease gets `LeaseLost` on its next write and cannot start another effect, even before another
 supervisor takes over. Heartbeat extends only an unexpired lease; it cannot revive a paused owner.
 Progress, process-group assignment, approval creation and usage reservation check the same authority.
+Settlement, unsent-call release and uncertainty writes also require the worker fence; uncertain
+holds require explicit reconciliation and cannot disappear at allowance rollover. Worker gates
+commit their request and waiting state together. Requests cannot be rewritten, and expired/stopped
+execution cannot receive a late approval or standing grant.
 Worker events carry their fence through buffering and validate it when committed, preventing stale
 replies from entering either transcript or canonical conversation history. Process records pair PID and start ticks with the
 kernel boot id; cleanup uses pidfds and checks the recorded process-group identity, never a raw PID or PGID after a check race.

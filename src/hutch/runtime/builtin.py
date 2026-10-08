@@ -491,16 +491,16 @@ class BuiltinRuntime:
                 code = "token_cap" if "token" in reason or "allowance" in reason else "cost_cap"
                 raise RunAborted(code, reason) from exc
             if stop() or ctx.gate.cancelled():
-                ctx.store.release_usage_reservation(reservation, "run stopped before provider call started")
+                ctx.store.release_usage_reservation(reservation, "run stopped before provider call started", expected_fence=run.fence)
                 raise RunAborted("stopped", "user requested stop")
             t_call = time.perf_counter()
             try:
                 result = session.provider.chat(req)
             except ProviderError as exc:
-                ctx.store.mark_usage_uncertain(reservation, f"provider outcome is uncertain ({exc.kind})")
+                ctx.store.mark_usage_uncertain(reservation, f"provider outcome is uncertain ({exc.kind})", expected_fence=run.fence)
                 raise
             except Exception as exc:
-                ctx.store.mark_usage_uncertain(reservation, f"provider call ended with {type(exc).__name__}")
+                ctx.store.mark_usage_uncertain(reservation, f"provider call ended with {type(exc).__name__}", expected_fence=run.fence)
                 raise
             return result, reservation, t_call, queue_ms
 

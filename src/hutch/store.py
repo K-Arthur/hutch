@@ -1788,35 +1788,58 @@ class Store:
 
     # -------------------------------------------------------- approvals
 
-    def create_approval(self, req: ApprovalRequest, *, expected_fence: Optional[int] = None) -> ApprovalRequest:
-        with self._tx() as db:
-            row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (req.run_id,)).fetchone()
-            if row is None:
-                raise KeyError(req.run_id)
-            if expected_fence is not None and row["fence"] != expected_fence:
-                raise LeaseLost(req.run_id, "cannot request approval with stale ownership")
-            if expected_fence is not None and RunStatus(row["status"]) not in TERMINAL:
-                self._check_lease(row, req.run_id, expected_fence)
-            if req.status is ApprovalStatus.pending and (
-                    row["cancel_requested"] or RunStatus(row["status"]) in TERMINAL | {RunStatus.cancelling, RunStatus.recovering}):
-                req.status, req.resolved_at, req.decided_by = ApprovalStatus.expired, iso(utcnow()), "stopped"
-            db.execute(
-                "INSERT INTO approvals (id, run_id, bot_id, status, created_at, doc, action_hash, expires_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (req.id, req.run_id, req.bot_id, req.status.value, req.created_at, req.model_dump_json(),
-                 req.action_hash, req.expires_at),
-            )
+    def create_approval(self, req: ApprovalRequest, *, expected_fence: Optional[int] = None,
+                        begin_wait: bool = False) -> ApprovalRequest:
+        """Admit a request and, for worker gates, its authoritative wait in one transaction.
+
+        Plain imports/fixtures can retain their supplied state. Worker gates set begin_wait;
+        an observer of the new request cannot see the run still computing.
+        """
+        with self._buf_cv:
+            while self._inflight:
+                self._buf_cv.wait(timeout=0.05)
+            mine = [event for event in self._pending if event.run_id == req.run_id] if begin_wait else []
+            kept, emitted = [], None
+            waiting = False
+            with self._tx() as db:
+                row = db.execute(f"SELECT bot_id, {_RUN_COLS} FROM runs WHERE id = ?", (req.run_id,)).fetchone()
+                if row is None:
+                    raise KeyError(req.run_id)
+                if row["bot_id"] != req.bot_id:
+                    raise ValueError("approval must belong to the run's bot")
+                if expected_fence is not None and row["fence"] != expected_fence:
+                    raise LeaseLost(req.run_id, "cannot request approval with stale ownership")
+                if expected_fence is not None and RunStatus(row["status"]) not in TERMINAL:
+                    self._check_lease(row, req.run_id, expected_fence)
+                elif begin_wait and int(row["fence"]) > 0 and expected_fence is None:
+                    raise LeaseLost(req.run_id, "a worker fence is required to admit an approval wait")
+                if req.status is ApprovalStatus.pending and (
+                        row["cancel_requested"] or RunStatus(row["status"]) in TERMINAL | {RunStatus.cancelling, RunStatus.recovering}):
+                    req.status, req.resolved_at, req.decided_by = ApprovalStatus.expired, iso(utcnow()), "stopped"
+                db.execute(
+                    "INSERT INTO approvals (id, run_id, bot_id, status, created_at, doc, action_hash, expires_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (req.id, req.run_id, req.bot_id, req.status.value, req.created_at, req.model_dump_json(),
+                     req.action_hash, req.expires_at))
+                if begin_wait and req.status is ApprovalStatus.pending:
+                    kept = self._worker_events(db, req.run_id, mine)
+                    row, emitted = self._apply_transition(db, req.run_id, RunStatus.waiting_approval,
+                        expected_fence, None, None, {"approval_id": req.id}, False, None, earlier=kept)
+                    waiting = True
+            if waiting:
+                self._run_status[req.run_id] = RunStatus.waiting_approval.value
+                self.dropped_events += len(mine) - len(kept)
+                done = {id(event) for event in mine}
+                self._pending = [event for event in self._pending if id(event) not in done]
+                self._committed += len(mine)
+                self._buf_cv.notify_all()
+                for event in kept + ([emitted] if emitted is not None else []):
+                    self._fan_out(event)
         self.bus.notify("approvals", "work", f"run:{req.run_id}")
         return req
 
     def update_approval(self, req: ApprovalRequest) -> None:
-        with self._lock:
-            self._db.execute(
-                "UPDATE approvals SET status = ?, doc = ? WHERE id = ?",
-                (req.status.value, req.model_dump_json(), req.id),
-            )
-            self._db.commit()
-        self.bus.notify("approvals", "work", f"approval:{req.id}", f"run:{req.run_id}")
+        raise ValueError("approval arguments are immutable; create a new request or use decide_approval to resolve once")
 
     def decide_approval(self, approval_id: str, status: ApprovalStatus, by: str, *, expected_hash: Optional[str] = None,
                         now: Optional[datetime] = None, sticky: bool = False, idem_key: Optional[str] = None,
@@ -1852,7 +1875,14 @@ class Store:
             if expected_hash and row["action_hash"] and expected_hash != row["action_hash"]:
                 return req, "mismatch"
             outcome = "won"
-            if status is ApprovalStatus.approved and row["expires_at"] and row["expires_at"] <= iso(now):
+            run = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (req.run_id,)).fetchone()
+            if run is not None and (run["cancel_requested"] or RunStatus(run["status"]) in
+                    TERMINAL | {RunStatus.cancelling, RunStatus.recovering}):
+                status, by, outcome = ApprovalStatus.expired, "stopped", "expired"
+            elif run is not None and int(run["fence"]) > 0 and (
+                    not run["lease_owner"] or not run["lease_expires_at"] or run["lease_expires_at"] < iso(now)):
+                status, by, outcome = ApprovalStatus.expired, "owner_expired", "expired"
+            elif status is ApprovalStatus.approved and row["expires_at"] and row["expires_at"] <= iso(now):
                 status, by, outcome = ApprovalStatus.expired, "timeout", "expired"      # silence is never consent: too late
             patch = {"status": status.value, "resolved_at": iso(now), "decided_by": by}
             cur = db.execute("UPDATE approvals SET status = ?, doc = json_patch(doc, ?) WHERE id = ? AND status = 'pending'",
@@ -1989,8 +2019,8 @@ class Store:
                 (bot_id, start, end)).fetchone()
             held = self._db.execute(
                 "SELECT COALESCE(SUM(reserved_tokens), 0) AS tokens, COALESCE(SUM(reserved_cost_usd), 0) AS cost "
-                "FROM usage_reservations WHERE bot_id = ? AND created_at >= ? AND created_at < ? "
-                "AND status IN ('reserved', 'uncertain')", (bot_id, start, end)).fetchone()
+                "FROM usage_reservations WHERE bot_id = ? "
+                "AND status IN ('reserved', 'uncertain')", (bot_id,)).fetchone()
         # Older releases also wrote per-run totals. Taking the larger value preserves those totals without counting
         # the same calls twice when both representations exist.
         measured_tokens = max(int(measured["tokens"]), self.tokens_today(bot_id, now))
@@ -2068,6 +2098,8 @@ class Store:
                 raise LeaseLost(run_id, f"fence {expected_fence} is stale (current {run_doc_row['fence']})")
             if expected_fence is not None:
                 self._check_lease(run_doc_row, run_id, expected_fence)
+            elif int(run_doc_row["fence"]) > 0:
+                raise LeaseLost(run_id, "a worker fence is required for usage reservations")
             if run_doc_row["cancel_requested"] or RunStatus(run_doc_row["status"]) in (RunStatus.cancelling, RunStatus.recovering):
                 raise LeaseLost(run_id, "the run is stopping or recovering; no new provider call may start")
             legacy_run = json.loads(run_doc_row["doc"])
@@ -2100,8 +2132,7 @@ class Store:
             bot_tokens = max(bot_ledger_tokens, legacy_bot_tokens)
             bot_held, bot_held_tokens = totals(
                 "SELECT SUM(reserved_cost_usd) AS cost, SUM(reserved_tokens) AS tokens FROM usage_reservations "
-                "WHERE bot_id = ? AND created_at >= ? AND created_at < ? AND status IN (?, ?)",
-                (bot_id, day_start, day_end, *active))
+                "WHERE bot_id = ? AND status IN (?, ?)", (bot_id, *active))
             if daily_token_cap and bot_tokens + bot_held_tokens + reserved_tokens > daily_token_cap:
                 raise UsageBudgetRefusal(
                     f"the next call could pass this bot's estimated {daily_token_cap:,}-token daily cap; "
@@ -2116,8 +2147,7 @@ class Store:
                 "WHERE account_id = ? AND ts >= ? AND ts < ?", (account_id, day_start, day_end))
             account_held, account_held_tokens = totals(
                 "SELECT SUM(reserved_cost_usd) AS cost, SUM(reserved_tokens) AS tokens FROM usage_reservations "
-                "WHERE account_id = ? AND created_at >= ? AND created_at < ? AND status IN (?, ?)",
-                (account_id, day_start, day_end, *active))
+                "WHERE account_id = ? AND status IN (?, ?)", (account_id, *active))
             if daily_account_cost_cap_usd and account_spent + account_held + reserved_cost_usd > daily_account_cost_cap_usd + 1e-9:
                 raise UsageBudgetRefusal(
                     f"the next call could pass billing account '{account_id}'s "
@@ -2130,8 +2160,7 @@ class Store:
                     "WHERE account_id = ? AND ts >= ?", (account_id, since)).fetchone()[0])
                 reserved = int(db.execute(
                     "SELECT COALESCE(SUM(reserved_tokens), 0) FROM usage_reservations "
-                    "WHERE account_id = ? AND created_at >= ? AND status IN (?, ?)",
-                    (account_id, since, *active)).fetchone()[0])
+                    "WHERE account_id = ? AND status IN (?, ?)", (account_id, *active)).fetchone()[0])
                 if used + reserved + reserved_tokens > quota_tokens:
                     raise UsageBudgetRefusal(
                         f"the next call could pass billing account '{account_id}'s {quota_tokens:,}-token allowance; "
@@ -2144,18 +2173,42 @@ class Store:
         self.bus.notify("usage")
         return reservation_id
 
-    def mark_usage_uncertain(self, reservation_id: str, reason: str) -> bool:
+    def _usage_authority(self, db: sqlite3.Connection, run_id: str, bot_id: Optional[str],
+                         expected_fence: Optional[int], *, required: bool = True) -> None:
+        row = db.execute(f"SELECT bot_id, {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
+        if row is None:
+            if not required and expected_fence is None:
+                return  # compatibility import/diagnostic accounting, not worker settlement
+            raise ValueError("usage must refer to an existing run")
+        if bot_id is not None and row["bot_id"] != bot_id:
+            raise ValueError("usage must belong to the run's bot")
+        if RunStatus(row["status"]) in TERMINAL:
+            raise LeaseLost(run_id, "terminal runs refuse worker usage mutations; reconcile the billing record")
+        if int(row["fence"]) > 0 and expected_fence is None:
+            raise LeaseLost(run_id, "a worker fence is required for usage mutations")
+        if expected_fence is not None:
+            self._check_lease(row, run_id, expected_fence)
+
+    def mark_usage_uncertain(self, reservation_id: str, reason: str, *, expected_fence: Optional[int] = None) -> bool:
         with self._tx() as db:
+            row = db.execute("SELECT run_id, bot_id FROM usage_reservations WHERE id = ?", (reservation_id,)).fetchone()
+            if row is None:
+                raise KeyError(reservation_id)
+            self._usage_authority(db, row["run_id"], row["bot_id"], expected_fence)
             cur = db.execute("UPDATE usage_reservations SET status = 'uncertain', reason = ? "
                              "WHERE id = ? AND status = 'reserved'", (reason[:500], reservation_id))
         self.bus.notify("usage")
         return cur.rowcount == 1
 
-    def release_usage_reservation(self, reservation_id: str, reason: str) -> bool:
+    def release_usage_reservation(self, reservation_id: str, reason: str, *, expected_fence: Optional[int] = None) -> bool:
         """Release only when the caller knows the provider call never started."""
         if not reason.strip():
             raise ValueError("a reason is required")
         with self._tx() as db:
+            row = db.execute("SELECT run_id, bot_id FROM usage_reservations WHERE id = ?", (reservation_id,)).fetchone()
+            if row is None:
+                raise KeyError(reservation_id)
+            self._usage_authority(db, row["run_id"], row["bot_id"], expected_fence)
             cur = db.execute("UPDATE usage_reservations SET status = 'released', resolved_at = ?, reason = ? "
                              "WHERE id = ? AND status = 'reserved'",
                              (iso(utcnow()), reason[:500], reservation_id))
@@ -2226,7 +2279,8 @@ class Store:
 
     def add_usage(self, run_id: str, bot_id: str, provider: str, model: str, prompt_tokens: int,
                   completion_tokens: int, cached_tokens: int = 0, cost_usd: float = 0.0, kind: str = "step",
-                  account_id: str = "", reservation_id: Optional[str] = None) -> None:
+                  account_id: str = "", reservation_id: Optional[str] = None,
+                  expected_fence: Optional[int] = None) -> None:
         from math import isfinite
         prompt_tokens, completion_tokens, cached_tokens = map(int, (prompt_tokens, completion_tokens, cached_tokens))
         cost_usd = float(cost_usd)
@@ -2236,15 +2290,29 @@ class Store:
         with self._tx() as db:
             account = account_id or provider
             if reservation_id:
-                reservation = db.execute("SELECT status, account_id FROM usage_reservations WHERE id = ?",
+                reservation = db.execute("SELECT * FROM usage_reservations WHERE id = ?",
                                          (reservation_id,)).fetchone()
                 if reservation is None:
                     raise KeyError(reservation_id)
+                identity = (run_id, bot_id, provider, model)
+                recorded = tuple(reservation[field] for field in ("run_id", "bot_id", "provider", "model"))
+                if identity != recorded or (account_id and account_id != reservation["account_id"]):
+                    raise ValueError("usage reservation identity cannot change during settlement")
                 if reservation["status"] == "settled":
-                    return
+                    actual = tuple(reservation[field] for field in
+                                   ("actual_prompt_tokens", "actual_completion_tokens", "actual_cached_tokens"))
+                    if actual == (prompt_tokens, completion_tokens, cached_tokens) and abs(
+                            float(reservation["actual_cost_usd"] or 0) - cost_usd) < 1e-12:
+                        return
+                    raise ValueError("this reservation was already settled with a different outcome")
+                self._usage_authority(db, run_id, bot_id, expected_fence)
                 if reservation["status"] == "released":
                     raise ValueError("the usage reservation was released and cannot be settled")
+                if reservation["status"] == "uncertain":
+                    raise ValueError("uncertain usage requires explicit terminal-run reconciliation")
                 account = reservation["account_id"]
+            else:
+                self._usage_authority(db, run_id, bot_id, expected_fence, required=False)
             db.execute(
                 "INSERT INTO usage (ts, run_id, bot_id, provider, model, prompt_tokens, completion_tokens, "
                 "cached_tokens, cost_usd, kind, account_id, reservation_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -2257,12 +2325,16 @@ class Store:
         self.bus.notify("usage")
 
     def reserved_account_usage_since(self, account_id: str, seconds: float) -> tuple[int, float]:
-        since = iso(utcnow() - timedelta(seconds=max(0.0, seconds)))
+        """Every unresolved hold consumes the current allowance until settled/reconciled.
+
+        ``seconds`` remains for compatibility with the measured window API. Wall-clock
+        rollover cannot prove a provider charge or make an outstanding hold disappear.
+        """
         with self._lock:
             row = self._db.execute(
                 "SELECT COALESCE(SUM(reserved_tokens), 0) AS tokens, COALESCE(SUM(reserved_cost_usd), 0) AS cost "
-                "FROM usage_reservations WHERE account_id = ? AND created_at >= ? AND status IN ('reserved','uncertain')",
-                (account_id, since)).fetchone()
+                "FROM usage_reservations WHERE account_id = ? AND status IN ('reserved','uncertain')",
+                (account_id,)).fetchone()
         return int(row["tokens"]), float(row["cost"])
 
     def account_cost_since(self, account_id: str, seconds: float) -> float:

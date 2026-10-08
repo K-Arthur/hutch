@@ -105,7 +105,9 @@ Web Dashboard: conversation-first Studio (`http://127.0.0.1:8787/#/chat`) with o
 
 Configured fallback to another hosted account or destination requires a per-run review. A
 broken stream retains uncertain usage and a retry needs another usage reservation. These
-controls have fixture coverage; provider billing and live compatibility remain unverified.
+holds persist across allowance rollover until settled or explicitly reconciled. Stale workers
+cannot release them or change their receiving account. These controls have fixture coverage;
+provider billing and live compatibility remain unverified.
 
 ## Development
 

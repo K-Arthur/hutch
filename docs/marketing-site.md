@@ -35,8 +35,9 @@ The site intentionally removed unattributed forum IDs, unsupported spend-guarant
 
 `website/assets/captures/proof-*.webp` are 1280×889 derivatives of the desktop waiting, completion,
 run-detail and Activity captures in `docs/realignment/artifacts/navigation/`. They show the
-resolved composer merge based on `cb13791` and `main` at `d7d0029`, captured at 09:58 UTC
-on 2026-10-08, after the lease-expiry and local-admission repairs. `results.json` records source hashes, Python 3.13.15, Firefox 155,
+conversation-control tree based on `82885e4` with provider-settlement repairs, captured at
+10:17 UTC on 2026-10-08, after the composer merge, lease-expiry and local-admission repairs.
+`results.json` records source hashes, Python 3.13.15, Firefox 155,
 Playwright 1.63.0 and Pillow 12.3.0, with UTC capture time. The source used temporary isolated
 state, three demo bots followed by ten for Fleet, and deterministic `mock/demo` inference.
 No real provider, signed-in browser or external action was exercised. Expanded details can
