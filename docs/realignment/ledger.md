@@ -26,7 +26,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | S6 conversations and bounded collaboration | Conversation foundation, run-output and generated-file artifacts, scoped facts, alerts, and per-bot workspace mode implemented | Schema v8 stores conversations/messages and imports each old run separately. Schema v15 adds immutable versioned reference facts, private chat/run scope, explicit cross-chat sharing, human review, bounded FTS5 recall and paginated history. Workspaces default to fresh per run; optional 0700 Hutch-managed directories persist across one bot's runs/chats, or an operator may choose a validated user folder. They are not included in SQLite snapshots and survive bot deletion. Successful `write_file` actions can attach bounded immutable text snapshots; shell-created files are not attached. Cross-run artifact sharing, standing tasks and bounded delegation remain. Optional browser alerts are generic and tab-open only; no push delivery. |
 | S7 browser ownership and handoff | Partial | Persistent profiles are per bot and protected by cross-process OS leases. A bot can opt into an experimental, same-session visible browser handoff on a Linux desktop; local fixtures cover configuration, persistence, challenge recheck, and setup cleanup. A live headed challenge has not been exercised. Browser DNS pinning and remote phone handoff remain open; browser child-process cleanup has only general worker process-group coverage. |
 | S8 versioned API and remote supervision | Partial; API replay improvements in `cd4f402` and `f5696ce`; remote remains experimental | `/api/v1` covers health/status labels, bounded bot/run/approval pages, conversations/search, cross-run transcript cursors, snapshot reconciliation, usage, connection metadata, schedules, capability records, and typed device/pairing resources. Conversation create/message/archive, stop, and approval resolve commands are idempotent; changed arguments conflict. Schema v9 adds one-use pairing codes, hash-only revocable device sessions and per-source rate limits. `/pair` exchanges the code; Connections lists sessions, identifies the current device, and revokes sessions. Direct remote binding requires explicit TLS. Schema v11 adds transactional resource invalidations, history cursors, snapshot reconciliation and targeted Studio refresh. Schema v12 adds recoverable JSONL delivery and visible errors; v13 adds immutable action intents and separate outcome reconciliation; v14 adds a bounded authenticated restore report and execution-hold errors. Automatic event pruning, cross-run artifact sharing, authenticated PTY/physical desktop control, remote browser handoff, trusted tunnel and live device/network checks remain. |
-| S9 product integration, performance and visual validation | Partial; evidence captured in `896a774`, `ba1e297`, and later device/workspace checkpoints; schema-v16 event-throughput gate passes | Screenshots and traces cover desktop/tablet/phone and compact phone, plus fixture-driven empty/loading/error/approval/cancelling/reconnecting, pairing and workspace-setting states. Internal site CTA targets, overflow, page errors, reduced motion, tablist arrows, menu focus, pairing focus, device revocation and workspace-mode focus/validation were checked. The no-mock slice removes seeded-run screenshots and scripted approval controls; the marketing proof is now the actual empty first-run screen. Executor health remains text-labeled and changes with health polling, without decorative pulsing between checks. Schema v16's matched event median is 1.3% above `f5696ce`, below the 20% gate. This is not screen-reader, real-device, live remote, or full workflow certification. See `visual-validation.md`, `device-pairing-visual-validation.md`, `no-mock-validation.md`, and `performance.md`. |
+| S9 product integration, performance and visual validation | Partial; evidence captured in `896a774`, `ba1e297`, and later device/workspace/browser checkpoints; schema-v16 event-throughput gate passes | Screenshots and traces cover desktop/tablet/phone and compact phone, plus fixture-driven empty/loading/error/approval/cancelling/reconnecting, pairing, workspace and local browser handoff states. Internal site CTA targets, overflow, page errors, reduced motion, tablist arrows, menu focus, pairing focus, device revocation, workspace focus/validation, and browser-setting focus/availability were checked. The no-mock slice removes seeded-run screenshots and scripted approval controls; the marketing proof is now the actual empty first-run screen. Executor health remains text-labeled and changes with health polling, without decorative pulsing between checks. Schema v16's matched event median is 1.3% above `f5696ce`, below the 20% gate. This is not screen-reader, real-device, live remote, or full workflow certification. See `visual-validation.md`, `device-pairing-visual-validation.md`, `no-mock-validation.md`, and `performance.md`. |
 
 ## Commits
 
@@ -68,6 +68,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `0b98ebb` | Defer Studio chat-feed replacement while review dialogs are open; preserve focus across a background refresh, with refreshed file-download and fact-review captures |
 | `a292608` | Correct the Stop all browser test to match the standalone login page |
 | `1367516` | Schema v16 replaces per-event transcript mirror triggers with transactionally batched intent writes; adds legacy-trigger migration/backup tests, matched performance diagnosis, refreshed captures, and corrected ADR/operations/safety guidance |
+| `6ee3e29` | Opt-in per-bot local Linux browser handoff, cross-process profile/desktop leases, fail-closed headless behavior, host-aware settings, setup cleanup regression, updated support claims and inspected viewport evidence |
 
 ## Verified behavior before this checkpoint
 
@@ -1164,3 +1165,28 @@ captured Python source hashes match implementation commit `1367516`. This resolv
 event-throughput release gate without weakening transcript durability.
 
 Implementation commit: `1367516`.
+
+## Local browser handoff checkpoint (2026-10-08)
+
+Commit `6ee3e29` adds an opt-in per-bot `local_browser_handoff` setting through the model,
+CLI, API, server-rendered form and Studio. The owned Playwright browser opens headed only when
+enabled and host prerequisites are present. Profile and one-at-a-time local handoff leases use
+cross-process OS locks. Login/CAPTCHA/MFA walls pause only when a person can use the same visible
+browser; Resume reloads and rechecks the challenge. Headless runs return a clear failure instead
+of entering a misleading human wait. Failed route setup tears down the browser/driver and releases
+the profile lease; any failure during that cleanup is included in the setup error, and worker
+process-group verification remains the authority for surviving browser children.
+
+The full offline suite passed **1,258 tests in 267.35s** with thread exceptions and syntax warnings
+treated as errors. Focused browser/profile/API/CLI/view tests passed **17 tests in 2.52s**. The
+settings journey passed **3 Chromium 153.0.8010.12 / Playwright 1.63.0 viewport cases in 88.44s**
+at desktop 1440×1000, tablet 900×1024 and phone 390×844. It checks API-backed capability text,
+phone target size, keyboard Tab/focus, server-backed persistence, page/console errors and overflow.
+The first phone pass found a 38px control; the final control is 44px. Screenshots and traces are
+retained in `artifacts/local-browser-handoff/` and were inspected. The final Impeccable detector
+returned `[]`; JavaScript/Python syntax and `git diff --check` passed.
+
+This is local fixture evidence only. No model/provider was called and no real headed browser
+challenge, physical phone, remote control, or cross-browser matrix was exercised. Browser egress
+still has a DNS-rebinding window; remote phone handoff, PTY/physical desktop access and pinned
+browser egress remain open. UI audit limitations are recorded in `visual-validation.md`.
