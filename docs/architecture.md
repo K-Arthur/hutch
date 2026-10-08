@@ -172,7 +172,7 @@ Each production run has an owned worker process and a supervisor watcher. The wo
 the run's approval gate so `stop` unblocks an approval wait immediately. In-process thread execution is only an explicit
 compatibility/test mode. The browser owns a distinct persistent profile per bot. A cross-process OS file lease prevents two workers
 from opening the same profile; an opted-in local handoff also reserves Hutch's visible-browser lease until that session closes.
-Remote phone control and pinned browser egress remain open. SQLite access is serialized by an RLock in `Store`, and migration startup is additionally serialized across
+Remote phone control and live/non-HTTP browser egress validation remain open. HTTP(S)/WebSocket browser connections use a locally tested DNS-pinning proxy. SQLite access is serialized by an RLock in `Store`, and migration startup is additionally serialized across
 processes. Schema v9 stores canonical conversations, user/assistant messages, run links and revocable device sessions; old runs are imported one per legacy
 conversation to avoid guessing continuity. Versioned conversation writes and run admission are idempotent and transactional. The
 builtin runtime receives a capped snapshot of earlier messages; Studio uses the versioned conversation endpoints. Versioned stop and

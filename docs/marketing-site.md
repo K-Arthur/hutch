@@ -11,7 +11,7 @@ only persistent browser preference is the effects setting in `localStorage`.
 | State shown publicly | Evidence and limit |
 |---|---|
 | Supported | Linux execution, local SQLite state and fixture-tested lifecycle/control paths. Actual runs require a configured model route and a running local service or provider connection. |
-| Experimental | Configured hosted-provider and local-inference routes; one Hutch local caller and up to eight waiters per state directory; host-gated Offline isolation; HTTPS-paired dashboard sessions with revocation; local same-session browser handoff on a Linux desktop. Provider/model calls, backend provenance, the visible desktop flow, and physical-device/network access were not verified live for this release. |
+| Experimental | Configured hosted-provider and local-inference routes; one Hutch local caller and up to eight waiters per state directory; host-gated Offline isolation; HTTPS-paired dashboard sessions with revocation; local same-session browser handoff on a Linux desktop; HTTP(S)/WebSocket browser egress pinned by a local proxy. Provider/model calls, backend provenance, the visible desktop flow, public browser destinations, non-HTTP browser traffic and physical-device/network access were not verified live for this release. |
 | Unavailable | macOS/Windows executor, public source/package, authenticated PTY/physical desktop control, phone browser handoff, OpenCode/Pi harness execution and Sign in with ChatGPT. |
 
 The site distinguishes local control state from prompt traffic to a selected model and network

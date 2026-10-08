@@ -34,6 +34,8 @@ from hutch.server.app import create_app
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / 'docs/realignment/artifacts/navigation'
 SIZES = {'desktop': (1440, 1000), 'tablet': (900, 1024), 'phone': (390, 844)}
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 
 def source_hashes():
@@ -80,8 +82,18 @@ def main():
                 errors = {}
                 def snap(page, name, size):
                     page.screenshot(path=str(OUT / f'{name}-{size}.png'), full_page=True, animations='disabled')
+                    heading = page.evaluate("""() => {
+                      const element = document.querySelector('h1');
+                      if (!element) return null;
+                      const style = getComputedStyle(element);
+                      const fontSize = parseFloat(style.fontSize);
+                      const lineHeight = parseFloat(style.lineHeight);
+                      return {text: element.innerText.trim(), fontSize: style.fontSize,
+                              lineHeight: style.lineHeight, ratio: lineHeight / fontSize};
+                    }""")
                     records.append({'state': name, 'size': size, 'pageErrors': list(errors[size]),
                                     'overflow': page.evaluate('document.documentElement.scrollWidth - innerWidth'),
+                                    'heading': heading,
                                     'screenshot': f'{name}-{size}.png'})
                 for size, (width, height) in SIZES.items():
                     context = browser.new_context(viewport={'width': width, 'height': height}, reduced_motion='reduce')
@@ -119,14 +131,6 @@ def main():
                     page.goto(base + '/#/bot/research-assistant')
                     page.locator('#form-limits').wait_for()
                     snap(page, 'settings', size)
-                for size, page in pages.items():
-                    mode = page.locator('#form-model select[name="inference_mode"]')
-                    mode.select_option('local')
-                    page.locator('#form-model button[type="submit"]').click()
-                    wait_for(lambda: store.get_bot('research-assistant').inference_mode.value == 'local')
-                    page.wait_for_function("document.querySelector('#form-model select[name=inference_mode]')?.value === 'local'")
-                    page.locator('#toast-root .toast').last.wait_for(state='detached', timeout=6000)
-                    snap(page, 'local-routes', size)
                 for i in range(7):
                     store.create_bot(Bot(name=f'fleet-helper-{i}', model='mock/demo', tools=[], paused=i == 3))
                 for size, page in pages.items():
@@ -188,7 +192,7 @@ from pathlib import Path
 import sys
 out = Path(sys.argv[1])
 print(__version__)
-states = ['empty', 'waiting', 'needs-you', 'settings', 'local-routes', 'fleet', 'activity', 'completion',
+states = ['empty', 'waiting', 'needs-you', 'settings', 'fleet', 'activity', 'completion',
           'run-detail', 'loading', 'cancelling', 'error', 'reconnecting', 'site']
 for size, viewport in {'desktop': (1440, 1000), 'tablet': (900, 1024), 'phone': (390, 844)}.items():
     sheet = Image.new('RGB', (1296, 1660), '#12181e')
@@ -224,11 +228,15 @@ for size, viewport in {'desktop': (1440, 1000), 'tablet': (900, 1024), 'phone': 
             thread.join(20)
             if thread.is_alive():
                 raise RuntimeError('server failed to stop')
+    source_status = subprocess.check_output(
+        ['git', 'status', '--porcelain', '--', 'src/hutch', 'website'], cwd=ROOT, text=True
+    ).strip()
     result = {'browser': 'Firefox', 'version': version, 'python': platform.python_version(),
               'playwright': package_version('playwright'), 'captured_at': datetime.now(timezone.utc).isoformat(),
               'pillow': pillow_version,
               'revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
-              'tree': 'application sources matched this revision; only generated docs/artifacts may be dirty',
+              'tree': ('application and website sources are clean at this revision' if not source_status
+                       else 'application or website sources differ from this revision; per-file source hashes are authoritative'),
               'fixture': 'isolated mock/demo; temporary state removed; loading/cancelling records synthetic', 'captures': records}
     if source_hashes() != source_before:
         raise RuntimeError('application sources changed during capture; repeat against a stable tree')

@@ -86,7 +86,8 @@ approval expiry without the dashboard.
 - **Browser (experimental)** — optional Playwright extra and a persistent profile per bot. Opt in to Local browser handoff to open
   the same session in a visible Linux desktop window; Hutch pauses while you complete a detected login challenge and verifies the
   challenge is gone after Resume. Only one Hutch desktop handoff can be active at a time. Headless runs fail clearly at a challenge;
-  phone handoff and pinned browser egress are unavailable.
+  the owned Chromium context sends HTTP(S) and WebSocket traffic through a local DNS-pinning proxy with implicit local bypass disabled.
+  Local fixtures exercise the proxy; live public destinations and non-HTTP browser traffic are not verified. Phone handoff remains unavailable.
 - **External runtimes** — Pi and OpenCode are recognized in old bot configs but disabled before starting a process. Their
   permission broker, process containment and provider budget path are not ready. Supported production execution uses Hutch's builtin runtime with a configured local or hosted model.
 

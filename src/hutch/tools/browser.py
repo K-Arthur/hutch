@@ -29,6 +29,8 @@ except ImportError:  # pragma: no cover - browser execution is Linux-first
 
 from ..models import Event, EventType
 from ..approvals import DeniedError
+from ..browser_proxy import PinnedBrowserProxy
+from ..netguard import display_url_origin
 from .base import Tool, ToolContext, ToolResult, _schema, clip, rehearsed
 
 # One browser automation at a time per process. OS file leases extend profile
@@ -86,10 +88,13 @@ class BrowserTool(Tool):
         },
     )
 
-    def __init__(self):
+    def __init__(self, *, resolver=None, connector=None):
         self._pw = None
         self._browser = None
+        self._proxy: Optional[PinnedBrowserProxy] = None
         self._lease_fds: list[int] = []
+        self._resolver = resolver
+        self._connector = connector
 
     @staticmethod
     def _lock(path, label: str) -> int:
@@ -162,17 +167,29 @@ class BrowserTool(Tool):
         profile_dir.mkdir(parents=True, exist_ok=True)
         self._acquire_leases(ctx, profile_dir)
         try:
+            self._proxy = PinnedBrowserProxy(
+                resolver=self._resolver,
+                connector=self._connector,
+                on_block=lambda url, reason: ctx.emit(Event(
+                    run_id=ctx.run.id, type=EventType.log,
+                    data={"denied": url, "reason": reason, "rule": "deny:private-address"})),
+            ).start()
             self._pw = sync_playwright().start()
             self._browser = self._pw.chromium.launch_persistent_context(
                 user_data_dir=str(profile_dir),
                 headless=ctx.headless,
                 accept_downloads=True,
+                # Chromium implicitly bypasses proxies for localhost/link-local destinations. Remove that exception so
+                # the proxy remains the network boundary even if the early Playwright route policy changes.
+                proxy={"server": self._proxy.url, "bypass": "<-loopback>"},
+                args=["--force-webrtc-ip-handling-policy=disable_non_proxied_udp"],
+                service_workers="block",
             )
-            # Every browser request (navigation, redirect and sub-resource) is judged by the URL guard.
+            # The route check gives an early refusal; the loopback proxy independently resolves, validates and pins connections.
             from ..netguard import RequestGuard
-            self._browser.route("**/*", RequestGuard().route_handler(
+            self._browser.route("**/*", RequestGuard(self._resolver).route_handler(
                 lambda url, why: ctx.emit and ctx.emit(Event(run_id=ctx.run.id, type=EventType.log,
-                                                             data={"denied": url, "reason": why,
+                                                             data={"denied": display_url_origin(url), "reason": why,
                                                                    "rule": "deny:private-address"}))))
         except Exception as exc:
             cleanup = ""
@@ -190,6 +207,7 @@ class BrowserTool(Tool):
         errors = []
         browser, self._browser = self._browser, None
         playwright, self._pw = self._pw, None
+        proxy, self._proxy = self._proxy, None
         try:
             if browser is not None:
                 try:
@@ -199,6 +217,11 @@ class BrowserTool(Tool):
             if playwright is not None:
                 try:
                     playwright.stop()
+                except Exception as exc:
+                    errors.append(exc)
+            if proxy is not None:
+                try:
+                    proxy.close()
                 except Exception as exc:
                     errors.append(exc)
         finally:

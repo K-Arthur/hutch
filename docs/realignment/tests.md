@@ -7,6 +7,7 @@ browser. "Live" means it needs something this host did not have and is skipped w
 |---|---|---|---|---|
 | T-CRED-SCOPE | A key is never sent to a host it does not belong to | offline | `tests/test_credential_routing.py` | passing |
 | T-SSRF | No URL form, redirect or DNS answer reaches a private address | offline | `tests/test_netguard.py` | passing |
+| T-BROWSER-REBIND | Chromium's local HTTP(S)/WebSocket proxy connects to checked numeric addresses, overrides implicit local proxy bypass, and blocks a public-to-private DNS change before a redirected request reaches the origin | local Chromium + fixtures | `tests/test_browser_proxy.py`, `tests/test_netguard.py`, `tests/e2e/test_browser_egress.py` | focused proxy, route, CONNECT, WebSocket and Chromium redirect tests pass; blocked logs omit URL paths/query strings; no live public endpoint, TLS certificate chain, or non-HTTP traffic test |
 | T-CLAIM-RACE | Two processes racing for the same pending run: exactly one claim wins | offline (multiprocess) | `tests/test_claims.py` | passing |
 | T-OCCURRENCE-RACE | Two schedulers for one occurrence create one run, also after a crash between steps | offline (multiprocess) | `tests/test_claims.py` | passing |
 | T-STATE-MACHINE | Only table transitions are possible; terminal is absorbing; stale fence rejected | offline (property) | `tests/test_lifecycle.py` | passing |

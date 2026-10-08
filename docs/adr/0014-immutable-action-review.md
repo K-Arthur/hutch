@@ -58,7 +58,7 @@ operations; no rollback of external effects is implied.
 Saved arguments may contain private user material; keep the state directory private. Hashes
 are integrity checks, not secrecy or protection against a same-user database administrator.
 Opt-in same-session browser handoff is now experimental on a Linux desktop, but the live headed
-challenge flow has not been exercised. Pinned browser egress and remote phone handoff remain
+challenge flow has not been exercised. HTTP(S)/WebSocket browser egress has local Chromium DNS-pinning fixtures; live public destinations and remote phone handoff remain
 pending. Generated screenshot destinations and third-party runtime permission brokering need
 further capability work. External notifications, scoped fact memory and production restore
 orchestration are not supplied by this slice. No paid provider or physical-device checks were

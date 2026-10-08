@@ -21,7 +21,7 @@ not measured prevalence).
 | File tools (`read_file`, `write_file`, `list_files`) | path-jailed to the workspace |
 | Shell tool | New bots request Linux strict mode: bubblewrap gives a private mount/PID/network namespace, private `/tmp`, writable workspace, sanitized environment and bounded resources. `web_fetch` provides checked public-page access; shell networking is unavailable in strict mode. This is shell-only containment, not a VM. Existing bots retain `off` after migration; the UI labels that choice. If strict mode is unavailable, the command fails closed. |
 | `web_fetch` | the name is resolved and **every** answer must be a public address; redirects are followed by hutch and each hop re-checked; the connection is pinned to the validated address (no second lookup); credentials in URLs, internal names and every spelling of a loopback/metadata address (`[::1]`, `0x7f.0.0.1`, decimal, IPv4-mapped, NAT64, 6to4) are refused (`netguard.py`, `tests/test_netguard.py`) |
-| browser | each request is URL-checked, but the browser resolves and connects independently; a DNS rebinding window remains until browser traffic uses a pinned egress broker |
+| browser | Chromium is configured to use Hutch's loopback proxy for HTTP(S)/WebSocket traffic. The proxy freshly resolves every connection, rejects the whole answer set if any address is non-public, and connects to a checked numeric address. Local Chromium fixtures cover redirects and a public-to-private DNS change. This is not an OS network namespace; live public destinations and non-HTTP traffic remain unverified. |
 | External runtimes (Pi, OpenCode) | disabled before process creation. Offline protocol helpers cover selected wire formats, but Hutch cannot yet drain/own both process streams, broker permissions end to end, enforce provider budgets, or run either harness inside the owned sandbox. OpenCode 2.0.24's event stream can lose records on disconnect/overflow. Selecting these runtimes fails with an actionable message; they are not supported executors. |
 | Stopping a run | an intent recorded in the database: `hutch stop`, `stop-all` and the dashboard work on a run owned by any process. `serve`, `daemon`, and `hutch run` use one owned process per attempt. Recovery fences the old owner before cleanup and signals only boot/start-verified process identities through pidfds. `Stopping` or `Recovering` remains visible while cleanup is incomplete or cannot be verified; terminal cancellation waits for confirmed cleanup. |
 
@@ -163,21 +163,26 @@ is outside this boundary. Reads/listing still use real-path policy and are not d
 non-http schemes, credentials in the URL, internal names (`localhost`, `*.internal`, `*.local`), and any address that is not
 public (loopback, private, link-local incl. cloud metadata, CGNAT, multicast, reserved; IPv4 embedded in IPv6 is unwrapped) are
 refused, whichever way the address is written and whichever name resolves to it. Redirects are followed by hutch and every hop is
-re-checked. Response bodies are hard-clipped. A locally configured model endpoint is an explicit exception made by a connection,
-not by a URL pattern.
+re-checked. Response bodies are hard-clipped. Chromium browser traffic uses an owned loopback proxy: for each HTTP, HTTPS or
+WebSocket connection it freshly resolves the destination, rejects mixed public/private DNS answers, and connects to a numeric
+validated address. HTTPS uses CONNECT, leaving TLS certificate and hostname checks in Chromium. Local Chromium fixtures cover
+ordinary HTTP and a redirect where a formerly public DNS answer turns private before the next connection. This protects traffic
+carried through the configured HTTP proxy, not every possible browser protocol; non-HTTP egress and live public destinations are
+unverified. A locally configured model endpoint is an explicit exception made by a connection, not by a URL pattern.
 
 ### Browser actions
 
 `goto` uses URL policy. `click` and `type` always ask because either can send data or buy something;
 sticky grants and auto mode cannot cover them. The request binds the selector/label, typed text,
 page URL and bot profile. A changed URL after review refuses the action. This does not verify an
-account identity or prevent a page changing its DOM at the same URL; browser egress is still vulnerable to a DNS-rebinding window.
-Each browser-tool instance owns a separate context and persistent profile, with an OS file lease across run workers. Headless is
-the default. A bot may opt into **Local browser handoff** on a Linux desktop: Hutch opens the same profile in a visible window,
+account identity or prevent a page changing its DOM at the same URL. Each browser-tool instance owns a separate context and
+persistent profile, with an OS file lease across run workers. HTTP(S)/WebSocket connections pass through the DNS-pinning local
+proxy; this has only local Chromium fixture coverage and does not confine unrelated browser protocols. Headless is
+the default. Chromium's implicit local/link-local proxy bypass is disabled, service workers are blocked, and denied request logs
+retain only the origin. A bot may opt into **Local browser handoff** on a Linux desktop: Hutch opens the same profile in a visible window,
 holds an exclusive Hutch browser-handoff/profile lease, pauses automation at a detected login/CAPTCHA/MFA wall, and rechecks the page after Resume.
 If the resumed page still shows a challenge, Hutch keeps waiting. Without the setting, a headless run returns an actionable failure
-instead of claiming to wait for a person. This is local desktop control only; it does not enable phone control, and the browser's
-network connection is still not pinned to its checked DNS result.
+instead of claiming to wait for a person. This is local desktop control only and does not enable phone control.
 
 ## Rehearse (dry run)
 

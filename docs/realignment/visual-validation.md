@@ -5,6 +5,9 @@ served from this worktree. Hutch used `/tmp/hutch-s5-visual.mbtpt6`, a disposabl
 OpenCode Go connection configured with a synthetic account ID, a 100k token allowance, and a $5 estimate limit. No API key was stored,
 and no provider request was made. No personal workspace files were used. Both servers bound to loopback only.
 
+The site/app image set below remains the 2026-10-07 checkpoint; it is not refreshed automatically when `website/` changes. For the
+current marketing source, use the dated full-page and fold captures under `artifacts/marketing-top/` described at the end of this file.
+
 ## Reproduction
 
 ```bash
@@ -92,6 +95,22 @@ focus and 44px phone target; contrast, screen-reader use, 320px reflow, 200% zoo
 The dark theme uses the existing tokens without new colors; no contrast calculation was performed. No render profiling was done.
 The persisted option and live capability message come from Hutch's API, and headless runs refuse to pretend a person can take over.
 No P0–P3 defect was observed in the changed settings path; the real visible login challenge and cross-browser behavior remain open.
+
+## Marketing source recapture (2026-10-08)
+
+Because the older `artifacts/visual-validation/site-*.png` images predate later site edits, the marketing page was recaptured directly
+from the current `website/` directory. The repeatable command is `.venv/bin/python docs/realignment/capture_marketing_top.py`.
+Chromium 153.0.8010.12 / Playwright 1.63.0 captured anonymous desktop (1440×1000), tablet (900×1024) and phone (390×844)
+views with reduced motion. The script also saves full-page captures for each responsive layout. Inspected fold views and full pages:
+[desktop](artifacts/marketing-top/desktop.png) / [full page](artifacts/marketing-top/desktop-full.png),
+[tablet](artifacts/marketing-top/tablet.png) / [full page](artifacts/marketing-top/tablet-full.png), and
+[phone](artifacts/marketing-top/phone.png) / [full page](artifacts/marketing-top/phone-full.png).
+
+All three viewports report zero horizontal overflow, no page errors and same-origin requests only. `artifacts/marketing-top/capture.json`
+records the actual `website/index.html`, `website/styles.css`, and `website/site.js` SHA-256 values alongside browser versions, dimensions
+and paths, so these images can be matched to the source revision. The anonymous website browser suite checks internal CTA targets and
+interaction. At desktop size the reduced-motion preference is reflected by the visible effects control; the capture intentionally keeps
+that user-facing setting visible. No hosted service or external request is needed for these captures.
 
 ## Action intent review continuation
 

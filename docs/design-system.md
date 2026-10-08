@@ -72,8 +72,8 @@ git history; re-verify after changing any value in this table.
   of 0px buttons beside 50% circles, 5px inputs and 8px panels is what read as
   inconsistent, not the roundness itself.
 - **Type:** 11, 12, 13, 14 (body), 16, 18. System sans for all UI; a system
-  serif for the page `<h1>` only (the one editorial signature); `ui-monospace`
-  for tool names, IDs, cron, timestamps, and code.
+  serif for the page `<h1>` only (the one editorial signature, 30px at 1.3
+  line-height); `ui-monospace` for tool names, IDs, cron, timestamps, and code.
 - **Spacing:** 4 / 8 / 12 / 16 / 20 / 24.
 - **Motion:** 120–180ms ease-out; transform/opacity only; every animation
   respects `prefers-reduced-motion`.

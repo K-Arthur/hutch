@@ -1,15 +1,17 @@
 # ADR-0006: Tool authority, an OS sandbox, and who owns the browser
 
 Status: accepted, partially implemented (2026-10-08). S4 Linux shell containment and approval CAS are host-tested; browser profile
-ownership and opt-in local Linux desktop handoff are implemented with fixture coverage; pinned browser egress and remote handoff remain unimplemented. Evidence: baseline
+ownership, opt-in local Linux desktop handoff and a DNS-pinning HTTP(S)/WebSocket proxy have local fixture coverage. Live public
+destinations, non-HTTP browser traffic, a headed challenge and remote handoff remain unverified or unavailable. Evidence: baseline
 leads 8-9, D3, A1, B6.
 
 ## Context
 
 Prompts, CWD and a redirected `HOME` are not a boundary: `cat /home/user/.ssh/id_rsa` worked in the baseline shell tool. The command
 parser is a useful *policy* layer and stays; it is not containment. Web fetch has since moved to resolved-address checks and pinned
-connections, while browser DNS is still not pinned (D3). Browser contexts were previously class-shared; ownership is now per tool
-instance, with a distinct persistent profile directory for each bot.
+connections. Browser contexts were previously class-shared; ownership is now per tool instance, with a distinct persistent profile
+directory for each bot. Browser HTTP(S) and WebSocket traffic also uses an owned loopback proxy so Chromium cannot perform a second
+host lookup between address validation and connection establishment.
 
 ## Decision
 
@@ -36,9 +38,19 @@ remains for the long tail. Invalid JSON arguments are rejected with a repair mes
 
 `hutch/netguard.py` resolves the host, rejects any private, loopback, link-local, multicast, reserved or metadata address among **all**
 answers (IPv4, IPv6, IPv4-mapped, encodings normalised by the OS resolver), follows redirects manually (max 5) re-checking every hop,
-pins the connection to the validated IP (no second DNS lookup), follows redirects in Hutch and re-checks each hop, and bounds the
-body. The browser checks every request through a context route handler, but its own DNS lookup is not pinned yet; DNS rebinding is
-a known residual risk. A locally configured model endpoint is an *explicit exception* by connection, not by URL pattern.
+pins the connection to the validated IP (no second DNS lookup), and bounds the body. Chromium uses an owned loopback HTTP proxy:
+the early Playwright route check is backed by a fresh proxy resolution for every HTTP(S)/WebSocket connection, all returned
+addresses must be public, and the socket connects to a checked numeric address. HTTPS remains end-to-end TLS through CONNECT, so
+Chromium checks the original host certificate. Local Chromium fixtures verify HTTP, redirect rebinding denial, WebSocket upgrade
+forwarding and CONNECT tunnel bytes. This is not a browser network namespace: live public destinations and traffic outside the
+configured HTTP proxy have not been validated. A locally configured model endpoint is an *explicit exception* by connection, not
+by URL pattern.
+
+Chromium implicitly bypasses configured proxies for localhost and link-local destinations. Hutch subtracts this bypass
+(`<-loopback>`) so the egress proxy stays in the path even if the early request route changes. The behavior and special rule are
+documented in [Chromium's proxy support contract](https://chromium.googlesource.com/chromium/src/net/+/HEAD/docs/proxy.md).
+Service workers are blocked in the automation context, and denied request events store only the origin and reason; paths, query
+strings and fragments are omitted.
 
 ### Approvals
 
@@ -55,8 +67,8 @@ into system instructions. They cannot raise a tool's policy tier. Rendered conte
 
 * **Isolated automation browser**: one Playwright context per tool instance, using that bot's persistent profile directory. This
   is fixture-tested; no live account check has been completed here. Cross-process file leases prevent concurrent use of the same
-  profile. Opt-in local handoff keeps the same headed browser open for a human challenge; it remains experimental, and browser DNS
-  is not pinned to the checked address.
+  profile. HTTP(S) and WebSocket egress is pinned by the loopback proxy; non-HTTP traffic and live public destinations remain
+  unverified. Opt-in local handoff keeps the same headed browser open for a human challenge; it remains experimental.
 * **Physical desktop** (pointer/keyboard): one lease at a time system-wide (`resource_leases` row), not implemented in this phase and
   documented as such; Wayland capture/control needs an installed, authorised executor and portal permission.
 * **Local browser human handoff**: a run may opt into one visible local browser session at a time. The run pauses while the person

@@ -45,8 +45,8 @@
         "files": [
           "src/hutch/server/templates/base.html"
         ],
-        "createdAt": "2026-10-08T20:07:45.833Z",
-        "reason": "Agent: the shared h1 style uses deliberate 1.15 title leading; rendered page titles stay on one line at the tested sizes, while the rule targets multi-line body copy"
+        "createdAt": "2026-10-08T22:23:43.256Z",
+        "reason": "The current dashboard h1 and template h1 use a computed 1.3 line-height; body copy uses 1.55. Fresh responsive captures measured the page heading at 16px/20.8px (1.30). The detector's 1.08 estimate does not match the rendered computed style."
       }
     ]
   }

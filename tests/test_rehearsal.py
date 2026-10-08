@@ -132,7 +132,7 @@ READ_ONLY = ["ls", "ls -la | head", "cat a.txt", "git status", "git log --onelin
              "find . -name '*.py'", "echo hi", "pwd && date", "(cd sub && ls)", "echo $(date)", "wc -l a b", "git diff HEAD~1",
              "ls > /dev/null", "cat a 2>/dev/null"]
 NOT_READ_ONLY = ["rm a", "touch a", "mkdir d", "mv a b", "cp a b", "echo hi > a", "cat a >> b", "ls & touch a", "find . -delete",
-                 "find . -exec rm {} \;", "sort -o out a", "sort a --output=b", "git commit -m x", "git push", "git checkout x", "git branch -D x",
+                 "find . -exec rm {} \\;", "sort -o out a", "sort a --output=b", "git commit -m x", "git push", "git checkout x", "git branch -D x",
                  "sed -i s/a/b/ f", "awk 'BEGIN{system(\"rm a\")}'", "python3 -c 'x'", "bash -c ls", "env ls", "xargs ls", "tee a",
                  "curl http://x", "echo $(touch a)", "ls | tee a", "cat <<EOF\nx\nEOF", "$(echo ls)", "echo 'unterminated", "", "   "]
 

@@ -10,7 +10,7 @@ import httpx
 import pytest
 
 from hutch.models import RiskTier
-from hutch.netguard import NetGuardError, blocked_ip_reason, resolve_public, safe_get, screen_url
+from hutch.netguard import NetGuardError, blocked_ip_reason, display_url_origin, resolve_public, safe_get, screen_url
 from hutch.safety import PolicyEngine
 
 # every one of these was ALLOWED by the baseline guard and must now be refused without any network access
@@ -47,6 +47,12 @@ HOSTILE = [
     "http:///nohost",
     "",
 ]
+
+
+def test_denial_log_origin_redacts_userinfo_path_query_and_fragment():
+    assert display_url_origin("https://user:secret@example.com/private?token=abc#frag") == "https://example.com"
+    assert display_url_origin("http://[2001:4860:4860::8888]:8080/private") == "http://[2001:4860:4860::8888]:8080"
+    assert display_url_origin("not a URL") == "<invalid URL>"
 
 PUBLIC = ["https://example.com/page", "http://example.com", "https://sub.example.co.uk:8443/x?y=1", "http://93.184.216.34/"]
 

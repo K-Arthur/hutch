@@ -47,7 +47,7 @@ realignment work.
 - [ ] Webhook/event triggers (file-watch, HTTP inbox) alongside cron
 - [ ] Multi-step workflow templates (chained runs, hand-off artifacts)
 - [ ] Pi/OpenCode adapters: match published RPC/CLI contracts; broker approvals and provider budgets; strict process containment
-- [~] Browser tool: same-session human handoff is experimental on a local Linux desktop; pinned egress, phone handoff, and per-bot download dirs remain
+- [~] Browser tool: same-session human handoff is experimental on a local Linux desktop; HTTP(S)/WebSocket DNS-pinned egress has local Chromium fixture coverage. Live headed challenges, non-HTTP traffic, remote phone handoff and per-bot download directories remain
 
 ## Phase 3 — scale-out (deliberately far)
 

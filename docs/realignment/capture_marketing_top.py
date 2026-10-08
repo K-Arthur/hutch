@@ -57,11 +57,14 @@ def main() -> None:
                 assert all(url.startswith(base) for url in requests), (size, requests)
                 image = OUTPUT / f"{size}.png"
                 page.screenshot(path=str(image), animations="disabled")
+                full_image = OUTPUT / f"{size}-full.png"
+                page.screenshot(path=str(full_image), full_page=True, animations="disabled")
                 captures.append(
                     {
                         "size": size,
                         "viewport": [width, height],
                         "path": image.relative_to(ROOT).as_posix(),
+                        "full_page_path": full_image.relative_to(ROOT).as_posix(),
                         "horizontal_overflow": overflow,
                         "page_errors": errors,
                         "requests_same_origin": True,

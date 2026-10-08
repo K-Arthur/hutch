@@ -9,9 +9,10 @@ private address, and every redirect. This module decides on **addresses**, not s
 * ``safe_get``     fetches with the connection pinned to the validated address (no second lookup, so DNS rebinding has nothing to
                    flip), follows redirects itself and re-checks every hop, and bounds the body.
 
-What this does not do: a browser resolves and connects on its own, so for the browser the same check runs on every request
-but the connect cannot be pinned (residual DNS-rebinding window); the network-less OS sandbox (ADR-0006) is the real answer
-there. A locally configured model endpoint is an explicit exception made by a *connection*, never by URL pattern.
+Browser requests need more than ``RequestGuard``: that route check refuses unsafe URLs early, while ``PinnedBrowserProxy``
+independently resolves and connects to a validated numeric address for HTTP(S) and WebSocket traffic. The proxy must remain
+enabled; route interception alone cannot prevent DNS rebinding. A locally configured model endpoint is an explicit exception
+made by a *connection*, never by URL pattern.
 """
 
 from __future__ import annotations
@@ -121,6 +122,25 @@ def screen_url(url: str) -> Optional[str]:
     except UnicodeError:
         return "host is not a valid name"
     return None
+
+
+def display_url_origin(url: str) -> str:
+    """Return a log-safe origin label without paths, query strings, fragments or user information."""
+    try:
+        parts = urlsplit(url.strip())
+        host = parts.hostname
+        port = parts.port
+    except (AttributeError, TypeError, ValueError):
+        return "<invalid URL>"
+    if not host:
+        return "<invalid URL>"
+    host = host.lower().rstrip(".")
+    if ":" in host:
+        host = f"[{host}]"
+    scheme = parts.scheme.lower()
+    if scheme not in {"http", "https", "ws", "wss"}:
+        scheme = "request"
+    return f"{scheme}://{host}" + (f":{port}" if port is not None else "")
 
 
 # ------------------------------------------------------------------ resolution
@@ -239,9 +259,9 @@ def safe_get(url: str, *, timeout: float = 20.0, max_redirects: int = MAX_REDIRE
 class RequestGuard:
     """Judge every request a browser makes (navigations, redirects, sub-resources, XHR) by the same rules.
 
-    A browser resolves and connects by itself, so unlike ``safe_get`` this cannot pin the connection: a name that is public when
-    checked can be re-resolved to a private address by the browser a moment later (DNS rebinding). Decisions are cached for a
-    short time per host, which narrows that window without closing it. The network-less sandbox is what closes it.
+    This is an early browser URL check, not an egress boundary by itself. The default Hutch browser also uses
+    ``PinnedBrowserProxy``, which independently resolves and pins every HTTP(S)/WebSocket connection. Decisions here are cached
+    briefly for navigation policy; never remove the proxy and rely on this route check alone.
     """
 
     def __init__(self, resolver: Optional[Callable[..., list]] = None, ttl: float = 30.0,

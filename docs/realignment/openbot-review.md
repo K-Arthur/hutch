@@ -25,7 +25,7 @@ URL is deliberately absent from this repository.
   fingerprinted only the path, and browser typing only the selector. Hutch now binds the full
   write payload and reviewed file revision; browser typing binds text, URL and profile, and
   browser mutations always ask. Shell requests include effective timeout, workspace and
-  containment mode. These repairs do not finish browser account authority or sandboxed egress.
+  containment mode. HTTP(S)/WebSocket browser destinations are now pinned by a local proxy with Chromium fixture coverage. These repairs do not finish browser account authority, OS-level browser containment or live public egress validation.
 - The [computer gateway](https://github.com/CopilotKit/OpenBot/blob/59e28898238fe8510275dc02bc25cf9f4a90a77c/server/src/computer/gateway.ts)
   governs actions through server state, records decisions before effects, and validates human
   gesture names at runtime. Hutch's future control routes must similarly validate capabilities
@@ -64,8 +64,8 @@ cover the 4 MB snapshot bound, run-local immutable copy, API listing, changed-by
 and keyboard download at desktop/tablet/phone sizes.
 `tests/test_browser_profiles.py` verifies separate profiles, persisted typed contents despite
 caller mutation, mandatory outward review under auto/sticky grants, and URL-change refusal.
-These browser tests use fixtures, not a live signed-in account. Live browser egress and
-handoff, reviewed memory, delegation and subscription authentication remain open release gates.
+These browser tests use fixtures, not a live signed-in account or public destination. HTTP(S)/WebSocket egress is fixture-covered;
+live public destinations and other browser protocols remain open, as do handoff, reviewed memory, delegation and subscription authentication.
 
 The extra-mount scenario reproduced a Hutch defect: read-only mounts under `/tmp` were
 installed before the private `/tmp` mount and became invisible. Mounts now follow their parent
