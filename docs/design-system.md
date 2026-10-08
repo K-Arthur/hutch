@@ -259,7 +259,9 @@ Two honesty rules for the studio shell, both regression-tested:
   is `running`/`pending` — a `waiting_approval` run is waiting for a human, not computing.
 
 The working indicator is the shared **3-dot bounce** (5px dots, 1.3s loop, 0.15s stagger), `aria-hidden`
-because the status chip carries the state for assistive tech.
+because the status chip carries the state for assistive tech. Its label is "Working…", not the bot's
+name — the reference product dropped the name from its working status (v0.67.0) and the chat header
+already identifies the bot. See [research/reference-map.md](research/reference-map.md).
 
 ### Marketing site signature system (Oct 2026)
 

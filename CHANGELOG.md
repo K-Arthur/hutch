@@ -25,6 +25,11 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   The daemon badge no longer claims a hardcoded "live": health is established from `/api/health` with
   a heartbeat and degrades to `reconnecting`/`offline`. A 3-dot working indicator shows while a bot is
   actually computing (never for a waiting-for-human run). Contract tests in `tests/test_studio_shell.py`.
+- **Reference map** ([docs/research/reference-map.md](docs/research/reference-map.md)): verified
+  this session against the Grok Bot changelog (v0.68.1) and the two Open WebUI issues (#31656
+  closed, #30055 open) — observed patterns, evidence, Hutch equivalents, and the deliberate
+  decisions, with the unverified gaps stated. This pass' typing label follows the reference
+  (the bot's name is dropped from the working status).
 - **Marketing site signature system**: an intro stage, a poster wordmark the hutch character passes
   through (two exactly-registered layers with the subject between them), an aurora-light character with
   a geometric line face, neural connection lines, a live status pill, a scroll-linked receding hero

@@ -618,7 +618,7 @@ async function renderChatFeed(runId) {
     }
   }
   if (run.status === "running" || run.status === "pending") {
-    stream.insertAdjacentHTML("beforeend", typingHtml(run.bot_name || "the bot"));
+    stream.insertAdjacentHTML("beforeend", typingHtml());
   }
   stream.scrollTop = stream.scrollHeight;
 
@@ -686,10 +686,12 @@ function expandedStore(runId) {
 // Visual "the bot is working" indicator. Deliberately aria-hidden: the run status
 // chip and the bounded announcer convey state, so a screen reader is not told
 // "typing" on every poll. A waiting-for-human run is not computing, so it gets none.
-function typingHtml(botName) {
+// Reference: Grok Bot dropped the Bot's name from its working status (v0.67.0) — the
+// chat header already identifies the bot, so repeating it in a busy region is noise.
+function typingHtml() {
   return `<div class="typing" aria-hidden="true">
     <span class="typing-dots"><span></span><span></span><span></span></span>
-    <span class="typing-label">${esc(botName)} is working…</span>
+    <span class="typing-label">Working…</span>
   </div>`;
 }
 
