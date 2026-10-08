@@ -247,7 +247,7 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
   .gate-demo { padding: var(--space-4); }
   .gate-card { padding: var(--space-4); }
   .gate-demo-head .chip { white-space: normal; }
-  .gate-detail { font-size: 11px; }
+  .gate-detail { font-size: 12px; }
 }
 @media (max-width: 420px) {
   .nav-cta .btn.primary { display: none; }
@@ -286,10 +286,10 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .proof-legend li::before {
   counter-increment: legend; content: counter(legend, decimal-leading-zero);
   position: absolute; left: 0; top: 2px;
-  font-family: var(--font-mono); font-size: 10px; font-weight: 700; color: var(--color-semantic-brand);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--color-semantic-brand);
 }
 .proof-legend b { color: var(--color-semantic-text); font-weight: 650; }
-.proof-meta { margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--color-semantic-border-soft); font-family: var(--font-mono); font-size: 11px; line-height: 1.7; color: var(--color-semantic-text-3); }
+.proof-meta { margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--color-semantic-border-soft); font-family: var(--font-mono); font-size: 12px; line-height: 1.7; color: var(--color-semantic-text-3); }
 .proof-meta code { font-family: inherit; color: var(--color-semantic-text-2); }
 @media (max-width: 940px) {
   .proof-body { grid-template-columns: minmax(0, 1fr); }
@@ -308,15 +308,15 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .ledger-src a:hover { color: var(--color-semantic-brand); }
 .ledger-cat {
   padding: 3px 10px; border: 1px solid var(--color-semantic-border); border-radius: var(--radius-chip);
-  font-family: var(--font-mono); font-size: 11px; color: var(--color-semantic-text-3); white-space: nowrap;
+  font-family: var(--font-mono); font-size: 12px; color: var(--color-semantic-text-3); white-space: nowrap;
 }
 .ledger-body h3 { font-size: var(--text-size-xl); font-weight: 700; letter-spacing: -0.012em; margin-bottom: 10px; max-width: 32ch; text-wrap: balance; }
 .ledger-body > p { color: var(--color-semantic-text-2); font-size: var(--text-size-sm); max-width: 68ch; }
 .ledger-body code { font-family: var(--font-mono); font-size: 0.88em; color: var(--color-semantic-text); background: var(--color-semantic-panel); padding: 1px 6px; border-radius: 4px; }
-.ledger-fix { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: var(--space-4) !important; font-family: var(--font-mono); font-size: 11px; color: var(--color-semantic-text-3); }
+.ledger-fix { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: var(--space-4) !important; font-family: var(--font-mono); font-size: 12px; color: var(--color-semantic-text-3); }
 .ledger-fix > span {
   padding: 2px 9px; border: 1px solid var(--color-semantic-border); border-radius: var(--radius-chip);
-  color: var(--color-semantic-brand); font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+  color: var(--color-semantic-brand); font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
 }
 .ledger-fix code { background: transparent; border: 1px solid var(--color-semantic-border-soft); color: var(--color-semantic-text-2); padding: 1px 7px; }
 @media (max-width: 940px) { .ledger-row { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); } }
@@ -356,7 +356,7 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .gate-tag::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--color-semantic-warning); }
 .gate-action { font-size: var(--text-size-sm); color: var(--color-semantic-text); }
 .gate-action b { font-family: var(--font-mono); font-size: 0.94em; font-weight: 700; }
-.gate-detail { font-family: var(--font-mono); font-size: 11.5px; color: var(--color-semantic-text-3); margin-bottom: var(--space-4); }
+.gate-detail { font-family: var(--font-mono); font-size: 12px; color: var(--color-semantic-text-3); margin-bottom: var(--space-4); }
 .gate-actions { display: flex; gap: var(--space-3); flex-wrap: wrap; }
 .gate-result { font-size: var(--text-size-xs); line-height: 1.6; color: var(--color-semantic-text-2); background: var(--color-semantic-scrim-well); border: 1px solid var(--color-semantic-border-soft); padding: var(--space-3) var(--space-4); }
 .gate-result.denied { color: var(--color-semantic-danger); }
@@ -376,7 +376,7 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .spec-v i { font-style: normal; color: var(--color-semantic-text); font-weight: 650; }
 .runs-diagram { border: 1px solid var(--color-semantic-border); background: var(--color-semantic-surface); padding: var(--space-5); }
 .runs-diagram svg { width: 100%; height: auto; }
-.runs-diagram figcaption { margin-top: var(--space-3); text-align: right; font-family: var(--font-mono); font-size: 11px; color: var(--color-semantic-text-3); }
+.runs-diagram figcaption { margin-top: var(--space-3); text-align: right; font-family: var(--font-mono); font-size: 12px; color: var(--color-semantic-text-3); }
 .rd-frame { fill: none; stroke: var(--color-semantic-border-strong); stroke-dasharray: 5 5; }
 .rd-node { fill: var(--color-semantic-bg); stroke: var(--color-semantic-border); }
 .rd-node.rd-primary { stroke: var(--color-semantic-brand); }
@@ -384,11 +384,11 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .rd-note { fill: color-mix(in srgb, var(--color-semantic-brand) 8%, transparent); stroke: var(--color-semantic-border-soft); }
 .rd-label { font-family: var(--font-mono); font-size: 12px; fill: var(--color-semantic-text-3); letter-spacing: 0.05em; }
 .rd-node-t { font-family: var(--font-mono); font-size: 12.5px; font-weight: 700; fill: var(--color-semantic-text); }
-.rd-node-s { font-family: var(--font-mono); font-size: 10.5px; fill: var(--color-semantic-text-3); }
+.rd-node-s { font-family: var(--font-mono); font-size: 12px; fill: var(--color-semantic-text-3); }
 .rd-edge-solid { stroke: var(--color-semantic-border-strong); stroke-width: 1.5; fill: none; }
 .rd-edge-out { stroke: url(#rd-edge); stroke-width: 2; stroke-dasharray: 6 5; fill: none; }
-.rd-edge-t { font-family: var(--font-mono); font-size: 10.5px; fill: var(--color-semantic-info); }
-.rd-edge-t2 { font-family: var(--font-mono); font-size: 9.5px; fill: var(--color-semantic-text-3); }
+.rd-edge-t { font-family: var(--font-mono); font-size: 12px; fill: var(--color-semantic-info); }
+.rd-edge-t2 { font-family: var(--font-mono); font-size: 12px; fill: var(--color-semantic-text-3); }
 
 /* model-route pills */
 .routes {
@@ -430,7 +430,7 @@ code { overflow-wrap: anywhere; }
 .t-c { color: var(--color-semantic-text-3); }
 .t-ok { color: var(--color-semantic-brand); font-weight: 700; }
 .t-bad { color: var(--color-semantic-danger); font-weight: 700; }
-@media (max-width: 640px) { .term-body pre { font-size: 11.5px; } }
+@media (max-width: 640px) { .term-body pre { font-size: 12px; } }
 .limits { border: 1px solid var(--color-semantic-border); background: var(--color-semantic-surface); padding: var(--space-6) var(--space-6) var(--space-4); }
 .limits h3 { font-size: var(--text-size-lg); font-weight: 700; margin-bottom: var(--space-5); letter-spacing: -0.01em; }
 .limits li { position: relative; padding: 0 0 var(--space-5) 22px; color: var(--color-semantic-text-2); font-size: var(--text-size-xs); line-height: 1.65; max-width: 60ch; }
@@ -503,7 +503,7 @@ footer.site { border-top: 1px solid var(--color-semantic-border); background: va
 .footer-nav a:hover { color: var(--color-semantic-text); }
 .footer-h { font-family: var(--font-mono); font-size: var(--text-size-2xs); letter-spacing: 0.05em; color: var(--color-semantic-text-3); margin-bottom: 10px; }
 .footer-l { font-size: var(--text-size-xs); color: var(--color-semantic-text-3); line-height: 1.9; }
-.footer-base { border-top: 1px solid var(--color-semantic-border-soft); padding-top: var(--space-6); display: flex; justify-content: space-between; gap: var(--space-6); flex-wrap: wrap; font-family: var(--font-mono); font-size: 11px; color: var(--color-semantic-text-3); line-height: 1.8; }
+.footer-base { border-top: 1px solid var(--color-semantic-border-soft); padding-top: var(--space-6); display: flex; justify-content: space-between; gap: var(--space-6); flex-wrap: wrap; font-family: var(--font-mono); font-size: 12px; color: var(--color-semantic-text-3); line-height: 1.8; }
 @media (max-width: 768px) { .footer-main { grid-template-columns: minmax(0, 1fr); gap: var(--space-6); } }
 
 /* --------------------------------------------------------------- motion */
