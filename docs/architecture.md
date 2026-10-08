@@ -186,16 +186,19 @@ clients of the same model server. `HUTCH_MODEL_SLOTS` no longer widens inference
 
 ## What is deliberately NOT here (yet)
 
-Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, artifact versioning, browser handoff,
+Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, a cross-run artifact library, browser handoff,
 interactive remote supervision and Windows/macOS support — tracked in `docs/roadmap.md`.
 Experimental direct HTTPS pairing has no phone UI and is not a production support claim. The Linux shell has optional, fail-closed bubblewrap
 containment; it is not a VM and does not contain every tool or the browser.
 
 The conversation-first shell keeps the bot roster and configuration ownership in one place.
 Approvals appear in their transcript and in an explicit cross-bot drawer, using the same card and
-v1 decision command. Activity and run history are secondary monitoring surfaces; Fleet adds
-search/state filtering at ten bots. [Navigation rationale](realignment/navigation.md) records
-compatibility, evidence and the limits of the threshold heuristic.
+v1 decision command. The drawer offers opt-in browser alerts with generic text when the tab is
+backgrounded. They omit bot, chat and action details, open the Needs you drawer when selected,
+and work only while the Hutch tab stays open; there is no service-worker or push delivery.
+Activity and run history are secondary monitoring surfaces; Fleet adds search/state filtering at
+ten bots. [Navigation rationale](realignment/navigation.md) records compatibility, evidence and the
+limits of the threshold heuristic.
 
 Schema v11 commits resource invalidations with SQLite mutations through AFTER triggers. Typed
 `/api/v1/changes` pages/SSE replay identifiers from a durable epoch/committed-ID chain; gaps

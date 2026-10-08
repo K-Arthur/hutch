@@ -1,0 +1,48 @@
+{
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright": "1.63.0",
+  "provider_calls": 0,
+  "notification_api": "test stub; no operating-system permission or notification used",
+  "private_action_text_in_notice": false,
+  "duplicate_notices": false,
+  "notification_click_opens_review_queue": true,
+  "page_errors": [],
+  "captures": [
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        1000
+      ],
+      "overflow_px": 0,
+      "page_errors": [],
+      "screenshot_sha256": "d72bd6a9337bf38cb00b7921be9d66804ef5751b40443b7e92d987ec65ce145d"
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        768,
+        1024
+      ],
+      "overflow_px": 0,
+      "page_errors": [],
+      "screenshot_sha256": "01c645fa32b67d16eaf0b412a4586ea12309b0ad65f3e6349dce104da0e3e9d1"
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        390,
+        844
+      ],
+      "overflow_px": 0,
+      "page_errors": [],
+      "screenshot_sha256": "33e5ac15300f1778a77a11d7f40cfaf36642e3ed1c5451f781d13d3bed658e66"
+    }
+  ],
+  "source_sha256": {
+    "src/hutch/server/static/index.html": "9d36a4dbbeade15a6c626759d4f3a984b800b5c047f3ad26f3bb2a03e757850d",
+    "src/hutch/server/static/app.js": "fcb24ea11bc804caa7f1d40930fa6ca039620ef0fe0aa2839201c20bc9dcb137",
+    "src/hutch/server/static/style.css": "82fdeec8d5489d17e743e847a1a9d6279bb21221fb2c89770a1b2a5e931231df"
+  }
+}

@@ -202,6 +202,12 @@ An expired owner cannot create a new approval or reserve another provider call, 
 Approval arguments cannot be rewritten after admission. A decision for an expired/stopped
 execution is recorded as expired and cannot grant standing permission.
 
+Browser alerts are off until a person enables them from Needs you and grants the browser's
+notification permission. While the tab is open and backgrounded, a new pending approval or
+uncertain action can produce a generic notice; it contains no bot name, conversation text or action
+arguments. The click opens the local review queue. This is not push delivery and cannot reach a
+closed tab, sleeping host or disconnected device.
+
 ## Honest limits (read this)
 
 - **External runtimes** (`pi`, `opencode`) are disabled. They cannot currently satisfy Hutch's process ownership, approval,

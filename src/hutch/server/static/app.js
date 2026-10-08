@@ -561,6 +561,70 @@ let lastPendingCount = null;
 let attentionBots = [];
 let attentionDismissedCount = null;
 let unresolvedReceiptCount = 0;
+let lastNotificationPending = null;
+
+function browserAlertsEnabled() {
+  return store$.get("hutch:browser-alerts", false) && window.isSecureContext &&
+    typeof Notification !== "undefined" && Notification.permission === "granted";
+}
+
+function updateBrowserAlertsUi() {
+  const button = $("#browser-alerts-toggle"), status = $("#browser-alerts-status");
+  if (!button || !status) return;
+  if (!window.isSecureContext || typeof Notification === "undefined") {
+    button.disabled = true;
+    status.textContent = "This browser does not support alerts for this connection.";
+    return;
+  }
+  const enabled = browserAlertsEnabled();
+  button.textContent = enabled ? "Turn off alerts" : "Enable browser alerts";
+  button.disabled = !enabled && Notification.permission === "denied";
+  status.textContent = enabled
+    ? "On while Hutch is open. Alerts show no chat, bot or action details."
+    : Notification.permission === "denied"
+      ? "Alerts are blocked by your browser. Change this site’s notification permission to enable them."
+      : "Optional alerts while this page is in the background. Hutch must stay open; no chat or action text is included.";
+}
+
+$("#browser-alerts-toggle")?.addEventListener("click", async () => {
+  if (browserAlertsEnabled()) {
+    store$.set("hutch:browser-alerts", false);
+    updateBrowserAlertsUi();
+    return;
+  }
+  if (!window.isSecureContext || typeof Notification === "undefined" || Notification.permission === "denied") {
+    updateBrowserAlertsUi();
+    return;
+  }
+  try {
+    const permission = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+    if (permission === "granted") store$.set("hutch:browser-alerts", true);
+  } catch { /* browser permission APIs vary; the UI reports the resulting state */ }
+  updateBrowserAlertsUi();
+});
+
+function notifyNewAttention(approvals, receipts) {
+  const current = [approvals, receipts];
+  if (lastNotificationPending === null) {
+    lastNotificationPending = current;
+    return;
+  }
+  const increased = current.some((value, index) => value > lastNotificationPending[index]);
+  lastNotificationPending = current; // set before construction to deduplicate overlapping refreshes
+  if (!increased) return;
+  if (!document.hidden || !browserAlertsEnabled()) return;
+  try {
+    const notice = new Notification("Hutch needs you", {
+      body: "An approval or action outcome is waiting for review.",
+      tag: "hutch-needs-you",
+    });
+    notice.onclick = () => {
+      window.focus();
+      if (!needsYouDialog.open) void openNeedsYou();
+      notice.close();
+    };
+  } catch { /* an OS/browser notification failure must not affect work or approvals */ }
+}
 
 async function refreshBadge() {
   try {
@@ -587,9 +651,12 @@ async function refreshBadge() {
     if (previousPendingCount !== null && n > previousPendingCount) {
       announce(unresolvedReceiptCount ? `${n} items need your review.` : `${n} approval${n === 1 ? "" : "s"} waiting for you.`);
     }
+    notifyNewAttention(stats.pending_approvals || 0, unresolvedReceiptCount);
     lastPendingCount = n;
   } catch {}
 }
+
+updateBrowserAlertsUi();
 
 $('#restore-report-open').addEventListener('click', async () => {
   const trigger = $('#restore-report-open');

@@ -1039,6 +1039,9 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .needs-you-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-3); }
 .needs-you-head h2 { margin: 0; font-size: var(--fs-xl); }
 .needs-you-head button { font-size: 24px; }
+.browser-alerts { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-3); margin: var(--s-3) 0; border: 1px solid var(--line); border-radius: var(--r-md); }
+.browser-alerts p { margin: var(--s-1) 0 0; }
+.browser-alerts .btn { flex: 0 0 auto; min-height: 44px; }
 .needs-you-history { margin-top: var(--s-5); }
 .needs-you-history > summary { cursor: pointer; color: var(--text-2); padding: var(--s-3) 0; }
 .needs-you .approval-card-chat { margin-top: var(--s-4); }
@@ -1048,6 +1051,8 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .fleet-filters { display: grid; grid-template-columns: minmax(0, 1fr) 180px; gap: var(--s-4); margin-bottom: var(--s-3); }
 @media (max-width: 640px) {
   .needs-you { padding: var(--s-4); }
+  .browser-alerts { align-items: flex-start; flex-direction: column; }
+  .browser-alerts .btn { width: 100%; }
   .fleet-filters { grid-template-columns: 1fr; }
   .roster-entry { grid-template-columns: minmax(0, 1fr) 44px; }
   .roster-settings, .ws-nav button { min-height: 44px; }

@@ -4,8 +4,10 @@ Schema v15 adds chat-scoped reference proposals, exact-revision human review, ex
 bounded FTS5 recall and retained review history. Memory disabled in bot settings also disables
 runtime use while retaining human management. Facts are not automatically injected into system
 prompts. Large clipped tool outputs now have run-scoped version records and SHA-256-verified
-downloads. Stable Hutch-managed workspaces, cross-run artifact sharing, standing tasks,
-notifications, bounded delegation and permanent scoped deletion/export remain required realignment work.
+downloads. Optional generic browser alerts work while the Hutch tab is open; they do not provide
+background push. Stable Hutch-managed workspaces, cross-run artifact sharing, standing tasks,
+webhook/push notifications, bounded delegation and permanent scoped deletion/export remain required
+realignment work.
 
 ## Phase 0 — MVP (shipped, Oct 2026)
 
@@ -34,7 +36,7 @@ notifications, bounded delegation and permanent scoped deletion/export remain re
 - [ ] Configurable policy packs per bot (site-specific allowlists, egress domains)
 - [ ] Strict Offline end-to-end gate. Experimental Linux worker isolation uses fresh bubblewrap network/PID namespaces and a per-run Unix-socket model broker; this host probe and a fixture-provider request pass. No live local model journey is verified, and model-server provenance remains outside the boundary. Local explicitly means local inference with ordinary tool policy.
 - [ ] Run retries with backoff + idempotency keys for external actions
-- [ ] Approval notifications (desktop notification / webhook) beyond the dashboard badge
+- [ ] Notifications beyond tab-open browser alerts (webhook, service-worker push and closed-tab delivery)
 - [ ] Snapshot/export of bot definitions (YAML in/out) for sharing
 - [ ] Secret per-bot credentials via OS keyring (referenced, never in prompts)
 
@@ -68,7 +70,7 @@ notifications, bounded delegation and permanent scoped deletion/export remain re
   event pages and snapshot reconciliation are present. Schema v11 adds transactional resource invalidations,
   epoch/committed-ID replay, canonical approval summaries and targeted UI refresh. Schema v12 adds
   recoverable bounded JSONL delivery, visible errors and FULL WAL synchronization. Automatic event retention,
-  workspaces/artifacts, capability verification, and idempotent resume/bot-run commands remain open.
+  stable Hutch-managed workspaces, cross-run artifact sharing, capability verification, and idempotent resume/bot-run commands remain open.
 - **Provider compatibility: route-level matrix implemented.** `GET /api/v1/compatibility` records supported,
   experimental, unavailable and blocked routes with dated sources, request fields Hutch sends/omits and fixture/live
   verification limits. Exact OpenAI host matching now selects its token-limit field. Per-connection/model capability

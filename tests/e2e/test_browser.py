@@ -818,6 +818,81 @@ def test_needs_you_pages_large_queues_without_hiding_requests(browser, live, mon
     page.close()
 
 
+def test_browser_alerts_are_opt_in_private_and_open_the_review_queue(browser, live):
+    from hutch.models import ApprovalRequest, Run
+    base, app = live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="alert-bot", model="ollama/qwen3:4b", tools=[]))
+    page = browser.new_page(viewport={"width": 1440, "height": 1000}, reduced_motion="reduce")
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.add_init_script("""(() => {
+      window.__notifications = [];
+      class TestNotification {
+        constructor(title, options) { this.title = title; this.options = options; window.__notifications.push(this); }
+        close() { this.closed = true; }
+        click() { if (this.onclick) this.onclick(); }
+        static permission = 'default';
+        static async requestPermission() { this.permission = 'granted'; return this.permission; }
+      }
+      window.Notification = TestNotification;
+    })();""")
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/browser-alerts"
+    out.mkdir(parents=True, exist_ok=True)
+    page.goto(base + "/#/chat")
+    page.locator("#needs-you-open").click()
+    page.locator("#browser-alerts-status").get_by_text("Optional alerts", exact=False).wait_for()
+    page.locator("#browser-alerts-toggle").click()
+    page.locator("#browser-alerts-status").get_by_text("On while Hutch is open", exact=False).wait_for()
+    assert page.evaluate("Notification.permission") == "granted"
+    page.locator("#needs-you-close").click()
+    page.evaluate("Object.defineProperty(document, 'hidden', {configurable:true, get:()=>true})")
+
+    run = store.create_run(Run(bot_id=bot.id, prompt="private approval context", status=RunStatus.waiting_approval))
+    store.create_approval(ApprovalRequest(
+        run_id=run.id, bot_id=bot.id, tool="files", action="Review private report content",
+        detail={"path": "private.txt", "content": "must never appear in an OS notification"},
+    ))
+    wait_for(lambda: page.evaluate("window.__notifications.length === 1"))
+    notice = page.evaluate("({title:__notifications[0].title, body:__notifications[0].options.body, tag:__notifications[0].options.tag})")
+    assert notice == {
+        "title": "Hutch needs you",
+        "body": "An approval or action outcome is waiting for review.",
+        "tag": "hutch-needs-you",
+    }
+    assert "private" not in json.dumps(notice).lower()
+    page.evaluate("Promise.all([refreshBadge(), refreshBadge()])")
+    assert page.evaluate("window.__notifications.length") == 1, "overlapping refreshes must not duplicate an alert"
+
+    page.evaluate("window.__notifications[0].click()")
+    page.locator("#needs-you[open]").wait_for()
+    page.locator("#needs-you [data-approval-card]").wait_for()
+    records = []
+    for name, width, height in (("desktop", 1440, 1000), ("tablet", 768, 1024), ("phone", 390, 844)):
+        page.set_viewport_size({"width": width, "height": height})
+        page.screenshot(path=str(out / f"{name}.png"), full_page=True, animations="disabled")
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow <= 1
+        records.append({"viewport": name, "size": [width, height], "overflow_px": overflow,
+                        "page_errors": errors,
+                        "screenshot_sha256": hashlib.sha256((out / f"{name}.png").read_bytes()).hexdigest()})
+    page.locator("#browser-alerts-toggle").click()
+    page.locator("#browser-alerts-status").get_by_text("Optional alerts", exact=False).wait_for()
+    assert page.evaluate("JSON.parse(localStorage.getItem('hutch:browser-alerts'))") is False
+    (out / "results.json").write_text(json.dumps({
+        "browser": browser.browser_type.name, "browser_version": browser.version,
+        "playwright": package_version("playwright"), "provider_calls": 0,
+        "notification_api": "test stub; no operating-system permission or notification used",
+        "private_action_text_in_notice": False, "duplicate_notices": False,
+        "notification_click_opens_review_queue": True, "page_errors": errors, "captures": records,
+        "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                          for name in ("src/hutch/server/static/index.html", "src/hutch/server/static/app.js",
+                                       "src/hutch/server/static/style.css")},
+    }, indent=2) + "\n")
+    assert not errors, errors
+    page.close()
+
+
 def test_needs_you_drawer_preserves_review_focus_and_reports_refresh_failure(browser, live):
     base, app = live
     bot = app.state.store.create_bot(Bot(name="drawer-bot", model="mock/demo", tools=["files", "memory"],
