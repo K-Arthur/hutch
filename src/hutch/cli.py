@@ -238,7 +238,7 @@ def bot_create(
                                         help="builtin | mock | pi | opencode"),
     inference_mode: InferenceMode = typer.Option(
         InferenceMode.hybrid, "--inference-mode",
-        help="local model routes only (services/tools may still use network traffic) | hybrid",
+        help="hybrid | local model routes (tools may use the network) | offline (host isolation verified at run time)",
     ),
     tools: str = typer.Option("shell,files,memory", "--tools",
                               help=f"comma list; groups shell/files/memory/browser; all: {','.join(ALL_TOOL_NAMES)}"),
@@ -292,7 +292,7 @@ def bot_create(
     bot.model = model
     from .providers.registry import validate_inference_mode
     try:
-        validate_inference_mode(inference_mode, model)
+        validate_inference_mode(inference_mode, model, base_url=base_url)
     except ValueError as exc:
         err.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from None
@@ -312,6 +312,13 @@ def bot_create(
                         daily_cost_cap_usd=daily_cost_cap_usd)
     if cron:
         bot.schedule = Schedule(cron=cron, timezone=tz, catch_up=catch_up)
+    from .providers.registry import validate_offline_bot
+    try:
+        validate_offline_bot(bot, check_host=inference_mode is InferenceMode.offline,
+                             refresh_host=inference_mode is InferenceMode.offline)
+    except ValueError as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from None
     store.create_bot(bot)
     info = TEMPLATE_INFO.get(template or "")
     if info and info.needs_folder and not bot.workdir:
@@ -382,7 +389,7 @@ def bot_update(
     name: str = typer.Argument(...),
     model: Optional[str] = typer.Option(None, "--model"),
     inference_mode: Optional[InferenceMode] = typer.Option(
-        None, "--inference-mode", help="local model routes only (services/tools may still use network) | hybrid"),
+        None, "--inference-mode", help="hybrid | local (local model routes; tools may use network) | offline (host-verified)"),
     instructions: Optional[str] = typer.Option(None, "--instructions"),
     description: Optional[str] = typer.Option(None, "--description"),
     approval: Optional[ApprovalMode] = typer.Option(None, "--approvals"),
@@ -410,7 +417,7 @@ def bot_update(
     proposed_mode = inference_mode if inference_mode is not None else bot.inference_mode
     from .providers.registry import validate_inference_mode
     try:
-        validate_inference_mode(proposed_mode, proposed_model)
+        validate_inference_mode(proposed_mode, proposed_model, base_url=bot.base_url)
     except ValueError as exc:
         err.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from None
@@ -443,6 +450,13 @@ def bot_update(
         if cron: sched = sched.model_copy(update={"cron": cron})
         if tz: sched = sched.model_copy(update={"timezone": tz})
         bot.schedule = sched
+    from .providers.registry import validate_offline_bot
+    try:
+        validate_offline_bot(bot, check_host=inference_mode is InferenceMode.offline,
+                             refresh_host=inference_mode is InferenceMode.offline)
+    except ValueError as exc:
+        err.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from None
     store.upsert_bot(bot)
     console.print(f"[green]updated[/green] {bot.name}")
 

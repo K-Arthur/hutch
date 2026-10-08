@@ -269,6 +269,8 @@ def test_versioned_connections_schedules_and_capabilities_are_typed_and_secret_f
     assert schedule["next_fire"] and schedule["last_dispatched"]
 
     capabilities = {row["id"]: row for row in client.get("/api/v1/capabilities").json()}
+    assert capabilities["strict_offline"]["status"] in {"experimental", "unavailable"}
+    assert capabilities["strict_offline"]["verification"] == "network_pid_namespace_tcp_unix_socket_probe"
     assert capabilities["remote_pairing"]["status"] == "experimental"
     assert capabilities["phone_control"]["status"] == "unavailable"
     assert capabilities["external_runtimes"]["status"] == "unavailable"

@@ -19,7 +19,7 @@ dashboard, or the REST API, and live in `hutch.db`.
 | `description` | str | "" | one-liner shown in dashboards |
 | `instructions` | str | "" | standing system-prompt guidance, prepended every run |
 | `model` | provider/model | `mock/demo` | see model specs below |
-| `inference_mode` | enum | `hybrid` | `local` allows only classified local model routes and blocks known hosted routes/fallbacks; `hybrid` permits local and hosted routes. This is not strict offline mode. |
+| `inference_mode` | enum | `hybrid` | `hybrid` permits local and hosted routes; `local` restricts model routes to classified local providers while tools may still use the network; experimental `offline` requires fresh host-verified Linux network/PID namespaces, loopback model routes through Hutch's private Unix-socket broker, and strict shell containment when shell is enabled. |
 | `base_url` | str? | null | override endpoint for OpenAI-compatible providers |
 | `runtime` | enum | `builtin` | `builtin` · `mock`; legacy values `pi` and `opencode` are retained but fail closed as unsupported |
 | `tools` | list | `["shell","files","memory"]` | allowlist; groups expand (see below) |
@@ -81,8 +81,20 @@ allowed local route; change the model and mode together when moving a bot. Local
 blocks hosted per-message choices and fallback/escalation calls. It blocks currently recognized
 Ollama cloud-tagged names, but cannot prove that a configured local model service never proxies
 requests. Tools retain their own network policy. Use Hybrid for hosted model destinations, and
-review the selected connection and tools before a run. Strict offline enforcement is not yet
-available.
+review the selected connection and tools before a run.
+
+`offline` is a host-gated experiment, not a property inferred from a model name or `localhost` URL.
+On Linux, Hutch runs a fresh bubblewrap network/PID namespace probe: both loopback and host-interface
+TCP must be unreachable, only namespace processes should appear in `/proc`, and a private Unix socket
+must remain reachable. A per-run Unix-socket broker forwards only to its configured numeric loopback
+model endpoints. systemd user scopes apply memory/task caps, not network filtering. Offline routes
+must use Hutch's builtin/mock runtime and recognized local model providers. Hutch removes browser
+and web-fetch tools, blocks hosted overrides/fallbacks, scrubs provider-key/proxy/custom-endpoint
+environment variables, masks saved provider connection/key files from the worker, and requires
+strict bubblewrap containment for shell tools. Thread/in-process execution is refused. See
+`GET /api/v1/capabilities` for the host result. A local inference daemon runs outside Hutch's
+worker boundary and may itself make network requests. On hosts where the check fails, create/update
+and execution both refuse Offline; changing the bot back to Local or Hybrid remains available.
 
 ## Tools
 

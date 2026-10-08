@@ -7,8 +7,11 @@ Skipped automatically when Playwright or its Chromium build is not installed:
 
 from __future__ import annotations
 
+import json
 import threading
 import time
+from importlib.metadata import version as package_version
+from pathlib import Path
 
 import pytest
 
@@ -401,22 +404,72 @@ def test_bot_limits_can_be_saved_from_the_phone_settings(browser, live):
     ctx.close()
 
 
-def test_model_route_setting_is_explained_and_saved_on_phone(browser, live):
+def test_model_route_setting_explains_host_gated_offline_mode_and_saves_on_phone(browser, live):
     base, app = live
     store = app.state.store
     store.create_bot(Bot(name="route-bot", model="mock/demo", approval_mode=ApprovalMode.auto))
     ctx = browser.new_context(viewport={"width": 390, "height": 844})
     page = ctx.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda exc: errors.append(str(exc)))
     page.goto(f"{base}/#/bot/route-bot")
     mode = page.locator('#form-model select[name="inference_mode"]')
     mode.wait_for()
     assert mode.input_value() == "hybrid"
-    assert page.get_by_text("Strict offline mode is not available yet.").is_visible()
+    offline_option = mode.locator('option[value="offline"]')
+    offline_capability = next(row for row in page.request.get(f"{base}/api/v1/capabilities").json()
+                              if row["id"] == "strict_offline")
+    assert "Strict offline" in offline_option.inner_text()
+    disabled_state = offline_option.evaluate("option => ({disabled: option.disabled, attribute: option.getAttribute('disabled'), html: option.outerHTML})")
+    expected_disabled = offline_capability["status"] == "unavailable"
+    if disabled_state["disabled"] != expected_disabled:
+        ctx.close()
+    assert disabled_state["disabled"] == expected_disabled, (offline_capability, disabled_state)
+    assert page.locator("#inference-mode-help").is_visible()
+    assert "separate model service" in page.locator("#inference-mode-help").inner_text()
+
+    capture_dir = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/strict-offline"
+    capture_dir.mkdir(parents=True, exist_ok=True)
+    captures = []
+    sizes = {"desktop": (1440, 1000), "tablet": (900, 1024), "phone": (390, 844)}
+    ctx.tracing.start(screenshots=True, snapshots=True, sources=False)
+    for size, (width, height) in sizes.items():
+        page.set_viewport_size({"width": width, "height": height})
+        page.wait_for_timeout(100)
+        page.screenshot(path=str(capture_dir / f"settings-{size}.png"), full_page=True, animations="disabled")
+        metrics = page.evaluate("""() => ({
+            viewport: [innerWidth, innerHeight],
+            document: [document.documentElement.scrollWidth, document.documentElement.scrollHeight],
+            settingsVisible: Boolean(document.querySelector('#form-model'))
+        })""")
+        assert metrics["document"][0] - metrics["viewport"][0] <= 1
+        captures.append({"size": size, **metrics, "strictOfflineDisabled": disabled_state["disabled"],
+                         "capabilityStatus": offline_capability["status"]})
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    mode.scroll_into_view_if_needed()
+    assert mode.is_visible() and page.locator("#inference-mode-help").is_visible()
+    page.screenshot(path=str(capture_dir / "settings-phone-routing.png"), animations="disabled")
+    ctx.tracing.stop(path=str(capture_dir / "settings-trace.zip"))
+    captures.append({"size": "phone-routing", "viewport": [390, 844], "routingVisible": mode.is_visible(),
+                     "helpVisible": page.locator("#inference-mode-help").is_visible()})
+
     mode.select_option("local")
     page.locator('#form-model button[type="submit"]').click()
     wait_for(lambda: store.get_bot("route-bot").inference_mode.value == "local")
     assert page.locator("#form-model").is_visible()
     assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+    assert not errors, errors
+    (capture_dir / "settings-capture.json").write_text(json.dumps({
+        "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_model_route_setting_explains_host_gated_offline_mode_and_saves_on_phone",
+        "browser": browser.browser_type.name,
+        "browserVersion": browser.version,
+        "playwrightVersion": package_version("playwright"),
+        "capability": offline_capability,
+        "captures": captures,
+        "pageErrors": errors,
+        "scenario": "synthetic bot settings; no provider or model call",
+    }, indent=2) + "\n", encoding="utf-8")
     ctx.close()
 
 

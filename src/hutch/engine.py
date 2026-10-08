@@ -91,6 +91,7 @@ class Engine:
         if self.executor == "process" and not procguard.pidfd_available():
             raise RuntimeError("process execution requires Linux /proc boot identity and pidfd signalling support")
         self._procs: dict[str, "subprocess.Popen"] = {}
+        self._offline_brokers: dict[str, object] = {}
         self._hb: Optional[threading.Thread] = None
         self._hb_stop = threading.Event()
         self._threads: dict[str, threading.Thread] = {}
@@ -155,14 +156,33 @@ class Engine:
                 claimed = self.store.claim_run(run.id, self.owner_id, self.lease_seconds, max_live=self.max_concurrent)
                 if claimed is None:
                     continue          # another process took it, this bot is busy elsewhere, or the global cap is reached
-                self._start_worker(bot, claimed)
-                started += 1
+                if self._start_worker(bot, claimed):
+                    started += 1
         return started
 
-    def _start_worker(self, bot: Bot, run: Run) -> None:
+    def _start_worker(self, bot: Bot, run: Run) -> bool:
+        offline = bot.inference_mode.value == "offline"
+        if offline:
+            from .providers.registry import validate_offline_bot
+            try:
+                validate_offline_bot(bot, model_override=run.model_override, refresh_host=True)
+                if self.executor != "process":
+                    raise ValueError("Strict offline runs require the supervised process executor")
+            except ValueError as exc:
+                self._fail_offline_start(run, str(exc))
+                return False
         if self.executor == "process":
-            self._start_process(run)
-            return
+            try:
+                self._start_process(run, bot=bot)
+            except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+                broker = self._offline_brokers.pop(run.id, None)
+                if broker is not None:
+                    broker.close()
+                if not offline:
+                    raise
+                self._fail_offline_start(run, f"could not start the isolated worker: {exc}")
+                return False
+            return True
         if run.model_override:
             bot = bot.model_copy(update={"model": run.model_override})    # this run only; the stored bot is unchanged
         cancel = threading.Event()
@@ -172,16 +192,33 @@ class Engine:
                              name=f"hutch-run-{run.id}", daemon=True)
         self._threads[run.id] = t
         t.start()
+        return True
+
+    def _fail_offline_start(self, run: Run, reason: str) -> None:
+        try:
+            self.store.transition_run(
+                run.id, RunStatus.failed, fence=run.fence, exit_reason="offline_unavailable", error=reason,
+                event={"reason": "offline_unavailable", "error": reason}, cancel_wins=True)
+        except (IllegalTransition, LeaseLost, KeyError):
+            pass
 
     # ------------------------------------------------------ process executor
 
-    def _start_process(self, run: Run) -> None:
+    def _start_process(self, run: Run, *, bot: Bot | None = None) -> None:
         """Start the run in its own process and session, and watch it. The supervisor's only jobs are to start it, to escalate a
         stop that is ignored, and to recover the run at once if the worker dies without finishing it."""
         log_dir = self.config.run_dir(self._bot_name(run), run.id)
         log_dir.mkdir(parents=True, exist_ok=True)
         env = dict(os.environ, HUTCH_STATE_DIR=str(self.config.state_dir), HUTCH_LEASE_SECONDS=str(self.lease_seconds))
         argv = [sys.executable, "-m", "hutch.worker", run.id, "--owner", self.owner_id, "--fence", str(run.fence)]
+        if bot is not None and bot.inference_mode.value == "offline":
+            from .offline import OfflineBrokerSet
+            from .providers.registry import offline_endpoints_for_bot
+            brokers = OfflineBrokerSet(offline_endpoints_for_bot(bot, model_override=run.model_override))
+            brokers.start()
+            self._offline_brokers[run.id] = brokers
+            argv = sandbox.offline_worker_argv(argv, env, str(self.config.state_dir), self.lease_seconds,
+                                               brokers.directory)
         with open(log_dir / "worker.log", "ab") as log:
             proc = subprocess.Popen(argv, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
         identity = procguard.identity(proc.pid)
@@ -239,6 +276,9 @@ class Engine:
             if not left:
                 self.store.close_procs(run.id)
         self._procs.pop(run.id, None)
+        broker = self._offline_brokers.pop(run.id, None)
+        if broker is not None:
+            broker.close()
 
     @staticmethod
     def _signal_group(proc: "subprocess.Popen", sig: int) -> None:
@@ -252,6 +292,8 @@ class Engine:
                      origin: str = "manual:cli", rehearsal: bool = False) -> Run:
         """Create + execute a run in the calling thread. Goes through the same claim as everything else, so it cannot start
         beside another live run of the same bot (it used to bypass that rule)."""
+        if bot.inference_mode.value == "offline":
+            raise ValueError("Strict offline needs a supervised process worker; use `hutch run`, `hutch serve` or `hutch daemon`")
         run = self.submit(bot, prompt, missed_windows=missed_windows, origin=origin, rehearsal=rehearsal)
         claimed = self.store.claim_run(run.id, self.owner_id, self.lease_seconds, max_live=self.max_concurrent)
         if claimed is None:

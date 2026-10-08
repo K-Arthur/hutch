@@ -2198,6 +2198,19 @@ async function refreshApprovals() {
 async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) {
   const b = await api(`/bots/${encodeURIComponent(name)}`);
   const factsPage = await api(`/v1/bots/${encodeURIComponent(name)}/facts?all_scopes=true&limit=20&offset=${factOffset}&include_archived=${showArchivedFacts}`);
+  let offlineCapability = { status: "unavailable", reason: "Host isolation could not be verified." };
+  try {
+    const capabilities = await api("/v1/capabilities");
+    offlineCapability = capabilities.find(capability => capability.id === "strict_offline") || offlineCapability;
+  } catch { /* strict offline stays unavailable unless the host check answers */ }
+  const offlineReady = ["supported", "experimental"].includes(offlineCapability.status);
+  const offlineLabel = offlineCapability.status === "experimental"
+    ? "Strict offline · experimental"
+    : offlineReady ? "Strict offline · verified on this host" : "Strict offline · unavailable on this host";
+  const offlineDisabled = !offlineReady ? "disabled" : "";
+  const offlineReason = offlineReady
+    ? "Hutch verified that the isolated worker cannot reach tested host TCP listeners and sees only its own processes; configured model traffic uses a private per-run Unix-socket broker. Browser and web tools are removed, and shell requires the strict sandbox. The separate model service itself may still use the network."
+    : `Hutch could not verify worker network isolation (${offlineCapability.reason}). Local model routes alone do not make a run offline; the separate model service may still use the network.`;
   setTopContext(`
     <div class="ctx-id">
       ${botAvatar(b.name, 30)}
@@ -2232,18 +2245,19 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             <div class="form-grid row2">
               <label class="field">Default model
                 <input type="text" name="model" value="${esc(b.model || "")}">
-                <span class="hint">Used for new messages and scheduled runs. Local routes block hosted models and fallbacks; Hybrid allows both. Your chat model choice follows the same rule.</span>
+                <span class="hint">Hybrid allows local and hosted routes; Local blocks hosted models but keeps tools online. Offline requires a host that verifies worker network isolation.</span>
               </label>
               <label class="field">Runtime
                 <input type="text" disabled value="${esc(b.runtime || "builtin")}">
               </label>
             </div>
             <label class="field">Model routing
-              <select name="inference_mode">
+              <select name="inference_mode" aria-describedby="inference-mode-help">
                 <option value="hybrid" ${(b.inference_mode || "hybrid") === "hybrid" ? "selected" : ""}>Hybrid · local and hosted routes</option>
                 <option value="local" ${b.inference_mode === "local" ? "selected" : ""}>Local model routes only</option>
+                <option value="offline" ${b.inference_mode === "offline" ? "selected" : ""} ${offlineDisabled}>${offlineLabel}</option>
               </select>
-              <span class="hint">Local routes do not guarantee offline operation: a local service may proxy requests, and tools may use the network. Strict offline mode is not available yet.</span>
+              <span class="hint" id="inference-mode-help">${esc(offlineReason)}</span>
             </label>
             <div class="btn-row"><button class="btn primary small" type="submit">Save model settings</button></div>
           </form>

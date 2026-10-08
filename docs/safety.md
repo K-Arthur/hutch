@@ -251,5 +251,17 @@ hosted model choices, known hosted fallback routes, and recognized Ollama cloud-
 `hybrid` permits local and hosted model routes under existing destination review and budget controls.
 This is provider/model-name classification, not strict-offline enforcement: a configured local
 endpoint may proxy requests, unknown cloud naming may evade a name-based check, and network-capable
-tools retain their own policy. Strict offline and separately governed local-inference-plus-online-tools
-modes remain pending. A local label or loopback address alone does not prove an offline backend.
+tools retain their own policy. The separate experimental `offline` mode is host-gated. Hutch tests
+a fresh bubblewrap network/PID namespace against loopback and a host-interface TCP listener, while
+confirming a mounted Unix socket is reachable and checking the isolated PID view. Workers receive no
+provider keys, proxy variables, or custom endpoint environment overrides; saved `connections.json`
+and `keys/` are hidden behind read-only empty mounts while SQLite run state stays available. A private
+per-run Unix-socket broker forwards HTTP only
+to configured numeric loopback model endpoints; browser and web-fetch tools are omitted, and shell
+requires the existing bubblewrap no-network sandbox. systemd scopes apply resource caps only. A
+failed capability check refuses both configuration and run start. This Linux development host now
+passes the local TCP/Unix-socket probe, and a fixture provider completed a request from an isolated
+worker; no public destination or live model was contacted. The separately running local model
+service remains outside Hutch's worker boundary and may itself access the network. Hutch does not
+claim that a local model server or model label proves inference provenance. `GET /api/v1/capabilities`
+reports the current host result.

@@ -51,7 +51,12 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
     if enabled and ctx is not None:
         stored_bot = ctx.store.get_bot(ctx.bot.id)
         enabled = bool(stored_bot and stored_bot.memory_enabled)
-    for name in expand_tools(names):
+    expanded = expand_tools(names)
+    if ctx is not None and getattr(getattr(ctx.bot, "inference_mode", None), "value", "") == "offline":
+        # Model requests use the run-scoped local broker; web and browser tools
+        # cannot create additional host-network requests from this worker.
+        expanded = [name for name in expanded if name not in {"web_fetch", "browser"}]
+    for name in expanded:
         if name in {'remember', 'recall'} and not enabled:
             continue
         if name == "browser":

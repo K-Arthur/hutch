@@ -455,9 +455,9 @@ run: stays stopping until process exits</code></pre>
         <div class="get-status" role="list">
           <div class="get-row" role="listitem"><span class="gr-k">Public access</span><span class="gr-v">Private source; no anonymous download or public release</span><span class="chip"><span class="chip-dot warn" aria-hidden="true"></span>Unavailable</span></div>
           <div class="get-row" role="listitem"><span class="gr-k">Supported</span><span class="gr-v">Linux executor, local SQLite state, deterministic offline mock and fixture-tested control flows</span><span class="chip"><span class="chip-dot ok" aria-hidden="true"></span>Supported</span></div>
-          <div class="get-row" role="listitem"><span class="gr-k">Experimental</span><span class="gr-v">Direct hosted-provider connections and local inference integrations; live provider/model checks vary</span><span class="chip"><span class="chip-dot info" aria-hidden="true"></span>Experimental</span></div>
+          <div class="get-row" role="listitem"><span class="gr-k">Experimental</span><span class="gr-v">Direct hosted-provider connections, local inference, and host-verified Strict Offline worker isolation; live provider/model checks vary</span><span class="chip"><span class="chip-dot info" aria-hidden="true"></span>Experimental</span></div>
           <div class="get-row" role="listitem"><span class="gr-k">Unavailable</span><span class="gr-v">macOS/Windows executor, remote phone control, browser handoff, OpenCode/Pi harnesses and ChatGPT sign-in</span><span class="chip"><span class="chip-dot warn" aria-hidden="true"></span>Unavailable</span></div>
-          <div class="get-row" role="listitem"><span class="gr-k">Data movement</span><span class="gr-v">Prompts go to the selected hosted endpoint; network tools also contact their configured destinations</span><span class="chip">Per configuration</span></div>
+          <div class="get-row" role="listitem"><span class="gr-k">Data movement</span><span class="gr-v">Hosted prompts go to the selected endpoint; local services and configured tools may have their own network access</span><span class="chip">Per configuration</span></div>
         </div>
       </div>
       <div class="get-term">
@@ -465,7 +465,7 @@ run: stays stopping until process exits</code></pre>
           <span>What is available today</span>
         </div>
         <div class="term-body">
-          <p><b>Offline preview:</b> the deterministic mock exercises the local run and approval flow without a model account.</p>
+          <p><b>No-model preview:</b> the deterministic mock exercises the local run and approval flow without a model account; this is not strict offline enforcement.</p>
           <p><b>Linux host:</b> required for the supported executor and optional bubblewrap isolation.</p>
           <p><b>Public installation:</b> not available while source access is private.</p>
           <p><a href="#proof">View the labelled product capture</a> or <a href="#runs">read the support boundaries</a>.</p>
@@ -485,7 +485,7 @@ run: stays stopping until process exits</code></pre>
         </details>
         <details class="faq-item">
           <summary>What actually leaves my machine?</summary>
-          <p>Hutch stores its control state locally. Settings can limit a bot to local model routes or choose Hybrid; neither setting guarantees offline operation. A local service may proxy requests, and network tools connect to their own destinations. Review the selected connection and tools before running a task.</p>
+          <p>Hutch stores its control state locally. Local model routes keep configured tools online; Hybrid also permits hosted model routes. Experimental Strict Offline gives the worker no host TCP access and routes model traffic through a private socket to a configured loopback service. That separate model service may still proxy requests or download models; this preview has only tested the boundary with a local fixture, not a live model.</p>
         </details>
         <details class="faq-item">
           <summary>What happens when my laptop sleeps on a schedule?</summary>

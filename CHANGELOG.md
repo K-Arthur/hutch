@@ -14,6 +14,7 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Added
 
+- Experimental per-bot `offline` inference mode. Linux workers run in fresh bubblewrap namespaces, including verified network and PID isolation, and send model HTTP through private per-run Unix-socket brokers fixed to configured numeric loopback endpoints. The local IPv4/IPv6/PID probe and fixture Ollama request pass here. Browser/web-fetch tools are removed, provider/proxy environment is scrubbed, and saved connection/key files are masked inside workers; live model-server behavior and provenance remain unverified.
 - Per-bot local model-route and Hybrid controls in Settings, the API, and CLI. Local-route mode
   filters hosted models and blocks hosted message overrides/fallbacks, including recognized
   Ollama cloud-tagged names. This setting does not promise strict offline behavior; local services

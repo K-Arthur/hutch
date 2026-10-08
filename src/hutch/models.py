@@ -77,10 +77,11 @@ class RuntimeKind(str, Enum):
 
 
 class InferenceMode(str, Enum):
-    """Model routing policy. Local model routes do not mean the run is offline."""
+    """Model routing policy. Local model routes do not by themselves mean the run is offline."""
 
     local = "local"          # local model routes only; tools retain their own network policy
     hybrid = "hybrid"        # hosted model routes remain available under Hutch's route governance
+    offline = "offline"      # local model + verified worker egress isolation + network tools withheld
 
 
 class CatchUpPolicy(str, Enum):

@@ -1,0 +1,67 @@
+{
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_model_route_setting_explains_host_gated_offline_mode_and_saves_on_phone",
+  "browser": "chromium",
+  "browserVersion": "153.0.8010.12",
+  "playwrightVersion": "1.63.0",
+  "capability": {
+    "id": "strict_offline",
+    "status": "experimental",
+    "reason": "Hutch's isolated worker blocked TCP to tested IPv4/IPv6 loopback and host-interface listeners, and its PID namespace exposes only namespace processes; configured model traffic uses a private per-run Unix socket broker. The separate local inference service may still have its own network access.",
+    "verification": "network_pid_namespace_tcp_unix_socket_probe"
+  },
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "document": [
+        1440,
+        1000
+      ],
+      "settingsVisible": true,
+      "strictOfflineDisabled": false,
+      "capabilityStatus": "experimental"
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "document": [
+        900,
+        1024
+      ],
+      "settingsVisible": true,
+      "strictOfflineDisabled": false,
+      "capabilityStatus": "experimental"
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "document": [
+        390,
+        844
+      ],
+      "settingsVisible": true,
+      "strictOfflineDisabled": false,
+      "capabilityStatus": "experimental"
+    },
+    {
+      "size": "phone-routing",
+      "viewport": [
+        390,
+        844
+      ],
+      "routingVisible": true,
+      "helpVisible": true
+    }
+  ],
+  "pageErrors": [],
+  "scenario": "synthetic bot settings; no provider or model call"
+}

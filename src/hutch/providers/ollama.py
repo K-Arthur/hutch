@@ -67,7 +67,12 @@ class OllamaProvider(Provider):
 
     def _http(self):
         if self._client is None:
-            self._client = _httpx().Client(base_url=self.base_url)
+            from ..offline import httpx_offline_options
+            self.base_url, transport, trust_env = httpx_offline_options(self.base_url, self.name)
+            options = {"base_url": self.base_url, "trust_env": trust_env}
+            if transport is not None:
+                options["transport"] = transport
+            self._client = _httpx().Client(**options)
         return self._client
 
     def _timeout(self, req: Optional[ChatRequest] = None, read: Optional[float] = None):

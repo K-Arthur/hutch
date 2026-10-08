@@ -10,8 +10,9 @@ NATIVE Ollama provider, because Ollama's ``/v1`` endpoint cannot set the context
 from __future__ import annotations
 
 import os
+import ipaddress
 from typing import Optional
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 from .base import Provider, ProviderError
 
@@ -79,13 +80,119 @@ def is_local(spec: str) -> bool:
     return is_local_route(provider, model)
 
 
-def validate_inference_mode(mode, spec: str) -> None:
-    """Reject a hosted primary model when the bot is configured for local-provider routing."""
-    if getattr(mode, "value", mode) == "local" and not is_local(spec):
+def validate_inference_mode(mode, spec: str, *, base_url: Optional[str] = None) -> None:
+    """Validate the primary route for local-routing or strict-offline policy."""
+    value = getattr(mode, "value", mode)
+    if value in ("local", "offline") and not is_local(spec):
         raise ValueError(
-            f"{spec} is not an allowed local model route; choose a local model or switch inference mode to Hybrid. "
-            "This does not prevent a local inference service or network-capable tool from using the network."
+            f"{spec} is not an allowed local model route; choose a local model or switch inference mode to Hybrid."
         )
+    if value == "offline":
+        validate_offline_route(spec, base_url)
+
+
+_OFFLINE_DEFAULTS = {
+    "ollama": "http://localhost:11434",
+    "lmstudio": "http://localhost:1234/v1",
+    "llamacpp": "http://localhost:8080/v1",
+    "llama.cpp": "http://localhost:8080/v1",
+    "vllm": "http://localhost:8000/v1",
+}
+
+
+def loopback_endpoint(provider: str, url: Optional[str] = None) -> str:
+    """Return a loopback-only local model endpoint or reject the route.
+
+    Hostnames other than the exact ``localhost`` label are not resolved here:
+    accepting arbitrary names would make the decision depend on DNS at request
+    time. ``localhost`` is rewritten to its numeric IPv4 loopback address.
+    """
+    if provider == "mock":
+        if url:
+            raise ValueError("mock inference does not accept a network endpoint in strict offline mode")
+        return ""
+    endpoint = url or _OFFLINE_DEFAULTS.get(provider)
+    if not endpoint:
+        raise ValueError(f"{provider} needs an explicit loopback endpoint in strict offline mode")
+    try:
+        parts = urlsplit(endpoint.strip())
+        if parts.scheme != "http" or not parts.hostname:
+            raise ValueError("endpoint must be a plain HTTP loopback URL")
+        if parts.username is not None or parts.password is not None:
+            raise ValueError("endpoint cannot embed credentials in strict offline mode")
+        if parts.query:
+            raise ValueError("endpoint cannot embed query parameters in strict offline mode")
+        host = parts.hostname.lower()
+        if "%" in host:
+            raise ValueError("scoped IPv6 endpoints are not accepted in strict offline mode")
+        if host == "localhost":
+            host = "127.0.0.1"
+        else:
+            address = ipaddress.ip_address(host)
+            if not address.is_loopback:
+                raise ValueError("strict offline model endpoints must use loopback")
+            host = address.compressed
+        port = parts.port
+        if port == 0:
+            raise ValueError("endpoint must use a nonzero port")
+    except ValueError as exc:
+        raise ValueError(f"strict offline requires a valid loopback model endpoint: {exc}") from None
+    netloc = f"[{host}]" if ":" in host else host
+    if port is not None:
+        netloc += f":{port}"
+    return urlunsplit((parts.scheme, netloc, parts.path, parts.query, ""))
+
+
+def validate_offline_route(spec: str, base_url: Optional[str] = None) -> None:
+    provider, model = parse_spec(spec)
+    if not model or not is_local(spec):
+        raise ValueError(f"{spec} is not a local inference route")
+    loopback_endpoint(provider, base_url)
+
+
+def offline_endpoints_for_bot(bot, *, model_override: str = "") -> list[str]:
+    """Validated loopback origins needed by a Strict Offline run and its route ladder."""
+    primary_provider, _ = parse_spec(bot.model)
+    routes = [(bot.model, bot.base_url)]
+    routes.extend((spec, bot.base_url if parse_spec(spec)[0] == primary_provider else None)
+                  for spec in bot.fallbacks)
+    if bot.escalation:
+        routes.extend((spec, bot.base_url if parse_spec(spec)[0] == primary_provider else None)
+                      for spec in bot.escalation.to)
+    if model_override:
+        routes.append((model_override, bot.base_url if parse_spec(model_override)[0] == primary_provider else None))
+    endpoints = []
+    for spec, endpoint in routes:
+        validate_offline_route(spec, endpoint)
+        provider, _ = parse_spec(spec)
+        resolved = loopback_endpoint(provider, endpoint)
+        if resolved:
+            endpoints.append(resolved)
+    return endpoints
+
+
+def validate_offline_bot(bot, *, model_override: str = "", check_host: bool = True,
+                         refresh_host: bool = False) -> None:
+    """Validate persisted routing, runtime, shell and endpoint settings before an Offline run starts."""
+    if getattr(getattr(bot, "inference_mode", None), "value", getattr(bot, "inference_mode", "")) != "offline":
+        return
+    if getattr(getattr(bot, "runtime", None), "value", getattr(bot, "runtime", "")) not in ("builtin", "mock"):
+        raise ValueError("Strict offline supports only Hutch's built-in and mock runtimes")
+    offline_endpoints_for_bot(bot, model_override=model_override)
+    from ..tools import expand_tools
+    has_shell = "shell" in expand_tools(bot.tools)
+    if has_shell and bot.sandbox != "strict":
+        raise ValueError("Strict offline requires the strict shell sandbox; remove shell or enable strict sandboxing")
+    if has_shell and bot.shell_network:
+        raise ValueError("Strict offline cannot allow shell network access")
+    if check_host:
+        from .. import sandbox
+        if has_shell and sandbox.global_override() == "off":
+            raise ValueError("Strict offline cannot run while HUTCH_SANDBOX=off disables shell containment")
+        from ..sandbox import offline_egress_status
+        status = offline_egress_status(refresh=True) if refresh_host else offline_egress_status()
+        if not status.ok:
+            raise ValueError(f"Strict offline is unavailable on this host: {status.reason}")
 
 
 def make_provider(provider: str, base_url: Optional[str] = None, env: Optional[dict] = None) -> Provider:

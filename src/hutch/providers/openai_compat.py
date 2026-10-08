@@ -52,7 +52,12 @@ class OpenAICompatProvider(Provider):
         if self._client is None:
             headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
             headers.update(self.extra_headers)
-            self._client = _httpx().Client(base_url=self.base_url, headers=headers)
+            from ..offline import httpx_offline_options
+            self.base_url, transport, trust_env = httpx_offline_options(self.base_url, self.name)
+            options = {"base_url": self.base_url, "headers": headers, "trust_env": trust_env}
+            if transport is not None:
+                options["transport"] = transport
+            self._client = _httpx().Client(**options)
         return self._client
 
     def _req_headers(self, req: ChatRequest) -> dict[str, str]:

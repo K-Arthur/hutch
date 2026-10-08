@@ -22,7 +22,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | S2 lifecycle, claims, leases and recovery | Implemented; focused tests pass | Pending claims reserve global capacity. Recovery fences expired ownership before cleanup. SQLite migrations serialize and create SQLite-backup-API snapshots. Schema v14 restores to a held new directory, detaches source process authority and quarantines old work. Cleanup failure remains visible and nonterminal. |
 | S3 supervised run processes and teardown | Implemented; focused tests pass | Production CLI/daemon/web execution uses owned processes, recorded boot/start identity and verified cleanup. Incomplete cleanup stays nonterminal. |
 | S4 shell containment and approval CAS | Implemented; focused tests pass | Bubblewrap tests pass on the present Linux host. This is namespace containment, not a VM; legacy bots retain their previous setting. Browser/external runtime tools remain outside this guarantee. |
-| S5 providers, budgets and external runtimes | Partial; shared usage reservations and per-bot local/hybrid routing implemented; adapters still fail closed | OpenCode v2.0.24's authenticated loopback OpenAPI contract was inspected in isolated temporary state; a minimal schema fixture and bounded SSE parser now capture the installed API's experimental and volatile event-stream limits. Pi's published JSONL framing, response correlation, streamed deltas, `agent_settled` completion and `abort` command have bounded offline helper coverage. These are protocol helpers, not process adapters: stdout/stderr drainers, brokered permission round-trips, model/instruction/session propagation, sandbox ownership, and strict offline routing remain. Per-bot `local` blocks hosted choices, message overrides, fallback/escalation and recognized Ollama cloud-tagged model names; it does not establish offline operation or govern tool traffic. Schema v10 reserves estimated tokens/currency atomically across Hutch runs and configured accounts, settles reported use once, and holds uncertain requests for terminal-only reconciliation. Price-based currency limits are estimates, not provider-billing guarantees. No paid/provider request or Pi invocation was made. Local calls now use one kernel-owned slot and eight FIFO waiters; human waits release the slot. Native Ollama checks current headroom before generation; other local backends lack validated memory admission. Strict offline/local-plus-tools mode and backend provenance remain pending. |
+| S5 providers, budgets and external runtimes | Partial; shared usage reservations, provider compatibility matrix, and per-bot Hybrid/Local/host-gated Offline routing; adapters still fail closed | OpenCode v2.0.24's authenticated loopback OpenAPI contract was inspected in isolated temporary state; a minimal schema fixture and bounded SSE parser now capture the installed API's experimental and volatile event-stream limits. Pi's published JSONL framing, response correlation, streamed deltas, `agent_settled` completion and `abort` command have bounded offline helper coverage. These remain protocol helpers, not process adapters: stdout/stderr drainers, brokered permission round-trips, model/instruction/session propagation and sandbox ownership remain. Local permits online tools; experimental Offline uses verified Linux bubblewrap network/PID namespaces and a per-run Unix-socket broker to reach only configured numeric loopback model endpoints, removes browser/web-fetch, scrubs provider/proxy environment, and requires process execution plus strict shell containment. This host's IPv4/IPv6/PID namespace checks and fixture Ollama request pass; no live model or backend provenance was verified. Historical systemd user-scope IP filtering failed and is recorded in D13; it is not used for network enforcement. Local Ollama/LM Studio/vLLM server provenance remains outside Hutch's worker boundary. Schema v10 reserves estimates atomically across Hutch runs and accounts, settles reported use once, and holds uncertain requests for terminal-only reconciliation. No paid/provider request or Pi invocation was made. Local calls now use one kernel-owned slot and eight FIFO waiters; human waits release the slot. Native Ollama checks current headroom before generation; other local backends lack validated memory admission. |
 | S6 conversations and bounded collaboration | Conversation foundation partial; scoped reference facts implemented | Schema v8 stores conversations/messages and imports each old run separately. Schema v15 adds immutable versioned reference facts, private chat/run scope, explicit cross-chat sharing, human review, bounded FTS5 recall and paginated history. No fact is injected into system instructions. Standing tasks, stable workspaces/artifacts, notifications and bounded delegation remain. |
 | S7 browser ownership and handoff | Partial | Browser context state is instance-owned and persistent profile paths are per-bot; fixture test verifies no profile crossover. Live handoff, pinned egress and browser process supervision remain unavailable. |
 | S8 versioned API and remote supervision | Partial; API replay improvements in `cd4f402` and `f5696ce`; remote remains experimental | `/api/v1` covers health/status labels, bounded bot/run/approval pages, conversations/search, cross-run transcript cursors, snapshot reconciliation, usage, connection metadata, schedules and capability records. Conversation create/message/archive, stop, and approval resolve commands are idempotent; changed arguments conflict. Schema v9 adds one-use pairing codes, hash-only revocable device sessions and per-source rate limits. Direct remote binding requires explicit TLS. Schema v11 adds transactional resource invalidations, history cursors, snapshot reconciliation and targeted Studio refresh. Schema v12 adds recoverable JSONL delivery and visible errors; v13 adds immutable action intents and separate outcome reconciliation; v14 adds a bounded authenticated restore report and execution-hold errors. Automatic event pruning, workspaces/artifacts, phone UI, interactive control routes, trusted tunnel and live device/network checks remain. |
@@ -833,11 +833,16 @@ hosted for model choices, admission, estimates and currency caps; when pricing i
 configured currency cap refuses the route rather than treating it as free. Local mode only
 recognizes known hosted routes: it does not enforce strict network isolation, constrain tools, or
 prevent a custom local endpoint from proxying requests. Settings and marketing copy state this
-limit, and strict offline mode remains unimplemented.
+limit. Strict Offline is implemented as a host-gated experiment; the later status in this checkpoint records the current host's failed isolation probe and the remaining verification gap.
 
 The focused provider/API/CLI regression group
 (`tests/test_providers.py tests/test_model_switcher.py tests/test_runtime_builtin.py tests/test_api.py tests/test_cli.py`)
-passed **109 tests**. The complete non-browser suite
+passed **109 tests**. Strict Offline has since been implemented as a host-gated experimental mode:
+it requires verified Linux systemd egress isolation, a process executor, loopback model routes,
+and strict shell containment when shell is enabled. The current host failed the local-only
+non-loopback isolation test, so the capability is unavailable here and the successful-host
+end-to-end journey remains unverified. Local mode remains a routing preference and does not
+isolate tools or local model services. The complete non-browser suite
 `.venv/bin/python -m pytest -q --ignore=tests/e2e -W error::pytest.PytestUnhandledThreadExceptionWarning`
 passed **1,189 tests in 251.93s**. The phone route-setting journey passed separately; no live
 provider, local model, or paid call was used. After the site diagram correction, the anonymous
@@ -854,9 +859,10 @@ fits the narrower viewports. Metadata, source hashes, three traces and screensho
 provider evidence. Impeccable's final static scan returned no findings for the application and
 marketing files.
 
-This closes the local/hybrid route-mode checkpoint only. Provider compatibility and failure
-matrices, verified external runtime adapters, enforceable strict-offline behavior, remaining S5
-work and S6–S9 release gates are open.
+This closes the local/hybrid route-mode checkpoint only. At that point, provider compatibility and
+failure matrices, verified external runtime adapters, enforceable strict-offline behavior, remaining
+S5 work and S6–S9 release gates were open. The historical systemd-based Offline attempt is
+superseded by the network-namespace repair below; its failed local probe remains recorded as D13.
 
 ## S5 provider compatibility route matrix, 2026-10-08
 
@@ -902,3 +908,48 @@ Focused command `.venv/bin/python -m pytest -q tests/test_providers.py
 tests/test_provider_authority.py tests/test_runtime_builtin.py
 -W error::pytest.PytestUnhandledThreadExceptionWarning` passed **85 tests in 47.40s**.
 `git diff --check` passed. Implementation commit: `d6c4e83`.
+
+## S5 Strict Offline network boundary repair, 2026-10-08
+
+The initial systemd user-scope filter was not a usable boundary. On this host,
+`IPAddressDeny=any` plus a loopback allowlist was accepted by `systemd-run --user --scope`, but a
+child connected to a test TCP listener on the host's `10.0.0.109` address. This local-only negative
+result is preserved as D13. Hutch starts the worker inside bubblewrap's fresh network/PID namespace
+set. The only model traffic path is a private run-scoped Unix socket mounted read-only into that
+worker; its supervisor-side broker forwards only to each validated numeric loopback model origin.
+The broker rejects alternate authorities, methods, transfer-encoding, ambiguous lengths and
+oversized requests, and caps concurrency and request size. Browser/web-fetch remain omitted, the
+provider environment is scrubbed, saved `connections.json` and `keys/` are hidden with read-only
+empty mounts, and shell uses strict nested containment without starting a separate host systemd
+scope.
+
+Fresh `offline_egress_status(refresh=True)` passed against IPv4/IPv6 loopback and host-interface
+TCP listeners while completing a two-byte Unix-socket exchange. The integration test then fetched
+fake Ollama version metadata from inside an isolated worker. A second test exercised the production
+process engine, completed a fake Ollama chat through the per-run broker and confirmed the broker
+was reclaimed after worker exit. `tests/test_offline_mode.py` passes **37 tests**, including a
+real-process check that saved provider definitions and key files are hidden. Offline workers use
+bubblewrap's full namespace set, and the host probe verifies that the process sees only PIDs 1 and
+2. These checks use only listeners and fake model fixtures on this machine; they did not contact a
+public host or a real model. The capability remains `experimental`, and the separate model service can still proxy
+requests or download weights. This does not close the live-model portion of the S5 gate.
+
+The route-setting visual scenario was recaptured with Chromium 153 / Playwright 1.63 at desktop
+(1440×1000), tablet (900×1024) and phone (390×844), including the scrolled phone routing control.
+All viewport captures fit without horizontal overflow, the page-error list is empty, and the phone
+control remains visible. PNGs, the trace and capability/source metadata are stored under
+`docs/realignment/artifacts/strict-offline/`; this is browser-fixture validation, not a physical
+device or live-model check.
+
+Full regression gate after the full-namespace probe, broker shutdown-race fix, endpoint validation,
+credential-file masks, API capability label and docs update: `.venv/bin/python -m pytest -q
+-W error::pytest.PytestUnhandledThreadExceptionWarning` passed **1,297 tests in 379.69s**. This
+includes the browser suite and treats unhandled background-thread exceptions as failures. No
+provider or model outside the local fake fixture was contacted. Incidental rewrites to prior visual
+test artifacts were restored; the inspected Strict Offline captures remain recorded in their own
+directory.
+
+After that full run, only the static explanatory sentence in the responsive settings view and its
+supporting documentation changed, to describe both network and PID isolation. The affected
+Chromium/Playwright journey passed separately in **2.81s** and refreshed the desktop/tablet/phone
+captures and trace. No other implementation behavior changed after the full-suite run.

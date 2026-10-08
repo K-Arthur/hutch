@@ -186,6 +186,15 @@ class BuiltinRuntime:
                       book: ConnectionBook | None = None) -> Provider:
         """A configured Connection wins over a built-in provider name; its terms must be acknowledged first."""
         book = book if book is not None else self._connections(ctx)
+        if ctx.bot.inference_mode.value == "offline":
+            if book.get(rung.provider) is not None:
+                raise ProviderError("bad_request", "named provider connections are unavailable in strict offline mode",
+                                    provider=rung.provider)
+            from ..providers.registry import validate_offline_route
+            try:
+                validate_offline_route(rung.spec, ladder.base_url_for(rung))
+            except ValueError as exc:
+                raise ProviderError("bad_request", str(exc), provider=rung.provider) from exc
         if expected_route is not None and self._route_identity(ctx, ladder, rung, book=book) != expected_route:
             raise ProviderError("bad_request", "provider connection changed after review; no call was sent")
         conn = book.get(rung.provider)
@@ -361,9 +370,9 @@ class BuiltinRuntime:
         A refusal sticks for the rest of the run: a human who said no, a cap that is already reached, or a model
         that would not start are never asked about / tried again on every later bad turn.
         """
-        if ctx.bot.inference_mode.value == "local" and not rung.local:
+        if ctx.bot.inference_mode.value in ("local", "offline") and not rung.local:
             self._log(ctx, run, kind,
-                      f"cannot {kind} to {rung.spec}: Local model routes block hosted model requests", blocked=True)
+                      f"cannot {kind} to {rung.spec}: {ctx.bot.inference_mode.value.title()} routing blocks hosted model requests", blocked=True)
             ladder.blocked.add(rung.spec)
             return None
         if rung.spec in ladder.blocked or (ladder.hosted_denied and not rung.local):
@@ -416,9 +425,9 @@ class BuiltinRuntime:
         if not rung.local:
             ladder.authorized_routes.add(self._route_identity(ctx, ladder, rung))  # explicit bot/message selection
         while True:
-            if ctx.bot.inference_mode.value == "local" and not rung.local:
+            if ctx.bot.inference_mode.value in ("local", "offline") and not rung.local:
                 self._log(ctx, run, "provider_route_blocked",
-                          f"{rung.spec} is not allowed by Local model routes; no provider request was sent",
+                          f"{rung.spec} is not allowed by {ctx.bot.inference_mode.value.title()} routing; no provider request was sent",
                           model=rung.spec, blocked=True)
                 raise RunAborted("provider_mode",
                                  f"{rung.spec} is not an allowed local model route; no provider request was sent")

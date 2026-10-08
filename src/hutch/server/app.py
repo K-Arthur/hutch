@@ -650,6 +650,13 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/capabilities", response_model=list[CapabilityResource])
     def capabilities() -> list[dict]:
         linux = platform.system() == "Linux"
+        from ..sandbox import offline_egress_status
+        offline = offline_egress_status()
+        offline_reason = ("Hutch's isolated worker blocked TCP to tested IPv4/IPv6 loopback and host-interface listeners, "
+                          "and its PID namespace exposes only namespace processes; configured model traffic uses a "
+                          "private per-run Unix socket broker. The separate local "
+                          "inference service may still have its own network access." if offline.ok else
+                          offline.reason)
         return [
             {"id": "process_executor", "status": "supported" if linux else "unavailable",
              "reason": "Linux process groups and boot/start identity are supported" if linux else
@@ -657,6 +664,9 @@ def create_app() -> FastAPI:
             {"id": "strict_shell", "status": "experimental" if linux else "unavailable",
              "reason": "Linux bubblewrap/cgroup containment is required; shell networking is disabled",
              "verification": "host_dependent_sandbox_tests" if linux else "not_tested"},
+            {"id": "strict_offline", "status": "experimental" if offline.ok else "unavailable",
+             "reason": offline_reason,
+             "verification": "network_pid_namespace_tcp_unix_socket_probe"},
             {"id": "remote_pairing", "status": "experimental",
              "reason": "Direct HTTPS pairing is fixture-tested; no live network or phone validation",
              "verification": "offline_fixtures"},
@@ -861,9 +871,9 @@ def create_app() -> FastAPI:
         bot.description = body.description or bot.description
         bot.instructions = body.instructions or bot.instructions
         bot.model = body.model
-        from ..providers.registry import validate_inference_mode
+        from ..providers.registry import validate_inference_mode, validate_offline_bot
         try:
-            validate_inference_mode(body.inference_mode, bot.model)
+            validate_inference_mode(body.inference_mode, bot.model, base_url=body.base_url)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         bot.inference_mode = body.inference_mode
@@ -883,6 +893,11 @@ def create_app() -> FastAPI:
                                         catch_up=body.catch_up)
             except Exception:
                 raise HTTPException(422, "invalid schedule")
+        try:
+            validate_offline_bot(bot, check_host=body.inference_mode is InferenceMode.offline,
+                                 refresh_host=body.inference_mode is InferenceMode.offline)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
         store.create_bot(bot)
         return bot_view(bot)
 
@@ -899,11 +914,11 @@ def create_app() -> FastAPI:
     @app.patch("/api/bots/{ref}")
     def patch_bot(ref: str, body: BotPatch) -> dict:
         bot = bot_or_404(ref)
-        from ..providers.registry import validate_inference_mode
+        from ..providers.registry import validate_inference_mode, validate_offline_bot
         proposed_mode = body.inference_mode if body.inference_mode is not None else bot.inference_mode
         proposed_model = body.model if body.model is not None else bot.model
         try:
-            validate_inference_mode(proposed_mode, proposed_model)
+            validate_inference_mode(proposed_mode, proposed_model, base_url=bot.base_url)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         if body.description is not None: bot.description = body.description
@@ -925,6 +940,11 @@ def create_app() -> FastAPI:
             if cron:
                 bot.schedule = Schedule(cron=cron, timezone=tz,
                                         catch_up=bot.schedule.catch_up if bot.schedule else CatchUpPolicy.coalesce)
+        try:
+            validate_offline_bot(bot, check_host=body.inference_mode is InferenceMode.offline,
+                                 refresh_host=proposed_mode is InferenceMode.offline)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
         store.upsert_bot(bot)
         return bot_view(bot)
 

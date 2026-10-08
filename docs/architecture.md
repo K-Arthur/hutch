@@ -223,11 +223,20 @@ check: endpoint variants and models can differ in tool use, context, usage and r
 connection/model capability records and opt-in probes remain planned, and unknown capability
 must remain visibly unknown.
 
-Each bot also stores an inference route mode. `local` filters hosted choices, refuses hosted
-per-message overrides, and fences both startup fallback and in-run escalation to hosted routes;
-`hybrid` retains the existing route governance. The classifier rejects recognized Ollama cloud
-tags, but does not prove that a custom local service is offline or prevent network-capable tools
-from egress. Strict offline mode remains a separate, unimplemented enforcement boundary.
+Each bot stores an inference route mode. `local` filters hosted choices and refuses hosted
+per-message overrides, fallback and escalation calls; configured tools keep their own network
+policy. `hybrid` retains route review and usage reservations for hosted calls. Experimental
+`offline` requires fresh Linux bubblewrap network/PID namespaces that pass a local probe before
+configuration or dispatch. Each worker has no host TCP interface, a scrubbed environment, and
+read-only empty views over saved connection/key files; a private Unix-socket broker forwards model
+requests only to configured numeric loopback endpoints.
+Hosted routes, external runtimes, browser and web-fetch tools are refused; shell requires
+bubblewrap's private no-network namespace. systemd user scopes enforce resource caps only.
+`GET /api/v1/capabilities` reports whether the current host passes. The current Linux development
+host passes the local probe and a fake Ollama request completed through the broker inside an
+isolated worker. No live local model was available, and Hutch still cannot constrain the separate
+model-server process or prove model provenance. See
+[ADR-0009](adr/0009-local-inference-and-resource-admission.md).
 
 Owner mutations check both the fence and lease expiry in the write transaction, including the gap
 before recovery. Worker events retain their fence through buffering; commit rejects stale events

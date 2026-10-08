@@ -1,28 +1,43 @@
 # ADR-0009: Operating modes, offline guarantees, and resource admission
 
 Status: partially implemented (2026-10-08): one-call/eight-waiter admission, native Ollama
-headroom checks, and per-bot local-model-route versus hybrid selection. Strict offline, distinct
-local-plus-tools enforcement, and inference provenance remain pending. Slice: S5.
-Evidence: baseline lead 6, B8, A3; `tests/test_admission.py`, `tests/test_local_admission_runtime.py`.
+headroom checks, per-bot Hybrid/Local/host-gated Offline modes. Offline remains experimental. The
+current Linux development host passes Hutch's bubblewrap network/PID-namespace/Unix-socket probe and
+a fixture Ollama request completed from an isolated worker; no live local model or backend
+provenance was verified. Slice: S5.
+Evidence: baseline lead 6, B8, A3; `tests/test_admission.py`, `tests/test_local_admission_runtime.py`,
+`tests/test_offline_mode.py`.
 
 ## Decision
 
-**Three modes** (`HUTCH_MODE` / `hutch mode set`, stored in `kv`, shown in the UI header):
+**Three per-bot modes** (`inference_mode` in settings, the API and CLI):
 
 | Mode | Inference | Tools / network | Enforcement |
 |---|---|---|---|
-| `offline` | local only | no outbound internet: `web_fetch`, browser `goto` to non-local hosts, remote connections, update checks, model downloads all refused; MCP/remote integrations disabled | provider factory refuses non-loopback endpoints and any Ollama server with cloud enabled or a cloud-tagged model; `netguard` refuses non-loopback targets; sandbox runs with `--unshare-net`; test asserts zero non-loopback `connect()` calls |
-| `local+tools` | local only | authorised tools and integrations may send data; each is shown as "data leaves this machine" | inference route check as above; tool network grants honoured |
-| `hybrid` | cloud routes explicitly enabled | normal | spend and data-movement notices per route |
+| `offline` | classified local routes only | `web_fetch` and browser are omitted; shell is available only through the strict bubblewrap sandbox; worker has isolated network/PID namespaces and reaches model routes through a per-run Unix socket | Linux bubblewrap network/PID namespaces must pass a local probe blocking loopback and host-interface TCP, checking the isolated PID view, and preserving Unix-socket access; broker forwards only to configured numeric loopback model endpoints; systemd scopes provide resource caps only; process executor required |
+| `local` | classified local routes only | configured tools retain their individual network behavior | hosted per-message overrides, fallback and escalation are refused; recognized Ollama cloud-tagged names are classified as hosted |
+| `hybrid` | local and hosted | normal tool policy; hosted calls use route review and usage reservations | spend and data-movement controls apply per route |
 
-"localhost" is not proof of local inference. The current per-bot UI/CLI `local` setting filters
-known hosted routes and recognized Ollama cloud-tagged model names. It cannot verify the actual
-endpoint process, disable cloud service configuration, or govern tool egress, so it is not one of
-the strict modes above. Those checks remain target requirements. The [Ollama FAQ](https://docs.ollama.com/faq) documents cloud disabling in the server's
-configuration or `OLLAMA_NO_CLOUD=1` and requires a restart. Setting a flag only in Hutch does
-not prove the serving process inherited it. Offline admission must establish the actual backend,
-model and enforced egress; unknown provenance must refuse. A loopback URL or model label alone
-cannot satisfy that check.
+`local` is the distinct local-inference-with-online-tools choice. `offline` is a worker egress
+boundary, not proof about the server handling local inference: a separate Ollama/LM Studio/vLLM
+service may itself proxy traffic or download models. The runtime restricts endpoints to numeric
+loopback, removes web/browser tools and scrubs provider, proxy and custom-endpoint environment
+variables. Saved `connections.json` and `keys/` are overmounted with a read-only empty view; the
+worker retains the shared SQLite state it needs for fenced run updates. Each worker runs in fresh
+bubblewrap namespaces. A private per-run Unix socket is
+the only model egress: the supervisor-side broker fixes the target address to the bot's validated
+loopback endpoint and never accepts a destination from the worker. systemd user scopes apply
+memory and process-count caps; they do not filter Offline networking.
+External runtimes, hosted routes, model overrides, unsupported endpoints and in-process execution
+are refused. Shell additionally requires strict bubblewrap containment. The capability probe is
+local-only: it opens listeners on IPv4/IPv6 loopback and one address assigned to the host in each
+available family, makes TCP connect attempts from a fresh bubblewrap network namespace, verifies
+that the isolated PID view exposes only the expected namespace processes, and checks a two-byte
+Unix-socket exchange.
+It sends no public traffic. The development host passes this probe, and a fake Ollama health
+request completed through the broker inside the isolated worker. This is fixture evidence, not a
+live local model or provider check. A loopback URL or model label alone cannot prove inference
+provenance; the separate model service may proxy requests or download models.
 
 **Implemented admission:** `hutch/admission.py` uses kernel locks and a bounded FIFO ticket set
 across workers sharing one state directory: one call and eight waiting callers, including startup
@@ -35,8 +50,10 @@ allocation avoids counting the same model twice; credit is capped by totals and 
 unknown multi-GPU placement. Missing GPU headroom refuses, and measured zero remains zero. Fit
 still estimates weights/KV cache. Other local protocols do not have validated memory admission.
 Hutch's queue does not govern unrelated model-server clients or prove backend cancellation.
-Browser/battery-aware admission, pressure-driven unloading, strict network-mode enforcement and
-backend provenance remain pending. Runtime keep-alive still follows the bot preset; unsafe
+Browser/battery-aware admission, pressure-driven unloading and backend provenance remain pending.
+Strict worker egress enforcement uses a network namespace and loopback-only model broker. The
+current host probe and fixture request pass, while live model-server behavior remains unverified.
+Runtime keep-alive still follows the bot preset; unsafe
 environment slot widening is removed.
 
 ## Consequences

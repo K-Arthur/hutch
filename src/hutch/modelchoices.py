@@ -167,7 +167,7 @@ def model_choices(config: Any, store: Any, bot: Bot, hw: Optional[Hardware] = No
     seen = {bot.model}
     for c in (_local_choices(bot, hw, provider) + _hosted_choices(bot, book)
               + _connection_choices(bot, store, cbook, known)):
-        if bot.inference_mode.value == "local" and not is_local(c.spec):
+        if bot.inference_mode.value in ("local", "offline") and not is_local(c.spec):
             continue
         if c.spec in seen:
             # the bot's own model keeps its place but gains the real state/notes
@@ -197,12 +197,20 @@ def validate_override(config: Any, store: Any, bot: Bot, spec: str, hw: Optional
     provider, model = parse_spec(spec)
     if not model:
         raise ModelNotUsable(f"'{spec}' names a provider but no model", "add the model name after the slash", 422)
-    if bot.inference_mode.value == "local" and not is_local(spec):
+    if bot.inference_mode.value in ("local", "offline") and not is_local(spec):
+        label = "Strict offline" if bot.inference_mode.value == "offline" else "Local model routes"
         raise ModelNotUsable(
-            f"{spec} is blocked by {bot.name}'s Local model routes setting",
+            f"{spec} is blocked by {bot.name}'s {label} setting",
             "choose a local model, or change the bot's inference mode to Hybrid",
             409,
         )
+    if bot.inference_mode.value == "offline":
+        from .providers.registry import validate_offline_route
+        provider, _ = parse_spec(spec)
+        try:
+            validate_offline_route(spec, bot.base_url if provider == parse_spec(bot.model)[0] else None)
+        except ValueError as exc:
+            raise ModelNotUsable(str(exc), "choose a verified local model route", 409) from None
     if bot.runtime.value not in ("builtin", "mock"):
         raise ModelNotUsable(f"{bot.name} runs on the {bot.runtime.value} runtime, which chooses its own model",
                              "switch models inside that runtime's own settings", 422)

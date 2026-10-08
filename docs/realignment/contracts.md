@@ -134,9 +134,13 @@ revoke a lost device. Do not expose the listener to the public internet. The mar
 ## Navigation and approval review
 
 Studio is the primary interface; `/api/v1` conversations own its messages and drafts. Bot resources
-expose `inference_mode` (`local` model routes or `hybrid`) alongside `model`; create and patch
-validate them together, and local mode rejects hosted per-message overrides and fallback routes.
-The route label is not an offline guarantee: local services and tools may still use the network.
+expose `inference_mode` (`hybrid`, `local`, or host-gated `offline`) alongside `model`; create and
+patch validate routes together. Local mode rejects hosted per-message overrides and fallback
+routes while leaving tools under their own network policy. Offline is offered only when
+`GET /api/v1/capabilities` reports the Linux worker egress check as experimental/available; it
+rejects hosted routes and hosted overrides, withholds browser/web-fetch tools, and requires the
+strict shell sandbox when shell is configured. The status is host-specific, and the separate local
+inference service may still use the network.
 Bot resources also expose `active_run_status` and `active_run_status_label` alongside `active_run_id`
 so callers do not infer “working” from any active state. Approval list resources include `conversation_id` for
 contextual navigation. Approval events include `action_hash`, used by the shared inline/drawer
