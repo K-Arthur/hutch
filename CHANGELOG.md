@@ -33,6 +33,11 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 - Generic provider field errors no longer trigger a duplicate non-streaming request; that recovery
   is reserved for errors that identify streaming/SSE incompatibility. Uncertain charges remain
   reserved, and a different paid route still waits for outward approval.
+- Bots may opt into a same-session visible browser handoff on a Linux desktop. Login challenges
+  pause only when the person can use that owned browser; Resume reloads and rechecks the challenge.
+  Cross-process leases protect each bot's profile and the single local handoff slot. Settings show
+  the current host capability reason, headless runs fail clearly, and phone handoff/DNS-pinned
+  browser egress remain unavailable. A live headed challenge has not yet been exercised.
 
 ### Fixed
 

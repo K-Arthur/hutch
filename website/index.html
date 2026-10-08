@@ -280,7 +280,7 @@
           </div>
           <div class="spec">
             <dt class="spec-k">Remote and subscriptions</dt>
-            <dd class="spec-v">The responsive dashboard supports experimental, HTTPS-paired device access with session revocation; live network and physical-device checks remain open. Browser handoff is unavailable. ChatGPT sign-in is not implemented. OpenCode Go key connections are experimental and limited by their published workload terms.</dd>
+            <dd class="spec-v">The responsive dashboard supports experimental, HTTPS-paired device access with session revocation; live network and physical-device checks remain open. Local browser handoff is experimental on a Linux desktop with a display; phone handoff is unavailable. ChatGPT sign-in is not implemented. OpenCode Go key connections are experimental and limited by their published workload terms.</dd>
           </div>
         </div>
         <figure class="runs-diagram" aria-labelledby="rd-cap">
@@ -368,7 +368,7 @@ trusted    <span class="t-c">runs without asking&hellip;</span>
             <li><b>Humans still review consequential actions.</b> Prompt injection can produce harmful requests; approvals and denials reduce risk but cannot make an allowed action safe.</li>
             <li><b>Usage amounts are estimates.</b> Hutch reserves estimated tokens and priced cost before a hosted call. The provider controls actual tokenization and billing.</li>
             <li><b>External coding-agent harnesses are disabled.</b> OpenCode and Pi are not launched because Hutch does not yet broker their permissions inside its sandbox.</li>
-            <li><b>Remote access is experimental.</b> A one-time code pairs a browser with the HTTPS dashboard, and sessions can be revoked. Keep the host online; browser handoff is unavailable and physical-device checks remain open.</li>
+            <li><b>Remote access is experimental.</b> A one-time code pairs a browser with the HTTPS dashboard, and sessions can be revoked. Keep the host online; local browser handoff needs the Linux desktop window, and physical-device checks remain open.</li>
           </ul>
         </aside>
       </div>
@@ -418,8 +418,8 @@ run: stays stopping until process exits</code></pre>
         <div class="get-status" role="list">
           <div class="get-row" role="listitem"><span class="gr-k">Public access</span><span class="gr-v">Private source; no anonymous download or public release</span><span class="chip"><span class="chip-dot warn" aria-hidden="true"></span>Unavailable</span></div>
           <div class="get-row" role="listitem"><span class="gr-k">Supported</span><span class="gr-v">Linux executor, local SQLite state and fixture-tested lifecycle/control paths; actual runs require a configured model</span><span class="chip"><span class="chip-dot ok" aria-hidden="true"></span>Supported</span></div>
-          <div class="get-row" role="listitem"><span class="gr-k">Experimental</span><span class="gr-v">Direct hosted-provider connections, local inference, host-verified Strict Offline worker isolation, and HTTPS-paired dashboard access; live checks vary</span><span class="chip"><span class="chip-dot info" aria-hidden="true"></span>Experimental</span></div>
-          <div class="get-row" role="listitem"><span class="gr-k">Unavailable</span><span class="gr-v">macOS/Windows executor, browser handoff, PTY/desktop control, OpenCode/Pi harnesses and ChatGPT sign-in</span><span class="chip"><span class="chip-dot warn" aria-hidden="true"></span>Unavailable</span></div>
+          <div class="get-row" role="listitem"><span class="gr-k">Experimental</span><span class="gr-v">Direct hosted-provider connections, local inference, host-verified Strict Offline worker isolation, HTTPS-paired dashboard access, and opt-in same-session browser handoff on a Linux desktop; live checks vary</span><span class="chip"><span class="chip-dot info" aria-hidden="true"></span>Experimental</span></div>
+          <div class="get-row" role="listitem"><span class="gr-k">Unavailable</span><span class="gr-v">macOS/Windows executor, phone browser handoff, authenticated PTY/desktop control, OpenCode/Pi harnesses and ChatGPT sign-in</span><span class="chip"><span class="chip-dot warn" aria-hidden="true"></span>Unavailable</span></div>
           <div class="get-row" role="listitem"><span class="gr-k">Data movement</span><span class="gr-v">Hosted prompts go to the selected endpoint; local services and configured tools may have their own network access</span><span class="chip">Per configuration</span></div>
         </div>
       </div>

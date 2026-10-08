@@ -111,7 +111,7 @@ def test_cold_load_and_human_pause_are_explained_not_spinners(store):
     assert "cold load" in w.cause and "not a hang" in w.cause
     human = Run(bot_id=bot.id, prompt="x", status=RunStatus.waiting_human)
     w = views.explain_run(store, human, None, bot)
-    assert "never solves" in w.cause and "Resume" in w.fix
+    assert "no live desktop handoff" in w.cause and "Enable Local browser handoff" in w.fix
 
 
 def test_every_failure_reason_has_cause_and_fix():

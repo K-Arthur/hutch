@@ -171,11 +171,13 @@ not by a URL pattern.
 `goto` uses URL policy. `click` and `type` always ask because either can send data or buy something;
 sticky grants and auto mode cannot cover them. The request binds the selector/label, typed text,
 page URL and bot profile. A changed URL after review refuses the action. This does not verify an
-account identity or prevent a page changing its DOM at the same URL; governed live browser
-sessions remain incomplete. Login/CAPTCHA/MFA walls move the run to `waiting_human` — the bot waits for a
-human, it never attempts challenges. The browser currently launches headless. Each browser-tool instance owns a separate context
-and the profile path for its bot. Operations are serialized by a process-wide lock, held for the whole human wait.
-A durable same-session handoff is not implemented.
+account identity or prevent a page changing its DOM at the same URL; browser egress is still vulnerable to a DNS-rebinding window.
+Each browser-tool instance owns a separate context and persistent profile, with an OS file lease across run workers. Headless is
+the default. A bot may opt into **Local browser handoff** on a Linux desktop: Hutch opens the same profile in a visible window,
+holds an exclusive Hutch browser-handoff/profile lease, pauses automation at a detected login/CAPTCHA/MFA wall, and rechecks the page after Resume.
+If the resumed page still shows a challenge, Hutch keeps waiting. Without the setting, a headless run returns an actionable failure
+instead of claiming to wait for a person. This is local desktop control only; it does not enable phone control, and the browser's
+network connection is still not pinned to its checked DNS result.
 
 ## Rehearse (dry run)
 
@@ -222,7 +224,8 @@ Hutch stays on loopback unless an operator enables direct remote binding with tr
 open the responsive dashboard in a browser; each browser receives its own HttpOnly, revocable session. Keep the listener on a private
 network and do not expose it to the public internet. Connections or the CLI can revoke a lost session. The pairing and session UI has
 local browser-fixture coverage, but no physical-device or private-network validation; the host must remain awake and connected.
-Authenticated PTY/desktop controls and live browser handoff are not implemented. The marketing site cannot reach Hutch on localhost.
+Authenticated PTY/physical desktop controls and remote phone browser handoff are not implemented. Local browser handoff is
+experimental and needs a Linux display plus the optional Playwright browser. The marketing site cannot reach Hutch on localhost.
 
 ## Honest limits (read this)
 

@@ -461,7 +461,7 @@ class Engine:
         self._gates[run.id] = gate
         ctx = ToolContext(bot=bot, run=run, store=self.store, policy=policy, gate=gate,
                           config=self.config, workspace=workspace, emit=emit,
-                          dry_run=run.rehearsal)
+                          headless=not bot.local_browser_handoff, dry_run=run.rehearsal)
         self._ctxs[run.id] = ctx
         # remember every process this run starts, so a supervisor that did not spawn it can still end it after a crash
         ctx.procs.on_register = lambda pid, pgid, st, kind, boot: self.store.add_proc(run.id, pid, pgid, st, kind, boot)
@@ -470,6 +470,7 @@ class Engine:
         emit(Event(run_id=run.id, type=EventType.log,
                    data={"runtime": runtime.kind, "model": bot.model,
                          "inference_mode": bot.inference_mode.value,
+                         "browser_handoff": "local_desktop" if bot.local_browser_handoff else "headless",
                          "tools": sorted(tools), "limits": bot.limits.model_dump(),
                          **({"containment": sandbox.describe(bot)} if "shell" in tools else {}),
                          **({"rehearsal": True} if run.rehearsal else {})}))

@@ -154,9 +154,14 @@ def explain_run(store, run: Run, engine: Any = None, bot: Optional[Bot] = None) 
                 deadline=a.expires_at)
         return Wait(cause="Waiting on an approval that has just been resolved.", fix="It resumes in a moment.")
     if st is RunStatus.waiting_human:
+        if bot and bot.local_browser_handoff:
+            return Wait(
+                cause="The bot's browser is paused for a login, CAPTCHA or two-factor step.",
+                fix="Complete the step in the visible Hutch browser window, then resume this run.",
+                href=f"/runs/{run.id}", link_text="Open the run", kind="action")
         return Wait(
-            cause="The browser hit a login, CAPTCHA or two-factor wall. Hutch never solves those itself.",
-            fix="Complete it in the bot's browser window, then press Resume.",
+            cause="A browser login step needs a person, but this run has no live desktop handoff.",
+            fix="Enable Local browser handoff for this bot on a Linux desktop, then start the task again.",
             href=f"/runs/{run.id}", link_text="Open the run", kind="action")
     return None
 

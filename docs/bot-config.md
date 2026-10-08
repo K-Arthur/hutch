@@ -28,6 +28,7 @@ dashboard, or the REST API, and live in `hutch.db`.
 | `approval_mode` | enum | `ask` | `ask` · `auto` |
 | `memory_enabled` | bool | true | allow runtime fact proposal/retrieval tools; facts are never automatically injected |
 | `workdir` | path? | null | a folder of yours the bot works in, run after run (see below); null = a fresh empty workspace per run |
+| `local_browser_handoff` | bool | false | open this bot's browser as a visible Linux desktop window; a login wait holds one Hutch handoff/profile lease until the user resumes. Requires a live Linux display and Playwright Chromium; does not enable phone control. |
 | `risk_tier` | enum | `supervised` | `readonly` · `supervised` · `trusted`: what happens to medium-risk actions ([safety.md](safety.md)) |
 | `command_rules` | list | `[]` | `{match, verdict}` per-command `allow`/`ask`/`deny` globs ([safety.md](safety.md)) |
 | `sandbox` | enum | `strict` for new bots | `strict` uses Linux bubblewrap for shell commands and fails closed if unavailable; `off` runs shell commands without OS containment |
@@ -38,6 +39,12 @@ installation-wide restore hold blocks new submissions and claims until local rev
 Unpausing a bot does not bypass the hold; activating the restore does not unpause schedules or
 resume old attempts. Review user-owned `workdir` paths separately because database snapshots do
 not include the files they reference. See [Operations](operations.md#database-migration-and-restore).
+
+Enable or disable the local browser handoff with `hutch bot update <name> --local-browser-handoff` or
+`--no-local-browser-handoff`. Headless remains the default. If a run reaches a login challenge without
+the option, it reports that no person can interact with the headless browser and does not enter a fake
+human-wait state. When enabled, the same visible browser stays open while the run is paused; Hutch
+rechecks the challenge after Resume and keeps waiting if it remains.
 
 ### Working folder
 

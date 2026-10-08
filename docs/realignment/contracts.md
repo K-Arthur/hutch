@@ -138,7 +138,7 @@ Direct non-loopback binding requires `--allow-remote --tls-cert CERT --tls-key K
 The code exchange is intentionally the only unauthenticated remote write; it is source-IP rate limited and subject to Origin checks.
 Connections provides a device-session disclosure with current-device status and revocation; self-revocation returns to `/pair`. The
 responsive Studio is reachable to paired browsers, but remote operation is experimental and has only local browser-fixture coverage.
-Do not expose the listener to the public internet. Browser/PTY handoff and trusted tunnel support remain unavailable; the marketing site
+Do not expose the listener to the public internet. Remote browser handoff, authenticated PTY/desktop control and trusted tunnel support remain unavailable; the marketing site
 cannot reach localhost.
 
 ## Navigation and approval review

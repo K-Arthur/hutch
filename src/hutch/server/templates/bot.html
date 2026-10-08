@@ -75,6 +75,10 @@
       <option value="managed" {{ 'selected' if not bot.workdir and bot.workspace_mode == 'managed' }}>Hutch-managed</option>
       <option value="folder" {{ 'selected' if bot.workdir }}>Existing folder</option></select>
       <small>Fresh starts with a clean folder. Managed shares one private folder across this bot's runs and chats; deleting the bot keeps its files. Changing modes does not move or delete files.</small></label>
+    <label class="field browser-handoff-field"><span>Local browser handoff</span><select name="local_browser_handoff" aria-describedby="browser-handoff-help">
+      <option value="false" {{ 'selected' if not bot.local_browser_handoff }}>Off - browser stays headless</option>
+      <option value="true" {{ 'selected' if bot.local_browser_handoff }}>On - open a visible browser on this Linux desktop</option></select>
+      <small id="browser-handoff-help">Requires a Linux desktop display and the optional browser extra. When a login or CAPTCHA needs you, the same browser window stays open while automation pauses. Only one Hutch run can hold the handoff at a time. This does not enable phone control.</small></label>
     <label class="field wide"><span>Existing folder (folder mode)</span><input type="text" name="workdir" value="{{ bot.workdir or '' }}" placeholder="absolute path, for example ~/Projects/report" class="mono">
       <small>Used only in folder mode. The folder must already exist; Hutch will not create, move, or delete it. System folders, your whole home and Hutch's own state are refused.</small></label>
     <label class="field"><span>Risk tier</span><select name="risk_tier">

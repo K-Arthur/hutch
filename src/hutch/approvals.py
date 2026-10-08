@@ -188,7 +188,7 @@ class ApprovalGate:
         """A stop was requested: in this process (the flag) or in any other (the database)."""
         return self.cancel_requested or self.store.is_cancel_requested(self.run.id)
 
-    def wait_for_human(self, reason: str, url: str = "") -> None:
+    def wait_for_human(self, reason: str, url: str = "", handoff: str = "") -> None:
         """Park the run until a person clears a login / CAPTCHA / 2FA wall (UI-1 "Needs you").
 
         Hutch never attempts these challenges itself. The run shows as ``waiting_human`` with the
@@ -205,6 +205,7 @@ class ApprovalGate:
         deadline = time.monotonic() + self.ttl
         self.emit(Event(run_id=self.run.id, type=EventType.human_needed,
                         data={"reason": reason, "url": url,
+                              "handoff": handoff,
                               "expires_at": iso(utcnow() + timedelta(seconds=self.ttl))}))
         topics = {f"human:{self.run.id}": 0, f"approval:wake:{self.run.id}": 0}
         try:

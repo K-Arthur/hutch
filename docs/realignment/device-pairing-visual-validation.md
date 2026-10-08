@@ -36,7 +36,7 @@ and remains open after a revocation refresh when the user opened it.
 These results are local browser fixtures. They do not establish screen-reader support, a physical-device experience, or remote-network
 security and availability; those remain open release gates.
 
-The marketing availability copy now classifies paired-dashboard access as experimental and keeps browser handoff and PTY/desktop control
+The marketing availability copy now classifies paired-dashboard access as experimental and keeps remote browser handoff and PTY/desktop control
 unavailable. The anonymous website suite passed **12 tests in 14.26s**. Refreshed desktop/tablet/phone source-pinned captures are in
 [`artifacts/no-mock-setup/site/`](artifacts/no-mock-setup/site/); the modified first-run and restoration proof captures are retained in
 [`artifacts/restoration/`](artifacts/restoration/). They use no operator credentials or private runtime state.

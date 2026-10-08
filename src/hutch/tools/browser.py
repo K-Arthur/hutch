@@ -4,26 +4,36 @@ Answers the documented browser-agent failures:
 - Session expiry: each bot gets a PERSISTENT browser profile, so logins survive
   across runs instead of being re-harvested by hand.
 - One desktop: browser contexts are serialized behind a global lock — two bots
-  never fight over one GUI.
+  never fight over one GUI; OS file leases extend ownership across worker processes.
 - CAPTCHA/MFA walls: navigating to a login/captcha challenge emits a
-  pause_to_human event; with a human watching the dashboard they finish the
-  challenge and the bot continues. The bot never solves challenges itself.
+  pause_to_human event only when this bot has opted into a visible local
+  desktop browser. Headless runs report that no handoff exists; the bot never
+  solves challenges itself.
 
 Requires the optional extra:  pip install "hutch[browser]"
 """
 
 from __future__ import annotations
 
+import os
+import stat
+import sys
 import threading
 import time
 from typing import Any, Callable, Optional
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - browser execution is Linux-first
+    fcntl = None
 
 from ..models import Event, EventType
 from ..approvals import DeniedError
 from .base import Tool, ToolContext, ToolResult, _schema, clip, rehearsed
 
-# One browser automation at a time on a single desktop. Profiles and contexts
-# are instance-owned so a bot cannot inherit another bot's cookies or page.
+# One browser automation at a time per process. OS file leases extend profile
+# and visible-desktop ownership across run worker processes. Contexts are
+# instance-owned so a bot cannot inherit another bot's cookies or page.
 _GLOBAL_BROWSER_LOCK = threading.Lock()
 
 _LOGIN_WALL_RE = ("captcha", "are you a robot", "sign in", "log in", "two-factor",
@@ -41,6 +51,21 @@ _ACTIONS = {
 
 class BrowserUnavailable(Exception):
     pass
+
+
+def local_handoff_status() -> tuple[bool, str]:
+    """Whether a visible same-session browser can be opened on this host."""
+    if sys.platform != "linux":
+        return False, "Local browser handoff currently requires Linux."
+    if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+        return False, "No desktop display is available to open a visible browser window."
+    if fcntl is None:
+        return False, "This host does not provide the file locks needed to own a browser profile."
+    try:
+        from playwright.sync_api import sync_playwright  # noqa: F401
+    except ImportError:
+        return False, 'Install Hutch with the browser extra: `pip install "hutch[browser]"`.'
+    return True, "A visible browser can stay open while Hutch waits for you to complete the step."
 
 
 class BrowserTool(Tool):
@@ -64,41 +89,125 @@ class BrowserTool(Tool):
     def __init__(self):
         self._pw = None
         self._browser = None
+        self._lease_fds: list[int] = []
+
+    @staticmethod
+    def _lock(path, label: str) -> int:
+        if fcntl is None:
+            raise BrowserUnavailable("Browser handoff needs Linux advisory file locks")
+        flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+        fd = None
+        try:
+            fd = os.open(path, flags, 0o600)
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
+                raise BrowserUnavailable(f"{label} lock is not a private file owned by this user")
+            os.fchmod(fd, 0o600)
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return fd
+        except BlockingIOError as exc:
+            if fd is not None:
+                os.close(fd)
+            raise BrowserUnavailable(f"{label} is already in use by another Hutch run; stop or wait for that run") from exc
+        except BrowserUnavailable:
+            if fd is not None:
+                os.close(fd)
+            raise
+        except OSError as exc:
+            if fd is not None:
+                os.close(fd)
+            raise BrowserUnavailable(f"could not acquire {label}: {exc}") from exc
+
+    def _acquire_leases(self, ctx: ToolContext, profile_dir) -> None:
+        paths = []
+        if not ctx.headless:
+            paths.append((ctx.config.state_dir / "browser-desktop.lock", "the local browser handoff"))
+        paths.append((profile_dir.parent / "browser-profile.lock", "this bot's browser profile"))
+        try:
+            for path, label in paths:
+                self._lease_fds.append(self._lock(path, label))
+        except Exception:
+            self._release_leases()
+            raise
+
+    def _release_leases(self) -> None:
+        errors = []
+        while self._lease_fds:
+            fd = self._lease_fds.pop()
+            try:
+                if fcntl is not None:
+                    fcntl.flock(fd, fcntl.LOCK_UN)
+            except OSError as exc:
+                errors.append(exc)
+            finally:
+                try:
+                    os.close(fd)
+                except OSError as exc:
+                    errors.append(exc)
+        if errors:
+            raise BrowserUnavailable(f"could not release browser ownership lease: {errors[0]}") from errors[0]
 
     def _ensure(self, ctx: ToolContext):
         if self._browser is not None:
             return self._browser
+        if not ctx.headless:
+            available, reason = local_handoff_status()
+            if not available:
+                raise BrowserUnavailable(reason)
         try:
             from playwright.sync_api import sync_playwright
         except ImportError:
             raise BrowserUnavailable()
-        self._pw = sync_playwright().start()
         profile_dir = ctx.config.bot_profiles_dir(ctx.bot.name)
         profile_dir.mkdir(parents=True, exist_ok=True)
-        self._browser = self._pw.chromium.launch_persistent_context(
-            user_data_dir=str(profile_dir),
-            headless=ctx.headless,
-            accept_downloads=True,
-        )
-        # every request the page makes (navigation, redirect, sub-resource) is judged by the same rules as web_fetch
-        from ..netguard import RequestGuard
-        self._browser.route("**/*", RequestGuard().route_handler(
-            lambda url, why: ctx.emit and ctx.emit(Event(run_id=ctx.run.id, type=EventType.log,
-                                                         data={"denied": url, "reason": why, "rule": "deny:private-address"}))))
+        self._acquire_leases(ctx, profile_dir)
+        try:
+            self._pw = sync_playwright().start()
+            self._browser = self._pw.chromium.launch_persistent_context(
+                user_data_dir=str(profile_dir),
+                headless=ctx.headless,
+                accept_downloads=True,
+            )
+            # Every browser request (navigation, redirect and sub-resource) is judged by the URL guard.
+            from ..netguard import RequestGuard
+            self._browser.route("**/*", RequestGuard().route_handler(
+                lambda url, why: ctx.emit and ctx.emit(Event(run_id=ctx.run.id, type=EventType.log,
+                                                             data={"denied": url, "reason": why,
+                                                                   "rule": "deny:private-address"}))))
+        except Exception as exc:
+            cleanup = ""
+            try:
+                self._teardown()
+            except Exception as cleanup_exc:
+                cleanup = f"; browser cleanup also failed: {cleanup_exc}"
+            if not ctx.headless:
+                raise BrowserUnavailable(f"could not open the visible browser window: {exc}{cleanup}") from exc
+            raise BrowserUnavailable(f"could not initialize the browser: {exc}{cleanup}") from exc
         ctx.on_finish.append(self._teardown)
         return self._browser
 
     def _teardown(self):
-        if self._browser is not None:
+        errors = []
+        browser, self._browser = self._browser, None
+        playwright, self._pw = self._pw, None
+        try:
+            if browser is not None:
+                try:
+                    browser.close()
+                except Exception as exc:
+                    errors.append(exc)
+            if playwright is not None:
+                try:
+                    playwright.stop()
+                except Exception as exc:
+                    errors.append(exc)
+        finally:
             try:
-                self._browser.close()
-            finally:
-                self._browser = None
-        if self._pw is not None:
-            try:
-                self._pw.stop()
-            finally:
-                self._pw = None
+                self._release_leases()
+            except Exception as exc:
+                errors.append(exc)
+        if errors:
+            raise BrowserUnavailable(f"browser cleanup incomplete: {errors[0]}") from errors[0]
 
     def effect(self, args: dict[str, Any], ctx: ToolContext) -> str:
         action = (args.get("action") or "").strip()
@@ -140,11 +249,26 @@ class BrowserTool(Tool):
             body_sample = page.inner_text("body")[:500].lower()
             walls = [w for w in _LOGIN_WALL_RE if w in body_sample]
             if walls:
-                # Park the run for a human instead of barrelling on: the person clears the wall in
-                # the bot's own browser profile, presses Resume, and the session persists (UI-1).
-                ctx.gate.wait_for_human(f"login/CAPTCHA wall at {url} ({', '.join(walls)})", url)
-                page.reload(wait_until="domcontentloaded")
-                title = page.title()
+                if ctx.headless:
+                    return ToolResult(
+                        ok=False,
+                        output=("error: the page requires a person to complete a login/CAPTCHA step, but this bot's browser "
+                                "is headless. Enable Local browser handoff in the bot settings on a Linux desktop and retry. "
+                                "Hutch did not wait or attempt to solve the challenge."),
+                        data={"handoff_available": False, "url": url},
+                    )
+                # Keep the same headed browser alive. A resume is accepted only
+                # after a reload confirms the challenge is no longer present.
+                while walls:
+                    reason = f"login/CAPTCHA wall at {url} ({', '.join(walls)})"
+                    ctx.gate.wait_for_human(
+                        reason, url,
+                        handoff="Complete this step in the visible Hutch browser window. Automation is paused until you resume.",
+                    )
+                    page.reload(wait_until="domcontentloaded")
+                    title = page.title()
+                    body_sample = page.inner_text("body")[:500].lower()
+                    walls = [w for w in _LOGIN_WALL_RE if w in body_sample]
             return ToolResult(ok=True, output=f"opened {url}\ntitle: {title}", data={"url": url})
 
         if action == "read":

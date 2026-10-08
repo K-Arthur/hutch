@@ -199,6 +199,7 @@ class Bot(BaseModel):
     memory_enabled: bool = True
     workspace_mode: Literal["fresh", "managed", "folder"] = "fresh"
     workdir: Optional[str] = None     # an existing user folder; overrides the managed workspace
+    local_browser_handoff: bool = False  # show this bot's browser on the Linux desktop for same-session human control
     paused: bool = False
     template: Optional[str] = None    # which starter template it came from
     preset: Optional[str] = None      # task preset this bot was configured from (LM-7)

@@ -346,6 +346,7 @@ def register_pages(app: FastAPI) -> None:
             else:
                 bot.workdir = None
             bot.workspace_mode = workspace_mode
+            bot.local_browser_handoff = form.flag("local_browser_handoff")
             cron = form.get("cron").strip()
             if cron:
                 try:

@@ -55,9 +55,11 @@ HttpOnly cookie; the raw session secret is never returned in the response or wri
 invalid attempts from one source IP in ten minutes.
 
 The pairing form and responsive dashboard are implemented, but remote operation remains experimental: no physical-device or private
-network test has been performed. Browser handoff, authenticated PTY/desktop control and trusted tunnel/reverse-proxy support are not
-implemented. Tunnel/reverse-proxy deployments are not supported by this command; keep it loopback-only behind externally managed
-infrastructure until trusted-proxy handling is documented and validated.
+network test has been performed. Local same-session browser handoff is experimental and opt-in per bot; it needs a Linux display and
+the optional Playwright browser. It keeps Hutch's owned browser visible on the host while a person completes a login challenge; it does
+not provide phone control or physical desktop input. Authenticated PTY/physical desktop control and trusted tunnel/reverse-proxy support
+are not implemented. Tunnel/reverse-proxy deployments are not supported by this command; keep it loopback-only behind externally
+managed infrastructure until trusted-proxy handling is documented and validated.
 
 ## Database migration and restore
 

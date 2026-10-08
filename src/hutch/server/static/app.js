@@ -2319,10 +2319,12 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   const b = await api(`/bots/${encodeURIComponent(name)}`);
   const factsPage = await api(`/v1/bots/${encodeURIComponent(name)}/facts?all_scopes=true&limit=20&offset=${factOffset}&include_archived=${showArchivedFacts}`);
   let offlineCapability = { status: "unavailable", reason: "Host isolation could not be verified." };
+  let browserHandoffCapability = { status: "unavailable", reason: "The server could not verify this host's display and browser support." };
   try {
     const capabilities = await api("/v1/capabilities");
     offlineCapability = capabilities.find(capability => capability.id === "strict_offline") || offlineCapability;
-  } catch { /* strict offline stays unavailable unless the host check answers */ }
+    browserHandoffCapability = capabilities.find(capability => capability.id === "browser_handoff") || browserHandoffCapability;
+  } catch { /* host-dependent options remain unavailable unless capabilities are verified */ }
   const offlineReady = ["supported", "experimental"].includes(offlineCapability.status);
   const offlineLabel = offlineCapability.status === "experimental"
     ? "Strict offline · experimental"
@@ -2331,6 +2333,9 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   const offlineReason = offlineReady
     ? "Hutch verified that the isolated worker cannot reach tested host TCP listeners and sees only its own processes; configured model traffic uses a private per-run Unix-socket broker. Browser and web tools are removed, and shell requires the strict sandbox. The separate model service itself may still use the network."
     : `Hutch could not verify worker network isolation (${offlineCapability.reason}). Local model routes alone do not make a run offline; the separate model service may still use the network.`;
+  const handoffReason = ["supported", "experimental"].includes(browserHandoffCapability.status)
+    ? "Local browser handoff is experimental on this host. A login wait keeps the same browser window open and pauses automation. Only one Hutch handoff can run at a time. This does not enable phone control."
+    : `Local browser handoff is unavailable on this host: ${browserHandoffCapability.reason}. It will fail closed until its display and browser prerequisites are available. This does not enable phone control.`;
   setTopContext(`
     <div class="ctx-id">
       ${botAvatar(b.name, 30)}
@@ -2425,6 +2430,13 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             <label class="field workspace-folder-field" id="workspace-folder-field" ${b.workspace_mode === "folder" ? "" : "hidden"}>Existing folder
               <input type="text" name="workdir" value="${esc(b.workdir || "")}" placeholder="absolute path, for example ~/Projects/report" ${b.workspace_mode === "folder" ? "required" : ""}>
               <span class="hint">Choose a folder that already exists. System folders, your whole home, and Hutch’s private state are refused.</span>
+            </label>
+            <label class="field browser-handoff-field">Local browser handoff
+              <select name="local_browser_handoff" aria-describedby="browser-handoff-help">
+                <option value="false" ${b.local_browser_handoff ? "" : "selected"}>Off - browser stays headless</option>
+                <option value="true" ${b.local_browser_handoff ? "selected" : ""}>On - visible Linux desktop window</option>
+              </select>
+              <span class="hint" id="browser-handoff-help">${esc(handoffReason)}</span>
             </label>
             <div class="btn-row">
               <button class="btn primary small" type="submit">Save policy</button>
@@ -2544,7 +2556,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     ev.preventDefault();
     const fd = new FormData(ev.target);
     patch({ approval_mode: fd.get("approval_mode"), risk_tier: fd.get("risk_tier"),
-      workspace_mode: fd.get("workspace_mode"), workdir: fd.get("workdir").trim() }, "Policy and workspace saved.");
+      workspace_mode: fd.get("workspace_mode"), workdir: fd.get("workdir").trim(),
+      local_browser_handoff: fd.get("local_browser_handoff") === "true" }, "Policy and workspace saved.");
   });
   $('#form-risk [name="workspace_mode"]').addEventListener("change", ev => {
     const folder = ev.target.value === "folder";

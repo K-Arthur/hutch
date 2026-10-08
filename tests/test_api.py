@@ -141,8 +141,9 @@ def test_run_output_artifacts_are_paged_scoped_and_hash_checked(client, tmp_path
 
 
 def test_bot_crud_and_validation(client):
-    bot = make_bot(client)
+    bot = make_bot(client, local_browser_handoff=True)
     assert bot["name"] == "api-bot"
+    assert bot["local_browser_handoff"] is True
     assert bot["tools"] == ["read_file", "list_files", "write_file", "remember", "recall", "shell"]
 
     # duplicate
@@ -157,6 +158,10 @@ def test_bot_crud_and_validation(client):
 
     patched = client.patch("/api/bots/api-bot", json={"paused": True, "cron": "0 9 * * 1"}).json()
     assert patched["paused"] is True and patched["schedule"]["cron"] == "0 9 * * 1"
+    local = client.patch("/api/bots/api-bot", json={"local_browser_handoff": True}).json()
+    assert local["local_browser_handoff"] is True
+    disabled = client.patch("/api/bots/api-bot", json={"local_browser_handoff": False}).json()
+    assert disabled["local_browser_handoff"] is False
 
     assert client.delete("/api/bots/api-bot").status_code == 200
     assert client.get("/api/bots/api-bot").status_code == 404
@@ -384,5 +389,8 @@ def test_versioned_connections_schedules_and_capabilities_are_typed_and_secret_f
     assert capabilities["strict_offline"]["status"] in {"experimental", "unavailable"}
     assert capabilities["strict_offline"]["verification"] == "network_pid_namespace_tcp_unix_socket_probe"
     assert capabilities["remote_pairing"]["status"] == "experimental"
+    assert capabilities["browser_handoff"]["status"] in {"experimental", "unavailable"}
+    assert capabilities["browser_handoff"]["verification"] in {
+        "host_display_and_playwright_check", "host_prerequisite_check"}
     assert capabilities["phone_control"]["status"] == "unavailable"
     assert capabilities["external_runtimes"]["status"] == "unavailable"

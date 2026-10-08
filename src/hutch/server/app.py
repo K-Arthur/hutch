@@ -70,6 +70,7 @@ class BotCreate(BaseModel):
     risk_tier: RiskTier = RiskTier.supervised
     command_rules: list[CommandRule] = []
     workspace_mode: Optional[Literal["fresh", "managed", "folder"]] = None
+    local_browser_handoff: bool = False
     workdir: Optional[str] = None
     limits: Optional[Limits] = None
 
@@ -113,6 +114,7 @@ class BotPatch(BaseModel):
     risk_tier: Optional[RiskTier] = None
     command_rules: Optional[list[CommandRule]] = None
     workspace_mode: Optional[Literal["fresh", "managed", "folder"]] = None
+    local_browser_handoff: Optional[bool] = None
     workdir: Optional[str] = None          # "" clears it
     limits: Optional[Limits] = None
     paused: Optional[bool] = None
@@ -819,7 +821,9 @@ def create_app() -> FastAPI:
     def capabilities() -> list[dict]:
         linux = platform.system() == "Linux"
         from ..sandbox import offline_egress_status
+        from ..tools.browser import local_handoff_status
         offline = offline_egress_status()
+        handoff_ok, handoff_reason = local_handoff_status()
         offline_reason = ("Hutch's isolated worker blocked TCP to tested IPv4/IPv6 loopback and host-interface listeners, "
                           "and its PID namespace exposes only namespace processes; configured model traffic uses a "
                           "private per-run Unix socket broker. The separate local "
@@ -841,8 +845,10 @@ def create_app() -> FastAPI:
             {"id": "phone_control", "status": "unavailable",
              "reason": "No phone control surface or authenticated interactive control route is implemented",
              "verification": "not_tested"},
-            {"id": "browser_handoff", "status": "unavailable",
-             "reason": "Same-session human browser control is not implemented", "verification": "not_tested"},
+            {"id": "browser_handoff", "status": "experimental" if handoff_ok else "unavailable",
+             "reason": handoff_reason if not handoff_ok else
+                      "Local Linux desktop only: Hutch pauses the owned browser process while a person completes a challenge; no phone control",
+             "verification": "host_display_and_playwright_check" if handoff_ok else "host_prerequisite_check"},
             {"id": "external_runtimes", "status": "unavailable",
              "reason": "Pi and OpenCode lack governed permission, sandbox and budget integration",
              "verification": "adapter_start_refusal_tests"},
@@ -1059,6 +1065,7 @@ def create_app() -> FastAPI:
         bot.memory_enabled = body.memory_enabled
         bot.approval_mode = body.approval_mode
         bot.risk_tier = body.risk_tier
+        bot.local_browser_handoff = body.local_browser_handoff
         bot.command_rules = _checked_rules(body.command_rules)
         if body.limits is not None:
             bot.limits = body.limits
@@ -1122,6 +1129,7 @@ def create_app() -> FastAPI:
         if body.memory_enabled is not None: bot.memory_enabled = body.memory_enabled
         if body.approval_mode is not None: bot.approval_mode = body.approval_mode
         if body.risk_tier is not None: bot.risk_tier = body.risk_tier
+        if body.local_browser_handoff is not None: bot.local_browser_handoff = body.local_browser_handoff
         if body.limits is not None: bot.limits = body.limits
         if body.command_rules is not None: bot.command_rules = _checked_rules(body.command_rules)
         if body.workdir is not None: bot.workdir = _checked_workdir(body.workdir) if body.workdir else None

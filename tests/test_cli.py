@@ -64,7 +64,8 @@ def test_bot_limit_flags_create_and_update_estimate_controls(state_env):
     created = runner.invoke(app, ["bot", "create", "bounded", "--model", "mock/demo",
                                   "--max-steps", "8", "--timeout-seconds", "240",
                                   "--max-turn-tokens", "1024", "--daily-token-cap", "8000",
-                                  "--max-cost-usd", "1.25", "--daily-cost-cap-usd", "7.50"])
+                                  "--max-cost-usd", "1.25", "--daily-cost-cap-usd", "7.50",
+                                  "--local-browser-handoff"])
     assert created.exit_code == 0, created.output
     updated = runner.invoke(app, ["bot", "update", "bounded", "--max-steps", "10",
                                   "--daily-token-cap", "9000", "--daily-cost-cap-usd", "8"])
@@ -72,8 +73,12 @@ def test_bot_limit_flags_create_and_update_estimate_controls(state_env):
     shown = runner.invoke(app, ["bot", "show", "bounded"])
     assert shown.exit_code == 0, shown.output
     for value in ('"max_steps": 10', '"timeout_seconds": 240', '"max_turn_tokens": 1024',
-                  '"daily_token_cap": 9000', '"max_cost_usd": 1.25', '"daily_cost_cap_usd": 8.0'):
+                  '"daily_token_cap": 9000', '"max_cost_usd": 1.25', '"daily_cost_cap_usd": 8.0',
+                  '"local_browser_handoff": true'):
         assert value in shown.output
+    disabled = runner.invoke(app, ["bot", "update", "bounded", "--no-local-browser-handoff"])
+    assert disabled.exit_code == 0, disabled.output
+    assert '"local_browser_handoff": false' in runner.invoke(app, ["bot", "show", "bounded"]).output
     invalid = runner.invoke(app, ["bot", "update", "bounded", "--max-cost-usd", "-1"])
     assert invalid.exit_code != 0
 

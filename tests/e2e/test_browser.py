@@ -1016,6 +1016,74 @@ def test_bot_workspace_modes_are_clear_and_persist_across_settings(browser, live
         page.close()
 
 
+@pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (900, 1024, "tablet"), (390, 844, "phone")])
+def test_local_browser_handoff_setting_is_explicit_and_persists(browser, live, width, height, size):
+    from hutch.models import iso, utcnow
+
+    base, app = live
+    # Settings-only journey: use Hutch's ordinary model default without starting a run.
+    app.state.store.create_bot(Bot(name="local-handoff", model="ollama/qwen3:4b", tools=["browser"]))
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/local-browser-handoff"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": width, "height": height}, reduced_motion="reduce")
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
+    try:
+        page.goto(base + "/#/bot/local-handoff")
+        page.get_by_role("heading", name="local-handoff settings", exact=True).wait_for()
+        handoff = page.locator('#form-risk [name="local_browser_handoff"]')
+        assert handoff.input_value() == "false"
+        assert handoff.get_attribute("aria-describedby") == "browser-handoff-help"
+        assert page.get_by_text("This does not enable phone control.", exact=False).count() == 1
+        capability = next(item for item in page.request.get(f"{base}/api/v1/capabilities").json()
+                          if item["id"] == "browser_handoff")
+        if capability["status"] == "unavailable":
+            assert capability["reason"] in page.locator("#browser-handoff-help").inner_text()
+        else:
+            assert "experimental on this host" in page.locator("#browser-handoff-help").inner_text()
+        if width <= 390:
+            assert handoff.bounding_box()["height"] >= 44
+        handoff.focus()
+        page.keyboard.press("Tab")
+        save_policy = page.locator('#form-risk button[type="submit"]')
+        assert save_policy.evaluate("element => element === document.activeElement")
+        assert save_policy.evaluate("element => element.matches(':focus-visible')")
+        handoff.select_option("true")
+        old_form = page.locator("#form-risk").element_handle()
+        with page.expect_response(lambda response: response.url.endswith("/api/bots/local-handoff")
+                                  and response.request.method == "PATCH") as saved:
+            page.locator('#form-risk button[type="submit"]').click()
+        assert saved.value.status == 200, saved.value.text()
+        page.wait_for_function("form => !form.isConnected", arg=old_form)
+        page.locator("#form-risk").wait_for(state="visible")
+        handoff = page.locator('#form-risk [name="local_browser_handoff"]')
+        assert handoff.input_value() == "true"
+        assert app.state.store.get_bot("local-handoff").local_browser_handoff
+        page.locator("#form-risk").scroll_into_view_if_needed()
+        page.locator(".toast-root .toast").wait_for(state="detached")
+        page.screenshot(path=str(out / f"{size}-enabled.png"), full_page=True, animations="disabled")
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow <= 1 and not errors, (overflow, errors)
+        (out / f"{size}.json").write_text(json.dumps({
+            "captured_at": iso(utcnow()), "browser": browser.browser_type.name, "version": browser.version,
+            "playwright_version": package_version("playwright"), "viewport": [width, height],
+            "scenario": "Configure local same-session browser handoff; UI-only fixture with no run, model call or browser challenge",
+            "provider_calls": 0, "run_started": False,
+            "limitation": "The visible headed challenge flow was not exercised by this settings journey.",
+            "stored": app.state.store.get_bot("local-handoff").local_browser_handoff,
+            "page_errors": errors, "horizontal_overflow": overflow,
+            "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest() for p in (
+                "src/hutch/server/static/app.js", "src/hutch/server/static/style.css", "src/hutch/server/app.py",
+                "src/hutch/server/pages.py", "src/hutch/server/templates/bot.html", "src/hutch/models.py")},
+        }, indent=2) + "\n")
+    finally:
+        context.tracing.stop(path=str(out / f"{size}-trace.zip"))
+        context.close()
+
+
 def test_fleet_appears_at_ten_bots_with_search_and_state_filters(browser, live):
     base, app = live
     for i in range(9):

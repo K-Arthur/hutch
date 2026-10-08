@@ -248,6 +248,8 @@ def bot_create(
     risk_tier: RiskTier = typer.Option(RiskTier.supervised, "--risk-tier",
                                        help="readonly (medium-risk actions blocked) | supervised (ask) | trusted (run)"),
     sandbox_mode: str = typer.Option("strict", "--sandbox", help="strict (Linux bubblewrap) | off (uncontained shell)"),
+    local_browser_handoff: bool = typer.Option(False, "--local-browser-handoff",
+                                                help="open the same browser window on this Linux desktop for login handoff"),
     rule: list[str] = typer.Option([], "--rule", help="per-command rule, e.g. --rule 'deny: git push*' (repeatable)"),
     max_steps: int = typer.Option(Limits().max_steps, "--max-steps", min=1),
     timeout: int = typer.Option(Limits().timeout_seconds, "--timeout-seconds", min=1),
@@ -311,6 +313,7 @@ def bot_create(
     bot.approval_mode = approval
     bot.risk_tier = risk_tier
     bot.sandbox = sandbox_mode
+    bot.local_browser_handoff = local_browser_handoff
     if workdir:
         if workspace_mode not in (None, "folder"):
             err.print("[red]--workdir requires --workspace-mode folder[/red]")
@@ -412,6 +415,9 @@ def bot_update(
     approval: Optional[ApprovalMode] = typer.Option(None, "--approvals"),
     risk_tier: Optional[RiskTier] = typer.Option(None, "--risk-tier", help="readonly | supervised | trusted"),
     sandbox_mode: Optional[str] = typer.Option(None, "--sandbox", help="strict (Linux bubblewrap) | off (uncontained shell)"),
+    local_browser_handoff: Optional[bool] = typer.Option(
+        None, "--local-browser-handoff/--no-local-browser-handoff",
+        help="show the browser on this Linux desktop while a person handles login challenges"),
     workdir: Optional[str] = typer.Option(None, "--workdir", help="a folder of yours the bot works in"),
     workspace_mode: Optional[Literal["fresh", "managed", "folder"]] = typer.Option(
         None, "--workspace-mode", help="fresh | managed | folder (folder mode needs --workdir)"),
@@ -454,6 +460,7 @@ def bot_update(
     if description is not None: bot.description = description
     if approval is not None: bot.approval_mode = approval
     if risk_tier is not None: bot.risk_tier = risk_tier
+    if local_browser_handoff is not None: bot.local_browser_handoff = local_browser_handoff
     if sandbox_mode is not None:
         if sandbox_mode not in ("strict", "off"):
             err.print("[red]--sandbox must be 'strict' or 'off'[/red]")

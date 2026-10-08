@@ -1,7 +1,7 @@
 # ADR-0006: Tool authority, an OS sandbox, and who owns the browser
 
-Status: accepted, partially implemented (2026-10-07). S4 Linux shell containment and approval CAS are host-tested; browser profile
-ownership is implemented and fixture-tested; same-session handoff and pinned browser egress remain unimplemented. Evidence: baseline
+Status: accepted, partially implemented (2026-10-08). S4 Linux shell containment and approval CAS are host-tested; browser profile
+ownership and opt-in local Linux desktop handoff are implemented with fixture coverage; pinned browser egress and remote handoff remain unimplemented. Evidence: baseline
 leads 8-9, D3, A1, B6.
 
 ## Context
@@ -54,12 +54,14 @@ into system instructions. They cannot raise a tool's policy tier. Rendered conte
 ### Browser and desktop are different resources
 
 * **Isolated automation browser**: one Playwright context per tool instance, using that bot's persistent profile directory. This
-  is fixture-tested; no live browser check has been completed here. It remains experimental, with process-wide action serialization,
-  no pinned DNS/egress and no visible handoff.
+  is fixture-tested; no live account check has been completed here. Cross-process file leases prevent concurrent use of the same
+  profile. Opt-in local handoff keeps the same headed browser open for a human challenge; it remains experimental, and browser DNS
+  is not pinned to the checked address.
 * **Physical desktop** (pointer/keyboard): one lease at a time system-wide (`resource_leases` row), not implemented in this phase and
   documented as such; Wayland capture/control needs an installed, authorised executor and portal permission.
-* **Human handoff**: a live session with an exclusive input lease is planned (ADR-0010), not implemented. Current runs can pause at
-  detected human-check pages but do not transfer control to a person in the same browser session. CAPTCHA/MFA are never solved by Hutch.
+* **Local browser human handoff**: a run may opt into one visible local browser session at a time. The run pauses while the person
+  acts in that exact context, and Resume reloads/rechecks the challenge before automation continues. Remote phone input and physical
+  desktop control remain unavailable. CAPTCHA/MFA are never solved by Hutch.
 
 ## Consequences
 

@@ -73,6 +73,26 @@ These are local UI checks, not a screen-reader certification, physical phone tes
 Playwright used desktop Firefox at phone/tablet viewport sizes; it did not emulate touch input. Provider, Pi, local-model, portal
 and physical-device workflows remain separate verification gaps in [the continuation ledger](ledger.md).
 
+## Local browser handoff settings (2026-10-08)
+
+The bot settings expose an opt-in, same-session visible browser handoff. Chromium 153.0.8010.12 / Playwright 1.63.0 exercised
+save-and-reload at 1440×1000, 900×1024 and 390×844. The screenshots were inspected at all three sizes. The first phone pass
+found the new selector was 38px tall; it was raised to the 44px Hutch touch target and all viewport cases then passed. The helper
+text stays beside the setting, the phone view has no horizontal overflow, and the selection survives a server-backed bot update.
+Keyboard Tab moves from the setting to the visible Save policy control, and the setting has an associated accessible description.
+No run was started, no model/provider was called, and no browser login challenge was opened. This validates the settings journey,
+not a real headed browser handoff. Fixture metadata, source hashes and Playwright traces are in
+[local-browser-handoff](artifacts/local-browser-handoff/): [desktop](artifacts/local-browser-handoff/desktop-enabled.png),
+[tablet](artifacts/local-browser-handoff/tablet-enabled.png), and [phone](artifacts/local-browser-handoff/phone-enabled.png).
+The focused test passed **3 viewport cases in 88.44s**; all report zero browser-console/page errors and zero horizontal overflow.
+
+The installed Impeccable CLI exposes `detect` but not the documented `audit` command, so the scoped technical checklist was applied
+manually. The final source detector returned `[]`. In this tested flow, accessibility has the native label/description, visible keyboard
+focus and 44px phone target; contrast, screen-reader use, 320px reflow, 200% zoom and user text-spacing overrides remain untested.
+The dark theme uses the existing tokens without new colors; no contrast calculation was performed. No render profiling was done.
+The persisted option and live capability message come from Hutch's API, and headless runs refuse to pretend a person can take over.
+No P0–P3 defect was observed in the changed settings path; the real visible login challenge and cross-browser behavior remain open.
+
 ## Action intent review continuation
 
 Schema v13 adds an uncertain-action card in chat and paginated older/cross-bot receipts in

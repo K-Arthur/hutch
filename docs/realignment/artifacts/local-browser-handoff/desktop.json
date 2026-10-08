@@ -1,0 +1,25 @@
+{
+  "captured_at": "2026-10-08T21:49:17.069563+00:00",
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewport": [
+    1440,
+    1000
+  ],
+  "scenario": "Configure local same-session browser handoff; UI-only fixture with no run, model call or browser challenge",
+  "provider_calls": 0,
+  "run_started": false,
+  "limitation": "The visible headed challenge flow was not exercised by this settings journey.",
+  "stored": true,
+  "page_errors": [],
+  "horizontal_overflow": 0,
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "d0ccc2471047fa369407caf2e23466292cc4e7ef0ddbf270e1a5c4b16ccfc3b7",
+    "src/hutch/server/static/style.css": "37cb006c75a4d6b93e3782b26a61132573820cb5089d2ccb1996071c55049dca",
+    "src/hutch/server/app.py": "f75ced88fc4fdb1f754cde0b87ff6d39f8ddb4ae64e43f54ee49b928fe8a7362",
+    "src/hutch/server/pages.py": "c0567d13d78c84b91b7521adb063a2a9cc6b40b861a7aa6293b61892fc3acc14",
+    "src/hutch/server/templates/bot.html": "7efe9afe4ec25b76b49867b14bc8f77d261fe267ddfb0a7fff180fb481fd5626",
+    "src/hutch/models.py": "63a3c00148098ee6d4824914aca4f6532c59be651c43650ac909611b501b6f4b"
+  }
+}

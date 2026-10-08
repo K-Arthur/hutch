@@ -66,6 +66,7 @@ approval expiry without the dashboard.
 - **Scheduling that survives sleep and DST** — IANA-timezone cron, DST-correct, catch-up after sleep; each occurrence and each run is
   claimed in the database; one elected supervisor handles schedules and recovery, and one bot never overlaps itself
 - **Approvals that don't nag** — ask-once with sticky always-allows; unanswered = denied
+- **Local browser handoff** — opt in per bot to a visible same-session browser on a Linux desktop; Hutch pauses for a login challenge and rechecks after Resume. Run `hutch bot update <name> --local-browser-handoff`; phone handoff is unavailable.
 - **Optional browser alerts** — get a generic reminder when a new approval or uncertain action needs you while Hutch is open in a background tab. Alerts never include chat or action text. They are not push notifications and stop when the tab closes.
 - **Usage budgets** — steps and wall-clock limits plus atomic per-bot token and shared provider-account reservations. Currency checks use recorded prices and prompt estimates; unknown-price routes are refused while a currency cap is set, and provider billing can differ. `hutch usage reservations` lists uncertain charges for reconciliation. `serve`, `daemon`, and `hutch run` use one owned worker process per attempt; cancellation stays visible until cleanup is verified
 - **Workspace and shell containment** — file tools stay in the workspace. New bots request Linux bubblewrap strict mode for shell commands, with no shell network and bounded resources; unsupported hosts fail closed. Existing bots keep their saved setting, and `sandbox: off` is explicitly uncontained execution. This shell boundary is not a VM and does not contain the browser or external runtimes
@@ -80,10 +81,12 @@ approval expiry without the dashboard.
   bounded recent history to the builtin runtime. The versioned API has SQLite full-text search, restart-safe command idempotency,
   cross-run transcript replay and bounded snapshot reconciliation after a cursor gap.
 - **Remote pairing (experimental)** — a one-time code opens the responsive dashboard on a paired browser, and Connections can list and
-  revoke device sessions. Direct access requires explicit HTTPS binding; live network and physical-device checks are still open. Browser/PTY
-  handoff and a trusted tunnel are unavailable, and loopback remains the supported service boundary. See [remote operations](docs/operations.md#remote-pairing-experimental).
-- **Browser (experimental)** — optional Playwright extra and a persistent profile per bot. A run can pause at some detected login
-  walls; live handoff in the same session and a pinned browser egress path are unavailable.
+  revoke device sessions. Direct access requires explicit HTTPS binding; live network and physical-device checks are still open. Remote
+  browser/PTY handoff and a trusted tunnel are unavailable, and loopback remains the supported service boundary. See [remote operations](docs/operations.md#remote-pairing-experimental).
+- **Browser (experimental)** — optional Playwright extra and a persistent profile per bot. Opt in to Local browser handoff to open
+  the same session in a visible Linux desktop window; Hutch pauses while you complete a detected login challenge and verifies the
+  challenge is gone after Resume. Only one Hutch desktop handoff can be active at a time. Headless runs fail clearly at a challenge;
+  phone handoff and pinned browser egress are unavailable.
 - **External runtimes** — Pi and OpenCode are recognized in old bot configs but disabled before starting a process. Their
   permission broker, process containment and provider budget path are not ready. Supported production execution uses Hutch's builtin runtime with a configured local or hosted model.
 
