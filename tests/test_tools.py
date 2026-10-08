@@ -138,17 +138,14 @@ def test_webfetch_denies_private_and_allows_check(store, config, tmp_path, monke
     res = tools["web_fetch"].run({"url": "file:///etc/passwd"}, ctx)
     assert not res.ok
 
-    class FakeResp:
-        status_code, reason_phrase, text = 200, "OK", "<html><body>hi there</body></html>"
-        headers = {"content-type": "text/html"}
-        is_success = True
-    class FakeHttpx:
-        HTTPError = Exception
-        def get(self, url, **kw):
-            assert url == "https://example.com/x"
-            return FakeResp()
+    from hutch.netguard import Fetched
     import hutch.tools.webfetch as wf
-    monkeypatch.setattr(wf.httpx, "get", FakeHttpx().get)
+
+    def fake_safe_get(url, **kw):
+        assert url == "https://example.com/x"
+        return Fetched(status=200, reason="OK", headers={"content-type": "text/html"},
+                       text="<html><body>hi there</body></html>", url=url)
+    monkeypatch.setattr(wf, "safe_get", fake_safe_get)
     res = tools["web_fetch"].run({"url": "https://example.com/x"}, ctx)
     assert res.ok and "hi there" in res.output
 

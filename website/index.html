@@ -273,7 +273,8 @@
           <li><b>Path containment:</b> File tools cannot resolve paths outside the workspace.</li>
           <li><b>Environment scrub:</b> Shell commands run with a synthetic HOME and a minimal environment.</li>
           <li><b>Compound-command aware:</b> Splits chained commands, pipes, substitutions and wrappers and applies the worst verdict.</li>
-          <li><b>Not yet:</b> OS-level containment of the shell, and DNS/redirect-aware fetch checks. Both are in progress; until then a bot's script can read files your user can.</li>
+          <li><b>Fetch checks:</b> web fetches resolve the name, require every address to be public, re-check each redirect and pin the connection to the checked address.</li>
+          <li><b>Not yet:</b> OS-level containment of the shell. It is in progress; until then a bot's script can read files your user can.</li>
         </ul>
       </div>
 

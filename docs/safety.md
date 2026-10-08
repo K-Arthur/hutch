@@ -11,7 +11,8 @@ not measured prevalence).
 |---|---|
 | File tools (`read_file`, `write_file`, `list_files`) | path-jailed to the workspace |
 | Shell tool | policy-checked, then run **as your user** with `HOME` pointed at the workspace. **No OS containment**: `cat /home/you/.ssh/id_rsa` is denied by policy, but a script the bot writes and runs is not analysed and can read anything your user can read, or open any socket |
-| `web_fetch` / browser `goto` | URL checked as a *string*: literal private addresses are blocked; alternate forms (`[::1]`, `user@127.0.0.1`, decimal/hex IPs, IPv4-mapped IPv6), names that resolve to loopback, and redirects are **not** caught yet (slice S1 fixes this) |
+| `web_fetch` | the name is resolved and **every** answer must be a public address; redirects are followed by hutch and each hop re-checked; the connection is pinned to the validated address (no second lookup); credentials in URLs, internal names and every spelling of a loopback/metadata address (`[::1]`, `0x7f.0.0.1`, decimal, IPv4-mapped, NAT64, 6to4) are refused (`netguard.py`, `tests/test_netguard.py`) |
+| browser | every request the page makes passes the same check, but a browser connects by itself, so DNS rebinding after the check is a residual risk until the browser runs in the network-less sandbox |
 | External runtimes (Pi, OpenCode) | run with their own tools; OpenCode is started with `--auto` (blanket approval of anything it has not denied). Hutch's policy does not see their tool calls |
 | Stopping a run | within the process that owns it; a run owned by another process is not stopped by `hutch stop` (slice S3 fixes this) |
 
@@ -101,10 +102,12 @@ Absolute paths outside the workspace are denied.
 
 ### URLs
 
-`web_fetch`/browser `goto` accept public `http(s)` only. Denied: non-http schemes (`file://`,
-`ftp://`), loopback/private ranges (`127.*`, `::1`, `10.*`, `192.168.*`, `172.16–31.*`), and the
-cloud metadata address (`169.254.169.254`). Response bodies are hard-clipped (a hostile page
-cannot eat the context window).
+`web_fetch` and the browser accept public `http(s)` only, decided on **addresses**, not spellings (`hutch/netguard.py`):
+non-http schemes, credentials in the URL, internal names (`localhost`, `*.internal`, `*.local`), and any address that is not
+public (loopback, private, link-local incl. cloud metadata, CGNAT, multicast, reserved; IPv4 embedded in IPv6 is unwrapped) are
+refused, whichever way the address is written and whichever name resolves to it. Redirects are followed by hutch and every hop is
+re-checked. Response bodies are hard-clipped. A locally configured model endpoint is an explicit exception made by a connection,
+not by a URL pattern.
 
 ### Browser actions
 

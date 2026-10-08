@@ -47,7 +47,8 @@ mock/demo                 deterministic offline runtime (tests, demos, first-run
 openai/gpt-4o-mini        OpenAI API (needs OPENAI_API_KEY)
 ollama/llama3.2           local Ollama  (http://localhost:11434/v1)
 lmstudio/qwen2.5-7b       local LM Studio (http://localhost:1234/v1)
-openai-compatible/<name>  any endpoint — set bot.base_url or HUTCH_BASE_URL
+openai-compatible/<name>  any endpoint — set bot.base_url or HUTCH_BASE_URL. Its key is HUTCH_API_KEY (or a connection);
+                           OPENAI_API_KEY is only ever sent to api.openai.com
 ```
 
 Any `mock/*` model routes to the mock runtime regardless of the `runtime` field.

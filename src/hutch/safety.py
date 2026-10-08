@@ -512,17 +512,12 @@ class PolicyEngine:
 
     # --------------------------------------------------------------- urls
 
-    _PRIVATE_HOST_RE = re.compile(
-        r"^(localhost|127\.|0\.0\.0\.0|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?$)",
-        re.IGNORECASE,
-    )
-
     def check_url(self, url: str) -> Decision:
-        m = re.match(r"^([a-zA-Z][a-zA-Z0-9+.-]*)://", url)
-        scheme = m.group(1).lower() if m else "http"
-        if scheme not in ("http", "https"):
-            return Decision(Verdict.deny, f"scheme '{scheme}' is not allowed (http/https only)", rule="deny:url-scheme", risk="high")
-        host = re.sub(r"^[a-zA-Z0-9+.-]+://", "", url).split("/", 1)[0].split(":")[0]
-        if self._PRIVATE_HOST_RE.match(host):
-            return Decision(Verdict.deny, "targeting loopback/private/metadata address", rule="deny:private-address", risk="high")
+        """Syntax-level screen (no network): scheme, credentials, internal names, and every IP-literal spelling. The fetching
+        code additionally resolves the name and re-checks every redirect (``hutch.netguard.safe_get``)."""
+        from .netguard import screen_url
+        reason = screen_url(url)
+        if reason:
+            rule = "deny:url-scheme" if reason.startswith("scheme") else "deny:private-address"
+            return Decision(Verdict.deny, reason, rule=rule, risk="high")
         return Decision(Verdict.allow, "public http(s) fetch", rule="allow:public-fetch", risk="low")

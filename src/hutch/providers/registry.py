@@ -18,6 +18,39 @@ from .base import Provider, ProviderError
 OLLAMA_PORT = 11434
 
 
+#: The only host an AMBIENT key (one picked up from the environment) may be sent to, per provider. A key belongs to
+#: the service that issued it: pointing a bot at a custom or local URL must never hand it the OpenAI or Anthropic key.
+#: A Connection (providers/connection.py) names its own key and endpoint on purpose and is not filtered here.
+OFFICIAL_HOSTS = {"openai": "api.openai.com", "anthropic": "api.anthropic.com"}
+
+#: Escape hatch that restores "any env key to any URL". It exists only so an upgrade is reversible; it is unsafe.
+LEGACY_KEY_ROUTING = "HUTCH_LEGACY_KEY_ROUTING"
+
+
+def is_official_endpoint(provider: str, url: Optional[str]) -> bool:
+    """True if ``url`` is exactly the provider's own HTTPS host (look-alikes, userinfo tricks and plain HTTP are not)."""
+    host = OFFICIAL_HOSTS.get(provider)
+    if not host or not url:
+        return False
+    try:
+        parts = urlsplit(url.strip())
+        return parts.scheme == "https" and (parts.hostname or "").lower() == host and parts.port in (None, 443)
+    except ValueError:
+        return False
+
+
+def ambient_key(provider: str, url: Optional[str], env) -> tuple[str, str]:
+    """(key, hint): the environment key for ``provider`` if it may be sent to ``url``, else ("", why it was withheld)."""
+    name = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}.get(provider)
+    key = env.get(name, "") if name else ""
+    if not key:
+        return "", ""
+    if env.get(LEGACY_KEY_ROUTING) == "1" or is_official_endpoint(provider, url):
+        return key, ""
+    return "", (f"{name} is only ever sent to {OFFICIAL_HOSTS[provider]} (https). This endpoint is {url or 'custom'}, so no key "
+                "was sent: create a connection with its own key (`hutch connections`) or set HUTCH_API_KEY for a custom endpoint")
+
+
 def parse_spec(spec: str) -> tuple[str, str]:
     provider, sep, model = spec.partition("/")
     if not sep:
@@ -53,9 +86,15 @@ def make_provider(provider: str, base_url: Optional[str] = None, env: Optional[d
         if not url:
             raise ProviderError("bad_request", "openai-compatible models need bot.base_url (or HUTCH_BASE_URL)",
                                 provider=provider)
-        return OpenAICompatProvider(url, env.get("OPENAI_API_KEY", ""), provider_name="openai-compatible")
+        # A custom endpoint is not OpenAI: it never receives OPENAI_API_KEY. HUTCH_API_KEY is the variable a person sets on
+        # purpose for the endpoint named by HUTCH_BASE_URL / bot.base_url.
+        key, hint = env.get("HUTCH_API_KEY", ""), ""
+        if not key:
+            key, hint = ambient_key("openai", url, env)         # only the legacy escape hatch can return a key here
+        return OpenAICompatProvider(url, key, provider_name="openai-compatible", auth_hint=hint)
     if provider in PRESET_URLS:
-        key = env.get("OPENAI_API_KEY", "") if provider == "openai" else ""
-        return OpenAICompatProvider(base_url or PRESET_URLS[provider], key, provider_name=provider)
+        url = base_url or PRESET_URLS[provider]
+        key, hint = ambient_key("openai", url, env) if provider == "openai" else ("", "")
+        return OpenAICompatProvider(url, key, provider_name=provider, auth_hint=hint)
     raise ProviderError("bad_request", f"unknown provider '{provider}' (try ollama, anthropic, openai, lmstudio, "
                                        "llamacpp, openai-compatible, mock)", provider=provider)

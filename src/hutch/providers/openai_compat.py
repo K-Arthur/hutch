@@ -37,9 +37,10 @@ class OpenAICompatProvider(Provider):
     name = "openai-compatible"
 
     def __init__(self, base_url: str, api_key: str = "", provider_name: str = "openai-compatible",
-                 headers: Optional[dict[str, str]] = None, session_header: str = ""):
+                 headers: Optional[dict[str, str]] = None, session_header: str = "", auth_hint: str = ""):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
+        self.auth_hint = auth_hint        # why an ambient key was withheld, appended to auth failures
         self.name = provider_name
         self.extra_headers = dict(headers or {})
         self.session_header = session_header
@@ -72,7 +73,8 @@ class OpenAICompatProvider(Provider):
         low = str(detail).lower()
         st = resp.status_code
         if st in (401, 403):
-            return ProviderError("auth", f"{self.name} rejected the credentials ({detail}). Check the API key.",
+            hint = f" {self.auth_hint}." if self.auth_hint else ""
+            return ProviderError("auth", f"{self.name} rejected the credentials ({detail}). Check the API key.{hint}",
                                  provider=self.name, status=st)
         if st == 404 and "model" in low:
             return ProviderError("model_missing", str(detail), provider=self.name, status=st)

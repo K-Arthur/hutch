@@ -5,8 +5,8 @@ browser. "Live" means it needs something this host did not have and is skipped w
 
 | ID | Invariant | Kind | File | Status |
 |---|---|---|---|---|
-| T-CRED-SCOPE | A key is never sent to a host it does not belong to | offline | `tests/test_credential_routing.py` | planned |
-| T-SSRF | No URL form, redirect or DNS answer reaches a private address | offline | `tests/test_netguard.py` | planned |
+| T-CRED-SCOPE | A key is never sent to a host it does not belong to | offline | `tests/test_credential_routing.py` | passing |
+| T-SSRF | No URL form, redirect or DNS answer reaches a private address | offline | `tests/test_netguard.py` | passing |
 | T-CLAIM-RACE | Two processes racing for the same pending run: exactly one claim wins | offline (multiprocess) | `tests/test_claims.py` | planned |
 | T-OCCURRENCE-RACE | Two schedulers for one occurrence create one run, also after a crash between steps | offline (multiprocess) | `tests/test_claims.py` | planned |
 | T-STATE-MACHINE | Only table transitions are possible; terminal is absorbing; stale fence rejected | offline (property) | `tests/test_lifecycle.py` | planned |

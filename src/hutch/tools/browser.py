@@ -78,6 +78,11 @@ class BrowserTool(Tool):
             headless=ctx.headless,
             accept_downloads=True,
         )
+        # every request the page makes (navigation, redirect, sub-resource) is judged by the same rules as web_fetch
+        from ..netguard import RequestGuard
+        BrowserTool._browser.route("**/*", RequestGuard().route_handler(
+            lambda url, why: ctx.emit and ctx.emit(Event(run_id=ctx.run.id, type=EventType.log,
+                                                         data={"denied": url, "reason": why, "rule": "deny:private-address"}))))
         ctx.on_finish.append(self._teardown)
         return BrowserTool._browser
 

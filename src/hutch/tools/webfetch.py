@@ -1,8 +1,9 @@
 """Web fetch tool — read-only HTTP GET with SSRF guards.
 
-Only public http(s) targets (no localhost/private/metadata ranges, no other
-schemes); response bodies are clipped hard so a hostile page cannot eat the
-context window (the "MCP tools dump huge JSON" failure).
+Only public http(s) targets: the name is resolved, every address must be public, redirects are
+followed by us and re-checked, and the connection is pinned to the validated address (see
+``hutch.netguard``). Response bodies are clipped hard so a hostile page cannot eat the context
+window (the "MCP tools dump huge JSON" failure).
 """
 
 from __future__ import annotations
@@ -10,18 +11,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from ..netguard import NetGuardError, safe_get
 from .base import Tool, ToolContext, ToolResult, _schema, clip
-
-class _LazyHttpx:
-    """`httpx` costs ~50 ms to import; only fetching a URL needs it (PF-6). Attribute access
-    (and test monkeypatching of ``httpx.get``) behaves like the real module."""
-
-    def __getattr__(self, name: str):
-        import httpx as _httpx
-        return getattr(_httpx, name)
-
-
-httpx = _LazyHttpx()
 
 _TAG_RE = re.compile(r"<(script|style)[^>]*>.*?</\1>", re.DOTALL | re.IGNORECASE)
 _WS_RE = re.compile(r"\n{3,}")
@@ -48,20 +39,18 @@ class WebFetchTool(Tool):
         if decision.verdict.value == "deny":
             return ToolResult(ok=False, output=f"error: {decision.reason}")
         try:
-            resp = httpx.get(
-                url,
-                timeout=20,
-                follow_redirects=True,
-                headers={"User-Agent": "hutch/0.1 (+local agent platform)"},
-            )
-        except httpx.HTTPError as exc:
+            resp = safe_get(url, timeout=20, headers={"User-Agent": "hutch/0.1 (+local agent platform)"})
+        except NetGuardError as exc:
+            return ToolResult(ok=False, output=f"error: {exc.reason}")
+        except Exception as exc:                      # network errors, timeouts, TLS failures
             return ToolResult(ok=False, output=f"error fetching {url}: {exc}")
         body = resp.text
         if "html" in resp.headers.get("content-type", "").lower():
             body = html_to_text(body)
-        status = f"HTTP {resp.status_code} {resp.reason_phrase}"
+        status = f"HTTP {resp.status} {resp.reason}"
+        note = "\n[response clipped at the size limit]" if resp.truncated else ""
         return ToolResult(
-            ok=resp.is_success,
-            output=clip(f"{status}\n{url}\n\n{body.strip()}"),
-            data={"url": url, "status": resp.status_code},
+            ok=resp.ok,
+            output=clip(f"{status}\n{resp.url}\n\n{body.strip()}{note}"),
+            data={"url": resp.url, "status": resp.status, "redirects": len(resp.redirects)},
         )

@@ -89,8 +89,14 @@ class ClaudeProvider(Provider):
     def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None,
                  provider_name: str = "anthropic", headers: Optional[dict[str, str]] = None,
                  session_header: str = ""):
-        self.api_key = api_key if api_key is not None else os.environ.get("ANTHROPIC_API_KEY", "")
         self.base_url = base_url or os.environ.get("ANTHROPIC_BASE_URL") or None
+        self.key_withheld = ""
+        if api_key is not None:
+            self.api_key = api_key                                   # a Connection named this key and endpoint itself
+        else:
+            # an ambient key belongs to api.anthropic.com and goes nowhere else (see providers/registry.py)
+            from .registry import ambient_key
+            self.api_key, self.key_withheld = ambient_key("anthropic", self.base_url or "https://api.anthropic.com", os.environ)
         self.name = provider_name
         self.extra_headers = dict(headers or {})
         self.session_header = session_header
@@ -98,8 +104,8 @@ class ClaudeProvider(Provider):
 
     def _c(self):
         if not self.api_key:
-            raise ProviderError("auth", f"no API key for '{self.name}': set ANTHROPIC_API_KEY (Hutch uses API keys "
-                                        "only and never reads login tokens)", provider=self.name)
+            why = self.key_withheld or "set ANTHROPIC_API_KEY (Hutch uses API keys only and never reads login tokens)"
+            raise ProviderError("auth", f"no API key for '{self.name}': {why}", provider=self.name)
         if self._client is None:
             sdk = _sdk()
             kw: dict[str, Any] = {"api_key": self.api_key, "max_retries": 0}
@@ -110,7 +116,7 @@ class ClaudeProvider(Provider):
 
     def health(self) -> Health:
         if not self.api_key:
-            return Health(ok=False, detail="no ANTHROPIC_API_KEY set")
+            return Health(ok=False, detail=self.key_withheld or "no ANTHROPIC_API_KEY set")
         try:
             _sdk()
         except ProviderError as exc:
