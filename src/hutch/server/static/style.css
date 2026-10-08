@@ -1439,3 +1439,21 @@ table th, table td { font-family: var(--font-mono); }
 @media (max-width: 1000px) { .bot-grid { grid-template-columns: 1fr 1fr; } .bot-grid > :first-child { grid-column: 1 / -1; } }
 @media (max-width: 640px) { .bot-grid { grid-template-columns: 1fr; } }
 .icon-lg { color: var(--text-dim); }
+
+/* ------------------------------------------------------- KPI bento + run timing timeline */
+.kpi-bento { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 18px; }
+.kpi { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; }
+.kpi-label { color: var(--text-faint); font: 600 11px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
+.kpi-val { font-size: 20px; font-weight: 700; }
+.run-timing { margin-bottom: 16px; }
+.timeline-stack { display: flex; height: 10px; background: var(--surface-3); border-radius: 0; overflow: hidden; margin-bottom: 8px; }
+.timeline-stack i { display: block; height: 100%; }
+.s-model { background: var(--accent); }
+.s-tool { background: var(--success); }
+.s-over { background: var(--warning); }
+.timeline-legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--text-faint); font-size: 11px; margin-bottom: 10px; }
+.timeline-legend .dot { display: inline-block; width: 8px; height: 8px; margin-right: 5px; vertical-align: middle; }
+.step-strip { display: flex; gap: 2px; height: 16px; align-items: stretch; }
+.step-seg { display: flex; min-width: 2px; background: var(--surface-3); }
+.step-seg i { display: block; height: 100%; }
+@media (max-width: 760px) { .kpi-bento { grid-template-columns: 1fr 1fr; } }

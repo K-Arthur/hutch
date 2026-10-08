@@ -831,11 +831,11 @@ async function renderOverview() {
       <div class="page-head"><div><h1 class="page-title">Overview</h1>
         <p class="page-subtitle">What needs you, what is running, and what has gone quiet.</p></div>
         <a class="btn ghost" href="#/bots">All bots ${icon("arrow")}</a></div>
-      <div class="ov-stats">
-        <span><b>${fmt(s.bots)}</b> bots</span>
-        <span><b>${fmt(s.runs_today)}</b> runs today</span>
-        <span><b>${fmt(s.tokens_today)}</b> tokens</span>
-        <span><b>$${Number(s.spend_today || 0).toFixed(2)}</b> spent</span>
+      <div class="bento kpi-bento">
+        <div class="card kpi"><span class="kpi-label">Bots</span><span class="kpi-val mono">${fmt(s.bots)}</span></div>
+        <div class="card kpi"><span class="kpi-label">Runs today</span><span class="kpi-val mono">${fmt(s.runs_today)}</span></div>
+        <div class="card kpi"><span class="kpi-label">Tokens today</span><span class="kpi-val mono">${fmt(s.tokens_today)}</span></div>
+        <div class="card kpi"><span class="kpi-label">Spend today</span><span class="kpi-val mono">$${Number(s.spend_today || 0).toFixed(2)}</span></div>
       </div>
       <div class="bento ov-grid">
         <section class="card ov-col loud">
@@ -1179,20 +1179,59 @@ async function renderBotDetail(name) {
   });
 }
 
+function fmtDur(ms) {
+  ms = Math.max(0, ms || 0);
+  return ms < 1000 ? `${Math.round(ms)}ms` : ms < 60000 ? `${(ms / 1000).toFixed(1)}s`
+    : ms < 3600000 ? `${Math.round(ms / 60000)}m` : `${(ms / 3600000).toFixed(1)}h`;
+}
+
 async function renderRunDetail(runId) {
   const r = await api(`/runs/${runId}`);
+  const nowMs = Date.now();
+  const a = r.created_at ? new Date(r.created_at).getTime() : nowMs;
+  const b = r.finished_at ? new Date(r.finished_at).getTime() : nowMs;
+  const steps = (r.events || []).filter(e => e.type === "step").map(e => e.data);
+  const sum = (k) => steps.reduce((t, d) => t + (d[k] || 0), 0);
+  const model = sum("model_ms"), tool = sum("tool_ms"), over = sum("overhead_ms");
+  const total = Math.max(1, model + tool + over);
+  const pct = (v) => (v / total * 100).toFixed(1);
   view.innerHTML = `
     <div class="container">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div class="page-head">
         <div>
-          <h1>Run <span class="mono">${esc(r.id)}</span></h1>
-          <p class="page-subtitle">Bot: <a href="#/chat/${esc(r.bot_name)}">${esc(r.bot_name)}</a> &middot; Status: ${statusChip(r.status)}</p>
+          <p class="crumb"><a href="#/runs">Runs</a></p>
+          <h1 class="page-title">Run <span class="mono">${esc(r.id.slice(0, 16))}</span></h1>
+          <p class="page-subtitle">Bot: <a href="#/chat/${esc(r.bot_name)}">${esc(r.bot_name)}</a> &middot; ${statusChip(r.status)} &middot; started by ${esc(r.origin || "you")}</p>
         </div>
-        <a class="btn ghost" href="#/runs">Back to Runs</a>
+        <a class="btn ghost" href="#/runs">${icon("arrow-left")} Back to Runs</a>
       </div>
-      <div class="panel" style="margin-bottom:16px;">
-        <b>Prompt:</b><br><span style="color:var(--text-dim)">${esc(r.prompt)}</span>
+      <div class="bento kpi-bento">
+        <div class="card kpi"><span class="kpi-label">Steps</span><span class="kpi-val mono">${r.steps}</span></div>
+        <div class="card kpi"><span class="kpi-label">Elapsed</span><span class="kpi-val mono">${fmtDur(Math.max(0, b - a))}</span></div>
+        <div class="card kpi"><span class="kpi-label">Spend</span><span class="kpi-val mono">$${(r.cost_usd || 0).toFixed(4)}</span></div>
+        <div class="card kpi"><span class="kpi-label">Tokens</span><span class="kpi-val mono">${fmtTokens(r.tokens)}</span></div>
       </div>
+      ${steps.length ? `
+      <div class="card run-timing">
+        <h2 class="ov-h">${icon("chart")} Where the time went</h2>
+        <div class="timeline-stack" role="img" aria-label="model ${Math.round(model)}ms, tools ${Math.round(tool)}ms, hutch ${Math.round(over)}ms">
+          <i class="s-model" style="width:${pct(model)}%"></i>
+          <i class="s-tool" style="width:${pct(tool)}%"></i>
+          <i class="s-over" style="width:${pct(over)}%"></i>
+        </div>
+        <div class="timeline-legend mono">
+          <span><i class="dot s-model"></i>model ${Math.round(model)}ms</span>
+          <span><i class="dot s-tool"></i>tools ${Math.round(tool)}ms</span>
+          <span><i class="dot s-over"></i>hutch ${Math.round(over)}ms</span>
+        </div>
+        <div class="step-strip" aria-hidden="true">
+          ${steps.map(d => {
+            const tot = (d.model_ms || 0) + (d.tool_ms || 0) + (d.overhead_ms || 0);
+            return `<span class="step-seg" title="step ${d.n}" style="flex:${Math.max(1, tot)}"><i class="s-model" style="flex:${Math.max(0, d.model_ms || 0)}"></i><i class="s-tool" style="flex:${Math.max(0, d.tool_ms || 0)}"></i><i class="s-over" style="flex:${Math.max(0, d.overhead_ms || 0)}"></i></span>`;
+          }).join("")}
+        </div>
+      </div>` : ""}
+      <div class="card" style="margin-bottom:16px;"><b>Prompt:</b><br><span style="color:var(--text-dim)">${esc(r.prompt)}</span></div>
       <div id="chat-stream"></div>
     </div>
   `;
