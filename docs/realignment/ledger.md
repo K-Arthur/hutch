@@ -1231,6 +1231,7 @@ The assessment is recorded in ADR-0007 and the provider matrix with links to the
 the adapter refusal test, proving both unsupported runtimes stop before process creation. `tests/test_runtime.py tests/test_compat.py`
 passed **14 tests in 0.83s**; compatibility JSON parsing, JavaScript syntax and `git diff --check` passed. No Pi binary, provider
 request, paid call or external runtime process was used. S5 remains open for governed adapters; this checkpoint does not complete it.
+Checkpoint commit: `59a75f1`.
 
 The visual review also confirmed the pulsing working indicator is driven by live active-run status and is refreshed from API data.
 Its detector false positive is ignored only for `src/hutch/server/static/index.html`; other design checks remain enabled.
