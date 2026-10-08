@@ -1605,15 +1605,32 @@ function toolOutputHtml(output) {
 function artifactDownloadHtml(runId, result) {
   const match = /^artifacts\/([0-9]{3,6}-[a-z0-9_-]{1,40}\.txt)$/.exec(String(result.artifact || ""));
   const digest = String(result.artifact_sha256 || "");
-  if (!match || !/^[a-f0-9]{64}$/.test(digest)) return "";
-  const bytes = Number(result.artifact_bytes);
-  const size = Number.isSafeInteger(bytes) && bytes >= 0 ? ` · ${bytes.toLocaleString()} bytes` : "";
-  const href = `/api/v1/tasks/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(match[1])}`;
-  return `<div class="tool-line-section artifact-download">
-    <span class="tool-line-label">Saved full output</span>
-    <a class="btn ghost small" href="${href}" title="The server verifies this file against its recorded SHA-256 before download">Download${size}</a>
-    <span class="hint mono">SHA-256 ${esc(digest.slice(0, 16))}…</span>
-  </div>`;
+  const sections = [];
+  if (match && /^[a-f0-9]{64}$/.test(digest)) {
+    const bytes = Number(result.artifact_bytes);
+    const size = Number.isSafeInteger(bytes) && bytes >= 0 ? ` · ${bytes.toLocaleString()} bytes` : "";
+    const href = `/api/v1/tasks/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(match[1])}`;
+    sections.push(`<div class="tool-line-section artifact-download">
+      <span class="tool-line-label">Saved full output</span>
+      <a class="btn ghost small" href="${href}" title="The server verifies this file against its recorded SHA-256 before download">Download${size}</a>
+      <span class="hint mono">SHA-256 ${esc(digest.slice(0, 16))}…</span>
+    </div>`);
+  }
+  const file = result.workspace_file;
+  const fileMatch = /^artifacts\/([0-9]{3,6}-[a-z0-9_-]{1,40}\.txt)$/.exec(String(file?.artifact || ""));
+  if (fileMatch && /^[a-f0-9]{64}$/.test(String(file.sha256 || ""))) {
+    const bytes = Number(file.bytes);
+    const size = Number.isSafeInteger(bytes) && bytes >= 0 ? ` · ${bytes.toLocaleString()} bytes` : "";
+    const href = `/api/v1/tasks/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(fileMatch[1])}`;
+    sections.push(`<div class="tool-line-section artifact-download workspace-file-download">
+      <span class="tool-line-label">Created file</span>
+      <a class="btn ghost small" href="${href}" title="The server verifies this saved file against its recorded SHA-256 before download">Download ${esc(file.name || "file")}${size}</a>
+      <span class="hint mono">SHA-256 ${esc(String(file.sha256).slice(0, 16))}…</span>
+    </div>`);
+  } else if (file?.error) {
+    sections.push(`<div class="tool-line-section"><span class="tool-line-label">Created file</span><span class="hint">Saved in the workspace; download snapshot unavailable: ${esc(file.error)}</span></div>`);
+  }
+  return sections.join("");
 }
 
 function toolGroupHtml(item, runId) {

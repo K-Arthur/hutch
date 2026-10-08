@@ -278,6 +278,85 @@ def test_saved_tool_output_is_downloadable_and_verified_at_all_viewports(browser
     }, indent=2) + "\n")
 
 
+def test_generated_workspace_file_is_downloadable_from_its_chat(browser, live, monkeypatch):
+    """A successful write_file produces a verified download in the originating run's activity."""
+    base, app = live
+    store, engine = app.state.store, app.state.engine
+    import tests.support.runtime as scenario_runtime
+    from hutch.runtime.steps import call_tool
+
+    content = "invoice,total\nINV-042,84.50\n"
+
+    def create_report(self, run, ctx, tools, stop):
+        call_tool(run, ctx, tools, "write_file", {"path": "reports/monthly.csv", "content": content})
+        run.steps += 1
+        ctx.emit(Event(run_id=run.id, type=EventType.message,
+                       data={"role": "assistant", "content": "Created reports/monthly.csv."}))
+        return "Created reports/monthly.csv."
+
+    monkeypatch.setattr(scenario_runtime.TestScenarioRuntime, "execute", create_report)
+    bot = store.create_bot(Bot(name="generated-file-bot", model="mock/demo", runtime=RuntimeKind.mock,
+                               tools=["files"], approval_mode=ApprovalMode.auto, workspace_mode="managed"))
+    run = engine.submit(bot, "create the monthly CSV report")
+    engine.dispatch_pending()
+    assert wait_for(lambda: store.get_run(run.id).status is RunStatus.succeeded)
+    store.flush_transcripts()
+    event = next(e for e in store.list_events(run.id) if e.type is EventType.tool_result)
+    descriptor = event.data["workspace_file"]
+    assert descriptor["path"] == "reports/monthly.csv"
+    assert hashlib.sha256(content.encode()).hexdigest() == descriptor["sha256"]
+
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/generated-files"
+    out.mkdir(parents=True, exist_ok=True)
+    records = []
+    for name, width, height in (("desktop", 1440, 1000), ("tablet", 768, 1024), ("phone", 390, 844)):
+        page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        try:
+            page.goto(f"{base}/#/run/{run.id}")
+            card = page.locator(".tool-line-head").first
+            card.wait_for()
+            card.click()
+            link = page.locator(".workspace-file-download a")
+            link.wait_for(state="visible")
+            assert any("wrote reports/monthly.csv" in text for text in page.locator(".tool-line-section").all_inner_texts())
+            assert "Download monthly.csv" in link.inner_text()
+            listed = page.request.get(f"{base}/api/v1/tasks/runs/{run.id}/artifacts").json()["artifacts"]
+            artifact = next(item for item in listed if item["kind"] == "workspace_file")
+            assert artifact["filename"] == "monthly.csv" and artifact["state"] == "available"
+            image_path = out / f"{name}.png"
+            page.screenshot(path=str(image_path), animations="disabled")
+            link.focus()
+            with page.expect_download() as download_info:
+                page.keyboard.press("Enter")
+            download = download_info.value
+            saved = Path(download.path()).read_bytes()
+            assert download.suggested_filename == "monthly.csv" and saved == content.encode("utf-8")
+            assert hashlib.sha256(saved).hexdigest() == artifact["sha256"]
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1 and not errors, {"overflow": overflow, "errors": errors}
+            records.append({"viewport": name, "size": [width, height], "screenshot": image_path.name,
+                            "sha256": hashlib.sha256(saved).hexdigest(), "overflow_px": overflow,
+                            "page_errors": errors})
+        finally:
+            page.close()
+
+    repo = Path(__file__).resolve().parents[2]
+    source_files = ("src/hutch/runtime/steps.py", "src/hutch/store.py", "src/hutch/server/app.py",
+                    "src/hutch/server/static/app.js")
+    (out / "results.json").write_text(json.dumps({
+        "captured_at": datetime.now(timezone.utc).isoformat(), "browser": browser.browser_type.name,
+        "browser_version": browser.version, "playwright": package_version("playwright"),
+        "source_sha256": {name: hashlib.sha256((repo / name).read_bytes()).hexdigest()
+                          for name in source_files},
+        "screenshots": {"generated_files": [record["screenshot"] for record in records]},
+        "journey": "write a text file with Hutch's file tool; download its run-scoped immutable snapshot from chat",
+        "runtime_fixture": "tests.support.TestScenarioRuntime", "provider_calls": 0, "captures": records,
+        "limitation": "Only files written through write_file are snapshotted; arbitrary shell-created files are not attached.",
+    }, indent=2) + "\n")
+
+
 def test_studio_conversation_survives_reload_and_archive(browser, live):
     base, app = live
     bot = app.state.store.create_bot(Bot(name="durable-chat", model="mock/demo", tools=[]))

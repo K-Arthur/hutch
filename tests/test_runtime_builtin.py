@@ -584,6 +584,73 @@ def test_huge_tool_output_is_truncated_for_the_model_and_kept_as_an_artifact(sto
     assert ev.data["artifact_sha256"] == hashlib.sha256(saved).hexdigest()
 
 
+def test_successful_write_file_is_snapshotted_for_a_verified_download(store, config, tmp_path, ollama):
+    content = "name,total\nInvoice,42\n"
+    ollama.script = agent_script([{"tool_calls": [{"name": "write_file", "arguments": {
+        "path": "reports/monthly.csv", "content": content}}]}, {"content": "created the report"}])
+    ctx, run, emitted, tools = build(store, config, tmp_path)
+    run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
+    assert (ctx.workspace / "reports/monthly.csv").read_text(encoding="utf-8") == content
+    event = next(e for e in emitted if e.type is EventType.tool_result)
+    file_artifact = event.data["workspace_file"]
+    assert file_artifact["name"] == "monthly.csv"
+    assert file_artifact["path"] == "reports/monthly.csv"
+    snapshot = config.run_dir(ctx.bot.name, run.id) / file_artifact["artifact"]
+    saved = snapshot.read_bytes()
+    assert saved == content.encode("utf-8") and snapshot.stat().st_mode & 0o222 == 0
+    assert file_artifact["bytes"] == len(saved)
+    assert file_artifact["sha256"] == hashlib.sha256(saved).hexdigest()
+
+
+def test_write_file_snapshot_failure_does_not_change_success(store, config, tmp_path, ollama, monkeypatch):
+    content = "saved safely in the workspace"
+    ollama.script = agent_script([{"tool_calls": [{"name": "write_file", "arguments": {
+        "path": "report.txt", "content": content}}]}, {"content": "saved in the workspace"}])
+    import hutch.runtime.steps as steps
+    def fail_snapshot(ctx, path, content):
+        raise ValueError("the file exceeds the 4 MB downloadable snapshot limit")
+    monkeypatch.setattr(steps, "snapshot_workspace_file", fail_snapshot)
+    ctx, run, emitted, tools = build(store, config, tmp_path)
+    run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
+    assert (ctx.workspace / "report.txt").read_text(encoding="utf-8") == content
+    event = next(e for e in emitted if e.type is EventType.tool_result)
+    assert event.data["ok"] is True
+    assert "4 MB downloadable snapshot limit" in event.data["workspace_file"]["error"]
+
+
+def test_rehearsed_write_does_not_attach_an_existing_file(store, config, tmp_path):
+    from hutch.runtime.steps import call_tool
+    ctx, run, emitted, tools = build(store, config, tmp_path)
+    existing = ctx.workspace / "report.txt"
+    existing.write_text("previous file", encoding="utf-8")
+    ctx.dry_run = True
+    call_tool(run, ctx, tools, "write_file", {"path": "report.txt", "content": "proposed file"})
+    event = next(e for e in emitted if e.type is EventType.tool_result)
+    assert event.data["ok"] is True and event.data["simulated"] is True
+    assert "workspace_file" not in event.data
+    assert existing.read_text(encoding="utf-8") == "previous file"
+
+
+def test_workspace_file_snapshot_enforces_its_size_bound(store, config, tmp_path):
+    from hutch.runtime.steps import snapshot_workspace_file
+    ctx, run, emitted, tools = build(store, config, tmp_path)
+    oversized = "x" * 4_000_001
+    with pytest.raises(ValueError, match="4 MB downloadable snapshot limit"):
+        snapshot_workspace_file(ctx, "too-large.txt", oversized)
+
+
+def test_run_artifact_storage_has_a_total_bound(store, config, tmp_path):
+    from hutch.runtime.steps import MAX_RUN_ARTIFACT_BYTES, save_artifact
+    ctx, run, emitted, tools = build(store, config, tmp_path)
+    artifact_dir = config.run_dir(ctx.bot.name, run.id) / "artifacts"
+    artifact_dir.mkdir(parents=True)
+    reserved = artifact_dir / "reserved.txt"
+    with reserved.open("wb") as stream:
+        stream.truncate(MAX_RUN_ARTIFACT_BYTES)
+    with pytest.raises(ValueError, match="16 MB storage limit"):
+        save_artifact(ctx, "read_file", "another artifact")
+
+
 # ============================================================ SR-9 surfaced in the transcript
 
 def test_a_stream_retry_is_visible_in_the_transcript(store, config, tmp_path, ollama):

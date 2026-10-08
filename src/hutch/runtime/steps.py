@@ -18,8 +18,10 @@ import hashlib
 import json
 import os
 import re
+import stat
 import time
 from dataclasses import dataclass, field
+from pathlib import Path, PurePosixPath
 from typing import Any, Optional
 
 from ..lifecycle import LeaseLost
@@ -44,6 +46,55 @@ DEFAULT_TOOL_LIMIT = 12_000   # chars shown to the model per tool call unless th
 
 
 MAX_ARTIFACT_BYTES = 4_000_000  # MAX_TOOL_OUTPUT is one million Unicode characters.
+MAX_WORKSPACE_FILE_ARTIFACT_BYTES = 4_000_000
+MAX_RUN_ARTIFACT_BYTES = 16_000_000
+
+
+def run_artifact_bytes(artifact_dir: Path) -> int:
+    total = 0
+    try:
+        entries = os.scandir(artifact_dir)
+    except FileNotFoundError:
+        return 0
+    with entries:
+        for entry in entries:
+            info = entry.stat(follow_symlinks=False)
+            if not stat.S_ISREG(info.st_mode):
+                raise OSError("artifact directory contains a non-regular entry")
+            total += info.st_size
+    return total
+
+
+def snapshot_workspace_file(ctx: ToolContext, path: str, content: str) -> dict[str, Any]:
+    """Save the exact text accepted by a successful write_file action as a bounded artifact."""
+    if not isinstance(path, str) or not path:
+        raise ValueError("the written file path is unavailable")
+    if not isinstance(content, str):
+        raise ValueError("the written file content is unavailable")
+    workspace = ctx.workspace.resolve()
+    candidate = Path(path)
+    if candidate.is_absolute():
+        try:
+            relative = Path(os.path.abspath(candidate)).relative_to(workspace)
+        except ValueError:
+            raise ValueError("the written file is outside this run's workspace") from None
+    else:
+        relative = candidate
+    parts = relative.parts
+    if not parts or any(part in ("", ".", "..") for part in parts):
+        raise ValueError("the written file path is not a safe workspace-relative path")
+    if len(content.encode("utf-8")) > MAX_WORKSPACE_FILE_ARTIFACT_BYTES:
+        raise ValueError("the file exceeds the 4 MB downloadable snapshot limit")
+    ref, digest, byte_size = save_artifact(ctx, "workspace_file", content)
+    raw_name = PurePosixPath(path.replace("\\", "/")).name
+    download_name = re.sub(r"[^A-Za-z0-9._-]+", "-", raw_name).strip("._-")[:120] or "workspace-file.txt"
+    return {
+        "artifact": ref,
+        "sha256": digest,
+        "bytes": byte_size,
+        "name": download_name,
+        "path": "/".join(parts),
+    }
 
 
 def save_artifact(ctx: ToolContext, tool: str, text: str) -> tuple[str, str, int]:
@@ -56,6 +107,8 @@ def save_artifact(ctx: ToolContext, tool: str, text: str) -> tuple[str, str, int
     content = text.encode("utf-8", errors="replace")
     if len(content) > MAX_ARTIFACT_BYTES:
         raise ValueError("artifact exceeds the 4 MB storage limit")
+    if run_artifact_bytes(art) + len(content) > MAX_RUN_ARTIFACT_BYTES:
+        raise ValueError("run artifacts exceed the 16 MB storage limit")
     digest = hashlib.sha256(content).hexdigest()
     slug = re.sub(r"[^a-z0-9_-]+", "-", tool.lower()).strip("-")[:40] or "tool"
     for version in range(1, 1_000_000):
@@ -82,7 +135,11 @@ def truncate_for_model(ctx: ToolContext, tool: str, output: str) -> tuple[str, O
     limit = int(ctx.bot.tool_limits.get(tool, DEFAULT_TOOL_LIMIT))
     if limit <= 0 or len(output) <= limit:
         return output, None
-    rel, digest, byte_size = save_artifact(ctx, tool, output)
+    try:
+        rel, digest, byte_size = save_artifact(ctx, tool, output)
+    except (OSError, ValueError) as exc:
+        note = f"\n... [{len(output) - limit:,} of {len(output):,} characters omitted; full output snapshot unavailable: {exc}]"
+        return output[:limit] + note, None
     note = f"\n... [{len(output) - limit:,} of {len(output):,} characters omitted; full output saved as artifact {rel}]"
     return output[:limit] + note, {"path": rel, "sha256": digest, "bytes": byte_size}
 
@@ -171,12 +228,21 @@ def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, arg
         result = _run_with_receipt(tool, name, args, ctx, run)
     if timer is not None:
         timer.tool_ms += (time.perf_counter() - t1) * 1000.0
+    if name == "write_file" and result.ok and not result.data.get("simulated"):
+        try:
+            result.data["workspace_file"] = snapshot_workspace_file(
+                ctx, result.data.get("path", args.get("path", "")), args.get("content", ""))
+        except (OSError, UnicodeError, ValueError) as exc:
+            result.data["workspace_file"] = {"error": str(exc)[:240]}
     full_chars = len(result.output)
     result.output, artifact = truncate_for_model(ctx, name, result.output)
     data: dict[str, Any] = {"tool": name, "ok": result.ok, "output": result.output[:output_chars]}
     if artifact:
         data.update(artifact=artifact["path"], artifact_sha256=artifact["sha256"],
                     artifact_bytes=artifact["bytes"], chars=full_chars)
+    workspace_file = result.data.get("workspace_file")
+    if isinstance(workspace_file, dict):
+        data["workspace_file"] = workspace_file
     if result.data.get("simulated"):
         data["simulated"] = True                                 # Rehearse mode: nothing actually ran
     ctx.emit(Event(run_id=run.id, type=EventType.tool_result, data=data))

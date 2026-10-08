@@ -71,12 +71,13 @@ def test_home_loads_assets_and_truthful_availability(browser, site_url):
     assert page.locator("img").evaluate_all("imgs => imgs.every(img => img.complete && img.naturalWidth > 0)")
     broken = [(url, status) for url, status in responses if status >= 400]
     assert not broken, broken
-    text = page.locator("body").inner_text().lower()
-    assert "provider's own billing controls" in text.replace("’", "'")
+    text = page.locator("body").inner_text().lower().replace("’", "'")
+    assert "provider's own billing controls" in text
     assert "private" in text and "public releases and anonymous downloads are not available yet" in text
+    assert "small text files written through hutch's file tool appear as checked downloads in that run" in text
+    assert "larger files stay in the workspace" in text
     assert "hard spend cap" not in text and "jailed workspace" not in text
     assert "github.com/k-arthur/hutch" not in page.content().lower()
-    text = text.replace("’", "'")
     for retired in ("mock/demo", "deterministic mock", "nothing executes", "try the gate"):
         assert retired not in text, retired
     assert not errors, errors

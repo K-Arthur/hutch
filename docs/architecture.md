@@ -66,17 +66,19 @@ Everything lives under one directory (default `~/.local/state/hutch`, override `
 hutch.db                      # SQLite (WAL): bots, tasks, runs, events, usage/reservations, conversations, approvals, memory, receipts
 bots/<bot>/runs/<run_id>/
   transcript.jsonl              # append-only run transcript (mirror of events)
-  artifacts/<version>-<tool>.txt # immutable full tool outputs when model context is clipped
+  artifacts/<version>-<tool>.txt # immutable clipped outputs and write_file snapshots
   workspace/                    # the bot's jailed world for this run
 bots/<bot>/browser-profile/     # persistent Chromium profile (logins survive runs)
 workspaces/<bot_id>/            # optional private folder shared across one bot's runs/chats
 ```
 
-Large tool outputs are linked to their committed `tool_result` event by run and event sequence.
-The event stores the byte size and SHA-256; the typed API lists these bounded run-scoped artifacts,
-and a download verifies the bytes again before sending them as plain text. The chat offers the
-download beside the clipped result. Bots default to a fresh workspace per run; operators may select
-a private Hutch-managed directory shared only by that bot, or an existing validated user folder.
+Large tool outputs and files created with `write_file` are linked to their committed `tool_result`
+event by run and event sequence. The event stores the byte size and SHA-256; the typed API lists
+these bounded run-scoped artifacts, and a download verifies the bytes again before sending them as
+plain text. The chat offers file downloads beside the write result; snapshots are capped at 4 MB
+per file and 16 MB per run. Arbitrary shell-created files are not attached automatically. Bots
+default to a fresh workspace per run; operators may select a private Hutch-managed directory
+shared only by that bot, or an existing validated user folder.
 These choices do not move files. Managed workspaces are separate from SQLite backups and survive
 bot deletion. This is not yet a shared cross-bot artifact library; run-output artifacts stay with
 their source run and conversation context.

@@ -1,0 +1,58 @@
+{
+  "captured_at": "2026-10-08T20:42:49.297096+00:00",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright": "1.63.0",
+  "source_sha256": {
+    "src/hutch/runtime/steps.py": "da05be64a1288a20be1582226bd1fcc6724a0c699c6757de4d6078497e56c4b5",
+    "src/hutch/store.py": "53e19696434623c5be931d112ae492bb41b57f50ca71d3df86ed1e0cc3878096",
+    "src/hutch/server/app.py": "1c747226c46265733fb4dc9164ec1c444c93a2329fe5a2520fd8e59679ef3e09",
+    "src/hutch/server/static/app.js": "21c254e4ef1228db493023d080ab7f59f3762d537a1c7a7d210f83b468ad8fa9"
+  },
+  "screenshots": {
+    "generated_files": [
+      "desktop.png",
+      "tablet.png",
+      "phone.png"
+    ]
+  },
+  "journey": "write a text file with Hutch's file tool; download its run-scoped immutable snapshot from chat",
+  "runtime_fixture": "tests.support.TestScenarioRuntime",
+  "provider_calls": 0,
+  "captures": [
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        1000
+      ],
+      "screenshot": "desktop.png",
+      "sha256": "fad923b316df6c232fe2687c812fdc65c3393a7cd6483160be9c4a38550b0776",
+      "overflow_px": 0,
+      "page_errors": []
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        768,
+        1024
+      ],
+      "screenshot": "tablet.png",
+      "sha256": "fad923b316df6c232fe2687c812fdc65c3393a7cd6483160be9c4a38550b0776",
+      "overflow_px": 0,
+      "page_errors": []
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        390,
+        844
+      ],
+      "screenshot": "phone.png",
+      "sha256": "fad923b316df6c232fe2687c812fdc65c3393a7cd6483160be9c4a38550b0776",
+      "overflow_px": 0,
+      "page_errors": []
+    }
+  ],
+  "limitation": "Only files written through write_file are snapshotted; arbitrary shell-created files are not attached."
+}

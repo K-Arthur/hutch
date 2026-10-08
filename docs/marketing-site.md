@@ -28,6 +28,9 @@ Workspace copy may say that fresh per-run folders are the default, and that an o
 or a validated existing folder. It must also say that managed folders survive bot deletion and are excluded from database-only backup;
 the site must not imply that files are automatically moved or copied when the setting changes.
 
+The site may say that files created through Hutch's `write_file` tool are downloadable from their originating run as verified
+snapshots (up to 4 MB per file and 16 MB per run). Shell-created files are not automatically attached to chat.
+
 The product preview is a real first-run application capture with an empty state directory. It
 contains no seeded bots, conversations, runs, approvals, credentials, or provider output. Older
 fixture-generated images have been removed from `website/assets/captures`; their source artifacts

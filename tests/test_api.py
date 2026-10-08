@@ -66,6 +66,23 @@ def test_run_output_artifacts_are_paged_scoped_and_hash_checked(client, tmp_path
         "tool": "read_file", "ok": True, "output": "[legacy clipped result]", "chars": 6000,
         "artifact": "artifacts/003-read_file.txt",
     }))
+    generated_filename = "004-workspace_file.txt"
+    generated_payload = b"invoice,total\nA-100,42\n"
+    (artifact_dir / generated_filename).write_bytes(generated_payload)
+    combined_output_filename = "005-write_file.txt"
+    combined_output_payload = b"wrote report.csv (23 chars) plus clipped metadata"
+    (artifact_dir / combined_output_filename).write_bytes(combined_output_payload)
+    store.append_event(Event(run_id=run.id, type=EventType.tool_result, data={
+        "tool": "write_file", "ok": True, "output": "[clipped write result]",
+        "artifact": f"artifacts/{combined_output_filename}",
+        "artifact_sha256": hashlib.sha256(combined_output_payload).hexdigest(),
+        "artifact_bytes": len(combined_output_payload), "chars": 5000,
+        "workspace_file": {
+            "artifact": f"artifacts/{generated_filename}",
+            "sha256": hashlib.sha256(generated_payload).hexdigest(),
+            "bytes": len(generated_payload), "name": "report.csv", "path": "report.csv",
+        },
+    }))
 
     url = f"/api/v1/tasks/runs/{run.id}/artifacts"
     first = client.get(url, params={"limit": 1})
@@ -84,6 +101,20 @@ def test_run_output_artifacts_are_paged_scoped_and_hash_checked(client, tmp_path
 
     old = client.get(url, params={"limit": 1, "offset": 2}).json()["artifacts"][0]
     assert old["state"] == "unverified" and old["download_url"] is None
+    combined_output = client.get(url, params={"limit": 1, "offset": 3}).json()["artifacts"][0]
+    assert combined_output["kind"] == "tool_output" and combined_output["id"].endswith(":tool_output")
+    assert client.get(combined_output["download_url"]).content == combined_output_payload
+    generated = client.get(url, params={"limit": 1, "offset": 4}).json()["artifacts"][0]
+    assert generated["kind"] == "workspace_file" and generated["filename"] == "report.csv"
+    assert generated["id"].endswith(":workspace_file")
+    assert generated["state"] == "available" and generated["sha256"] == hashlib.sha256(generated_payload).hexdigest()
+    generated_download = client.get(generated["download_url"])
+    assert generated_download.content == generated_payload
+    assert generated_download.headers["content-disposition"] == 'attachment; filename="report.csv"'
+    assert generated_download.headers["x-hutch-artifact-verified"] == "sha256"
+    (artifact_dir / generated_filename).write_bytes(generated_payload.replace(b"A-100", b"A-101"))
+    tampered_generated = client.get(generated["download_url"])
+    assert tampered_generated.status_code == 409 and "SHA-256" in tampered_generated.text
     assert client.get(url + "/not-a-generated-name").status_code == 404
 
     download = client.get(artifact["download_url"])

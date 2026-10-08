@@ -207,6 +207,7 @@ class ArtifactResource(BaseModel):
     conversation_id: str = ""
     version: int
     source_tool: str
+    kind: Literal["tool_output", "workspace_file"] = "tool_output"
     filename: str
     sha256: str = ""
     size_bytes: int = 0
@@ -595,26 +596,31 @@ def create_app() -> FastAPI:
             return None
         return None
 
-    def artifact_resource(run, event) -> ArtifactResource:
+    def artifact_resource(run, event, artifact_kind: str = "tool_output") -> ArtifactResource:
         data = event.data
-        artifact_ref = data.get("artifact", "")
-        name = PurePosixPath(artifact_ref).name if isinstance(artifact_ref, str) else ""
-        digest = data.get("artifact_sha256", "")
+        workspace_file = data.get("workspace_file") if isinstance(data.get("workspace_file"), dict) else {}
+        is_workspace_file = artifact_kind == "workspace_file"
+        artifact_ref = workspace_file.get("artifact", "") if is_workspace_file else data.get("artifact", "")
+        stored_name = PurePosixPath(artifact_ref).name if isinstance(artifact_ref, str) else ""
+        name = workspace_file.get("name", "") if is_workspace_file else stored_name
+        digest = workspace_file.get("sha256", "") if is_workspace_file else data.get("artifact_sha256", "")
         has_hash = isinstance(digest, str) and bool(_ARTIFACT_SHA_RE.fullmatch(digest))
         target = artifact_target(run, artifact_ref) if has_hash else None
         state = "unverified" if not has_hash else "available" if target else "missing"
-        size_bytes = data.get("artifact_bytes", 0)
+        size_bytes = workspace_file.get("bytes", 0) if is_workspace_file else data.get("artifact_bytes", 0)
         chars = data.get("chars", 0)
         return ArtifactResource(
-            id=f"{run.id}:event:{event.seq}", run_id=run.id, bot_id=run.bot_id,
+            id=f"{run.id}:event:{event.seq}:{artifact_kind}", run_id=run.id, bot_id=run.bot_id,
             conversation_id=run.conversation_id or "", version=event.seq,
             source_tool=str(data.get("tool", "unknown"))[:80],
-            filename=name if _ARTIFACT_NAME_RE.fullmatch(name) else "", sha256=digest if has_hash else "",
+            kind="workspace_file" if is_workspace_file else "tool_output",
+            filename=name[:120] if is_workspace_file and isinstance(name, str) else
+            name if _ARTIFACT_NAME_RE.fullmatch(name) else "", sha256=digest if has_hash else "",
             size_bytes=(max(0, min(_MAX_ARTIFACT_BYTES, size_bytes)) if isinstance(size_bytes, int)
                         and not isinstance(size_bytes, bool) else 0),
             chars=(max(0, chars) if isinstance(chars, int) and not isinstance(chars, bool) else 0),
             created_at=event.ts, state=state,
-            download_url=(f"/api/v1/tasks/runs/{run.id}/artifacts/{name}" if state == "available" else None),
+            download_url=(f"/api/v1/tasks/runs/{run.id}/artifacts/{stored_name}" if state == "available" else None),
         )
 
     def read_artifact_file(run, filename: str) -> Optional[bytes]:
@@ -1283,9 +1289,9 @@ def create_app() -> FastAPI:
         run = run_or_404(run_id)
         if not 1 <= limit <= 100 or offset < 0:
             raise HTTPException(422, "limit must be 1–100; offset must be nonnegative")
-        events = store.artifact_events(run.id, limit=limit + 1, offset=offset)
-        has_more = len(events) > limit
-        items = [artifact_resource(run, event) for event in events[:limit]]
+        records = store.artifact_records(run.id, limit=limit + 1, offset=offset)
+        has_more = len(records) > limit
+        items = [artifact_resource(run, event, kind) for event, kind in records[:limit]]
         return ArtifactPageResource(artifacts=items, limit=limit, offset=offset,
                                     next_offset=offset + limit if has_more else None)
 
@@ -1299,8 +1305,10 @@ def create_app() -> FastAPI:
         if event is None:
             raise HTTPException(404, "no such artifact")
         data = event.data
-        expected_hash = data.get("artifact_sha256", "")
-        expected_bytes = data.get("artifact_bytes")
+        workspace_file = data.get("workspace_file") if isinstance(data.get("workspace_file"), dict) else {}
+        is_workspace_file = workspace_file.get("artifact") == artifact_ref
+        expected_hash = workspace_file.get("sha256", "") if is_workspace_file else data.get("artifact_sha256", "")
+        expected_bytes = workspace_file.get("bytes") if is_workspace_file else data.get("artifact_bytes")
         if (not isinstance(expected_hash, str) or not _ARTIFACT_SHA_RE.fullmatch(expected_hash)
                 or not isinstance(expected_bytes, int) or isinstance(expected_bytes, bool)
                 or not 0 <= expected_bytes <= _MAX_ARTIFACT_BYTES):
@@ -1313,8 +1321,14 @@ def create_app() -> FastAPI:
         digest = hashlib.sha256(content).hexdigest()
         if digest != expected_hash:
             raise HTTPException(409, "artifact failed its recorded SHA-256 integrity check")
+        if is_workspace_file:
+            requested_name = workspace_file.get("name", "")
+            download_name = re.sub(r"[^A-Za-z0-9._-]+", "-", str(requested_name)).strip("._-")[:120]
+            download_name = download_name or filename
+        else:
+            download_name = filename
         return Response(content=content, media_type="text/plain; charset=utf-8", headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": f'attachment; filename="{download_name}"',
             "Cache-Control": "no-store", "ETag": f'"{digest}"',
             "X-Content-Type-Options": "nosniff", "X-Hutch-Artifact-Verified": "sha256",
         })

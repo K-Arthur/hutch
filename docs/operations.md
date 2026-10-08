@@ -26,6 +26,9 @@ bot's immutable ID. `--workspace-mode fresh` returns to per-run folders. An exis
 Changing modes does not copy or remove files. Deleting a bot preserves its managed workspace, and database-only snapshots/restores do not
 include managed workspaces or user folders; back these up separately.
 
+Files created through Hutch's `write_file` tool appear as SHA-256-verified downloads in the originating run. Hutch snapshots text files
+up to 4 MB each and 16 MB total per run. Shell-created files remain in the workspace and are not attached to chat automatically.
+
 ## Stop and incomplete cleanup
 
 Run status remains `Stopping` or `Recovering` when an owned process is still alive or its identity cannot be verified. Hutch records

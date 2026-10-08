@@ -2000,15 +2000,25 @@ class Store:
 
     def artifact_events(self, run_id: str, *, limit: int = 51, offset: int = 0) -> list[Event]:
         """Return a bounded page of tool-result events that reference saved full outputs."""
+        return [event for event, kind in self.artifact_records(run_id, limit=limit, offset=offset)
+                if kind == "tool_output"]
+
+    def artifact_records(self, run_id: str, *, limit: int = 51, offset: int = 0) -> list[tuple[Event, str]]:
+        """Return a bounded page of individual tool-output and generated-file artifact records."""
         self.flush_events()
         with self._lock:
             rows = self._db.execute(
-                "SELECT id, run_id, seq, hash, ts, type, data FROM events "
+                "SELECT id, run_id, seq, hash, ts, type, data, artifact_kind FROM ("
+                "SELECT id, run_id, seq, hash, ts, type, data, 'tool_output' AS artifact_kind FROM events "
                 "WHERE run_id = ? AND type = 'tool_result' AND json_type(data, '$.artifact') = 'text' "
-                "ORDER BY seq LIMIT ? OFFSET ?",
-                (run_id, max(1, min(limit, 101)), max(0, offset)),
+                "UNION ALL "
+                "SELECT id, run_id, seq, hash, ts, type, data, 'workspace_file' AS artifact_kind FROM events "
+                "WHERE run_id = ? AND type = 'tool_result' "
+                "AND json_type(data, '$.workspace_file.artifact') = 'text'"
+                ") ORDER BY seq, artifact_kind LIMIT ? OFFSET ?",
+                (run_id, run_id, max(1, min(limit, 101)), max(0, offset)),
             ).fetchall()
-        return [self._event(row) for row in rows]
+        return [(self._event(row), row["artifact_kind"]) for row in rows]
 
     def artifact_event(self, run_id: str, artifact_path: str) -> Optional[Event]:
         """Find the committed event that authorizes access to one run-local artifact path."""
@@ -2016,9 +2026,10 @@ class Store:
         with self._lock:
             row = self._db.execute(
                 "SELECT id, run_id, seq, hash, ts, type, data FROM events "
-                "WHERE run_id = ? AND type = 'tool_result' AND json_extract(data, '$.artifact') = ? "
+                "WHERE run_id = ? AND type = 'tool_result' AND (json_extract(data, '$.artifact') = ? "
+                "OR json_extract(data, '$.workspace_file.artifact') = ?) "
                 "ORDER BY seq DESC LIMIT 1",
-                (run_id, artifact_path),
+                (run_id, artifact_path, artifact_path),
             ).fetchone()
         return self._event(row) if row else None
 
