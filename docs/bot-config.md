@@ -21,6 +21,7 @@ dashboard, or the REST API, and live in `hutch.db`.
 | `workdir` | path? | null | a folder of yours the bot works in, run after run (see below); null = a fresh empty workspace per run |
 | `risk_tier` | enum | `supervised` | `readonly` · `supervised` · `trusted`: what happens to medium-risk actions ([safety.md](safety.md)) |
 | `command_rules` | list | `[]` | `{match, verdict}` per-command `allow`/`ask`/`deny` globs ([safety.md](safety.md)) |
+| `sandbox` | enum | `strict` for new bots | `strict` uses Linux bubblewrap for shell commands and fails closed if unavailable; `off` runs shell commands without OS containment |
 | `paused` | bool | false | schedules skipped while paused |
 
 ### Working folder
@@ -69,6 +70,25 @@ individually. Everything runs through the policy engine (`docs/safety.md`).
   - `skip` — only run if the newest window is < 30 min old; otherwise record a visible skip
 
 A bot never has two live runs (single-instance lock). All storage is UTC-with-offset.
+
+## Shell containment
+
+New bots request `sandbox: strict`. On supported Linux hosts Hutch mounts the workspace writable, uses a private temporary
+directory and PID/network namespaces, scrubs inherited environment values, and applies per-command CPU, memory, process, file-size
+and open-file limits. Strict shell networking is unavailable; use Hutch's address-checked `web_fetch` tool for public pages.
+This boundary covers the shell only; it is not a hardened VM. Existing bots keep their pre-upgrade value (`off`) so their behavior
+does not silently change.
+
+Set it at creation or later:
+
+```bash
+hutch bot create helper --sandbox strict
+hutch bot update helper --sandbox off       # explicit: shell is uncontained and runs as your Hutch user
+hutch doctor                                # checks whether strict mode can run on this host
+```
+
+`HUTCH_SANDBOX=off` is an operator-wide rollback override. A `shell_network: true` request with strict mode is refused; Hutch does
+not silently join the host network. Check [operations](operations.md) for requirements and recovery steps.
 
 ## Limits
 

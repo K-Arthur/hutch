@@ -66,18 +66,15 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 - **Subscription plans as connections** — OpenCode Go, Xiaomi MiMo Token Plan or your own endpoint, each with its own key, allowance meter and terms notice
 - **Knows your hardware** — fit/tight/won't-fit per model, model slots that batch runs, and `hutch doctor` that prints the fix for every problem
 - **Scheduling that survives sleep and DST** — IANA-timezone cron, DST-correct, catch-up after sleep; each occurrence and each run is
-  claimed in the database, so the dashboard, the daemon and `hutch run` can all be running without double-dispatching, and one
-  bot never overlaps itself
+  claimed in the database; one elected supervisor handles schedules and recovery, and one bot never overlaps itself
 - **Approvals that don't nag** — ask-once with sticky always-allows; unanswered = denied
-- **Caps** — steps, wall-clock, daily tokens per bot; spend caps for priced hosted models (a token cap is not a currency cap). Under
-  `hutch serve` / `hutch daemon` every run is its own process and a timeout or Stop ends its whole process group, verified
-- **Workspace path jail** — file tools cannot leave the workspace; shell commands are policy-checked and run with a redirected
-  HOME and a minimal environment. This is policy, **not an OS sandbox**: a script a bot runs can read what your user can read
+- **Caps** — steps, wall-clock, daily tokens per bot; spend caps for priced hosted models (a token cap is not a currency cap). `serve`, `daemon`, and `hutch run` use one owned worker process per attempt; cancellation stays visible until cleanup is verified
+- **Workspace and shell containment** — file tools stay in the workspace. New bots request Linux bubblewrap strict mode for shell commands, with no shell network and bounded resources; unsupported hosts fail closed. Existing bots keep their saved setting, and `sandbox: off` is explicitly uncontained execution. This shell boundary is not a VM and does not contain the browser or external runtimes
 - **Run transcripts** — every run in SQLite + a JSONL mirror on disk
 - **Browser (experimental)** — optional Playwright extra; parks the run in a "needs you" state at CAPTCHA/MFA walls. Known gaps: one
   browser context per process rather than per bot, and no visible handoff session yet
 - **Other runtimes (experimental)** — built-in loop (default), or delegate a bot to [Pi](https://pi.dev) / [OpenCode](https://opencode.ai).
-  These run with their own tools outside hutch's policy gate
+  These run with their own tools outside hutch's policy gate; see the current safety boundary before enabling one
 
 ## Documentation
 
@@ -86,6 +83,7 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 | [Architecture](docs/architecture.md) | component map, decision log, concurrency model |
 | [Safety model](docs/safety.md) | deny/ask/allow rules, approval flow, honest limits |
 | [Bot configuration](docs/bot-config.md) | fields, model specs, schedules, limits, examples |
+| [Operations](docs/operations.md) | Linux sandbox requirements, incomplete cleanup, migration backups and restore |
 | [Models](docs/models.md) | chat model switcher, fit, model slots, prices, `hutch doctor` |
 | [Connections](docs/connections.md) | subscription plans and custom endpoints, keys, allowances, what is unsupported and why |
 | [Design system](docs/design-system.md) | shared UI tokens, components, icon/emoji policy, a11y rules |
@@ -100,7 +98,7 @@ Web Dashboard: 3-pane Chat Studio (`http://127.0.0.1:8787/#/chat`) with live app
 
 ```bash
 uv venv && uv pip install -e ".[dev]"
-pytest --ignore=tests/e2e   # 637 tests, fully offline (mock runtime); tests/e2e needs Playwright browsers
+pytest --ignore=tests/e2e   # tests use recorded fakes/mock runtime; tests/e2e needs Playwright browsers
 hutch demo seed && hutch serve   # rich dashboard state for manual testing
 ```
 

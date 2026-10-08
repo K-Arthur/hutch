@@ -47,6 +47,12 @@ def shell(store, config, tmp_path, command: str, **bot_kw):
     return call_tool(run, ctx, build_tools(["shell"], ctx), "shell", {"command": command}), ws
 
 
+def os_sandbox(command: str, workspace: Path, *, policy: sandbox.Policy | None = None):
+    """Exercise bubblewrap itself, bypassing Hutch's shell policy parser on purpose."""
+    argv = sandbox.shell_argv(command, policy or sandbox.Policy(workspace=workspace))
+    return subprocess.run(argv, cwd=workspace, text=True, capture_output=True, timeout=15)
+
+
 def test_the_shell_cannot_see_the_real_home_or_any_folder_outside_the_workspace(store, config, tmp_path):
     secret = tmp_path / "secret.txt"                                  # a canary outside the workspace
     secret.write_text("TOP-SECRET-CANARY")
@@ -71,11 +77,12 @@ def test_a_script_that_reads_dotfiles_by_absolute_path_gets_nothing(store, confi
 
 def test_only_the_workspace_is_writable_and_tmp_is_private(store, config, tmp_path):
     leak = f"leak-{uuid.uuid4().hex}"
-    res, ws = shell(store, config, tmp_path,
-                    f"echo kept > out.txt; echo x > /usr/x 2>&1; echo x > /etc/passwd 2>&1; touch /tmp/{leak} && echo tmp-ok")
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    res = os_sandbox(f"echo kept > out.txt; echo x > /usr/x; echo x > /etc/passwd; touch /tmp/{leak}; echo tmp-ok", ws)
     assert (ws / "out.txt").read_text().strip() == "kept"             # the workspace is the one writable place
-    assert "Read-only file system" in res.output
-    assert "tmp-ok" in res.output and not Path("/tmp", leak).exists()  # /tmp inside is a private tmpfs, not the host's
+    assert "Read-only file system" in res.stderr
+    assert "tmp-ok" in res.stdout and not Path("/tmp", leak).exists()  # /tmp inside is a private tmpfs, not the host's
     assert Path("/etc/passwd").stat().st_mode & 0o022 == 0              # (and the host's file was never touched)
 
 
@@ -86,23 +93,19 @@ def _listener():
     return srv, srv.getsockname()[1]
 
 
-def test_there_is_no_network_without_a_grant_and_there_is_one_with_it(store, config, tmp_path):
+def test_sandboxed_shell_network_request_fails_closed(store, config, tmp_path):
     srv, port = _listener()
     try:
         probe = f"timeout 5 bash -c 'exec 3<>/dev/tcp/127.0.0.1/{port} && echo CONNECTED'"
-        denied, _ = shell(store, config, tmp_path, probe)
-        assert "CONNECTED" not in denied.output, "the sandbox reached the host's loopback with no network grant"
-        granted, _ = shell(store, config, tmp_path, probe, shell_network=True) if False else (None, None)
+        ws = tmp_path / "ws"
+        ws.mkdir()
+        denied = os_sandbox(probe, ws)
+        assert "CONNECTED" not in denied.stdout + denied.stderr, "the sandbox reached the host's loopback"
     finally:
         srv.close()
-    store.delete_bot("sb")
-    srv, port = _listener()
-    try:
-        probe = f"timeout 5 bash -c 'exec 3<>/dev/tcp/127.0.0.1/{port} && echo CONNECTED'"
-        granted, _ = shell(store, config, tmp_path, probe, shell_network=True)
-        assert "CONNECTED" in granted.output
-    finally:
-        srv.close()
+
+    result, _ = shell(store, config, tmp_path, "echo must-not-run", shell_network=True)
+    assert not result.ok and "network" in result.output.lower() and "Nothing was run" in result.output
 
 
 def test_the_environment_is_clean_no_keys_or_tokens_leak_in(store, config, tmp_path, monkeypatch):
@@ -170,9 +173,34 @@ def test_the_global_override_turns_containment_off_and_is_visible(monkeypatch):
 
 def test_a_file_size_limit_stops_a_runaway_writer(store, config, tmp_path, monkeypatch):
     monkeypatch.setenv("HUTCH_SANDBOX_FSIZE_MB", "1")
-    res, ws = shell(store, config, tmp_path, "dd if=/dev/zero of=big bs=1M count=8 2>&1; ls -l big | awk '{print $5}'")
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    res = os_sandbox("dd if=/dev/zero of=big bs=1M count=8", ws,
+                     policy=sandbox.Policy(workspace=ws, fsize_mb=1))
     assert (ws / "big").stat().st_size <= 1024 * 1024
-    assert "File size limit exceeded" in res.output or "efbig" in res.output.lower() or not res.ok
+    assert res.returncode != 0 and (ws / "big").stat().st_size == 1024 * 1024
+
+
+def test_memory_limit_is_applied_to_the_sandboxed_command(tmp_path):
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    command = "python3 -c \"x=bytearray(96*1024*1024); print('allocated')\""
+    res = os_sandbox(command, ws, policy=sandbox.Policy(workspace=ws, memory_mb=32))
+    assert res.returncode != 0 and "allocated" not in res.stdout
+
+
+def test_ambient_readonly_mount_env_cannot_expose_home_secrets(tmp_path, monkeypatch):
+    secret_dir = tmp_path / ".ssh"
+    secret_dir.mkdir()
+    private_key = secret_dir / "id_rsa"
+    private_key.write_text("PRIVATE-CANARY")
+    monkeypatch.setenv("HUTCH_SANDBOX_RO", str(secret_dir))
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    res = os_sandbox(f"cat {private_key}", ws)
+    assert "PRIVATE-CANARY" not in res.stdout + res.stderr
+    with pytest.raises(ValueError, match="credentials or secrets"):
+        sandbox.shell_argv("true", sandbox.Policy(workspace=ws, extra_ro=(str(secret_dir),)))
 
 
 def test_new_bots_default_to_strict_on_a_capable_host_and_the_value_is_validated():

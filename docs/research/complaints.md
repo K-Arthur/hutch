@@ -96,6 +96,10 @@ This file is the traceability backbone of the MVP: each design requirement cites
   ("Markdown files aren't a memory system") is by the author of a competing memory product; weigh accordingly.
 - OpenClaw issue [138499](https://github.com/openclaw/openclaw/issues/138499) (opened 2026-09-04): a timed-out cron task left its
   background command `running` for 5+ hours; **open**, one reporter, not independently reproduced here.
+- OpenClaw issue [133062](https://github.com/openclaw/openclaw/issues/133062): one report describes timed-out cron children surviving
+  their agent process, with an unsafe process-group workaround that could also signal the gateway. The report is not an incidence
+  estimate and was not independently reproduced. Hutch's tests now cover separately-owned process groups, verified identities, and
+  keeping a run nonterminal when cleanup is incomplete.
 
 ## 7. UI / interface complaints (design signals)
 
@@ -148,15 +152,15 @@ fewer colours, non-colour state cues).
 | # | Requirement (from incidents) | hutch implementation |
 |---|---|---|
 | 1 | Catch-up for schedules missed while asleep | `scheduler.Scheduler.due()` counts missed windows; `coalesce` policy runs once with `missed_windows` tag; `skip` policy records a visible marker |
-| 2 | DST/timezone correctness; no double-fire/overlap | cron math in bot's IANA zone + round-trip DST-gap check (`scheduler._to_utc`); per-bot single-instance lock (`engine.dispatch_pending`) - **within one process only**; cross-process claims are slice S2 (`docs/realignment/ledger.md`) |
+| 2 | DST/timezone correctness; no double-fire/overlap | Cron math in the bot's IANA zone + round-trip DST-gap check (`scheduler._to_utc`); occurrence and run claims are transactional across processes (`Store.claim_occurrence`, `Store.claim_run`); six-process schedule race creates one run. |
 | 3 | Append-only transcripts; staleness visible | `engine._execute` mirrors every event to SQLite + `transcript.jsonl`; dashboard shows last-success age, flagged when stale |
-| 4 | Spend/step/time caps with hard kill | `limits` on every bot; runtime enforces steps + daily token cap. The wall-clock "kill" currently abandons the worker thread (baseline lead 1); real process kill is slice S3 |
-| 5 | Least-privilege workspace; no ambient home access | per-run workspace; path jail for file tools (`safety.check_path`); shell runs with `HOME` inside workspace and scrubbed env. **Policy only; the shell is not OS-contained** (slice S4) |
+| 4 | Spend/step/time caps with hard kill | `limits` on every bot; the production executor enforces steps and time in an owned process. Token limits use measured usage or estimates; they are not currency caps. |
+| 5 | Least-privilege workspace; no ambient home access | Per-run workspace; path jail for file tools (`safety.check_path`); strict Linux shell mode uses bubblewrap namespaces and a workspace-only writable mount. Existing bots migrated to `off`; external runtimes/browser are not covered. |
 | 6 | Compound-command-aware permissions | `safety.split_compound` + per-segment classification, worst-verdict-wins |
 | 7 | Approval presets + sticky allows (end permission fatigue) | `ApprovalGate` with sticky keys, `auto` mode for trusted bots; denylist always enforced |
-| 8 | Egress guardrails | upload-flag detection on curl/wget; pipe-to-network denial; URL scheme/private-range guards (**host-string only: 7 loopback forms and redirects bypass it today**; slice S1) |
+| 8 | Egress guardrails | Shell policy rejects common upload/pipeline forms; web fetch resolves every address, rejects non-public ranges, rechecks redirects and pins the validated address. Browser routes re-check requests but do not yet pin browser DNS; rebinding remains a residual risk. |
 | 9 | HITL gates on irreversible actions, fail-closed | ask-verdict approvals with 10-min TTL → expired = denied |
-| 10 | Graceful CAPTCHA/MFA pause-to-human + persistent logins | `waiting_human` run state; persistent Chromium profile. **Experimental:** the browser context is shared across bots in a process and runs headless (baseline lead 8; slice S7) |
+| 10 | Graceful CAPTCHA/MFA pause-to-human + persistent logins | `waiting_human` can hold a run at detected challenges. **Experimental and limited:** browser context is shared across bots in a process; a durable same-session human handoff and per-bot profile isolation are not implemented. |
 | 11 | Over-saturated accent on near-black reads "harsh"; eye strain | Monochrome-first: neutral surfaces, one softened emerald for the primary action and the active nav only, no large tinted fills (`docs/design-system.md`) |
 | 12 | Colour-only status fails WCAG 1.4.1 and is unreadable small | Every status is glyph + word + a dot or rail; shape and position carry the meaning, hue only reinforces |
 | 13 | User vs assistant turns indistinguishable in long threads | Non-colour role cues: the user bubble sits on the raised surface, the assistant turn is flat; both carry a role label and a timestamp |

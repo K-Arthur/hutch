@@ -29,7 +29,7 @@ TRANSITIONS: dict[RunStatus, frozenset[RunStatus]] = {
                           P.cancelling, P.recovering} | _END),
     P.waiting_approval: frozenset({P.running, P.loading_model, P.waiting_human, P.cancelling, P.recovering} | _END),
     P.waiting_human: frozenset({P.running, P.waiting_approval, P.cancelling, P.recovering} | _END),
-    P.recovering: frozenset(_END),
+    P.recovering: frozenset({P.cancelling} | _END),
     P.cancelling: frozenset({P.recovering} | _END),
     P.succeeded: frozenset(),
     P.failed: frozenset(),

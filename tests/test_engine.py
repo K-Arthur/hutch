@@ -4,6 +4,8 @@ import json
 import time
 from datetime import datetime, timezone
 
+import pytest
+
 from hutch.config import get_config
 from hutch.engine import Engine, bot_prompt_for_schedule
 from hutch.models import ApprovalMode, Bot, CatchUpPolicy, RunStatus, Schedule
@@ -135,22 +137,33 @@ def test_timeout_kills_run(store, config):
         return orig(self, run, ctx, tools, stop)
 
     mock_mod.MockRuntime.execute = slow_execute
+    engine = Engine(config, store)
     try:
-        engine = Engine(config, store)
         engine.submit(bot, "will hang")
         engine.dispatch_pending()
-        deadline = time.time() + 15
-        runs = store.list_runs(bot.id)
+        deadline = time.time() + 10
         while time.time() < deadline:
-            runs = store.list_runs(bot.id)
-            if runs and runs[0].status.value in ("failed", "stopped", "succeeded"):
+            run = store.list_runs(bot.id)[0]
+            if run.status.value == "cancelling":
                 break
             time.sleep(0.2)
-        assert runs[0].exit_reason == "timeout"
-        assert runs[0].status is RunStatus.failed
+        else:
+            pytest.fail("timeout was not surfaced while the runtime thread was blocked")
+        assert run.exit_reason == "" and run.status is RunStatus.cancelling
+        # Python cannot safely kill an uncooperative thread. Keep cancellation visible until it exits.
+        blocker.set()
+        deadline = time.time() + 10
+        while time.time() < deadline:
+            run = store.list_runs(bot.id)[0]
+            if run.status in (RunStatus.failed, RunStatus.stopped, RunStatus.succeeded):
+                break
+            time.sleep(0.1)
+        assert run.exit_reason == "timeout"
+        assert run.status is RunStatus.failed
     finally:
         mock_mod.MockRuntime.execute = orig
         blocker.set()
+        engine.shutdown()
 
 
 def test_bot_prompt_for_schedule_mentions_standing_task():

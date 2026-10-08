@@ -269,12 +269,12 @@
         <div class="incident-meta">
           <span class="incident-index">03</span>
           <span class="incident-stamp">Privacy leak</span>
-          <span class="incident-source">HN #48892468 &middot; HN #49808565</span>
+          <span class="incident-source"><a href="https://news.ycombinator.com/item?id=48892468">HN #48892468</a> &middot; <a href="https://news.ycombinator.com/item?id=49808565">HN #49808565</a></span>
         </div>
         <div class="incident-body">
           <h3>CLI agent uploaded ~/.ssh and the home directory</h3>
-          <blockquote>Two widely discussed 2026 reports, by their titles: "Grok CLI uploaded the whole home directory to GCS" and "Meta's New Muse AI Agent Read My Private Messages. I Never Asked It To". They are reports, not findings we verified.</blockquote>
-          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>What hutch does</b> File tools cannot leave the workspace, commands that name secret paths are denied before they run, and shells start with a redirected HOME. Limit today: that is policy, not an operating-system sandbox. A script a bot writes and runs can still read files your user can read. OS containment is being built.</span></p>
+          <blockquote>Two individual Hacker News posts describe privacy failures in other products. They are user reports, not independently verified findings or evidence of prevalence.</blockquote>
+          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>What hutch does</b> File tools stay inside the workspace. New bots request strict Linux shell containment: bubblewrap gives the shell a private process namespace and temporary directory, no host network, and only the workspace writable. This is not a virtual machine and does not cover every tool; old bots remain explicitly marked as uncontained until changed.</span></p>
         </div>
       </article>
 
@@ -295,12 +295,12 @@
         <div class="incident-meta">
           <span class="incident-index">05</span>
           <span class="incident-stamp">Orphaned work</span>
-          <span class="incident-source">OpenClaw issue 138499 &middot; open, one reporter, not reproduced by us</span>
+          <span class="incident-source"><a href="https://github.com/openclaw/openclaw/issues/138499">OpenClaw issue 138499</a> &middot; open, one reporter, not reproduced by us</span>
         </div>
         <div class="incident-body">
           <h3>A timed-out scheduled task leaves its child process running</h3>
           <blockquote>One reporter says a cron task that timed out left its background command marked running for more than five hours. It is an open issue with an open fix.</blockquote>
-          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>What hutch does</b> Honest status: hutch had the same weakness. A run that timed out was marked finished while its worker thread kept going. A run now holds a lease, and a worker that loses it is fenced out: it cannot write to the run or start another action. Stop works from any process. Under the dashboard and the daemon each run is its own process in its own session; stopping it ends the whole group and the run reads "Stopping" until that is verified. Limit: a process that fully detaches from its group is out of reach until the OS sandbox lands; progress is in <code>docs/realignment/ledger.md</code>.</span></p>
+          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>What hutch does</b> Hutch's production runs now use owned processes with recorded boot and start identities. Stop remains visible as "Stopping" until the supervisor verifies cleanup; recovery fences the old owner before it signals recorded processes. Strict Linux shell mode also uses a private PID namespace, which contains detached descendants of that shell. A process outside that namespace or an unverified identity is not signalled by numeric PID.</span></p>
         </div>
       </article>
     </div>
@@ -310,17 +310,17 @@
 <section id="pillars" class="alt-bg">
   <div class="wrap">
     <div class="section-label">Architecture &middot; Bento Grid</div>
-    <h2 class="section-heading">Engineered for absolute local reliability</h2>
+    <h2 class="section-heading">Designed for visible, local control</h2>
     <p class="section-description">
       The agent prompt loop is simple. hutch is the operational plumbing around it:
-      policy checks, scheduling, approvals, budgets, and an audit trail. Each card lists what is still missing.
+      policy checks, scheduling, approvals, budgets, and an audit trail. Each card separates tested support from experimental areas.
     </p>
 
     <div class="bento-grid">
       <div class="bento-card" data-spotlight data-glow>
         <span class="bento-tag">POLICY &amp; LINUX SANDBOX</span>
         <h3>Policy Engine &amp; Optional OS Containment</h3>
-        <p>Hutch checks tool calls against policy. On Linux, the shell can also run inside a bubblewrap sandbox; it is not a hardened virtual machine, and availability depends on host support and bot settings.</p>
+        <p>Hutch checks tool calls against policy. New bots request strict Linux shell containment; it is not a hardened virtual machine, and availability depends on host support. Existing bots keep their prior setting.</p>
         <ul class="bento-list">
           <li><b>Path containment:</b> File tools cannot resolve paths outside the workspace.</li>
           <li><b>Environment scrub:</b> Shell commands run with a synthetic HOME and a minimal environment.</li>
@@ -351,8 +351,8 @@
         <ul class="bento-list">
           <li><b>Fail-closed TTL:</b> Unanswered approval requests expire as denied after 10 minutes.</li>
           <li><b>Sticky allows:</b> Tick "always allow" once per bot; revoke anytime in the Studio inspector.</li>
-          <li><b>Browser pauses (experimental):</b> The run parks in a "needs you" state at a login or CAPTCHA wall instead of guessing. A visible handoff session is in progress.</li>
-          <li><b>Persistent logins (experimental):</b> Chromium profiles persist per bot. Optional Playwright extra, untested on this release without browsers installed.</li>
+          <li><b>Browser pauses (experimental):</b> Some detected login or challenge pages can pause a run. Same-session human handoff is unavailable.</li>
+          <li><b>Browser profiles (experimental):</b> Playwright support exists, but contexts are currently shared within a process. Per-bot profile isolation is unavailable.</li>
         </ul>
         <span class="bento-action">How approvals work <span class="arr" aria-hidden="true"></span></span>
       </div>
@@ -409,7 +409,7 @@
           </tr>
           <tr>
             <td data-label="Feature">Human takeover</td>
-            <td class="matrix-hutch" data-label="hutch"><span class="pill-check maybe">Run parks in a "needs you" state; visible handoff in progress</span></td>
+            <td class="matrix-hutch" data-label="hutch"><span class="pill-check maybe">Experimental pause; live handoff unavailable</span></td>
             <td data-label="OpenAI dots">"Take over" and "Return control"</td>
             <td data-label="Grok Bot">Hands the desktop back for CAPTCHA or 2FA</td>
           </tr>
@@ -576,7 +576,7 @@
 
       <details class="faq-item">
           <summary>What happens when a browser bot hits a CAPTCHA or MFA wall?</summary>
-          <p>The run moves to a "needs you" state and waits; hutch never tries to solve a CAPTCHA. Browser support is experimental: it needs the optional Playwright extra, and showing you the page to complete the step (a visible handoff) is still being built. Chromium profiles persist per bot so a login can survive between runs.</p>
+          <p>Some detected login or challenge pages can move a run to "needs you"; hutch never tries to solve a CAPTCHA. Browser support is experimental and requires the optional Playwright extra. A live page handoff is unavailable, and browser contexts are currently shared within a process rather than isolated per bot.</p>
         </details>
     </div>
   </div>

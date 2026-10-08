@@ -49,6 +49,15 @@ def test_shell_readonly_runs_without_asking(store, config, tmp_path):
     assert store.pending_approvals() == []  # nothing asked
 
 
+def test_shell_drains_both_streams_with_a_bounded_capture(store, config, tmp_path):
+    ctx = make_ctx(store, config, tmp_path, approval_mode=ApprovalMode.auto)
+    tools = build_tools(["shell"], ctx)
+    command = "python3 -c 'import sys; sys.stdout.write(\"x\"*1100000); sys.stderr.write(\"y\"*1100000)'"
+    result = tools["shell"].run({"command": command, "timeout": 10}, ctx)
+    assert len(result.output.encode("utf-8")) < 1_100_000
+    assert "output clipped while draining" in result.output
+
+
 def test_shell_denied_action_reports_denial(store, config, tmp_path):
     ctx = make_ctx(store, config, tmp_path)
     tools = build_tools(["shell"], ctx)

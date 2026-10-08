@@ -5,6 +5,12 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 ## [Unreleased]
 
 ### Added
+- **Owned run cleanup and recovery:** production CLI, web, and daemon attempts use worker processes; recovery atomically fences expired
+  owners before signalling; process records carry boot/start identity and pidfd cleanup never signals a reused PID/PGID. Incomplete
+  cleanup remains visible and retries instead of claiming the run stopped. A leased supervisor coordinates schedule/recovery work.
+- **Bounded shell execution:** captured stdout/stderr is drained into a fixed buffer; Linux strict mode uses bubblewrap plus a
+  delegated systemd cgroup and fails closed. SQLite migrations serialize across processes, use the online backup API, and have a
+  tested restore path. Store shutdown joins registered engine workers before closing the database.
 - **UI-complaint research** ([docs/research/complaints.md](docs/research/complaints.md#7-ui--interface-complaints-design-signals)):
   documented interface failures across shipped agent UIs — Claude Code's saturated-on-black
   regression, ChatGPT accent churn, Codex role ambiguity, colour-only status dots — with a

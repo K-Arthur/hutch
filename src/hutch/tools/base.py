@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-import signal
 import subprocess
 import threading
 import time
@@ -78,44 +76,40 @@ class ProcRegistry:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._procs: dict[int, subprocess.Popen] = {}
-        self._groups: dict[int, int] = {}          # pgid -> start time of the process that led it
+        self._groups: dict[int, dict[str, object]] = {}  # pgid -> verified group identity
         self.killed = False
         self.survivors: list[Any] = []             # processes still alive after the last kill_all (procguard.Proc)
-        #: persistence hooks, set by the engine: (pid, pgid, starttime, kind) / (pid)
-        self.on_register: Optional[Callable[[int, int, int, str], None]] = None
-        self.on_unregister: Optional[Callable[[int], None]] = None
+        #: persistence hook, set by the engine: (pid, pgid, starttime, kind, boot_id)
+        self.on_register: Optional[Callable[[int, int, int, str, str], None]] = None
 
     def register(self, proc: subprocess.Popen, kind: str = "tool") -> None:
         ident = procguard.identity(proc.pid)
         with self._lock:
             self._procs[proc.pid] = proc
-            self._groups[proc.pid] = ident.starttime if ident else 0
+            self._groups[proc.pid] = {"pid": proc.pid, "pgid": proc.pid,
+                                      "starttime": ident.starttime if ident else 0,
+                                      "boot_id": procguard.boot_id() if ident else ""}
             if self.killed:  # stop arrived between spawn and register
-                self._signal(proc, signal.SIGKILL)
+                self._signal(proc, 9)
         if self.on_register:
             try:
-                self.on_register(proc.pid, proc.pid, ident.starttime if ident else 0, kind)
+                self.on_register(proc.pid, proc.pid, ident.starttime if ident else 0, kind,
+                                 procguard.boot_id() if ident else "")
             except Exception:
                 pass
 
     def unregister(self, proc: subprocess.Popen) -> None:
         with self._lock:
             self._procs.pop(proc.pid, None)
-        if self.on_unregister:
-            try:
-                self.on_unregister(proc.pid)
-            except Exception:
-                pass
 
     @staticmethod
     def _signal(proc: subprocess.Popen, sig: int) -> None:
         try:
-            os.killpg(proc.pid, sig)
-        except (ProcessLookupError, PermissionError, OSError):
-            try:
-                proc.send_signal(sig)
-            except (ProcessLookupError, OSError):
-                pass
+            # Popen holds an unreaped child identity. Descendants are handled through verified
+            # process-group identities and pidfds below.
+            proc.send_signal(sig)
+        except (ProcessLookupError, OSError):
+            pass
 
     def alive(self) -> int:
         with self._lock:
@@ -127,19 +121,39 @@ class ProcRegistry:
         with self._lock:
             self.killed = True
             procs = [p for p in self._procs.values() if p.poll() is None]
-            groups = dict(self._groups)
+            groups = list(self._groups.values())
         for p in procs:
-            self._signal(p, signal.SIGTERM)
-        deadline = time.monotonic() + grace
+            self._signal(p, 15)
+        self.survivors = procguard.end_recorded(groups, term_grace=grace, kill_grace=1.5)
         for p in procs:
             try:
-                p.wait(timeout=max(0.0, deadline - time.monotonic()))
+                p.wait(timeout=0.2)
             except subprocess.TimeoutExpired:
-                self._signal(p, signal.SIGKILL)
-        if groups:
-            # the groups' remaining members and their descendants (a backgrounded helper outlives its shell)
-            self.survivors = procguard.end_groups(groups.keys(), not_before=min(groups.values()), term_grace=0.2, kill_grace=1.5)
+                self._signal(p, 9)
+                try:
+                    p.wait(timeout=0.5)
+                except subprocess.TimeoutExpired:
+                    pass
         return len(procs)
+
+    def terminate(self, proc: subprocess.Popen, grace: float = 0.2) -> list[Any]:
+        """End one registered subprocess and its verified descendants, then return any survivors."""
+        with self._lock:
+            record = self._groups.get(proc.pid)
+        if record is None:
+            self._signal(proc, 15)
+            try:
+                proc.wait(timeout=grace)
+            except subprocess.TimeoutExpired:
+                self._signal(proc, 9)
+            return []
+        left = procguard.end_recorded([record], term_grace=grace, kill_grace=1.0)
+        self.survivors = left
+        try:
+            proc.wait(timeout=0.2)
+        except subprocess.TimeoutExpired:
+            self._signal(proc, 9)
+        return left
 
 
 @dataclass

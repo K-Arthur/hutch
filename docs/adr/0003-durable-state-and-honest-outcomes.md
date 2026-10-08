@@ -1,6 +1,6 @@
 # ADR-0003: An explicit run state machine, fenced writes, receipts, and honest outcomes
 
-Status: accepted (2026-10-07). Slice: S3. Evidence: baseline leads 1-3, "Audit writes fail silently", C1.
+Status: accepted (2026-10-07), amended during realignment. Slices: S2-S3. Evidence: baseline leads 1-3, "Audit writes fail silently", C1.
 
 ## Context
 
@@ -41,9 +41,12 @@ Cancel is a separate column (`cancel_requested`) so a client can set it without 
 
 ### Fencing
 
-Each claim and each recovery increments `runs.fence`. The owner's `Run` object carries it. A worker that lost its lease gets
-`LeaseLost` on its next write and aborts; it also finds `ToolContext.closed` set and refuses to start another tool. This does
-not stop an effect already in flight inside a thread - that is why process ownership (ADR-0001/0004) matters.
+Each claim and each recovery increments `runs.fence`. Recovery compares the observed owner, status, fence and lease expiry and
+claims the run in one transaction **before it signals anything**. The owner's `Run` object carries the fence. A worker that lost
+its lease gets `LeaseLost` on its next write and cannot start another effect. Process records pair PID and start ticks with the
+kernel boot id; cleanup uses pidfds and checks the recorded process-group identity, never a raw PID or PGID after a check race.
+A run remains `cancelling` or `recovering` while cleanup is incomplete or unverifiable; it becomes terminal only after owned
+processes are confirmed gone. Thread-mode test helpers are joined before persistence closes.
 
 ### Receipts, recovery, and "outcome unknown"
 
@@ -79,6 +82,8 @@ from committed rows by a drainer and are retried. A failure to persist an event 
 
 ## Consequences
 
-Migration: new columns (`fence`, `lease_owner`, `lease_expires_at`, `cancel_requested`, `heartbeat_at`) and tables
-(`tool_actions`, `schedule_occurrences`, `outbox`) in schema v5; no data rewrite. Rollback: old code ignores the new columns, but would
-not honour fences - run `HUTCH_EXECUTOR=thread` and do not run old and new supervisors against one database at the same time.
+Migration: ownership/receipt fields began in schema v5; process boot identities and the elected supervisor lease are added by
+schema v7. Migrations are serialized and a pre-migration backup is made with SQLite's backup API. Restore from the matching
+`.db.bak-vN` file before rolling back. Older code ignores new columns but does not honour fences, so do not run old and new
+supervisors against one database at the same time. There is no `outbox` table yet; ordered durable events are committed with the
+state transition and the JSONL mirror follows committed rows.

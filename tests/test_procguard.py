@@ -91,7 +91,9 @@ def test_a_helper_that_outlived_its_shell_is_still_ended():
     sh.wait(timeout=5)                                              # the shell has exited; its helper has not
     helpers = [p for p in procguard._all().values() if p.pgrp == sh.pid and p.state != "Z"]
     assert helpers, "the helper should still be running in the dead shell's group"
-    left = procguard.end_groups([sh.pid], not_before=ident.starttime if ident else 0, term_grace=1, kill_grace=2)
+    left = procguard.end_recorded([{"pid": sh.pid, "pgid": sh.pid,
+                                    "starttime": ident.starttime if ident else 0,
+                                    "boot_id": procguard.boot_id()}], term_grace=1, kill_grace=2)
     assert left == [] and not any(pid_alive(p.pid) for p in helpers)
 
 

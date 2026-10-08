@@ -1,26 +1,28 @@
 # ADR-0006: Tool authority, an OS sandbox, and who owns the browser
 
-Status: accepted (2026-10-07). Slice: S4 (sandbox, SSRF), S7 (browser, handoff). Evidence: baseline leads 8-9, D3, A1, B6.
+Status: accepted (2026-10-07), implementation amended during realignment. S4 (Linux shell sandbox and approval CAS) is host-tested;
+S7 (per-bot browser ownership and live handoff) remains unimplemented. Evidence: baseline leads 8-9, D3, A1, B6.
 
 ## Context
 
-Prompts, CWD and a redirected `HOME` are not a boundary: `cat /home/user/.ssh/id_rsa` works in the current shell tool. The command
-parser is a useful *policy* layer and stays; it is not containment. The SSRF guard is a regex (D3). The browser context is a class
-attribute shared by every bot in the process.
+Prompts, CWD and a redirected `HOME` are not a boundary: `cat /home/user/.ssh/id_rsa` worked in the baseline shell tool. The command
+parser is a useful *policy* layer and stays; it is not containment. Web fetch has since moved to resolved-address checks and pinned
+connections, while browser DNS is still not pinned (D3). The browser context is a class attribute shared by every bot in the process.
 
 ## Decision
 
 ### Containment
 
-* **Bubblewrap is the Linux backend** (verified on this host: bwrap 0.13.0, unprivileged user namespaces on; inside it `/home` does
-  not exist and the network is unreachable). `hutch/sandbox.py` builds the argv: read-only bind of a minimal system tree, a writable
-  bind for the workspace only, `--tmpfs /tmp`, `--unshare-all`, `--share-net` only when the bot has a network grant,
-  `--die-with-parent`, `--new-session`, and `prlimit` resource limits (address space, CPU time, processes, file size).
-* **Levels**, set per bot (`sandbox`): `strict` (default for new bots on hosts that support it), `off` (explicit; shown in the UI as
-  "no OS containment"). **If `strict` is required and the host cannot provide it, the tool refuses** (fail closed) and `hutch doctor` says why.
+* **Bubblewrap is the Linux shell backend** (verified on this host: bwrap 0.13.0, unprivileged user namespaces on; inside it `/home`
+  does not exist and the network is unreachable). Hutch mounts the workspace writable and a minimal system tree read-only,
+  creates a private `/tmp`, uses `--unshare-all`, `--die-with-parent`, and applies CPU/address-space/file/open-file limits with
+  `prlimit`, plus memory and task limits with `systemd-run --user --scope` cgroups. Strict mode has no shell-network grant; use
+  Hutch's address-checked `web_fetch` tool. Captured output is bounded while both streams are drained.
+* **Levels**, set per bot (`sandbox`): `strict` (default for new bots, including unsupported hosts), `off` (explicit; shown in the UI
+  as "no OS containment"). **If `strict` is required and the host cannot provide it, the tool refuses** (fail closed) and
+  `hutch doctor` says why.
   Existing bots keep `off` on migration so nothing breaks silently; the UI marks them.
-* **Credentials** are never mounted. A tool that needs one receives a handle and the broker injects it.
-* macOS (Seatbelt) and Windows are not implemented; the matrix says so (`unavailable`).
+* Existing bots keep `off` on migration so their behavior does not change silently. macOS (Seatbelt) and Windows are unavailable.
 
 ### Structured tools over shell strings
 
@@ -32,8 +34,9 @@ remains for the long tail. Invalid JSON arguments are rejected with a repair mes
 
 `hutch/netguard.py` resolves the host, rejects any private, loopback, link-local, multicast, reserved or metadata address among **all**
 answers (IPv4, IPv6, IPv4-mapped, encodings normalised by the OS resolver), follows redirects manually (max 5) re-checking every hop,
-pins the connection to the validated IP (no second DNS lookup), and bounds the body. The browser applies the same check to every
-request through a context route handler. A locally configured model endpoint is an *explicit exception* by connection, not by URL pattern.
+pins the connection to the validated IP (no second DNS lookup), follows redirects in Hutch and re-checks each hop, and bounds the
+body. The browser checks every request through a context route handler, but its own DNS lookup is not pinned yet; DNS rebinding is
+a known residual risk. A locally configured model endpoint is an *explicit exception* by connection, not by URL pattern.
 
 ### Approvals
 
@@ -48,17 +51,14 @@ into system instructions. They cannot raise a tool's policy tier. Rendered conte
 
 ### Browser and desktop are different resources
 
-* **Isolated automation browser**: one Playwright context per `(bot)` profile directory, created in the worker process that owns the
-  run. Because a bot has one active run (single-instance), a profile has one owner. Different bots are different processes and
-  profiles, so no global lock is needed and none exists. Sharing a login across bots is an explicit *grant* that copies nothing and
-  names the profile.
+* **Isolated automation browser**: planned as one Playwright context per bot profile. Current code uses a process-wide shared browser
+  context and is experimental; do not claim cross-bot profile isolation or visible handoff.
 * **Physical desktop** (pointer/keyboard): one lease at a time system-wide (`resource_leases` row), not implemented in this phase and
   documented as such; Wayland capture/control needs an installed, authorised executor and portal permission.
-* **Human handoff**: entering `waiting_human` records the reason, the URL and a *live view*. Local display -> relaunch the same profile headed
-  and wait. Remote (phone) -> a screenshot stream with an exclusive input lease (ADR-0010). On resume the page is revalidated (wall gone?) before
-  automation continues; on lease expiry the run times out into `failed/handoff_timeout` rather than continuing. CAPTCHA/MFA are never solved by Hutch.
+* **Human handoff**: a live session with an exclusive input lease is planned (ADR-0010), not implemented. Current runs can pause at
+  detected human-check pages but do not transfer control to a person in the same browser session. CAPTCHA/MFA are never solved by Hutch.
 
 ## Consequences
 
-Cost: bwrap start-up is about 10-20 ms per shell call (measured later). Risk: a tool that needs a path outside the workspace now fails;
-the error names the missing grant. Rollback: `sandbox=off` per bot, or `HUTCH_SANDBOX=off` globally (logged on every run).
+Cost: bwrap and cgroup startup is measured as part of the shell execution budget. Risk: a tool that needs a path outside the workspace now fails.
+Rollback: `sandbox=off` per bot, or `HUTCH_SANDBOX=off` globally.

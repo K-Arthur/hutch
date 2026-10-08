@@ -46,8 +46,8 @@ def race(config, script: str, n: int = 6) -> list[str]:
             time.sleep(0.001)
     """)
     env = dict(os.environ, HUTCH_STATE_DIR=str(config.state_dir))
-    procs = [subprocess.Popen([sys.executable, "-I", "-c", prelude + textwrap.dedent(script)], env=env,
-                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) for _ in range(n)]
+    procs = [subprocess.Popen([sys.executable, "-I", "-c", prelude + f"\nworker_index = {i}\n" + textwrap.dedent(script)], env=env,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) for i in range(n)]
     time.sleep(1.5)                       # every interpreter is up and spinning on the gate
     go.write_text("go")
     outs = []
@@ -74,6 +74,14 @@ def test_two_or_more_processes_racing_for_one_run_produce_exactly_one_claim(stor
     assert claimed.fence == 1 and claimed.lease_owner.startswith("proc-")
 
 
+def test_only_one_process_is_elected_scheduler_supervisor(store, config):
+    outs = race(config, """
+        print("leader" if store.claim_supervisor(f"proc-{os.getpid()}", 30) else "follower")
+        store.close()
+    """)
+    assert outs.count("leader") == 1 and outs.count("follower") == len(outs) - 1
+
+
 def test_the_per_bot_single_instance_rule_holds_across_processes(store, config):
     """Two queued runs of ONE bot, many claimants: only one run may be claimed in total."""
     bot = make_bot(store)
@@ -93,21 +101,28 @@ def test_runs_of_different_bots_can_be_claimed_together(store, config):
     assert store.claim_run(ra.id, "p1", 30) and store.claim_run(rb.id, "p2", 30)
 
 
-def test_global_live_cap_is_enforced_in_the_claim(store):
+def test_global_cap_counts_claimed_but_not_yet_started_reservations(store):
     bots = [make_bot(store, f"b{i}") for i in range(3)]
     runs = [submit(store, b) for b in bots]
-    got = [store.claim_run(r.id, "p", 30, max_live=2) for r in runs]
-    # a claimed-but-not-started run is not "live" yet, so start each one before the next claim, as the engine does
-    store2 = [store.claim_run(r.id, "p", 30, max_live=2) for r in runs if store.get_run(r.id).fence == 0]
-    assert sum(1 for g in got if g) >= 1 and store2 is not None
-    for r in runs:
-        run = store.get_run(r.id)
-        if run.fence:
-            store.transition_run(r.id, RunStatus.running, fence=run.fence)
-    third = [r for r in runs if store.get_run(r.id).status is RunStatus.pending]
-    started = [r for r in runs if store.get_run(r.id).status is RunStatus.running]
-    if len(started) >= 2 and third:
-        assert store.claim_run(third[0].id, "p", 30, max_live=2) is None
+    assert store.claim_run(runs[0].id, "p1", 30, max_live=2)
+    assert store.claim_run(runs[1].id, "p2", 30, max_live=2)
+    assert store.claim_run(runs[2].id, "p3", 30, max_live=2) is None
+
+    first = store.get_run(runs[0].id)
+    store.transition_run(first.id, RunStatus.running, fence=first.fence)
+    assert store.claim_run(runs[2].id, "p3", 30, max_live=2) is None
+
+
+def test_global_cap_racing_claims_across_bots_has_one_winner(store, config):
+    bots = [make_bot(store, f"global-{i}") for i in range(2)]
+    runs = [submit(store, b) for b in bots]
+    outs = race(config, f"""
+        run = ({runs[0].id!r}, {runs[1].id!r})[worker_index % 2]
+        won = store.claim_run(run, owner=f"proc-{{os.getpid()}}", lease_seconds=30, max_live=1)
+        print("won" if won else "lost")
+        store.close()
+    """, n=6)
+    assert outs.count("won") == 1 and outs.count("lost") == 5
 
 
 def test_a_cancelled_or_started_run_cannot_be_claimed(store):
@@ -194,6 +209,43 @@ def test_a_stale_owner_cannot_write_after_recovery_took_the_run(store):
         store.transition_run(run.id, RunStatus.succeeded, fence=mine.fence)
     final = store.get_run(run.id)
     assert final.status is RunStatus.failed and final.steps == 3 and final.exit_reason == "interrupted"
+
+
+def test_recovery_claim_fences_only_the_expired_snapshot_before_cleanup(store):
+    bot = make_bot(store, "recovery-cas")
+    run = submit(store, bot)
+    worker = store.claim_run(run.id, "worker", 30)
+    store.transition_run(run.id, RunStatus.running, fence=worker.fence)
+    assert store.claim_recovery(store.get_run(run.id), "recoverer", 30) is None  # live lease stays owned
+    with store._lock:
+        store._db.execute("UPDATE runs SET lease_expires_at = '2000-01-01T00:00:00+00:00' WHERE id = ?", (run.id,))
+        store._db.commit()
+    expired = store.get_run(run.id)
+    recovering = store.claim_recovery(expired, "recoverer", 30)
+    assert recovering.status is RunStatus.recovering
+    assert recovering.fence == worker.fence + 1 and recovering.lease_owner == "recoverer"
+    with pytest.raises(LeaseLost):
+        store.update_run(worker)
+    assert store.claim_recovery(expired, "other", 30) is None   # stale snapshot cannot acquire twice
+
+
+def test_recovery_cleanup_failure_does_not_claim_a_run_stopped(store, config, monkeypatch):
+    from hutch import procguard
+    from hutch.engine import Engine
+    bot = make_bot(store, "unclean-recovery")
+    run = submit(store, bot)
+    worker = store.claim_run(run.id, "dead-worker", 1)
+    store.transition_run(run.id, RunStatus.running, fence=worker.fence)
+    with store._lock:
+        store._db.execute("UPDATE runs SET lease_expires_at = '2000-01-01T00:00:00+00:00' WHERE id = ?", (run.id,))
+        store._db.commit()
+    monkeypatch.setattr(Engine, "_end_recorded_processes", lambda *_: [procguard.Proc(999999, 1, 999999, 1, 1, "S")])
+    recovered = Engine(config, store)._recover_one(store.get_run(run.id))
+    waiting = store.get_run(run.id)
+    assert recovered is None
+    assert waiting.status is RunStatus.recovering
+    assert waiting.lease_owner == f"cleanup-pending:{run.id}"
+    assert "cleanup incomplete" in waiting.reason
 
 
 def test_a_finished_run_cannot_be_changed_by_a_late_worker(store):

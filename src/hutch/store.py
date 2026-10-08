@@ -14,9 +14,9 @@ upgrades back the database up first.
 from __future__ import annotations
 
 import atexit
+import fcntl
 import hashlib
 import json
-import shutil
 import sqlite3
 import threading
 import time
@@ -191,8 +191,19 @@ def _migrate_5(db: sqlite3.Connection) -> None:
     db.execute("UPDATE bots SET doc = json_set(doc, '$.sandbox', 'off') WHERE json_extract(doc, '$.sandbox') IS NULL")
 
 
+def _migrate_6(db: sqlite3.Connection) -> None:
+    """Record the kernel boot identity alongside process start ticks so recovery cannot signal a reused PID after reboot."""
+    db.execute("ALTER TABLE run_procs ADD COLUMN boot_id TEXT NOT NULL DEFAULT ''")
+
+
+def _migrate_7(db: sqlite3.Connection) -> None:
+    """Elect one durable scheduler/recovery supervisor across dashboard workers and daemon processes."""
+    db.execute("""CREATE TABLE IF NOT EXISTS supervisor_leases (
+        name TEXT PRIMARY KEY, owner TEXT NOT NULL DEFAULT '', expires_at TEXT, fence INTEGER NOT NULL DEFAULT 0)""")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
-_MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5]
+_MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -241,6 +252,7 @@ class Store:
         self._sink_errors: dict[str, list[str]] = {}
         self.dropped_events = 0
         self._closing = False
+        self._shutdown_hooks: list[weakref.WeakMethod] = []
         self._writer = threading.Thread(target=self._writer_loop, name="hutch-event-writer", daemon=True)
         self._writer.start()
         ref = weakref.ref(self)
@@ -250,31 +262,47 @@ class Store:
 
     def _upgrade(self) -> None:
         db = self._db
-        version = db.execute("PRAGMA user_version").fetchone()[0]
-        existing = db.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='bots'").fetchone()
-        if version == 0 and existing:
-            version = 1  # a v0.1 database predating versioning
-        db.executescript(_SCHEMA)
-        if version == 0:
-            version = 1
-        target = SCHEMA_VERSION
-        if version >= target:
-            if version > target:
-                raise RuntimeError(
-                    f"{self.config.db_path} is schema v{version}, newer than this hutch (v{target}); "
-                    "upgrade hutch instead of opening it with an older build")
-            return
-        if existing and version < target:
-            backup = self.config.db_path.with_suffix(f".db.bak-v{version}")
-            if not backup.exists():
-                db.commit()
-                db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-                shutil.copy2(self.config.db_path, backup)
-        for v in range(version, target):
-            _MIGRATIONS[v - 1](db)
-            db.execute(f"PRAGMA user_version = {v + 1}")
-            db.commit()
+        lock_path = self.config.db_path.with_suffix(self.config.db_path.suffix + ".migrate.lock")
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        with lock_path.open("a+b") as lock:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            try:
+                version = db.execute("PRAGMA user_version").fetchone()[0]
+                existing = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='bots'").fetchone()
+                if version == 0 and existing:
+                    version = 1  # a v0.1 database predating versioning
+                target = SCHEMA_VERSION
+                if version > target:
+                    raise RuntimeError(
+                        f"{self.config.db_path} is schema v{version}, newer than this hutch (v{target}); "
+                        "upgrade hutch instead of opening it with an older build")
+                if existing and version < target:
+                    backup = self.config.db_path.with_suffix(f".db.bak-v{version}")
+                    if not backup.exists():
+                        # SQLite's backup API captures committed WAL pages too; copying the main file can omit them.
+                        temporary = backup.with_suffix(backup.suffix + ".tmp")
+                        destination = sqlite3.connect(temporary)
+                        try:
+                            db.backup(destination)
+                        finally:
+                            destination.close()
+                        temporary.replace(backup)
+                db.execute("BEGIN EXCLUSIVE")
+                try:
+                    for statement in _SCHEMA.split(";"):
+                        if statement.strip():
+                            db.execute(statement)
+                    if version == 0:
+                        version = 1
+                    for v in range(version, target):
+                        _MIGRATIONS[v - 1](db)
+                        db.execute(f"PRAGMA user_version = {v + 1}")
+                    db.commit()
+                except BaseException:
+                    db.rollback()
+                    raise
+            finally:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
     def ensure_listening(self) -> None:
         """Start receiving wake-ups from other hutch processes (idempotent)."""
@@ -289,9 +317,26 @@ class Store:
 
     # ----------------------------------------------------------- lifecycle
 
+    def register_shutdown(self, callback: Callable[[], None]) -> None:
+        """Register an owner that must join its workers before this Store closes the database."""
+        try:
+            hook = weakref.WeakMethod(callback)
+        except TypeError:
+            return
+        self._shutdown_hooks = [h for h in self._shutdown_hooks if h() is not None]
+        owner = getattr(callback, "__self__", None)
+        func = getattr(callback, "__func__", None)
+        if owner is not None and not any(getattr(h(), "__self__", None) is owner
+                                         and getattr(h(), "__func__", None) is func for h in self._shutdown_hooks):
+            self._shutdown_hooks.append(hook)
+
     def close(self) -> None:
         if self._closing:
             return
+        for hook in list(self._shutdown_hooks):
+            owner_shutdown = hook()
+            if owner_shutdown is not None:
+                owner_shutdown()
         self.flush_events()
         with self._buf_cv:
             self._closing = True
@@ -490,7 +535,11 @@ class Store:
         now = now or utcnow()
         stamp, expires = iso(now), iso(now + timedelta(seconds=lease_seconds))
         marks = ",".join("?" for _ in _LIVE_VALUES)
-        cap = " AND (SELECT COUNT(*) FROM runs c WHERE c.status IN (" + marks + ")) < ?" if max_live else ""
+        # A successful claim leaves a run in `pending` while its supervisor starts the
+        # worker. That reservation already consumes a global slot, even though it is not
+        # yet one of the active execution statuses.
+        cap = (" AND (SELECT COUNT(*) FROM runs c WHERE c.status IN (" + marks + ") OR "
+               "(c.status = 'pending' AND c.lease_owner != '' AND c.lease_expires_at >= ?)) < ?") if max_live else ""
         sql = (
             "UPDATE runs SET lease_owner = ?, lease_expires_at = ?, heartbeat_at = ?, fence = fence + 1 "
             "WHERE id = ? AND status = 'pending' AND cancel_requested = 0 "
@@ -500,7 +549,7 @@ class Store:
             + cap)
         args: list[Any] = [owner, expires, stamp, run_id, stamp, *_LIVE_VALUES, stamp]
         if max_live:
-            args += [*_LIVE_VALUES, max_live]
+            args += [*_LIVE_VALUES, stamp, max_live]
         with self._tx() as db:
             if db.execute(sql, args).rowcount != 1:
                 return None
@@ -550,6 +599,32 @@ class Store:
                 f"SELECT MIN(lease_expires_at) AS m FROM runs WHERE status IN ({marks}) AND lease_expires_at IS NOT NULL "
                 "AND lease_owner != ?", (*_LIVE_VALUES, exclude_owner)).fetchone()
         return row["m"] if row else None
+
+    def claim_supervisor(self, owner: str, lease_seconds: float, now: Optional[datetime] = None) -> bool:
+        """Renew the current supervisor lease or atomically take it after expiry."""
+        now = now or utcnow()
+        stamp, expires = iso(now), iso(now + timedelta(seconds=lease_seconds))
+        with self._tx() as db:
+            row = db.execute("SELECT owner, expires_at FROM supervisor_leases WHERE name = 'scheduler'").fetchone()
+            if row is None:
+                db.execute("INSERT INTO supervisor_leases (name, owner, expires_at, fence) VALUES ('scheduler', ?, ?, 1)",
+                           (owner, expires))
+                return True
+            if row["owner"] == owner:
+                db.execute("UPDATE supervisor_leases SET expires_at = ? WHERE name = 'scheduler' AND owner = ?",
+                           (expires, owner))
+                return True
+            if row["expires_at"] is None or row["expires_at"] >= stamp:
+                return False
+            return db.execute(
+                "UPDATE supervisor_leases SET owner = ?, expires_at = ?, fence = fence + 1 "
+                "WHERE name = 'scheduler' AND owner = ? AND expires_at = ?",
+                (owner, expires, row["owner"], row["expires_at"])).rowcount == 1
+
+    def release_supervisor(self, owner: str) -> bool:
+        with self._tx() as db:
+            return db.execute("UPDATE supervisor_leases SET owner = '', expires_at = NULL "
+                              "WHERE name = 'scheduler' AND owner = ?", (owner,)).rowcount == 1
 
     def legacy_live_runs(self) -> list[Run]:
         """Live runs from before leases existed (no lease at all): only the old process-liveness check can judge them."""
@@ -610,7 +685,7 @@ class Store:
 
     def transition_run(self, run_id: str, to: RunStatus, *, fence: Optional[int] = None, exit_reason: Optional[str] = None,
                        error: Optional[str] = None, event: Optional[dict[str, Any]] = None, bump_fence: bool = False,
-                       fields: Optional[dict[str, Any]] = None) -> Run:
+                       fields: Optional[dict[str, Any]] = None, cancel_wins: bool = False) -> Run:
         """Move a run to ``to`` - the ONLY way status changes for a claimed run (ADR-0003).
 
         In one transaction: the fence is checked (``LeaseLost``), the move is checked against the lifecycle table
@@ -626,7 +701,7 @@ class Store:
             mine = [e for e in self._pending if e.run_id == run_id]
             with self._tx() as db:
                 row, emitted = self._apply_transition(db, run_id, to, fence, exit_reason, error, event, bump_fence, fields,
-                                                      earlier=mine)
+                                                      earlier=mine, cancel_wins=cancel_wins)
             if mine:
                 done = {id(e) for e in mine}
                 self._pending = [e for e in self._pending if id(e) not in done]
@@ -646,7 +721,7 @@ class Store:
     def _apply_transition(self, db: sqlite3.Connection, run_id: str, to: RunStatus, fence: Optional[int],
                           exit_reason: Optional[str], error: Optional[str], event: Optional[dict[str, Any]],
                           bump_fence: bool, fields: Optional[dict[str, Any]],
-                          earlier: Optional[list[Event]] = None) -> tuple[sqlite3.Row, Optional[Event]]:
+                          earlier: Optional[list[Event]] = None, cancel_wins: bool = False) -> tuple[sqlite3.Row, Optional[Event]]:
         from .models import EventType
         row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
         if row is None:
@@ -654,6 +729,9 @@ class Store:
         cur = RunStatus(row["status"])
         if fence is not None and row["fence"] != fence:
             raise LeaseLost(run_id, f"fence {fence} is stale (current {row['fence']})")
+        if cancel_wins and to in (RunStatus.failed, RunStatus.succeeded) and row["cancel_requested"]:
+            to, exit_reason, error = RunStatus.stopped, "stopped", "stopped after owned processes were verified gone"
+            event = {**(event or {}), "reason": "stopped", "error": error}
         if not allowed(cur, to) and cur is not to:
             raise IllegalTransition(run_id, cur, to)
         if cur is to:
@@ -801,11 +879,11 @@ class Store:
 
     # --------------------------------------------------- processes a run started
 
-    def add_proc(self, run_id: str, pid: int, pgid: int, starttime: int, kind: str = "tool") -> None:
+    def add_proc(self, run_id: str, pid: int, pgid: int, starttime: int, kind: str = "tool", boot_id: str = "") -> None:
         """Remember a process a run started, with its identity, so ending the run (or recovering a crashed owner) can end it."""
         with self._lock:
-            self._db.execute("INSERT INTO run_procs (run_id, pid, pgid, starttime, kind, started_at) VALUES (?, ?, ?, ?, ?, ?)",
-                             (run_id, pid, pgid, starttime, kind, iso(utcnow())))
+            self._db.execute("INSERT INTO run_procs (run_id, pid, pgid, starttime, kind, started_at, boot_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                             (run_id, pid, pgid, starttime, kind, iso(utcnow()), boot_id))
             self._db.commit()
 
     def end_proc(self, run_id: str, pid: int) -> None:
@@ -817,13 +895,76 @@ class Store:
     def live_procs(self, run_id: str) -> list[dict[str, Any]]:
         """Processes recorded for the run that were never recorded as finished."""
         with self._lock:
-            rows = self._db.execute("SELECT pid, pgid, starttime, kind FROM run_procs WHERE run_id = ? AND ended_at IS NULL",
+            rows = self._db.execute("SELECT pid, pgid, starttime, kind, boot_id FROM run_procs WHERE run_id = ? AND ended_at IS NULL",
                                     (run_id,)).fetchall()
         return [dict(r) for r in rows]
 
-    def close_procs(self, run_id: str) -> None:
+    def claim_recovery(self, run: Run, owner: str, lease_seconds: float, *, owner_exited: bool = False,
+                       now: Optional[datetime] = None) -> Optional[Run]:
+        """Atomically take and fence an expired run before recovery touches any process it started.
+
+        The snapshot fields prevent two recoverers from acting on one lease. ``owner_exited`` is reserved for the supervisor
+        that has just reaped its own worker process; all other callers must observe an expired lease.
+        """
+        from .models import EventType
+        now = now or utcnow()
+        stamp, expires = iso(now), iso(now + timedelta(seconds=lease_seconds))
+        with self._tx() as db:
+            row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run.id,)).fetchone()
+            if row is None or row["fence"] != run.fence or row["status"] != run.status.value:
+                return None
+            if row["lease_owner"] != run.lease_owner or row["lease_expires_at"] != run.lease_expires_at:
+                return None
+            is_legacy = row["lease_expires_at"] is None and row["fence"] == 0
+            expired = row["lease_expires_at"] is not None and row["lease_expires_at"] < stamp
+            exited_owner = owner_exited and (row["lease_owner"] == owner
+                                              or row["lease_owner"] == f"cleanup-pending:{run.id}")
+            if not (expired or exited_owner or (is_legacy and owner_exited)):
+                return None
+            cur = RunStatus(row["status"])
+            target = RunStatus.cancelling if cur is RunStatus.cancelling else RunStatus.recovering
+            if target is not cur and not allowed(cur, target):
+                return None
+            reason = "cleanup in progress" if target is RunStatus.cancelling else "recovering interrupted execution"
+            patch = json.dumps({"status": target.value, "reason": reason}, ensure_ascii=False)
+            updated = db.execute(
+                "UPDATE runs SET status = ?, doc = json_patch(doc, ?), fence = fence + 1, lease_owner = ?, "
+                "lease_expires_at = ?, heartbeat_at = ? WHERE id = ? AND fence = ? AND status = ? "
+                "AND lease_owner = ? AND lease_expires_at IS ?",
+                (target.value, patch, owner, expires, stamp, run.id, run.fence, run.status.value,
+                 run.lease_owner, run.lease_expires_at))
+            if updated.rowcount != 1:
+                return None
+            event = Event(run_id=run.id, type=EventType.status,
+                          data={"status": target.value, "reason": reason, "recovered_by": owner})
+            self._insert_events(db, run.id, [event])
+            fresh = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run.id,)).fetchone()
+        self._fan_out(event)
+        self.bus.notify("work", "runs", f"run:{run.id}", "events")
+        return self._run(fresh)
+
+    def defer_recovery(self, run: Run, reason: str, retry_after: float = 1.0) -> bool:
+        """Keep cleanup visible and relinquish its lease briefly so another supervisor can retry it."""
+        now = utcnow()
+        with self._tx() as db:
+            row = db.execute("SELECT fence, status FROM runs WHERE id = ?", (run.id,)).fetchone()
+            if row is None or row["fence"] != run.fence or row["status"] not in ("recovering", "cancelling"):
+                return False
+            patch = json.dumps({"reason": reason[:500]}, ensure_ascii=False)
+            cur = db.execute(
+                "UPDATE runs SET doc = json_patch(doc, ?), lease_owner = ?, lease_expires_at = ?, heartbeat_at = ? "
+                "WHERE id = ? AND fence = ? AND status IN ('recovering','cancelling')",
+                (patch, f"cleanup-pending:{run.id}", iso(now + timedelta(seconds=retry_after)), iso(now), run.id, run.fence))
+            return cur.rowcount == 1
+
+    def close_procs(self, run_id: str, keep_pid: Optional[int] = None) -> None:
         with self._lock:
-            self._db.execute("UPDATE run_procs SET ended_at = ? WHERE run_id = ? AND ended_at IS NULL", (iso(utcnow()), run_id))
+            if keep_pid is None:
+                self._db.execute("UPDATE run_procs SET ended_at = ? WHERE run_id = ? AND ended_at IS NULL",
+                                 (iso(utcnow()), run_id))
+            else:
+                self._db.execute("UPDATE run_procs SET ended_at = ? WHERE run_id = ? AND ended_at IS NULL AND pid != ?",
+                                 (iso(utcnow()), run_id, keep_pid))
             self._db.commit()
 
     # ----------------------------------------------------- tool actions (receipts)

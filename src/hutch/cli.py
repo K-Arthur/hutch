@@ -177,6 +177,7 @@ def bot_create(
     workdir: Optional[str] = typer.Option(None, "--workdir", help="a folder of yours the bot works in, e.g. ~/Downloads"),
     risk_tier: RiskTier = typer.Option(RiskTier.supervised, "--risk-tier",
                                        help="readonly (medium-risk actions blocked) | supervised (ask) | trusted (run)"),
+    sandbox_mode: str = typer.Option("strict", "--sandbox", help="strict (Linux bubblewrap) | off (uncontained shell)"),
     rule: list[str] = typer.Option([], "--rule", help="per-command rule, e.g. --rule 'deny: git push*' (repeatable)"),
     max_steps: int = typer.Option(Limits().max_steps, "--max-steps"),
     timeout: int = typer.Option(Limits().timeout_seconds, "--timeout-seconds"),
@@ -186,6 +187,9 @@ def bot_create(
     import re as _re
     if not _re.match(r"^[a-z0-9][a-z0-9-]{1,40}$", name):
         err.print("[red]name must be a lowercase slug[/red] (a-z, 0-9, -, 2-41 chars)")
+        raise typer.Exit(code=1)
+    if sandbox_mode not in ("strict", "off"):
+        err.print("[red]--sandbox must be 'strict' or 'off'[/red]")
         raise typer.Exit(code=1)
     store = _store()
     if store.get_bot(name):
@@ -216,6 +220,7 @@ def bot_create(
     bot.tools = tool_list
     bot.approval_mode = approval
     bot.risk_tier = risk_tier
+    bot.sandbox = sandbox_mode
     if workdir:
         bot.workdir = _check_workdir_option(workdir)
     if rule:
@@ -296,6 +301,7 @@ def bot_update(
     description: Optional[str] = typer.Option(None, "--description"),
     approval: Optional[ApprovalMode] = typer.Option(None, "--approvals"),
     risk_tier: Optional[RiskTier] = typer.Option(None, "--risk-tier", help="readonly | supervised | trusted"),
+    sandbox_mode: Optional[str] = typer.Option(None, "--sandbox", help="strict (Linux bubblewrap) | off (uncontained shell)"),
     workdir: Optional[str] = typer.Option(None, "--workdir", help="a folder of yours the bot works in"),
     clear_workdir: bool = typer.Option(False, "--clear-workdir", help="go back to a fresh empty workspace per run"),
     rule: list[str] = typer.Option([], "--rule", help="replace the bot's command rules, e.g. --rule 'deny: git push*'"),
@@ -313,6 +319,11 @@ def bot_update(
     if description is not None: bot.description = description
     if approval is not None: bot.approval_mode = approval
     if risk_tier is not None: bot.risk_tier = risk_tier
+    if sandbox_mode is not None:
+        if sandbox_mode not in ("strict", "off"):
+            err.print("[red]--sandbox must be 'strict' or 'off'[/red]")
+            raise typer.Exit(code=1)
+        bot.sandbox = sandbox_mode
     if clear_workdir: bot.workdir = None
     if workdir: bot.workdir = _check_workdir_option(workdir)
     if clear_rules: bot.command_rules = []
@@ -383,29 +394,35 @@ def run(
     config = get_config()
     store = _store()
     bot = _require_bot(store, bot_ref)
-    engine = Engine(config, store)
+    engine = Engine(config, store, executor=os.environ.get("HUTCH_EXECUTOR") or "process")
 
     created = engine.submit(bot, prompt, origin="manual:cli", rehearsal=rehearse)
-    engine.dispatch_pending()
-    topic, seen = f"run:{created.id}", 0
-    deadline = time.monotonic() + bot.limits.timeout_seconds + 60
-    while time.monotonic() < deadline:
-        version = store.bus.version(topic)  # read before querying: no lost wake-ups
-        for ev in store.list_events(created.id, after_seq=seen):
-            seen = ev.seq
-            if watch:
-                _print_event(ev)
-        current = store.get_run(created.id)
-        if current and current.status in TERMINAL:
+    try:
+        engine.dispatch_pending()
+        topic, seen = f"run:{created.id}", 0
+        deadline = time.monotonic() + bot.limits.timeout_seconds + 60
+        while time.monotonic() < deadline:
+            version = store.bus.version(topic)  # read before querying: no lost wake-ups
             for ev in store.list_events(created.id, after_seq=seen):
+                seen = ev.seq
                 if watch:
                     _print_event(ev)
-            break
-        if current and current.status is RunStatus.pending:
-            engine.dispatch_pending()  # capacity may have freed up
-        store.bus.wait(topic, version, timeout=5.0)
-    final = store.get_run(created.id)
+            current = store.get_run(created.id)
+            if current and current.status in TERMINAL:
+                for ev in store.list_events(created.id, after_seq=seen):
+                    if watch:
+                        _print_event(ev)
+                break
+            if current and current.status is RunStatus.pending:
+                engine.dispatch_pending()  # capacity may have freed up
+            store.bus.wait(topic, version, timeout=5.0)
+        final = store.get_run(created.id)
+    finally:
+        # The dispatcher owns subprocess attempts; stop and join it even when the user interrupts the command.
+        engine.shutdown()
 
+    if final is None:
+        raise typer.Exit(code=1)
     color = {"succeeded": "green", "failed": "red", "stopped": "yellow", "outcome_unknown": "yellow"}.get(final.status.value, "white")
     console.print(f"\nrun [bold]{final.id}[/bold] → [{color}]{final.status.value}[/{color}] "
                   f"({final.exit_reason or 'ok'}, steps={final.steps}, tokens≈{final.tokens})")

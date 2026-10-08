@@ -100,42 +100,47 @@ in the dashboard so a silent non-run can never look like success.
 
 Every tool call passes the policy engine (see `docs/safety.md`) *before* subprocess/file/network
 execution. Every event — prompts, tool calls, results, approvals, errors — is appended to SQLite
-and to `transcript.jsonl` on disk. Run outcome is always terminal-state recorded (`succeeded`,
-`failed`, `stopped`, …) with `exit_reason` (`completed`, `timeout`, `steps_exceeded`, `token_cap`,
-`approval_expired`, `error`, …).
+and to `transcript.jsonl` on disk. A run becomes terminal (`succeeded`, `failed`, `stopped`, …) only after execution cleanup is
+verified; otherwise `cancelling` or `recovering` remains visible with a reason. Terminal `exit_reason` values include `completed`,
+`timeout`, `steps_exceeded`, `token_cap`, `approval_expired`, and `error`.
 
 ### D5 — Caps are enforced by the engine, not by model behavior
 
 - `max_steps` — agent turns per run
-- `timeout_seconds` — wall clock. Under `serve`/`daemon` the run is its own process and the timeout ends that process group (verified). With the in-process executor (`hutch run`, tests) a worker *thread* that will not unwind is abandoned, but it is fenced: it can no longer write to the run or start an action, and its events are dropped at the database
+- `timeout_seconds` — wall clock. `serve`, `daemon`, and `hutch run` execute one owned OS worker process per attempt. Cleanup verifies boot/start identities and keeps a run in `Stopping` or `Recovering` until no owned process remains. `HUTCH_EXECUTOR=thread` is for tests and compatibility; a stuck thread is joined before persistence closes, so it cannot be declared terminal while still running.
 - `daily_token_cap` — measured usage when the provider reports it, estimate otherwise; the next
   model call aborts when the bot's day-total exceeds the cap
 
 ### D6 — Web dashboard and CLI are the same engine
 
-`hutch serve` runs FastAPI with a background tick thread (scheduler + dispatch + approval
-expiry), serving a dependency-free static SPA that polls `/api`. The CLI drives the same `Engine`.
+`hutch serve` runs FastAPI with a background supervisor loop, serving a dependency-free static SPA that polls `/api`. A durable
+SQLite lease elects one scheduler/recovery supervisor across dashboard workers and `hutch daemon`; other web workers submit work
+and wait for state changes. The CLI drives the same `Engine`.
 No separate daemon is required for dashboard-driven usage; `hutch daemon` is the headless
 equivalent.
 
 ## Concurrency model
 
-> **Updated (realignment, slice S2).** Ownership is no longer process memory. A run is *claimed* by one atomic SQL statement
+> **Updated (realignment, slices S2-S3).** Ownership is no longer process memory. A run is *claimed* by one atomic SQL statement
 > that also enforces the per-bot rule across processes; the owner heartbeats a lease; every owner write carries a fence;
 > recovery bumps the fence so a stalled worker cannot write; status changes only through `Store.transition_run` against the
 > table in `lifecycle.py`; schedule occurrences are claimed in the same transaction as the run they create. Stop is an intent in
 > the database. Under `serve` and `daemon` each run is its own OS process (`hutch.worker`) in its own session, so a kill is a real
-> kill, and a worker outlives a dead supervisor and is adopted by the next one (`HUTCH_EXECUTOR=thread` restores in-process
-> workers; `hutch run` and the tests use them). Event sequence numbers and hash chains are assigned at commit time from the
-> database tail, so several processes can safely write one run's transcript. Design: `docs/adr/0001-...`, `docs/adr/0004-...`.
+> kill, and a worker outlives a dead supervisor and is adopted by the next one (`HUTCH_EXECUTOR=thread` is an explicit
+> compatibility/test mode; `hutch run`, `serve`, and `daemon` use process workers). Event sequence numbers and hash chains are assigned at commit time from the
+> database tail, so several processes can safely write one run's transcript. Recovery atomically takes the expired owner and
+> increments the fence before process cleanup. Worker and tool records include boot/start identities, and cleanup uses pidfds;
+> incomplete cleanup remains nonterminal. Design: `docs/adr/0001-...`, `docs/adr/0003-...`, `docs/adr/0004-...`.
 > The measured problems with the old design are in `docs/realignment/baseline.md`.
 
-Workers are daemon threads. The engine holds a `_threads` map, a cancel `Event` per run, and a
-reference to the run's approval gate so `stop` unblocks an approval wait immediately. The browser
-tool takes a global lock (one GUI automation at a time). SQLite access is serialized by an RLock in
-`Store`.
+Each production run has an owned worker process and a supervisor watcher. The worker holds a cancel `Event` and a reference to
+the run's approval gate so `stop` unblocks an approval wait immediately. In-process thread execution is only an explicit
+compatibility/test mode. The browser still uses a process-wide profile/lock today; per-bot profile isolation and live handoff
+remain open. SQLite access is serialized by an RLock in `Store`, and migration startup is additionally serialized across
+processes.
 
 ## What is deliberately NOT here (yet)
 
-Vector memory/RAG, container sandboxing, webhook triggers, multi-user access, agent-to-agent
-collaboration, Windows/macOS support — tracked in `docs/roadmap.md`.
+Vector retrieval, webhook triggers, multi-user access, bounded agent-to-agent collaboration, browser handoff and remote
+supervision, Windows/macOS support — tracked in `docs/roadmap.md`. The Linux shell has optional, fail-closed bubblewrap
+containment; it is not a VM and does not contain every tool or the browser.

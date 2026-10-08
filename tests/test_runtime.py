@@ -57,18 +57,25 @@ def test_mock_runtime_ask_mode_pauses_for_approval(store, config, tmp_path):
     ctx, run, _ = make_ctx(store, config, tmp_path, approval_mode=ApprovalMode.ask)
     tools = build_tools(ctx.bot.tools, ctx)
 
+    stop_approver = threading.Event()
+
     def auto_approver():
-        for _ in range(500):
+        deadline = time.monotonic() + 5
+        while not stop_approver.is_set() and time.monotonic() < deadline:
             pend = store.pending_approvals()
             if pend:
                 resolve_approval(store, pend[0].id, approve=True, by="test", sticky=False)
                 return
-            time.sleep(0.01)
+            stop_approver.wait(0.01)
 
     t = threading.Thread(target=auto_approver)
     t.start()
-    final = MockRuntime().execute(run, ctx, tools, stop=lambda: False)
-    t.join(timeout=5)
+    try:
+        final = MockRuntime().execute(run, ctx, tools, stop=lambda: False)
+    finally:
+        stop_approver.set()
+        t.join(timeout=2)
+        assert not t.is_alive(), "approval helper must exit before the Store fixture closes"
     assert "report.md" in final
     assert len(store.pending_approvals()) == 0
 

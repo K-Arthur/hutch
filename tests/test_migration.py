@@ -1,4 +1,4 @@
-"""T-MIGRATION-V5: a database written by the baseline (schema v4) upgrades without losing anything.
+"""A database written by the baseline (schema v4) upgrades to the current schema without losing anything.
 
 tests/fixtures/state_v4.db.fixture was produced by the baseline code (commit b3e4b15, SCHEMA_VERSION 4) with two bots, a
 schedule, memory, a sticky allow, finished runs with hash-chained events, a usage row, a pending approval, a queued run, and a
@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from hutch.config import get_config
+from hutch.config import get_config, hutchConfig
 from hutch.engine import Engine
 from hutch.lifecycle import IllegalTransition
 from hutch.models import RunStatus
@@ -40,7 +40,7 @@ def test_the_fixture_really_is_schema_v4(v4):
 def test_upgrade_preserves_bot_ids_schedules_memory_and_allows(v4):
     store = Store(v4)
     try:
-        assert store.schema_version == SCHEMA_VERSION == 5
+        assert store.schema_version == SCHEMA_VERSION
         bots = {b.id: b for b in store.list_bots()}
         assert set(bots) == {BRIEFING, SWEEPER}                                  # ids unchanged
         briefing = bots[BRIEFING]
@@ -73,6 +73,25 @@ def test_a_backup_is_written_before_the_upgrade(v4):
     assert (v4.state_dir / "hutch.db.bak-v4").exists()
     c = sqlite3.connect(v4.state_dir / "hutch.db.bak-v4")
     assert c.execute("PRAGMA user_version").fetchone()[0] == 4                  # the backup is the untouched original
+
+
+def test_sqlite_backup_can_be_restored_and_upgraded(v4):
+    Store(v4).close()
+    restore = hutchConfig(state_dir=v4.state_dir / "restored")
+    restore.ensure()
+    source = sqlite3.connect(v4.state_dir / "hutch.db.bak-v4")
+    destination = sqlite3.connect(restore.db_path)
+    try:
+        source.backup(destination)
+    finally:
+        destination.close(); source.close()
+    recovered = Store(restore)
+    try:
+        assert recovered.schema_version == SCHEMA_VERSION
+        assert recovered.get_bot(BRIEFING) is not None
+        assert recovered.get_run(FINISHED_1).status is RunStatus.succeeded
+    finally:
+        recovered.close()
 
 
 def test_old_task_rows_keep_their_meaning(v4):
@@ -121,7 +140,7 @@ def test_running_the_upgrade_twice_changes_nothing(v4):
     first = sqlite3.connect(v4.db_path).execute("SELECT COUNT(*) FROM runs").fetchone()[0]
     s = Store(v4)
     try:
-        assert s.schema_version == 5
+        assert s.schema_version == SCHEMA_VERSION
     finally:
         s.close()
     assert sqlite3.connect(v4.db_path).execute("SELECT COUNT(*) FROM runs").fetchone()[0] == first

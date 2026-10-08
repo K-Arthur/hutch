@@ -1,81 +1,85 @@
 # Continuation ledger
 
-The live record of the realignment: who owns what, what has landed, what is verified, what is open. Update it in the
-same commit as the change it describes.
+This is the evidence and integration log for the platform realignment. It records verified behavior separately from work that is
+implemented but not yet exercised against a live dependency.
 
-## Coordination and ownership
+## Ownership and integration
 
-Another session was committing to `main` and editing the shared checkout at the same time (observed 2026-10-07: new commits
-`27a73ed`, `846f3f9`; uncommitted `cli.py`, `server/app.py`, `templates.py`, `.gitignore`). To avoid staging each other's changes,
-this work lives on **branch `realign/platform`** in a separate git worktree (`.worktrees/realign`, excluded locally through `.git/info/exclude`).
-Integration into `main` is a rebase/merge done only after the other session's tree is committed; see "Integration".
+The implementation branch is `realign/platform` in `.worktrees/realign`. It was based on the last coherent pre-realignment
+history, then merged with the local `main` history in commit `0ab3058` on 2026-10-07. The merge includes the website redesign,
+dashboard/Studio work, approvals reconciliation and role-based templates. It preserves both histories. Marketing copy is owned in
+this worktree. Application contracts and code are reconciled here with the merged UI. No push or publication is authorized.
 
-| Area | Owner | Rule |
+The main checkout may contain unrelated local tooling artifacts; preserve them during final integration. The final integration step
+is a local `main` fast-forward only after all implementation and verification gates pass.
+
+## Current slices
+
+| Slice | State | Evidence boundary |
 |---|---|---|
-| `server/static/*`, `server/pages.py`, `templates.py`, `tests/test_dashboard.py`, `tests/test_templates.py`, website visuals, design docs | Frontend / design session | Not edited here. API contracts that the UI needs are in `contracts.md`. |
-| `engine.py`, `store.py` (schema v5+), `lifecycle.py`, `worker.py`, `sandbox.py`, `netguard.py`, `runtime/*`, `providers/*`, `tools/*`, `approvals.py`, `scheduler.py`, `compat.py`, `docs/adr/*`, `docs/realignment/*` | This work | |
-| `models.py`, `server/app.py`, `cli.py`, `safety.py` | **Shared** | Additive hunks only; re-read the file immediately before editing; keep hunks small so rebases are mechanical. |
-| Claims in `README.md`, `docs/safety.md`, `docs/architecture.md`, `docs/research/*`, `website/index.html` text | This work for *claims*; design session for *visuals* | Claim edits are minimal and text-only. |
+| S0 research, baseline and claims audit | Landed before integration | The evidence ledger distinguishes direct observations, individual reports, fixed historical defects and unverified claims. Reported failures are design scenarios, not prevalence data. |
+| S1 credential routing and SSRF | Landed | Provider keys are host-scoped. Fetch checks resolved addresses, rejects non-public results, pins the connection and checks each redirect. Browser DNS is still not pinned. |
+| S2 lifecycle, claims, leases and recovery | Implemented; focused tests pass | Pending claims reserve global capacity. Recovery fences expired ownership before cleanup. SQLite migrations serialize and create SQLite-backup-API snapshots. |
+| S3 supervised run processes and teardown | Implemented; focused tests pass | Production CLI/daemon/web execution uses owned processes, recorded boot/start identity and verified cleanup. Incomplete cleanup stays nonterminal. |
+| S4 shell containment and approval CAS | Implemented; focused tests pass | Bubblewrap tests pass on the present Linux host. This is namespace containment, not a VM; legacy bots retain their previous setting. Browser/external runtime tools remain outside this guarantee. |
+| S5 providers and external runtimes | In progress | OpenCode v2.0.24 is installed and its CLI contract was inspected. Pi is unavailable; only offline protocol fixtures can be used here. No paid/provider request has been made. |
+| S6 conversations and bounded collaboration | Not started | Current persistent conversational model and restart behavior still need implementation and integration tests. |
+| S7 browser ownership and handoff | Not started | Browser profiles are process-shared; visible handoff is unavailable. Marketing and docs now state this plainly. |
+| S8 versioned API and remote supervision | Partial / not release-ready | Legacy routes and run SSE exist. `/api/v1`, durable global cursor replay, idempotency and safe phone pairing still need implementation. |
+| S9 product integration, performance and visual validation | In progress | Merged desktop/tablet/mobile UI exists. The final screenshots, journey checks, accessibility review and comparable performance measurements remain open. |
 
-## Integration
+## Commits
 
-* Baseline for this branch: `b3e4b15` (see `baseline.md`, "Why not `main` HEAD").
-* To integrate: `git fetch` nothing needed (local repo) -> in this worktree `git rebase main` once `main` is green, run the full suite, then fast-forward `main` from the main checkout (`git merge --ff-only realign/platform`). **Not done automatically** because `main` currently has uncommitted work in the shared tree and an inconsistent HEAD.
-* Nothing in this work was pushed. `origin/main` is 50+ commits behind local `main` and the GitHub repository is private; pushing is not authorised by this assignment.
+| Commit | Change |
+|---|---|
+| `53a2dc9` | Baseline, evidence ledger, ADRs and continuation ledger |
+| `acc2261` | Claims audit and evidence-aligned safety/research/website copy |
+| `522eeaf` | Provider-scoped credentials and resolved-address SSRF guard |
+| `e227297` | Lifecycle, atomic claims, leases, fencing and recovery |
+| `34589ee` | Owned run processes, teardown and event sequencing |
+| `bf42b77` | S4 approval compare-and-swap and partial sandbox checkpoint |
+| `eee309c`, `23cb0c4`, `6378dd3`, `5196655`, `309a7d3` | Local main: templates, approval reconciliation, website, Studio and research map |
+| `0ab3058` | Merge local `main` into `realign/platform` |
+| _next commits_ | S2–S4 audit repairs, docs, and truthful marketing copy; hashes recorded after commit |
 
-## Slices
+## Verified behavior before this checkpoint
 
-| # | Slice | Invariant | Status |
-|---|---|---|---|
-| S0 | Baseline, evidence ledger, ADRs, claims audit | Every public claim maps to evidence or is qualified | in progress |
-| S1 | Credential routing and SSRF (`registry.py`, `netguard.py`) | A key is only ever sent to the host it belongs to; no URL form reaches a private address | **landed** |
-| S2 | Schema v5, lifecycle state machine, atomic claims, leases, fencing, schedule occurrences, tool receipts, cross-process Stop | One valid execution claim per run and per occurrence; a stale owner cannot write or start an action | **landed** |
-| S3 | Owned worker processes, process-group teardown verified, recovery of a crashed owner's processes, commit-time event sequencing | Stop works from any process; no descendant in the run's group outlives a terminal run | **landed** (limit: a fully detached daemon is unreachable without the S4 sandbox) |
-| S4 | OS sandbox, structured-tool boundary, approval CAS and identity binding | The shell cannot read `~/.ssh` or reach the network unless granted; one approval resolves once | **partial**: approval CAS + action fingerprint + expiry landed (`tests/test_approval_cas.py`, 9 pass). Sandbox (`sandbox.py`, bubblewrap) implemented and wired into the shell tool, bot field `sandbox`, fail-closed; `tests/test_sandbox.py` **11 pass, 3 FAIL** (`only_the_workspace_is_writable_and_tmp_is_private`, `no_network_without_a_grant...`, `a_file_size_limit...`) - not yet diagnosed; may be test bugs, may be real. **The full suite was NOT re-run after the S4 changes.** |
-| S5 | Runtime adapters (OpenCode, Pi) against captured contracts; compatibility matrix; offline mode | No `--auto` by default; model/session propagated; offline makes no non-loopback connection | planned |
-| S6 | Conversations, messages, stable workspaces, artifacts, scoped memory, bounded delegation | A follow-up sees prior context across restart; deletion semantics as ADR-0002 | planned |
-| S7 | Browser ownership and real human handoff | Bots never share a profile unless granted; automation is paused while a human holds control | planned |
-| S8 | `/api/v1` contract, event stream, pairing and remote auth | A paired phone can supervise; stale input is dropped; off-loopback needs auth | planned |
-| S9 | End-to-end integration, benchmarks vs baseline, docs and website alignment | Budgets hold; every claim has evidence | planned |
-
-## Commits (this branch)
-
-_Filled in as slices land._
-
-## Verified behaviour
-
-| What | Command / evidence | Result |
+| Check | Evidence | Result |
 |---|---|---|
-| Six processes race for one schedule occurrence | `python docs/realignment/race_schedule.py <src> <python>` | baseline b3e4b15: **6 runs**; this branch: **1 run** |
-| Six processes race to claim one run; and one bot's two queued runs | `tests/test_claims.py` (real subprocesses) | exactly one claim wins in each |
-| `stop` from another process ends a run it does not own | `tests/test_cancel.py` (programmatic and through the real `hutch stop-all`) | run reaches `stopped`, owner exits 0, within 10 s; baseline left it running |
-| A stalled worker whose lease lapsed cannot rewrite history or start an effect | `tests/test_cancel.py::test_a_worker_that_lost_its_lease...` | status/transcript unchanged; its `write_file` refused at admission |
-| `kill -9` after an effect, before its receipt | `tests/test_cancel.py::test_a_crash_after_an_effect...` | run ends `outcome_unknown` naming the action; the effect happened once; a restarted supervisor starts nothing |
-| A schema-v4 database written by the baseline upgrades | `tests/test_migration.py` (fixture generated by b3e4b15) | bot ids, schedules, memory, allows, usage, transcripts and their hash chains survive; backup written; legacy orphan recovered |
-| SSRF forms and DNS answers | `tests/test_netguard.py`; live fetch of https://example.com and refusals of `localtest.me`, `127.0.0.1.nip.io` | all hostile forms refused; pinned-TLS fetch succeeds |
-| Control-plane cost | `python -m benchmarks.run` vs `benchmarks/baselines/pre-realign.json` | step overhead 0.17 ms (was 0.24), 59.6k events/s (was 58.0k), idle RSS 41/60 MB (was 41/66) |
-| Live dashboard: run, stop, stop-all | `hutch serve` on a private port + curl (script in the commit message) | worker is a separate pid and session leader; API Stop ends it in about a second, group gone; `hutch stop-all` from another process stops a second run; `verify` reports the hash chain intact (it was broken before the commit-time sequencing fix); 0 leftover workers |
-| A worker survives a dead supervisor | `tests/test_worker.py::test_a_worker_outlives_a_dead_supervisor...` | the run keeps its lease past three lease periods, a new supervisor leaves it alone, approval completes it |
-| Cost of the process executor | `python docs/realignment/bench_worker.py` | dispatch to terminal for a 4-step mock run: **216 ms** median with a worker process vs **6 ms** in-process; a worker waiting on an approval holds **38 MB** RSS. Dormant bots hold nothing. Regression budget: process-mode start-up under 400 ms on this host. |
-| Control-plane benchmarks after S3 | `python -m benchmarks.run` | 75.6k events/s (baseline 52.1k; hashing moved to the writer), 0.053 ms/step (0.246), idle RSS 41/61 MB (39/56), idle CPU unchanged |
-| Whole suite | `pytest --ignore=tests/e2e` | **879 passed** (baseline 637) |
+| Schedule occurrence race | `docs/realignment/race_schedule.py` | Six competing processes create one scheduled run; baseline created six. |
+| Run claims and shared capacity | `tests/test_claims.py` | Cross-process claim uniqueness and reservation-aware global admission. |
+| Cross-process Stop | `tests/test_cancel.py` | Stop from another process is persisted and reaches terminal state only after owned execution exits. |
+| Lost lease fencing | `tests/test_cancel.py` | A stale worker cannot mutate state or start a new side effect. |
+| Crash after effect, before receipt | `tests/test_cancel.py` | Recovery records an uncertain outcome and does not replay the action. |
+| Legacy database migration and restore | `tests/test_migration.py` | Version-4 state upgrades, SQLite backup is created, and restoration retains expected state. |
+| SSRF | `tests/test_netguard.py` | Hostile address forms and redirect targets are rejected; public requests use the validated address. |
+| Process teardown | `tests/test_procguard.py`, `tests/test_worker.py` | Boot/start identities and pidfds are used; survivor cleanup remains visible and retryable. |
+| Sandbox | `tests/test_sandbox.py` | **16 passed** on the present Linux host with bubblewrap and delegated systemd cgroups. |
+| Focused core, safety, and worker suites | `tests/test_claims.py tests/test_cancel.py tests/test_procguard.py tests/test_engine_loop.py tests/test_migration.py tests/test_tools.py tests/test_sandbox.py tests/test_engine.py tests/test_runtime.py` | **100 passed** after correcting the thread-mode timeout assertion and joining the approval test helper. |
+| Merged UI and templates | `tests/test_worker.py tests/test_api.py tests/test_dashboard.py tests/test_templates.py tests/test_studio_shell.py` | **98 passed**. |
 
-## Not started (S5-S9) and other open work
+The first post-merge full-suite run reported **972 passed, 1 failed, 2 warnings**. The failure was the thread-mode timeout test
+expecting a terminal status before an uncooperative Python thread ended; that test now asserts the run stays `cancelling`, releases
+its controlled blocker, and verifies the eventual timeout. The PytestUnhandledThreadExceptionWarning was from a polling test helper
+that survived fixture close; it now has an explicit stop event and is joined. The unrelated `SyntaxWarning` in
+`tests/test_shellparse.py` remains. A clean full-suite rerun is still required.
 
-OpenCode/Pi adapters against captured contracts and no default `--auto` (S5), compatibility matrix and offline mode (S5), conversations/messages/workspaces/memory/delegation (S6), browser ownership and real human handoff (S7), `/api/v1` contract, pairing and remote auth (S8), end-to-end integration, marketing/doc alignment for S4+ (S9). Integration into `main` (rebase after the other session commits `cli.py`, `server/app.py`, `templates.py`) is not done; nothing was pushed.
+## Support and verification boundary
 
-## Unresolved risks and limits (carried)
+Linux is the only supported process/sandbox executor platform. macOS and Windows executor support is unavailable. The web interface is
+responsive for desktop and phone; a phone is not a remote supervisor until authentication and pairing are implemented. Strict shell
+containment currently depends on bubblewrap, Linux namespaces, `prlimit`, and user systemd cgroups. Existing bots migrated from older
+versions remain `sandbox=off` until an operator changes the setting.
 
-* Live provider, live Ollama, live Pi and live Playwright runs were not possible on the baseline host (no Ollama, Pi, or browser binaries installed; no paid-provider budget authorised). Anything that depends on them is reported as "contract-tested offline", never "verified live".
-* The frontend is another session's work. Contracts are specified here, not implemented in the UI.
-* OS sandbox is Linux/bubblewrap only.
+No live paid-provider call, Ollama inference, Pi run, Playwright browser, portal permission, screen-reader, or physical-device test has
+been performed in this environment. These are gaps, not passes. The installed OpenCode binary reports `opencode v2.0.24`; only its
+version and help output have been inspected.
 
-## Reproducible commands
+## Reproduction
 
 ```bash
 cd .worktrees/realign
-uv venv --python 3.13 .venv && uv pip install -e ".[dev,browser]"
-.venv/bin/python -m pytest -q --ignore=tests/e2e        # baseline: 637 passed
-.venv/bin/python -m benchmarks.run                       # control-plane numbers
-bash docs/realignment/journeys.sh                        # baseline user journeys against a throwaway state dir
+.venv/bin/python -m pytest -q --ignore=tests/e2e
+.venv/bin/python -m benchmarks.run
+bash docs/realignment/journeys.sh
 ```

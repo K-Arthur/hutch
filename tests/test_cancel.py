@@ -159,14 +159,13 @@ def test_a_worker_that_lost_its_lease_is_fenced_and_cannot_change_the_outcome(st
     assert len(store.list_events(run.id)) == n_events                 # and it added nothing to the transcript
 
 
-def test_a_stopped_run_whose_worker_never_unwinds_is_terminal_and_the_late_worker_changes_nothing(store, config, monkeypatch):
-    """The thread executor abandons a stuck worker (the old defect). It is now fenced: the outcome and transcript stay as recorded."""
+def test_a_stopped_run_stays_cancelling_until_its_worker_unwinds(store, config, monkeypatch):
+    """A thread cannot be killed safely, so cancellation stays visible until it exits and cannot write after terminal status."""
     import hutch.engine as engine_mod
     import hutch.runtime.mock as mock_mod
     monkeypatch.setattr(engine_mod, "CANCEL_GRACE_SECONDS", 0.3)
     bot = store.create_bot(Bot(name="stuck", model="mock/demo", tools=["files"], approval_mode=ApprovalMode.auto))
     release, entered = threading.Event(), threading.Event()
-    orig = mock_mod.MockRuntime.execute
     late: dict = {}
 
     def stuck(self, run, ctx, tools, stop):
@@ -181,14 +180,16 @@ def test_a_stopped_run_whose_worker_never_unwinds_is_terminal_and_the_late_worke
     engine.dispatch_pending()
     assert entered.wait(10)
     engine.stop_run(run.id)
-    assert wait_for(lambda: store.get_run(run.id).status.value in ("stopped", "failed", "outcome_unknown"), timeout=10)
-    done = store.get_run(run.id)
-    events = len(store.list_events(run.id))
+    assert wait_for(lambda: store.get_run(run.id).status.value == "cancelling", timeout=5)
+    assert store.get_run(run.id).status.value not in ("stopped", "failed", "outcome_unknown")
     release.set()
     assert wait_for(lambda: "tool" in late)
+    assert wait_for(lambda: store.get_run(run.id).status.value in ("stopped", "failed", "outcome_unknown"), timeout=5)
+    done = store.get_run(run.id)
+    events = len(store.list_events(run.id))
     time.sleep(0.5)
     assert store.get_run(run.id).status is done.status
-    assert not late["tool"].ok and "ended" in late["tool"].output
+    assert not late["tool"].ok and "action was not started" in late["tool"].output
     assert len(store.list_events(run.id)) == events
     assert not (Path(done.workspace) / "after.txt").exists()
 

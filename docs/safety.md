@@ -5,18 +5,18 @@ against a determined adversary — it is a policy layer that checks what hutch's
 do. Each rule below traces to a reported failure class in `research/complaints.md` (individual reports,
 not measured prevalence).
 
-**What is and is not contained today** (measured against commit `b3e4b15`; see `realignment/baseline.md`):
+**What is and is not contained today** (see the live verification boundary in `realignment/ledger.md`):
 
 | | Today |
 |---|---|
 | File tools (`read_file`, `write_file`, `list_files`) | path-jailed to the workspace |
-| Shell tool | policy-checked, then run **as your user** with `HOME` pointed at the workspace. **No OS containment**: `cat /home/you/.ssh/id_rsa` is denied by policy, but a script the bot writes and runs is not analysed and can read anything your user can read, or open any socket |
+| Shell tool | New bots request Linux strict mode: bubblewrap gives a private mount/PID/network namespace, private `/tmp`, writable workspace, sanitized environment and bounded resources. `web_fetch` provides checked public-page access; shell networking is unavailable in strict mode. This is shell-only containment, not a VM. Existing bots retain `off` after migration; the UI labels that choice. If strict mode is unavailable, the command fails closed. |
 | `web_fetch` | the name is resolved and **every** answer must be a public address; redirects are followed by hutch and each hop re-checked; the connection is pinned to the validated address (no second lookup); credentials in URLs, internal names and every spelling of a loopback/metadata address (`[::1]`, `0x7f.0.0.1`, decimal, IPv4-mapped, NAT64, 6to4) are refused (`netguard.py`, `tests/test_netguard.py`) |
-| browser | every request the page makes passes the same check, but a browser connects by itself, so DNS rebinding after the check is a residual risk until the browser runs in the network-less sandbox |
+| browser | each request is URL-checked, but the browser resolves and connects independently; a DNS rebinding window remains until browser traffic uses a pinned egress broker |
 | External runtimes (Pi, OpenCode) | run with their own tools; OpenCode is started with `--auto` (blanket approval of anything it has not denied). Hutch's policy does not see their tool calls |
-| Stopping a run | an intent recorded in the database: `hutch stop`, `stop-all` and the dashboard work on a run owned by any process. Under `hutch serve` and `hutch daemon` each run is its own OS process in its own session; Stop asks it to unwind, then TERM, then KILL to its whole group, and the run stays `Stopping` until the group is verified gone. A crashed owner's recorded processes are ended by whoever recovers the run. A worker that lost its run is fenced: it cannot write to it or start another action. **Limit:** a process that fully detaches (double fork plus `setsid`, so it leaves the group and is re-parented to init) is not reachable from outside; only the OS sandbox's PID namespace (slice S4) closes that. `hutch run` and the test-suite use the in-process executor, where a stuck worker *thread* cannot be killed, only fenced |
+| Stopping a run | an intent recorded in the database: `hutch stop`, `stop-all` and the dashboard work on a run owned by any process. `serve`, `daemon`, and `hutch run` use one owned process per attempt. Recovery fences the old owner before cleanup and signals only boot/start-verified process identities through pidfds. `Stopping` or `Recovering` remains visible while cleanup is incomplete or cannot be verified; terminal cancellation waits for confirmed cleanup. |
 
-The corrections above are being implemented; `realignment/ledger.md` records which have landed.
+The realignment ledger records which behavior is tested, which is only documented, and which requires live provider or device access.
 
 ## The three verdicts
 
@@ -91,8 +91,9 @@ Set them on the bot page, with `hutch bot create --risk-tier readonly --rule 'de
 `hutch bot update --clear-rules`, or in the API (`risk_tier`, `command_rules`). A malformed rule is rejected naming the
 line instead of silently doing nothing.
 
-The shell subprocess additionally runs with `HOME` pointed **inside the run workspace**, a minimal
-environment (no inherited secrets), `cwd` pinned to the workspace, and a per-command timeout.
+When `sandbox: strict`, a command runs in bubblewrap with `HOME` and `cwd` inside the workspace, a minimal environment, a private
+temporary directory, no shell network and host-configured CPU, memory, process, file-size and open-file limits. This only covers
+the shell subprocess. `sandbox: off` is explicitly uncontained execution as the Hutch user; it uses the same policy and timeout.
 
 ### File paths
 
@@ -149,18 +150,18 @@ still apply.
 
 ## Honest limits (read this)
 
-- **External runtimes** (`pi`, `opencode` adapters) run with their own tool systems and `--auto`-style
-  approvals. hutch's gates own the workspace boundary and everything hutch itself executes;
-  the external harness's internal tool calls are governed by *its* permission config. The system
-  prompt and transcript still record activity. Treat external-runtime bots as wider-trust bots.
+- **External runtimes** (`pi`, `opencode`) have their own tool and billing paths; Hutch does not broker their tool approvals,
+  report authoritative token/currency usage, or guarantee their configured permissions. Do not use these adapters for consequential
+  or paid work. Their current implementation is experimental and must be constrained to a read-only capability profile before it
+  can be considered supported. Hutch's `--auto` option is never passed by default.
 - **A supervised human is assumed.** Prompt injection can still produce plausible-but-wrong actions
   inside the allowed toolset; the transcripts, caps, and approvals bound the damage.
 - **Script contents are not analysed.** `bash script.sh`, `python3 x.py` and `python3 -c '...'` run what is in them: bots
   write and run code, so this is allowed. What those scripts do is bounded by the workspace-jailed `HOME`, the minimal
   environment and the timeout, not by the parser. Commands other than `>` redirects (`cp`, `tee`, `install`, `touch`
   with an absolute path) are not path-jailed either.
-- **Not a sandbox.** Threads share the process; a malicious `pip install` inside an approved
-  package-manager call runs with your user. OS-level containment (bubblewrap on Linux; fail closed when unavailable) is
-  specified in `adr/0006-tool-authority-sandbox-and-browser-ownership.md` and tracked as slice S4.
+- **Compatibility threads are not a sandbox.** They share the Hutch process. Production commands use owned worker processes;
+  new bots request Linux bubblewrap strict containment for the shell. A malicious package install remains bounded only when the
+  bot's sandbox is strict. Browser, physical desktop and external-runtime process boundaries are separate.
 - Models can lie about completion. That's why artifacts (files written, command exits) are in the
   transcript, not just the model's claims.
