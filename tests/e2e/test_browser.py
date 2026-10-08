@@ -182,6 +182,8 @@ def test_approve_from_the_phone_ui_resumes_the_run(browser, live):
     page = ctx.new_page()
     page.goto(f"{base}/#/approvals")
     page.wait_for_selector("[data-approval]")
+    # long status/bot text must not push the phone layout into horizontal scroll
+    assert page.evaluate("document.documentElement.scrollWidth - window.innerWidth") <= 1
     countdown = page.inner_text("[data-ttl-text]")
     time.sleep(2.1)
     assert page.inner_text("[data-ttl-text]") != countdown                 # the deadline visibly ticks
