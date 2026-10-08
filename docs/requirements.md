@@ -75,33 +75,33 @@ commits can cite them. Evidence for the *why* is in
 | ID | Requirement | Phase | Status | Where |
 |---|---|---|---|---|
 | SR-1 | One runtime/model crash affects only its own runs; health per runtime | MVP | done | orphan recovery, shutdown, per-run isolation and per-runtime health (`health.py`, Models page, doctor) |
-| SR-2 | Exact per-step token/cost accounting, visible before a run | MVP | planned | |
+| SR-2 | Exact per-step token/cost accounting, visible before a run | MVP | partial | exact per-step accounting, spend guard before every hosted call and the plan note at run start are done; the worst-case estimate before a run on the bot page, CLI and switcher is not built yet |
 | SR-3 | Per-bot compact-now and fresh-session controls | Later | later | |
-| SR-4 | Outward-sending tools always ask, regardless of sticky allows | MVP | partial | gate enforces outward-never-sticky (`approvals.py`); outward classification of tools pending |
+| SR-4 | Outward-sending tools always ask, regardless of sticky allows | MVP | partial | shell: `git push`, `ssh`/`scp`/`rsync`/`ftp` always ask and are never sticky, an allow rule or the trusted tier cannot suppress them (tested); network uploads are denied. Browser actions that submit forms are not classified yet |
 | SR-5 | Small models: thinking off, per-turn token cap, loop detector | MVP | done | `think:false` only for thinking-capable models, per-turn token cap, loop detector that refuses a third identical call (`tests/test_providers.py`, `tests/test_runtime_builtin.py`) |
 | SR-6 | In-app help generated from or tested against real routes | Later | later | |
 | SR-7 | Every run shows its parent bot or plan | MVP | done | every run shows who started it: schedule, you (cli, dashboard or api), or a plan |
-| SR-8 | Provider fallback chain | MVP | planned | |
-| SR-9 | Failed streaming request retried once without streaming | MVP | planned | |
+| SR-8 | Provider fallback chain | MVP | done | ordered fallback chain on unreachable model, missing model and mid-run outage, announced in the run (`tests/test_runtime_builtin.py`) |
+| SR-9 | Failed streaming request retried once without streaming | MVP | done | a stream that fails mid-flight is retried once without streaming, never after Stop (`tests/test_providers.py`) |
 | SR-10 | Bubblewrap-wrapped shell on Linux | Later | later | |
 | SR-11 | Hash-chained event log | Later | done | hash chain in `store.py`, `Store.verify_chain`; tamper/delete tests (CLI/UI surface pending) |
-| SR-12 | Risk tier per bot (medium asks, high blocked) + per-command rules | MVP | planned | |
-| SR-13 | Command parser fuzz-tested | MVP | planned | |
+| SR-12 | Risk tier per bot (medium asks, high blocked) + per-command rules | MVP | done | `safety.PolicyEngine(tier, rules)`: readonly, supervised or trusted, plus per-command `allow`, `ask` or `deny` globs, seen through wrappers and substitutions; hard denies and outward sends cannot be overridden; bot page, API, CLI (`--risk-tier`, `--rule`); [safety.md](safety.md) |
+| SR-13 | Command parser fuzz-tested | MVP | done | `shellparse.py` reads the line like a shell (substitutions, `bash -c`, wrappers, heredocs, `&`, newlines, redirects) and denies what it cannot read; hypothesis-fuzzed in `tests/test_shellparse.py` |
 | SR-14 | `doctor` command | MVP | done | `hutch doctor` (`doctor.py`): every problem prints its fix; `--deep`, `--online`, `--json` |
 
 ## Performance
 
 | ID | Requirement | Proposed target | Phase | Status | Where |
 |---|---|---|---|---|---|
-| PF-1 | Byte-identical system prompt + tool list across a run | cached-token share per run | MVP | planned | |
-| PF-2 | Per-tool output limit; full output saved as artifact | configurable per tool | MVP | planned | |
-| PF-3 | Prompt includes only the bot's allowed tools | — | MVP | planned | |
+| PF-1 | Byte-identical system prompt + tool list across a run | cached-token share per run | MVP | done | frozen prompt prefix hash recorded on every step (`tests/test_runtime_builtin.py`) |
+| PF-2 | Per-tool output limit; full output saved as artifact | configurable per tool | MVP | done | per-tool output limit (configurable per bot); full output saved as an artifact (`runtime/steps.py`) |
+| PF-3 | Prompt includes only the bot's allowed tools | — | MVP | done | only the bot's allowed tools reach the prompt (`tests/test_runtime_builtin.py`) |
 | PF-4 | Compaction before the context limit | ~75% of context | Later | later | |
 | PF-5 | Scheduler sleeps until next due run or event; no polling | near-zero idle CPU | MVP | done | `engine.run_loop`/`next_wakeup`, `wake.py`; `tests/test_engine_loop.py`; 0.0 s/h idle CPU |
 | PF-6 | Playwright and provider SDKs imported lazily | CLI status < 300 ms | MVP | done | lazy `httpx`/provider imports; `hutch status` 275 ms (was 820 ms for `version`) |
 | PF-7 | SQLite WAL, one writer, batched event inserts, run+seq index | 1,000 events/s | MVP | done | `store.py` writer thread + WAL; ~52k events/s; `tests/test_store_events.py` |
 | PF-8 | Browser launches on first use, closes when idle | idle close 5 min | MVP | planned | |
-| PF-9 | Coalesced live updates, paginated transcripts | usable at 10,000 events | MVP | planned | |
+| PF-9 | Coalesced live updates, paginated transcripts | usable at 10,000 events | MVP | done | the run page renders the last 200 events and paginates; a 10,000-event run is tested (`tests/test_dashboard.py`) |
 | PF-10 | Small router model stays loaded | — | Later | later | |
 | PF-11 | Per-step timing: model wait, tool time, Hutch overhead | overhead < 50 ms/step | MVP | done | `runtime/steps.py`; 0.25 ms/step (mock); recorded as `step` events |
 | PF-12 | Benchmark suite in CI; fails on 20% regression | — | MVP | done | `benchmarks/run.py`, `baselines/local.json`, `.github/workflows/ci.yml` (CI not yet run remotely) |

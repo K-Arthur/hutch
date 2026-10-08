@@ -202,7 +202,7 @@ class Engine:
                        data={"note": f"catch-up run: {run.missed_windows} missed schedule window(s) coalesced"}))
         emit(Event(run_id=run.id, type=EventType.status, data={"status": "running", "origin": run.origin}))
 
-        policy = PolicyEngine()
+        policy = PolicyEngine(bot.risk_tier, bot.command_rules)
         gate = ApprovalGate(self.store, bot, run, policy, emit)
         self._gates[run.id] = gate
         ctx = ToolContext(bot=bot, run=run, store=self.store, policy=policy, gate=gate,

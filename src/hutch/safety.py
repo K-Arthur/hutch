@@ -14,12 +14,16 @@ docs/research/complaints.md):
 
 from __future__ import annotations
 
+import fnmatch
+import os
 import re
 import shlex
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
+
+from .shellparse import SUBST, ParseError, Segment, split_compound  # noqa: F401  (re-exported)
 
 
 class Verdict(str, Enum):
@@ -43,70 +47,13 @@ class Decision:
 
     def worse(self, other: "Decision") -> "Decision":
         merged_outward = self.outward or other.outward
-        pick = other if _SEVERITY[other.verdict] > _SEVERITY[self.verdict] else self
+        generic = ("", "allow:default", "allow:empty")
+        pick = other if (_SEVERITY[other.verdict] > _SEVERITY[self.verdict]
+                         or (other.verdict is self.verdict and self.rule in generic and other.rule not in generic)) else self
         if merged_outward and not pick.outward:
             pick = Decision(pick.verdict, pick.reason, pick.sticky_key, pick.rule, pick.risk,
                             True, pick.segments)
         return pick
-
-
-# --------------------------------------------------------------------------
-# Compound-command tokenizer
-# --------------------------------------------------------------------------
-
-@dataclass
-class Segment:
-    text: str
-    tokens: list[str]
-    piped_in: bool = False   # something is piped INTO this segment
-    piped_out: bool = False  # this segment pipes into the next
-
-
-_OPS = ("&&", "||", ";", "|")
-
-
-def split_compound(command: str) -> list[Segment]:
-    """Split a shell line into segments at unquoted operators, honoring quotes."""
-    pieces: list[str] = []
-    seps: list[str] = []
-    buf: list[str] = []
-    i, n = 0, len(command)
-    quote: Optional[str] = None
-    while i < n:
-        c = command[i]
-        if quote:
-            buf.append(c)
-            if c == quote:
-                quote = None
-            i += 1
-            continue
-        if c in ("'", '"'):
-            quote = c
-            buf.append(c)
-            i += 1
-            continue
-        two = command[i : i + 2]
-        if two in ("&&", "||"):
-            pieces.append("".join(buf)); seps.append(two); buf = []; i += 2; continue
-        if c in (";", "|"):
-            pieces.append("".join(buf)); seps.append(c); buf = []; i += 1; continue
-        buf.append(c)
-        i += 1
-    pieces.append("".join(buf))
-
-    segments: list[Segment] = []
-    for idx, piece in enumerate(pieces):
-        try:
-            tokens = shlex.split(piece)
-        except ValueError:
-            tokens = piece.split()
-        seg = Segment(text=piece.strip(), tokens=tokens)
-        if idx > 0 and seps[idx - 1] == "|":
-            seg.piped_in = True
-            if segments:
-                segments[-1].piped_out = True
-        segments.append(seg)
-    return [s for s in segments if s.text]
 
 
 # --------------------------------------------------------------------------
@@ -134,6 +81,76 @@ _INTERPRETERS = {
     "sh", "bash", "dash", "zsh", "ksh", "fish", "python", "python3",
     "perl", "ruby", "node", "eval", "exec",
 }
+
+_SHELLS = {"sh", "bash", "dash", "zsh", "ksh", "fish"}
+
+#: programs that run another program: name -> options that take a value
+_WRAPPERS = {
+    "env": {"-u", "-C", "-S"}, "nohup": set(), "nice": {"-n"}, "ionice": {"-c", "-n", "-p"}, "timeout": {"-s", "-k"},
+    "time": {"-f", "-o"}, "stdbuf": {"-i", "-o", "-e"}, "setsid": set(), "command": set(), "builtin": set(),
+    "exec": {"-a"}, "xargs": {"-n", "-I", "-L", "-P", "-d", "-E", "-s", "-a"}, "watch": {"-n", "-d"},
+    "taskset": set(), "chrt": set(),
+}
+#: wrappers whose first positional argument is not the program (a duration, a CPU mask, a priority)
+_POSITIONAL_FIRST = {"timeout", "taskset", "chrt"}
+
+MAX_DEPTH = 6
+
+
+def _unwrap(name: str, args: list[str]) -> list[str]:
+    """The command a wrapper runs: its tokens after the wrapper's own options."""
+    valued = _WRAPPERS[name]
+    skip_positional = name in _POSITIONAL_FIRST
+    i = 0
+    while i < len(args):
+        t = args[i]
+        if t == "--":
+            i += 1
+            break
+        if t.startswith("-") and len(t) > 1:
+            i += 2 if t in valued else 1
+            continue
+        if name == "env" and "=" in t:
+            i += 1
+            continue
+        if skip_positional:
+            skip_positional = False
+            i += 1
+            continue
+        break
+    return args[i:]
+
+
+def _find_payloads(toks: list[str]) -> list[list[str]]:
+    """The commands after find's -exec / -execdir / -ok / -okdir, up to the closing ``;`` or ``+``."""
+    out: list[list[str]] = []
+    i = 0
+    while i < len(toks):
+        if toks[i] in ("-exec", "-execdir", "-ok", "-okdir"):
+            j = i + 1
+            while j < len(toks) and toks[j] not in (";", "+", "\\;"):
+                j += 1
+            if toks[i + 1:j]:
+                out.append(toks[i + 1:j])
+            i = j
+        i += 1
+    return out
+
+
+_SAFE_REDIRECT_TARGETS = {"/dev/null", "/dev/stdout", "/dev/stderr"}
+
+
+def _bad_redirect(target: str) -> str:
+    """Why a redirect target escapes the workspace (empty when it is fine)."""
+    t = target.strip()
+    if t in _SAFE_REDIRECT_TARGETS or not t:
+        return ""
+    if SUBST in t or t.startswith(("/", "~")) or "$" in t or "`" in t:
+        return t
+    if ".." in t.split("/"):
+        return t
+    return ""
+
 
 _EGRESS_PROGRAMS = {"curl", "wget", "nc", "ncat", "ssh", "scp", "rsync", "ftp", "telnet"}
 
@@ -171,23 +188,113 @@ def _program(tokens: list[str]) -> str:
     return name
 
 
+RULE_VERDICTS = ("allow", "ask", "deny")
+MAX_RULES = 50
+MAX_RULE_LEN = 200
+
+
+def parse_rules(text: str) -> list[tuple[str, str]]:
+    """``verdict: glob`` per line (blank lines and ``#`` comments ignored) -> [(verdict, glob)].
+
+    Raises ValueError naming the line, so a typo in a safety setting is rejected instead of silently doing nothing.
+    """
+    out: list[tuple[str, str]] = []
+    for n, raw in enumerate((text or "").splitlines(), start=1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        verdict, sep, glob = line.partition(":")
+        verdict, glob = verdict.strip().lower(), glob.strip()
+        if not sep or verdict not in RULE_VERDICTS:
+            raise ValueError(f"line {n}: write it as 'allow: <pattern>', 'ask: <pattern>' or 'deny: <pattern>' "
+                             f"(got {raw.strip()!r})")
+        if not glob:
+            raise ValueError(f"line {n}: the pattern after '{verdict}:' is empty")
+        if len(glob) > MAX_RULE_LEN:
+            raise ValueError(f"line {n}: a pattern is limited to {MAX_RULE_LEN} characters")
+        out.append((verdict, glob))
+    if len(out) > MAX_RULES:
+        raise ValueError(f"at most {MAX_RULES} rules (you wrote {len(out)})")
+    return out
+
+
+def rules_text(rules: Sequence) -> str:
+    return "\n".join(f"{r.verdict}: {r.match}" for r in rules)
+
+
 class PolicyEngine:
-    """Pure (store-free) classification of proposed actions."""
+    """Pure (store-free) classification of proposed actions.
+
+    ``tier`` and ``rules`` are the bot's own refinements (SR-12). The order is fixed and the limits are structural:
+
+    1. the built-in classification runs first;
+    2. a HARD DENY (secrets, exfiltration, privilege escalation, workspace escape) is final: no rule and no tier can
+       turn it into allow or ask;
+    3. the first of the bot's rules whose glob matches the command segment may tighten (allow->ask/deny, ask->deny)
+       or loosen (ask->allow) the decision, but never loosen an outward-sending action (SR-4: those always ask);
+    4. the tier handles what is still "ask": ``readonly`` blocks it, ``supervised`` keeps asking, ``trusted`` lets
+       non-outward asks run.
+    """
+
+    def __init__(self, tier: object = "supervised", rules: Sequence = ()):
+        self.tier = getattr(tier, "value", tier) or "supervised"
+        self.rules = [(getattr(r, "verdict", None) or r[0], getattr(r, "match", None) or r[1]) for r in rules]
+
+    def _apply_rule(self, text: str, d: "Decision") -> "Decision":
+        text = text.strip()
+        hit = next(((v, g) for v, g in self.rules if fnmatch.fnmatchcase(text, g)), None)
+        if hit is None or d.verdict is Verdict.deny:
+            return d
+        verdict, glob = hit
+        if verdict == "deny":
+            return Decision(Verdict.deny, f"blocked by your rule '{glob}'", rule=f"rule:deny:{glob}",
+                            risk=d.risk or "medium", outward=d.outward, segments=d.segments)
+        if verdict == "ask":
+            if d.verdict is Verdict.ask:
+                return d
+            return Decision(Verdict.ask, f"your rule '{glob}' requires approval", f"rule:{glob}",
+                            rule=f"rule:ask:{glob}", risk=d.risk or "medium", outward=d.outward, segments=d.segments)
+        if d.verdict is Verdict.ask and not d.outward:
+            return Decision(Verdict.allow, f"allowed by your rule '{glob}'", rule=f"rule:allow:{glob}",
+                            risk=d.risk, segments=d.segments)
+        return d
+
+    def _tier(self, d: "Decision") -> "Decision":
+        if d.verdict is not Verdict.ask:
+            return d
+        if self.tier == "readonly":
+            return Decision(Verdict.deny, f"this bot is read-only, so it may not do this ({d.reason})",
+                            rule="deny:tier-readonly", risk=d.risk or "medium", outward=d.outward, segments=d.segments)
+        if self.tier == "trusted" and not d.outward:
+            return Decision(Verdict.allow, f"allowed: this bot is trusted ({d.reason})", rule="allow:tier-trusted",
+                            risk=d.risk, segments=d.segments)
+        return d
 
     # ------------------------------------------------------------ shell
 
-    def check_shell(self, command: str) -> Decision:
+    def check_shell(self, command: str, _depth: int = 0) -> Decision:
         if not command.strip():
             return Decision(Verdict.allow, "empty command")
+        if _depth > MAX_DEPTH:
+            return Decision(Verdict.deny, f"commands nested more than {MAX_DEPTH} levels deep cannot be checked",
+                            rule="deny:too-deep", risk="high")
         if _FORK_BOMB_RE.search(command):
             return Decision(Verdict.deny, "fork bomb pattern")
+        try:
+            segments = split_compound(command)
+        except ParseError as exc:
+            return Decision(Verdict.deny, f"could not check this command safely: {exc}", rule="deny:unparseable",
+                            risk="high")
         overall = Decision(Verdict.allow, "ok", rule="allow:default", risk="low")
-        segments = split_compound(command)
         if not segments:
             return Decision(Verdict.allow, "empty command", rule="allow:empty", risk="low")
         breakdown = []
         for seg in segments:
-            d = self._classify_segment(seg)
+            # the segment's OWN decision gets the bot's rules and tier; commands nested inside it were already judged
+            # (with the same rules and tier) by the recursive call, so a rule on the outer text cannot launder them
+            d = self._tier(self._apply_rule(seg.text, self._classify_segment(seg, _depth)))
+            for inner in seg.nested:
+                d = d.worse(self.check_shell(inner, _depth + 1))
             breakdown.append({"text": seg.text, "program": _program(seg.tokens), "verdict": d.verdict.value,
                               "reason": d.reason, "rule": d.rule})
             overall = overall.worse(d)
@@ -196,13 +303,100 @@ class PolicyEngine:
         overall.segments = breakdown
         return overall
 
-    def _classify_segment(self, seg: Segment) -> Decision:
+    # ------------------------------------------------- wrappers, redirects, computed programs (SR-13)
+
+    def _classify_segment(self, seg: Segment, depth: int = 0) -> Decision:
+        base = self._classify_base(seg)
+        if base.verdict is Verdict.deny:
+            return base
+        hidden = self._look_inside(seg, depth)
+        return base.worse(hidden) if hidden is not None else base
+
+    def _look_inside(self, seg: Segment, depth: int) -> Optional[Decision]:
+        """Judge what a wrapper or interpreter would actually run: ``bash -c '...'``, ``eval``, ``env``/``nohup``/
+        ``timeout``/``xargs``..., ``find -exec`` and interpreters fed by a network fetch."""
+        toks = list(seg.tokens)
+        while toks and "=" in toks[0] and not toks[0].startswith(("=", "-")):
+            toks.pop(0)                                              # VAR=value prefixes
+        if not toks:
+            return None
+        name = os.path.basename(toks[0])
+        out: Optional[Decision] = None
+
+        def add(d: Optional[Decision]) -> None:
+            nonlocal out
+            if d is not None:
+                out = d if out is None else out.worse(d)
+
+        if name in _SHELLS:
+            script = self._dash_c_script(toks)
+            if script is not None:
+                add(self.check_shell(script, depth + 1))
+        elif name == "eval" and len(toks) > 1:
+            add(self.check_shell(" ".join(toks[1:]), depth + 1))
+        elif name in _WRAPPERS:
+            rest = _unwrap(name, toks[1:])
+            if rest:
+                inner = Segment(text=" ".join(rest), tokens=rest)
+                add(self._tier(self._apply_rule(inner.text, self._classify_segment(inner, depth + 1))))
+        elif name == "find":
+            for payload in _find_payloads(toks):
+                inner = Segment(text=" ".join(payload), tokens=payload)
+                add(self._tier(self._apply_rule(inner.text, self._classify_segment(inner, depth + 1))))
+            if "-delete" in toks:
+                add(Decision(Verdict.ask, "find -delete removes files", "shell:find-delete", rule="ask:find-delete",
+                             risk="medium"))
+        if name in _SHELLS | _INTERPRETERS | {".", "source"} and seg.nested:
+            for inner in seg.nested:
+                if self._fetches_network(inner, depth + 1):
+                    add(Decision(Verdict.deny, "runs content fetched from the network", rule="deny:run-downloaded",
+                                 risk="high", outward=True))
+        return out
+
+    @staticmethod
+    def _dash_c_script(toks: list[str]) -> Optional[str]:
+        for i, t in enumerate(toks[1:], start=1):
+            if t == "--":
+                return None
+            if re.fullmatch(r"-[A-Za-z]+", t) and "c" in t[1:] and i + 1 < len(toks):
+                return toks[i + 1]
+            if not t.startswith("-"):
+                return None                                          # `bash script.sh`: its contents are not analysed
+        return None
+
+    def _fetches_network(self, command: str, depth: int) -> bool:
+        if depth > MAX_DEPTH:
+            return True
+        try:
+            segs = split_compound(command)
+        except ParseError:
+            return True
+        for seg in segs:
+            if _program(seg.tokens) in _EGRESS_PROGRAMS or any(self._fetches_network(n, depth + 1) for n in seg.nested):
+                return True
+        return False
+
+    def _classify_base(self, seg: Segment) -> Decision:
+        for target in seg.redirects:
+            bad = _bad_redirect(target)
+            if bad:
+                return Decision(Verdict.deny, f"redirects output outside the workspace ({bad})",
+                                rule="deny:redirect-outside-workspace", risk="high")
+        prog0 = _program(seg.tokens)
+        if seg.subshell:
+            pass                                                      # ( ... ): judged through its nested commands
+        elif prog0 and prog0 not in ("[", "[[") and (SUBST in prog0 or prog0.startswith("~") or any(c in prog0 for c in "$`*?[{}")):
+            return Decision(Verdict.deny, "the program name is computed at run time (expansion), so it cannot be checked",
+                            rule="deny:computed-program", risk="high")
+        return self._classify_segment_old(seg)
+
+    def _classify_segment_old(self, seg: Segment) -> Decision:
         prog = _program(seg.tokens)
         text = seg.text
 
         if _SECRET_RE.search(text):
             return Decision(Verdict.deny, "references secrets/credentials paths", rule="deny:secret-path", risk="high")
-        if seg.piped_in and prog in _INTERPRETERS:
+        if seg.piped_in and (prog in _INTERPRETERS or prog in (".", "source")):
             return Decision(Verdict.deny, "piping untrusted data into an interpreter", rule="deny:pipe-to-interpreter", risk="high")
         if seg.piped_out and prog in _EGRESS_PROGRAMS and not self._looks_readonly(prog, seg.tokens):
             return Decision(Verdict.deny, "pipes command output to the network (exfiltration channel)", rule="deny:exfil-pipe", risk="high", outward=True)
@@ -253,6 +447,9 @@ class PolicyEngine:
     # ------------------------------------------------------------- paths
 
     def check_path(self, path: str | Path, workspace: Path, write: bool) -> Decision:
+        return self._tier(self._check_path(path, workspace, write))
+
+    def _check_path(self, path: str | Path, workspace: Path, write: bool) -> Decision:
         """Workspace jail: every file operation must resolve inside the workspace."""
         ws = workspace.resolve()
         try:

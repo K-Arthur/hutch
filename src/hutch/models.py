@@ -13,7 +13,7 @@ from datetime import datetime, time, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 def utcnow() -> datetime:
@@ -120,10 +120,26 @@ class RiskTier(str, Enum):
 class CommandRule(BaseModel):
     """Per-command refinement of the tier (SR-12): e.g. {match: "git push*", verdict: "deny"}."""
 
-    match: str                                      # glob against the command line (first matching rule wins)
+    match: str                                      # glob against each command segment (first matching rule wins)
     verdict: str                                    # allow | ask | deny
 
     model_config = {"frozen": True}
+
+    @field_validator("verdict")
+    @classmethod
+    def _verdict(cls, v: str) -> str:
+        v = v.strip().lower()
+        if v not in ("allow", "ask", "deny"):
+            raise ValueError("verdict must be allow, ask or deny")
+        return v
+
+    @field_validator("match")
+    @classmethod
+    def _match(cls, v: str) -> str:
+        v = v.strip()
+        if not v or len(v) > 200:
+            raise ValueError("a rule pattern must be 1-200 characters")
+        return v
 
 
 class ApprovalMode(str, Enum):

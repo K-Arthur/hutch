@@ -18,6 +18,7 @@ from .models import (
     Bot,
     CatchUpPolicy,
     Limits,
+    RiskTier,
     RunStatus,
     RuntimeKind,
     Schedule,
@@ -166,6 +167,9 @@ def bot_create(
     tz: str = typer.Option("UTC", "--tz", help="IANA timezone for the schedule"),
     catch_up: CatchUpPolicy = typer.Option(CatchUpPolicy.coalesce, "--catch-up"),
     approval: ApprovalMode = typer.Option(ApprovalMode.ask, "--approvals", help="ask | auto"),
+    risk_tier: RiskTier = typer.Option(RiskTier.supervised, "--risk-tier",
+                                       help="readonly (medium-risk actions blocked) | supervised (ask) | trusted (run)"),
+    rule: list[str] = typer.Option([], "--rule", help="per-command rule, e.g. --rule 'deny: git push*' (repeatable)"),
     max_steps: int = typer.Option(Limits().max_steps, "--max-steps"),
     timeout: int = typer.Option(Limits().timeout_seconds, "--timeout-seconds"),
     token_cap: int = typer.Option(Limits().daily_token_cap, "--daily-token-cap"),
@@ -203,12 +207,25 @@ def bot_create(
     bot.runtime = runtime
     bot.tools = tool_list
     bot.approval_mode = approval
+    bot.risk_tier = risk_tier
+    if rule:
+        bot.command_rules = _parse_rule_options(rule)
     bot.limits = Limits(max_steps=max_steps, timeout_seconds=timeout, daily_token_cap=token_cap)
     if cron:
         bot.schedule = Schedule(cron=cron, timezone=tz, catch_up=catch_up)
     store.create_bot(bot)
     console.print(f"[green]created[/green] [bold]{name}[/bold] "
                   f"(model {bot.model}, runtime {bot.runtime.value}, tools: {', '.join(bot.tools)})")
+
+
+def _parse_rule_options(rules: list[str]):
+    from .models import CommandRule
+    from .safety import parse_rules
+    try:
+        return [CommandRule(verdict=v, match=g) for v, g in parse_rules("\n".join(rules))]
+    except ValueError as exc:
+        err.print(f"[red]invalid --rule:[/red] {exc}")
+        raise typer.Exit(code=1)
 
 
 @bot_app.command("show")
@@ -241,6 +258,9 @@ def bot_update(
     instructions: Optional[str] = typer.Option(None, "--instructions"),
     description: Optional[str] = typer.Option(None, "--description"),
     approval: Optional[ApprovalMode] = typer.Option(None, "--approvals"),
+    risk_tier: Optional[RiskTier] = typer.Option(None, "--risk-tier", help="readonly | supervised | trusted"),
+    rule: list[str] = typer.Option([], "--rule", help="replace the bot's command rules, e.g. --rule 'deny: git push*'"),
+    clear_rules: bool = typer.Option(False, "--clear-rules", help="remove all command rules"),
     cron: Optional[str] = typer.Option(None, "--cron", help="new cron expression"),
     clear_cron: bool = typer.Option(False, "--clear-cron", help="remove scheduling (on-demand only)"),
     tz: Optional[str] = typer.Option(None, "--tz"),
@@ -253,6 +273,9 @@ def bot_update(
     if instructions is not None: bot.instructions = instructions
     if description is not None: bot.description = description
     if approval is not None: bot.approval_mode = approval
+    if risk_tier is not None: bot.risk_tier = risk_tier
+    if clear_rules: bot.command_rules = []
+    if rule: bot.command_rules = _parse_rule_options(rule)
     if paused is not None: bot.paused = paused
     if clear_cron: bot.schedule = None
     elif cron or tz:
