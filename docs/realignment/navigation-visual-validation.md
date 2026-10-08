@@ -1,7 +1,7 @@
 # Navigation functional and visual verification
 
-Captured 2026-10-08 at 11:48 UTC with Python 3.13.15, Playwright 1.63.0, Firefox 155
-and Pillow 12.3.0. The capture used `f5696ce` with schema-v12 recoverable transcript delivery
+Captured 2026-10-08 at 12:44 UTC; schema-v13 source hashes are recorded in `artifacts/navigation/results.json` with Python 3.13.15, Playwright 1.63.0, Firefox 155
+and Pillow 12.3.0. The latest capture used `4bdd936` with schema-v13 immutable action review
 in its working tree, after the resolved merge of `main` at `d7d0029` and conversation control fixes.
 Source hashes are retained. This is local fixture
 evidence, not a physical-phone, screen-reader or live provider certification.
@@ -43,8 +43,8 @@ visible-route guard; the expanded run reported **36 passed, 1 failed in 129.41s*
 tablet fixture edited the old form before navigation loaded. Waiting for the new heading
 preserves the intended late-response assertion; all three viewport journeys then passed
 **3 tests in 22.87s**. The corrected full browser/site repeat passed **37 tests in 118.02s**.
-The 11:48 navigation capture
-pins the completed application source; browser-generated scenarios have their own current hashes.
+The latest navigation capture
+pins its application and website sources; browser-generated scenarios have their own current hashes.
 Conversation-order assertions verify
 one user prompt preceding its assistant block, with no prompt echoed as an assistant answer
 while waiting. A two-message queue checks that the earlier active run stays fresh after the
@@ -135,3 +135,13 @@ accessibility or an invented quality score.
 
 Screenshots, three traces and contact sheets are in `artifacts/navigation/`. No paid provider,
 Ollama model, real browser handoff, Wayland portal, physical device or screen reader was used.
+
+## Schema-v13 repeat
+
+The 12:44 UTC capture refreshed 39 views, three traces and four original site proof images.
+All inspection sheets and current full-size phone review views were inspected. Browser/site
+checks passed 47 tests in 139.67s; the final full offline repeat passed 1,140 in 238.58s after
+a fixture explicitly waited for committed model-move events. Source hashes match the captured
+application/site. Action-review/marketing figure artifacts have their own matching hashes
+and demonstrate local fixtures, preserved history, retry and focus; no live provider/device
+claim is added. See the ledger for earlier failures and verification boundaries.

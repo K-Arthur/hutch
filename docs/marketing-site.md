@@ -62,10 +62,23 @@ no executor credentials or localhost requests are added to the static site.
 Schema-v11 replay strengthens local chat/attention recovery and has viewport/browser fixtures.
 It does not change the site's remote-phone-control or provider support labels. New inspected
 captures in `realignment/artifacts/resource-replay/` demonstrate local admission and draft
-preservation; they are not physical-device or live-provider evidence. The site images retain
-their separately recorded 11:48 navigation-capture provenance. The four site proof images were
+preservation; they are not physical-device or live-provider evidence. The four original site images retain
+their separately recorded navigation-capture provenance in `results.json`. They were
 refreshed from that capture, while public support labels retain the same limits.
 
 Schema v12's inspected file-error views show the database answer and completion remaining
 available while audit-file delivery retries. This strengthens local persistence evidence;
 it does not add remote control, provider or physical-device support claims.
+
+## Schema-v13 action review proof
+
+The fifth proof image and its responsive phone source are compressed derivatives of the
+preserved `realignment/artifacts/action-receipts/proof-source-{desktop,phone}.png` captures.
+`proof-source.json` retains source/asset/application hashes and the original capture timestamps. They contain isolated
+synthetic arguments, generated IDs and an unsent fixture draft, without keys or private accounts.
+The caption explicitly identifies a synthetic missing receipt in the real application and a
+human outcome report. It does not claim a live provider effect, independent verification or
+physical-phone testing. The default image is 1440×1000; at 640px or narrower the source is the
+390×844 application view so its review control remains readable. Browser figure captures and
+source/image hashes are retained beside the application evidence. This static site contains no
+executor credential or localhost control request.

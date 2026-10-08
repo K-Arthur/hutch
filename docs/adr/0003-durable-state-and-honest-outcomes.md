@@ -25,7 +25,7 @@ are swallowed. "Succeeded" currently means "the model stopped calling tools".
 | `succeeded` | Done | executor finished; task expectation verification is not implemented yet |
 | `failed` | Failed | run ended with an error |
 | `stopped` | Cancelled | cancel completed and descendants verified gone |
-| `outcome_unknown` *(new)* | Needs review | the process died after an effect started but before its receipt |
+| `outcome_unknown` *(new)* | Needs review | an effect started but its receipt is missing, including receipt storage failure |
 | `skipped` | Skipped | a scheduled occurrence was deliberately not run |
 
 `stopped` keeps its stored name so existing data and clients keep working; the label is "Cancelled". Terminal states
@@ -58,20 +58,25 @@ processes are confirmed gone. Thread-mode test helpers are joined before persist
 
 ### Receipts, recovery, and "outcome unknown"
 
-Before a tool with an external or filesystem effect runs, the runtime writes an *intent* row
-(`tool_actions`: run, idempotency key = hash(run, tool, canonical args), status `started`); after it returns, the receipt
-(`done` / `failed`, result digest). When a lease expires:
+Before a tool with an external or filesystem effect runs, the runtime writes an immutable *intent*
+with arguments, reviewed authority, scope and fence (`tool_actions`, status `started`); after it
+returns, the worker saves a receipt (`done` / `failed`, result digest). The argument fingerprint
+is a correlation key, not remote exactly-once delivery or deduplication of successful calls.
+When a lease expires:
 
 * no `started` action -> `failed` with reason `interrupted`;
 * a `started` action without a receipt -> `outcome_unknown`; the action is marked `unknown`, shown to the operator with
-  its retained summary, and **never replayed automatically**. Receipts currently retain the tool,
-  effect, argument fingerprint and a bounded summary, not the full immutable arguments. The argument
-  fingerprint is a correlation key; repeated identical tool calls are not deduplicated. A late
-  worker cannot replace a recovered uncertain receipt. Explicit reconciliation remains required;
-  these records do not promise exactly-once effects at a remote service.
+  its retained intent, and **never replayed automatically**. Terminal transition seals uncertain
+  receipts in the same transaction as status/events, including receipt storage failure after a
+  runtime return. A late worker cannot replace them. Schema v13 records reconciliation as a
+  separate immutable human report with evidence, reviewed hash and transactional idempotency;
+  original statuses, receipts and transcript hashes remain unchanged. Legacy arguments are
+  explicitly unknown. See [ADR-0014](0014-immutable-action-review.md).
 
 Hutch never resumes a run in the middle. New messages can start new attempts in their canonical
-conversation. Automatic context notes listing uncertain actions are still pending.
+conversation. Matching uncertain effects in that same conversation require reconciliation before
+repetition. Builtin execution reads bounded current receipt guidance, without raw arguments or
+operator evidence. These notes supplement the transactional guard and grant no permission.
 
 ### Succeeded versus verified
 

@@ -46,7 +46,7 @@ managed infrastructure until trusted-proxy handling is documented and validated.
 
 ## Database migration and restore
 
-Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. This realignment branch uses schema v12;
+Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. This realignment branch uses schema v13;
 `hutch doctor` displays the current version. Stop Hutch services before restoring a backup.
 Validate a copy in a new isolated directory; preserve the original database, WAL/SHM and backups:
 
@@ -81,6 +81,16 @@ ownership and link errors, repair the private state directory, then let delivery
 SQLite uses FULL WAL synchronization; this does not certify hardware power-loss behavior.
 See [ADR-0013](adr/0013-recoverable-transcript-files.md).
 
+For **Action outcome needs review**, open the card in chat or the paginated **Needs you** drawer.
+Inspect its saved arguments and authority; legacy receipts explicitly lack original arguments.
+Check the file, account or service involved before selecting an outcome and recording evidence.
+Recording a checked outcome performs no action and grants no permission. The original run status,
+receipt and transcript remain unchanged; the UI labels the result a human report. Retry an uncertain
+response with the retained report. Another client's prior record conflicts rather than overwriting it.
+Do not treat a Done label on a migrated historical run as proof of a missing legacy receipt.
+These commands are also available through the typed
+[`/api/v1/actions/receipts` contract](realignment/contracts.md#action-receipt-review-schema-v13).
+
 Keep the backup until the restored database opens and expected bots, runs, approvals, transcripts, conversations and messages are present. A backup from an
 older schema will migrate forward on open, creating its own versioned backup first. Rollback to older Hutch code requires restoring
 the matching pre-upgrade backup; older code does not honor leases or fencing. Validate restoration against a copy before using it
@@ -88,7 +98,8 @@ for production state.
 
 Schema v8 gives every pre-existing run a separate imported legacy conversation. Schema v9 adds single-use pairing codes and hashed,
 revocable sessions; schema v11 adds content-free transactional invalidations and history cursors;
-schema v12 backfills recoverable transcript-file delivery without changing historic run IDs.
+schema v12 backfills recoverable transcript-file delivery without changing historic run IDs;
+schema v13 retains immutable action intents and separate checked outcome reports.
 Hutch does not infer that adjacent runs share a
 private context. New conversations and message submissions are written transactionally with their idempotency records. The
 `conversation_fts` index contains message text only; it excludes tool output, credentials, workspaces and bot memory.

@@ -71,6 +71,7 @@ class ApprovalGate:
         self.emit = emit
         self.poll_seconds = poll_seconds
         self.ttl = store.config.default_approval_ttl_seconds  # unanswered approvals expire as denied
+        self.last_authorization = None
 
     # The engine sets this when the user hits "stop" so gates unblock quickly.
     cancel_requested: bool = False
@@ -85,8 +86,20 @@ class ApprovalGate:
         """
         if decision is None:
             decision = Decision(Verdict.ask, action, f"{tool}:*")
+        from .action_receipts import freeze
+        detail = freeze(detail)
+        self.last_authorization = None
         outward = outward or decision.outward
+        def authorized(source, request=None):
+            self.last_authorization = {
+                "tool": tool, "detail": detail, "source": source, "rule": decision.rule or decision.reason,
+                "sticky_key": "" if outward else decision.sticky_key, "outward": outward,
+                "action_hash": action_fingerprint(tool, detail, "" if outward else decision.sticky_key, outward),
+                "approval_id": request.id if request else None,
+                "expires_at": request.expires_at if request else None,
+            }
         if decision.verdict is Verdict.allow and not outward:
+            authorized("policy")
             return
         if decision.verdict is Verdict.deny:
             self.emit(Event(run_id=self.run.id, type=EventType.log,
@@ -98,9 +111,11 @@ class ApprovalGate:
             if decision.sticky_key and self.store.is_sticky_allowed(self.bot.id, decision.sticky_key):
                 self.emit(Event(run_id=self.run.id, type=EventType.log,
                                 data={"note": f"sticky-allowed: {decision.sticky_key}"}))
+                authorized("standing_permission")
                 return
             # "auto" mode skips asks (the hard-deny list already ran), but never for outward actions.
             if self.bot.approval_mode is ApprovalMode.auto and not ask_in_auto:
+                authorized("bot_auto_permission")
                 return
 
         now = utcnow()
@@ -125,6 +140,7 @@ class ApprovalGate:
         # Store commits the review event with admission and status. A crash
         # here cannot leave a waiting run without its inline review details.
         self._wait(req, action, prev_status=prev_status)
+        authorized("reviewed_once", req)
 
     def _wait(self, req: ApprovalRequest, action: str, *, prev_status=None) -> None:
         from .models import RunStatus

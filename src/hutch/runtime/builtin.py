@@ -509,7 +509,7 @@ class BuiltinRuntime:
         ladder = Ladder(bot)
         prices = self._prices_for(ctx)
         guard = SpendGuard(ctx.store, bot, run, prices, self._connections(ctx))
-        system = self._system_prompt(ctx)
+        system = self._system_prompt(ctx) + ctx.store.action_context(run.id)
         specs = [tools[n].spec() for n in sorted(tools)]             # PF-1 / PF-3: frozen, deterministic, allowed only
         prefix_hash = hashlib.sha256((system + json.dumps(specs, sort_keys=True)).encode()).hexdigest()[:12]
         messages: list[dict[str, Any]] = [{"role": "system", "content": system},

@@ -185,6 +185,14 @@ SQLite connections use FULL WAL synchronization. See
 [ADR-0012](adr/0012-resource-outbox-and-reconciliation.md) and restore precautions in operations.
 File-delivery design and limits are in [ADR-0013](adr/0013-recoverable-transcript-files.md).
 
+Schema v13 retains immutable action argument/authority snapshots. Owned writes require an
+unexpired fence; terminal transition and uncertain receipt sealing commit together. Reconciliation
+is a once-only operator statement with reviewed intent hash, evidence and idempotency, preserving
+original status and transcript. Chat surfaces these records inline; the paginated Needs you drawer
+keeps older/cross-bot uncertainty reachable. Bounded current model guidance supplements a same-
+conversation effect guard. Legacy arguments are not inferred. See
+[ADR-0014](adr/0014-immutable-action-review.md).
+
 Builtin provider sessions carry per-run route authority separately from model choice. The
 primary selection authorizes its receiving service; a configured hop that changes account,
 endpoint, protocol or revision requires outward review. Each call revalidates that authority

@@ -1,0 +1,19 @@
+{
+  "captured_at": "2026-10-08T13:04:02.986248+00:00",
+  "browser": "firefox",
+  "version": "155.0",
+  "viewport": [
+    1440,
+    1000
+  ],
+  "scenario": "Anonymous marketing figure; synthetic missing receipt screenshot; no localhost credentials or provider access",
+  "figure_capture_note": "Inspect the viewport PNG for fixed navigation; an oversized Firefox locator crop includes off-viewport fixed layers.",
+  "page_errors": [],
+  "horizontal_overflow": 0,
+  "source_sha256": {
+    "website/index.html": "e89ba5a783beb1c225bd5aafc47d0c78ffe12a96ff6d2dd27777b125eb0341da",
+    "website/styles.css": "145d8728b19c5ae976abf40625881f8bd1cc0d4ca22bb82f4ad1e6f08c762f2c",
+    "website/assets/captures/proof-receipt.webp": "1dd52b9bf2433dc1ad9ab259acea9b82238435bb638ff835992a85c108a1473e",
+    "website/assets/captures/proof-receipt-phone.webp": "b5a3bbab146f13c17ce5583ad807d26bff52ee4869ebe7d6584ab7c117808a7e"
+  }
+}

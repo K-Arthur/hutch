@@ -20,12 +20,14 @@ from pathlib import Path
 from typing import Any, Literal, Optional
 
 from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import StreamingResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .. import __version__
 from ..approvals import resolve_approval, resolve_approval_ex
+from ..action_receipts import ActionConflict
 from ..config import get_config
 from ..durable_changes import SnapshotRequired
 from ..engine import Engine, bot_prompt_for_schedule
@@ -222,6 +224,42 @@ class ChangePageResource(BaseModel):
     has_more: bool
 
 
+class ActionReconciliationRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+    intent_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    outcome: Literal["confirmed_done", "confirmed_failed", "not_applied"]
+    evidence: str = Field(min_length=1, max_length=4000)
+
+    @field_validator('evidence')
+    @classmethod
+    def valid_evidence(cls, value: str) -> str:
+        value.encode('utf-8')
+        return value
+
+
+class ActionSummaryResource(BaseModel):
+    id: str
+    run_id: str
+    bot_name: str
+    tool: str
+    idem_key: str
+    effect: str
+    summary: str
+    status: Literal["started", "done", "failed", "unknown"]
+    started_at: str
+    finished_at: Optional[str]
+    result_digest: str
+    intent_hash: str
+    legacy: bool
+    reconciliation: Optional[dict]
+
+
+class ActionResource(ActionSummaryResource):
+    effect_key: str
+    intent: dict
+    intent_valid: bool
+
+
 class SnapshotResource(BaseModel):
     event_cursor: int
     replay_after: int
@@ -291,6 +329,17 @@ def create_app() -> FastAPI:
     app.add_middleware(SecurityMiddleware, auth_token=os.environ.get("HUTCH_AUTH_TOKEN") or None,
                        device_auth=store.validate_device_token)
 
+    @app.exception_handler(RequestValidationError)
+    async def invalid_request(_request: Request, exc: RequestValidationError):
+        # Do not echo private arguments/credentials, or unpaired Unicode that
+        # would make the error response itself fail UTF-8 serialization.
+        def safe(value):
+            return value.encode('utf-8', errors='backslashreplace').decode() if isinstance(value, str) else value
+        return JSONResponse(status_code=422, content={'detail': [
+            {'loc': [safe(part) for part in error['loc']], 'type': safe(error['type']), 'msg': safe(error['msg'])}
+            for error in exc.errors()
+        ]})
+
     # ------------------------------------------------------------- helpers
 
     def bot_or_404(ref: str) -> Bot:
@@ -325,7 +374,10 @@ def create_app() -> FastAPI:
 
     def run_view(run) -> dict:
         bot = store.get_bot(run.bot_id)
-        return {**run.model_dump(), "bot_name": bot.name if bot else "?"}
+        unresolved = store.count_unresolved_actions(run.id)
+        return {**run.model_dump(), "bot_name": bot.name if bot else "?",
+                "receipt_review_required": bool(unresolved), "unresolved_action_count": unresolved,
+                "needs_person": run.needs_person or bool(unresolved)}
 
     def run_or_404(run_id: str):
         run = store.get_run(run_id)
@@ -788,6 +840,8 @@ def create_app() -> FastAPI:
         view["events"] = [e.model_dump() for e in window]
         view["approval_states"] = store.approval_states_for_events(run_id, window)
         view["transcript_mirror"] = store._mirror.status(run_id)
+        view["unknown_actions"] = store.list_actions(run_id, unresolved=True, limit=5)
+        view["reviewed_actions"] = store.list_actions(run_id, reviewed=True, limit=5)
         view["event_count"] = total
         view["events_truncated"] = bool(window) and window[0].seq > 1
         return view
@@ -947,6 +1001,41 @@ def create_app() -> FastAPI:
 
     # --------------------------------------------------------------- stats
 
+    @app.get("/api/v1/actions/receipts", response_model=list[ActionSummaryResource])
+    def action_receipts(run_id: Optional[str] = None, unresolved: bool = False, reviewed: bool = False,
+                        limit: int = 100, offset: int = 0) -> list[dict]:
+        if run_id is not None:
+            run_or_404(run_id)
+        return store.list_actions(run_id, unresolved=unresolved, reviewed=reviewed, limit=limit, offset=offset)
+
+    @app.get("/api/v1/actions/receipts/{action_id}", response_model=ActionResource)
+    def action_receipt(action_id: str) -> dict:
+        action = store.get_action(action_id)
+        if action is None:
+            raise HTTPException(404, "no such action receipt")
+        return action
+
+    @app.post("/api/v1/actions/receipts/{action_id}/reconcile", response_model=ActionResource)
+    def reconcile_action(action_id: str, body: ActionReconciliationRequest, request: Request, response: Response) -> dict:
+        key = idempotency_key(request)
+        token = request.cookies.get(DEVICE_COOKIE, "")
+        bearer = request.headers.get("authorization", "")
+        if bearer.startswith("Bearer "):
+            token = bearer[7:]
+        device = store.device_identity(token)
+        by = f"device:{device}" if device else "operator"
+        digest = request_digest({"action_id": action_id, **body.model_dump()})
+        try:
+            action, created = store.reconcile_action(action_id, by=by, idem_key=key, request_hash=digest, **body.model_dump())
+        except KeyError:
+            raise HTTPException(404, "no such action receipt") from None
+        except (ActionConflict, IdempotencyConflict) as exc:
+            raise HTTPException(409, str(exc)) from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        response.status_code = 201 if created else 200
+        return action
+
     @app.get("/api/stats")
     @app.get("/api/v1/usage")
     def stats() -> dict:
@@ -958,6 +1047,7 @@ def create_app() -> FastAPI:
         return {
             "bots": len(bots), "paused": sum(1 for b in bots if b.paused),
             "active_runs": len(active), "pending_approvals": len(pending),
+            "unresolved_actions": store.count_unresolved_actions(),
             "queued_tasks": len(store.pending_tasks()),
             "tokens_today": tokens_today,
             "tokens_measured_today": sum(row[0] for row in budgets),

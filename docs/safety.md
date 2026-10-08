@@ -29,6 +29,14 @@ acknowledgement of action prerequisites, subject to storage honoring fsync. See
 [operations](operations.md), [ADR-0012](adr/0012-resource-outbox-and-reconciliation.md) and
 [ADR-0013](adr/0013-recoverable-transcript-files.md).
 
+Schema v13 records immutable tool arguments and reviewed authority before effects. Missing
+receipts seal atomically as uncertain even when the runtime returns success. Check the destination
+and record an outcome in chat or Needs you; this is an immutable human report, not independent
+verification or permission to replay. Matching uncertain effects in the same conversation require
+reconciliation. Legacy arguments remain unknown, and original statuses/events are preserved.
+Saved intent may contain private user material; keep the state directory private. See
+[ADR-0014](adr/0014-immutable-action-review.md).
+
 Provider account/destination changes require per-run outward approval. The exact route and
 revision are checked again before provider creation; cached clients cannot retain a removed or
 rotated connection key. Generic hosted sticky grants and the old legacy key-routing escape

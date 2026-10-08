@@ -274,9 +274,9 @@ const store$ = {
 
 let modalReturnFocus = null;
 
-function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confirm", confirmClass = "primary", wide = false }) {
+function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confirm", confirmClass = "primary", wide = false, returnFocus = null }) {
   const root = $("#modal-root");
-  modalReturnFocus = document.activeElement;
+  modalReturnFocus = returnFocus || document.activeElement;
   root.innerHTML = `
     <div class="modal-backdrop" data-modal-backdrop>
       <div class="modal-card${wide ? " modal-wide" : ""}" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -294,10 +294,15 @@ function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confir
   `;
   const card = $(".modal-card", root);
   const close = (cancelled = true) => {
+    if (!card.isConnected) return;
     document.removeEventListener("keydown", keyHandler, true);
     root.innerHTML = "";
     if (cancelled && onCancel) onCancel();
-    modalReturnFocus?.focus?.();
+    if (modalReturnFocus?.isConnected) modalReturnFocus.focus();
+    else if (modalReturnFocus?.dataset.receiptReview) {
+      const target = $$('[data-receipt-review]').find(b => b.dataset.receiptReview === modalReturnFocus.dataset.receiptReview);
+      (target || $('#chat-prompt') || $('#needs-you-open'))?.focus();
+    }
   };
   const keyHandler = ev => {
     if (ev.key === "Escape") { ev.stopPropagation(); close(); return; }
@@ -549,11 +554,13 @@ async function pollHealth() {
 let lastPendingCount = null;
 let attentionBots = [];
 let attentionDismissedCount = null;
+let unresolvedReceiptCount = 0;
 
 async function refreshBadge() {
   try {
     const stats = await api("/stats");
-    const n = stats.pending_approvals || 0;
+    unresolvedReceiptCount = stats.unresolved_actions || 0;
+    const n = (stats.pending_approvals || 0) + unresolvedReceiptCount;
     const previousPendingCount = lastPendingCount;
     const badge = $("#approval-badge");
     if (badge) {
@@ -571,7 +578,7 @@ async function refreshBadge() {
     renderRoster();
     renderAttention();
     if (previousPendingCount !== null && n > previousPendingCount) {
-      announce(`${n} approval${n === 1 ? "" : "s"} waiting for you.`);
+      announce(unresolvedReceiptCount ? `${n} items need your review.` : `${n} approval${n === 1 ? "" : "s"} waiting for you.`);
     }
     lastPendingCount = n;
   } catch {}
@@ -585,11 +592,12 @@ function renderAttention() {
   const n = lastPendingCount || 0;
   const onApprovals = needsYouDialog.open;
   const shownRequests = $$("#chat-stream [data-approval-card]").filter(c => c.querySelector("[data-approve]:not([disabled])"));
-  const allInChat = location.hash.startsWith("#/chat") && n && n <= shownRequests.length;
+  const shownReceipts = $$('#chat-stream [data-receipt-card]').filter(c => !c.dataset.receiptReviewed);
+  const allInChat = location.hash.startsWith("#/chat") && n && n <= shownRequests.length + shownReceipts.length;
   if (!n || onApprovals || allInChat || attentionDismissedCount === n) { bar.hidden = true; return; }
   bar.hidden = false;
   bar.innerHTML = `${icon("alert")}
-    <span><b>${n} approval${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} you</b></span>
+    <span><b>${unresolvedReceiptCount ? `${n} items need your review` : `${n} approval${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} you`}</b></span>
     <button class="btn ghost small" id="attention-review" type="button">Review</button>
     <button class="icon-btn" id="attention-dismiss" aria-label="Dismiss reminder">${icon("x")}</button>`;
   $("#attention-review")?.addEventListener("click", openNeedsYou);
@@ -1007,6 +1015,7 @@ async function renderChatFeed() {
   const focused = document.activeElement;
   const focusedApproval = focused?.closest("[data-approval-card]")?.dataset.approvalCard;
   const focusedChoice = focused?.dataset.approve;
+  const focusedReceipt = focused?.dataset.receiptReview;
   stream.innerHTML = parts.join("");
   $$("[data-approval-card] details", stream).forEach(d => {
     const id = d.closest("[data-approval-card]").dataset.approvalCard;
@@ -1022,6 +1031,9 @@ async function renderChatFeed() {
       ? card && [...card.querySelectorAll("button")].find(b => b.dataset.approve === focusedChoice)
       : card?.querySelector("summary");
     if (target) target.focus({ preventScroll: true });
+  }
+  if (focusedReceipt && !focused.isConnected) {
+    $$('[data-receipt-review]', stream).find(b => b.dataset.receiptReview === focusedReceipt)?.focus({ preventScroll: true });
   }
   if (wasNearBottom) scroll.scrollTop = scroll.scrollHeight;
 
@@ -1148,6 +1160,9 @@ async function runBlockHtml(runId) {
           <a class="mrun mono" href="#/run/${esc(runId)}" title="${esc(runId)} · ${esc(run.origin || "manual")} · ${dur}">#${esc(runId.slice(4, 12))}</a>
         </div>
         ${cards.join("")}
+        ${(run.unknown_actions || []).map(receiptCardHtml).join("")}
+        ${(run.reviewed_actions || []).map(receiptCardHtml).join("")}
+        ${run.unresolved_action_count > 5 ? `<p class="hint">${run.unresolved_action_count - 5} more action receipts need review. <button class="btn ghost small" data-receipt-queue type="button">Open Needs you</button></p>` : ""}
         ${run.status === "waiting_resources" && run.reason ? `<p class="run-wait">${esc(run.reason)}</p>` : ""}
         ${stepCount || running ? `
         <details class="tool-stream" ${running || stepCount < 4 ? "open" : ""}>
@@ -1158,7 +1173,9 @@ async function runBlockHtml(runId) {
         ${run.transcript_mirror?.error || run.transcript_mirror?.worker_error
           ? `<p class="run-notice" role="status">Transcript file needs attention: ${esc(run.transcript_mirror.error || run.transcript_mirror.worker_error)}. Database history remains available.</p>`
           : run.transcript_mirror?.pending ? '<p class="hint" role="status">Transcript file is catching up. History shown here is committed in the database.</p>' : ""}
-        ${run.error ? `<div class="run-error ${run.status === "stopped" || run.status === "skipped" ? "run-notice" : run.status === "outcome_unknown" ? "run-review" : ""}">${icon("alert")}<span><b>${esc(run.status_label || activityLabel)}:</b> ${esc(run.error)}</span></div>` : ""}
+        ${run.error ? run.status === 'outcome_unknown' && !run.unresolved_action_count && run.reviewed_actions?.length
+          ? `<details class="run-notice"><summary>Original execution report</summary><p>${esc(run.error)}</p></details>`
+          : `<div class="run-error ${run.status === "stopped" || run.status === "skipped" ? "run-notice" : run.status === "outcome_unknown" ? "run-review" : ""}">${icon("alert")}<span><b>${esc(run.status_label || activityLabel)}:</b> ${esc(run.error)}</span></div>` : ""}
       </div>
     </article>`;
   if (!running) terminalRunCache.set(runId, html.replace('class="thread enter"', 'class="thread"'));
@@ -1166,6 +1183,79 @@ async function runBlockHtml(runId) {
 }
 
 const seenThreads = new Set();
+
+const receiptOutcomes = { confirmed_done: 'Effect confirmed', confirmed_failed: 'Failure confirmed', not_applied: 'No effect found' };
+function receiptCardHtml(action) {
+  const report = action.reconciliation;
+  return `<section class="receipt-card" data-receipt-card="${esc(action.id)}" ${report ? 'data-receipt-reviewed="true"' : ''}>
+    <b>${report ? esc(receiptOutcomes[report.outcome] || report.outcome) + ' · human report' : 'Action outcome needs review'}</b>
+    <p>${esc(action.bot_name || '')} · ${esc(action.summary || action.tool)}</p>
+    <p class="hint">${report ? 'Original execution status remains unchanged.' : 'This action may already have happened. Check the destination before repeating it.'}</p>
+    <div class="btn-row"><button class="btn ghost small" type="button" data-receipt-review="${esc(action.id)}">${report ? 'View recorded outcome' : 'Review action outcome'}</button>
+      <a class="btn ghost small" href="#/run/${esc(action.run_id)}">Open attempt</a></div>
+  </section>`;
+}
+
+async function reviewReceipt(id, trigger) {
+  const openedFromQueue = needsYouDialog.open;
+  const returnFocus = openedFromQueue ? (wsBtn.offsetParent !== null ? wsBtn : $('#needs-you-open')) : trigger || document.activeElement;
+  const route = location.hash;
+  if (trigger) trigger.disabled = true;
+  let action;
+  try { action = await api(`/v1/actions/receipts/${encodeURIComponent(id)}`); }
+  catch (err) { toast(`Could not load action: ${err.message}`, 'error'); return; }
+  finally { if (trigger?.isConnected) trigger.disabled = false; }
+  if (location.hash !== route) return;
+  if (needsYouDialog.open) closeNeedsYou();
+  const report = action.reconciliation;
+  const json = JSON.stringify(action.intent, null, 2);
+  const clipped = json.length > 12000;
+  let submission = null;
+  openModal({
+    returnFocus,
+    title: report ? 'Recorded action outcome' : 'Check this action’s outcome',
+    bodyHtml: `<p>${esc(action.summary || action.tool)}</p>
+      <p class="hint">${action.legacy ? 'Legacy receipt: original arguments were not recorded. Check external records; these details cannot establish what was sent.' : 'These are the saved arguments and authority from immediately before execution.'}</p>
+      ${!action.intent_valid ? '<p role="alert">Saved intent failed integrity verification. Recording an outcome is unavailable.</p>' : ''}
+      <details><summary>Saved action details${clipped ? ' (preview)' : ''}</summary><pre class="receipt-json">${esc(json.slice(0, 12000))}</pre>
+        ${clipped ? '<button class="btn ghost small" id="receipt-download" type="button">Download complete intent JSON</button>' : ''}</details>
+      ${report ? `<p><b>${esc(receiptOutcomes[report.outcome])} · human report</b></p><p class="receipt-evidence">${esc(report.evidence)}</p>
+        <p class="hint">Recorded by ${esc(report.recorded_by)} at ${esc(report.recorded_at)}. This does not change the original receipt, status or transcript.</p>` : `
+      <p class="hint">Check the file, account or service involved. This records your findings and runs no action. A new attempt still needs permission.</p>
+      <label class="field">Observed outcome<select id="receipt-outcome"><option value="">Select a checked outcome</option>
+        <option value="confirmed_done">I confirmed the effect happened</option><option value="confirmed_failed">I confirmed it failed</option>
+        <option value="not_applied">I confirmed no effect happened</option></select></label>
+      <label class="field">What did you check?<textarea id="receipt-evidence" rows="3" maxlength="4000" placeholder="Record the destination and evidence you checked"></textarea></label>
+      <p id="receipt-error" role="alert" hidden></p>`}`,
+    confirmText: report || !action.intent_valid ? 'Close' : 'Record checked outcome',
+    onConfirm: async () => {
+      if (report || !action.intent_valid) return true;
+      const error = $('#receipt-error'), button = $('#modal-confirm');
+      const body = { intent_hash: action.intent_hash, outcome: $('#receipt-outcome').value, evidence: $('#receipt-evidence').value.trim() };
+      if (!body.outcome || !body.evidence) { error.textContent = 'Select an observed outcome and describe what you checked.'; error.hidden = false; return false; }
+      // Retain a key for an uncertain response; changing the report uses a new
+      // key and the server still resolves this action only once.
+      const signature = JSON.stringify(body);
+      if (submission?.signature !== signature) submission = { signature, key: newIdempotencyKey() };
+      button.disabled = true;
+      try {
+        await api(`/v1/actions/receipts/${encodeURIComponent(id)}/reconcile`, {
+          method: 'POST', body, headers: { 'Idempotency-Key': submission.key },
+        });
+        terminalRunCache.delete(action.run_id);
+        refreshChangedResources(['actions']);
+        toast('Your checked outcome was recorded. The original execution history is preserved.');
+        return true;
+      } catch (err) { error.textContent = `Could not record outcome: ${err.message}. Your report is retained.`; error.hidden = false; return false; }
+      finally { if (button.isConnected) button.disabled = false; }
+    },
+  });
+  $('#receipt-download')?.addEventListener('click', () => {
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const link = document.createElement('a'); link.href = url; link.download = `${id}-intent.json`; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+}
 
 /* Merge tool_call + tool_result pairs; runs of 4+ collapse under one group row. */
 function pairToolEvents(events) {
@@ -1307,6 +1397,9 @@ function wireFeedInteractions() {
   stream.dataset.wired = "1";
   const runId = currentRunId;
   stream.addEventListener("click", ev => {
+    const receipt = ev.target.closest('[data-receipt-review]');
+    if (receipt) { void reviewReceipt(receipt.dataset.receiptReview, receipt); return; }
+    if (ev.target.closest('[data-receipt-queue]')) { void openNeedsYou(); return; }
     const stop = ev.target.closest("[data-stop-run]");
     if (stop) { requestStop(stop.dataset.stopRun, stop); return; }
     const more = ev.target.closest("[data-show-more]");
@@ -1869,25 +1962,32 @@ async function renderApprovals() {
   await openNeedsYou();
 }
 
+let receiptOffset = 0;
+const RECEIPT_PAGE_SIZE = 20;
+
 async function refreshApprovals() {
   if (!needsYouDialog.open) return;
   const error = $("#needs-you-error");
   const offset = approvalOffset;
   try {
-    const [pending, resolved, stats] = await Promise.all([
+    const receiptPageOffset = receiptOffset;
+    const [pending, resolved, stats, receipts] = await Promise.all([
       api(`/v1/actions/approvals?limit=${APPROVAL_PAGE_SIZE}&offset=${offset}`),
       api("/v1/actions/approvals?status=resolved&limit=8"), api("/stats"),
+      api(`/v1/actions/receipts?unresolved=true&limit=${RECEIPT_PAGE_SIZE}&offset=${receiptPageOffset}`),
     ]);
-    if (!needsYouDialog.open || offset !== approvalOffset) return;
+    if (!needsYouDialog.open || offset !== approvalOffset || receiptPageOffset !== receiptOffset) return;
     if (!pending.length && offset) { approvalOffset = 0; return refreshApprovals(); }
+    if (!receipts.length && receiptPageOffset) { receiptOffset = 0; return refreshApprovals(); }
     error.hidden = true;
-    const signature = JSON.stringify([pending, resolved, offset, stats.pending_approvals]);
+    const signature = JSON.stringify([pending, resolved, offset, stats.pending_approvals, receipts, receiptPageOffset, stats.unresolved_actions]);
     // Preserve keyboard focus and expanded review details during unchanged polls.
     if (signature === approvalSignature) return;
     approvalSignature = signature;
     const focus = document.activeElement;
     const focusedCard = focus?.closest("[data-approval-card]");
     const focusChoice = focus?.dataset.approve;
+    const focusReceipt = focus?.dataset.receiptReview;
     const expanded = new Set($$("#needs-you [data-approval-card]").filter(c => c.querySelector("details[open]"))
       .map(c => c.dataset.approvalCard));
     $("#approvals-pending").innerHTML = pending.length
@@ -1902,6 +2002,13 @@ async function refreshApprovals() {
     $("#approvals-resolved").innerHTML = resolved.length
       ? resolved.map(a => approvalResolvedHtml(a, a.status, a.bot_name)).join("")
       : `<p class="hint">No recent decisions.</p>`;
+    $('#receipts-pending').innerHTML = receipts.length ? receipts.map(receiptCardHtml).join('') : '<p class="hint">No uncertain action receipts.</p>';
+    $('#receipts-pagination').innerHTML = receipts.length ? `<span class="hint">${receiptPageOffset + 1}–${receiptPageOffset + receipts.length} of ${stats.unresolved_actions} actions</span>
+      ${receiptPageOffset ? '<button class="btn ghost small" id="receipts-prev">Previous actions</button>' : ''}
+      ${receiptPageOffset + receipts.length < stats.unresolved_actions ? '<button class="btn ghost small" id="receipts-next">Next actions</button>' : ''}` : '';
+    $('#receipts-prev')?.addEventListener('click', () => { receiptOffset = Math.max(0, receiptPageOffset - RECEIPT_PAGE_SIZE); void refreshApprovals(); });
+    $('#receipts-next')?.addEventListener('click', () => { receiptOffset = receiptPageOffset + RECEIPT_PAGE_SIZE; void refreshApprovals(); });
+    $$('#receipts-pending [data-receipt-review]').forEach(button => button.addEventListener('click', () => void reviewReceipt(button.dataset.receiptReview, button)));
     $$("#needs-you [data-approval-card]").forEach(c => {
       if (expanded.has(c.dataset.approvalCard) && c.querySelector("details")) c.querySelector("details").open = true;
     });
@@ -1910,6 +2017,7 @@ async function refreshApprovals() {
       const button = replacement && [...replacement.querySelectorAll("button")].find(b => b.dataset.approve === focusChoice);
       (button || $("#needs-you-close")).focus();
     }
+    if (focusReceipt) ($$('#receipts-pending [data-receipt-review]').find(b => b.dataset.receiptReview === focusReceipt) || $('#needs-you-close')).focus();
     wireApprovals();
     updateTtls();
   } catch (err) {
@@ -2479,11 +2587,11 @@ function refreshChangedResources(resources) {
     const changed = new Set(changedResources);
     changedResources.clear();
     if (["bots", "runs", "usage", "usage_reservations"].some(r => changed.has(r))) void refreshRoster();
-    if (["approvals", "runs"].some(r => changed.has(r))) {
+    if (["approvals", "runs", "actions"].some(r => changed.has(r))) {
       void refreshBadge();
       if (needsYouDialog.open) void refreshApprovals();
     }
-    if (["messages", "conversations", "runs", "approvals", "transcript_mirrors"].some(r => changed.has(r))) {
+    if (["messages", "conversations", "runs", "approvals", "actions", "transcript_mirrors"].some(r => changed.has(r))) {
       const visibleHash = location.hash || "#/chat";
       if (/^#\/chat(?:\/|$)/.test(visibleHash) || /^#\/run\/[\w-]+$/.test(visibleHash)) scheduleFeedRender();
     }

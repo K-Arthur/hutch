@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from ..lifecycle import LeaseLost
+from ..action_receipts import freeze
 from ..models import Event, EventType, Run
 from ..tools import Tool, ToolContext
 from ..tools.base import ToolResult
@@ -80,10 +81,14 @@ def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolCont
         return tool.run(args, ctx)
     key = hashlib.sha256(f"{run.id}|{name}|{json.dumps(args, sort_keys=True, default=str)}".encode()).hexdigest()[:24]
     began: dict[str, str] = {}
+    ctx.gate.last_authorization = None
 
     def begin() -> Optional[str]:
         try:
-            began["id"] = ctx.store.begin_action(run.id, name, key, effect, _summary(name, args), fence=run.fence)
+            began["id"] = ctx.store.begin_action(run.id, name, key, effect, _summary(name, args), fence=run.fence,
+                arguments=args, authority=ctx.gate.last_authorization,
+                scope={"workspace": str(ctx.workspace.resolve()), "model": run.model_used or ctx.bot.model,
+                       "browser_profile": ctx.bot.id if effect == "web" else None})
         except LeaseLost as exc:
             ctx.closed = True          # we no longer own this run: nothing more may start from this worker
             return f"{exc}; the action was not started"
@@ -92,19 +97,29 @@ def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolCont
         return None
 
     ctx.receipt = begin
-    result = ToolResult(ok=False, output="error: the action did not finish")
+    result = None
     try:
         result = tool.run(args, ctx)
         return result
     finally:
         ctx.receipt = None
-        if "id" in began:              # an action that never began (denied, expired, refused) has nothing to receipt
+        if "id" in began and result is None:
+            # An exception after admission is not a returned failure receipt:
+            # the effect may already have happened. Preserve the missing row
+            # for atomic uncertainty sealing and prohibit further tools.
+            ctx.closed = True
+        elif "id" in began:              # actions that never began have nothing to receipt
             try:
                 ctx.store.finish_action(began["id"], "done" if result.ok else "failed",
                                         hashlib.sha256(result.output.encode(errors="replace")).hexdigest()[:16],
                                         expected_fence=run.fence)
-            except Exception:
-                pass                   # the row stays 'started': an honest "unknown" is better than a made-up receipt
+            except Exception as exc:
+                # The effect may have completed, but we cannot report a saved
+                # receipt or let another tool begin after losing audit storage.
+                ctx.closed = True
+                from .base import RunAborted
+                raise RunAborted("action_receipt_missing", "the action may have happened but its receipt could not be saved; "
+                                 "verify the destination before repeating it") from exc
 
 
 def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, args: dict[str, Any],
@@ -112,6 +127,16 @@ def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, arg
     """Emit the call, run the tool (timed), emit the result. Used by the mock and builtin runtimes."""
     if ctx.closed:                       # fenced: the run already ended (timeout, stop, recovery); nothing new may start
         return ToolResult(ok=False, output="error: this run has ended; the action was not started")
+    try:
+        if not isinstance(args, dict):
+            raise ValueError("tool arguments must be a JSON object")
+        # The caller cannot revise arguments during the human wait. Tools and
+        # the eventual receipt use the same private snapshot.
+        args = freeze(args)
+        if len(json.dumps(args, ensure_ascii=False).encode()) > 1024 * 1024:
+            raise ValueError("tool arguments exceed 1 MiB; reduce the request")
+    except (TypeError, ValueError, RecursionError) as exc:
+        return ToolResult(ok=False, output=f"error: invalid tool arguments ({exc}); nothing was run")
     ctx.emit(Event(run_id=run.id, type=EventType.tool_call, data={"tool": name, "args": args}))
     tool = tools.get(name)
     t1 = time.perf_counter()

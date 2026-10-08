@@ -72,3 +72,21 @@ contrast calculation or screen-reader audit was performed.
 These are local UI checks, not a screen-reader certification, physical phone test, or test of a real supervised browser session.
 Playwright used desktop Firefox at phone/tablet viewport sizes; it did not emulate touch input. Provider, Pi, local-model, portal
 and physical-device workflows remain separate verification gaps in [the continuation ledger](ledger.md).
+
+## Action intent review continuation
+
+Schema v13 adds an uncertain-action card in chat and paginated older/cross-bot receipts in
+Needs you. `tests/e2e/test_browser.py::test_uncertain_action_review_in_chat_preserves_history_and_recovers_lost_response`
+captures uncertain, review-dialog and recorded-report views at desktop, tablet and phone sizes.
+The fixture commits an operator report on the real API, drops its response and retries with the
+same idempotency key. It verifies unchanged execution status/receipt/chain, retained draft and
+restored focus. A second fixture checks 22 older receipts over two pages with real phone menu
+and keyboard navigation. No live external effect, physical phone or screen reader is exercised.
+
+Images, traces, timestamps and source hashes are in
+[action-receipts](artifacts/action-receipts/). The app labels the recorded result a human report;
+the original execution error remains inspectable under a folded report after all receipts are
+reconciled. Marketing figure checks load anonymously at three widths and verify labelled fixture
+copy and the responsive phone image. Inspection prompted this image-source improvement rather
+than accepting a technically fitting but unreadable desktop thumbnail. Final counts/boundaries
+are recorded in the continuation ledger.

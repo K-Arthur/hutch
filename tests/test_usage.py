@@ -168,6 +168,7 @@ def test_the_move_log_shows_fallbacks_and_escalations(client):
         "from_model": "ollama/q", "to_model": "anthropic/claude-haiku-4-5"}))
     client.store.append_event(Event(run_id=run.id, type=EventType.log, data={"kind": "escalation", "note": "send this run to the hosted model"}))
     client.store.append_event(Event(run_id=run.id, type=EventType.log, data={"kind": "note", "note": "not a move"}))
+    client.store.flush_events()  # the page reads committed history, not this fixture's pending batch
     t = client.get("/usage").text
     assert "is unavailable (refused)" in t and "send this run to the hosted model" in t and "not a move" not in t
     moves = client.store.recent_rung_changes()

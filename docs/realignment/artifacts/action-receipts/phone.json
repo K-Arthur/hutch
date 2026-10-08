@@ -1,0 +1,22 @@
+{
+  "captured_at": "2026-10-08T12:45:59.680687+00:00",
+  "browser": "firefox",
+  "version": "155.0",
+  "viewport": [
+    390,
+    844
+  ],
+  "scenario": "Synthetic missing receipt; real API commit, lost response and idempotent retry; no live provider effect",
+  "page_errors": [],
+  "horizontal_overflow": 0,
+  "draft_and_focus_preserved": true,
+  "sealed_history_preserved": true,
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "270280ed223940b8ef73fa2392c0c49dde90c51acbbd7d8c3bae75e6c2785546",
+    "src/hutch/server/static/style.css": "5defb7499a18c6cefc969d63360cbf612f43a24d62438dcb4b0190baa2017d78",
+    "src/hutch/server/static/index.html": "c1a32ee40b9e258fdd0072b9bc3e76f362610addc2ad552cf6e4783e47cfd9a9",
+    "src/hutch/server/app.py": "31919fa899e86d5fef4e32f8d9add73fb168d0a19da010a80fc7aed27e0f099e",
+    "src/hutch/store.py": "02b9a60de374dab1b63ffd7a430cd8fa46d5caad0d3436649d910d0a115bf2fc",
+    "src/hutch/action_receipts.py": "974ccc618fdd9acfecee3fefea538f0b3de1fd71eff96ad3d2c1ff7769d26bba"
+  }
+}

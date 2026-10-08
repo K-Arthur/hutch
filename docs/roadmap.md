@@ -55,6 +55,10 @@
   epoch/committed-ID replay, canonical approval summaries and targeted UI refresh. Schema v12 adds
   recoverable bounded JSONL delivery, visible errors and FULL WAL synchronization. Automatic event retention,
   workspaces/artifacts, capability verification, and idempotent resume/bot-run commands remain open.
+- **Action review: local fixtures.** Schema v13 retains immutable intents and separate operator
+  reconciliation. Uncertain receipt sealing is transactional; chat and Needs you surface review.
+  Same-conversation repeat guards and bounded current builtin context notes are implemented.
+  Browser/external-runtime authority gaps and live effect verification remain open.
 - **Remote pairing: experimental.** Direct off-loopback access requires explicit TLS binding. One-time codes issue revocable device
   sessions; source-IP attempts are throttled. The phone UI, PTY/browser controls, tunnel path, and physical-device verification remain
   open. Linux loopback remains the supported service boundary; do not present remote access as a shipped phone feature.

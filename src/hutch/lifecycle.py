@@ -22,7 +22,8 @@ LIVE: frozenset[RunStatus] = frozenset(ACTIVE_STATUSES) - {P.pending}
 _END = {P.failed, P.stopped, P.outcome_unknown}      # how any live run may be ended by recovery or a stop
 
 TRANSITIONS: dict[RunStatus, frozenset[RunStatus]] = {
-    P.pending: frozenset({P.loading_model, P.running, P.waiting_resources, P.cancelling, P.stopped, P.failed, P.skipped}),
+    P.pending: frozenset({P.loading_model, P.running, P.waiting_resources, P.cancelling, P.stopped, P.failed, P.skipped,
+                         P.outcome_unknown}),
     P.waiting_resources: frozenset({P.pending, P.loading_model, P.running, P.cancelling, P.recovering} | _END),
     P.loading_model: frozenset({P.running, P.waiting_resources, P.waiting_approval, P.cancelling, P.recovering} | _END),
     P.running: frozenset({P.loading_model, P.waiting_approval, P.waiting_human, P.waiting_resources, P.succeeded,

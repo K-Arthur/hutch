@@ -1,0 +1,37 @@
+{
+  "generated_at": "2026-10-08T12:59:20.151145+00:00",
+  "pillow": "12.3.0",
+  "records": [
+    {
+      "source": "docs/realignment/artifacts/action-receipts/proof-source-desktop.png",
+      "source_sha256": "ace104a7cf1894eb94cfe0cd47a6d5cafd89c2b754062c027aca130e6685bba5",
+      "target": "website/assets/captures/proof-receipt.webp",
+      "target_sha256": "1dd52b9bf2433dc1ad9ab259acea9b82238435bb638ff835992a85c108a1473e",
+      "captured_at": "2026-10-08T12:45:55.857178+00:00",
+      "application_sources": {
+        "src/hutch/server/static/app.js": "270280ed223940b8ef73fa2392c0c49dde90c51acbbd7d8c3bae75e6c2785546",
+        "src/hutch/server/static/style.css": "5defb7499a18c6cefc969d63360cbf612f43a24d62438dcb4b0190baa2017d78",
+        "src/hutch/server/static/index.html": "c1a32ee40b9e258fdd0072b9bc3e76f362610addc2ad552cf6e4783e47cfd9a9",
+        "src/hutch/server/app.py": "31919fa899e86d5fef4e32f8d9add73fb168d0a19da010a80fc7aed27e0f099e",
+        "src/hutch/store.py": "02b9a60de374dab1b63ffd7a430cd8fa46d5caad0d3436649d910d0a115bf2fc",
+        "src/hutch/action_receipts.py": "974ccc618fdd9acfecee3fefea538f0b3de1fd71eff96ad3d2c1ff7769d26bba"
+      }
+    },
+    {
+      "source": "docs/realignment/artifacts/action-receipts/proof-source-phone.png",
+      "source_sha256": "c71d701f4aef79b1458de6903b993a7b9e3ec5dbb97c2c7c8ce3858f9c407646",
+      "target": "website/assets/captures/proof-receipt-phone.webp",
+      "target_sha256": "b5a3bbab146f13c17ce5583ad807d26bff52ee4869ebe7d6584ab7c117808a7e",
+      "captured_at": "2026-10-08T12:45:59.680687+00:00",
+      "application_sources": {
+        "src/hutch/server/static/app.js": "270280ed223940b8ef73fa2392c0c49dde90c51acbbd7d8c3bae75e6c2785546",
+        "src/hutch/server/static/style.css": "5defb7499a18c6cefc969d63360cbf612f43a24d62438dcb4b0190baa2017d78",
+        "src/hutch/server/static/index.html": "c1a32ee40b9e258fdd0072b9bc3e76f362610addc2ad552cf6e4783e47cfd9a9",
+        "src/hutch/server/app.py": "31919fa899e86d5fef4e32f8d9add73fb168d0a19da010a80fc7aed27e0f099e",
+        "src/hutch/store.py": "02b9a60de374dab1b63ffd7a430cd8fa46d5caad0d3436649d910d0a115bf2fc",
+        "src/hutch/action_receipts.py": "974ccc618fdd9acfecee3fefea538f0b3de1fd71eff96ad3d2c1ff7769d26bba"
+      }
+    }
+  ],
+  "scenario": "Preserved sanitized fixture captures; compression only; no live effect or private data"
+}

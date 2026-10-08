@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from .config import hutchConfig, get_config
-from . import durable_changes
+from . import action_receipts, durable_changes
 from .lifecycle import TERMINAL, IllegalTransition, LeaseLost, allowed
 from .models import (
     ACTIVE_STATUSES,
@@ -316,9 +316,16 @@ def _migrate_12(db: sqlite3.Connection) -> None:
     ))
 
 
+def _migrate_13(db: sqlite3.Connection) -> None:
+    action_receipts.migrate(db)
+    durable_changes.install_resources(db, (
+        ("action_reconciliations", "actions", "action_id", (), ("run_id",)),
+    ))
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
-               _migrate_11, _migrate_12]
+               _migrate_11, _migrate_12, _migrate_13]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -510,6 +517,14 @@ class Store:
             db.execute("UPDATE device_sessions SET last_used_at = ?, expires_at = ? WHERE id = ?",
                        (iso(now), iso(now + timedelta(days=30)), row["id"]))
             return True
+
+    def device_identity(self, token: str) -> Optional[str]:
+        if not token or len(token) > 256:
+            return None
+        with self._lock:
+            row = self._db.execute("SELECT id FROM device_sessions WHERE token_hash = ? AND revoked_at IS NULL "
+                                   "AND expires_at > ?", (self._secret_hash(token), iso(utcnow()))).fetchone()
+        return row[0] if row else None
 
     def list_device_sessions(self) -> list[dict[str, Any]]:
         now = iso(utcnow())
@@ -1184,6 +1199,21 @@ class Store:
         if cancel_wins and to in (RunStatus.failed, RunStatus.succeeded) and row["cancel_requested"]:
             to, exit_reason, error = RunStatus.stopped, "stopped", "stopped after owned processes were verified gone"
             event = {**(event or {}), "reason": "stopped", "error": error}
+        if cur not in TERMINAL and to in TERMINAL:
+            uncertain = db.execute("SELECT tool, summary FROM tool_actions a WHERE a.run_id = ? "
+                "AND a.status IN ('started', 'unknown') AND NOT EXISTS "
+                "(SELECT 1 FROM action_reconciliations x WHERE x.action_id = a.id) ORDER BY started_at LIMIT 3",
+                (run_id,)).fetchall()
+            if uncertain:
+                # Receipt loss is authoritative even if the runtime reported
+                # success. Seal receipts and status/events in this transaction.
+                if to is not RunStatus.outcome_unknown:
+                    exit_reason = "action_receipt_missing"
+                to = RunStatus.outcome_unknown
+                note = "Action outcome needs review; do not replay: " + "; ".join(r["summary"] or r["tool"] for r in uncertain)
+                error = ((error + "\n") if error else "") + note
+                event = {**(event or {}), "reason": exit_reason, "error": error}
+                db.execute("UPDATE tool_actions SET status = 'unknown' WHERE run_id = ? AND status = 'started'", (run_id,))
         if not allowed(cur, to) and cur is not to:
             raise IllegalTransition(run_id, cur, to)
         if cur is to:
@@ -1446,62 +1476,211 @@ class Store:
     # ----------------------------------------------------- tool actions (receipts)
 
     def begin_action(self, run_id: str, tool: str, idem_key: str, effect: str, summary: str = "",
-                     fence: Optional[int] = None) -> str:
-        """Write the INTENT to run an action that has an effect, before it runs (ADR-0003).
-
-        If the process dies after the effect but before ``finish_action``, the row stays ``started``: recovery then knows the
-        outcome is unknown and never replays it. With ``fence`` the intent is admitted only if the caller still owns a run that
-        is live and not being stopped - checked in the same transaction as the insert - so a worker that lost its lease (or was
-        told to stop) cannot START a new effect, even if it never noticed."""
+                     fence: Optional[int] = None, *, arguments: Optional[dict] = None,
+                     authority: Optional[dict] = None, scope: Optional[dict] = None) -> str:
+        """Commit immutable effect intent before authorization to act; claimed runs require their fence."""
         from .models import new_id
+        if any(value is not None and not isinstance(value, dict) for value in (arguments, authority, scope)):
+            raise ValueError("action arguments, authority and scope must be JSON objects")
+        arguments, authority, scope = (action_receipts.freeze(value) if value is not None else None
+                                       for value in (arguments, authority, scope))
         action_id = new_id("act")
         with self._tx() as db:
-            if fence is not None:
-                row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
-                if row is None or row["fence"] != fence:
-                    raise LeaseLost(run_id, "this worker no longer owns the run")
-                self._check_lease(row, run_id, fence)
-                st = RunStatus(row["status"])
-                if st in TERMINAL or st in (RunStatus.cancelling, RunStatus.recovering) or row["cancel_requested"]:
-                    raise LeaseLost(run_id, f"the run is {st.value}; no new action may start")
-            db.execute(
-                "INSERT INTO tool_actions (id, run_id, tool, idem_key, effect, summary, status, started_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, 'started', ?)",
-                (action_id, run_id, tool, idem_key, effect, summary[:500], iso(utcnow())))
+            row = db.execute(f"SELECT bot_id, {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
+            self._action_owner(row, run_id, fence)
+            if row["fence"] > 0 and arguments is None:
+                raise ValueError("owned actions require immutable arguments")
+            st = RunStatus(row["status"])
+            if st in TERMINAL | {RunStatus.cancelling, RunStatus.recovering} or row["cancel_requested"]:
+                raise LeaseLost(run_id, f"the run is {st.value}; no new action may start")
+            if authority and authority.get("approval_id"):
+                approval = db.execute("SELECT doc, status, action_hash, expires_at FROM approvals WHERE id = ?",
+                                      (authority["approval_id"],)).fetchone()
+                if (approval is None or approval["status"] != "approved"
+                        or approval["action_hash"] != authority.get("action_hash")
+                        or not approval["expires_at"] or approval["expires_at"] <= iso(utcnow())):
+                    raise action_receipts.ActionConflict("reviewed permission is missing, changed or expired; request a new review")
+                req = json.loads(approval["doc"])
+                if req["run_id"] != run_id or req["bot_id"] != row["bot_id"]:
+                    raise action_receipts.ActionConflict("reviewed permission belongs to another run")
+                if action_receipts.canonical(req["detail"]) != action_receipts.canonical(authority.get("detail")):
+                    raise action_receipts.ActionConflict("reviewed arguments changed; request a new review")
+            # Conservative across attempts: a process command may affect a remote
+            # service even if its workspace changed. File destinations are scoped.
+            repeat_scope = {"bot_id": row["bot_id"]}
+            if effect == "fs":
+                repeat_scope["workspace"] = (scope or {}).get("workspace", "")
+            effect_key = action_receipts.digest(action_receipts.canonical(
+                {"tool": tool, "effect": effect, "arguments": arguments, "scope": repeat_scope})) if arguments is not None else ""
+            if row["conversation_id"]:
+                previous = db.execute("SELECT a.id FROM tool_actions a JOIN runs r ON r.id = a.run_id "
+                    "WHERE r.conversation_id = ? AND r.sealed = 1 AND a.status IN ('started', 'unknown') "
+                    "AND (a.effect_key = ? OR a.effect_key = '') AND NOT EXISTS "
+                    "(SELECT 1 FROM action_reconciliations x WHERE x.action_id = a.id) LIMIT 1",
+                    (row["conversation_id"], effect_key)).fetchone()
+                if previous:
+                    raise action_receipts.ActionConflict(
+                        f"unreconciled action {previous[0]} may already have happened; record its outcome before repeating")
+            intent = {"schema": 1, "run_id": run_id, "bot_id": row["bot_id"], "fence": row["fence"],
+                      "tool": tool, "effect": effect, "arguments": arguments, "authority": authority,
+                      "scope": scope, "effect_key": effect_key}
+            raw = action_receipts.canonical(intent)
+            if len(raw.encode()) > action_receipts.MAX_INTENT_BYTES:
+                raise ValueError("action intent exceeds 4 MiB; reduce the requested arguments")
+            db.execute("INSERT INTO tool_actions "
+                "(id, run_id, tool, idem_key, effect, summary, status, started_at, intent_json, intent_hash, effect_key, legacy) "
+                "VALUES (?, ?, ?, ?, ?, ?, 'started', ?, ?, ?, ?, ?)",
+                (action_id, run_id, tool, idem_key, effect, summary[:500], iso(utcnow()), raw,
+                 action_receipts.digest(raw), effect_key, int(arguments is None)))
         return action_id
+
+    @staticmethod
+    def _action_owner(row, run_id, fence):
+        if row is None:
+            raise KeyError(run_id)
+        if row["fence"] > 0 and fence is None:
+            raise LeaseLost(run_id, "the current worker fence is required for an action write")
+        if fence is not None:
+            Store._check_lease(row, run_id, fence)
 
     def finish_action(self, action_id: str, status: str, result_digest: str = "", *,
                       expected_fence: Optional[int] = None) -> None:
-        assert status in ("done", "failed")
+        if status not in ("done", "failed"):
+            raise ValueError("a worker receipt must report done or failed")
         with self._tx() as db:
             action = db.execute("SELECT run_id, status FROM tool_actions WHERE id = ?", (action_id,)).fetchone()
             if action is None:
                 raise KeyError(action_id)
             row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (action["run_id"],)).fetchone()
-            if expected_fence is not None:
-                self._check_lease(row, action["run_id"], expected_fence)
-            if row is None or RunStatus(row["status"]) in TERMINAL or action["status"] != "started":
+            self._action_owner(row, action["run_id"], expected_fence)
+            if RunStatus(row["status"]) in TERMINAL or action["status"] != "started":
                 raise LeaseLost(action["run_id"], "receipt is sealed or uncertain; reconcile instead of overwriting it")
             db.execute("UPDATE tool_actions SET status = ?, finished_at = ?, result_digest = ? WHERE id = ? AND status = 'started'",
-                       (status, iso(utcnow()), result_digest, action_id))
+                       (status, iso(utcnow()), result_digest[:128], action_id))
 
     def actions_in_doubt(self, run_id: str) -> list[dict[str, Any]]:
         with self._lock:
-            rows = self._db.execute(
-                "SELECT id, tool, effect, summary, started_at, idem_key FROM tool_actions "
-                "WHERE run_id = ? AND status IN ('started', 'unknown') ORDER BY started_at", (run_id,)).fetchall()
+            rows = self._db.execute("SELECT a.id, a.tool, a.effect, a.summary, a.started_at, a.idem_key FROM tool_actions a "
+                "WHERE a.run_id = ? AND a.status IN ('started', 'unknown') AND NOT EXISTS "
+                "(SELECT 1 FROM action_reconciliations x WHERE x.action_id = a.id) ORDER BY a.started_at", (run_id,)).fetchall()
         return [dict(r) for r in rows]
 
-    def mark_actions_unknown(self, run_id: str) -> int:
-        with self._lock:
-            cur = self._db.execute("UPDATE tool_actions SET status = 'unknown' WHERE run_id = ? AND status = 'started'", (run_id,))
-            self._db.commit()
+    def mark_actions_unknown(self, run_id: str, *, expected_fence: Optional[int] = None) -> int:
+        with self._tx() as db:
+            row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
+            self._action_owner(row, run_id, expected_fence)
+            if RunStatus(row["status"]) in TERMINAL:
+                raise LeaseLost(run_id, "terminal action receipts are sealed; reconcile instead")
+            cur = db.execute("UPDATE tool_actions SET status = 'unknown' WHERE run_id = ? AND status = 'started'", (run_id,))
         return cur.rowcount
 
-    def list_actions(self, run_id: str) -> list[dict[str, Any]]:
+    @staticmethod
+    def _action_view(db, row):
+        result = action_receipts.view(row)
+        bot = db.execute("SELECT COALESCE(b.name, d.bot_name, r.bot_id) FROM runs r LEFT JOIN bots b ON b.id=r.bot_id "
+                         "LEFT JOIN transcript_delivery d ON d.run_id=r.id WHERE r.id=?", (row['run_id'],)).fetchone()
+        result['bot_name'] = bot[0] if bot else ''
+        reconciliation = db.execute("SELECT * FROM action_reconciliations WHERE action_id = ?", (row["id"],)).fetchone()
+        result["reconciliation"] = dict(reconciliation) if reconciliation else None
+        return result
+
+    def get_action(self, action_id: str) -> Optional[dict[str, Any]]:
         with self._lock:
-            rows = self._db.execute("SELECT * FROM tool_actions WHERE run_id = ? ORDER BY started_at", (run_id,)).fetchall()
-        return [dict(r) for r in rows]
+            row = self._db.execute("SELECT * FROM tool_actions WHERE id = ?", (action_id,)).fetchone()
+            return self._action_view(self._db, row) if row else None
+
+    def list_actions(self, run_id: Optional[str] = None, *, unresolved: bool = False, reviewed: bool = False,
+                     limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+        # Lists carry summaries; immutable arguments are fetched one action at
+        # a time, avoiding hundreds of MiB for a page of large file intents.
+        query = ("SELECT a.id, a.run_id, a.tool, a.idem_key, a.effect, a.summary, a.status, a.started_at, "
+                 "a.finished_at, a.result_digest, a.intent_hash, a.legacy, "
+                 "(SELECT COALESCE(b.name,d.bot_name,r.bot_id) FROM runs r LEFT JOIN bots b ON b.id=r.bot_id "
+                 "LEFT JOIN transcript_delivery d ON d.run_id=r.id WHERE r.id=a.run_id) AS bot_name "
+                 "FROM tool_actions a WHERE 1 = 1")
+        args = []
+        if run_id is not None:
+            query += " AND a.run_id = ?"; args.append(run_id)
+        if unresolved:
+            query += (" AND a.status IN ('started', 'unknown') AND EXISTS (SELECT 1 FROM runs r "
+                      "WHERE r.id = a.run_id AND r.sealed = 1) AND NOT EXISTS "
+                      "(SELECT 1 FROM action_reconciliations x WHERE x.action_id = a.id)")
+        if reviewed:
+            query += " AND EXISTS (SELECT 1 FROM action_reconciliations x WHERE x.action_id = a.id)"
+        query += " ORDER BY a.started_at, a.id LIMIT ? OFFSET ?"
+        args.extend((max(1, min(limit, 200)), max(0, offset)))
+        with self._lock:
+            rows = self._db.execute(query, args).fetchall()
+            results = []
+            for row in rows:
+                item = dict(row)
+                item["legacy"] = bool(item["legacy"])
+                reconciliation = self._db.execute("SELECT * FROM action_reconciliations WHERE action_id = ?", (row["id"],)).fetchone()
+                item["reconciliation"] = dict(reconciliation) if reconciliation else None
+                results.append(item)
+            return results
+
+    def count_unresolved_actions(self, run_id: Optional[str] = None) -> int:
+        with self._lock:
+            return self._db.execute("SELECT COUNT(*) FROM tool_actions a JOIN runs r ON r.id = a.run_id "
+                "WHERE (? IS NULL OR a.run_id = ?) AND r.sealed = 1 AND a.status IN ('started', 'unknown') AND NOT EXISTS "
+                "(SELECT 1 FROM action_reconciliations x WHERE x.action_id = a.id)", (run_id, run_id)).fetchone()[0]
+
+    def action_context(self, run_id: str) -> str:
+        """Read current, bounded receipt authority at execution, even for previously queued turns.
+
+        Only identifiers/tools and recorded outcomes enter model context. Raw
+        arguments, destinations and operator evidence remain in the review UI.
+        This guidance supplements the actual repeat guard; it grants nothing.
+        """
+        with self._lock:
+            rows = self._db.execute("SELECT a.id, a.tool, x.outcome FROM tool_actions a JOIN runs r ON r.id = a.run_id "
+                "LEFT JOIN action_reconciliations x ON x.action_id = a.id "
+                "WHERE r.conversation_id = (SELECT conversation_id FROM runs WHERE id = ?) "
+                "AND r.sealed = 1 AND a.status IN ('started', 'unknown') ORDER BY a.started_at DESC LIMIT 20",
+                (run_id,)).fetchall()
+        if not rows:
+            return ""
+        entries = [{"id": row["id"], "tool": row["tool"][:80], "operator_outcome": row["outcome"] or "unresolved"}
+                   for row in rows]
+        # At most ten records fit the guidance window. Query newest first;
+        # history may contain more and must be inspected before repeating.
+        while len(action_receipts.canonical(entries)) > 2000:
+            entries.pop()
+        return ("\nAction receipt review in this conversation (bounded newest records; consult history for more): "
+                + action_receipts.canonical(entries) + "\nUnresolved effects may already have happened. Do not replay them. "
+                "Operator outcomes are human reports, not independent verification or permission to repeat an action.")
+
+    def reconcile_action(self, action_id: str, *, intent_hash: str, outcome: str, evidence: str,
+                         by: str, idem_key: str, request_hash: str) -> tuple[dict, bool]:
+        evidence = evidence.strip()
+        evidence.encode('utf-8')
+        if outcome not in ("confirmed_done", "confirmed_failed", "not_applied") or not 1 <= len(evidence) <= 4000:
+            raise ValueError("select an observed outcome and provide 1–4000 characters of verification evidence")
+        scope = f"api:v1:action:{action_id}:reconcile"
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            row = db.execute("SELECT * FROM tool_actions WHERE id = ?", (action_id,)).fetchone()
+            if row is None:
+                raise KeyError(action_id)
+            action = self._action_view(db, row)
+            if replay is not None:
+                return action, False
+            if not action["intent_valid"] or intent_hash != row["intent_hash"]:
+                raise action_receipts.ActionConflict("action details changed or failed integrity verification; review again")
+            if action["reconciliation"]:
+                raise action_receipts.ActionConflict("another client already recorded this action's outcome")
+            run = db.execute("SELECT sealed FROM runs WHERE id = ?", (row["run_id"],)).fetchone()
+            if not run or not run["sealed"] or row["status"] not in ("started", "unknown"):
+                raise action_receipts.ActionConflict("only an uncertain action from ended execution can be reconciled")
+            now = iso(utcnow())
+            db.execute("INSERT INTO action_reconciliations VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (action_id, row["run_id"], intent_hash, outcome, evidence, by[:128], now))
+            db.execute("INSERT INTO idempotency_keys(scope, key, request_hash, response_json, created_at) VALUES (?, ?, ?, ?, ?)",
+                (scope, idem_key, request_hash, _canonical({"action_id": action_id}), now))
+            action = self._action_view(db, row)
+        self.bus.notify("actions", f"run:{row['run_id']}")
+        return action, True
 
     # ----------------------------------------------------------- events
 

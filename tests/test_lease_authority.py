@@ -58,10 +58,11 @@ def test_heartbeat_cannot_revive_expired_ownership_and_recovery_can_take_it(stor
 
 def test_late_receipt_cannot_replace_recovered_unknown_outcome(store):
     _, run = owned(store)
-    action = store.begin_action(run.id, "files", "fixture", "fs", fence=run.fence)
+    action = store.begin_action(run.id, "files", "fixture", "fs", fence=run.fence, arguments={"path": "fixture.txt"})
     expire(store, run)
-    recovery = store.claim_recovery(store.get_run(run.id), "recoverer", 30)
-    store.mark_actions_unknown(run.id)
+    recovery = store.claim_recovery(store.get_run(run.id), "recovery", 30)
+    assert recovery is not None
+    store.mark_actions_unknown(run.id, expected_fence=recovery.fence)
     with pytest.raises(LeaseLost):
         store.finish_action(action, "done", "late-result", expected_fence=run.fence)
     store.transition_run(run.id, RunStatus.outcome_unknown, fence=recovery.fence)

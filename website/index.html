@@ -155,7 +155,7 @@
         <figcaption class="proof-legend">
           <ol>
             <li><b>The task.</b> One sentence in chat is the entire setup; the bot keeps its own instructions, limits and workspace.</li>
-            <li><b>The receipts.</b> Every tool call becomes a row: what ran, what it returned, when. Nothing is hidden behind a spinner.</li>
+            <li><b>The history.</b> Inspect requested tool arguments and saved results. A missing action receipt is shown as uncertain, with a checked outcome recorded separately.</li>
             <li><b>The gate.</b> Before this file-write action continues, the run pauses for a human. Silence expires to <i>denied</i>.</li>
           </ol>
           <p class="proof-meta">Captured 2026-10-08 from the local development build with isolated deterministic <code>mock/demo</code> data. Screenshots and verification records are retained in <code>docs/realignment/artifacts/navigation/</code>.</p>
@@ -222,6 +222,14 @@
           </div>
         </article>
       </div>
+      <figure class="proof-figure">
+        <div class="proof-chrome"><span class="proof-label">action review &middot; isolated fixture</span><span class="chip">Synthetic missing receipt &middot; real app</span></div>
+        <picture><source media="(max-width: 640px)" srcset="assets/captures/proof-receipt-phone.webp" width="390" height="844">
+          <img class="proof-img" src="assets/captures/proof-receipt.webp" width="1440" height="1000" loading="lazy" decoding="async"
+            alt="Hutch chat showing an action with a missing receipt, labelled Needs review, with Review action outcome beside the conversation. The unsent follow-up remains in the composer."></picture>
+        <figcaption class="proof-legend"><p>When an action may already have happened, inspect its saved intent in chat and check the destination. Record your findings as a human report; Hutch preserves the original execution status and transcript.</p>
+          <p class="proof-meta">Captured 2026-10-08 from isolated synthetic state. Browser checks cover a lost response after recording and an idempotent retry. This is not live-provider or physical-phone verification.</p></figcaption>
+      </figure>
     </div>
   </section>
 

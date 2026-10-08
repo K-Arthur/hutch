@@ -148,3 +148,33 @@ not included. These fields default to zero in legacy history; no SQL schema upgr
 Stop expires pending approvals in its cancellation transaction, and later requests persist as
 expired. New worker requests are fence-checked. A pending decision is never kept actionable merely
 because physical cleanup is still underway.
+
+## Action receipt review (schema v13)
+
+`GET /api/v1/actions/receipts?run_id=...&unresolved=true&limit=100&offset=0`
+returns typed summaries without argument payloads, bounded to 200 records. `reviewed=true`
+selects operator-reconciled records. Without a run filter, the operator sees the cross-bot queue.
+`GET /api/v1/actions/receipts/{id}` returns the immutable intent, its integrity result and any
+separate reconciliation. Intent is at most 4 MiB; legacy `arguments` is `null`, not inferred.
+
+`POST /api/v1/actions/receipts/{id}/reconcile` requires `Idempotency-Key` and exactly:
+
+```json
+{"intent_hash":"<64-character saved SHA-256>","outcome":"confirmed_done","evidence":"What the operator checked"}
+```
+
+Outcomes are `confirmed_done`, `confirmed_failed` or `not_applied`; evidence is 1–4000 nonblank
+UTF-8 characters. A missing key returns 428, invalid body 422, missing record 404 and changed
+intent/key or competing resolution 409. The initial record returns 201; an exact replay returns
+200. The authenticated device ID, where available, or shared `operator` authority is server-derived.
+Only missing/uncertain receipts on sealed runs can be reconciled. Reconciliation executes no
+command and changes neither original receipt/status nor transcript. It is a human report, not
+independent verification. A new attempt still needs its own permissions.
+
+Run resources add `unresolved_action_count` and `receipt_review_required`. Historical Done runs
+can need receipt review; migration does not rewrite their status. Detail includes bounded
+`unknown_actions` and `reviewed_actions` previews (five each). Fetch subsequent receipt pages
+rather than treating a preview as complete. `/api/v1/usage` adds `unresolved_actions` for the
+cross-bot count; content-free `actions` changes invalidate these resources. Chat provides inline
+review and Needs you pages older unresolved actions. Original execution error remains inspectable
+when all action reports have been recorded.

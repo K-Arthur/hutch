@@ -22,11 +22,11 @@ is a local `main` fast-forward only after all implementation and verification ga
 | S2 lifecycle, claims, leases and recovery | Implemented; focused tests pass | Pending claims reserve global capacity. Recovery fences expired ownership before cleanup. SQLite migrations serialize and create SQLite-backup-API snapshots. Cleanup failure remains visible and nonterminal. |
 | S3 supervised run processes and teardown | Implemented; focused tests pass | Production CLI/daemon/web execution uses owned processes, recorded boot/start identity and verified cleanup. Incomplete cleanup stays nonterminal. |
 | S4 shell containment and approval CAS | Implemented; focused tests pass | Bubblewrap tests pass on the present Linux host. This is namespace containment, not a VM; legacy bots retain their previous setting. Browser/external runtime tools remain outside this guarantee. |
-| S5 providers, budgets and external runtimes | Partial; shared usage reservations implemented, adapters fail closed | OpenCode v2.0.24 is installed and its CLI contract was inspected. Existing OpenCode/Pi adapters bypassed Hutch approvals and budgets, so execution now fails before process creation. Schema v10 reserves estimated tokens/currency atomically across Hutch runs and configured accounts, settles reported use once, and holds uncertain requests for terminal-only reconciliation. Price-based currency limits are estimates, not provider-billing guarantees. Re-enable external runtimes only after sandboxing, brokered permissions and protocol tests. Pi is unavailable; no live run or paid/provider request has been made. Local calls now use one kernel-owned slot and eight FIFO waiters; human waits release the slot. Native Ollama checks current headroom before generation; other local backends lack validated memory admission, and strict modes/provenance remain pending. Latest offline suite: 1,056 passed; browser/site suite: 29 passed. |
+| S5 providers, budgets and external runtimes | Partial; shared usage reservations implemented, adapters fail closed | OpenCode v2.0.24 is installed and its CLI contract was inspected. Existing OpenCode/Pi adapters bypassed Hutch approvals and budgets, so execution now fails before process creation. Schema v10 reserves estimated tokens/currency atomically across Hutch runs and configured accounts, settles reported use once, and holds uncertain requests for terminal-only reconciliation. Price-based currency limits are estimates, not provider-billing guarantees. Re-enable external runtimes only after sandboxing, brokered permissions and protocol tests. Pi is unavailable; no live run or paid/provider request has been made. Local calls now use one kernel-owned slot and eight FIFO waiters; human waits release the slot. Native Ollama checks current headroom before generation; other local backends lack validated memory admission, and strict modes/provenance remain pending. The latest verified checkpoints are recorded below; live provider/adaptor access remains unavailable. |
 | S6 conversations and bounded collaboration | Conversation foundation partial; collaboration pending | Schema v8 stores conversations/messages, imports each old run separately, uses bounded context snapshots in builtin runs and explicit FTS5 message search. Studio supports thread switching, durable history and archive. Transactional idempotency is tested across restart. Standing tasks, workspaces/artifacts, scoped fact memory, notifications and delegation remain. |
 | S7 browser ownership and handoff | Partial | Browser context state is instance-owned and persistent profile paths are per-bot; fixture test verifies no profile crossover. Live handoff, pinned egress and browser process supervision remain unavailable. |
-| S8 versioned API and remote supervision | Partial; API replay improvements in `cd4f402` and `f5696ce`; remote remains experimental | `/api/v1` covers health/status labels, bounded bot/run/approval pages, conversations/search, cross-run transcript cursors, snapshot reconciliation, usage, connection metadata, schedules and capability records. Conversation create/message/archive, stop, and approval resolve commands are idempotent; changed arguments conflict. Schema v9 adds one-use pairing codes, hash-only revocable device sessions and per-source rate limits. Direct remote binding requires explicit TLS. Schema v11 adds transactional resource invalidations, history cursors, snapshot reconciliation and targeted Studio refresh. Schema v12 adds recoverable JSONL delivery and visible errors. Automatic event pruning, workspaces/artifacts, phone UI, interactive control routes, trusted tunnel and live device/network checks remain. |
-| S9 product integration, performance and visual validation | Partial; evidence captured in `896a774` | Final screenshots and traces cover desktop/tablet/phone, plus fixture-driven empty/loading/error/approval/cancelling/reconnecting UI states. Internal site CTA targets, phone overflow, page errors, reduced motion, tablist arrows and mobile-menu focus were checked. A misleading static `LIVE` badge is now `DEMO`. Same-harness baseline/current measurements retain raw repetitions. The full regression suite still needs to run after the latest slices. This is not screen-reader, real-device or full workflow certification. See `visual-validation.md` and `performance.md`. |
+| S8 versioned API and remote supervision | Partial; API replay improvements in `cd4f402` and `f5696ce`; remote remains experimental | `/api/v1` covers health/status labels, bounded bot/run/approval pages, conversations/search, cross-run transcript cursors, snapshot reconciliation, usage, connection metadata, schedules and capability records. Conversation create/message/archive, stop, and approval resolve commands are idempotent; changed arguments conflict. Schema v9 adds one-use pairing codes, hash-only revocable device sessions and per-source rate limits. Direct remote binding requires explicit TLS. Schema v11 adds transactional resource invalidations, history cursors, snapshot reconciliation and targeted Studio refresh. Schema v12 adds recoverable JSONL delivery and visible errors; v13 adds immutable action intents and separate outcome reconciliation. Automatic event pruning, workspaces/artifacts, phone UI, interactive control routes, trusted tunnel and live device/network checks remain. |
+| S9 product integration, performance and visual validation | Partial; evidence captured in `896a774` | Final screenshots and traces cover desktop/tablet/phone, plus fixture-driven empty/loading/error/approval/cancelling/reconnecting UI states. Internal site CTA targets, phone overflow, page errors, reduced motion, tablist arrows and mobile-menu focus were checked. A misleading static `LIVE` badge is now `DEMO`. Same-harness baseline/current measurements retain raw repetitions. Current source-frozen repeats and inspected captures are recorded below. This is not screen-reader, real-device or full workflow certification. See `visual-validation.md` and `performance.md`. |
 
 ## Commits
 
@@ -49,6 +49,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `bf09d97` | Raw repeated benchmark samples, p50/p90 summary, machine/revision metadata and regression checks |
 | `cd4f402` | Cross-run transcript event pages/SSE, Last-Event-ID replay, bounded snapshot reconciliation and focused real-socket tests |
 | `896a774` | Same-harness baseline/current artifacts, data-quality notebook, final screenshots and demo-label correction |
+| `4bdd936` | Schema-v12 recoverable transcript files, durable prerequisites, inspected UI errors and raw performance diagnosis |
 | `33ac3ba` | Schema-v10 usage reservations, account-shared admission, uncertain-charge reconciliation, estimates and marketing copy; offline suite 1,003 passed, provider/reservation 45 passed, browser suite 15 passed |
 
 ## Verified behavior before this checkpoint
@@ -569,3 +570,95 @@ are retained under `artifacts/performance/`; `performance.md` reports median/tai
 the remaining regression. No safety protection was weakened to remove it. CPU remains too
 coarsely sampled for an optimization claim. Captured source hashes match the final checked
 tree. This is a local persistence checkpoint, not completion of S4–S9 or final integration.
+
+### Immutable action review (schema v13; continuation of S4)
+
+The prior persistence slice is committed as `4bdd936` (recoverable transcript files, FULL WAL
+synchronization, file-delivery visibility and retained performance evidence). Schema v13 now
+retains immutable tool arguments/review authority; owned action writes cannot omit a fence.
+Receipt storage failure stops further tools, and uncertain receipts seal with terminal status
+and its event atomically. An independent operator statement resolves review once with evidence,
+reviewed intent hash and idempotency, without changing the original execution history.
+Matching uncertain effects in the same conversation require reconciliation; current bounded
+builtin receipt guidance also covers turns queued before uncertainty arose. Private conversations
+are kept separate. Legacy arguments are not invented.
+
+Chat review uses the existing dialog rather than a new page. Needs you also pages older and
+cross-bot receipts. Source inspection/fixtures found two owned-action fixture defects, then two
+new test errors (missing Path import and violating per-bot single admission); assertions were
+corrected without relaxing ownership. Focused repeats passed **23 in 1.12s**, expanded runtime/
+approval/usage/history/migration checks **95 in 33.35s**, then receipt/API/usage/history checks
+**52 in 5.91s**. A mistyped nonexistent test path ran no tests before the corrected command.
+The actual schema-v12 fixture was made using `git archive 4bdd936`; it preserves a historical
+Done run with a started receipt and tests unknown arguments, original event hashes and backup.
+
+The first four new browser journeys failed in **131.26s**. Three exposed real focus loss when
+disabling the launch button before opening the dialog; the fourth attempted the phone sidebar
+without opening its menu. Explicit return-focus ownership fixes the application bug, and the
+fixture now uses real phone navigation. The repeat passed **4 in 10.38s**, including a server-
+committed outcome with a lost response and idempotent retry, plus 22 older receipts over two
+queue pages. Final source/visual/offline/browser repeats follow. These checks use isolated
+fixture effects and Firefox; no paid provider, physical phone, portal or live browser handoff.
+
+Before the exception repair, the full offline repeat passed **1,139 in 252.03s** and the
+browser/site run passed **44 in 137.50s**. The 12:35 UTC navigation capture recorded 39 views
+with no page errors/overflow. Nine full-size action-review views and three navigation inspection
+sheets were inspected. The additional marketing-figure check passed **3 in 5.80s**; inspection
+found the desktop screenshot unreadable at phone scale, so a real phone capture is now selected
+at narrow widths. It does not substitute an illustration for application evidence.
+
+Diff review then found an unhandled tool exception after effect admission could write a false
+failed receipt from a placeholder result. The runtime now leaves the missing receipt uncertain
+and closes tool admission. A real file effect followed by an exception is a regression fixture;
+receipt/cancellation checks passed **24 in 7.46s**. Full/API/browser repeats follow. API validation
+responses also omit raw arguments and serialize malformed Unicode safely instead of reflecting
+private input or failing while returning an error. No validation or permission rule is relaxed.
+
+The next repeat passed **1,140 offline tests in 253.42s** after exception handling. It precedes
+the validation-response formatting guard. The concurrent browser run passed 44 and failed
+three new marketing fixtures in **146.63s**: those fixtures had been collected before the
+responsive `<picture>` change and still selected the image's immediate parent. They now select
+the enclosing figure and assert the actual phone source. API/receipt/connection/pairing/history/
+dashboard checks passed **93 in 19.80s** after the validation guard. Final source-frozen repeats
+are running; earlier results are not presented as covering changes made during collection.
+
+The frozen-source browser/site repeat passed **47 in 139.67s**. The matching 12:44 UTC capture
+returned **39 views**, zero errors/overflow and three traces. All three inspection sheets and
+current full-size phone action/dialog/report views were inspected; hashes match current source.
+The responsive site figure was inspected at all three widths; phone selects the actual phone
+capture. The figure screenshot includes the site's sticky navigation when scrolled.
+
+The frozen offline run reported **1,139 passed, 1 failed in 248.72s**: a Usage-page fixture read
+three buffered model-move events before their batch committed. The fixture now explicitly flushes
+before checking committed history; no assertion or production read was weakened. Focused Usage/
+receipt/writer checks passed **47 in 3.46s**, and the final full repeat passed **1,140 in 238.58s**.
+All runs treat unhandled background-thread warnings as failures. JS syntax, diff, 94-token
+contrast and emoji checks passed. Application/site capture hashes remain unchanged after the
+fixture correction. Sequential repeated performance measurement follows, after tests/captures
+finished, with the unchanged harness and a clean `4bdd936` archive. No paid or live provider call,
+physical device, portal session or production restore is covered by this checkpoint.
+
+Sequential measurements against clean `4bdd936` record CLI version/status medians
+**236.4/255.1 ms**, **51,262 events/s**, mock overhead **0.066 ms**, and daemon/dashboard RSS
+**42.1/63.6 MB**. No additional gate regression against that commit was observed; the prior
+29.0% throughput loss against `f5696ce` remains a release limitation. CPU is too coarsely sampled
+for an improvement claim. Raw samples/context are retained and validated. The final summary
+import failed after both measurement subprocesses completed; its log is retained. A corrected
+summary-only command validates the same captures without replacing or remeasuring them.
+
+The new proof images now preserve their exact sanitized source PNGs and generation hashes in
+`artifacts/action-receipts/proof-source*`; future fixture recaptures cannot silently change their
+provenance. Website-only asset checks follow. No executor source changed after frozen tests,
+captures or measurements. Main remains `d7d0029`; unrelated root work is preserved, and no
+fast-forward, push, publication or production-state migration has occurred.
+
+After regenerating receipt proof derivatives from preserved final fixture sources, all nine
+anonymous website checks passed **9 in 11.32s**. The three figures were inspected. Firefox's
+oversized element crop includes fixed navigation and an off-viewport skip link; a supplemental
+physical-viewport capture verifies that this crop artifact is not visible skip-link behavior.
+No application/site source was changed for that artifact check.
+
+The supplemental anonymous site/viewport repeat passed **9 in 11.65s**. Physical phone view
+was inspected: the receipt control and copy are readable, and the skip link remains offscreen
+without keyboard focus. Source hashes still match. This completes verification for the local
+schema-v13 slice; broader S5–S9 work and the throughput release gate remain open.

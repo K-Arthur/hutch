@@ -1073,3 +1073,109 @@ def test_composer_options_rehearsal_and_cancelled_notice(browser, live, width, h
             for p in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css")},
     }, indent=2) + "\n")
     page.close()
+
+
+@pytest.mark.parametrize("width,height,size", [(1440,1000,"desktop"),(900,1024,"tablet"),(390,844,"phone")])
+def test_uncertain_action_review_in_chat_preserves_history_and_recovers_lost_response(browser, live, monkeypatch, width, height, size):
+    import hashlib
+    import json
+    from pathlib import Path
+    from hutch.models import Run, Task, iso, utcnow
+    base, app = live
+    store = app.state.store
+    monkeypatch.setattr(app.state.engine, 'tick', lambda: None)
+    bot = store.create_bot(Bot(name='receipt-review',model='mock/demo',tools=[]))
+    conv, _ = store.create_conversation(bot.id,'Receipt review fixture',idem_key='create',request_hash='create')
+    run = Run(bot_id=bot.id,prompt='Sanitized action with a missing execution receipt')
+    store.submit_conversation_message(conv['id'],run.prompt,run,Task(bot_id=bot.id,prompt=run.prompt),idem_key='turn',request_hash='turn')
+    store.transition_run(run.id,RunStatus.running)
+    action_id = store.begin_action(run.id,'write_file','fixture-key','fs','write_file: report.md',
+                                  arguments={'path':'report.md','content':'Sanitized report'},
+                                  authority={'source':'fixture','detail':{'revision':{'exists':False}}},scope={'workspace':'/sanitized/fixture'})
+    store.transition_run(run.id,RunStatus.succeeded,event={'reason':'fixture runtime success'})
+    before = store.get_run(run.id).model_dump()
+    before_chain = store.verify_chain(run.id)
+    context = browser.new_context(viewport={'width':width,'height':height},reduced_motion='reduce')
+    page = context.new_page(); errors = []; attempts = []
+    page.on('pageerror',lambda error: errors.append(str(error)))
+    out = Path(__file__).resolve().parents[2]/'docs/realignment/artifacts/action-receipts'
+    out.mkdir(parents=True,exist_ok=True)
+    context.tracing.start(screenshots=True,snapshots=True,sources=True)
+    def lose_response(route):
+        attempts.append(route.request.headers.get('idempotency-key'))
+        if len(attempts) == 1:
+            response = route.fetch()
+            assert response.status == 201
+            route.abort('failed')  # real server commit, lost browser response
+        else:
+            route.continue_()
+    page.route('**/api/v1/actions/receipts/*/reconcile',lose_response)
+    try:
+        page.goto(base+'/#/conversation/'+conv['id'])
+        card = page.locator('[data-receipt-card]'); card.wait_for()
+        assert 'may already have happened' in card.inner_text()
+        page.locator('#chat-prompt').fill('Keep this unsent follow-up during review')
+        page.screenshot(path=str(out/f'{size}-uncertain.png'),full_page=True,animations='disabled')
+        card.get_by_role('button',name='Review action outcome',exact=True).click()
+        page.locator('#receipt-outcome').select_option('confirmed_done')
+        page.locator('#receipt-evidence').fill('Checked report.md in the fixture workspace and compared its contents.')
+        page.screenshot(path=str(out/f'{size}-review.png'),full_page=True,animations='disabled')
+        page.locator('#modal-confirm').click()
+        page.locator('#receipt-error').wait_for(state='visible')
+        assert 'report is retained' in page.locator('#receipt-error').inner_text()
+        assert page.locator('#receipt-evidence').input_value().startswith('Checked report.md')
+        page.locator('#modal-confirm').click()
+        page.locator('#modal-root .modal-card').wait_for(state='detached')
+        page.get_by_role('button',name='View recorded outcome',exact=True).wait_for()
+        page.wait_for_function("document.activeElement?.dataset.receiptReview !== undefined")
+        assert len(attempts) == 2 and attempts[0] == attempts[1]
+        assert page.locator('#chat-prompt').input_value() == 'Keep this unsent follow-up during review'
+        assert store.get_run(run.id).model_dump() == before
+        assert store.verify_chain(run.id) == before_chain
+        assert store.get_action(action_id)['status'] == 'unknown'
+        assert 'human report' in page.locator('[data-receipt-card]').inner_text()
+        page.screenshot(path=str(out/f'{size}-recorded.png'),full_page=True,animations='disabled')
+        overflow = page.evaluate('document.documentElement.scrollWidth-innerWidth')
+        assert overflow <= 1 and not errors
+        (out/f'{size}.json').write_text(json.dumps({
+            'captured_at':iso(utcnow()),'browser':browser.browser_type.name,'version':browser.version,'viewport':[width,height],
+            'scenario':'Synthetic missing receipt; real API commit, lost response and idempotent retry; no live provider effect',
+            'page_errors':errors,'horizontal_overflow':overflow,'draft_and_focus_preserved':True,'sealed_history_preserved':True,
+            'source_sha256':{p:hashlib.sha256((out.parents[3]/p).read_bytes()).hexdigest() for p in (
+                'src/hutch/server/static/app.js','src/hutch/server/static/style.css','src/hutch/server/static/index.html',
+                'src/hutch/server/app.py','src/hutch/store.py','src/hutch/action_receipts.py')},
+        },indent=2)+'\n')
+    finally:
+        context.tracing.stop(path=str(out/f'{size}-trace.zip'))
+        context.close()
+
+
+def test_needs_you_receipt_queue_pages_old_actions_and_stays_keyboard_reachable(browser, live, monkeypatch):
+    from hutch.models import Run
+    base, app = live; store = app.state.store
+    monkeypatch.setattr(app.state.engine,'tick',lambda:None)
+    bot = store.create_bot(Bot(name='old-receipts',model='mock/demo',tools=[]))
+    run = Run(bot_id=bot.id,prompt='Older standalone receipt fixture');store.create_run(run)
+    store.transition_run(run.id,RunStatus.running)
+    for i in range(22):
+        store.begin_action(run.id,'shell',f'fixture-{i}','process',f'Old action {i+1}',arguments={'command':f'fixture {i+1}'})
+    store.transition_run(run.id,RunStatus.failed)
+    page = browser.new_page(viewport={'width':390,'height':844},reduced_motion='reduce')
+    try:
+        page.goto(base+'/#/chat')
+        page.locator('#approval-badge').get_by_text('22',exact=True).wait_for()
+        page.locator('#nav-toggle').click()
+        page.locator('#needs-you-open').click()
+        page.locator('#receipts-pending [data-receipt-card]').first.wait_for()
+        assert page.locator('#receipts-pending [data-receipt-card]').count() == 20
+        page.get_by_role('button',name='Next actions',exact=True).click()
+        page.wait_for_function("document.querySelectorAll('#receipts-pending [data-receipt-card]').length === 2")
+        page.locator('#receipts-pending [data-receipt-review]').first.focus()
+        page.keyboard.press('Enter')
+        page.locator('#receipt-outcome').wait_for()
+        assert not page.locator('#needs-you').evaluate('e=>e.open')
+        page.keyboard.press('Escape')
+        assert page.locator('#nav-toggle').evaluate('e=>e===document.activeElement')
+        assert page.evaluate('document.documentElement.scrollWidth-innerWidth') <= 1
+    finally:
+        page.close()

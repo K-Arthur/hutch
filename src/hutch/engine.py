@@ -549,8 +549,7 @@ class Engine:
         # An action that began but never recorded how it ended means we cannot say what happened: that is its own outcome,
         # never "failed", and it is never replayed (ADR-0003).
         doubt = self.store.actions_in_doubt(run.id)
-        if doubt and outcome_status is not RunStatus.succeeded:
-            self.store.mark_actions_unknown(run.id)
+        if doubt:
             outcome_status = RunStatus.outcome_unknown
             error = (error + "\n" if error else "") + "may have happened: " + "; ".join(d["summary"] or d["tool"] for d in doubt)
 
@@ -641,7 +640,6 @@ class Engine:
             return None                    # stopping/recovering remains visible; another supervisor retries after the lease
         doubt = self.store.actions_in_doubt(run.id)
         if doubt:
-            self.store.mark_actions_unknown(run.id)
             to, reason = RunStatus.outcome_unknown, "interrupted"
             error = (f"the process running this job exited while an action was in flight; it may have happened: "
                      + "; ".join(d["summary"] or d["tool"] for d in doubt))

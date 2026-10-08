@@ -153,3 +153,40 @@ def test_scripted_approval_demo_is_explicit_and_non_executing(browser, site_url)
     assert page.locator("#gate-result").is_hidden()
     assert not errors, errors
     context.close()
+
+
+@pytest.mark.parametrize('width,height,size',[(1440,1000,'desktop'),(900,1024,'tablet'),(390,844,'phone')])
+def test_receipt_proof_is_labelled_and_fits_anonymous_viewports(browser, site_url, width, height, size):
+    import hashlib
+    import json
+    from hutch.models import iso, utcnow
+    context, page, errors = _page(browser,width=width,height=height)
+    out = SITE_DIR.parent/'docs/realignment/artifacts/action-receipts'
+    out.mkdir(parents=True,exist_ok=True)
+    try:
+        page.goto(site_url,wait_until='networkidle')
+        image = page.locator('img[src="assets/captures/proof-receipt.webp"]')
+        image.evaluate("img=>{img.loading='eager';return img.decode()}")
+        figure = image.locator('xpath=ancestor::figure')
+        assert image.evaluate('img=>img.naturalWidth') == (390 if width <= 640 else 1440)
+        assert 'Synthetic missing receipt' in figure.inner_text()
+        assert 'human report' in figure.inner_text()
+        assert 'not live-provider or physical-phone verification' in figure.inner_text()
+        figure.screenshot(path=str(out/f'site-{size}.png'),animations='disabled')
+        # An oversized locator crop in Firefox can include fixed layers from
+        # outside the physical viewport. Preserve the actual viewport too.
+        assert page.locator('.skip-link').evaluate('e=>e.getBoundingClientRect().bottom <= 0')
+        page.screenshot(path=str(out/f'site-{size}-viewport.png'),animations='disabled')
+        overflow = page.evaluate('document.documentElement.scrollWidth-innerWidth')
+        assert overflow <= 1 and not errors
+        (out/f'site-{size}.json').write_text(json.dumps({
+            'captured_at':iso(utcnow()),'browser':browser.browser_type.name,'version':browser.version,'viewport':[width,height],
+            'scenario':'Anonymous marketing figure; synthetic missing receipt screenshot; no localhost credentials or provider access',
+            'figure_capture_note':'Inspect the viewport PNG for fixed navigation; an oversized Firefox locator crop includes off-viewport fixed layers.',
+            'page_errors':errors,'horizontal_overflow':overflow,
+            'source_sha256':{str(p.relative_to(SITE_DIR.parent)):hashlib.sha256(p.read_bytes()).hexdigest() for p in
+                              (SITE_DIR/'index.html',SITE_DIR/'styles.css',SITE_DIR/'assets/captures/proof-receipt.webp',
+                               SITE_DIR/'assets/captures/proof-receipt-phone.webp')},
+        },indent=2)+'\n')
+    finally:
+        context.close()

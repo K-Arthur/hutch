@@ -6,6 +6,14 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Fixed
 
+- Schema v13 snapshots arguments and reviewed authority before an effect, requires an unexpired
+  fence for owned receipt writes, and atomically seals missing receipts with Needs review.
+  Receipt storage failure stops further tools. Immutable operator reconciliation records checked
+  outcomes separately; it preserves the original status and event chain. Chat and the paginated
+  Needs you drawer retain uncertain actions, including historical Done runs with receipt gaps.
+- Matching uncertain effects in the same conversation require reconciliation before a new attempt
+  can repeat them. The builtin runtime reads bounded current receipt guidance at execution;
+  unrelated private conversations retain separate contexts. Legacy arguments remain explicitly unknown.
 - Schema v12 enqueues JSONL delivery with committed events, verifies file prefixes and retries
   after restart without duplicate rows. Damaged mirrors are preserved before reconstruction;
   pending errors stay visible without changing a Done run. Delivery is bounded and joined before
@@ -38,7 +46,7 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   history cursors, gap detection and consistent snapshot reconciliation. Silent process commits
   remain replayable; chat/attention updates preserve drafts and focus. Approval admission includes
   its inline review event, and canonical decisions survive a missing worker response. The separate
-  JSONL mirror still needs recoverable delivery; no remote-support claim is added.
+  JSONL mirror uses schema v12's separate recoverable delivery; no remote-support claim is added.
 - **Bounded local inference:** one caller and eight FIFO waiters across Hutch processes. The slot
   releases before tools/human waits, Stop removes queued callers before reservation, and kernel
   ownership expires on process death. Native Ollama rechecks measured memory headroom; fit remains

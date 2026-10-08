@@ -130,3 +130,39 @@ The [initial tree](artifacts/performance/current-f5696ce-mirror-uncoalesced.json
 The [diagnostic script](artifacts/performance/mirror-diagnosis.py) reproduces the three
 modes against the current tree; historic precommit variants require their recorded source
 boundaries and must not be assumed identical to the final code.
+
+### Immutable action-intent checkpoint, 2026-10-08
+
+The clean `4bdd936` archive and schema-v13 tree were measured sequentially after all checks.
+The harness hash remains `66dab3a98f9fbd7619977274442f287e82131a155bd678618775c58efd7babd6`.
+Raw samples and source/load context are retained. The archive's built-in Git metadata is unknown;
+the wrapper records its actual archived revision and hashes. Do not interpret that fallback
+metadata as a measured dirty checkout or replace it silently.
+
+| Metric | `4bdd936` p50 / p90 (n) | Schema v13 p50 / p90 (n) |
+|---|---:|---:|
+| CLI version (ms) | 239.6 / 248.0 (11) | 236.4 / 260.2 (11) |
+| CLI status (ms) | 265.1 / 298.2 (11) | 255.1 / 276.4 (11) |
+| Events/s | 51,832 / 66,916 (5) | 51,262 / 63,810 (5) |
+| Mock step overhead (ms) | 0.043 / 0.048 (12) | 0.066 / 0.080 (12) |
+| Idle daemon RSS (MB) | 42.0 / 42.3 (3) | 42.1 / 42.4 (3) |
+| Idle dashboard RSS (MB) | 62.2 / 63.5 (3) | 63.6 / 63.6 (3) |
+| Idle daemon CPU (s/h) | 0.0 / 0.0 (3) | 0.0 / 4.5 (3) |
+| Idle dashboard CPU (s/h) | 9.0 / 9.0 (3) | 4.5 / 4.5 (3) |
+
+This slice adds roughly 0.023 ms to the measured mock step median and 1.4 MB to idle dashboard
+RSS. Neither crosses the unchanged absolute noise floor. Event median is 1.1% lower. The
+same gate reports no additional regression against `4bdd936`; the earlier **29.0% event-throughput
+regression against `f5696ce` remains unresolved**, not erased by this newer comparison. CPU uses
+coarse eight-second windows and cannot establish an improvement. These mock/control-plane
+results exclude real model loading/inference, browser startup, network latency and queueing.
+
+[Previous](artifacts/performance/previous-4bdd936-action-intents.json) and
+[current](artifacts/performance/current-4bdd936-action-intents.json) include all samples;
+context files record source hashes, timing and load. Both measurement subprocesses completed
+successfully, but the wrapper's final summary import initially failed. The retained
+[postprocess log](artifacts/performance/action-intents-postprocess-initial.log) records that failure.
+The wrapper now supports `--summarize-only`; summarizing the preserved captures passed without
+remeasuring or altering their data. Finite/nonnegative samples, medians and matching harness/
+current source hashes were validated. Reproduce with
+`docs/realignment/artifacts/performance/capture_comparison.py` after other checks finish.

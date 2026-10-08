@@ -1082,6 +1082,11 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .cmenu { max-height: min(60dvh, 480px); overflow-y: auto; overscroll-behavior: contain; }
 .run-error.run-notice { color: var(--text-2); }
 .run-error.run-review { color: var(--warn); }
+.receipt-card { margin: var(--s-4) 0; padding: var(--s-4); border: 1px solid var(--line); border-left: 2px solid var(--warn); border-radius: var(--r-ctl); }
+.receipt-card p { margin: var(--s-2) 0; overflow-wrap: anywhere; }
+.receipt-card[data-receipt-reviewed] { border-left-color: var(--brand-deep); }
+.receipt-json { max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-sm); }
+.receipt-evidence { white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 600px) {
   .mhead { flex-wrap: wrap; }
   .mhead .status { flex-shrink: 0; max-width: 100%; white-space: normal; }

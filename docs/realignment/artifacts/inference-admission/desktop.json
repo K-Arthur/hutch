@@ -5,13 +5,13 @@
     1440,
     1000
   ],
-  "captured_at": "2026-10-08T11:48:27.922895+00:00",
+  "captured_at": "2026-10-08T12:44:02.372149+00:00",
   "scenario": "synthetic queue and timing; not live inference",
   "page_errors": [],
   "horizontal_overflow": 0,
   "source_sha256": {
-    "src/hutch/server/static/app.js": "67d1720bc9dedf9678ec4983346688023137aa1084b3e368f2c6fb871618d217",
-    "src/hutch/server/static/style.css": "ba163ad8766f9c5d56dcdf3fbe4a44c6216e58d423150d60ce5c8fa423d9a077",
-    "src/hutch/runtime/builtin.py": "39efde2b4dbe2a16b720b86f4569b85a5ddd7756b5003a3b75f70bd7bcb0d52e"
+    "src/hutch/server/static/app.js": "270280ed223940b8ef73fa2392c0c49dde90c51acbbd7d8c3bae75e6c2785546",
+    "src/hutch/server/static/style.css": "5defb7499a18c6cefc969d63360cbf612f43a24d62438dcb4b0190baa2017d78",
+    "src/hutch/runtime/builtin.py": "c52672a26035f9d2428f641f1856a54900f632feec8c405d01b740b430ff4a09"
   }
 }
