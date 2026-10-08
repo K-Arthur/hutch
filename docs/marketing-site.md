@@ -3,8 +3,8 @@
 The static site is an alpha preview, not an installation or hosted-service funnel. Its source repository is private and there is
 no public package or release. The anonymous page therefore points its calls to action to local sections that show the demo and
 availability status; it does not send visitors to a private GitHub repository, copy commands that cannot work anonymously, or
-contact the Hutch host. The site loads its CSS, JavaScript, font and images from its own directory. The only persistent browser
-preference is the effects setting in `localStorage`.
+contact the Hutch host. The site loads its CSS, JavaScript, font and images from its own directory. No browser preference is
+stored: motion follows the operating system's reduced-motion setting automatically.
 
 ## Capability language
 
@@ -34,8 +34,73 @@ The site intentionally removed unattributed forum IDs, unsupported spend-guarant
 `website/assets/captures/proof-*.webp` are optimized derivatives of the adjacent `raw/` captures. They show Hutch v0.1.0 at commit
 `e96a4bf`, seeded with `hutch demo seed`; the gate screen is an approval waiting for a human. The images contain demo bot names,
 fixture prompts, run identifiers and synthetic run records. They contain no provider key, real account, private workspace content or
-live external action. The screenshot timestamps displayed in the app are UTC. The mascot is a local SVG illustration at
-`website/assets/hutch-agent.svg`, not an application screenshot.
+live external action. The screenshot timestamps displayed in the app are UTC. The mascot is an original Blender render
+(`scripts/render_hutch_agent.py`), shipped as `website/assets/hutch-agent.webp` plus a 7x3 look-at-cursor frame grid in
+`website/assets/agent/`; it is not an application screenshot.
 
 Before changing product copy, compare it with `docs/realignment/ledger.md`, `docs/realignment/evidence-ledger.md`,
 `docs/realignment/visual-validation.md`, and the current provider/support matrix in `docs/adr/0005-providers-auth-and-subscriptions.md`.
+
+## Visual system and assets (Oct 2026 rework)
+
+One token source (`website/tokens.json`) compiles to `website/tokens.css` via `scripts/build_site_tokens.py`, which validates
+references, cycles, duplicate names and the declared text/background contrast pairs, and fails on output drift (`--check`).
+
+| Asset | Provenance |
+|---|---|
+| `website/assets/agent/f*-p*.webp` (7x3 look-at-cursor frames) | Original Blender render: `scripts/render_hutch_agent.py` (bpy 5.0.1, Cycles CPU, 96 samples, denoise, transparent film; no chroma keying). Blue palette; an `--palette emerald` variant exists in the script. The body follows a pointer turn at 34%, the visor/cap/face group at 72%, pivoting at the neck. Post: 16px alpha-blur glow pass, unified 620x880 canvas, webp q82. Regenerate with the venv noted in the script docstring. |
+| `website/assets/hutch-agent.webp` | Copy of the centre frame (`f3-p1`), used as the still hero and CTA artwork. |
+| `website/assets/captures/*.webp` | Screenshots of the running app (v0.1.0, `e96a4bf`) with `hutch demo seed` data only; captured at 1440x900 @2x with Playwright, cropped and converted to webp. No personal data. |
+| `website/assets/fonts/archivo-latin-var.woff2` | Archivo (OFL) latin variable subset, self-hosted; licence beside it. |
+
+Pointer behaviour is an enhancement: it starts only on `(pointer: fine)` devices with at least 4 cores, no `saveData`, and no
+reduced-motion preference; the frame grid is fetched on idle after first paint, and any failed frame leaves the still image in
+place. Reduced motion, touch, and no-JS visitors get the static centre frame.
+
+## Build (Tailwind v4 + DaisyUI v5)
+
+The marketing surface is Tailwind + DaisyUI layered on the brand token source:
+
+- `website/src/input.css` — Tailwind v4 entry. DaisyUI v5 loads with an explicit component
+  include list (`button, badge, card, navbar, footer, table, collapse, alert, link, menu`)
+  and a custom `hutch` theme mapped to the pinned brand contract: emerald `#34d399`, 0px
+  fields (buttons), 100px selectors (badges/chips), 8px boxes (cards/panels), one dark theme.
+- `npm run build:css` compiles `website/app.css` (29-49 KiB minified, within the 40 KiB CSS
+  budget at the trimmed include list). The built file is committed so the page stays
+  static: no runtime external requests, no build step needed to serve it.
+- `website/styles.css` holds only hutch-specific pieces — hero weave, proof chrome, code
+  window, architecture diagram, receipts/availability tables, footer base, motion.
+- `website/tokens.css` remains the generated source of truth for brand/semantic values;
+  `tests/test_site_tokens.py` checks that every `var(--token)` in `styles.css` resolves, and
+  that the compiled `app.css` is present with the theme and components in place.
+
+## Reference decisions (supplied design set, Oct 2026)
+
+Adopted: window chrome for product proof (traffic-dot trio, centred monospace title, status chip); the receipts as a real
+data table (# / Source / Reported failure / hutch answer / Evidence) with fixed columns, hairline rows, right-aligned
+evidence pills and a mobile card stack; icon + title + copy feature cards in a three-up grid; a separately headed
+"How a run is wired" architecture block (SVG diagram on desktop, readable list on phones) kept apart from the feature cards;
+data-first workflow cards (capture on top, number + title + one-line caption); a model-route pill row; the poster wordmark
+sized to sit fully inside its column (no sliced strokes) behind a dimensional subject with exactly one front glyph; a
+monospace spec line under the hero subject; and syntax-coloured code windows (chrome bar, coloured keys, terminal status bar).
+
+Rejected: purple aurora gradient heroes, gradient display type, warm-beige editorial palettes, collage-of-floating-cards
+backgrounds, and the 24-48px translucent container look. Also rejected after review: a page-level emerald hero wash (removed
+in favour of the artwork's own contained glow), a box-in-box "limits" panel with an orphan card (now a plain hairline list),
+a half-empty wide use-case card (now three even columns), a container wrapped around the receipts table, and a poster wordmark
+cropped past the scene edge. The pinned brand contract (emerald accent, 0px controls / 8px panels / 100px chips, one dark
+theme) governs.
+
+## Verification (Oct 2026 rework)
+
+- `tests/test_site_tokens.py`: token compilation, contrast pairs, drift.
+- `tests/e2e/test_website.py` (24 checks, all passing): no-JS readability, no external requests, reference-pattern presence
+  (table shape, icon cards, architecture block, route pills), agent frame set, distinct code styling, dialog drawer
+  focus/Escape/resize, reduce-motion visibility, reveal watchdog, tab keyboard operation, demo gate states, honesty markers,
+  and zero horizontal overflow at 320/360/390/428/768/1024/1440/1920.
+- Screenshot review at 1440 and 390 (hero, proof chrome, receipts table, workflow, runs + architecture, control, use cases,
+  availability, FAQ, CTA), plus pointer-swap verification left/right and a measured check that the hero wordmark fits its
+  column (about 18px slack each side).
+
+Known gaps: no physical-device or screen-reader session; contrast is computed for declared token pairs, with rendered surfaces
+checked by eye at the two review widths; the frame grid is untested on very low-end GPUs.

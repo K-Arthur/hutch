@@ -1,0 +1,13 @@
+{
+  "name": "hutch-site",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i website/src/input.css -o website/app.css --minify && node scripts/stamp_site_assets.mjs",
+    "watch:css": "tailwindcss -i website/src/input.css -o website/app.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "daisyui": "^5.7.47",
+    "tailwindcss": "^4.3.3"
+  }
+}
