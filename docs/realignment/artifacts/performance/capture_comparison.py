@@ -10,6 +10,7 @@ import argparse
 import io
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -32,11 +33,14 @@ def stamp():
     return datetime.now(timezone.utc).isoformat()
 
 
-def measure(root, name, revision):
+def measure(root, name, revision, archived_harness_sha256=None):
     command = [sys.executable,'-m','benchmarks.run']
     before = source_hashes(root)
     context = {'source_revision':revision,'start_utc':stamp(),'start_load':os.getloadavg(),
-               'command':command,'cwd':str(root),'source_sha256':before,'comparison':'sequential after tests, unmodified harness'}
+               'command':command,'cwd':str(root),'source_sha256':before,
+               'comparison':'sequential after tests, identical current harness in both source trees',
+               'benchmark_harness_sha256':before['benchmarks/run.py'],
+               'archived_benchmark_harness_sha256':archived_harness_sha256}
     env = {**os.environ,'PYTHONPATH':str(root/'src'),'HUTCH_BENCH_SOURCE_REVISION':revision}
     with (OUT/f'{name}.log').open('w') as log:
         result = subprocess.run(command,cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT)
@@ -75,9 +79,15 @@ def main():
         archive = subprocess.run(['git','archive',args.previous],cwd=ROOT,check=True,capture_output=True).stdout
         with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
             tar.extractall(source,filter='data')
-        if source_hashes(source)['benchmarks/run.py'] != source_hashes(ROOT)['benchmarks/run.py']:
-            raise RuntimeError('comparison requires identical benchmark harnesses')
-        previous = measure(source,f'previous-{args.previous}-{args.label}',args.previous)
+        archived_harness = hashlib.sha256((source/'benchmarks/run.py').read_bytes()).hexdigest()
+        # Apply today's identical measurement code to both revisions. Keep its
+        # original archived hash in the context so a harness change stays visible.
+        shutil.copy2(ROOT/'benchmarks/run.py', source/'benchmarks/run.py')
+        harness = source_hashes(ROOT)['benchmarks/run.py']
+        if source_hashes(source)['benchmarks/run.py'] != harness:
+            raise RuntimeError('failed to apply the current benchmark harness to the archived source')
+        previous = measure(source,f'previous-{args.previous}-{args.label}',args.previous,
+                           archived_harness_sha256=archived_harness)
         current = measure(ROOT,f'current-{args.previous}-{args.label}',args.current_revision)
     # Printed change ratios supplement raw distributions, not a claim about
     # live model loading/inference, browser startup or network/physical devices.

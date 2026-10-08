@@ -85,6 +85,10 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   Run resources expose `transcript_mirror` with `target_seq`, `delivered_seq`, `pending`,
   `error` and transient `worker_error`. These describe file delivery, not executor status.
   A Done run with a pending file keeps its completion label and canonical database answer.
+  Schema v16 removes the per-event enqueue trigger: the canonical event writer advances or creates
+  one delivery intent per committed batch in the same transaction. While delivery is pending,
+  readers derive the latest target from committed events and the acknowledger rechecks the tail
+  before clearing pending state.
 * Pairing codes expire after 60 seconds and are single use. They issue HttpOnly device sessions, hash-only at rest, with a sliding
   30-day expiry. Operators can list/revoke sessions using `hutch pairing list` and `hutch pairing revoke <device-id>`; pairing is
   limited to five failed attempts per source IP per ten minutes. Off-loopback binding requires `hutch serve --allow-remote` and direct

@@ -62,7 +62,7 @@ infrastructure until trusted-proxy handling is documented and validated.
 ## Database migration and restore
 
 Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. This
-realignment branch uses schema v15; `hutch doctor` displays the current version. Keep the matching
+realignment branch uses schema v16; `hutch doctor` displays the current version. Keep the matching
 release and pre-upgrade backups. A normal snapshot captures committed database history, including
 WAL pages; event buffers that have not committed yet are outside its scope:
 
@@ -148,6 +148,9 @@ Schema v15 preserves legacy memory values as unreviewed legacy proposals, withou
 private chat or treating a prior `user` label as approval. Review an exact revision before recall;
 sharing it across a bot's chats requires an explicit decision. Rollback uses a compatible release
 and its matching backup, rather than restoring automatic injection of old facts into prompts.
+Schema v16 removes per-event transcript-mirror triggers. The event writer records one durable
+delivery intent per committed batch in the same transaction as canonical event rows; upgraded
+installations preserve pending delivery state and their pre-upgrade backup.
 Hutch does not infer that adjacent runs share a
 private context. New conversations and message submissions are written transactionally with their idempotency records. The
 `conversation_fts` index contains message text only; it excludes tool output, credentials, workspaces and bot memory.

@@ -1,6 +1,6 @@
 """Recoverable JSONL delivery from canonical SQLite events.
 
-Intent is enqueued by an events trigger. A private file lock serializes delivery
+Intent is enqueued by the canonical event writer in the same transaction. A private file lock serializes delivery
 across Stores; acknowledgement follows fsync. A restart verifies the file prefix
 against the canonical hash chain before appending, including an unacknowledged
 successful write. Corrupt/partial mirrors are preserved before reconstruction.
@@ -31,14 +31,6 @@ def migrate(db: sqlite3.Connection) -> None:
         run_id TEXT PRIMARY KEY, bot_name TEXT NOT NULL, target_seq INTEGER NOT NULL,
         delivered_seq INTEGER NOT NULL DEFAULT 0, error TEXT NOT NULL DEFAULT '',
         file_size INTEGER NOT NULL DEFAULT -1, file_mtime_ns INTEGER NOT NULL DEFAULT 0)""")
-    db.execute("""CREATE TRIGGER transcript_delivery_insert AFTER INSERT ON events
-        WHEN NOT EXISTS(SELECT 1 FROM transcript_delivery WHERE run_id = NEW.run_id AND target_seq > delivered_seq)
-        BEGIN
-        INSERT INTO transcript_delivery(run_id, bot_name, target_seq)
-        VALUES (NEW.run_id, COALESCE((SELECT b.name FROM runs r JOIN bots b ON b.id = r.bot_id
-                WHERE r.id = NEW.run_id), 'unassigned'), NEW.seq)
-        ON CONFLICT(run_id) DO UPDATE SET target_seq = MAX(target_seq, NEW.seq);
-        END""")
     db.execute("""INSERT INTO transcript_delivery(run_id, bot_name, target_seq)
         SELECT e.run_id, COALESCE(b.name, 'unassigned'), MAX(e.seq)
         FROM events e LEFT JOIN runs r ON r.id = e.run_id LEFT JOIN bots b ON b.id = r.bot_id

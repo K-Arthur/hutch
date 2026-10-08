@@ -214,8 +214,9 @@ require a bounded snapshot whose resource state and cursor share one read transa
 one-second safety poll catches silent cross-process commits. Targeted UI refreshes preserve
 drafts/settings rather than routing the page. Approval admission includes its review event;
 canonical decision summaries cover a missing worker response. Connection-file changes are
-excluded. Schema v12 separately enqueues transcript-file delivery with each event. A locked,
-bounded worker verifies prefixes, preserves damaged files, fsyncs before acknowledgement and
+excluded. Schema v12 introduced recoverable transcript-file delivery. Schema v16 records one durable
+delivery intent per committed event batch in the same transaction as canonical events, instead of
+running an insert trigger per event. A locked, bounded worker verifies prefixes, preserves damaged files, fsyncs before acknowledgement and
 retries after restart. File errors remain visible without changing executor completion; all
 SQLite connections use FULL WAL synchronization. See
 [ADR-0012](adr/0012-resource-outbox-and-reconciliation.md) and restore precautions in operations.

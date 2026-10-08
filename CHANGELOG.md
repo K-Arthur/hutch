@@ -14,6 +14,7 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Added
 
+- Transcript file-delivery intents are now recorded once per committed event batch in the same SQLite transaction. Schema v16 removes the per-event trigger without changing crash recovery, visible delivery errors or FULL-sync behavior.
 - Bots can use a fresh workspace per run, a private Hutch-managed workspace shared across that bot's runs and chats, or a validated existing folder. The default remains fresh; managed files survive bot deletion and are excluded from database-only backups.
 - Executor health uses a steady status mark with text and connection-state changes instead of a decorative pulse between health checks.
 - Successful `write_file` actions now expose immutable, SHA-256-verified downloads directly in Studio chat without expanding tool details, up to 4 MB per file and 16 MB per run.

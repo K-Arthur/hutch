@@ -1,0 +1,16 @@
+{
+  "captured_at": "2026-10-08T21:14:58.874091389Z",
+  "source_revision": "e982f11",
+  "comparison_source_context": "current-f5696ce-matched-e982f11-repeat.context.json",
+  "source_sha256": {
+    "src/hutch/store.py": "53e19696434623c5be931d112ae492bb41b57f50ca71d3df86ed1e0cc3878096",
+    "src/hutch/transcript_mirror.py": "859eb126e420dfee55155f923ea28ef41d5669625e14fc905277c457f31e4428"
+  },
+  "command": "PYTHONPATH=src .venv/bin/python docs/realignment/artifacts/performance/mirror-diagnosis.py",
+  "comparison": "running mirror / test-only trigger-disabled database / running mirror",
+  "events_per_sample": 20000,
+  "samples_per_mode": 5,
+  "synchronous": "FULL (2) in every mode",
+  "triggerless_mode": "temporary state only; dropped transcript_delivery_insert before timing and therefore deliberately omitted durable file-delivery intent",
+  "limit": "Diagnostic evidence for the pre-schema-v16 event writer, not a supported runtime configuration."
+}

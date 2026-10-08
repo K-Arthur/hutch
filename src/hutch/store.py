@@ -333,9 +333,14 @@ def _migrate_15(db: sqlite3.Connection) -> None:
     migrate(db)
 
 
+def _migrate_16(db: sqlite3.Connection) -> None:
+    """Move transcript mirror intent enqueue from a per-row trigger to event batches."""
+    db.execute("DROP TRIGGER IF EXISTS transcript_delivery_insert")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
-               _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15]
+               _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -1837,6 +1842,18 @@ class Store:
             prev = e.hash
             rows.append((run_id, seq, e.hash, e.ts, e.type.value, data_json))
         db.executemany("INSERT INTO events (run_id, seq, hash, ts, type, data) VALUES (?, ?, ?, ?, ?, ?)", rows)
+        # Persist one recoverable file-delivery intent per committed event
+        # batch, in this transaction. The old row trigger ran a SQL predicate
+        # for every event even while a run already had pending delivery. When
+        # an intent is pending, status/_ack derive the current tail from events;
+        # once acknowledged, this upsert wakes delivery for the next batch.
+        delivery = db.execute("SELECT b.name FROM runs r JOIN bots b ON b.id = r.bot_id WHERE r.id = ?",
+                              (run_id,)).fetchone()
+        bot_name = delivery["name"] if delivery else "unassigned"
+        db.execute("""INSERT INTO transcript_delivery(run_id, bot_name, target_seq) VALUES (?, ?, ?)
+            ON CONFLICT(run_id) DO UPDATE SET target_seq = MAX(transcript_delivery.target_seq, excluded.target_seq)
+            WHERE transcript_delivery.target_seq <= transcript_delivery.delivered_seq""",
+            (run_id, bot_name, seq))
         # Every event insertion path projects canonical replies in the same transaction.
         # Terminal transitions drain the buffer here rather than through _commit_batch;
         # projecting only in that writer lost replies when completion won the race.

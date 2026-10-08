@@ -106,7 +106,9 @@ by the harness is historical; this table and comparison use the measured `f5696c
 | Idle daemon CPU (s/h) | 0.0 / 0.0 (3) | 0.0 / 0.0 (3) |
 | Idle dashboard CPU (s/h) | 4.5 / 4.5 (3) | 4.5 / 4.5 (3) |
 
-Event throughput is **29.0% lower** than the previous commit and exceeds the 20% median gate.
+At this historical schema-v12 checkpoint, event throughput was **29.0% lower** than the previous
+commit and exceeded the 20% median gate. The later matched investigation below isolated the cause;
+schema v16 removes the trigger overhead while preserving durable delivery intent.
 The initial uncoalesced implementation measured 45,107 events/s; pending-job coalescing and
 bounded group commit improve the final median to 51,817. Running/paused/running isolated
 diagnostics retain FULL sync and indicate enqueue/commit cost dominates file-delivery work
@@ -127,9 +129,10 @@ The [initial tree](artifacts/performance/current-f5696ce-mirror-uncoalesced.json
 [uncoalesced](artifacts/performance/mirror-diagnosis-uncoalesced.json),
 [coalesced](artifacts/performance/mirror-diagnosis-coalesced.json) and
 [grouped](artifacts/performance/mirror-diagnosis-grouped.json) diagnostics remain inspectable.
-The [diagnostic script](artifacts/performance/mirror-diagnosis.py) reproduces the three
-modes against the current tree; historic precommit variants require their recorded source
-boundaries and must not be assumed identical to the final code.
+The comparison wrapper overlays today's identical benchmark harness on both archived and current
+source trees and records the archive's original harness hash. The historical
+`mirror-diagnosis.py` script measures the pre-v16 outbox-trigger path; its trigger-disabled branch
+is only a diagnostic fixture and must run against its recorded schema-v15 source boundary.
 
 ### Immutable action-intent checkpoint, 2026-10-08
 
@@ -152,8 +155,9 @@ metadata as a measured dirty checkout or replace it silently.
 
 This slice adds roughly 0.023 ms to the measured mock step median and 1.4 MB to idle dashboard
 RSS. Neither crosses the unchanged absolute noise floor. Event median is 1.1% lower. The
-same gate reports no additional regression against `4bdd936`; the earlier **29.0% event-throughput
-regression against `f5696ce` remains unresolved**, not erased by this newer comparison. CPU uses
+same gate reports no additional regression against `4bdd936`; at this schema-v13 checkpoint, the
+earlier **29.0% event-throughput regression against `f5696ce` was still unresolved**. The later
+schema-v16 comparison below resolves that gate. CPU uses
 coarse eight-second windows and cannot establish an improvement. These mock/control-plane
 results exclude real model loading/inference, browser startup, network latency and queueing.
 
@@ -188,7 +192,8 @@ The unchanged previous revision moves from 229.3 to 479.9 ms CLI startup and fro
 50,488 to 23,733 events/s between pairs. Current startup moves from 322.5 to 234.7 ms,
 and events from 35,316 to 52,625/s. This demonstrates substantial timing variability; the
 first slowdown is not repeatable in this pair, without establishing an exclusive cause or
-a code improvement. The prior schema-v12 **29.0% event-throughput regression remains open**.
+a code improvement. At this restoration checkpoint the schema-v12 **29.0% event-throughput
+regression was still open**; the schema-v16 investigation below supersedes that state.
 Idle RSS stays 42.4 MB daemon / 64.1 MB dashboard in both current captures. CPU remains
 coarsely sampled; no improvement follows. These results exclude inference, model loading,
 provider/browser startup and queueing. Finite/nonnegative samples, medians, harness and
@@ -199,3 +204,42 @@ Raw JSON, source/load context and text logs are preserved as
 [performance artifacts](artifacts/performance/). The wrapper refuses overwriting existing
 captures. Reproduce with `capture_comparison.py --previous 8e1abae --label NEW_LABEL
 --current-revision YOUR_REVIEWED_TREE` after other checks finish.
+
+### Matched event-throughput investigation before schema v16, 2026-10-08
+
+A fresh sequential comparison applies one current benchmark harness to both the `f5696ce` archive
+and the schema-v15 tree at `e982f11`. The archive carried a different harness; its original hash
+(`66dab3a9…`) and the shared current hash (`f72e7561…`) are both in the context files. The event
+median was **75,894 events/s** at `f5696ce` and **51,348 events/s** at `e982f11`, a **32.3% loss**
+in this matched run. CLI startup/status remained within the measured noise floor;
+the mock-step delta was below its 0.5 ms absolute noise floor, and idle RSS differences were below
+4 MB. Host load was similar during the sequential pair. Raw samples, context and source hashes are
+in [previous](artifacts/performance/previous-f5696ce-matched-e982f11-repeat.json),
+[current](artifacts/performance/current-f5696ce-matched-e982f11-repeat.json), and their context
+files.
+
+An isolated schema-v15 diagnostic then compared production event writes with a temporary database
+that omitted only the `transcript_delivery_insert` trigger. The production medians were **51,593**
+and **50,670 events/s** around the trigger-disabled diagnostic median of **77,280 events/s**. All
+three retained `synchronous=FULL`; the diagnostic deliberately had no durable file-delivery intent
+and is not a usable operating mode. This isolates the per-row trigger work as the regression source.
+Schema v16 moves durable intent updates to one upsert per committed event batch in the same SQLite
+transaction. After the migration, full offline and browser suites passed, then the matched repeat
+measured **77,997 events/s** at the v16 tree versus **77,012 events/s** at `f5696ce` (**+1.3% p50**;
+both within the absolute noise floor). Event p90 was 78,233 versus 78,544 events/s. The comparison
+reports no regression above its gates. CLI startup/status remain within noise; mock step overhead
+differs by 0.071 ms, below its 0.5 ms noise floor; idle daemon/dashboard RSS differs by +0.6/+2.8 MB,
+below the 4 MB floor. FULL synchronization remains enabled. These are local control-plane
+measurements, not model throughput or a production SLA.
+
+The [schema-v16 previous](artifacts/performance/previous-f5696ce-matched-v16-batched-precommit.json)
+and [current](artifacts/performance/current-f5696ce-matched-v16-batched-precommit.json) files,
+context and harness/source hashes retain every sample. The current source-hash record was captured
+from the code subsequently committed as schema-v16 batch enqueue; the `src/hutch` hashes match that
+commit. The per-event trigger diagnostic above remains a historical, test-only comparison and is
+not part of product operation.
+
+The five-sample raw diagnostic is
+[`mirror-diagnosis-outbox-trigger.json`](artifacts/performance/mirror-diagnosis-outbox-trigger.json).
+Its application source boundary is `e982f11` (hashes in the matched comparison context); the
+measurement occurred before the schema-v16 implementation below.

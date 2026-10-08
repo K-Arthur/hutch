@@ -1,12 +1,14 @@
 # ADR-0013: Recoverable transcript files and durable action prerequisites
 
-Status: implemented locally (2026-10-08). Slice: S4. Extends ADR-0003 and ADR-0012.
+Status: implemented locally; schema-v16 batching update (2026-10-08). Slice: S4/S9. Extends ADR-0003 and ADR-0012.
 
 ## Decision
 
-SQLite remains the canonical transcript. Schema v12 guarantees pending delivery in the
-same transaction as each event through an AFTER trigger. An already-pending job covers new
-events without a redundant update. Acknowledgement rechecks the canonical tail in its SQL
+SQLite remains the canonical transcript. Schema v12 first guaranteed pending delivery in the
+same transaction as each event through an AFTER trigger. Schema v16 replaces that trigger with
+one delivery-intent upsert per event batch in the canonical event transaction. An already-pending
+job covers newer events without a redundant update; status derives the current tail from committed
+events. Acknowledgement rechecks the canonical tail in its SQL
 transaction before clearing pending; an event committed during file IO remains due, and an
 insert after acknowledgement makes the job pending again. Status reads return the actual
 canonical target. Historic events are backfilled;

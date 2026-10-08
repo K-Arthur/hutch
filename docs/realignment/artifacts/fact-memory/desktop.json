@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-10-08T21:07:52.443656+00:00",
+  "captured_at": "2026-10-08T21:26:38.783147+00:00",
   "browser": "chromium",
   "version": "153.0.8010.12",
   "viewport": [
@@ -13,7 +13,7 @@
   "rendered_fact_script_not_executed": true,
   "source_sha256": {
     "src/hutch/models.py": "5d570ad659e67789fd86137c27bfd3f021b443fcd66dd917443fe73782b2fa71",
-    "src/hutch/store.py": "53e19696434623c5be931d112ae492bb41b57f50ca71d3df86ed1e0cc3878096",
+    "src/hutch/store.py": "d2d7b41239e1d509005eb7a20b0faa5a83f719cb7590a8d0b57c6c2da8da14d6",
     "src/hutch/fact_memory.py": "7983fe527a6868e35d5baea0c6a479df9289d916a66723c51a156503c89f48e1",
     "src/hutch/tools/memory.py": "92d7bb1800f40017863667c23c774fd8741ccf826a0906a62401474044d49d3a",
     "src/hutch/runtime/builtin.py": "baaef91d3e6df3b5aca3a5ec0dbc9a4ec65faa9d0e6a4cd68a5811578ccb1a70",

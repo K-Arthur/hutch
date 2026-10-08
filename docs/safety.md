@@ -42,6 +42,10 @@ acknowledgement of action prerequisites, subject to storage honoring fsync. See
 [operations](operations.md), [ADR-0012](adr/0012-resource-outbox-and-reconciliation.md) and
 [ADR-0013](adr/0013-recoverable-transcript-files.md).
 
+Schema v16 batches transcript-delivery intent updates with the canonical event transaction. It
+removes per-event trigger work while retaining recoverable delivery, hash verification and visible
+failures; it does not make the filesystem mirror authoritative.
+
 Schema v13 records immutable tool arguments and reviewed authority before effects. Missing
 receipts seal atomically as uncertain even when the runtime returns success. Check the destination
 and record an outcome in chat or Needs you; this is an immutable human report, not independent

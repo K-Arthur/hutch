@@ -2,13 +2,14 @@
 import json
 import multiprocessing
 import os
+import sqlite3
 from pathlib import Path
 
 import pytest
 
 from hutch.config import hutchConfig
 from hutch.models import Bot, Event, EventType, Run
-from hutch.store import Store
+from hutch.store import SCHEMA_VERSION, Store
 from hutch.transcript_mirror import TranscriptMirror
 
 
@@ -51,16 +52,64 @@ def test_intent_rolls_back_with_event_and_retains_bot_directory_after_deletion(p
     store = paused
     assert store._db.execute("PRAGMA synchronous").fetchone()[0] == 2
     bot, run, path = history(store)
+    assert not store._db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name=?",
+                                 ("transcript_delivery_insert",)).fetchone()
     assert not path.exists() and store._mirror.status(run.id)["pending"]
     with pytest.raises(RuntimeError):
         with store._tx() as db:
-            db.execute("INSERT INTO events(run_id,seq,hash,ts,type,data) VALUES (?,4,'fake','now','log','{}')", (run.id,))
+            Store._insert_events(db, run.id, [Event(run_id=run.id, type=EventType.log, data={"note": "rollback"})])
             raise RuntimeError("before commit")
     assert store._mirror.status(run.id)["target_seq"] == 3
     store.delete_bot(bot.id)
     drain(store)
     assert_file(store, run, path)
     assert path.stat().st_mode & 0o777 == 0o600
+
+
+def test_v16_replaces_legacy_event_trigger_and_preserves_delivery_intents(paused, config):
+    bot, run, _ = history(paused, name="migrated-mirror", count=2)
+    pending = paused._db.execute("SELECT target_seq, delivered_seq FROM transcript_delivery WHERE run_id = ?",
+                                 (run.id,)).fetchone()
+    assert tuple(pending) == (2, 0)
+    paused.close()
+
+    # Model an installed v15 database with its original insert trigger. The
+    # SQLite backup made during upgrade must preserve that source for rollback.
+    with sqlite3.connect(config.db_path) as db:
+        db.executescript("""CREATE TRIGGER transcript_delivery_insert AFTER INSERT ON events
+            WHEN NOT EXISTS(SELECT 1 FROM transcript_delivery WHERE run_id = NEW.run_id AND target_seq > delivered_seq)
+            BEGIN
+            INSERT INTO transcript_delivery(run_id, bot_name, target_seq)
+            VALUES (NEW.run_id, COALESCE((SELECT b.name FROM runs r JOIN bots b ON b.id = r.bot_id
+                    WHERE r.id = NEW.run_id), 'unassigned'), NEW.seq)
+            ON CONFLICT(run_id) DO UPDATE SET target_seq = MAX(target_seq, NEW.seq);
+            END;""")
+        db.execute("PRAGMA user_version = 15")
+
+    upgraded = Store(config)
+    try:
+        assert upgraded.schema_version == SCHEMA_VERSION == 16
+        assert not upgraded._db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name=?",
+                                        ("transcript_delivery_insert",)).fetchone()
+        assert tuple(upgraded._db.execute("SELECT target_seq, delivered_seq FROM transcript_delivery WHERE run_id = ?",
+                                         (run.id,)).fetchone()) == (2, 0)
+        backup = sqlite3.connect(config.db_path.with_suffix(".db.bak-v15"))
+        try:
+            assert backup.execute("PRAGMA user_version").fetchone()[0] == 15
+            assert backup.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name=?",
+                                  ("transcript_delivery_insert",)).fetchone()
+        finally:
+            backup.close()
+
+        upgraded.append_event(Event(run_id=run.id, type=EventType.log, data={"next": True}))
+        upgraded.flush_events()
+        assert tuple(upgraded._db.execute("SELECT target_seq, delivered_seq FROM transcript_delivery WHERE run_id = ?",
+                                         (run.id,)).fetchone()) == (2, 0)
+        assert upgraded._mirror.status(run.id)["target_seq"] == 3
+        drain(upgraded)
+        assert_file(upgraded, run, config.run_dir(bot.name, run.id) / "transcript.jsonl")
+    finally:
+        upgraded.close()
 
 
 def test_lost_ack_retries_file_without_duplicate_rows(paused, monkeypatch):
@@ -291,8 +340,11 @@ def test_prefix_cache_is_bounded_and_evicted_history_is_reverified(paused, monke
 
 def test_pending_job_coalesces_writes_but_ack_cannot_lose_a_racing_event(paused, monkeypatch):
     _, run, path = history(paused)
-    # Pending intent survives; subsequent events do not perform redundant job writes.
-    assert paused._db.execute("SELECT target_seq FROM transcript_delivery WHERE run_id = ?", (run.id,)).fetchone()[0] == 1
+    assert not paused._db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name=?",
+                                  ("transcript_delivery_insert",)).fetchone()
+    # One committed batch creates one intent at its tail; subsequent events do
+    # not rewrite that pending row, and status derives the newer tail from DB.
+    assert paused._db.execute("SELECT target_seq FROM transcript_delivery WHERE run_id = ?", (run.id,)).fetchone()[0] == 3
     assert paused._mirror.status(run.id)["target_seq"] == 3
     original = paused._mirror._ack
     raced = []
