@@ -116,7 +116,8 @@ const ICON_PATHS = {
   pause: '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>',
   shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
   key: '<path d="m21 2-2 2m-7.6 7.6a5.5 5.5 0 1 1-7.8 7.8 5.5 5.5 0 0 1 7.8-7.8Zm0 0L15.5 7.5m0 0 3 3L22 4l-3-3z"/>',
-  brain: '<path d="M9.5 2a2.5 2.5 0 0 1 0 5v10a2.5 2.5 0 1 1-4.9.7A3 3 0 0 1 3 15a3 3 0 0 1 .5-5.9A2.5 2.5 0 0 1 5 5a2.5 2.5 0 0 1 4.5-3Z"/><path d="M14.5 2a2.5 2.5 0 0 0 0 5v10a2.5 2.5 0 1 0 4.9.7A3 3 0 0 0 21 15a3 3 0 0 0-.5-5.9A2.5 2.5 0 0 0 19 5a2.5 2.5 0 0 0-4.5-3Z"/>',
+  brain: '<path d="M12 4a4 4 0 0 0-4 4 3.5 3.5 0 0 0-1 6.5A3.5 3.5 0 0 0 12 19a3.5 3.5 0 0 0 5-4.5 3.5 3.5 0 0 0-1-6.5 4 4 0 0 0-4-4Z"/><path d="M12 4v15"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/>',
 };
 
 function icon(name, cls = "") {
@@ -133,29 +134,138 @@ function summarizeOutput(output) {
 }
 
 /* ---------------------------------------------------------------- avatars
-   Identity hues — never status colors (status rides the pip + its word).
-   The first hue keeps the brand emerald lineage. */
-const AVATAR_HUES = [
-  { fg: "#34d399", bg: "rgba(52, 211, 153, 0.10)", line: "rgba(52, 211, 153, 0.34)", glow: "rgba(52, 211, 153, 0.30)" },
-  { fg: "#7c9cff", bg: "rgba(124, 156, 255, 0.10)", line: "rgba(124, 156, 255, 0.34)", glow: "rgba(124, 156, 255, 0.28)" },
-  { fg: "#9daebf", bg: "rgba(157, 174, 191, 0.10)", line: "rgba(157, 174, 191, 0.32)", glow: "rgba(157, 174, 191, 0.22)" },
-  { fg: "#d9a06b", bg: "rgba(217, 160, 107, 0.10)", line: "rgba(217, 160, 107, 0.34)", glow: "rgba(217, 160, 107, 0.24)" },
-  { fg: "#2dd4bf", bg: "rgba(45, 212, 191, 0.10)", line: "rgba(45, 212, 191, 0.34)", glow: "rgba(45, 212, 191, 0.26)" },
+   Unique agent sigils: a shape from a curated family wearing one of eight
+   brand-adjacent colours, with two glints that read as a face. The pair is
+   derived from the bot's name (stable with zero storage), and can be
+   overridden at creation or in settings — no two bots look alike, while the
+   family stays one visual language. Identity never encodes status: status
+   rides the pip, and the pip is always paired with a word (title/aria). */
+const ID_COLORS = ["#34d399", "#2dd4bf", "#38bdf8", "#818cf8", "#c084fc", "#d9a06b", "#94a3b8", "#f472b6"];
+const ID_SHAPES = [
+  "M20 5a15 15 0 1 1 -.01 0Z",                                        // circle
+  "M20 5c6.5 8.5 12.5 13.5 12.5 19.5a12.5 12.5 0 0 1-25 0C7.5 18.5 13.5 13.5 20 5Z", // droplet
+  "M14 6h12a8 8 0 0 1 8 8v12a8 8 0 0 1-8 8H14a8 8 0 0 1-8-8V14a8 8 0 0 1 8-8Z",      // squircle
+  "M12 12h16a8 8 0 0 1 0 16H12a8 8 0 0 1 0-16Z",                      // lozenge
+  "M20 6.5 33.4 28.9a3 3 0 0 1-2.6 4.6H9.2a3 3 0 0 1-2.6-4.6L18.4 6.5a1.9 1.9 0 0 1 3.2 0Z", // triangle
+  "M20 5l13 7.5v15L20 35 7 27.5v-15Z",                                // hexagon
+  `<g transform="rotate(45 20 20)"><rect x="10" y="10" width="20" height="20" rx="6"/></g>`,   // diamond
+  `<g transform="rotate(-20 20 20)"><rect x="7" y="13" width="26" height="14" rx="7"/></g>`,   // bean
 ];
 
-function botHue(name) {
-  let h = 0;
-  for (const c of String(name)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return AVATAR_HUES[h % AVATAR_HUES.length];
+function hash32(s) {
+  let h = 2166136261;
+  for (const c of String(s)) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function tint(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const m = c => Math.round(c + (255 - c) * amt);
+  return `rgb(${m(n >> 16)},${m((n >> 8) & 255)},${m(n & 255)})`;
+}
+
+// chosen overrides live in localStorage (view state). A server-side avatar
+// field on Bot is a recorded follow-up for the platform workstream.
+const idStore = (() => {
+  let all = {};
+  try { all = JSON.parse(localStorage.getItem("hutch:sigils") || "{}"); } catch {}
+  return {
+    all,
+    save() { try { localStorage.setItem("hutch:sigils", JSON.stringify(all)); } catch {} },
+  };
+})();
+function sigilPair(name) {
+  const over = idStore.all[name];
+  if (Array.isArray(over) && ID_COLORS[over[0]] && ID_SHAPES[over[1]]) return over;
+  const h = hash32(name);
+  return [h % ID_COLORS.length, ((h >>> 5) ^ (h >>> 13)) % ID_SHAPES.length];
+}
+function sigilSet(name, pair) { idStore.all[name] = pair; idStore.save(); }
+
+function sigilBody(pair) {
+  const [ci, si] = pair;
+  const base = ID_COLORS[ci], light = tint(base, 0.5);
+  const gid = `sg-${ci}`;
+  return `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${light}"/><stop offset="1" stop-color="${base}"/>
+    </linearGradient></defs>
+    <g fill="url(#${gid})">${String(ID_SHAPES[si]).startsWith("<") ? ID_SHAPES[si] : `<path d="${ID_SHAPES[si]}"/>`}</g>`;
+}
+
+function avatarFromPair(pair, size, state = "") {
+  return `<span class="avatar" style="--av:${size}px" ${size >= 36 ? 'data-gaze' : ""} aria-hidden="true"><svg class="sig" viewBox="0 0 40 40">${sigilBody(pair)}
+      <g class="gl" fill="#fff" opacity=".92">
+        <ellipse cx="16.2" cy="13.8" rx="3" ry="1.9" transform="rotate(-26 16.2 13.8)"/>
+        <ellipse cx="23" cy="12.4" rx="1.8" ry="1.3" transform="rotate(-26 23 12.4)"/>
+      </g></svg>${state ? `<span class="a-pip ${esc(state)}"></span>` : ""}</span>`;
 }
 
 function botAvatar(name, size = 32, state = "") {
-  const hue = botHue(name);
-  const initial = esc(String(name)[0] ? String(name)[0].toUpperCase() : "?");
-  return `<span class="avatar" style="--av:${size}px;--av-fg:${hue.fg};--av-bg:${hue.bg};--av-line:${hue.line};--av-glow:${hue.glow}" aria-hidden="true">${initial}${
-    state ? `<span class="a-pip ${esc(state)}"></span>` : ""}</span>`;
+  return avatarFromPair(sigilPair(name), size, state);
 }
 const hexAvatar = botAvatar;   // shared renderers still call this name
+
+// Glints follow the cursor on devices that can: a one-rAF pointer watcher that
+// shifts each large avatar's eye group a few px toward the pointer. Local to
+// the page — no position leaves the DOM, ever. Static for coarse pointers,
+// reduced motion, and the Reduce effects control.
+(function gazeTracking() {
+  if (!window.matchMedia || !matchMedia("(pointer: fine)").matches) return;
+  let raf = 0, mx = 0, my = 0;
+  const apply = () => {
+    raf = 0;
+    const off = document.documentElement.classList.contains("reduce-effects");
+    for (const el of document.querySelectorAll(".avatar[data-gaze]")) {
+      if (off) { el.style.removeProperty("--gx"); el.style.removeProperty("--gy"); continue; }
+      const r = el.getBoundingClientRect();
+      if (!r.width) continue;
+      const dx = mx - (r.left + r.width / 2), dy = my - (r.top + r.height / 2);
+      const d = Math.hypot(dx, dy);
+      const k = Math.min(1, d / 160) * r.width * 0.075;
+      el.style.setProperty("--gx", ((dx / (d || 1)) * k).toFixed(2));
+      el.style.setProperty("--gy", ((dy / (d || 1)) * k).toFixed(2));
+    }
+  };
+  document.addEventListener("pointermove", ev => {
+    mx = ev.clientX; my = ev.clientY;
+    if (!raf) raf = requestAnimationFrame(apply);
+  }, { passive: true });
+})();
+
+// shared identity picker (creation modal + bot settings)
+function identityPickerHtml() {
+  return `
+    <div class="idp">
+      <div class="idp-prev" data-idp-prev></div>
+      <p class="idp-lbl">Colour</p>
+      <div class="idp-row" data-idp-colors>${ID_COLORS.map((c, i) =>
+        `<button type="button" class="sw" data-ci="${i}" style="background:${c}" aria-label="Colour ${i + 1}" aria-pressed="false"></button>`).join("")}</div>
+      <p class="idp-lbl">Shape</p>
+      <div class="idp-row" data-idp-shapes>${ID_SHAPES.map((s, i) =>
+        `<button type="button" class="shp" data-si="${i}" aria-label="Shape ${i + 1}" aria-pressed="false">
+          <svg viewBox="0 0 40 40" aria-hidden="true"><g fill="currentColor">${String(s).startsWith("<") ? s : `<path d="${s}"/>`}</g></svg>
+        </button>`).join("")}</div>
+      <button type="button" class="btn ghost small idp-shuffle" data-idp-shuffle>${icon("refresh")} Surprise me</button>
+    </div>`;
+}
+function mountIdentityPicker(scope, name) {
+  let sel = sigilPair(name).slice();
+  const prev = $("[data-idp-prev]", scope);
+  const render = () => {
+    prev.innerHTML = avatarFromPair(sel, 76);
+    $$("[data-ci]", scope).forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.ci === sel[0])));
+    $$("[data-si]", scope).forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.si === sel[1])));
+  };
+  scope.addEventListener("click", ev => {
+    const c = ev.target.closest("[data-ci]"), s = ev.target.closest("[data-si]"), sh = ev.target.closest("[data-idp-shuffle]");
+    if (c) sel = [+c.dataset.ci, sel[1]];
+    else if (s) sel = [sel[0], +s.dataset.si];
+    else if (sh) sel = [Math.floor(Math.random() * ID_COLORS.length), Math.floor(Math.random() * ID_SHAPES.length)];
+    else return;
+    render();
+  });
+  render();
+  return { get: () => sel.slice() };
+}
 
 function botState(b) {
   if (b.active_run_id) return "running";
@@ -260,6 +370,7 @@ const routes = [
 
 async function route() {
   const hash = location.hash || "#/chat";
+  document.body.classList.toggle("has-composer", hash.startsWith("#/chat"));
   stopRunSubs();
   setTopContext("");
   closeWorkspace();
@@ -497,9 +608,9 @@ async function renderChatStudio(preferredBot = null) {
       </div>
     </div>
     <div class="ctx-actions">
-      ${activeRun ? `<button class="btn danger small" id="studio-stop-run">${icon("stop")} Stop</button>` : ""}
-      <a class="btn ghost small" href="#/bot/${esc(bot.name)}">${icon("sliders")} Settings</a>
-      <button class="btn ghost small" id="inspector-open" aria-controls="inspector" aria-expanded="false">${icon("layers")} Context</button>
+      ${activeRun ? `<button class="btn danger small" id="studio-stop-run">${icon("stop")}<span class="lbl-hide"> Stop</span></button>` : ""}
+      <a class="btn ghost small" href="#/bot/${esc(bot.name)}">${icon("sliders")}<span class="lbl-hide"> Settings</span></a>
+      <button class="btn ghost small" id="inspector-open" aria-controls="inspector" aria-expanded="false">${icon("layers")}<span class="lbl-hide"> Context</span></button>
     </div>`);
 
   view.innerHTML = `
@@ -1611,6 +1722,12 @@ async function renderBotDetail(name) {
             <div class="btn-row"><button class="btn primary small" type="submit">Save</button></div>
           </form>
 
+          <div class="panel" id="idp-panel">
+            <div class="panel-title">Identity</div>
+            ${identityPickerHtml()}
+            <p class="hint" style="text-align:center;margin-top:8px;">Chosen immediately — the roster updates everywhere.</p>
+          </div>
+
           <form class="panel form-grid" id="form-model">
             <div class="panel-title">Model &amp; connection</div>
             <div class="form-grid row2">
@@ -1757,6 +1874,7 @@ async function renderBotDetail(name) {
     </div></div>`;
 
   // wiring
+  mountIdentityPicker($("#idp-panel"), b.name, pair => { sigilSet(b.name, pair); refreshRoster(); });
   const patch = async (body, msg) => {
     try {
       await api(`/bots/${encodeURIComponent(b.name)}`, { method: "PATCH", body });
@@ -1839,7 +1957,7 @@ async function renderRunDetail(runId) {
     <div class="ctx-id"><h1>Run <span class="mono">#${esc(runId.slice(0, 12))}</span></h1>
       <div class="ctx-meta">${statusChip(r.status)}</div></div>
     <div class="ctx-actions">
-      ${ACTIVE.has(r.status) ? `<button class="btn danger small" id="stop-this-run">${icon("stop")} Stop</button>` : ""}
+      ${ACTIVE.has(r.status) ? `<button class="btn danger small" id="stop-this-run">${icon("stop")}<span class="lbl-hide"> Stop</span></button>` : ""}
       <a class="btn ghost small" href="#/runs">${icon("arrowLeft")} All runs</a>
     </div>`);
   const steps = (r.events || []).filter(e => e.type === "step").map(e => e.data);
@@ -2043,6 +2161,7 @@ async function promptNewBot() {
           spellcheck="false" autocapitalize="none">
         <span class="hint">lowercase slug: letters, digits, dashes</span>
       </label>
+      <div id="idp-root" class="panel" style="margin:0;">${identityPickerHtml()}</div>
       <label class="field">Start from a template
         <select name="template">
           <option value="">— blank —</option>
@@ -2083,6 +2202,7 @@ async function promptNewBot() {
             description: fd.get("description").trim(),
           },
         });
+        sigilSet(name, picker.get());
         toast(`Bot "${name}" created.`);
         location.hash = `#/chat/${encodeURIComponent(name)}`;
         return true;
@@ -2093,6 +2213,7 @@ async function promptNewBot() {
     },
   });
   // live template note so choosing isn't a guess
+  const picker = mountIdentityPicker($("#idp-root"), "draft");
   const sel = $('select[name="template"]'), note = $("#tpl-note");
   const describe = () => {
     const t = templates.find(x => x.name === sel.value);
