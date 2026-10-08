@@ -23,7 +23,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | S3 supervised run processes and teardown | Implemented; focused tests pass | Production CLI/daemon/web execution uses owned processes, recorded boot/start identity and verified cleanup. Incomplete cleanup stays nonterminal. |
 | S4 shell containment and approval CAS | Implemented; focused tests pass | Bubblewrap tests pass on the present Linux host. This is namespace containment, not a VM; legacy bots retain their previous setting. Browser/external runtime tools remain outside this guarantee. |
 | S5 providers, budgets and external runtimes | Partial; shared usage reservations implemented, adapters fail closed | OpenCode v2.0.24 is installed and its CLI contract was inspected. Existing OpenCode/Pi adapters bypassed Hutch approvals and budgets, so execution now fails before process creation. Schema v10 reserves estimated tokens/currency atomically across Hutch runs and configured accounts, settles reported use once, and holds uncertain requests for terminal-only reconciliation. Price-based currency limits are estimates, not provider-billing guarantees. Re-enable external runtimes only after sandboxing, brokered permissions and protocol tests. Pi is unavailable; no live run or paid/provider request has been made. Local calls now use one kernel-owned slot and eight FIFO waiters; human waits release the slot. Native Ollama checks current headroom before generation; other local backends lack validated memory admission, and strict modes/provenance remain pending. The latest verified checkpoints are recorded below; live provider/adaptor access remains unavailable. |
-| S6 conversations and bounded collaboration | Conversation foundation partial; collaboration pending | Schema v8 stores conversations/messages, imports each old run separately, uses bounded context snapshots in builtin runs and explicit FTS5 message search. Studio supports thread switching, durable history and archive. Transactional idempotency is tested across restart. Standing tasks, workspaces/artifacts, scoped fact memory, notifications and delegation remain. |
+| S6 conversations and bounded collaboration | Conversation foundation partial; scoped reference facts implemented | Schema v8 stores conversations/messages and imports each old run separately. Schema v15 adds immutable versioned reference facts, private chat/run scope, explicit cross-chat sharing, human review, bounded FTS5 recall and paginated history. No fact is injected into system instructions. Standing tasks, stable workspaces/artifacts, notifications and bounded delegation remain. |
 | S7 browser ownership and handoff | Partial | Browser context state is instance-owned and persistent profile paths are per-bot; fixture test verifies no profile crossover. Live handoff, pinned egress and browser process supervision remain unavailable. |
 | S8 versioned API and remote supervision | Partial; API replay improvements in `cd4f402` and `f5696ce`; remote remains experimental | `/api/v1` covers health/status labels, bounded bot/run/approval pages, conversations/search, cross-run transcript cursors, snapshot reconciliation, usage, connection metadata, schedules and capability records. Conversation create/message/archive, stop, and approval resolve commands are idempotent; changed arguments conflict. Schema v9 adds one-use pairing codes, hash-only revocable device sessions and per-source rate limits. Direct remote binding requires explicit TLS. Schema v11 adds transactional resource invalidations, history cursors, snapshot reconciliation and targeted Studio refresh. Schema v12 adds recoverable JSONL delivery and visible errors; v13 adds immutable action intents and separate outcome reconciliation; v14 adds a bounded authenticated restore report and execution-hold errors. Automatic event pruning, workspaces/artifacts, phone UI, interactive control routes, trusted tunnel and live device/network checks remain. |
 | S9 product integration, performance and visual validation | Partial; evidence captured in `896a774` | Final screenshots and traces cover desktop/tablet/phone, plus fixture-driven empty/loading/error/approval/cancelling/reconnecting UI states. Internal site CTA targets, phone overflow, page errors, reduced motion, tablist arrows and mobile-menu focus were checked. A misleading static `LIVE` badge is now `DEMO`. Same-harness baseline/current measurements retain raw repetitions. Current source-frozen repeats and inspected captures are recorded below. This is not screen-reader, real-device or full workflow certification. See `visual-validation.md` and `performance.md`. |
@@ -54,6 +54,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `8e1abae` | Retain exact comparison logs and the action-review commit in this ledger |
 | `a5d2993` | Schema-v14 held database snapshots/restoration, no source cleanup authority, local review, restore UI, isolated migration tests, inspected screenshots and both raw performance pairs |
 | `33ac3ba` | Schema-v10 usage reservations, account-shared admission, uncertain-charge reconciliation, estimates and marketing copy; offline suite 1,003 passed, provider/reservation 45 passed, browser suite 15 passed |
+| `0161a7e` | Schema-v15 immutable scoped reference facts, human review/sharing, bounded FTS5 recall, chat/settings controls, truthful marketing copy and refreshed visual evidence; complete suite 1,220 passed |
 
 ## Verified behavior before this checkpoint
 
@@ -731,3 +732,57 @@ The local slice commit is `a5d2993`. Its final staging check flags trailing spac
 pytest/benchmark output; those raw logs are preserved byte-for-byte rather than reformatted.
 The implementation/document diff was clean before adding the logs. No runtime source changed
 after the frozen checks, captures or measurement pairs.
+
+## Schema-v15 scoped reference facts and review, 2026-10-08
+
+Schema v15 replaces the unscoped key/value memory behavior with immutable revision records in
+conversation, isolated-run, bot-shared, or legacy scope. Old values migrate as unreviewed legacy
+proposals; their chat ownership and prior user labels are not guessed. Exact content and revision
+hashes bind human review. Only explicit sharing copies a chat fact to bot scope. Runtime recall
+uses bounded literal FTS5 search over reviewed current revisions and never adds facts to system
+instructions. Memory can be disabled for runtime proposal/retrieval while human review and history
+remain available. Archive retains history and backups; permanent scoped deletion/export are still
+unfinished. The legacy unscoped bot endpoint exposes only reviewed shared facts.
+
+The regression set covers v14-to-v15 migration, content hashes, same-key revisions, stale-run
+fences, private scope separation, explicit sharing, memory-off behavior, API idempotency and
+conflicts, HTML escaping, desktop/tablet/phone review, a changed-revision conflict while the modal
+is open, and focus restoration across an SSE refresh. Full review and sharing records are shown in
+the chat and settings inventory. Historical Open WebUI/OpenClaw memory reports C8–C10 in the
+evidence ledger became local acceptance scenarios; they are individual reports, not prevalence
+claims.
+
+Early full-suite runs exposed and fixed three real issues: the marketing proof grid expanded to
+the screenshot's intrinsic width on phones, a usage API fixture could be claimed by the live test
+supervisor, and an SSE refresh could detach the modal's original focus target. The site now uses a
+zero-minimum responsive grid and wraps long code paths; the fixture remains outside the pending
+queue; modal close resolves a fresh matching control before restoring focus. Escape on the
+marketing phone drawer synchronously closes it and restores the opener. No layout, permission,
+containment, or lifecycle assertion was relaxed.
+
+The frozen-source complete command `.venv/bin/python -m pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning`
+passed **1,220 tests in 386.90s**. The
+three-width fact journey passed **3 tests**, then its desktop case passed **5 repeated runs**.
+Chromium phone-menu/proof/state checks passed **7 tests**, the previously racing connection and
+reservation fixture passed independently, and the final full run includes both fixes. The raw
+full-suite and focused logs are retained in `artifacts/fact-memory/`.
+
+Final application views for proposed, reviewed, stale-conflict, shared, and memory-disabled
+history states were inspected at desktop (1440×1000), tablet (900×1024), and phone (390×844).
+Chromium browser fixtures use synthetic values only. Anonymous marketing hero
+views were captured with `.venv/bin/python docs/realignment/capture_marketing_top.py`; the
+versioned `artifacts/marketing-top/capture.json` records Chromium **153.0.8010.12**, Playwright
+**1.63.0**, Python **3.13.15**, exact source hashes, zero page errors/overflow, and local-only
+requests at all three sizes. The phone proof/state and approval scenarios were also inspected.
+Impeccable's final static scan found no unsuppressed findings; its three ignores are value-scoped
+to `website/index.html` with recorded reasons for full-bleed dividers, decorative hero clipping,
+and custom-property heading sizes.
+
+This verification uses local fixtures and a static site only. It does not cover live models,
+providers, Pi/OpenCode, screen readers, a physical phone, remote control, or deletion/restore of
+production data. No new comparative performance result is claimed; the noisy historical
+throughput gate remains open. S5 adapters, standing tasks/workspaces, delegation, phone control,
+and final local-main integration remain incomplete.
+
+The schema-v15 implementation and current screenshots are in `0161a7e`; this ledger's final
+verification record is committed separately so it can name the completed implementation hash.
