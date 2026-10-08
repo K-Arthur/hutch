@@ -45,9 +45,15 @@ def expand_tools(bot_tools: list[str]) -> list[str]:
     return unique
 
 
-def build_tools(names: list[str], ctx: ToolContext) -> dict[str, Tool]:
+def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | None = None) -> dict[str, Tool]:
     tools: dict[str, Tool] = {}
+    enabled = memory_enabled if memory_enabled is not None else (ctx.bot.memory_enabled if ctx is not None else True)
+    if enabled and ctx is not None:
+        stored_bot = ctx.store.get_bot(ctx.bot.id)
+        enabled = bool(stored_bot and stored_bot.memory_enabled)
     for name in expand_tools(names):
+        if name in {'remember', 'recall'} and not enabled:
+            continue
         if name == "browser":
             from .browser import BrowserTool
             tools[name] = BrowserTool()

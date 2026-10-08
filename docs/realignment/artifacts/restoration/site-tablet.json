@@ -1,7 +1,7 @@
 {
-  "captured_at": "2026-10-08T13:48:49.369167+00:00",
-  "browser": "firefox",
-  "version": "155.0",
+  "captured_at": "2026-10-08T15:35:44.522520+00:00",
+  "browser": "chromium",
+  "version": "153.0.8010.12",
   "viewport": [
     900,
     1024
@@ -10,8 +10,8 @@
   "horizontal_overflow": 0,
   "scenario": "Anonymous static database-snapshot scope; no executor requests or credentials",
   "source_sha256": {
-    "website/index.html": "027fad199d75705d48aca715f4fd68bae6f9999e290aa995f96b76e11d6f87c6",
-    "website/styles.css": "145d8728b19c5ae976abf40625881f8bd1cc0d4ca22bb82f4ad1e6f08c762f2c",
-    "website/site.js": "fa3cbe9232880989044db5c32d143506a26306189068565ae4f11c7aef6df0eb"
+    "website/index.html": "45d41a0c7b5609a51c968e3ebba5744062044da3ac966c9156bea8a5514d2049",
+    "website/styles.css": "4e3bae94788f5ecb4b9a1068cd6b5d9903469feecd2860ca94579e176da2e7f5",
+    "website/site.js": "f4e97600ff561f77fa15979fc5e740984c4160b8baf40bff558389da51204a0b"
   }
 }

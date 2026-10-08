@@ -75,12 +75,10 @@ class RunEstimator:
     def __init__(self, config: Any, store: Any, bot: Bot, prompt: str = ""):
         self.config, self.store, self.bot = config, store, bot
         from .runtime.builtin import SYSTEM_TEMPLATE
-        facts = store.recall_all(bot.id) if bot.memory_enabled else []
-        memory = "What you remember from previous runs:\n" + "\n".join(f"- {m.key}: {m.value}" for m in facts[:40]) if facts else ""
         system = SYSTEM_TEMPLATE.format(name=bot.name, description=bot.description or "(none given)",
                                         instructions=bot.instructions or "(none given)", workspace="/workspace",
-                                        rehearsal="", date="2026-01-01", memory_block=memory)
-        specs = [t.spec() for t in build_tools(bot.tools, None).values()]
+                                        rehearsal="", date="2026-01-01")
+        specs = [t.spec() for t in build_tools(bot.tools, None, memory_enabled=bot.memory_enabled).values()]
         msg, tool = prompt_tokens([{"role": "system", "content": system},
                                    {"role": "user", "content": prompt or "(your task)"}], specs)
         self.prompt_tokens = msg + tool

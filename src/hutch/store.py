@@ -328,9 +328,14 @@ def _migrate_14(db: sqlite3.Connection) -> None:
     migrate(db)
 
 
+def _migrate_15(db: sqlite3.Connection) -> None:
+    from .fact_memory import migrate
+    migrate(db)
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
-               _migrate_11, _migrate_12, _migrate_13, _migrate_14]
+               _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -699,11 +704,11 @@ class Store:
         bot = self.get_bot(ref)
         if not bot:
             return False
-        with self._lock:
-            self._db.execute("DELETE FROM bots WHERE id = ?", (bot.id,))
-            self._db.execute("DELETE FROM tool_allows WHERE bot_id = ?", (bot.id,))
-            self._db.execute("DELETE FROM memory WHERE bot_id = ?", (bot.id,))
-            self._db.commit()
+        with self._tx() as db:
+            db.execute("DELETE FROM bots WHERE id = ?", (bot.id,))
+            db.execute("DELETE FROM tool_allows WHERE bot_id = ?", (bot.id,))
+            db.execute("DELETE FROM memory WHERE bot_id = ?", (bot.id,))
+            db.execute("UPDATE memory_facts SET status = 'archived' WHERE bot_id = ?", (bot.id,))
         self.bus.notify("work", "bots")
         return True
 
@@ -2309,32 +2314,92 @@ class Store:
 
     # ------------------------------------------------------------ memory
 
-    def remember(self, bot_id: str, key: str, value: str, run_id: str = "", source: str = "bot") -> None:
-        """Upsert a memory fact; ``run_id`` records which run wrote it (UI-10 provenance)."""
-        with self._lock:
-            self._db.execute(
-                "INSERT INTO memory (bot_id, key, value, updated_at, run_id, source) VALUES (?, ?, ?, ?, ?, ?) "
-                "ON CONFLICT(bot_id, key) DO UPDATE SET value = excluded.value, "
-                "updated_at = excluded.updated_at, run_id = excluded.run_id, source = excluded.source",
-                (bot_id, key, value, iso(utcnow()), run_id, source),
-            )
-            self._db.commit()
+    def remember(self, bot_id: str, key: str, value: str, run_id: str = "", source: str = "user", *,
+                 expected_fence: int | None = None, conversation_id: str | None = None) -> MemoryItem:
+        """Propose an immutable scoped revision; human review never grants tool authority."""
+        from .fact_memory import propose
+        with self._tx() as db:
+            # Runtime source/scope are derived from persisted ownership, never
+            # accepted from the model's proposed arguments or caller's source.
+            fact = propose(self, db, bot_id, key, value, run_id=run_id, fence=expected_fence,
+                           conversation_id=conversation_id)
         self.bus.notify("memory")
+        return MemoryItem(**fact)
 
-    def recall_all(self, bot_id: str) -> list[MemoryItem]:
+    def recall_all(self, bot_id: str, *, limit: int = 100, offset: int = 0) -> list[MemoryItem]:
+        """Bounded compatibility/admin inventory, including unreviewed legacy facts."""
+        from .fact_memory import page
         with self._lock:
-            rows = self._db.execute(
-                "SELECT key, value, updated_at, run_id, source FROM memory WHERE bot_id = ? ORDER BY key",
-                (bot_id,),
-            ).fetchall()
+            rows = page(self._db, bot_id, admin=True, limit=limit, offset=offset)
         return [MemoryItem(**dict(r)) for r in rows]
 
-    def forget(self, bot_id: str, key: str) -> bool:
+    def shared_facts(self, bot_id: str, *, limit: int = 100, offset: int = 0) -> list[MemoryItem]:
+        """Reviewed bot-wide references safe for legacy surfaces that lack chat scope."""
+        from .fact_memory import page
         with self._lock:
-            cur = self._db.execute("DELETE FROM memory WHERE bot_id = ? AND key = ?", (bot_id, key))
-            self._db.commit()
+            rows = page(self._db, bot_id, approved_only=True, limit=limit, offset=offset)
+        return [MemoryItem(**dict(r)) for r in rows]
+
+    def fact_page(self, bot_id: str, **options) -> list[dict]:
+        from .fact_memory import page
+        with self._lock:
+            return page(self._db, bot_id, **options)
+
+    def fact_history(self, bot_id: str, fact_id: str, **options) -> dict:
+        from .fact_memory import history
+        with self._lock:
+            return history(self._db, bot_id, fact_id, **options)
+
+    def propose_fact_command(self, bot_id: str, *, key: str, value: str, conversation_id: str | None,
+                             idem_key: str, request_hash: str) -> tuple[MemoryItem, bool]:
+        from .fact_memory import propose
+        scope = f'api:v1:facts:propose:{bot_id}'
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                return MemoryItem(**replay), False
+            fact = propose(self, db, bot_id, key, value, conversation_id=conversation_id)
+            db.execute('INSERT INTO idempotency_keys VALUES (?, ?, ?, ?, ?)',
+                       (scope, idem_key, request_hash, json.dumps(fact), iso(utcnow())))
+        self.bus.notify('memory')
+        return MemoryItem(**fact), True
+
+    def review_fact(self, bot_id: str, fact_id: str, *, idem_key: str | None = None,
+                    request_hash: str | None = None, **request) -> dict:
+        from .fact_memory import review
+        scope = f'api:v1:facts:review:{bot_id}:{fact_id}'
+        with self._tx() as db:
+            if idem_key:
+                replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+                if replay is not None:
+                    return replay
+            result = review(db, bot_id, fact_id, **request)
+            if idem_key:
+                db.execute('INSERT INTO idempotency_keys VALUES (?, ?, ?, ?, ?)',
+                           (scope, idem_key, request_hash, json.dumps(result), iso(utcnow())))
+        self.bus.notify('memory')
+        return result
+
+    def count_facts(self, bot_id: str) -> int:
+        from .fact_memory import CURRENT
+        with self._lock:
+            return self._db.execute("SELECT COUNT(*) FROM memory_facts f WHERE f.bot_id = ? "
+                                    "AND f.status != 'archived' AND " + CURRENT, (bot_id,)).fetchone()[0]
+
+    def forget(self, bot_id: str, key: str) -> bool:
+        """Compatibility: archive all versions/scopes for this bot and key; keep history."""
+        with self._tx() as db:
+            cur = db.execute("UPDATE memory_facts SET status = 'archived' WHERE bot_id = ? AND key = ? AND status != 'archived'",
+                             (bot_id, key))
         self.bus.notify("memory")
         return cur.rowcount > 0
+
+    def archive_all_facts(self, bot_id: str) -> int:
+        with self._tx() as db:
+            count = db.execute("UPDATE memory_facts SET status = 'archived' WHERE bot_id = ? AND status != 'archived'",
+                               (bot_id,)).rowcount
+        self.bus.notify('memory')
+        return count
 
     # ------------------------------------------------------------ usage
 

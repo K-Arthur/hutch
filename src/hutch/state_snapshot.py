@@ -196,6 +196,8 @@ def validate_history(store) -> dict:
         from .action_receipts import digest
         if digest(row['intent_json']) != row['intent_hash']:
             raise ValueError('snapshot action intent hash is invalid')
+    from .fact_memory import validate
+    validate(store._db)
     return {'transcripts': runs, 'hashed_events': checked, 'unhashed_legacy_events': legacy}
 
 

@@ -1,7 +1,8 @@
 # Evidence ledger
 
-Every row was read on **2026-10-07** (access date). "Obs" = first-hand reading of a primary page, or a command run on this
-machine; "Report" = a third party's claim. Confidence is about whether the *row's statement* is true, not about whether the
+Rows retain their individual access dates where given; the original research rows were read on **2026-10-07**.
+"Obs" = first-hand reading of a primary page, or a command run on this machine; "Report" = a third party's claim.
+Confidence is about whether the *row's statement* is true, not about whether the
 product is good. A single anecdote is never turned into a prevalence claim. Rows that drive a decision name the test
 that proves the mitigation (`T-…` IDs are defined in `docs/realignment/tests.md`).
 
@@ -41,6 +42,21 @@ that proves the mitigation (`T-…` IDs are defined in `docs/realignment/tests.m
 | C7 | https://github.com/openclaw/openclaw/issues/133062 (read 2026-10-07) | OpenClaw report | Report; fetched through connected GitHub | A reporter describes timed-out cron child processes surviving; their process-group workaround could also signal the Gateway | Process identity and parent/child ownership | One report; not independently reproduced; frequency unknown | Tests must stop owned work without signalling a reused PID or unrelated process group | Own process sessions, boot/start identity checks, pidfd signaling, PID-namespace containment for strict shell | `tests/test_procguard.py`, `tests/test_cancel.py`, `tests/test_sandbox.py` | Medium for the issue text; none for prevalence |
 
 ## D. Local verification (commands run on this host)
+
+### Additional historical memory reports, read 2026-10-08
+
+These three primary issues were fetched through the GitHub connector. They are closed reports,
+not claims that current releases remain broken, independent reproductions, or prevalence data.
+
+| ID | Source / reported version | Report and status at access | Hutch acceptance scenario |
+|---|---|---|---|
+| C8 | [Open WebUI #30227](https://github.com/open-webui/open-webui/issues/30227), dev `043784c2d`, opened 2026-09-20 | Reporter says disabling memory hid management while prompt injection/tools continued. Closed completed 2026-09-21. | Disabling omits runtime memory tools and denies stale tool instances, without hiding human management. `test_memory_off_removes_tools_and_refuses_stale_tool_instances`. |
+| C9 | [OpenClaw #68751](https://github.com/openclaw/openclaw/issues/68751), `2026.4.15`, opened 2026-04-19 | Reporter describes prior raw turns returning as current input and repeat mutations after reset. Closed completed 2026-06-14; no live reproduction performed here. | No automatic fact/system injection or synthetic user turns. Scope and human review bind retrieval; JSON reference framing is not proof against model prompt injection. `test_proposals_are_scoped_and_never_promoted_to_system_instructions`. |
+| C10 | [OpenClaw #31110](https://github.com/openclaw/openclaw/issues/31110), `2026.2.26`, opened 2026-03-02 | Reporter describes history crossing separate agents in one gateway. Closed completed 2026-03-02. | A private fact remains private across chats/bots; explicit bot sharing cannot cross bots. `test_explicit_share_changes_scope_without_sharing_other_bot_context`. |
+
+The proposed mitigation is an implementation decision drawn from these failure shapes, not an
+assertion that Hutch resolves every related upstream defect. Fencing, restart, revisions,
+bounded scope filtering and rendering have their own local tests and evidence boundaries.
 
 | ID | What | Result |
 |---|---|---|

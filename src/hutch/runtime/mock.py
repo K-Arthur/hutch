@@ -73,7 +73,7 @@ class MockRuntime:
 
         final = (
             f"Done — {flavor} for “{run.prompt[:100]}”. "
-            f"Wrote report.md, updated memory ({run.steps} tool steps, ~{run.tokens} tokens). "
+            f"Used the enabled demo tools ({run.steps} tool steps, ~{run.tokens} tokens). Reference-fact proposals need human review. "
             "This was a mock run; point the bot at a real model for live results."
         )
         ctx.emit(Event(run_id=run.id, type=EventType.message,

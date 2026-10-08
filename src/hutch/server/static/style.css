@@ -1099,7 +1099,15 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .kv-list dd { margin: 0; }
 .modal-footer button[hidden] { display: none; }
 .receipt-evidence { white-space: pre-wrap; overflow-wrap: anywhere; }
+.fact-panel { margin: var(--s-5) 0; }
+.fact-panel > h2 { font-size: var(--fs-md); }
+.fact-card { border-left: 1px solid var(--line-strong); padding: var(--s-3); margin: var(--s-3) 0; background: var(--panel); }
+.fact-heading { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; overflow-wrap: anywhere; }
+.fact-value { white-space: pre-wrap; overflow-wrap: anywhere; margin: var(--s-2) 0; }
+.fact-share { display: flex; gap: var(--s-2); align-items: center; margin: var(--s-3) 0; min-height: 44px; }
+.fact-panel details > summary { min-height: 44px; cursor: pointer; }
 @media (max-width: 600px) {
+  .fact-card .btn { min-height: 44px; }
   .modal-footer .btn, .modal-header .icon-btn { min-height: 44px; min-width: 44px; }
   .mhead { flex-wrap: wrap; }
   .mhead .status { flex-shrink: 0; max-width: 100%; white-space: normal; }

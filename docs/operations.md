@@ -47,7 +47,7 @@ managed infrastructure until trusted-proxy handling is documented and validated.
 ## Database migration and restore
 
 Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. This
-realignment branch uses schema v14; `hutch doctor` displays the current version. Keep the matching
+realignment branch uses schema v15; `hutch doctor` displays the current version. Keep the matching
 release and pre-upgrade backups. A normal snapshot captures committed database history, including
 WAL pages; event buffers that have not committed yet are outside its scope:
 
@@ -129,6 +129,10 @@ schema v12 backfills recoverable transcript-file delivery without changing histo
 schema v13 retains immutable action intents and separate checked outcome reports.
 Schema v14 records restore review and detached process identities without transferring source
 execution authority.
+Schema v15 preserves legacy memory values as unreviewed legacy proposals, without guessing a
+private chat or treating a prior `user` label as approval. Review an exact revision before recall;
+sharing it across a bot's chats requires an explicit decision. Rollback uses a compatible release
+and its matching backup, rather than restoring automatic injection of old facts into prompts.
 Hutch does not infer that adjacent runs share a
 private context. New conversations and message submissions are written transactionally with their idempotency records. The
 `conversation_fts` index contains message text only; it excludes tool output, credentials, workspaces and bot memory.
@@ -140,3 +144,31 @@ admission limits, not a guarantee against provider billing differences. Configur
 need a separate external ceiling; do not treat Hutch's estimate as an exact dollar cap.
 The product support and verification matrix is in [the realignment ledger](realignment/ledger.md). Provider calls, real local models,
 Pi/OpenCode, browser binaries, mobile hardware, and physical desktop portals are reported separately from fixtures.
+
+## Reference fact review and troubleshooting
+
+In a bot's chat, ask it to remember a reference value. An enabled memory tool saves a proposal
+for that chat, shown below its attempts. Review the exact value and scope. Keep sharing unchecked
+to retain the chat boundary; explicitly share only when other chats for this bot should recall
+that value. Review grants no tool permission and does not prove a fact true. Attempts outside a
+canonical conversation have an isolated run scope. The model retrieves reviewed references through
+`recall`; facts are not automatically injected into the system prompt.
+
+For empty recall, check that memory is enabled, the current revision is reviewed, and its scope
+matches the chat. Search uses bounded literal word terms, not arbitrary FTS operators or substring
+matching. A replaced revision conflicts at review: close the dialog, refresh and inspect the new
+value. Legacy proposals need explicit sharing or a new scoped revision. Oversized legacy values
+need an explicitly shorter proposal. A shared key conflict requires inspecting the existing bot
+reference before revising or archiving it.
+
+Bot settings provide paginated active and archived records, revision history and human review
+records. Disabling memory prevents new runtime proposals/recall and removes tools from new lists;
+human management stays available. It cannot retract content already sent to a provider or erase
+previous conversation/tool history. Never store credentials in reference facts.
+
+`hutch bot forget NAME --key KEY` archives all scopes and versions with that key for the bot.
+Without a key it archives all reference facts and revokes standing tool grants. Archive retains
+history, the search index and backups; permanent scoped deletion/export remain unfinished.
+The private `/api/v1/bots/{ref}/facts` and `/{id}/history` responses expose bounded inventories;
+review their scope before any manual export. Deleting a bot archives its facts and leaves a
+user-owned workspace intact.

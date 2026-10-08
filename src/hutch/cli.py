@@ -452,17 +452,16 @@ def bot_resume(name: str = typer.Argument(...)) -> None:
 
 @bot_app.command("forget")
 def bot_forget(name: str = typer.Argument(...), key: Optional[str] = typer.Option(None, "--key")) -> None:
-    """Clear a bot's memory (all, or one key). Also clears sticky allows unless --key."""
+    """Archive fact memory (all scopes, or one key); keep history. Revoke sticky allows unless --key."""
     store = _store(); bot = _require_bot(store, name)
     if key:
         store.forget(bot.id, key)
-        console.print(f"forgot '{key}'")
+        console.print(f"archived '{key}' across this bot's scopes; history and backups remain")
     else:
-        for m in store.recall_all(bot.id):
-            store.forget(bot.id, m.key)
+        store.archive_all_facts(bot.id)
         for sticky in store.list_sticky_allows(bot.id):
             store.revoke_sticky(bot.id, sticky)
-        console.print("memory and sticky allows cleared")
+        console.print("fact memory archived and sticky allows revoked; history and backups remain")
 
 
 # --------------------------------------------------------------------- runs

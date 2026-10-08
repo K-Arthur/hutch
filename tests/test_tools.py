@@ -129,9 +129,13 @@ def test_files_write_with_sticky_allow(store, config, tmp_path):
 def test_memory_tools_scoped_to_bot(store, config, tmp_path):
     ctx = make_ctx(store, config, tmp_path)
     tools = build_tools(["memory"], ctx)
-    tools["remember"].run({"key": "style", "value": "concise"}, ctx)
+    proposal = tools["remember"].run({"key": "style", "value": "concise"}, ctx)
+    assert proposal.ok and tools['recall'].run({}, ctx).data['count'] == 0
+    fact = store.recall_all(ctx.bot.id)[0]
+    assert fact.scope_kind == 'run' and fact.scope_id == ctx.run.id and fact.status == 'proposed'
+    store.review_fact(ctx.bot.id, fact.id, content_hash=fact.content_hash, action='approve', actor='fixture')
     res = tools["recall"].run({}, ctx)
-    assert "style: concise" in res.output
+    assert '"key": "style", "value": "concise"' in res.output
 
     other = Bot(name="other", instructions="", tools=[])
     store.create_bot(other)
@@ -144,10 +148,13 @@ def test_memory_equal_content_keeps_bot_scope_through_recall_and_forget(store, c
     tools = build_tools(["memory"], a)
     for ctx in (a, b):
         assert tools["remember"].run({"key": "style", "value": "concise"}, ctx).ok
-        assert "style: concise" in tools["recall"].run({}, ctx).output
+        assert tools['recall'].run({}, ctx).data['count'] == 0
+        fact = store.recall_all(ctx.bot.id)[0]
+        store.review_fact(ctx.bot.id, fact.id, content_hash=fact.content_hash, action='approve', actor='fixture')
+        assert '"value": "concise"' in tools["recall"].run({}, ctx).output
     assert store.forget(a.bot.id, "style")
-    assert "style: concise" not in tools["recall"].run({}, a).output
-    assert "style: concise" in tools["recall"].run({}, b).output
+    assert '"value": "concise"' not in tools["recall"].run({}, a).output
+    assert '"value": "concise"' in tools["recall"].run({}, b).output
 
 
 def test_webfetch_denies_private_and_allows_check(store, config, tmp_path, monkeypatch):

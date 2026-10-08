@@ -28,11 +28,12 @@ from pydantic import BaseModel, Field, field_validator
 from .. import __version__
 from ..approvals import resolve_approval, resolve_approval_ex
 from ..action_receipts import ActionConflict
+from ..fact_memory import FactConflict
 from ..config import get_config
 from ..durable_changes import SnapshotRequired
 from ..engine import Engine, bot_prompt_for_schedule
 from ..lifecycle import LABELS
-from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, CommandRule, Limits, RiskTier, Run, RunStatus, Schedule, Task
+from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, CommandRule, Limits, MemoryItem, RiskTier, Run, RunStatus, Schedule, Task
 from ..store import IdempotencyConflict, Store
 from ..state_snapshot import ExecutionHeld
 from ..templates import TEMPLATE_INFO, TEMPLATES
@@ -55,6 +56,7 @@ class BotCreate(BaseModel):
     model: str = "mock/demo"
     base_url: Optional[str] = None
     tools: list[str] = ["shell", "files", "memory"]
+    memory_enabled: bool = True
     cron: Optional[str] = None
     timezone: str = "UTC"
     catch_up: CatchUpPolicy = CatchUpPolicy.coalesce
@@ -98,6 +100,7 @@ class BotPatch(BaseModel):
     description: Optional[str] = None
     instructions: Optional[str] = None
     model: Optional[str] = None
+    memory_enabled: Optional[bool] = None
     approval_mode: Optional[ApprovalMode] = None
     risk_tier: Optional[RiskTier] = None
     command_rules: Optional[list[CommandRule]] = None
@@ -240,7 +243,7 @@ class EventPageResource(BaseModel):
 class ResourceChange(BaseModel):
     id: int
     resource: Literal["bots", "conversations", "messages", "runs", "tasks", "approvals", "actions", "usage",
-                      "usage_reservations", "memory", "permissions", "devices", "transcript_mirrors"]
+                      "usage_reservations", "memory", "permissions", "devices", "transcript_mirrors", "state"]
     resource_id: str
     operation: Literal["created", "updated", "deleted"]
     ts: str
@@ -252,6 +255,47 @@ class ChangePageResource(BaseModel):
     cursor: str
     high_water: str
     has_more: bool
+
+
+class FactPageResource(BaseModel):
+    facts: list[MemoryItem]
+    limit: int
+    offset: int
+    next_offset: Optional[int]
+
+
+class FactProposeRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+    key: str = Field(min_length=1, max_length=120)
+    value: str = Field(min_length=1, max_length=2000)
+    conversation_id: Optional[str] = None
+
+
+class FactReviewRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+    content_hash: str = Field(pattern=r'^[0-9a-f]{64}$')
+    action: Literal['approve', 'archive', 'share']
+    note: str = Field(default='', max_length=1000)
+
+
+class FactReviewResource(BaseModel):
+    fact_id: str
+    result_id: str
+    action: Literal['approve', 'archive', 'share']
+    content_hash: str
+
+
+class FactDecisionResource(BaseModel):
+    fact_id: str
+    result_id: str
+    action: Literal['approve','archive','share']
+    actor: str
+    note: str
+    created_at: str
+
+
+class FactHistoryResource(FactPageResource):
+    reviews: list[FactDecisionResource]
 
 
 class ActionReconciliationRequest(BaseModel):
@@ -403,7 +447,7 @@ def create_app() -> FastAPI:
             "tokens_reserved_today": reserved_tokens,
             "cost_measured_today_usd": measured_cost,
             "cost_reserved_today_usd": reserved_cost,
-            "memory_count": len(store.recall_all(bot.id)),
+            "memory_count": store.count_facts(bot.id),
             "sticky_allows": store.list_sticky_allows(bot.id),
         }
 
@@ -772,6 +816,7 @@ def create_app() -> FastAPI:
         bot.model = body.model
         bot.base_url = body.base_url
         bot.tools = tools
+        bot.memory_enabled = body.memory_enabled
         bot.approval_mode = body.approval_mode
         bot.risk_tier = body.risk_tier
         bot.command_rules = _checked_rules(body.command_rules)
@@ -793,7 +838,9 @@ def create_app() -> FastAPI:
         bot = bot_or_404(ref)
         view = bot_view(bot)
         view["recent_runs"] = [run_view(r) for r in store.list_runs(bot.id, limit=10)]
-        view["memory"] = [m.model_dump() for m in store.recall_all(bot.id)]
+        # This legacy resource has no conversation scope. Only return reviewed
+        # bot-wide references; private chat facts belong to the scoped v1 route.
+        view["memory"] = [m.model_dump() for m in store.shared_facts(bot.id)]
         return view
 
     @app.patch("/api/bots/{ref}")
@@ -802,6 +849,7 @@ def create_app() -> FastAPI:
         if body.description is not None: bot.description = body.description
         if body.instructions is not None: bot.instructions = body.instructions
         if body.model is not None: bot.model = body.model
+        if body.memory_enabled is not None: bot.memory_enabled = body.memory_enabled
         if body.approval_mode is not None: bot.approval_mode = body.approval_mode
         if body.risk_tier is not None: bot.risk_tier = body.risk_tier
         if body.limits is not None: bot.limits = body.limits
@@ -835,7 +883,67 @@ def create_app() -> FastAPI:
     def delete_memory(ref: str, key: str) -> dict:
         bot = bot_or_404(ref)
         store.forget(bot.id, key)
-        return {"forgot": key}
+        return {"forgot": key, "operation": "archived", "scope": "all facts with this key for this bot", "history_retained": True}
+
+    @app.get('/api/v1/bots/{ref}/facts', response_model=FactPageResource)
+    def list_facts(ref: str, conversation_id: str | None = None, all_scopes: bool = False,
+                   query: str = '', limit: int = 50, offset: int = 0, include_archived: bool = False) -> dict:
+        bot = bot_or_404(ref)
+        if not 1 <= limit <= 100 or offset < 0 or len(query) > 256:
+            raise HTTPException(422, 'limit must be 1–100; offset nonnegative; query at most 256 characters')
+        if all_scopes and conversation_id:
+            raise HTTPException(422, 'choose one chat or explicitly request all scopes')
+        try:
+            facts = store.fact_page(bot.id, conversation_id=conversation_id, admin=all_scopes,
+                                    query=query, limit=limit, offset=offset, include_archived=include_archived)
+        except KeyError:
+            raise HTTPException(404, 'no such conversation for this bot') from None
+        return {'facts': facts, 'limit': limit, 'offset': offset,
+                'next_offset': offset + limit if len(facts) == limit else None}
+
+    @app.get('/api/v1/bots/{ref}/facts/{fact_id}/history', response_model=FactHistoryResource)
+    def fact_history(ref: str, fact_id: str, limit: int = 50, offset: int = 0):
+        bot = bot_or_404(ref)
+        if not 1 <= limit <= 100 or offset < 0:
+            raise HTTPException(422, 'limit must be 1–100; offset nonnegative')
+        try:
+            return store.fact_history(bot.id, fact_id, limit=limit, offset=offset)
+        except KeyError:
+            raise HTTPException(404, 'no such fact for this bot') from None
+
+    @app.post('/api/v1/bots/{ref}/facts', response_model=MemoryItem)
+    def propose_fact(ref: str, body: FactProposeRequest, request: Request, response: Response):
+        bot = bot_or_404(ref)
+        key = idempotency_key(request)
+        try:
+            fact, created = store.propose_fact_command(bot.id, **body.model_dump(), idem_key=key,
+                                                       request_hash=request_digest({'bot_id': bot.id, **body.model_dump()}))
+        except KeyError:
+            raise HTTPException(404, 'no such conversation for this bot') from None
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        response.status_code = 201 if created else 200
+        return fact
+
+    @app.post('/api/v1/bots/{ref}/facts/{fact_id}/review', response_model=FactReviewResource)
+    def review_fact(ref: str, fact_id: str, body: FactReviewRequest, request: Request):
+        bot = bot_or_404(ref)
+        key = idempotency_key(request)
+        token = request.cookies.get(DEVICE_COOKIE, '')
+        bearer = request.headers.get('authorization', '')
+        if bearer.startswith('Bearer '): token = bearer[7:]
+        device = store.device_identity(token)
+        actor = f'device:{device}' if device else 'operator'
+        try:
+            return store.review_fact(bot.id, fact_id, **body.model_dump(), actor=actor, idem_key=key,
+                                     request_hash=request_digest({'bot_id': bot.id, 'fact_id': fact_id,
+                                                                  'actor': actor, **body.model_dump()}))
+        except (FactConflict, IdempotencyConflict) as exc:
+            raise HTTPException(409, str(exc)) from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
 
     @app.post("/api/bots/{ref}/run", status_code=201)
     def run_bot(ref: str, body: RunRequest) -> dict:

@@ -1,17 +1,17 @@
 {
-  "browser": "firefox",
-  "version": "155.0",
+  "browser": "chromium",
+  "version": "153.0.8010.12",
   "viewport": [
     1440,
     1000
   ],
-  "captured_at": "2026-10-08T13:46:00.572955+00:00",
+  "captured_at": "2026-10-08T15:34:55.195463+00:00",
   "scenario": "synthetic old approval, seven queued turns, failed run refresh, real Stop command",
   "page_errors": [],
   "horizontal_overflow": 0,
   "source_sha256": {
-    "src/hutch/server/static/app.js": "e0ae28013511fda5addff7ca4d76629252e9e239ec900000de9cafb4f8f3422d",
-    "src/hutch/store.py": "5cb24609808f3b135ef00f11ddc3d50d01b575e3f76521f72d0d156e2474509e",
-    "src/hutch/server/app.py": "30f5fce6900d8352bcff27afe2ff4b6d7ce90f306c2c3843316cb711cb933765"
+    "src/hutch/server/static/app.js": "4a4c665c2a5b1111eded455aa003118131d99f2792473fc163910d1502ca14c5",
+    "src/hutch/store.py": "bf4285b7b91c663c7cf068c21fe20fac544d6a4cff2d8bd56a6a23a074705d19",
+    "src/hutch/server/app.py": "f64cc75d90af01ced6622fabb668246397edc4bdaf44c057bd479c5ec6cc70c4"
   }
 }

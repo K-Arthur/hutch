@@ -1,5 +1,13 @@
 # Changelog
 
+## Scoped fact memory continuation (schema v15, local)
+
+- Replace automatic per-bot fact/system injection with explicitly retrieved, human-reviewed chat facts and bounded FTS5.
+- Fence proposals against expired/lost ownership, cancellation and terminal state. Preserve immutable revisions and reviews; sharing is explicit and never crosses bots.
+- Show review/revision/archive in chat and paginated management while memory is disabled. Archive retains history and backups; permanent scoped deletion remains pending.
+- Import legacy facts as unreviewed and unscoped, preserve pre-upgrade backups, and verify fact hashes during held restoration.
+- Correct the typed resource-change contract to accept restore-state invalidations introduced in schema v14.
+
 All notable changes to hutch (formerly "openbot"). Format follows Keep a Changelog; versioning is semantic.
 
 ## [Unreleased]

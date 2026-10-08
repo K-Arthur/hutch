@@ -1,7 +1,7 @@
 {
-  "captured_at": "2026-10-08T13:45:50.870533+00:00",
-  "browser": "firefox",
-  "version": "155.0",
+  "captured_at": "2026-10-08T15:34:46.036766+00:00",
+  "browser": "chromium",
+  "version": "153.0.8010.12",
   "viewport": [
     390,
     844
@@ -11,9 +11,9 @@
   "horizontal_overflow": 0,
   "draft_and_focus_preserved": true,
   "source_sha256": {
-    "src/hutch/server/static/app.js": "e0ae28013511fda5addff7ca4d76629252e9e239ec900000de9cafb4f8f3422d",
-    "src/hutch/store.py": "5cb24609808f3b135ef00f11ddc3d50d01b575e3f76521f72d0d156e2474509e",
-    "src/hutch/server/app.py": "30f5fce6900d8352bcff27afe2ff4b6d7ce90f306c2c3843316cb711cb933765",
+    "src/hutch/server/static/app.js": "4a4c665c2a5b1111eded455aa003118131d99f2792473fc163910d1502ca14c5",
+    "src/hutch/store.py": "bf4285b7b91c663c7cf068c21fe20fac544d6a4cff2d8bd56a6a23a074705d19",
+    "src/hutch/server/app.py": "f64cc75d90af01ced6622fabb668246397edc4bdaf44c057bd479c5ec6cc70c4",
     "src/hutch/approvals.py": "c48ccfe7b3e7e9f7aeaacc28f6774f16553b240e97a8e139568344f6e2e6ba35"
   }
 }

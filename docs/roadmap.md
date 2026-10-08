@@ -1,5 +1,11 @@
 # Roadmap
 
+Schema v15 adds chat-scoped reference proposals, exact-revision human review, explicit sharing,
+bounded FTS5 recall and retained review history. Memory disabled in bot settings also disables
+runtime use while retaining human management. Facts are not automatically injected into system
+prompts. Stable workspaces, versioned artifacts, standing tasks, notifications, bounded delegation
+and permanent scoped deletion/export remain required realignment work.
+
 ## Phase 0 — MVP (shipped, Oct 2026)
 
 - [x] Bot CRUD + starter templates (CLI, dashboard, REST)

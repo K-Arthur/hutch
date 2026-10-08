@@ -86,6 +86,7 @@
     document.getElementById("drawer-close").addEventListener("click", closeDrawer);
     drawer.querySelectorAll("a").forEach(function (a) { a.addEventListener("click", closeDrawer); });
     drawer.addEventListener("click", function (e) { if (e.target === drawer) closeDrawer(); }); /* backdrop tap */
+    drawer.addEventListener("cancel", function (e) { e.preventDefault(); closeDrawer(); }); /* Escape */
     drawer.addEventListener("close", function () { menuBtn.setAttribute("aria-expanded", "false"); });
     window.addEventListener("resize", function () { if (window.innerWidth > 900 && drawer.open) drawer.close(); });
   } else if (menuBtn && drawer) {

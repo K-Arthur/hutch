@@ -272,11 +272,9 @@ const store$ = {
 
 /* ---------------------------------------------------------------- modal */
 
-let modalReturnFocus = null;
-
 function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confirm", confirmClass = "primary", wide = false, returnFocus = null, showCancel = true }) {
   const root = $("#modal-root");
-  modalReturnFocus = returnFocus || document.activeElement;
+  const modalReturnFocus = returnFocus || document.activeElement;
   root.innerHTML = `
     <div class="modal-backdrop" data-modal-backdrop>
       <div class="modal-card${wide ? " modal-wide" : ""}" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -298,15 +296,22 @@ function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confir
     document.removeEventListener("keydown", keyHandler, true);
     root.innerHTML = "";
     if (cancelled && onCancel) onCancel();
-    if (modalReturnFocus?.isConnected && modalReturnFocus.getClientRects().length) modalReturnFocus.focus();
-    else if (modalReturnFocus?.dataset.receiptReview) {
+    // Prefer a fresh equivalent control when a live SSE refresh replaced the
+    // original node while the modal was open. A connected stale button can
+    // still be detached immediately after close.
+    if (modalReturnFocus?.dataset.receiptReview) {
       const target = $$('[data-receipt-review]').find(b => b.dataset.receiptReview === modalReturnFocus.dataset.receiptReview);
       (target || $('#chat-prompt') || $('#needs-you-open'))?.focus();
     }
+    else if (FACT_BUTTONS.some(([field]) => modalReturnFocus?.dataset[field])) {
+      const [field, selector] = FACT_BUTTONS.find(([field]) => modalReturnFocus.dataset[field]);
+      ($$(selector).find(button => button.dataset[field] === modalReturnFocus.dataset[field]) || $('#chat-prompt'))?.focus();
+    }
+    else if (modalReturnFocus?.isConnected && modalReturnFocus.getClientRects().length) modalReturnFocus.focus();
     else ($('#chat-prompt') || $('#nav-toggle'))?.focus();
   };
   const keyHandler = ev => {
-    if (ev.key === "Escape") { ev.stopPropagation(); close(); return; }
+    if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); close(); return; }
     if (ev.key === "Tab") {
       const focusables = $$("button, input, select, textarea, a[href]", card)
         .filter(el => !el.disabled && el.offsetParent !== null);
@@ -988,7 +993,7 @@ async function renderChatFeed() {
 
   const conversationId = currentConversationId, generation = studioGeneration;
   const stillCurrent = () => generation === studioGeneration && conversationId === currentConversationId && stream.isConnected;
-  let messages, authority;
+  let messages, authority, factPage;
   try {
     if (!currentConversationId) return;
     const summary = await api(`/v1/conversations/${encodeURIComponent(conversationId)}?after=0&limit=1`);
@@ -999,12 +1004,19 @@ async function renderChatFeed() {
     if (!stillCurrent()) return;
     messages = page.messages || [];
     authority = page;
+    factPage = await api(`/v1/bots/${encodeURIComponent(currentStudioBot)}/facts?conversation_id=${encodeURIComponent(conversationId)}&limit=20`)
+      .catch(error => ({facts:[], error:error.message}));
+    if (!stillCurrent()) return;
   } catch { return; }
   const runIds = [...new Set(messages.filter(m => m.role === "user" && m.run_id).map(m => m.run_id))];
   if (authority.active_run_id && !runIds.includes(authority.active_run_id)) runIds.unshift(authority.active_run_id);
   if (!runIds.length) {
-    stream.innerHTML = welcomeHtml();
+    const factUi = captureFactUi(stream);
+    stream.innerHTML = welcomeHtml() + factPanelHtml(factPage.facts || [], factPage.error);
     wireWelcome();
+    wireFactControls(factPage.facts || [], currentStudioBot);
+    $('[data-retry-facts]', stream)?.addEventListener('click', () => scheduleFeedRender());
+    restoreFactUi(stream, factUi);
     return;
   }
 
@@ -1038,7 +1050,9 @@ async function renderChatFeed() {
   const focusedApproval = focused?.closest("[data-approval-card]")?.dataset.approvalCard;
   const focusedChoice = focused?.dataset.approve;
   const focusedReceipt = focused?.dataset.receiptReview;
-  stream.innerHTML = parts.join("");
+  const focusedFact = focused?.dataset.factReview;
+  const factUi = captureFactUi(stream);
+  stream.innerHTML = parts.join("") + factPanelHtml(factPage.facts || [], factPage.error);
   $$("[data-approval-card] details", stream).forEach(d => {
     const id = d.closest("[data-approval-card]").dataset.approvalCard;
     if (reviewState.has(id)) d.open = reviewState.get(id);
@@ -1057,6 +1071,10 @@ async function renderChatFeed() {
   if (focusedReceipt && !focused.isConnected) {
     $$('[data-receipt-review]', stream).find(b => b.dataset.receiptReview === focusedReceipt)?.focus({ preventScroll: true });
   }
+  if (focusedFact && !focused.isConnected) {
+    ($$('[data-fact-review]', stream).find(b => b.dataset.factReview === focusedFact) || $('#chat-prompt'))?.focus({ preventScroll: true });
+  }
+  restoreFactUi(stream, factUi);
   if (wasNearBottom) scroll.scrollTop = scroll.scrollHeight;
 
   // The thinking bubble lives in a stable slot AFTER the feed: full re-renders
@@ -1099,8 +1117,133 @@ async function renderChatFeed() {
 
   wireApprovals();
   wireFeedInteractions();
+  wireFactControls(factPage.facts || [], currentStudioBot);
+  $('[data-retry-facts]', stream)?.addEventListener('click', () => scheduleFeedRender());
   $$("[data-retry-feed]", stream).forEach(button => button.onclick = () => scheduleFeedRender());
   updateTtls();
+}
+
+function factScopeLabel(fact) {
+  return fact.scope_kind === 'bot' ? "Shared with this bot's chats" : fact.scope_kind === 'legacy'
+    ? 'Legacy · scope needs review' : fact.scope_kind === 'run' ? 'This attempt' :
+    fact.scope_id === currentConversationId && !location.hash.startsWith('#/bot/') ? 'This chat' : `Chat: ${fact.conversation_title || 'Untitled'}`;
+}
+
+const FACT_BUTTONS = [['factReview','[data-fact-review]'], ['factEdit','[data-fact-edit]'],
+  ['factArchive','[data-fact-archive]'], ['factHistory','[data-fact-history]']];
+function captureFactUi(stream) {
+  const focused = document.activeElement;
+  const match = stream.contains(focused) && FACT_BUTTONS.find(([field]) => focused.dataset[field]);
+  return {focus:match ? [match[0], match[1], focused.dataset[match[0]]] : null,
+    expanded:$('.fact-panel details', stream)?.open || false};
+}
+function restoreFactUi(stream, state) {
+  const details = $('.fact-panel details', stream);
+  if (details) details.open = state.expanded;
+  if (state.focus) {
+    const [field, selector, id] = state.focus;
+    ($$(selector, stream).find(button => button.dataset[field] === id) || $('#chat-prompt'))?.focus({preventScroll:true});
+  }
+}
+
+function factCardHtml(fact) {
+  return `<article class="fact-card" data-fact-card="${esc(fact.id)}">
+    <div class="fact-heading"><strong>${esc(fact.key)}</strong><span class="tag">${fact.status === 'approved' ? 'Reviewed' : fact.status === 'archived' ? 'Archived' : 'Proposed'}</span></div>
+    <p class="fact-value">${esc(fact.value)}</p>
+    <p class="hint">${esc(factScopeLabel(fact))} · revision ${esc(fact.revision)}${fact.truncated ? ' · truncated; revise before use' : ''}</p>
+    <div class="btn-row">${fact.status === 'proposed' ? `<button type="button" class="btn primary small" data-fact-review="${esc(fact.id)}">Review fact</button>` : ''}
+      ${fact.status !== 'archived' ? `<button type="button" class="btn ghost small" data-fact-edit="${esc(fact.id)}">Revise</button>
+      <button type="button" class="btn ghost small" data-fact-archive="${esc(fact.id)}">Archive fact</button>` : ''}
+      <button type="button" class="btn ghost small" data-fact-history="${esc(fact.id)}">Fact history</button></div>
+  </article>`;
+}
+
+function factPanelHtml(facts, error = '') {
+  if (error) return `<p class="hint" role="status">Could not refresh reference facts: ${esc(error)}. <button class="btn ghost small" type="button" data-retry-facts>Retry facts</button></p>`;
+  if (!facts.length) return '';
+  const proposed = facts.filter(f => f.status === 'proposed'), reviewed = facts.filter(f => f.status === 'approved');
+  return `<section class="fact-panel" aria-label="Reference facts">
+    <h2>Reference facts</h2><p class="hint">Proposals need review before recall. Reviewed facts may be stale; they grant no tool permission. Memory can be disabled in bot settings.</p>
+    ${proposed.map(factCardHtml).join('')}
+    ${reviewed.length ? `<details><summary>${reviewed.length} reviewed ${reviewed.length === 1 ? 'fact' : 'facts'} in this window</summary>${reviewed.map(factCardHtml).join('')}</details>` : ''}
+    ${facts.length === 20 ? '<p class="hint">Showing 20 facts. Bot settings provide the full paginated inventory.</p>' : ''}</section>`;
+}
+
+function refreshFactsAfterChange(botName) {
+  if (location.hash.startsWith('#/bot/')) void renderBotDetail(botName);
+  else scheduleFeedRender();
+}
+
+function wireFactControls(facts, botName) {
+  const byId = new Map(facts.map(f => [f.id, f]));
+  $$('[data-fact-review]').forEach(button => button.onclick = () => {
+    const fact = byId.get(button.dataset.factReview); if (!fact) return;
+    const key = newIdempotencyKey();
+    openModal({ title: 'Review reference fact', confirmText: 'Use as reference', returnFocus: button,
+      bodyHtml: `<p>This records your review of revision ${esc(fact.revision)}. It is not proof of truth or permission to act.</p>
+        <strong>${esc(fact.key)}</strong><p class="fact-value">${esc(fact.value)}</p>
+        <p class="hint">${esc(factScopeLabel(fact))} · proposed ${esc(fact.updated_at)}</p>
+        ${fact.scope_kind !== 'bot' ? `<label class="fact-share"><input id="fact-share" type="checkbox">Share this exact fact with all chats for this bot</label>` : ''}
+        ${fact.scope_kind === 'legacy' ? '<p class="hint">Its original chat is unknown. Explicit sharing is required; otherwise archive it or propose a scoped revision.</p>' : ''}
+        <p id="fact-review-error" role="status" class="hint"></p>`,
+      onConfirm: async () => {
+        const share = $('#fact-share')?.checked;
+        if (fact.scope_kind === 'legacy' && !share) { $('#fact-review-error').textContent = 'Choose explicit sharing or cancel and archive this legacy fact.'; return false; }
+        const confirm = $('#modal-confirm'); confirm.disabled = true;
+        try {
+          await api(`/v1/bots/${encodeURIComponent(botName)}/facts/${encodeURIComponent(fact.id)}/review`, {
+            method: 'POST', headers: {'Idempotency-Key': key}, body: {content_hash: fact.content_hash, action: share ? 'share' : 'approve'}});
+          refreshFactsAfterChange(botName); return true;
+        } catch (error) { $('#fact-review-error').textContent = `${error.message} Review was not confirmed; keep this dialog to retry or close and refresh.`; return false; }
+        finally { if (confirm.isConnected) confirm.disabled = false; }
+      } });
+  });
+  $$('[data-fact-edit]').forEach(button => button.onclick = () => {
+    const fact = byId.get(button.dataset.factEdit); if (!fact) return;
+    const key = newIdempotencyKey();
+    openModal({ title: 'Propose revised fact', confirmText: 'Save proposal', returnFocus: button,
+      bodyHtml: `<p>Saving creates an unreviewed proposal. Existing versions and reviews stay in history.</p>
+        <label class="field">Key<input id="fact-key" maxlength="120" value="${esc(fact.key)}"></label>
+        <label class="field">Reference value<textarea id="fact-value" maxlength="2000">${esc(fact.value)}</textarea></label>
+        <p class="hint">${['legacy','run'].includes(fact.scope_kind) ? "This creates a new proposal for all this bot's chats, requiring explicit review before recall. The original remains separately reviewable." : esc(factScopeLabel(fact))} Never save credentials here.</p>
+        <p id="fact-edit-error" class="hint" role="status"></p>`,
+      onConfirm: async () => {
+        const body = {key: $('#fact-key').value, value: $('#fact-value').value,
+          conversation_id: fact.scope_kind === 'conversation' ? fact.scope_id : null};
+        try {
+          await api(`/v1/bots/${encodeURIComponent(botName)}/facts`, {method:'POST', headers:{'Idempotency-Key':key}, body});
+          refreshFactsAfterChange(botName); return true;
+        } catch (error) { $('#fact-edit-error').textContent = error.message; return false; }
+      } });
+  });
+  $$('[data-fact-archive]').forEach(button => button.onclick = () => {
+    const fact = byId.get(button.dataset.factArchive); if (!fact) return;
+    const key = newIdempotencyKey();
+    openModal({ title:'Archive reference fact', confirmText:'Archive fact', returnFocus:button,
+      bodyHtml:`<p>Archive <strong>${esc(fact.key)}</strong>, revision ${esc(fact.revision)} (${esc(factScopeLabel(fact))})?</p>
+        <p>It will be excluded from new retrieval. Versions, reviews, previous prompts and backups remain; this is not permanent deletion.</p><p id="fact-archive-error" class="hint" role="status"></p>`,
+      onConfirm: async () => {
+        try {
+          await api(`/v1/bots/${encodeURIComponent(botName)}/facts/${encodeURIComponent(fact.id)}/review`, {
+            method:'POST', headers:{'Idempotency-Key':key}, body:{content_hash:fact.content_hash, action:'archive'}});
+          refreshFactsAfterChange(botName); return true;
+        } catch(error) { $('#fact-archive-error').textContent = error.message; return false; }
+      } });
+  });
+  $$('[data-fact-history]').forEach(button => button.onclick = async () => {
+    const fact = byId.get(button.dataset.factHistory); if (!fact) return;
+    button.disabled = true;
+    try {
+      const page = await api(`/v1/bots/${encodeURIComponent(botName)}/facts/${encodeURIComponent(fact.id)}/history?limit=20`);
+      openModal({title:'Reference fact history', confirmText:'Close', showCancel:false, returnFocus:button,
+        bodyHtml: `<p>Versions and review records are retained. A review records a human decision; it does not prove a fact or authorize an action.</p>
+          ${page.facts.map(version => `<article class="fact-card"><strong>Revision ${esc(version.revision)} · ${esc(version.status)}</strong>
+            <p class="fact-value">${esc(version.key)}: ${esc(version.value)}</p><p class="hint">${esc(version.source)} · ${esc(version.updated_at)}${version.truncated ? ' · truncated' : ''}</p>
+            ${page.reviews.filter(review => review.fact_id === version.id || review.result_id === version.id).map(review => `<p class="hint">${esc(review.action)} · ${esc(review.actor)} · ${esc(review.created_at)}${review.note ? ` · ${esc(review.note)}` : ''}</p>`).join('')}</article>`).join('')}
+          ${page.next_offset !== null ? '<p class="hint">Showing the newest 20 revisions. The versioned API provides older pages.</p>' : ''}`});
+    } catch(error) { toast(error.message, 'error'); }
+    finally { if (button.isConnected) button.disabled = false; }
+  });
 }
 
 // Lifecycle transitions are announced once per change, not per token or poll.
@@ -2052,8 +2195,9 @@ async function refreshApprovals() {
 
 /* -------------------------------------------------------- bot settings */
 
-async function renderBotDetail(name) {
+async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) {
   const b = await api(`/bots/${encodeURIComponent(name)}`);
+  const factsPage = await api(`/v1/bots/${encodeURIComponent(name)}/facts?all_scopes=true&limit=20&offset=${factOffset}&include_archived=${showArchivedFacts}`);
   setTopContext(`
     <div class="ctx-id">
       ${botAvatar(b.name, 30)}
@@ -2201,12 +2345,14 @@ async function renderBotDetail(name) {
           </div>
 
           <div class="panel">
-            <div class="panel-title">Memory (${b.memory.length})</div>
-            ${b.memory.map(m => `
-              <div class="memory-item">
-                <div><span class="memory-key">${esc(m.key)}</span><span class="memory-val">${esc(m.value)}</span></div>
-                <button class="chip-del" aria-label="Forget memory ${esc(m.key)}" data-del-mem="${esc(m.key)}">${icon("x")}</button>
-              </div>`).join("") || `<p class="empty-inline">Nothing remembered yet.</p>`}
+            <div class="panel-title">Reference facts (${b.memory_count})</div>
+            <p class="hint">${b.memory_enabled ? 'Runtime memory is enabled. Proposals require human review before recall.' : 'Runtime memory is disabled. Saved records remain manageable here.'} Review records are reference data, not tool permission. Never save credentials.</p>
+            <button class="btn ghost small" id="memory-toggle" type="button">${b.memory_enabled ? 'Disable' : 'Enable'} memory</button>
+            <button class="btn ghost small" id="memory-archives" type="button">${showArchivedFacts ? 'Hide' : 'Show'} archived facts</button>
+            ${factsPage.facts.map(factCardHtml).join('') || `<p class="empty-inline">No active facts in this window.</p>`}
+            <div class="btn-row"><button class="btn ghost small" id="facts-previous" type="button" ${factOffset ? '' : 'disabled'}>Previous facts</button>
+              <span class="hint">${factsPage.facts.length ? `${factOffset + 1}–${factOffset + factsPage.facts.length}` : 'No facts in this window'}</span>
+              <button class="btn ghost small" id="facts-next" type="button" ${factsPage.next_offset === null ? 'disabled' : ''}>Next facts</button></div>
           </div>
 
           <div class="panel">
@@ -2264,12 +2410,11 @@ async function renderBotDetail(name) {
     if (!rule.match) return;
     patch({ command_rules: [...rules, rule] }, "Rule added.");
   });
-  $$("[data-del-mem]").forEach(btn => btn.addEventListener("click", async () => {
-    const k = btn.dataset.delMem;
-    if (!(await confirmDialog({ title: "Forget memory", body: `Delete <b>${esc(k)}</b>?`, confirmText: "Forget", danger: true }))) return;
-    await api(`/bots/${encodeURIComponent(b.name)}/memory/${encodeURIComponent(k)}`, { method: "DELETE" });
-    toast("Forgot it."); renderBotDetail(b.name);
-  }));
+  wireFactControls(factsPage.facts, b.name);
+  $('#memory-toggle').onclick = () => patch({memory_enabled: !b.memory_enabled}, `Memory ${b.memory_enabled ? 'disabled' : 'enabled'}.`);
+  $('#memory-archives').onclick = () => renderBotDetail(name, 0, !showArchivedFacts);
+  $('#facts-previous').onclick = () => renderBotDetail(name, Math.max(0, factOffset - 20), showArchivedFacts);
+  $('#facts-next').onclick = () => renderBotDetail(name, factsPage.next_offset, showArchivedFacts);
   $$("[data-revoke-sticky]").forEach(btn => btn.addEventListener("click", async () => {
     await api(`/bots/${encodeURIComponent(b.name)}/sticky-allows/${encodeURIComponent(btn.dataset.revokeSticky)}`, { method: "DELETE" });
     toast("Permission revoked."); renderBotDetail(b.name);
@@ -2614,7 +2759,7 @@ function refreshChangedResources(resources) {
       if (needsYouDialog.open) void refreshApprovals();
     }
     if (changed.has("state")) void pollHealth();
-    if (["messages", "conversations", "runs", "approvals", "actions", "transcript_mirrors"].some(r => changed.has(r))) {
+    if (["messages", "conversations", "runs", "approvals", "actions", "transcript_mirrors", "memory"].some(r => changed.has(r))) {
       const visibleHash = location.hash || "#/chat";
       if (/^#\/chat(?:\/|$)/.test(visibleHash) || /^#\/run\/[\w-]+$/.test(visibleHash)) scheduleFeedRender();
     }

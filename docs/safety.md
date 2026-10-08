@@ -1,5 +1,14 @@
 # Safety model
 
+Reference facts are proposed data, never instructions, tool permissions or verified truth. Schema v15
+binds review to immutable content/scope and checks model writes against current execution fencing,
+lease expiry, cancellation and terminal state. Private chat facts are not automatically shared;
+legacy facts begin unreviewed. Runtime retrieval excludes unreviewed, archived and replaced versions.
+JSON/reference framing reduces role confusion but does not prove a model will ignore malicious text.
+Independent action policy, receipts and containment remain required. Memory off denies new runtime
+reads/writes but cannot retract prior prompts; human management stays available. Credential stores
+are never indexed as facts, but user/model text can contain private material and is not a secret vault.
+
 hutch assumes a **supervising human** is part of the system. It is not a formal security boundary
 against a determined adversary — it is a policy layer that checks what hutch's own tools are asked to
 do. Each rule below traces to a reported failure class in `research/complaints.md` (individual reports,

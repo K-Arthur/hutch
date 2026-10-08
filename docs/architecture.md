@@ -1,5 +1,12 @@
 # Architecture
 
+Schema v15 separates reference facts from canonical chat messages, workspace files, execution receipts
+and provider credential stores. Model proposals inherit persisted chat/run scope and execution fencing;
+human review binds immutable revision/scope hashes. Explicit sharing creates a bot-wide reference.
+Facts are retrieved as bounded JSON tool data through SQLite FTS5, never automatically placed in system
+instructions. Archived/replaced/unreviewed versions are excluded. Retained versions/reviews remain
+private persistent data; archive is not erasure. See ADR-0008 and the continuation ledger for actual checks.
+
 hutch is a local-first multi-bot agent platform: one Python process family that stores everything
 in one state directory, drives LLM agents through a policy-gated tool layer, and exposes both a CLI
 and a local web dashboard.

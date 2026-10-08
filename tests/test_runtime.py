@@ -45,8 +45,12 @@ def test_mock_runtime_end_to_end(store, config, tmp_path):
     tools = build_tools(ctx.bot.tools, ctx)
     final = MockRuntime().execute(run, ctx, tools, stop=lambda: False)
 
-    assert "report.md" in final
     assert (ctx.workspace / "report.md").exists()
+    # This summary is a demo of the real tool layer, while its saved reference
+    # fact remains a proposal until reviewed in chat.
+    proposals = [item for item in store.recall_all(ctx.bot.id) if item.status == "proposed"]
+    assert proposals
+    assert "human review" in final
     assert any(e.type is EventType.tool_call for e in emitted)
     assert any(e.type is EventType.message for e in emitted)
     assert store.recall_all(ctx.bot.id)  # memory was written
@@ -55,6 +59,10 @@ def test_mock_runtime_end_to_end(store, config, tmp_path):
 
 def test_mock_runtime_ask_mode_pauses_for_approval(store, config, tmp_path):
     ctx, run, _ = make_ctx(store, config, tmp_path, approval_mode=ApprovalMode.ask)
+    # This direct runtime fixture has no supervisor to claim its run. Put its
+    # unowned fixture row into the same running state a claimed worker uses.
+    store.transition_run(run.id, RunStatus.running, fence=0)
+    run.status = RunStatus.running
     tools = build_tools(ctx.bot.tools, ctx)
 
     stop_approver = threading.Event()
@@ -65,8 +73,8 @@ def test_mock_runtime_ask_mode_pauses_for_approval(store, config, tmp_path):
             pend = store.pending_approvals()
             if pend:
                 resolve_approval(store, pend[0].id, approve=True, by="test", sticky=False)
-                return
-            stop_approver.wait(0.01)
+            else:
+                stop_approver.wait(0.01)
 
     t = threading.Thread(target=auto_approver)
     t.start()
@@ -76,7 +84,8 @@ def test_mock_runtime_ask_mode_pauses_for_approval(store, config, tmp_path):
         stop_approver.set()
         t.join(timeout=2)
         assert not t.is_alive(), "approval helper must exit before the Store fixture closes"
-    assert "report.md" in final
+    assert (ctx.workspace / "report.md").exists()
+    assert "human review" in final
     assert len(store.pending_approvals()) == 0
 
 

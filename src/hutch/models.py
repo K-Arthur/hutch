@@ -12,7 +12,7 @@ import math
 import uuid
 from datetime import datetime, time, timedelta, timezone
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field, computed_field, field_validator
 
@@ -350,8 +350,17 @@ class ApprovalRequest(BaseModel):
 
 
 class MemoryItem(BaseModel):
+    id: str = ''
+    bot_id: str = ''
     key: str
     value: str
     updated_at: str = Field(default_factory=lambda: iso(utcnow()))
     run_id: str = ""                  # the run that wrote this entry (UI-10)
     source: str = "bot"               # bot | user
+    scope_kind: Literal['conversation', 'run', 'bot', 'legacy'] = 'legacy'
+    scope_id: str = ''
+    revision: int = 1
+    content_hash: str = ''
+    status: Literal['proposed', 'approved', 'archived'] = 'proposed'
+    truncated: bool = False
+    conversation_title: str = ''

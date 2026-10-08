@@ -218,7 +218,7 @@
           </div>
           <div class="ledger-body">
             <h3>Local agents with zero defaults and messy memory</h3>
-            <p>Conversation history, approved memory facts, artifacts and credentials need different retention rules. Hutch currently stores conversation records and run receipts locally; fact memory and stable workspaces remain limited, not a complete personal knowledge system.</p>
+            <p>Hutch keeps chat history, reference facts and action receipts separate. Facts start as proposals for their chat, require human review before recall, and need explicit sharing for other chats. Memory can be disabled while records remain manageable. Archive keeps history and backups; stable workspaces and permanent scoped deletion remain unfinished.</p>
           </div>
         </article>
       </div>
@@ -309,7 +309,7 @@
           </div>
           <div class="spec">
             <dt class="spec-k">State</dt>
-            <dd class="spec-v">SQLite history is stored under <code>~/.local/state/hutch</code> by default. Hutch can snapshot committed database history and restore it into a new directory with execution held for review. Credentials, browser profiles and user files need separate backups.</dd>
+            <dd class="spec-v">SQLite history is stored under <code>~/.local/state/hutch</code> by default. Hutch can snapshot committed database history and restore it into a new directory with execution held for review. Reference facts require human review before recall; sharing across a bot&rsquo;s chats is explicit. Archiving retains fact and review history in later snapshots. Stable workspaces and permanent scoped deletion remain unfinished. Credentials, browser profiles and user files need separate backups.</dd>
           </div>
           <div class="spec">
             <dt class="spec-k">Scheduling</dt>

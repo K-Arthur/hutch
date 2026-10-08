@@ -208,6 +208,9 @@ def test_database_snapshot_scope_is_readable_and_has_no_executor_requests(browse
         text = state.inner_text()
         assert 'execution held for review' in text and 'new directory' in text
         assert 'Credentials, browser profiles and user files need separate backups' in text
+        state_text = text.lower()
+        assert 'require human review before recall' in state_text and 'sharing across a bot' in state_text
+        assert 'archiving retains fact and review history' in state_text and 'permanent scoped deletion remain unfinished' in state_text
         state.scroll_into_view_if_needed()
         state.screenshot(path=str(out / f'site-{size}-state.png'), animations='disabled')
         page.screenshot(path=str(out / f'site-{size}-viewport.png'), animations='disabled')

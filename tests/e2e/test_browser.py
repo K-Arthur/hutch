@@ -51,6 +51,7 @@ def live(tmp_path, monkeypatch):
     yield f"http://127.0.0.1:{port}", app
     server.should_exit = True
     t.join(timeout=10)
+    assert not t.is_alive()
 
 
 class CuttableProxy:
@@ -420,11 +421,12 @@ def switcher_env(live, monkeypatch):
     fake.close()
 
 
-def test_composer_switcher_menu_check_keyboard_and_per_message_override(browser, switcher_env):
+def test_composer_switcher_menu_check_keyboard_and_per_message_override(browser, switcher_env, request):
     from tests.fakes import agent_script
     base, app, fake = switcher_env
     fake.script = agent_script([{"content": "answered on the small model"}])
     page = browser.new_context(viewport={"width": 1280, "height": 800}).new_page()
+    request.addfinalizer(page.close)
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.goto(base + "/")
@@ -460,6 +462,11 @@ def test_composer_switcher_menu_check_keyboard_and_per_message_override(browser,
     body = info.value.json()
     assert body["model_override"].startswith("ollama/") and body["model_override"] == "ollama/small:2b"
     assert app.state.store.get_bot("chatty").model == "ollama/tiny:1b", "switching must not edit the bot"
+    from hutch.models import RunStatus
+    wait_for(lambda: app.state.store.get_run(body["id"]).status in {
+        RunStatus.succeeded, RunStatus.failed, RunStatus.stopped, RunStatus.outcome_unknown
+    })
+    assert app.state.store.get_run(body["id"]).status is RunStatus.succeeded
 
     page.reload()                                           # the choice is remembered for this bot
     page.locator(".ms-btn").wait_for()
@@ -467,9 +474,10 @@ def test_composer_switcher_menu_check_keyboard_and_per_message_override(browser,
     assert not errors, errors
 
 
-def test_all_models_dialog_filters_explains_and_applies(browser, switcher_env):
+def test_all_models_dialog_filters_explains_and_applies(browser, switcher_env, request):
     base, app, fake = switcher_env
     page = browser.new_context(viewport={"width": 1280, "height": 800}).new_page()
+    request.addfinalizer(page.close)
     page.goto(base + "/")
     page.locator(".ms-btn").click()
     page.locator(".ms-more").click()
@@ -497,9 +505,10 @@ def test_all_models_dialog_filters_explains_and_applies(browser, switcher_env):
     assert page.locator(".ms-menu").is_hidden() and "small:2b" in page.locator(".ms-btn").inner_text()
 
 
-def test_switcher_fits_a_phone_screen(browser, switcher_env):
+def test_switcher_fits_a_phone_screen(browser, switcher_env, request):
     base, app, fake = switcher_env
     page = browser.new_context(viewport={"width": 390, "height": 844}).new_page()
+    request.addfinalizer(page.close)
     page.goto(base + "/")
     page.locator(".ms-btn").click()
     page.locator(".ms-menu").wait_for(state="visible")
@@ -1144,6 +1153,97 @@ def test_uncertain_action_review_in_chat_preserves_history_and_recovers_lost_res
             'source_sha256':{p:hashlib.sha256((out.parents[3]/p).read_bytes()).hexdigest() for p in (
                 'src/hutch/server/static/app.js','src/hutch/server/static/style.css','src/hutch/server/static/index.html',
                 'src/hutch/server/app.py','src/hutch/store.py','src/hutch/action_receipts.py')},
+        },indent=2)+'\n')
+    finally:
+        context.tracing.stop(path=str(out/f'{size}-trace.zip'))
+        context.close()
+
+
+@pytest.mark.parametrize('width,height,size', [(1440,1000,'desktop'),(900,1024,'tablet'),(390,844,'phone')])
+def test_scoped_fact_review_revision_conflict_and_memory_off(browser, live, width, height, size):
+    import hashlib
+    import json
+    from pathlib import Path
+    from hutch.models import Run, iso, utcnow
+    base, application = live
+    store = application.state.store
+    bot = store.create_bot(Bot(name='fact-review-bot', tools=['memory']))
+    a, _ = store.create_conversation(bot.id, 'Private reference chat', idem_key='fact-chat-a', request_hash='a')
+    b, _ = store.create_conversation(bot.id, 'Separate private chat', idem_key='fact-chat-b', request_hash='b')
+    # A running status fixture keeps the e2e run out of the live supervisor's
+    # pending queue. Production fence ownership is covered by test_fact_memory.
+    run = store.create_run(Run(bot_id=bot.id, conversation_id=a['id'], prompt='synthetic fact proposal', status=RunStatus.running))
+    fact = store.remember(bot.id, 'format', 'PRIVATE A: prefer short bullets. <script>window.__factInjected=true</script>',
+                          run_id=run.id, expected_fence=0)
+    store.transition_run(run.id, RunStatus.succeeded, fence=0)
+    store.remember(bot.id, 'other-private', 'PRIVATE B MUST NOT APPEAR IN A', conversation_id=b['id'])
+    context = browser.new_context(viewport={'width':width,'height':height}, reduced_motion='reduce')
+    context.tracing.start(screenshots=True, snapshots=True, sources=True)
+    page, errors = context.new_page(), []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    out = Path(__file__).resolve().parents[2]/'docs/realignment/artifacts/fact-memory'
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        page.goto(base+'/#/chat/'+bot.name)
+        page.locator('#conversation-switcher').select_option(a['id'])
+        page.locator(f'[data-fact-card="{fact.id}"]').wait_for()
+        assert 'PRIVATE B MUST NOT APPEAR IN A' not in page.locator('#chat-stream').inner_text()
+        assert page.evaluate('window.__factInjected === undefined')
+        page.locator('#chat-prompt').fill('Keep this unsent fact-review draft')
+        page.screenshot(path=str(out/f'{size}-proposed.png'), full_page=True, animations='disabled')
+        review_button = page.locator(f'[data-fact-review="{fact.id}"]')
+        review_button.focus(); page.keyboard.press('Enter')
+        page.locator('#fact-share').wait_for()
+        assert not page.locator('#fact-share').is_checked()
+        assert 'not proof of truth' in page.locator('.modal-body').inner_text()
+        if size=='phone':
+            assert page.locator('.fact-share').bounding_box()['height']>=44
+            assert page.locator('#modal-confirm').bounding_box()['height']>=44
+        page.screenshot(path=str(out/f'{size}-review.png'), full_page=True, animations='disabled')
+        page.keyboard.press('Escape')
+        assert review_button.evaluate('e => e === document.activeElement'), page.evaluate('({active:document.activeElement.outerHTML, modal:!!document.querySelector("#modal-title")})')
+        review_button.click()
+        newer = store.remember(bot.id, 'format', 'PRIVATE A REVISED: concise summary', conversation_id=a['id'])
+        page.locator('#modal-confirm').click()
+        page.locator('#fact-review-error').get_by_text('replaced', exact=False).wait_for()
+        assert page.locator('#chat-prompt').input_value().startswith('Keep this unsent')
+        assert store.fact_page(bot.id, conversation_id=a['id'], approved_only=True)==[]
+        page.screenshot(path=str(out/f'{size}-revision-conflict.png'), full_page=True, animations='disabled')
+        page.keyboard.press('Escape')
+        page.locator(f'[data-fact-review="{newer.id}"]').click()
+        page.locator('#fact-share').check()
+        with page.expect_response(lambda r: r.request.method=='POST' and r.url.endswith('/review')) as result:
+            page.locator('#modal-confirm').click()
+        assert result.value.status==200
+        page.locator('#modal-title').wait_for(state='hidden')
+        assert page.locator('#chat-prompt').input_value().startswith('Keep this unsent')
+        shared = store.fact_page(bot.id, approved_only=True)[0]
+        assert shared['scope_kind']=='bot' and shared['value'].startswith('PRIVATE A REVISED')
+        page.locator('#conversation-switcher').select_option(b['id'])
+        page.locator('.fact-panel details summary').click()
+        page.locator(f'[data-fact-card="{shared["id"]}"]').wait_for()
+        assert 'PRIVATE A REVISED' in page.locator('#chat-stream').inner_text()
+        page.screenshot(path=str(out/f'{size}-shared.png'), full_page=True, animations='disabled')
+        page.get_by_role('link',name='Settings',exact=True).click()
+        page.locator('#memory-toggle').click()
+        page.get_by_role('button', name='Enable memory', exact=True).wait_for()
+        assert not store.get_bot(bot.id).memory_enabled
+        page.locator('#memory-archives').click()
+        page.locator(f'[data-fact-card="{newer.id}"]').get_by_text('Archived',exact=True).wait_for()
+        page.locator(f'[data-fact-history="{shared["id"]}"]').click()
+        page.locator('#modal-title').get_by_text('Reference fact history',exact=True).wait_for()
+        assert 'share · operator' in page.locator('.modal-body').inner_text()
+        page.screenshot(path=str(out/f'{size}-disabled-history.png'), full_page=True, animations='disabled')
+        overflow = page.evaluate('document.documentElement.scrollWidth-innerWidth')
+        assert overflow<=1 and not errors
+        (out/f'{size}.json').write_text(json.dumps({
+            'captured_at':iso(utcnow()), 'browser':browser.browser_type.name, 'version':browser.version,
+            'viewport':[width,height], 'page_errors':errors,'horizontal_overflow':overflow,
+            'scenario':'Synthetic running attempt proposes a fact; real local API review/conflict/share/off/history; ownership fences have separate offline coverage',
+            'draft_preserved':True,'rendered_fact_script_not_executed':True,
+            'source_sha256':{p:hashlib.sha256((out.parents[3]/p).read_bytes()).hexdigest() for p in (
+                'src/hutch/models.py','src/hutch/store.py','src/hutch/fact_memory.py','src/hutch/tools/memory.py',
+                'src/hutch/runtime/builtin.py','src/hutch/server/app.py','src/hutch/server/static/app.js','src/hutch/server/static/style.css')}
         },indent=2)+'\n')
     finally:
         context.tracing.stop(path=str(out/f'{size}-trace.zip'))

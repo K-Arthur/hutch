@@ -5,7 +5,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from hutch.models import Bot, Run
+from hutch.models import Bot, Run, RunStatus
 from hutch.server.app import create_app
 
 
@@ -191,7 +191,8 @@ def test_sticky_and_memory_deletion(client):
     # or test deletion on non-existent (idempotent 200)
     res_mem = client.delete("/api/bots/mem-bot/memory/test-key")
     assert res_mem.status_code == 200
-    assert res_mem.json() == {"forgot": "test-key"}
+    assert res_mem.json() == {"forgot": "test-key", "operation": "archived",
+                              "scope": "all facts with this key for this bot", "history_retained": True}
 
     res_sticky = client.delete("/api/bots/mem-bot/sticky-allows/shell:echo")
     assert res_sticky.status_code == 200
@@ -249,7 +250,9 @@ def test_versioned_connections_schedules_and_capabilities_are_typed_and_secret_f
     assert route["account_id"] == "api-account" and route["account_daily_cost_cap_usd"] == 5.0
     assert route["configured_account_daily_cost_cap_usd"] == 5.0
     bot = client.app.state.store.create_bot(Bot(name="reservation-api"))
-    run = client.app.state.store.create_run(Run(bot_id=bot.id, prompt="api status"))
+    # Keep the fixture out of the live supervisor's pending queue; its fence
+    # owns production reservations, while this API resource check is synthetic.
+    run = client.app.state.store.create_run(Run(bot_id=bot.id, prompt="api status", status=RunStatus.running))
     client.app.state.store.reserve_usage(run_id=run.id, bot_id=bot.id, provider="private-route",
                                          account_id="api-account", model="m", reserved_tokens=123,
                                          reserved_cost_usd=0.45)

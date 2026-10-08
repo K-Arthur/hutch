@@ -1,5 +1,13 @@
 # Bot configuration reference
 
+`memory_enabled: false` omits memory tools from new runtime tool lists and refuses recall/proposal
+through existing tool objects after the persisted setting changes. It does not hide saved facts from
+human management or retract prior provider input. `remember` proposes a reference fact within its
+chat (or isolated attempt); `recall` returns only reviewed facts in that scope plus references explicitly
+shared with this bot's chats. A revision requires a new review. Keys/values are bounded to 120/2,000
+characters. Legacy unscoped facts need an explicit sharing decision. Archive retains versions, earlier
+prompts and backups. Store credentials through configured connections, never reference facts.
+
 A **bot** is a stored configuration; a **run** is one execution of it. Bots are managed via CLI,
 dashboard, or the REST API, and live in `hutch.db`.
 
@@ -17,7 +25,7 @@ dashboard, or the REST API, and live in `hutch.db`.
 | `schedule` | obj? | null | `{cron, timezone, catch_up}` — omit for on-demand |
 | `limits` | obj | see below | runtime limits and usage admission budgets |
 | `approval_mode` | enum | `ask` | `ask` · `auto` |
-| `memory_enabled` | bool | true | inject remembered facts into the system prompt |
+| `memory_enabled` | bool | true | allow runtime fact proposal/retrieval tools; facts are never automatically injected |
 | `workdir` | path? | null | a folder of yours the bot works in, run after run (see below); null = a fresh empty workspace per run |
 | `risk_tier` | enum | `supervised` | `readonly` · `supervised` · `trusted`: what happens to medium-risk actions ([safety.md](safety.md)) |
 | `command_rules` | list | `[]` | `{match, verdict}` per-command `allow`/`ask`/`deny` globs ([safety.md](safety.md)) |
@@ -134,8 +142,8 @@ hutch bot create tidy \
 Inspect what a bot remembers and what it's been allowed to do:
 
 ```bash
-hutch bot show tidy          # memory + sticky allows + recent runs
-hutch bot forget tidy        # wipe memory and sticky allows
+hutch bot show tidy          # bounded fact inventory + sticky allows + recent runs
+hutch bot forget tidy        # archive all facts; revoke sticky allows; history remains
 ```
 
 ## Templates

@@ -1,0 +1,35 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "website/index.html"
+        ],
+        "createdAt": "2026-10-08T15:01:51.879Z",
+        "reason": "This page uses full-bleed color bands with inset .wrap children and bordered rows with 16–32px block padding; browser captures confirmed the detector findings are section/divider false positives. This is the narrowest ignore supported for this extracted rule in the current HTML scanner."
+      },
+      {
+        "rule": "clipped-overflow-container",
+        "value": "*",
+        "files": [
+          "website/index.html"
+        ],
+        "createdAt": "2026-10-08T15:01:55.315Z",
+        "reason": "The clipped region contains only a pointer-events-none decorative hero glow and a masked SVG background; it has no controls, menus, tooltips, or popovers. Desktop/tablet/phone captures confirm no user content is clipped."
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "website/index.html"
+        ],
+        "createdAt": "2026-10-08T15:01:55.333Z",
+        "reason": "The static HTML scanner does not resolve custom-property heading styles: rendered section headings compute to 27–40px against 15px body text. Captures show a clear hierarchy."
+      }
+    ]
+  }
+}

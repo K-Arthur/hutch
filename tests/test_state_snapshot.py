@@ -250,6 +250,9 @@ def test_held_api_rejects_new_work_but_keeps_readable_report(store, config, tmp_
         response = client.post(f'/api/bots/{bot.name}/run', json={'prompt': 'must not dispatch'})
         assert response.status_code == 409 and response.json()['code'] == 'restore_review_required'
         assert client.get('/api/v1/tasks/runs').status_code == 200
+        changes = client.get('/api/v1/changes')
+        assert changes.status_code == 200, changes.text
+        assert any(change['resource'] == 'state' for change in changes.json()['changes'])
 
 
 def test_cli_restore_report_activation_and_changed_release(store, config, tmp_path, monkeypatch):

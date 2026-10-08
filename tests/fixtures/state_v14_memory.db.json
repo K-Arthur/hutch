@@ -1,0 +1,7 @@
+{
+  "source_commit": "2b74118",
+  "schema": 14,
+  "scope": "synthetic two legacy fact rows; no external calls or private material",
+  "fixture_sha256": "22606efa8f957d1d1f5bec24b4c28e5a6cdbae45aca0394dbc0dc2f8140841f3",
+  "command": "isolated git archive; Store.remember; SQLite backup API; standalone journal mode"
+}

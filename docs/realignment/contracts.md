@@ -201,3 +201,39 @@ cleanup authority while keeping identity and `ended_at` evidence unchanged.
 
 State backups/restores are private local commands, not website download or control routes. See
 [Operations](../operations.md#database-migration-and-restore) for snapshot scope and cutover.
+
+## Reference facts (schema v15)
+
+`GET /api/v1/bots/{ref}/facts` returns typed reference revisions, with `limit` 1–100,
+nonnegative `offset`, literal `query` up to 256 characters and optional `include_archived`.
+Default scope is shared facts for this bot. `conversation_id` adds that bot's chat; an unrelated
+chat returns 404. `all_scopes=true` is human inventory and cannot be combined with a chat filter.
+Only the latest revision for each scope/key appears; history retains older versions. Values are
+bounded to 2000 characters and oversized legacy records are explicitly marked truncated.
+
+`POST /api/v1/bots/{ref}/facts` saves an unreviewed human proposal with key/value limits of
+120/2000 characters and optional chat scope. Without a chat it is a proposed bot reference.
+The required `Idempotency-Key` makes an exact retry return its original proposal; changed reuse
+returns 409. Extra actor/status/authority fields are rejected. Runtime proposals instead require
+the current execution fence, a live non-cancelled attempt and enabled memory. Their scope is
+derived from the persisted run, never a supplied source label.
+
+`POST /api/v1/bots/{ref}/facts/{id}/review` requires `Idempotency-Key`, exact `content_hash`,
+`action` (`approve`, `archive`, `share`) and optional note up to 1000 characters. Actor derives
+from the authenticated operator/device. Review binds immutable content, scope and revision;
+replaced arguments or a different prior decision conflict. An exact decision replays once.
+Approval changes eligibility for reference retrieval, not tool permissions or factual validity.
+Share creates an approved bot-wide copy and archives the original; an active shared key conflicts
+rather than overwriting it. Legacy facts have unknown chat scope and require explicit sharing or
+a new scoped proposal. Archive retains content and review history.
+
+`GET /api/v1/bots/{ref}/facts/{id}/history` returns bounded revision pages and associated review
+records. A shared copy links its originating sharing decision. Bot settings and chat consume
+canonical records; content-free `memory` invalidations refresh chat without exposing fact values
+in global event streams. The typed resource enum also includes schema-v14 `state` changes.
+`memory_enabled=false` denies runtime recall/proposals while keeping human inventory and review.
+Legacy key deletion is an explicitly labelled archive of all facts with that key for the bot;
+permanent deletion/export is not supplied by that compatibility route.
+The older `GET /api/bots/{ref}` has no conversation selector, so its `memory` field exposes
+reviewed bot-wide references only. Chat-scoped inventory belongs to the scoped v1 endpoint;
+the local CLI remains an operator-wide diagnostic inventory.

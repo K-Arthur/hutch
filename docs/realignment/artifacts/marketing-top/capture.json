@@ -1,0 +1,50 @@
+{
+  "captured_at": "2026-10-08T15:41:56.449105+00:00",
+  "command": ".venv/bin/python docs/realignment/capture_marketing_top.py",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "python_version": "3.13.15",
+  "site": "anonymous local static site; no credentials or external requests",
+  "reduced_motion": true,
+  "source_sha256": {
+    "website/index.html": "45d41a0c7b5609a51c968e3ebba5744062044da3ac966c9156bea8a5514d2049",
+    "website/styles.css": "4e3bae94788f5ecb4b9a1068cd6b5d9903469feecd2860ca94579e176da2e7f5",
+    "website/site.js": "f4e97600ff561f77fa15979fc5e740984c4160b8baf40bff558389da51204a0b"
+  },
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "path": "docs/realignment/artifacts/marketing-top/desktop.png",
+      "horizontal_overflow": 0,
+      "page_errors": [],
+      "requests_same_origin": true
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "path": "docs/realignment/artifacts/marketing-top/tablet.png",
+      "horizontal_overflow": 0,
+      "page_errors": [],
+      "requests_same_origin": true
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "path": "docs/realignment/artifacts/marketing-top/phone.png",
+      "horizontal_overflow": 0,
+      "page_errors": [],
+      "requests_same_origin": true
+    }
+  ]
+}

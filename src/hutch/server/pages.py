@@ -290,7 +290,7 @@ def register_pages(app: FastAPI) -> None:
         measured_tokens, reserved_tokens, _, _ = store.bot_budget_today(bot.id)
         return page(request, "bot.html", nav="bots", bot=bot,
                     runs=[rv(r) for r in store.list_runs(bot.id, limit=8)],
-                    memory=store.recall_all(bot.id), allows=store.list_sticky_allows(bot.id),
+                    memory=store.shared_facts(bot.id), allows=store.list_sticky_allows(bot.id),
                     tokens_today=measured_tokens + reserved_tokens, estimate=estimate_run(config, store, bot))
 
     @app.post("/bots/{name}/run", include_in_schema=False)

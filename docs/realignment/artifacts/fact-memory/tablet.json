@@ -1,0 +1,24 @@
+{
+  "captured_at": "2026-10-08T15:35:21.336878+00:00",
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "viewport": [
+    900,
+    1024
+  ],
+  "page_errors": [],
+  "horizontal_overflow": 0,
+  "scenario": "Synthetic running attempt proposes a fact; real local API review/conflict/share/off/history; ownership fences have separate offline coverage",
+  "draft_preserved": true,
+  "rendered_fact_script_not_executed": true,
+  "source_sha256": {
+    "src/hutch/models.py": "b037310c53f00804985793da0ed6f99a8c29cdc7933246b6a43729ac632ad833",
+    "src/hutch/store.py": "bf4285b7b91c663c7cf068c21fe20fac544d6a4cff2d8bd56a6a23a074705d19",
+    "src/hutch/fact_memory.py": "7983fe527a6868e35d5baea0c6a479df9289d916a66723c51a156503c89f48e1",
+    "src/hutch/tools/memory.py": "92d7bb1800f40017863667c23c774fd8741ccf826a0906a62401474044d49d3a",
+    "src/hutch/runtime/builtin.py": "f635f05e4c8c08e35fa565bf1848d7305f5c9e0b62d1fd84680487da1e1c1bbe",
+    "src/hutch/server/app.py": "f64cc75d90af01ced6622fabb668246397edc4bdaf44c057bd479c5ec6cc70c4",
+    "src/hutch/server/static/app.js": "4a4c665c2a5b1111eded455aa003118131d99f2792473fc163910d1502ca14c5",
+    "src/hutch/server/static/style.css": "6cf2076fd22754c6bd13d4d5afc09dcad57ce3a26a9f613b3a1e80a876434cea"
+  }
+}

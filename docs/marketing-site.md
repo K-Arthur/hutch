@@ -1,5 +1,11 @@
 # Marketing site claims and evidence
 
+The State copy describes chat-scoped reference proposals, human review before recall and explicit
+sharing between one bot's chats. Memory disabled retains human management; archive retains
+history and backups. This is locally tested reference retrieval, not a complete personal knowledge
+system, proof of truth or immunity from prompt injection. Stable workspaces and permanent scoped
+deletion remain unfinished. No new public CTA, executor access or support label is implied.
+
 The static site is an alpha preview, not an installation or hosted-service funnel. Its source repository is private and there is
 no public package or release. The anonymous page therefore points its calls to action to local sections that show the demo and
 availability status; it does not send visitors to a private GitHub repository, copy commands that cannot work anonymously, or
