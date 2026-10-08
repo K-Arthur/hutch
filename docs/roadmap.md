@@ -3,9 +3,10 @@
 Schema v15 adds chat-scoped reference proposals, exact-revision human review, explicit sharing,
 bounded FTS5 recall and retained review history. Memory disabled in bot settings also disables
 runtime use while retaining human management. Facts are not automatically injected into system
-prompts. Large clipped tool outputs now have run-scoped version records and SHA-256-verified
-downloads. Optional generic browser alerts work while the Hutch tab is open; they do not provide
-background push. Per-bot Hutch-managed workspaces now persist when explicitly selected; cross-run artifact sharing, standing tasks,
+prompts. Clipped tool outputs and successful `write_file` snapshots now have run-scoped version
+records and SHA-256-verified downloads; generated-file links appear directly in Studio chat while
+tool details stay collapsed. Optional generic browser alerts work while the Hutch tab is open; they do
+not provide background push. Per-bot Hutch-managed workspaces now persist when explicitly selected; cross-run artifact sharing, standing tasks,
 webhook/push notifications, bounded delegation and permanent scoped deletion/export remain required
 realignment work.
 
