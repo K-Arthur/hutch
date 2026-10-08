@@ -306,7 +306,12 @@ class ConnectionBook:
     def set_quota(self, name: str, window: str, tokens: int, warn_at: float = 0.8) -> Connection:
         if window not in WINDOWS:
             raise ValueError(f"window must be one of {', '.join(WINDOWS)}")
-        return self.update(name, quota={"window": window, "tokens": int(tokens), "warn_at": warn_at})
+        tokens = int(tokens)
+        if tokens < 0:
+            raise ValueError("tokens must be non-negative")
+        if not math.isfinite(float(warn_at)) or not 0 <= float(warn_at) <= 1:
+            raise ValueError("warn_at must be between 0 and 1")
+        return self.update(name, quota={"window": window, "tokens": tokens, "warn_at": float(warn_at)})
 
     def remove(self, name: str) -> bool:
         rows = self._read()

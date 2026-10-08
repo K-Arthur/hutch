@@ -28,7 +28,7 @@ from .. import __version__
 from ..approvals import resolve_approval, resolve_approval_ex
 from ..config import get_config
 from ..engine import Engine, bot_prompt_for_schedule
-from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, CommandRule, RiskTier, Run, RunStatus, Schedule, Task
+from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, CommandRule, Limits, RiskTier, Run, RunStatus, Schedule, Task
 from ..store import IdempotencyConflict, Store
 from ..templates import TEMPLATE_INFO, TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
@@ -57,6 +57,7 @@ class BotCreate(BaseModel):
     risk_tier: RiskTier = RiskTier.supervised
     command_rules: list[CommandRule] = []
     workdir: Optional[str] = None
+    limits: Optional[Limits] = None
 
 
 class BotPatch(BaseModel):
@@ -67,6 +68,7 @@ class BotPatch(BaseModel):
     risk_tier: Optional[RiskTier] = None
     command_rules: Optional[list[CommandRule]] = None
     workdir: Optional[str] = None          # "" clears it
+    limits: Optional[Limits] = None
     paused: Optional[bool] = None
     cron: Optional[str] = None
     clear_cron: bool = False
@@ -226,6 +228,20 @@ class ApproveRequest(BaseModel):
     always: bool = False
     plan_scope: int = 0               # accepted and ignored: plan-wide grants were never implemented
     action_hash: Optional[str] = None  # the fingerprint the person was shown; if the stored action differs nothing is decided
+
+
+class ConnectionCreate(BaseModel):
+    template: str
+    name: Optional[str] = None
+    base_url: Optional[str] = None
+    api_key_env: Optional[str] = None
+
+
+class ConnectionAction(BaseModel):
+    key: Optional[str] = None
+    agree: bool = False
+    window: Optional[str] = None
+    tokens: Optional[int] = None
 
 
 def create_app() -> FastAPI:
@@ -620,6 +636,8 @@ def create_app() -> FastAPI:
         bot.approval_mode = body.approval_mode
         bot.risk_tier = body.risk_tier
         bot.command_rules = _checked_rules(body.command_rules)
+        if body.limits is not None:
+            bot.limits = body.limits
         if body.workdir:
             bot.workdir = _checked_workdir(body.workdir)
         if body.cron:
@@ -647,6 +665,7 @@ def create_app() -> FastAPI:
         if body.model is not None: bot.model = body.model
         if body.approval_mode is not None: bot.approval_mode = body.approval_mode
         if body.risk_tier is not None: bot.risk_tier = body.risk_tier
+        if body.limits is not None: bot.limits = body.limits
         if body.command_rules is not None: bot.command_rules = _checked_rules(body.command_rules)
         if body.workdir is not None: bot.workdir = _checked_workdir(body.workdir) if body.workdir else None
         if body.paused is not None: bot.paused = body.paused
@@ -904,6 +923,82 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/usage/reservations", response_model=list[UsageReservationResource])
     def usage_reservations(limit: int = 100) -> list[dict]:
         return store.unresolved_usage_reservations(max(1, min(limit, 500)))
+
+    # ------------------------------------------------------------ connections
+    # JSON for the SPA's Connections view. Same semantics as the server-rendered
+    # /connections page in pages.py; keys are write-only via set-key (stored 0600,
+    # never returned).
+
+    @app.get("/api/connections")
+    def connections_api() -> dict:
+        from ..connections import ConnectionBook
+
+        book = ConnectionBook(config.state_dir)
+        out = []
+        for name, c in book.configured().items():
+            used = store.usage_tokens_since(name, c.quota.seconds) if c.quota.tokens else 0
+            out.append({
+                "name": name, "title": c.title, "template": c.template, "protocol": c.protocol,
+                "base_url": c.base_url, "api_key_env": c.api_key_env, "billing": c.billing,
+                "has_key": book.key(name) is not None, "key_source": book.key_source(name),
+                "ack": book.ack_status(store, name),
+                "terms_notice": c.terms.notice, "terms_url": getattr(c.terms, "url", ""),
+                "quota_window": c.quota.window, "quota_tokens": c.quota.tokens, "warn_at": c.quota.warn_at,
+                "used": used, "quota_hint": c.quota_hint, "get_key_url": c.get_key_url,
+            })
+        templates = [{"key": k, "title": v.get("title", k), "billing": v.get("billing", ""),
+                      "base_url": v.get("base_url", ""), "terms_notice": (v.get("terms") or {}).get("notice", "")}
+                     for k, v in book.templates().items()]
+        return {"connections": out, "templates": templates, "errors": book.errors}
+
+    @app.post("/api/connections", status_code=201)
+    def connection_add_api(body: ConnectionCreate) -> dict:
+        from ..connections import ConnectionBook
+
+        book = ConnectionBook(config.state_dir)
+        try:
+            c = book.add(body.template, body.name or None,
+                         base_url=body.base_url or None, api_key_env=body.api_key_env or None)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return {"added": c.name}
+
+    @app.post("/api/connections/{name}/{action}")
+    def connection_action_api(name: str, action: str, body: ConnectionAction) -> dict:
+        from ..connections import ConnectionBook
+        from ..providers.connection import check_connection
+
+        book = ConnectionBook(config.state_dir)
+        if book.get(name) is None:
+            raise HTTPException(404, f"no such connection: {name}")
+        if action == "set-key":
+            if not (body.key or "").strip():
+                raise HTTPException(422, "The key was empty.")
+            book.set_key(name, body.key.strip())      # written 0600; never echoed back
+            return {"ok": True, "detail": f"Key stored for {name}."}
+        if action == "clear-key":
+            book.clear_key(name)
+            return {"ok": True, "detail": f"Stored key removed for {name}."}
+        if action == "ack":
+            if not body.agree:
+                raise HTTPException(422, "Confirm you read the terms first.")
+            book.acknowledge(store, name)
+            return {"ok": True, "detail": f"Terms acknowledged for {name}."}
+        if action == "test":
+            res = check_connection(book, name)
+            if not res.ok:
+                raise HTTPException(400, res.detail)
+            return {"ok": True, "detail": res.detail}
+        if action == "allowance":
+            try:
+                book.set_quota(name, body.window or "month", int(body.tokens or 0))
+            except (ValueError, KeyError) as exc:
+                raise HTTPException(422, str(exc)) from None
+            return {"ok": True, "detail": "Allowance estimate saved. Hutch tracks local token totals; provider accounting can differ."}
+        if action == "remove":
+            book.remove(name)
+            return {"ok": True, "detail": f"Removed {name} and its stored key."}
+        raise HTTPException(404, "Unknown action.")
 
     # ------------------------------------------------------- pages + static
 

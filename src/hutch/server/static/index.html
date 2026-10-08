@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>hutch — your bots, your machine</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 28 9v14L16 30 4 23V9z' fill='none' stroke='%2334d399' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%2334d399'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/static/style.css">
@@ -10,41 +10,78 @@
 </head>
 <body>
   <a class="skip-link" href="#view">Skip to content</a>
-  <header class="topbar">
-    <a class="brand" href="#/chat">
-      <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true">
-        <path d="M16 2 28 9v14L16 30 4 23V9z" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
-        <circle cx="16" cy="16" r="4" fill="var(--accent)"/>
-      </svg>
-      <span>hutch</span>
-    </a>
-    <nav aria-label="Primary" id="primary-nav">
-      <a href="#/chat" data-nav="chat">Studio</a>
-      <a href="#/overview" data-nav="overview">Overview</a>
-      <a href="#/bots" data-nav="bots">Bots</a>
-      <a href="#/runs" data-nav="runs">Runs</a>
-      <a href="#/approvals" data-nav="approvals">Approvals <span id="approval-badge" class="badge hidden">0</span></a>
-    </nav>
-    <button class="nav-toggle" id="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="primary-nav">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-    </button>
-    <div class="topbar-right">
-      <button class="primary small" id="topbar-new-bot">+ New Bot</button>
-      <span id="daemon-pill" class="pill daemon connecting" data-state="connecting" title="Checking executor health…">checking</span>
-    </div>
-  </header>
 
-  <main id="view">
-    <div class="empty-state">
-      <div class="spinner" role="status" aria-label="Loading"></div>
-      <p>Loading…</p>
-    </div>
-  </main>
+  <div class="app-shell">
+    <!-- Full-height workspace sidebar: navigation + bot roster + executor truth.
+         On phones this becomes a labeled overlay sheet. -->
+    <aside class="workspace" id="workspace" aria-label="Workspace">
+      <header class="ws-brand">
+        <a class="brand" href="#/chat" aria-label="hutch — open the studio">
+          <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M16 2 28 9v14L16 30 4 23V9z" fill="none" stroke="var(--brand)" stroke-width="2.5"/>
+            <circle cx="16" cy="16" r="4" fill="var(--brand)"/>
+          </svg>
+          <span class="brand-name">hutch</span>
+        </a>
+        <button class="icon-btn ws-close" id="ws-close" type="button" aria-label="Close menu" hidden>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </header>
+
+      <nav class="ws-nav" aria-label="Primary">
+        <a href="#/chat" data-nav="chat"><span class="nav-ico" aria-hidden="true"></span>Studio</a>
+        <a href="#/overview" data-nav="overview"><span class="nav-ico" aria-hidden="true"></span>Overview</a>
+        <a href="#/runs" data-nav="runs"><span class="nav-ico" aria-hidden="true"></span>Runs</a>
+        <a href="#/approvals" data-nav="approvals"><span class="nav-ico" aria-hidden="true"></span>Approvals<span id="approval-badge" class="badge hidden">0</span></a>
+      </nav>
+
+      <section class="ws-roster" aria-label="Your bots">
+        <div class="roster-head">
+          <h2 class="roster-title">Bots</h2>
+          <button class="icon-btn roster-new" type="button" id="topbar-new-bot" aria-label="New bot" title="New bot">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </div>
+        <label class="visually-hidden" for="bot-search">Filter bots</label>
+        <input class="roster-search" id="bot-search" type="search" placeholder="Filter bots" autocomplete="off">
+        <div class="roster-list" id="roster-list"></div>
+        <a class="roster-manage" href="#/bots">Manage all bots</a>
+      </section>
+
+      <footer class="ws-foot">
+        <a href="#/connections" class="ws-foot-link" data-nav="connections">Connections</a>
+        <button class="ws-foot-link" id="effects-toggle" type="button" aria-pressed="false">Reduce effects</button>
+        <!-- Truthful executor health: state text + time, never a hardcoded badge. -->
+        <span id="daemon-pill" class="pill daemon connecting" data-state="connecting" title="Checking executor health…">
+          <span class="daemon-dot" aria-hidden="true"></span><span id="daemon-label">checking</span>
+        </span>
+      </footer>
+    </aside>
+    <div class="ws-scrim" id="ws-scrim" hidden></div>
+
+    <header class="app-top">
+      <button class="icon-btn nav-toggle" id="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="workspace">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <!-- The context header is filled by the current view: bot identity and state on
+           the left, view actions on the right. -->
+      <div class="app-top-context" id="app-top-context"></div>
+    </header>
+
+    <main id="view">
+      <div class="empty-state">
+        <div class="spinner" role="status" aria-label="Loading"></div>
+        <p>Loading…</p>
+      </div>
+    </main>
+  </div>
 
   <!-- Bounded status announcer: only lifecycle changes (run started/finished,
        approval required, connection lost) are announced here — never the whole
        view on every render, and never each streamed token. -->
   <div id="live-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
+  <!-- App-wide attention: pending work discovered anywhere surfaces here once. -->
+  <div id="attention-bar" class="attention-bar" hidden></div>
 
   <div id="modal-root"></div>
   <div id="toast-root" class="toast-root" role="status" aria-live="polite"></div>

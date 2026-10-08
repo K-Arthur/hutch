@@ -8,6 +8,7 @@ docs/research/complaints.md, so we never store them.
 from __future__ import annotations
 
 import json
+import math
 import uuid
 from datetime import datetime, time, timedelta, timezone
 from enum import Enum
@@ -91,7 +92,7 @@ class Schedule(BaseModel):
 
 
 class Limits(BaseModel):
-    """Run guards. Time/step limits are enforced; token/currency admission uses estimates. 0 means no configured limit."""
+    """Execution guards and estimate-based usage admission limits. 0 means no configured limit."""
 
     max_steps: int = 24                # agent turns before forced stop
     timeout_seconds: int = 900         # wall-clock kill switch
@@ -99,6 +100,26 @@ class Limits(BaseModel):
     max_turn_tokens: int = 0           # per-turn generation cap (SR-5); 0 = provider default (local 2048, hosted 16000)
     max_cost_usd: float = 0.0          # priced estimate admission limit for ONE run, hosted models only (SR-2, LM-9)
     daily_cost_cap_usd: float = 0.0    # priced estimate admission limit per bot per local day
+    @field_validator("max_steps", "timeout_seconds")
+    @classmethod
+    def positive_execution_limits(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("execution limits must be positive")
+        return value
+
+    @field_validator("daily_token_cap", "max_turn_tokens")
+    @classmethod
+    def nonnegative_token_limits(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("token limits must be non-negative")
+        return value
+
+    @field_validator("max_cost_usd", "daily_cost_cap_usd")
+    @classmethod
+    def finite_cost_limits(cls, value: float) -> float:
+        if not math.isfinite(value) or value < 0:
+            raise ValueError("currency limits must be finite and non-negative")
+        return value
 
     model_config = {"frozen": True}
 

@@ -108,3 +108,16 @@ bash docs/realignment/journeys.sh
 ```
 
 The current same-harness captures and data-quality notebook are in `artifacts/performance/` and `../../benchmarks/quality_audit.ipynb`.
+
+## Main interface integration checkpoint (2026-10-07)
+
+Integrated main prerequisite `6fd979f` into the realignment branch, preserving the redesigned
+shell/site and canonical conversations, idempotent message submission, archived history and
+authoritative lifecycle labels. Live run detail now refreshes the correct transcript; the
+phone navigation sheet traps Tab and restores focus on Escape.
+
+Verification at this merge boundary: 103 focused backend tests passed; 17 Playwright browser
+and website tests passed; JavaScript syntax, generated site tokens/contrast and emoji audit
+passed. The first full offline run was interrupted before producing a summary; a new run is
+in progress. This checkpoint does not satisfy final release gates. Further navigation
+consolidation requested by the user follows as a separate change.
