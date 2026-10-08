@@ -798,6 +798,7 @@ button.icon-btn, .icon-btn {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
+  flex-wrap: wrap;
   margin-bottom: 10px;
 }
 .ttl-countdown {
@@ -853,8 +854,11 @@ button.icon-btn, .icon-btn {
 .approval-card-chat.resolved { border-left-color: var(--border); }
 .approval-card-chat.resolved.allowed { border-left-color: var(--accent); }
 .approval-card-chat.resolved.denied { border-left-color: var(--danger); }
-.approval-head-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.approval-bot { font-weight: 700; }
+.approval-head-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.approval-bot { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
+/* Long status text (e.g. "Expired — denied by timeout · 5h ago") must wrap, not
+   overflow a 320px phone. */
+.approval-badge-bar .tag { white-space: normal; overflow-wrap: anywhere; max-width: 100%; }
 .approval-action-text.muted { color: var(--text-dim); font-weight: 500; font-size: var(--fs-sm); }
 
 .approval-review { margin: 8px 0 4px; }
