@@ -582,7 +582,13 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .tool-line.running .tool-verdict { color: var(--brand); }
 .tool-name { color: var(--text-2); white-space: nowrap; }
 .tool-line.error .tool-name { color: var(--danger); }
-.tool-args { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; color: var(--text-3); }
+.tool-args { display: flex; align-items: center; white-space: nowrap; overflow: hidden; min-width: 0; color: var(--text-3); }
+.tool-args-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tool-src-flag {
+  flex: none; margin-left: 8px; padding: 0 7px;
+  border: 1px solid var(--line); border-radius: var(--r-chip);
+  font: 400 var(--fs-2xs)/1.55 var(--mono); color: var(--text-3);
+}
 .tool-time { display: none; }
 .tool-caret { display: none; }
 .tool-line-body {
@@ -596,6 +602,21 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .tool-line-section + .tool-line-section { margin-top: 2px; }
 .tool-line-more { all: unset; cursor: pointer; display: inline-block; color: var(--focus); font: 400 var(--fs-xs)/1 var(--mono); margin-left: var(--s-2); }
 .tool-line-more:hover { text-decoration: underline; }
+
+/* PF-2 source card: the door to the untruncated tool output */
+.tool-source {
+  display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 8px 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-ctl);
+  color: var(--text-2); text-decoration: none; white-space: normal;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.tool-source:hover { border-color: var(--line-hi); background: var(--raised); color: var(--text); }
+.tool-source:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tool-source .icon { flex: none; color: var(--text-3); }
+.tool-source-name { font-family: var(--mono); overflow-wrap: anywhere; }
+.tool-source-meta { margin-left: auto; flex: none; font-size: var(--fs-2xs); color: var(--text-3); }
+.tool-source-go { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); color: var(--text-3); }
+.tool-source:hover .tool-source-go { color: var(--brand-hi); }
 .tool-log { padding: 1px 2px; }
 .tool-log .tool-args { grid-column: 2 / -1; }
 

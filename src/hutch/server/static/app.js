@@ -1331,7 +1331,7 @@ function toolLineHtml(item, anchorEvent, runId) {
         <span class="tool-grid" title="${t}">
           <span class="tool-verdict">${verdict}</span>
           <span class="tool-name">${esc(tool)}</span>
-          <span class="tool-args">${esc(truncate(summary, 90))}</span>
+          <span class="tool-args"><span class="tool-args-text">${esc(truncate(summary, 90))}</span>${res?.d.artifact ? `<span class="tool-src-flag" title="Full output saved as an artifact">source</span>` : ""}</span>
         </span>
       </button>
       <div class="tool-line-body" id="tlb-${esc(String(idx))}" ${open ? "" : "hidden"}>
@@ -1340,9 +1340,22 @@ function toolLineHtml(item, anchorEvent, runId) {
           ${esc(JSON.stringify(call?.d.args ?? {}, null, 2))}
         </div>
         ${res ? toolOutputHtml(res.d.output) : '<div class="tool-line-section"><span class="tool-line-label">Output</span>pending…</div>'}
+        ${res?.d.artifact ? sourceCardHtml(res.d, runId) : ""}
       </div>
     </div>
   `;
+}
+
+/* PF-2 kept the untruncated output on disk; this row is the only door to it. */
+function sourceCardHtml(d, runId) {
+  const file = String(d.artifact).replace(/^artifacts\//, "");
+  return `
+    <a class="tool-source" href="/api/runs/${esc(runId)}/artifacts/${esc(file)}" target="_blank" rel="noopener noreferrer">
+      ${icon("folder")}
+      <span class="tool-source-name">${esc(file)}</span>
+      <span class="tool-source-meta">full output · ${(d.chars || 0).toLocaleString("en-US")} chars</span>
+      <span class="tool-source-go">Open ${icon("arrow")}</span>
+    </a>`;
 }
 
 const OUTPUT_CLIP = 600;
