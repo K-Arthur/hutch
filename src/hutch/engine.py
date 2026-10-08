@@ -19,8 +19,11 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import socket
 import sqlite3
+import subprocess
+import sys
 import threading
 import time
 import traceback
@@ -29,9 +32,10 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 
+from . import procguard
 from .approvals import ApprovalGate, expire_stale_approvals
 from .config import hutchConfig
-from .lifecycle import LIVE, IllegalTransition, LeaseLost
+from .lifecycle import LIVE, TERMINAL as TERMINAL_STATUSES, IllegalTransition, LeaseLost
 from .models import (
     Bot,
     Event,
@@ -70,15 +74,22 @@ class BotBusy(Exception):
 
 class Engine:
     def __init__(self, config: hutchConfig, store: Store, max_concurrent: int | None = None,
-                 lease_seconds: float | None = None):
+                 lease_seconds: float | None = None, executor: str | None = None, owner_id: str | None = None,
+                 light: bool = False):
         self.config = config
         self.store = store
         self.bus = store.bus
         self.scheduler = Scheduler(store)
         self.max_concurrent = max_concurrent or int(os.environ.get("HUTCH_MAX_CONCURRENT", DEFAULT_MAX_CONCURRENT))
         #: who this engine is, as written into every lease it takes (host:pid:nonce: unique even after a pid is reused)
-        self.owner_id = f"{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex[:6]}"
+        self.owner_id = owner_id or f"{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex[:6]}"
         self.lease_seconds = float(lease_seconds or os.environ.get("HUTCH_LEASE_SECONDS", DEFAULT_LEASE_SECONDS))
+        #: "thread": runs execute in this process (tests, `hutch run`, where the terminal is the owner).
+        #: "process": each run is its own OS process in its own session (`serve`, `daemon`): Stop is a real kill.
+        self.executor = (executor or os.environ.get("HUTCH_EXECUTOR") or "thread").lower()
+        if self.executor not in ("thread", "process"):
+            raise ValueError("executor must be 'thread' or 'process'")
+        self._procs: dict[str, "subprocess.Popen"] = {}
         self._hb: Optional[threading.Thread] = None
         self._hb_stop = threading.Event()
         self._threads: dict[str, threading.Thread] = {}
@@ -86,13 +97,17 @@ class Engine:
         self._gates: dict[str, ApprovalGate] = {}
         self._ctxs: dict[str, ToolContext] = {}
         self._lock = threading.Lock()
-        #: local models are scheduled resources (LM-6): batch by loaded model, gate by free slots
-        from .hardware import probe
-        from .slots import ModelSlots
-        self.slots = ModelSlots(store, tier=probe(with_runtimes=False).tier, loaded=_ollama_loaded)
-        #: optional hook so a model-slot scheduler (LM-6) can veto/reorder dispatch
-        self.slot_filter: Optional[Callable[[list[Run], list[Run]], list[Run]]] = self.slots.filter
-        self.slot_reason: Optional[Callable[[Run], object]] = self.slots.reason
+        #: local models are scheduled resources (LM-6): batch by loaded model, gate by free slots. A worker process runs ONE
+        #: run it was handed, so it does not need (or pay for) the dispatch machinery.
+        self.slot_filter: Optional[Callable[[list[Run], list[Run]], list[Run]]] = None
+        self.slot_reason: Optional[Callable[[Run], object]] = None
+        if not light:
+            from .hardware import probe
+            from .slots import ModelSlots
+            self.slots = ModelSlots(store, tier=probe(with_runtimes=False).tier, loaded=_ollama_loaded)
+            #: optional hook so a model-slot scheduler (LM-6) can veto/reorder dispatch
+            self.slot_filter = self.slots.filter
+            self.slot_reason = self.slots.reason
 
     # ------------------------------------------------------------- dispatch
 
@@ -140,6 +155,9 @@ class Engine:
         return started
 
     def _start_worker(self, bot: Bot, run: Run) -> None:
+        if self.executor == "process":
+            self._start_process(run)
+            return
         if run.model_override:
             bot = bot.model_copy(update={"model": run.model_override})    # this run only; the stored bot is unchanged
         cancel = threading.Event()
@@ -149,6 +167,69 @@ class Engine:
                              name=f"hutch-run-{run.id}", daemon=True)
         self._threads[run.id] = t
         t.start()
+
+    # ------------------------------------------------------ process executor
+
+    def _start_process(self, run: Run) -> None:
+        """Start the run in its own process and session, and watch it. The supervisor's only jobs are to start it, to escalate a
+        stop that is ignored, and to recover the run at once if the worker dies without finishing it."""
+        log_dir = self.config.run_dir(self._bot_name(run), run.id)
+        log_dir.mkdir(parents=True, exist_ok=True)
+        env = dict(os.environ, HUTCH_STATE_DIR=str(self.config.state_dir), HUTCH_LEASE_SECONDS=str(self.lease_seconds))
+        argv = [sys.executable, "-m", "hutch.worker", run.id, "--owner", self.owner_id, "--fence", str(run.fence)]
+        with open(log_dir / "worker.log", "ab") as log:
+            proc = subprocess.Popen(argv, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
+        self._procs[run.id] = proc
+        self.store.set_pgid(run.id, run.fence, proc.pid)
+        self._ensure_heartbeat()
+        t = threading.Thread(target=self._watch_process, args=(run, proc), name=f"hutch-watch-{run.id}", daemon=True)
+        self._threads[run.id] = t
+        t.start()
+
+    def _bot_name(self, run: Run) -> str:
+        bot = self.store.get_bot(run.bot_id)
+        return bot.name if bot else run.bot_id
+
+    def _watch_process(self, run: Run, proc: "subprocess.Popen") -> None:
+        """Wait for the worker. If a stop was requested and the worker has not unwound within the grace, TERM then KILL its whole
+        process group. When it exits, make sure the run is not left half-owned: a worker that died without finishing is recovered
+        immediately (fence bumped, outcome decided by its receipts) instead of waiting for the lease to lapse."""
+        cancel_seen: Optional[float] = None
+        sent_term = False
+        while True:
+            try:
+                proc.wait(timeout=0.5)
+                break
+            except subprocess.TimeoutExpired:
+                pass
+            cur = self.store.get_run(run.id)
+            if cur is None:
+                continue
+            if cur.status in TERMINAL_STATUSES:
+                # the run is finished but the process lingers (a hung child, a stuck finalizer): give it a moment, then end it
+                cancel_seen = cancel_seen or time.monotonic()
+            elif cur.cancel_requested or cur.status is RunStatus.cancelling:
+                cancel_seen = cancel_seen or time.monotonic()
+            if cancel_seen is not None:
+                waited = time.monotonic() - cancel_seen
+                if waited > CANCEL_GRACE_SECONDS + 2.0 and not sent_term:
+                    sent_term = True
+                    self._signal_group(proc, signal.SIGTERM)
+                elif waited > CANCEL_GRACE_SECONDS + 5.0:
+                    self._signal_group(proc, signal.SIGKILL)
+        left = procguard.end_groups([proc.pid], not_before=0, term_grace=0.3, kill_grace=1.5)
+        cur = self.store.get_run(run.id)
+        if cur is not None and cur.status not in TERMINAL_STATUSES:
+            self._recover_one(cur, extra_error=(f"worker exited with code {proc.returncode} before the run finished"
+                                                + (f"\ncleanup incomplete: still running: {procguard.describe(left)}" if left else "")))
+        self._procs.pop(run.id, None)
+
+    @staticmethod
+    def _signal_group(proc: "subprocess.Popen", sig: int) -> None:
+        try:
+            os.killpg(proc.pid, sig)
+        except (ProcessLookupError, PermissionError, OSError):
+            pass
 
     def run_blocking(self, bot: Bot, prompt: str, missed_windows: int = 0,
                      origin: str = "manual:cli", rehearsal: bool = False) -> Run:
@@ -228,7 +309,19 @@ class Engine:
                 except Exception:
                     pass
             threading.Thread(target=ctx.procs.kill_all, name=f"hutch-kill-{run_id}", daemon=True).start()
+        proc = self._procs.get(run_id)
+        if proc is not None and proc.poll() is None:
+            self._signal_group(proc, signal.SIGTERM)      # the worker unwinds cooperatively; the watcher escalates if it will not
         return True
+
+    def stop_owned(self) -> int:
+        """Stop only the runs THIS engine is executing (what a shutting-down dashboard or daemon must do). ``stop_all`` is the
+        explicit emergency stop for every active run in the database, whoever owns it."""
+        n = 0
+        for run_id in list(self._threads):
+            if self.stop_run(run_id):
+                n += 1
+        return n
 
     def stop_all(self) -> int:
         n = 0
@@ -290,6 +383,8 @@ class Engine:
                           config=self.config, workspace=workspace, emit=emit,
                           dry_run=run.rehearsal)
         self._ctxs[run.id] = ctx
+        # remember every process this run starts, so a supervisor that did not spawn it can still end it after a crash
+        ctx.procs.on_register = lambda pid, pgid, st, kind: self.store.add_proc(run.id, pid, pgid, st, kind)
         tools = build_tools(bot.tools, ctx)
         runtime = get_runtime(bot)
         deadline = time.monotonic() + bot.limits.timeout_seconds
@@ -402,6 +497,15 @@ class Engine:
                 finisher()
             except Exception:
                 pass
+        if ctx.procs.survivors:
+            # measured, not assumed: say exactly what could not be ended instead of reporting a clean stop
+            left = procguard.describe(ctx.procs.survivors)
+            error = (error + "\n" if error else "") + f"cleanup incomplete: still running: {left}"
+            self.store.append_event(Event(run_id=run.id, type=EventType.error,
+                                          data={"error": f"cleanup incomplete: could not end {left}", "kind": "cleanup_incomplete",
+                                                "pids": [p.pid for p in ctx.procs.survivors]}))
+        else:
+            self.store.close_procs(run.id)
 
         # An action that began but never recorded how it ended means we cannot say what happened: that is its own outcome,
         # never "failed", and it is never replayed (ADR-0003).
@@ -469,44 +573,68 @@ class Engine:
         a worker that was only suspended can no longer write to it. A run is never resumed in the middle (ADR-0003): if an action
         began and never recorded its receipt the outcome is `outcome_unknown`, otherwise `failed/interrupted`.
         """
-        from .models import ApprovalStatus
         recovered: list[Run] = []
         self.store.release_expired_claims()
         candidates = [r for r in self.store.expired_runs() if r.id not in self._threads]
         candidates += [r for r in self.store.legacy_live_runs()
                        if r.owner and r.id not in self._threads and not self._pid_alive(r.owner)]
         for run in candidates:
-            doubt = self.store.actions_in_doubt(run.id)
-            if doubt:
-                self.store.mark_actions_unknown(run.id)
-                to, reason = RunStatus.outcome_unknown, "interrupted"
-                error = (f"the process running this job exited while an action was in flight; it may have happened: "
-                         + "; ".join(d["summary"] or d["tool"] for d in doubt))
-            elif run.status is RunStatus.cancelling or run.cancel_requested:
-                to, reason, error = RunStatus.stopped, "stopped", "stopped (its process had already exited)"
-            else:
-                to, reason = RunStatus.failed, "interrupted"
-                owner = run.owner or run.lease_owner
-                error = f"the process running this job ({owner}) exited before it finished"
-            try:
-                done_run = self.store.transition_run(
-                    run.id, to, exit_reason=reason, error=error, bump_fence=True,
-                    event={"reason": reason, "recovered_by": self.owner_id, "error": error})
-            except (IllegalTransition, LeaseLost, KeyError):
-                continue                # the owner finished it between our read and our write
-            self.store.flush_events()
-            for req in self.store.pending_approvals():
-                if req.run_id == run.id:
-                    req.status, req.resolved_at, req.decided_by = ApprovalStatus.expired, iso(utcnow()), "interrupted"
-                    self.store.update_approval(req)
-            recovered.append(done_run)
+            done_run = self._recover_one(run)
+            if done_run is not None:
+                recovered.append(done_run)
         return recovered
+
+    def _recover_one(self, run: Run, extra_error: str = "") -> Optional[Run]:
+        """Decide and record the outcome of ONE run whose owner is gone, ending whatever it left running (fence bumped first
+        so a stalled worker cannot write). Returns the finished run, or None if the owner finished it in the meantime."""
+        from .models import ApprovalStatus
+        left = self._end_recorded_processes(run)
+        doubt = self.store.actions_in_doubt(run.id)
+        if doubt:
+            self.store.mark_actions_unknown(run.id)
+            to, reason = RunStatus.outcome_unknown, "interrupted"
+            error = (f"the process running this job exited while an action was in flight; it may have happened: "
+                     + "; ".join(d["summary"] or d["tool"] for d in doubt))
+        elif run.status is RunStatus.cancelling or run.cancel_requested:
+            to, reason, error = RunStatus.stopped, "stopped", "stopped (its process had already exited)"
+        else:
+            to, reason = RunStatus.failed, "interrupted"
+            owner = run.owner or run.lease_owner
+            error = f"the process running this job ({owner}) exited before it finished"
+        if extra_error:
+            error += "\n" + extra_error
+        if left:
+            error += f"\ncleanup incomplete: still running: {procguard.describe(left)}"
+        try:
+            done_run = self.store.transition_run(
+                run.id, to, exit_reason=reason, error=error, bump_fence=True,
+                event={"reason": reason, "recovered_by": self.owner_id, "error": error})
+        except (IllegalTransition, LeaseLost, KeyError):
+            return None                 # the owner finished it between our read and our write
+        self.store.flush_events()
+        for req in self.store.pending_approvals():
+            if req.run_id == run.id:
+                req.status, req.resolved_at, req.decided_by = ApprovalStatus.expired, iso(utcnow()), "interrupted"
+                self.store.update_approval(req)
+        return done_run
+
+    def _end_recorded_processes(self, run: Run) -> list:
+        """End every process recorded for a run whose owner is gone, and report any that would not die."""
+        procs = self.store.live_procs(run.id)
+        groups = {p["pgid"] for p in procs} | ({run.pgid} if run.pgid else set())
+        if not groups:
+            return []
+        not_before = min([p["starttime"] for p in procs if p["starttime"]] or [0])
+        left = procguard.end_groups(groups, not_before=not_before, term_grace=1.0, kill_grace=2.0)
+        if not left:
+            self.store.close_procs(run.id)
+        return left
 
     def shutdown(self, timeout: float = 5.0) -> None:
         """Graceful stop for `hutch serve` / the daemon: stop every run and let workers record their
         outcome *before* the database closes. Anything that does not unwind in time is left to
         ``recover_orphans`` (its lease lapses and another process, or the next start, finishes it)."""
-        self.stop_all()
+        self.stop_owned()
         deadline = time.monotonic() + timeout
         for t in list(self._threads.values()):
             t.join(timeout=max(0.0, deadline - time.monotonic()))

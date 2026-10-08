@@ -166,6 +166,7 @@ def _migrate_5(db: sqlite3.Connection) -> None:
     db.execute("ALTER TABLE runs ADD COLUMN heartbeat_at TEXT")
     db.execute("ALTER TABLE runs ADD COLUMN cancel_requested INTEGER NOT NULL DEFAULT 0")
     db.execute("ALTER TABLE runs ADD COLUMN pgid INTEGER NOT NULL DEFAULT 0")
+    db.execute("ALTER TABLE runs ADD COLUMN sealed INTEGER NOT NULL DEFAULT 0")   # 1 once a transition ended it: no more events
     db.execute("CREATE INDEX IF NOT EXISTS idx_runs_lease ON runs(status, lease_expires_at)")
     db.execute("ALTER TABLE tasks ADD COLUMN state TEXT NOT NULL DEFAULT 'queued'")
     db.execute("ALTER TABLE tasks ADD COLUMN run_id TEXT")
@@ -179,6 +180,10 @@ def _migrate_5(db: sqlite3.Connection) -> None:
         summary TEXT NOT NULL DEFAULT '', status TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT,
         result_digest TEXT NOT NULL DEFAULT '')""")
     db.execute("CREATE INDEX IF NOT EXISTS idx_actions_run ON tool_actions(run_id, status)")
+    db.execute("""CREATE TABLE IF NOT EXISTS run_procs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT NOT NULL, pid INTEGER NOT NULL, pgid INTEGER NOT NULL,
+        starttime INTEGER NOT NULL DEFAULT 0, kind TEXT NOT NULL DEFAULT 'tool', started_at TEXT NOT NULL, ended_at TEXT)""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_run_procs_run ON run_procs(run_id, ended_at)")
 
 
 #: schema upgrades applied in order; index + 2 == resulting user_version
@@ -222,12 +227,11 @@ class Store:
         self._pending: list[Event] = []
         self._enqueued = 0
         self._committed = 0
-        self._seq: dict[str, int] = {}
-        self._tail: dict[str, str] = {}
         self._run_status: dict[str, str] = {}
         #: per-run observers of events in sequence order (the JSONL transcript mirror); errors are collected, never swallowed
         #: runs this process has seen reach a terminal state: a late worker's events for them are dropped (never appended)
         self._sealed: set[str] = set()
+        self._inflight = 0                    # events the writer thread has taken and not yet committed
         self._sinks: dict[str, Callable[[Event], None]] = {}
         self._sink_errors: dict[str, list[str]] = {}
         self.dropped_events = 0
@@ -610,10 +614,21 @@ class Store:
         previous owner can no longer write. A move to the state the run is already in is a no-op.
         """
         with self._buf_cv:                                       # lock order: event buffer, then database (as append_event)
+            # A reader that sees the new status must also see every event that came before it. Wait out the writer's in-flight
+            # batch, then commit this run's still-buffered events in the SAME transaction as the status change.
+            while self._inflight:
+                self._buf_cv.wait(timeout=0.05)
+            mine = [e for e in self._pending if e.run_id == run_id]
             with self._tx() as db:
-                row, emitted = self._apply_transition(db, run_id, to, fence, exit_reason, error, event, bump_fence, fields)
-            if emitted is not None:
-                self._fan_out(emitted)                           # committed: now observers see it, in sequence order
+                row, emitted = self._apply_transition(db, run_id, to, fence, exit_reason, error, event, bump_fence, fields,
+                                                      earlier=mine)
+            if mine:
+                done = {id(e) for e in mine}
+                self._pending = [e for e in self._pending if id(e) not in done]
+                self._committed += len(mine)                      # they are committed now; flush_events must not wait for them
+                self._buf_cv.notify_all()
+            for e in mine + ([emitted] if emitted is not None else []):
+                self._fan_out(e)                                 # committed: now observers see them, in sequence order
         run = self._run(row)
         self._run_status[run_id] = run.status.value
         if run.status in TERMINAL:
@@ -625,7 +640,8 @@ class Store:
 
     def _apply_transition(self, db: sqlite3.Connection, run_id: str, to: RunStatus, fence: Optional[int],
                           exit_reason: Optional[str], error: Optional[str], event: Optional[dict[str, Any]],
-                          bump_fence: bool, fields: Optional[dict[str, Any]]) -> tuple[sqlite3.Row, Optional[Event]]:
+                          bump_fence: bool, fields: Optional[dict[str, Any]],
+                          earlier: Optional[list[Event]] = None) -> tuple[sqlite3.Row, Optional[Event]]:
         from .models import EventType
         row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
         if row is None:
@@ -633,10 +649,12 @@ class Store:
         cur = RunStatus(row["status"])
         if fence is not None and row["fence"] != fence:
             raise LeaseLost(run_id, f"fence {fence} is stale (current {row['fence']})")
-        if cur is to:
-            return row, None
-        if not allowed(cur, to):
+        if not allowed(cur, to) and cur is not to:
             raise IllegalTransition(run_id, cur, to)
+        if cur is to:
+            if earlier:              # nothing to change, but the buffered events still commit
+                self._insert_events(db, run_id, list(earlier))
+            return row, None
         doc = json.loads(row["doc"])
         patch: dict[str, Any] = {"status": to.value, **(fields or {})}
         terminal = to in TERMINAL
@@ -649,7 +667,7 @@ class Store:
         sets, args = "status = ?, doc = json_patch(doc, ?), fence = ?", [to.value, json.dumps(patch, default=str),
                                                                         row["fence"] + (1 if bump_fence else 0)]
         if terminal:
-            sets += ", lease_owner = '', lease_expires_at = NULL"
+            sets += ", lease_owner = '', lease_expires_at = NULL, sealed = 1"
         db.execute(f"UPDATE runs SET {sets} WHERE id = ?", (*args, run_id))
         if terminal:
             task_state = {RunStatus.succeeded: "done", RunStatus.skipped: "cancelled",
@@ -658,27 +676,10 @@ class Store:
                        (task_state, run_id, doc.get("task_id")))
         emitted: Optional[Event] = None
         if event is not None:
-            prev_seq, prev_tail = self._seq.get(run_id), self._tail.get(run_id)
-            try:
-                seq = prev_seq
-                if seq is None:
-                    seq, tail = self._load_tail(run_id)
-                    self._tail[run_id] = tail
-                seq += 1
-                ts = iso(utcnow())
-                data = {"status": to.value, **event}
-                digest = chain_hash(self._tail[run_id], run_id, seq, ts, EventType.status.value, _canonical(data))
-                db.execute("INSERT INTO events (run_id, seq, hash, ts, type, data) VALUES (?, ?, ?, ?, ?, ?)",
-                           (run_id, seq, digest, ts, EventType.status.value, _canonical(data)))
-                self._seq[run_id], self._tail[run_id] = seq, digest
-                emitted = Event(run_id=run_id, seq=seq, hash=digest, ts=ts, type=EventType.status, data=data)
-            except BaseException:
-                if prev_seq is None:                              # the sequence must not skip a number we never wrote
-                    self._seq.pop(run_id, None)
-                    self._tail.pop(run_id, None)
-                else:
-                    self._seq[run_id], self._tail[run_id] = prev_seq, prev_tail  # type: ignore[assignment]
-                raise
+            data = {"status": to.value, **event}
+            emitted = Event(run_id=run_id, ts=iso(utcnow()), type=EventType.status, data=data)
+        if earlier or emitted is not None:        # buffered events first (they precede it), then the status event, one commit
+            self._insert_events(db, run_id, list(earlier or []) + ([emitted] if emitted is not None else []))
         return db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone(), emitted
 
     def set_status(self, run: Run, to: RunStatus, *, event: Optional[dict[str, Any]] = None,
@@ -793,6 +794,33 @@ class Store:
             ).fetchone()
         return self._run(row) if row else None
 
+    # --------------------------------------------------- processes a run started
+
+    def add_proc(self, run_id: str, pid: int, pgid: int, starttime: int, kind: str = "tool") -> None:
+        """Remember a process a run started, with its identity, so ending the run (or recovering a crashed owner) can end it."""
+        with self._lock:
+            self._db.execute("INSERT INTO run_procs (run_id, pid, pgid, starttime, kind, started_at) VALUES (?, ?, ?, ?, ?, ?)",
+                             (run_id, pid, pgid, starttime, kind, iso(utcnow())))
+            self._db.commit()
+
+    def end_proc(self, run_id: str, pid: int) -> None:
+        with self._lock:
+            self._db.execute("UPDATE run_procs SET ended_at = ? WHERE run_id = ? AND pid = ? AND ended_at IS NULL",
+                             (iso(utcnow()), run_id, pid))
+            self._db.commit()
+
+    def live_procs(self, run_id: str) -> list[dict[str, Any]]:
+        """Processes recorded for the run that were never recorded as finished."""
+        with self._lock:
+            rows = self._db.execute("SELECT pid, pgid, starttime, kind FROM run_procs WHERE run_id = ? AND ended_at IS NULL",
+                                    (run_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def close_procs(self, run_id: str) -> None:
+        with self._lock:
+            self._db.execute("UPDATE run_procs SET ended_at = ? WHERE run_id = ? AND ended_at IS NULL", (iso(utcnow()), run_id))
+            self._db.commit()
+
     # ----------------------------------------------------- tool actions (receipts)
 
     def begin_action(self, run_id: str, tool: str, idem_key: str, effect: str, summary: str = "",
@@ -847,33 +875,22 @@ class Store:
     # ----------------------------------------------------------- events
 
     def append_event(self, event: Event) -> Event:
-        """Assign ``seq`` and the chain hash now; the single writer commits in batches.
+        """Queue an event; the single writer commits in batches. Returns immediately, so the agent loop never waits on a disk commit.
 
-        Returns immediately, so the agent loop never waits on a disk commit. Reads
-        call ``flush_events`` first, so every reader still sees its own writes.
-        """
-        data_json = _canonical(event.data)
+        ``seq`` and the chain ``hash`` are NOT assigned here: they are assigned at commit time, inside the write transaction, from
+        the tail the DATABASE holds. Several processes append to one run's transcript (the worker, the dashboard recording a stop,
+        a supervisor recovering it); a per-process counter would give them colliding numbers and a broken chain. Reads call
+        ``flush_events`` first, so every reader still sees its own writes."""
         with self._buf_cv:
             if event.run_id in self._sealed:
                 return event                  # the run is over: a worker that outlived it cannot extend the transcript
-            seq = self._seq.get(event.run_id)
-            if seq is None:
-                seq, tail = self._load_tail(event.run_id)
-                self._tail[event.run_id] = tail
-            seq += 1
-            self._seq[event.run_id] = seq
-            event.seq = seq
-            event.hash = chain_hash(self._tail[event.run_id], event.run_id, seq,
-                                    event.ts, event.type.value, data_json)
-            self._tail[event.run_id] = event.hash
             self._pending.append(event)
             self._enqueued += 1
-            self._fan_out(event)
             self._buf_cv.notify_all()
         return event
 
     def attach_sink(self, run_id: str, sink: Callable[[Event], None]) -> None:
-        """Receive every event of ``run_id`` in sequence order, from both the batched path and atomic transitions."""
+        """Receive every event of ``run_id`` in sequence order, once committed (with its ``seq`` and ``hash``)."""
         self._sinks[run_id] = sink
 
     def sink_errors(self, run_id: str) -> list[str]:
@@ -892,14 +909,20 @@ class Store:
             except Exception as exc:
                 self._sink_errors.setdefault(event.run_id, []).append(f"{type(exc).__name__}: {exc}")
 
-    def _load_tail(self, run_id: str) -> tuple[int, str]:
-        with self._lock:
-            row = self._db.execute(
-                "SELECT seq, hash FROM events WHERE run_id = ? ORDER BY seq DESC LIMIT 1", (run_id,)
-            ).fetchone()
-        if row is None:
-            return 0, GENESIS
-        return row["seq"], row["hash"] or GENESIS
+    @staticmethod
+    def _insert_events(db: sqlite3.Connection, run_id: str, events: list[Event]) -> None:
+        """Give ``events`` the next sequence numbers and chain hashes of this run's transcript and insert them. Must run inside
+        the write transaction: the tail it reads cannot change before the commit."""
+        row = db.execute("SELECT seq, hash FROM events WHERE run_id = ? ORDER BY seq DESC LIMIT 1", (run_id,)).fetchone()
+        seq, prev = (row["seq"], row["hash"] or GENESIS) if row else (0, GENESIS)
+        rows = []
+        for e in events:
+            seq += 1
+            data_json = _canonical(e.data)
+            e.seq, e.hash = seq, chain_hash(prev, run_id, seq, e.ts, e.type.value, data_json)
+            prev = e.hash
+            rows.append((run_id, seq, e.hash, e.ts, e.type.value, data_json))
+        db.executemany("INSERT INTO events (run_id, seq, hash, ts, type, data) VALUES (?, ?, ?, ?, ?, ?)", rows)
 
     def _writer_loop(self) -> None:
         while True:
@@ -912,29 +935,54 @@ class Store:
                 if len(self._pending) < EVENT_BATCH_MAX:
                     self._buf_cv.wait(timeout=EVENT_FLUSH_SECONDS)
                 batch, self._pending = self._pending, []
+                self._inflight = len(batch)
+            kept: list[Event] = []
             try:
-                self._commit_batch(batch)
+                kept = self._commit_batch(batch)
             finally:
                 with self._buf_cv:
                     self._committed += len(batch)
+                    self._inflight = 0
                     self._buf_cv.notify_all()
-            self.bus.notify(*{f"run:{e.run_id}" for e in batch}, "events")
+            self.bus.notify(*{f"run:{e.run_id}" for e in kept}, "events")
 
-    def _commit_batch(self, batch: list[Event]) -> None:
-        rows = [(e.run_id, e.seq, e.hash, e.ts, e.type.value, _canonical(e.data)) for e in batch]
+    def _commit_batch(self, batch: list[Event]) -> list[Event]:
+        """Commit a batch: per run, assign sequence and hash from the database tail, in one transaction. Events for a run that a
+        transition already ended (a zombie worker's late writes, possibly from another process) are dropped here, at the
+        database, and counted. Returns the events that were stored."""
+        by_run: dict[str, list[Event]] = {}
+        for e in batch:
+            by_run.setdefault(e.run_id, []).append(e)
         last: Optional[Exception] = None
         for attempt in range(5):
             try:
-                with self._lock:
-                    self._db.executemany(
-                        "INSERT INTO events (run_id, seq, hash, ts, type, data) VALUES (?, ?, ?, ?, ?, ?)", rows)
-                    self._db.commit()
-                return
+                stored: list[Event] = []
+                with self._tx() as db:
+                    for run_id, evs in by_run.items():
+                        row = db.execute("SELECT sealed FROM runs WHERE id = ?", (run_id,)).fetchone()
+                        if row is not None and row["sealed"]:
+                            self.dropped_events += len(evs)
+                            continue
+                        self._insert_events(db, run_id, evs)
+                        stored += evs
+                for e in stored:                      # committed: observers see them in sequence order
+                    self._fan_out(e)
+                return stored
             except sqlite3.OperationalError as exc:  # another process held the write lock past busy_timeout
                 last = exc
                 time.sleep(0.05 * (attempt + 1))
+        # Not silent and not lost if it can be avoided: put them back for the next cycle, up to a bound.
         import sys
-        print(f"hutch: dropped {len(rows)} events after repeated DB errors: {last}", file=sys.stderr)
+        with self._buf_cv:
+            if len(self._pending) + len(batch) <= 10_000:
+                self._pending = batch + self._pending
+                self._enqueued += 0
+                self._committed -= len(batch)         # they are not committed after all
+                print(f"hutch: {len(batch)} events could not be written ({last}); retrying", file=sys.stderr)
+                return []
+        self.dropped_events += len(batch)
+        print(f"hutch: DROPPED {len(batch)} events after repeated DB errors: {last}", file=sys.stderr)
+        return []
 
     def flush_events(self, timeout: float = 10.0) -> None:
         """Block until every event appended so far is committed."""

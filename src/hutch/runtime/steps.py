@@ -67,32 +67,41 @@ def _summary(name: str, args: dict[str, Any]) -> str:
 
 
 def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolContext, run: Run) -> ToolResult:
-    """Run a tool; if the call can have a lasting effect, write the intent first and the receipt after (ADR-0003).
+    """Run a tool; if the call can have a lasting effect, bracket the EFFECT with an intent and a receipt (ADR-0003).
 
-    If the intent cannot be recorded the action does NOT run (fail closed). If the process dies between the effect and the
-    receipt, the row stays ``started``: recovery reports an unknown outcome and the action is never replayed. Local keys do
-    not make a remote effect exactly-once, and the UI says so."""
+    The tool calls ``ctx.begin_effect()`` after policy and approval, immediately before it acts; that writes the intent and
+    refuses (fail closed) if it cannot be recorded or this worker no longer owns the run. After the tool returns the receipt is
+    written. If the process dies between the two, the row stays ``started``: recovery reports an unknown outcome and the action
+    is never replayed. Local keys do not make a remote effect exactly-once, and the UI says so."""
     effect = "" if ctx.dry_run else tool.effect(args, ctx)
     if not effect:
         return tool.run(args, ctx)
     key = hashlib.sha256(f"{run.id}|{name}|{json.dumps(args, sort_keys=True, default=str)}".encode()).hexdigest()[:24]
-    try:
-        action_id = ctx.store.begin_action(run.id, name, key, effect, _summary(name, args), fence=run.fence)
-    except LeaseLost as exc:
-        ctx.closed = True              # we no longer own this run: nothing more may start from this worker
-        return ToolResult(ok=False, output=f"error: {exc}; the action was not started")
-    except Exception as exc:
-        return ToolResult(ok=False, output=f"error: the action could not be recorded ({exc}), so it was not run")
+    began: dict[str, str] = {}
+
+    def begin() -> Optional[str]:
+        try:
+            began["id"] = ctx.store.begin_action(run.id, name, key, effect, _summary(name, args), fence=run.fence)
+        except LeaseLost as exc:
+            ctx.closed = True          # we no longer own this run: nothing more may start from this worker
+            return f"{exc}; the action was not started"
+        except Exception as exc:
+            return f"the action could not be recorded ({exc}), so it was not run"
+        return None
+
+    ctx.receipt = begin
     result = ToolResult(ok=False, output="error: the action did not finish")
     try:
         result = tool.run(args, ctx)
         return result
     finally:
-        try:
-            ctx.store.finish_action(action_id, "done" if result.ok else "failed",
-                                    hashlib.sha256(result.output.encode(errors="replace")).hexdigest()[:16])
-        except Exception:
-            pass                       # the row stays 'started': an honest "unknown" is better than a made-up receipt
+        ctx.receipt = None
+        if "id" in began:              # an action that never began (denied, expired, refused) has nothing to receipt
+            try:
+                ctx.store.finish_action(began["id"], "done" if result.ok else "failed",
+                                        hashlib.sha256(result.output.encode(errors="replace")).hexdigest()[:16])
+            except Exception:
+                pass                   # the row stays 'started': an honest "unknown" is better than a made-up receipt
 
 
 def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, args: dict[str, Any],

@@ -69,7 +69,8 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
   claimed in the database, so the dashboard, the daemon and `hutch run` can all be running without double-dispatching, and one
   bot never overlaps itself
 - **Approvals that don't nag** — ask-once with sticky always-allows; unanswered = denied
-- **Caps** — steps, wall-clock, daily tokens per bot; spend caps for priced hosted models (a token cap is not a currency cap)
+- **Caps** — steps, wall-clock, daily tokens per bot; spend caps for priced hosted models (a token cap is not a currency cap). Under
+  `hutch serve` / `hutch daemon` every run is its own process and a timeout or Stop ends its whole process group, verified
 - **Workspace path jail** — file tools cannot leave the workspace; shell commands are policy-checked and run with a redirected
   HOME and a minimal environment. This is policy, **not an OS sandbox**: a script a bot runs can read what your user can read
 - **Run transcripts** — every run in SQLite + a JSONL mirror on disk

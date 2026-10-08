@@ -152,6 +152,8 @@ class BrowserTool(Tool):
         if action == "click":
             target = args.get("selector") or args.get("label") or ""
             ctx.gate.decide("browser", f"click {target or '(current focus)'}", {"target": target})
+            if (refusal := ctx.begin_effect()):
+                return ToolResult(ok=False, output=f"error: {refusal}")
             locator = page.locator(args["selector"]) if args.get("selector") else page.get_by_text(args.get("label", ""), exact=False)
             locator.first.click(timeout=10_000)
             return ToolResult(ok=True, output=f"clicked {target}", data={"url": page.url})
@@ -159,10 +161,14 @@ class BrowserTool(Tool):
         if action == "type":
             selector, text = args.get("selector", ""), args.get("text", "")
             ctx.gate.decide("browser", f"type into {selector}", {"selector": selector})
+            if (refusal := ctx.begin_effect()):
+                return ToolResult(ok=False, output=f"error: {refusal}")
             page.fill(selector, text, timeout=10_000)
             return ToolResult(ok=True, output=f"typed {len(text)} chars into {selector}")
 
         if action == "screenshot":
+            if (refusal := ctx.begin_effect()):
+                return ToolResult(ok=False, output=f"error: {refusal}")
             path = ctx.workspace / f"screenshot-{int(time.time())}.png"
             page.screenshot(path=str(path))
             return ToolResult(ok=True, output=f"saved {path.name}")

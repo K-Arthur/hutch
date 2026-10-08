@@ -248,7 +248,7 @@
         <div class="incident-body">
           <h3>A timed-out scheduled task leaves its child process running</h3>
           <blockquote>One reporter says a cron task that timed out left its background command marked running for more than five hours. It is an open issue with an open fix.</blockquote>
-          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>What hutch does</b> Honest status: hutch had the same weakness. A run that timed out was marked finished while its worker thread kept going. A run now holds a lease, and a worker that loses it is fenced out: it cannot write to the run or start another action. Stop works from any process. Separate worker processes with verified teardown of everything a run started are still being built; progress is in <code>docs/realignment/ledger.md</code>.</span></p>
+          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>What hutch does</b> Honest status: hutch had the same weakness. A run that timed out was marked finished while its worker thread kept going. A run now holds a lease, and a worker that loses it is fenced out: it cannot write to the run or start another action. Stop works from any process. Under the dashboard and the daemon each run is its own process in its own session; stopping it ends the whole group and the run reads "Stopping" until that is verified. Limit: a process that fully detaches from its group is out of reach until the OS sandbox lands; progress is in <code>docs/realignment/ledger.md</code>.</span></p>
         </div>
       </article>
     </div>

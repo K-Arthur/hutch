@@ -12,7 +12,7 @@ browser. "Live" means it needs something this host did not have and is skipped w
 | T-STATE-MACHINE | Only table transitions are possible; terminal is absorbing; stale fence rejected | offline (property) | `tests/test_lifecycle.py` | passing |
 | T-MIGRATION-V5 | A v4 database with data migrates; ids, memory, transcripts, schedules survive | offline | `tests/test_migration.py` | passing |
 | T-CROSS-PROCESS-STOP | `stop` from process B ends a run owned by process A | offline (multiprocess) | `tests/test_cancel.py` | passing |
-| T-CANCEL-DESCENDANTS | After terminal cancel no descendant process is alive and none can write | offline | `tests/test_cancel.py` | planned |
+| T-CANCEL-DESCENDANTS | After terminal cancel no descendant process is alive and none can write | offline | `tests/test_procguard.py` | passing |
 | T-RECEIPT-RECOVERY | Crash after an effect but before its receipt ends `outcome_unknown` and is never replayed | offline | `tests/test_receipts.py` | passing |
 | T-APPROVAL-CAS | Two clients resolve one approval: exactly one wins; a revised action needs a new approval | offline | `tests/test_approval_cas.py` | planned |
 | T-SANDBOX | The shell cannot read the real home or open a socket without a grant; unsupported host fails closed | offline (skips without bwrap) | `tests/test_sandbox.py` | planned |
@@ -33,4 +33,7 @@ browser. "Live" means it needs something this host did not have and is skipped w
 | T-DELEGATION | Depth, fan-out, cycle and budget limits hold | offline | `tests/test_delegation.py` | planned |
 | T-PAIRING | Pairing code is single-use; stale/replayed input is dropped; WebSocket needs auth | offline | `tests/test_pairing.py` | planned |
 | T-HOST-SLEEP | Offline/queued state is reported honestly after the host was suspended | offline | `tests/test_cancel.py` (lease lapse, fenced zombie) | passing |
+| T-WORKER-PROCESS | A run executes in its own session; Stop, SIGKILL, a frozen worker and a dead supervisor are all handled | offline (real processes) | `tests/test_worker.py` | passing |
+| T-EVENT-CHAIN | Several processes writing one transcript keep one unbroken chain; a zombie is refused at the database | offline (real processes) | `tests/test_claims.py` | passing |
+| T-RECEIPT-SEMANTICS | An intent brackets the effect, not an approval wait; a refused or denied action has no receipt | offline | `tests/test_receipts.py` | passing |
 | T-PERF-BUDGET | Control-plane regression budgets hold against the pre-change baseline | offline | `benchmarks/run.py --check` | planned |

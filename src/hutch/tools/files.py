@@ -84,6 +84,9 @@ class FilesWriteTool(Tool):
             ctx.gate.decide("files", f"write {path} ({len(content)} chars)", {"path": path}, decision)
         except Exception as exc:
             return ToolResult(ok=False, output=f"error: {exc}")
+        refusal = ctx.begin_effect()
+        if refusal:
+            return ToolResult(ok=False, output=f"error: {refusal}")
         try:
             ws, p = _resolve(path, ctx)
             p.parent.mkdir(parents=True, exist_ok=True)

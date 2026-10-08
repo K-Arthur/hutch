@@ -1,6 +1,6 @@
 # ADR-0001: One authoritative control plane; every run is an owned OS process
 
-Status: accepted (2026-10-07). Slice: S3 (claims/leases), S4 (executor). Evidence: baseline leads 1-3, D1, D2, C1.
+Status: accepted (2026-10-07); **implemented in slices S2 (claims, leases, fencing) and S3 (worker process, verified teardown)**. Evidence: baseline leads 1-3, D1, D2, C1.
 
 ## Context
 
@@ -38,6 +38,6 @@ B. Specifically:
 ## Consequences
 
 * Migration: additive columns and tables (schema v5+). Existing rows are valid (`fence=0`, empty lease). Pre-upgrade backup already exists in `Store._upgrade`.
-* Resource: a worker costs one interpreter (about 40-60 MB RSS) only while a run is live. An approval wait still holds that process; the model slot is released while waiting (ADR-0009).
+* Resource (measured, `docs/realignment/bench_worker.py`): a worker costs about **38 MB RSS** and **~210 ms of start-up** per run (in-process: 6 ms), only while a run is live. An approval wait still holds that process; the model slot is released while waiting (ADR-0009).
 * Failure modes: worker dies silently -> lease expires -> run becomes `recovering` -> terminal `failed/interrupted` (or `outcome_unknown`, ADR-0003). Supervisor dies -> workers keep their lease and finish; the next supervisor adopts them (it never re-runs a live lease).
 * Rollback: `HUTCH_EXECUTOR=thread` restores the old execution model; new columns are ignored by old code, and the backup `hutch.db.bak-vN` is created before migration.

@@ -107,7 +107,7 @@ and to `transcript.jsonl` on disk. Run outcome is always terminal-state recorded
 ### D5 — Caps are enforced by the engine, not by model behavior
 
 - `max_steps` — agent turns per run
-- `timeout_seconds` — wall clock; currently the agent thread is **abandoned** (it keeps running) and the run marked failed. This is a known defect, replaced by owned worker processes in ADR-0001/0004
+- `timeout_seconds` — wall clock. Under `serve`/`daemon` the run is its own process and the timeout ends that process group (verified). With the in-process executor (`hutch run`, tests) a worker *thread* that will not unwind is abandoned, but it is fenced: it can no longer write to the run or start an action, and its events are dropped at the database
 - `daily_token_cap` — measured usage when the provider reports it, estimate otherwise; the next
   model call aborts when the bot's day-total exceeds the cap
 
@@ -124,9 +124,11 @@ equivalent.
 > that also enforces the per-bot rule across processes; the owner heartbeats a lease; every owner write carries a fence;
 > recovery bumps the fence so a stalled worker cannot write; status changes only through `Store.transition_run` against the
 > table in `lifecycle.py`; schedule occurrences are claimed in the same transaction as the run they create. Stop is an intent in
-> the database. Workers are still threads in the engine's process; one worker *process* per run (so a kill is a real kill) is
-> slice S3 and is specified in `docs/adr/0001-control-plane-and-owned-execution.md`. The measured problems with the old
-> design are in `docs/realignment/baseline.md`.
+> the database. Under `serve` and `daemon` each run is its own OS process (`hutch.worker`) in its own session, so a kill is a real
+> kill, and a worker outlives a dead supervisor and is adopted by the next one (`HUTCH_EXECUTOR=thread` restores in-process
+> workers; `hutch run` and the tests use them). Event sequence numbers and hash chains are assigned at commit time from the
+> database tail, so several processes can safely write one run's transcript. Design: `docs/adr/0001-...`, `docs/adr/0004-...`.
+> The measured problems with the old design are in `docs/realignment/baseline.md`.
 
 Workers are daemon threads. The engine holds a `_threads` map, a cancel `Event` per run, and a
 reference to the run's approval gate so `stop` unblocks an approval wait immediately. The browser

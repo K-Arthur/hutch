@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+from .. import procguard
 from ..config import hutchConfig
 from ..models import Bot, Run
 from ..safety import PolicyEngine
@@ -66,27 +67,45 @@ class Tool:
 
 
 class ProcRegistry:
-    """Every child process a run starts, so Stop can kill them — not just the agent loop (UI-2).
+    """Every process a run starts, so ending the run can end them - not just the agent loop (UI-2, ADR-0004).
 
-    Children are started in their own session (process group), so a shell that forked
-    helpers is killed as a tree. Claude Code and several community dashboards leaked
-    orphans precisely because they only held the direct child's handle.
+    Children are started in their own session (process group), so a shell that forked helpers is ended as a tree. The registry
+    remembers every group it was ever given, not only the live ones: a command that backgrounds a server and exits leaves a group
+    with no registered leader, and "nothing a run started may outlive it" must still hold. After signalling it VERIFIES
+    (``survivors``): success is measured, not assumed.
     """
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._procs: dict[int, subprocess.Popen] = {}
+        self._groups: dict[int, int] = {}          # pgid -> start time of the process that led it
         self.killed = False
+        self.survivors: list[Any] = []             # processes still alive after the last kill_all (procguard.Proc)
+        #: persistence hooks, set by the engine: (pid, pgid, starttime, kind) / (pid)
+        self.on_register: Optional[Callable[[int, int, int, str], None]] = None
+        self.on_unregister: Optional[Callable[[int], None]] = None
 
-    def register(self, proc: subprocess.Popen) -> None:
+    def register(self, proc: subprocess.Popen, kind: str = "tool") -> None:
+        ident = procguard.identity(proc.pid)
         with self._lock:
             self._procs[proc.pid] = proc
+            self._groups[proc.pid] = ident.starttime if ident else 0
             if self.killed:  # stop arrived between spawn and register
                 self._signal(proc, signal.SIGKILL)
+        if self.on_register:
+            try:
+                self.on_register(proc.pid, proc.pid, ident.starttime if ident else 0, kind)
+            except Exception:
+                pass
 
     def unregister(self, proc: subprocess.Popen) -> None:
         with self._lock:
             self._procs.pop(proc.pid, None)
+        if self.on_unregister:
+            try:
+                self.on_unregister(proc.pid)
+            except Exception:
+                pass
 
     @staticmethod
     def _signal(proc: subprocess.Popen, sig: int) -> None:
@@ -103,10 +122,12 @@ class ProcRegistry:
             return sum(1 for p in self._procs.values() if p.poll() is None)
 
     def kill_all(self, grace: float = 2.0) -> int:
-        """SIGTERM every process group, wait ``grace`` seconds, SIGKILL survivors. Returns count signalled."""
+        """End everything the run started: SIGTERM, wait ``grace`` seconds, SIGKILL survivors, then verify. Returns the count
+        of live direct children that were signalled; ``self.survivors`` lists anything still alive afterwards."""
         with self._lock:
             self.killed = True
             procs = [p for p in self._procs.values() if p.poll() is None]
+            groups = dict(self._groups)
         for p in procs:
             self._signal(p, signal.SIGTERM)
         deadline = time.monotonic() + grace
@@ -115,6 +136,9 @@ class ProcRegistry:
                 p.wait(timeout=max(0.0, deadline - time.monotonic()))
             except subprocess.TimeoutExpired:
                 self._signal(p, signal.SIGKILL)
+        if groups:
+            # the groups' remaining members and their descendants (a backgrounded helper outlives its shell)
+            self.survivors = procguard.end_groups(groups.keys(), not_before=min(groups.values()), term_grace=0.2, kill_grace=1.5)
         return len(procs)
 
 
@@ -134,6 +158,16 @@ class ToolContext:
     cancel_hooks: list[Callable[[], None]] = field(default_factory=list)  # abort in-flight I/O on stop
     dry_run: bool = False             # Rehearse mode: mutating actions are simulated, reads still run
     closed: bool = False              # the run is over: a worker that outlived it must not start another action
+    receipt: Optional[Callable[[], Optional[str]]] = None   # set per call by the runtime: records the intent (see begin_effect)
+
+    def begin_effect(self) -> Optional[str]:
+        """Call right BEFORE performing a lasting effect, after policy and approval have said yes. Records the intent
+        (ADR-0003) and checks the run is still ours and not being stopped. Returns None to proceed, or the reason the action
+        must not start. Waiting for a human is not an effect, so a run killed during an approval is not "unknown"."""
+        if self.receipt is None:
+            return None
+        begin, self.receipt = self.receipt, None          # once per call
+        return begin()
 
 
 #: Tools return up to this much (a hard memory bound). What the MODEL sees is truncated to a per-tool limit in

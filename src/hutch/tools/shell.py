@@ -50,6 +50,9 @@ class ShellTool(Tool):
         except Exception as exc:
             return ToolResult(ok=False, output=f"error: {exc}", data={"command": command})
 
+        refusal = ctx.begin_effect()
+        if refusal:
+            return ToolResult(ok=False, output=f"error: {refusal}", data={"command": command})
         env = {
             "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
             "HOME": str(ctx.workspace),
@@ -65,7 +68,7 @@ class ShellTool(Tool):
             )
         except FileNotFoundError:
             return ToolResult(ok=False, output="error: no shell available", data={"command": command})
-        ctx.procs.register(proc)
+        ctx.procs.register(proc, "shell")
         try:
             stdout, stderr = proc.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:

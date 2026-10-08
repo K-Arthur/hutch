@@ -286,3 +286,74 @@ def test_receipts_distinguish_a_clean_stop_from_a_crash_mid_action(store):
     assert [d["tool"] for d in doubt] == ["shell"]
     assert store.mark_actions_unknown(run.id) == 1
     assert store.actions_in_doubt(run.id)[0]["tool"] == "shell"              # still reported, now flagged unknown
+
+
+def test_a_terminal_status_is_only_ever_visible_together_with_the_complete_transcript(store, config):
+    """A reader in ANOTHER process must never see 'succeeded' with the last events still buffered in the writer."""
+    from hutch.models import Event, EventType
+    bot = make_bot(store, "complete")
+    run = submit(store, bot)
+    c = store.claim_run(run.id, "w", 30)
+    store.transition_run(run.id, RunStatus.running, fence=c.fence, event={})
+    for i in range(50):
+        store.append_event(Event(run_id=run.id, type=EventType.log, data={"i": i}))      # still buffered, not flushed
+    store.transition_run(run.id, RunStatus.succeeded, fence=c.fence, exit_reason="completed", event={"reason": "completed"})
+    # read through a second connection that shares nothing with this store's buffer
+    import sqlite3
+    c2 = sqlite3.connect(config.db_path)
+    seqs = [r[0] for r in c2.execute("SELECT seq FROM events WHERE run_id = ? ORDER BY seq", (run.id,))]
+    assert seqs == list(range(1, 53)), "the status was committed ahead of events that came before it"
+    assert store.verify_chain(run.id)["ok"]
+
+
+def test_a_no_op_transition_still_commits_the_buffered_events(store, config):
+    from hutch.models import Event, EventType
+    bot = make_bot(store, "noop")
+    run = submit(store, bot)
+    c = store.claim_run(run.id, "w", 30)
+    store.transition_run(run.id, RunStatus.running, fence=c.fence, event={})
+    store.append_event(Event(run_id=run.id, type=EventType.log, data={"x": 1}))
+    store.transition_run(run.id, RunStatus.running, fence=c.fence, event={})              # already running: nothing to change
+    import sqlite3
+    n = sqlite3.connect(config.db_path).execute("SELECT COUNT(*) FROM events WHERE run_id = ?", (run.id,)).fetchone()[0]
+    assert n == 2 and store.verify_chain(run.id)["ok"]
+
+
+def test_several_processes_appending_to_one_runs_transcript_keep_one_unbroken_chain(store, config):
+    """The dashboard (recording a stop), the worker and a recovering supervisor all append to the same run. Sequence numbers and
+    hashes come from the database tail at commit time, so they cannot collide or fork the chain."""
+    bot = make_bot(store, "chorus")
+    run = submit(store, bot)
+    outs = race(config, f"""
+        from hutch.models import Event, EventType
+        for i in range(25):
+            store.append_event(Event(run_id={run.id!r}, type=EventType.log, data={{"pid": os.getpid(), "i": i}}))
+        store.flush_events()
+        print("ok")
+        store.close()
+    """, n=4)
+    assert outs == ["ok"] * 4
+    events = store.list_events(run.id)
+    assert [e.seq for e in events] == list(range(1, 101))
+    chain = store.verify_chain(run.id)
+    assert chain["ok"] and chain["checked"] == 100
+    per_pid: dict[int, list[int]] = {}
+    for e in events:
+        per_pid.setdefault(e.data["pid"], []).append(e.data["i"])
+    assert all(v == list(range(25)) for v in per_pid.values())          # each writer's own order is preserved
+
+
+def test_a_zombie_process_cannot_append_to_a_run_another_process_ended(store, config):
+    from hutch.models import Event, EventType
+    bot = make_bot(store, "sealed")
+    run = submit(store, bot)
+    c = store.claim_run(run.id, "w", 30)
+    store.transition_run(run.id, RunStatus.running, fence=c.fence, event={})
+    zombie = Store(config)                                                  # another process that missed the ending
+    store.transition_run(run.id, RunStatus.failed, fence=c.fence, exit_reason="interrupted", event={"reason": "interrupted"})
+    n = len(store.list_events(run.id))
+    zombie.append_event(Event(run_id=run.id, type=EventType.log, data={"late": True}))
+    zombie.flush_events()
+    assert len(store.list_events(run.id)) == n and zombie.dropped_events == 1       # refused at the database, not just in memory
+    assert store.verify_chain(run.id)["ok"]
+    zombie.close()

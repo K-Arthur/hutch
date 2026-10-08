@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from typing import Optional
 
@@ -813,7 +814,7 @@ def daemon() -> None:
     config = get_config()
     store = _store()
     store.ensure_listening()
-    engine = Engine(config, store)
+    engine = Engine(config, store, executor=os.environ.get("HUTCH_EXECUTOR") or "process")   # one OS process per run
 
     def on_tick(runs):
         for r in runs:
@@ -829,6 +830,7 @@ def daemon() -> None:
 def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8787)) -> None:
     """Serve the web dashboard + API."""
     import uvicorn
+    os.environ.setdefault("HUTCH_EXECUTOR", "process")      # the dashboard's runs are worker processes: Stop is a real kill
     console.print(f"[bold]hutch[/bold] dashboard → http://{host}:{port}")
     uvicorn.run("hutch.server.app:create_app", factory=True, host=host, port=port, log_level="warning")
 

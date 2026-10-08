@@ -155,7 +155,7 @@ def test_stop_kills_child_processes_not_just_the_loop(store, config, monkeypatch
     t0 = time.time()
     engine.stop_run(run.id)
     deadline = time.time() + 10
-    while time.time() < deadline and store.get_run(run.id).status.value in ("running", "pending"):
+    while time.time() < deadline and not store.get_run(run.id).terminal:       # 'cancelling' is visible until teardown is verified
         time.sleep(0.05)
     while time.time() < deadline and _alive(helper):
         time.sleep(0.05)

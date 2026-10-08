@@ -1,0 +1,84 @@
+"""One run, in its own OS process (ADR-0001 / ADR-0004).
+
+    python -m hutch.worker <run_id> --owner <lease_owner> --fence <n>
+
+The supervisor (``Engine`` with ``executor="process"``) claims a run in the database and starts this process in a new session,
+so the worker and everything it starts form one process group that can be ended as a unit. The worker verifies the claim, keeps the
+lease alive with its own heartbeat, runs the same ``Engine._execute`` as the in-process executor, and exits when the run is terminal.
+
+It deliberately does not depend on its supervisor: if the supervisor dies the worker finishes (or is stopped through the database),
+and the next supervisor adopts it. SIGTERM is a cooperative stop: it records the cancel intent and the run unwinds; a worker that does
+not react is SIGKILLed by the supervisor after a grace period.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import signal
+import sys
+import threading
+
+from .config import get_config
+from .engine import Engine
+from .lifecycle import LIVE
+from .models import RunStatus
+from .store import Store
+
+EXIT_OK, EXIT_NOT_OURS, EXIT_MISSING = 0, 3, 4
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(prog="hutch.worker")
+    ap.add_argument("run_id")
+    ap.add_argument("--owner", required=True, help="the lease owner string the supervisor claimed the run with")
+    ap.add_argument("--fence", required=True, type=int)
+    args = ap.parse_args(argv)
+
+    config = get_config()
+    store = Store(config)
+    try:
+        run = store.get_run(args.run_id)
+        if run is None:
+            print(f"hutch.worker: no such run {args.run_id}", file=sys.stderr)
+            return EXIT_MISSING
+        if run.lease_owner != args.owner or run.fence != args.fence or run.status is not RunStatus.pending:
+            # somebody else owns it, or it already moved: acting on it would be acting without authority
+            print(f"hutch.worker: {args.run_id} is not claimed by {args.owner} at fence {args.fence} "
+                  f"(status {run.status.value}, owner {run.lease_owner!r}, fence {run.fence})", file=sys.stderr)
+            return EXIT_NOT_OURS
+        bot = store.get_bot(run.bot_id)
+        if bot is None:
+            engine = Engine(config, store, owner_id=args.owner, light=True)
+            engine._finish_unstarted(run)
+            return EXIT_MISSING
+        if run.model_override:
+            bot = bot.model_copy(update={"model": run.model_override})
+
+        engine = Engine(config, store, owner_id=args.owner, light=True)
+        store.set_pgid(run.id, run.fence, os.getpgrp())
+        stop_requested = threading.Event()
+
+        def on_term(_sig, _frm) -> None:
+            stop_requested.set()                    # a signal handler only records; a thread does the work
+
+        signal.signal(signal.SIGTERM, on_term)
+        signal.signal(signal.SIGINT, on_term)
+
+        def watch_signal() -> None:
+            stop_requested.wait()
+            engine.stop_run(run.id)                 # database intent + in-process fast path (hooks, kill children)
+
+        threading.Thread(target=watch_signal, name="hutch-worker-signal", daemon=True).start()
+        engine._ensure_heartbeat()
+        engine._execute(bot, run, threading.Event())
+        engine._hb_stop.set()
+        store.flush_events()
+        final = store.get_run(run.id)
+        return EXIT_OK if final is None or final.status not in LIVE else 1
+    finally:
+        store.close()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

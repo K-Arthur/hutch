@@ -230,6 +230,10 @@ def test_a_crash_after_an_effect_but_before_its_receipt_is_reported_and_never_re
         assert wait_for(lambda: log.exists() and log.read_text().count("hit") == 1), "the effect never happened"
         doubt = wait_for(lambda: store.actions_in_doubt(run_id))
         assert [d["tool"] for d in doubt] == ["shell"] and "effects.log" in doubt[0]["summary"]
+        recorded = wait_for(lambda: store.live_procs(run_id))                 # the owner recorded what it started
+        assert len(recorded) == 1 and recorded[0]["kind"] == "shell"
+        shell_pid = recorded[0]["pid"]
+        assert _alive(shell_pid)
 
         os.kill(proc.pid, signal.SIGKILL)                             # power loss: no cleanup runs
         proc.wait(timeout=10)
@@ -246,6 +250,9 @@ def test_a_crash_after_an_effect_but_before_its_receipt_is_reported_and_never_re
         assert "may have happened" in run.error and "effects.log" in run.error
         assert [d["tool"] for d in store.list_actions(run_id) if d["status"] == "unknown"] == ["shell"]
         assert log.read_text().count("hit") == 1, "the action was replayed after the crash"
+        # the crashed owner's command was still running (its own session survives its parent); recovery ended it and says so
+        assert wait_for(lambda: not _alive(shell_pid), 10), "recovery left the crashed owner's process running"
+        assert store.live_procs(run_id) == []
         assert len(store.list_runs(bot_id=store.get_bot("deployer").id)) == 1, "a restart must not start a new run by itself"
     finally:
         if proc.poll() is None:
