@@ -78,7 +78,7 @@ def test_approval_review_and_attention_styles(client):
     assert ".approval-review" in css
     assert ".review-row" in css
     assert ".approval-card-chat.resolved" in css
-    assert "nav a.attention" in css                       # app-wide attention dot
+    assert ".ws-nav button.attention" in css                       # app-wide attention dot
 
 
 def test_approvals_page_has_a_resolved_section(client):

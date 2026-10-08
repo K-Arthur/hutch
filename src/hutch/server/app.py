@@ -28,6 +28,7 @@ from .. import __version__
 from ..approvals import resolve_approval, resolve_approval_ex
 from ..config import get_config
 from ..engine import Engine, bot_prompt_for_schedule
+from ..lifecycle import LABELS
 from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, CommandRule, Limits, RiskTier, Run, RunStatus, Schedule, Task
 from ..store import IdempotencyConflict, Store
 from ..templates import TEMPLATE_INFO, TEMPLATES
@@ -288,6 +289,8 @@ def create_app() -> FastAPI:
             "next_run_local": nxt.astimezone().strftime("%a %d %b %H:%M") if nxt else None,
             "last_success": last.finished_at or last.created_at if last else None,
             "active_run_id": active.id if active else None,
+            "active_run_status": active.status.value if active else None,
+            "active_run_status_label": LABELS[active.status] if active else None,
             "run_counts": stats,
             "tokens_today": measured_tokens + reserved_tokens,
             "tokens_measured_today": measured_tokens,
@@ -832,7 +835,9 @@ def create_app() -> FastAPI:
         out = []
         for req in reqs:
             bot = store.get_bot(req.bot_id)
-            out.append({**req.model_dump(), "bot_name": bot.name if bot else "?"})
+            run = store.get_run(req.run_id)
+            out.append({**req.model_dump(), "bot_name": bot.name if bot else "?",
+                        "conversation_id": run.conversation_id if run else None})
         return out
 
     @app.get("/api/approvals/{approval_id}")

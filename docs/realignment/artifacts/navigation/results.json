@@ -1,0 +1,388 @@
+{
+  "browser": "Firefox",
+  "version": "155.0",
+  "python": "3.13.15",
+  "playwright": "1.63.0",
+  "captured_at": "2026-10-08T07:42:25.281289+00:00",
+  "pillow": "12.3.0",
+  "revision": "f4f873253f84b05606e2de530ffe48fce55967aa",
+  "tree": "working tree after navigation and exact-action repairs",
+  "fixture": "isolated mock/demo; temporary state removed; loading/cancelling records synthetic",
+  "captures": [
+    {
+      "state": "empty",
+      "size": "desktop",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "empty-desktop.png"
+    },
+    {
+      "state": "empty",
+      "size": "tablet",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "empty-tablet.png"
+    },
+    {
+      "state": "empty",
+      "size": "phone",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "empty-phone.png"
+    },
+    {
+      "state": "waiting",
+      "size": "desktop",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "waiting-desktop.png"
+    },
+    {
+      "state": "needs-you",
+      "size": "desktop",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "needs-you-desktop.png"
+    },
+    {
+      "state": "settings",
+      "size": "desktop",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "settings-desktop.png"
+    },
+    {
+      "state": "waiting",
+      "size": "tablet",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "waiting-tablet.png"
+    },
+    {
+      "state": "needs-you",
+      "size": "tablet",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "needs-you-tablet.png"
+    },
+    {
+      "state": "settings",
+      "size": "tablet",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "settings-tablet.png"
+    },
+    {
+      "state": "waiting",
+      "size": "phone",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "waiting-phone.png"
+    },
+    {
+      "state": "needs-you",
+      "size": "phone",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "needs-you-phone.png"
+    },
+    {
+      "state": "settings",
+      "size": "phone",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "settings-phone.png"
+    },
+    {
+      "state": "fleet",
+      "size": "desktop",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "fleet-desktop.png"
+    },
+    {
+      "state": "activity",
+      "size": "desktop",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "activity-desktop.png"
+    },
+    {
+      "state": "fleet",
+      "size": "tablet",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "fleet-tablet.png"
+    },
+    {
+      "state": "activity",
+      "size": "tablet",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "activity-tablet.png"
+    },
+    {
+      "state": "fleet",
+      "size": "phone",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "fleet-phone.png"
+    },
+    {
+      "state": "activity",
+      "size": "phone",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "activity-phone.png"
+    },
+    {
+      "state": "completion",
+      "size": "desktop",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "completion-desktop.png"
+    },
+    {
+      "state": "run-detail",
+      "size": "desktop",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "run-detail-desktop.png"
+    },
+    {
+      "state": "completion",
+      "size": "tablet",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "completion-tablet.png"
+    },
+    {
+      "state": "run-detail",
+      "size": "tablet",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "run-detail-tablet.png"
+    },
+    {
+      "state": "completion",
+      "size": "phone",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "completion-phone.png"
+    },
+    {
+      "state": "run-detail",
+      "size": "phone",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "run-detail-phone.png"
+    },
+    {
+      "state": "loading",
+      "size": "desktop",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "loading-desktop.png"
+    },
+    {
+      "state": "loading",
+      "size": "tablet",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "loading-tablet.png"
+    },
+    {
+      "state": "loading",
+      "size": "phone",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "loading-phone.png"
+    },
+    {
+      "state": "cancelling",
+      "size": "desktop",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "cancelling-desktop.png"
+    },
+    {
+      "state": "cancelling",
+      "size": "tablet",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "cancelling-tablet.png"
+    },
+    {
+      "state": "cancelling",
+      "size": "phone",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "cancelling-phone.png"
+    },
+    {
+      "state": "error",
+      "size": "desktop",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "error-desktop.png"
+    },
+    {
+      "state": "error",
+      "size": "tablet",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "error-tablet.png"
+    },
+    {
+      "state": "error",
+      "size": "phone",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "error-phone.png"
+    },
+    {
+      "state": "reconnecting",
+      "size": "desktop",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "reconnecting-desktop.png"
+    },
+    {
+      "state": "reconnecting",
+      "size": "tablet",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "reconnecting-tablet.png"
+    },
+    {
+      "state": "reconnecting",
+      "size": "phone",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "reconnecting-phone.png"
+    },
+    {
+      "state": "site",
+      "size": "desktop",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "site-desktop.png"
+    },
+    {
+      "state": "site",
+      "size": "tablet",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "site-tablet.png"
+    },
+    {
+      "state": "site",
+      "size": "phone",
+      "pageErrors": [],
+      "overflow": 0,
+      "screenshot": "site-phone.png"
+    }
+  ],
+  "source_sha256": {
+    "src/hutch/__init__.py": "568574ab401d0207b2e5bbf867341bdce1041794c04a41813720be38df26da74",
+    "src/hutch/approvals.py": "9a1cd3278f30873bb2a2dd6343453a80b98dbd2859de9d9924590a9113e0c663",
+    "src/hutch/cli.py": "57b5b81e0f6a77f56a7951202ec5a1ab32d70a757687fa564a953653e6c9bf57",
+    "src/hutch/config.py": "46c7afface25662558513a35afc2296abf14b39a9a209498b2d2893b5494c033",
+    "src/hutch/connections.py": "77cab8279a60213d67069b2ad73bb757c74f6929a188063ffd9e906d7e51568e",
+    "src/hutch/context.py": "9fcbaf51df102974fdeb724cd9718f2e5fc5f388c52a3c11fd61a7ce7db4f6c8",
+    "src/hutch/demo.py": "de4ee597e52b04d8f8f286107871340553cf65caff90e306be95b7f5a0cb6298",
+    "src/hutch/doctor.py": "f1494d2eb2780ca0ca39a8e56052c7ccb3112d29604af4201d7ab0b48475d357",
+    "src/hutch/engine.py": "00eee75199d22040b491a56a6a2d04c88d0c8746e874d263eb822c7bfec3a124",
+    "src/hutch/estimate.py": "6cb16043632d42baecc60a3584a7cbb14ef599929fb541b27ca21548f97ac2a3",
+    "src/hutch/fit.py": "8e205ccba3365bb181804f16d8904f5374fd171375903dc845a1242b617ffd09",
+    "src/hutch/hardware.py": "349bbceb42e7fa5d6ec4e75a564c625bd598a347433daf6f8ec6a51b2b703ced",
+    "src/hutch/health.py": "78232dc44b6637b400d06c55e4e42bd00a661eac41e5b9741f368b627c1181f0",
+    "src/hutch/lifecycle.py": "f8942ad1e47a16b75c4e9bc4fca0bf80cefc30b0ab70fc54a186f59ce3aff999",
+    "src/hutch/modelchoices.py": "8abd14248d3a67b34982c5477a3073770da9f315b54d804d4e20cae8187d494f",
+    "src/hutch/models.py": "941d5c48d7cb89bbda489cb7e2289e19fa851fd232e273441810461c6d87d648",
+    "src/hutch/modelview.py": "fe1880f7c48863a4d92a0c057eadefe69423fbb3e676a4e36ceb4b5efde70d59",
+    "src/hutch/netguard.py": "520654b9feea36d7d1b524da96755dfe8e68a6132c382da79e3a8c8bfd927be0",
+    "src/hutch/presets.py": "8220239d9e973e4371514f09a3198b65dd79b94be1e40e25fa296348ef8f066c",
+    "src/hutch/procguard.py": "c7af96bbe5ae3505522c397e1b7b6bb97ba43f392c5cd0f83e8f6bc478f15aa7",
+    "src/hutch/providers/__init__.py": "05130c0aba41093b65b09c961a48c48c4dea5d91bf49103f14eafaaa53e1a183",
+    "src/hutch/providers/base.py": "1f25b8fb8a28a8506752e5b4e946557a50cf626d5ec79bc2bd31c0db92c040be",
+    "src/hutch/providers/claude.py": "108feedcd36936fe26054166dfada36acf39a36b5aa1416ca3d6faa31eda1891",
+    "src/hutch/providers/connection.py": "24da50f0cc6fe274e35f113a023d86e646f2c870cae4ae6839cf1eaefea7b4c3",
+    "src/hutch/providers/ollama.py": "36e70fd910ace6748228ecfae7b352ddcccc73f8d2b2805c72796ca22dfe4d84",
+    "src/hutch/providers/openai_compat.py": "bd93a6d47f9986074d81fb7df9804467652f2009365b06ae6a98fbeba5ac0368",
+    "src/hutch/providers/pricing.py": "3715c3e10589c9a001351e0f5057b37ffc8c3e96800cf2397c3901f6c2fc0b5c",
+    "src/hutch/providers/registry.py": "6ef0f31cbee2caa24e3e99812b3de113e25a43f5333ec12b4886e10cb8a7e1a8",
+    "src/hutch/reliability.py": "dd89d685ce24c977cd7f17da8717461031008085a297209f70e8276c5eccb474",
+    "src/hutch/runtime/__init__.py": "f3177de292ffbe63d904d3ba595422bbcd1f4c487c6e26ef13f5e3f1292155e7",
+    "src/hutch/runtime/base.py": "d7d347b2debb00b1174d1f0a9f111a2a83b10044682c62c2d77088408e0adf0d",
+    "src/hutch/runtime/builtin.py": "07b0ee886cf596dc9aac4eaf7c8cde675eaa525c6bc2fea2debd70df68e2d026",
+    "src/hutch/runtime/ladder.py": "93ca8732bab604464b8902276845ef580aa995d2b9a52c9023c947d449404c12",
+    "src/hutch/runtime/mock.py": "bbac40e323137305f5312969d74eb9636444aae5f47dc5c008e1f8694f55b726",
+    "src/hutch/runtime/opencode.py": "46cf3c0647d7229e5c7c032b1b875f2e68af2079f4ece9bd08f156282254f5c9",
+    "src/hutch/runtime/pi.py": "981f6ff6d20f3ce22a4688c7a218215a4396e129eceb9ce6198335b1fc21fd05",
+    "src/hutch/runtime/steps.py": "a2ad97489fc1c71834ffed2ac1c144659d24e3af069a3ada825fa9c8857e4e00",
+    "src/hutch/runtime/toolrepair.py": "1d03eadc6f853327b9e1fb221b2a5e0e2350c9a9e4811ce057098555c237aa0d",
+    "src/hutch/safety.py": "e456e902c38b01f969aa3648920994006d87d3ad86f7ed10272f5b3ce5215ec5",
+    "src/hutch/sandbox.py": "818d8e088504dce42edfa9397f6b92d6d649ebdc4e7dae0a86ac712754d2a8b1",
+    "src/hutch/scheduler.py": "38ff2c1922347893b83c4c888ca50994d215a62b379c0cce9e85e7cde9094656",
+    "src/hutch/server/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "src/hutch/server/app.py": "af27840b3589813c204a392a5071bbe55312e6258fed25a1593ba4f77f2551a5",
+    "src/hutch/server/pages.py": "ff49b80e66b8308f01b17418e3e4449b5cc3b1e47cede337a2b8bd460fad006c",
+    "src/hutch/server/pages_models.py": "6412cd1d1497704f2f15bb9d62be916d6609b8970ddf52a5e71d5ca047b15aff",
+    "src/hutch/server/pages_usage.py": "ae60899c5e48ca8d86db293c9db250aaafc2b96e2121f6f6fcd37c3c389bddfd",
+    "src/hutch/server/security.py": "49edcc92e3ff3775b77a9d6a9a9d0fd2e6c393d0173bea8aefad5e5d8c6f0fda",
+    "src/hutch/server/sse.py": "0718a725ce5747241e87feb326c6d2d1e4292bf036b60335ad11cad8d7d33b81",
+    "src/hutch/shellparse.py": "f7d1c6db8d4afee6962b29638318ae7f898fdd0a55907392c64869cbc9ff5301",
+    "src/hutch/slots.py": "fc56487b30124b0544e03d081d913aa103510072784c0b9a0dc2c4b00d8c2dde",
+    "src/hutch/store.py": "eab4ba44d9bbf7403391fccc0cb047f50c5cd67a38dd66edbd3b7400ab8a36b6",
+    "src/hutch/templates.py": "7e4a1c479cb2b8193b69948f010d471569645b948bc35bb8368fb701cf8896d6",
+    "src/hutch/tools/__init__.py": "2339331e253c675a9f8d3df8953f9649aa7a4f8693d326a3729eb958b3854024",
+    "src/hutch/tools/base.py": "0573872f002df0b235bd40bd24bc0fa8ea4fc668d37c4c942d84c148503ca3b4",
+    "src/hutch/tools/browser.py": "d30818050dae818f4843dff405e8814bdaacd28d86b48fd573ecd2bc2103bdda",
+    "src/hutch/tools/files.py": "999488a4ef3aa1f9a40b6ba9521b20baabf3c7cc7e4a62e1d0447a889e0096a8",
+    "src/hutch/tools/filewrite.py": "33face5363c145529c8b61d1a9d8a6624256cd469f5420c5c817397c03b5f6cb",
+    "src/hutch/tools/memory.py": "8a632800ea1beb94bb94532bb9487abd6b0a80ce09a9a2b9e602b28fc7132d96",
+    "src/hutch/tools/shell.py": "6f10558c38c00ec723a0eca85536d44858a17bbc253932598d93a6218b6b319d",
+    "src/hutch/tools/webfetch.py": "308f234266273575d949dd2a9ba25c26c2372050d152bbe1f50168bfd9925f8e",
+    "src/hutch/views.py": "ec8d0dd05a2b38c2d8e5c72cbd85bdb8415b4cabf9b0fb4bcb5f25ce6ee00c9c",
+    "src/hutch/wake.py": "2c8a376ff138330d11bf1e5ab3f50abc33cc0cf4e0088b30f13ed44f6251b55b",
+    "src/hutch/workdir.py": "6ae06bda8ff2bbdefc20b892e140f4659077561a931e10b3555a6311f4d1f410",
+    "src/hutch/worker.py": "ac704a07282015c15a5f4a73313488a4da79ec6755046839556685a177665d4f",
+    "src/hutch/server/static/app.js": "a81b6114a6f62af8d6f3cb44f4605ac2eed38f175bb089555233665f515a5589",
+    "src/hutch/server/static/hutch.js": "f6eb4d61a2a97f707ab85163f2150a71a0d0b79936742964bb767a6b37b59339",
+    "src/hutch/server/static/model-switcher.js": "6f58046d2ea49905962f7da5e833b53ec4200cde097e180638e8d29ed7a56581",
+    "src/hutch/server/static/vendor/htmx.min.js": "e209dda5c8235479f3166defc7750e1dbcd5a5c1808b7792fc2e6733768fb447",
+    "src/hutch/server/static/hutch-pages.css": "c86acd10ab38224a7fae6be0f8e8828efe82017ee5fde4dab0f070507c003202",
+    "src/hutch/server/static/hutch.css": "1f730f4753981bf6d2b95bbad81c4108bce0add8f5c3d2a52200989aae3205af",
+    "src/hutch/server/static/model-switcher.css": "b3ce1ac3b666c933f8e1f8c8d31507872e13c572fd761ac024c85e7650e2ecdc",
+    "src/hutch/server/static/style.css": "46960c9d24787b1f24ee091f029966dd653568c82aa25307acb8a6540e66c8eb",
+    "src/hutch/server/static/index.html": "c7ef899cc0e9353f8340ec12374fcb018e391c5c9378cbc6b74c23eab202b916",
+    "src/hutch/server/templates/_approval_card.html": "bf186f9a4163c4cfc33a94733537e916f9fb90125942dec861dbf6bb0c0d0137",
+    "src/hutch/server/templates/_approval_list.html": "02697f612e2a72dd9e1922d7e5bf1a91a3a083533d0f844a6789156f4b048498",
+    "src/hutch/server/templates/_approval_resolved.html": "3307087e9f70851447aaf97a9c55a18df3d290f0c2193c5d8f444e1ac399a202",
+    "src/hutch/server/templates/_events.html": "bd84ade949e84d8af92f165d54281a3b151b8b4b3306aea4960de88584b62f48",
+    "src/hutch/server/templates/_events_fragment.html": "97b1d3310931de0afb734a775e90b934dd93e20315ecdf2d0210b04992885267",
+    "src/hutch/server/templates/_events_more.html": "005b8fb0c1980a2a77910852a78aab2168dd588e784ceb3e39965a5d2810d14d",
+    "src/hutch/server/templates/_home_lists.html": "40a63d3d41f66c971e0f74e779b700e8b5519c24ae6155678a9b0de8d9a0603d",
+    "src/hutch/server/templates/_icons.html": "37e68f46d3cdc1ed24c710ddc1d9bc29b239c254b50f4d38af5f1337feccc432",
+    "src/hutch/server/templates/_meters.html": "db1085ea8d353ebc34630e7f6dab447a2206f19531e3901e1d6349a898e2d069",
+    "src/hutch/server/templates/_runs_table.html": "c6a44cd67680685a7fb9b4ed5ffaedc3bfd623abf0742ef7495ac6149c49718f",
+    "src/hutch/server/templates/_wait.html": "d3f31bba53c1703a417b8f5e567e2a84a5a2f76833aae563f3c152831dc59800",
+    "src/hutch/server/templates/_wait_fragment.html": "5b547c965e398722a5c0cefc33a1a768a02918c5ec45286b975e3dd0f0ca7257",
+    "src/hutch/server/templates/approvals.html": "6adbeca7d8eaacfa86bb5ed821e54fb98fd09233b7b9c0a45553c0b7a6c8c644",
+    "src/hutch/server/templates/base.html": "54a481fb80ca57266b2ed9b1c10bb3b5f5967fa2f333fd3949cb126bc07a92ca",
+    "src/hutch/server/templates/bot.html": "06521df5eda84040916eb3bf50e587e283c6cf4aca9b9ef447197a1495050174",
+    "src/hutch/server/templates/bot_new.html": "2e0720053c0bfb1504b60c7966cb3631ac310cec98b1d46dfc26539e0be20823",
+    "src/hutch/server/templates/bots.html": "324adbfe0b3d0319011852bcc506146ca5095c4b5fa46d7463c1f83e938f29c3",
+    "src/hutch/server/templates/connections.html": "2ce3ab5cb04b3fbe3cadb3387f67e19434c063edd7ab45a6971c3e7bc83ba922",
+    "src/hutch/server/templates/error.html": "b4c3057ed9d84413d40dd6988fb5351dbfd471ed153009d6d70d3ed6f0f14367",
+    "src/hutch/server/templates/home.html": "fc91e9b2082f7c90779a345234ccea814db3f60e3a58d3e695a9f2234fe85488",
+    "src/hutch/server/templates/login.html": "3f2af21e0293d21ab510408a152c9f5b0d6ec131d3006cabcdddb106f5675e0e",
+    "src/hutch/server/templates/models.html": "19198dbe1ccbf03564835b6f7c35bc20b875dfd55a2688d73b8c82352a98e8e9",
+    "src/hutch/server/templates/run.html": "07946f95e66435d6f4dd14367942d9274f2b54a4663d666489cfc86bba32f54c",
+    "src/hutch/server/templates/runs.html": "91b6062228079fde7ea3c2e7f89aa3e3a29da92246420a16132539e7d3ef3e54",
+    "src/hutch/server/templates/usage.html": "d07a55baf6e8a3413ad170d353937747125d9130273ffa192b02df5a6bc01db2",
+    "website/index.html": "f48e87f2aa3d0e68b8d500afddcf0748a23b0b84f65cd930dd3cc79ba790c84b"
+  },
+  "source_hash_note": "Added after capture from the unchanged application sources; docs/test-only edits excluded."
+}

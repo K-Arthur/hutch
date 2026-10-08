@@ -99,7 +99,7 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 | [Research](docs/research/) | orchestrator/runtime comparison; incident-based requirements |
 
 Marketing site: [website/](website/index.html) (static landing page; its claims are checked against the evidence ledger).
-Web Dashboard: 3-pane Chat Studio (`http://127.0.0.1:8787/#/chat`) with live approval interceptor, memory manager, sticky permissions, and mobile drawer tabs.
+Web Dashboard: conversation-first Studio (`http://127.0.0.1:8787/#/chat`) with one bot roster, inline approvals and a cross-bot Needs you drawer. Bot settings own memory, permissions and defaults. Monitor holds Activity and run history; a searchable Fleet view appears at ten bots. See [navigation decisions](docs/realignment/navigation.md).
 
 ## Development
 

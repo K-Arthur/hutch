@@ -31,11 +31,26 @@ The site intentionally removed unattributed forum IDs, unsupported spend-guarant
 
 ## Screenshot provenance
 
-`website/assets/captures/proof-*.webp` are optimized derivatives of the adjacent `raw/` captures. They show Hutch v0.1.0 at commit
-`e96a4bf`, seeded with `hutch demo seed`; the gate screen is an approval waiting for a human. The images contain demo bot names,
-fixture prompts, run identifiers and synthetic run records. They contain no provider key, real account, private workspace content or
-live external action. The screenshot timestamps displayed in the app are UTC. The mascot is a local SVG illustration at
+`website/assets/captures/proof-*.webp` are 1280×889 derivatives of the desktop waiting, completion,
+run-detail and Activity captures in `docs/realignment/artifacts/navigation/`. They show the
+navigation working tree based on `f4f8732`, after the exact-action repair `956b925` and the
+atomic conversation-history repair. `results.json` records source hashes, Python 3.13.15, Firefox 155,
+Playwright 1.63.0 and Pillow 12.3.0, with UTC capture time. The source used temporary isolated
+state, three demo bots followed by ten for Fleet, and deterministic `mock/demo` inference.
+No real provider, signed-in browser or external action was exercised. Expanded details can
+contain the temporary fixture workspace path; it is not an operator workspace. The images
+contain fixture prompts, generated IDs and synthetic records, with no key or private account.
+The old adjacent `raw/` images are historical source material for the superseded captures.
+The screenshot timestamps displayed in the app are UTC. The mascot is a local SVG illustration at
 `website/assets/hutch-agent.svg`, not an application screenshot.
 
 Before changing product copy, compare it with `docs/realignment/ledger.md`, `docs/realignment/evidence-ledger.md`,
-`docs/realignment/visual-validation.md`, and the current provider/support matrix in `docs/adr/0005-providers-auth-and-subscriptions.md`.
+`docs/realignment/navigation-visual-validation.md`, and the current provider/support matrix in `docs/adr/0005-providers-auth-and-subscriptions.md`.
+
+## Conversation-first interface
+
+Product copy describes decisions in chat and the cross-bot Needs you drawer; it does not promise
+that a separate Approvals page is required. Activity and run history are monitoring tools, and
+Fleet is progressive navigation at ten bots. The threshold is a product heuristic, not a measured
+user-research result. Sanitized captures are refreshed from isolated deterministic mock state;
+no executor credentials or localhost requests are added to the static site.

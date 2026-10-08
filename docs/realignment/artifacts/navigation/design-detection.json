@@ -1,0 +1,343 @@
+[
+  {
+    "antipattern": "clipped-overflow-container",
+    "name": "Positioned child clipped by overflow container",
+    "description": "A clipping container (overflow hidden or clip) wrapping an absolutely-positioned child cuts off tooltips, menus, and popovers that need to escape. Let the overflow be visible, or move the positioned layer out of the clip.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/src/hutch/server/static/index.html",
+    "line": 0,
+    "snippet": "body clips a positioned child"
+  },
+  {
+    "antipattern": "gpt-thin-border-wide-shadow",
+    "name": "Hairline border with wide shadow",
+    "description": "A hairline border paired with a wide, diffuse shadow is a recurring generated-UI signature. Commit to one — a defined edge or a soft elevation — rather than both at once.",
+    "severity": "advisory",
+    "category": "slop",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/src/hutch/server/static/index.html",
+    "line": 0,
+    "snippet": "1px border + 64px shadow blur",
+    "advisory": true
+  },
+  {
+    "antipattern": "pulsing-dot",
+    "name": "Pulsing status dot",
+    "description": "Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/src/hutch/server/static/index.html",
+    "line": 0,
+    "snippet": ".typing-dots span — 7x7px dot with infinite \"typing-bounce\" animation"
+  },
+  {
+    "antipattern": "side-tab",
+    "name": "Side-tab accent border",
+    "description": "Thick colored border on one side of a card — the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/src/hutch/server/static/style.css",
+    "line": 877,
+    "snippet": "border-left: 3px solid var(--brand)"
+  },
+  {
+    "antipattern": "bounce-easing",
+    "name": "Bounce or elastic easing",
+    "description": "Bounce and elastic easing feel dated and tacky. Real objects decelerate smoothly — use exponential easing (ease-out-quart/quint/expo) instead.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/src/hutch/server/static/style.css",
+    "line": 559,
+    "snippet": "animation: typing-bounce"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the space between the rendered text and the border box is too small for the font size, and (2) a wrapper whose children's text lands flush against a visible boundary (border, outline, or non-transparent background) with nothing to inset it. Add at least 8px (ideally 12–16px) of space inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "<section> \"band\": children flush against bg on all sides (no inset)"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the space between the rendered text and the border box is too small for the font size, and (2) a wrapper whose children's text lands flush against a visible boundary (border, outline, or non-transparent background) with nothing to inset it. Add at least 8px (ideally 12–16px) of space inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "<div> \"ledger\": children flush against border-top on top (no inset)"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "11px body text"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "11px body text"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "11px body text"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "11px body text"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "11px body text"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the space between the rendered text and the border box is too small for the font size, and (2) a wrapper whose children's text lands flush against a visible boundary (border, outline, or non-transparent background) with nothing to inset it. Add at least 8px (ideally 12–16px) of space inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "<section> \"band\": children flush against bg on all sides (no inset)"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the space between the rendered text and the border box is too small for the font size, and (2) a wrapper whose children's text lands flush against a visible boundary (border, outline, or non-transparent background) with nothing to inset it. Add at least 8px (ideally 12–16px) of space inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "<li> \"step\": children flush against border-top on top (no inset)"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "11.5px body text"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the space between the rendered text and the border box is too small for the font size, and (2) a wrapper whose children's text lands flush against a visible boundary (border, outline, or non-transparent background) with nothing to inset it. Add at least 8px (ideally 12–16px) of space inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "<div> \"spec-stack\": children flush against border-top on top (no inset)"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the space between the rendered text and the border box is too small for the font size, and (2) a wrapper whose children's text lands flush against a visible boundary (border, outline, or non-transparent background) with nothing to inset it. Add at least 8px (ideally 12–16px) of space inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "<div> \"spec\": children flush against border-bottom on bottom (no inset)"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the space between the rendered text and the border box is too small for the font size, and (2) a wrapper whose children's text lands flush against a visible boundary (border, outline, or non-transparent background) with nothing to inset it. Add at least 8px (ideally 12–16px) of space inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "<div> \"spec\": children flush against border-bottom on bottom (no inset)"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the space between the rendered text and the border box is too small for the font size, and (2) a wrapper whose children's text lands flush against a visible boundary (border, outline, or non-transparent background) with nothing to inset it. Add at least 8px (ideally 12–16px) of space inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "<div> \"spec\": children flush against border-bottom on bottom (no inset)"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the space between the rendered text and the border box is too small for the font size, and (2) a wrapper whose children's text lands flush against a visible boundary (border, outline, or non-transparent background) with nothing to inset it. Add at least 8px (ideally 12–16px) of space inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "<div> \"spec\": children flush against border-bottom on bottom (no inset)"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the space between the rendered text and the border box is too small for the font size, and (2) a wrapper whose children's text lands flush against a visible boundary (border, outline, or non-transparent background) with nothing to inset it. Add at least 8px (ideally 12–16px) of space inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "<div> \"spec\": children flush against border-bottom on bottom (no inset)"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "10.5px body text"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "10.5px body text"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "10.5px body text"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "10.5px body text"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "10.5px body text"
+  },
+  {
+    "antipattern": "tiny-text",
+    "name": "Tiny body text",
+    "description": "Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "9.5px body text"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the space between the rendered text and the border box is too small for the font size, and (2) a wrapper whose children's text lands flush against a visible boundary (border, outline, or non-transparent background) with nothing to inset it. Add at least 8px (ideally 12–16px) of space inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "<section> \"band\": children flush against bg on all sides (no inset)"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the space between the rendered text and the border box is too small for the font size, and (2) a wrapper whose children's text lands flush against a visible boundary (border, outline, or non-transparent background) with nothing to inset it. Add at least 8px (ideally 12–16px) of space inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "<section> \"band\": children flush against bg on all sides (no inset)"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the space between the rendered text and the border box is too small for the font size, and (2) a wrapper whose children's text lands flush against a visible boundary (border, outline, or non-transparent background) with nothing to inset it. Add at least 8px (ideally 12–16px) of space inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "<div> \"get-status\": children flush against border-top on top (no inset)"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the space between the rendered text and the border box is too small for the font size, and (2) a wrapper whose children's text lands flush against a visible boundary (border, outline, or non-transparent background) with nothing to inset it. Add at least 8px (ideally 12–16px) of space inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "<div> \"faq-list\": children flush against border-top on top (no inset)"
+  },
+  {
+    "antipattern": "cramped-padding",
+    "name": "Cramped padding",
+    "description": "Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the space between the rendered text and the border box is too small for the font size, and (2) a wrapper whose children's text lands flush against a visible boundary (border, outline, or non-transparent background) with nothing to inset it. Add at least 8px (ideally 12–16px) of space inside bordered, outlined, or colored containers.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "<section> \"cta\": children flush against border-top on top (no inset)"
+  },
+  {
+    "antipattern": "clipped-overflow-container",
+    "name": "Positioned child clipped by overflow container",
+    "description": "A clipping container (overflow hidden or clip) wrapping an absolutely-positioned child cuts off tooltips, menus, and popovers that need to escape. Let the overflow be visible, or move the positioned layer out of the clip.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "body clips a positioned child"
+  },
+  {
+    "antipattern": "flat-type-hierarchy",
+    "name": "Flat type hierarchy",
+    "description": "Dominant heading and body roles are separated by less than 1.25× at every step, leaving the size hierarchy flat. Add at least one stronger size step.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "/home/kevina/CodingProjects/hutch/.worktrees/realign/website/index.html",
+    "line": 0,
+    "snippet": "Role sizes: body 15px, h2 17px, h3 19px (largest adjacent step 1.13:1; target 1.25:1)"
+  }
+]

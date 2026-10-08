@@ -48,11 +48,12 @@ guaranteed external spending limit. The app must make that governance legible, n
   resolution and cross-device conflict handling, overview/usage/health, bot models +
   estimate, connections (currently server-rendered forms; JSON surface is a small additive
   dependency for the SPA views).
-- Durable conversations/messages and idempotent command receipts exist only on the
-  unmerged `realign/platform` worktree. Coordination decision (2026-10-07, reversible):
-  this workstream builds against current `/api`, treats per-bot run history as the thread,
-  and feature-detects `/api/v1` when it lands. No fabricated receipts, no invented
-  conversation backend.
+- Durable conversations/messages, archive and idempotent command receipts are implemented on
+  the integrated realignment branch. Studio uses `/api/v1/conversations`; legacy runs remain
+  separate imported threads. Connection JSON APIs support the shared settings surface.
+- Chat is the daily workspace: one roster, one settings destination, inline approvals and
+  an explicit Needs you drawer. Monitor holds Activity/history; Fleet appears at ten bots
+  with search/state filters. Ten is a product heuristic, not a research-proven threshold.
 - Frontend stack constraint: zero build step, zero external assets (fonts/CDNs),
   vanilla ES + hash-routed SPA at `/`; Jinja2+HTMX server pages for the remainder.
   Restructuring inside those files is allowed; introducing a framework or bundler is not.

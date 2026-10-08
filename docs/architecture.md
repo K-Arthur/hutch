@@ -151,3 +151,9 @@ Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent col
 interactive remote supervision, durable outbox events for non-run resources and Windows/macOS support — tracked in `docs/roadmap.md`.
 Experimental direct HTTPS pairing has no phone UI and is not a production support claim. The Linux shell has optional, fail-closed bubblewrap
 containment; it is not a VM and does not contain every tool or the browser.
+
+The conversation-first shell keeps the bot roster and configuration ownership in one place.
+Approvals appear in their transcript and in an explicit cross-bot drawer, using the same card and
+v1 decision command. Activity and run history are secondary monitoring surfaces; Fleet adds
+search/state filtering at ten bots. [Navigation rationale](realignment/navigation.md) records
+compatibility, evidence and the limits of the threshold heuristic.

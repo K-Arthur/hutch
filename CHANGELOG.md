@@ -5,6 +5,16 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 ## [Unreleased]
 
 ### Added
+- **Exact-action and history repairs:** file approvals bind contents, destination and revision;
+  descriptor-based writes refuse symlink or changed-revision destinations. Browser mutations
+  bind text, URL and profile and always ask. Strict extra mounts retain their read-only grants
+  and reject credential-containing ancestors. Final assistant messages and terminal status commit
+  together; sealed runs reject stale reply mutations. See the realignment continuation ledger.
+- **Conversation-first navigation:** one bot roster and settings destination; inline action decisions
+  and a cross-bot Needs you drawer. Monitor contains Activity/history, with filtered Fleet at ten bots.
+  Legacy navigation aliases preserve browser Back. Drafts belong to their conversation, stopping bots
+  show “Stopping,” and queue failures retain requests. Approval commands carry immutable hashes and
+  idempotency keys; expiry waits for server confirmation. See `docs/realignment/navigation.md`.
 - **Shared provider usage reservations (partial S5):** schema v10 atomically reserves per-bot tokens, per-run/per-bot currency estimates,
   and configured shared-account quota/cost limits before builtin hosted calls. Successful replies settle actual usage once; uncertain
   outcomes stay held until a terminal run is reconciled from the provider record. Connections page and `/api/v1` expose held values.
@@ -64,10 +74,9 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   are asked, reversibility, parsed segments, raw request), the exact scope of an "always allow"
   grant with a pointer to revoke it, and no always-allow for outward actions. Decisions are
   server-authoritative: a stale click that loses a cross-device race reconciles against
-  `GET /api/approvals/{id}` and shows who actually decided, and an expired gate flips to
-  "Expired — denied by timeout" instead of leaving dead controls. The Approvals nav item carries a
-  pulsing attention dot and the count everywhere in the app, and a new arrival is announced once
-  through the bounded live region. Queue + "Recently decided" (`?status=resolved`) refresh across
+  `GET /api/approvals/{id}` and shows who actually decided. Client expiry disables controls while
+  checking the persisted outcome. The Needs you drawer carries the count throughout the app,
+  and a new arrival is announced once through the bounded live region. Queue + "Recently decided" (`?status=resolved`) refresh across
   devices every 5s. Browser coverage: `tests/e2e/test_browser.py::test_a_stale_approval_click_shows_the_other_devices_decision`.
 - **Reference map** ([docs/research/reference-map.md](docs/research/reference-map.md)): verified
   this session against the Grok Bot changelog (v0.68.1) and the two Open WebUI issues (#31656

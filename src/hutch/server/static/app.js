@@ -31,6 +31,7 @@ const DEFAULT_STATUS_INFO = {
 let statusInfo = { ...DEFAULT_STATUS_INFO };
 let currentConversationId = null;
 let currentConversations = [];
+let studioGeneration = 0;
 
 /* ------------------------------------------------------------------ utils */
 
@@ -239,8 +240,13 @@ function botAvatar(name, size = 32, state = "") {
 }
 const hexAvatar = botAvatar;   // shared renderers still call this name
 
+function botStatusLabel(b) {
+  if (b.active_run_id) return b.active_run_status_label || statusInfo[b.active_run_status]?.label || "Status unavailable";
+  return b.paused ? "Paused" : "Idle";
+}
+
 function botState(b) {
-  if (b.active_run_id) return "running";
+  if (b.active_run_id) return b.active_run_status || "pending";
   if (b.paused) return "paused";
   return "idle";
 }
@@ -331,18 +337,31 @@ let botsCache = [];
 
 const routes = [
   [/^#\/chat(?:\/([\w-]+))?$/, m => renderChatStudio(m ? m[1] : null), "chat"],
+  [/^#\/conversation\/([\w-]+)$/, m => openConversation(m[1]), "chat"],
   [/^#\/overview$/, renderOverview, "overview"],
   [/^#\/bots$/, renderBots, "bots"],
   [/^#\/runs(?:\?(.*))?$/, m => renderRuns(m ? m[1] : ""), "runs"],
-  [/^#\/approvals$/, renderApprovals, "approvals"],
+  [/^#\/approvals$/, renderApprovals, "chat"],
   [/^#\/connections$/, renderConnections, "connections"],
-  [/^#\/bot\/([\w-]+)$/, m => renderBotDetail(decodeURIComponent(m[1])), "bots"],
+  [/^#\/bot\/([\w-]+)$/, m => renderBotDetail(decodeURIComponent(m[1])), "chat"],
   [/^#\/run\/([\w-]+)$/, m => renderRunDetail(m[1]), "runs"],
 ];
+
+async function openConversation(id) {
+  const conversation = await api(`/v1/conversations/${encodeURIComponent(id)}`);
+  const bots = await api("/bots");
+  const bot = bots.find(b => b.id === conversation.bot_id);
+  if (!bot) throw new Error("This conversation's bot is no longer available. Its history is retained in run history.");
+  storageSet(`hutch-conversation:${bot.id}`, id);
+  history.replaceState(null, "", `#/chat/${encodeURIComponent(bot.name)}`);
+  await renderChatStudio(bot.name);
+}
 
 async function route() {
   const hash = location.hash || "#/chat";
   stopRunSubs();
+  studioGeneration++;
+  if (needsYouDialog.open) closeNeedsYou();
   setTopContext("");
   closeWorkspace();
   for (const [re, handler, nav] of routes) {
@@ -353,6 +372,7 @@ async function route() {
         if (isActive) a.setAttribute("aria-current", "page");
         else a.removeAttribute("aria-current");
       });
+      if (["overview", "runs", "bots"].includes(nav)) $("#monitor-nav").open = true;
       try { await handler(m); }
       catch (err) { view.innerHTML = errorState(err); }
       refreshBadge();
@@ -388,6 +408,7 @@ async function refreshRoster() {
 function renderRoster() {
   const list = $("#roster-list");
   if (!list) return;
+  $("#fleet-nav").hidden = botsCache.length < 10;
   const q = ($("#bot-search")?.value || "").trim().toLowerCase();
   const bots = q ? botsCache.filter(b => b.name.toLowerCase().includes(q) || (b.description || "").toLowerCase().includes(q)) : botsCache;
   if (!bots.length) {
@@ -398,9 +419,9 @@ function renderRoster() {
   list.innerHTML = bots.map(b => {
     const state = botState(b);
     const pip = waitingBots.has(b.name) ? "waiting" : state === "running" ? "running" : state === "paused" ? "paused" : "";
-    const word = waitingBots.has(b.name) ? "needs you" : state === "running" ? "working" : state === "paused" ? "paused" : "idle";
+    const word = waitingBots.has(b.name) ? "Needs you" : botStatusLabel(b);
     return `
-      <button class="roster-row" type="button" data-switch-bot="${esc(b.name)}"
+      <div class="roster-entry"><button class="roster-row" type="button" data-switch-bot="${esc(b.name)}"
         ${b.name === currentStudioBot && location.hash.startsWith("#/chat") ? 'aria-current="true"' : ""}
         title="${esc(b.name)} — ${word}">
         ${botAvatar(b.name, 30, pip)}
@@ -408,7 +429,7 @@ function renderRoster() {
           <span class="roster-name">${esc(b.name)}</span>
           <span class="roster-sub">${esc(truncate(b.model || "", 20))} · ${word}</span>
         </span>
-      </button>`;
+      </button><a class="roster-settings icon-btn" href="#/bot/${esc(b.name)}" aria-label="Settings for ${esc(b.name)}" title="Settings for ${esc(b.name)}">${icon("sliders")}</a></div>`;
   }).join("");
   $$("#roster-list [data-switch-bot]").forEach(row =>
     row.addEventListener("click", () => { location.hash = `#/chat/${encodeURIComponent(row.dataset.switchBot)}`; }));
@@ -447,7 +468,7 @@ document.addEventListener("keydown", ev => {
   if (!wsEl.classList.contains("open")) return;
   if (ev.key === "Escape") { closeWorkspace(true); return; }
   if (ev.key !== "Tab") return;
-  const focusable = $$("#workspace a, #workspace button:not([hidden]), #workspace input:not([disabled])")
+  const focusable = $$("#workspace a, #workspace button:not([hidden]), #workspace input:not([disabled]), #workspace summary")
     .filter(el => el.getClientRects().length);
   if (!focusable.length) return;
   const first = focusable[0], last = focusable[focusable.length - 1];
@@ -519,21 +540,23 @@ async function refreshBadge() {
   try {
     const stats = await api("/stats");
     const n = stats.pending_approvals || 0;
+    const previousPendingCount = lastPendingCount;
     const badge = $("#approval-badge");
     if (badge) {
       badge.textContent = n;
       badge.classList.toggle("hidden", n === 0);
     }
-    $('[data-nav="approvals"]')?.classList.toggle("attention", n > 0);
+    $("#needs-you-open")?.classList.toggle("attention", n > 0);
     if (n) {
       try {
         const pend = await api("/approvals");
         attentionBots = [...new Set(pend.map(a => a.bot_name))];
       } catch { attentionBots = []; }
     } else attentionBots = [];
+    lastPendingCount = n;
     renderRoster();
     renderAttention();
-    if (lastPendingCount !== null && n > lastPendingCount) {
+    if (previousPendingCount !== null && n > previousPendingCount) {
       announce(`${n} approval${n === 1 ? "" : "s"} waiting for you.`);
     }
     lastPendingCount = n;
@@ -546,20 +569,26 @@ function renderAttention() {
   const bar = $("#attention-bar");
   if (!bar) return;
   const n = lastPendingCount || 0;
-  const onApprovals = location.hash.startsWith("#/approvals");
-  if (!n || onApprovals || attentionDismissedCount === n) { bar.hidden = true; return; }
+  const onApprovals = needsYouDialog.open;
+  const shownRequests = $$("#chat-stream [data-approval-card]").filter(c => c.querySelector("[data-approve]:not([disabled])"));
+  const allInChat = location.hash.startsWith("#/chat") && n && n <= shownRequests.length;
+  if (!n || onApprovals || allInChat || attentionDismissedCount === n) { bar.hidden = true; return; }
   bar.hidden = false;
   bar.innerHTML = `${icon("alert")}
-    <span><b>${n} approval${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} you</b> — a bot is waiting to continue.</span>
-    <a href="#/approvals">Review</a>
+    <span><b>${n} approval${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} you</b></span>
+    <button class="btn ghost small" id="attention-review" type="button">Review</button>
     <button class="icon-btn" id="attention-dismiss" aria-label="Dismiss reminder">${icon("x")}</button>`;
+  $("#attention-review")?.addEventListener("click", openNeedsYou);
   $("#attention-dismiss")?.addEventListener("click", () => { attentionDismissedCount = n; bar.hidden = true; });
 }
 
 /* ------------------------------------------------------- CHAT STUDIO */
 
 async function renderChatStudio(preferredBot = null) {
-  botsCache = await api("/bots");
+  const generation = ++studioGeneration;
+  const fetchedBots = await api("/bots");
+  if (generation !== studioGeneration) return;
+  botsCache = fetchedBots;
   renderRoster();
   if (!botsCache.length) {
     view.innerHTML = `<div class="page-scroll"><div class="container"><div class="empty-state">
@@ -577,8 +606,10 @@ async function renderChatStudio(preferredBot = null) {
             botsCache[0];
   currentStudioBot = bot.name;
   const detail = await api(`/bots/${encodeURIComponent(bot.name)}`);
+  if (generation !== studioGeneration) return;
   const runs = detail.recent_runs || [];
   currentConversations = await api(`/v1/conversations?bot=${encodeURIComponent(bot.id)}&include_legacy=true&limit=100`);
+  if (generation !== studioGeneration) return;
   const rememberedConversation = storageGet(`hutch-conversation:${bot.id}`);
   let selectedConversation = currentConversations.find(c => c.id === rememberedConversation) || null;
   if (!selectedConversation) selectedConversation = currentConversations.find(c => !c.archived && !c.is_legacy) || null;
@@ -586,6 +617,7 @@ async function renderChatStudio(preferredBot = null) {
     selectedConversation = await createStudioConversation(bot);
     currentConversations.unshift(selectedConversation);
   }
+  if (generation !== studioGeneration) return;
   currentConversationId = selectedConversation.id;
   storageSet(`hutch-conversation:${bot.id}`, currentConversationId);
   const activeRun = runs.find(r => r.conversation_id === currentConversationId && isActiveStatus(r.status, r.terminal)) || null;
@@ -597,9 +629,8 @@ async function renderChatStudio(preferredBot = null) {
       ${botAvatar(bot.name, 30, state === "running" ? "running" : state === "paused" ? "paused" : "")}
       <h1>${esc(bot.name)}</h1>
       <div class="ctx-meta">
-        <span class="tag mono" title="model">${esc(truncate(bot.model, 26))}</span>
         ${bot.paused ? '<span class="tag warn">paused</span>' : ""}
-        ${state === "running" ? '<span class="tag ok">working</span>' : ""}
+        ${detail.active_run_id ? statusChip(detail.active_run_status, detail.active_run_status_label) : ""}
       </div>
     </div>
     <div class="ctx-actions">
@@ -608,10 +639,9 @@ async function renderChatStudio(preferredBot = null) {
         ${currentConversations.map(c => `<option value="${esc(c.id)}" ${c.id === currentConversationId ? "selected" : ""}>${c.is_legacy ? "Imported · " : ""}${c.archived ? "Archived · " : ""}${esc(c.title || "New conversation")}</option>`).join("")}
       </select>
       <button class="btn ghost small" id="studio-new-conversation" type="button">${icon("plus")} New</button>
-      ${!selectedConversation.is_legacy && (selectedConversation.archived || !activeRun) ? `<button class="btn ghost small" id="studio-archive-conversation" type="button">${selectedConversation.archived ? "Restore" : "Archive"}</button>` : ""}
-      ${activeRun ? `<button class="btn danger small" id="studio-stop-run">${icon("stop")} Stop</button>` : ""}
+      ${!selectedConversation.is_legacy ? `<button class="btn ghost small" id="studio-archive-conversation" type="button" ${activeRun ? "hidden" : ""}>${selectedConversation.archived ? "Restore" : "Archive"}</button>` : ""}
+      <button class="btn danger small" id="studio-stop-run" type="button" ${activeRun ? "" : "hidden"}>${icon("stop")} Stop</button>
       <a class="btn ghost small" href="#/bot/${esc(bot.name)}">${icon("sliders")} Settings</a>
-      <button class="btn ghost small" id="inspector-open" aria-controls="inspector" aria-expanded="false">${icon("layers")} Context</button>
     </div>`);
 
   view.innerHTML = `
@@ -647,59 +677,7 @@ async function renderChatStudio(preferredBot = null) {
           <p class="visually-hidden" id="chat-help">Enter sends, Shift+Enter adds a newline. Your draft is kept for this bot if you navigate away.</p>
         </form>
       </footer>
-    </section>
-    <aside class="inspector" id="inspector" aria-label="${esc(bot.name)} — context">
-      <div class="insp-head">
-        <h2>Context</h2>
-        <button class="icon-btn" id="inspector-close" aria-label="Close context panel">${icon("x")}</button>
-      </div>
-      <div class="insp-sec"><h3>This bot</h3>
-        <div class="meta-row"><span>Runtime</span><span class="mono">${esc(detail.runtime || "builtin")}</span></div>
-        <div class="meta-row"><span>Approval</span>${statusChipTag(detail.approval_mode)}</div>
-        <div class="meta-row"><span>Risk tier</span><span class="mono">${esc(detail.risk_tier || "supervised")}</span></div>
-        <div class="meta-row"><span>Timezone</span><span class="mono">${esc(detail.schedule ? detail.schedule.timezone : "UTC")}</span></div>
-        <div class="meta-row"><span>Next run</span><span class="mono">${esc(detail.next_run_local || "—")}</span></div>
-        <div class="meta-row"><span>Last success</span><span class="mono" title="${esc(detail.last_success || "")}">${timeAgo(detail.last_success)}</span></div>
-        <div class="meta-row"><span>Workspace</span><span class="mono" title="${esc(detail.workdir || "")}">${detail.workdir ? esc(truncate(detail.workdir.split("/").pop(), 18)) : "auto"}</span></div>
-      </div>
-      <div class="insp-sec"><h3>Memory (${detail.memory.length})</h3>
-        <div class="interactive-chip-list" id="memory-list">
-          ${detail.memory.map(m => `
-            <div class="memory-item">
-              <div><span class="memory-key">${esc(m.key)}</span><span class="memory-val">${esc(truncate(m.value, 110))}</span></div>
-              <button class="chip-del" title="Forget" aria-label="Forget memory ${esc(m.key)}" data-del-mem="${esc(m.key)}">${icon("x")}</button>
-            </div>`).join("") || `<p class="empty-inline">Nothing remembered yet — the bot writes here when it uses its memory tool.</p>`}
-        </div>
-      </div>
-      <div class="insp-sec"><h3>Standing permissions (${detail.sticky_allows.length})</h3>
-        <div class="interactive-chip-list">
-          ${detail.sticky_allows.map(s => `
-            <div class="allow-item">
-              <code>${esc(s)}</code>
-              <button class="chip-del" title="Revoke" aria-label="Revoke permission ${esc(s)}" data-revoke-sticky="${esc(s)}">${icon("x")}</button>
-            </div>`).join("") || `<p class="empty-inline">None — every risky command asks.</p>`}
-        </div>
-      </div>
-    </aside>`;
-
-  // wire memory / permissions
-  $$("[data-del-mem]").forEach(btn => btn.addEventListener("click", async () => {
-    const k = btn.dataset.delMem;
-    if (!(await confirmDialog({
-      title: "Forget memory",
-      body: `Delete the memory <b>${esc(k)}</b>? The bot will no longer recall it.`,
-      confirmText: "Forget", danger: true,
-    }))) return;
-    await api(`/bots/${encodeURIComponent(bot.name)}/memory/${encodeURIComponent(k)}`, { method: "DELETE" });
-    toast(`Forgot "${k}"`);
-    renderChatStudio(bot.name);
-  }));
-  $$("[data-revoke-sticky]").forEach(btn => btn.addEventListener("click", async () => {
-    const k = btn.dataset.revokeSticky;
-    await api(`/bots/${encodeURIComponent(bot.name)}/sticky-allows/${encodeURIComponent(k)}`, { method: "DELETE" });
-    toast(`Revoked: ${k}`);
-    renderChatStudio(bot.name);
-  }));
+    </section>`;
 
   const conversationSwitcher = $("#conversation-switcher");
   conversationSwitcher?.addEventListener("change", ev => {
@@ -737,17 +715,6 @@ async function renderChatStudio(preferredBot = null) {
     }
   });
 
-  // inspector open/close
-  const inspector = $("#inspector"), inspBtn = $("#inspector-open");
-  const setInspector = open => {
-    inspector.classList.toggle("open", open);
-    inspBtn.setAttribute("aria-expanded", String(open));
-    if (open) $("#inspector-close").focus();
-  };
-  inspBtn.addEventListener("click", () => setInspector(!inspector.classList.contains("open")));
-  $("#inspector-close").addEventListener("click", () => { setInspector(false); inspBtn.focus(); });
-  // Keep the optional panel closed by default so it cannot cover the composer or model menu.
-
   // wire composer
   const form = $("#chat-form"), txt = $("#chat-prompt"), sendBtn = $("#chat-send");
   const box = $("#composer-box");
@@ -758,14 +725,14 @@ async function renderChatStudio(preferredBot = null) {
     sendBtn.disabled = true;
   }
 
-  txt.value = loadDraft(bot.name);
+  const composerConversationId = selectedConversation.id;
+  const composerDraftId = `${bot.name}:${composerConversationId}`;
+  txt.value = loadDraft(composerDraftId);
   const autogrow = () => { txt.style.height = "auto"; txt.style.height = Math.min(txt.scrollHeight, 220) + "px"; };
   autogrow();
-  let draftTimer = null;
   txt.addEventListener("input", () => {
     autogrow();
-    clearTimeout(draftTimer);
-    draftTimer = setTimeout(() => saveDraft(bot.name, txt.value), 300);
+    saveDraft(composerDraftId, txt.value);
   });
   const enterSends = () => $("#enter-send-setting").checked;
   $("#enter-send-setting").checked = store$.get(`hutch:enter-send:${bot.name}`, !matchMedia("(pointer: coarse)").matches);
@@ -786,19 +753,21 @@ async function renderChatStudio(preferredBot = null) {
     lastPrompt = text;
     try {
       const body = { prompt: text, rehearse: false, model: switcher?.selected() || null };
-      const key = await messageIdempotencyKey(currentConversationId, body);
-      const r = await api(`/v1/conversations/${encodeURIComponent(currentConversationId)}/messages`, {
+      const key = await messageIdempotencyKey(composerConversationId, body);
+      const r = await api(`/v1/conversations/${encodeURIComponent(composerConversationId)}/messages`, {
         method: "POST", headers: { "Idempotency-Key": key }, body,
       });
-      clearMessageIdempotencyKey(currentConversationId, key);
+      clearMessageIdempotencyKey(composerConversationId, key);
       const titleOption = conversationSwitcher?.selectedOptions?.[0];
       if (titleOption && titleOption.textContent.trim().endsWith("New conversation")) {
         titleOption.textContent = text.slice(0, 72);
       }
       toast(ACTIVE.has(r.status) && activeRun ? "Sent — queued behind the current run." : "Sent.");
+      if (generation !== studioGeneration) { if (loadDraft(composerDraftId) === snapshot) saveDraft(composerDraftId, ""); return; }
       currentRunId = r.id;
+      syncStudioRunControls(r);
       // Clear only the submitted revision; anything typed since stays put.
-      if (txt.value === snapshot) { txt.value = ""; saveDraft(bot.name, ""); autogrow(); }
+      if (txt.value === snapshot) { txt.value = ""; saveDraft(composerDraftId, ""); autogrow(); }
       subscribeRun(r.id);
       renderChatFeed();
       refreshRoster();
@@ -822,7 +791,7 @@ async function renderChatStudio(preferredBot = null) {
     const chip = ev.target.closest("[data-quick]");
     if (!chip) return;
     txt.value = chip.dataset.quick;
-    saveDraft(bot.name, txt.value);
+    saveDraft(composerDraftId, txt.value);
     autogrow(); txt.focus();
   });
   const composerToggle = $("#composer-toggle"), drawer = $("#composer-drawer");
@@ -831,15 +800,40 @@ async function renderChatStudio(preferredBot = null) {
     drawer.toggleAttribute("hidden", !open);
     composerToggle.setAttribute("aria-expanded", String(open));
   });
-  $("#studio-stop-run")?.addEventListener("click", async () => {
-    if (!currentRunId) return;
-    await api(`/runs/${currentRunId}/stop`, { method: "POST" });
-    toast("Stop requested — already-finished steps are not undone.");
-  });
+  $("#studio-stop-run").onclick = () => requestStop(currentRunId, $("#studio-stop-run"));
 
   feedMode = "studio";
   if (activeRun) subscribeRun(activeRun.id);   // stream brings events; first paint below
   await renderChatFeed();
+}
+
+async function requestStop(runId, button) {
+  if (!runId || button?.disabled) return;
+  if (button) button.disabled = true;
+  try {
+    const key = await messageIdempotencyKey(`stop:${runId}`, {});
+    await api(`/v1/tasks/runs/${encodeURIComponent(runId)}/stop`, { method: "POST", headers: { "Idempotency-Key": key }, body: {} });
+    toast("Stop requested — already-finished steps are not undone.");
+    scheduleFeedRender();
+  } catch (err) {
+    if (button) button.disabled = false;
+    toast(`Stop not confirmed: ${err.message}`, true);
+  }
+}
+
+function syncStudioRunControls(run) {
+  if (feedMode !== "studio" || !$("#conversation-switcher")) return;
+  const active = run && isActiveStatus(run.status, run.terminal);
+  const stop = $("#studio-stop-run");
+  if (stop) {
+    stop.hidden = !active;
+    stop.disabled = run?.status === "cancelling";
+    stop.innerHTML = `${icon("stop")} ${run?.status === "cancelling" ? "Stopping" : "Stop"}`;
+  }
+  const archive = $("#studio-archive-conversation");
+  if (archive) archive.hidden = !!active;
+  const meta = $(".ctx-meta");
+  if (meta) meta.innerHTML = active ? statusChip(run.status, run.status_label) : "";
 }
 
 function statusChipTag(mode) {
@@ -898,7 +892,7 @@ function scheduleFeedRender() {
   }, 250);
 }
 
-// Conversation history for this bot = its recent runs. Terminal runs are cached;
+// Messages belong to the selected conversation. Terminal runs are cached;
 // the active one re-renders as events arrive.
 const terminalRunCache = new Map();
 
@@ -908,13 +902,17 @@ async function renderChatFeed() {
   const scroll = $("#chat-scroll");
   if (!stream || !scroll || !currentStudioBot) return;
 
+  const conversationId = currentConversationId, generation = studioGeneration;
+  const stillCurrent = () => generation === studioGeneration && conversationId === currentConversationId && stream.isConnected;
   let messages;
   try {
     if (!currentConversationId) return;
-    const summary = await api(`/v1/conversations/${encodeURIComponent(currentConversationId)}?after=0&limit=1`);
+    const summary = await api(`/v1/conversations/${encodeURIComponent(conversationId)}?after=0&limit=1`);
+    if (!stillCurrent()) return;
     const lastSeq = summary.last_seq || 0;
     const after = Math.max(0, lastSeq - 100);
-    const page = await api(`/v1/conversations/${encodeURIComponent(currentConversationId)}?after=${after}&limit=100`);
+    const page = await api(`/v1/conversations/${encodeURIComponent(conversationId)}?after=${after}&limit=100`);
+    if (!stillCurrent()) return;
     messages = page.messages || [];
   } catch { return; }
   const runIds = [...new Set(messages.filter(m => m.role === "user" && m.run_id).map(m => m.run_id))];
@@ -932,10 +930,32 @@ async function renderChatFeed() {
     let html;
     if (runId === currentRunId) html = await runBlockHtml(runId);
     else if (terminalRunCache.has(runId)) html = terminalRunCache.get(runId);
-    else { html = await runBlockHtml(runId); terminalRunCache.set(runId, html); }
+    else html = await runBlockHtml(runId);
     parts.push(html);
   }
+  if (!stillCurrent()) return;
+  const reviewState = new Map($$("[data-approval-card] details", stream).map(d => [d.closest("[data-approval-card]").dataset.approvalCard, d.open]));
+  const activityState = new Map($$("[data-run-id] .tool-stream", stream).map(d => [d.closest("[data-run-id]").dataset.runId, d.open]));
+  const focused = document.activeElement;
+  const focusedApproval = focused?.closest("[data-approval-card]")?.dataset.approvalCard;
+  const focusedChoice = focused?.dataset.approve;
   stream.innerHTML = parts.join("");
+  $$("[data-approval-card] details", stream).forEach(d => {
+    const id = d.closest("[data-approval-card]").dataset.approvalCard;
+    if (reviewState.has(id)) d.open = reviewState.get(id);
+  });
+  $$("[data-run-id] .tool-stream", stream).forEach(d => {
+    const id = d.closest("[data-run-id]").dataset.runId;
+    if (activityState.has(id)) d.open = activityState.get(id);
+  });
+  if (focusedApproval && !focused.isConnected) {
+    const card = $$("[data-approval-card]", stream).find(c => c.dataset.approvalCard === focusedApproval);
+    const target = focusedChoice !== undefined
+      ? card && [...card.querySelectorAll("button")].find(b => b.dataset.approve === focusedChoice)
+      : card?.querySelector("summary");
+    if (target) target.focus({ preventScroll: true });
+  }
+  if (wasNearBottom) scroll.scrollTop = scroll.scrollHeight;
 
   // The thinking bubble lives in a stable slot AFTER the feed: full re-renders
   // replace the transcript every event batch, and re-inserting the dots would
@@ -947,10 +967,12 @@ async function renderChatFeed() {
     scroll.insertBefore(slot, stream.nextSibling);
   }
   const active = currentRunId ? await api(`/runs/${encodeURIComponent(currentRunId)}`).catch(() => null) : null;
-  const thinking = !!active && isActiveStatus(active.status, active.terminal) &&
-    !["waiting_approval", "waiting_human", "waiting_resources", "cancelling"].includes(active.status);
+  if (!stillCurrent()) return;
+  const thinking = active?.status === "running";
   if (thinking && !slot.innerHTML.trim()) slot.innerHTML = typingHtml();
   if (!thinking) slot.innerHTML = "";
+  syncStudioRunControls(active);
+  renderAttention();
   if (!active || !isActiveStatus(active.status, active.terminal)) stopRunSubs();
   if (active) announceRunLifecycle([active]);
 
@@ -986,19 +1008,15 @@ function welcomeHtml() {
         <p class="hint">${esc(b.description || "No description yet.")}</p>
       </div>
       <div class="welcome-steps">
-        <p><b>Nothing has run yet.</b> Give this bot a task and its transcript appears here — every tool call, every approval, the full accounting.</p>
-        <ul class="welcome-list">
-          <li>${icon("zap")} Model <span class="mono">${esc(b.model)}</span></li>
-          <li>${icon("shield")} ${b.approval_mode === "auto" ? "Runs without asking (denylist still enforced)" : "Asks before non-read-only actions"}</li>
-          <li>${icon("brain")} ${b.memory_count ? `${b.memory_count} memories` : "No memories yet"}</li>
-        </ul>
+        <p><b>Start a conversation.</b> Send a task below, or choose an earlier conversation above. Actions that need a decision appear here.</p>
+
       </div>
     </div>`;
 }
 
 function wireWelcome() { /* the composer is the call to action; nothing to wire yet */ }
 
-/* One run = one conversation thread: the prompt bubble, the visible work,
+/* One attempt in a conversation: the prompt bubble, the visible work,
    the answer. Tool activity is a quiet collapsed strip — approvals are never
    hidden inside it. */
 async function runBlockHtml(runId) {
@@ -1011,6 +1029,7 @@ async function runBlockHtml(runId) {
   const items = groupToolItems(pairToolEvents(events));
   const dur = fmtDur((run.finished_at ? new Date(run.finished_at) : Date.now()) - new Date(run.created_at));
   const running = ACTIVE.has(run.status);
+  const activityLabel = statusInfo[run.status]?.label || "Status unavailable";
   const anim = seenThreads.has(runId) ? "" : " enter";
   seenThreads.add(runId);
 
@@ -1020,10 +1039,10 @@ async function runBlockHtml(runId) {
     (item.kind === "event" && (item.e.type === "approval_request" || item.e.type === "human_needed") ? cards : steps).push(html);
   });
 
-  const message = events.filter(e => e.type === "message").pop();
+  const message = events.filter(e => e.type === "message" && e.data?.role !== "user").pop();
   const stepCount = events.filter(e => e.type === "tool_call").length;
 
-  return `
+  const html = `
     <article class="thread${anim}" data-run-id="${esc(runId)}">
       <div class="msg you">
         <div class="bubble">${esc(run.prompt)}</div>
@@ -1034,18 +1053,21 @@ async function runBlockHtml(runId) {
           ${botAvatar(run.bot_name || currentStudioBot, 26, running ? "running" : "")}
           <b>${esc(run.bot_name || currentStudioBot)}</b>
           ${statusChip(run.status, run.status_label)}
+          ${running ? `<button class="btn ghost small" data-stop-run="${esc(runId)}" ${run.status === "cancelling" ? "disabled" : ""}>${run.status === "cancelling" ? "Stopping" : "Stop"}</button>` : ""}
           <a class="mrun mono" href="#/run/${esc(runId)}" title="${esc(runId)} · ${esc(run.origin || "manual")} · ${dur}">#${esc(runId.slice(4, 12))}</a>
         </div>
         ${cards.join("")}
         ${stepCount || running ? `
         <details class="tool-stream" ${running || stepCount < 4 ? "open" : ""}>
-          <summary>${icon("gear")}${running ? "Working" : `${stepCount} step${stepCount === 1 ? "" : "s"}`}${stepCount && !running ? ` · ${dur}` : ""} ${icon("caret", "tool-caret")}</summary>
+          <summary>${icon("gear")}${running ? esc(activityLabel) : `${stepCount} step${stepCount === 1 ? "" : "s"}`}${stepCount && !running ? ` · ${dur}` : ""} ${icon("caret", "tool-caret")}</summary>
           ${steps.join("")}
         </details>` : ""}
         ${message && message.data?.content ? `<div class="answer">${esc(message.data.content)}</div>` : ""}
         ${run.error ? `<div class="run-error">${icon("alert")}<span><b>Failed:</b> ${esc(run.error)}</span></div>` : ""}
       </div>
     </article>`;
+  if (!running) terminalRunCache.set(runId, html);
+  return html;
 }
 
 const seenThreads = new Set();
@@ -1190,6 +1212,8 @@ function wireFeedInteractions() {
   stream.dataset.wired = "1";
   const runId = currentRunId;
   stream.addEventListener("click", ev => {
+    const stop = ev.target.closest("[data-stop-run]");
+    if (stop) { requestStop(stop.dataset.stopRun, stop); return; }
     const more = ev.target.closest("[data-show-more]");
     if (more) {
       const full = more.parentElement.querySelector("[data-out-full]");
@@ -1225,15 +1249,17 @@ function wireFeedInteractions() {
   });
 }
 
-/* Live fail-closed countdowns on approvals; at zero the gate flips to resolved. */
+/* Client expiry disables controls; only a server receipt declares the outcome. */
 function updateTtls() {
   $$("[data-deadline]").forEach(el => {
     const ms = Number(el.dataset.deadline) - Date.now();
     if (ms <= 0) {
       const card = el.closest("[data-approval-card]");
-      if (card && !card.classList.contains("expired")) {
-        const action = card.querySelector(".approval-action-text")?.textContent || "";
-        card.outerHTML = approvalResolvedHtml({ approval_id: card.dataset.approvalCard, action }, "expired");
+      if (card) {
+        card.classList.add("expired");
+        card.querySelectorAll("[data-approve]").forEach(b => { b.disabled = true; });
+        const target = card.querySelector("[data-ttl-text]");
+        if (target) target.textContent = "Expired — checking decision";
       }
       return;
     }
@@ -1269,19 +1295,23 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
   const stickyKey = a.sticky_key || "";
   const canAlways = !!(stickyKey && !outward);
   const runId = a.run_id || "";
+  const contextHref = a.conversation_id ? `#/conversation/${encodeURIComponent(a.conversation_id)}` : `#/run/${encodeURIComponent(runId)}`;
 
   const rows = [
     ["Tool", tool],
+    a.account ? ["Account", a.account] : null,
+    a.destination ? ["Destination", a.destination] : null,
+    a.revision ? ["Revision", a.revision] : null,
     rule ? ["Why you are asked", rule] : null,
-    ["Reversibility", outward
+    ["Effect", outward
       ? "Sends data out of this machine — Stop cannot recall it once it has gone"
-      : "Confined to this machine's workspace"],
+      : "Check the exact arguments below. Changes may need manual undo."],
   ].filter(Boolean).map(([k, v]) =>
     `<div class="review-row"><span class="review-key">${esc(k)}</span><span>${esc(v)}</span></div>`).join("");
 
   return `
     <div class="approval-card-chat risk-${esc(risk)} ${outward ? "outward" : ""} ${expired ? "expired" : ""}"
-         data-approval-card="${esc(id)}" ${deadline ? `data-deadline="${deadline}"` : ""}>
+         data-approval-card="${esc(id)}" data-action-hash="${esc(a.action_hash || "")}" ${deadline ? `data-deadline="${deadline}"` : ""}>
       <div class="approval-badge-bar">
         <div class="approval-head-left">
           <span class="chip warn">${icon("shield")} Approval required</span>
@@ -1302,7 +1332,7 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
             <span class="tag ${s.verdict === "deny" ? "danger" : s.verdict === "ask" ? "warn" : ""}">${esc(s.verdict)}</span>
             <span class="seg-why">${esc(s.reason || "")}</span>
           </div>`).join("")}</div>` : ""}
-        ${detail ? `<span class="review-label">Raw request</span><pre class="approval-detail">${esc(detail)}</pre>` : ""}
+        ${detail ? `<span class="review-label">Raw request</span><pre class="approval-detail" tabindex="0" aria-label="Exact request arguments">${esc(detail)}</pre>` : ""}
       </details>
       ${canAlways
         ? `<p class="hint approval-scope">Always-allow remembers <code class="mono">${esc(stickyKey)}</code> for this bot. Revoke it any time in the bot's standing permissions.</p>`
@@ -1313,7 +1343,7 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
         <button class="btn primary small" data-approve="1">Allow once</button>
         ${canAlways ? `<button class="btn ghost small" data-approve="always">Always allow for this bot</button>` : ""}
         <button class="btn ghost small" data-approve="0">Deny</button>
-        ${runId ? `<a class="btn ghost small" href="#/run/${esc(runId)}">Open run</a>` : ""}
+        ${runId ? `<a class="btn ghost small" href="${esc(contextHref)}">${a.conversation_id ? "Open conversation" : "Open run"}</a>` : ""}
       </div>
     </div>`;
 }
@@ -1338,26 +1368,50 @@ function approvalResolvedHtml(a, outcome, botName = "") {
     </div>`;
 }
 
+function replaceApprovalCard(card, html) {
+  if (!card?.isConnected) return;
+  const restore = card.contains(document.activeElement);
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  const replacement = template.content.firstElementChild;
+  card.replaceWith(replacement);
+  if (restore) { replacement.tabIndex = -1; replacement.focus(); }
+}
+
 async function resolveApproval(id, choice, card) {
   const always = choice === "always";
   const approve = choice === "1" || always;
   const action = card?.querySelector(".approval-action-text")?.textContent || "";
   card?.querySelectorAll("button").forEach(b => { b.disabled = true; });   // no double-submit
   try {
-    await api(`/approvals/${encodeURIComponent(id)}/${approve ? "approve" : "deny"}`, {
-      method: "POST", body: approve ? { always } : {},
+    let actionHash = card?.dataset.actionHash;
+    if (approve && !actionHash) {
+      const persisted = await api(`/approvals/${encodeURIComponent(id)}`);
+      if (persisted.status !== "pending") throw new Error(`Already ${persisted.status}`);
+      actionHash = persisted.action_hash;
+      // A historical transcript without a hash must be reviewed from the current resource.
+      if (card) card.outerHTML = approvalCardHtml(persisted, { botName: persisted.bot_name });
+      wireApprovals();
+      toast("Request refreshed. Review its current details before deciding.");
+      return;
+    }
+    const body = approve ? { always, action_hash: actionHash } : {};
+    const key = await messageIdempotencyKey(`approval:${id}`, { choice, ...body });
+    await api(`/v1/actions/approvals/${encodeURIComponent(id)}/${approve ? "approve" : "deny"}`, {
+      method: "POST", headers: { "Idempotency-Key": key }, body,
     });
     toast(approve ? (always ? "Allowed — remembered for this bot" : "Allowed once") : "Denied");
-    if (card) card.outerHTML = approvalResolvedHtml({ approval_id: id, action }, approve ? "approved" : "denied");
+    replaceApprovalCard(card, approvalResolvedHtml({ approval_id: id, action }, approve ? "approved" : "denied"));
     scheduleFeedRender();
   } catch (err) {
     let current = null;
-    try { current = await api(`/approvals/${encodeURIComponent(id)}`); } catch { /* 404: gone */ }
+    let unavailable = false;
+    try { current = await api(`/approvals/${encodeURIComponent(id)}`); } catch (checkError) { unavailable = !checkError.message.startsWith("no such approval"); }
     if (current && current.status && current.status !== "pending") {
-      if (card) card.outerHTML = approvalResolvedHtml({ ...current, approval_id: id }, current.status, current.bot_name || "");
+      replaceApprovalCard(card, approvalResolvedHtml({ ...current, approval_id: id }, current.status, current.bot_name || ""));
       toast(`Already ${current.status}${current.decided_by ? ` by ${current.decided_by}` : ""} — nothing changed.`);
-    } else if (!current) {
-      if (card) card.outerHTML = approvalResolvedHtml({ approval_id: id, action }, "missing");
+    } else if (!current && !unavailable) {
+      replaceApprovalCard(card, approvalResolvedHtml({ approval_id: id, action }, "missing"));
       toast("This request no longer exists — it may have been replaced.", true);
     } else {
       card?.querySelectorAll("button").forEach(b => { b.disabled = false; });
@@ -1365,6 +1419,7 @@ async function resolveApproval(id, choice, card) {
     }
   }
   refreshBadge();
+  if (needsYouDialog.open) await refreshApprovals();
 }
 
 function renderChatEvent(e, resolvedMap) {
@@ -1412,8 +1467,7 @@ async function renderOverview() {
   const o = await api("/overview");
   const s = o.stats || {};
   const fmt = (n) => Number(n || 0).toLocaleString();
-  setTopContext(`<div class="ctx-id"><h1>Overview</h1></div>
-    <div class="ctx-actions"><a class="btn ghost small" href="#/bots">All bots ${icon("arrow")}</a></div>`);
+  setTopContext(`<div class="ctx-id"><h1>Activity</h1></div>`);
   const row = (r) => `
     <a class="ov-row" href="#/run/${esc(r.id)}">
       <span class="ov-row-main"><b>${esc(r.bot_name)}</b>${statusChip(r.status)}</span>
@@ -1426,8 +1480,8 @@ async function renderOverview() {
       <div class="ov-stats">
         <div class="kpi"><span class="kpi-label">Bots</span><span class="kpi-val">${fmt(s.bots)}</span></div>
         <div class="kpi"><span class="kpi-label">Runs today</span><span class="kpi-val">${fmt(s.runs_today)}</span></div>
-        <div class="kpi"><span class="kpi-label">Tokens today</span><span class="kpi-val">${fmt(s.tokens_today)}</span></div>
-        <div class="kpi"><span class="kpi-label">Spend today</span><span class="kpi-val">$${Number(s.spend_today || 0).toFixed(2)}</span></div>
+        <div class="kpi"><span class="kpi-label">Reported tokens today</span><span class="kpi-val">${fmt(s.tokens_today)}</span></div>
+        <div class="kpi"><span class="kpi-label">Recorded cost today</span><span class="kpi-val">$${Number(s.spend_today || 0).toFixed(2)}</span></div>
       </div>
       <div class="ov-grid">
         <section class="ov-col loud">
@@ -1442,8 +1496,8 @@ async function renderOverview() {
           ${(o.failures || []).map(r => `<div class="ov-item">${row(r)}${waitBox(r.wait)}</div>`).join("")}
         </section>
         <section class="ov-col">
-          <h2 class="ov-h">${icon("play")} Running now <span class="count">${(o.running || []).length}</span></h2>
-          ${(o.running || []).length ? (o.running || []).map(row).join("") : `<div class="empty-state"><p>Nothing is running.</p></div>`}
+          <h2 class="ov-h">${icon("play")} In progress <span class="count">${(o.running || []).length}</span></h2>
+          ${(o.running || []).length ? (o.running || []).map(row).join("") : `<div class="empty-state"><p>No work in progress.</p></div>`}
         </section>
         <section class="ov-col">
           <h2 class="ov-h">${icon("clock")} Stale <span class="count">${(o.stale || []).length}</span></h2>
@@ -1460,21 +1514,29 @@ async function renderOverview() {
 /* -------------------------------------------------------------- bots list */
 
 async function renderBots() {
-  const bots = botsCache.length ? botsCache : await api("/bots");
+  const bots = await api("/bots");
   botsCache = bots;
+  if (bots.length < 10) {
+    history.replaceState(null, "", "#/chat");
+    await renderChatStudio();
+    return;
+  }
   renderRoster();
-  setTopContext(`<div class="ctx-id"><h1>Bots</h1></div>
+  setTopContext(`<div class="ctx-id"><h1>Fleet</h1></div>
     <div class="ctx-actions"><button class="btn primary small" id="btn-new-bot-top">${icon("plus")} New bot</button></div>`);
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
       ${bots.length ? `
+      <div class="fleet-filters"><label class="field">Find a bot<input id="fleet-search" type="search" placeholder="Name, description or model"></label>
+        <label class="field">Show<select id="fleet-state"><option value="all">All bots</option><option value="needs">Needs you</option><option value="active">In progress</option><option value="paused">Paused</option></select></label></div>
+      <p class="hint" id="fleet-count" role="status"></p>
       <div class="bot-grid">
         ${bots.map(b => `
-          <article class="bot-card">
+          <article class="bot-card" data-fleet-bot="${esc(b.name)}">
             <div class="bot-head">
               ${botAvatar(b.name, 32, botState(b) === "running" ? "running" : b.paused ? "paused" : "")}
               <span class="bot-name">${esc(b.name)}</span>
-              ${b.paused ? `<span class="status pending">paused</span>` : `<span class="status succeeded">on</span>`}
+              ${b.active_run_id ? statusChip(b.active_run_status, b.active_run_status_label) : `<span class="tag">${esc(botStatusLabel(b))}</span>`}
             </div>
             <p class="bot-desc">${esc(b.description || "No description.")}</p>
             <div class="bot-chips">
@@ -1506,6 +1568,22 @@ async function renderBots() {
         <button class="btn primary" id="btn-create-first-bot">Create your first bot</button>
       </div>`}
     </div></div>`;
+  const filterFleet = () => {
+    const q = $("#fleet-search").value.trim().toLowerCase(), state = $("#fleet-state").value;
+    let visible = 0;
+    $$("[data-fleet-bot]").forEach(card => {
+      const b = bots.find(x => x.name === card.dataset.fleetBot);
+      const match = `${b.name} ${b.description || ""} ${b.model || ""}`.toLowerCase().includes(q)
+        && (state === "all" || state === "needs" && attentionBots.includes(b.name)
+          || state === "active" && b.active_run_id || state === "paused" && b.paused);
+      card.hidden = !match;
+      if (match) visible++;
+    });
+    $("#fleet-count").textContent = `${visible} of ${bots.length} bots`;
+  };
+  $("#fleet-search")?.addEventListener("input", filterFleet);
+  $("#fleet-state")?.addEventListener("change", filterFleet);
+  if ($("#fleet-search")) filterFleet();
   $("#btn-create-first-bot")?.addEventListener("click", promptNewBot);
   $("#btn-new-bot-top")?.addEventListener("click", promptNewBot);
   wireCommon();
@@ -1654,42 +1732,92 @@ async function renderRuns(query = "") {
 
 /* -------------------------------------------------------------- approvals */
 
-let approvalsTimer = null;
+let approvalsTimer = null, approvalSignature = "", needsYouReturnFocus = null, approvalOffset = 0;
+const APPROVAL_PAGE_SIZE = 50;
+const needsYouDialog = $("#needs-you");
 
-async function renderApprovals() {
-  clearInterval(approvalsTimer);
-  setTopContext(`<div class="ctx-id"><h1>Approvals</h1></div>`);
-  view.innerHTML = `
-    <div class="page-scroll"><div class="container">
-      <p class="page-subtitle">A bot wants to perform an irreversible action. Unanswered requests expire as <b>denied</b>.</p>
-      <div id="approvals-pending"></div>
-      <h2 class="section-sub">Recently decided</h2>
-      <div id="approvals-resolved"></div>
-    </div></div>`;
+async function openNeedsYou() {
+  needsYouReturnFocus = wsEl.classList.contains("open") ? wsBtn : document.activeElement;
+  closeWorkspace();
+  if (!needsYouDialog.open) needsYouDialog.showModal();
+  $("#needs-you-close").focus();
+  renderAttention();
   await refreshApprovals();
-  // Queue stays honest across devices: cards answered elsewhere (or expired)
-  // update here without a manual reload.
+  clearInterval(approvalsTimer);
   approvalsTimer = setInterval(refreshApprovals, 5000);
 }
 
+function closeNeedsYou() {
+  clearInterval(approvalsTimer);
+  approvalsTimer = null;
+  needsYouDialog.close();
+  if (needsYouReturnFocus?.isConnected) needsYouReturnFocus.focus();
+  renderAttention();
+}
+
+$("#needs-you-open").addEventListener("click", openNeedsYou);
+$("#needs-you-close").addEventListener("click", closeNeedsYou);
+needsYouDialog.addEventListener("cancel", ev => { ev.preventDefault(); closeNeedsYou(); });
+needsYouDialog.addEventListener("click", ev => {
+  if (ev.target.closest("a[href]")) closeNeedsYou();
+});
+
+// Existing bookmarks open the queue over Studio, without trapping browser Back.
+async function renderApprovals() {
+  history.replaceState(null, "", "#/chat");
+  await renderChatStudio();
+  await openNeedsYou();
+}
+
 async function refreshApprovals() {
-  const [pending, resolved] = await Promise.all([
-    api("/approvals").catch(() => []),
-    api("/approvals?status=resolved&limit=8").catch(() => []),
-  ]);
-  const list = $("#approvals-pending");
-  const done = $("#approvals-resolved");
-  if (!list || !done) return;                      // route changed mid-flight
-  list.innerHTML = pending.length
-    ? pending.map(a => approvalCardHtml(a, { botName: a.bot_name })).join("")
-    : `<div class="empty-state">${icon("check", "icon-lg")}
-         <p>No pending approvals.</p>
-         <p class="hint">When a bot hits a gated action, it waits here for your decision.</p></div>`;
-  done.innerHTML = (resolved || []).length
-    ? resolved.map(a => approvalResolvedHtml(a, a.status, a.bot_name)).join("")
-    : `<p class="hint">Decided approvals appear here.</p>`;
-  wireApprovals();
-  updateTtls();
+  if (!needsYouDialog.open) return;
+  const error = $("#needs-you-error");
+  const offset = approvalOffset;
+  try {
+    const [pending, resolved, stats] = await Promise.all([
+      api(`/v1/actions/approvals?limit=${APPROVAL_PAGE_SIZE}&offset=${offset}`),
+      api("/v1/actions/approvals?status=resolved&limit=8"), api("/stats"),
+    ]);
+    if (!needsYouDialog.open || offset !== approvalOffset) return;
+    if (!pending.length && offset) { approvalOffset = 0; return refreshApprovals(); }
+    error.hidden = true;
+    const signature = JSON.stringify([pending, resolved, offset, stats.pending_approvals]);
+    // Preserve keyboard focus and expanded review details during unchanged polls.
+    if (signature === approvalSignature) return;
+    approvalSignature = signature;
+    const focus = document.activeElement;
+    const focusedCard = focus?.closest("[data-approval-card]");
+    const focusChoice = focus?.dataset.approve;
+    const expanded = new Set($$("#needs-you [data-approval-card]").filter(c => c.querySelector("details[open]"))
+      .map(c => c.dataset.approvalCard));
+    $("#approvals-pending").innerHTML = pending.length
+      ? pending.map(a => approvalCardHtml(a, { botName: a.bot_name })).join("")
+      : `<div class="empty-state">${icon("check", "icon-lg")}<p>No pending approvals.</p><p class="hint">Requests appear in their conversation and here.</p></div>`;
+    const total = stats.pending_approvals;
+    $("#approvals-pagination").innerHTML = total ? `<span class="hint">${offset + 1}–${offset + pending.length} of ${total} requests</span>
+      ${offset ? '<button class="btn ghost small" id="approvals-prev">Previous</button>' : ""}
+      ${offset + pending.length < total ? '<button class="btn ghost small" id="approvals-next">Next</button>' : ""}` : "";
+    $("#approvals-prev")?.addEventListener("click", () => { approvalOffset = Math.max(0, offset - APPROVAL_PAGE_SIZE); refreshApprovals(); });
+    $("#approvals-next")?.addEventListener("click", () => { approvalOffset = offset + APPROVAL_PAGE_SIZE; refreshApprovals(); });
+    $("#approvals-resolved").innerHTML = resolved.length
+      ? resolved.map(a => approvalResolvedHtml(a, a.status, a.bot_name)).join("")
+      : `<p class="hint">No recent decisions.</p>`;
+    $$("#needs-you [data-approval-card]").forEach(c => {
+      if (expanded.has(c.dataset.approvalCard) && c.querySelector("details")) c.querySelector("details").open = true;
+    });
+    if (focusedCard) {
+      const replacement = $$("#needs-you [data-approval-card]").find(c => c.dataset.approvalCard === focusedCard.dataset.approvalCard);
+      const button = replacement && [...replacement.querySelectorAll("button")].find(b => b.dataset.approve === focusChoice);
+      (button || $("#needs-you-close")).focus();
+    }
+    wireApprovals();
+    updateTtls();
+  } catch (err) {
+    if (!needsYouDialog.open) return;
+    error.hidden = false;
+    error.innerHTML = `<p>Could not refresh requests: ${esc(err.message)}. Displayed requests may be outdated.</p><button class="btn ghost small" id="needs-you-retry">Retry</button>`;
+    $("#needs-you-retry").addEventListener("click", refreshApprovals);
+  }
 }
 
 /* -------------------------------------------------------- bot settings */
@@ -1699,7 +1827,7 @@ async function renderBotDetail(name) {
   setTopContext(`
     <div class="ctx-id">
       ${botAvatar(b.name, 30)}
-      <h1>${esc(b.name)}</h1>
+      <h1>${esc(b.name)} settings</h1>
     </div>
     <div class="ctx-actions">
       <a class="btn ghost small" href="#/chat/${esc(b.name)}">${icon("chat")} Open Studio</a>
@@ -1711,7 +1839,7 @@ async function renderBotDetail(name) {
   const rules = b.command_rules || [];
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
-      <p class="crumb"><a href="#/bots">Bots</a> / ${esc(b.name)}</p>
+      <p class="crumb"><a href="#/chat/${esc(b.name)}">Studio</a> / Settings</p>
       <div class="detail-grid">
         <div>
           <form class="panel form-grid" id="form-identity">
@@ -1728,9 +1856,9 @@ async function renderBotDetail(name) {
           <form class="panel form-grid" id="form-model">
             <div class="panel-title">Model &amp; connection</div>
             <div class="form-grid row2">
-              <label class="field">Model
+              <label class="field">Default model
                 <input type="text" name="model" value="${esc(b.model || "")}">
-                <span class="hint">hosted/&lt;model&gt; · ollama/&lt;tag&gt; · &lt;connection&gt;/&lt;model&gt;</span>
+                <span class="hint">Used for new messages and scheduled runs. The chat model picker overrides one message.</span>
               </label>
               <label class="field">Runtime
                 <input type="text" disabled value="${esc(b.runtime || "builtin")}">
@@ -1859,13 +1987,7 @@ async function renderBotDetail(name) {
               </div>`).join("") || `<p class="empty-inline">None — every risky command asks.</p>`}
           </div>
 
-          <div class="panel">
-            <div class="panel-title">Recent runs</div>
-            ${(b.recent_runs || []).slice(0, 6).map(r => `
-              <a class="meta-row" href="#/run/${esc(r.id)}" style="text-decoration:none;color:inherit;">
-                <span>${statusChip(r.status)}</span><span class="mono">${timeAgo(r.created_at)}</span></a>`).join("")
-              || `<p class="empty-inline">No runs yet.</p>`}
-          </div>
+<p><a href="#/runs?q=${encodeURIComponent(b.name)}">View this bot’s run history</a></p>
         </div>
       </div>
     </div></div>`;
@@ -1938,7 +2060,8 @@ async function renderBotDetail(name) {
     }))) return;
     await api(`/bots/${encodeURIComponent(b.name)}`, { method: "DELETE" });
     toast(`Deleted ${b.name}`);
-    location.hash = "#/bots";
+    location.hash = "#/chat";
+    refreshRoster();
   });
   wireCommon();
 }
@@ -1954,7 +2077,7 @@ async function renderRunDetail(runId) {
     <div class="ctx-id"><h1>Run <span class="mono">#${esc(runId.slice(0, 12))}</span></h1>
       <div class="ctx-meta">${statusChip(r.status, r.status_label)}</div></div>
     <div class="ctx-actions">
-      ${ACTIVE.has(r.status) ? `<button class="btn danger small" id="stop-this-run">${icon("stop")} Stop</button>` : ""}
+      ${ACTIVE.has(r.status) ? `<button class="btn danger small" id="stop-this-run" ${r.status === "cancelling" ? "disabled" : ""}>${icon("stop")} ${r.status === "cancelling" ? "Stopping" : "Stop"}</button>` : ""}
       <a class="btn ghost small" href="#/runs">${icon("arrowLeft")} All runs</a>
     </div>`);
   const steps = (r.events || []).filter(e => e.type === "step").map(e => e.data);
@@ -1969,8 +2092,8 @@ async function renderRunDetail(runId) {
         <div class="ov-stats">
           <div class="kpi"><span class="kpi-label">Steps</span><span class="kpi-val">${r.steps}</span></div>
           <div class="kpi"><span class="kpi-label">Elapsed</span><span class="kpi-val">${fmtDur(dur)}</span></div>
-          <div class="kpi"><span class="kpi-label">Spend</span><span class="kpi-val">$${(r.cost_usd || 0).toFixed(4)}</span></div>
-          <div class="kpi"><span class="kpi-label">Tokens</span><span class="kpi-val">${fmtTokens(r.tokens)}</span></div>
+          <div class="kpi"><span class="kpi-label">Recorded cost</span><span class="kpi-val">$${(r.cost_usd || 0).toFixed(4)}</span></div>
+          <div class="kpi"><span class="kpi-label">Reported tokens</span><span class="kpi-val">${fmtTokens(r.tokens)}</span></div>
         </div>
         ${steps.length ? `
         <div class="panel run-timing">
@@ -2230,11 +2353,11 @@ function wireCommon() {
       route(); refreshRoster();
     });
   });
-  $("#topbar-new-bot")?.addEventListener("click", promptNewBot);
 }
 
 /* ------------------------------------------------------------------ boot */
 
+$("#topbar-new-bot")?.addEventListener("click", promptNewBot);
 route();
 void loadStatusInfo();
 refreshRoster();

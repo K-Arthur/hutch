@@ -97,3 +97,12 @@ cookie and returns only the device id and expiry. Authenticated `GET /api/v1/dev
 The code exchange is intentionally the only unauthenticated remote write; it is source-IP rate limited and subject to Origin checks.
 The current Studio has no pairing UX, remote interactive control route, or persistent device-session management screen. Use the CLI to
 revoke a lost device. Do not expose the listener to the public internet. The marketing site cannot reach localhost.
+
+## Navigation and approval review
+
+Studio is the primary interface; `/api/v1` conversations own its messages and drafts. Bot resources
+now expose `active_run_status` and `active_run_status_label` alongside `active_run_id` so callers do
+not infer “working” from any active state. Approval list resources include `conversation_id` for
+contextual navigation. Approval events include `action_hash`, used by the shared inline/drawer
+review card for idempotent v1 decisions. Legacy routes stay valid; the UI uses history replacement
+for aliases. See [navigation.md](navigation.md) for the rationale and acceptance scenarios.

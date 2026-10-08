@@ -156,3 +156,27 @@ terminal transition refuses a stale process's buffered reply. The deterministic 
 hold the buffer and inspect a second connection. Focused conversations/claims/cancellation/
 Store suite: **43 passed in 26.96s**. See `conversation-transactions.md`; no schema change,
 historic automatic repair, paid call or new support claim is involved.
+
+Commit `f4f8732` contains this transaction repair. The subsequent full offline suite passed
+**1,024 tests in 261.64s**, promoting unhandled background-thread warnings to failures.
+
+## Navigation consolidation checkpoint (2026-10-08)
+
+Studio has one roster and one settings destination. Approval decisions share the same exact
+request card in chat and a native Needs you drawer; Monitor contains Activity and run history,
+with filtered Fleet available at ten bots. Ten is the operator's reversible product heuristic,
+not a researched threshold. Alias history, scoped drafts, review/focus preservation, failed
+refreshes, a 51-request queue, and two queued messages have browser regressions.
+
+After the exact-action and terminal-history repairs, the complete local browser/website suite
+passed **24 tests in 65.26s**. Capture produced **39 screenshots**, three traces and three
+inspection sheets at desktop/tablet/phone sizes, with no page errors or horizontal overflow.
+`navigation-visual-validation.md` distinguishes inspected layouts, actual mock journeys and
+held synthetic states. Screenshots refresh four sanitized marketing illustrations; anonymous
+CTA checks, JavaScript syntax, tokens/contrast and emoji audit pass. This remains fixture browser
+evidence, not physical-device, live-provider, screen-reader or complete remote-control support.
+
+The OpenBot repository was reviewed at `59e2889`; individual reports became concrete approval,
+mount and memory regressions. The linked signed video could not be played and supplies no
+visual evidence. No remote media was downloaded. Remaining S5–S8 work and release gates above
+remain open; main is not advanced on the strength of this navigation checkpoint.

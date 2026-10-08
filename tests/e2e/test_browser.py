@@ -218,8 +218,9 @@ def test_studio_conversation_survives_reload_and_archive(browser, live):
     context.close()
 
 
-def test_stopping_status_uses_human_label_and_stays_nonterminal(browser, live):
+def test_stopping_status_uses_human_label_and_stays_nonterminal(browser, live, monkeypatch):
     base, app = live
+    monkeypatch.setattr(app.state.engine, "tick", lambda: [])  # hold this UI fixture in cancelling
     bot = app.state.store.create_bot(Bot(name="status-bot", model="mock/demo", tools=[]))
     run = app.state.engine.submit(bot, "wait for cancellation")
     app.state.store.transition_run(run.id, RunStatus.cancelling)
@@ -449,3 +450,210 @@ def test_switcher_fits_a_phone_screen(browser, switcher_env):
     box = page.locator(".ms-menu").bounding_box()
     assert box["x"] >= 0 and box["x"] + box["width"] <= 390, box
     assert page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth") <= 1
+
+
+def test_small_workspace_has_one_roster_and_legacy_routes_do_not_trap_back(browser, live):
+    base, app = live
+    app.state.store.create_bot(Bot(name="one-bot", model="mock/demo", tools=[]))
+    page = browser.new_page(viewport={"width": 1200, "height": 800})
+    page.goto(base + "/#/chat/one-bot")
+    page.locator("#conversation-switcher").wait_for()
+    assert not page.locator("#fleet-nav").is_visible()
+    assert not page.locator("#monitor-nav").get_attribute("open")
+    assert page.get_by_text("Manage all bots", exact=True).count() == 0
+    assert page.get_by_role("button", name="Context", exact=True).count() == 0
+    page.get_by_role("link", name="Settings for one-bot").click()
+    page.get_by_role("heading", name="one-bot settings", exact=True).wait_for()
+    assert page.get_by_text("Recent runs", exact=True).count() == 0
+    page.goto(base + "/#/overview")
+    page.get_by_role("heading", name="Activity", exact=True).wait_for()
+    page.evaluate("location.hash = '#/bots'")
+    page.wait_for_url("**/#/chat")
+    page.locator("#conversation-switcher").wait_for()
+    page.go_back()
+    page.get_by_role("heading", name="Activity", exact=True).wait_for()
+    page.close()
+
+
+def test_fleet_appears_at_ten_bots_with_search_and_state_filters(browser, live):
+    base, app = live
+    for i in range(9):
+        app.state.store.create_bot(Bot(name=f"fleet-{i}", model="mock/demo", tools=[], paused=i == 2))
+    page = browser.new_page(viewport={"width": 1200, "height": 800})
+    page.goto(base + "/#/chat")
+    page.locator("#conversation-switcher").wait_for()
+    assert page.locator("#fleet-nav").is_hidden()
+    app.state.store.create_bot(Bot(name="fleet-9", model="mock/demo", tools=[]))
+    page.reload()
+    page.locator("#conversation-switcher").wait_for()
+    page.locator("#monitor-nav > summary").click()
+    page.get_by_role("link", name="Fleet", exact=True).click()
+    page.locator("#fleet-search").wait_for()
+    assert page.locator("#fleet-count").inner_text() == "10 of 10 bots"
+    page.locator("#fleet-state").select_option("paused")
+    assert page.locator("#fleet-count").inner_text() == "1 of 10 bots"
+    page.locator("#fleet-search").fill("fleet-9")
+    assert page.locator("#fleet-count").inner_text() == "0 of 10 bots"
+    page.locator("#fleet-state").select_option("all")
+    assert page.locator("#fleet-count").inner_text() == "1 of 10 bots"
+    page.close()
+
+
+def test_bot_and_conversation_switches_isolate_unsent_drafts(browser, live):
+    base, app = live
+    for name in ("draft-a", "draft-b"):
+        app.state.store.create_bot(Bot(name=name, model="mock/demo", tools=[]))
+    page = browser.new_page(viewport={"width": 1200, "height": 800})
+    page.goto(base + "/#/chat/draft-a")
+    page.locator("#conversation-switcher").wait_for()
+    first = page.locator("#conversation-switcher").input_value()
+    page.locator("#chat-prompt").fill("Private draft for A")
+    # No debounce wait: immediate navigation must preserve the draft in its own context.
+    page.locator('[data-switch-bot="draft-b"]').click()
+    page.wait_for_function("document.querySelector('#chat-prompt')?.placeholder.includes('draft-b')")
+    assert page.locator("#chat-prompt").input_value() == ""
+    page.locator('[data-switch-bot="draft-a"]').click()
+    page.wait_for_function("document.querySelector('#chat-prompt')?.placeholder.includes('draft-a')")
+    assert page.locator("#chat-prompt").input_value() == "Private draft for A"
+    page.locator("#studio-new-conversation").click()
+    page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value !== id", arg=first)
+    assert page.locator("#chat-prompt").input_value() == ""
+    page.locator("#conversation-switcher").select_option(first)
+    page.wait_for_function("document.querySelector('#chat-prompt')?.value === 'Private draft for A'")
+    page.close()
+
+
+def test_inline_chat_approval_is_one_click_and_preserves_conversation(browser, live):
+    base, app = live
+    app.state.store.create_bot(Bot(name="chat-approval", model="mock/demo", tools=["files", "memory"],
+                                   approval_mode=ApprovalMode.ask))
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    page.goto(base + "/#/chat/chat-approval")
+    page.locator("#conversation-switcher").wait_for()
+    conversation = page.locator("#conversation-switcher").input_value()
+    page.locator("#chat-prompt").fill("write a report")
+    page.locator("#chat-send").click()
+    card = page.locator("#chat-stream [data-approval-card]").first
+    card.locator('[data-approve="1"]').wait_for()
+    approval_id = card.get_attribute("data-approval-card")
+    assert card.get_attribute("data-action-hash")
+    thread = card.locator("xpath=ancestor::article[@data-run-id]")
+    assert thread.locator(".msg.you").count() == 1
+    assert thread.locator(".msg.you").bounding_box()["y"] < thread.locator(".msg.agent").bounding_box()["y"]
+    assert not thread.locator(".answer").count(), "a waiting run must not echo the user's prompt as an assistant answer"
+    card.get_by_text("Review details", exact=True).click()
+    assert card.locator(".approval-detail").is_visible()
+    card.locator('[data-approve="1"]').focus()
+    time.sleep(3.3)  # transcript poll keeps the review expanded and the decision focused
+    assert card.locator(".approval-detail").is_visible()
+    assert card.locator('[data-approve="1"]').evaluate("e => e === document.activeElement")
+    assert page.locator("#studio-stop-run").is_visible()
+    header = page.locator(".app-top").bounding_box()
+    for control in ("#conversation-switcher", "#studio-new-conversation", "#studio-stop-run"):
+        box = page.locator(control).bounding_box()
+        assert box["y"] >= header["y"] and box["y"] + box["height"] <= header["y"] + header["height"] + 1
+    stream = page.locator("#chat-scroll").bounding_box()
+    assert stream["y"] >= header["y"] + header["height"] - 1
+    assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+    card.locator('[data-approve="1"]').click()
+    wait_for(lambda: app.state.store.get_approval(approval_id).status.value == "approved")
+    assert page.locator("#conversation-switcher").input_value() == conversation
+    assert "#/chat/chat-approval" in page.url
+    assert page.locator("#needs-you").get_attribute("open") is None
+    page.close()
+
+
+def test_needs_you_pages_large_queues_without_hiding_requests(browser, live, monkeypatch):
+    from datetime import timedelta
+    from hutch.approvals import action_fingerprint
+    from hutch.models import ApprovalRequest, Run, iso, utcnow
+    base, app = live
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    bot = app.state.store.create_bot(Bot(name="queue-bot", model="mock/demo", tools=[]))
+    run = app.state.store.create_run(Run(bot_id=bot.id, prompt="queue fixture", status=RunStatus.waiting_approval))
+    requests = []
+    for i in range(51):
+        detail = {"path": f"report-{i}.txt", "content": f"Draft {i}"}
+        requests.append(app.state.store.create_approval(ApprovalRequest(
+            run_id=run.id, bot_id=bot.id, tool="files", action=f"write report-{i}.txt", detail=detail,
+            action_hash=action_fingerprint("files", detail), expires_at=iso(utcnow() + timedelta(minutes=10)))))
+    page = browser.new_page(viewport={"width": 1200, "height": 800})
+    page.goto(base + "/#/chat/queue-bot")
+    page.locator("#needs-you-open").click()
+    page.locator("#approvals-pagination").get_by_text("1–50 of 51 requests", exact=True).wait_for()
+    assert page.locator("#needs-you [data-approval-card]").count() == 50
+    page.locator("#approvals-pagination").get_by_role("button", name="Next", exact=True).click()
+    page.locator("#approvals-pagination").get_by_text("51–51 of 51 requests", exact=True).wait_for()
+    final = page.locator("#needs-you [data-approval-card]")
+    assert final.count() == 1
+    final_id = final.get_attribute("data-approval-card")
+    final.locator('[data-approve="0"]').click()
+    wait_for(lambda: app.state.store.get_approval(final_id).status.value == "denied")
+    page.locator("#approvals-pagination").get_by_text("1–50 of 50 requests", exact=True).wait_for()
+    assert {a.id for a in app.state.store.pending_approvals()} == {a.id for a in requests} - {final_id}
+    page.close()
+
+
+def test_needs_you_drawer_preserves_review_focus_and_reports_refresh_failure(browser, live):
+    base, app = live
+    bot = app.state.store.create_bot(Bot(name="drawer-bot", model="mock/demo", tools=["files", "memory"],
+                                       approval_mode=ApprovalMode.ask))
+    run = app.state.engine.submit(bot, "write a report")
+    app.state.engine.dispatch_pending()
+    wait_for(lambda: app.state.store.get_run(run.id).status is RunStatus.waiting_approval)
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    page.goto(base + "/#/chat/drawer-bot")
+    page.locator("#conversation-switcher").wait_for()
+    page.locator("#nav-toggle").click()
+    page.locator("#needs-you-open").click()
+    card = page.locator("#needs-you [data-approval-card]").first
+    card.wait_for()
+    card.locator("summary").click()
+    allow = card.locator('[data-approve="1"]')
+    allow.focus()
+    time.sleep(5.3)  # unchanged queue poll must preserve review and decision focus
+    assert card.locator("details").get_attribute("open") is not None
+    assert allow.evaluate("e => e === document.activeElement")
+    page.keyboard.press("Escape")
+    assert page.evaluate("document.activeElement.id") == "nav-toggle"
+    page.route("**/api/**approvals**", lambda route: route.abort() if route.request.method == "GET" else route.continue_())
+    page.locator("#nav-toggle").click()
+    page.locator("#needs-you-open").click()
+    page.locator("#needs-you-error").wait_for(state="visible")
+    assert "may be outdated" in page.locator("#needs-you-error").inner_text()
+    assert card.is_visible()  # failed fetch never means an empty/successful queue
+    assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+    page.unroute("**/api/**approvals**")
+    page.locator("#needs-you-retry").click()
+    page.locator("#needs-you-error").wait_for(state="hidden")
+    card.locator('[data-approve="0"]').click()
+    wait_for(lambda: app.state.store.pending_approvals() == [])
+    page.close()
+
+
+def test_queued_chat_keeps_earlier_approval_and_live_status_fresh(browser, live):
+    base, app = live
+    app.state.store.create_bot(Bot(name="queue-chat", model="mock/demo", tools=["files", "memory"],
+                                   approval_mode=ApprovalMode.ask))
+    page = browser.new_page(viewport={"width": 1200, "height": 900})
+    page.goto(base + "/#/chat/queue-chat")
+    page.locator("#conversation-switcher").wait_for()
+    page.locator("#chat-prompt").fill("write a report")
+    page.locator("#chat-send").click()
+    card = page.locator("#chat-stream [data-approval-card]").first
+    card.locator('[data-approve="1"]').wait_for()
+    first_approval = card.get_attribute("data-approval-card")
+    first_run = app.state.store.get_approval(first_approval).run_id
+    page.locator("#chat-prompt").fill("write the next report")
+    page.locator("#chat-send").click()
+    second = page.locator("#chat-stream [data-run-id]").last
+    page.wait_for_function("document.querySelectorAll('#chat-stream [data-run-id]').length === 2")
+    assert "Queued" in second.inner_text()
+    assert not page.locator("#typing-slot .typing").count()
+    # The older active run must not enter the terminal HTML cache when currentRunId changes.
+    page.locator(f'[data-approval-card="{first_approval}"] [data-approve="1"]').click()
+    first = page.locator(f'[data-run-id="{first_run}"]')
+    first.get_by_text("Done", exact=True).wait_for()
+    second.locator("[data-approval-card] [data-approve='0']").wait_for()
+    second.locator("[data-approval-card] [data-approve='0']").click()
+    page.close()
