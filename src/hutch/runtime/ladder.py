@@ -107,12 +107,7 @@ class SpendGuard:
         self.connections = connections
 
     def spent_today(self) -> float:
-        day = utcnow().date().isoformat()
-        total = 0.0
-        for r in self.store.list_runs(self.bot.id, limit=500):
-            if r.created_at.startswith(day):
-                total += r.cost_usd
-        return total
+        return self.store.cost_today(self.bot.id)
 
     @property
     def has_cost_caps(self) -> bool:

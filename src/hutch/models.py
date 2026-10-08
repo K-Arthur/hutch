@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -22,6 +22,20 @@ def utcnow() -> datetime:
 
 def iso(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).isoformat()
+
+
+def local_day_bounds(now: Optional[datetime] = None) -> tuple[str, str]:
+    """[start, end) of the current LOCAL calendar day, as UTC ISO strings comparable with ``created_at``.
+
+    A "daily" cap should reset at the user's midnight, and every daily figure (tokens, spend, runs) must use the same
+    day. Timestamps are stored in UTC, so the local day is converted to UTC bounds; a day that is 23 or 25 hours long
+    (DST) is handled because each boundary is converted from its own local midnight.
+    """
+    local = (now or utcnow()).astimezone()
+    day = local.date()
+    start = datetime.combine(day, time.min).astimezone()
+    end = datetime.combine(day + timedelta(days=1), time.min).astimezone()
+    return iso(start), iso(end)
 
 
 def new_id(prefix: str) -> str:

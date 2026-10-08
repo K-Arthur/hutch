@@ -21,6 +21,7 @@ import sqlite3
 import threading
 import time
 import weakref
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -38,6 +39,7 @@ from .models import (
     Schedule,
     Task,
     iso,
+    local_day_bounds,
     utcnow,
 )
 from .wake import Bus, WakeHub
@@ -677,13 +679,22 @@ class Store:
 
     # ------------------------------------------------------------ usage
 
-    def tokens_today(self, bot_id: str) -> int:
-        day_prefix = utcnow().astimezone().date().isoformat()
+    def _runs_today(self, bot_id: Optional[str] = None, now: Optional[datetime] = None) -> list[Run]:
+        start, end = local_day_bounds(now)
+        sql, args = "SELECT doc FROM runs WHERE created_at >= ? AND created_at < ?", [start, end]
+        if bot_id is not None:
+            sql, args = sql + " AND bot_id = ?", args + [bot_id]
         with self._lock:
-            rows = self._db.execute(
-                "SELECT doc FROM runs WHERE bot_id = ? AND created_at LIKE ?", (bot_id, f"{day_prefix}%")
-            ).fetchall()
-        return sum(Run.model_validate_json(r["doc"]).tokens for r in rows)
+            rows = self._db.execute(sql, args).fetchall()
+        return [Run.model_validate_json(r["doc"]) for r in rows]
+
+    def tokens_today(self, bot_id: str, now: Optional[datetime] = None) -> int:
+        """Tokens used by this bot's runs started during the current local day (the daily token cap)."""
+        return sum(r.tokens for r in self._runs_today(bot_id, now))
+
+    def cost_today(self, bot_id: Optional[str] = None, now: Optional[datetime] = None) -> float:
+        """Hosted spend for the current local day, for one bot or for all (the daily cost cap)."""
+        return sum(r.cost_usd for r in self._runs_today(bot_id, now))
 
     def bot_stats(self) -> dict[str, dict[str, Any]]:
         """Per-bot aggregates for the dashboard: run counts + staleness."""
