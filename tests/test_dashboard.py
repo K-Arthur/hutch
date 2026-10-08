@@ -153,10 +153,10 @@ def test_outward_actions_never_offer_always(client):
 
 # ------------------------------------------------------------------ stop / controls (UI-2)
 
-def test_stop_all_is_in_every_header_and_stops_a_run(client):
+def test_stop_all_is_in_the_app_header_and_stops_a_run(client):
     bot = make_bot(client)
-    for path in ("/connections", "/login"):
-        assert "/stop-all" in client.get(path).text, path
+    assert "/stop-all" in client.get("/connections").text
+    assert "/stop-all" not in client.get("/login").text
     store, engine = client.app_.state.store, client.app_.state.engine
     run = engine.submit(bot, "write a report")
     engine.dispatch_pending()
