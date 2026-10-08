@@ -180,6 +180,7 @@ a:hover { text-decoration: underline; }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--text); }
 .brand:hover { text-decoration: none; }
 .brand-name { font: 700 var(--fs-xl)/1 var(--mono); letter-spacing: -0.02em; }
+.ws-dock { margin-left: auto; }   /* collapse control sits at the rail's far edge, apart from the logo */
 .icon-btn.ws-close { margin-left: auto; display: none; }
 
 .ws-nav { padding: var(--s-3) var(--s-2); display: grid; gap: 2px; border-bottom: 1px solid var(--line); flex: none; }
