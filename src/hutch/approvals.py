@@ -122,13 +122,14 @@ class ApprovalGate:
         topics = {f"approval:{req.id}": 0, f"approval:wake:{self.run.id}": 0}
         deadline = time.monotonic() + self.ttl
         prev_status = self.run.status
-        self.run.status = RunStatus.waiting_approval
-        self.store.update_run(self.run)
+        if not self.store.set_status(self.run, RunStatus.waiting_approval):
+            self._resolve(req, ApprovalStatus.expired, "stopped")          # the run cannot wait now (stopping, ended): do not
+            raise DeniedError(f"the run is {self.run.status.value}; the action was not approved")
         try:
             while True:
                 for t in topics:
                     topics[t] = bus.version(t)  # read BEFORE checking state: no lost wake-ups
-                if self.cancel_requested:
+                if self.cancelled():
                     self._resolve(req, ApprovalStatus.expired, "stopped")
                     raise DeniedError("run was stopped while awaiting approval")
                 current = self.store.get_approval(req.id)
@@ -151,8 +152,12 @@ class ApprovalGate:
                 bus.wait_any(topics, timeout=min(remaining, self.poll_seconds))
         finally:
             if self.run.status is RunStatus.waiting_approval:
-                self.run.status = prev_status if prev_status is not RunStatus.waiting_approval else RunStatus.running
-                self.store.update_run(self.run)
+                self.store.set_status(self.run, prev_status if prev_status is not RunStatus.waiting_approval
+                                      else RunStatus.running)
+
+    def cancelled(self) -> bool:
+        """A stop was requested: in this process (the flag) or in any other (the database)."""
+        return self.cancel_requested or self.store.is_cancel_requested(self.run.id)
 
     def wait_for_human(self, reason: str, url: str = "") -> None:
         """Park the run until a person clears a login / CAPTCHA / 2FA wall (UI-1 "Needs you").
@@ -166,8 +171,8 @@ class ApprovalGate:
         bus = self.store.bus
         self.store.consume_resume(self.run.id)  # drop any stale resume flag
         prev = self.run.status
-        self.run.status = RunStatus.waiting_human
-        self.store.update_run(self.run)
+        if not self.store.set_status(self.run, RunStatus.waiting_human):
+            raise DeniedError(f"the run is {self.run.status.value}; it will not wait for a person")
         deadline = time.monotonic() + self.ttl
         self.emit(Event(run_id=self.run.id, type=EventType.human_needed,
                         data={"reason": reason, "url": url,
@@ -177,7 +182,7 @@ class ApprovalGate:
             while True:
                 for t in topics:
                     topics[t] = bus.version(t)
-                if self.cancel_requested:
+                if self.cancelled():
                     raise DeniedError("run was stopped while waiting for a person")
                 if self.store.consume_resume(self.run.id):
                     self.emit(Event(run_id=self.run.id, type=EventType.human_resumed, data={"url": url}))
@@ -188,8 +193,7 @@ class ApprovalGate:
                 bus.wait_any(topics, timeout=min(remaining, self.poll_seconds))
         finally:
             if self.run.status is RunStatus.waiting_human:
-                self.run.status = prev if prev is not RunStatus.waiting_human else RunStatus.running
-                self.store.update_run(self.run)
+                self.store.set_status(self.run, prev if prev is not RunStatus.waiting_human else RunStatus.running)
 
     def _resolve(self, req: ApprovalRequest, status: ApprovalStatus, by: str) -> None:
         req.status = status

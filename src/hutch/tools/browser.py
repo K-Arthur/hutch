@@ -99,6 +99,10 @@ class BrowserTool(Tool):
             finally:
                 BrowserTool._pw = None
 
+    def effect(self, args: dict[str, Any], ctx: ToolContext) -> str:
+        action = (args.get("action") or "").strip()
+        return {"click": "web", "type": "web", "screenshot": "fs"}.get(action, "")
+
     def run(self, args: dict[str, Any], ctx: ToolContext) -> ToolResult:
         action = (args.get("action") or "").strip()
         if action not in _ACTIONS:

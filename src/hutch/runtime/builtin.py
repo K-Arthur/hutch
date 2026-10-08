@@ -165,10 +165,9 @@ class BuiltinRuntime:
 
     @staticmethod
     def _set_status(ctx: ToolContext, run: Run, status: RunStatus, model: str) -> None:
-        run.status = status
         run.model_used = model
-        ctx.store.update_run(run)
-        ctx.emit(Event(run_id=run.id, type=EventType.status, data={"status": status.value, "model": model}))
+        # one transaction: the state change, the fence check and the status event (a stop in flight makes this a no-op)
+        ctx.store.set_status(run, status, event={"model": model}, fields={"model_used": model})
 
     def _interruptible_sleep(self, seconds: float, stop: Callable[[], bool]) -> None:
         end = time.monotonic() + seconds

@@ -19,9 +19,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
+from .lifecycle import TERMINAL
 from .models import ACTIVE_STATUSES, Bot, Run, RunStatus, iso, utcnow
 
-FINISHED = (RunStatus.succeeded, RunStatus.failed, RunStatus.stopped, RunStatus.skipped)
+FINISHED = tuple(TERMINAL)    # one definition: hutch.lifecycle
 
 # ------------------------------------------------------------------ formatting
 

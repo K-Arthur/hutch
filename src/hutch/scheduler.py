@@ -15,7 +15,9 @@ All timestamps stored as ISO-8601 UTC with offset.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 from croniter import croniter
@@ -24,6 +26,17 @@ from .models import Bot, CatchUpPolicy, iso, utcnow
 from .store import Store
 
 MAX_CATCHUP_WINDOWS = 50
+
+
+@dataclass(frozen=True)
+class DueClaim:
+    """One schedule occurrence that is due: what to run, how many windows it stands for, and the marker value it was
+    computed against (the claim only succeeds if nobody advanced the marker since: optimistic concurrency)."""
+
+    bot: Bot
+    missed: int
+    occurrence: datetime
+    marker: Optional[str]
 
 
 class Scheduler:
@@ -84,18 +97,22 @@ class Scheduler:
     def due(self, now: datetime | None = None) -> list[tuple[Bot, int]]:
         """Scheduled bots whose window has passed since their last dispatch.
 
-        Returns (bot, missed_windows) pairs — missed_windows counts the windows
-        that elapsed beyond the newest one (machine asleep, daemon down, …).
-        Advances each bot's last-fire marker when a run is dispatched by the
-        engine (see mark_dispatched), NOT here, so failed dispatch retries.
+        Returns (bot, missed_windows) pairs - missed_windows counts the windows
+        that elapsed beyond the newest one (machine asleep, daemon down, ...).
+        This only *reads*; the engine claims an occurrence with ``due_claims`` and ``Store.submit_scheduled``.
         """
+        return [(d.bot, d.missed) for d in self.due_claims(now)]
+
+    def due_claims(self, now: datetime | None = None) -> list[DueClaim]:
+        """``due()`` with the newest window and the marker value it was judged against, for an atomic claim."""
         now = now or utcnow()
-        due: list[tuple[Bot, int]] = []
+        due: list[DueClaim] = []
         for bot in self.store.list_bots():
             if bot.paused or not bot.schedule:
                 continue
             zone = self._zone(bot)
-            last_utc = self._last_dispatched(bot)
+            marker = self.store.kv_get(self._last_fire_key(bot))
+            last_utc = self._parse_marker(marker, bot)
             windows = self._windows_between(bot, last_utc, now, zone)
             if not windows:
                 continue
@@ -107,7 +124,7 @@ class Scheduler:
                     self.store.kv_set(self._last_fire_key(bot), iso(newest))
                     self._note_skipped(bot, len(windows))
                     continue
-            due.append((bot, missed))
+            due.append(DueClaim(bot=bot, missed=missed, occurrence=newest, marker=marker))
         return due
 
     def _windows_between(self, bot: Bot, last_utc: datetime, now: datetime, zone: ZoneInfo) -> list[datetime]:
@@ -129,7 +146,10 @@ class Scheduler:
         return out
 
     def _last_dispatched(self, bot: Bot) -> datetime:
-        raw = self.store.kv_get(self._last_fire_key(bot))
+        return self._parse_marker(self.store.kv_get(self._last_fire_key(bot)), bot)
+
+    @staticmethod
+    def _parse_marker(raw: Optional[str], bot: Bot) -> datetime:
         if raw:
             try:
                 return datetime.fromisoformat(raw)

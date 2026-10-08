@@ -21,12 +21,13 @@ from typing import Any, Callable, Optional
 
 from starlette.requests import Request
 
+from ..lifecycle import TERMINAL
 from ..models import Event, RunStatus
 
 BATCH = 200
 COALESCE_SECONDS = 0.08
 KEEPALIVE_SECONDS = 15.0
-FINISHED = (RunStatus.succeeded, RunStatus.failed, RunStatus.stopped, RunStatus.skipped)
+FINISHED = tuple(TERMINAL)    # one definition: hutch.lifecycle
 
 
 def sse_message(event: str, payload: dict[str, Any], id_: Optional[int] = None) -> bytes:

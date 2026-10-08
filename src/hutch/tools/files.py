@@ -72,6 +72,9 @@ class FilesWriteTool(Tool):
         },
     )
 
+    def effect(self, args: dict[str, Any], ctx: ToolContext) -> str:
+        return "fs"
+
     def run(self, args: dict[str, Any], ctx: ToolContext) -> ToolResult:
         path, content = args.get("path", ""), args.get("content", "")
         decision = ctx.policy.check_path(path, ctx.workspace, write=True)

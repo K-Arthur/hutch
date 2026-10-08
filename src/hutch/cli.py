@@ -23,6 +23,7 @@ from .models import (
     RuntimeKind,
     Schedule,
 )
+from .lifecycle import TERMINAL
 from .store import Store
 from .templates import TEMPLATES, seed
 from .tools import ALL_TOOL_NAMES, expand_tools
@@ -385,8 +386,7 @@ def run(
             if watch:
                 _print_event(ev)
         current = store.get_run(created.id)
-        if current and current.status.value not in ("pending", "loading_model", "running",
-                                                    "waiting_approval", "waiting_human"):
+        if current and current.status in TERMINAL:
             for ev in store.list_events(created.id, after_seq=seen):
                 if watch:
                     _print_event(ev)
@@ -396,7 +396,7 @@ def run(
         store.bus.wait(topic, version, timeout=5.0)
     final = store.get_run(created.id)
 
-    color = {"succeeded": "green", "failed": "red", "stopped": "yellow"}.get(final.status.value, "white")
+    color = {"succeeded": "green", "failed": "red", "stopped": "yellow", "outcome_unknown": "yellow"}.get(final.status.value, "white")
     console.print(f"\nrun [bold]{final.id}[/bold] → [{color}]{final.status.value}[/{color}] "
                   f"({final.exit_reason or 'ok'}, steps={final.steps}, tokens≈{final.tokens})")
     raise typer.Exit(code=0 if final.status is RunStatus.succeeded else 1)

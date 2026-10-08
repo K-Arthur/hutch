@@ -65,8 +65,9 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 - **Switch models from the chat** — a composer menu shows what fits this machine, what it costs and what is missing; per message, never a silent edit of the bot
 - **Subscription plans as connections** — OpenCode Go, Xiaomi MiMo Token Plan or your own endpoint, each with its own key, allowance meter and terms notice
 - **Knows your hardware** — fit/tight/won't-fit per model, model slots that batch runs, and `hutch doctor` that prints the fix for every problem
-- **Scheduling that survives sleep and DST** — IANA-timezone cron, DST-correct, catch-up after sleep, one run per bot at a time
-  inside a process (two schedulers sharing one database are not yet safe; see the ledger)
+- **Scheduling that survives sleep and DST** — IANA-timezone cron, DST-correct, catch-up after sleep; each occurrence and each run is
+  claimed in the database, so the dashboard, the daemon and `hutch run` can all be running without double-dispatching, and one
+  bot never overlaps itself
 - **Approvals that don't nag** — ask-once with sticky always-allows; unanswered = denied
 - **Caps** — steps, wall-clock, daily tokens per bot; spend caps for priced hosted models (a token cap is not a currency cap)
 - **Workspace path jail** — file tools cannot leave the workspace; shell commands are policy-checked and run with a redirected

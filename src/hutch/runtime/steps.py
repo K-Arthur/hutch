@@ -13,10 +13,13 @@ and the dashboard can sum them without a separate metrics store.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import time
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+from ..lifecycle import LeaseLost
 from ..models import Event, EventType, Run
 from ..tools import Tool, ToolContext
 from ..tools.base import ToolResult
@@ -56,16 +59,54 @@ def truncate_for_model(ctx: ToolContext, tool: str, output: str) -> tuple[str, O
     return output[:limit] + note, rel
 
 
+def _summary(name: str, args: dict[str, Any]) -> str:
+    for key in ("command", "path", "url", "selector", "label", "key", "action"):
+        if args.get(key):
+            return f"{name}: {str(args[key])[:160]}"
+    return name
+
+
+def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolContext, run: Run) -> ToolResult:
+    """Run a tool; if the call can have a lasting effect, write the intent first and the receipt after (ADR-0003).
+
+    If the intent cannot be recorded the action does NOT run (fail closed). If the process dies between the effect and the
+    receipt, the row stays ``started``: recovery reports an unknown outcome and the action is never replayed. Local keys do
+    not make a remote effect exactly-once, and the UI says so."""
+    effect = "" if ctx.dry_run else tool.effect(args, ctx)
+    if not effect:
+        return tool.run(args, ctx)
+    key = hashlib.sha256(f"{run.id}|{name}|{json.dumps(args, sort_keys=True, default=str)}".encode()).hexdigest()[:24]
+    try:
+        action_id = ctx.store.begin_action(run.id, name, key, effect, _summary(name, args), fence=run.fence)
+    except LeaseLost as exc:
+        ctx.closed = True              # we no longer own this run: nothing more may start from this worker
+        return ToolResult(ok=False, output=f"error: {exc}; the action was not started")
+    except Exception as exc:
+        return ToolResult(ok=False, output=f"error: the action could not be recorded ({exc}), so it was not run")
+    result = ToolResult(ok=False, output="error: the action did not finish")
+    try:
+        result = tool.run(args, ctx)
+        return result
+    finally:
+        try:
+            ctx.store.finish_action(action_id, "done" if result.ok else "failed",
+                                    hashlib.sha256(result.output.encode(errors="replace")).hexdigest()[:16])
+        except Exception:
+            pass                       # the row stays 'started': an honest "unknown" is better than a made-up receipt
+
+
 def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, args: dict[str, Any],
               timer: Optional[StepTimer] = None, output_chars: int = 2_000) -> ToolResult:
     """Emit the call, run the tool (timed), emit the result. Used by the mock and builtin runtimes."""
+    if ctx.closed:                       # fenced: the run already ended (timeout, stop, recovery); nothing new may start
+        return ToolResult(ok=False, output="error: this run has ended; the action was not started")
     ctx.emit(Event(run_id=run.id, type=EventType.tool_call, data={"tool": name, "args": args}))
     tool = tools.get(name)
     t1 = time.perf_counter()
     if tool is None:
         result = ToolResult(ok=False, output=f"error: unknown tool '{name}' — available: {sorted(tools)}")
     else:
-        result = tool.run(args, ctx)
+        result = _run_with_receipt(tool, name, args, ctx, run)
     if timer is not None:
         timer.tool_ms += (time.perf_counter() - t1) * 1000.0
     full_chars = len(result.output)

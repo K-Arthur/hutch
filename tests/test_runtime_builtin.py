@@ -193,7 +193,8 @@ def test_cold_load_is_a_visible_run_state_with_its_measured_time(store, config, 
     ollama.script = agent_script([{"content": "ok"}])
     ctx, run, emitted, tools = build(store, config, tmp_path)
     run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
-    statuses = [e.data["status"] for e in emitted if e.type is EventType.status]
+    # status changes are written atomically by the store (ADR-0003), so the transcript is where they are observed
+    statuses = [e.data["status"] for e in store.list_events(run.id) if e.type is EventType.status]
     assert statuses[:2] == ["loading_model", "running"]
     load = kinds(emitted, "load")[0]
     assert load["load_ms"] >= 250 and "cold load" in load["note"]

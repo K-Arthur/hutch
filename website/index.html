@@ -209,7 +209,7 @@
         <div class="incident-body">
           <h3>The scheduled run that quietly never happened</h3>
           <blockquote>Scheduled work can be lost or doubled when the machine sleeps, the clock changes, or a daemon dies, and a dashboard can still look healthy.</blockquote>
-          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>What hutch does</b> After sleep it detects missed windows and runs once (or records a visible skip); cron math uses the bot's IANA zone. Limit today: this is safe inside one hutch process; two schedulers sharing one database can still both fire, and that is being fixed.</span></p>
+          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>What hutch does</b> After sleep it detects missed windows and runs once (or records a visible skip); cron math uses the bot's IANA zone. Each occurrence is claimed with one database transaction, so two schedulers (the dashboard and the daemon, say) cannot both fire it. We raced six processes against the same window: the previous version created six runs, this one creates one.</span></p>
         </div>
       </article>
 
@@ -248,7 +248,7 @@
         <div class="incident-body">
           <h3>A timed-out scheduled task leaves its child process running</h3>
           <blockquote>One reporter says a cron task that timed out left its background command marked running for more than five hours. It is an open issue with an open fix.</blockquote>
-          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>What hutch does</b> Honest status: hutch has had the same weakness. A run that timed out was marked finished while its worker thread kept going. Owned worker processes with verified teardown are being built; progress is in <code>docs/realignment/ledger.md</code>.</span></p>
+          <p class="incident-answer"><span class="incident-mark"></span><span class="incident-answer-text"><b>What hutch does</b> Honest status: hutch had the same weakness. A run that timed out was marked finished while its worker thread kept going. A run now holds a lease, and a worker that loses it is fenced out: it cannot write to the run or start another action. Stop works from any process. Separate worker processes with verified teardown of everything a run started are still being built; progress is in <code>docs/realignment/ledger.md</code>.</span></p>
         </div>
       </article>
     </div>
@@ -285,7 +285,7 @@
         <ul class="bento-list">
           <li><b>Sleep catch-up:</b> Detects missed schedule intervals and coalesces them cleanly into one run.</li>
           <li><b>DST &amp; Timezone safe:</b> Explicit IANA timezone handling eliminates duplicate fires and missed hours.</li>
-          <li><b>One run per bot:</b> A bot never overlaps itself inside one hutch process. Cross-process claims are in progress.</li>
+          <li><b>One run per bot:</b> A database claim decides which process owns a run and a bot never overlaps itself, even with the dashboard and the daemon both running.</li>
           <li><b>Staleness monitors:</b> Flags bots whose last success timestamp exceeds their schedule expectation.</li>
         </ul>
       </div>

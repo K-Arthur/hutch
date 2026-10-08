@@ -7,13 +7,13 @@ browser. "Live" means it needs something this host did not have and is skipped w
 |---|---|---|---|---|
 | T-CRED-SCOPE | A key is never sent to a host it does not belong to | offline | `tests/test_credential_routing.py` | passing |
 | T-SSRF | No URL form, redirect or DNS answer reaches a private address | offline | `tests/test_netguard.py` | passing |
-| T-CLAIM-RACE | Two processes racing for the same pending run: exactly one claim wins | offline (multiprocess) | `tests/test_claims.py` | planned |
-| T-OCCURRENCE-RACE | Two schedulers for one occurrence create one run, also after a crash between steps | offline (multiprocess) | `tests/test_claims.py` | planned |
-| T-STATE-MACHINE | Only table transitions are possible; terminal is absorbing; stale fence rejected | offline (property) | `tests/test_lifecycle.py` | planned |
-| T-MIGRATION-V5 | A v4 database with data migrates; ids, memory, transcripts, schedules survive | offline | `tests/test_migration.py` | planned |
-| T-CROSS-PROCESS-STOP | `stop` from process B ends a run owned by process A | offline (multiprocess) | `tests/test_cancel.py` | planned |
+| T-CLAIM-RACE | Two processes racing for the same pending run: exactly one claim wins | offline (multiprocess) | `tests/test_claims.py` | passing |
+| T-OCCURRENCE-RACE | Two schedulers for one occurrence create one run, also after a crash between steps | offline (multiprocess) | `tests/test_claims.py` | passing |
+| T-STATE-MACHINE | Only table transitions are possible; terminal is absorbing; stale fence rejected | offline (property) | `tests/test_lifecycle.py` | passing |
+| T-MIGRATION-V5 | A v4 database with data migrates; ids, memory, transcripts, schedules survive | offline | `tests/test_migration.py` | passing |
+| T-CROSS-PROCESS-STOP | `stop` from process B ends a run owned by process A | offline (multiprocess) | `tests/test_cancel.py` | passing |
 | T-CANCEL-DESCENDANTS | After terminal cancel no descendant process is alive and none can write | offline | `tests/test_cancel.py` | planned |
-| T-RECEIPT-RECOVERY | Crash after an effect but before its receipt ends `outcome_unknown` and is never replayed | offline | `tests/test_receipts.py` | planned |
+| T-RECEIPT-RECOVERY | Crash after an effect but before its receipt ends `outcome_unknown` and is never replayed | offline | `tests/test_receipts.py` | passing |
 | T-APPROVAL-CAS | Two clients resolve one approval: exactly one wins; a revised action needs a new approval | offline | `tests/test_approval_cas.py` | planned |
 | T-SANDBOX | The shell cannot read the real home or open a socket without a grant; unsupported host fails closed | offline (skips without bwrap) | `tests/test_sandbox.py` | planned |
 | T-ADAPTER-CONTRACT-OPENCODE | OpenCode argv/event parsing matches the installed binary | offline fixtures + live-if-installed | `tests/test_runtime_opencode.py` | planned |
@@ -32,5 +32,5 @@ browser. "Live" means it needs something this host did not have and is skipped w
 | T-INJECTION | Tool-result text cannot add authority or become executable UI | offline | `tests/test_untrusted_content.py` | planned |
 | T-DELEGATION | Depth, fan-out, cycle and budget limits hold | offline | `tests/test_delegation.py` | planned |
 | T-PAIRING | Pairing code is single-use; stale/replayed input is dropped; WebSocket needs auth | offline | `tests/test_pairing.py` | planned |
-| T-HOST-SLEEP | Offline/queued state is reported honestly after the host was suspended | offline | `tests/test_recovery.py` | planned |
+| T-HOST-SLEEP | Offline/queued state is reported honestly after the host was suspended | offline | `tests/test_cancel.py` (lease lapse, fenced zombie) | passing |
 | T-PERF-BUDGET | Control-plane regression budgets hold against the pre-change baseline | offline | `benchmarks/run.py --check` | planned |

@@ -13,7 +13,7 @@ from datetime import datetime, time, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, computed_field, field_validator
 
 
 def utcnow() -> datetime:
@@ -43,21 +43,28 @@ def new_id(prefix: str) -> str:
 
 
 class RunStatus(str, Enum):
-    pending = "pending"
+    """Where a run is in its life. The legal moves between these are defined once, in ``lifecycle.py`` (ADR-0003)."""
+
+    pending = "pending"                    # queued: admitted, nobody owns it yet
     loading_model = "loading_model"        # cold-loading a local model (LM-6)
     running = "running"
     waiting_approval = "waiting_approval"
     waiting_human = "waiting_human"        # login / CAPTCHA wall: a person must act
+    waiting_resources = "waiting_resources"  # a free model slot, memory, or an allowance reset
+    recovering = "recovering"              # the owner was lost; recovery is deciding the outcome
+    cancelling = "cancelling"              # a stop was requested and is not yet verified complete
     succeeded = "succeeded"
     failed = "failed"
-    stopped = "stopped"
+    stopped = "stopped"                    # shown as "Cancelled"; the stored name is kept for compatibility
+    outcome_unknown = "outcome_unknown"    # an action may or may not have happened: a person must review it
     skipped = "skipped"
 
 
 #: statuses in which a run still holds (or is queued for) resources
 ACTIVE_STATUSES = (
     RunStatus.pending, RunStatus.loading_model, RunStatus.running,
-    RunStatus.waiting_approval, RunStatus.waiting_human,
+    RunStatus.waiting_approval, RunStatus.waiting_human, RunStatus.waiting_resources,
+    RunStatus.recovering, RunStatus.cancelling,
 )
 
 
@@ -215,7 +222,32 @@ class Run(BaseModel):
     plan_task_id: Optional[str] = None
     rehearsal: bool = False           # dry run: mutating actions are simulated
     model_override: str = ""          # the model picked for THIS message in the chat switcher (bot.model is untouched)
-    owner: str = ""                   # pid of the process executing this run (orphan recovery)
+    owner: str = ""                   # pid of the process executing this run (kept for compatibility; see lease_owner)
+    # --- ownership (ADR-0001/0003). These mirror columns; the columns are authoritative.
+    fence: int = 0                    # bumped at every claim and recovery; a write with a stale fence is rejected
+    lease_owner: str = ""             # host:pid:nonce of the process that holds this run
+    lease_expires_at: Optional[str] = None
+    cancel_requested: bool = False    # set by any client; the owner acts on it
+    pgid: int = 0                     # process group of the worker, so a supervisor that did not spawn it can still end it
+    verified: Optional[bool] = None   # did the task's expectation hold? None = no expectation was declared
+    reason: str = ""                  # why a waiting/recovering run is in that state (shown with the label)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def status_label(self) -> str:
+        from .lifecycle import LABELS
+        return LABELS[self.status]
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def terminal(self) -> bool:
+        return self.status not in ACTIVE_STATUSES
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def needs_person(self) -> bool:
+        from .lifecycle import NEEDS_PERSON
+        return self.status in NEEDS_PERSON
 
 
 class EventType(str, Enum):

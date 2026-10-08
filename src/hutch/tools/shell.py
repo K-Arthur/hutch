@@ -32,6 +32,10 @@ class ShellTool(Tool):
         },
     )
 
+    def effect(self, args: dict[str, Any], ctx: ToolContext) -> str:
+        command = (args.get("command") or "").strip()
+        return "" if (not command or is_read_only(command)) else "process"
+
     def run(self, args: dict[str, Any], ctx: ToolContext) -> ToolResult:
         command = (args.get("command") or "").strip()
         if not command:

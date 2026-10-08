@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from hutch.approvals import ApprovalGate, DeniedError
-from hutch.models import ApprovalMode, ApprovalRequest, Bot, Event, EventType, Run
+from hutch.models import ApprovalMode, ApprovalRequest, Bot, Event, EventType, Run, RunStatus
 from hutch.safety import PolicyEngine
 from hutch.tools import build_tools, expand_tools
 from hutch.tools.base import ToolContext
@@ -13,7 +13,7 @@ def make_ctx(store, config, tmp_path, bot: Bot | None = None, approval_mode=Appr
     bot = bot or Bot(name="tester", instructions="test", tools=["shell", "files", "memory"], approval_mode=approval_mode)
     if not store.get_bot(bot.name):
         store.create_bot(bot)
-    run = Run(bot_id=bot.id, prompt="test")
+    run = Run(bot_id=bot.id, prompt="test", status=RunStatus.running)    # a gate only ever waits inside a run that has started
     store.create_run(run)
     workspace = tmp_path / "ws"
     workspace.mkdir(exist_ok=True)

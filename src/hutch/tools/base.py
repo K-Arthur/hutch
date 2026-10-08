@@ -46,6 +46,13 @@ class Tool:
     def run(self, args: dict[str, Any], ctx: "ToolContext") -> ToolResult:  # pragma: no cover
         raise NotImplementedError
 
+    def effect(self, args: dict[str, Any], ctx: "ToolContext") -> str:
+        """What kind of lasting effect this call can have: "" (none: a read), "fs", "process" or "web".
+
+        A call with an effect gets an intent row before it runs and a receipt after (ADR-0003), so a crash in between is
+        reported as an unknown outcome and never silently replayed."""
+        return ""
+
     def spec(self) -> dict[str, Any]:
         """OpenAI-style function tool schema."""
         return {
@@ -126,6 +133,7 @@ class ToolContext:
     procs: ProcRegistry = field(default_factory=ProcRegistry)
     cancel_hooks: list[Callable[[], None]] = field(default_factory=list)  # abort in-flight I/O on stop
     dry_run: bool = False             # Rehearse mode: mutating actions are simulated, reads still run
+    closed: bool = False              # the run is over: a worker that outlived it must not start another action
 
 
 #: Tools return up to this much (a hard memory bound). What the MODEL sees is truncated to a per-tool limit in

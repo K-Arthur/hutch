@@ -84,8 +84,7 @@ def run_doctor(config: Any, store: Any, hw: Any = None, deep: bool = False, onli
         f"chmod 700 {config.state_dir}; chmod 600 {keys}/*.key" if loose else "")
 
     # ---- scheduler / service
-    orphans = [r for r in store.active_runs() if r.owner and r.status is not RunStatus.pending
-               and not _pid_alive(r.owner)]
+    orphans = store.expired_runs() + [r for r in store.legacy_live_runs() if r.owner and not _pid_alive(r.owner)]
     add("orphans", "Interrupted runs", WARN if orphans else OK,
         f"{len(orphans)} run(s) belong to a process that exited" if orphans else "no orphaned runs",
         "they are marked failed automatically the next time `hutch serve` or `hutch daemon` ticks" if orphans else "")

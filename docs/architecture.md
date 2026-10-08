@@ -120,9 +120,13 @@ equivalent.
 
 ## Concurrency model
 
-> **Superseded in part.** The in-memory ownership below is the as-built state at the baseline. The target design (SQLite claims,
-> leases and fencing, one worker process per run) is in `docs/adr/0001-control-plane-and-owned-execution.md`; the measured
-> problems with the as-built design are in `docs/realignment/baseline.md`.
+> **Updated (realignment, slice S2).** Ownership is no longer process memory. A run is *claimed* by one atomic SQL statement
+> that also enforces the per-bot rule across processes; the owner heartbeats a lease; every owner write carries a fence;
+> recovery bumps the fence so a stalled worker cannot write; status changes only through `Store.transition_run` against the
+> table in `lifecycle.py`; schedule occurrences are claimed in the same transaction as the run they create. Stop is an intent in
+> the database. Workers are still threads in the engine's process; one worker *process* per run (so a kill is a real kill) is
+> slice S3 and is specified in `docs/adr/0001-control-plane-and-owned-execution.md`. The measured problems with the old
+> design are in `docs/realignment/baseline.md`.
 
 Workers are daemon threads. The engine holds a `_threads` map, a cancel `Event` per run, and a
 reference to the run's approval gate so `stop` unblocks an approval wait immediately. The browser

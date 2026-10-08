@@ -14,7 +14,7 @@ not measured prevalence).
 | `web_fetch` | the name is resolved and **every** answer must be a public address; redirects are followed by hutch and each hop re-checked; the connection is pinned to the validated address (no second lookup); credentials in URLs, internal names and every spelling of a loopback/metadata address (`[::1]`, `0x7f.0.0.1`, decimal, IPv4-mapped, NAT64, 6to4) are refused (`netguard.py`, `tests/test_netguard.py`) |
 | browser | every request the page makes passes the same check, but a browser connects by itself, so DNS rebinding after the check is a residual risk until the browser runs in the network-less sandbox |
 | External runtimes (Pi, OpenCode) | run with their own tools; OpenCode is started with `--auto` (blanket approval of anything it has not denied). Hutch's policy does not see their tool calls |
-| Stopping a run | within the process that owns it; a run owned by another process is not stopped by `hutch stop` (slice S3 fixes this) |
+| Stopping a run | an intent recorded in the database: `hutch stop`, `stop-all` and the dashboard work on a run owned by any process. A worker that lost its run (timeout, recovery) is fenced: it cannot write to it or start another action. Descendant processes are killed by the owner's process-group kill; a *crashed* owner's children are not yet reaped (slice S3, in progress) |
 
 The corrections above are being implemented; `realignment/ledger.md` records which have landed.
 
