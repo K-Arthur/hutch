@@ -65,9 +65,11 @@ The marketing surface is Tailwind + DaisyUI layered on the brand token source:
   include list (`button, badge, card, navbar, footer, table, collapse, alert, link, menu`)
   and a custom `hutch` theme mapped to the pinned brand contract: emerald `#34d399`, 0px
   fields (buttons), 100px selectors (badges/chips), 8px boxes (cards/panels), one dark theme.
-- `npm run build:css` compiles `website/app.css` (29-49 KiB minified, within the 40 KiB CSS
-  budget at the trimmed include list). The built file is committed so the page stays
-  static: no runtime external requests, no build step needed to serve it.
+- Rebuild with `npm install` (once) then `npm run build:css`, which compiles `website/app.css`
+  and stamps each local asset reference in `index.html` with an 8-char content hash so a
+  cached sheet can never outlive its build. The compiled file is committed, so the page
+  stays a static, no-build surface at runtime: no external requests, no toolchain needed to
+  serve it (29-49 KiB minified, within the 40 KiB CSS budget at the trimmed include list).
 - `website/styles.css` holds only hutch-specific pieces — hero weave, proof chrome, code
   window, architecture diagram, receipts/availability tables, footer base, motion.
 - `website/tokens.css` remains the generated source of truth for brand/semantic values;
