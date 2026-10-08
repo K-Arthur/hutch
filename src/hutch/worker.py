@@ -37,6 +37,9 @@ def main(argv: list[str] | None = None) -> int:
 
     config = get_config()
     store = Store(config)
+    stop_requested = threading.Event()
+    signal_finished = threading.Event()
+    signal_worker: threading.Thread | None = None
     try:
         run = store.get_run(args.run_id)
         if run is None:
@@ -57,8 +60,6 @@ def main(argv: list[str] | None = None) -> int:
 
         engine = Engine(config, store, owner_id=args.owner, light=True)
         store.set_pgid(run.id, run.fence, os.getpgrp())
-        stop_requested = threading.Event()
-
         def on_term(_sig, _frm) -> None:
             stop_requested.set()                    # a signal handler only records; a thread does the work
 
@@ -67,9 +68,11 @@ def main(argv: list[str] | None = None) -> int:
 
         def watch_signal() -> None:
             stop_requested.wait()
-            engine.stop_run(run.id)                 # database intent + in-process fast path (hooks, kill children)
+            if not signal_finished.is_set():
+                engine.stop_run(run.id)             # database intent + in-process fast path (hooks, kill children)
 
-        threading.Thread(target=watch_signal, name="hutch-worker-signal", daemon=True).start()
+        signal_worker = threading.Thread(target=watch_signal, name="hutch-worker-signal", daemon=False)
+        signal_worker.start()
         engine._ensure_heartbeat()
         engine._execute(bot, run, threading.Event())
         engine._hb_stop.set()
@@ -77,6 +80,13 @@ def main(argv: list[str] | None = None) -> int:
         final = store.get_run(run.id)
         return EXIT_OK if final is None or final.status not in LIVE else 1
     finally:
+        # A completed run no longer needs signal-to-database translation. Wake the
+        # listener on normal completion too; an in-flight stop must finish before
+        # persistence closes. Late handlers merely set this already-consumed event.
+        signal_finished.set()
+        stop_requested.set()
+        if signal_worker is not None:
+            signal_worker.join()
         store.close()
 
 

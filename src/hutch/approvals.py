@@ -114,7 +114,11 @@ class ApprovalGate:
             plan_id=self.run.plan_id,
             action_hash=action_fingerprint(tool, detail, "" if outward else decision.sticky_key, outward),
         )
-        self.store.create_approval(req)
+        self.store.create_approval(req, expected_fence=self.run.fence)
+        if req.status is ApprovalStatus.expired:
+            self.emit(Event(run_id=self.run.id, type=EventType.approval_resolved,
+                            data={"approval_id": req.id, "result": "expired", "by": req.decided_by}))
+            raise DeniedError("run stopped before the approval request was admitted")
         self.emit(Event(run_id=self.run.id, type=EventType.approval_request,
                         data={"approval_id": req.id, "tool": tool, "action": action,
                               "rule": req.rule, "risk": req.risk, "outward": outward,

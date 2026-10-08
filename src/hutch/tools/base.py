@@ -75,6 +75,10 @@ class ProcRegistry:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
+        self._cleanup_lock = threading.Lock()
+        self._kill_lock = threading.Lock()
+        self._cleanup_threads: list[threading.Thread] = []
+        self._finished = False
         self._procs: dict[int, subprocess.Popen] = {}
         self._groups: dict[int, dict[str, object]] = {}  # pgid -> verified group identity
         self.killed = False
@@ -116,6 +120,32 @@ class ProcRegistry:
             return sum(1 for p in self._procs.values() if p.poll() is None)
 
     def kill_all(self, grace: float = 2.0) -> int:
+        # Cancellation and final verification may race. Serialize their survivor
+        # reports so an older cleanup cannot overwrite the final result.
+        with self._kill_lock:
+            return self._kill_all(grace)
+
+    def request_cleanup(self) -> None:
+        """Start cancellable cleanup once; finish() owns and joins this work."""
+        with self._cleanup_lock:
+            if self._finished or any(t.is_alive() for t in self._cleanup_threads):
+                return
+            with self._lock:
+                self.killed = True
+            thread = threading.Thread(target=self.kill_all, name="hutch-process-cleanup", daemon=False)
+            self._cleanup_threads.append(thread)
+            thread.start()
+
+    def finish(self, grace: float = 0.5) -> None:
+        """Seal async cleanup, join it, then verify before terminal status."""
+        with self._cleanup_lock:
+            self._finished = True
+            threads = list(self._cleanup_threads)
+        for thread in threads:
+            thread.join()
+        self.kill_all(grace)
+
+    def _kill_all(self, grace: float) -> int:
         """End everything the run started: SIGTERM, wait ``grace`` seconds, SIGKILL survivors, then verify. Returns the count
         of live direct children that were signalled; ``self.survivors`` lists anything still alive afterwards."""
         with self._lock:

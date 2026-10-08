@@ -12,6 +12,7 @@ import subprocess
 import sys
 import textwrap
 import time
+import threading
 from pathlib import Path
 
 import pytest
@@ -19,11 +20,71 @@ import pytest
 from hutch import procguard
 from hutch.approvals import resolve_approval
 from hutch.engine import Engine
-from hutch.models import ApprovalMode, Bot, RunStatus
+from hutch.models import ApprovalMode, Bot, Run, RunStatus
 from hutch.store import Store
 
 pytestmark = pytest.mark.skipif(not procguard.available(), reason="needs /proc (Linux)")
 SRC = str(Path(__file__).resolve().parents[1] / "src")
+
+
+@pytest.mark.parametrize("outcome", ["success", "error", "signal"])
+def test_signal_listener_exits_before_database_close_even_on_execution_error(store, config, monkeypatch, outcome):
+    import hutch.worker as worker
+    bot = store.create_bot(Bot(name="signal-cleanup", model="mock/demo", tools=[]))
+    run = store.create_run(Run(bot_id=bot.id, prompt="fixture"))
+    claimed = store.claim_run(run.id, "fixture-owner", 30)
+    handlers, stops, closings = {}, [], []
+    close = store.close
+
+    class FixtureEngine:
+        def __init__(self, *a, **kw):
+            self._hb_stop = threading.Event()
+
+        def _ensure_heartbeat(self):
+            pass
+
+        def _execute(self, bot, run, cancel):
+            if outcome == "error":
+                raise RuntimeError("fixture execution failure")
+            store.transition_run(run.id, RunStatus.running, fence=run.fence)
+            if outcome == "signal":
+                handlers[signal.SIGTERM](signal.SIGTERM, None)
+                assert wait_for(lambda: stops, timeout=2)
+                store.transition_run(run.id, RunStatus.stopped, fence=run.fence)
+            else:
+                store.transition_run(run.id, RunStatus.succeeded, fence=run.fence)
+
+        def stop_run(self, run_id):
+            store.request_cancel(run_id)
+            stops.append(run_id)
+
+    def checked_close():
+        closings.append(True)
+        assert not any(t.name == "hutch-worker-signal" and t.is_alive() for t in threading.enumerate())
+        close()
+
+    monkeypatch.setattr(worker, "get_config", lambda: config)
+    monkeypatch.setattr(worker, "Store", lambda _: store)
+    monkeypatch.setattr(worker, "Engine", FixtureEngine)
+    monkeypatch.setattr(worker.signal, "signal", lambda sig, handler: handlers.setdefault(sig, handler))
+    monkeypatch.setattr(store, "close", checked_close)
+    argv = [run.id, "--owner", claimed.lease_owner, "--fence", str(claimed.fence)]
+    try:
+        if outcome == "error":
+            with pytest.raises(RuntimeError, match="fixture execution failure"):
+                worker.main(argv)
+        else:
+            assert worker.main(argv) == 0
+        handlers[signal.SIGTERM](signal.SIGTERM, None)  # late signal cannot wake a closed-DB consumer
+        assert closings and stops == ([run.id] if outcome == "signal" else [])
+    finally:
+        # Keep even a failing regression from leaving a waiting listener behind.
+        if signal.SIGTERM in handlers:
+            handlers[signal.SIGTERM](signal.SIGTERM, None)
+        for t in threading.enumerate():
+            if t.name == "hutch-worker-signal":
+                t.join(timeout=2)
+        monkeypatch.setattr(store, "close", close)
 
 
 def wait_for(cond, timeout=20.0, step=0.05):

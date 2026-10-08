@@ -145,6 +145,12 @@ conversation to avoid guessing continuity. Versioned conversation writes and run
 builtin runtime receives a capped snapshot of earlier messages; Studio uses the versioned conversation endpoints. Versioned stop and
 approval decisions are also idempotent.
 
+Worker signal listeners and asynchronous process cleanup are owned work: listeners wake on normal
+completion as well as Stop, and finalization joins earlier cleanup before its final process check.
+The database closes only after the event writer exits. If the writer exceeds the shutdown wait,
+closure fails visibly, keeps the connection open and refuses new buffered events; a later close
+can complete after the writer unblocks. A completed close is idempotent.
+
 ## What is deliberately NOT here (yet)
 
 Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, artifact versioning, browser handoff,

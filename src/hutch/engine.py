@@ -300,7 +300,7 @@ class Engine:
                 hook()
             except Exception:
                 pass
-        threading.Thread(target=ctx.procs.kill_all, name=f"hutch-kill-{run_id}", daemon=True).start()
+        ctx.procs.request_cleanup()
 
     # -------------------------------------------------------------- stopping
 
@@ -325,7 +325,7 @@ class Engine:
                     hook()
                 except Exception:
                     pass
-            threading.Thread(target=ctx.procs.kill_all, name=f"hutch-kill-{run_id}", daemon=True).start()
+            ctx.procs.request_cleanup()
         proc = self._procs.get(run_id)
         if proc is not None and proc.poll() is None:
             self._signal_group(proc, signal.SIGTERM)      # the worker unwinds cooperatively; the watcher escalates if it will not
@@ -446,7 +446,7 @@ class Engine:
                     hook()
                 except Exception:
                     pass
-            threading.Thread(target=ctx.procs.kill_all, daemon=True).start()
+            ctx.procs.request_cleanup()
 
         # Supervise: wake on completion, or when the deadline/cancel needs action. The cancel flag lives in the database (a stop
         # from another process lands there), so it is re-read every half second while the run is actually active.
@@ -517,7 +517,7 @@ class Engine:
                 finisher()
             except Exception:
                 pass
-        ctx.procs.kill_all(grace=0.5)  # nothing a run started may outlive it
+        ctx.procs.finish(grace=0.5)  # owned cleanup finishes before status becomes terminal
         if ctx.procs.survivors:
             # Never turn a run terminal while an owned process is still live. A later supervisor retries cleanup.
             left = procguard.describe(ctx.procs.survivors)

@@ -186,5 +186,10 @@ still apply.
 - **Compatibility threads are not a sandbox.** They share the Hutch process. Production commands use owned worker processes;
   new bots request Linux bubblewrap strict containment for the shell. A malicious package install remains bounded only when the
   bot's sandbox is strict. Browser, physical desktop and external-runtime process boundaries are separate.
+- **Shutdown is verified.** Signal listeners finish before persistence closes, and cancellation cleanup finishes before
+  terminal status. A blocked event writer prevents database closure and produces an error; after it exits, closure can be retried.
+  This does not turn a blocked writer into a successful flush or discard its pending work.
+  Stop expires pending approvals with its persisted cancellation intent; requests arriving afterwards expire immediately.
+  Approval admission checks the worker's fence, so a recovered worker cannot introduce another pending decision.
 - Models can lie about completion. That's why artifacts (files written, command exits) are in the
   transcript, not just the model's claims.

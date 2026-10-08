@@ -361,6 +361,7 @@ class Store:
         self._sink_errors: dict[str, list[str]] = {}
         self.dropped_events = 0
         self._closing = False
+        self._closed = False
         self._shutdown_hooks: list[weakref.WeakMethod] = []
         self._writer = threading.Thread(target=self._writer_loop, name="hutch-event-writer", daemon=True)
         self._writer.start()
@@ -519,23 +520,27 @@ class Store:
             self._shutdown_hooks.append(hook)
 
     def close(self) -> None:
-        if self._closing:
+        if self._closed:
             return
-        for hook in list(self._shutdown_hooks):
-            owner_shutdown = hook()
-            if owner_shutdown is not None:
-                owner_shutdown()
-        self.flush_events()
-        with self._buf_cv:
-            self._closing = True
-            self._buf_cv.notify_all()
+        if not self._closing:
+            for hook in list(self._shutdown_hooks):
+                owner_shutdown = hook()
+                if owner_shutdown is not None:
+                    owner_shutdown()
+            self.flush_events()
+            with self._buf_cv:
+                self._closing = True
+                self._buf_cv.notify_all()
         self._writer.join(timeout=5)
+        if self._writer.is_alive():
+            # Do not close a connection still owned by the writer. Retain the
+            # closing state (new events are refused); callers may retry closure
+            # after the blocked commit exits, without rerunning owner shutdown.
+            raise RuntimeError("cannot close Hutch state while the event writer is still running")
         self.hub.close()
         with self._lock:
-            try:
-                self._db.close()
-            except sqlite3.Error:
-                pass
+            self._db.close()
+            self._closed = True
 
     # ------------------------------------------------------------- bots
 
@@ -1209,6 +1214,9 @@ class Store:
             if replay is None:
                 if RunStatus(row["status"]) not in TERMINAL:
                     db.execute("UPDATE runs SET cancel_requested = 1 WHERE id = ?", (run_id,))
+                    patch = _canonical({"status": "expired", "resolved_at": iso(utcnow()), "decided_by": "stopped"})
+                    db.execute("UPDATE approvals SET status = 'expired', doc = json_patch(doc, ?) "
+                               "WHERE run_id = ? AND status = 'pending'", (patch, run_id))
                 if idem_key is not None:
                     db.execute("INSERT INTO idempotency_keys(scope, key, request_hash, response_json, created_at) "
                                "VALUES (?, ?, ?, ?, ?)",
@@ -1225,7 +1233,7 @@ class Store:
                 run = self.transition_run(run_id, RunStatus.cancelling, event={"reason": "stop requested"})
         except (IllegalTransition, LeaseLost):
             run = self.get_run(run_id) or run                     # finished in the meantime: nothing to stop
-        self.bus.notify(f"approval:wake:{run_id}", f"human:{run_id}", f"run:{run_id}", "work")
+        self.bus.notify(f"approval:wake:{run_id}", f"human:{run_id}", f"run:{run_id}", "approvals", "work")
         return run
 
     def is_cancel_requested(self, run_id: str) -> bool:
@@ -1448,6 +1456,8 @@ class Store:
         a supervisor recovering it); a per-process counter would give them colliding numbers and a broken chain. Reads call
         ``flush_events`` first, so every reader still sees its own writes."""
         with self._buf_cv:
+            if self._closing:
+                raise RuntimeError("Hutch state is closing; new events are refused")
             if event.run_id in self._sealed:
                 return event                  # the run is over: a worker that outlived it cannot extend the transcript
             self._pending.append(event)
@@ -1708,15 +1718,22 @@ class Store:
 
     # -------------------------------------------------------- approvals
 
-    def create_approval(self, req: ApprovalRequest) -> ApprovalRequest:
-        with self._lock:
-            self._db.execute(
+    def create_approval(self, req: ApprovalRequest, *, expected_fence: Optional[int] = None) -> ApprovalRequest:
+        with self._tx() as db:
+            row = db.execute("SELECT status, cancel_requested, fence FROM runs WHERE id = ?", (req.run_id,)).fetchone()
+            if row is None:
+                raise KeyError(req.run_id)
+            if expected_fence is not None and row["fence"] != expected_fence:
+                raise LeaseLost(req.run_id, "cannot request approval with stale ownership")
+            if req.status is ApprovalStatus.pending and (
+                    row["cancel_requested"] or RunStatus(row["status"]) in TERMINAL | {RunStatus.cancelling, RunStatus.recovering}):
+                req.status, req.resolved_at, req.decided_by = ApprovalStatus.expired, iso(utcnow()), "stopped"
+            db.execute(
                 "INSERT INTO approvals (id, run_id, bot_id, status, created_at, doc, action_hash, expires_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (req.id, req.run_id, req.bot_id, req.status.value, req.created_at, req.model_dump_json(),
                  req.action_hash, req.expires_at),
             )
-            self._db.commit()
         self.bus.notify("approvals", "work", f"run:{req.run_id}")
         return req
 

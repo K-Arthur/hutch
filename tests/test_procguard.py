@@ -20,8 +20,45 @@ from hutch import procguard
 from hutch.engine import Engine
 from hutch.models import ApprovalMode, Bot, RunStatus
 from hutch.runtime.steps import call_tool
+from hutch.tools.base import ProcRegistry
 
 pytestmark = pytest.mark.skipif(not procguard.available(), reason="needs /proc (Linux)")
+
+
+def test_final_cleanup_joins_prior_work_and_refuses_late_cleanup(monkeypatch):
+    registry = ProcRegistry()
+    entered, release = threading.Event(), threading.Event()
+    calls = []
+
+    def held_kill(grace=2):
+        calls.append(grace)
+        if len(calls) == 1:
+            entered.set()
+            assert release.wait(5)
+        return 0
+
+    monkeypatch.setattr(registry, "kill_all", held_kill)
+    registry.request_cleanup()
+    finisher = threading.Thread(target=registry.finish, name="fixture-final-cleanup")
+    try:
+        assert entered.wait(2)
+        registry.request_cleanup()  # coalesces an already active cancellation
+        finisher.start()
+        end = time.monotonic() + 2
+        while not registry._finished and time.monotonic() < end:
+            time.sleep(0.001)
+        assert registry._finished and finisher.is_alive()
+        assert calls == [2], "final verification must wait for owned cleanup"
+        registry.request_cleanup()  # no work may start after finalization seals it
+    finally:
+        release.set()
+        if finisher.ident:
+            finisher.join(timeout=2)
+        for thread in registry._cleanup_threads:
+            thread.join(timeout=2)
+    assert not finisher.is_alive() and calls == [2, 0.5]
+    registry.request_cleanup()
+    assert len(registry._cleanup_threads) == 1
 
 
 def spawn_sh(script: str) -> subprocess.Popen:

@@ -6,6 +6,8 @@ import sqlite3
 import threading
 import time
 
+import pytest
+
 from hutch.config import get_config
 from hutch.models import Bot, Event, EventType, Run
 from hutch.store import GENESIS, SCHEMA_VERSION, Store, chain_hash
@@ -15,6 +17,39 @@ from hutch.wake import Bus
 def _run(store) -> Run:
     bot = store.create_bot(Bot(name="evbot"))
     return store.create_run(Run(bot_id=bot.id, prompt="x"))
+
+
+def test_close_keeps_persistence_open_until_a_blocked_event_writer_exits(store, monkeypatch):
+    run = _run(store)
+    entered, release = threading.Event(), threading.Event()
+    commit = store._commit_batch
+    join, flush = store._writer.join, store.flush_events
+
+    def held_commit(batch):
+        entered.set()
+        assert release.wait(5), "test must release the writer"
+        return commit(batch)
+
+    monkeypatch.setattr(store, "_commit_batch", held_commit)
+    monkeypatch.setattr(store, "flush_events", lambda **kw: flush(timeout=0.01))
+    monkeypatch.setattr(store._writer, "join", lambda **kw: join(timeout=0.01))
+    store.append_event(Event(run_id=run.id, type=EventType.log, data={"held": True}))
+    try:
+        assert entered.wait(2)
+        with pytest.raises(RuntimeError, match="event writer is still running"):
+            store.close()
+        assert store._db.execute("SELECT 1").fetchone()[0] == 1
+        with pytest.raises(RuntimeError, match="closing"):
+            store.append_event(Event(run_id=run.id, type=EventType.log, data={"late": True}))
+    finally:
+        release.set()
+        join(timeout=3)
+    assert not store._writer.is_alive()
+    assert store._db.execute("SELECT COUNT(*) FROM events WHERE run_id = ?", (run.id,)).fetchone()[0] == 1
+    store.close()  # retry completes rather than returning merely because closing began
+    with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+        store._db.execute("SELECT 1")
+    store.close()  # completed closure remains idempotent
 
 
 def test_seq_is_contiguous_per_run_and_independent_between_runs(store):

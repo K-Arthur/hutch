@@ -234,3 +234,32 @@ as failures. The refreshed navigation capture at 08:28 UTC contains **39 screens
 traces and three current inspection sheets, with no page errors or horizontal overflow.
 The two Fleet attention screenshots are separate from those 39. Source hashes pin the
 `03706f2` plus refinement working tree; site derivatives now use these refreshed sources.
+
+Fleet attention and refreshed evidence commit: `8659cb8`.
+
+## Shutdown ownership follow-up (2026-10-08)
+
+Code inspection found the worker's signal listener waited forever on normal completion, was not
+joined, and could reach persistence after close if a late signal woke it. Cancellation cleanup
+also used untracked threads, allowing cleanup to finish after final verification. Worker listeners
+now wake and join on every exit; process registries coalesce and own cancellation cleanup, seal
+new async cleanup at finalization, join earlier work and serialize survivor verification.
+
+The Store also closed its connection after a timed join without checking the event writer.
+It now reports a still-live writer, keeps the connection open, refuses new buffered events and
+allows closure to be retried. Deterministic blockers cover this path, listener success/error/Stop
+paths, cleanup coalescing and a run remaining Stopping until the prior cleanup finishes. The
+first focused listener/writer/core suite passed **67 tests in 53.65s**; the expanded suite and
+full verification follow. No schema, frontend or support-boundary change.
+
+The expanded suite initially reported **82 passed, 1 failed in 85.99s**: Stop moved the run
+to Cancelling before its pending request expired. This was repaired rather than weakening
+the timing assertion. Cancellation now expires pending requests in the intent transaction;
+new requests after cancellation persist as expired, and stale fences cannot create requests.
+The repaired worker/writer/cleanup/approval/core suite passed **94 tests in 58.03s**.
+
+Full offline verification passed **1,045 tests in 225.52s**, with background-thread warnings
+treated as failures. The unreferenced admission module under development is not part of this
+shutdown verification or commit; it needs its own contention and runtime integration checks.
+After narrowing the new expiration guard to pending requests (preserving already decided import
+records), the approval/writer/worker suite again passed **35 tests in 18.89s**.

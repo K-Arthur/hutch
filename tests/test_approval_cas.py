@@ -23,6 +23,32 @@ from hutch.safety import PolicyEngine
 SRC = str(Path(__file__).resolve().parents[1] / "src")
 
 
+def test_stop_expires_existing_and_late_approvals_without_a_sticky_grant(store):
+    req = make_req(store)
+    store.request_cancel(req.run_id)
+    assert store.pending_approvals() == []
+    old = store.get_approval(req.id)
+    assert old.status is ApprovalStatus.expired and old.decided_by == "stopped"
+    assert not resolve_approval_ex(store, req.id, True, by="late-client", sticky=True).won
+    assert not store.is_sticky_allowed(req.bot_id, req.sticky_key)
+    later = store.create_approval(ApprovalRequest(
+        run_id=req.run_id, bot_id=req.bot_id, tool="files", action="late request", detail={"content": "fixture"}))
+    assert later.status is ApprovalStatus.expired and later.decided_by == "stopped"
+    assert store.pending_approvals() == []
+
+
+def test_stale_worker_cannot_create_an_approval_after_ownership_changed(store):
+    from hutch.lifecycle import LeaseLost
+    bot = store.create_bot(Bot(name="stale-review"))
+    run = store.create_run(Run(bot_id=bot.id, prompt="fixture"))
+    claimed = store.claim_run(run.id, "new-owner", 30)
+    assert claimed.fence > run.fence
+    with pytest.raises(LeaseLost, match="stale ownership"):
+        store.create_approval(ApprovalRequest(
+            run_id=run.id, bot_id=bot.id, tool="files", action="stale request"), expected_fence=run.fence)
+    assert store.pending_approvals() == []
+
+
 def make_req(store, **kw) -> ApprovalRequest:
     bot = store.get_bot("b") or store.create_bot(Bot(name="b", model="mock/demo", tools=["shell"]))
     run = store.create_run(Run(bot_id=bot.id, prompt="x", status=RunStatus.running))

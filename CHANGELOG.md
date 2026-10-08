@@ -4,6 +4,15 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ## [Unreleased]
 
+### Fixed
+
+- Join worker signal listeners on completion and execution errors, and join cancellation cleanup
+  before terminal status. Serialize cleanup verification so a stale survivor report cannot win.
+- Refuse database closure while the event writer remains alive; preserve its connection and allow
+  closure to be retried after it exits. Closing state refuses new buffered events.
+- Stop expires pending approvals in its cancellation transaction; later requests expire immediately
+  and stale workers cannot admit a new request.
+
 ### Added
 - **Provider authority and retry accounting:** hosted account/destination changes require a
   per-run outward decision, including from a hosted primary. Reviewed routes cannot change

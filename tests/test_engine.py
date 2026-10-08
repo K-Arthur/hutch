@@ -21,6 +21,49 @@ def mock_bot(name="runner", tools=("shell", "files", "memory"), **kw) -> Bot:
     return Bot(**defaults)
 
 
+def test_run_stays_cancelling_until_prior_cleanup_finishes(store, config, monkeypatch):
+    import threading
+    import hutch.engine as engine_module
+    from hutch.tools.base import ProcRegistry
+    started, cleanup, finalizing, release = (threading.Event() for _ in range(4))
+    finish = ProcRegistry.finish
+
+    class Runtime:
+        kind = "fixture"
+        def execute(self, run, ctx, tools, stop):
+            started.set()
+            while not stop():
+                time.sleep(0.001)
+            return "stopped fixture"
+
+    def held_kill(self, grace=2):
+        cleanup.set()
+        assert release.wait(5)
+        return 0
+
+    def observed_finish(self, grace=0.5):
+        finalizing.set()
+        finish(self, grace)
+
+    monkeypatch.setattr(engine_module, "get_runtime", lambda _: Runtime())
+    monkeypatch.setattr(ProcRegistry, "kill_all", held_kill)
+    monkeypatch.setattr(ProcRegistry, "finish", observed_finish)
+    engine = Engine(config, store)
+    run = engine.submit(store.create_bot(mock_bot(tools=[])), "cancel fixture")
+    engine.dispatch_pending()
+    try:
+        assert started.wait(2)
+        engine.stop_run(run.id)
+        assert cleanup.wait(2) and finalizing.wait(2)
+        assert store.get_run(run.id).status is RunStatus.cancelling
+        assert engine._threads[run.id].is_alive()
+    finally:
+        release.set()
+        engine.shutdown(timeout=3)
+    assert store.get_run(run.id).status is RunStatus.stopped
+    assert not any(t.name == "hutch-process-cleanup" and t.is_alive() for t in threading.enumerate())
+
+
 def test_run_blocking_success_flow(store, config, tmp_path):
     bot = store.create_bot(mock_bot())
     engine = Engine(config, store)
