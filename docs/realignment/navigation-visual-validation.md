@@ -1,8 +1,8 @@
 # Navigation functional and visual verification
 
-Captured 2026-10-08 at 10:57 UTC with Python 3.13.15, Playwright 1.63.0, Firefox 155
-and Pillow 12.3.0. The capture used `c40336e` with schema-v11 resource replay and atomic review
-events in its working tree, after the resolved merge of `main` at `d7d0029` and conversation control fixes.
+Captured 2026-10-08 at 11:48 UTC with Python 3.13.15, Playwright 1.63.0, Firefox 155
+and Pillow 12.3.0. The capture used `f5696ce` with schema-v12 recoverable transcript delivery
+in its working tree, after the resolved merge of `main` at `d7d0029` and conversation control fixes.
 Source hashes are retained. This is local fixture
 evidence, not a physical-phone, screen-reader or live provider certification.
 
@@ -43,7 +43,7 @@ visible-route guard; the expanded run reported **36 passed, 1 failed in 129.41s*
 tablet fixture edited the old form before navigation loaded. Waiting for the new heading
 preserves the intended late-response assertion; all three viewport journeys then passed
 **3 tests in 22.87s**. The corrected full browser/site repeat passed **37 tests in 118.02s**.
-The 10:57 navigation capture
+The 11:48 navigation capture
 pins the completed application source; browser-generated scenarios have their own current hashes.
 Conversation-order assertions verify
 one user prompt preceding its assistant block, with no prompt echoed as an assistant answer
@@ -81,8 +81,18 @@ three sizes. Full-size desktop wait, phone wait/timing and tablet timing were in
 are synthetic records; cross-process and runtime HTTP fixtures verify actual admission separately.
 The two additional `artifacts/conversation-authority/` captures were inspected after exercising
 header Review, failure retention and real Stop against a synthetic old wait and seven queued turns.
-All three 10:57 contact sheets and the full-size phone wait were inspected after recapture;
+All three 11:48 contact sheets were inspected after recapture;
 Review and the complete waiting label remain visible, with decisions above the composer.
+
+The initial transcript-delivery run passed **1,123 offline tests in 240.60s**, including FULL WAL
+synchronization, byte/cache bounds and blocked shutdown. Three added browser journeys passed
+**3 tests in 7.57s**; their full-size desktop/tablet/phone views in `artifacts/transcript-mirror/`
+were inspected. They inject an IO failure and verify actual retry clears the warning while
+retaining Done, the canonical answer and an unsent focused draft. No error or overflow was
+observed. The final coalescing, group-commit and explicit-flush refinements then passed
+**1,126 offline tests in 243.33s** and **40 browser/site tests in 127.35s**. All three final
+mirror-error views and navigation inspection sheets were inspected after recapture. This is
+filesystem/browser fixture evidence, not a live power-cut certification.
 
 | Check | Observed result |
 |---|---|

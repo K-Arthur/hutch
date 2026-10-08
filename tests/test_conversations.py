@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import time
 
 from fastapi.testclient import TestClient
@@ -52,7 +53,10 @@ def test_versioned_conversations_are_persisted_and_idempotent(tmp_path, monkeypa
             "role": "user", "content": "Research project risks"}
         assert app.state.store.verify_chain(run_id)["ok"] is True
         transcript_file = app.state.config.run_dir("conversation-bot", run_id) / "transcript.jsonl"
-        assert '"role": "user"' in transcript_file.read_text(encoding="utf-8")
+        app.state.store.flush_transcripts()
+        mirrored = [json.loads(line) for line in transcript_file.read_text(encoding="utf-8").splitlines()]
+        assert mirrored[0]["data"] == {"role": "user", "content": "Research project risks"}
+        assert len(mirrored) == len(transcript)
 
         same = client.post(messages_url, json={"prompt": "Research project risks"},
                            headers={"Idempotency-Key": "send-1"})

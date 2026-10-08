@@ -718,6 +718,71 @@ def test_queued_chat_keeps_earlier_approval_and_live_status_fresh(browser, live)
 
 
 @pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (900, 1024, "tablet"), (390, 844, "phone")])
+def test_transcript_mirror_error_preserves_done_and_recovers_without_losing_draft(browser, live, monkeypatch, width, height, size):
+    import hashlib
+    import json
+    from pathlib import Path
+    from hutch.models import Run, Task, iso, utcnow
+    base, app = live
+    store = app.state.store
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    original = store._mirror._deliver
+    released = threading.Event()
+    def delivery(row):
+        if not released.is_set():
+            raise OSError("fixture: transcript file is temporarily unavailable")
+        return original(row)
+    monkeypatch.setattr(store._mirror, "_deliver", delivery)
+    bot = store.create_bot(Bot(name="mirror-fixture", model="mock/demo", tools=[]))
+    conv, _ = store.create_conversation(bot.id, "Audit recovery fixture", idem_key="create", request_hash="create")
+    run = Run(bot_id=bot.id, prompt="Sanitized transcript recovery fixture")
+    store.submit_conversation_message(conv["id"], run.prompt, run, Task(bot_id=bot.id, prompt=run.prompt),
+                                     idem_key="turn", request_hash="turn")
+    store.transition_run(run.id, RunStatus.running)
+    store.append_event(Event(run_id=run.id, type=EventType.message,
+                             data={"role": "assistant", "content": "This answer is committed in database history."}))
+    store.transition_run(run.id, RunStatus.succeeded)
+    deadline = time.monotonic() + 5
+    while not store._mirror.status(run.id)["error"] and time.monotonic() < deadline:
+        time.sleep(0.02)
+    assert store._mirror.status(run.id)["error"]
+    page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/transcript-mirror"
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        page.goto(base + "/#/conversation/" + conv["id"])
+        warning = page.locator(".run-notice").filter(has_text="Transcript file needs attention")
+        warning.wait_for()
+        assert "Database history remains available" in warning.inner_text()
+        assert page.locator(".mhead").get_by_text("Done", exact=True).count() == 1
+        assert page.get_by_text("This answer is committed in database history.", exact=True).count() == 1
+        page.locator("#chat-prompt").fill("Keep this unsent draft during audit recovery")
+        page.locator("#chat-prompt").focus()
+        page.screenshot(path=str(out / f"{size}.png"), full_page=True, animations="disabled")
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow <= 1 and not errors
+        released.set()
+        store._mirror.wake.set()
+        store.flush_transcripts()
+        warning.wait_for(state="detached", timeout=15000)
+        assert page.locator(".mhead").get_by_text("Done", exact=True).count() == 1
+        assert page.locator("#chat-prompt").input_value() == "Keep this unsent draft during audit recovery"
+        assert page.locator("#chat-prompt").evaluate("e => e === document.activeElement")
+        (out / f"{size}.json").write_text(json.dumps({
+            "captured_at": iso(utcnow()), "browser": browser.browser_type.name, "version": browser.version,
+            "viewport": [width, height], "scenario": "fixture IO failure; real durable retry and invalidation; no live provider",
+            "page_errors": errors, "horizontal_overflow": overflow, "draft_and_focus_preserved": True,
+            "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest()
+                for p in ("src/hutch/server/static/app.js", "src/hutch/store.py", "src/hutch/server/app.py", "src/hutch/transcript_mirror.py")},
+        }, indent=2) + "\n")
+    finally:
+        released.set()
+        page.close()
+
+
+@pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (900, 1024, "tablet"), (390, 844, "phone")])
 def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(browser, live, monkeypatch, width, height, size):
     import hashlib
     import json

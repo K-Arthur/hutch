@@ -169,14 +169,19 @@ def test_snapshot_state_and_change_cursor_share_one_read_snapshot(store, config,
 
 def test_upgrade_v10_preserves_state_and_initializes_fresh_change_history(config, monkeypatch):
     from hutch import store as store_module
+    from hutch.transcript_mirror import TranscriptMirror
     migrations = store_module._MIGRATIONS
+    version = store_module.SCHEMA_VERSION
+    start = TranscriptMirror.start
+    monkeypatch.setattr(TranscriptMirror, "start", lambda self: None)
     monkeypatch.setattr(store_module, "SCHEMA_VERSION", 10)
-    monkeypatch.setattr(store_module, "_MIGRATIONS", migrations[:-1])
+    monkeypatch.setattr(store_module, "_MIGRATIONS", migrations[:9])
     legacy = Store(config)
     bot = legacy.create_bot(Bot(name="v10-preserved"))
     legacy.close()
-    monkeypatch.setattr(store_module, "SCHEMA_VERSION", 11)
+    monkeypatch.setattr(store_module, "SCHEMA_VERSION", version)
     monkeypatch.setattr(store_module, "_MIGRATIONS", migrations)
+    monkeypatch.setattr(TranscriptMirror, "start", start)
     upgraded = Store(config)
     try:
         assert upgraded.get_bot(bot.id).name == "v10-preserved"
@@ -194,7 +199,7 @@ def test_upgrade_v10_preserves_state_and_initializes_fresh_change_history(config
         restored = Store(restored_config)
         try:
             assert restored.get_bot(bot.id).name == "v10-preserved"
-            assert restored.schema_version == 11
+            assert restored.schema_version == version
             with pytest.raises(durable_changes.SnapshotRequired):
                 restored.list_resource_changes(upgraded.list_resource_changes()["cursor"])
         finally:

@@ -74,8 +74,12 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   event without an ID before closing SSE. Fetch a snapshot and its remaining resource pages,
   then replay from `change_cursor`; this cursor shares the snapshot's read transaction.
   A new client starts with a snapshot; migration does not invent historic invalidations.
-  Retention remains manual. A restored v11 history needs epoch rotation before services/clients
-  restart; see [operations](../operations.md). This outbox does not deliver JSONL files.
+  Retention remains manual. A restored v11-or-newer history needs epoch rotation before services/clients
+  restart; see [operations](../operations.md). Schema v12 adds the `transcript_mirrors` resource,
+  with run context, for delivery/error invalidation. A separate queue delivers JSONL files.
+  Run resources expose `transcript_mirror` with `target_seq`, `delivered_seq`, `pending`,
+  `error` and transient `worker_error`. These describe file delivery, not executor status.
+  A Done run with a pending file keeps its completion label and canonical database answer.
 * Pairing codes expire after 60 seconds and are single use. They issue HttpOnly device sessions, hash-only at rest, with a sliding
   30-day expiry. Operators can list/revoke sessions using `hutch pairing list` and `hutch pairing revoke <device-id>`; pairing is
   limited to five failed attempts per source IP per ten minutes. Off-loopback binding requires `hutch serve --allow-remote` and direct

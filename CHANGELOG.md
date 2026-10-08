@@ -6,6 +6,11 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Fixed
 
+- Schema v12 enqueues JSONL delivery with committed events, verifies file prefixes and retries
+  after restart without duplicate rows. Damaged mirrors are preserved before reconstruction;
+  pending errors stay visible without changing a Done run. Delivery is bounded and joined before
+  database closure. FULL WAL synchronization makes action prerequisites durable before admission,
+  subject to storage honoring synchronization; live power-cut certification remains unavailable.
 - Provider settlement/release requires unexpired worker ownership and cannot change the reserved
   run, bot, model, provider or account. Changed duplicate settlement conflicts; uncertain usage
   requires explicit reconciliation. Unresolved holds stay counted across midnight/quota rollover.

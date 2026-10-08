@@ -17,7 +17,6 @@ approval waits, and kill every child process group the run started.
 
 from __future__ import annotations
 
-import json
 import os
 import signal
 import socket
@@ -363,16 +362,8 @@ class Engine:
             workspace = run_dir / "workspace"
             workspace.mkdir(parents=True, exist_ok=True)
         run_dir.mkdir(parents=True, exist_ok=True)
-        transcript = run_dir / "transcript.jsonl"
         closed = threading.Event()          # set once the run is over: a late worker's events and tool calls are dropped
         degraded: list[str] = []            # audit writes that failed: shown, never silent
-
-        def mirror(ev: Event) -> None:
-            """Append-only JSONL mirror. The store calls this for every event, in sequence order, whether it arrived through the
-            batched path or an atomic status transition; a failure is collected by the store and reported, not swallowed."""
-            with transcript.open("a", encoding="utf-8") as fh:
-                fh.write(json.dumps({"seq": ev.seq, "ts": ev.ts, "type": ev.type.value,
-                                     "data": ev.data, "hash": ev.hash}, ensure_ascii=False) + "\n")
 
         def emit(ev: Event) -> None:
             if closed.is_set():
@@ -386,14 +377,12 @@ class Engine:
 
         # The first step of a run's life. A stop that arrived between the claim and now is noticed here: the run is then
         # 'cancelling' and not allowed to start.
-        self.store.attach_sink(run.id, mirror)
         try:
             run = self.store.transition_run(
                 run.id, RunStatus.running, fence=run.fence, event={"origin": run.origin},
                 fields={"started_at": iso(utcnow()), "workspace": str(workspace), "owner": str(os.getpid())})
         except (IllegalTransition, LeaseLost, KeyError):
             self._finish_unstarted(run)
-            self.store.detach_sink(run.id)
             return
         if run.missed_windows:
             emit(Event(run_id=run.id, type=EventType.log,
@@ -551,7 +540,6 @@ class Engine:
             try:
                 self.store.flush_events()
             finally:
-                self.store.detach_sink(run.id)
                 self._gates.pop(run.id, None)
                 self._cancels.pop(run.id, None)
                 self._ctxs.pop(run.id, None)
@@ -570,7 +558,7 @@ class Engine:
         ctx.closed = True
         gate.cancel_requested = True
         data: dict[str, object] = {"reason": outcome_reason}
-        degraded.extend(self.store.sink_errors(run.id))      # an unwritable transcript is reported on the final event
+        degraded.extend(self.store.sink_errors(run.id))      # observer failures remain visible; mirror delivery has its own ledger
         if degraded:
             data["audit_degraded"] = len(degraded)
             data["audit_error"] = degraded[0][:200]
@@ -587,7 +575,6 @@ class Engine:
             self.store.flush_events()
         except sqlite3.ProgrammingError:
             return                      # the database was closed under us (shutdown); the lease lapses and recovery decides
-        self.store.detach_sink(run.id)
         self._gates.pop(run.id, None)
         self._cancels.pop(run.id, None)
         self._ctxs.pop(run.id, None)

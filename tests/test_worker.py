@@ -127,6 +127,7 @@ def test_a_run_executes_in_its_own_process_and_finishes_cleanly(store, config, e
     assert (Path(done.workspace) / "report.md").exists()
     assert store.verify_chain(run.id)["ok"]
     transcript = config.run_dir("auto", run.id) / "transcript.jsonl"
+    store.flush_transcripts()
     assert len(transcript.read_text().splitlines()) >= len(store.list_events(run.id))
     assert (config.run_dir("auto", run.id) / "worker.log").exists()
     assert wait_for(lambda: not alive(done.pgid), 10)                    # the worker process exited

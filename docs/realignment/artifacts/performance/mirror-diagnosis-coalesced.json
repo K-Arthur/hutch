@@ -1,0 +1,77 @@
+[
+  {
+    "mode": "running",
+    "samples": [
+      58522.434588919736,
+      51205.00705089077,
+      45183.73652157101,
+      47219.8508896466,
+      51378.825409668025
+    ],
+    "median": 51205.00705089077,
+    "mirror_before_final_flush": {
+      "target_seq": 100000,
+      "delivered_seq": 128,
+      "pending": true,
+      "error": "",
+      "worker_error": ""
+    },
+    "tail_delivery_ms": 1171.9607670092955,
+    "synchronous": 2,
+    "load": [
+      0.7900390625,
+      0.86279296875,
+      0.990234375
+    ]
+  },
+  {
+    "mode": "paused-fixture",
+    "samples": [
+      66576.1060832713,
+      56582.195494675434,
+      47499.63973612862,
+      48057.03127414846,
+      50909.703058616375
+    ],
+    "median": 50909.703058616375,
+    "mirror_before_final_flush": {
+      "target_seq": 100000,
+      "delivered_seq": 0,
+      "pending": true,
+      "error": "",
+      "worker_error": ""
+    },
+    "tail_delivery_ms": 0.0004901085048913956,
+    "synchronous": 2,
+    "load": [
+      0.7900390625,
+      0.86279296875,
+      0.990234375
+    ]
+  },
+  {
+    "mode": "running",
+    "samples": [
+      65005.200686465294,
+      55595.41252597883,
+      49935.169672527256,
+      46172.40876785157,
+      52854.292750989596
+    ],
+    "median": 52854.292750989596,
+    "mirror_before_final_flush": {
+      "target_seq": 100000,
+      "delivered_seq": 128,
+      "pending": true,
+      "error": "",
+      "worker_error": ""
+    },
+    "tail_delivery_ms": 1178.0532990815118,
+    "synchronous": 2,
+    "load": [
+      0.7265625,
+      0.84814453125,
+      0.98486328125
+    ]
+  }
+]

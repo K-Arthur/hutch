@@ -72,7 +72,7 @@ hutch daemon                 # headless: schedules, dispatch, approval expiry
 - **Approvals that don't nag** — ask-once with sticky always-allows; unanswered = denied
 - **Usage budgets** — steps and wall-clock limits plus atomic per-bot token and shared provider-account reservations. Currency checks use recorded prices and prompt estimates; unknown-price routes are refused while a currency cap is set, and provider billing can differ. `hutch usage reservations` lists uncertain charges for reconciliation. `serve`, `daemon`, and `hutch run` use one owned worker process per attempt; cancellation stays visible until cleanup is verified
 - **Workspace and shell containment** — file tools stay in the workspace. New bots request Linux bubblewrap strict mode for shell commands, with no shell network and bounded resources; unsupported hosts fail closed. Existing bots keep their saved setting, and `sandbox: off` is explicitly uncontained execution. This shell boundary is not a VM and does not contain the browser or external runtimes
-- **Run transcripts** — canonical SQLite events plus a separate JSONL mirror; a crash/write failure can leave the mirror behind
+- **Run transcripts** — canonical SQLite events and recoverable JSONL files; durable delivery retries after restart and shows pending file errors without losing chat history
 - **Reconnectable state** — ordered resource invalidations and snapshot reconciliation; chat approvals refresh without replacing the draft
 - **Conversations (preview)** — the Studio stores separate threads across restarts, offers thread switching and archive, and sends a
   bounded recent history to the builtin runtime. The versioned API has SQLite full-text search, restart-safe command idempotency,

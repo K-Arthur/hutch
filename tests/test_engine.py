@@ -80,6 +80,7 @@ def test_run_blocking_success_flow(store, config, tmp_path):
     assert events[-1].data["status"] == "succeeded"
 
     # append-only transcript on disk mirrors events
+    store.flush_transcripts()
     transcript_dir = config.run_dir(bot.name, run.id)
     lines = (transcript_dir / "transcript.jsonl").read_text().splitlines()
     assert len(lines) >= len(events)

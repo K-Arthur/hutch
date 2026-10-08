@@ -1,6 +1,6 @@
 # ADR-0012: Transactional resource changes and client reconciliation
 
-Status: implemented for local resource invalidation (2026-10-08). Slices: S4/S8. Transcript-file delivery, external notifications and interactive control remain separate work.
+Status: implemented for local resource invalidation (2026-10-08). Slices: S4/S8. Transcript-file delivery is separately implemented in ADR-0013; external notifications and interactive control remain pending.
 
 ## Decision
 
@@ -39,8 +39,9 @@ summaries so a worker crash before its response event cannot leave an already-de
 Existing resources are not fabricated as historic changes during migration; a new client
 starts with a snapshot. Retention is not automatic. The feed is an invalidation outbox, not
 exactly-once external notification delivery, full event sourcing or a durable JSONL drainer.
-The separate JSONL mirror can still lag after a crash/write failure. SQLite synchronous mode
-remains NORMAL; process-crash fixtures do not certify power-loss durability.
+Schema v12 adds a separate recoverable JSONL queue and changes SQLite synchronization from
+NORMAL to FULL; see [ADR-0013](0013-recoverable-transcript-files.md). File delivery can lag or
+remain in an observable error state. Process-crash fixtures do not certify power-loss durability.
 
 An unmanaged restore of a v11 database can rewind and later reuse its epoch/IDs. Services and
 clients must be stopped and the restored epoch rotated before restart; reconnect alone is

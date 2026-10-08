@@ -87,3 +87,46 @@ To reproduce the current capture from the repository root, run `.venv/bin/python
 extract `b3e4b15` with `git archive`, copy `benchmarks/run.py` and its package files from the current revision into the archive, then
 run the same command there with `HUTCH_BENCH_SOURCE_REVISION=b3e4b15`. The full command and harness hash are also recorded in each
 artifact's metadata and the notebook.
+
+### Transcript-delivery checkpoint, 2026-10-08
+
+The clean `f5696ce` archive and schema-v12 tree use the same harness/interpreter and full
+repetitions. The final capture ran after all tests and visual capture finished. Source hashes,
+start/end load and raw samples are retained. The existing default machine baseline printed
+by the harness is historical; this table and comparison use the measured `f5696ce` archive.
+
+| Metric | Previous p50 / p90 (n) | Final p50 / p90 (n) |
+|---|---:|---:|
+| CLI version (ms) | 241.2 / 313.3 (11) | 231.8 / 260.2 (11) |
+| CLI status (ms) | 265.7 / 307.7 (11) | 257.8 / 265.1 (11) |
+| Events/s | 72,973 / 76,778 (5) | 51,817 / 66,714 (5) |
+| Mock overhead (ms) | 0.045 / 0.050 (12) | 0.041 / 0.045 (12) |
+| Idle daemon RSS (MB) | 41.7 / 42.2 (3) | 42.0 / 42.3 (3) |
+| Idle dashboard RSS (MB) | 61.8 / 63.3 (3) | 62.1 / 62.1 (3) |
+| Idle daemon CPU (s/h) | 0.0 / 0.0 (3) | 0.0 / 0.0 (3) |
+| Idle dashboard CPU (s/h) | 4.5 / 4.5 (3) | 4.5 / 4.5 (3) |
+
+Event throughput is **29.0% lower** than the previous commit and exceeds the 20% median gate.
+The initial uncoalesced implementation measured 45,107 events/s; pending-job coalescing and
+bounded group commit improve the final median to 51,817. Running/paused/running isolated
+diagnostics retain FULL sync and indicate enqueue/commit cost dominates file-delivery work
+in this burst. Paused delivery is a diagnostic fixture, never a production setting. The
+remaining regression is recorded; no durability or containment protection was restored to
+its unsafe baseline. The benchmark waits for canonical commit, not final file delivery.
+Diagnostics separately record roughly 1.2–1.4 seconds for the remaining 100,000-event file
+tail after the burst; these are diagnostic samples, not a user latency or SLA.
+
+CLI and idle RSS stay close to the previous commit (+0.3 MB RSS medians). CPU retains the
+same coarse observation boundary; one tick is 4.5 s/h, so no CPU optimization claim follows.
+These are local mock/control-plane measurements and exclude inference, browser startup,
+provider latency, queueing and multi-user capacity.
+
+Raw [previous](artifacts/performance/previous-f5696ce-mirror.json) and
+[final](artifacts/performance/current-f5696ce-mirror-final.json) samples have context files.
+The [initial tree](artifacts/performance/current-f5696ce-mirror-uncoalesced.json),
+[uncoalesced](artifacts/performance/mirror-diagnosis-uncoalesced.json),
+[coalesced](artifacts/performance/mirror-diagnosis-coalesced.json) and
+[grouped](artifacts/performance/mirror-diagnosis-grouped.json) diagnostics remain inspectable.
+The [diagnostic script](artifacts/performance/mirror-diagnosis.py) reproduces the three
+modes against the current tree; historic precommit variants require their recorded source
+boundaries and must not be assumed identical to the final code.

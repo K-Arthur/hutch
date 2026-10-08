@@ -1155,6 +1155,9 @@ async function runBlockHtml(runId) {
           ${steps.join("")}
         </details>` : ""}
         ${message && message.data?.content ? `<div class="answer">${esc(message.data.content)}</div>` : ""}
+        ${run.transcript_mirror?.error || run.transcript_mirror?.worker_error
+          ? `<p class="run-notice" role="status">Transcript file needs attention: ${esc(run.transcript_mirror.error || run.transcript_mirror.worker_error)}. Database history remains available.</p>`
+          : run.transcript_mirror?.pending ? '<p class="hint" role="status">Transcript file is catching up. History shown here is committed in the database.</p>' : ""}
         ${run.error ? `<div class="run-error ${run.status === "stopped" || run.status === "skipped" ? "run-notice" : run.status === "outcome_unknown" ? "run-review" : ""}">${icon("alert")}<span><b>${esc(run.status_label || activityLabel)}:</b> ${esc(run.error)}</span></div>` : ""}
       </div>
     </article>`;
@@ -2480,7 +2483,7 @@ function refreshChangedResources(resources) {
       void refreshBadge();
       if (needsYouDialog.open) void refreshApprovals();
     }
-    if (["messages", "conversations", "runs", "approvals"].some(r => changed.has(r))) {
+    if (["messages", "conversations", "runs", "approvals", "transcript_mirrors"].some(r => changed.has(r))) {
       const visibleHash = location.hash || "#/chat";
       if (/^#\/chat(?:\/|$)/.test(visibleHash) || /^#\/run\/[\w-]+$/.test(visibleHash)) scheduleFeedRender();
     }

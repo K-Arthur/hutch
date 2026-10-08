@@ -208,7 +208,7 @@ class EventPageResource(BaseModel):
 class ResourceChange(BaseModel):
     id: int
     resource: Literal["bots", "conversations", "messages", "runs", "tasks", "approvals", "actions", "usage",
-                      "usage_reservations", "memory", "permissions", "devices"]
+                      "usage_reservations", "memory", "permissions", "devices", "transcript_mirrors"]
     resource_id: str
     operation: Literal["created", "updated", "deleted"]
     ts: str
@@ -787,6 +787,7 @@ def create_app() -> FastAPI:
         window = store.tail_events(run_id, events) if events else store.list_events(run_id)
         view["events"] = [e.model_dump() for e in window]
         view["approval_states"] = store.approval_states_for_events(run_id, window)
+        view["transcript_mirror"] = store._mirror.status(run_id)
         view["event_count"] = total
         view["events_truncated"] = bool(window) and window[0].seq > 1
         return view

@@ -1,0 +1,19 @@
+{
+  "captured_at": "2026-10-08T11:49:39.950581+00:00",
+  "browser": "firefox",
+  "version": "155.0",
+  "viewport": [
+    390,
+    844
+  ],
+  "scenario": "fixture IO failure; real durable retry and invalidation; no live provider",
+  "page_errors": [],
+  "horizontal_overflow": 0,
+  "draft_and_focus_preserved": true,
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "67d1720bc9dedf9678ec4983346688023137aa1084b3e368f2c6fb871618d217",
+    "src/hutch/store.py": "5cf40c2f5939fa1c717da1a9c908843b7d5840bec2fa9620f1bf1c5cf5cd8149",
+    "src/hutch/server/app.py": "e24293d17908383cae1df7f127233f04be451f0ed75afe88518dcecb99f0f1aa",
+    "src/hutch/transcript_mirror.py": "859eb126e420dfee55155f923ea28ef41d5669625e14fc905277c457f31e4428"
+  }
+}

@@ -40,7 +40,12 @@ def migrate(db: sqlite3.Connection) -> None:
     db.execute("CREATE TABLE resource_outbox_meta (singleton INTEGER PRIMARY KEY CHECK(singleton = 1), "
                "epoch TEXT NOT NULL, tail_id INTEGER NOT NULL DEFAULT 0)")
     db.execute("INSERT INTO resource_outbox_meta(singleton, epoch) VALUES (1, ?)", (uuid.uuid4().hex,))
-    for table, resource, identifier, material, context in _RESOURCES:
+    install_resources(db, _RESOURCES)
+
+
+def install_resources(db: sqlite3.Connection, resources) -> None:
+    """Install checked trigger definitions for resources added by later migrations."""
+    for table, resource, identifier, material, context in resources:
         columns = {row[1] for row in db.execute(f"PRAGMA table_info({table})")}
         required = {identifier, *material, *context}
         if not required <= columns:

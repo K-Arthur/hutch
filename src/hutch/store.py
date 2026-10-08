@@ -2,9 +2,10 @@
 
 One file, WAL mode, ONE writer connection (PF-7): FastAPI workers and daemon
 threads share it behind a lock, and event inserts are queued and committed in
-batches by a single writer thread. Canonical events persist here; a separate
-JSONL mirror can lag after a crash/write failure. Transactional resource
-invalidations provide reconnectable state, not transcript-file delivery.
+batches by a single writer thread, using FULL WAL synchronization. Canonical
+events and transcript delivery intents commit together. An owned drainer
+verifies/appends/fsyncs JSONL files and acknowledges delivery separately;
+resource invalidations provide reconnectable state and visible mirror errors.
 
 Events carry a gap-free per-run ``seq`` (the resume cursor for SSE, UI-3) and a
 hash-chain link (SR-11). The schema is versioned with ``PRAGMA user_version``;
@@ -307,9 +308,17 @@ def _migrate_11(db: sqlite3.Connection) -> None:
     durable_changes.migrate(db)
 
 
+def _migrate_12(db: sqlite3.Connection) -> None:
+    from .transcript_mirror import migrate
+    migrate(db)
+    durable_changes.install_resources(db, (
+        ("transcript_delivery", "transcript_mirrors", "run_id", ("delivered_seq", "error"), ("run_id",)),
+    ))
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
-               _migrate_11]
+               _migrate_11, _migrate_12]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -350,7 +359,9 @@ class Store:
         self._db.row_factory = sqlite3.Row
         with self._lock:
             self._db.execute("PRAGMA journal_mode=WAL")
-            self._db.execute("PRAGMA synchronous=NORMAL")
+            # Intent, permissions and budget reservations precede external
+            # effects. Do not acknowledge their WAL commit before its sync.
+            self._db.execute("PRAGMA synchronous=FULL")
             self._db.execute("PRAGMA busy_timeout=30000")
             self._db.execute("PRAGMA foreign_keys=ON")
             self._upgrade()
@@ -360,7 +371,7 @@ class Store:
         self._enqueued = 0
         self._committed = 0
         self._run_status: dict[str, str] = {}
-        #: per-run observers of events in sequence order (the JSONL transcript mirror); errors are collected, never swallowed
+        #: optional per-run observers; recoverable file delivery has its own queue
         #: runs this process has seen reach a terminal state: a late worker's events for them are dropped (never appended)
         self._sealed: set[str] = set()
         self._inflight = 0                    # events the writer thread has taken and not yet committed
@@ -372,6 +383,9 @@ class Store:
         self._shutdown_hooks: list[weakref.WeakMethod] = []
         self._writer = threading.Thread(target=self._writer_loop, name="hutch-event-writer", daemon=True)
         self._writer.start()
+        from .transcript_mirror import TranscriptMirror
+        self._mirror = TranscriptMirror(self)
+        self._mirror.start()
         ref = weakref.ref(self)
         atexit.register(lambda: (s := ref()) and s.close())
 
@@ -534,16 +548,19 @@ class Store:
                 owner_shutdown = hook()
                 if owner_shutdown is not None:
                     owner_shutdown()
-            self.flush_events()
-            with self._buf_cv:
-                self._closing = True
-                self._buf_cv.notify_all()
+            try:
+                self.flush_events()
+            finally:
+                with self._buf_cv:
+                    self._closing = True
+                    self._buf_cv.notify_all()
         self._writer.join(timeout=5)
         if self._writer.is_alive():
             # Do not close a connection still owned by the writer. Retain the
             # closing state (new events are refused); callers may retry closure
             # after the blocked commit exits, without rerunning owner shutdown.
             raise RuntimeError("cannot close Hutch state while the event writer is still running")
+        self._mirror.close()
         self.hub.close()
         with self._lock:
             self._db.close()
@@ -903,18 +920,7 @@ class Store:
             self._insert_events(db, run.id, [user_event])
             db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) VALUES (?, ?, ?, ?, ?)",
                        (scope, idem_key, request_hash, _canonical({"run_id": run.id}), now))
-        # The user turn is already committed and hash-chained. Mirror it before waking the elected dispatcher so the
-        # worker's subsequent append-only transcript continues from the same first event.
-        bot = self.get_bot(run.bot_id)
-        if bot is not None:
-            transcript = self.config.run_dir(bot.name, run.id) / "transcript.jsonl"
-            try:
-                transcript.parent.mkdir(parents=True, exist_ok=True)
-                with transcript.open("a", encoding="utf-8") as fh:
-                    fh.write(json.dumps({"seq": user_event.seq, "ts": user_event.ts, "type": user_event.type.value,
-                                         "data": user_event.data, "hash": user_event.hash}, ensure_ascii=False) + "\n")
-            except OSError as exc:
-                self._sink_errors.setdefault(run.id, []).append(f"{type(exc).__name__}: {exc}")
+        self._mirror.wake.set()
         self.bus.notify("work", "runs", f"run:{run.id}", "conversations", f"conversation:{conversation_id}")
         return run.id, True
 
@@ -1573,9 +1579,17 @@ class Store:
                     self._buf_cv.wait()
                 if not self._pending and self._closing:
                     return
-                # let a burst accumulate: group commit amortises the fsync-free WAL append
-                if len(self._pending) < EVENT_BATCH_MAX:
-                    self._buf_cv.wait(timeout=EVENT_FLUSH_SECONDS)
+                # Notifications announce more rows; they must not prematurely
+                # end accumulation and turn FULL synchronization into one fsync
+                # per event. Commit at the size threshold or bounded deadline.
+                until = time.monotonic() + EVENT_FLUSH_SECONDS
+                while len(self._pending) < EVENT_BATCH_MAX and not self._closing:
+                    remaining = until - time.monotonic()
+                    if remaining <= 0:
+                        break
+                    self._buf_cv.wait(timeout=remaining)
+                if not self._pending:
+                    continue  # a status transition drained the buffer while we waited
                 batch, self._pending = self._pending, []
                 self._inflight = len(batch)
             kept: list[Event] = []
@@ -1660,8 +1674,15 @@ class Store:
             while self._committed < target and self._writer.is_alive():
                 left = deadline - time.monotonic()
                 if left <= 0:
-                    return
+                    raise RuntimeError("canonical events remain uncommitted; event flush timed out")
                 self._buf_cv.wait(timeout=min(left, 0.1))
+            if self._committed < target:
+                raise RuntimeError("canonical events remain uncommitted; event writer is not running")
+
+    def flush_transcripts(self, timeout: float = 10.0) -> None:
+        """Await file delivery explicitly; canonical state does not wait for filesystem IO."""
+        self.flush_events()
+        self._mirror.flush(timeout)
 
     def list_events(self, run_id: str, after_seq: int = 0, limit: Optional[int] = None, after_id: Optional[int] = None) -> list[Event]:
         """Events with ``seq > after_seq`` (or ``id > after_id``) in order (the SSE resume query)."""

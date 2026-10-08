@@ -46,7 +46,7 @@ managed infrastructure until trusted-proxy handling is documented and validated.
 
 ## Database migration and restore
 
-Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. This realignment branch uses schema v11;
+Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. This realignment branch uses schema v12;
 `hutch doctor` displays the current version. Stop Hutch services before restoring a backup.
 Validate a copy in a new isolated directory; preserve the original database, WAL/SHM and backups:
 
@@ -56,7 +56,7 @@ mkdir -m 700 STATE_RESTORE
 sqlite3 STATE/hutch.db.bak-vN '.backup STATE_RESTORE/hutch.db'
 ```
 
-For a restored schema-v11 database, rotate its resource-history epoch **before restarting
+For a restored schema-v11-or-newer database, rotate its resource-history epoch **before restarting
 services and reconnecting clients**. Keep all Hutch processes stopped while doing this:
 
 ```bash
@@ -67,12 +67,19 @@ An older backup has no outbox table; its forward migration creates a fresh epoch
 forces old resource cursors to reconcile instead of accepting reused IDs from a rewound
 history. Direct file replacement without this step is unsupported. Existing run/global numeric
 transcript cursors do not provide this epoch protection; close/reload clients after restore.
-Automatic restore orchestration and JSONL mirror repair remain pending. Inspect the copy with
+Automatic production restore orchestration remains pending. Inspect the copy with
 `HUTCH_STATE_DIR=STATE_RESTORE hutch status` before running an executor. A backup cannot prove
 which external effects occurred after it was made; queued/inflight work requires reconciliation
 before dispatch. Restored device sessions also require revocation/re-pairing. This procedure
-validates persisted data, not a complete production rollback. Preserve transcript
-files separately; this migration's resource outbox does not make the mirror crash-safe.
+validates persisted data, not a complete production rollback. Preserve transcript files separately.
+Schema v12 reconstructs missing files from committed database events after startup. Existing
+partial, changed or ahead-of-restored-history files are retained as
+`transcript.preserved-*.jsonl`; inspect those copies before removing them. Do not replace an
+invalid canonical database with a file mirror automatically. The run API/UI reports pending
+delivery or an error while continuing to show canonical database history. Check disk space,
+ownership and link errors, repair the private state directory, then let delivery retry.
+SQLite uses FULL WAL synchronization; this does not certify hardware power-loss behavior.
+See [ADR-0013](adr/0013-recoverable-transcript-files.md).
 
 Keep the backup until the restored database opens and expected bots, runs, approvals, transcripts, conversations and messages are present. A backup from an
 older schema will migrate forward on open, creating its own versioned backup first. Rollback to older Hutch code requires restoring
@@ -80,7 +87,8 @@ the matching pre-upgrade backup; older code does not honor leases or fencing. Va
 for production state.
 
 Schema v8 gives every pre-existing run a separate imported legacy conversation. Schema v9 adds single-use pairing codes and hashed,
-revocable sessions; schema v11 adds content-free transactional invalidations and history cursors.
+revocable sessions; schema v11 adds content-free transactional invalidations and history cursors;
+schema v12 backfills recoverable transcript-file delivery without changing historic run IDs.
 Hutch does not infer that adjacent runs share a
 private context. New conversations and message submissions are written transactionally with their idempotency records. The
 `conversation_fts` index contains message text only; it excludes tool output, credentials, workspaces and bot memory.

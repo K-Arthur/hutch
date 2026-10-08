@@ -22,9 +22,12 @@ Worker review requests, wait state and inline review events commit together. Can
 summaries override stale transcript asks after a worker crash. Schema v11 resource replay
 contains identifiers rather than message, argument or secret content; clients fetch current
 resources and preserve draft/focus during refresh. Gaps require snapshot reconciliation, and
-restored histories need epoch rotation. This outbox does not repair the separate JSONL mirror;
-SQLite remains the canonical transcript source. See [operations](operations.md) and
-[ADR-0012](adr/0012-resource-outbox-and-reconciliation.md).
+restored histories need epoch rotation. Schema v12 delivers JSONL through a separate recoverable
+queue, verifies canonical prefixes and retains damaged files before reconstruction. Errors stay
+visible; SQLite remains the canonical transcript source. FULL WAL synchronization precedes
+acknowledgement of action prerequisites, subject to storage honoring fsync. See
+[operations](operations.md), [ADR-0012](adr/0012-resource-outbox-and-reconciliation.md) and
+[ADR-0013](adr/0013-recoverable-transcript-files.md).
 
 Provider account/destination changes require per-run outward approval. The exact route and
 revision are checked again before provider creation; cached clients cannot retain a removed or

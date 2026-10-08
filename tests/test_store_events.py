@@ -36,7 +36,7 @@ def test_close_keeps_persistence_open_until_a_blocked_event_writer_exits(store, 
     store.append_event(Event(run_id=run.id, type=EventType.log, data={"held": True}))
     try:
         assert entered.wait(2)
-        with pytest.raises(RuntimeError, match="event writer is still running"):
+        with pytest.raises(RuntimeError, match="event writer is still running|event flush timed out"):
             store.close()
         assert store._db.execute("SELECT 1").fetchone()[0] == 1
         with pytest.raises(RuntimeError, match="closing"):
@@ -50,6 +50,27 @@ def test_close_keeps_persistence_open_until_a_blocked_event_writer_exits(store, 
     with pytest.raises(sqlite3.ProgrammingError, match="closed"):
         store._db.execute("SELECT 1")
     store.close()  # completed closure remains idempotent
+
+
+def test_flush_reports_uncommitted_events_and_preserves_them_for_retry(store, monkeypatch):
+    run = _run(store)
+    entered, release = threading.Event(), threading.Event()
+    original = store._commit_batch
+    def hold(batch):
+        entered.set()
+        assert release.wait(5)
+        return original(batch)
+    monkeypatch.setattr(store, "_commit_batch", hold)
+    store.append_event(Event(run_id=run.id, type=EventType.log, data={"not_yet_committed": True}))
+    try:
+        assert entered.wait(2)
+        with pytest.raises(RuntimeError, match="canonical events remain uncommitted"):
+            store.flush_events(timeout=0.01)
+        assert store._db.execute("SELECT COUNT(*) FROM events WHERE run_id = ?", (run.id,)).fetchone()[0] == 0
+    finally:
+        release.set()
+    store.flush_events()
+    assert store.list_events(run.id)[0].data == {"not_yet_committed": True}
 
 
 def test_seq_is_contiguous_per_run_and_independent_between_runs(store):

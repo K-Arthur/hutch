@@ -82,10 +82,13 @@ has no task-expectation evaluator yet. Artifact/receipt/command expectations and
 ### Audit writes
 
 **Current implementation:** event rows are batched to SQLite, with status transitions and their buffered events committed together;
-the JSONL transcript is mirrored separately. Schema v11 adds a transactional resource-invalidation
-outbox for reconnecting clients ([ADR-0012](0012-resource-outbox-and-reconciliation.md)). It does
-not deliver transcript files: a crash or mirror-write failure can still leave JSONL behind SQLite.
-Recovery and release docs must preserve this limitation until a retrying mirror drainer is tested.
+the JSONL transcript follows committed events through schema v12's durable delivery queue.
+Prefix checking and fsync-before-acknowledgement recover missing, partial or unacknowledged files;
+pending errors remain visible. SQLite uses FULL WAL synchronization before acknowledging
+permission/action/budget prerequisites. This is tested process-crash recovery, not live power-loss
+certification. [ADR-0013](0013-recoverable-transcript-files.md) records bounds and limitations.
+Schema v11's separate resource-invalidation outbox serves reconnecting clients
+([ADR-0012](0012-resource-outbox-and-reconciliation.md)).
 
 ## Alternatives rejected
 

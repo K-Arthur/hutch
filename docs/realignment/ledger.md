@@ -25,7 +25,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | S5 providers, budgets and external runtimes | Partial; shared usage reservations implemented, adapters fail closed | OpenCode v2.0.24 is installed and its CLI contract was inspected. Existing OpenCode/Pi adapters bypassed Hutch approvals and budgets, so execution now fails before process creation. Schema v10 reserves estimated tokens/currency atomically across Hutch runs and configured accounts, settles reported use once, and holds uncertain requests for terminal-only reconciliation. Price-based currency limits are estimates, not provider-billing guarantees. Re-enable external runtimes only after sandboxing, brokered permissions and protocol tests. Pi is unavailable; no live run or paid/provider request has been made. Local calls now use one kernel-owned slot and eight FIFO waiters; human waits release the slot. Native Ollama checks current headroom before generation; other local backends lack validated memory admission, and strict modes/provenance remain pending. Latest offline suite: 1,056 passed; browser/site suite: 29 passed. |
 | S6 conversations and bounded collaboration | Conversation foundation partial; collaboration pending | Schema v8 stores conversations/messages, imports each old run separately, uses bounded context snapshots in builtin runs and explicit FTS5 message search. Studio supports thread switching, durable history and archive. Transactional idempotency is tested across restart. Standing tasks, workspaces/artifacts, scoped fact memory, notifications and delegation remain. |
 | S7 browser ownership and handoff | Partial | Browser context state is instance-owned and persistent profile paths are per-bot; fixture test verifies no profile crossover. Live handoff, pinned egress and browser process supervision remain unavailable. |
-| S8 versioned API and remote supervision | Partial; API replay improvements in `cd4f402`; remote remains experimental | `/api/v1` covers health/status labels, bounded bot/run/approval pages, conversations/search, cross-run transcript cursors, snapshot reconciliation, usage, connection metadata, schedules and capability records. Conversation create/message/archive, stop, and approval resolve commands are idempotent; changed arguments conflict. Schema v9 adds one-use pairing codes, hash-only revocable device sessions and per-source rate limits. Direct remote binding requires explicit TLS. Schema v11 adds transactional resource invalidations, history cursors, snapshot reconciliation and targeted Studio refresh. Durable JSONL delivery, automatic event pruning, workspaces/artifacts, phone UI, interactive control routes, trusted tunnel and live device/network checks remain. |
+| S8 versioned API and remote supervision | Partial; API replay improvements in `cd4f402` and `f5696ce`; remote remains experimental | `/api/v1` covers health/status labels, bounded bot/run/approval pages, conversations/search, cross-run transcript cursors, snapshot reconciliation, usage, connection metadata, schedules and capability records. Conversation create/message/archive, stop, and approval resolve commands are idempotent; changed arguments conflict. Schema v9 adds one-use pairing codes, hash-only revocable device sessions and per-source rate limits. Direct remote binding requires explicit TLS. Schema v11 adds transactional resource invalidations, history cursors, snapshot reconciliation and targeted Studio refresh. Schema v12 adds recoverable JSONL delivery and visible errors. Automatic event pruning, workspaces/artifacts, phone UI, interactive control routes, trusted tunnel and live device/network checks remain. |
 | S9 product integration, performance and visual validation | Partial; evidence captured in `896a774` | Final screenshots and traces cover desktop/tablet/phone, plus fixture-driven empty/loading/error/approval/cancelling/reconnecting UI states. Internal site CTA targets, phone overflow, page errors, reduced motion, tablist arrows and mobile-menu focus were checked. A misleading static `LIVE` badge is now `DEMO`. Same-harness baseline/current measurements retain raw repetitions. The full regression suite still needs to run after the latest slices. This is not screen-reader, real-device or full workflow certification. See `visual-validation.md` and `performance.md`. |
 
 ## Commits
@@ -498,3 +498,74 @@ physical-device access. Operations now validates restore into an isolated direct
 documents epoch rotation, device revocation and uncertain post-backup effects; safe automatic
 production rollback and recoverable JSONL delivery remain pending. Diff, JS syntax, token
 contrast and emoji checks passed. No paid call, publication or final integration.
+
+Resource replay checkpoint commit: `f5696ce`.
+
+## Recoverable transcript delivery and FULL WAL synchronization (2026-10-08)
+
+Schema v12 enqueues target sequence with canonical events and backfills historic delivery.
+An owned, joined worker retries even after executor death; process file locks serialize
+delivery and fsync precedes acknowledgement. Prefix verification reuses unacknowledged writes,
+preserves damaged/ahead files and refuses damaged canonical hashes. File status has its own
+resource invalidation, so a Done answer stays visible while a file error appears and later clears.
+Startup checks missing acknowledged files, including restoration into a new directory. Delivery
+has row/byte/cache bounds and fair retries; blocked shutdown keeps SQLite open. FULL WAL
+synchronization now precedes acknowledgement of external-action prerequisites. No live power-cut
+check was performed, and safe production rollback remains pending. ADR-0013 records boundaries.
+
+Initial focused checks passed **28 tests in 14.14s**, **41 in 14.90s**, **43 in 15.92s** and
+**91 in 27.58s**. Added byte limits/blocked shutdown passed **30 in 2.56s**. These checks precede
+FULL synchronization and the cache-bound check. The initial full run reported **1,120 passed,
+2 failed in 239.76s**: conversation/worker fixtures expected immediate callback delivery and
+literal JSON spacing. FULL synchronization focused checks reported **90 passed, 1 failed in
+38.22s**, with the same immediate worker-file assumption. Fixtures now explicitly wait for
+confirmed asynchronous delivery and compare parsed transcript content; assertions remain.
+The corrected full run and final browser/site capture follow below.
+
+Three delivery-error browser journeys passed **3 tests in 7.57s**. All three full-size
+desktop/tablet/phone captures in `artifacts/transcript-mirror/` were inspected. The fixture
+injects IO failure; actual retry and resource replay remove the warning while retaining Done,
+the canonical answer, draft and focus. No page error or horizontal overflow was observed.
+This is not physical-device or live-provider evidence.
+
+The corrected full offline run passed **1,123 tests in 240.60s**, with unhandled thread
+exceptions treated as failures. The source-frozen 11:31 UTC capture returned **39 views**,
+zero page errors/overflow, refreshed proof WebPs and three traces. All three inspection
+sheets were reviewed after capture. JS syntax, diff, 94-token contrast and emoji checks passed.
+The full browser/site run passed **40 tests in 124.66s**, including the three new mirror-error
+journeys. The sequential repeated performance capture follows; no source changed after the
+capture or successful full run.
+
+The initial sequential performance comparison retained all repetitions. CLI/idle measures
+were close to `f5696ce`, but event throughput fell from **72,973 to 45,107 events/s** median
+(5 samples), exceeding the gate. Diagnostic running/paused/running fixtures at FULL sync
+produced medians **45,077 / 44,844 / 44,817**, implicating enqueue/commit work rather than
+file delivery as the dominant cost in that burst. Coalescing pending job updates improved
+the subsequent fixture medians to **51,205 / 50,910 / 52,854**. These are diagnostic captures,
+not a controlled release comparison; raw files are retained. A race regression checks events
+committed before and after ACK remain due, and a deleted tail cannot clear a durable intent.
+Focused integration passed **62 tests in 19.71s** before the final tail guard; the extended
+mirror set passed **20 in 1.96s**.
+
+Diff review also found event notifications ended the intended group-commit wait early.
+The writer now accumulates until its existing size/deadline bound; FULL sync remains enabled.
+A flush timeout now reports uncommitted events rather than claiming success, and shutdown
+still refuses new events while retaining the database for retry. The expanded focused suite
+passed **66 tests in 37.67s**. The full repeat and final recapture follow; the earlier 11:31
+captures and 1,123-test run precede these refinements. The grouped diagnostic did not remove
+the throughput regression; no durability protection was weakened.
+
+The final offline repeat passed **1,126 tests in 243.33s** and all browser/site checks passed
+**40 tests in 127.35s**. The source-frozen **11:48 UTC** capture returned 39 views and zero
+page errors/overflow; three inspection sheets and three current full-size mirror-error views
+were inspected. Final JS/diff/token/emoji checks passed. The final repeated performance
+capture uses the unchanged production source from these checks and follows below.
+
+The final repeated capture records CLI version/status medians **231.8/257.8 ms**, event
+throughput **51,817/s**, mock step overhead **0.041 ms**, and idle daemon/dashboard RSS
+**42.0/62.1 MB**. Compared with measured `f5696ce`, event throughput remains **29.0% lower**
+and exceeds the 20% median gate. Raw repetitions, source/load context and diagnostic variants
+are retained under `artifacts/performance/`; `performance.md` reports median/tail values and
+the remaining regression. No safety protection was weakened to remove it. CPU remains too
+coarsely sampled for an optimization claim. Captured source hashes match the final checked
+tree. This is a local persistence checkpoint, not completion of S4–S9 or final integration.
