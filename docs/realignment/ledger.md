@@ -26,7 +26,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | S6 conversations and bounded collaboration | Conversation foundation partial; scoped reference facts implemented | Schema v8 stores conversations/messages and imports each old run separately. Schema v15 adds immutable versioned reference facts, private chat/run scope, explicit cross-chat sharing, human review, bounded FTS5 recall and paginated history. No fact is injected into system instructions. Standing tasks, stable workspaces/artifacts, notifications and bounded delegation remain. |
 | S7 browser ownership and handoff | Partial | Browser context state is instance-owned and persistent profile paths are per-bot; fixture test verifies no profile crossover. Live handoff, pinned egress and browser process supervision remain unavailable. |
 | S8 versioned API and remote supervision | Partial; API replay improvements in `cd4f402` and `f5696ce`; remote remains experimental | `/api/v1` covers health/status labels, bounded bot/run/approval pages, conversations/search, cross-run transcript cursors, snapshot reconciliation, usage, connection metadata, schedules and capability records. Conversation create/message/archive, stop, and approval resolve commands are idempotent; changed arguments conflict. Schema v9 adds one-use pairing codes, hash-only revocable device sessions and per-source rate limits. Direct remote binding requires explicit TLS. Schema v11 adds transactional resource invalidations, history cursors, snapshot reconciliation and targeted Studio refresh. Schema v12 adds recoverable JSONL delivery and visible errors; v13 adds immutable action intents and separate outcome reconciliation; v14 adds a bounded authenticated restore report and execution-hold errors. Automatic event pruning, workspaces/artifacts, phone UI, interactive control routes, trusted tunnel and live device/network checks remain. |
-| S9 product integration, performance and visual validation | Partial; evidence captured in `896a774` | Final screenshots and traces cover desktop/tablet/phone, plus fixture-driven empty/loading/error/approval/cancelling/reconnecting UI states. Internal site CTA targets, phone overflow, page errors, reduced motion, tablist arrows and mobile-menu focus were checked. A misleading static `LIVE` badge is now `DEMO`. Same-harness baseline/current measurements retain raw repetitions. Current source-frozen repeats and inspected captures are recorded below. This is not screen-reader, real-device or full workflow certification. See `visual-validation.md` and `performance.md`. |
+| S9 product integration, performance and visual validation | Partial; evidence captured in `896a774` and `ba1e297` | Screenshots and traces cover desktop/tablet/phone, plus fixture-driven empty/loading/error/approval/cancelling/reconnecting states. Internal site CTA targets, overflow, page errors, reduced motion, tablist arrows and menu focus were checked. The no-mock slice removes seeded-run screenshots and scripted approval controls; the marketing proof is now the actual empty first-run screen. Same-harness baseline/current measurements retain raw repetitions. This is not screen-reader, real-device or full workflow certification. See `visual-validation.md`, `no-mock-validation.md` and `performance.md`. |
 
 ## Commits
 
@@ -63,6 +63,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `d33941b` | Versioned provider route matrix/API, evidence boundary docs, exact OpenAI endpoint field selection |
 | `d6c4e83` | Narrow non-stream retries to streaming errors and verify auth/quota route approval |
 | `73db64a` | Host-gated Offline inference with bubblewrap network/PID namespaces, run-scoped loopback broker, masked provider credential files, responsive route controls/captures and updated support evidence; full suite 1,297 passed (the final explanatory copy then received its focused browser recapture) |
+| `ba1e297` | Remove user-facing mock execution and demo seeding, require real model routes, replace marketing mock journeys with actual empty-state captures, and verify wheel excludes test fixtures; offline suite 1,243 passed |
 
 ## Verified behavior before this checkpoint
 
@@ -954,3 +955,28 @@ After that full run, only the static explanatory sentence in the responsive sett
 supporting documentation changed, to describe both network and PID isolation. The affected
 Chromium/Playwright journey passed separately in **2.81s** and refreshed the desktop/tablet/phone
 captures and trace. No other implementation behavior changed after the full-suite run.
+
+## No user-facing mock execution and truthful first run (2026-10-08)
+
+Commit `ba1e297` removes `MockRuntime`, `hutch demo seed`, and seeded run/transcript/approval
+images from the product and marketing site. `hutch init` now creates only local state. CLI/API
+creation requires a valid real provider/model route, checking hosted credentials and terms when
+applicable; local service reachability is checked at execution. Migrated mock records remain
+auditable but fail with `model_unavailable` before any worker or action. Test scenarios now live
+under `tests/support/`, are gated by the explicit test harness and do not enter the built wheel.
+Restore-held run requests check the review hold before route validation, including CLI submissions.
+
+The marketing proof now uses a real empty first-run view. The capture script verified empty bots,
+runs, approvals, conversations and configured connections, under a clean environment with no
+provider credentials. Chromium 153.0.8010.12 / Playwright 1.63.0 captures at desktop 1440×1000,
+tablet 768×1024 and phone 390×844 report no page errors or horizontal overflow. The anonymous
+website suite passed **11 checks in 11.26s**, including CTA destinations, local assets, reduced
+motion and mobile focus restoration. Desktop/tablet/phone site captures were visually inspected;
+the corrected hero badge describes local control rather than a fictitious resident bot.
+
+The full offline suite passed **1,243 tests in 258.74s** with `PytestUnhandledThreadExceptionWarning`
+and `SyntaxWarning` treated as failures. `uv build --wheel` succeeded; archive inspection confirmed
+the package excludes `tests/`, `src/hutch/runtime/mock.py` and `src/hutch/demo.py`. No live provider,
+local model, Pi/OpenCode invocation, remote phone control or physical-device check was performed.
+This closes the no-mock/product-truth slice only; the S5 adapter boundary, S6 workspaces/tasks and
+delegation, S7 live browser handoff, S8 remote interactive control, and final S9 release gates remain.
