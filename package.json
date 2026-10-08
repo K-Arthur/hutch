@@ -1,0 +1,15 @@
+{
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "daisyui": "^5.7.47",
+    "open-props": "^1.7.23",
+    "tailwindcss": "^4.3.3"
+  },
+  "name": "hutch-ui",
+  "version": "0.1.0",
+  "private": "true",
+  "type": "module",
+  "scripts": {
+    "build:css": "tailwindcss -i app/src/input.css -o src/hutch/server/static/ui.css --minify"
+  }
+}

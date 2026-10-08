@@ -144,15 +144,17 @@ function summarizeOutput(output) {
    lineage (website/assets/hutch-agent.svg). Identity only: status never
    rides here (the pip does that, always with a word). */
 const ID_COLORS = ["#3DE8C5", "#35C3F0", "#5B9BFF", "#9B7CFF", "#C77DFF", "#FF6FA5", "#FFA83C", "#7BD85A"];
-/* Icon-scale mascot: what survives at 24–40px is ONE legible silhouette, a
-   dark visor band, and two bright happy arcs. The layered cap/fins/core
-   version rendered as mud at roster size, so it was cut back to this.
-   Shape = shell silhouette; colour = shell tone; mouth only at ≥48px. */
+/* Transcribed from the 3D mascot blueprint (website/assets/hutch-agent.svg,
+   rendered by the site-mascot workstream): gradient shell (light/base/deep
+   with a rim light), a dome cap with a bright band, a wide dark glass visor
+   with a top shine, glowing happy-arc eyes + smile, swept side fins, a
+   luminous chest core, and a soft ground glow. Shape picker varies the shell
+   silhouette; colour varies the shell. Detail is pruned at small sizes. */
 const ID_HEADS = [
-  { key: "capsule",  vy: 15.6, shape: '<rect x="9" y="6.5" width="22" height="29.5" rx="11"/>' },
-  { key: "round",    vy: 15.2, shape: '<circle cx="20" cy="20.5" r="13.2"/>' },
-  { key: "squircle", vy: 15.4, shape: '<rect x="7.6" y="8" width="24.8" height="25.4" rx="8.5"/>' },
-  { key: "loaf",     vy: 16,   shape: '<rect x="6.6" y="10" width="26.8" height="23" rx="11.5"/>' },
+  { key: "capsule",  top: 15,   h: 34,   vw: 20,  hw: 13,   body: '<rect x="19" y="15" width="26" height="34" rx="13"/>' },
+  { key: "round",    top: 15,   h: 32,   vw: 21,  hw: 15.5, body: '<circle cx="32" cy="31" r="16"/>' },
+  { key: "squircle", top: 14.5, h: 32,   vw: 22,  hw: 15.5, body: '<rect x="16.5" y="14.5" width="31" height="32" rx="11"/>' },
+  { key: "loaf",     top: 16.5, h: 29,   vw: 23,  hw: 16.5, body: '<rect x="15.5" y="16.5" width="33" height="29" rx="14.5"/>' },
 ];
 
 function hash32(s) {
@@ -190,26 +192,47 @@ function sigilPair(name) {
 function sigilSet(name, pair) { idStore.all[name] = pair; idStore.save(); }
 
 function sigilBody(pair, size = 30) {
+  /* Transcribed from the 3D mascot (website/assets/hutch-agent.svg): gradient
+     shell with rim light, dome cap + bright band, wide dark glass visor with a
+     top shine, glowing happy-arc eyes (+ smile), swept side fins, luminous
+     chest core, soft ground glow. Fine detail prunes below 44px. */
   const [ci, si] = pair;
-  const base = ID_COLORS[ci], light = tint(base, 0.4), pale = tint(base, 0.82);
-  const gid = `sg-${ci}`;
+  const base = ID_COLORS[ci], light = tint(base, 0.45), pale = tint(base, 0.82), deep = shade(base, 0.55);
+  const gid = `sg-${ci}`, vid = `vg-${ci}`, cid = `cg-${ci}`;
   const h = ID_HEADS[si] || ID_HEADS[0];
-  const e1 = (h.vy + 6.1).toFixed(1), e2 = (h.vy + 6.3).toFixed(1);
-  return `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="${light}"/><stop offset="1" stop-color="${base}"/>
-    </linearGradient></defs>
-    <g fill="url(#${gid})" stroke="${shade(base, 0.68)}" stroke-width=".9">${h.shape}</g>
-    <rect x="10.6" y="${h.vy}" width="18.8" height="10" rx="5" fill="#070e16"/>
-    <g class="gl" fill="none" stroke-linecap="round">
-      <path d="M14.6 ${e2}c1.5-2.4 3.7-2.4 5.2 0" stroke="${pale}" stroke-opacity=".4" stroke-width="3.6"/>
-      <path d="M20.2 ${e2}c1.5-2.4 3.7-2.4 5.2 0" stroke="${pale}" stroke-opacity=".4" stroke-width="3.6"/>
-      <path d="M14.6 ${e1}c1.5-2.4 3.7-2.4 5.2 0" stroke="#fff" stroke-width="2"/>
-      <path d="M20.2 ${e1}c1.5-2.4 3.7-2.4 5.2 0" stroke="#fff" stroke-width="2"/>
-    </g>${size >= 48 ? `<path d="M18.5 ${(h.vy + 8.3).toFixed(1)}c1 1.1 2 1.1 3 0" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/>` : ""}`;
+  const vy = h.top + 5.5, eyeY = (vy + 6.4).toFixed(1);
+  const finY = (vy + 9).toFixed(1);
+  const fxr = (32 + h.hw + 1.8).toFixed(1), fxl = (32 - h.hw - 1.8).toFixed(1);
+  const big = size >= 44;
+  const dome = `M25 ${h.top}c0-4.4 3-6.9 7-6.9s7 2.5 7 6.9Z`;
+  return `<defs>
+    <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${light}"/><stop offset=".55" stop-color="${base}"/><stop offset="1" stop-color="${deep}"/></linearGradient>
+    <linearGradient id="${vid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c252b"/><stop offset="1" stop-color="#050d12"/></linearGradient>
+    <radialGradient id="${cid}" cx=".5" cy=".45" r=".6"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".55" stop-color="${pale}" stop-opacity=".4"/><stop offset="1" stop-color="${pale}" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="32" cy="${(h.top + h.h + 3).toFixed(1)}" rx="12" ry="1.9" fill="${base}" opacity=".15"/>
+  <g fill="url(#${gid})">
+    <ellipse cx="${fxl}" cy="${finY}" rx="3.8" ry="6.2" transform="rotate(-15 ${fxl} ${finY})"/>
+    <ellipse cx="${fxr}" cy="${finY}" rx="3.8" ry="6.2" transform="rotate(15 ${fxr} ${finY})"/>
+    ${h.body}
+    <path d="${dome}"/>
+  </g>
+  ${big ? `<g fill="none" stroke="${pale}" stroke-opacity=".5" stroke-width="1.1">${h.body}<path d="${dome}"/></g>` : ""}
+  <rect x="23.8" y="${(h.top - 1.3).toFixed(1)}" width="16.4" height="2.3" rx="1.15" fill="#fff" opacity=".9"/>
+  <rect x="${(32 - h.vw / 2).toFixed(1)}" y="${vy.toFixed(1)}" width="${h.vw}" height="11.8" rx="5.9" fill="url(#${vid})" stroke="${pale}" stroke-opacity=".55" stroke-width="1"/>
+  <rect x="${(32 - h.vw / 2 + 3).toFixed(1)}" y="${(vy + 1.7).toFixed(1)}" width="${(h.vw - 6).toFixed(1)}" height="1.5" rx=".75" fill="#fff" opacity=".14"/>
+  ${big ? `<circle cx="32" cy="${(vy + 17.5).toFixed(1)}" r="5.2" fill="url(#${cid})"/><circle cx="32" cy="${(vy + 16.8).toFixed(1)}" r="2" fill="#fff" opacity=".9"/>` : ""}
+  <g class="gl" fill="none" stroke-linecap="round">
+    <path d="M26 ${eyeY}c1.6-2.7 4.2-2.7 5.8 0" stroke="${pale}" stroke-opacity=".4" stroke-width="4.2"/>
+    <path d="M32.2 ${eyeY}c1.6-2.7 4.2-2.7 5.8 0" stroke="${pale}" stroke-opacity=".4" stroke-width="4.2"/>
+    <path d="M26 ${eyeY}c1.6-2.7 4.2-2.7 5.8 0" stroke="#fff" stroke-width="2.3"/>
+    <path d="M32.2 ${eyeY}c1.6-2.7 4.2-2.7 5.8 0" stroke="#fff" stroke-width="2.3"/>
+    ${size >= 48 ? `<path d="M29.4 ${(vy + 8.8).toFixed(1)}c1.7 1.9 3.5 1.9 5.2 0" stroke="#fff" stroke-width="1.6"/>` : ""}
+  </g>`;
 }
 
 function avatarFromPair(pair, size, state = "") {
-  return `<span class="avatar" style="--av:${size}px" ${size >= 36 ? 'data-gaze' : ""} aria-hidden="true"><svg class="sig" viewBox="0 0 40 40">${sigilBody(pair, size)}</svg>${state ? `<span class="a-pip ${esc(state)}"></span>` : ""}</span>`;
+  return `<span class="avatar" style="--av:${size}px" ${size >= 36 ? 'data-gaze' : ""} aria-hidden="true"><svg class="sig" viewBox="0 0 64 64">${sigilBody(pair, size)}</svg>${state ? `<span class="a-pip ${esc(state)}"></span>` : ""}</span>`;
 }
 
 function botAvatar(name, size = 32, state = "") {
@@ -255,7 +278,7 @@ function identityPickerHtml() {
       <p class="idp-lbl">Shape</p>
       <div class="idp-row" data-idp-shapes>${ID_HEADS.map((hh, i) =>
         `<button type="button" class="shp" data-si="${i}" aria-label="Head ${esc(hh.key)}" aria-pressed="false">
-          <svg viewBox="0 0 40 40" aria-hidden="true"><g fill="currentColor">${hh.shape}</g></svg>
+          <svg viewBox="0 0 64 64" aria-hidden="true"><g fill="currentColor">${hh.body}</g></svg>
         </button>`).join("")}</div>
       <button type="button" class="btn ghost small idp-shuffle" data-idp-shuffle>${icon("refresh")} Surprise me</button>
     </div>`;
@@ -538,6 +561,14 @@ matchMedia("(prefers-reduced-motion: reduce)").addEventListener?.("change", appl
     store$.set("hutch:sidebar-collapsed", next);
     setDocked(next);
   });
+  // Collapsed rail: the logo IS the expand control (the dock button hides);
+  // expanded, the dock button sits separately beside the logo.
+  $(".ws-brand .brand")?.addEventListener("click", () => {
+    if (shell.classList.contains("collapsed") && innerWidth > 901) {
+      store$.set("hutch:sidebar-collapsed", false);
+      setDocked(false);
+    }
+  });
 }
 
 /* --------------------------------------------- executor health (truthful) */
@@ -556,6 +587,7 @@ function setDaemon(state, title) {
   pill.className = `pill daemon ${state}`;
   $("#daemon-label").textContent = label;
   pill.title = title;
+  pill.hidden = state === "live";   // healthy says nothing; degraded speaks up
 }
 
 async function pollHealth() {
@@ -589,6 +621,7 @@ async function refreshBadge() {
       badge.textContent = n;
       badge.classList.toggle("hidden", n === 0);
     }
+    renderWorkflow(stats);
     $('[data-nav="approvals"]')?.classList.toggle("attention", n > 0);
     if (n) {
       try {
@@ -605,10 +638,23 @@ async function refreshBadge() {
   } catch {}
 }
 
+// Workflow header status: real activity only — running runs, queued work,
+// approvals needing a person, or a degraded executor. Idle+healthy = quiet.
+function renderWorkflow(stats) {
+  const el = $("#workflow");
+  if (!el) return;
+  const parts = [];
+  const r = stats.active_runs || 0, q = stats.queued_tasks || 0, p = stats.pending_approvals || 0;
+  if (r) parts.push(`<span class="w working"><span class="wdot"></span>${r} working</span>`);
+  if (q) parts.push(`<span class="w queued"><span class="wdot"></span>${q} queued</span>`);
+  if (p) parts.push(`<a class="w needs" href="#/approvals"><span class="wdot"></span>${p} need${p === 1 ? "s" : ""} you</a>`);
+  el.innerHTML = parts.join("");
+  el.hidden = parts.length === 0;
+}
+
 // The bar keeps pending approval discoverable from any surface (terminal,
 // artifact, phone sheet) without modal storms: one line, one action.
-function renderAttention() {
-  const bar = $("#attention-bar");
+function renderAttention() {  const bar = $("#attention-bar");
   if (!bar) return;
   const n = lastPendingCount || 0;
   const onApprovals = location.hash.startsWith("#/approvals");
@@ -1175,7 +1221,7 @@ function toolLineHtml(item, anchorEvent, runId) {
         <span class="tool-grid" title="${t}">
           <span class="tool-verdict">${verdict}</span>
           <span class="tool-name">${esc(tool)}</span>
-          <span class="tool-args">${icon("caret", "tool-arrow")}${esc(truncate(summary, 90))}</span>
+          <span class="tool-args">${esc(truncate(summary, 90))}</span>
         </span>
       </button>
       <div class="tool-line-body" id="tlb-${esc(String(idx))}" ${open ? "" : "hidden"}>

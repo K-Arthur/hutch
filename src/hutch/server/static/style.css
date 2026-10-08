@@ -19,49 +19,50 @@
 :root {
   color-scheme: dark;
 
-  /* ── surfaces ─────────────────────────────────────────────────────── */
-  --bg:          #06080b;   /* app ground                                 */
-  --sidebar:     #04060a;   /* committed ground — owns the rail           */
-  --panel:       #0b0f14;   /* cards, headers                             */
-  --raised:      #111720;   /* inputs, hover                              */
-  --raised-hi:   #16202c;   /* active hover                               */
-  --sunken:      #070a0e;   /* output wells, code, transcripts            */
-  --overlay:     #0f151d;   /* modal, toast, sheet                        */
+  /* ── surfaces: aliases onto the daisy "hutch" theme (ui.css) ────────
+     one source of truth with the marketing site's input.css. */
+  --bg:          var(--color-base-100);   /* app ground                                 */
+  --sidebar:     color-mix(in oklab, var(--color-base-100), black 42%);
+  --panel:       var(--color-base-200);   /* cards, headers                             */
+  --raised:      var(--color-base-300);   /* inputs, hover                              */
+  --raised-hi:   color-mix(in oklab, var(--color-base-300), white 6%);
+  --sunken:      color-mix(in oklab, var(--color-base-100), black 55%);
+  --overlay:     var(--color-base-300);   /* modal, popover, sheet                      */
 
   /* ── lines ────────────────────────────────────────────────────────── */
-  --line:        rgba(255, 255, 255, 0.07);   /* structure only           */
-  --line-strong: rgba(255, 255, 255, 0.13);   /* control boundary         */
-  --line-hi:     rgba(255, 255, 255, 0.20);
-  --hairline-top: rgba(255, 255, 255, 0.06);
+  --line:        rgb(255 255 255 / 0.07);
+  --line-strong: rgb(255 255 255 / 0.14);
+  --line-hi:     rgb(255 255 255 / 0.22);
+  --hairline-top: rgb(255 255 255 / 0.06);
 
   /* ── text ─────────────────────────────────────────────────────────── */
-  --text:   #eef2f7;
-  --text-2: #a9b7c6;   /* secondary  ≥7:1 on every surface               */
-  --text-3: #8393a4;   /* metadata   ≥4.6:1 on every surface             */
+  --text:   var(--color-base-content);
+  --text-2: color-mix(in oklab, var(--color-base-content), transparent 26%);
+  --text-3: color-mix(in oklab, var(--color-base-content), transparent 43%);
 
-  /* ── brand: emerald lineage. Fill carries near-black ink (7.6:1). ── */
-  --brand:      #34d399;
-  --brand-hi:   #6ee7b7;
-  --brand-deep: #10b981;
-  --brand-ink:  #04140d;                    /* text on brand fills        */
-  --brand-line: rgba(52, 211, 153, 0.32);
-  --brand-wash: rgba(52, 211, 153, 0.08);
+  /* ── brand: emerald lineage, dark ink on fill (7.6:1). ───────────── */
+  --brand:      var(--color-primary);
+  --brand-hi:   var(--color-accent);
+  --brand-deep: color-mix(in oklab, var(--color-primary), black 26%);
+  --brand-ink:  var(--color-primary-content);
+  --brand-line: color-mix(in oklab, var(--color-primary) 32%, transparent);
+  --brand-wash: color-mix(in oklab, var(--color-primary) 9%, transparent);
 
   /* ── interaction (azure is never a brand statement) ───────────────── */
-  --focus:      #52a8ff;
-  --focus-wash: rgba(82, 168, 255, 0.13);
-  --focus-line: rgba(82, 168, 255, 0.45);
+  --focus:      var(--color-secondary);
+  --focus-wash: color-mix(in oklab, var(--color-secondary) 14%, transparent);
+  --focus-line: color-mix(in oklab, var(--color-secondary) 45%, transparent);
 
   /* ── states: icon + word always accompany these ───────────────────── */
-  --ok:     #34d399;
-  --warn:   #fbbf24;
-  --warn-ink: #221302;
-  --danger: #f87171;
-  --info:   #52a8ff;
+  --ok:      var(--color-success);
+  --warn:    var(--color-warning);
+  --warn-ink: var(--color-warning-content);
+  --danger:  var(--color-error);
+  --info:    var(--color-info);
 
-  /* ── type ─────────────────────────────────────────────────────────── */
-  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  /* ── type: tailwind's system stacks ──────────────────────────────── */
+  --sans: var(--font-sans);
+  --mono: var(--font-mono);
   --fs-2xs: 11px; --fs-xs: 12px; --fs-sm: 13px; --fs-base: 14px;
   --fs-md: 15px;  --fs-lg: 16px; --fs-xl: 18px; --fs-2xl: 22px; --fs-3xl: 28px;
 
@@ -69,22 +70,23 @@
   --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px;
   --s-5: 24px; --s-6: 32px; --s-7: 40px; --s-8: 56px;
 
-  /* ── geometry: one rounded scale, used honestly ───────────────────── */
-  --r-ctl: 8px;          /* buttons, inputs, rows, small controls          */
-  --r-panel: 12px;       /* cards, panels, menus, tables, popovers         */
-  --r-composer: 22px;    /* the composer bubble, modals                    */
-  --r-card: 18px;        /* chat bubbles                                   */
-  --r-chip: 100px;       /* chips/pills                                    */
+  /* ── geometry: one rounded scale (defined in ui.css's layer) ─────── */
+  --r-ctl: 0.5rem;       /* buttons, inputs, rows                         */
+  --r-panel: 0.75rem;    /* cards, panels, menus, popovers, tables        */
+  --r-chat: 1.25rem;     /* chat tier: bubbles + composer                 */
+  --r-composer: var(--r-chat);
+  --r-card: var(--r-chat);
+  --r-chip: 100px;       /* chips/pills                                   */
 
-  /* ── elevation ────────────────────────────────────────────────────── */
-  --sh-1: 0 1px 0 var(--hairline-top), 0 2px 8px rgba(0, 0, 0, 0.50);
-  --sh-2: 0 1px 0 var(--hairline-top), 0 10px 28px rgba(0, 0, 0, 0.55);
-  --sh-pop: 0 1px 0 var(--hairline-top), 0 24px 64px rgba(0, 0, 0, 0.70);
+  /* ── elevation: open-props shadows ───────────────────────────────── */
+  --sh-1: var(--shadow-1);
+  --sh-2: var(--shadow-2);
+  --sh-pop: var(--shadow-5);
 
-  /* ── motion ───────────────────────────────────────────────────────── */
+  /* ── motion: open-props easing ────────────────────────────────────── */
   --dur-fast: 110ms; --dur: 160ms; --dur-slow: 260ms;
-  --ease: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease: var(--ease-out-5);
+  --ease-out: var(--ease-out-5);
 
   /* ── layering (documented scale; nothing improvises z-index) ──────── */
   --z-rail: 40; --z-sheet: 45; --z-modal: 50; --z-toast: 60; --z-skip: 70;
@@ -216,6 +218,7 @@ a:hover { text-decoration: underline; }
   border: 1px solid var(--line); border-radius: var(--r-ctl);
   font: 400 var(--fs-base)/1.4 var(--sans);
   padding: 7px var(--s-3);
+  width: auto; min-width: 0;   /* never inherit width:100% + margins = overflow */
 }
 .roster-search::placeholder { color: var(--text-3); }
 .roster-search:focus { border-color: var(--focus); outline: none; box-shadow: 0 0 0 1px var(--focus); }
@@ -257,7 +260,6 @@ a:hover { text-decoration: underline; }
 }
 .ws-foot-link:hover { color: var(--text); background: rgba(255, 255, 255, 0.045); }
 .ws-foot-link:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.ws-foot .pill { margin: var(--s-2) var(--s-2) var(--s-1); }
 
 .pref-wrap { position: relative; }
 .pref-pop {
@@ -285,29 +287,34 @@ a:hover { text-decoration: underline; }
   .app-shell.collapsed .ws-foot-link { font-size: 0; gap: 0; justify-content: center; padding: 9px 0; }
   .app-shell.collapsed .pref-pop { left: 52px; bottom: 0; }
   .app-shell.collapsed .ws-foot { justify-items: center; }
-  .app-shell.collapsed .ws-foot .pill { margin: var(--s-2) 0 var(--s-1); }
+  /* collapsed: the logo IS the expand control; the dock button shows only
+     when the rail is expanded (separate from the logo, per review) */
+  .app-shell.collapsed .ws-dock { display: none; }
+  .app-shell.collapsed .brand { cursor: pointer; }
+  .app-shell.collapsed .brand:focus-visible { outline: 2px solid var(--focus); outline-offset: 5px; }
 }
 @media (max-width: 900px) {
   .icon-btn.ws-dock { display: none; }
 }
 
-/* daemon pill: truthful health, icon dot + word, never color alone */
-.pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  font: 600 var(--fs-2xs)/1 var(--mono);
-  padding: 5px 10px; border: 1px solid var(--line-strong); border-radius: var(--r-chip);
-  color: var(--text-3); white-space: nowrap; margin-left: auto;
+/* daemon truth: a quiet status row — dot + word, no container, no chrome. */
+.pill { margin-left: auto; }
+.pill.daemon {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: transparent; border: 0; padding: 4px 2px;
+  font: 500 var(--fs-2xs)/1 var(--mono); color: var(--text-3); white-space: nowrap;
 }
-.pill.daemon { background: transparent; }
 .pill .daemon-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .pill.connecting { color: var(--text-3); }
-.pill.live { color: var(--brand-hi); border-color: var(--brand-line); }
-.pill.live .daemon-dot { animation: daemon-pulse 2.2s var(--ease) infinite; }
-.pill.reconnecting { color: var(--warn); border-color: rgba(251, 191, 36, 0.4); }
-.pill.offline { color: var(--danger); border-color: rgba(248, 113, 113, 0.45); }
-@keyframes daemon-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-:root.reduce-effects .pill.live .daemon-dot,
-@media (prefers-reduced-motion: reduce) { .pill.live .daemon-dot { animation: none; } }
+.pill.live { color: var(--text-3); }
+.pill.live .daemon-dot { background: var(--brand); animation: daemon-pulse 2.4s var(--ease) infinite; }
+.pill.reconnecting { color: var(--warn); }
+.pill.reconnecting .daemon-dot { background: var(--warn); }
+.pill.offline { color: var(--danger); }
+.pill.offline .daemon-dot { background: var(--danger); }
+@keyframes daemon-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .pill.live .daemon-dot { animation: none !important; } }
+:root.reduce-effects .pill.live .daemon-dot { animation: none !important; }
 
 /* ── top bar (context header of the current view) ── */
 .app-top {
@@ -320,6 +327,22 @@ a:hover { text-decoration: underline; }
 }
 .icon-btn.nav-toggle { display: none; }
 .app-top-context { display: flex; align-items: center; gap: var(--s-3); min-width: 0; flex: 1; height: 100%; }
+
+/* workflow status cluster: real activity only; hidden when idle+healthy */
+.app-top-status { display: flex; align-items: center; gap: var(--s-3); flex: none; }
+.app-top-status .pill { margin-left: 0; }
+.workflow { display: inline-flex; align-items: center; gap: var(--s-3); font: 500 var(--fs-2xs)/1 var(--mono); color: var(--text-3); white-space: nowrap; }
+.workflow[hidden] { display: none; }
+.workflow .w { display: inline-flex; align-items: center; gap: 6px; color: inherit; text-decoration: none; }
+.workflow .w:hover { text-decoration: none; }
+.workflow .wdot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.workflow .working { color: var(--brand-hi); }
+.workflow .working .wdot { animation: daemon-pulse 2.4s var(--ease) infinite; }
+.workflow .queued { color: var(--text-3); }
+.workflow .needs { color: var(--warn); }
+.workflow .needs:hover { text-decoration: underline; }
+@media (prefers-reduced-motion: reduce) { .workflow .working .wdot { animation: none !important; } }
+:root.reduce-effects .workflow .working .wdot { animation: none !important; }
 
 main#view {
   grid-row: 2; grid-column: 2;
@@ -346,43 +369,16 @@ main#view > .page-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-4); margin-bottom: var(--s-5); }
 
 /* ───────────────────────────── controls ───────────────────────────── */
+/* Generic controls (.btn, inputs, .card, .panel, chips) come from the
+   Tailwind + daisyUI build in ui.css — the system owns them; this file
+   keeps only the app-specific glue. */
 
-.btn {
-  all: unset; box-sizing: border-box; cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
-  min-height: 32px; padding: 0 var(--s-4);
-  font: 600 var(--fs-base)/1 var(--sans);
-  color: var(--text); background: var(--raised);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-ctl);
-  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
-}
-.btn:hover { background: var(--raised-hi); border-color: var(--line-hi); text-decoration: none; }
-.btn:active { transform: translateY(1px); }
-.btn[disabled], .btn[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; transform: none; }
+label.field { display: grid; gap: var(--s-1); font-size: var(--fs-sm); font-weight: 600; color: var(--text-2); }
+textarea { resize: vertical; line-height: 1.6; }
+input[disabled], textarea[disabled] { opacity: 0.5; cursor: not-allowed; }
 
-.btn.primary { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
-.btn.primary:hover { background: var(--brand-hi); border-color: var(--brand-hi); }
-.btn.ghost { background: transparent; border-color: var(--line); color: var(--text-2); }
-.btn.ghost:hover { color: var(--text); border-color: var(--line-strong); background: rgba(255, 255, 255, 0.04); }
-.btn.danger { background: transparent; border-color: rgba(248, 113, 113, 0.5); color: var(--danger); }
-.btn.danger:hover { background: rgba(248, 113, 113, 0.12); color: #ffb4b4; }
-.btn.warn { background: var(--warn); border-color: var(--warn); color: var(--warn-ink); }
-.btn.small { min-height: 26px; font-size: var(--fs-sm); padding: 0 var(--s-3); }
-.btn.icon-btn, .icon-btn {
-  all: unset; box-sizing: border-box; cursor: pointer;
-  display: inline-grid; place-items: center;
-  width: 32px; height: 32px; flex: none;
-  color: var(--text-2); background: transparent;
-  border-radius: var(--r-ctl);
-  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
-}
-.icon-btn:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
-.icon-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.btn.icon-btn { height: auto; min-height: 32px; }
-
+/* legacy element tags from shared renderers get the .btn language */
 button.primary, button.ghost, button.danger, button.small, a.primary, a.ghost {
-  /* legacy tags from shared renderers get the .btn language */
   all: unset; box-sizing: border-box; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
   min-height: 32px; padding: 0 var(--s-4);
@@ -394,23 +390,11 @@ button.primary, a.primary { background: var(--brand); color: var(--brand-ink); b
 button.primary:hover, a.primary:hover { background: var(--brand-hi); }
 button.ghost, a.ghost { background: transparent; border-color: var(--line); color: var(--text-2); }
 button.ghost:hover, a.ghost:hover { color: var(--text); border-color: var(--line-strong); }
-button.danger { background: transparent; border-color: rgba(248, 113, 113, 0.5); color: var(--danger); }
-button.danger:hover { background: rgba(248, 113, 113, 0.12); }
+button.danger { background: transparent; border-color: color-mix(in oklab, var(--danger) 50%, transparent); color: var(--danger); }
+button.danger:hover { background: color-mix(in oklab, var(--danger) 12%, transparent); }
 button.small, a.small { min-height: 26px; font-size: var(--fs-sm); padding: 0 var(--s-3); }
 
-label.field { display: grid; gap: var(--s-1); font-size: var(--fs-sm); font-weight: 600; color: var(--text-2); }
-input[type="text"], input[type="search"], input[type="number"], input[type="password"], input[type="email"], select, textarea {
-  font: inherit; color: var(--text); background: var(--sunken);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-ctl);
-  padding: 8px var(--s-3); width: 100%;
-}
-input:focus-visible, select:focus-visible, textarea:focus-visible { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); outline: none; }
-textarea { resize: vertical; line-height: 1.6; }
-input[disabled], textarea[disabled] { opacity: 0.5; cursor: not-allowed; }
-select { appearance: auto; }
-
-/* ── chips: the 100px geometry exception ── */
+/* ── chips: state pills — the 100px geometry exception ── */
 .chip, .status, .tag {
   display: inline-flex; align-items: center; gap: 5px;
   font: 600 var(--fs-2xs)/1 var(--mono);
@@ -450,15 +434,7 @@ select { appearance: auto; }
 
 /* ───────────────────────────── panels / tables ───────────────────────────── */
 
-.card, .panel {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--r-panel);
-  box-shadow: var(--sh-1);
-  padding: var(--s-4);
-}
-.panel { margin-bottom: var(--s-4); }
-.panel-title { font-size: var(--fs-lg); font-weight: 650; margin-bottom: var(--s-3); }
+/* .card/.panel come from ui.css's component layer (theme-owned). */
 
 .table-wrap { border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--panel); box-shadow: var(--sh-1); overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: var(--fs-base); }
@@ -592,7 +568,11 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
   width: 100%; padding: 1px 2px;
 }
 .tool-line-head:focus-visible { outline: 2px solid var(--focus); outline-offset: -1px; }
-.tool-grid { display: grid; grid-template-columns: 12px minmax(64px, auto) minmax(0, 1fr); align-items: baseline; gap: var(--s-2); font: 400 var(--fs-xs)/1.7 var(--mono); color: var(--text-3); }
+.tool-grid { display: grid; grid-template-columns: 12px minmax(64px, auto) minmax(0, 1fr); align-items: center; gap: var(--s-2); font: 400 var(--fs-xs)/1.7 var(--mono); color: var(--text-3); }
+/* separator drawn in CSS: an inline SVG was baseline-misaligning inside the
+   overflow:hidden args box and floating above its row (review screenshot) */
+.tool-args::before { content: ""; display: inline-block; width: 0; height: 0; border-left: 4px solid currentColor; border-top: 3px solid transparent; border-bottom: 3px solid transparent; vertical-align: middle; margin-right: 7px; opacity: 0.65; }
+.tool-log .tool-args::before { content: none; }
 .tool-line .icon { width: 12px; height: 12px; }
 .tool-line-head:hover .tool-grid { color: var(--text-2); }
 .tool-verdict { display: inline-grid; place-items: center; color: var(--text-3); }
@@ -1109,6 +1089,7 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
    hover styles are identical so the zeroed size is invisible. */
 @media (max-width: 640px) {
   .ctx-meta { display: none; }
+  .app-top-status .workflow { display: none; }
   .app-top-context .ctx-actions .btn { font-size: 0; gap: 0; padding: 0 8px; }
   .app-top-context .ctx-actions .btn .icon { width: 16px; height: 16px; }
 }
