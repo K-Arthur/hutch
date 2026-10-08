@@ -27,13 +27,13 @@
   /* Accent + semantic status colors — state only, never decoration.
      Oct 2026 monochrome-first pass: the -bg fills are neutral, so a status colour shows as a dot,
      a left rail or a text colour, never a tinted block. Violet (--meta) is retired. */
-  --accent: #34d399;
-  --accent-strong: #6ee7b7;
-  --accent-down: #10b981;
-  --accent-ink: #052e21;               /* text on accent fills      7.7:1 */
-  --accent-bg: rgba(52, 211, 153, 0.10);
-  --accent-border: rgba(52, 211, 153, 0.38);
-  --accent-glow: rgba(52, 211, 153, 0.18);
+  --accent: #52a8ff;
+  --accent-strong: #7cc0ff;
+  --accent-down: #3f97f0;
+  --accent-ink: #04121f;               /* text on accent fills */
+  --accent-bg: rgba(82, 168, 255, 0.12);
+  --accent-border: rgba(82, 168, 255, 0.42);
+  --accent-glow: rgba(82, 168, 255, 0.22);
 
   --neutral-tint: rgba(255, 255, 255, 0.04);
   --info: #60a5fa;        --info-bg: var(--neutral-tint);        --info-border: rgba(96, 165, 250, 0.35);
@@ -65,18 +65,27 @@
   --fs-lg: 16px;
   --fs-xl: 18px;
 
-  /* Radius scale — brutalist-modern: square controls, sharp panels, pill status */
-  --radius-btn: 0px;     /* square buttons (brutalist) */
-  --radius-xs: 3px;
-  --radius-sm: 5px;
-  --radius-md: 8px;
-  --radius-lg: 8px;
-  --radius: var(--radius-md);
-  --radius-full: 100px;  /* pill chips */
+  /* Radius scale — one coherent rounded language (Oct 2026 correction).
+     The earlier per-surface mix (0px buttons next to 5px inputs, 8px panels,
+     50% circles and 100px chips) read as inconsistent; research (Material 3
+     shape scale, Atlassian radius tokens) and the shape-perception literature
+     both favour a small consistent scale over mixed sharp/round edges.
+     Controls 8 · containers 12 · composer/modal 16 · pills full · tiny 4.
+     Sharp corners stay reserved for dense data (table cells) inside a rounded
+     wrapper. Circles are for avatars, icon-only buttons, dots and spinners. */
+  --radius-btn: 8px;     /* buttons, inputs, selects */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;     /* cards, panels, table wrappers */
+  --radius-lg: 16px;     /* composer, modals, prominent surfaces */
+  --radius: var(--radius-sm);
+  --radius-full: 999px;  /* pill chips, status, meters */
 
-  /* Atmosphere: subtle radial accent glow + a glass ring for panels */
-  --glow-accent: rgba(52, 211, 153, 0.10);
-  --glow-info: rgba(96, 165, 250, 0.07);
+  /* Atmosphere: one calm, centred wash + a hairline ring for panels. The old
+     pair of corner glows mixed an emerald wash with a blue one on a blue-accent
+     UI, which is what read as "all over the place"; keep a single low-alpha
+     wash in the accent family so the surface stays quiet and predictable. */
+  --glow-page: rgba(82, 168, 255, 0.045);
   --ring-glass: rgba(255, 255, 255, 0.08);
 
   /* Spacing scale */
@@ -111,10 +120,11 @@
 html, body {
   margin: 0;
   padding: 0;
+  /* Calm default surface: one faint, centred top wash for depth, nothing else.
+     No competing corner gradients, no animated backdrop behind the work. */
   background-color: var(--bg);
-  background-image:
-    radial-gradient(900px 520px at 12% -8%, var(--glow-accent), transparent 60%),
-    radial-gradient(760px 460px at 100% 0%, var(--glow-info), transparent 58%);
+  background-image: radial-gradient(1100px 560px at 50% -12%, var(--glow-page), transparent 72%);
+  background-repeat: no-repeat;
   background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-sans);
@@ -176,13 +186,11 @@ a:hover { color: var(--accent-strong); }
   gap: var(--space-6);
   padding: 0 var(--space-5);
   height: 56px;
-  background: rgba(8, 12, 18, 0.9);
+  background: var(--surface-1);
   border-bottom: 1px solid var(--border-subtle);
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
 }
 
 .brand {
@@ -377,6 +385,7 @@ button.icon-btn, .icon-btn {
 
 .page-title { font-size: var(--fs-xl); font-weight: 700; letter-spacing: -0.01em; margin: 0 0 4px; }
 .page-subtitle { color: var(--text-dim); font-size: var(--fs-sm); margin: 0 0 var(--space-5); }
+.panel-title { margin: 0 0 10px; font-size: var(--fs-sm); font-weight: 650; }
 .hint { color: var(--text-faint); font-size: var(--fs-xs); }
 .mono { font-family: var(--font-mono); font-size: var(--fs-xs); }
 
@@ -499,7 +508,7 @@ button.icon-btn, .icon-btn {
 }
 .rail-bot:hover { opacity: 1; }
 .rail-bot.active { transform: none; }
-.rail-bot.active .hex-avatar { filter: drop-shadow(0 0 8px rgba(52, 211, 153, 0.35)); }
+.rail-bot.active .hex-avatar { filter: drop-shadow(0 0 8px var(--accent-glow)); }
 .rail-bot .hex-avatar { width: 40px; height: 44px; }
 .rail-dot {
   position: absolute;
@@ -513,7 +522,7 @@ button.icon-btn, .icon-btn {
 }
 .rail-bot .hex-avatar { width: 44px; height: 44px; }
 .rail-bot.active { opacity: 1; }
-.rail-bot.active .hex-avatar { filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.25)); }
+.rail-bot.active .hex-avatar { filter: drop-shadow(0 0 6px var(--accent-glow)); }
 .rail-dot.running { background: var(--accent); }
 .rail-dot.paused { background: var(--warning); }
 .rail-foot {
@@ -544,7 +553,7 @@ button.icon-btn, .icon-btn {
 .studio-main {
   background: var(--surface-1);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -561,7 +570,7 @@ button.icon-btn, .icon-btn {
 }
 .bot-header-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .bot-header-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.bot-header-title { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bot-header-title { margin: 0; font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bot-header-meta {
   font-family: var(--font-mono);
   font-size: var(--fs-2xs);
@@ -585,8 +594,8 @@ button.icon-btn, .icon-btn {
 /* User prompt — quiet right-aligned block */
 .chat-msg.user {
   align-self: flex-end;
-  background: rgba(52, 211, 153, 0.08);
-  border: 1px solid rgba(52, 211, 153, 0.2);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-xs) var(--radius-lg);
   padding: 10px 14px;
   max-width: 82%;
@@ -650,7 +659,7 @@ button.icon-btn, .icon-btn {
   padding: 4px 10px;
   background: transparent;
   border: none;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   font: inherit;
   color: inherit;
   text-align: left;
@@ -1318,11 +1327,10 @@ td.mono { font-family: var(--font-mono); font-size: var(--fs-xs); }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 .panel {
-  background: rgba(10, 14, 21, 0.78);
+  background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: inset 0 0 0 1px var(--ring-glass);
-  backdrop-filter: blur(10px);
   padding: var(--space-5);
 }
 label.field { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-xs); color: var(--text-dim); font-weight: 600; }
@@ -1483,15 +1491,19 @@ select { cursor: pointer; }
   }
 }
 
-/* ------------------------------------------------------- Brutalist-modern pass
-   Square buttons, 100px pill chips, monospace data rows (Oct 2026 spec). */
-button, .btn, button.small, .btn.small { border-radius: 0; }
-.tag, .status, .chip, .badge, .feed-pill { border-radius: 100px; }
+/* ------------------------------------------------------- Shape + data (Oct 2026)
+   One rounded radius scale for the whole app (controls 8, containers 12,
+   composer/modal 16, pills full) — see the token block at the top of this file.
+   The previous blanket `border-radius: 0` on every button was the main source of
+   the inconsistent feel: square primary buttons sat beside circular icon buttons,
+   pill status chips and rounded panels. Dense table cells stay square inside a
+   rounded wrapper. Monospace data rows are retained. */
+.tag, .status, .chip, .badge, .feed-pill { border-radius: var(--radius-full); }
 table th, table td { font-family: var(--font-mono); }
 
 /* Full-screen mobile menu (header nav collapses to an overlay) */
 .nav-toggle { display: none; width: 38px; height: 38px; align-items: center; justify-content: center;
-  background: transparent; border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; border-radius: 0; }
+  background: transparent; border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; border-radius: var(--radius-sm); }
 .nav-toggle[aria-expanded="true"] { color: var(--accent); border-color: var(--accent-border); }
 @media (max-width: 760px) {
   .nav-toggle { display: inline-flex; }
@@ -1519,7 +1531,7 @@ table th, table td { font-family: var(--font-mono); }
 }
 .status.succeeded, .tag.ok { color: var(--success); }
 .status.running { color: var(--accent); }
-.card { border: 1px solid var(--border); box-shadow: inset 0 0 0 1px var(--ring-glass); }
+.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: inset 0 0 0 1px var(--ring-glass); }
 .tag, .status, .chip, .badge { font-size: 12px; }
 @media (max-width: 760px) { .topbar { backdrop-filter: none; -webkit-backdrop-filter: none; } }
 
@@ -1537,7 +1549,7 @@ table th, table td { font-family: var(--font-mono); }
 .ov-row-main { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ov-row-prompt { color: var(--text-dim); font-size: 13px; }
 .ov-row-meta { color: var(--text-faint); font-size: 11.5px; }
-.ov-approval { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--border); border-left: 2px solid var(--warning); background: rgba(255, 255, 255, 0.02); padding: 12px; margin-bottom: 10px; color: var(--text); }
+.ov-approval { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--border); border-left: 2px solid var(--warning); border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.02); padding: 12px; margin-bottom: 10px; color: var(--text); }
 .ov-approval:hover { text-decoration: none; border-color: var(--border-strong); }
 .ov-approval-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ov-approval-action { color: var(--text); font-weight: 600; }
@@ -1548,7 +1560,7 @@ table th, table td { font-family: var(--font-mono); }
 
 /* ------------------------------------------------------- Timeline bar (run duration) */
 .timeline { display: inline-flex; align-items: center; gap: 8px; min-width: 130px; }
-.timeline-track { flex: 1; height: 6px; background: var(--surface-3); border-radius: 0; overflow: hidden; min-width: 56px; }
+.timeline-track { flex: 1; height: 6px; background: var(--surface-3); border-radius: var(--radius-full); overflow: hidden; min-width: 56px; }
 .timeline-fill { display: block; height: 100%; background: var(--accent); }
 .timeline-fill.warn { background: var(--warning); }
 .timeline-fill.bad { background: var(--danger); }
@@ -1568,7 +1580,7 @@ table th, table td { font-family: var(--font-mono); }
 .kpi-label { color: var(--text-faint); font: 600 11px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
 .kpi-val { font-size: 20px; font-weight: 700; }
 .run-timing { margin-bottom: 16px; }
-.timeline-stack { display: flex; height: 10px; background: var(--surface-3); border-radius: 0; overflow: hidden; margin-bottom: 8px; }
+.timeline-stack { display: flex; height: 10px; background: var(--surface-3); border-radius: var(--radius-full); overflow: hidden; margin-bottom: 8px; }
 .timeline-stack i { display: block; height: 100%; }
 .s-model { background: var(--accent); }
 .s-tool { background: var(--success); }

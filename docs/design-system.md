@@ -62,9 +62,15 @@ git history; re-verify after changing any value in this table.
 
 ## Scales
 
-- **Radius:** 4 (chips, small buttons) / 8 (inputs, buttons, tool lines) /
-  12 (cards, panels) / 16 (modals) / 9999 (pills). No other values. The app is
-  utilitarian: **12px panels, not 16** — oversized radii read as playful.
+- **Radius:** one coherent rounded scale, one rect radius per role — 4 (micro
+  affordances: chip delete, toast close) / 8 (buttons, inputs, selects, nav,
+  tool lines) / 12 (cards, panels, table wrappers) / 16 (composer, modals,
+  sheets) / 9999 (pill chips, status, meters). Circular geometry (avatars,
+  icon-only buttons, dots, spinners) is `50%`. **Sharp (0px) corners are
+  reserved for dense data cells inside a rounded wrapper** — never for buttons.
+  The earlier square-button pass was corrected after review (see below): the mix
+  of 0px buttons beside 50% circles, 5px inputs and 8px panels is what read as
+  inconsistent, not the roundness itself.
 - **Type:** 11, 12, 13, 14 (body), 16, 18. System sans for all UI; a system
   serif for the page `<h1>` only (the one editorial signature); `ui-monospace`
   for tool names, IDs, cron, timestamps, and code.
@@ -232,8 +238,16 @@ The palette was re-based from emerald to a blue/green system with neutral cards.
 | warning | `#fbbf24` | approvals, stale, budget |
 | danger | `#f87171` | failure, deny, destructive |
 
-- **Shape:** 0px buttons (square), 100px pill chips with 12px text, 8px panels/controls.
-- **Atmosphere:** a subtle radial accent glow on the page background; glass panels (translucent + 1px ring + blur).
+- **Shape:** one rounded radius scale (buttons/inputs 8, panels/cards 12, composer
+  and modals 16, pill chips full). The earlier 0px-button brutalist pass was
+  corrected after review: square primary buttons beside circular icon buttons,
+  pill chips and rounded panels read as inconsistent, and the shape literature
+  (Material 3 shape scale, Atlassian radius tokens) plus the perceptual research
+  on corner shape favour a small, consistent rounded scale for interactive and
+  containment surfaces. Dense table cells stay square inside a rounded wrapper.
+- **Atmosphere:** a single faint, centred top wash on a solid surface — no corner
+  gradients, no full-screen animation, no universal blur. Panels are solid with a
+  1px ring. The background never changes hue between views.
 - **Data:** every data row is monospace (table `th`/`td`); mono for tool names, ids, cron, timestamps, code.
 - **Navigation:** the header nav collapses to a full-screen mobile menu (hamburger, Escape, `aria-expanded`) on the app and the server dashboard; the marketing drawer is full-screen too.
 - **Marketing only:** dot-grid background, scroll-reveal animations, floating parallax cards, stacked text echo, asymmetrical grids.

@@ -116,9 +116,12 @@ function summarizeOutput(output) {
 
 // Bot persona: hexagon avatar (the hutch logo shape) tinted per bot, plus a
 // derived status so the rail reads at a glance.
+// Identity hues (not status): the first was the retired emerald, which read as a
+// leftover green accent beside the blue UI. Kept in the brand family, distinct
+// from the success/warning *state* colours on purpose.
 const AVATAR_HUES = [
-  { fg: "#34d399", bg: "rgba(52, 211, 153, 0.1)" },
-  { fg: "#60a5fa", bg: "rgba(96, 165, 250, 0.1)" },
+  { fg: "#52a8ff", bg: "rgba(82, 168, 255, 0.1)" },
+  { fg: "#7c9cff", bg: "rgba(124, 156, 255, 0.1)" },
   { fg: "#9daebf", bg: "rgba(157, 174, 191, 0.1)" },
   { fg: "#fbbf24", bg: "rgba(251, 191, 36, 0.1)" },
 ];
@@ -389,12 +392,12 @@ async function renderChatStudio(preferredBot = null) {
       </aside>
 
       <!-- Center Stage: Conversation & Live Execution -->
-      <main class="studio-main">
+      <div class="studio-main" role="region" aria-label="Conversation">
         <header class="studio-main-header">
           <div class="bot-header-info">
             ${hexAvatar(bot.name, 34)}
             <div class="bot-header-id">
-              <span class="bot-header-title">${esc(bot.name)}</span>
+              <h1 class="bot-header-title">${esc(bot.name)}</h1>
               <span class="bot-header-meta">${esc(bot.model)} &middot; asks before running</span>
             </div>
           </div>
@@ -432,7 +435,7 @@ async function renderChatStudio(preferredBot = null) {
             </div>
           </div>
         </footer>
-      </main>
+      </div>
 
       <!-- Right Inspector Panel -->
       <aside class="studio-inspector">
@@ -1343,7 +1346,8 @@ async function renderBotDetail(name) {
       </div>
 
       <div class="panel" style="margin-bottom:18px;">
-        <h3 style="margin-top:0">Instructions</h3>
+        <h2 class="panel-title">Instructions</h2>
+        <label class="visually-hidden" for="bot-instructions">Bot instructions</label>
         <textarea id="bot-instructions" style="min-height:120px;font-family:var(--font-mono);">${esc(b.instructions || "")}</textarea>
         <button class="primary small" id="btn-save-instructions" style="margin-top:8px;">Save instructions</button>
       </div>

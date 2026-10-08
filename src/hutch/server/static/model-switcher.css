@@ -4,7 +4,7 @@
 .ms-wrap { position: static; flex: none; align-self: center; margin-bottom: 4px; }
 .ms-btn {
   display: inline-flex; align-items: center; gap: 7px; max-width: 190px; min-height: 34px; padding: 0 10px 0 11px;
-  border-radius: 999px; border: 1px solid var(--border); background: var(--surface-3, transparent);
+  border-radius: var(--radius-full, 999px); border: 1px solid var(--border); background: var(--surface-3, transparent);
   color: var(--text-dim); font: 500 12.5px var(--font-sans); cursor: pointer;
 }
 .ms-btn:hover, .ms-btn[aria-expanded="true"] { color: var(--text); border-color: var(--border-strong, var(--border)); }
@@ -17,13 +17,13 @@
 
 .ms-menu {
   position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 30; width: 300px; max-width: calc(100vw - 24px);
-  padding: 6px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface-2);
+  padding: 6px; border-radius: var(--radius-md, 12px); border: 1px solid var(--border); background: var(--surface-2);
   box-shadow: 0 12px 32px rgba(0, 0, 0, .45);
 }
 .ms-menu[hidden] { display: none; }
 .ms-item {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left;
-  padding: 9px 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text); cursor: pointer;
+  padding: 9px 10px; border: 0; border-radius: var(--radius-sm, 8px); background: transparent; color: var(--text); cursor: pointer;
   font: inherit; min-height: 44px;
 }
 .ms-item:hover, .ms-item:focus-visible { background: var(--surface-3); outline: none; }
@@ -35,7 +35,7 @@
 .ms-sep { height: 1px; margin: 4px 6px; background: var(--border); }
 .ms-more .ms-item-name { color: var(--text); }
 .ms-tag {
-  display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; border-radius: 5px; border: 1px solid var(--border);
+  display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; border-radius: var(--radius-xs, 4px); border: 1px solid var(--border);
   font: 11px var(--font-mono); color: var(--text-dim); background: var(--surface-1);
 }
 .ms-tag.ms-warn { color: var(--amber, #fbbf24); border-color: rgba(251, 191, 36, .4); }
@@ -47,7 +47,7 @@
 .ms-groups { max-height: 46vh; overflow: auto; padding-right: 4px; }
 .ms-group { margin-bottom: 12px; }
 .ms-group h4 { margin: 0 0 4px; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); }
-.ms-row { display: flex; gap: 10px; align-items: flex-start; padding: 8px 8px; border-radius: 9px; cursor: pointer; }
+.ms-row { display: flex; gap: 10px; align-items: flex-start; padding: 8px 8px; border-radius: var(--radius-sm, 8px); cursor: pointer; }
 .ms-row:hover { background: var(--surface-3); }
 .ms-row[hidden], .ms-group[hidden], .ms-empty[hidden] { display: none; }
 /* radios are drawn here: the browser's default renders unchecked ones as solid discs on this dark theme */

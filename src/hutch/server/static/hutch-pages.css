@@ -13,7 +13,7 @@
 .stack-form { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .terms { border: 1px solid var(--border-strong); border-radius: var(--r); padding: 12px 14px; margin-top: 14px; background: var(--bg-subtle); }
 .terms.required, .terms.stale { border-color: rgba(251, 191, 36, .5); }
-.terms.ok { border-color: rgba(52, 211, 153, .35); }
+.terms.ok { border-color: rgba(98, 192, 115, .35); }
 .ack-form { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
 .conn-more { margin-top: 12px; color: var(--dim); }
 .conn-more summary { cursor: pointer; }
