@@ -1083,8 +1083,10 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .run-error.run-notice { color: var(--text-2); }
 .run-error.run-review { color: var(--warn); }
 @media (max-width: 600px) {
+  .mhead { flex-wrap: wrap; }
+  .mhead .status { flex-shrink: 0; max-width: 100%; white-space: normal; }
   .composer-send, .composer-util { width: 44px; height: 44px; }
   .quick-prompts button, .cmenu-row { min-height: 44px; }
-  .mhead [data-stop-run], #studio-stop-run { min-height: 44px; }
+  .mhead [data-stop-run], #studio-stop-run, #studio-review-run { min-height: 44px; }
   .composer-strip { align-items: flex-start; flex-wrap: wrap; line-height: 1.5; }
 }

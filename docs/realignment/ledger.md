@@ -392,3 +392,16 @@ failed refresh retains the inline request and primary Stop, with no page errors 
 Waits are synthetic; the Stop command and expiration transaction are real. No schema change.
 Full regression/browser repeats follow the next accounting checkpoint. Usage test additions in
 the working tree are separate, currently failing baselines, and excluded from this UI commit.
+
+Conversation authority commit: `b5848e0`.
+
+Full-size inspection then showed the retained old request above the visible area because chat
+follows the latest queued messages. A header Review control now scrolls/focuses the inline
+request; unavailable details fall back to Needs you. The expanded browser journey passed
+**4 tests in 24.11s** and refreshed both inspected captures. These demonstrate the actual
+visible decision region, not merely a request present in the DOM. Full repeats remain next.
+
+Phone inspection found the attempt's waiting label clipped in a tight row. It now wraps the
+row without shrinking the status, and the final four journeys passed **4 tests in 25.91s**.
+The refreshed full-size phone capture was inspected: complete waiting label, Review/Stop,
+inline decision buttons and failed-refresh notice are all within their intended regions.

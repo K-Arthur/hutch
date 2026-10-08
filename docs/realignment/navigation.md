@@ -28,6 +28,8 @@ instead of a generic failed label, and recorded queue time remains visible witho
 The main Stop targets the server-selected active attempt within the conversation, even after
 new messages queue. That attempt and its approval stay visible beyond the six-attempt display
 window. Failed refresh retains the review with an explicit stale-details notice and Retry.
+A waiting conversation also exposes Review in the header. It scrolls and focuses the inline
+request without focusing the composer; if the request is unavailable, it opens Needs you.
 
 Monitor contains Activity and Run history. These answer different questions (what needs
 attention now versus what happened), so combining them with conversation history would lose

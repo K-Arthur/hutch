@@ -762,6 +762,15 @@ def test_old_active_approval_survives_chat_window_and_header_stop_targets_it(bro
     assert page.locator("#studio-stop-run").is_visible(), "a failed refresh cannot mean completion"
     assert page.locator("#studio-stop-run").get_attribute("data-stop-target") == runs[0].id
     page.unroute(f"**/api/runs/{runs[0].id}")
+    page.locator("#studio-review-run").click()
+    assert card.locator("summary, button").first.evaluate("e => e === document.activeElement")
+    box = card.bounding_box()
+    feed = page.locator("#chat-scroll").bounding_box()
+    assert box["y"] >= feed["y"] - 1 and box["y"] + box["height"] <= feed["y"] + feed["height"] + 1
+    if size == "phone":
+        assert page.locator("#studio-review-run").bounding_box()["height"] >= 44
+        assert card.locator("xpath=ancestor::article").locator(".mhead .status").evaluate(
+            "e => e.scrollWidth <= e.clientWidth + 1"), "keep the complete waiting label visible"
     out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/conversation-authority"
     out.mkdir(parents=True, exist_ok=True)
     page.screenshot(path=str(out / f"{size}.png"), full_page=True, animations="disabled")

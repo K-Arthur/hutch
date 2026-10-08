@@ -647,6 +647,7 @@ async function renderChatStudio(preferredBot = null) {
       </select>
       <button class="btn ghost small" id="studio-new-conversation" type="button">${icon("plus")} New</button>
       ${!selectedConversation.is_legacy ? `<button class="btn ghost small" id="studio-archive-conversation" type="button" ${activeRun ? "hidden" : ""}>${selectedConversation.archived ? "Restore" : "Archive"}</button>` : ""}
+      <button class="btn ghost small" id="studio-review-run" type="button" ${activeRun?.status === "waiting_approval" ? "" : "hidden"}>${icon("shield")} Review</button>
       <button class="btn danger small" id="studio-stop-run" type="button" data-stop-target="${esc(activeRun?.id || "")}" ${activeRun ? "" : "hidden"}>${icon("stop")} Stop</button>
       <a class="btn ghost small" href="#/bot/${esc(bot.name)}">${icon("sliders")} Settings</a>
     </div>`);
@@ -833,6 +834,15 @@ async function renderChatStudio(preferredBot = null) {
     if (ev.key === "Escape" && !menu.hidden) { ev.stopPropagation(); setMenu(false); menuBtn.focus(); }
   });
   $("#studio-stop-run").onclick = ev => requestStop(ev.currentTarget.dataset.stopTarget, ev.currentTarget);
+  $("#studio-review-run").onclick = () => {
+    const id = $("#studio-stop-run").dataset.stopTarget;
+    const thread = $$("#chat-stream [data-run-id]").find(e => e.dataset.runId === id);
+    const card = thread?.querySelector("[data-approval-card]");
+    if (card) {
+      card.scrollIntoView({ block: "center", behavior: "instant" });
+      card.querySelector("summary, button")?.focus({ preventScroll: true });
+    } else $("#needs-you-open")?.click();
+  };
 
   feedMode = "studio";
   if (activeRun) subscribeRun(activeRun.id);   // stream brings events; first paint below
@@ -865,6 +875,8 @@ function syncStudioRunControls(run) {
   }
   const archive = $("#studio-archive-conversation");
   if (archive) archive.hidden = !!active;
+  const review = $("#studio-review-run");
+  if (review) review.hidden = run?.status !== "waiting_approval";
   const meta = $(".ctx-meta");
   if (meta) meta.innerHTML = active ? statusChip(run.status, run.status_label) : "";
 }
