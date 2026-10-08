@@ -116,7 +116,8 @@ const ICON_PATHS = {
   pause: '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>',
   shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
   key: '<path d="m21 2-2 2m-7.6 7.6a5.5 5.5 0 1 1-7.8 7.8 5.5 5.5 0 0 1 7.8-7.8Zm0 0L15.5 7.5m0 0 3 3L22 4l-3-3z"/>',
-  brain: '<path d="M9.5 2a2.5 2.5 0 0 1 0 5v10a2.5 2.5 0 1 1-4.9.7A3 3 0 0 1 3 15a3 3 0 0 1 .5-5.9A2.5 2.5 0 0 1 5 5a2.5 2.5 0 0 1 4.5-3Z"/><path d="M14.5 2a2.5 2.5 0 0 0 0 5v10a2.5 2.5 0 1 0 4.9.7A3 3 0 0 0 21 15a3 3 0 0 0-.5-5.9A2.5 2.5 0 0 0 19 5a2.5 2.5 0 0 0-4.5-3Z"/>',
+  brain: '<path d="M12 4a4 4 0 0 0-4 4 3.5 3.5 0 0 0-1 6.5A3.5 3.5 0 0 0 12 19a3.5 3.5 0 0 0 5-4.5 3.5 3.5 0 0 0-1-6.5 4 4 0 0 0-4-4Z"/><path d="M12 4v15"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/>',
 };
 
 function icon(name, cls = "") {
@@ -133,29 +134,174 @@ function summarizeOutput(output) {
 }
 
 /* ---------------------------------------------------------------- avatars
-   Identity hues — never status colors (status rides the pip + its word).
-   The first hue keeps the brand emerald lineage. */
-const AVATAR_HUES = [
-  { fg: "#34d399", bg: "rgba(52, 211, 153, 0.10)", line: "rgba(52, 211, 153, 0.34)", glow: "rgba(52, 211, 153, 0.30)" },
-  { fg: "#7c9cff", bg: "rgba(124, 156, 255, 0.10)", line: "rgba(124, 156, 255, 0.34)", glow: "rgba(124, 156, 255, 0.28)" },
-  { fg: "#9daebf", bg: "rgba(157, 174, 191, 0.10)", line: "rgba(157, 174, 191, 0.32)", glow: "rgba(157, 174, 191, 0.22)" },
-  { fg: "#d9a06b", bg: "rgba(217, 160, 107, 0.10)", line: "rgba(217, 160, 107, 0.34)", glow: "rgba(217, 160, 107, 0.24)" },
-  { fg: "#2dd4bf", bg: "rgba(45, 212, 191, 0.10)", line: "rgba(45, 212, 191, 0.34)", glow: "rgba(45, 212, 191, 0.26)" },
+   Unique agent sigils: a shape from a curated family wearing one of eight
+   brand-adjacent colours, with two glints that read as a face. The pair is
+   derived from the bot's name (stable with zero storage), and can be
+   overridden at creation or in settings — no two bots look alike, while the
+   family stays one visual language. Identity never encodes status: status
+   rides the pip, and the pip is always paired with a word (title/aria). */
+/* Identity palette — brighter, high-chroma, drawn from the mascot's mint
+   lineage (website/assets/hutch-agent.svg). Identity only: status never
+   rides here (the pip does that, always with a word). */
+const ID_COLORS = ["#3DE8C5", "#35C3F0", "#5B9BFF", "#9B7CFF", "#C77DFF", "#FF6FA5", "#FFA83C", "#7BD85A"];
+/* Transcribed from the 3D mascot blueprint (website/assets/hutch-agent.svg,
+   rendered by the site-mascot workstream): gradient shell (light/base/deep
+   with a rim light), a dome cap with a bright band, a wide dark glass visor
+   with a top shine, glowing happy-arc eyes + smile, swept side fins, a
+   luminous chest core, and a soft ground glow. Shape picker varies the shell
+   silhouette; colour varies the shell. Detail is pruned at small sizes. */
+const ID_HEADS = [
+  { key: "capsule",  top: 15,   h: 34,   vw: 20,  hw: 13,   body: '<rect x="19" y="15" width="26" height="34" rx="13"/>' },
+  { key: "round",    top: 15,   h: 32,   vw: 21,  hw: 15.5, body: '<circle cx="32" cy="31" r="16"/>' },
+  { key: "squircle", top: 14.5, h: 32,   vw: 22,  hw: 15.5, body: '<rect x="16.5" y="14.5" width="31" height="32" rx="11"/>' },
+  { key: "loaf",     top: 16.5, h: 29,   vw: 23,  hw: 16.5, body: '<rect x="15.5" y="16.5" width="33" height="29" rx="14.5"/>' },
 ];
 
-function botHue(name) {
-  let h = 0;
-  for (const c of String(name)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return AVATAR_HUES[h % AVATAR_HUES.length];
+function hash32(s) {
+  let h = 2166136261;
+  for (const c of String(s)) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function tint(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const m = c => Math.round(c + (255 - c) * amt);
+  return `rgb(${m(n >> 16)},${m((n >> 8) & 255)},${m(n & 255)})`;
+}
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const m = c => Math.round(c * amt);
+  return `rgb(${m(n >> 16)},${m((n >> 8) & 255)},${m(n & 255)})`;
+}
+
+// chosen overrides live in localStorage (view state). A server-side avatar
+// field on Bot is a recorded follow-up for the platform workstream.
+const idStore = (() => {
+  let all = {};
+  try { all = JSON.parse(localStorage.getItem("hutch:sigils") || "{}"); } catch {}
+  return {
+    all,
+    save() { try { localStorage.setItem("hutch:sigils", JSON.stringify(all)); } catch {} },
+  };
+})();
+function sigilPair(name) {
+  const over = idStore.all[name];
+  if (Array.isArray(over) && ID_COLORS[over[0]] && ID_HEADS[over[1]]) return over;
+  const h = hash32(name);
+  return [h % ID_COLORS.length, ((h >>> 5) ^ (h >>> 13)) % ID_HEADS.length];
+}
+function sigilSet(name, pair) { idStore.all[name] = pair; idStore.save(); }
+
+function sigilBody(pair, size = 30) {
+  /* Transcribed from the 3D mascot (website/assets/hutch-agent.svg): gradient
+     shell with rim light, dome cap + bright band, wide dark glass visor with a
+     top shine, glowing happy-arc eyes (+ smile), swept side fins, luminous
+     chest core, soft ground glow. Fine detail prunes below 44px. */
+  const [ci, si] = pair;
+  const base = ID_COLORS[ci], light = tint(base, 0.45), pale = tint(base, 0.82), deep = shade(base, 0.55);
+  const gid = `sg-${ci}`, vid = `vg-${ci}`, cid = `cg-${ci}`;
+  const h = ID_HEADS[si] || ID_HEADS[0];
+  const vy = h.top + 5.5, eyeY = (vy + 6.4).toFixed(1);
+  const finY = (vy + 9).toFixed(1);
+  const fxr = (32 + h.hw + 1.8).toFixed(1), fxl = (32 - h.hw - 1.8).toFixed(1);
+  const big = size >= 44;
+  const dome = `M25 ${h.top}c0-4.4 3-6.9 7-6.9s7 2.5 7 6.9Z`;
+  return `<defs>
+    <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${light}"/><stop offset=".55" stop-color="${base}"/><stop offset="1" stop-color="${deep}"/></linearGradient>
+    <linearGradient id="${vid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c252b"/><stop offset="1" stop-color="#050d12"/></linearGradient>
+    <radialGradient id="${cid}" cx=".5" cy=".45" r=".6"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".55" stop-color="${pale}" stop-opacity=".4"/><stop offset="1" stop-color="${pale}" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="32" cy="${(h.top + h.h + 3).toFixed(1)}" rx="12" ry="1.9" fill="${base}" opacity=".15"/>
+  <g fill="url(#${gid})">
+    <ellipse cx="${fxl}" cy="${finY}" rx="3.8" ry="6.2" transform="rotate(-15 ${fxl} ${finY})"/>
+    <ellipse cx="${fxr}" cy="${finY}" rx="3.8" ry="6.2" transform="rotate(15 ${fxr} ${finY})"/>
+    ${h.body}
+    <path d="${dome}"/>
+  </g>
+  ${big ? `<g fill="none" stroke="${pale}" stroke-opacity=".5" stroke-width="1.1">${h.body}<path d="${dome}"/></g>` : ""}
+  <rect x="23.8" y="${(h.top - 1.3).toFixed(1)}" width="16.4" height="2.3" rx="1.15" fill="#fff" opacity=".9"/>
+  <rect x="${(32 - h.vw / 2).toFixed(1)}" y="${vy.toFixed(1)}" width="${h.vw}" height="11.8" rx="5.9" fill="url(#${vid})" stroke="${pale}" stroke-opacity=".55" stroke-width="1"/>
+  <rect x="${(32 - h.vw / 2 + 3).toFixed(1)}" y="${(vy + 1.7).toFixed(1)}" width="${(h.vw - 6).toFixed(1)}" height="1.5" rx=".75" fill="#fff" opacity=".14"/>
+  ${big ? `<circle cx="32" cy="${(vy + 17.5).toFixed(1)}" r="5.2" fill="url(#${cid})"/><circle cx="32" cy="${(vy + 16.8).toFixed(1)}" r="2" fill="#fff" opacity=".9"/>` : ""}
+  <g class="gl" fill="none" stroke-linecap="round">
+    <path d="M26 ${eyeY}c1.6-2.7 4.2-2.7 5.8 0" stroke="${pale}" stroke-opacity=".4" stroke-width="4.2"/>
+    <path d="M32.2 ${eyeY}c1.6-2.7 4.2-2.7 5.8 0" stroke="${pale}" stroke-opacity=".4" stroke-width="4.2"/>
+    <path d="M26 ${eyeY}c1.6-2.7 4.2-2.7 5.8 0" stroke="#fff" stroke-width="2.3"/>
+    <path d="M32.2 ${eyeY}c1.6-2.7 4.2-2.7 5.8 0" stroke="#fff" stroke-width="2.3"/>
+    ${size >= 48 ? `<path d="M29.4 ${(vy + 8.8).toFixed(1)}c1.7 1.9 3.5 1.9 5.2 0" stroke="#fff" stroke-width="1.6"/>` : ""}
+  </g>`;
+}
+
+function avatarFromPair(pair, size, state = "") {
+  return `<span class="avatar" style="--av:${size}px" ${size >= 36 ? 'data-gaze' : ""} aria-hidden="true"><svg class="sig" viewBox="0 0 64 64">${sigilBody(pair, size)}</svg>${state ? `<span class="a-pip ${esc(state)}"></span>` : ""}</span>`;
 }
 
 function botAvatar(name, size = 32, state = "") {
-  const hue = botHue(name);
-  const initial = esc(String(name)[0] ? String(name)[0].toUpperCase() : "?");
-  return `<span class="avatar" style="--av:${size}px;--av-fg:${hue.fg};--av-bg:${hue.bg};--av-line:${hue.line};--av-glow:${hue.glow}" aria-hidden="true">${initial}${
-    state ? `<span class="a-pip ${esc(state)}"></span>` : ""}</span>`;
+  return avatarFromPair(sigilPair(name), size, state);
 }
 const hexAvatar = botAvatar;   // shared renderers still call this name
+
+// Glints follow the cursor on devices that can: a one-rAF pointer watcher that
+// shifts each large avatar's eye group a few px toward the pointer. Local to
+// the page — no position leaves the DOM, ever. Static for coarse pointers,
+// reduced motion, and the Reduce effects control.
+(function gazeTracking() {
+  if (!window.matchMedia || !matchMedia("(pointer: fine)").matches) return;
+  let raf = 0, mx = 0, my = 0;
+  const apply = () => {
+    raf = 0;
+    const off = document.documentElement.classList.contains("reduce-effects");
+    for (const el of document.querySelectorAll(".avatar[data-gaze]")) {
+      if (off) { el.style.removeProperty("--gx"); el.style.removeProperty("--gy"); continue; }
+      const r = el.getBoundingClientRect();
+      if (!r.width) continue;
+      const dx = mx - (r.left + r.width / 2), dy = my - (r.top + r.height / 2);
+      const d = Math.hypot(dx, dy);
+      const k = Math.min(1, d / 160) * r.width * 0.075;
+      el.style.setProperty("--gx", ((dx / (d || 1)) * k).toFixed(2));
+      el.style.setProperty("--gy", ((dy / (d || 1)) * k).toFixed(2));
+    }
+  };
+  document.addEventListener("pointermove", ev => {
+    mx = ev.clientX; my = ev.clientY;
+    if (!raf) raf = requestAnimationFrame(apply);
+  }, { passive: true });
+})();
+
+// shared identity picker (creation modal + bot settings)
+function identityPickerHtml() {
+  return `
+    <div class="idp">
+      <div class="idp-prev" data-idp-prev></div>
+      <p class="idp-lbl">Colour</p>
+      <div class="idp-row" data-idp-colors>${ID_COLORS.map((c, i) =>
+        `<button type="button" class="sw" data-ci="${i}" style="background:${c}" aria-label="Colour ${i + 1}" aria-pressed="false"></button>`).join("")}</div>
+      <p class="idp-lbl">Shape</p>
+      <div class="idp-row" data-idp-shapes>${ID_HEADS.map((hh, i) =>
+        `<button type="button" class="shp" data-si="${i}" aria-label="Head ${esc(hh.key)}" aria-pressed="false">
+          <svg viewBox="0 0 64 64" aria-hidden="true"><g fill="currentColor">${hh.body}</g></svg>
+        </button>`).join("")}</div>
+      <button type="button" class="btn ghost small idp-shuffle" data-idp-shuffle>${icon("refresh")} Surprise me</button>
+    </div>`;
+}
+function mountIdentityPicker(scope, name) {
+  let sel = sigilPair(name).slice();
+  const prev = $("[data-idp-prev]", scope);
+  const render = () => {
+    prev.innerHTML = avatarFromPair(sel, 64);
+    $$("[data-ci]", scope).forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.ci === sel[0])));
+    $$("[data-si]", scope).forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.si === sel[1])));
+  };
+  scope.addEventListener("click", ev => {
+    const c = ev.target.closest("[data-ci]"), s = ev.target.closest("[data-si]"), sh = ev.target.closest("[data-idp-shuffle]");
+    if (c) sel = [+c.dataset.ci, sel[1]];
+    else if (s) sel = [sel[0], +s.dataset.si];
+    else if (sh) sel = [Math.floor(Math.random() * ID_COLORS.length), Math.floor(Math.random() * ID_SHAPES.length)];
+    else return;
+    render();
+  });
+  render();
+  return { get: () => sel.slice() };
+}
 
 function botState(b) {
   if (b.active_run_id) return "running";
@@ -260,6 +406,7 @@ const routes = [
 
 async function route() {
   const hash = location.hash || "#/chat";
+  document.body.classList.toggle("has-composer", hash.startsWith("#/chat"));
   stopRunSubs();
   setTopContext("");
   closeWorkspace();
@@ -365,19 +512,64 @@ window.addEventListener("resize", () => { if (innerWidth > 900) closeWorkspace()
 $("#bot-search")?.addEventListener("input", renderRoster);
 $("#ws-close")?.addEventListener("keydown", ev => { if (ev.key === "Tab" && !ev.shiftKey) { ev.preventDefault(); $("#workspace a, #workspace button")?.focus(); } });
 
-// Persistent Reduce-effects control (independent of the OS media query).
-const effectsBtn = $("#effects-toggle");
-function applyEffects(reduced) {
-  document.documentElement.classList.toggle("reduce-effects", reduced);
-  effectsBtn?.setAttribute("aria-pressed", String(reduced));
+/* Effects follow the OS by default; the explicit override lives in
+   Preferences (sidebar footer) for the cases the OS setting does not cover. */
+function applyEffects() {
+  const stored = store$.get("hutch:reduce-effects", null);
+  const reduce = stored === null ? matchMedia("(prefers-reduced-motion: reduce)").matches : !!stored;
+  document.documentElement.classList.toggle("reduce-effects", reduce);
+  const cb = $("#pref-reduce"); if (cb) cb.checked = reduce;
 }
-applyEffects(store$.get("hutch:reduce-effects", matchMedia("(prefers-reduced-motion: reduce)").matches));
-effectsBtn?.addEventListener("click", () => {
-  const next = !document.documentElement.classList.contains("reduce-effects");
-  store$.set("hutch:reduce-effects", next);
-  applyEffects(next);
-  toast(next ? "Effects reduced" : "Effects restored");
-});
+applyEffects();
+matchMedia("(prefers-reduced-motion: reduce)").addEventListener?.("change", applyEffects);
+{
+  const t = $("#prefs-toggle"), pop = $("#prefs-pop");
+  if (t && pop) {
+    t.addEventListener("click", () => {
+      const open = pop.hidden;
+      pop.hidden = !open;
+      t.setAttribute("aria-expanded", String(open));
+    });
+    document.addEventListener("click", ev => {
+      if (!pop.hidden && !ev.target.closest(".pref-wrap")) { pop.hidden = true; t.setAttribute("aria-expanded", "false"); }
+    });
+    document.addEventListener("keydown", ev => {
+      if (ev.key === "Escape" && !pop.hidden) { pop.hidden = true; t.setAttribute("aria-expanded", "false"); }
+    });
+  }
+  const cb = $("#pref-reduce");
+  cb?.addEventListener("change", () => {
+    store$.set("hutch:reduce-effects", cb.checked);
+    applyEffects();
+    toast(cb.checked ? "Effects reduced" : "Effects restored");
+  });
+}
+
+/* Sidebar docking: collapse to an icon rail on desktop; remembered between
+   visits. Phones keep the full-width overlay sheet (the dock button hides). */
+{
+  const shell = $(".app-shell"), btn = $("#sidebar-toggle");
+  const setDocked = docked => {
+    shell.classList.toggle("collapsed", docked);
+    btn?.setAttribute("aria-expanded", String(!docked));
+    btn?.setAttribute("aria-label", docked ? "Expand sidebar" : "Collapse sidebar");
+    btn?.setAttribute("title", docked ? "Expand sidebar" : "Collapse sidebar");
+  };
+  setDocked(store$.get("hutch:sidebar-collapsed", false));
+  btn?.addEventListener("click", () => {
+    const next = !shell.classList.contains("collapsed");
+    store$.set("hutch:sidebar-collapsed", next);
+    setDocked(next);
+  });
+  // Collapsed rail: the logo IS the expand control (the dock button hides);
+  // expanded, the dock button sits separately beside the logo.
+  $(".ws-brand .brand")?.addEventListener("click", () => {
+    if (shell.classList.contains("collapsed") && innerWidth > 901) {
+      store$.set("hutch:sidebar-collapsed", false);
+      setDocked(false);
+    }
+  });
+}
 
 /* --------------------------------------------- executor health (truthful) */
 
@@ -395,6 +587,7 @@ function setDaemon(state, title) {
   pill.className = `pill daemon ${state}`;
   $("#daemon-label").textContent = label;
   pill.title = title;
+  pill.hidden = state === "live";   // healthy says nothing; degraded speaks up
 }
 
 async function pollHealth() {
@@ -428,6 +621,7 @@ async function refreshBadge() {
       badge.textContent = n;
       badge.classList.toggle("hidden", n === 0);
     }
+    renderWorkflow(stats);
     $('[data-nav="approvals"]')?.classList.toggle("attention", n > 0);
     if (n) {
       try {
@@ -444,10 +638,23 @@ async function refreshBadge() {
   } catch {}
 }
 
+// Workflow header status: real activity only — running runs, queued work,
+// approvals needing a person, or a degraded executor. Idle+healthy = quiet.
+function renderWorkflow(stats) {
+  const el = $("#workflow");
+  if (!el) return;
+  const parts = [];
+  const r = stats.active_runs || 0, q = stats.queued_tasks || 0, p = stats.pending_approvals || 0;
+  if (r) parts.push(`<span class="w working"><span class="wdot"></span>${r} working</span>`);
+  if (q) parts.push(`<span class="w queued"><span class="wdot"></span>${q} queued</span>`);
+  if (p) parts.push(`<a class="w needs" href="#/approvals"><span class="wdot"></span>${p} need${p === 1 ? "s" : ""} you</a>`);
+  el.innerHTML = parts.join("");
+  el.hidden = parts.length === 0;
+}
+
 // The bar keeps pending approval discoverable from any surface (terminal,
 // artifact, phone sheet) without modal storms: one line, one action.
-function renderAttention() {
-  const bar = $("#attention-bar");
+function renderAttention() {  const bar = $("#attention-bar");
   if (!bar) return;
   const n = lastPendingCount || 0;
   const onApprovals = location.hash.startsWith("#/approvals");
@@ -497,9 +704,9 @@ async function renderChatStudio(preferredBot = null) {
       </div>
     </div>
     <div class="ctx-actions">
-      ${activeRun ? `<button class="btn danger small" id="studio-stop-run">${icon("stop")} Stop</button>` : ""}
-      <a class="btn ghost small" href="#/bot/${esc(bot.name)}">${icon("sliders")} Settings</a>
-      <button class="btn ghost small" id="inspector-open" aria-controls="inspector" aria-expanded="false">${icon("layers")} Context</button>
+      ${activeRun ? `<button class="btn danger small" id="studio-stop-run">${icon("stop")}<span class="lbl-hide"> Stop</span></button>` : ""}
+      <a class="btn ghost small" href="#/bot/${esc(bot.name)}">${icon("sliders")}<span class="lbl-hide"> Settings</span></a>
+      <button class="btn ghost small" id="inspector-open" aria-controls="inspector" aria-expanded="false">${icon("layers")}<span class="lbl-hide"> Context</span></button>
     </div>`);
 
   view.innerHTML = `
@@ -923,7 +1130,7 @@ async function runBlockHtml(runId) {
         ${cards.join("")}
         ${stepCount || running ? `
         <details class="tool-stream" ${running || stepCount < 4 ? "open" : ""}>
-          <summary>${icon("gear")}${running ? "Working" : `${stepCount} step${stepCount === 1 ? "" : "s"}`}${stepCount && !running ? ` · ${dur}` : ""} ${icon("caret", "tool-caret")}</summary>
+          <summary>${running ? "Working" : `${stepCount} step${stepCount === 1 ? "" : "s"}`}${stepCount && !running ? ` · ${dur}` : ""} ${icon("caret", "tool-caret")}</summary>
           ${steps.join("")}
         </details>` : ""}
         ${message && message.data?.content ? `<div class="answer">${esc(message.data.content)}</div>` : ""}
@@ -1011,12 +1218,10 @@ function toolLineHtml(item, anchorEvent, runId) {
   return `
     <div class="tool-line ${cls}" data-tool-line="${esc(String(idx))}">
       <button class="tool-line-head" type="button" aria-expanded="${open}" aria-controls="tlb-${esc(String(idx))}" data-tool-toggle="${esc(String(idx))}">
-        <span class="tool-grid">
+        <span class="tool-grid" title="${t}">
           <span class="tool-verdict">${verdict}</span>
           <span class="tool-name">${esc(tool)}</span>
-          <span class="tool-args">${icon("caret", "tool-arrow")}${esc(truncate(summary, 90))}</span>
-          <span class="tool-time">${t}</span>
-          <span class="tool-caret">${icon("caret")}</span>
+          <span class="tool-args">${esc(truncate(summary, 90))}</span>
         </span>
       </button>
       <div class="tool-line-body" id="tlb-${esc(String(idx))}" ${open ? "" : "hidden"}>
@@ -1273,8 +1478,11 @@ function renderChatEvent(e, resolvedMap) {
     case "human_needed":
       return `<div class="run-cause"><b>${icon("alert")} Needs a person:</b> ${esc(d.reason || d.note || "A login, CAPTCHA, or 2FA step is waiting.")} ${
         d.handoff ? `<br><span class="hint">${esc(d.handoff)}</span>` : ""}</div>`;
-    case "log":
-      return `<div class="tool-line"><div class="tool-grid tool-log"><span class="tool-verdict">·</span><span class="tool-args">${esc(truncate(d.note || d.message || "", 140))}</span><span class="tool-time">${t}</span><span></span><span></span></div></div>`;
+    case "log": {
+      const note = (d.note || d.message || "").trim();
+      if (!note) return "";   // empty log notes must not leave an orphan row
+      return `<div class="tool-line"><div class="tool-grid tool-log"><span class="tool-verdict"></span><span class="tool-args">${esc(truncate(note, 140))}</span></div></div>`;
+    }
     default:
       return "";   // message / tool_call / tool_result / approval_resolved are consumed elsewhere
   }
@@ -1611,6 +1819,12 @@ async function renderBotDetail(name) {
             <div class="btn-row"><button class="btn primary small" type="submit">Save</button></div>
           </form>
 
+          <div class="panel" id="idp-panel">
+            <div class="panel-title">Identity</div>
+            ${identityPickerHtml()}
+            <p class="hint" style="text-align:center;margin-top:8px;">Chosen immediately — the roster updates everywhere.</p>
+          </div>
+
           <form class="panel form-grid" id="form-model">
             <div class="panel-title">Model &amp; connection</div>
             <div class="form-grid row2">
@@ -1757,6 +1971,7 @@ async function renderBotDetail(name) {
     </div></div>`;
 
   // wiring
+  mountIdentityPicker($("#idp-panel"), b.name, pair => { sigilSet(b.name, pair); refreshRoster(); });
   const patch = async (body, msg) => {
     try {
       await api(`/bots/${encodeURIComponent(b.name)}`, { method: "PATCH", body });
@@ -1839,7 +2054,7 @@ async function renderRunDetail(runId) {
     <div class="ctx-id"><h1>Run <span class="mono">#${esc(runId.slice(0, 12))}</span></h1>
       <div class="ctx-meta">${statusChip(r.status)}</div></div>
     <div class="ctx-actions">
-      ${ACTIVE.has(r.status) ? `<button class="btn danger small" id="stop-this-run">${icon("stop")} Stop</button>` : ""}
+      ${ACTIVE.has(r.status) ? `<button class="btn danger small" id="stop-this-run">${icon("stop")}<span class="lbl-hide"> Stop</span></button>` : ""}
       <a class="btn ghost small" href="#/runs">${icon("arrowLeft")} All runs</a>
     </div>`);
   const steps = (r.events || []).filter(e => e.type === "step").map(e => e.data);
@@ -2043,6 +2258,7 @@ async function promptNewBot() {
           spellcheck="false" autocapitalize="none">
         <span class="hint">lowercase slug: letters, digits, dashes</span>
       </label>
+      <div id="idp-root" class="panel" style="margin:0;">${identityPickerHtml()}</div>
       <label class="field">Start from a template
         <select name="template">
           <option value="">— blank —</option>
@@ -2083,6 +2299,7 @@ async function promptNewBot() {
             description: fd.get("description").trim(),
           },
         });
+        sigilSet(name, picker.get());
         toast(`Bot "${name}" created.`);
         location.hash = `#/chat/${encodeURIComponent(name)}`;
         return true;
@@ -2093,6 +2310,7 @@ async function promptNewBot() {
     },
   });
   // live template note so choosing isn't a guess
+  const picker = mountIdentityPicker($("#idp-root"), "draft");
   const sel = $('select[name="template"]'), note = $("#tpl-note");
   const describe = () => {
     const t = templates.find(x => x.name === sel.value);
