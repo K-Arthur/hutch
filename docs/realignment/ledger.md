@@ -52,6 +52,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `4bdd936` | Schema-v12 recoverable transcript files, durable prerequisites, inspected UI errors and raw performance diagnosis |
 | `e09e0fa` | Schema-v13 immutable action intents, once-only human reconciliation, inline/cross-bot review, migration/exception/crash tests, inspected proof and raw comparison |
 | `8e1abae` | Retain exact comparison logs and the action-review commit in this ledger |
+| `a5d2993` | Schema-v14 held database snapshots/restoration, no source cleanup authority, local review, restore UI, isolated migration tests, inspected screenshots and both raw performance pairs |
 | `33ac3ba` | Schema-v10 usage reservations, account-shared admission, uncertain-charge reconciliation, estimates and marketing copy; offline suite 1,003 passed, provider/reservation 45 passed, browser suite 15 passed |
 
 ## Verified behavior before this checkpoint
@@ -725,3 +726,8 @@ or improvement. The first slowdown is not repeatable in the second pair, and the
 29.0% throughput regression remains open. Current daemon/dashboard RSS is **42.4/64.1 MB**;
 CPU is still too coarse for optimization claims. Samples, medians and frozen hashes validate.
 See the performance report for p90, sample sizes, commands and all evidence boundaries.
+
+The local slice commit is `a5d2993`. Its final staging check flags trailing spaces in retained
+pytest/benchmark output; those raw logs are preserved byte-for-byte rather than reformatted.
+The implementation/document diff was clean before adding the logs. No runtime source changed
+after the frozen checks, captures or measurement pairs.
