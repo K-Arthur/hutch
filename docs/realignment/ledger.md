@@ -26,7 +26,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | S6 conversations and bounded collaboration | Conversation foundation, run-output and generated-file artifacts, scoped facts, alerts, and per-bot workspace mode implemented | Schema v8 stores conversations/messages and imports each old run separately. Schema v15 adds immutable versioned reference facts, private chat/run scope, explicit cross-chat sharing, human review, bounded FTS5 recall and paginated history. Workspaces default to fresh per run; optional 0700 Hutch-managed directories persist across one bot's runs/chats, or an operator may choose a validated user folder. They are not included in SQLite snapshots and survive bot deletion. Successful `write_file` actions can attach bounded immutable text snapshots; shell-created files are not attached. Cross-run artifact sharing, standing tasks and bounded delegation remain. Optional browser alerts are generic and tab-open only; no push delivery. |
 | S7 browser ownership and handoff | Partial | Browser context state is instance-owned and persistent profile paths are per-bot; fixture test verifies no profile crossover. Live handoff, pinned egress and browser process supervision remain unavailable. |
 | S8 versioned API and remote supervision | Partial; API replay improvements in `cd4f402` and `f5696ce`; remote remains experimental | `/api/v1` covers health/status labels, bounded bot/run/approval pages, conversations/search, cross-run transcript cursors, snapshot reconciliation, usage, connection metadata, schedules, capability records, and typed device/pairing resources. Conversation create/message/archive, stop, and approval resolve commands are idempotent; changed arguments conflict. Schema v9 adds one-use pairing codes, hash-only revocable device sessions and per-source rate limits. `/pair` exchanges the code; Connections lists sessions, identifies the current device, and revokes sessions. Direct remote binding requires explicit TLS. Schema v11 adds transactional resource invalidations, history cursors, snapshot reconciliation and targeted Studio refresh. Schema v12 adds recoverable JSONL delivery and visible errors; v13 adds immutable action intents and separate outcome reconciliation; v14 adds a bounded authenticated restore report and execution-hold errors. Automatic event pruning, cross-run artifact sharing, authenticated PTY/desktop control, browser handoff, trusted tunnel and live device/network checks remain. |
-| S9 product integration, performance and visual validation | Partial; evidence captured in `896a774`, `ba1e297`, and later device/workspace checkpoints | Screenshots and traces cover desktop/tablet/phone and compact phone, plus fixture-driven empty/loading/error/approval/cancelling/reconnecting, pairing and workspace-setting states. Internal site CTA targets, overflow, page errors, reduced motion, tablist arrows, menu focus, pairing focus, device revocation and workspace-mode focus/validation were checked. The no-mock slice removes seeded-run screenshots and scripted approval controls; the marketing proof is now the actual empty first-run screen. Executor health remains text-labeled and changes with health polling, without decorative pulsing between checks. Same-harness baseline/current measurements retain raw repetitions. This is not screen-reader, real-device, live remote, or full workflow certification. See `visual-validation.md`, `device-pairing-visual-validation.md`, `no-mock-validation.md`, and `performance.md`. |
+| S9 product integration, performance and visual validation | Partial; evidence captured in `896a774`, `ba1e297`, and later device/workspace checkpoints; schema-v16 event-throughput gate passes | Screenshots and traces cover desktop/tablet/phone and compact phone, plus fixture-driven empty/loading/error/approval/cancelling/reconnecting, pairing and workspace-setting states. Internal site CTA targets, overflow, page errors, reduced motion, tablist arrows, menu focus, pairing focus, device revocation and workspace-mode focus/validation were checked. The no-mock slice removes seeded-run screenshots and scripted approval controls; the marketing proof is now the actual empty first-run screen. Executor health remains text-labeled and changes with health polling, without decorative pulsing between checks. Schema v16's matched event median is 1.3% above `f5696ce`, below the 20% gate. This is not screen-reader, real-device, live remote, or full workflow certification. See `visual-validation.md`, `device-pairing-visual-validation.md`, `no-mock-validation.md`, and `performance.md`. |
 
 ## Commits
 
@@ -67,6 +67,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `e5b9452` | Per-bot fresh/managed/folder workspace modes, isolated retained workspace directories, API/CLI/settings controls, refreshed truthful marketing copy and visual captures; 45 focused tests, five app-browser checks and eleven website checks passed |
 | `0b98ebb` | Defer Studio chat-feed replacement while review dialogs are open; preserve focus across a background refresh, with refreshed file-download and fact-review captures |
 | `a292608` | Correct the Stop all browser test to match the standalone login page |
+| `1367516` | Schema v16 replaces per-event transcript mirror triggers with transactionally batched intent writes; adds legacy-trigger migration/backup tests, matched performance diagnosis, refreshed captures, and corrected ADR/operations/safety guidance |
 
 ## Verified behavior before this checkpoint
 
@@ -1127,3 +1128,39 @@ focused chat review/file-discovery checkpoint only; final integrated visual vali
 provider, model, and device checks remain open.
 
 Implementation commits: `0b98ebb` (refresh-safe dialog focus) and `a292608` (login-header test scope).
+
+## Schema-v16 batched transcript mirror intents and performance repair (2026-10-08)
+
+The matched event benchmark reconfirmed the schema-v12 throughput loss: with one current harness,
+`f5696ce` measured **75,894 events/s** and the pre-fix schema-v15 tree measured **51,348 events/s**
+(32.3% lower p50). A test-only running / trigger-disabled / running diagnostic measured medians of
+**51,593 / 77,280 / 50,670 events/s** while keeping `synchronous=FULL`. It disabled the legacy
+`transcript_delivery_insert` trigger only in one temporary database and intentionally had no durable
+mirror intent, so that mode is diagnostic evidence and not a product configuration.
+
+Schema v16 removes that per-event trigger. `_insert_events` now creates one pending transcript-file
+delivery intent for each committed run batch in the same SQLite transaction as its hash-chained
+canonical event rows. An existing pending intent still coalesces later batches; status reads derive
+the latest target from committed event rows, and the acknowledger rechecks the canonical tail before
+clearing pending. Migration preserves existing delivery rows and creates a SQLite backup before
+dropping the old trigger. A regression constructs a v15 database, upgrades it, verifies that the
+v15 backup still contains its trigger, and delivers both existing and newly appended events.
+
+The full offline suite passed **1,255 tests in 261.04s**, promoting unhandled thread exceptions and
+syntax warnings to failures. The full browser and anonymous-site suite passed **67 tests in
+152.31s** under the same warning policy; those are separate invocations for **1,322 passing test
+results combined**. Four focused generated-file/fact-review viewports passed in **13.04s** after
+the full capture pass. Desktop, tablet and phone captures for both journeys were inspected under
+`artifacts/generated-files/` and `artifacts/fact-memory/`; they report zero page errors and zero
+horizontal overflow. All browser/provider behavior here uses local fixtures, not live models,
+external providers, or a physical device.
+
+The post-v16 matched repeat measured **77,997 events/s** versus **77,012 events/s** at `f5696ce`
+(+1.3% p50); event p90 was **78,233 versus 78,544 events/s**. The comparison reports no regression
+above its gates. Mock step overhead differs by 0.071 ms (below its 0.5 ms absolute noise floor),
+and daemon/dashboard RSS differs by +0.6/+2.8 MB (below the 4 MB floor). FULL synchronization
+remains enabled. Raw samples and source/load context are under `artifacts/performance/`; the 73
+captured Python source hashes match implementation commit `1367516`. This resolves the historical
+event-throughput release gate without weakening transcript durability.
+
+Implementation commit: `1367516`.
