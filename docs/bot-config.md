@@ -192,6 +192,16 @@ The legacy `schedule` config field, creation `--cron`/`--schedule-prompt` option
 any remaining task is promoted to the first position. All tasks on a bot share resources and the
 one-live-run limit. A removed task ID stays reserved for run-history identity and cannot be reused.
 
+The dashboard's **Schedules** page brings recurring tasks from every Bot into one bounded,
+chronologically ordered overview. It shows each next occurrence in that task's timezone, the
+catch-up policy and effective Bot/workspace pause state, with a direct link to edit the owning Bot's
+schedules.
+**Pause all schedules** is a durable workspace setting: it prevents future scheduled admissions,
+but does not stop work already queued or running. Resuming the workspace does not clear a Bot's
+own pause; windows missed during the workspace pause then follow each task's `catch_up` policy.
+The scheduler checks the workspace pause in the same transaction that admits an occurrence, so a
+previously read due-time snapshot cannot slip through after pause is saved.
+
 A bot never has two live runs (single-instance lock). All storage is UTC-with-offset.
 
 ## Shell containment

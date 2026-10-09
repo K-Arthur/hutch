@@ -110,6 +110,8 @@ class Scheduler:
 
     def due_claims(self, now: datetime | None = None) -> list[DueClaim]:
         """``due()`` with the newest window and the marker value it was judged against, for an atomic claim."""
+        if self.store.workspace_schedule_control()["paused"]:
+            return []
         now = now or utcnow()
         due: list[DueClaim] = []
         for bot in self.store.list_bots():

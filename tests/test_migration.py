@@ -20,7 +20,7 @@ from hutch.lifecycle import IllegalTransition
 from hutch.models import RunStatus
 from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28,
                          _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34,
-                         _migrate_35, _migrate_37)
+                         _migrate_35, _migrate_37, _migrate_40)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
@@ -57,6 +57,36 @@ def test_model_capability_observation_migration_adds_immutable_route_evidence():
         with pytest.raises(sqlite3.IntegrityError, match="immutable"):
             db.execute("DELETE FROM model_capability_observations")
         assert SCHEMA_VERSION >= 37
+    finally:
+        db.close()
+
+
+def test_v39_workspace_settings_gain_durable_schedule_pause_and_outbox():
+    from hutch import durable_changes
+
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("CREATE TABLE workspace_settings (id INTEGER PRIMARY KEY, coordinator_bot_id TEXT, updated_at TEXT NOT NULL)")
+        db.execute("INSERT INTO workspace_settings VALUES (1, NULL, '2026-10-01T00:00:00+00:00')")
+        db.execute("""CREATE TABLE resource_outbox (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, previous_id INTEGER NOT NULL,
+            resource TEXT NOT NULL, resource_id TEXT NOT NULL,
+            operation TEXT NOT NULL, ts TEXT NOT NULL, context TEXT NOT NULL)""")
+        db.execute("CREATE TABLE resource_outbox_meta (singleton INTEGER PRIMARY KEY, epoch TEXT NOT NULL, tail_id INTEGER NOT NULL DEFAULT 0)")
+        db.execute("INSERT INTO resource_outbox_meta VALUES (1, 'fixture-epoch', 0)")
+        durable_changes.install_resources(db, (("workspace_settings", "workspace", "id",
+                                                ("coordinator_bot_id", "updated_at"), ()),))
+
+        _migrate_40(db)
+        columns = {row[1] for row in db.execute("PRAGMA table_info(workspace_settings)")}
+        assert {"schedules_paused", "schedules_updated_at"} <= columns
+        row = db.execute("SELECT schedules_paused, schedules_updated_at FROM workspace_settings WHERE id = 1").fetchone()
+        assert row == (0, "2026-10-01T00:00:00+00:00")
+
+        db.execute("UPDATE workspace_settings SET schedules_paused = 1, schedules_updated_at = '2026-10-02T00:00:00+00:00' WHERE id = 1")
+        change = db.execute("SELECT resource, resource_id, operation, context FROM resource_outbox").fetchone()
+        assert tuple(change) == ("workspace", "1", "updated", "{}")
+        assert SCHEMA_VERSION >= 40
     finally:
         db.close()
 

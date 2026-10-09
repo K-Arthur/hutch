@@ -243,6 +243,39 @@ def test_bot_pin_preference_persists_without_changing_execution_policy(client):
     assert client.app.state.store.get_bot("pinned-reviewer").pinned is False
 
 
+def test_workspace_schedule_control_is_durable_and_separate_from_bot_pause(client):
+    bot = make_bot(client, name="schedule-control-bot", cron="0 9 * * 1", timezone="America/Vancouver")
+    store = client.app.state.store
+    live = store.create_run(Run(bot_id=bot["id"], prompt="already admitted", status=RunStatus.running))
+
+    initial = client.get("/api/v1/schedules/control")
+    assert initial.status_code == 200, initial.text
+    assert initial.json()["paused"] is False and initial.json()["changed"] is False
+
+    cursor = store.list_resource_changes()["cursor"]
+    paused = client.put("/api/v1/schedules/control", json={"paused": True})
+    assert paused.status_code == 200, paused.text
+    assert paused.json()["paused"] is True and paused.json()["changed"] is True
+    invalidations = store.list_resource_changes(cursor)["changes"]
+    assert any(change["resource"] == "workspace" for change in invalidations)
+    repeated = client.put("/api/v1/schedules/control", json={"paused": True})
+    assert repeated.status_code == 200 and repeated.json()["changed"] is False
+    assert repeated.json()["updated_at"] == paused.json()["updated_at"]
+
+    row = next(row for row in client.get("/api/v1/schedules").json() if row["bot_id"] == bot["id"])
+    assert row["paused"] is False                    # legacy per-Bot pause field remains unchanged
+    assert row["workspace_paused"] is True
+    assert row["effective_paused"] is True
+    assert store.get_run(live.id).status is RunStatus.running  # pausing future schedules never stops a run
+
+    assert client.patch("/api/bots/schedule-control-bot", json={"paused": True}).status_code == 200
+    resumed = client.put("/api/v1/schedules/control", json={"paused": False})
+    assert resumed.status_code == 200 and resumed.json()["paused"] is False
+    row = next(row for row in client.get("/api/v1/schedules").json() if row["bot_id"] == bot["id"])
+    assert row["paused"] is True and row["workspace_paused"] is False
+    assert row["effective_paused"] is True              # a Bot-specific pause survives workspace resume
+
+
 def test_named_workspace_coordinator_is_recoverable_and_clears_when_bot_is_deleted(tmp_path, monkeypatch):
     state = tmp_path / "coordinator-state"
     monkeypatch.setenv("HUTCH_STATE_DIR", str(state))

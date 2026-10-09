@@ -114,9 +114,18 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   Held values include all unresolved reservations, regardless of their age. Only measured ledger
   usage is windowed; a stale worker cannot settle/release a hold after losing ownership, and
   uncertain usage requires explicit reconciliation against the provider record.
+* `GET /api/v1/schedules/control` returns `{paused, updated_at, changed: false}` for the durable
+  workspace-wide pause; `PUT` accepts `{paused: boolean}` and returns the same state with `changed`
+  indicating whether it was updated. Repeating the current value is a no-op and does not emit another
+  resource invalidation. A pause prevents future schedule admissions only; queued and running work
+  continues. After resume, retained missed windows are processed according to each schedule's
+  `catch_up` policy.
 * `GET /api/v1/schedules?bot=&limit=&offset=` returns a bounded page of each bot's named recurring
   tasks, including stable `id`, `name`, `cron`, `timezone`, `catch_up`, `paused`, optional `prompt`,
-  `created_at`, `next_fire`, `last_dispatched`, and `last_skip`. A bot can have at most 100 tasks.
+  `created_at`, `next_fire`, `last_dispatched`, `last_skip`, `workspace_paused`, and
+  `effective_paused`. A bot can have at most 100 tasks. The workspace pause is checked again inside
+  the transaction that claims the due occurrence and creates its run, so an earlier scheduler
+  snapshot cannot admit work after a committed pause.
   `PUT /api/v1/bots/{ref}/schedules/{schedule_id}` creates or updates that exact task; cron and IANA
   timezone are validated, prompts are trimmed and limited to 4,000 characters, and an ID already
   assigned or previously removed returns 409. `DELETE` removes one stream and returns 204; its runs,

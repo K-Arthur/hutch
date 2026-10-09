@@ -1119,12 +1119,27 @@ def _migrate_39(db: sqlite3.Connection) -> None:
                                              ("conversation_id", "bot_id")),))
 
 
+def _migrate_40(db: sqlite3.Connection) -> None:
+    """Persist the workspace-wide recurring-schedule pause without changing Bot pauses."""
+    db.execute("ALTER TABLE workspace_settings ADD COLUMN schedules_paused INTEGER NOT NULL DEFAULT 0 "
+               "CHECK(schedules_paused IN (0, 1))")
+    db.execute("ALTER TABLE workspace_settings ADD COLUMN schedules_updated_at TEXT NOT NULL DEFAULT ''")
+    db.execute("UPDATE workspace_settings SET schedules_updated_at = updated_at WHERE schedules_updated_at = ''")
+    # Replace the v28 invalidation triggers so changes to the new authoritative
+    # control are visible to reconnecting clients through the same durable outbox.
+    for verb in ("insert", "update", "delete"):
+        db.execute(f"DROP TRIGGER IF EXISTS resource_outbox_workspace_settings_{verb}")
+    durable_changes.install_resources(db, (("workspace_settings", "workspace", "id",
+                                             ("coordinator_bot_id", "schedules_paused", "schedules_updated_at",
+                                              "updated_at"), ()),))
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
                _migrate_19, _migrate_20, _migrate_21, _migrate_22, _migrate_23, _migrate_24, _migrate_25, _migrate_26,
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
-               _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39]
+               _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -1656,6 +1671,34 @@ class Store:
         self.bus.notify("workspace", "bots", "workspace:coordinator")
         bot = Bot.model_validate_json(row["doc"]) if row else None
         return {"id": row["id"], "name": row["name"], "display_name": bot.display_name} if bot else None
+
+    def workspace_schedule_control(self) -> dict[str, Any]:
+        """Read the durable workspace-wide pause for future scheduled occurrences."""
+        with self._lock:
+            row = self._db.execute("SELECT schedules_paused, schedules_updated_at FROM workspace_settings WHERE id = 1").fetchone()
+        if row is None:
+            raise RuntimeError("workspace schedule settings are missing")
+        return {"paused": bool(row["schedules_paused"]), "updated_at": str(row["schedules_updated_at"])}
+
+    def set_workspace_schedules_paused(self, paused: bool) -> dict[str, Any]:
+        """Atomically pause/resume future scheduled admissions; existing work is untouched."""
+        if not isinstance(paused, bool):
+            raise TypeError("workspace schedule pause must be a boolean")
+        with self._tx() as db:
+            row = db.execute("SELECT schedules_paused, schedules_updated_at FROM workspace_settings WHERE id = 1").fetchone()
+            if row is None:
+                raise RuntimeError("workspace schedule settings are missing")
+            changed = bool(row["schedules_paused"]) != paused
+            if changed:
+                stamp = iso(utcnow())
+                db.execute("UPDATE workspace_settings SET schedules_paused = ?, schedules_updated_at = ? WHERE id = 1",
+                           (int(paused), stamp))
+                updated_at = stamp
+            else:
+                updated_at = str(row["schedules_updated_at"])
+        if changed:
+            self.bus.notify("work", "schedules", "workspace:schedules")
+        return {"paused": paused, "updated_at": updated_at, "changed": changed}
 
     def get_bot(self, ref: str) -> Optional[Bot]:
         """Look up a bot by id or name."""
@@ -3650,6 +3693,9 @@ class Store:
         run.task_id = task.id
         with self._tx() as db:
             self._assert_execution_ready(db)
+            schedule_control = db.execute("SELECT schedules_paused FROM workspace_settings WHERE id = 1").fetchone()
+            if schedule_control is None or bool(schedule_control["schedules_paused"]):
+                return None
             row = db.execute("SELECT value FROM kv WHERE key = ?", (marker_key,)).fetchone()
             if (row["value"] if row else None) != expected_marker:
                 return None

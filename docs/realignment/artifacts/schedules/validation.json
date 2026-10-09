@@ -1,0 +1,123 @@
+{
+  "test": "tests/e2e/test_browser.py::test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences",
+  "command": ".venv/bin/pytest -q tests/e2e/test_browser.py::test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences",
+  "browser": "153.0.8010.12",
+  "playwright": "1.63.0",
+  "fixture_only": true,
+  "provider_calls": 0,
+  "external_requests": 0,
+  "page_errors": [],
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "document": [
+        1440,
+        960
+      ],
+      "rows": 3,
+      "actionHeight": 26,
+      "actionWidth": 218.859375,
+      "actionFontSize": 13,
+      "nextTimeCount": 3,
+      "screenshot": "desktop.png"
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "document": [
+        900,
+        1024
+      ],
+      "rows": 3,
+      "actionHeight": 26,
+      "actionWidth": 218.859375,
+      "actionFontSize": 13,
+      "nextTimeCount": 3,
+      "screenshot": "tablet.png"
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "document": [
+        390,
+        844
+      ],
+      "rows": 3,
+      "actionHeight": 44,
+      "actionWidth": 226.859375,
+      "actionFontSize": 13,
+      "nextTimeCount": 3,
+      "screenshot": "phone.png"
+    },
+    {
+      "size": "phone-bottom",
+      "viewport": [
+        390,
+        844
+      ],
+      "scrollHeight": 1098,
+      "scrollViewportHeight": 722,
+      "screenshot": "phone-bottom.png"
+    }
+  ],
+  "empty_captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "overflow": 0,
+      "screenshot": "empty-desktop.png"
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "overflow": 0,
+      "screenshot": "empty-tablet.png"
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "overflow": 0,
+      "screenshot": "empty-phone.png"
+    }
+  ],
+  "verified": [
+    "next times in each schedule's own time zone",
+    "per-Bot paused status",
+    "workspace pause persisted through reload",
+    "pause prevents only future scheduled admissions",
+    "already-running work continues",
+    "Bot-specific pause remains after workspace resume",
+    "keyboard focus restoration after pause/resume",
+    "responsive rows, scrollable phone list and touch target",
+    "empty state links to existing Bot settings",
+    "no external browser requests"
+  ],
+  "source_sha256": {
+    "src/hutch/server/static/index.html": "911f5b2eb59eb865a12b4f651b649d76610cea115968295c5ca000c6d8dda001",
+    "src/hutch/server/static/app.js": "037c73aac2fee2a32c5228e59d2f57e0458c0f52d391fe027c84f9b63f2d43fc",
+    "src/hutch/server/static/style.css": "4b1b55940764f1765092d1898000044f762c89ad3a335fcfe61f61f40d57878d",
+    "src/hutch/server/app.py": "bbdffbb0ae269bac5e934ebd48278e768bbe852f8384bf283958dc48f81bd755",
+    "src/hutch/store.py": "8cceceb498a48a9c5940cb0c1a2c5d43a6c5f77e4b705791ec9c25b3cb15bbb3",
+    "src/hutch/engine.py": "f7561f8eb3acc512a5ce78295612c17243ec603a6a22e74d347742c5f2ea7006",
+    "src/hutch/scheduler.py": "3ad7266a569b24cf06db0c5dda5952babf45b9b0e69b19f7947189fb1fc2e266"
+  }
+}

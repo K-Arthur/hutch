@@ -95,3 +95,39 @@ def test_paused_bots_never_due(store):
     store.create_bot(bot)
     s = Scheduler(store)
     assert s.due(datetime(2026, 10, 7, 12, 5, tzinfo=timezone.utc)) == []
+
+
+def test_workspace_pause_fences_a_due_snapshot_before_schedule_admission(store, config):
+    from hutch.engine import Engine
+    from hutch.models import Run, Task, iso
+
+    bot = store.create_bot(scheduled_bot(cron="* * * * *", created="2026-10-07T12:00:00+00:00"))
+    engine = Engine(config, store)
+    now = datetime(2026, 10, 7, 12, 5, tzinfo=timezone.utc)
+    due = engine.scheduler.due_claims(now)
+    assert len(due) == 1
+    claim = due[0]
+
+    store.set_workspace_schedules_paused(True)
+    assert engine.scheduler.due_claims(now) == []
+    run = Run(bot_id=bot.id, prompt="scheduled work", origin="schedule", schedule_id=claim.schedule.id)
+    task = Task(bot_id=bot.id, kind="scheduled", prompt=run.prompt)
+    admitted = store.submit_scheduled(
+        run, task, occurrence=iso(claim.occurrence), expected_marker=claim.marker,
+        new_marker=iso(now), claimed_by="schedule-test", schedule_id=claim.schedule.id,
+    )
+    assert admitted is None
+    assert store.get_run(run.id) is None
+    assert store.kv_get(f"{claim.schedule.id}:last_fire") is None
+
+    store.set_workspace_schedules_paused(False)
+    resume_now = now + timedelta(minutes=3)
+    resumed = engine.scheduler.due_claims(resume_now)
+    assert len(resumed) == 1 and resumed[0].missed > claim.missed
+    run = Run(bot_id=bot.id, prompt="scheduled work", origin="schedule", schedule_id=claim.schedule.id)
+    task = Task(bot_id=bot.id, kind="scheduled", prompt=run.prompt)
+    admitted = store.submit_scheduled(
+        run, task, occurrence=iso(resumed[0].occurrence), expected_marker=claim.marker,
+        new_marker=iso(resume_now), claimed_by="schedule-test", schedule_id=claim.schedule.id,
+    )
+    assert admitted is not None and store.get_run(run.id).origin == "schedule"

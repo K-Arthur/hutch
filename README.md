@@ -73,9 +73,11 @@ Review the retained branch manually. Hutch does not apply or publish it; see [op
 - **Local inference admission** — one caller and eight waiters across Hutch workers; releases capacity during human waits,
   rechecks native Ollama memory headroom, and shows queue reasons. Fit remains estimated; real models are unverified.
   `hutch doctor` reports configuration problems with suggested fixes.
-- **Scheduling that survives sleep and DST** — IANA-timezone cron, DST-correct, catch-up after sleep; each occurrence and each run is
+- **Scheduling that survives sleep and DST** — IANA-timezone cron, DST-correct, catch-up after sleep or workspace pause; each occurrence and each run is
   claimed in the database; each bot can have up to 100 named tasks with independent prompts and timezones. One elected supervisor
-  handles schedules and recovery, and one bot never overlaps itself. Manage them in Settings or with `hutch bot schedules`.
+  handles schedules and recovery, and one bot never overlaps itself. The Schedules overview shows each next run in its own time zone;
+  its workspace pause blocks future schedule starts without stopping queued or running work. Edit tasks in Bot settings or with
+  `hutch bot schedules`.
 - **Bounded task delegation (experimental)** — an explicit `delegate_task` opt-in for the built-in Strict Offline Linux worker.
   Every request asks for approval, receives only the task text, and runs in a private workspace under the parent's captured
   permissions and budget. Each lineage is depth-limited and time/step-bounded; parent Stop reaches children. The default two-run

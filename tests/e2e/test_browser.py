@@ -78,6 +78,150 @@ def test_executor_health_status_uses_a_steady_indicator(browser, live):
         page.close()
 
 
+def test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences(browser, live):
+    base, app = live
+    store = app.state.store
+    bots = [
+        Bot(name="schedule-west", display_name="West Coast Review", model="ollama/qwen3:4b", tools=[],
+            schedules=[Schedule(name="Weekly review", cron="0 9 * * 1", timezone="America/Vancouver",
+                                prompt="Review the weekly notes.")]),
+        Bot(name="schedule-london", display_name="London Digest", model="ollama/qwen3:4b", tools=[],
+            schedules=[Schedule(name="Morning digest", cron="30 8 * * 1-5", timezone="Europe/London",
+                                prompt="Prepare a morning digest.")]),
+        Bot(name="schedule-personal-paused", display_name="Paused Reminder", model="ollama/qwen3:4b", tools=[], paused=True,
+            schedules=[Schedule(name="Personal reminder", cron="0 10 * * *", timezone="America/Toronto",
+                                prompt="Review the reminder.")]),
+    ]
+    for bot in bots:
+        store.create_bot(bot)
+    live_run = store.create_run(Run(bot_id=bots[0].id, prompt="already admitted work", status=RunStatus.running))
+
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/schedules"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(8000)
+    errors: list[str] = []
+    requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: requests.append(request.url))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    captures = []
+    empty_captures = []
+    try:
+        page.goto(f"{base}/#/schedules")
+        page.get_by_role("heading", name="Schedules").wait_for()
+        page.get_by_role("heading", name="Upcoming scheduled work").wait_for()
+        assert page.get_by_role("listitem").count() == 3
+        assert page.get_by_text("America/Vancouver", exact=True).count() == 1
+        assert page.get_by_text("Europe/London", exact=True).count() == 1
+        assert page.get_by_text("Paused for this Bot", exact=True).count() == 1
+        assert page.get_by_role("link", name="Edit schedule").count() == 3
+
+        with page.expect_response(lambda response: response.url.endswith("/api/v1/schedules/control")
+                                  and response.request.method == "PUT") as paused:
+            page.get_by_role("button", name="Pause all schedules").click()
+        assert paused.value.status == 200 and paused.value.json()["paused"] is True
+        wait_for(lambda: store.workspace_schedule_control()["paused"] is True)
+        page.get_by_role("button", name="Resume workspace schedules").wait_for()
+        assert page.evaluate("document.activeElement?.id") == "schedule-control-toggle"
+        assert store.get_run(live_run.id).status is RunStatus.running
+        wait_for(lambda: page.get_by_text("Paused across workspace", exact=True).count() == 2)
+        page.get_by_text("Paused in workspace and for this Bot", exact=True).wait_for()
+        page.get_by_text("Missed windows follow each task’s catch-up policy after resume.", exact=False).wait_for()
+        while page.locator("#toast-root .toast").count():
+            page.locator("#toast-root .toast-close").first.click()
+
+        sizes = {"desktop": (1440, 960), "tablet": (900, 1024), "phone": (390, 844)}
+        for label, (width, height) in sizes.items():
+            page.set_viewport_size({"width": width, "height": height})
+            metrics = page.evaluate("""() => ({
+              viewport: [innerWidth, innerHeight],
+              document: [document.documentElement.scrollWidth, document.documentElement.scrollHeight],
+              rows: document.querySelectorAll('.schedule-overview-row').length,
+              actionHeight: document.querySelector('#schedule-control-toggle').getBoundingClientRect().height,
+              actionWidth: document.querySelector('#schedule-control-toggle').getBoundingClientRect().width,
+              actionFontSize: parseFloat(getComputedStyle(document.querySelector('#schedule-control-toggle')).fontSize),
+              nextTimeCount: document.querySelectorAll('.schedule-overview-next time').length
+            })""")
+            assert metrics["document"][0] - metrics["viewport"][0] <= 1, (label, metrics)
+            assert metrics["rows"] == 3 and metrics["nextTimeCount"] == 3, (label, metrics)
+            if width <= 640:
+                assert metrics["actionHeight"] >= 44, metrics
+                assert metrics["actionWidth"] >= 150 and metrics["actionFontSize"] >= 12, metrics
+            path = out / f"{label}.png"
+            page.screenshot(path=str(path), full_page=True, animations="disabled")
+            captures.append({"size": label, "viewport": [width, height], **metrics, "screenshot": path.name})
+            if label == "phone":
+                scroll = page.locator("main#view > .page-scroll")
+                scroll_metrics = scroll.evaluate("el => ({height: el.scrollHeight, viewport: el.clientHeight})")
+                assert scroll_metrics["height"] > scroll_metrics["viewport"], scroll_metrics
+                page.locator(".schedule-overview-row").last.scroll_into_view_if_needed()
+                bottom_path = out / "phone-bottom.png"
+                page.screenshot(path=str(bottom_path), full_page=True, animations="disabled")
+                captures.append({"size": "phone-bottom", "viewport": [width, height],
+                                 "scrollHeight": scroll_metrics["height"],
+                                 "scrollViewportHeight": scroll_metrics["viewport"],
+                                 "screenshot": bottom_path.name})
+
+        page.reload()
+        page.get_by_role("button", name="Resume workspace schedules").wait_for()
+        page.get_by_text("On resume, missed windows follow each task’s catch-up policy.", exact=False).wait_for()
+        with page.expect_response(lambda response: response.url.endswith("/api/v1/schedules/control")
+                                  and response.request.method == "PUT") as resumed:
+            page.get_by_role("button", name="Resume workspace schedules").click()
+        assert resumed.value.status == 200 and resumed.value.json()["paused"] is False
+        wait_for(lambda: store.workspace_schedule_control()["paused"] is False)
+        page.get_by_role("button", name="Pause all schedules").wait_for()
+        assert page.evaluate("document.activeElement?.id") == "schedule-control-toggle"
+        wait_for(lambda: page.get_by_text("Scheduled", exact=True).count() == 2)
+        assert page.get_by_text("Paused for this Bot", exact=True).count() == 1
+        assert store.get_run(live_run.id).status is RunStatus.running
+
+        for bot in bots:
+            for schedule in bot.schedules:
+                assert store.delete_schedule(bot.id, schedule.id) is not None
+        page.reload()
+        page.get_by_role("heading", name="No recurring tasks yet").wait_for()
+        assert page.get_by_role("link", name="West Coast Review settings").count() == 1
+        assert page.get_by_role("link", name="London Digest settings").count() == 1
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            empty_path = out / f"empty-{label}.png"
+            page.screenshot(path=str(empty_path), full_page=True, animations="disabled")
+            empty_captures.append({"size": label, "viewport": [width, height], "overflow": overflow,
+                                  "screenshot": empty_path.name})
+
+        outside = [url for url in requests if urlsplit(url).netloc not in {urlsplit(base).netloc, ""}]
+        assert not outside, outside
+        assert not errors, errors
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences",
+            "command": ".venv/bin/pytest -q tests/e2e/test_browser.py::test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences",
+            "browser": browser.version, "playwright": package_version("playwright"),
+            "fixture_only": True, "provider_calls": 0, "external_requests": len(outside),
+            "page_errors": errors, "captures": captures, "empty_captures": empty_captures,
+            "verified": ["next times in each schedule's own time zone", "per-Bot paused status",
+                         "workspace pause persisted through reload", "pause prevents only future scheduled admissions",
+                         "already-running work continues", "Bot-specific pause remains after workspace resume",
+                         "keyboard focus restoration after pause/resume", "responsive rows, scrollable phone list and touch target",
+                         "empty state links to existing Bot settings", "no external browser requests"],
+            "source_sha256": {
+                relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
+                for relative in ("src/hutch/server/static/index.html", "src/hutch/server/static/app.js",
+                                 "src/hutch/server/static/style.css", "src/hutch/server/app.py",
+                                 "src/hutch/store.py", "src/hutch/engine.py", "src/hutch/scheduler.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace.zip"))
+        except Exception:
+            pass
+        context.close()
+
+
 def test_chatgpt_background_permission_is_explicit_responsive_and_reversible(browser, live):
     """Exercise the ChatGPT plan permission using only a local synthetic account."""
     from hutch.chatgpt_auth import ChatGPTAuthBook, PLAN_SCOPE

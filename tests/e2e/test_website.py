@@ -262,11 +262,16 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
     page.on("request", lambda request: external.append(request.url)
             if not request.url.startswith(site_url) and not request.url.startswith("data:") else None)
     captures = []
+    schedule_captures = []
     try:
         page.goto(site_url, wait_until="networkidle")
         workflow = page.locator("#workflow")
+        scheduling = page.locator("#runs .card.feature").filter(has_text="Scheduling")
         assert "named recurring tasks" in workflow.inner_text().lower()
         assert "local supervisor" in page.locator("body").inner_text().lower()
+        assert "one workspace-wide pause stops new scheduled admissions" in scheduling.inner_text().lower()
+        assert "queued or running work continues" in scheduling.inner_text().lower()
+        assert "when resumed, missed windows are coalesced or skipped" in scheduling.inner_text().lower()
         assert "teammate name" in workflow.inner_text().lower()
         assert "ai bot label visible" in workflow.inner_text().lower()
         assert "built-in chat can ask you to choose among options" in workflow.inner_text().lower()
@@ -305,6 +310,10 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, overflow)
             captures.append({"size": label, "viewport": [width, height], "overflow": overflow})
+            scheduling.scroll_into_view_if_needed()
+            schedule_path = out / f"site-scheduling-{label}.png"
+            scheduling.screenshot(path=str(schedule_path), animations="disabled")
+            schedule_captures.append({"size": label, "viewport": [width, height], "screenshot": schedule_path.name})
         assert not external, external
         assert not errors, errors
         (out / "site-validation.json").write_text(json.dumps({
@@ -313,6 +322,7 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
             "captured_at": datetime.now(timezone.utc).isoformat(),
             "python": platform.python_version(), "browser": browser.version,
             "index_sha256": hashlib.sha256(index).hexdigest(), "captures": captures,
+            "schedule_card_captures": schedule_captures,
             "anonymous": True, "external_requests": len(external), "page_errors": errors,
         }, indent=2) + "\n", encoding="utf-8")
     finally:

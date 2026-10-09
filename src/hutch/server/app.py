@@ -690,9 +690,21 @@ class ScheduleResource(BaseModel):
     prompt: str = ""
     created_at: str
     paused: bool
+    workspace_paused: bool = False
+    effective_paused: bool = False
     next_fire: Optional[str] = None
     last_dispatched: Optional[str] = None
     last_skip: Optional[dict] = None
+
+
+class ScheduleControlPut(BaseModel):
+    paused: bool
+
+
+class ScheduleControlResource(BaseModel):
+    paused: bool
+    updated_at: str
+    changed: bool = False
 
 
 class SchedulePut(BaseModel):
@@ -1577,9 +1589,18 @@ def create_app() -> FastAPI:
                          "models_endpoint": conn.models_endpoint})
         return rows
 
+    @app.get("/api/v1/schedules/control", response_model=ScheduleControlResource)
+    def get_schedule_control() -> dict:
+        return store.workspace_schedule_control()
+
+    @app.put("/api/v1/schedules/control", response_model=ScheduleControlResource)
+    def put_schedule_control(body: ScheduleControlPut) -> dict:
+        return store.set_workspace_schedules_paused(body.paused)
+
     @app.get("/api/v1/schedules", response_model=list[ScheduleResource])
     def list_schedules(bot: Optional[str] = None, limit: int = 100, offset: int = 0) -> list[dict]:
         bot_id = bot_or_404(bot).id if bot else None
+        workspace_paused = store.workspace_schedule_control()["paused"]
         rows = []
         for bot in store.list_bots():
             if bot_id and bot.id != bot_id:
@@ -1591,9 +1612,13 @@ def create_app() -> FastAPI:
                              "name": scheduled.name, "cron": scheduled.cron, "timezone": scheduled.timezone,
                              "catch_up": scheduled.catch_up.value, "prompt": scheduled.prompt,
                              "created_at": scheduled.created_at, "paused": bot.paused,
+                             "workspace_paused": workspace_paused,
+                             "effective_paused": bot.paused or workspace_paused,
                              "next_fire": nxt.isoformat() if nxt else None,
                              "last_dispatched": scheduler._last_dispatched(bot, scheduled).isoformat(),
                              "last_skip": scheduler.last_skip(bot, scheduled)})
+        rows.sort(key=lambda item: (item["next_fire"] or "9999", item["bot_display_name"] or item["bot_name"],
+                                    item["name"], item["id"]))
         start = max(0, offset)
         return rows[start:start + max(1, min(limit, 100))]
 
@@ -1659,6 +1684,8 @@ def create_app() -> FastAPI:
                 "bot_display_name": updated.display_name, "name": saved.name,
                 "cron": saved.cron, "timezone": saved.timezone, "catch_up": saved.catch_up.value,
                 "prompt": saved.prompt, "created_at": saved.created_at, "paused": updated.paused,
+                "workspace_paused": store.workspace_schedule_control()["paused"],
+                "effective_paused": updated.paused or store.workspace_schedule_control()["paused"],
                 "next_fire": nxt.isoformat() if nxt else None,
                 "last_dispatched": scheduler._last_dispatched(updated, saved).isoformat(),
                 "last_skip": scheduler.last_skip(updated, saved)}

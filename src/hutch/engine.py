@@ -1087,13 +1087,14 @@ class Engine:
         """
         now = now or utcnow()
         best = MAX_SLEEP_SECONDS
-        for bot in self.store.list_bots():
-            if bot.paused:
-                continue
-            for schedule in bot.schedules or ([bot.schedule] if bot.schedule else []):
-                nxt = self.scheduler.next_fire(bot, now, schedule)
-                if nxt is not None:
-                    best = min(best, (nxt - now).total_seconds())
+        if not self.store.workspace_schedule_control()["paused"]:
+            for bot in self.store.list_bots():
+                if bot.paused:
+                    continue
+                for schedule in bot.schedules or ([bot.schedule] if bot.schedule else []):
+                    nxt = self.scheduler.next_fire(bot, now, schedule)
+                    if nxt is not None:
+                        best = min(best, (nxt - now).total_seconds())
         for req in self.store.pending_approvals():
             try:
                 exp = (datetime.fromisoformat(req.expires_at) if req.expires_at

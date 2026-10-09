@@ -171,7 +171,10 @@ prompt preserves legacy behavior by using the bot instructions, then a generic w
 task if the instructions are empty. Prompts are limited to 4,000 characters. Settings, the typed
 schedule API and `hutch bot schedules` manage individual tasks. Older `schedule` fields and
 `hutch bot update` schedule options remain aliases for the first task. Tasks on one bot share its
-tools, workspace, limits and permissions, and that bot still never runs two attempts at once.
+tools, workspace, limits and permissions, and that bot still never runs two attempts at once. The
+dashboard's Schedules overview lists next occurrences in each task's timezone. A durable workspace
+pause affects future schedule admission only; queued/running work and Bot-specific pause settings
+remain independent.
 
 ### D3 — Scheduling correctness is a feature, not a detail
 
@@ -182,7 +185,9 @@ scheduler counts that task's missed windows and (policy `coalesce`, the default)
 catch-up run tagged `missed_windows=N`, or (policy `skip`) records a visible skip marker. Both
 paths are visible in task settings and the schedule API so a silent non-run can never look like
 success. Schema v21 retains schedule identities after removal, preventing an unused or deleted
-task ID from being assigned to a different stream later.
+task ID from being assigned to a different stream later. The workspace-wide pause is rechecked in
+the same transaction that claims the occurrence and creates its run, closing the stale due-snapshot
+race.
 
 ### D4 — Policy before execution, transcripts regardless of outcome
 

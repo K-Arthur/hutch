@@ -800,6 +800,7 @@ const routes = [
   [/^#\/chat(?:\/([\w-]+))?$/, m => renderChatStudio(m ? m[1] : null), "chat"],
   [/^#\/conversation\/([\w-]+)$/, m => openConversation(m[1]), "chat"],
   [/^#\/overview$/, renderOverview, "overview"],
+  [/^#\/schedules$/, renderSchedules, "schedules"],
   [/^#\/bots$/, renderBots, "bots"],
   [/^#\/runs(?:\?(.*))?$/, m => renderRuns(m ? m[1] : ""), "runs"],
   [/^#\/approvals$/, renderApprovals, "chat"],
@@ -834,7 +835,7 @@ async function route() {
         if (isActive) a.setAttribute("aria-current", "page");
         else a.removeAttribute("aria-current");
       });
-      if (["overview", "runs", "bots"].includes(nav)) $("#monitor-nav").open = true;
+      if (["overview", "schedules", "runs", "bots"].includes(nav)) $("#monitor-nav").open = true;
       try { await handler(m); }
       catch (err) { view.innerHTML = errorState(err); }
       refreshBadge();
@@ -3520,6 +3521,132 @@ async function renderOverview() {
     </div></div>`;
 }
 
+/* -------------------------------------------------------------- schedules */
+
+const SCHEDULE_PAGE_SIZE = 100;
+let scheduleOverview = { rows: [], bots: [], control: null, hasMore: false, generation: 0 };
+
+function scheduleNextTime(row) {
+  if (!row.next_fire) return "Next time unavailable";
+  const date = new Date(row.next_fire);
+  if (Number.isNaN(date.valueOf())) return "Next time unavailable";
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+      timeZone: row.timezone, timeZoneName: "short",
+    }).format(date);
+  } catch { return "Next time unavailable"; }
+}
+
+function schedulePauseStatus(row) {
+  if (row.workspace_paused && row.paused) return "Paused in workspace and for this Bot";
+  if (row.workspace_paused) return "Paused across workspace";
+  if (row.paused) return "Paused for this Bot";
+  return "Scheduled";
+}
+
+function paintSchedules() {
+  const { rows, bots, control, hasMore } = scheduleOverview;
+  const paused = !!control?.paused;
+  const empty = rows.length === 0;
+  const emptyDetails = bots.length
+    ? `<section class="schedule-empty-bots" aria-labelledby="schedule-empty-bots-title">
+        <h3 id="schedule-empty-bots-title">Add a recurring task to a Bot</h3>
+        <div>${bots.slice(0, 8).map(bot => `<a class="btn ghost small" href="#/bot/${encodeURIComponent(bot.name)}">${esc(bot.display_name || bot.name)} settings</a>`).join("")}</div>
+      </section>`
+    : `<a class="btn primary" href="#/chat">Create a Bot</a>`;
+  setTopContext(`<div class="ctx-id"><h1>Schedules</h1></div>
+    <div class="ctx-actions schedule-control-actions"><span class="schedule-control-state" role="status">Workspace schedules ${paused ? "paused" : "active"}</span>
+      <button class="btn ${paused ? "primary" : "ghost"} small" id="schedule-control-toggle" type="button">
+        ${paused ? "Resume workspace schedules" : "Pause all schedules"}
+      </button></div>`);
+  view.innerHTML = `
+    <div class="page-scroll"><div class="container schedule-overview">
+      <p class="schedule-overview-note">See the next run in each task’s own time zone. While paused, no new scheduled run starts; queued or running work continues. On resume, missed windows follow each task’s catch-up policy. Bot-specific pauses remain in effect.</p>
+      ${paused ? `<p class="schedule-paused-note" role="status">Future scheduled admissions are paused. Missed windows follow each task’s catch-up policy after resume.</p>` : ""}
+      ${empty ? `<section class="empty-state schedule-empty" aria-labelledby="schedule-empty-title">
+          ${icon("clock", "icon-lg")}<h2 id="schedule-empty-title">No recurring tasks yet</h2>
+          <p class="hint">Bots only run on a schedule when you add a recurring task in their settings.</p>${emptyDetails}
+        </section>` : `
+        <div class="schedule-overview-heading"><h2>Upcoming scheduled work</h2>
+          <span class="hint" role="status">${rows.length}${hasMore ? "+" : ""} task${rows.length === 1 ? "" : "s"}${hasMore ? " loaded" : ""}</span>
+        </div>
+        <div class="schedule-overview-list" role="list">
+          ${rows.map(row => {
+            const botLabel = row.bot_display_name || row.bot_name;
+            const scheduleStatus = schedulePauseStatus(row);
+            const catchUp = row.catch_up === "coalesce" ? "Missed windows combine into one run" : "Missed windows are skipped";
+            return `<article class="schedule-overview-row" role="listitem">
+              <div class="schedule-overview-task">
+                <div class="schedule-overview-bot"><a href="#/chat/${encodeURIComponent(row.bot_name)}">${esc(botLabel)}</a>
+                  <span class="tag">${esc(scheduleStatus)}</span></div>
+                <h3>${esc(row.name)}</h3>
+                <p class="schedule-overview-pattern"><span>Cron</span> <code>${esc(row.cron)}</code><span aria-hidden="true">·</span>
+                  <span>${esc(catchUp)}</span></p>
+                ${row.last_skip?.windows ? `<p class="schedule-skip" role="status">Last skipped ${Number(row.last_skip.windows).toLocaleString()} missed window${Number(row.last_skip.windows) === 1 ? "" : "s"}${row.last_skip.at ? ` · ${esc(timeAgo(row.last_skip.at))}` : ""}.</p>` : ""}
+              </div>
+              <div class="schedule-overview-next"><span>${row.effective_paused ? "Next scheduled time" : "Next run"}</span>
+                ${row.next_fire ? `<time datetime="${esc(row.next_fire)}">${esc(scheduleNextTime(row))}</time>` : `<strong>Unavailable</strong>`}
+                <small>${esc(row.timezone)}</small></div>
+              <a class="btn ghost small schedule-overview-edit" href="#/bot/${encodeURIComponent(row.bot_name)}">Edit schedule</a>
+            </article>`;
+          }).join("")}
+        </div>
+        ${hasMore ? `<div class="schedule-overview-more"><button class="btn ghost" id="schedule-load-more" type="button">Load 100 more</button></div>` : ""}`}
+    </div></div>`;
+
+  const toggle = $("#schedule-control-toggle");
+  toggle?.addEventListener("click", async () => {
+    toggle.disabled = true;
+    toggle.setAttribute("aria-busy", "true");
+    try {
+      const result = await api("/v1/schedules/control", { method: "PUT", body: { paused: !paused } });
+      toast(result.paused ? "Future scheduled starts paused. Existing runs continue." : "Workspace schedule pause removed. Bot-specific pauses remain.");
+      await renderSchedules();
+      $("#schedule-control-toggle")?.focus({ preventScroll: true });
+    } catch (error) {
+      toast(`Schedule control was not changed: ${error.message}`, true);
+      if (toggle.isConnected) { toggle.disabled = false; toggle.removeAttribute("aria-busy"); }
+    }
+  });
+
+  const more = $("#schedule-load-more");
+  more?.addEventListener("click", async () => {
+    if (more.disabled) return;
+    more.disabled = true;
+    more.setAttribute("aria-busy", "true");
+    try {
+      const next = await api(`/v1/schedules?limit=${SCHEDULE_PAGE_SIZE}&offset=${scheduleOverview.rows.length}`);
+      if (location.hash !== "#/schedules") return;
+      scheduleOverview.rows.push(...next);
+      scheduleOverview.hasMore = next.length === SCHEDULE_PAGE_SIZE;
+      paintSchedules();
+      $("#schedule-load-more")?.focus();
+    } catch (error) {
+      toast(`More schedules could not be loaded: ${error.message}`, true);
+      if (more.isConnected) { more.disabled = false; more.removeAttribute("aria-busy"); }
+    }
+  });
+}
+
+async function renderSchedules() {
+  const generation = ++scheduleOverview.generation;
+  const routeAtStart = location.hash;
+  const alreadyVisible = routeAtStart === "#/schedules" && !!$(".schedule-overview", view);
+  if (!alreadyVisible) {
+    setTopContext(`<div class="ctx-id"><h1>Schedules</h1></div>`);
+    view.innerHTML = `<div class="page-scroll"><div class="container"><div class="empty-state"><div class="spinner" role="status" aria-label="Loading schedules"></div><p>Loading schedules…</p></div></div></div>`;
+  }
+  const [control, rows, bots] = await Promise.all([
+    api("/v1/schedules/control"),
+    api(`/v1/schedules?limit=${SCHEDULE_PAGE_SIZE}&offset=0`),
+    api("/bots"),
+  ]);
+  if (generation !== scheduleOverview.generation || location.hash !== routeAtStart) return;
+  scheduleOverview = { rows, bots, control, hasMore: rows.length === SCHEDULE_PAGE_SIZE, generation };
+  paintSchedules();
+}
+
 /* -------------------------------------------------------------- bots list */
 
 async function renderBots() {
@@ -6043,6 +6170,9 @@ function refreshChangedResources(resources) {
       if (needsYouDialog.open) void refreshApprovals();
     }
     if (changed.has("state")) void pollHealth();
+    if (["workspace", "bots"].some(resource => changed.has(resource)) && (location.hash || "#/chat") === "#/schedules") {
+      void renderSchedules();
+    }
     if (["messages", "conversations", "runs", "approvals", "actions", "transcript_mirrors", "memory", "workspace_tasks", "code_handoffs"].some(r => changed.has(r))) {
       const visibleHash = location.hash || "#/chat";
       if (/^#\/chat(?:\/|$)/.test(visibleHash) || /^#\/run\/[\w-]+$/.test(visibleHash)) scheduleFeedRender();
