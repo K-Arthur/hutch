@@ -100,6 +100,8 @@ fast-forwarded only after implementation and verification for this checkpoint pa
 | `c352d22` | Add the approved, same-bot Strict Offline child-task preview, responsive Settings opt-in, documentation and inspected app/site captures; focused suite 230 passed |
 | `c0ebc21` | Main: per-tool output limits, full-output artifact card and compatibility serving route (adapted during integration to verified no-follow serving) |
 | `6fab391` | Merge main PF-2 with the realignment branch; preserve versioned APIs and safer artifact verification, add responsive source-card test/captures and update public/configuration contracts |
+| `b5227a9` | Record merged PF-2 verification boundary and final offline/browser suite results |
+| `657e9b8` | Record local `main` fast-forward completion without pushing |
 
 ## Dashboard polish continuation (2026-10-09)
 
