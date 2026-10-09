@@ -77,12 +77,16 @@ event by run and event sequence. The event stores the byte size and SHA-256; the
 these bounded run-scoped artifacts, and a download verifies the bytes again before sending them as
 plain text. The chat offers file downloads beside the write result; snapshots are capped at 4 MB
 per file and 16 MB per run. Studio shows write-file downloads outside the collapsed tool details.
+The composer menu also pages verified files and saved tool output across runs attached to the
+current conversation, so the operator can find an earlier result without leaving the chat. The
+query checks both conversation and bot ownership; downloads still resolve to the source run and
+verify its recorded size and hash. This is conversation-scoped discovery, not a cross-chat artifact
+library or a copy into the persistent workspace.
 Arbitrary shell-created files are not attached automatically. Bots
 default to a fresh workspace per run; operators may select a private Hutch-managed directory
 shared only by that bot, or an existing validated user folder.
 These choices do not move files. Managed workspaces are separate from SQLite backups and survive
-bot deletion. This is not yet a shared cross-bot artifact library; run-output artifacts stay with
-their source run and conversation context.
+bot deletion. Run-output artifacts stay with their source run and conversation context.
 
 ## Key decisions
 

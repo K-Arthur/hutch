@@ -10,6 +10,8 @@ A background thread runs the engine's scheduler loop, which sleeps until work ex
 
 from __future__ import annotations
 
+import base64
+import binascii
 import contextlib
 import hashlib
 import json
@@ -48,10 +50,35 @@ _STATIC = Path(__file__).parent / "static"
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,40}$")
 _ARTIFACT_NAME_RE = re.compile(r"^[0-9]{3,6}-[a-z0-9_-]{1,40}\.txt$")
 _ARTIFACT_SHA_RE = re.compile(r"^[a-f0-9]{64}$")
+_CONVERSATION_ARTIFACT_CURSOR_RE = re.compile(r"^([1-9][0-9]{0,18}):(tool_output|workspace_file)$")
 _MAX_ARTIFACT_BYTES = 4_000_000
 
 #: transcript window returned by default (PF-9): the run page stays usable at 10,000+ events
 DEFAULT_EVENT_WINDOW = 200
+
+
+def _encode_conversation_artifact_cursor(event_id: int, kind: str) -> str:
+    payload = f"{event_id}:{kind}".encode("ascii")
+    return base64.urlsafe_b64encode(payload).rstrip(b"=").decode("ascii")
+
+
+def _decode_conversation_artifact_cursor(value: Optional[str]) -> Optional[tuple[int, str]]:
+    if value is None:
+        return None
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", value):
+        raise HTTPException(422, "invalid conversation artifact cursor")
+    try:
+        raw = base64.b64decode(value + "=" * (-len(value) % 4), altchars=b"-_", validate=True)
+        decoded = raw.decode("ascii")
+    except (binascii.Error, UnicodeDecodeError):
+        raise HTTPException(422, "invalid conversation artifact cursor") from None
+    match = _CONVERSATION_ARTIFACT_CURSOR_RE.fullmatch(decoded)
+    if match is None:
+        raise HTTPException(422, "invalid conversation artifact cursor")
+    event_id = int(match.group(1))
+    if event_id > 9_223_372_036_854_775_807:
+        raise HTTPException(422, "invalid conversation artifact cursor")
+    return event_id, match.group(2)
 
 
 class BotCreate(BaseModel):
@@ -225,6 +252,12 @@ class ArtifactPageResource(BaseModel):
     limit: int
     offset: int
     next_offset: Optional[int] = None
+
+
+class ConversationArtifactPageResource(BaseModel):
+    artifacts: list[ArtifactResource]
+    limit: int
+    next_cursor: Optional[str] = None
 
 
 class ConversationSearchResult(BaseModel):
@@ -1311,6 +1344,32 @@ def create_app() -> FastAPI:
         items = [artifact_resource(run, event, kind) for event, kind in records[:limit]]
         return ArtifactPageResource(artifacts=items, limit=limit, offset=offset,
                                     next_offset=offset + limit if has_more else None)
+
+    @app.get("/api/v1/conversations/{conversation_id}/artifacts", response_model=ConversationArtifactPageResource)
+    def list_conversation_artifacts(conversation_id: str, limit: int = 50,
+                                    cursor: Optional[str] = None) -> ConversationArtifactPageResource:
+        conversation = store.get_conversation(conversation_id)
+        if conversation is None:
+            raise HTTPException(404, f"no such conversation: {conversation_id}")
+        if not 1 <= limit <= 100:
+            raise HTTPException(422, "limit must be 1–100")
+        records = store.conversation_artifact_records(
+            conversation_id, conversation["bot_id"], limit=limit + 1,
+            cursor=_decode_conversation_artifact_cursor(cursor))
+        has_more = len(records) > limit
+        items: list[ArtifactResource] = []
+        for event, kind in records[:limit]:
+            run = store.get_run(event.run_id)
+            # Recheck ownership at the response boundary as well as in the query. In
+            # particular, a run attached to another bot must never leak across chats.
+            if run is None or run.bot_id != conversation["bot_id"] or run.conversation_id != conversation_id:
+                continue
+            items.append(artifact_resource(run, event, kind))
+        next_cursor = None
+        if has_more:
+            boundary_event, boundary_kind = records[limit - 1]
+            next_cursor = _encode_conversation_artifact_cursor(boundary_event.id, boundary_kind)
+        return ConversationArtifactPageResource(artifacts=items, limit=limit, next_cursor=next_cursor)
 
     @app.get("/api/v1/tasks/runs/{run_id}/artifacts/{filename}")
     def download_run_artifact(run_id: str, filename: str) -> Response:

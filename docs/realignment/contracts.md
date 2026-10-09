@@ -38,6 +38,7 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
 ## 3. Versioned resources, cursors, idempotency, pagination (partial S8)
 
 * Landed local routes: `/api/v1/health`, `/api/v1/status-labels`, `/api/v1/bots`, `/api/v1/conversations`,
+  conversation-scoped `/api/v1/conversations/{id}/artifacts`, run-scoped `/api/v1/tasks/runs/{id}/artifacts` and verified downloads,
   `/api/v1/search/messages`, `/api/v1/tasks/runs`, `/api/v1/actions/approvals`, `/api/v1/usage`, `/api/v1/connections`,
   `/api/v1/schedules`, `/api/v1/capabilities`, `/api/v1/compatibility`, cross-run transcript pages and stream at `/api/v1/events` and `/api/v1/events/stream`,
   resource change pages and stream at `/api/v1/changes` and `/api/v1/changes/stream`,
@@ -58,6 +59,13 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   still pending; unknown remains unverified and is called out in the route description.
 * Conversation create, message submit, and archive require `Idempotency-Key`. Exact retries return the same resource/run; reusing the
   key with different request content returns 409. An absent key returns 428.
+* Conversation artifact pages use `limit` 1–100 and an opaque `cursor`, include only verified or explicitly unverified
+  artifacts from runs attached to that conversation and bot, newest first, and return `next_cursor` when another page exists.
+  The keyset is ordered by event ID descending, then artifact kind ascending, so a page boundary remains stable if newer artifacts
+  arrive while browsing and can split two artifact kinds recorded by one event without repeating either. Available downloads use
+  the existing run-scoped endpoint, which rechecks the recorded size and SHA-256 through no-follow file access.
+  Missing and legacy-unverified files remain visible without a download link. This route offers discovery within one chat, not
+  cross-chat sharing or persistent-workspace copying.
 * Conversation history is cursor-paginated with `after` and a maximum page size of 100. Run events keep the existing per-run `seq`
   cursor. Cross-run event pages and SSE use SQLite's committed global event `id`, include the run-local `seq`, and resume from
   `Last-Event-ID`. Each page is bounded to 500 events. If a cursor is ahead of the restored database or falls behind retained

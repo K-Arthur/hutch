@@ -393,6 +393,25 @@ def test_generated_workspace_file_is_downloadable_from_its_chat(browser, live, m
             assert artifact["filename"] == "monthly.csv" and artifact["state"] == "available"
             image_path = out / f"{name}.png"
             page.screenshot(path=str(image_path), animations="disabled")
+            page.locator("#composer-menu-btn").click()
+            page.get_by_role("button", name="Browse files in this chat").click()
+            files_dialog = page.get_by_role("dialog", name="Files in this chat")
+            files_dialog.wait_for()
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+            assert files_dialog.evaluate("el => el.scrollWidth - el.clientWidth") <= 1
+            modal_file = files_dialog.get_by_role("link", name="Download monthly.csv")
+            modal_file.wait_for(state="visible")
+            assert any(text.startswith("Created file ·") for text in
+                       files_dialog.locator(".conversation-file-copy > span").all_inner_texts())
+            files_image = out / f"files-{name}.png"
+            page.screenshot(path=str(files_image), animations="disabled")
+            modal_file.focus()
+            with page.expect_download() as modal_download_info:
+                page.keyboard.press("Enter")
+            modal_download = modal_download_info.value
+            assert Path(modal_download.path()).read_bytes() == content.encode("utf-8")
+            files_dialog.get_by_role("button", name="Done").click()
+            assert page.locator("#composer-menu-btn").evaluate("el => document.activeElement === el")
             link.focus()
             with page.expect_download() as download_info:
                 page.keyboard.press("Enter")
@@ -403,6 +422,7 @@ def test_generated_workspace_file_is_downloadable_from_its_chat(browser, live, m
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1 and not errors, {"overflow": overflow, "errors": errors}
             records.append({"viewport": name, "size": [width, height], "screenshot": image_path.name,
+                            "conversation_files_screenshot": files_image.name,
                             "sha256": hashlib.sha256(saved).hexdigest(), "overflow_px": overflow,
                             "page_errors": errors})
         finally:
@@ -416,11 +436,42 @@ def test_generated_workspace_file_is_downloadable_from_its_chat(browser, live, m
         "browser_version": browser.version, "playwright": package_version("playwright"),
         "source_sha256": {name: hashlib.sha256((repo / name).read_bytes()).hexdigest()
                           for name in source_files},
-        "screenshots": {"generated_files": [record["screenshot"] for record in records]},
+        "screenshots": {"generated_files": [record["screenshot"] for record in records],
+                        "conversation_files": [record["conversation_files_screenshot"] for record in records]},
         "journey": "write a text file with Hutch's file tool; download its run-scoped immutable snapshot from chat",
         "runtime_fixture": "tests.support.TestScenarioRuntime", "provider_calls": 0, "captures": records,
         "limitation": "Only files written through write_file are snapshotted; arbitrary shell-created files are not attached.",
     }, indent=2) + "\n")
+
+
+def test_conversation_file_browser_explains_the_empty_state(browser, live):
+    base, app = live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="empty-files-bot", model="mock/demo", runtime=RuntimeKind.mock,
+                               tools=["files"], approval_mode=ApprovalMode.auto))
+    conversation, _ = store.create_conversation(
+        bot.id, "No files yet", idem_key="empty-files-conversation", request_hash="empty-files-request")
+    page = browser.new_page(viewport={"width": 390, "height": 844}, reduced_motion="reduce")
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        page.goto(f"{base}/#/chat/{bot.name}")
+        page.locator("#conversation-switcher").wait_for()
+        assert page.locator("#conversation-switcher").input_value() == conversation["id"]
+        page.locator("#composer-menu-btn").click()
+        page.get_by_role("button", name="Browse files in this chat").click()
+        dialog = page.get_by_role("dialog", name="Files in this chat")
+        dialog.wait_for()
+        status = dialog.get_by_role("status")
+        dialog.get_by_text("No files or saved tool output in this chat yet.", exact=True).wait_for()
+        assert status.inner_text() == "No files or saved tool output in this chat yet."
+        assert dialog.locator(".conversation-file").count() == 0
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+        page.keyboard.press("Escape")
+        assert page.locator("#composer-menu-btn").evaluate("el => document.activeElement === el")
+        assert not errors, errors
+    finally:
+        page.close()
 
 
 def test_studio_conversation_survives_reload_and_archive(browser, live):

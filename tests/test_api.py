@@ -140,6 +140,92 @@ def test_run_output_artifacts_are_paged_scoped_and_hash_checked(client, tmp_path
     safe_dir.rename(artifact_dir)
 
 
+def test_conversation_artifacts_are_scoped_and_paged(client):
+    bot = make_bot(client, name="artifact-owner", paused=True)
+    other_bot = make_bot(client, name="other-artifact-owner", paused=True)
+    store, config = client.app.state.store, client.app.state.config
+
+    def add_conversation(bot_record, title, key, contents):
+        conversation, _ = store.create_conversation(
+            bot_record["id"], title, idem_key=f"conversation-{key}", request_hash=f"request-{key}")
+        prompt = f"run {key}"
+        run = Run(bot_id=bot_record["id"], prompt=prompt, conversation_id=conversation["id"],
+                  status=RunStatus.succeeded)
+        store.create_run(run)
+        with store._tx() as db:
+            db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
+                       (conversation["id"], run.id, run.created_at))
+        run_id = run.id
+        artifact_dir = config.run_dir(bot_record["name"], run_id) / "artifacts"
+        artifact_dir.mkdir(parents=True)
+        for index, (kind, name, payload) in enumerate(contents, 1):
+            stored = f"{index:03d}-{key}.txt"
+            (artifact_dir / stored).write_bytes(payload)
+            data = {"tool": "write_file" if kind == "workspace_file" else "read_file",
+                    "output": "saved", "artifact": f"artifacts/{stored}",
+                    "artifact_sha256": hashlib.sha256(payload).hexdigest(),
+                    "artifact_bytes": len(payload), "chars": len(payload)}
+            if kind == "workspace_file":
+                data["workspace_file"] = {"artifact": f"artifacts/{stored}",
+                                           "sha256": hashlib.sha256(payload).hexdigest(),
+                                           "bytes": len(payload), "name": name, "path": name}
+            store.append_event(Event(run_id=run_id, type=EventType.tool_result, data=data))
+        return conversation, run_id
+
+    conversation, own_run = add_conversation(bot, "Project notes", "own", [
+        ("tool_output", "output", b"saved tool result"),
+        ("workspace_file", "summary.txt", b"created file"),
+    ])
+    _, sibling_run = add_conversation(bot, "Private chat", "sibling", [
+        ("workspace_file", "private.txt", b"another conversation"),
+    ])
+    add_conversation(other_bot, "Other bot", "other", [
+        ("workspace_file", "other.txt", b"another bot's file"),
+    ])
+
+    url = f"/api/v1/conversations/{conversation['id']}/artifacts"
+    page = client.get(url, params={"limit": 1})
+    assert page.status_code == 200, page.text
+    first_page = page.json()
+    assert first_page["next_cursor"] and len(first_page["artifacts"]) == 1
+    assert first_page["artifacts"][0]["kind"] == "tool_output"
+
+    # A new artifact inserted while browsing sorts before the current keyset boundary;
+    # it must not shift older pages or cause a duplicate/skip in this traversal.
+    late_filename = "999-late.txt"
+    late_payload = b"added after the first page"
+    late_dir = config.run_dir(bot["name"], own_run) / "artifacts"
+    (late_dir / late_filename).write_bytes(late_payload)
+    store.append_event(Event(run_id=own_run, type=EventType.tool_result, data={
+        "tool": "write_file", "output": "saved", "artifact": f"artifacts/{late_filename}",
+        "artifact_sha256": hashlib.sha256(late_payload).hexdigest(),
+        "artifact_bytes": len(late_payload), "chars": len(late_payload),
+    }))
+
+    items = first_page["artifacts"]
+    second_page = client.get(url, params={"limit": 1, "cursor": first_page["next_cursor"]}).json()
+    assert second_page["artifacts"][0]["kind"] == "workspace_file"
+    assert second_page["artifacts"][0]["id"].split(":")[0] == items[0]["id"].split(":")[0]
+    assert second_page["next_cursor"]
+    items += second_page["artifacts"]
+    third_page = client.get(url, params={"limit": 1, "cursor": second_page["next_cursor"]}).json()
+    assert third_page["next_cursor"] is None
+    items += third_page["artifacts"]
+    assert len(items) == 3, [(item["id"], item["kind"], item["filename"]) for item in items]
+    assert late_filename not in {item["filename"] for item in items}
+    assert {item["run_id"] for item in items} == {own_run}
+    assert {item["kind"] for item in items} == {"tool_output", "workspace_file"}
+    generated = next(item for item in items if item["kind"] == "workspace_file")
+    assert generated["filename"] == "summary.txt" and generated["state"] == "available"
+    assert client.get(generated["download_url"]).content == b"created file"
+    assert client.get(url, params={"limit": 101}).status_code == 422
+    assert client.get(url, params={"cursor": "not-a-valid-cursor"}).status_code == 422
+    assert client.get("/api/v1/conversations/conv_missing/artifacts").status_code == 404
+    assert client.get(f"/api/v1/conversations/{conversation['id']}/artifacts",
+                      params={"limit": 100}).json()["artifacts"]
+    assert all(item["run_id"] != sibling_run for item in items)
+
+
 def test_bot_crud_and_validation(client):
     bot = make_bot(client, local_browser_handoff=True)
     assert bot["name"] == "api-bot"

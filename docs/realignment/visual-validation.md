@@ -195,3 +195,23 @@ PLAYWRIGHT_BROWSERS_PATH=/tmp/hutch-playwright-browsers .venv/bin/python \
 
 The fixture is synthetic and makes no model/provider call. It validates this stylesheet in isolation, not a live transcript or device.
 The same change refreshes `.impeccable/design.json` from `DESIGN.md` without rewriting the human-authored design guide.
+
+## Conversation file discovery (2026-10-09)
+
+The Studio composer menu now opens a paged list of verified files and saved tool output from the selected conversation. The browser
+journey writes a fixture CSV, finds it from the chat-level file browser, downloads it with keyboard activation, and confirms focus
+returns to the composer options button. A separate phone-sized empty-state journey verifies the “no files yet” message, Escape close,
+focus restoration and no page overflow. The list includes only runs owned by the conversation's bot and attached to that conversation;
+the download still passes through the source run's SHA-256 and size checks.
+
+Firefox **155.0** with Playwright **1.63.0** captured the app and open file browser at desktop (1440×1000), tablet
+(768×1024) and phone (390×844). All report zero page errors and zero horizontal overflow; screenshots were visually inspected.
+The browser journeys passed **2 tests in 7.44s** and the API suite passed **15 tests in 3.05s**. The API regression also inserts a newer
+artifact between cursor requests and verifies the remaining older items, including a boundary between two artifact kinds from one event.
+The anonymous marketing-site suite passed **22 tests**
+after the public copy clarified that files remain discoverable from the conversation; a final focused feature-section recapture passed
+at desktop, tablet and phone sizes. App captures and source hashes are in [`artifacts/generated-files/`](artifacts/generated-files/);
+the public feature-section captures and validation metadata are in [`artifacts/provider-signin/`](artifacts/provider-signin/).
+`generated-files/results.json` records fixture provenance and download hashes. No model, provider or paid call was made. This is
+per-conversation discovery and is not a cross-chat artifact library, live-provider test, physical-device check or screen-reader
+certification.

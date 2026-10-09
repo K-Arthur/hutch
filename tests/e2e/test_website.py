@@ -149,10 +149,12 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
             page.screenshot(path=str(out / f"marketing-{label}.png"), animations="disabled")
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, overflow)
-        for label, width, height in (("desktop", 1440, 900), ("phone", 390, 844)):
+        feature_sizes = (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844))
+        for label, width, height in feature_sizes:
             page.set_viewport_size({"width": width, "height": height})
-            page.locator("#runs .grid").scroll_into_view_if_needed()
-            page.screenshot(path=str(out / f"marketing-features-{label}.png"), animations="disabled")
+            page.locator("#runs").screenshot(
+                path=str(out / f"marketing-features-{label}.png"), animations="disabled",
+                style="body > header { display: none !important; } .skip-link { display: none !important; }")
             cards = page.locator("#runs .feature .card-body")
             assert cards.count() == 6
             for index in range(cards.count()):
@@ -177,7 +179,7 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
             "viewports": [{"name": label, "width": width, "height": height}
                           for label, width, height in viewports],
             "feature_grid_viewports": [{"name": label, "width": width, "height": height}
-                                       for label, width, height in (("desktop", 1440, 900), ("phone", 390, 844))],
+                                       for label, width, height in feature_sizes],
             "feature_heading_layout": "icon and heading share a row",
             "anonymous": True, "external_requests": len(external),
         }, indent=2) + "\n")

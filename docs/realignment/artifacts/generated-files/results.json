@@ -1,20 +1,25 @@
 {
-  "captured_at": "2026-10-08T21:26:35.184216+00:00",
-  "browser": "chromium",
-  "browser_version": "153.0.8010.12",
+  "captured_at": "2026-10-09T01:01:02.725154+00:00",
+  "browser": "firefox",
+  "browser_version": "155.0",
   "playwright": "1.63.0",
   "source_sha256": {
     "src/hutch/runtime/steps.py": "da05be64a1288a20be1582226bd1fcc6724a0c699c6757de4d6078497e56c4b5",
-    "src/hutch/store.py": "d2d7b41239e1d509005eb7a20b0faa5a83f719cb7590a8d0b57c6c2da8da14d6",
-    "src/hutch/server/app.py": "1c747226c46265733fb4dc9164ec1c444c93a2329fe5a2520fd8e59679ef3e09",
-    "src/hutch/server/static/app.js": "6e42b092e1614f00bf583bf765b00bfe6cc98fc374babbae3cabee444d3f718d",
-    "src/hutch/server/static/style.css": "8388a0f7ccd930fe8f14b82ef4eb32e18a5b3af4a67cafbcb56934bc0f9f4c0c"
+    "src/hutch/store.py": "dc38022c170fdd8a4dc3d834174dd2c1d45f7b475885ccf006552e6028cc6fd6",
+    "src/hutch/server/app.py": "35ae98ee7beebf6a1ad7c92d314a5626a350cbf2a97b33e592d4db285af1af86",
+    "src/hutch/server/static/app.js": "4ff8f4fc137aaf79286c86c291b10b00969241a57339b9d99df5c3a5c38411b0",
+    "src/hutch/server/static/style.css": "f64358d133c588eb769a639a3e43b394739a898ba915a8ef3108ffc948e02751"
   },
   "screenshots": {
     "generated_files": [
       "desktop.png",
       "tablet.png",
       "phone.png"
+    ],
+    "conversation_files": [
+      "files-desktop.png",
+      "files-tablet.png",
+      "files-phone.png"
     ]
   },
   "journey": "write a text file with Hutch's file tool; download its run-scoped immutable snapshot from chat",
@@ -28,6 +33,7 @@
         1000
       ],
       "screenshot": "desktop.png",
+      "conversation_files_screenshot": "files-desktop.png",
       "sha256": "fad923b316df6c232fe2687c812fdc65c3393a7cd6483160be9c4a38550b0776",
       "overflow_px": 0,
       "page_errors": []
@@ -39,6 +45,7 @@
         1024
       ],
       "screenshot": "tablet.png",
+      "conversation_files_screenshot": "files-tablet.png",
       "sha256": "fad923b316df6c232fe2687c812fdc65c3393a7cd6483160be9c4a38550b0776",
       "overflow_px": 0,
       "page_errors": []
@@ -50,6 +57,7 @@
         844
       ],
       "screenshot": "phone.png",
+      "conversation_files_screenshot": "files-phone.png",
       "sha256": "fad923b316df6c232fe2687c812fdc65c3393a7cd6483160be9c4a38550b0776",
       "overflow_px": 0,
       "page_errors": []

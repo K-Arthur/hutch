@@ -2062,6 +2062,40 @@ class Store:
             ).fetchone()
         return self._event(row) if row else None
 
+    def conversation_artifact_records(self, conversation_id: str, bot_id: str, *,
+                                      limit: int = 51,
+                                      cursor: Optional[tuple[int, str]] = None) -> list[tuple[Event, str]]:
+        """Return artifacts from runs owned by this bot and attached to this conversation."""
+        if not conversation_id or not bot_id:
+            return []
+        self.flush_events()
+        query = (
+            "SELECT * FROM ("
+            "SELECT e.id, e.run_id, e.seq, e.hash, e.ts, e.type, e.data, 'tool_output' AS artifact_kind "
+            "FROM events e JOIN runs r ON r.id = e.run_id "
+            "JOIN conversation_runs cr ON cr.run_id = r.id AND cr.conversation_id = ? "
+            "JOIN conversations c ON c.id = cr.conversation_id "
+            "WHERE c.bot_id = ? AND r.bot_id = ? AND r.conversation_id = cr.conversation_id "
+            "AND e.type = 'tool_result' AND json_type(e.data, '$.artifact') = 'text' "
+            "UNION ALL "
+            "SELECT e.id, e.run_id, e.seq, e.hash, e.ts, e.type, e.data, 'workspace_file' AS artifact_kind "
+            "FROM events e JOIN runs r ON r.id = e.run_id "
+            "JOIN conversation_runs cr ON cr.run_id = r.id AND cr.conversation_id = ? "
+            "JOIN conversations c ON c.id = cr.conversation_id "
+            "WHERE c.bot_id = ? AND r.bot_id = ? AND r.conversation_id = cr.conversation_id "
+            "AND e.type = 'tool_result' AND json_type(e.data, '$.workspace_file.artifact') = 'text'"
+            ")"
+        )
+        args: tuple = (conversation_id, bot_id, bot_id, conversation_id, bot_id, bot_id)
+        if cursor is not None:
+            query += " WHERE (id < ? OR (id = ? AND artifact_kind > ?))"
+            args += (cursor[0], cursor[0], cursor[1])
+        query += " ORDER BY id DESC, artifact_kind ASC LIMIT ?"
+        args += (max(1, min(limit, 101)),)
+        with self._lock:
+            rows = self._db.execute(query, args).fetchall()
+        return [(self._event(row), row["artifact_kind"]) for row in rows]
+
     def last_seq(self, run_id: str) -> int:
         self.flush_events()
         with self._lock:

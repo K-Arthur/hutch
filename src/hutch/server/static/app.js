@@ -102,6 +102,86 @@ async function createStudioConversation(bot) {
   return conversation;
 }
 
+function conversationArtifactSize(bytes) {
+  const value = Number(bytes);
+  if (!Number.isFinite(value) || value < 0) return "Size unavailable";
+  if (value < 1000) return `${value} bytes`;
+  if (value < 1_000_000) return `${(value / 1000).toFixed(value < 10_000 ? 1 : 0)} kB`;
+  return `${(value / 1_000_000).toFixed(value < 10_000_000 ? 1 : 0)} MB`;
+}
+
+function conversationArtifactHtml(item) {
+  const filename = item.filename || (item.kind === "workspace_file" ? "Generated file" : "Saved tool output");
+  const kind = item.kind === "workspace_file" ? "Created file" : `${item.source_tool || "Tool"} output`;
+  const state = item.state === "available" ? "Verified and ready to download"
+    : item.state === "missing" ? "Saved file is missing"
+      : "Older file has no verification hash";
+  const size = item.kind === "workspace_file" && Number.isInteger(item.size_bytes) && item.size_bytes >= 0
+    ? conversationArtifactSize(item.size_bytes) : item.size_bytes ? conversationArtifactSize(item.size_bytes)
+    : item.chars ? `${Number(item.chars).toLocaleString("en-US")} characters` : "";
+  const safeUrl = item.state === "available" && typeof item.download_url === "string"
+    && /^\/api\/v1\/tasks\/runs\/[a-zA-Z0-9_-]{4,80}\/artifacts\/[0-9]{3,6}-[a-z0-9_-]{1,40}\.txt$/.test(item.download_url)
+    ? item.download_url : "";
+  return `<article class="conversation-file">
+    ${icon(item.kind === "workspace_file" ? "fileText" : "layers")}
+    <div class="conversation-file-copy">
+      <strong title="${esc(filename)}">${esc(filename)}</strong>
+      <span>${esc(kind)}${size ? ` · ${esc(size)}` : ""} · ${esc(timeAgo(item.created_at))}</span>
+      <span class="conversation-file-state">${esc(state)}</span>
+    </div>
+    ${safeUrl ? `<a class="btn ghost small" href="${esc(safeUrl)}" aria-label="Download ${esc(filename)}">Download</a>` : ""}
+  </article>`;
+}
+
+async function openConversationFiles(conversationId, returnFocus) {
+  openModal({
+    title: "Files in this chat",
+    bodyHtml: `<p class="hint">Created files and saved tool output from this conversation. Downloads are checked against their recorded size and hash.</p>
+      <div id="conversation-files-status" class="hint" role="status" aria-live="polite">Loading files…</div>
+      <div id="conversation-files-list" class="conversation-files-list"></div>
+      <div id="conversation-files-more"></div>`,
+    confirmText: "Done", showCancel: false, wide: true, returnFocus,
+  });
+
+  const list = $("#conversation-files-list");
+  const status = $("#conversation-files-status");
+  const more = $("#conversation-files-more");
+  if (!list || !status || !more) return;
+  let cursor = "";
+  let count = 0;
+
+  const load = async (append = false) => {
+    status.textContent = append ? "Loading more files…" : "Loading files…";
+    more.innerHTML = "";
+    try {
+      const next = cursor ? `&cursor=${encodeURIComponent(cursor)}` : "";
+      const page = await api(`/v1/conversations/${encodeURIComponent(conversationId)}/artifacts?limit=50${next}`);
+      if (!$("#conversation-files-list")) return;
+      const items = page.artifacts || [];
+      list.insertAdjacentHTML(append ? "beforeend" : "afterbegin", items.map(conversationArtifactHtml).join(""));
+      count += items.length;
+      cursor = page.next_cursor || "";
+      status.textContent = count ? `${count} ${count === 1 ? "item" : "items"}`
+        : "No files or saved tool output in this chat yet.";
+      if (page.next_cursor) {
+        more.innerHTML = `<button class="btn ghost small" id="conversation-files-load-more" type="button">Load more</button>`;
+        $("#conversation-files-load-more")?.addEventListener("click", ev => {
+          ev.currentTarget.disabled = true;
+          load(true);
+        });
+      }
+    } catch (err) {
+      status.textContent = `Could not load files: ${err.message}`;
+      more.innerHTML = `<button class="btn ghost small" id="conversation-files-retry" type="button">Try again</button>`;
+      $("#conversation-files-retry")?.addEventListener("click", ev => {
+        ev.currentTarget.disabled = true;
+        load(append);
+      });
+    }
+  };
+  await load();
+}
+
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, c =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1087,6 +1167,8 @@ async function renderChatStudio(preferredBot = null) {
                     <button type="button" data-quick="Inspect this repository for TODOs and report findings">${icon("search")} Repo sweep</button>
                   </div>
                   <div class="cmenu-sep"></div>
+                  <button class="cmenu-files" id="conversation-files-open" type="button">${icon("folder")} Browse files in this chat</button>
+                  <div class="cmenu-sep"></div>
                   <label class="cmenu-row"><input type="checkbox" id="rehearse-opt">
                     <span>Rehearse this run<span class="cmenu-sub">simulates writes and commands; model calls and reads still happen</span></span></label>
                   <label class="cmenu-row"><input type="checkbox" id="enter-send-setting" checked>
@@ -1230,6 +1312,10 @@ async function renderChatStudio(preferredBot = null) {
     saveDraft(composerDraftId, txt.value);
     autogrow(); txt.focus();
     setMenu(false);
+  });
+  $("#conversation-files-open").addEventListener("click", () => {
+    setMenu(false);
+    void openConversationFiles(composerConversationId, menuBtn);
   });
 
   // composer "+" menu: popover with rehearse, Enter behaviour, and live budget
