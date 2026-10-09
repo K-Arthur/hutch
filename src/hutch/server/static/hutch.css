@@ -218,9 +218,6 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 
 /* ----------------------------------------------------------------- cards */
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
-.bot-card { border-left-width: 2px; }
-.bot-card.state-running { border-left-color: var(--blue); }
-.bot-card.state-paused { border-left-color: var(--amber); }
 .bot-card header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .bot-name { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; color: var(--text); }
 .desc { color: var(--dim); min-height: 2.8em; }

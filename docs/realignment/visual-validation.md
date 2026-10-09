@@ -857,3 +857,39 @@ copy tests passed in the same viewport family; I inspected the final workflow sc
 draft under Bot setup. No external requests or page errors occurred. App captures, trace and hashes plus anonymous marketing
 captures are in [`artifacts/bot-purpose-refinement/`](artifacts/bot-purpose-refinement/). All responses were fixtures: no live
 model/provider call, screen reader, or physical phone was used.
+
+## ChatGPT background-use permission (2026-10-09)
+
+The Bot settings permission was checked using a synthetic local ChatGPT connection. The fixture made no provider requests
+and the browser reported no external requests. I inspected the permission panel at **1440×960**, **900×1024**, and
+**390×844**, the phone confirmation sheet, and the saved-permission state. The browser flow checked keyboard focus trapping,
+focus restoration to the refreshed control after allow/revoke, route-bound status, and no horizontal overflow. The anonymous
+marketing copy was separately inspected in the Plans & keys card and expanded FAQ at desktop **1440×900**, tablet
+**900×1024**, and phone **390×844**.
+
+The focused app browser pair passed **2 tests in 10.39s** and the marketing browser batch passed **2 tests in 4.20s** on
+Chromium **153.0.8010.12** / Playwright **1.63.0**. Backend consent, redaction and revocation checks passed **13 tests in
+2.82s**. Captures and trace are in [`artifacts/chatgpt-background-consent/`](artifacts/chatgpt-background-consent/);
+marketing captures and trace are in [`artifacts/chatgpt-background-consent/marketing/`](artifacts/chatgpt-background-consent/marketing/).
+Live SIWC eligibility, user sign-in, provider limits and account behavior remain unverified.
+
+## Professional names and Fleet state labels (2026-10-09)
+
+The name suggestion was rerun against a purpose that includes the conversational wrapper (“I need a bot that…”). It proposed
+“Project Status Reporter” and the separate stable address `project-status-reporter`; purpose changes refresh both only until
+the owner edits them. This stays local and deterministic. We use clear work-based names instead of assigning an invented human
+identity, so the name remains understandable in the roster and approvals. The owner can still choose any preferred name.
+
+`uv run pytest -q tests/e2e/test_browser.py::test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes --no-header`
+passed **1 test in 6.07s** on Chromium **153.0.8010.12** / Playwright **1.63.0**. I inspected the automatic-name screen at
+desktop **1440×960**, tablet **900×1024**, and phone **390×844**; the name stays legible, the phone sheet scrolls above its fixed
+actions, and no horizontal overflow or page error occurred. The local rule made no provider request or Bot/run creation.
+
+The legacy Bot-card stylesheet's running/paused colored rails were removed. The active `/bots` path redirects to the responsive
+Fleet, where a status chip already spells out “Needs you” or “Waiting for you.” The synthetic queue-failure journey passed at
+desktop and phone (**2 tests in 2.30s**); I opened both captures and confirmed the text state stays distinct, the attention notice
+does not cover Fleet content, and neither view overflows. Captures and viewport records are in
+[`artifacts/bot-naming-quality/`](artifacts/bot-naming-quality/) and [`artifacts/fleet-attention/`](artifacts/fleet-attention/).
+After the latest public-copy edit, the anonymous Plans & keys and expanded FAQ check passed **1 test in 2.76s**. I inspected the
+refreshed phone captures; the key-based OpenCode path and ChatGPT preview/consent limits remain readable without overflow or
+external requests. They are saved in [`artifacts/chatgpt-background-consent/marketing/`](artifacts/chatgpt-background-consent/marketing/).

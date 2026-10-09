@@ -1,0 +1,28 @@
+{
+  "test": "tests/e2e/test_website.py::test_chatgpt_background_consent_marketing_copy_at_responsive_sizes",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewports": {
+    "desktop": [
+      1440,
+      900
+    ],
+    "tablet": [
+      900,
+      1024
+    ],
+    "phone": [
+      390,
+      844
+    ]
+  },
+  "external_requests": [],
+  "page_errors": [],
+  "verified": [
+    "clear per-Bot express consent disclosure",
+    "revoke and route-change disclosure",
+    "responsive FAQ and copy",
+    "no horizontal overflow"
+  ]
+}

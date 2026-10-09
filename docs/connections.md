@@ -274,10 +274,22 @@ OpenAI therefore does not enforce Hutch's per-response output ceiling. Hutch usa
 and any operator allowance are estimates, can be exceeded by one response, and are not a hard spend cap. No live
 ChatGPT account was used to verify this integration.
 
+OpenAI's current terms require express consent before a plan is used by an automation or background process. Hutch
+therefore requires a separate permission for each Bot and connected ChatGPT account before scheduled or coordinator-assigned
+work can use that route. The permission is stored locally with that Bot, bound to its current model/fallback/escalation
+configuration, and invalidated when that configuration changes. Hutch checks the current grant before each provider request;
+revoking it blocks the next request after any in-flight request finishes. Disconnecting the account removes its grants.
+User-started conversations keep their existing request-level authorization flow. Bot API responses and recovery snapshots
+omit local account identifiers and raw consent records. [OpenAI's SIWC terms](https://openai.com/policies/sign-in-with-chatgpt-terms/)
+require user-controlled runtimes and expressly authorized background use; [preview limits](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)
+still apply.
+
 If the sign-in control is disabled, leave it disabled unless Hutch has confirmed eligibility; setting the local flag is
 not an eligibility grant. If the callback expires or Hutch was opened through a hostname, HTTPS proxy, or remote device,
-restart the flow from `http://127.0.0.1:<port>` on the Hutch host. If sign-in succeeds without plan-use permission,
-the account cannot select ChatGPT models until it is reauthorized with that permission. When Hutch is not eligible or
+restart the flow from `http://127.0.0.1:<port>` on the Hutch host. If sign-in completes without the ChatGPT plan-use
+scope, the account cannot select ChatGPT models until it is reauthorized with that scope. Once connected, user-started
+messages use the existing request-level authorization flow; scheduled and specialist work still needs the separate
+per-Bot permission above. When Hutch is not eligible or
 you need a provider-enforced output limit, use an OpenAI API connection with an API key; ChatGPT Plus/Pro membership
 does not itself create API billing credentials.
 

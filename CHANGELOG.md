@@ -2,7 +2,7 @@
 
 ## Dashboard accent polish (2026-10-09)
 
-- Replaced the remaining one-sided accents on specialist checkpoint rows and quoted chat replies with subtle full outlines. Reply tests now use the professional Bot display name exposed by the interface and assert the quote's balanced border.
+- Replaced one-sided accents on specialist checkpoint rows and quoted chat replies with subtle full outlines. Legacy Bot cards no longer use colored rails for running or paused state; the visible Fleet keeps its explicit text labels. Reply tests use the professional Bot display name exposed by the interface and assert the quote's balanced border.
 
 ## Scoped fact memory continuation (schema v15, local)
 
@@ -17,6 +17,7 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 ## [Unreleased]
 
 - Added an experimental private-preview Gmail search connection using an owner-configured Google Desktop OAuth client and Linux Secret Service. It requests restricted account-wide `gmail.readonly`, returns bounded headers/snippets only, and grants access only to built-in Bots whose complete model route set is loopback Local. Hybrid, hosted, remote model endpoints and hosted fallbacks are rejected. No Gmail send or mailbox-write operation exists; public release is unavailable pending Google scope verification and any applicable security assessment. Live account consent is unverified.
+- ChatGPT plan routes now require explicit per-Bot, per-account consent before scheduled or coordinator-assigned work. The grant is tied to the current provider routes, rechecked before each model request, removed on disconnect, and excluded from public Bot/snapshot resources. Revoke stops later requests after any in-flight request completes.
 
 ### Added
 

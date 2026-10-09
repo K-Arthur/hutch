@@ -64,7 +64,7 @@
           "src/hutch/server/static/style.css"
         ],
         "createdAt": "2026-10-09T15:21:46.653Z",
-        "reason": "Agent: cited current lines are a neutral full-outline blockquote and text alignment, not side-tab accents; exact-target scan reports no side-tab anti-pattern."
+        "reason": "The reported style.css lines are a code-block padding reset and a text-only checkpoint state label; neither draws a side rail. Exact-target detection reports no side-tab pattern. The separate legacy bot-card rails in hutch.css were removed."
       }
     ]
   }

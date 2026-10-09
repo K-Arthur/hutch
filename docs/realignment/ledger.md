@@ -2661,3 +2661,57 @@ or external requests. Evidence is under [`artifacts/bot-purpose-refinement/`](ar
 No live model/provider call, provider retention behavior, screen reader or physical phone was tested. Multi-round clarification
 is not implemented: answers to open questions must be added to the editable purpose and submitted in a new explicit request.
 Naming remains a local deterministic suggestion rather than model-generated, and live semantic quality remains unverified.
+
+## ChatGPT background plan consent (2026-10-09)
+
+Implementation commit: `a91aebf`.
+
+OpenAI's current [SIWC terms](https://openai.com/policies/sign-in-with-chatgpt-terms/) require express consent before an
+automation or background process uses a connected plan and require requests to originate from a user-controlled runtime.
+Hutch now records an explicit permission per Bot and connected ChatGPT account. It binds to the Bot's current model,
+fallback, escalation, inference mode, runtime and endpoint configuration. Any route change makes the grant stale. The
+runtime re-reads the current Bot record before each provider request, so revoking consent prevents later requests even if a
+run began while consent was active; an in-flight request may finish. Disconnecting or removing the ChatGPT connection
+removes its grants. Direct messages retain their existing per-request authorization. No ChatGPT connection is silently
+selected as a paid fallback.
+
+The API uses an expected-route fingerprint for compare-and-swap, returns only safe consent state, and excludes stored
+consent records from ordinary Bot resources and resynchronization snapshots. A grant is not shared across accounts. The
+current preview's output-token ceiling remains unenforced by OpenAI; local usage remains an estimate. Eligibility and live
+account support have not been verified.
+
+The focused contract batch passed **13 tests in 2.82s**, covering scheduled/specialist denials, fallback denial, account
+binding, route-change invalidation, disconnect races, per-request revocation observation, and snapshot redaction. The local
+synthetic-account browser pair passed **2 tests in 10.39s**; anonymous marketing copy passed **2 tests in 4.20s**. Desktop,
+tablet and phone captures were opened and inspected; keyboard trap/return focus, overflow, no provider requests and no
+external requests were checked. See [`visual-validation.md`](visual-validation.md#chatgpt-background-use-permission-2026-10-09).
+
+The first broad run after this slice reported **1,606 passed and one failed** because a legacy executor-recovery browser
+test still expected the text `hutch doctor` after the fixture had verified isolation successfully. The stale assertion was
+changed to check the verified state, and that browser test passed by itself (**1 test in 8.60s**). This full-suite result is
+not green; rerun the full suite after later slices and before integration.
+
+## Bot identity and Fleet visual recheck (2026-10-09)
+
+The owner asked for automatic, more human and professional Bot names. The current flow is already automatic: it derives a concise
+professional role name and editable stable address from the user's stated purpose, refreshes both while they remain untouched,
+and keeps the human-facing label separate from the stable local Bot address. I retained work-descriptive titles rather than inventing a personal identity;
+that keeps the bot's role obvious in the roster, approvals and message references. The rule runs locally without model usage, and
+the owner can edit either value. A fresh browser journey with the prefix “I need a bot that…” passed (**1 test in 6.07s**) at
+desktop, tablet and phone sizes. I inspected the screenshots; see [`visual-validation.md`](visual-validation.md#professional-names-and-fleet-state-labels-2026-10-09).
+
+The two running/paused side accents in the legacy Bot-card CSS were removed. The active Fleet already states each condition in a
+text chip, so the decoration carried no extra information. Its synthetic queue-failure browser check passed at desktop and phone
+(**2 tests in 2.30s**), and I inspected both captures for readable status labels, unobscured content and overflow. The old
+`/bots` server route redirects to the Fleet; this cleanup does not change the live SPA or state semantics.
+
+For OpenCode, the current v2.0.24 CLI exposes `auth login`, which can store provider credentials in OpenCode's private auth
+store, but Hutch does not import that file or reuse the CLI session. The supported OpenCode Go path is the vendor-documented
+Console sign-in followed by copying a provider-issued API key into Hutch's scoped connection; it is clearly labelled key-based,
+not OAuth token sharing. ChatGPT has a separate supported Sign in with ChatGPT preview path in Hutch. OpenCode Go's current
+official instructions confirm the Console/key flow: [OpenCode Go](https://docs.opencode.ai/docs/go/) and
+[provider setup](https://docs.opencode.ai/docs/providers/). These are provider-account setup flows; OpenCode/Pi execution
+adapters remain unavailable until permission, process, budget and recovery contracts pass.
+
+After the latest marketing-copy edit, the anonymous Plans & keys and expanded FAQ browser check passed **1 test in 2.76s** at
+desktop, tablet and phone widths. I inspected the refreshed phone captures; no page error, overflow or external request occurred.

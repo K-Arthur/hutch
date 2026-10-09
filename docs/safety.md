@@ -33,6 +33,12 @@ route. OAuth credentials are kept in a private file under Hutch's state director
 and are sent only to OpenAI. ChatGPT plan allowance is provider-controlled; Hutch cannot enforce an output-token cap
 on this preview route. Neither integration shares browser cookies or credentials from another client.
 
+Scheduled and coordinator-assigned work may use a ChatGPT plan only after the owner grants permission for that Bot and
+account. The permission is tied to the Bot's current provider routes, stored in Hutch's local database, and checked again
+before each provider request so a revoked or stale grant cannot authorize a later call. An in-flight request may finish;
+subsequent requests stop. Disconnecting the account removes its grants. These controls do not change the preview's
+eligibility boundary or make Hutch's estimated output limits provider-enforced.
+
 Bots start with a fresh workspace for every run. The optional Hutch-managed mode reuses a private, 0700 folder for one bot across its
 runs and conversations; the existing-folder mode is explicit and validated. Files never move automatically when a mode changes. Deleting
 a bot preserves its managed workspace, and database snapshots do not include managed workspaces or user folders; back them up separately.

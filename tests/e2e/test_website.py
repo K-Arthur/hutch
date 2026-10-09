@@ -133,11 +133,60 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert "browser egress" in text and "non-http" in text
     assert "sign in with chatgpt is an opt-in local preview" in text
     assert "eligibility for hutch is unconfirmed" in text
-    assert "does not allow a provider-enforced output-token limit" in text
+    assert "does not enforce hutch's output-token allowance" in text
+    assert "scheduled or coordinator-assigned work needs your express permission for each bot and connected account" in text
     assert "chatgpt sign-in is not implemented" not in text
     assert "github.com/k-arthur/hutch" not in page.content().lower()
     assert not errors, errors
     context.close()
+
+
+def test_chatgpt_background_consent_marketing_copy_at_responsive_sizes(browser, site_url):
+    context, page, errors = _page(browser, reduced_motion="reduce")
+    out = ROOT / "docs/realignment/artifacts/chatgpt-background-consent/marketing"
+    out.mkdir(parents=True, exist_ok=True)
+    external: list[str] = []
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(site_url) and not request.url.startswith("data:") else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(site_url, wait_until="networkidle")
+        card = page.locator("article.card").filter(has=page.get_by_role("heading", name="Plans & keys"))
+        assert "scheduled use requires a separate permission for each Bot and account" in card.inner_text()
+        faq = page.locator("details.faq-item").filter(has_text="Can I run it on my ChatGPT or Claude subscription?")
+        faq.locator("summary").click()
+        assert "scheduled or coordinator-assigned work needs your express permission" in faq.inner_text().lower()
+        assert "the permission follows that bot's current provider routes and can be revoked" in faq.inner_text().lower()
+        for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.get_by_role("heading", name="Plans & keys").scroll_into_view_if_needed()
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            page.screenshot(path=str(out / f"marketing-consent-plan-{label}.png"), animations="disabled")
+            faq.scroll_into_view_if_needed()
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            page.screenshot(path=str(out / f"marketing-consent-faq-{label}.png"), animations="disabled")
+        assert not errors, errors
+        assert not external, external
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_website.py::test_chatgpt_background_consent_marketing_copy_at_responsive_sizes",
+            "browser": browser.browser_type.name,
+            "browser_version": browser.version,
+            "playwright_version": package_version("playwright"),
+            "viewports": {"desktop": [1440, 900], "tablet": [900, 1024], "phone": [390, 844]},
+            "external_requests": external,
+            "page_errors": errors,
+            "verified": ["clear per-Bot express consent disclosure", "revoke and route-change disclosure",
+                         "responsive FAQ and copy", "no horizontal overflow"],
+        }, indent=2) + "\n", encoding="utf-8")
+        context.tracing.stop(path=str(out / "trace.zip"))
+    finally:
+        try:
+            context.tracing.stop()
+        except Exception:
+            pass
+        context.close()
 
 
 def test_internal_links_resolve_and_external_links_are_public_reports(browser, site_url):
