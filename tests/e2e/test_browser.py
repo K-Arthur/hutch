@@ -184,6 +184,13 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
         assert "Specialist response committed" in checkpoint_copy
         assert "Restart continuation is not available yet" in checkpoint_copy
         assert checkpoint_list.locator("li").count() <= 16
+        checkpoint_style = checkpoint_list.locator("li").first.evaluate("""element => {
+          const style = getComputedStyle(element);
+          return {leftWidth: style.borderLeftWidth, topWidth: style.borderTopWidth,
+            leftColor: style.borderLeftColor, topColor: style.borderTopColor};
+        }""")
+        assert checkpoint_style["leftWidth"] == checkpoint_style["topWidth"] == "1px"
+        assert checkpoint_style["leftColor"] == checkpoint_style["topColor"]
         for label, (width, height) in sizes.items():
             page.set_viewport_size({"width": width, "height": height})
             page.evaluate("document.fonts.ready")
@@ -4242,6 +4249,7 @@ def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser
     monkeypatch.setattr(app.state.engine, "tick", lambda: None)
     store = app.state.store
     bot = store.create_bot(Bot(name="reply-fixture", model="mock/demo", tools=[]))
+    bot_label = bot.display_name or bot.name
     conversation, _ = store.create_conversation(bot.id, "Reply reference", idem_key="reply-conversation",
                                                 request_hash="reply-conversation")
     answer = "The migration finished successfully. Check the rollout metrics before expanding it."
@@ -4265,7 +4273,7 @@ def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.goto(f"{base}/#/chat/{bot.name}")
-    reply = page.get_by_role("button", name=f"Reply to {bot.name} message")
+    reply = page.get_by_role("button", name=f"Reply to {bot_label} message")
     reply.wait_for(state="visible")
     reply.focus()
     page.keyboard.press("Enter")
@@ -4275,7 +4283,7 @@ def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser
     assert page.locator("#chat-prompt").evaluate("el => el === document.activeElement")
     page.locator("#chat-prompt").fill("Can you explain that result?")
     if size == "phone":
-        assert page.get_by_role("button", name=f"Reply to {bot.name} message").bounding_box()["height"] >= 44
+        assert page.get_by_role("button", name=f"Reply to {bot_label} message").bounding_box()["height"] >= 44
         assert page.locator("#reply-composer-clear").bounding_box()["height"] >= 44
     page.screenshot(path=str(out / f"preview-{size}.png"), full_page=True, animations="disabled")
     page.reload(wait_until="domcontentloaded")
@@ -4303,6 +4311,13 @@ def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser
     anchored = page.locator(".reply-reference-quote")
     anchored.wait_for(state="visible")
     assert "The migration finished successfully" in anchored.inner_text()
+    quote_style = anchored.evaluate("""element => {
+      const style = getComputedStyle(element);
+      return {leftWidth: style.borderLeftWidth, topWidth: style.borderTopWidth,
+        leftColor: style.borderLeftColor, topColor: style.borderTopColor};
+    }""")
+    assert quote_style["leftWidth"] == quote_style["topWidth"] == "1px"
+    assert quote_style["leftColor"] == quote_style["topColor"]
     assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
     assert not errors
     page.screenshot(path=str(out / f"sent-{size}.png"), full_page=True, animations="disabled")

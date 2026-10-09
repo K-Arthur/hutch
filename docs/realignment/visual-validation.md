@@ -651,3 +651,19 @@ after restart. Its Playwright check verified all three site sizes, zero external
 Screenshots, traces, viewport/source metadata, and validation output are in
 [`artifacts/workspace-task-dispatch/`](artifacts/workspace-task-dispatch/). Tests use only a local mock model and SQLite; no live
 provider, external browser session, physical phone or screen reader was used.
+
+## Even outlines for checkpoints and message references (2026-10-09)
+
+The two remaining one-sided accents in the dashboard—checkpoint rows and quoted message
+references—now use the same quiet full outline as nearby surfaces. The fixture-based browser
+checks passed **4 tests in 22.51s** on Chromium **153.0.8010.12** / Playwright **1.63.0**:
+the coordinator handoff journey and the keyboard-accessible reply journey at desktop
+(1440×1000), tablet (900×1024) and phone (390×844). The tests assert equal border widths and
+colors on all sides, preserve reply focus and persisted message linkage, and verify no page
+errors or horizontal overflow. I inspected the desktop and phone captures in
+[`artifacts/workspace-task-dispatch/`](artifacts/workspace-task-dispatch/) and
+[`artifacts/message-replies/`](artifacts/message-replies/); both layouts remain readable, and
+checkpoint rows stay above the phone composer. The Impeccable detector found no remaining
+side-tab findings in this stylesheet; it still reports three pre-existing advisory radius
+values outside the documented token scale. No live provider, account, or physical device was
+used.

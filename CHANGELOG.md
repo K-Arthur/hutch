@@ -1,5 +1,9 @@
 # Changelog
 
+## Dashboard accent polish (2026-10-09)
+
+- Replaced the remaining one-sided accents on specialist checkpoint rows and quoted chat replies with subtle full outlines. Reply tests now use the professional Bot display name exposed by the interface and assert the quote's balanced border.
+
 ## Scoped fact memory continuation (schema v15, local)
 
 - Replace automatic per-bot fact/system injection with explicitly retrieved, human-reviewed chat facts and bounded FTS5.
