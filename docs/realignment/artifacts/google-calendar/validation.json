@@ -1,0 +1,58 @@
+{
+  "test": "tests/e2e/test_browser.py::test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone",
+  "command": "PLAYWRIGHT_BROWSERS_PATH=/home/kevina/.cache/ms-playwright .venv/bin/pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning tests/e2e/test_browser.py -k google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone",
+  "captured_at": "2026-10-09T11:57:30.134426+00:00",
+  "browser": "153.0.8010.12",
+  "provider_credentials_used": false,
+  "provider_calls": 0,
+  "scenario": "Synthetic connected-account metadata and calendar-list fixture; exercised actual local API grant persistence, Bot binding, disclosure and revoke control",
+  "external_requests": [],
+  "page_errors": [],
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "scenes": [
+        "overview",
+        "granted account"
+      ],
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "scenes": [
+        "overview",
+        "granted account"
+      ],
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "scenes": [
+        "overview",
+        "granted account"
+      ],
+      "horizontal_overflow": 0
+    }
+  ],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "d3862fe23f0f6411e3fdc8c7b531fa30c1ba0993668edbc4ddccdef6d42660bf",
+    "src/hutch/server/static/style.css": "074c6678db6471537536bf2f1e0732e4d42cebb186ccd7c7c0fde3b5591cd080",
+    "src/hutch/server/app.py": "4f6d5c03ebe942664e6931e4ee3a983c2f95b2dcb1a4c9abecd94a6ddc17bd9f",
+    "src/hutch/server/security.py": "d42c2f2bfc87fe4840c2645f7147f468fb00a94604a9e1710c8295d0e50c6baa",
+    "src/hutch/store.py": "4fc4f3addf51d3c6f3b9cdf6c93d47bac2ebf88587d5e6e812ec8cd00e922b2d",
+    "src/hutch/google_calendar.py": "893a673cdae3a4729e77c50ebdd4e8fb9505908f28ae3a81b17700f720f75c58",
+    "src/hutch/tools/google_calendar.py": "358fb1dc2ba2138c6e92981dbe5364dcf8dcdeea3f76c5e208c160f6ac2c8726"
+  }
+}

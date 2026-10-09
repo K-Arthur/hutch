@@ -427,12 +427,16 @@ function toast(msg, isError = false) {
 // status only. Remove it from browser history before rendering the page.
 const chatgptCallback = new URLSearchParams(location.search);
 const chatgptResult = chatgptCallback.get("chatgpt_result");
-if (chatgptResult) {
+const googleCalendarResult = chatgptCallback.get("google_calendar_result");
+if (chatgptResult || googleCalendarResult) {
   const detail = chatgptCallback.get("detail");
-  const message = chatgptResult === "connected" ? "ChatGPT plan route connected."
+  const message = googleCalendarResult
+    ? googleCalendarResult === "connected" ? "Google Calendar account connected. Choose a calendar and grant one Bot read access from Connections."
+      : detail || "Google Calendar sign-in did not complete. Start again from Connections."
+    : chatgptResult === "connected" ? "ChatGPT plan route connected."
     : chatgptResult === "identity-only" ? "ChatGPT signed in, but plan use was not granted. Reauthorize to use it for models."
     : detail || "ChatGPT sign-in did not complete. Start again from Connections.";
-  setTimeout(() => toast(message, chatgptResult === "error"), 0);
+  setTimeout(() => toast(message, chatgptResult === "error" || googleCalendarResult === "error"), 0);
   history.replaceState(null, "", `${location.pathname}${location.hash || "#/connections"}`);
 }
 
@@ -3799,6 +3803,9 @@ async function renderConnections() {
   let data;
   try { data = await api("/connections"); }
   catch (err) { view.innerHTML = errorState(err); return; }
+  let bots = [];
+  try { bots = await api("/bots"); }
+  catch { /* Provider and device controls remain usable if the Bot list is unavailable. */ }
   let devices = [];
   let devicesError = "";
   try { devices = await api("/v1/devices"); }
@@ -3806,8 +3813,38 @@ async function renderConnections() {
   setTopContext(`<div class="ctx-id"><h1>Connections</h1></div>
     <div class="ctx-actions"><button class="btn primary small" id="btn-add-conn">${icon("plus")} Add connection</button></div>`);
   const conns = data.connections || [];
+  const googleCalendar = data.google_calendar || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const windows = { "5h": "per 5 hours", "day": "per day", "week": "per week", "month": "per month" };
   const devicesOpen = $(".device-manager")?.open || false;
+  const googleCalendarAccountsHtml = (googleCalendar.accounts || []).map(account => {
+    const grants = (googleCalendar.grants || []).filter(grant => grant.account_id === account.id);
+    const grantRows = grants.length ? grants.map(grant => `
+      <div class="device-row"><div><strong>${esc(grant.bot_name)}</strong><p class="hint">Can read ${esc(grant.calendar_name)} · ${esc(account.label)}</p></div>
+        <button class="btn ghost small" type="button" data-google-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")
+      : '<p class="hint">No Bot has access to this account.</p>';
+    return `<article class="google-calendar-account" data-google-calendar-account="${esc(account.id)}">
+      <div class="device-row"><div><strong>${esc(account.label)}</strong> <span class="chip ok">connected</span>
+        <p class="hint">Read-only calendar-list and event scopes · connected ${esc(new Date(account.created_at).toLocaleDateString())}</p></div>
+        <button class="btn danger small" type="button" data-google-calendar-disconnect="${esc(account.id)}">Disconnect</button>
+      </div>
+      <div class="google-calendar-grants" aria-label="Bots with calendar access">${grantRows}</div>
+      <div class="google-calendar-grant-form" data-google-calendar-grant-form="${esc(account.id)}">
+        <label class="field">Grant one calendar to a Bot
+          <select data-google-calendar-bot ${bots.length ? "" : "disabled"} aria-label="Bot for Google Calendar access">
+            ${bots.length ? bots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.name)}</option>`).join("") : '<option value="">Create a Bot first</option>'}
+          </select>
+        </label>
+        <button class="btn ghost small" type="button" data-google-calendar-load-calendars="${esc(account.id)}" ${bots.length ? "" : "disabled"}>Load calendars</button>
+        <label class="field" hidden data-google-calendar-calendar-field>Calendar
+          <select data-google-calendar-calendar aria-label="Calendar to grant" disabled><option value="">Choose a calendar…</option></select>
+        </label>
+        <button class="btn primary small" type="button" data-google-calendar-grant="${esc(account.id)}" disabled>Grant read access</button>
+        <p class="hint" role="status" aria-live="polite" data-google-calendar-status></p>
+      </div>
+    </article>`;
+  }).join("");
+  const orphanCalendarGrants = (googleCalendar.grants || []).filter(grant =>
+    !(googleCalendar.accounts || []).some(account => account.id === grant.account_id));
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
       <p class="page-subtitle">A named hosted endpoint with its own key, terms, and allowance. Reference its models as <code class="mono">&lt;connection&gt;/&lt;model&gt;</code>.</p>
@@ -3830,6 +3867,23 @@ async function renderConnections() {
               <button class="btn danger small" data-chatgpt-disconnect="${esc(account.account_id)}">Disconnect</button>
             </div>
           </div>`).join("")}
+      </section>
+      <section class="panel conn-card google-calendar-card" aria-labelledby="google-calendar-title">
+        <div class="bot-head"><span class="bot-name" id="google-calendar-title">Google Calendar</span>
+          <span class="tag">read only</span><span class="tag">local desktop sign in</span></div>
+        <p class="hint">Connect with Google's official installed-app flow. Hutch can list calendars and read events only. Grant one calendar to one Bot; matching event titles, times and locations go to that Bot's selected model and remain in its run history. Descriptions and attendee details are not included.</p>
+        <p class="hint"><strong>Google permission:</strong> Google's OAuth grant is read-only at the account level; Hutch exposes only the calendar you select to each Bot. Calendar content is untrusted and cannot approve actions.</p>
+        ${!googleCalendar.configured ? '<p class="hint" role="status">Unavailable until the Hutch operator configures <code>HUTCH_GOOGLE_OAUTH_CLIENT_ID</code> with a Google Desktop OAuth client and enables the Calendar API.</p>' : ''}
+        ${googleCalendar.configured && !googleCalendar.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting an account. Hutch never stores refresh tokens in SQLite or browser storage.</p>' : ''}
+        <div class="google-calendar-connect">
+          <label class="field" for="google-calendar-label">Account label
+            <input id="google-calendar-label" type="text" maxlength="80" autocomplete="off" placeholder="Personal or Work" aria-describedby="google-calendar-label-help">
+          </label>
+          <button class="btn primary small" id="google-calendar-connect" type="button" ${!googleCalendar.configured || !googleCalendar.secret_store_available ? "disabled" : ""}>Connect Google Calendar</button>
+          <p class="hint" id="google-calendar-label-help">This label stays on this Hutch. Sign-in must start on the Hutch host at <code>127.0.0.1</code>; pair the phone after connecting here.</p>
+        </div>
+        ${googleCalendarAccountsHtml || '<p class="hint">No Google Calendar accounts connected.</p>'}
+        ${orphanCalendarGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanCalendarGrants.map(grant => `<div class="device-row"><div><strong>${esc(grant.bot_name)}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-google-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
       </section>
       <details class="device-manager">
         <summary>Paired devices <span class="tag">${devices.length}</span></summary>
@@ -3919,6 +3973,116 @@ async function renderConnections() {
         button.disabled = false;
         toast(err.message, true);
       }
+    });
+  });
+
+  $("#google-calendar-connect")?.addEventListener("click", async event => {
+    const button = event.currentTarget;
+    const label = $("#google-calendar-label")?.value.trim();
+    if (!label) { toast("Enter a label for this Google Calendar account.", true); $("#google-calendar-label")?.focus(); return; }
+    // Google installed-app OAuth must run in a browser context, not inside a
+    // form submit or embedded credential field. Open synchronously during the
+    // click gesture, sever its opener, then navigate only after Hutch returns
+    // the fixed Google authorization endpoint.
+    const authWindow = window.open("about:blank", "_blank");
+    if (!authWindow) {
+      toast("Allow Hutch to open a browser tab, then try Google sign-in again.", true);
+      return;
+    }
+    authWindow.opener = null;
+    button.disabled = true;
+    button.textContent = "Opening Google…";
+    try {
+      const result = await api("/v1/connections/google-calendar/sign-in", { method: "POST", body: { label } });
+      let authUrl;
+      try { authUrl = new URL(result.authorization_url); }
+      catch { throw new Error("Hutch returned an invalid Google sign-in destination."); }
+      if (authUrl.origin !== "https://accounts.google.com" || authUrl.pathname !== "/o/oauth2/v2/auth" ||
+          authUrl.username || authUrl.password || authUrl.hash || !authUrl.search) {
+        throw new Error("Hutch returned an unexpected Google sign-in destination.");
+      }
+      authWindow.location.replace(authUrl.href);
+      button.textContent = "Connect Google Calendar";
+      toast("Finish Google sign-in in the new browser tab, then reload Connections here.");
+    } catch (err) {
+      authWindow.close();
+      button.disabled = false;
+      button.textContent = "Connect Google Calendar";
+      toast(err.message, true);
+    }
+    button.disabled = false;
+  });
+  $$('[data-google-calendar-load-calendars]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const form = button.closest("[data-google-calendar-grant-form]");
+      const status = $("[data-google-calendar-status]", form);
+      const calendarField = $("[data-google-calendar-calendar-field]", form);
+      const calendarSelect = $("[data-google-calendar-calendar]", form);
+      const grantButton = $("[data-google-calendar-grant]", form);
+      button.disabled = true;
+      button.textContent = "Loading…";
+      status.textContent = "Loading calendars from Google…";
+      try {
+        const result = await api(`/v1/connections/google-calendar/calendars?account_id=${encodeURIComponent(button.dataset.googleCalendarLoadCalendars)}`);
+        const rows = result.calendars || [];
+        calendarSelect.innerHTML = `<option value="">Choose a calendar…</option>${rows.map(calendar => `<option value="${esc(calendar.id)}">${esc(calendar.name)}${calendar.primary ? " · primary" : ""}</option>`).join("")}`;
+        calendarField.hidden = false;
+        calendarSelect.disabled = false;
+        grantButton.disabled = true;
+        status.textContent = rows.length ? `${rows.length} calendar${rows.length === 1 ? "" : "s"} loaded. Select one to continue.` : "Google returned no calendars for this account.";
+        calendarSelect.focus();
+      } catch (err) { status.textContent = err.message; }
+      finally { button.disabled = false; button.textContent = "Load calendars"; }
+    });
+  });
+  $$('[data-google-calendar-grant-form] [data-google-calendar-calendar]').forEach(select => {
+    select.addEventListener("change", () => {
+      const form = select.closest("[data-google-calendar-grant-form]");
+      $("[data-google-calendar-grant]", form).disabled = !select.value;
+    });
+  });
+  $$('[data-google-calendar-grant]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const form = button.closest("[data-google-calendar-grant-form]");
+      const bot = $("[data-google-calendar-bot]", form).value;
+      const calendar = $("[data-google-calendar-calendar]", form).value;
+      const status = $("[data-google-calendar-status]", form);
+      const existing = (googleCalendar.grants || []).find(grant => grant.bot_id === bot);
+      if (existing && !(await confirmDialog({ title: "Replace calendar access", body: `<b>${esc(existing.bot_name)}</b> already has access to <b>${esc(existing.calendar_name)}</b>. Replace that grant with the selected calendar?`, confirmText: "Replace grant" }))) return;
+      button.disabled = true;
+      status.textContent = "Verifying the selected calendar with Google…";
+      try {
+        const result = await api("/v1/connections/google-calendar/grants", { method: "POST", body: {
+          bot, account_id: button.dataset.googleCalendarGrant, calendar_id: calendar } });
+        toast(result.detail);
+        await renderConnections();
+      } catch (err) { status.textContent = err.message; button.disabled = false; }
+    });
+  });
+  $$('[data-google-calendar-ungrant]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const grant = (googleCalendar.grants || []).find(row => row.bot_id === button.dataset.googleCalendarUngrant);
+      if (!(await confirmDialog({ title: "Revoke Bot calendar access", body: `Stop <b>${esc(grant?.bot_name || "this Bot")}</b> from reading the granted Google Calendar?`, confirmText: "Revoke access" }))) return;
+      button.disabled = true;
+      try {
+        await api(`/v1/connections/google-calendar/grants/${encodeURIComponent(button.dataset.googleCalendarUngrant)}`, { method: "DELETE" });
+        toast("Bot calendar access revoked.");
+        await renderConnections();
+      } catch (err) { button.disabled = false; toast(err.message, true); }
+    });
+  });
+  $$('[data-google-calendar-disconnect]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const account = (googleCalendar.accounts || []).find(row => row.id === button.dataset.googleCalendarDisconnect);
+      const botNames = (googleCalendar.grants || []).filter(row => row.account_id === account?.id).map(row => row.bot_name);
+      const detail = botNames.length ? `<p>This also revokes access for ${botNames.map(esc).join(", ")}.</p>` : "";
+      if (!(await confirmDialog({ title: "Disconnect Google Calendar", body: `Clear the local refresh credential and request Google revocation?${detail}`, confirmText: "Disconnect", danger: true }))) return;
+      button.disabled = true;
+      try {
+        const result = await api(`/v1/connections/google-calendar/accounts/${encodeURIComponent(button.dataset.googleCalendarDisconnect)}/disconnect`, { method: "POST", body: {} });
+        toast(result.detail, result.provider_revocation !== "confirmed");
+        await renderConnections();
+      } catch (err) { button.disabled = false; toast(err.message, true); }
     });
   });
 

@@ -1,7 +1,8 @@
 # Architecture
 
-Schema v26 separates reference facts and durable typed chat questions from canonical chat messages, workspace files, execution receipts
-and provider credential stores. Model proposals inherit persisted chat/run scope and execution fencing;
+Schema v27 separates reference facts and durable typed chat questions from canonical chat messages, workspace files, execution receipts
+and provider credential stores. It also stores credential-free Google Calendar account references and one selected-calendar grant per Bot;
+the refresh credential remains in Linux Secret Service. Model proposals inherit persisted chat/run scope and execution fencing;
 human review binds immutable revision/scope hashes. Explicit sharing creates a bot-wide reference.
 Facts are retrieved as bounded JSON tool data through SQLite FTS5, never automatically placed in system
 instructions. Archived/replaced/unreviewed versions are excluded. Retained versions/reviews remain

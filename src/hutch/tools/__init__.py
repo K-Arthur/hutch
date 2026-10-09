@@ -9,6 +9,7 @@ from .shell import ShellTool
 from .webfetch import WebFetchTool
 from .delegation import DelegateTaskTool
 from .choice import AskUserChoiceTool
+from .google_calendar import GoogleCalendarEventsTool
 
 #: name -> factory (browser is imported lazily so the dependency stays optional)
 _CATALOG: dict[str, type[Tool]] = {
@@ -57,8 +58,9 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
     expanded = expand_tools(names)
     if ctx is not None and getattr(getattr(ctx.bot, "inference_mode", None), "value", "") == "offline":
         # Model requests use the run-scoped local broker; web and browser tools
-        # cannot create additional host-network requests from this worker.
-        expanded = [name for name in expanded if name not in {"web_fetch", "browser"}]
+        # cannot create additional host-network requests from this worker. A
+        # Google Calendar read is an external account request too.
+        expanded = [name for name in expanded if name not in {"web_fetch", "browser", "google_calendar_events"}]
     for name in expanded:
         if name == "delegate_task" and (ctx is None or ctx.delegation_submit is None):
             continue
@@ -73,6 +75,11 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
     # action capability. It is never offered to scheduled or CLI-only runs.
     if ctx is not None and getattr(getattr(ctx, "run", None), "conversation_id", ""):
         tools["ask_user_choice"] = AskUserChoiceTool()
+    if ctx is not None and getattr(getattr(ctx.bot, "inference_mode", None), "value", "") != "offline":
+        grant_reader = getattr(ctx.store, "google_calendar_grant", None)
+        grant = grant_reader(ctx.bot.id) if callable(grant_reader) else None
+        if grant:
+            tools["google_calendar_events"] = GoogleCalendarEventsTool(grant)
     return tools
 
 

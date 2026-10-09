@@ -1010,6 +1010,18 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .conn-card button:disabled, .conn button:disabled {
   background: var(--raised); border-color: var(--line-strong); color: var(--text-3); cursor: not-allowed;
 }
+.google-calendar-connect { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--s-3); padding: var(--s-3) 0; }
+.google-calendar-connect .hint { grid-column: 1 / -1; margin: 0; }
+.google-calendar-account { min-width: 0; margin-top: var(--s-3); padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-card); background: var(--panel); }
+.google-calendar-grants { display: grid; gap: var(--s-2); margin-top: var(--s-2); }
+.google-calendar-grant-form { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: end; gap: var(--s-3); margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1px solid var(--line); }
+.google-calendar-grant-form .hint { grid-column: 1 / -1; margin: 0; }
+.google-calendar-orphan-grants { margin-top: var(--s-3); padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-card); }
+@media (max-width: 640px) {
+  .google-calendar-connect, .google-calendar-grant-form { grid-template-columns: minmax(0, 1fr); }
+  .google-calendar-connect .hint, .google-calendar-grant-form .hint { grid-column: 1; }
+  .google-calendar-connect button, .google-calendar-grant-form button { min-height: 44px; width: 100%; }
+}
 
 /* ───────────────────────────── runs ───────────────────────────── */
 

@@ -626,6 +626,70 @@ class ChatGPTSignInRequest(BaseModel):
     account_id: Optional[str] = None
 
 
+class GoogleCalendarSignInRequest(BaseModel):
+    label: str = Field(min_length=1, max_length=80)
+
+
+class GoogleCalendarGrantRequest(BaseModel):
+    bot: str = Field(min_length=1, max_length=128)
+    account_id: str = Field(min_length=1, max_length=64)
+    calendar_id: str = Field(min_length=1, max_length=256)
+
+
+class GoogleCalendarAccountResource(BaseModel):
+    id: str
+    label: str
+    created_at: str
+    scopes: list[str]
+    status: Literal["connected"]
+
+
+class GoogleCalendarGrantResource(BaseModel):
+    bot_id: str
+    bot_name: Optional[str] = None
+    account_id: str
+    calendar_id: str
+    calendar_name: str
+    granted_at: str
+
+
+class GoogleCalendarResource(BaseModel):
+    configured: bool
+    secret_store_available: bool
+    accounts: list[GoogleCalendarAccountResource]
+    grants: list[GoogleCalendarGrantResource]
+
+
+class GoogleCalendarCalendarResource(BaseModel):
+    id: str
+    name: str
+    primary: bool
+    access_role: str
+
+
+class GoogleCalendarListResource(BaseModel):
+    calendars: list[GoogleCalendarCalendarResource]
+
+
+class GoogleCalendarAuthorizationResource(BaseModel):
+    authorization_url: str
+
+
+class GoogleCalendarGrantResponseResource(BaseModel):
+    grant: dict[str, str]
+    detail: str
+
+
+class GoogleCalendarUnGrantResource(BaseModel):
+    removed: bool
+
+
+class GoogleCalendarDisconnectResource(BaseModel):
+    removed: bool
+    provider_revocation: Literal["confirmed", "not_confirmed", "not_needed"]
+    detail: str
+
+
 def create_app() -> FastAPI:
     config = get_config()
     store = Store(config)
@@ -2255,8 +2319,120 @@ def create_app() -> FastAPI:
                       "base_url": v.get("base_url", ""), "terms_notice": (v.get("terms") or {}).get("notice", "")}
                      for k, v in book.templates().items()]
         accounts = ChatGPTAuthBook(config.state_dir).accounts()
+        from ..google_calendar import GoogleCalendarBook
+        calendar_book = GoogleCalendarBook(config.state_dir, os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", ""))
         return {"connections": out, "templates": templates, "errors": book.errors,
-                "chatgpt_enabled": chatgpt_plan_signin_enabled(), "chatgpt_accounts": accounts}
+                "chatgpt_enabled": chatgpt_plan_signin_enabled(), "chatgpt_accounts": accounts,
+                "google_calendar": {"configured": bool(os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "").strip()),
+                                    "secret_store_available": calendar_book.secrets.available(),
+                                    "accounts": calendar_book.accounts(),
+                                    "grants": store.list_google_calendar_grants()}}
+
+    @app.get("/api/v1/connections/google-calendar", response_model=GoogleCalendarResource)
+    def google_calendar_connections() -> dict:
+        from ..google_calendar import GoogleCalendarBook
+        client_id = os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "")
+        book = GoogleCalendarBook(config.state_dir, client_id)
+        return {"configured": bool(client_id.strip()), "secret_store_available": book.secrets.available(),
+                "accounts": book.accounts(), "grants": store.list_google_calendar_grants()}
+
+    @app.post("/api/v1/connections/google-calendar/sign-in", response_model=GoogleCalendarAuthorizationResource)
+    def google_calendar_sign_in(request: Request, body: GoogleCalendarSignInRequest, response: Response) -> dict:
+        from ..google_calendar import GoogleCalendarBook, GoogleCalendarError
+        try:
+            book = GoogleCalendarBook(config.state_dir, os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", ""))
+            callback = book.callback_uri(request)
+            result = book.start(body.label, callback)
+        except GoogleCalendarError as exc:
+            raise HTTPException(409, str(exc)) from None
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        return {"authorization_url": result.url}
+
+    @app.get("/api/v1/connections/google-calendar/calendars", response_model=GoogleCalendarListResource)
+    def google_calendar_calendars(account_id: str) -> dict:
+        from ..google_calendar import GoogleCalendarBook, GoogleCalendarError
+        try:
+            book = GoogleCalendarBook(config.state_dir, os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", ""))
+            return {"calendars": book.list_calendars(account_id)}
+        except GoogleCalendarError as exc:
+            raise HTTPException(422, str(exc)) from None
+
+    @app.post("/api/v1/connections/google-calendar/grants", response_model=GoogleCalendarGrantResponseResource)
+    def google_calendar_grant(body: GoogleCalendarGrantRequest) -> dict:
+        from ..google_calendar import GoogleCalendarBook, GoogleCalendarError
+        bot = store.get_bot(body.bot)
+        if bot is None:
+            raise HTTPException(404, "No Bot with that name or ID exists")
+        try:
+            book = GoogleCalendarBook(config.state_dir, os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", ""))
+            calendars = book.list_calendars(body.account_id)
+        except GoogleCalendarError as exc:
+            raise HTTPException(422, str(exc)) from None
+        selected = next((row for row in calendars if row["id"] == body.calendar_id), None)
+        if selected is None:
+            raise HTTPException(422, "Choose a calendar returned by the connected Google account")
+        if selected.get("access_role") == "freeBusyReader":
+            raise HTTPException(422, "This calendar grant exposes availability only; Hutch's event lookup needs reader or stronger access")
+        grant = store.set_google_calendar_grant(bot.id, body.account_id, selected["id"], selected["name"])
+        return {"grant": grant, "detail": (f"{bot.name} can read events from {selected['name']}. Google's OAuth grant is account-level "
+                "read-only; Hutch exposes only this calendar to the Bot. Matching event titles, times, and locations are sent "
+                "to the selected model and retained in this Bot's run history. Descriptions and attendee details are not "
+                "passed to the model or saved in run history.")}
+
+    @app.delete("/api/v1/connections/google-calendar/grants/{bot_ref}",
+                response_model=GoogleCalendarUnGrantResource)
+    def google_calendar_ungrant(bot_ref: str) -> dict:
+        bot = store.get_bot(bot_ref)
+        if bot is None:
+            raise HTTPException(404, "No Bot with that name or ID exists")
+        removed = store.remove_google_calendar_grant(bot.id)
+        return {"removed": removed}
+
+    @app.post("/api/v1/connections/google-calendar/accounts/{account_id}/disconnect",
+              response_model=GoogleCalendarDisconnectResource)
+    def google_calendar_disconnect(account_id: str) -> dict:
+        from ..google_calendar import GoogleCalendarBook, GoogleCalendarError
+        store.remove_google_calendar_account_grants(account_id)
+        try:
+            result = GoogleCalendarBook(config.state_dir,
+                os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "")).disconnect(account_id)
+        except GoogleCalendarError as exc:
+            raise HTTPException(422, str(exc)) from None
+        if not result["removed"]:
+            raise HTTPException(404, "Google Calendar account is not connected")
+        detail = ("Local access was cleared and Google confirmed revocation." if result["provider_revocation"] == "confirmed"
+                  else "Local access was cleared, but Google did not confirm remote revocation. Review connected apps in your Google Account.")
+        return {**result, "detail": detail}
+
+    @app.get("/api/v1/connections/google-calendar/callback", include_in_schema=False)
+    def google_calendar_oauth_callback(request: Request):
+        from ..google_calendar import GoogleCalendarBook, GoogleCalendarError
+        status = "connected"
+        detail = ""
+        try:
+            callback = GoogleCalendarBook.callback_uri(request)
+            values: dict[str, str] = {}
+            for key in ("state", "code", "error"):
+                entries = request.scope.get("hutch_oauth_query", {}).get(key, [])
+                if len(entries) > 1:
+                    raise GoogleCalendarError("Google returned a duplicate sign-in field; start again")
+                values[key] = entries[0] if entries else ""
+            if not values["state"]:
+                raise GoogleCalendarError("Google did not return sign-in state; start again")
+            book = GoogleCalendarBook(config.state_dir, os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", ""))
+            if values["error"]:
+                book.cancel(values["state"])
+                raise GoogleCalendarError("Google Calendar access was not granted; no account was connected")
+            book.finish(values["state"], values["code"], callback)
+        except GoogleCalendarError as exc:
+            status, detail = "error", str(exc)
+        response = RedirectResponse(f"/?google_calendar_result={status}#/connections", status_code=303)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        if status == "error":
+            response.headers["Location"] = f"/?google_calendar_result=error&detail={quote(detail)}#/connections"
+        return response
 
     @app.post("/api/chatgpt/sign-in")
     def chatgpt_sign_in(request: Request, body: ChatGPTSignInRequest) -> dict:
@@ -2298,7 +2474,7 @@ def create_app() -> FastAPI:
             callback = loopback_callback_uri(request)
             values: dict[str, str] = {}
             for key in ("state", "code", "client_id", "error"):
-                entries = request.query_params.getlist(key)
+                entries = request.scope.get("hutch_oauth_query", {}).get(key, [])
                 if len(entries) > 1:
                     raise ChatGPTAuthError("ChatGPT returned a duplicate sign-in field; start again")
                 values[key] = entries[0] if entries else ""

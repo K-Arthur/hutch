@@ -1,38 +1,46 @@
 # Connections: subscription plans and custom endpoints
 
-## Personal calendar and mail accounts (planned)
+## Google Calendar event lookup (experimental, local setup required)
 
-The model-provider connections below are not Google or Microsoft account integrations. Hutch does
-not currently connect to a user's Calendar, Gmail or Outlook data. The proposed account connectors
-are tracked as IG-5 through IG-8 in [requirements](requirements.md#connections-and-integrations-added-at-the-product-owners-request-2026-10-07).
+Hutch implements read-only Google Calendar lookup for the built-in runtime. It remains unavailable
+by default: the Hutch operator must configure a Google Desktop OAuth client, enable the Calendar
+API, and run a Linux desktop session with an unlocked Secret Service. A real Google account was
+not used in local verification; Google consent-screen verification and public eligibility are not
+claimed. See IG-5 in [requirements](requirements.md#connections-and-integrations-added-at-the-product-owners-request-2026-10-07).
 
-The intended design uses named per-account, per-bot grants and a broker exposing only typed
-operations. OAuth is user-delegated, with a loopback authorization-code flow and PKCE where
-supported. Refresh tokens stay in the operating system's credential store; the browser receives
-neither the refresh token nor the provider access token. Revocation removes the local grant and
-requests provider revocation when available. No consumer-app browser cookies, CLI auth files, or
-other product's private sign-in state are imported.
+Set `HUTCH_GOOGLE_OAUTH_CLIENT_ID` before starting Hutch. Sign in from the Hutch host at
+`http://127.0.0.1:<port>` on the Connections page; Hutch opens Google in a separate browser tab.
+Finish consent in that tab, then return to the original Hutch tab and reload Connections. The
+installed-app flow uses authorization code
+with PKCE and the read-only `calendar.calendarlist.readonly` and `calendar.events.readonly` scopes.
+Hutch stores the refresh token in the Linux Secret Service through `secret-tool`; access tokens are
+held in process memory. SQLite stores the named account reference and each Bot's selected calendar
+grant, never provider tokens. The browser does not receive tokens. Callbacks are local loopback only,
+one-use, expire after ten minutes, and have their authorization query removed before request logs.
 
-Initial calendar operations are availability/event lookup. Creating an event needs a separate
-one-time approval that displays the selected account/calendar, title, attendees, time zone and
-start/end before the provider call. Initial mail operations are search/read and draft/send only
-where the provider scopes and review requirements permit them; send approval always displays the
-exact recipients, subject and body. Deletion, forwarding rules, mailbox settings, arbitrary API
-URLs and reusable grants for external writes are outside the first release.
+Google authorizes read-only access at the account level. Hutch's typed Bot tool further restricts
+each Bot to the one calendar the owner selected in Connections; that Hutch restriction is not a
+provider-enforced per-calendar OAuth grant. The tool can list calendars and return event title, start,
+end and location for a bounded time range. It cannot create, edit, delete, invite or send events.
+Those returned fields are sent to the Bot's selected model and retained in that Bot's run history.
+Descriptions and attendee details are not passed to the model or saved in run history. Calendar text
+is untrusted data and cannot approve actions. Strict Offline mode does not expose the online Calendar
+tool.
 
-Provider constraints are current as of 2026-10-09 and must be rechecked before code or release.
-Google documents narrow Calendar scopes but Gmail message-body access uses restricted scopes that
-trigger OAuth verification/security-assessment requirements when applicable. Microsoft Graph
-offers delegated permissions such as `Calendars.ReadBasic`, `Calendars.ReadWrite`, `Mail.Read`,
-and `Mail.Send`; the initial design excludes application permissions that act without a signed-in
-user. See the [Google Calendar scopes](https://developers.google.com/workspace/calendar/api/auth),
+Disconnect first removes Hutch's Bot grants and local refresh credential, then requests Google
+revocation. If Google does not confirm revocation, Hutch reports that explicitly and directs the
+owner to review connected apps in their Google Account. Never import consumer-app browser cookies,
+CLI auth files, or another product's private sign-in state.
+
+Gmail and Outlook remain planned, not connected. Gmail message-body access has separate Google
+consent and verification requirements; do not present the working Calendar flow as Gmail support.
+Microsoft Graph will use delegated permissions only if implemented. Calendar writes, mail reads or
+sends, arbitrary API URLs, deletion and mailbox settings are unavailable. See the current provider
+references: [Google Calendar scopes](https://developers.google.com/workspace/calendar/api/auth),
+[Google installed-app OAuth](https://developers.google.com/identity/protocols/oauth2/native-app),
 [Gmail scopes](https://developers.google.com/workspace/gmail/api/auth/scopes),
 [Microsoft Graph permissions](https://learn.microsoft.com/en-us/graph/permissions-reference), and
 [Microsoft authorization-code/PKCE guidance](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow).
-
-No account grant, OAuth client, token storage, or calendar/mail tool is implemented by adding this
-design note. Until verification and live account tests are complete, marketing and capability
-responses must label these connectors as planned or unavailable.
 
 A **connection** is a named hosted endpoint with its own provider-scoped credentials, protocol, headers, billing mode,
 usage allowance and terms notice. API-key routes use `<connection>/<model>`; the experimental ChatGPT plan route is

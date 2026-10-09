@@ -14,6 +14,7 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Added
 
+- Experimental Google Calendar lookup is available when the operator configures a Desktop OAuth client and Linux Secret Service. The local PKCE flow stores refresh credentials outside SQLite; each Bot is restricted by Hutch to one selected calendar and can read only bounded event titles, times and locations. Google grants account-level read-only scope, and no live account/consent-screen check or event write is claimed. Gmail and Outlook remain unavailable.
 - Built-in conversation runs can ask durable single- or multi-select questions in Studio. Schema v26 stores the immutable prompt/options and answer link; a selection submits a normal, idempotent user turn and cannot approve or authorize an action. The public workflow page qualifies this as built-in chat behavior. Mixed provider tool-call batches are rejected before execution. OpenCode/Pi and final release validation remain unavailable or pending.
 - Studio's composer model picker marks alternate routes as one-message, conversation-scoped overrides and clears them after an accepted send. A separate **Save as Bot default** action validates and updates the Bot route used by later chats and scheduled runs.
 - Preferences can set a validated workspace model route and inference mode for new Bots. Chat-sourced and workspace-default choices remain editable in the setup draft; an explicit choice wins. Changing this preference leaves existing Bots, conversations and runs unchanged.

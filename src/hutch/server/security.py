@@ -24,7 +24,7 @@ import ipaddress
 import os
 import secrets
 from typing import Iterable, Optional
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse, RedirectResponse, Response
@@ -190,6 +190,17 @@ class SecurityMiddleware:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
+        if scope.get("path") in ("/auth/callback", "/api/v1/connections/google-calendar/callback"):
+            # Authorization codes and state values must not survive in
+            # Uvicorn's access-log scope, including rejected callback requests.
+            query = scope.get("query_string", b"")
+            if len(query) > 8192:
+                scope["query_string"] = b""
+                await PlainTextResponse("hutch: OAuth callback parameters are too large.", status_code=414)(
+                    scope, receive, send)
+                return
+            scope["hutch_oauth_query"] = parse_qs(query.decode("ascii", errors="ignore"), keep_blank_values=True)
+            scope["query_string"] = b""
         scope, trusted_proxy, forwarding_error = self._trusted_forwarded_scope(scope)
         if forwarding_error:
             status_code, detail = forwarding_error

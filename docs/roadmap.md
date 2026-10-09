@@ -5,8 +5,9 @@
 The product owner identified chat-led bot setup, structured choice prompts, Google Calendar,
 Gmail and Outlook integrations, and a named coordinator Bot as key product requirements. A
 deterministic bot-setup wizard and inline approvals already exist, but setup still asks the user to
-repeat information from chat; typed choices now work for the built-in runtime, while these account integrations and the workspace
-coordinator are not implemented. Keep chat as the normal work surface and make bot configuration
+repeat information from chat; typed choices now work for the built-in runtime. Google Calendar has
+a local read-only integration behind operator setup; Gmail, Outlook and the workspace coordinator
+are not implemented. Keep chat as the normal work surface and make bot configuration
 and approvals appear in context where possible. The roster should remain small by default; use a
 searchable Fleet surface when the user has enough Bots to need it. Roughly ten Bots is the product
 owner's initial heuristic, not a research-established cutoff.
@@ -30,11 +31,14 @@ owner's initial heuristic, not a research-established cutoff.
    limits. A lost result delivery must not rerun a completed child. Prompt refinement cannot grant
    new capabilities or modify a Bot's standing instructions. Creating a persistent specialist or
    changing its role requires separate review and confirmation.
-4. Add named, revocable, user-delegated Google and Microsoft connections. Start with calendar
-   availability and event lookup; calendar writes, message sending and any other external write
-   need a fresh review showing the account, destination and complete payload. Keep each account
-   grant scoped to the selected bot and capability. Store OAuth refresh credentials in the OS
-   credential store rather than SQLite, transcripts, prompts or browser storage.
+4. **Google Calendar read lookup is implemented as an experimental local path (IG-5 partial).**
+   The operator must configure a Google Desktop OAuth client and Linux Secret Service; no live
+   account or consent-screen verification has been completed. Google authorizes read-only access
+   account-wide while Hutch exposes only the selected calendar to each Bot. Calendar writes are
+   still unavailable. Next implement named Gmail/Outlook connections only after scope and review
+   requirements are settled; event creation, message sending and every external write must have a
+   fresh review showing account, destination and complete payload. Keep refresh credentials in the
+   OS credential store rather than SQLite, transcripts, prompts or browser storage.
 
 5. Give the workspace and each Bot an explicit model default. The workspace choice seeds new-Bot
    setup; the coordinator and each specialist keep their own editable route and inference mode.

@@ -2021,3 +2021,42 @@ the response is not approval. `tests/e2e/test_website.py` passed **25 tests**; I
 **900×1024** and **390×844**. Its browser made no external requests and reported no errors or page overflow; updated captures and
 the page hash are in [`artifacts/scheduled-tasks/site-validation.json`](artifacts/scheduled-tasks/site-validation.json) and the
 adjacent `site-workflow-*.png` files. Implementation commit: `c0acf26`.
+
+## S5 local Google Calendar read path (experimental, 2026-10-09)
+
+Schema v27 stores a named account reference and one selected-calendar grant per Bot. The new
+`GoogleCalendarBook` uses Google's installed-app authorization-code flow with S256 PKCE and an exact
+loopback callback. It keeps the refresh token in Linux Secret Service via `secret-tool` and the
+short-lived access token only in process memory; callback code/state are removed from the ASGI query
+before access logging. The Connections UI opens Google in an isolated browser tab, confirms the
+account-wide read-only permission boundary, and requires a separate selection before the built-in
+runtime exposes the typed `google_calendar_events` tool. That tool can only access the Bot's selected
+calendar, returns bounded titles/times/locations, excludes descriptions/attendees, and is omitted in
+Strict Offline mode. Returned fields remain in that Bot's run history. No Calendar write or Gmail/
+Outlook operation is available.
+
+Official Google documentation was rechecked on 2026-10-09: installed apps should open the system
+browser and support PKCE; `calendar.events.readonly` is account-wide, while CalendarList has its own
+read-only scope. The Gmail API lists body-reading scopes such as `gmail.readonly` as restricted and
+requires public-app verification; applicable restricted-data server storage/transmission also
+requires security assessment. See [Calendar scopes](https://developers.google.com/workspace/calendar/api/auth),
+[installed-app OAuth](https://developers.google.com/identity/protocols/oauth2/native-app),
+[Gmail scopes](https://developers.google.com/workspace/gmail/api/auth/scopes), and
+[restricted-scope verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification).
+
+Google's Calendar API partial-response fields now ask for only calendar IDs/names/roles and event
+titles/start/end/location, so descriptions and attendees are not fetched by Hutch. Google documents
+the `fields` parameter as a way to limit returned fields in its [Calendar performance guide](https://developers.google.com/workspace/calendar/api/guides/performance).
+
+Focused Calendar/API/migration/ChatGPT-auth/API/tool tests passed **87 tests in 8.66s**. The browser
+journey passed in Chromium **153.0.8010.12** / Playwright **1.63.0** in **2.57s**: it exercised account metadata,
+calendar selection, persisted Bot grant, consent disclosures, and a fixture-captured isolated-tab
+OAuth URL; the provider was not contacted. It captured overview and granted-account states at desktop
+**1440×960**, tablet **900×1024**, and phone **390×844**, with no page errors, external requests or
+horizontal overflow. I inspected phone/tablet/desktop captures; all controls fit and the account-wide
+Google scope warning is visible before connection. Evidence is in `artifacts/google-calendar/`.
+`node --check src/hutch/server/static/app.js` and `git diff --check` passed. No real Google user,
+consent screen, token, event data, Gmail/Outlook account, or live provider request was used; public
+OAuth verification and Windows/macOS credential stores remain unavailable. This code therefore
+remains opt-in behind `HUTCH_GOOGLE_OAUTH_CLIENT_ID` and Linux Secret Service, not a publicly verified
+integration. Implementation commit: pending.
