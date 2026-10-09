@@ -3,14 +3,14 @@
 ## Owner-requested product scope added 2026-10-09
 
 The product owner identified chat-led bot setup, structured choice prompts, Google Calendar,
-Gmail and Outlook integrations, and a named coordinator Bot as key product requirements. A
-deterministic bot-setup wizard and inline approvals already exist, but setup still asks the user to
-repeat information from chat; typed choices now work for the built-in runtime. Google Calendar has
-a local read-only integration behind operator setup; Gmail, Outlook and the workspace coordinator
-are not implemented. Keep chat as the normal work surface and make bot configuration
-and approvals appear in context where possible. The roster should remain small by default; use a
-searchable Fleet surface when the user has enough Bots to need it. Roughly ten Bots is the product
-owner's initial heuristic, not a research-established cutoff.
+Gmail and Outlook integrations, a named coordinator Bot, and human completion of credentials/CAPTCHA as
+key product requirements. Studio has purpose-derived editable Bot naming, a user-reviewed chat-seeded
+setup draft, typed built-in-runtime choices, inline approvals, and an experimental read-only Calendar
+path. The named coordinator now has one user-confirmed, durable cross-Bot handoff to a selected specialist;
+multi-step team planning and restart-safe checkpoints remain open. Gmail and Outlook are not implemented.
+Keep chat as the normal work surface and make Bot configuration, handoff review, and approvals appear in
+context. The roster should remain small by default; use a searchable Fleet surface as the setup grows.
+Roughly ten Bots is the owner's initial heuristic, not a measured threshold.
 
 1. **Typed choices, core implemented (schema v26):** conversational built-in runs can ask a bounded
    single-select or multi-select question. The question/options and one-use answer persist across
@@ -22,15 +22,15 @@ owner's initial heuristic, not a research-established cutoff.
    Show the complete staged configuration for review, then create idempotently only after explicit
    confirmation. Creating a bot never starts a run by itself. Keep the direct configuration route
    available during rollout.
-3. Add a user-named, workspace-level coordinator Bot with its own direct conversation. It can select
-   existing task Bots or propose a long-lived specialist when the role is distinct and reusable.
-   Carry the original user request into an editable, outcome-focused task brief with provenance,
-   selected context, owner, deliverable, constraints, and action boundary. The coordinator receives
-   correlated status and durable results; the user can still chat directly with each task Bot. Keep
-   one owner per stage and the existing depth, fan-out, time, budget, permission, and cancellation
-   limits. A lost result delivery must not rerun a completed child. Prompt refinement cannot grant
-   new capabilities or modify a Bot's standing instructions. Creating a persistent specialist or
-   changing its role requires separate review and confirmation.
+3. **Coordinator foundation landed; multi-step orchestration remains open.** One Bot can be named the
+   workspace coordinator, with its own direct conversation. A completed answer can be turned into an
+   editable brief for one selected existing Bot after explicit review; provenance, assumptions, target
+   settings, child chat/run, status and latest reply are linked in the coordinator timeline. Only the
+   reviewed brief and assumptions cross into the specialist chat. Extend with a reusable owner-approved
+   specialist list, selected artifact/context references, recoverable multi-stage checkpoints, parent
+   cancellation, cost display, bounded prompt questions, and delivery reconciliation. Prompt refinement
+   cannot grant capabilities or change standing instructions. Creating a reusable specialist or changing
+   its role needs separate review and confirmation.
 4. **Google Calendar read lookup is implemented as an experimental local path (IG-5 partial).**
    The operator must configure a Google Desktop OAuth client and Linux Secret Service; no live
    account or consent-screen verification has been completed. Google authorizes read-only access

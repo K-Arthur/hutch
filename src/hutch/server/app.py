@@ -203,6 +203,44 @@ class WorkspaceCoordinatorResource(BaseModel):
     coordinator: Optional[WorkspaceCoordinatorBotResource]
 
 
+class WorkspaceTaskCreate(BaseModel):
+    parent_conversation_id: str = Field(min_length=1, max_length=100)
+    source_run_id: str = Field(min_length=1, max_length=100)
+    source_user_message_id: str = Field(min_length=1, max_length=128)
+    source_assistant_message_id: str = Field(min_length=1, max_length=128)
+    target_bot_id: str = Field(min_length=1, max_length=100)
+    task_brief: str = Field(min_length=1, max_length=20_000)
+    assumptions: str = Field(default="", max_length=4_000)
+
+
+class WorkspaceTaskResource(BaseModel):
+    id: str
+    parent_conversation_id: str
+    source_run_id: str
+    source_user_message_id: str
+    source_assistant_message_id: str
+    target_bot_id: str
+    target_display_name: str
+    original_request: str
+    original_request_truncated: bool = False
+    proposed_brief: str
+    proposed_brief_truncated: bool = False
+    task_brief: str
+    assumptions: str
+    child_conversation_id: str
+    child_run_id: str
+    status: str
+    reason: str
+    result: str
+    result_truncated: bool = False
+    model: str
+    inference_mode: str
+    tools: list[str]
+    risk_tier: str
+    workspace_mode: str
+    created_at: str
+
+
 class RunRequest(BaseModel):
     prompt: str
     rehearse: bool = False
@@ -1479,6 +1517,69 @@ def create_app() -> FastAPI:
             return {"coordinator": store.set_workspace_coordinator(body.bot_id)}
         except KeyError:
             raise HTTPException(404, "No Bot with that ID or name exists") from None
+
+    @app.get("/api/v1/workspace/tasks", response_model=list[WorkspaceTaskResource])
+    def list_workspace_tasks(conversation_id: str, limit: int = 100) -> list[dict]:
+        if store.get_conversation(conversation_id) is None:
+            raise HTTPException(404, "No such coordinator conversation")
+        return store.list_workspace_tasks(conversation_id, limit=max(1, min(limit, 100)))
+
+    @app.post("/api/v1/workspace/tasks", response_model=WorkspaceTaskResource)
+    def create_workspace_task(body: WorkspaceTaskCreate, request: Request, response: Response) -> dict:
+        key = idempotency_key(request)
+        payload = body.model_dump()
+        digest = request_digest(payload)
+        try:
+            replay = store.replay_workspace_task(idem_key=key, request_hash=digest)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        if replay is not None:
+            response.status_code = 200
+            return replay
+        coordinator_conversation = store.get_conversation(body.parent_conversation_id)
+        if coordinator_conversation is None:
+            raise HTTPException(404, "No such coordinator conversation")
+        target = store.get_bot(body.target_bot_id)
+        if target is None:
+            raise HTTPException(404, "No such specialist Bot")
+        store.assert_execution_ready()
+        from ..modelchoices import ModelNotUsable, validate_override
+        try:
+            # Validate the specialist's saved route, without allowing the coordinator to replace it.
+            model = validate_override(config, store, target, target.model)
+        except ModelNotUsable as exc:
+            raise HTTPException(exc.status, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
+        if model != target.model:
+            raise HTTPException(409, "The specialist's configured model changed; review its settings and try again")
+        task_brief = body.task_brief.strip()
+        assumptions = body.assumptions.strip()
+        effective_prompt = (task_brief + "\n\nUser-reviewed assumptions and constraints:\n" + assumptions
+                            if assumptions else task_brief)
+        run = Run(bot_id=target.id, prompt=effective_prompt, origin="workspace_task")
+        task = Task(bot_id=target.id, kind="on_demand", prompt=run.prompt)
+        try:
+            run_id, created = store.submit_workspace_task(
+                parent_conversation_id=body.parent_conversation_id,
+                source_run_id=body.source_run_id,
+                source_user_message_id=body.source_user_message_id,
+                source_assistant_message_id=body.source_assistant_message_id,
+                target_bot_id=target.id, task_brief=task_brief, assumptions=assumptions,
+                run=run, task=task, capability_snapshot=Engine.capability_snapshot(target),
+                idem_key=key, request_hash=digest,
+            )
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except KeyError as exc:
+            raise HTTPException(404, "No such conversation or specialist Bot") from None
+        except PermissionError as exc:
+            raise HTTPException(409, str(exc)) from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        response.status_code = 201 if created else 200
+        result = store.replay_workspace_task(idem_key=key, request_hash=digest)
+        if result is None:
+            raise HTTPException(500, "The task was admitted but its durable task record could not be read")
+        return result
 
     def _checked_workdir(raw: str) -> str:
         from ..workdir import validate_workdir

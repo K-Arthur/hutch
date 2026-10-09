@@ -545,6 +545,21 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .answer pre code { background: none; padding: 0; }
 .answer ul, .answer ol { padding-left: var(--s-5); }
 .answer blockquote { margin: var(--s-2) 0; padding-left: var(--s-3); border-left: 2px solid var(--line-strong); color: var(--text-2); }
+.answer-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: 0 0 var(--s-4); }
+.workspace-task-card { min-width: 0; margin: var(--s-3) 0 var(--s-5); padding: var(--s-4); border: 1px solid var(--line-strong); border-radius: 14px; background: var(--surface); }
+.workspace-task-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
+.workspace-task-brief { margin: var(--s-3) 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.workspace-task-assumptions { margin: 0 0 var(--s-2); color: var(--text-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.workspace-task-card details { margin: var(--s-3) 0; }
+.workspace-task-card details p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.workspace-task-card .btn-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.workspace-task-result { margin: var(--s-3) 0; padding-top: var(--s-3); border-top: 1px solid var(--line); }
+.workspace-task-result p { margin-bottom: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.workspace-task-source { margin: var(--s-3) 0; padding: var(--s-3); border-left: 3px solid var(--line-strong); background: var(--sunken); color: var(--text-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.workspace-task-capabilities { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: var(--s-2); margin: var(--s-2) 0 var(--s-4); }
+.workspace-task-capabilities > div { min-width: 0; padding: var(--s-2) var(--s-3); border: 1px solid var(--line); border-radius: 10px; }
+.workspace-task-capabilities dt { color: var(--text-3); font-size: var(--fs-xs); }
+.workspace-task-capabilities dd { margin: 2px 0 0; overflow-wrap: anywhere; }
 .answer-actions { display: flex; justify-content: flex-start; margin: 2px 0 10px; }
 .choice-card {
   width: min(100%, 560px); margin: var(--s-3) 0 var(--s-4); padding: var(--s-4);

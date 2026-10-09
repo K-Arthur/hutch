@@ -1,5 +1,29 @@
 # Visual validation record
 
+## Reviewed coordinator-to-specialist handoff (schema v29, 2026-10-09)
+
+`tests/e2e/test_browser.py::test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports` passed against a local mock
+runtime and SQLite state. Chromium **153.0.8010.12** with Playwright **1.63.0** exercised a completed coordinator turn, opened the
+review sheet, displayed the specialist's saved model/tools/action policy/workspace, edited the brief and constraints, dispatched
+once, and followed the durable parent task card through completion. The card changed from the active state to **Done** and showed
+the latest specialist response; opening it navigated to the separate specialist chat. An exact API retry returned the same task
+even when route validation was forced to fail, while a changed request under the same idempotency key conflicted. Changing the
+specialist's capability snapshot before worker start produced a visible failure before process creation.
+
+I inspected review and timeline screenshots at desktop **1440×960**, tablet **900×1024**, and phone **390×844**, including the
+scrolled phone sheet with assumptions above its fixed action footer. No horizontal overflow or page errors were recorded. The
+reviewed request/assumptions and direct-chat action remain readable at all sizes; the coordinator timeline scrolls independently
+above the fixed phone composer. Evidence and Playwright trace are in [`artifacts/workspace-task-dispatch/`](artifacts/workspace-task-dispatch/).
+The anonymous marketing workflow was inspected at **1440×900**, **900×1024**, and **390×844**; its source/hash record is in
+[`artifacts/workspace-task-dispatch/site/`](artifacts/workspace-task-dispatch/site/). The site test passed, made no requests outside
+the local static host, had no page errors, and measured zero horizontal overflow. The copy labels handoff experimental and states
+that only the reviewed brief/constraints cross into the specialist chat.
+
+The fixtures use a test-only mock runtime; there were no provider/model calls, paid requests, live credentials, public destinations,
+physical-device tests or screen-reader checks. The scoped Impeccable scan found no actionable padding, contrast, motion, line-height
+or copy-cadence defect; it reported only advisory type/radius/color mismatches in the older server-rendered stylesheet. The template
+line-height warning remains a path-scoped false-positive ignore: the linked stylesheet computes body text at **14px/22.4px (1.6)**.
+
 ## Chat-sourced Bot creation (2026-10-09)
 
 Chromium **153.0.8010.12** with Playwright **1.63.0** tested the New Bot flow from an active Studio conversation. It selects only

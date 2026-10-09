@@ -8,7 +8,7 @@ import pytest
 
 from hutch.config import get_config
 from hutch.engine import Engine, bot_prompt_for_schedule
-from hutch.models import ApprovalMode, Bot, CatchUpPolicy, EventType, RunStatus, Schedule
+from hutch.models import ApprovalMode, Bot, CatchUpPolicy, EventType, Run, RunStatus, Schedule, Task
 from hutch.store import Store
 
 
@@ -108,6 +108,45 @@ def test_offline_capability_snapshot_is_credential_free_and_disables_network_too
     assert snapshot["browser_handoff"] is False
     assert "base_url" not in snapshot
     assert "not-for-the-snapshot" not in json.dumps(snapshot)
+
+
+def test_reviewed_cross_bot_task_fails_before_worker_if_specialist_policy_changes(store, config):
+    coordinator = store.create_bot(mock_bot(name="reviewed-coordinator", tools=[]))
+    bot = store.create_bot(mock_bot(name="reviewed-specialist", tools=[]))
+    store.set_workspace_coordinator(coordinator.id)
+    parent, _ = store.create_conversation(coordinator.id, "", idem_key="policy-parent", request_hash="policy-parent")
+    parent_run = store.create_run(Run(bot_id=coordinator.id, prompt="Original", status=RunStatus.succeeded))
+    with store._tx() as db:
+        db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
+                   (parent["id"], parent_run.id, parent_run.created_at))
+        store._insert_conversation_message(db, message_id="policy-user", conversation_id=parent["id"], seq=1,
+                                           run_id=parent_run.id, role="user", content="Original", created_at=parent_run.created_at)
+        store._insert_conversation_message(db, message_id="policy-answer", conversation_id=parent["id"], seq=2,
+                                           run_id=parent_run.id, role="assistant", content="Suggested brief", created_at=parent_run.created_at)
+    prompt = "Reviewed brief"
+    run = Run(bot_id=bot.id, prompt=prompt, origin="workspace_task")
+    task = Task(bot_id=bot.id, kind="on_demand", prompt=prompt)
+    store.submit_workspace_task(
+        parent_conversation_id=parent["id"], source_run_id=parent_run.id,
+        source_user_message_id="policy-user", source_assistant_message_id="policy-answer",
+        target_bot_id=bot.id, task_brief=prompt, assumptions="", run=run, task=task,
+        capability_snapshot=Engine.capability_snapshot(bot), idem_key="policy-child", request_hash="policy-child")
+    changed = bot.model_copy(update={"tools": ["files"]})
+    store._db.execute("UPDATE bots SET doc = ? WHERE id = ?", (changed.model_dump_json(), bot.id))
+    store._db.commit()
+    claimed = store.claim_run(run.id, "reviewed-task-test", lease_seconds=30, max_live=2)
+    assert claimed is not None
+
+    engine = Engine(config, store)
+    try:
+        assert engine._start_worker(changed, claimed) is False
+        stopped = store.get_run(run.id)
+        assert stopped.status is RunStatus.failed
+        assert stopped.exit_reason == "workspace_task_policy_changed"
+        assert "permissions or workspace changed" in stopped.error
+        assert run.id not in engine._procs and run.id not in engine._threads
+    finally:
+        engine.shutdown(timeout=1)
 
 
 def test_scheduled_tick_creates_catchup_run(store, config):

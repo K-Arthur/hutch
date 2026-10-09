@@ -1886,7 +1886,7 @@ async function renderChatFeed() {
 
   const conversationId = currentConversationId, generation = studioGeneration;
   const stillCurrent = () => generation === studioGeneration && conversationId === currentConversationId && stream.isConnected;
-  let messages, authority, factPage;
+  let messages, authority, factPage, workspaceTasks = [];
   try {
     if (!currentConversationId) return;
     const summary = await api(`/v1/conversations/${encodeURIComponent(conversationId)}?after=0&limit=1`);
@@ -1899,6 +1899,9 @@ async function renderChatFeed() {
     authority = page;
     factPage = await api(`/v1/bots/${encodeURIComponent(currentStudioBot)}/facts?conversation_id=${encodeURIComponent(conversationId)}&limit=20`)
       .catch(error => ({facts:[], error:error.message}));
+    if (!stillCurrent()) return;
+    workspaceTasks = await api(`/v1/workspace/tasks?conversation_id=${encodeURIComponent(conversationId)}&limit=100`)
+      .catch(() => []);
     if (!stillCurrent()) return;
   } catch { return; }
   if ($("#modal-root .modal-card")) { feedRefreshPending = true; return; }
@@ -1928,9 +1931,10 @@ async function renderChatFeed() {
     let html;
     try {
       const hasVisibleBotReply = messages.some(m => m.role === "assistant" && m.run_id === runId);
-      if (runId === currentRunId || !terminalRunCache.has(runId)
+      const hasWorkspaceTask = workspaceTasks.some(task => task.source_run_id === runId);
+      if (runId === currentRunId || hasWorkspaceTask || !terminalRunCache.has(runId)
           || hasVisibleBotReply && !terminalRunReplyCache.has(runId)) {
-        html = await runBlockHtml(runId, messages);
+        html = await runBlockHtml(runId, messages, workspaceTasks);
       } else html = terminalRunCache.get(runId);
     } catch {
       html = $$("[data-run-id]", stream).find(e => e.dataset.runId === runId)?.outerHTML || "";
@@ -2211,7 +2215,7 @@ async function wireWelcome() {
 /* One attempt in a conversation: the prompt bubble, the visible work,
    the answer. Tool activity is a quiet collapsed strip — approvals are never
    hidden inside it. */
-async function runBlockHtml(runId, messages = null) {
+async function runBlockHtml(runId, messages = null, workspaceTasks = []) {
   const run = await api(`/runs/${runId}`);
   const events = run.events || [];
   const resolvedMap = new Map();
@@ -2251,6 +2255,13 @@ async function runBlockHtml(runId, messages = null) {
     <span>Reply to ${esc(botName)}’s message</span><blockquote>${esc(replyExcerpt.slice(0, 240))}${replyExcerpt.length > 240 ? "…" : ""}</blockquote>
   </aside>` : "";
   const replyAction = botMessage ? `<div class="answer-actions"><button class="btn ghost small" type="button" data-reply-message="${esc(botMessage.id)}" aria-label="Reply to ${esc(botName)} message">Reply to this</button></div>` : "";
+  const coordinator = botsCache.find(bot => bot.name === currentStudioBot);
+  const prepareTaskAction = coordinator?.is_workspace_coordinator && run.status === "succeeded"
+    && userMessage && botMessage && !waitingForChoice
+    ? `<button class="btn ghost small" type="button" data-prepare-bot-task
+        data-source-run="${esc(runId)}" data-source-user="${esc(userMessage.id)}"
+        data-source-answer="${esc(botMessage.id)}" data-source-request="${esc(run.prompt)}">Prepare for a Bot</button>` : "";
+  const relatedTasks = workspaceTasks.filter(task => task.source_run_id === runId).map(workspaceTaskCardHtml).join("");
   const stepCount = events.filter(e => e.type === "tool_call").length;
 
   const html = `
@@ -2279,7 +2290,8 @@ async function runBlockHtml(runId, messages = null) {
           <summary>${icon("gear")}${running ? esc(activityLabel) : `${stepCount} step${stepCount === 1 ? "" : "s"}`}${stepCount && !running ? ` · ${dur}` : ""} ${icon("caret", "tool-caret")}</summary>
           ${steps.join("")}
         </details>` : ""}
-        ${message && message.data?.content ? `<div class="answer">${esc(message.data.content)}</div>${replyAction}` : ""}
+        ${message && message.data?.content ? `<div class="answer">${esc(message.data.content)}</div>${replyAction}${prepareTaskAction}` : ""}
+        ${relatedTasks}
         ${choiceCards.join("")}
         ${run.transcript_mirror?.error || run.transcript_mirror?.worker_error
           ? `<p class="run-notice" role="status">Transcript file needs attention: ${esc(run.transcript_mirror.error || run.transcript_mirror.worker_error)}. Database history remains available.</p>`
@@ -2296,6 +2308,120 @@ async function runBlockHtml(runId, messages = null) {
     }
   }
   return html;
+}
+
+function workspaceTaskCardHtml(task) {
+  const active = ACTIVE.has(task.status);
+  const statusLabel = statusInfo[task.status]?.label || task.status || "Status unavailable";
+  const capability = [task.model, task.inference_mode, task.tools?.length ? task.tools.join(", ") : "no tools",
+    `${task.risk_tier || "unknown"} action policy`, `${task.workspace_mode || "configured"} workspace`].filter(Boolean).join(" · ");
+  return `<section class="workspace-task-card" data-workspace-task="${esc(task.id)}" aria-label="Task for ${esc(task.target_display_name)}">
+    <div class="workspace-task-heading"><strong>Assigned to ${esc(task.target_display_name)}</strong>${statusChip(task.status, statusLabel)}</div>
+    <p class="workspace-task-brief">${esc(task.task_brief)}</p>
+    ${task.assumptions ? `<p class="workspace-task-assumptions"><b>Reviewed constraints:</b> ${esc(task.assumptions)}</p>` : ""}
+    <p class="hint">Specialist settings: ${esc(capability)}</p>
+    ${task.result ? `<div class="workspace-task-result"><b>Latest specialist response</b><p>${esc(task.result)}${task.result_truncated ? "… [preview truncated]" : ""}</p></div>` : ""}
+    ${task.reason && task.status !== "succeeded" ? `<p class="run-notice" role="status">${esc(task.reason)}</p>` : ""}
+    <details><summary>Request and coordinator draft</summary>
+      <p><b>Your original request</b><br>${esc(task.original_request)}${task.original_request_truncated ? "… [open the message above for the full request]" : ""}</p>
+      <p><b>Coordinator’s suggested brief</b><br>${esc(task.proposed_brief)}${task.proposed_brief_truncated ? "… [open the message above for the full answer]" : ""}</p>
+    </details>
+    <div class="btn-row">
+      <button class="btn ghost small" type="button" data-open-workspace-task="${esc(task.child_conversation_id)}">Open specialist chat</button>
+      ${active ? `<button class="btn ghost small" type="button" data-stop-run="${esc(task.child_run_id)}">Stop specialist</button>` : ""}
+    </div>
+  </section>`;
+}
+
+function workspaceTaskCapabilityHtml(bot) {
+  if (!bot) return "";
+  const rows = [
+    ["Model", bot.model || "No model configured"],
+    ["Inference", bot.inference_mode || "Hybrid"],
+    ["Tools", (bot.tools || []).length ? bot.tools.join(", ") : "None configured"],
+    ["Action policy", `${bot.risk_tier || "supervised"} · ${bot.approval_mode || "ask"}`],
+    ["Workspace", bot.workdir ? "Selected folder" : (bot.workspace_mode || "fresh")],
+  ];
+  return `<dl class="workspace-task-capabilities">${rows.map(([label, value]) =>
+    `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join("")}</dl>`;
+}
+
+async function workspaceTaskKey(parentConversationId, sourceAnswerId, targetBotId, body) {
+  const storageKey = `hutch-pending-workspace-task:${parentConversationId}:${sourceAnswerId}:${targetBotId}`;
+  const fingerprint = await payloadFingerprint(body);
+  try {
+    const previous = JSON.parse(localStorage.getItem(storageKey) || "null");
+    if (previous?.fingerprint === fingerprint && previous?.key) return {storageKey, key: previous.key};
+  } catch { /* replace a damaged retry marker */ }
+  const key = newIdempotencyKey();
+  storageSet(storageKey, JSON.stringify({fingerprint, key}));
+  return {storageKey, key};
+}
+
+async function prepareWorkspaceTask(button) {
+  const {sourceRun, sourceUser, sourceAnswer} = button.dataset;
+  const originalRequest = button.dataset.sourceRequest || "";
+  const parentConversationId = currentConversationId;
+  const returnFocus = button;
+  let sourceAnswerMessage, bots;
+  try {
+    [sourceAnswerMessage, bots] = await Promise.all([
+      api(`/v1/conversations/${encodeURIComponent(parentConversationId)}/messages/${encodeURIComponent(sourceAnswer)}`),
+      api("/bots"),
+    ]);
+  } catch (error) { toast(`Could not prepare this task: ${error.message}`, "error"); return; }
+  const coordinator = bots.find(bot => bot.name === currentStudioBot);
+  const targets = bots.filter(bot => bot.id !== coordinator?.id);
+  if (!coordinator?.is_workspace_coordinator) { toast("Select this Bot as the workspace coordinator before assigning tasks.", "error"); return; }
+  if (!targets.length) { toast("Create a specialist Bot before assigning a task.", "error"); return; }
+  if (!originalRequest || sourceAnswerMessage.role !== "assistant" || sourceAnswerMessage.run_id !== sourceRun) {
+    toast("The coordinator messages no longer match this completed attempt.", "error"); return;
+  }
+
+  openModal({
+    returnFocus, title: "Prepare a task for a Bot", confirmText: "Send reviewed task", wide: true, tall: true,
+    bodyHtml: `<p>Review the coordinator’s suggested brief, choose a specialist, and edit anything that should change before it starts.</p>
+      <blockquote class="workspace-task-source"><b>Your request</b><br>${esc(originalRequest)}</blockquote>
+      <label class="field">Specialist Bot<select id="workspace-task-target">${targets.map(bot =>
+        `<option value="${esc(bot.id)}">${esc(botDisplayName(bot))}</option>`).join("")}</select></label>
+      <div id="workspace-task-capability" aria-live="polite"></div>
+      <label class="field">Reviewed task brief<textarea id="workspace-task-brief" rows="6" maxlength="20000">${esc(sourceAnswerMessage.content)}</textarea></label>
+      <label class="field">Additional constraints or assumptions (optional)<textarea id="workspace-task-assumptions" rows="3" maxlength="4000" placeholder="For example: public sources only; do not contact anyone."></textarea></label>
+      <p class="hint">The specialist receives this reviewed brief and these constraints in a new conversation. The coordinator’s other chat history, files, memory, and permissions are not copied. The specialist uses its own saved model route and settings; its own enabled memory and workspace may still apply.</p>
+      <p id="workspace-task-error" role="alert" hidden></p>`,
+    onConfirm: async () => {
+      const target = targets.find(bot => bot.id === $("#workspace-task-target").value);
+      const taskBrief = $("#workspace-task-brief").value.trim();
+      const assumptions = $("#workspace-task-assumptions").value.trim();
+      const error = $("#workspace-task-error"), confirm = $("#modal-confirm");
+      if (!target || !taskBrief) { error.textContent = "Choose a Bot and review a non-empty task brief."; error.hidden = false; return false; }
+      const body = {parent_conversation_id: parentConversationId, source_run_id: sourceRun,
+        source_user_message_id: sourceUser, source_assistant_message_id: sourceAnswer,
+        target_bot_id: target.id, task_brief: taskBrief, assumptions};
+      const retry = await workspaceTaskKey(parentConversationId, sourceAnswer, target.id, body);
+      confirm.disabled = true;
+      try {
+        const result = await api("/v1/workspace/tasks", {
+          method: "POST", body, headers: {"Idempotency-Key": retry.key},
+        });
+        storageRemove(retry.storageKey);
+        toast(`Task sent to ${result.target_display_name}. You can follow the specialist chat here or continue in the main chat.`);
+        scheduleFeedRender();
+        return true;
+      } catch (err) {
+        error.textContent = `Task not confirmed: ${err.message}. Your reviewed brief is retained so you can safely retry.`;
+        error.hidden = false;
+        return false;
+      } finally { if (confirm.isConnected) confirm.disabled = false; }
+    },
+  });
+  const select = $("#workspace-task-target"), summary = $("#workspace-task-capability");
+  const refreshCapabilities = () => {
+    const bot = targets.find(item => item.id === select.value);
+    summary.innerHTML = bot ? `<h4>Saved specialist settings</h4>${workspaceTaskCapabilityHtml(bot)}` : "";
+  };
+  select.addEventListener("change", refreshCapabilities);
+  refreshCapabilities();
 }
 
 const seenThreads = new Set();
@@ -2570,6 +2696,10 @@ function wireFeedInteractions() {
   stream.dataset.wired = "1";
   const runId = currentRunId;
   stream.addEventListener("click", ev => {
+    const assignTask = ev.target.closest("[data-prepare-bot-task]");
+    if (assignTask) { void prepareWorkspaceTask(assignTask); return; }
+    const openWorkspaceTask = ev.target.closest("[data-open-workspace-task]");
+    if (openWorkspaceTask) { void openConversation(openWorkspaceTask.dataset.openWorkspaceTask); return; }
     const reply = ev.target.closest("[data-reply-message]");
     if (reply) { void activeReplySelectionHandler?.(reply.dataset.replyMessage); return; }
     const receipt = ev.target.closest('[data-receipt-review]');
@@ -4668,7 +4798,7 @@ function refreshChangedResources(resources) {
       if (needsYouDialog.open) void refreshApprovals();
     }
     if (changed.has("state")) void pollHealth();
-    if (["messages", "conversations", "runs", "approvals", "actions", "transcript_mirrors", "memory"].some(r => changed.has(r))) {
+    if (["messages", "conversations", "runs", "approvals", "actions", "transcript_mirrors", "memory", "workspace_tasks"].some(r => changed.has(r))) {
       const visibleHash = location.hash || "#/chat";
       if (/^#\/chat(?:\/|$)/.test(visibleHash) || /^#\/run\/[\w-]+$/.test(visibleHash)) scheduleFeedRender();
     }

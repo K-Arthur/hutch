@@ -608,11 +608,36 @@ def _migrate_28(db: sqlite3.Connection) -> None:
                             ("coordinator_bot_id", "updated_at"), ()),))
 
 
+def _migrate_29(db: sqlite3.Connection) -> None:
+    """Link reviewed coordinator briefs to isolated, ordinary specialist conversations."""
+    db.execute("""CREATE TABLE workspace_tasks (
+        id TEXT PRIMARY KEY,
+        parent_conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        source_run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE RESTRICT,
+        source_user_message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE RESTRICT,
+        source_assistant_message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE RESTRICT,
+        target_bot_id TEXT NOT NULL,
+        target_display_name TEXT NOT NULL,
+        original_request TEXT NOT NULL,
+        proposed_brief TEXT NOT NULL,
+        task_brief TEXT NOT NULL,
+        assumptions TEXT NOT NULL DEFAULT '',
+        child_conversation_id TEXT NOT NULL UNIQUE REFERENCES conversations(id) ON DELETE RESTRICT,
+        child_run_id TEXT NOT NULL UNIQUE REFERENCES runs(id) ON DELETE RESTRICT,
+        created_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX idx_workspace_tasks_parent ON workspace_tasks(parent_conversation_id, created_at, id)")
+    from .durable_changes import install_resources
+    install_resources(db, (("workspace_tasks", "workspace_tasks", "id",
+                            ("parent_conversation_id", "child_conversation_id", "child_run_id", "target_bot_id",
+                             "created_at"), ()),))
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
                _migrate_19, _migrate_20, _migrate_21, _migrate_22, _migrate_23, _migrate_24, _migrate_25, _migrate_26,
-               _migrate_27, _migrate_28]
+               _migrate_27, _migrate_28, _migrate_29]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -1999,6 +2024,188 @@ class Store:
         self._mirror.wake.set()
         self.bus.notify("work", "runs", f"run:{run.id}", "conversations", f"conversation:{conversation_id}")
         return run.id, True
+
+    def submit_workspace_task(self, *, parent_conversation_id: str, source_run_id: str,
+                              source_user_message_id: str, source_assistant_message_id: str,
+                              target_bot_id: str, task_brief: str, assumptions: str,
+                              run: Run, task: Task, capability_snapshot: dict[str, Any],
+                              idem_key: str, request_hash: str) -> tuple[str, bool]:
+        """Atomically admit a user-reviewed coordinator brief as a fresh specialist chat.
+
+        Only the explicitly approved brief crosses the boundary. The source request/answer are retained
+        as provenance but are never copied into the specialist conversation or its model context.
+        """
+        brief = task_brief.strip()
+        assumptions = assumptions.strip()
+        if not brief or len(brief) > 20_000:
+            raise ValueError("reviewed task brief must be non-empty and at most 20,000 characters")
+        if len(assumptions) > 4_000:
+            raise ValueError("assumptions must be at most 4,000 characters")
+        effective_prompt = (brief + "\n\nUser-reviewed assumptions and constraints:\n" + assumptions
+                            if assumptions else brief)
+        if run.status is not RunStatus.pending or run.bot_id != target_bot_id or run.prompt != effective_prompt:
+            raise ValueError("workspace task run must be a pending run for the selected specialist")
+        if run.origin != "workspace_task" or run.parent_run_id is not None:
+            raise ValueError("workspace tasks are independent specialist runs")
+        if task.bot_id != target_bot_id or task.kind != "on_demand" or task.prompt != effective_prompt:
+            raise ValueError("workspace task queue entry does not match the reviewed brief")
+        snapshot_json = _canonical(capability_snapshot)
+        if len(snapshot_json.encode("utf-8")) > 64 * 1024:
+            raise ValueError("specialist capability snapshot exceeds 64 KiB")
+
+        scope = "api:v1:workspace:tasks"
+        now = iso(utcnow())
+        task_id = "wst_" + uuid.uuid4().hex[:24]
+        child_conversation_id = "conv_" + uuid.uuid4().hex[:12]
+        user_message_id = "msg_" + uuid.uuid4().hex[:12]
+        run.conversation_id = child_conversation_id
+        run.conversation_context = []
+        run.task_id = task.id
+        conversation_title = brief.replace("\n", " ").strip()[:72] or "Assigned task"
+
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                if not replay.get("task_id"):
+                    raise RuntimeError("workspace task retry record is incomplete")
+                row = db.execute("SELECT child_run_id FROM workspace_tasks WHERE id = ?", (replay["task_id"],)).fetchone()
+                if row is None:
+                    raise RuntimeError("workspace task retry record points to missing state")
+                return str(row["child_run_id"]), False
+            self._assert_execution_ready(db)
+            parent = db.execute(
+                "SELECT c.bot_id, c.archived, w.coordinator_bot_id "
+                "FROM conversations c CROSS JOIN workspace_settings w WHERE c.id = ? AND w.id = 1",
+                (parent_conversation_id,)).fetchone()
+            if parent is None:
+                raise KeyError(parent_conversation_id)
+            if parent["archived"]:
+                raise ValueError("the coordinator conversation is archived")
+            if not parent["coordinator_bot_id"] or parent["coordinator_bot_id"] != parent["bot_id"]:
+                raise PermissionError("tasks can only be prepared from the selected workspace coordinator")
+            if parent["bot_id"] == target_bot_id:
+                raise ValueError("choose a different Bot; the coordinator can continue directly in this chat")
+            if db.execute("SELECT 1 FROM bots WHERE id = ?", (target_bot_id,)).fetchone() is None:
+                raise KeyError(target_bot_id)
+
+            source = db.execute(
+                "SELECT u.content AS original_request, a.content AS proposed_brief, r.status "
+                "FROM messages u JOIN messages a ON a.run_id = u.run_id AND a.conversation_id = u.conversation_id "
+                "JOIN runs r ON r.id = u.run_id "
+                "JOIN conversation_runs cr ON cr.conversation_id = u.conversation_id AND cr.run_id = r.id "
+                "WHERE u.id = ? AND a.id = ? AND u.run_id = ? AND u.conversation_id = ? "
+                "AND u.role = 'user' AND a.role = 'assistant'",
+                (source_user_message_id, source_assistant_message_id, source_run_id, parent_conversation_id),
+            ).fetchone()
+            if source is None:
+                raise ValueError("source request and coordinator answer must belong to the same conversation attempt")
+            if source["status"] != RunStatus.succeeded.value:
+                raise ValueError("wait for the coordinator answer to finish before preparing a task")
+            if not str(source["proposed_brief"]).strip():
+                raise ValueError("the coordinator answer is empty and cannot be used as a task draft")
+            if db.execute("SELECT 1 FROM conversation_questions WHERE run_id = ? AND status = 'pending' LIMIT 1",
+                          (source_run_id,)).fetchone():
+                raise ValueError("answer the coordinator's pending choice before preparing a specialist task")
+            target = db.execute("SELECT doc FROM bots WHERE id = ?", (target_bot_id,)).fetchone()
+            target_doc = json.loads(target["doc"])
+            target_display_name = Bot.model_validate(target_doc).display_name
+
+            db.execute("INSERT INTO conversations (id, bot_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+                       (child_conversation_id, target_bot_id, conversation_title, now, now))
+            db.execute("INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done, state, run_id) "
+                       "VALUES (?, ?, 'on_demand', ?, ?, 0, 'queued', ?)",
+                       (task.id, target_bot_id, brief, task.created_at, run.id))
+            db.execute("INSERT INTO runs (id, bot_id, task_id, doc, status, created_at, conversation_id, "
+                       "conversation_context, capability_snapshot_json) VALUES (?, ?, ?, ?, ?, ?, ?, '[]', ?)",
+                       (run.id, target_bot_id, task.id, self._run_json(run), run.status.value, run.created_at,
+                        child_conversation_id, snapshot_json))
+            self._insert_conversation_message(db, message_id=user_message_id, conversation_id=child_conversation_id,
+                                              seq=1, run_id=run.id, role="user", content=effective_prompt, created_at=now)
+            db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
+                       (child_conversation_id, run.id, now))
+            db.execute("INSERT INTO workspace_tasks "
+                       "(id, parent_conversation_id, source_run_id, source_user_message_id, "
+                       "source_assistant_message_id, target_bot_id, target_display_name, original_request, "
+                       "proposed_brief, task_brief, assumptions, child_conversation_id, child_run_id, created_at) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       (task_id, parent_conversation_id, source_run_id, source_user_message_id,
+                        source_assistant_message_id, target_bot_id, target_display_name,
+                        source["original_request"], source["proposed_brief"], brief, assumptions,
+                        child_conversation_id, run.id, now))
+            self._insert_events(db, run.id, [Event(run_id=run.id, type=EventType.message,
+                                                  data={"role": "user", "content": effective_prompt})])
+            db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash, _canonical({"task_id": task_id}), now))
+
+        self._mirror.wake.set()
+        self.bus.notify("work", "runs", f"run:{run.id}", "conversations", f"conversation:{child_conversation_id}",
+                        f"conversation:{parent_conversation_id}", "workspace_tasks")
+        return run.id, True
+
+    def list_workspace_tasks(self, parent_conversation_id: str, *, limit: int = 100,
+                             task_id: str | None = None) -> list[dict[str, Any]]:
+        """Return a bounded, credential-free task/status projection for one coordinator conversation."""
+        limit = max(1, min(int(limit), 100))
+        task_clause = " AND wt.id = ?" if task_id is not None else ""
+        args: tuple[Any, ...] = ((parent_conversation_id, task_id, limit) if task_id is not None
+                                 else (parent_conversation_id, limit))
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT wt.id, wt.parent_conversation_id, wt.source_run_id, wt.source_user_message_id, "
+                "wt.source_assistant_message_id, wt.target_bot_id, wt.target_display_name, "
+                "substr(wt.original_request, 1, 4001) AS original_request, length(wt.original_request) > 4000 AS original_request_truncated, "
+                "substr(wt.proposed_brief, 1, 4001) AS proposed_brief, length(wt.proposed_brief) > 4000 AS proposed_brief_truncated, "
+                "wt.task_brief, wt.assumptions, wt.child_conversation_id, wt.child_run_id, wt.created_at, "
+                "r.status, r.doc AS run_doc, r.capability_snapshot_json, "
+                "(SELECT substr(m.content, 1, 4001) FROM messages m WHERE m.conversation_id = wt.child_conversation_id "
+                "AND m.role = 'assistant' ORDER BY m.seq DESC LIMIT 1) AS result, "
+                "(SELECT length(m.content) > 4000 FROM messages m WHERE m.conversation_id = wt.child_conversation_id "
+                "AND m.role = 'assistant' ORDER BY m.seq DESC LIMIT 1) AS result_truncated "
+                "FROM workspace_tasks wt JOIN runs r ON r.id = wt.child_run_id "
+                "WHERE wt.parent_conversation_id = ?" + task_clause + " ORDER BY wt.created_at, wt.id LIMIT ?",
+                args,
+            ).fetchall()
+        result = []
+        for row in rows:
+            snapshot = json.loads(row["capability_snapshot_json"] or "{}")
+            run_doc = json.loads(row["run_doc"])
+            result.append({
+                "id": row["id"], "parent_conversation_id": row["parent_conversation_id"],
+                "source_run_id": row["source_run_id"], "source_user_message_id": row["source_user_message_id"],
+                "source_assistant_message_id": row["source_assistant_message_id"],
+                "target_bot_id": row["target_bot_id"], "target_display_name": row["target_display_name"],
+                "original_request": row["original_request"], "original_request_truncated": bool(row["original_request_truncated"]),
+                "proposed_brief": row["proposed_brief"], "proposed_brief_truncated": bool(row["proposed_brief_truncated"]),
+                "task_brief": row["task_brief"], "assumptions": row["assumptions"],
+                "child_conversation_id": row["child_conversation_id"], "child_run_id": row["child_run_id"],
+                "status": row["status"], "reason": run_doc.get("error") or run_doc.get("exit_reason") or "",
+                "result": row["result"] or "", "result_truncated": bool(row["result_truncated"]),
+                "model": snapshot.get("model", ""),
+                "inference_mode": snapshot.get("inference_mode", ""), "tools": snapshot.get("tools", []),
+                "risk_tier": snapshot.get("risk_tier", ""), "workspace_mode": snapshot.get("workspace_mode", ""),
+                "created_at": row["created_at"],
+            })
+        return result
+
+    def replay_workspace_task(self, *, idem_key: str, request_hash: str) -> Optional[dict[str, Any]]:
+        """Resolve an exact prior command before checking mutable provider readiness or bot state."""
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, "api:v1:workspace:tasks", idem_key, request_hash)
+            if replay is None:
+                return None
+            row = db.execute("SELECT id, parent_conversation_id, child_run_id FROM workspace_tasks WHERE id = ?",
+                             (replay.get("task_id", ""),)).fetchone()
+            if row is None:
+                raise RuntimeError("workspace task retry record points to missing state")
+            task_id = str(row["id"])
+            parent_conversation_id = str(row["parent_conversation_id"])
+            child_run_id = str(row["child_run_id"])
+        task = next((task for task in self.list_workspace_tasks(
+            parent_conversation_id, task_id=task_id, limit=1) if task["child_run_id"] == child_run_id), None)
+        if task is None:
+            raise RuntimeError("workspace task history is unavailable")
+        return task
 
     def share_conversation_artifact(self, target_conversation_id: str, source_run_id: str,
                                     source_version: int, artifact_kind: str, *, actor: str,

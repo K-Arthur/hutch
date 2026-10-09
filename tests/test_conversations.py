@@ -3,9 +3,17 @@ from __future__ import annotations
 import json
 import time
 
+import pytest
 from fastapi.testclient import TestClient
 
 from hutch.server.app import create_app
+
+
+@pytest.fixture()
+def conversation_client(tmp_path, monkeypatch):
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    with TestClient(create_app()) as client:
+        yield client
 
 
 def test_versioned_conversations_are_persisted_and_idempotent(tmp_path, monkeypatch):
@@ -490,3 +498,85 @@ def test_conversation_authority_is_independent_of_message_page_and_other_convers
     assert all(message["run_id"] != first.id for message in store.list_conversation_messages(conv["id"], after=5))
     listed = next(c for c in store.list_conversations(bot.id) if c["id"] == conv["id"])
     assert listed["active_run_id"] == first.id
+
+
+def test_coordinator_dispatch_is_reviewed_atomic_and_stays_in_specialist_context(conversation_client, monkeypatch):
+    client = conversation_client
+    coordinator = client.post("/api/bots", json={
+        "name": "named-coordinator", "display_name": "Mara", "model": "mock/demo", "tools": [],
+    }).json()
+    specialist = client.post("/api/bots", json={
+        "name": "research-specialist", "display_name": "Research Partner", "model": "mock/demo",
+        "tools": ["memory"], "instructions": "Use the specialist's own instructions.",
+    }).json()
+    assert client.put("/api/v1/workspace/coordinator", json={"bot_id": coordinator["id"]}).status_code == 200
+    conversation = client.post("/api/v1/conversations", json={"bot": coordinator["id"]},
+                               headers={"Idempotency-Key": "coordinator-chat"}).json()
+    original = "Compare two options for the launch plan; do not send any messages."
+    answer = client.post(f"/api/v1/conversations/{conversation['id']}/messages", json={"prompt": original},
+                         headers={"Idempotency-Key": "coordinator-request"})
+    assert answer.status_code == 201, answer.text
+    source_run_id = answer.json()["id"]
+    deadline = time.time() + 15
+    while time.time() < deadline:
+        state = client.get(f"/api/v1/tasks/runs/{source_run_id}").json()
+        if state["terminal"]:
+            break
+        time.sleep(.05)
+    assert state["status"] == "succeeded"
+    source = client.get(f"/api/v1/conversations/{conversation['id']}").json()["messages"]
+    source_user = next(row for row in source if row["run_id"] == source_run_id and row["role"] == "user")
+    source_answer = next(row for row in source if row["run_id"] == source_run_id and row["role"] == "assistant")
+    reviewed_brief = "Compare the launch-plan options. Return a concise table of trade-offs and a recommendation."
+    payload = {
+        "parent_conversation_id": conversation["id"], "source_run_id": source_run_id,
+        "source_user_message_id": source_user["id"], "source_assistant_message_id": source_answer["id"],
+        "target_bot_id": specialist["id"], "task_brief": reviewed_brief,
+        "assumptions": "Use public information only; do not contact anyone.",
+    }
+    headers = {"Idempotency-Key": "reviewed-specialist-task"}
+    dispatched = client.post("/api/v1/workspace/tasks", json=payload, headers=headers)
+    assert dispatched.status_code == 201, dispatched.text
+    record = dispatched.json()
+    assert record["original_request"] == original
+    assert record["proposed_brief"] == source_answer["content"]
+    assert record["task_brief"] == reviewed_brief and record["assumptions"] == payload["assumptions"]
+    assert record["target_display_name"] == "Research Partner"
+    assert record["model"] == specialist["model"] and record["tools"] == ["recall", "remember"]
+    child = client.get(f"/api/v1/conversations/{record['child_conversation_id']}").json()
+    assert child["bot_id"] == specialist["id"]
+    assert [(message["role"], message["content"]) for message in child["messages"]] == [
+        ("user", reviewed_brief + "\n\nUser-reviewed assumptions and constraints:\n" + payload["assumptions"])]
+    run = client.app.state.store.get_run(record["child_run_id"])
+    assert run.origin == "workspace_task" and run.conversation_context == []
+    assert client.app.state.store.run_capability_snapshot(run.id) == client.app.state.engine.capability_snapshot(
+        client.app.state.store.get_bot(specialist["id"]))
+
+    import hutch.modelchoices as modelchoices
+    from hutch.modelchoices import ModelNotUsable
+    monkeypatch.setattr(modelchoices, "validate_override", lambda *args, **kwargs:
+                        (_ for _ in ()).throw(ModelNotUsable("route changed", "review specialist settings", 409)))
+    replay = client.post("/api/v1/workspace/tasks", json=payload, headers=headers)
+    assert replay.status_code == 200 and replay.json()["id"] == record["id"]
+    changed = {**payload, "task_brief": "A different reviewed brief."}
+    assert client.post("/api/v1/workspace/tasks", json=changed, headers=headers).status_code == 409
+    rows = client.get(f"/api/v1/workspace/tasks?conversation_id={conversation['id']}").json()
+    assert len(rows) == 1 and rows[0]["id"] == record["id"] and rows[0]["task_brief"] == reviewed_brief
+
+
+def test_workspace_task_rejects_wrong_source_and_coordinator_authority(conversation_client):
+    client = conversation_client
+    coordinator = client.post("/api/bots", json={"name": "dispatch-coordinator", "model": "mock/demo"}).json()
+    specialist = client.post("/api/bots", json={"name": "dispatch-specialist", "model": "mock/demo"}).json()
+    conversation = client.post("/api/v1/conversations", json={"bot": coordinator["id"]},
+                               headers={"Idempotency-Key": "dispatch-unauthorized-chat"}).json()
+    payload = {
+        "parent_conversation_id": conversation["id"], "source_run_id": "run_missing",
+        "source_user_message_id": "msg_missing", "source_assistant_message_id": "msg_missing_answer",
+        "target_bot_id": specialist["id"], "task_brief": "Do the reviewed work.", "assumptions": "",
+    }
+    assert client.post("/api/v1/workspace/tasks", json=payload,
+                       headers={"Idempotency-Key": "dispatch-unselected-coordinator"}).status_code == 409
+    assert client.put("/api/v1/workspace/coordinator", json={"bot_id": coordinator["id"]}).status_code == 200
+    assert client.post("/api/v1/workspace/tasks", json=payload,
+                       headers={"Idempotency-Key": "dispatch-invalid-source"}).status_code == 409

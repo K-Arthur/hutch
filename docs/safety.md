@@ -222,6 +222,23 @@ checkpoint. A model response that bundles a choice request with any other tool c
 a batch before sibling calls can run. Pi/OpenCode adapters do not support the chat primitive while
 those external runtimes remain disabled.
 
+## Coordinator handoffs
+
+The workspace coordinator can prepare a specialist task only from its own completed assistant answer and the matching user
+request. The coordinator's reply is a proposal, not authorization: the person chooses an existing Bot, sees that Bot's saved route,
+tools, action policy and workspace mode, edits the brief and optional assumptions, and explicitly confirms before Hutch creates a
+separate specialist conversation/run. Hutch atomically preserves the source request, coordinator draft, reviewed content, target
+display name, child IDs and idempotency receipt. The task card remains linked from the originating coordinator turn and refreshes
+with the specialist's authoritative status and latest answer.
+
+Only the reviewed brief and assumptions enter the specialist conversation. The coordinator's other chat history, files, memory and
+permissions are not copied; the specialist's own enabled memory and workspace may still apply. The child has an empty inherited
+conversation context and uses its own saved route. A missing or changed route, instructions, permissions or workspace causes a
+visible pre-execution failure; the task is not silently re-run under new authority. Exact retries return the same task, while the same
+idempotency key with changed content conflicts. This initial handoff does not implement an owner-approved specialist allowlist,
+automatic sequential planning, restart-safe progress checkpoints, parent-plan cancellation, or generalized task clarification.
+Provider execution has not been validated live.
+
 ## Approval flow
 
 1. A tool hits an **ask** verdict → an `ApprovalRequest` row is created; the run enters

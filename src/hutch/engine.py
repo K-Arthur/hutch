@@ -180,6 +180,16 @@ class Engine:
                     raise ValueError("delegated run has no inherited capability snapshot")
                 target = self._delegated_bot(bot, snapshot)
             else:
+                if run.origin == "workspace_task":
+                    snapshot = self.store.run_capability_snapshot(run.id)
+                    if snapshot is None:
+                        self._fail_workspace_task_policy(run, "The reviewed specialist capability snapshot is missing.")
+                        return False
+                    if snapshot != self.capability_snapshot(bot):
+                        self._fail_workspace_task_policy(
+                            run, "The specialist's model, instructions, permissions or workspace changed after review. "
+                            "Review the Bot settings and submit the task again.")
+                        return False
                 target = bot.model_copy(update={"model": run.model_override}) if run.model_override else bot
             get_runtime(target)
         except ValueError as exc:
@@ -246,6 +256,15 @@ class Engine:
             self.store.transition_run(
                 run.id, RunStatus.failed, fence=run.fence, exit_reason="delegation_unavailable", error=reason,
                 event={"reason": "delegation_unavailable", "error": reason}, cancel_wins=True)
+        except (IllegalTransition, LeaseLost, KeyError):
+            pass
+
+    def _fail_workspace_task_policy(self, run: Run, reason: str) -> None:
+        """Never run a reviewed task under specialist permissions different from those shown at dispatch."""
+        try:
+            self.store.transition_run(
+                run.id, RunStatus.failed, fence=run.fence, exit_reason="workspace_task_policy_changed", error=reason,
+                event={"reason": "workspace_task_policy_changed", "error": reason}, cancel_wins=True)
         except (IllegalTransition, LeaseLost, KeyError):
             pass
 
@@ -492,6 +511,8 @@ class Engine:
             "approval_mode": bot.approval_mode.value,
             "memory_enabled": bool(bot.memory_enabled),
             "browser_handoff": bool(bot.local_browser_handoff and not offline),
+            "workspace_mode": "folder" if bot.workdir else bot.workspace_mode,
+            "workdir_sha256": fingerprint(bot.workdir),
             "limits": bot.limits.model_dump(mode="json"),
             "tool_limits": dict(bot.tool_limits),
             "fallbacks": list(bot.fallbacks),
@@ -634,6 +655,18 @@ class Engine:
                 bot = self._delegated_bot(bot, snapshot)
             except ValueError as exc:
                 self._fail_unavailable_child_executor(persisted, str(exc))
+                return
+        elif persisted.origin == "workspace_task":
+            if persisted.status is not RunStatus.pending:
+                return
+            snapshot = self.store.run_capability_snapshot(run.id)
+            if snapshot is None:
+                self._fail_workspace_task_policy(persisted, "The reviewed specialist capability snapshot is missing.")
+                return
+            if snapshot != self.capability_snapshot(bot):
+                self._fail_workspace_task_policy(
+                    persisted, "The specialist's model, instructions, permissions or workspace changed after review. "
+                    "Review the Bot settings and submit the task again.")
                 return
         try:
             runtime = get_runtime(bot)

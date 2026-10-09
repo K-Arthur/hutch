@@ -76,6 +76,104 @@ def test_executor_health_status_uses_a_steady_indicator(browser, live):
         page.close()
 
 
+def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser, live):
+    """Use the local mock runtime to inspect the reviewed task flow and durable specialist result."""
+    base, app = live
+    coordinator = app.state.store.create_bot(Bot(
+        name="main-coordinator", display_name="Mara", model="mock/demo", tools=[]))
+    specialist = app.state.store.create_bot(Bot(
+        name="research-partner", display_name="Research Partner", model="mock/demo", tools=["memory"],
+        instructions="Use this specialist's own saved instructions."))
+    app.state.store.set_workspace_coordinator(coordinator.id)
+    output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workspace-task-dispatch"
+    output.mkdir(parents=True, exist_ok=True)
+    sizes = {"desktop": (1440, 960), "tablet": (900, 1024), "phone": (390, 844)}
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(f"{base}/#/chat/{coordinator.name}")
+        page.locator("#chat-prompt").wait_for()
+        page.locator("#chat-prompt").fill("Compare launch plan options. Keep the work in Hutch.")
+        page.locator("#chat-send").click()
+        prepare = page.locator("[data-prepare-bot-task]")
+        prepare.wait_for(timeout=15000)
+        prepare.click()
+        dialog = page.get_by_role("dialog", name="Prepare a task for a Bot")
+        try:
+            dialog.wait_for(timeout=5000)
+        except Exception as exc:
+            raise AssertionError(f"task review did not open; modal={page.locator('#modal-root').inner_text()} "
+                                 f"toasts={page.locator('#toast-root').inner_text() if page.locator('#toast-root').count() else ''} "
+                                 f"errors={errors}") from exc
+        assert dialog.locator("#workspace-task-target option").count() == 1
+        assert "mock/demo" in dialog.locator("#workspace-task-capability").inner_text()
+        assert "memory" in dialog.locator("#workspace-task-capability").inner_text()
+        assert "not copied" in dialog.inner_text()
+        dialog.locator("#workspace-task-brief").fill(
+            "Compare two launch approaches and return a short recommendation with trade-offs.")
+        dialog.locator("#workspace-task-assumptions").fill("Use public information only; do not contact anyone.")
+        page.locator(".toast").wait_for(state="detached", timeout=6000)
+        for label, (width, height) in sizes.items():
+            page.set_viewport_size({"width": width, "height": height})
+            page.evaluate("document.fonts.ready")
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+            assert dialog.is_visible()
+            assert dialog.locator("#workspace-task-target").is_visible()
+            page.screenshot(path=str(output / f"review-{label}.png"), animations="disabled")
+            if label == "phone":
+                dialog.locator(".modal-body").evaluate("element => element.scrollTop = element.scrollHeight")
+                assumptions_box = dialog.locator("#workspace-task-assumptions").bounding_box()
+                footer_box = dialog.locator(".modal-footer").bounding_box()
+                assert assumptions_box and footer_box and assumptions_box["y"] + assumptions_box["height"] <= footer_box["y"]
+                page.screenshot(path=str(output / "review-phone-fields.png"), animations="disabled")
+
+        dialog.get_by_role("button", name="Send reviewed task").click()
+        task_card = page.locator("[data-workspace-task]")
+        task_card.wait_for(timeout=15000)
+        assert "Research Partner" in task_card.inner_text()
+        assert "Use public information only" in task_card.inner_text()
+        assert "Specialist settings" in task_card.inner_text()
+        page.locator(".toast").wait_for(state="detached", timeout=6000)
+        task_card.get_by_text("Done", exact=True).wait_for(timeout=15000)
+        assert "Latest specialist response" in task_card.inner_text()
+        for label, (width, height) in sizes.items():
+            page.set_viewport_size({"width": width, "height": height})
+            page.evaluate("document.fonts.ready")
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+            assert task_card.is_visible()
+            page.screenshot(path=str(output / f"timeline-{label}.png"), animations="disabled")
+
+        assert errors == [], errors
+        assert page.locator("#modal-root").inner_text() == ""
+        assert page.locator("[data-workspace-task] details summary").inner_text() == "Request and coordinator draft"
+        parent_conversation_id = app.state.store.list_conversations(coordinator.id)[0]["id"]
+        task = app.state.store.list_workspace_tasks(parent_conversation_id)[0]
+        assert task["target_bot_id"] == specialist.id
+        assert task["task_brief"].startswith("Compare two launch approaches")
+        page.locator("[data-open-workspace-task]").click()
+        page.locator("#chat-prompt").wait_for()
+        assert page.locator("#chat-stream").get_by_text("Compare two launch approaches", exact=False).count() >= 1
+        page.locator(".mhead").get_by_text("Research Partner", exact=True).wait_for(timeout=10000)
+        context.tracing.stop(path=str(output / "workspace-task-trace.zip"))
+        trace_stopped = True
+        (output / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports",
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "viewports": [{"name": label, "width": size[0], "height": size[1]} for label, size in sizes.items()],
+            "page_errors": errors,
+            "validation": ["coordinator answer stays a draft until reviewed", "target model/tools are visible",
+                           "assumptions are sent with the brief", "no horizontal overflow", "task appears in main chat"],
+            "fixtures": "Local mock model and local SQLite only; no provider or paid call.",
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        if not locals().get("trace_stopped", False):
+            context.tracing.stop(path=str(output / "workspace-task-trace.zip"))
+        context.close()
+
+
 def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(browser, live):
     """Inspect the real dashboard styles at desktop, tablet, and phone widths."""
     base, app = live

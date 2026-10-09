@@ -11,7 +11,7 @@ analytics request. Motion follows the operating system's reduced-motion setting;
 | State shown publicly | Evidence and limit |
 |---|---|
 | Supported | Linux execution, local SQLite state, up to 100 named recurring tasks per bot with independent timing/prompts, and fixture-tested lifecycle/control paths. A running local supervisor is needed for schedules; tasks on one bot queue under its single-run rule. Actual runs require a configured model route and a running local service or provider connection. |
-| Experimental | Configured hosted-provider and local-inference routes; OpenCode Go's user-supplied API-key connection; opt-in Sign in with ChatGPT local token-sharing preview (eligibility for Hutch is unconfirmed, no live account verification, and no provider-enforced output limit); one Hutch local caller and up to eight waiters per state directory; host-gated Offline isolation; opt-in same-bot child tasks under Strict Offline with approval on every request; HTTPS-paired dashboard sessions with revocation; local same-session browser handoff on a Linux desktop; HTTP(S)/WebSocket browser egress pinned by a local proxy. Delegation is serial, task-text-only, private-workspace and subject to the two-run default; it does not transfer files. Provider/model calls, backend provenance, the visible desktop flow, public browser destinations, non-HTTP browser traffic and physical-device/network access were not verified live for this release. |
+| Experimental | Configured hosted-provider and local-inference routes; OpenCode Go's user-supplied API-key connection; opt-in Sign in with ChatGPT local token-sharing preview (eligibility for Hutch is unconfirmed, no live account verification, and no provider-enforced output limit); one Hutch local caller and up to eight waiters per state directory; host-gated Offline isolation; opt-in same-bot child tasks under Strict Offline with approval on every request; one explicit user-reviewed coordinator handoff to a selected specialist with a separate chat and durable parent status/result; HTTPS-paired dashboard sessions with revocation; local same-session browser handoff on a Linux desktop; HTTP(S)/WebSocket browser egress pinned by a local proxy. Coordinator handoff does not automatically plan more work or transfer files/history/memory; a specialist's own enabled memory and workspace may still apply. Same-Bot delegation is serial, task-text-only, private-workspace and subject to the two-run default. Provider/model calls, backend provenance, the visible desktop flow, public browser destinations, non-HTTP browser traffic and physical-device/network access were not verified live for this release. |
 | Unavailable | macOS/Windows executor, public source/package, authenticated PTY/physical desktop control, phone browser handoff and OpenCode/Pi harness execution. |
 
 The site distinguishes local control state from prompt traffic to a selected model and network
@@ -38,6 +38,12 @@ automatically attached to chat.
 The Bot-setup workflow may say that Hutch derives an editable professional display name and stable local address from the purpose
 written by the user. This is a deterministic browser-side suggestion, with no additional model request; the owner reviews both values
 before confirming creation. Do not imply that a suggested name changes the Bot's permissions, standing instructions, or authority.
+
+The coordinator workflow may say that a completed coordinator answer can be prepared as a task for one selected Bot. The user must
+choose the specialist, review its saved settings, edit the brief and assumptions, and explicitly confirm. Hutch records the relationship
+between source request, proposal, reviewed handoff and child result. Only the reviewed brief and assumptions cross into the new chat;
+the specialist's own enabled memory/workspace may still apply. Label this handoff experimental and do not imply automatic multi-step
+planning, resumable checkpoints, an owner-approved specialist roster, live provider verification or file transfer.
 
 The product preview is a real first-run application capture with an empty state directory. It
 contains no seeded bots, conversations, runs, approvals, credentials, or provider output. Older

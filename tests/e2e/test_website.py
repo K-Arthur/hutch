@@ -168,7 +168,7 @@ def test_static_site_makes_no_external_requests(browser, site_url):
 
 def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
-    out = ROOT / "docs/realignment/artifacts/scheduled-tasks"
+    out = ROOT / "docs/realignment/artifacts/workspace-task-dispatch/site"
     out.mkdir(parents=True, exist_ok=True)
     index = (SITE_DIR / "index.html").read_bytes()
     external = []
@@ -182,6 +182,8 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
         assert "local supervisor" in page.locator("body").inner_text().lower()
         assert "built-in chat can ask you to choose among options" in workflow.inner_text().lower()
         assert "your answer continues the conversation and never approves an action" in workflow.inner_text().lower()
+        assert "experimental coordinator handoff" in workflow.inner_text().lower()
+        assert "only the reviewed brief and constraints enter the specialist's new chat" in workflow.inner_text().lower()
         assert "suggests a professional bot name" in workflow.inner_text().lower()
         assert "no extra model request" in workflow.inner_text().lower()
         assert "both values remain editable" in workflow.inner_text().lower()
