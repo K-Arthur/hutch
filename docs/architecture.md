@@ -13,7 +13,7 @@ Bots retain a stable machine address (`name`) for routes, files and old links, w
 professional label from the owner's stated purpose using a deterministic local heuristic; the owner can edit
 both label and address before confirming. The CLI also accepts `--display-name`. This naming step does not call a model,
 change permissions or start a run.
-Schema v28 also stores the owner's selected workspace coordinator; cross-Bot dispatch is still incomplete.
+Schema v28 stores the owner's selected workspace coordinator. Bot settings can assign the role, the selected Bot opens as the default Studio chat, and the roster labels it. This is still a directly conversable Bot, so every Bot retains its own conversation. Reviewed cross-Bot dispatch is incomplete.
 
 hutch is a local-first multi-bot agent platform: one Python process family that stores everything
 in one state directory, drives LLM agents through a policy-gated tool layer, and exposes both a CLI

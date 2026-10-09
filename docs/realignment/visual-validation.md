@@ -537,3 +537,17 @@ after adding the naming claim guard (**1 passed in 3.04s**). Its captures at **1
 report zero overflow and no page errors, and their recorded `website/index.html` hash matches the source. I inspected the workflow
 section at desktop, tablet and phone widths; the added naming explanation wraps within the first step card without shifting or
 overlapping its peers. Updated captures and validation are under [`artifacts/scheduled-tasks/`](artifacts/scheduled-tasks/).
+
+## Named workspace coordinator direct chat (2026-10-09)
+
+The selected coordinator is ordered first in the roster, labelled there and in Studio, and opens as the default chat on a fresh
+Studio visit. Bot Settings can replace or clear the single workspace role without changing the Bot's model, tools, account
+connections or permissions. The selected Bot continues to use its own canonical conversation; all other Bots remain directly
+addressable. This slice does not yet dispatch work to specialists.
+
+`tests/e2e/test_browser.py::test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_sizes` passed **1 test
+in 6.08s** on Chromium **153.0.8010.12** / Playwright **1.63.0**. It covered default coordinator selection, role replacement,
+specialist direct chat and the role badge at **1440×960**, **900×1024** and **390×844**. I inspected all three captures; the
+phone uses a compact label, the chat and composer remain visible, and there is no horizontal page overflow or browser error.
+Evidence, trace and source hashes are in [`artifacts/workspace-coordinator/`](artifacts/workspace-coordinator/). Fixtures use
+mock route records and make no provider calls; no physical phone or screen-reader validation was performed.

@@ -241,6 +241,7 @@ a:hover { text-decoration: underline; }
 .roster-id { min-width: 0; display: grid; }
 .roster-name { font-size: var(--fs-base); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .roster-sub { font: 400 var(--fs-2xs)/1.4 var(--mono); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.roster-role { color: var(--brand); font: 600 var(--fs-2xs)/1.4 var(--sans); }
 .roster-empty { padding: var(--s-3) var(--s-4); color: var(--text-3); font-size: var(--fs-sm); }
 .roster-manage {
   margin: var(--s-1) var(--s-3) var(--s-3);
@@ -503,6 +504,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .ctx-id { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .ctx-id h1 { font-size: var(--fs-lg); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ctx-meta { display: flex; align-items: center; gap: var(--s-2); min-width: 0; flex-wrap: wrap; }
+.coordinator-label-compact { display: none; }
 .ctx-actions { margin-left: auto; display: flex; align-items: center; gap: var(--s-2); flex: none; }
 .conversation-select { min-width: 115px; max-width: 190px; height: 34px; font-size: var(--fs-xs); }
 .model-slot { flex: none; }
@@ -1328,6 +1330,9 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
    hover styles are identical so the zeroed size is invisible. */
 @media (max-width: 640px) {
   .ctx-meta { display: none; }
+  .workspace-coordinator-meta { display: flex; }
+  .coordinator-label-wide { display: none; }
+  .coordinator-label-compact { display: inline; }
   .app-top-status .workflow { display: none; }
   .app-top-context .ctx-actions .btn { font-size: 0; gap: 0; padding: 0 8px; }
   .app-top-context .ctx-actions .btn .icon { width: 16px; height: 16px; }

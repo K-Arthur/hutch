@@ -986,7 +986,10 @@ function renderRoster() {
   const focusedSettings = list.contains(focus) ? focus.getAttribute("href") : null;
   $("#fleet-nav").hidden = botsCache.length < 10;
   const q = ($("#bot-search")?.value || "").trim().toLowerCase();
-  const bots = q ? botsCache.filter(b => `${b.display_name || b.name} ${b.name} ${b.description || ""}`.toLowerCase().includes(q)) : botsCache;
+  const coordinator = botsCache.find(b => b.is_workspace_coordinator);
+  const orderedBots = coordinator
+    ? [coordinator, ...botsCache.filter(b => b.id !== coordinator.id)] : botsCache;
+  const bots = q ? orderedBots.filter(b => `${b.display_name || b.name} ${b.name} ${b.description || ""}`.toLowerCase().includes(q)) : orderedBots;
   if (!bots.length) {
     list.innerHTML = `<div class="roster-empty">${botsCache.length ? "No bot matches." : "No bots yet — create one."}</div>`;
     return;
@@ -1002,7 +1005,7 @@ function renderRoster() {
         ${botAvatar(b.name, 30, pip)}
         <span class="roster-id">
           <span class="roster-name">${esc(b.display_name || b.name)}</span>
-          <span class="roster-sub">${esc(truncate(b.model || "", 20))} · ${word}</span>
+          <span class="roster-sub">${b.is_workspace_coordinator ? '<span class="roster-role">Coordinator</span> · ' : ""}${esc(truncate(b.model || "", 20))} · ${word}</span>
         </span>
       </button><a class="roster-settings icon-btn" href="#/bot/${esc(b.name)}" aria-label="Settings for ${esc(b.display_name || b.name)}" title="Settings for ${esc(b.display_name || b.name)}">${icon("sliders")}</a></div>`;
   }).join("");
@@ -1396,6 +1399,7 @@ async function renderChatStudio(preferredBot = null) {
 
   let bot = botsCache.find(b => b.name === preferredBot) ||
             botsCache.find(b => b.name === currentStudioBot) ||
+            botsCache.find(b => b.is_workspace_coordinator) ||
             botsCache[0];
   currentStudioBot = bot.name;
   const detail = await api(`/bots/${encodeURIComponent(bot.name)}`);
@@ -1422,9 +1426,10 @@ async function renderChatStudio(preferredBot = null) {
   setTopContext(`
     <div class="ctx-id">
       ${botAvatar(bot.name, 30, state === "running" ? "running" : state === "paused" ? "paused" : "")}
-      <h1>${esc(bot.display_name || bot.name)}</h1>
-      <div class="ctx-meta">
-        ${bot.paused ? '<span class="tag">paused</span>' : ""}
+        <h1>${esc(bot.display_name || bot.name)}</h1>
+        <div class="ctx-meta${bot.is_workspace_coordinator ? " workspace-coordinator-meta" : ""}">
+          ${bot.is_workspace_coordinator ? '<span class="tag" id="workspace-coordinator-pill" aria-label="Workspace coordinator"><span class="coordinator-label-wide">Workspace coordinator</span><span class="coordinator-label-compact" aria-hidden="true">Coordinator</span></span>' : ""}
+          ${bot.paused ? '<span class="tag">paused</span>' : ""}
         ${activeRun ? statusChip(activeRun.status, activeRun.status_label) : ""}
       </div>
     </div>
@@ -3406,6 +3411,15 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             <div class="btn-row"><button class="btn primary small" type="submit">Save</button></div>
           </form>
 
+          <section class="panel" aria-labelledby="workspace-coordinator-title">
+            <div class="panel-title" id="workspace-coordinator-title">Workspace coordinator</div>
+            <p class="hint">Choose one Bot as the main conversation for your workspace. You can still chat with every Bot directly. This role does not add tools, account access, or permissions.</p>
+            ${b.is_workspace_coordinator
+              ? `<div class="coordinator-role-state" role="status"><span class="tag" id="workspace-coordinator-settings-state">Current coordinator</span>
+                  <button class="btn ghost small" type="button" id="btn-clear-workspace-coordinator">Clear role</button></div>`
+              : `<button class="btn ghost small" type="button" id="btn-set-workspace-coordinator">Set as workspace coordinator</button>`}
+          </section>
+
           <div class="panel" id="idp-panel">
             <div class="panel-title">Identity</div>
             ${identityPickerHtml()}
@@ -3608,6 +3622,38 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     ev.preventDefault();
     const fd = new FormData(ev.target);
     patch({ display_name: fd.get("display_name"), description: fd.get("description"), instructions: fd.get("instructions") }, "Saved.");
+  });
+  $("#btn-set-workspace-coordinator")?.addEventListener("click", () => {
+    const current = botsCache.find(bot => bot.is_workspace_coordinator);
+    const replacement = current && current.id !== b.id
+      ? `<p>This replaces <b>${esc(current.display_name || current.name)}</b> as the workspace coordinator. It does not change either Bot’s permissions or settings.</p>`
+      : `<p>This makes <b>${esc(b.display_name || b.name)}</b> the main workspace conversation. It does not change the Bot’s permissions or settings.</p>`;
+    openModal({ title: "Set workspace coordinator?", bodyHtml: `${replacement}<p>You can still open a direct conversation with each Bot from the roster.</p>`,
+      confirmText: "Set coordinator", returnFocus: $("#btn-set-workspace-coordinator"),
+      onConfirm: async () => {
+        try {
+          await api("/v1/workspace/coordinator", { method: "PUT", body: { bot_id: b.id } });
+          toast(`${b.display_name || b.name} is now the workspace coordinator.`);
+          await refreshRoster();
+          await renderBotDetail(b.name);
+          return true;
+        } catch (err) { toast(`Coordinator not changed: ${err.message}`, true); return false; }
+      },
+    });
+  });
+  $("#btn-clear-workspace-coordinator")?.addEventListener("click", () => {
+    openModal({ title: "Clear workspace coordinator?", bodyHtml: `<p>${esc(b.display_name || b.name)} will remain a Bot and its direct conversations will stay available. The workspace will not have a selected main conversation.</p>`,
+      confirmText: "Clear role", confirmClass: "danger", returnFocus: $("#btn-clear-workspace-coordinator"),
+      onConfirm: async () => {
+        try {
+          await api("/v1/workspace/coordinator", { method: "PUT", body: { bot_id: null } });
+          toast("Workspace coordinator cleared.");
+          await refreshRoster();
+          await renderBotDetail(b.name);
+          return true;
+        } catch (err) { toast(`Coordinator not changed: ${err.message}`, true); return false; }
+      },
+    });
   });
   $("#form-model").addEventListener("submit", ev => {
     ev.preventDefault();

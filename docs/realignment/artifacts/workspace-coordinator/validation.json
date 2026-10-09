@@ -1,0 +1,28 @@
+{
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_sizes",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewports": {
+    "desktop": [
+      1440,
+      960
+    ],
+    "tablet": [
+      900,
+      1024
+    ],
+    "phone": [
+      390,
+      844
+    ]
+  },
+  "scenario": "the selected workspace coordinator opens as the default direct chat, is labelled in the roster and composer, and can be reassigned from Bot settings",
+  "page_errors": [],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "69327cc2719d7b13b24fdc05843b423d66098297ba524489dbfdf08de0534f14",
+    "src/hutch/server/static/style.css": "0631458f126711ddf5db0c4493e294903c7c805344712bf65d675712bbd1cde6",
+    "src/hutch/server/app.py": "a54c2f698fd68258c5fe935c611ef631fa665e91156d5af8e35b3afa8233fc51",
+    "tests/e2e/test_browser.py": "1811c16585f6c0e22afe523b40eadc678c02a38e35eaf3a08a8ab758d73e351f"
+  }
+}

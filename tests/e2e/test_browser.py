@@ -1755,6 +1755,7 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
     monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
+    page.set_default_timeout(8000)
     errors: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-setup"
@@ -1895,6 +1896,76 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
             "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
                               for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                                "src/hutch/server/app.py", "src/hutch/store.py", "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace.zip"))
+        except Exception:
+            pass
+        context.close()
+
+
+def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_sizes(browser, live):
+    base, app = live
+    coordinator = Bot(name="workspace-coordinator", display_name="Workspace Coordinator",
+                     model="mock/demo", tools=[])
+    specialist = Bot(name="release-notes-reviewer", display_name="Release Notes Reviewer",
+                     model="mock/demo", tools=[])
+    app.state.store.create_bot(coordinator)
+    app.state.store.create_bot(specialist)
+    app.state.store.set_workspace_coordinator(coordinator.id)
+
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workspace-coordinator"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(8000)
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(f"{base}/#/chat")
+        page.get_by_role("heading", name="Workspace Coordinator").wait_for()
+        assert page.locator("#workspace-coordinator-pill").inner_text() == "Workspace coordinator"
+        rows = page.locator("#roster-list [data-switch-bot]")
+        assert rows.first.get_attribute("data-switch-bot") == coordinator.name
+        assert rows.first.locator(".roster-role").inner_text() == "Coordinator"
+
+        # A coordinator is an ordinary, directly addressable Bot conversation too.
+        conversation_id = page.locator("#conversation-switcher").input_value()
+        coordinator_chat = app.state.store.get_conversation(conversation_id)
+        assert coordinator_chat["bot_id"] == coordinator.id
+        page.get_by_role("link", name="Settings for Release Notes Reviewer").click()
+        page.get_by_role("button", name="Set as workspace coordinator").click()
+        page.get_by_role("heading", name="Set workspace coordinator?").wait_for()
+        page.locator("#modal-confirm").click()
+        page.get_by_role("heading", name="Release Notes Reviewer settings").wait_for()
+        assert app.state.store.workspace_coordinator_id() == specialist.id
+        page.get_by_role("link", name="Open Studio").click()
+        page.get_by_role("heading", name="Release Notes Reviewer").wait_for()
+        assert page.locator("#workspace-coordinator-pill").inner_text() == "Workspace coordinator"
+        assert page.locator("#roster-list [data-switch-bot]").first.get_attribute("data-switch-bot") == specialist.name
+        page.get_by_role("button", name="Dismiss notification").click()
+
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.screenshot(path=str(out / f"direct-chat-{label}.png"), animations="disabled")
+            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight],
+              documentWidth:document.documentElement.scrollWidth,
+              bodyWidth:document.body.scrollWidth})""")
+            assert metrics["documentWidth"] - width <= 1 and metrics["bodyWidth"] - width <= 1, (label, metrics)
+            assert page.locator("#workspace-coordinator-pill").inner_text() == ("Coordinator" if width <= 640 else "Workspace coordinator")
+        assert not errors, errors
+        (out / "validation.json").write_text(json.dumps({
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_sizes",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"),
+            "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
+            "scenario": "the selected workspace coordinator opens as the default direct chat, is labelled in the roster and composer, and can be reassigned from Bot settings",
+            "page_errors": errors,
+            "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
+                              for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                               "src/hutch/server/app.py", "tests/e2e/test_browser.py")},
         }, indent=2) + "\n", encoding="utf-8")
     finally:
         try:
