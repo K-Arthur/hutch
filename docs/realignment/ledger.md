@@ -2365,6 +2365,7 @@ or `UI-18` because credential-field heuristics, live handoff and third-party cha
 ## Purpose-derived reminder, filing, and coordinator names (2026-10-09)
 
 Implementation commit: `a43c4fa`.
+Coordinator-name follow-up commit: `ff63a71`.
 
 The local naming rule now recognizes reminder/alert requests, file/archive/categorize requests, and coordinator requests that refer to
 Bots, agents or specialists. Reminder action and alert-condition phrasing is normalized into professional name nouns (for example,
