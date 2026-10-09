@@ -115,6 +115,7 @@ fast-forwarded only after implementation and verification for this checkpoint pa
 | `264f828` | Add experimental Outlook Calendar with local PKCE, Secret Service token storage, one-calendar-per-Bot grants, bounded read-only Graph access, truthful public availability copy, and inspected responsive app/site evidence; live Microsoft access remains unverified |
 | `63b29bc` | Add schema-v34 safe checkpoint continuation, review/confirmation UI, truthful public copy, regression coverage and inspected desktop/tablet/phone evidence; live model recovery remains unverified |
 | `5cdd65f` | Recheck same-page human browser challenges before actions and after waits/effects; add async Chromium regression and document retry/verification boundaries |
+| `28bf0ac` | Record the no-mock/product-availability audit and verify OpenCode Go is a provider API-key flow rather than OAuth session sharing |
 
 ## Dashboard polish continuation (2026-10-09)
 
