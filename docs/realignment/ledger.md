@@ -12,8 +12,8 @@ worktree. Application contracts and code are reconciled here with the merged UI.
 (`c0ebc21`) was integrated through merge `6fab391`; its direct file route was adapted to Hutch's recorded size/hash verifier
 instead of retaining an unchecked path-only `FileResponse`. No push or publication is authorized.
 
-The main checkout may contain unrelated local tooling artifacts; preserve them during final integration. The final integration step
-is a local `main` fast-forward only after all implementation and verification gates pass.
+The main checkout may contain unrelated local tooling artifacts; preserve them during final integration. Local `main` is
+fast-forwarded only after implementation and verification for this checkpoint pass; do not push or publish as part of this work.
 
 ## Current slices
 
@@ -1683,8 +1683,9 @@ phone (390×844) layouts. I inspected all three final captures under `artifacts/
 overflow or browser page error. API artifact integrity and patch tests passed **3 tests**; `node --check`, Python compilation,
 `git diff --check`, and the Impeccable detector (dashboard JS/CSS plus marketing HTML) passed, with the detector returning `[]`.
 
-Merge commit `6fab391` has both `realign/platform` and main `c0ebc21` as parents; the branch is ahead of the current main ref
-and is ready for a local fast-forward after this checkpoint is committed. The end-to-end local suite does not close the live
+Merge commit `6fab391` has both `realign/platform` and main `c0ebc21` as parents. After the offline and browser suites passed,
+local `main` was fast-forwarded to verified checkpoint `b5227a9`; this documentation follow-up records that integration. The
+end-to-end local suite does not close the live
 release gates in S5–S9: process adapters for OpenCode/Pi remain disabled, model/provider and SIWC eligibility were not verified
 live, general delegation and transferred artifacts remain unavailable, and remote PTY/physical desktop control, trusted tunnel,
 screen reader and physical-device checks remain unavailable or unverified. Current support boundaries remain as stated in the
