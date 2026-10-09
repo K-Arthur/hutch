@@ -1031,8 +1031,10 @@ def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewport
         grant_button = page.get_by_role("button", name="Grant read access")
         assert grant_button.is_enabled()
         grant_button.click()
-        card.locator("details > summary").click()
-        page.get_by_text("Can read Work Calendar", exact=False).wait_for()
+        calendar_details = card.locator("details")
+        if not calendar_details.evaluate("element => element.open"):
+            calendar_details.locator("summary").click()
+        card.get_by_text("Can read Work Calendar", exact=False).wait_for(state="visible")
         assert page.get_by_text("Calendars.ReadBasic account consent", exact=False).is_visible()
         while page.locator(".toast").count():
             page.locator(".toast-close").first.click()

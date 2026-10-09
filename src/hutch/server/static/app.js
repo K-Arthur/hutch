@@ -4298,6 +4298,8 @@ async function renderConnections() {
   const outlookMail = data.outlook_mail || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const windows = { "5h": "per 5 hours", "day": "per day", "week": "per week", "month": "per month" };
   const devicesOpen = $(".device-manager")?.open || false;
+  const outlookCalendarAccessOpen = $("#outlook-calendar-access")?.open || false;
+  const outlookMailAccessOpen = $("#outlook-mail-access")?.open || false;
   const googleCalendarAccountsHtml = (googleCalendar.accounts || []).map(account => {
     const grants = (googleCalendar.grants || []).filter(grant => grant.account_id === account.id);
     const grantRows = grants.length ? grants.map(grant => `
@@ -4433,7 +4435,7 @@ async function renderConnections() {
           <span class="tag">experimental</span><span class="tag">read only</span></div>
         <p class="hint">Connect a Microsoft account through its official local sign-in flow. Hutch uses delegated <code>Calendars.ReadBasic</code>; it cannot read event bodies, attachments or extensions. Grant one selected calendar to one Bot. Matching titles, times and locations go to that Bot's selected model and remain in its run history.</p>
         <p class="hint"><strong>Permission boundary:</strong> Microsoft consent applies to the signed-in account. Hutch enforces each Bot's selected-calendar grant locally, and calendar text stays untrusted. Disconnect clears Hutch's refresh credential and Bot grants; Microsoft consent must be revoked separately in your account or organisation settings.</p>
-        <details class="outlook-calendar-details">
+        <details class="outlook-calendar-details" id="outlook-calendar-access">
           <summary>Manage Outlook Calendar access</summary>
           ${!outlookCalendar.configured ? '<p class="hint" role="status">Unavailable until the Hutch operator configures <code>HUTCH_OUTLOOK_OAUTH_CLIENT_ID</code> for a Microsoft public-client application registration.</p>' : ''}
           ${outlookCalendar.configured && !outlookCalendar.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting an account. Hutch never stores refresh tokens in SQLite or browser storage.</p>' : ''}
@@ -4455,7 +4457,7 @@ async function renderConnections() {
         <p class="hint"><strong>Permission boundary:</strong> Microsoft's delegated <code>Mail.Read</code> consent applies to the signed-in account; Hutch enables the search tool only for the Bot you grant. Matching previews are sent to that Bot's selected model and kept in its run history. Hutch cannot send, edit, delete or forward email, and cannot read attachments. Local disconnect clears Hutch's credential and grants; provider consent must be revoked separately.</p>
         ${!outlookMail.configured ? '<p class="hint" role="status">Unavailable until the Hutch operator configures <code>HUTCH_OUTLOOK_OAUTH_CLIENT_ID</code> for a Microsoft public-client application registration.</p>' : ''}
         ${outlookMail.configured && !outlookMail.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting an account. Hutch never stores refresh tokens in SQLite or browser storage.</p>' : ''}
-        <details class="outlook-calendar-details">
+        <details class="outlook-calendar-details" id="outlook-mail-access">
           <summary>Manage Outlook Mail access</summary>
           <div class="google-calendar-connect outlook-calendar-connect">
             <label class="field" for="outlook-mail-label">Account label
@@ -4516,6 +4518,8 @@ async function renderConnections() {
       ${data.errors?.length ? `<p class="hint" style="color:var(--warn);">${esc(data.errors.join(" "))}</p>` : ""}
   </div></div>`;
   $(".device-manager").open = devicesOpen;
+  $("#outlook-calendar-access").open = outlookCalendarAccessOpen;
+  $("#outlook-mail-access").open = outlookMailAccessOpen;
 
   const beginChatGPTSignIn = async (accountId = "", button = null) => {
     if (button) { button.disabled = true; button.textContent = "Opening ChatGPT…"; }
