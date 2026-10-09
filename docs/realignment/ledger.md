@@ -1774,3 +1774,19 @@ The implementation is not a managed tunnel and does not change the marketing sup
 in [operations](../operations.md#remote-pairing-experimental), [safety](../safety.md#remote-dashboard-access-is-experimental), the
 [API contract](contracts.md#6-remote-pairing-partial-experimental), and [ADR-0010](../adr/0010-api-transport-and-remote-supervision.md).
 S8 still has open PTY, physical desktop, remote-browser-control, replay-retention and live-network gates.
+
+## Dashboard motion and readable leading (2026-10-09)
+
+Commit `56402af` removes the running-state pulse from both the legacy dashboard's source/generated CSS and its workflow/status indicators.
+The server-rendered dashboard body leading is 1.6; the legacy console remains at 1.55. “Working”, “running”, “live” and
+“reconnecting” labels communicate state without an animated status dot. The source/generated-CSS check prevents a later Tailwind build
+from restoring the legacy pulse. `DESIGN.md`, its sidecar, the design-system guide, and detector exceptions now describe the rendered
+behavior; the obsolete pulse ignore and stale worktree-path leading ignore were removed.
+
+The focused Chromium/Playwright dashboard test passed at desktop **1440×960**, tablet **900×1024** and phone **390×844** in
+**4.40s**. Studio body metrics were 14px/21.7px (1.55); server-rendered body metrics were 14px/22.4px (1.6); headings measured
+1.3 and 1.4 respectively. Studio typing/workflow/running dots and the server-rendered live mark computed to no animation. All captures
+had zero page errors and horizontal overflow. I inspected Studio and Connections captures at each width. Evidence, hashes and trace are
+in [`artifacts/dashboard-polish/`](artifacts/dashboard-polish/). The Impeccable scan of the website, legacy app and server template
+returned no findings after evidence-based exceptions; JSON validation and `git diff --check` passed. This is a local visual check, not
+a screen-reader or physical-device audit.
