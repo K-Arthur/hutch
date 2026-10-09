@@ -236,13 +236,21 @@ def test_opt_in_chatgpt_signin_is_fixture_intercepted_and_responsive(browser, li
         page.goto(base + "/#/connections")
         button = page.get_by_role("button", name="Continue with ChatGPT")
         button.wait_for(state="visible")
+        page.get_by_role("heading", name="Connections").wait_for()
         assert button.is_enabled()
         assert page.get_by_text("Availability depends on OpenAI eligibility and your account", exact=False).is_visible()
-        for label, width, height in (("desktop", 1440, 960), ("phone", 390, 844)):
+        # Wait for the first app paint before taking the full-page desktop capture. The button can
+        # become visible one frame before the view is composited, which produced a blank proof image.
+        page.wait_for_function("document.fonts.status === 'loaded'")
+        page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+        page.wait_for_timeout(250)
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.screenshot(path=str(out / f"chatgpt-preview-enabled-{label}.png"),
                             full_page=True, animations="disabled")
             assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+            button_box = button.bounding_box()
+            assert button_box and 0 <= button_box["y"] < height and button_box["y"] + button_box["height"] <= height
 
         button.click()
         page.wait_for_url("https://auth.openai.com/api/accounts/authorize*")
@@ -263,7 +271,8 @@ def test_opt_in_chatgpt_signin_is_fixture_intercepted_and_responsive(browser, li
             "python": platform.python_version(), "hutch_version": package_version("hutch"),
             "browser": browser.version,
             "viewports": [{"name": label, "width": width, "height": height}
-                          for label, width, height in (("desktop", 1440, 960), ("phone", 390, 844))],
+                          for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
+                                                       ("phone", 390, 844))],
             "auth_destination": "https://auth.openai.com/api/accounts/authorize",
             "authorization_intercepted_locally": True,
             "provider_credentials_used": False, "external_auth_completed": False,

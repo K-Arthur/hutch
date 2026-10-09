@@ -1495,3 +1495,19 @@ a real model route. The source test harness still loads its fixture unchanged. R
 --out-dir /tmp/hutch-test-runtime-boundary` succeeded; a clean `/tmp` process importing only that
 wheel with `HUTCH_TESTING=1` printed the intended error and exited normally. No marketing change is
 needed because this is a packaged test-flag edge, not a public capability or product flow.
+
+## Provider sign-in capture integrity (2026-10-09)
+
+The enabled ChatGPT sign-in browser test could pass its DOM assertions while taking a blank desktop
+full-page screenshot before the first view paint had been composited. The test now waits for fonts
+and stable animation frames, checks the primary action stays inside each viewport, and captures
+desktop (1440×960), tablet (900×1024) and phone (390×844). The desktop and phone image initially
+proved the issue; the corrected desktop, tablet and phone captures were opened and inspected. The
+separate OpenCode Go Connections capture was also rechecked: it describes the vendor's actual
+provider-issued API-key sign-in flow, not shared OpenCode CLI credentials.
+
+The focused contract and browser group passed **66 tests in 15.73s** with unhandled thread warnings
+and `SyntaxWarning`s treated as errors. Chromium **153.0.8010.12** / Playwright **1.63.0** used
+local fixtures; the OpenAI authorization hostname was intercepted in the browser, with no real
+account sign-in, provider credentials or model calls. Artifacts are under
+`artifacts/provider-signin/`.
