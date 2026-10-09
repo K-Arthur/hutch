@@ -218,6 +218,7 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
         text = card.inner_text().lower()
         assert "latest chat request" in text
         assert "edit before saving" in text
+        assert "editable default suggestion" in text
         assert "does not start a run" in text
         for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})

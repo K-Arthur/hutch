@@ -3878,10 +3878,12 @@ async function promptNewBot(preselect = "") {
         const latestRequest = [...(page.messages || [])].reverse().find(message => message.role === "user" && message.content?.trim());
         if (latestRequest && currentConversationId === conversationId) {
           const conversation = currentConversations.find(item => item.id === conversationId);
+          const sourceBot = botsCache.find(item => item.name === currentStudioBot);
           conversationSource = {
             conversation_id: conversationId, message_id: latestRequest.id,
             sequence: latestRequest.seq, created_at: latestRequest.created_at,
             original_request: latestRequest.content, source_bot_name: currentStudioBot,
+            model_suggestion: sourceBot?.model && !sourceBot.model.startsWith("mock/") ? sourceBot.model : "",
             conversation_title: conversation?.title || "Untitled conversation",
           };
         }
@@ -3900,7 +3902,7 @@ async function promptNewBot(preselect = "") {
   const chosenTemplate = templates.find(item => item.name === preselect) || null;
   const draft = {
     step: 0, purpose: conversationSource?.original_request || "", useConversationSource: !!conversationSource,
-    template: chosenTemplate?.name || "", name: "", description: "", model: "",
+    template: chosenTemplate?.name || "", name: "", description: "", model: conversationSource?.model_suggestion || "",
     inference_mode: "hybrid", workspace_mode: "managed", tools: templateTools(chosenTemplate),
     local_browser_handoff: false,
     cron: "", schedule_prompt: "",
@@ -3994,14 +3996,14 @@ async function promptNewBot(preselect = "") {
       const readyRoutes = routeOptions.filter(route => route.state === "ready" && !route.spec.startsWith("mock/"));
       const options = readyRoutes.map(route => `<option value="${esc(route.spec)}" label="${esc(`${route.group}: ${route.note || route.label}`)}"></option>`).join("");
       content = `<div class="setup-conversation form-grid">
-        <p class="setup-assistant">Choose a model route already configured in Hutch. Hosted routes send the conversation to that provider; local routes keep inference on this machine.</p>
+        <p class="setup-assistant">Choose a model route already configured in Hutch. This becomes the Bot’s saved default; saving the Bot does not start a run. Hosted routes send the conversation to that provider; local routes keep inference on this machine.</p>
         <label class="field" for="setup-model">Model route<input id="setup-model" list="setup-model-routes" maxlength="240" autocomplete="off" placeholder="Choose or enter provider/model" value="${esc(draft.model)}" required>
           <datalist id="setup-model-routes">${options}</datalist>
-          <span class="hint">${readyRoutes.length ? `${readyRoutes.length} currently available route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} <a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.</span></label>
+          <span class="hint">${conversationSource?.model_suggestion ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route: ${esc(conversationSource.model_suggestion)}. Review it or change it here.` : "Choose a route for the new Bot; no model is inherited from the chat."} ${readyRoutes.length ? `${readyRoutes.length} currently available route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} <a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.</span></label>
         <label class="field" for="setup-inference_mode">Inference mode<select id="setup-inference_mode">
-          <option value="hybrid" ${draft.inference_mode === "hybrid" ? "selected" : ""}>Hybrid — allow local and configured hosted routes</option>
-          <option value="local" ${draft.inference_mode === "local" ? "selected" : ""}>Local — use local inference routes</option>
-          <option value="offline" ${draft.inference_mode === "offline" ? "selected" : ""}>Strict offline — block network egress</option>
+          <option value="hybrid" ${draft.inference_mode === "hybrid" ? "selected" : ""}>Hybrid — local or hosted</option>
+          <option value="local" ${draft.inference_mode === "local" ? "selected" : ""}>Local — this machine</option>
+          <option value="offline" ${draft.inference_mode === "offline" ? "selected" : ""}>Strict offline</option>
         </select><span class="hint">Strict offline requires a verified local route.</span></label>
         <label class="field" for="setup-workspace_mode">Workspace<select id="setup-workspace_mode">
           <option value="fresh" ${draft.workspace_mode === "fresh" ? "selected" : ""}>Fresh — a clean workspace for each run</option>

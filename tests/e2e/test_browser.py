@@ -1788,7 +1788,7 @@ def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance
     base, app = live
     monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
     store = app.state.store
-    source_bot = store.create_bot(Bot(name="chat-context-source", model="mock/demo", tools=[]))
+    source_bot = store.create_bot(Bot(name="chat-context-source", model="openai/gpt-4o-mini", tools=[]))
     conversation, _ = store.create_conversation(source_bot.id, "Launch planning",
         idem_key="chat-context-conversation", request_hash="chat-context-conversation")
     source_request = "Track the launch checklist and notify me when a blocker needs my attention."
@@ -1844,7 +1844,22 @@ def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance
         page.locator("#modal-confirm").click()
         page.get_by_label("Bot name").fill("launch-checklist")
         page.locator("#modal-confirm").click()
-        page.get_by_label("Model route").fill("openai/gpt-4o-mini")
+        model_route = page.get_by_label("Model route")
+        assert model_route.input_value() == "openai/gpt-4o-mini"
+        assert "Suggested from chat-context-source’s current route" in page.locator(".setup-conversation").inner_text()
+        inference_options = page.locator("#setup-inference_mode option").all_text_contents()
+        assert inference_options == ["Hybrid — local or hosted", "Local — this machine", "Strict offline"]
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            metrics = page.evaluate("""() => ({
+              viewport:[innerWidth, innerHeight], documentWidth:document.documentElement.scrollWidth,
+              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
+              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight
+            })""")
+            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
+            assert metrics["footerVisible"], (label, metrics)
+            page.screenshot(path=str(out / f"chat-source-model-{label}.png"), animations="disabled")
+        page.set_viewport_size({"width": 390, "height": 844})
         page.locator("#modal-confirm").click()
         page.locator("#modal-confirm").click()
         page.get_by_role("heading", name="Review setup").wait_for()
@@ -1885,7 +1900,7 @@ def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance
             "playwright_version": package_version("playwright"),
             "scenario": "latest user message explicitly seeds an editable Bot draft; older private turn is excluded; request provenance persists; creation starts no run; test-only connection key and no model call",
             "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
-            "screenshots": [f"chat-source-{state}-{size}.png" for state in ("purpose", "review")
+            "screenshots": [f"chat-source-{state}-{size}.png" for state in ("purpose", "model", "review")
                             for size in ("desktop", "tablet", "phone")],
             "page_errors": errors,
             "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()

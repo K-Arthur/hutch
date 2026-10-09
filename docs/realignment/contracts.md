@@ -93,7 +93,9 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   is copied. The versioned create body may include both `source_conversation_id` and `source_message_id` or neither. The server
   accepts only a user message in that exact conversation, stores its original content and provenance in the Bot's local creation
   record, and includes the source identifiers in the idempotency digest. Bot list/detail responses expose the source ids, source
-  Bot, sequence and timestamp but omit the duplicated message body. The current wizard does not yet infer configuration or ask
+  Bot, sequence and timestamp but omit the duplicated message body. When that source Bot has a non-mock model route, the wizard
+  pre-fills it as an explicitly labelled, editable suggestion; the confirmed route becomes the new Bot's saved default. It does not
+  silently fall back or start a run. The current wizard does not yet infer other configuration or ask
   only for unresolved details; name, starter, model/mode, workspace, tools, limits and schedule remain user-reviewed choices.
 * `POST /api/v1/tasks/runs` takes `{bot, prompt, rehearse?, model?}` and requires `Idempotency-Key`. The run, task and replay
   response are stored in one SQLite transaction. A new request returns 201; an exact retry returns the same run with `replayed: true`

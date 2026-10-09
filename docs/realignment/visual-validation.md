@@ -14,6 +14,12 @@ was used. The anonymous marketing workflow screenshot was also inspected at thes
 infer a full setup or ask only unresolved questions. The Impeccable detector reported no findings in the edited Studio JavaScript,
 stylesheet or marketing HTML.
 
+The model step was additionally captured at all three sizes after using a fixture Bot with route `openai/gpt-4o-mini`. Its input is
+pre-filled and identified as that Bot's current route, with text explaining that it will become the new Bot's saved default and can
+be changed before saving. I inspected the desktop, tablet and phone captures; each kept the model field, helper copy and footer in
+view without horizontal overflow. This did not call the model. The anonymous website card now describes the same optional suggestion;
+its browser test asserts the wording and recaptures the responsive card.
+
 ## Message-anchored replies (2026-10-09)
 
 Chromium **153.0.8010.12** with Playwright **1.63.0** exercised selecting a specific Bot response by keyboard, checking focus moves
