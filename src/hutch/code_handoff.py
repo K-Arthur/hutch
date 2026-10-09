@@ -218,6 +218,11 @@ def opencode_task_command(executable: str, task_id: str, prompt: str) -> list[st
     return [executable, "mini", "--standalone", "--agent", agent_id, "--prompt", prompt]
 
 
+def was_terminal_interrupt(exit_code: int) -> bool:
+    """Recognize the common shell and raw signal statuses for terminal Ctrl+C."""
+    return exit_code in (128 + signal.SIGINT, -signal.SIGINT)
+
+
 def task_agent_config(task_id: str) -> dict[str, Any]:
     """Create a per-task OpenCode agent policy: read/edit in this worktree, ask for shell."""
     agent_id = "hutch-code-" + re.sub(r"[^a-z0-9-]", "", task_id.lower())[-12:]

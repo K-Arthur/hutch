@@ -31,6 +31,12 @@ def test_opencode_profile_is_restrictive_bounded_and_never_auto_approves():
     assert "--prompt" in command and command[-1] == "review this task"
 
 
+def test_terminal_interrupt_exit_is_classified_as_stopped():
+    assert code_handoff.was_terminal_interrupt(-2)
+    assert code_handoff.was_terminal_interrupt(130)
+    assert not code_handoff.was_terminal_interrupt(1)
+
+
 def test_opencode_environment_removes_inherited_credentials_and_config_overrides(tmp_path, monkeypatch):
     monkeypatch.setenv("PATH", "/usr/bin")
     monkeypatch.setenv("HOME", str(tmp_path))

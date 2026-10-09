@@ -89,7 +89,7 @@ def code_run(handoff_id: str = typer.Argument(..., help="Reviewed code task ID f
         err.print("Run this command in an interactive terminal on the Linux Hutch host.", style="red", markup=False)
         raise typer.Exit(2)
     from . import procguard
-    from .code_handoff import (CodeHandoffError, create_task_worktree, inspect_opencode,
+    from .code_handoff import (CodeHandoffError, create_task_worktree, inspect_opencode, was_terminal_interrupt,
                                safe_opencode_environment, opencode_task_command, task_prompt,
                                worktree_change_summary, write_task_config, assert_no_project_plugins,
                                spawn_interactive, restore_terminal)
@@ -186,7 +186,7 @@ def code_run(handoff_id: str = typer.Argument(..., help="Reviewed code task ID f
         if terminal_group is not None:
             restore_terminal(terminal_group)
             terminal_group = None
-        interrupted = interrupted or exit_code in (130, -2)
+        interrupted = interrupted or was_terminal_interrupt(exit_code)
         if unresolved:
             status = "cleanup_incomplete"
             changed_count = 0
