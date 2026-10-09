@@ -92,6 +92,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `b21ec5d` | Force internal lineage runs into a private per-run workspace and fail closed on symlinks |
 | `ec73e1e` | Persist credential-free root execution capabilities atomically and inherit the immutable snapshot for bounded lineage; schema-v24 focused regressions pass |
 | `8063243` | Fail directly invoked delegated workers from the authoritative persisted lineage before runtime or tool setup; focused lifecycle/workspace suite 90 passed |
+| `35c045c` | Reject delegated worker processes before recording their process group; 84 worker/delegation/lifecycle tests passed |
 
 ## Dashboard polish continuation (2026-10-09)
 
@@ -1594,10 +1595,13 @@ tests/test_local_admission_runtime.py tests/test_admission.py tests/test_slots.p
 34.11s**. It confirms a child ignores a missing bot-selected host folder, gets a mode-0700 run-scoped path, refuses a planted
 workspace symlink, and remains out of ordinary dispatch.
 
-The direct-worker regression supplies a stale Run projection with the immutable parent link removed and confirms the worker reloads
-the authoritative row, fails the child as `delegation_unavailable`, and never resolves a runtime. The focused suite now passes **90
-tests in 34.88s**. The prior complete suite, before the one-line dispatch guard and workspace selection change, passed 1,423 tests;
-rerun the complete suite after all remaining realignment work.
+The direct-worker regression supplies a stale Run projection with the immutable parent link removed and confirms the engine reloads
+the authoritative row, fails the child as `delegation_unavailable`, and never resolves a runtime. The process worker also rejects a
+validly fenced child before recording a process group. `.venv/bin/python -m pytest -q
+-W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning tests/test_delegation.py tests/test_worker.py
+tests/test_engine.py tests/test_engine_loop.py tests/test_claims.py tests/test_cancel.py` passed **84 tests in 51.83s**. The prior
+complete suite, before the one-line dispatch guard and workspace selection change, passed 1,423 tests; rerun the complete suite after
+all remaining realignment work.
 
 ## S6 immutable capability snapshot (schema v24, 2026-10-09)
 
