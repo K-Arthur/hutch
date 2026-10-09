@@ -183,6 +183,8 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
         assert "built-in chat can ask you to choose among options" in workflow.inner_text().lower()
         assert "your answer continues the conversation and never approves an action" in workflow.inner_text().lower()
         assert "experimental coordinator handoff" in workflow.inner_text().lower()
+        assert "content-free timeline of committed status and decision markers" in workflow.inner_text().lower()
+        assert "cannot continue a run after restart yet" in workflow.inner_text().lower()
         assert "the coordinator receives a specialist response only when you choose that exact reply" in workflow.inner_text().lower()
         assert "it remains marked as untrusted text" in workflow.inner_text().lower()
         assert "suggests a professional bot name" in workflow.inner_text().lower()

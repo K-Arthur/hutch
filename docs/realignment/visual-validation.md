@@ -590,3 +590,21 @@ specialist direct chat and the role badge at **1440×960**, **900×1024** and **
 phone uses a compact label, the chat and composer remain visible, and there is no horizontal page overflow or browser error.
 Evidence, trace and source hashes are in [`artifacts/workspace-coordinator/`](artifacts/workspace-coordinator/). Fixtures use
 mock route records and make no provider calls; no physical phone or screen-reader validation was performed.
+
+## Content-free coordinator checkpoint timeline (2026-10-09)
+
+The reviewed specialist task card now exposes its committed progress markers in a collapsible timeline. The list is ordered by
+the child event cursor, returns at most the latest 16 markers while showing the total, and uses text labels for state. It also
+states that the journal does not continue a task after restart. The timeline contains no event payload, prompt, hidden reasoning,
+action arguments, tool output or secrets. This remains audit visibility; task execution recovery is not implemented.
+
+`tests/e2e/test_browser.py::test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports` passed **1 test in 18.16s**
+on Chromium **153.0.8010.12** / Playwright **1.63.0** after verifying the final phone checkpoint clears the sticky composer.
+The preceding combined app/site rerun passed both the browser flow and anonymous workflow check (**2 passed in 20.08s**).
+I inspected the expanded task card at desktop (1440×960), tablet (900×1024), and phone (390×844); the state and event sequence
+remain legible, the final phone marker sits above the composer, card contents wrap, and all viewports report zero horizontal overflow.
+The anonymous workflow section at desktop (1440×900) and phone (390×844) accurately says the timeline cannot continue a run
+after restart. Its Playwright check verified all three site sizes, zero external requests, no page errors, and zero overflow.
+Screenshots, traces, viewport/source metadata, and validation output are in
+[`artifacts/workspace-task-dispatch/`](artifacts/workspace-task-dispatch/). Tests use only a local mock model and SQLite; no live
+provider, external browser session, physical phone or screen reader was used.

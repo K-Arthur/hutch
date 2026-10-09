@@ -2411,6 +2411,40 @@ function workspaceTaskCardHtml(task) {
   const coordinator = botsCache.find(bot => bot.name === currentStudioBot && bot.is_workspace_coordinator);
   const capability = [task.model, task.inference_mode, task.tools?.length ? task.tools.join(", ") : "no tools",
     `${task.risk_tier || "unknown"} action policy`, `${task.workspace_mode || "configured"} workspace`].filter(Boolean).join(" · ");
+  const checkpointLabels = {
+    task_submitted: "Reviewed task accepted", status_changed: "Run status changed",
+    assistant_message: "Specialist response committed", approval_requested: "Approval requested",
+    approval_resolved: "Approval resolved", human_needed: "Human input needed",
+    human_resumed: "Human input resumed", choice_requested: "Choice requested",
+    choice_answered: "Choice recorded", artifact_created: "Artifact saved",
+  };
+  const checkpoints = task.checkpoints || [];
+  const checkpointSummary = task.checkpoint_count > checkpoints.length
+    ? `Showing the ${checkpoints.length} most recent of ${task.checkpoint_count} committed checkpoints.`
+    : `${task.checkpoint_count || checkpoints.length} committed checkpoints.`;
+  const checkpointHtml = checkpoints.length ? `<details class="workspace-task-checkpoints">
+      <summary>Progress checkpoints (${Number(task.checkpoint_count || checkpoints.length).toLocaleString()})</summary>
+      <p class="hint">${esc(checkpointSummary)} These record committed events only; they do not store reasoning or action text. Restart continuation is not available yet.</p>
+      <ol>${checkpoints.map(checkpoint => {
+        const date = new Date(checkpoint.created_at);
+        const when = Number.isNaN(date.valueOf()) ? "Time unavailable" : date.toLocaleString();
+        const state = checkpoint.recovery_state === "reconcile" ? "Needs review" :
+          checkpoint.recovery_state === "awaiting_owner" ? "Waiting for you" :
+          checkpoint.recovery_state === "complete" ? "Complete" :
+          checkpoint.recovery_state === "active" ? "In progress" :
+          checkpoint.recovery_state === "queued" ? "Queued" :
+          checkpoint.recovery_state === "interrupted" ? "Interrupted" :
+          checkpoint.recovery_state === "stopped" ? "Stopped" :
+          checkpoint.recovery_state === "waiting_for_resources" ? "Waiting for resources" :
+          checkpoint.recovery_state === "recovering" ? "Recovering" :
+          checkpoint.recovery_state === "stopping" ? "Stopping" :
+          checkpoint.recovery_state === "skipped" ? "Skipped" : "Status unavailable";
+        return `<li><span class="workspace-task-checkpoint-title">${esc(checkpointLabels[checkpoint.kind] || "Task event")}</span>
+          <span class="workspace-task-checkpoint-state">${esc(state)}</span>
+          <time datetime="${esc(checkpoint.created_at)}">${esc(when)}</time>
+          <span class="workspace-task-checkpoint-seq">Event ${Number(checkpoint.event_seq) || 0}</span></li>`;
+      }).join("")}</ol>
+    </details>` : "";
   return `<section class="workspace-task-card" data-workspace-task="${esc(task.id)}" aria-label="Task for ${esc(task.target_display_name)}">
     <div class="workspace-task-heading"><strong>Assigned to ${esc(task.target_display_name)}</strong>${statusChip(task.status, statusLabel)}</div>
     <p class="workspace-task-brief">${esc(task.task_brief)}</p>
@@ -2418,6 +2452,7 @@ function workspaceTaskCardHtml(task) {
     <p class="hint">Specialist settings: ${esc(capability)}</p>
     ${task.result ? `<div class="workspace-task-result"><b>Latest specialist response</b><p>${esc(task.result)}${task.result_truncated ? "… [preview truncated]" : ""}</p></div>` : ""}
     ${task.reason && task.status !== "succeeded" ? `<p class="run-notice" role="status">${esc(task.reason)}</p>` : ""}
+    ${checkpointHtml}
     <details><summary>Request and coordinator draft</summary>
       <p><b>Your original request</b><br>${esc(task.original_request)}${task.original_request_truncated ? "… [open the message above for the full request]" : ""}</p>
       <p><b>Coordinator’s suggested brief</b><br>${esc(task.proposed_brief)}${task.proposed_brief_truncated ? "… [open the message above for the full answer]" : ""}</p>

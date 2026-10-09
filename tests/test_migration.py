@@ -7,6 +7,7 @@ run that was 'running' when its process died (a legacy orphan).
 
 from __future__ import annotations
 
+import json
 import shutil
 import sqlite3
 from pathlib import Path
@@ -17,7 +18,8 @@ from hutch.config import get_config, hutchConfig
 from hutch.engine import Engine
 from hutch.lifecycle import IllegalTransition
 from hutch.models import RunStatus
-from hutch.store import SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28, _migrate_29, _migrate_30
+from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28,
+                         _migrate_29, _migrate_30, _migrate_31)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
@@ -25,7 +27,7 @@ FINISHED_1, FINISHED_2, ORPHAN, QUEUED = "run_582f4cc75ea4", "run_fa7f70664c38",
 
 
 def test_reply_reference_migration_preserves_old_rows_and_guards_scope():
-    assert SCHEMA_VERSION == 30
+    assert SCHEMA_VERSION == 31
     db = sqlite3.connect(":memory:")
     try:
         db.execute("CREATE TABLE bots (id TEXT PRIMARY KEY)")
@@ -107,6 +109,7 @@ def test_v27_workspace_coordinator_migration_tracks_selection_and_bot_deletion()
                 ts TEXT NOT NULL, context TEXT NOT NULL);
             CREATE TABLE resource_outbox_meta (
                 singleton INTEGER PRIMARY KEY CHECK(singleton = 1), epoch TEXT NOT NULL, tail_id INTEGER NOT NULL);
+            CREATE TABLE conversations (id TEXT PRIMARY KEY);
             INSERT INTO resource_outbox_meta VALUES (1, 'epoch', 0);
             INSERT INTO bots VALUES ('coordinator-bot');
         """)
@@ -125,6 +128,9 @@ def test_v27_workspace_coordinator_migration_tracks_selection_and_bot_deletion()
                 id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, role TEXT NOT NULL,
                 run_id TEXT NOT NULL, content TEXT NOT NULL);
             CREATE TABLE runs (id TEXT PRIMARY KEY, status TEXT NOT NULL);
+            CREATE TABLE events (
+                id INTEGER PRIMARY KEY, run_id TEXT NOT NULL, seq INTEGER NOT NULL,
+                type TEXT NOT NULL, data TEXT NOT NULL, ts TEXT NOT NULL);
         """)
         _migrate_30(db)
         columns = {row[1] for row in db.execute("PRAGMA table_info(messages)")}
@@ -133,6 +139,56 @@ def test_v27_workspace_coordinator_migration_tracks_selection_and_bot_deletion()
                 "workspace_task_result_truncated"} <= columns
         assert db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' "
                           "AND name='messages_workspace_task_result_insert'").fetchone()
+        db.executemany("INSERT INTO conversations VALUES (?)", [("parent-chat",), ("child-chat",)])
+        db.executemany("INSERT INTO runs VALUES (?, ?)", [("parent-run", "succeeded"), ("child-run", "succeeded")])
+        db.executemany("INSERT INTO messages(id, conversation_id, role, run_id, content) VALUES (?, ?, ?, ?, ?)", [
+            ("source-user", "parent-chat", "user", "parent-run", "Research this."),
+            ("source-answer", "parent-chat", "assistant", "parent-run", "Use a specialist."),
+            ("child-user", "child-chat", "user", "child-run", "Reviewed specialist request."),
+            ("child-answer", "child-chat", "assistant", "child-run", "Result."),
+        ])
+        db.execute("""INSERT INTO workspace_tasks(
+            id, parent_conversation_id, source_run_id, source_user_message_id, source_assistant_message_id,
+            target_bot_id, target_display_name, original_request, proposed_brief, task_brief, assumptions,
+            child_conversation_id, child_run_id, created_at)
+            VALUES ('task-a', 'parent-chat', 'parent-run', 'source-user', 'source-answer', 'bot-b',
+                    'Specialist', 'Research this.', 'Use a specialist.', 'Reviewed specialist request.', '',
+                    'child-chat', 'child-run', '2026-10-09T00:00:00Z')""")
+        db.executemany("INSERT INTO events VALUES (?, 'child-run', ?, ?, ?, ?)", [
+            (1, 1, "message", json.dumps({"role": "user", "content": "do not copy this prompt"}), "2026-10-09T00:00:01Z"),
+            (2, 2, "status", json.dumps({"status": "running"}), "2026-10-09T00:00:02Z"),
+            (3, 3, "approval_request", json.dumps({"approval_id": "approval-a", "arguments": {"secret": "x"}}),
+             "2026-10-09T00:00:03Z"),
+            (4, 4, "status", json.dumps({"status": "succeeded"}), "2026-10-09T00:00:04Z"),
+        ])
+        _migrate_31(db)
+        checkpoint_columns = {row[1] for row in db.execute("PRAGMA table_info(workspace_task_checkpoints)")}
+        assert {"workspace_task_id", "child_run_id", "event_id", "event_seq", "event_type",
+                "run_status", "kind", "recovery_state", "reference_id", "created_at"} <= checkpoint_columns
+        assert all(row[2] != "events" for row in db.execute("PRAGMA foreign_key_list(workspace_task_checkpoints)")), \
+            "checkpoint markers remain readable if the source event stream is compacted"
+        assert db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' "
+                          "AND name='workspace_task_checkpoint_event_insert'").fetchone()
+        assert db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' "
+                          "AND name='workspace_task_checkpoint_no_update'").fetchone()
+        assert db.execute("SELECT checkpoint_count FROM workspace_tasks WHERE id='task-a'").fetchone()[0] == 4
+        checkpoints = db.execute(
+            "SELECT kind, run_status, recovery_state, reference_id FROM workspace_task_checkpoints "
+            "WHERE workspace_task_id='task-a' ORDER BY event_seq").fetchall()
+        assert [tuple(row) for row in checkpoints] == [
+            ("task_submitted", "pending", "queued", ""),
+            ("status_changed", "running", "active", ""),
+            ("approval_requested", "running", "active", "approval-a"),
+            ("status_changed", "succeeded", "complete", ""),
+        ]
+        assert "do not copy this prompt" not in json.dumps([tuple(row) for row in checkpoints])
+        assert "secret" not in json.dumps([tuple(row) for row in checkpoints])
+        with pytest.raises(sqlite3.IntegrityError, match="checkpoints are immutable"):
+            db.execute("UPDATE workspace_task_checkpoints SET recovery_state='reconcile' WHERE event_seq=1")
+        with pytest.raises(sqlite3.IntegrityError, match="removed only with their task"):
+            db.execute("DELETE FROM workspace_task_checkpoints WHERE event_seq=1")
+        db.execute("DELETE FROM workspace_tasks WHERE id='task-a'")
+        assert db.execute("SELECT COUNT(*) FROM workspace_task_checkpoints").fetchone()[0] == 0
     finally:
         db.close()
 

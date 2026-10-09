@@ -213,6 +213,17 @@ class WorkspaceTaskCreate(BaseModel):
     assumptions: str = Field(default="", max_length=4_000)
 
 
+class WorkspaceTaskCheckpointResource(BaseModel):
+    event_id: int
+    event_seq: int
+    event_type: str
+    run_status: str
+    kind: str
+    recovery_state: str
+    reference_id: str = ""
+    created_at: str
+
+
 class WorkspaceTaskResource(BaseModel):
     id: str
     parent_conversation_id: str
@@ -240,6 +251,8 @@ class WorkspaceTaskResource(BaseModel):
     risk_tier: str
     workspace_mode: str
     created_at: str
+    checkpoint_count: int = 0
+    checkpoints: list[WorkspaceTaskCheckpointResource] = Field(default_factory=list)
 
 
 class RunRequest(BaseModel):

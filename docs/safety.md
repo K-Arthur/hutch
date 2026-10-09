@@ -239,9 +239,16 @@ The coordinator receives that snapshot as untrusted input; hostile markup cannot
 transfers no files, memory, credentials or permissions and does not happen automatically. The child has an empty inherited
 conversation context and uses its own saved route. A missing or changed route, instructions, permissions or workspace causes a
 visible pre-execution failure; the task is not silently re-run under new authority. Exact retries return the same task, while the same
-idempotency key with changed content conflicts. This initial handoff does not implement an owner-approved specialist allowlist,
-automatic sequential planning, restart-safe progress checkpoints, parent-plan cancellation, or generalized task clarification.
-Provider execution has not been validated live.
+idempotency key with changed content conflicts. Schema v31 records a bounded task timeline derived atomically from committed
+child-run events. It contains event sequence/type, run status, marker kind, recovery label, opaque decision/artifact reference,
+and timestamp; it does not duplicate prompts, event text, hidden reasoning, action arguments, tool output, credentials, or paths.
+Schema upgrade backfills older specialist tasks from their committed events, and checkpoint rows reject in-place edits. Removing
+the owning task removes its timeline with it. The API exposes only the latest 16 markers per task plus a materialized total.
+This is audit visibility, not a continuation mechanism: no
+resume action exists after a process or application restart. The child run and its captured capability snapshot remain the
+authority for execution history. If an external effect has an uncertain receipt, the status remains `outcome_unknown` and
+requires reconciliation rather than replay. The handoff still lacks an owner-approved specialist allowlist, automatic
+sequential planning, parent-plan cancellation, or generalized task clarification. Provider execution has not been validated live.
 
 ## Approval flow
 

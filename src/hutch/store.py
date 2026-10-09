@@ -693,11 +693,171 @@ def _migrate_30(db: sqlite3.Connection) -> None:
         BEGIN SELECT RAISE(ABORT, 'specialist result reference must belong to this coordinator conversation'); END""")
 
 
+def _migrate_31(db: sqlite3.Connection) -> None:
+    """Record content-free, event-bound progress checkpoints for reviewed cross-Bot tasks."""
+    db.execute("ALTER TABLE workspace_tasks ADD COLUMN checkpoint_count INTEGER NOT NULL DEFAULT 0 CHECK(checkpoint_count >= 0)")
+    db.execute("""CREATE TABLE workspace_task_checkpoints (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        workspace_task_id TEXT NOT NULL REFERENCES workspace_tasks(id) ON DELETE CASCADE,
+        child_run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+        event_id INTEGER NOT NULL,
+        event_seq INTEGER NOT NULL CHECK(event_seq > 0),
+        event_type TEXT NOT NULL,
+        run_status TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        recovery_state TEXT NOT NULL,
+        reference_id TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        UNIQUE(workspace_task_id, event_id),
+        UNIQUE(child_run_id, event_seq)
+    )""")
+    db.execute("CREATE INDEX idx_workspace_task_checkpoints_task "
+               "ON workspace_task_checkpoints(workspace_task_id, event_seq, id)")
+    # Existing tasks predate this projection. Backfill from the durable transcript without
+    # copying its content, using the nearest committed status marker for each event.
+    db.execute("""WITH candidates AS (
+        SELECT wt.id AS workspace_task_id, e.run_id AS child_run_id, e.id AS event_id,
+               e.seq AS event_seq, e.type AS event_type, e.ts AS created_at, e.data AS data,
+               COALESCE((SELECT json_extract(previous.data, '$.status') FROM events previous
+                         WHERE previous.run_id = e.run_id AND previous.type = 'status'
+                           AND previous.seq <= e.seq ORDER BY previous.seq DESC LIMIT 1), 'pending') AS run_status
+        FROM events e JOIN workspace_tasks wt ON wt.child_run_id = e.run_id
+        WHERE e.type IN ('status', 'approval_request', 'approval_resolved', 'human_needed', 'human_resumed',
+                         'choice_requested', 'choice_answered')
+           OR (e.type = 'message' AND json_extract(e.data, '$.role') IN ('user', 'assistant'))
+           OR (e.type = 'tool_result' AND (
+                 json_type(e.data, '$.artifact') = 'text'
+                 OR json_type(e.data, '$.workspace_file.artifact') = 'text'))
+    )
+    INSERT INTO workspace_task_checkpoints(
+        workspace_task_id, child_run_id, event_id, event_seq, event_type,
+        run_status, kind, recovery_state, reference_id, created_at)
+    SELECT workspace_task_id, child_run_id, event_id, event_seq, event_type, run_status,
+           CASE
+             WHEN event_type = 'status' THEN 'status_changed'
+             WHEN event_type = 'message' AND json_extract(data, '$.role') = 'user' THEN 'task_submitted'
+             WHEN event_type = 'message' THEN 'assistant_message'
+             WHEN event_type = 'approval_request' THEN 'approval_requested'
+             WHEN event_type = 'approval_resolved' THEN 'approval_resolved'
+             WHEN event_type = 'human_needed' THEN 'human_needed'
+             WHEN event_type = 'human_resumed' THEN 'human_resumed'
+             WHEN event_type = 'choice_requested' THEN 'choice_requested'
+             WHEN event_type = 'choice_answered' THEN 'choice_answered'
+             ELSE 'artifact_created'
+           END,
+           CASE run_status
+             WHEN 'pending' THEN 'queued'
+             WHEN 'loading_model' THEN 'active'
+             WHEN 'running' THEN 'active'
+             WHEN 'waiting_approval' THEN 'awaiting_owner'
+             WHEN 'waiting_human' THEN 'awaiting_owner'
+             WHEN 'waiting_resources' THEN 'waiting_for_resources'
+             WHEN 'recovering' THEN 'recovering'
+             WHEN 'cancelling' THEN 'stopping'
+             WHEN 'succeeded' THEN 'complete'
+             WHEN 'failed' THEN 'interrupted'
+             WHEN 'stopped' THEN 'stopped'
+             WHEN 'outcome_unknown' THEN 'reconcile'
+             WHEN 'skipped' THEN 'skipped'
+             ELSE 'unrecognized'
+           END,
+           CASE
+             WHEN event_type IN ('approval_request', 'approval_resolved')
+               THEN CAST(COALESCE(json_extract(data, '$.approval_id'), '') AS TEXT)
+             WHEN event_type IN ('choice_requested', 'choice_answered')
+               THEN CAST(COALESCE(json_extract(data, '$.question_id'), '') AS TEXT)
+             WHEN event_type = 'human_needed' THEN CAST(event_seq AS TEXT)
+             WHEN event_type = 'human_resumed'
+               THEN CAST(COALESCE(json_extract(data, '$.event_seq'), '') AS TEXT)
+             WHEN event_type = 'tool_result' THEN CAST(event_id AS TEXT)
+             ELSE ''
+           END,
+           created_at
+    FROM candidates ORDER BY workspace_task_id, event_seq""")
+    db.execute("""UPDATE workspace_tasks SET checkpoint_count = (
+        SELECT COUNT(*) FROM workspace_task_checkpoints c WHERE c.workspace_task_id = workspace_tasks.id)""")
+    db.execute("""CREATE TRIGGER workspace_task_checkpoint_event_insert
+        AFTER INSERT ON events
+        WHEN NEW.type IN ('status', 'approval_request', 'approval_resolved', 'human_needed', 'human_resumed',
+                          'choice_requested', 'choice_answered')
+          OR (NEW.type = 'message' AND json_extract(NEW.data, '$.role') IN ('user', 'assistant'))
+          OR (NEW.type = 'tool_result' AND (
+                json_type(NEW.data, '$.artifact') = 'text'
+                OR json_type(NEW.data, '$.workspace_file.artifact') = 'text'))
+        BEGIN
+            INSERT INTO workspace_task_checkpoints(
+                workspace_task_id, child_run_id, event_id, event_seq, event_type,
+                run_status, kind, recovery_state, reference_id, created_at)
+            SELECT wt.id, NEW.run_id, NEW.id, NEW.seq, NEW.type, r.status,
+                   CASE
+                     WHEN NEW.type = 'status' THEN 'status_changed'
+                     WHEN NEW.type = 'message' AND json_extract(NEW.data, '$.role') = 'user'
+                       THEN 'task_submitted'
+                     WHEN NEW.type = 'message' THEN 'assistant_message'
+                     WHEN NEW.type = 'approval_request' THEN 'approval_requested'
+                     WHEN NEW.type = 'approval_resolved' THEN 'approval_resolved'
+                     WHEN NEW.type = 'human_needed' THEN 'human_needed'
+                     WHEN NEW.type = 'human_resumed' THEN 'human_resumed'
+                     WHEN NEW.type = 'choice_requested' THEN 'choice_requested'
+                     WHEN NEW.type = 'choice_answered' THEN 'choice_answered'
+                     ELSE 'artifact_created'
+                   END,
+                   CASE r.status
+                     WHEN 'pending' THEN 'queued'
+                     WHEN 'loading_model' THEN 'active'
+                     WHEN 'running' THEN 'active'
+                     WHEN 'waiting_approval' THEN 'awaiting_owner'
+                     WHEN 'waiting_human' THEN 'awaiting_owner'
+                     WHEN 'waiting_resources' THEN 'waiting_for_resources'
+                     WHEN 'recovering' THEN 'recovering'
+                     WHEN 'cancelling' THEN 'stopping'
+                     WHEN 'succeeded' THEN 'complete'
+                     WHEN 'failed' THEN 'interrupted'
+                     WHEN 'stopped' THEN 'stopped'
+                     WHEN 'outcome_unknown' THEN 'reconcile'
+                     WHEN 'skipped' THEN 'skipped'
+                     ELSE 'unrecognized'
+                   END,
+                   CASE
+                     WHEN NEW.type IN ('approval_request', 'approval_resolved')
+                       THEN CAST(COALESCE(json_extract(NEW.data, '$.approval_id'), '') AS TEXT)
+                     WHEN NEW.type IN ('choice_requested', 'choice_answered')
+                       THEN CAST(COALESCE(json_extract(NEW.data, '$.question_id'), '') AS TEXT)
+                     WHEN NEW.type = 'human_needed' THEN CAST(NEW.seq AS TEXT)
+                     WHEN NEW.type = 'human_resumed'
+                       THEN CAST(COALESCE(json_extract(NEW.data, '$.event_seq'), '') AS TEXT)
+                     WHEN NEW.type = 'tool_result' THEN CAST(NEW.id AS TEXT)
+                     ELSE ''
+                   END,
+                   NEW.ts
+            FROM workspace_tasks wt JOIN runs r ON r.id = wt.child_run_id
+            WHERE wt.child_run_id = NEW.run_id;
+        END""")
+    db.execute("""CREATE TRIGGER workspace_task_checkpoint_no_update
+        BEFORE UPDATE ON workspace_task_checkpoints
+        BEGIN SELECT RAISE(ABORT, 'workspace task checkpoints are immutable'); END""")
+    db.execute("""CREATE TRIGGER workspace_task_checkpoint_no_delete
+        BEFORE DELETE ON workspace_task_checkpoints
+        WHEN EXISTS (SELECT 1 FROM workspace_tasks WHERE id = OLD.workspace_task_id)
+        BEGIN SELECT RAISE(ABORT, 'workspace task checkpoints are removed only with their task'); END""")
+    db.execute("""CREATE TRIGGER workspace_task_checkpoint_outbox
+        AFTER INSERT ON workspace_task_checkpoints
+        BEGIN
+            UPDATE workspace_tasks SET checkpoint_count = checkpoint_count + 1 WHERE id = NEW.workspace_task_id;
+            INSERT INTO resource_outbox(previous_id, resource, resource_id, operation, ts, context)
+            SELECT meta.tail_id, 'workspace_tasks', NEW.workspace_task_id, 'updated', NEW.created_at,
+                   json_object('parent_conversation_id', wt.parent_conversation_id)
+            FROM resource_outbox_meta meta JOIN workspace_tasks wt ON wt.id = NEW.workspace_task_id
+            WHERE meta.singleton = 1;
+            UPDATE resource_outbox_meta SET tail_id = last_insert_rowid() WHERE singleton = 1;
+        END""")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
                _migrate_19, _migrate_20, _migrate_21, _migrate_22, _migrate_23, _migrate_24, _migrate_25, _migrate_26,
-               _migrate_27, _migrate_28, _migrate_29, _migrate_30]
+               _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -2287,6 +2447,7 @@ class Store:
                 "substr(wt.original_request, 1, 4001) AS original_request, length(wt.original_request) > 4000 AS original_request_truncated, "
                 "substr(wt.proposed_brief, 1, 4001) AS proposed_brief, length(wt.proposed_brief) > 4000 AS proposed_brief_truncated, "
                 "wt.task_brief, wt.assumptions, wt.child_conversation_id, wt.child_run_id, wt.created_at, "
+                "wt.checkpoint_count, "
                 "r.status, r.doc AS run_doc, r.capability_snapshot_json, "
                 "(SELECT substr(m.content, 1, 4001) FROM messages m "
                 "JOIN runs result_run ON result_run.id = m.run_id AND result_run.status = 'succeeded' "
@@ -2324,7 +2485,27 @@ class Store:
                 "inference_mode": snapshot.get("inference_mode", ""), "tools": snapshot.get("tools", []),
                 "risk_tier": snapshot.get("risk_tier", ""), "workspace_mode": snapshot.get("workspace_mode", ""),
                 "created_at": row["created_at"],
+                "checkpoint_count": int(row["checkpoint_count"] or 0), "checkpoints": [],
             })
+        if result:
+            with self._lock:
+                for task in result:
+                    checkpoint_rows = self._db.execute(
+                        "SELECT event_id, event_seq, event_type, run_status, kind, recovery_state, reference_id, created_at "
+                        "FROM workspace_task_checkpoints WHERE workspace_task_id = ? "
+                        "ORDER BY event_seq DESC, id DESC LIMIT 16",
+                        (task["id"],),
+                    ).fetchall()
+                    task["checkpoints"] = [{
+                        "event_id": int(checkpoint["event_id"]),
+                        "event_seq": int(checkpoint["event_seq"]),
+                        "event_type": str(checkpoint["event_type"]),
+                        "run_status": str(checkpoint["run_status"]),
+                        "kind": str(checkpoint["kind"]),
+                        "recovery_state": str(checkpoint["recovery_state"]),
+                        "reference_id": str(checkpoint["reference_id"]),
+                        "created_at": str(checkpoint["created_at"]),
+                    } for checkpoint in reversed(checkpoint_rows)]
         return result
 
     def replay_workspace_task(self, *, idem_key: str, request_hash: str) -> Optional[dict[str, Any]]:

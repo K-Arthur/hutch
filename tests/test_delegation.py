@@ -35,6 +35,27 @@ def _child(store, parent, prompt="inspect one bounded area", key="delegate", par
     )
 
 
+def _remove_later_conversation_schema(db):
+    """Make a real pre-v25 fixture before lowering user_version for migration tests."""
+    for trigger in (
+        "workspace_task_checkpoint_event_insert", "messages_workspace_task_result_insert",
+        "messages_workspace_task_result_update", "messages_choice_question_insert",
+        "messages_choice_question_update", "conversation_question_definition_immutable",
+        "conversation_question_resolve_once", "messages_reply_target_insert", "messages_reply_target_update",
+    ):
+        db.execute(f"DROP TRIGGER IF EXISTS {trigger}")
+    db.execute("DROP INDEX IF EXISTS idx_messages_workspace_task_result")
+    for table in ("workspace_task_checkpoints", "workspace_tasks", "workspace_settings",
+                  "conversation_questions", "google_calendar_grants"):
+        db.execute(f"DROP TABLE IF EXISTS {table}")
+    columns = {row[1] for row in db.execute("PRAGMA table_info(messages)")}
+    for column in ("workspace_task_result_id", "workspace_task_result_message_id",
+                   "workspace_task_result_display_name", "workspace_task_result_content",
+                   "workspace_task_result_truncated", "choice_question_id", "reply_to_message_id"):
+        if column in columns:
+            db.execute(f"ALTER TABLE messages DROP COLUMN {column}")
+
+
 def test_delegated_run_creation_persists_parent_and_replays_exact_command(store):
     bot, parent = _running_parent(store)
     child = Run(bot_id=bot.id, prompt="inspect one bounded area", parent_run_id=parent.id)
@@ -712,6 +733,7 @@ def test_schema_v21_migrates_existing_runs_with_no_parent_link(config):
     db.execute("DROP TRIGGER runs_parent_run_id_immutable")
     db.execute("DROP INDEX idx_runs_parent")
     db.execute("ALTER TABLE runs DROP COLUMN parent_run_id")
+    _remove_later_conversation_schema(db)
     db.execute("PRAGMA user_version = 21")
     db.commit()
     db.close()
@@ -737,6 +759,7 @@ def test_schema_v22_migration_preserves_lineage_without_inventing_a_budget(store
     db.execute("ALTER TABLE runs DROP COLUMN capability_snapshot_json")
     db.execute("DROP TRIGGER runs_delegation_budget_immutable")
     db.execute("ALTER TABLE runs DROP COLUMN delegation_budget_cost_usd")
+    _remove_later_conversation_schema(db)
     db.execute("PRAGMA user_version = 22")
     db.commit()
     db.close()
@@ -761,6 +784,7 @@ def test_schema_v23_migration_adds_empty_capability_snapshots(config):
     db = sqlite3.connect(config.db_path)
     db.execute("DROP TRIGGER runs_capability_snapshot_immutable")
     db.execute("ALTER TABLE runs DROP COLUMN capability_snapshot_json")
+    _remove_later_conversation_schema(db)
     db.execute("PRAGMA user_version = 23")
     db.commit()
     db.close()

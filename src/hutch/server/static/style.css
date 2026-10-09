@@ -555,6 +555,15 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .workspace-task-card .btn-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .workspace-task-result { margin: var(--s-3) 0; padding-top: var(--s-3); border-top: 1px solid var(--line); }
 .workspace-task-result p { margin-bottom: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.workspace-task-checkpoints { min-width: 0; padding: var(--s-3); border: 1px solid var(--line); border-radius: 10px; background: var(--bg-subtle); }
+.workspace-task-checkpoints > summary { width: fit-content; max-width: 100%; font-weight: 650; overflow-wrap: anywhere; }
+.workspace-task-checkpoints > p { margin: var(--s-2) 0; }
+.workspace-task-checkpoints ol { display: grid; gap: var(--s-2); margin: var(--s-3) 0 0; padding: 0; list-style: none; }
+.workspace-task-checkpoints li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px var(--s-3); min-width: 0; padding: var(--s-2) var(--s-3); border-left: 2px solid var(--line-strong); background: var(--surface); }
+.workspace-task-checkpoint-title { min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.workspace-task-checkpoint-state { color: var(--text-2); text-align: right; }
+.workspace-task-checkpoints time, .workspace-task-checkpoint-seq { color: var(--text-3); font-size: var(--fs-xs); overflow-wrap: anywhere; }
+.workspace-task-checkpoint-seq { text-align: right; }
 .workspace-task-source { margin: var(--s-3) 0; padding: var(--s-3); border-left: 3px solid var(--line-strong); background: var(--sunken); color: var(--text-2); white-space: pre-wrap; overflow-wrap: anywhere; }
 .workspace-task-capabilities { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: var(--s-2); margin: var(--s-2) 0 var(--s-4); }
 .workspace-task-capabilities > div { min-width: 0; padding: var(--s-2) var(--s-3); border: 1px solid var(--line); border-radius: 10px; }

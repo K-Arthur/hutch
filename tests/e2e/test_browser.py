@@ -146,9 +146,39 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
             assert task_card.is_visible()
             page.screenshot(path=str(output / f"timeline-{label}.png"), animations="disabled")
 
+        checkpoint_summary = task_card.locator(".workspace-task-checkpoints > summary")
+        assert "Progress checkpoints" in checkpoint_summary.inner_text()
+        checkpoint_summary.click()
+        checkpoint_list = task_card.locator(".workspace-task-checkpoints ol")
+        checkpoint_list.wait_for(state="visible")
+        checkpoint_copy = task_card.locator(".workspace-task-checkpoints").inner_text()
+        assert "Reviewed task accepted" in checkpoint_copy
+        assert "Specialist response committed" in checkpoint_copy
+        assert "Restart continuation is not available yet" in checkpoint_copy
+        assert checkpoint_list.locator("li").count() <= 16
+        for label, (width, height) in sizes.items():
+            page.set_viewport_size({"width": width, "height": height})
+            page.evaluate("document.fonts.ready")
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+            assert checkpoint_list.is_visible()
+            if label == "phone":
+                last_checkpoint = checkpoint_list.locator("li").last
+                last_checkpoint.scroll_into_view_if_needed()
+                last_checkpoint.evaluate("""element => {
+                  const scroller = element.closest('.chat-scroll');
+                  const composer = document.querySelector('#composer-box');
+                  const overlap = element.getBoundingClientRect().bottom - composer.getBoundingClientRect().top + 16;
+                  if (overlap > 0) scroller.scrollTop += overlap;
+                }""")
+                last_box = last_checkpoint.bounding_box()
+                composer_box = page.locator("#composer-box").bounding_box()
+                assert last_box and composer_box and last_box["y"] + last_box["height"] <= composer_box["y"], \
+                    "the final phone checkpoint remains above the sticky composer"
+            page.screenshot(path=str(output / f"checkpoints-{label}.png"), animations="disabled")
+
         assert errors == [], errors
         assert page.locator("#modal-root").inner_text() == ""
-        assert page.locator("[data-workspace-task] details summary").inner_text() == "Request and coordinator draft"
+        assert page.locator("[data-workspace-task] details:not(.workspace-task-checkpoints) summary").inner_text() == "Request and coordinator draft"
         parent_conversation_id = app.state.store.list_conversations(coordinator.id)[0]["id"]
         task = app.state.store.list_workspace_tasks(parent_conversation_id)[0]
         assert task["target_bot_id"] == specialist.id
@@ -196,7 +226,8 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
             page.screenshot(path=str(output / f"result-return-{label}.png"), animations="disabled")
         page.locator("[data-open-workspace-task]").click()
         page.locator("#chat-prompt").wait_for()
-        assert page.locator("#chat-stream").get_by_text("Compare two launch approaches", exact=False).count() >= 1
+        specialist_request = page.locator("#chat-stream").get_by_text("Compare two launch approaches", exact=False).first
+        specialist_request.wait_for(state="attached", timeout=10000)
         page.locator(".mhead").get_by_text("Research Partner", exact=True).wait_for(timeout=10000)
         context.tracing.stop(path=str(output / "workspace-task-trace.zip"))
         trace_stopped = True
@@ -209,6 +240,9 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
                            "assumptions are sent with the brief", "specialist result is shared only after composer review",
                            "selected result can be removed before the explicit follow-up is sent",
                            "shared result is linked to its exact source and marked as untrusted context",
+                           "checkpoint timeline is bounded and contains only committed event markers",
+                           "checkpoint UI explicitly says restart continuation is not available",
+                           "final phone checkpoint remains above the sticky composer",
                            "no horizontal overflow", "task appears in main chat"],
             "fixtures": "Local mock model and local SQLite only; no provider or paid call.",
         }, indent=2) + "\n", encoding="utf-8")

@@ -549,6 +549,9 @@ def test_coordinator_dispatch_is_reviewed_atomic_and_stays_in_specialist_context
     assert record["task_brief"] == reviewed_brief and record["assumptions"] == payload["assumptions"]
     assert record["target_display_name"] == "Research Partner"
     assert record["model"] == specialist["model"] and record["tools"] == ["recall", "remember"]
+    assert record["checkpoint_count"] >= 1
+    assert record["checkpoints"][0]["kind"] == "task_submitted"
+    assert record["checkpoints"][0]["event_type"] == "message"
     child = client.get(f"/api/v1/conversations/{record['child_conversation_id']}").json()
     assert child["bot_id"] == specialist["id"]
     assert [(message["role"], message["content"]) for message in child["messages"]] == [
@@ -569,6 +572,26 @@ def test_coordinator_dispatch_is_reviewed_atomic_and_stays_in_specialist_context
     assert specialist_answer is not None
     task_projection = client.get(f"/api/v1/workspace/tasks?conversation_id={conversation['id']}").json()[0]
     assert task_projection["result_message_id"] == specialist_answer["id"]
+    checkpoints = task_projection["checkpoints"]
+    assert checkpoints[-1]["run_status"] == "succeeded"
+    assert checkpoints[-1]["recovery_state"] == "complete"
+    assert any(item["kind"] == "assistant_message" for item in checkpoints)
+    assert [item["event_seq"] for item in checkpoints] == sorted(item["event_seq"] for item in checkpoints)
+    assert all(not {"content", "prompt", "arguments", "output"} & set(item) for item in checkpoints)
+    store = client.app.state.store
+    with store._tx() as db:
+        for offset, event_seq in enumerate(range(50, 70)):
+            db.execute(
+                "INSERT INTO workspace_task_checkpoints(workspace_task_id, child_run_id, event_id, event_seq, "
+                "event_type, run_status, kind, recovery_state, reference_id, created_at) "
+                "VALUES (?, ?, ?, ?, 'status', 'succeeded', 'status_changed', 'complete', '', ?)",
+                (record["id"], record["child_run_id"], 100_000 + offset, event_seq,
+                 checkpoints[-1]["created_at"]),
+            )
+    bounded_projection = client.get(f"/api/v1/workspace/tasks?conversation_id={conversation['id']}").json()[0]
+    assert bounded_projection["checkpoint_count"] == len(checkpoints) + 20
+    assert len(bounded_projection["checkpoints"]) == 16
+    assert bounded_projection["checkpoints"][0]["event_seq"] == 54
     shared_reply = {
         "prompt": "Please compare this recommendation with my original constraints.",
         "workspace_task_result_id": record["id"],

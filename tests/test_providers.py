@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import threading
@@ -354,8 +355,12 @@ def test_importing_providers_does_not_load_httpx_or_vendor_sdks():
     code = ("import sys, hutch.providers, hutch.providers.registry; "
             "bad = [m for m in ('anthropic', 'httpx', 'openai') if m in sys.modules]; "
             "print('LOADED:' + ','.join(bad))")
-    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True).stdout.strip()
-    assert out == "LOADED:", out
+    clean_env = os.environ.copy()
+    clean_env.pop("HUTCH_TESTING", None)
+    clean_env.pop("PYTHONPATH", None)
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=clean_env)
+    out = result.stdout.strip()
+    assert result.returncode == 0 and out == "LOADED:", (out, result.stderr, sys.executable)
 
 
 # =================================================================== helpers
