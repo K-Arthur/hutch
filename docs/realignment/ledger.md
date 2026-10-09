@@ -1283,4 +1283,6 @@ checks passed **22 tests in 28.46s**, and the full marketing feature section was
 (**1 passed in 3.29s**). No external model/provider call was used. Screen-reader and physical-phone behavior remain unverified. A
 shared cross-chat artifact library, standing tasks and delegation remain open. The screenshot metadata was refreshed after switching
 the conversation page to a newest-first keyset cursor; captures were visually reinspected. Source, documentation, tests and scoped
-visual evidence are committed in `273efa4` (`feat(studio): browse files across a conversation`).
+visual evidence are committed in `273efa4` (`feat(studio): browse files across a conversation`) and `dc641b0`
+(`style(studio): finish conversation file browser`); the stylesheet follow-up was required because a final staged-diff review found
+the visual rules had been left out of the feature commit.
