@@ -33,7 +33,8 @@ def jwk(private_key):
             "e": b64url(numbers.e.to_bytes((numbers.e.bit_length() + 7) // 8, "big"))}
 
 
-def setup_auth(tmp_path, *, scope=f"openid profile email offline_access resource.invoke {PLAN_SCOPE}"):
+def setup_auth(tmp_path, *, scope=f"openid profile email offline_access resource.invoke {PLAN_SCOPE}",
+               email_verified=True):
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     now = time.time()
 
@@ -50,7 +51,7 @@ def setup_auth(tmp_path, *, scope=f"openid profile email offline_access resource
             if form.get("grant_type") == ["authorization_code"]:
                 assert form["resource"] == [RESOURCE]
                 claims = {"iss": AUTH_ORIGIN, "aud": form["client_id"][0], "sub": "acct-sub-1",
-                          "email": "owner@example.test", "email_verified": True,
+                          "email": "owner@example.test", "email_verified": email_verified,
                           "nonce": callback_nonce[0], "iat": now, "exp": now + 3600}
                 return httpx.Response(200, json={"access_token": "access-1", "refresh_token": "refresh-1",
                                                  "id_token": jwt(private_key, claims), "expires_in": 3600,
@@ -127,6 +128,41 @@ def test_callback_validates_identity_saves_private_account_refreshes_and_revokes
         auth.access_token(account_id)
     with pytest.raises(ChatGPTAuthError, match="already been used"):
         auth.finish(state=params["state"][0], code="replay", returned_client_id="oaiapp_fixture")
+
+
+def test_reauthorization_reuses_issued_client_and_verified_identity_hints(tmp_path):
+    auth, callback_nonce, _ = setup_auth(tmp_path)
+    initial = parse_qs(urlsplit(auth.start("http://127.0.0.1:8787/auth/callback")).query)
+    callback_nonce[0] = initial["nonce"][0]
+    account_id = auth.finish(state=initial["state"][0], code="first-code",
+                             returned_client_id="oaiapp_fixture")["account_id"]
+    saved_id_token = json.loads((tmp_path / "state/chatgpt/accounts.json").read_text())["accounts"][account_id]["id_token"]
+
+    reauth = parse_qs(urlsplit(auth.start("http://127.0.0.1:8787/auth/callback",
+                                         account_id=account_id)).query)
+    assert reauth["client_id"] == ["oaiapp_fixture"]
+    assert reauth["ext_agent_host_id"] == initial["ext_agent_host_id"]
+    assert reauth["id_token_hint"] == [saved_id_token]
+    assert reauth["login_hint"] == ["owner@example.test"]
+    assert "agent_name_hint" not in reauth
+
+
+def test_unverified_email_is_not_shown_or_used_as_login_hint(tmp_path):
+    auth, callback_nonce, _ = setup_auth(tmp_path, email_verified=False)
+    initial = parse_qs(urlsplit(auth.start("http://127.0.0.1:8787/auth/callback")).query)
+    callback_nonce[0] = initial["nonce"][0]
+    account_id = auth.finish(state=initial["state"][0], code="first-code",
+                             returned_client_id="oaiapp_fixture")["account_id"]
+
+    path = tmp_path / "state/chatgpt/accounts.json"
+    saved = json.loads(path.read_text())
+    saved["accounts"][account_id]["email"] = "stale-unverified@example.test"
+    path.write_text(json.dumps(saved))  # Simulate an older record that retained an unverified claim.
+    assert auth.accounts()[0]["email"] == ""
+    reauth = parse_qs(urlsplit(auth.start("http://127.0.0.1:8787/auth/callback",
+                                         account_id=account_id)).query)
+    assert "login_hint" not in reauth
+    assert "id_token_hint" in reauth
 
 
 def test_identity_only_signin_is_saved_without_enabling_plan_inference(tmp_path):

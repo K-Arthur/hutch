@@ -141,7 +141,7 @@ Subscription plans such as OpenCode Go and the Xiaomi MiMo Token Plan, and the i
 |---|---|---|---|
 | CN-1 | Named connections, each with its own key, usable as `<connection>/<model>` | done | `connections.py`, `providers/connection.py` |
 | CN-2 | Keys from an env var or a 0600 file; never in the database, transcript, page or API | done | `ConnectionBook.key`; test greps pages + DB for a planted secret |
-| CN-3 | Required headers: own User-Agent and a stable per-run session id | done | `ChatRequest.session_id`, both HTTP providers |
+| CN-3 | Required headers: own User-Agent and a stable session id per conversation; standalone runs fall back to their run id | done | `ChatRequest.session_id`, both HTTP providers |
 | CN-4 | Billing modes: per-token (priced), subscription / free (flat, still ledgered) | done | `PriceBook.flat_providers`, `usage` table |
 | CN-5 | Declared allowance enforced before the call; warning at 80% | done | `SpendGuard.quota_refusal`, `quota` log |
 | CN-6 | Terms notice acknowledged before first use; re-ack when it changes | done | `ConnectionBook.ack_status`, runtime fails fast with the fix |

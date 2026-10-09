@@ -65,7 +65,8 @@ def test_templates_carry_the_endpoints_and_requirements_found_in_the_vendor_docs
     assert go["base_url"] == "https://opencode.ai/zen/go/v1" and go["billing"] == "subscription"
     assert go["session_header"] == "x-opencode-session" and go["terms"]["requires_ack"]
     assert go["get_key_url"] == "https://opencode.ai/auth"
-    assert "copy" in go["signin_guidance"] and "never reads OpenCode's auth.json" in go["signin_guidance"]
+    assert "copy" in go["signin_guidance"] and "not an OAuth session login" in go["signin_guidance"]
+    assert "never reads OpenCode's auth.json" in go["signin_guidance"]
     assert "monitored" in go["terms"]["notice"] and "UNATTENDED" in go["terms"]["notice"]
     for region in ("sgp", "cn", "ams"):
         x = tpl[f"xiaomi-token-plan-{region}"]
@@ -242,6 +243,18 @@ def test_requests_carry_the_connections_own_key_user_agent_and_a_per_run_session
     assert h["user-agent"].startswith("hutch/") and "python" not in h["user-agent"].lower()
     assert h["x-opencode-session"] == run.id                      # stable per run, as the plan requires
     assert oai.of("/v1/chat/completions")[0]["body"]["model"] == "zhipuai/glm-5.3"   # model ids may contain '/'
+
+
+def test_opencode_session_id_is_stable_for_a_conversation(store, config, tmp_path, oai, book, monkeypatch):
+    add_go(book, oai, monkeypatch, key="opencode-key-A")
+    ack(book, store, "opencode-go")
+    oai.script = lambda b: {"content": "ok"}
+    ctx, run, emitted, tools = build(store, config, tmp_path, model="opencode-go/glm-5.3",
+                                     tools=("remember",), conversation_id="conversation-go-fixture")
+    run_it(runtime(), run, ctx, tools)
+    h = oai.of("/v1/chat/completions")[0]["headers"]
+    assert run.id != run.conversation_id
+    assert h["x-opencode-session"] == "conversation-go-fixture"
 
 
 def test_two_connections_with_different_keys_coexist(store, config, tmp_path, book, monkeypatch):

@@ -14,7 +14,7 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Added
 
-- OpenCode Go Connections now explain its sign-in and API-key handoff without reading OpenCode's private auth files. Connections also include an opt-in, eligibility-unconfirmed Sign in with ChatGPT preview using PKCE/OIDC, a protected local account store and a fixed streaming Responses API route; provider-enforced output limits are unavailable, so usage allowances remain estimates.
+- OpenCode Go Connections now explain the provider-issued API-key handoff without reading OpenCode's private auth files or reusing its login session. Connections also include an opt-in, eligibility-unconfirmed Sign in with ChatGPT preview using PKCE/OIDC, account-specific reauthorization hints, a protected local account store and a fixed streaming Responses API route; local functions use the preview's `additional_tools` input format. Provider-enforced output limits are unavailable, so usage allowances remain estimates.
 - Transcript file-delivery intents are now recorded once per committed event batch in the same SQLite transaction. Schema v16 removes the per-event trigger without changing crash recovery, visible delivery errors or FULL-sync behavior.
 - Bots can use a fresh workspace per run, a private Hutch-managed workspace shared across that bot's runs and chats, or a validated existing folder. The default remains fresh; managed files survive bot deletion and are excluded from database-only backups.
 - Executor health uses a steady status mark with text and connection-state changes instead of a decorative pulse between health checks.

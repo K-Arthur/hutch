@@ -53,12 +53,12 @@ def oai():
 
 
 def build(store, config, tmp_path, *, model="ollama/fake:8b", tools=("files",), mode=ApprovalMode.auto,
-          prompt="write a file", **bot_kw):
+          prompt="write a file", conversation_id="", **bot_kw):
     bot_kw.setdefault("selfcheck", False)
     bot_kw.setdefault("instructions", "be brief")
     bot = Bot(name="rt-bot", model=model, tools=list(tools), approval_mode=mode, description="d", **bot_kw)
     store.create_bot(bot)
-    run = Run(bot_id=bot.id, prompt=prompt)
+    run = Run(bot_id=bot.id, prompt=prompt, conversation_id=conversation_id)
     store.create_run(run)
     ws = tmp_path / "ws"
     ws.mkdir(exist_ok=True)

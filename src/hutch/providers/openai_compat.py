@@ -61,7 +61,7 @@ class OpenAICompatProvider(Provider):
         return self._client
 
     def _req_headers(self, req: ChatRequest) -> dict[str, str]:
-        """Per-request headers: a plan that wants a stable session id gets the run id."""
+        """Per-request headers: use the conversation id, or the standalone run id, as session id."""
         return {self.session_header: req.session_id} if self.session_header and req.session_id else {}
 
     def _timeout(self, req: Optional[ChatRequest] = None, read: Optional[float] = None):

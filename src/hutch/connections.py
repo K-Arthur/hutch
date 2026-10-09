@@ -12,7 +12,7 @@ A Connection fixes that:
 * its own key, from an environment variable or a 0600 file under the state dir - never written to the database,
   the transcript, the API or a page;
 * a protocol per model (some plans serve different models over different wire formats);
-* the headers a plan requires (User-Agent, a per-run session id);
+* the headers a plan requires (User-Agent, a stable per-conversation session id; standalone runs use their run id);
 * a billing mode - ``per_token`` (priced from prices.json), ``subscription`` (flat; cost 0 but *usage is tracked*)
   or ``free`` - and a declared allowance that Hutch enforces BEFORE the vendor does, because "42% of my weekly
   allowance gone on day one" is the loudest complaint about the products Hutch is measured against;

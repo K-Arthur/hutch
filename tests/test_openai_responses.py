@@ -36,14 +36,17 @@ def test_responses_request_uses_only_supported_fields_and_converts_hutch_history
             assert unsupported not in payload
         assert payload["instructions"] == "follow policy\n\nbe concise"
         assert payload["input"] == [
+            {"type": "additional_tools", "role": "developer", "tools": [
+                {"type": "function", "name": "lookup", "parameters": {"type": "object"},
+                 "strict": False, "description": "find a record"}
+            ]},
             {"role": "user", "content": "first"},
             {"role": "assistant", "content": "using a tool"},
             {"type": "function_call", "call_id": "call-1", "name": "lookup", "arguments": "{\"q\":1}"},
             {"type": "function_call_output", "call_id": "call-1", "output": "found"},
             {"role": "user", "content": "finish"},
         ]
-        assert payload["tools"] == [{"type": "function", "name": "lookup", "parameters": {"type": "object"},
-                                      "strict": False, "description": "find a record"}]
+        assert "tools" not in payload
         events = sse(
             {"type": "response.output_text.delta", "delta": "Done"},
             completed([{"type": "message", "content": [{"type": "output_text", "text": "Done"}]}]),

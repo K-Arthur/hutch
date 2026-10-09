@@ -15,6 +15,7 @@ import time
 from datetime import datetime, timezone
 from importlib.metadata import version as package_version
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
@@ -89,7 +90,7 @@ def test_provider_connections_fit_phone_viewports_and_capture_signin_states(brow
         page.goto(base + "/#/connections")
         page.get_by_role("heading", name="Connections").wait_for()
         page.get_by_text("Sign in with ChatGPT").wait_for()
-        page.get_by_text("Sign in to Go there, copy its issued API key", exact=False).wait_for()
+        page.get_by_text("Sign in to Go, subscribe if needed, copy its provider-issued key", exact=False).wait_for()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
                                      ("phone", 390, 844), ("compact-phone", 320, 740)):
             page.set_viewport_size({"width": width, "height": height})
@@ -117,6 +118,65 @@ def test_provider_connections_fit_phone_viewports_and_capture_signin_states(brow
                                                        ("phone", 390, 844), ("compact-phone", 320, 740))],
             "connections": ["opencode-go", "chatgpt-plan-preview"],
             "provider_credentials_used": False, "external_auth_completed": False,
+        }, indent=2) + "\n")
+    finally:
+        page.close()
+
+
+def test_opt_in_chatgpt_signin_is_fixture_intercepted_and_responsive(browser, live, monkeypatch):
+    from pathlib import Path
+
+    monkeypatch.setenv("HUTCH_ENABLE_CHATGPT_PLAN", "1")
+    base, _ = live
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/provider-signin"
+    out.mkdir(parents=True, exist_ok=True)
+    auth_requests = []
+    request_origins = set()
+    page.on("request", lambda request: request_origins.add(urlsplit(request.url).netloc)
+            if urlsplit(request.url).scheme in ("http", "https") else None)
+    page.route("https://auth.openai.com/**", lambda route: (
+        auth_requests.append(route.request.url),
+        route.fulfill(status=200, content_type="text/html",
+                      body="<!doctype html><title>Local auth fixture</title><p>Authorization intercepted locally.</p>")))
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        page.goto(base + "/#/connections")
+        button = page.get_by_role("button", name="Continue with ChatGPT")
+        button.wait_for(state="visible")
+        assert button.is_enabled()
+        assert page.get_by_text("Availability depends on OpenAI eligibility and your account", exact=False).is_visible()
+        for label, width, height in (("desktop", 1440, 960), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.screenshot(path=str(out / f"chatgpt-preview-enabled-{label}.png"),
+                            full_page=True, animations="disabled")
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+
+        button.click()
+        page.wait_for_url("https://auth.openai.com/api/accounts/authorize*")
+        assert page.get_by_text("Authorization intercepted locally.").is_visible()
+        assert len(auth_requests) == 1
+        params = parse_qs(urlsplit(auth_requests[0]).query)
+        assert params["client_id"] == ["dynamic_agent_client"]
+        assert params["redirect_uri"][0].startswith("http://127.0.0.1:")
+        assert params["scope"][0].find("chatgpt.tokens.use.direct") >= 0
+        assert params["code_challenge_method"] == ["S256"]
+        assert "code" not in params and "access_token" not in params
+        assert request_origins <= {urlsplit(base).netloc, "auth.openai.com"}, request_origins
+        assert not errors, errors
+        (out / "chatgpt-preview-enabled-validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_opt_in_chatgpt_signin_is_fixture_intercepted_and_responsive",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_opt_in_chatgpt_signin_is_fixture_intercepted_and_responsive",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(), "hutch_version": package_version("hutch"),
+            "browser": browser.version,
+            "viewports": [{"name": label, "width": width, "height": height}
+                          for label, width, height in (("desktop", 1440, 960), ("phone", 390, 844))],
+            "auth_destination": "https://auth.openai.com/api/accounts/authorize",
+            "authorization_intercepted_locally": True,
+            "provider_credentials_used": False, "external_auth_completed": False,
+            "page_errors": errors,
         }, indent=2) + "\n")
     finally:
         page.close()

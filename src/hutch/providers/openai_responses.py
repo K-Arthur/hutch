@@ -107,7 +107,11 @@ class OpenAIResponsesProvider(Provider):
                 if function.get("description"):
                     tool["description"] = function["description"]
                 tools.append(tool)
-            body["tools"] = tools
+            # Sign in with ChatGPT's plan-use preview does not accept the
+            # standard top-level Responses `tools` field. Its documented
+            # client-side tool contract adds functions through an
+            # `additional_tools` input item instead.
+            body["input"].insert(0, {"type": "additional_tools", "role": "developer", "tools": tools})
         return body
 
     @staticmethod

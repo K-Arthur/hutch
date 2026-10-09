@@ -3187,7 +3187,7 @@ async function renderConnections() {
           ${c.quota_tokens ? `<div class="meter-track" style="width:100%;margin:8px 0;"><div class="meter-fill" style="width:${Math.min(100, c.used / c.quota_tokens * 100)}%"></div></div>` : ""}
           ${c.terms_notice ? `<p class="hint">${esc(c.terms_notice)}</p>` : ""}
           ${c.auth_type === "chatgpt-siws" ? '<p class="hint">The provider does not accept a per-response output-token ceiling here. Hutch records estimates and provider-reported usage; it cannot guarantee a hard cap.</p>' : ""}
-          ${c.get_key_url && c.template === "opencode-go" ? `<p class="hint"><a href="${esc(c.get_key_url)}" target="_blank" rel="noopener noreferrer">Continue to OpenCode</a>. Sign in to Go there, copy its issued API key, then paste it into Hutch. Hutch does not read OpenCode's private auth file.</p>` : ""}
+          ${c.get_key_url && c.template === "opencode-go" ? `<p class="hint"><a href="${esc(c.get_key_url)}" target="_blank" rel="noopener noreferrer">Get an OpenCode Go API key</a>. Sign in to Go, subscribe if needed, copy its provider-issued key, and paste it here. This is key-based access; Hutch does not read OpenCode's private auth file or browser session.</p>` : ""}
           <div class="card-actions" style="margin-top:12px;">
             <button class="btn ghost small" data-conn-action="test">${icon("zap")} Test</button>
             ${c.auth_type === "chatgpt-siws" ? "" : '<button class="btn ghost small" data-conn-action="key">Set key</button>'}

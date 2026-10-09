@@ -15,8 +15,9 @@ hutch usage reservations                             # inspect held or uncertain
 hutch bot update my-bot --model opencode-go/zhipuai/glm-5.3
 ```
 
-For OpenCode Go, sign in and manage the plan on OpenCode, then copy its provider API key into Hutch. Hutch does not
-reuse OpenCode's private `auth.json`, browser profile or CLI sign-in. For the eligibility-gated ChatGPT preview, the
+For OpenCode Go, sign in and manage the plan on OpenCode, then copy its provider API key into Hutch. This is the
+provider's documented third-party connection method, not an OAuth session shared with Hutch. Hutch does not reuse
+OpenCode's private `auth.json`, browser profile or CLI sign-in. For the eligibility-gated ChatGPT preview, the
 Connections page starts OpenAI's official local sign-in flow; do not enable it unless Hutch is eligible for the flow:
 
 ```bash
@@ -62,7 +63,8 @@ OpenAI, Anthropic, Ollama, LM Studio and llama.cpp keep their built-in provider 
   a page or the API; tests grep every page and the database for a planted secret. The file option exists
   because a user-level systemd service does not inherit your shell's environment.
 - **Headers** (`CN-3`). Hutch sends its own `User-Agent` (`hutch/<version>`) and, where a plan requires it, a
-  stable per-run session id (`x-opencode-session: <run id>` for OpenCode Go).
+  stable per-conversation session id (`x-opencode-session: <conversation id>` for OpenCode Go). Standalone
+  scheduled runs without a conversation use their run id.
 - **Protocol per model** (`CN-7`). Some plans split models across wire formats. Hutch speaks `openai-chat` and
   `anthropic`; set a model's protocol with `hutch connections set-protocol <name> <model> anthropic`. The OpenAI
   *Responses* protocol is reserved for the fixed ChatGPT plan route; arbitrary connections cannot select it. A template
@@ -120,14 +122,18 @@ OpenAI, Anthropic, Ollama, LM Studio and llama.cpp keep their built-in provider 
 This separate local-app flow uses PKCE, one-use state and nonce, OpenAI dynamic client registration, a stable Hutch
 host ID, a loopback-only callback, and signature/issuer/audience/expiry verification. ChatGPT bearer credentials are
 stored in the Hutch state directory with owner-only permissions and are returned by neither the API nor the page.
-Hutch refreshes them for the official OpenAI API host only. Disconnect clears local tokens and requests revocation.
-No browser cookie, ChatGPT conversation, or credential from another app is used.
+Hutch refreshes them for the official OpenAI API host only. Returning sign-in reuses the selected registration and stable
+host identifier; Hutch sends a retained ID token only as the official `id_token_hint`, and sends `login_hint` only for a
+verified email. Unverified email claims are neither displayed nor used as a sign-in hint. Authorization URLs containing
+an ID-token hint must not be logged. Disconnect clears local tokens and requests revocation. No browser cookie, ChatGPT
+conversation, or credential from another app is used.
 
 The operator must set `HUTCH_ENABLE_CHATGPT_PLAN=1` and bind Hutch to local `127.0.0.1`. OpenAI's preview eligibility
 is not confirmed for Hutch, so the route is experimental and disabled by default. Read the current
 [eligibility and preview limits](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations) first.
-The Responses route always streams and sends `store:false`; it omits unsupported preview fields, including
-`max_output_tokens`. OpenAI therefore does not enforce Hutch's per-response output ceiling. Hutch usage reservations
+The Responses route always streams and sends `store:false`; it sends Hutch's local function definitions using the
+preview-supported `additional_tools` input item, and omits unsupported preview fields, including `max_output_tokens`.
+OpenAI therefore does not enforce Hutch's per-response output ceiling. Hutch usage reservations
 and any operator allowance are estimates, can be exceeded by one response, and are not a hard spend cap. No live
 ChatGPT account was used to verify this integration.
 

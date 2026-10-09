@@ -574,7 +574,8 @@ class BuiltinRuntime:
                 model=session.rung.model, messages=messages, tools=specs, num_ctx=session.num_ctx,
                 max_tokens=self._turn_cap(bot, session.rung), think=bot.think if bot.think is not None else False,
                 stream=session.stream, allow_stream_retry=False,
-                register_cancel=self._register_cancel(ctx), is_cancelled=stop, session_id=run.id,
+                register_cancel=self._register_cancel(ctx), is_cancelled=stop,
+                session_id=run.conversation_id or run.id,
                 keep_alive="30m" if _keep_resident(ctx, bot) else "10m")
             account_id, _, _ = guard.account_policy(session.rung)
             try:

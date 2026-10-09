@@ -120,7 +120,7 @@
       "state": "experimental",
       "harness": "Hutch builtin runtime through a named connection",
       "api_shape": "OpenAI Chat Completions-compatible endpoint",
-      "auth_flow": "The user signs in to OpenCode Go, copies its issued provider API key, then stores that key in Hutch or supplies it via the named connection's environment variable. Hutch does not read OpenCode auth.json or browser sessions; it sends its own User-Agent and stable per-run session header.",
+      "auth_flow": "The user signs in to OpenCode Go, copies its issued provider API key, then stores that key in Hutch or supplies it via the named connection's environment variable. Hutch does not read OpenCode auth.json or browser sessions; it sends its own User-Agent and a stable per-conversation session header (or the run id for standalone work).",
       "models": "Model list is endpoint-provided. Usage eligibility for general or unattended workloads is not established by Hutch.",
       "streaming": "OpenAI-compatible streaming is requested; no live plan request was made.",
       "tool_calls": "Common framing is fixture-tested, but no live model/plan tool-call check was made.",
@@ -159,7 +159,7 @@
       "quota_reporting": "OpenAI plan allowance/reset data is not queried; Hutch estimates are not provider-enforced caps.",
       "retention": "Every request sends store=false. Hutch does not claim this establishes broader account retention behavior.",
       "hutch_request_mapping": {
-        "sent": ["model", "full input history", "function tools", "instructions", "stream=true", "store=false"],
+        "sent": ["model", "full input history", "function tools through additional_tools input items", "instructions", "stream=true", "store=false"],
         "omitted": ["background", "conversation", "max_output_tokens", "max_tool_calls", "metadata", "temperature", "top_p", "truncation", "user", "previous_response_id", "system-role message"]
       },
       "verification": "Local OAuth, signature-verification, account-store, API-route and Responses-body fixtures pass. No OpenAI account, authorization server, or paid provider was used live. Hutch eligibility is unconfirmed.",

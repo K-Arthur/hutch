@@ -1,0 +1,25 @@
+{
+  "test": "tests/e2e/test_browser.py::test_opt_in_chatgpt_signin_is_fixture_intercepted_and_responsive",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_opt_in_chatgpt_signin_is_fixture_intercepted_and_responsive",
+  "captured_at": "2026-10-09T01:26:39.379832+00:00",
+  "python": "3.13.15",
+  "hutch_version": "0.1.0",
+  "browser": "153.0.8010.12",
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "auth_destination": "https://auth.openai.com/api/accounts/authorize",
+  "authorization_intercepted_locally": true,
+  "provider_credentials_used": false,
+  "external_auth_completed": false,
+  "page_errors": []
+}

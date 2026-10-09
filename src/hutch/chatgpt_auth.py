@@ -200,6 +200,15 @@ class ChatGPTAuthBook:
             }
             if account is None:
                 params["agent_name_hint"] = "Hutch"
+            else:
+                # OpenAI recommends retaining the selected account's issued
+                # client ID and using its verified identity as a returning
+                # sign-in hint. The ID token is sent only to the official
+                # authorization endpoint; never log this URL.
+                if account.get("id_token"):
+                    params["id_token_hint"] = account["id_token"]
+                if account.get("email_verified") is True and account.get("email"):
+                    params["login_hint"] = account["email"]
         return AUTH_ORIGIN + "/api/accounts/authorize?" + urlencode(params)
 
     def _consume_pending(self, state: str) -> dict[str, Any]:
@@ -360,9 +369,11 @@ class ChatGPTAuthBook:
             raise ChatGPTAuthError("This authorization belongs to a different ChatGPT account; existing credentials were kept")
         with self._locked():
             data = self._read_accounts()
+            email_verified = claims.get("email_verified") is True
             record = {
                 "client_id": client_id, "subject": claims["sub"],
-                "email": str(claims.get("email", ""))[:320], "email_verified": claims.get("email_verified") is True,
+                "email": str(claims.get("email", ""))[:320] if email_verified else "",
+                "email_verified": email_verified,
                 "issuer": AUTH_ORIGIN, "ext_agent_host_id": data.get("host_id", ""),
                 "id_token": id_token, "access_token": access, "refresh_token": refresh,
                 "token_type": str(tokens.get("token_type", "Bearer")), "scopes": sorted(scopes),
@@ -386,7 +397,8 @@ class ChatGPTAuthBook:
         rows = []
         for account_id, account in sorted(data["accounts"].items()):
             connected = bool(account.get("access_token") or account.get("refresh_token"))
-            rows.append({"account_id": account_id, "email": account.get("email", ""),
+            rows.append({"account_id": account_id,
+                         "email": account.get("email", "") if account.get("email_verified") is True else "",
                          "connected": connected, "plan_usage": PLAN_SCOPE in account.get("scopes", []),
                          "expires_at": float(account.get("expires_at", 0) or 0)})
         return rows

@@ -196,6 +196,18 @@ PLAYWRIGHT_BROWSERS_PATH=/tmp/hutch-playwright-browsers .venv/bin/python \
 The fixture is synthetic and makes no model/provider call. It validates this stylesheet in isolation, not a live transcript or device.
 The same change refreshes `.impeccable/design.json` from `DESIGN.md` without rewriting the human-authored design guide.
 
+## Provider sign-in states (2026-10-09)
+
+Connections captures include the default disabled ChatGPT preview and the opt-in enabled state at desktop and phone sizes.
+The enabled-state browser fixture obtains Hutch's authorization URL but intercepts the OpenAI authorization destination
+locally; it does not contact OpenAI or complete sign-in. The test checks the dynamic-client first registration, loopback
+callback, plan-use scope and PKCE method, while keeping query values and one-time state out of the saved evidence. It also
+checks no horizontal overflow or page errors. Screenshots and metadata are in
+[`artifacts/provider-signin/`](artifacts/provider-signin/): [enabled desktop](artifacts/provider-signin/chatgpt-preview-enabled-desktop.png),
+[enabled phone](artifacts/provider-signin/chatgpt-preview-enabled-phone.png), and
+[fixture results](artifacts/provider-signin/chatgpt-preview-enabled-validation.json). OpenCode Go is presented as the vendor-issued
+API-key connection documented for third-party clients, not an OAuth session import. The visual captures were inspected.
+
 ## Conversation file discovery (2026-10-09)
 
 The Studio composer menu now opens a paged list of verified files and saved tool output from the selected conversation. The browser
