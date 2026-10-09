@@ -53,6 +53,7 @@ fast-forwarded only after implementation and verification for this checkpoint pa
 | `31b25f8` | Schema v8 conversations, migration, bounded context, FTS5, idempotency, Studio thread UI, readable status labels, evidence corrections and updated visual captures |
 | `99bade2` | Schema v9 device pairing, revocable sessions, explicit TLS binding and expanded typed `/api/v1` resources |
 | `bf09d97` | Raw repeated benchmark samples, p50/p90 summary, machine/revision metadata and regression checks |
+| `a83aac1` | Schema-v29 coordinator-to-specialist reviewed handoff, durable status/result card, API contract, safety boundaries, responsive browser evidence and honest website copy |
 | `cd4f402` | Cross-run transcript event pages/SSE, Last-Event-ID replay, bounded snapshot reconciliation and focused real-socket tests |
 | `896a774` | Same-harness baseline/current artifacts, data-quality notebook, final screenshots and demo-label correction |
 | `4bdd936` | Schema-v12 recoverable transcript files, durable prerequisites, inspected UI errors and raw performance diagnosis |
@@ -2102,3 +2103,26 @@ overflow at desktop **1440×960**, tablet **900×1024**, and phone **390×844**.
 captures; the role label compacts on phone. `node --check` and `git diff --check` passed. Captures,
 trace and source hashes are under `artifacts/workspace-coordinator/`. No provider/model call,
 physical-device or screen-reader check was used.
+
+## Reviewed coordinator-to-specialist handoff (2026-10-09)
+
+Commit `a83aac1` adds one explicit, user-reviewed handoff from a completed coordinator response to
+an existing specialist Bot. The user can edit the proposed purpose-based brief and assumptions,
+inspect the specialist's saved model/tools/action policy/workspace, and confirm before admission.
+The specialist receives a new independent conversation with only that reviewed brief and
+assumptions; its own enabled memory and workspace still apply. The coordinator timeline retains
+request/draft provenance, owner, reviewed constraints, capability snapshot, durable status and the
+latest result, with a direct link to the specialist chat. Exact retries return the same task and
+changed retry bodies conflict. Capability changes after review fail before worker creation. This
+is a narrow handoff; reusable specialist allowlists, autonomous multi-step planning, restart-safe
+cross-Bot checkpoints, task cancellation, artifact transfer and live provider verification remain
+open.
+
+Focused migration/conversation/engine/browser/site validation passed **32 tests in 17.36s**; the
+JavaScript syntax and staged diff checks passed. Chromium **153.0.8010.12** / Playwright **1.63.0**
+covered the review, edited brief/constraints, completion card and direct-chat route at desktop
+**1440×960**, tablet **900×1024** and phone **390×844**. The anonymous website workflow was checked
+at **1440×900**, **900×1024** and **390×844**. Screenshots and trace are in
+`artifacts/workspace-task-dispatch/`. Fixtures used local SQLite/mock execution only; no provider,
+paid call, remote device or screen-reader check was performed. Full-suite verification remains a
+release gate.
