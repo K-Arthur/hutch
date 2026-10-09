@@ -171,7 +171,8 @@ task identity. The migration backup can be restored with the standard held resto
 Schema v22 records immutable same-bot run lineage; v23 stores the delegated subtree currency ceiling.
 Existing rows receive no invented delegation budget, and these internal primitives do not expose
 child execution; the ordinary scheduler leaves delegated rows queued until their dedicated executor
-enforces the child permission and workspace boundary. Stopping a run now persists cancellation for
+enforces the child permission and artifact boundary. If an internal lineage run is explicitly executed,
+its workspace is private to that run, regardless of the bot's configured shared folder. Stopping a run now persists cancellation for
 its descendants before cleanup starts;
 each process-owning run remains Cancelling until its own process group has been verified gone.
 Hutch does not infer that adjacent runs share a

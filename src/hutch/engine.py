@@ -424,16 +424,15 @@ class Engine:
 
     # ------------------------------------------------------------ execution
 
-    def _execute(self, bot: Bot, run: Run, cancel: threading.Event) -> None:
-        try:
-            runtime = get_runtime(bot)
-        except RuntimeError as exc:
-            self._fail_unavailable_runtime(run, str(exc))
-            return
+    def _prepare_workspace(self, bot: Bot, run: Run) -> tuple[Path, Path, Optional[str]]:
         run_dir = self.config.run_dir(bot.name, run.id)
-        workdir_error = check_workdir_at_run(bot.workdir, self.config.state_dir)
+        delegated = run.parent_run_id is not None
+        workdir_error = None if delegated else check_workdir_at_run(bot.workdir, self.config.state_dir)
         try:
-            if bot.workdir:
+            if delegated:
+                # A child cannot inherit a mutable bot folder or its parent's files.
+                workspace = self.config.ensure_run_workspace(bot.name, run.id)
+            elif bot.workdir:
                 workspace = Path(bot.workdir).resolve()             # the user's own folder: never created, never replaced
             elif bot.workspace_mode == "managed":
                 workspace = self.config.ensure_managed_workspace(bot.id)
@@ -442,7 +441,16 @@ class Engine:
                 workspace.mkdir(parents=True, exist_ok=True)
         except (OSError, ValueError) as exc:
             workspace = run_dir / "workspace"
-            workdir_error = f"Could not prepare the managed workspace: {exc}"
+            workdir_error = f"Could not prepare the {'isolated child ' if delegated else ''}workspace: {exc}"
+        return run_dir, workspace, workdir_error
+
+    def _execute(self, bot: Bot, run: Run, cancel: threading.Event) -> None:
+        try:
+            runtime = get_runtime(bot)
+        except RuntimeError as exc:
+            self._fail_unavailable_runtime(run, str(exc))
+            return
+        run_dir, workspace, workdir_error = self._prepare_workspace(bot, run)
         run_dir.mkdir(parents=True, exist_ok=True)
         closed = threading.Event()          # set once the run is over: a late worker's events and tool calls are dropped
         degraded: list[str] = []            # audit writes that failed: shown, never silent

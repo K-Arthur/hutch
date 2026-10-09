@@ -94,7 +94,11 @@ Arbitrary shell-created files are not attached automatically. Bots
 default to a fresh workspace per run; operators may select a private Hutch-managed directory
 shared only by that bot, or an existing validated user folder.
 These choices do not move files. Managed workspaces are separate from SQLite backups and survive
-bot deletion. Run-output artifacts stay with their source run and conversation context.
+bot deletion. A run with persisted parent lineage always gets its own private 0700 run workspace,
+regardless of the bot's managed or host-folder setting; an unexpected workspace symlink fails closed.
+The ordinary dispatcher leaves those delegated rows pending until a dedicated executor enforces a
+capability snapshot and artifact contract. Run-output artifacts stay with their source run and
+conversation context.
 
 ## Key decisions
 

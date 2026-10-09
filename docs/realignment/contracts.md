@@ -87,9 +87,10 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   runs in that subtree in the same transaction as the per-run, bot, and account checks. Legacy runs upgraded from v22 have no invented
   delegation ceiling. Stopping any run also persists cancellation intent for its descendants before cleanup, and a racing child
   submission either appears in that tree or observes its cancelled parent and is refused. This is still a persistence/admission
-  primitive only: no chat tool or public child-run endpoint exists yet. Capability snapshotting, independent child workspaces, and
-  delegated artifact transfer remain open. The ordinary dispatcher deliberately leaves delegated queue rows pending until a
-  dedicated, permission-bounded and workspace-isolated child executor exists.
+  primitive only: no chat tool or public child-run endpoint exists yet. An explicitly executed lineage run receives a private
+  0700 per-run workspace even when its bot normally shares a managed or user folder; a symlinked run workspace fails closed. The
+  ordinary dispatcher deliberately leaves delegated queue rows pending until a dedicated executor enforces the persisted capability
+  snapshot and artifact contract. Capability snapshotting and delegated artifact transfer remain open.
 * `POST /api/v1/tasks/runs/{run_id}/resume` takes `{human_event_seq}` and requires `Idempotency-Key`. The run must still be
   `waiting_human` under a live owner lease, and the sequence must match its latest `human_needed` event. Schema v19 accepts one command per wait episode;
   another key for the same event and any stale event sequence conflict. Exact retries replay the recorded result without setting the

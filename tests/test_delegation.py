@@ -330,6 +330,37 @@ def test_ordinary_dispatcher_keeps_delegated_runs_pending_until_child_executor_e
     assert pending is not None and pending.status is RunStatus.pending and not pending.lease_owner
 
 
+def test_delegated_run_uses_private_workspace_instead_of_bot_folder(store, config, tmp_path):
+    bot, parent = _running_parent(store)
+    shared = tmp_path / "user-project"
+    shared.mkdir()
+    bot.workspace_mode = "folder"
+    bot.workdir = str(shared)
+    engine = Engine(config, store, light=True)
+    parent_run = Run(bot_id=bot.id, prompt="parent")
+    child_run = Run(bot_id=bot.id, prompt="child", parent_run_id=parent.id)
+
+    _, parent_workspace, parent_error = engine._prepare_workspace(bot, parent_run)
+    assert parent_workspace == shared
+    assert parent_error is None
+    shared.rmdir()
+
+    _, child_workspace, child_error = engine._prepare_workspace(bot, child_run)
+    assert child_workspace == config.workspace(bot.name, child_run.id)
+    assert child_workspace != shared
+    assert child_error is None
+    assert child_workspace.stat().st_mode & 0o777 == 0o700
+
+    external = tmp_path / "outside"
+    external.mkdir()
+    planted_run = Run(bot_id=bot.id, prompt="symlink child", parent_run_id=parent.id)
+    planted_workspace = config.workspace(bot.name, planted_run.id)
+    planted_workspace.parent.mkdir(parents=True, exist_ok=True)
+    planted_workspace.symlink_to(external, target_is_directory=True)
+    _, _, planted_error = engine._prepare_workspace(bot, planted_run)
+    assert planted_error and "not a private directory" in planted_error
+
+
 def test_delegation_admission_is_atomic_across_independent_sqlite_connections(store, config):
     _, parent = _running_parent(store)
     count = 8

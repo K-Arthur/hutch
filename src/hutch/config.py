@@ -52,6 +52,20 @@ class hutchConfig:
     def workspace(self, bot_name: str, run_id: str) -> Path:
         return self.run_dir(bot_name, run_id) / "workspace"
 
+    def ensure_run_workspace(self, bot_name: str, run_id: str) -> Path:
+        """Create a private per-run workspace, even when this bot normally reuses a folder."""
+        run_dir = self.run_dir(bot_name, run_id)
+        run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if run_dir.is_symlink() or not run_dir.is_dir():
+            raise ValueError("the run directory is not a private directory")
+        os.chmod(run_dir, 0o700)
+        workspace = run_dir / "workspace"
+        workspace.mkdir(exist_ok=True, mode=0o700)
+        if workspace.is_symlink() or not workspace.is_dir():
+            raise ValueError("the run workspace is not a private directory")
+        os.chmod(workspace, 0o700)
+        return workspace
+
     def managed_workspace_path(self, bot_id: str) -> Path:
         """Return the identity-scoped managed workspace path without creating it."""
         if not re.fullmatch(r"bot_[0-9a-f]{12}", bot_id):
