@@ -1,9 +1,10 @@
 # ADR-0006: Tool authority, an OS sandbox, and who owns the browser
 
 Status: accepted, partially implemented (2026-10-08). S4 Linux shell containment and approval CAS are host-tested; browser profile
-ownership, opt-in local Linux desktop handoff and a DNS-pinning HTTP(S)/WebSocket proxy have local fixture coverage. Live public
-destinations, non-HTTP browser traffic, a headed challenge and remote handoff remain unverified or unavailable. Evidence: baseline
-leads 8-9, D3, A1, B6.
+ownership, opt-in local Linux desktop handoff and a DNS-pinning HTTP(S)/WebSocket proxy have local fixture coverage. Chromium's
+WebRTC policy is also checked against a loopback STUN fixture with a default-Chromium negative control. Live public destinations,
+other non-HTTP browser protocols, a headed challenge and remote handoff remain unverified or unavailable. Evidence: baseline leads
+8-9, D3, A1, B6.
 
 ## Context
 
@@ -42,9 +43,11 @@ pins the connection to the validated IP (no second DNS lookup), and bounds the b
 the early Playwright route check is backed by a fresh proxy resolution for every HTTP(S)/WebSocket connection, all returned
 addresses must be public, and the socket connects to a checked numeric address. HTTPS remains end-to-end TLS through CONNECT, so
 Chromium checks the original host certificate. Local Chromium fixtures verify HTTP, redirect rebinding denial, WebSocket upgrade
-forwarding and CONNECT tunnel bytes. This is not a browser network namespace: live public destinations and traffic outside the
-configured HTTP proxy have not been validated. A locally configured model endpoint is an *explicit exception* by connection, not
-by URL pattern.
+forwarding and CONNECT tunnel bytes. Chromium is launched with `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`; a
+loopback STUN test observes a UDP packet from unconfigured Chromium and none from Hutch's configured browser. This verifies that
+specific WebRTC path only. It is not a browser network namespace: live public destinations and other traffic outside the configured
+HTTP proxy have not been validated. A locally configured model endpoint is an *explicit exception* by connection, not by URL
+pattern.
 
 Chromium implicitly bypasses configured proxies for localhost and link-local destinations. Hutch subtracts this bypass
 (`<-loopback>`) so the egress proxy stays in the path even if the early request route changes. The behavior and special rule are
@@ -67,8 +70,9 @@ into system instructions. They cannot raise a tool's policy tier. Rendered conte
 
 * **Isolated automation browser**: one Playwright context per tool instance, using that bot's persistent profile directory. This
   is fixture-tested; no live account check has been completed here. Cross-process file leases prevent concurrent use of the same
-  profile. HTTP(S) and WebSocket egress is pinned by the loopback proxy; non-HTTP traffic and live public destinations remain
-  unverified. Opt-in local handoff keeps the same headed browser open for a human challenge; it remains experimental.
+  profile. HTTP(S) and WebSocket egress is pinned by the loopback proxy. A local WebRTC fixture verifies that configured Chromium
+  sends no direct UDP to a local STUN endpoint; other non-HTTP traffic and live public destinations remain unverified. Opt-in local
+  handoff keeps the same headed browser open for a human challenge; it remains experimental.
 * **Physical desktop** (pointer/keyboard): one lease at a time system-wide (`resource_leases` row), not implemented in this phase and
   documented as such; Wayland capture/control needs an installed, authorised executor and portal permission.
 * **Local browser human handoff**: a run may opt into one visible local browser session at a time. The run pauses while the person

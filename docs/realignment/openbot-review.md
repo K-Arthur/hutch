@@ -25,7 +25,9 @@ URL is deliberately absent from this repository.
   fingerprinted only the path, and browser typing only the selector. Hutch now binds the full
   write payload and reviewed file revision; browser typing binds text, URL and profile, and
   browser mutations always ask. Shell requests include effective timeout, workspace and
-  containment mode. HTTP(S)/WebSocket browser destinations are now pinned by a local proxy with Chromium fixture coverage. These repairs do not finish browser account authority, OS-level browser containment or live public egress validation.
+  containment mode. HTTP(S)/WebSocket browser destinations are pinned by a local proxy with Chromium fixture coverage; the configured
+  Chromium also sends no direct WebRTC UDP to a loopback STUN fixture, while the default-browser negative control does. This does
+  not finish browser account authority, OS-level browser containment, coverage for other protocols, or live public egress validation.
 - The [computer gateway](https://github.com/CopilotKit/OpenBot/blob/59e28898238fe8510275dc02bc25cf9f4a90a77c/server/src/computer/gateway.ts)
   governs actions through server state, records decisions before effects, and validates human
   gesture names at runtime. Hutch's future control routes must similarly validate capabilities

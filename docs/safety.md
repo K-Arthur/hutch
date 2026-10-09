@@ -21,7 +21,7 @@ not measured prevalence).
 | File tools (`read_file`, `write_file`, `list_files`) | path-jailed to the workspace |
 | Shell tool | New bots request Linux strict mode: bubblewrap gives a private mount/PID/network namespace, private `/tmp`, writable workspace, sanitized environment and bounded resources. `web_fetch` provides checked public-page access; shell networking is unavailable in strict mode. This is shell-only containment, not a VM. Existing bots retain `off` after migration; the UI labels that choice. If strict mode is unavailable, the command fails closed. |
 | `web_fetch` | the name is resolved and **every** answer must be a public address; redirects are followed by hutch and each hop re-checked; the connection is pinned to the validated address (no second lookup); credentials in URLs, internal names and every spelling of a loopback/metadata address (`[::1]`, `0x7f.0.0.1`, decimal, IPv4-mapped, NAT64, 6to4) are refused (`netguard.py`, `tests/test_netguard.py`) |
-| browser | Chromium is configured to use Hutch's loopback proxy for HTTP(S)/WebSocket traffic. The proxy freshly resolves every connection, rejects the whole answer set if any address is non-public, and connects to a checked numeric address. Local Chromium fixtures cover redirects and a public-to-private DNS change. This is not an OS network namespace; live public destinations and non-HTTP traffic remain unverified. |
+| browser | Chromium uses Hutch's loopback proxy for HTTP(S)/WebSocket traffic. The proxy freshly resolves every connection, rejects the whole answer set if any address is non-public, and connects to a checked numeric address. A local STUN fixture confirms that Hutch's Chromium does not send unproxied WebRTC UDP; plain Chromium does send to the same fixture. This checks that WebRTC setting only, not every browser protocol. Live public destinations and other non-HTTP traffic remain unverified. |
 | External runtimes (Pi, OpenCode) | disabled before process creation. Offline protocol helpers cover selected wire formats, but Hutch cannot yet drain/own both process streams, broker permissions end to end, enforce provider budgets, or run either harness inside the owned sandbox. OpenCode 2.0.24's event stream can lose records on disconnect/overflow. Selecting these runtimes fails with an actionable message; they are not supported executors. |
 | Stopping a run | an intent recorded in the database: `hutch stop`, `stop-all` and the dashboard work on a run owned by any process. `serve`, `daemon`, and `hutch run` use one owned process per attempt. Recovery fences the old owner before cleanup and signals only boot/start-verified process identities through pidfds. `Stopping` or `Recovering` remains visible while cleanup is incomplete or cannot be verified; terminal cancellation waits for confirmed cleanup. |
 
@@ -173,9 +173,11 @@ refused, whichever way the address is written and whichever name resolves to it.
 re-checked. Response bodies are hard-clipped. Chromium browser traffic uses an owned loopback proxy: for each HTTP, HTTPS or
 WebSocket connection it freshly resolves the destination, rejects mixed public/private DNS answers, and connects to a numeric
 validated address. HTTPS uses CONNECT, leaving TLS certificate and hostname checks in Chromium. Local Chromium fixtures cover
-ordinary HTTP and a redirect where a formerly public DNS answer turns private before the next connection. This protects traffic
-carried through the configured HTTP proxy, not every possible browser protocol; non-HTTP egress and live public destinations are
-unverified. A locally configured model endpoint is an explicit exception made by a connection, not by a URL pattern.
+ordinary HTTP and a redirect where a formerly public DNS answer turns private before the next connection. Chromium also uses
+`disable_non_proxied_udp`; a local STUN fixture observed UDP from default Chromium but none from Hutch's configured browser. This
+only checks that WebRTC path. Traffic outside the configured HTTP proxy remains unverified except for that fixture, and live public
+destinations have not been tested. A locally configured model endpoint is an explicit exception made by a connection, not by a URL
+pattern.
 
 ### Browser actions
 
