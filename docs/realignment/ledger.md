@@ -2210,3 +2210,23 @@ keeps the content reachable above its sticky footer. The first browser attempt c
 disk-backed temporary-directory rerun passed. `node --check` and `git diff --check` passed. Evidence is in
 `artifacts/workspace-task-dispatch/review-source-{desktop,tablet,phone}.png`, `validation.json` and the Playwright trace. No
 screen-reader or physical-device check was performed.
+
+## S6 four-screen chat-driven Bot creation
+
+Commit `7578d99` reduces the Studio Bot-creation flow from six screens to four. The exact latest user request remains editable and
+provenance-linked. Hutch suggests a professional display name/address locally and updates the suggestion as the request changes
+until the user edits it. A configured source-chat or workspace model route carries forward; if neither exists, the user still
+chooses a route. The remaining defaults are a managed workspace, blank starter, no tools, ask-first actions, no schedule, and
+bounded execution defaults. Starter, tool, schedule, limit and browser-handoff controls are optional disclosures. The last screen
+still shows the complete reviewed draft; creation remains idempotent and starts no run. A semicolon clause boundary regression in
+the name suggestion was found by the browser test and corrected.
+
+The focused run passed **5 tests in 13.19s** with unhandled-thread and deprecation warnings treated as errors: four Bot-creation
+journeys and the anonymous marketing-copy journey. Chromium **153.0.8010.12** / Playwright **1.63.0** verified desktop **1440×960**,
+tablet **900×1024** and phone **390×844**; I inspected the purpose, optional-settings and final-review captures at those sizes.
+The marketing card was checked at **1440×900**, **900×1024** and **390×844**, with zero external requests, page errors or overflow.
+Evidence is in `artifacts/bot-setup/` and `artifacts/bot-setup-context/site/`. `node --check`, artifact JSON/source-hash checks and
+`git diff --check` passed. No model/provider request, live account, physical phone or screen-reader check was performed.
+
+UI-15 remains partial: the user must review the whole draft and select a model when no route is configured. Hutch does not rewrite
+the request using a model or ask follow-up questions conversationally; it does not infer tools, accounts, or authority from context.
