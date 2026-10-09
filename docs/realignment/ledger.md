@@ -2555,3 +2555,17 @@ passed **3 tests, 99 deselected, in 6.15s** on Chromium **153.0.8010.12**. `node
 `git diff --check` passed. No provider credentials, consent, or external requests were used. Updated responsive captures and source hashes
 are under [`artifacts/google-calendar/`](artifacts/google-calendar/), [`artifacts/outlook-calendar/`](artifacts/outlook-calendar/), and
 [`artifacts/outlook-mail/`](artifacts/outlook-mail/).
+
+## Run-detail transcript verification (2026-10-09)
+
+The run detail now calls the real `/api/v1/tasks/runs/{id}/verify` endpoint and reports the number of chained events checked,
+older unhashed events as partial verification, or the first detected mismatch as an alert. The check is read-only. A responsive browser
+journey verifies an intact stored chain at desktop, tablet and phone sizes, modifies a committed event payload in its isolated test
+database, then confirms that the page identifies event 1 as tampered. Its fixture run is terminal so the live test supervisor cannot
+start execution while the history is inspected; no model/provider request occurs. Standalone CLI audit remains open, so SR-11 is partial.
+
+`node --check src/hutch/server/static/app.js`, `git diff --check`, and
+`.venv/bin/pytest -q tests/test_store_events.py tests/e2e/test_browser.py::test_run_detail_reports_transcript_chain_verification_and_tampering --no-header`
+passed (**17 tests in 3.45s** on Chromium **153.0.8010.12**). Inspected desktop **1440×960**, tablet **900×1024**, and phone
+**390×844** captures showed no horizontal overflow; the event-verification controls stack on compact layouts. Tamper alert, screenshots,
+Playwright trace, request/result metadata and source hashes are recorded in [`artifacts/transcript-integrity/`](artifacts/transcript-integrity/).

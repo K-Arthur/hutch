@@ -1,0 +1,67 @@
+{
+  "test": "tests/e2e/test_browser.py::test_run_detail_reports_transcript_chain_verification_and_tampering",
+  "captured_at": "2026-10-09T18:45:48.546602+00:00",
+  "browser": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "provider_calls": 0,
+  "scenario": "Locally persisted event hash chain is verified through the run UI, then detects a changed event payload",
+  "external_requests": [],
+  "verification_responses": [
+    {
+      "url": "http://127.0.0.1:36667/api/v1/tasks/runs/run_d6a528c48b4f/verify",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:36667/api/v1/tasks/runs/run_d6a528c48b4f/verify",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:36667/api/v1/tasks/runs/run_d6a528c48b4f/verify",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:36667/api/v1/tasks/runs/run_d6a528c48b4f/verify",
+      "status": 200
+    }
+  ],
+  "page_errors": [],
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "status": "verified",
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "status": "verified",
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "status": "verified",
+      "horizontal_overflow": 0
+    }
+  ],
+  "legacy_result": "0 chained events verified; 1 older event has no hash.",
+  "legacy_capture": "legacy-desktop.png",
+  "tampering_detected_at_seq": 1,
+  "tamper_capture": "tampered-desktop.png",
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "147ba13aef3e57513d21468c79640092ba1af5c32b3e7beddb005aade52cfab3",
+    "src/hutch/server/static/style.css": "3ca514093c71699c427180bb622219c5d2b7eebfb9f2611f3d377554d6ff0343",
+    "src/hutch/server/app.py": "31c7a1f1a801c595518269121277f179c768b69f44bae3a37d6297525c73026c",
+    "src/hutch/store.py": "705fe90e07c1bd0762bd9370f110b346e99888a8ebacfca0af8a1da69c6594d4"
+  }
+}

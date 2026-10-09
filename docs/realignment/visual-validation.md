@@ -813,3 +813,11 @@ overflow, and their provider summaries show the readable Bot name without the in
 under [`artifacts/google-calendar/`](artifacts/google-calendar/), [`artifacts/outlook-calendar/`](artifacts/outlook-calendar/), and
 [`artifacts/outlook-mail/`](artifacts/outlook-mail/). These are fixture-only flows; no provider credentials or live provider requests
 were used.
+
+## Run-detail event-history verification (2026-10-09)
+
+The run detail contains a keyboard-accessible “Verify event history” action and an announced status result. A local Chromium scenario
+checked intact history and then confirmed that a modified stored payload raises an alert naming the failing event. I inspected screenshots
+at desktop **1440×960**, tablet **900×1024**, and phone **390×844**; the control stays reachable, stacks below its status on narrow
+screens, and all three document widths matched the viewport. A terminal fixture run prevented the active supervisor from starting it.
+No provider call or external request was made. The captures and trace are under [`artifacts/transcript-integrity/`](artifacts/transcript-integrity/).

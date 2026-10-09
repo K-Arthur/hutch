@@ -37,6 +37,7 @@ let activeReplySelectionHandler = null;
 let activeWorkspaceResultSelectionHandler = null;
 let activeChoiceSubmitHandler = null;
 const requestedHumanResumes = new Set();
+const runIntegrityStates = new Map();
 
 /* ------------------------------------------------------------------ utils */
 
@@ -111,6 +112,17 @@ function clearChoiceIdempotencyKey(conversationId, questionId, key) {
     const previous = JSON.parse(localStorage.getItem(storageKey) || "null");
     if (previous?.key === key) localStorage.removeItem(storageKey);
   } catch { storageRemove(storageKey); }
+}
+
+function setRunIntegrityState(runId, state) {
+  runIntegrityStates.set(runId, state);
+  if (runIntegrityStates.size > 100) runIntegrityStates.delete(runIntegrityStates.keys().next().value);
+  const section = $$('[data-run-integrity-run]', view).find(node => node.dataset.runIntegrityRun === runId);
+  const result = section && $('[data-run-integrity-result]', section);
+  if (!result) return;
+  result.textContent = state.text;
+  result.dataset.state = state.state;
+  result.setAttribute('role', state.role);
 }
 
 function choiceDraftKey(conversationId, questionId) {
@@ -4236,6 +4248,12 @@ async function renderRunDetail(runId) {
           <div class="kpi"><span class="kpi-label">Recorded cost</span><span class="kpi-val">$${(r.cost_usd || 0).toFixed(4)}</span></div>
           <div class="kpi"><span class="kpi-label">Reported tokens</span><span class="kpi-val">${fmtTokens(r.tokens)}</span></div>
         </div>
+        <section class="run-integrity panel" aria-label="Transcript integrity" data-run-integrity-run="${esc(runId)}">
+          <div class="run-integrity-copy"><strong>Transcript integrity</strong>
+            <p class="hint" data-run-integrity-result role="status" aria-live="polite">Not checked for this run.</p>
+          </div>
+          <button class="btn ghost small" type="button" data-verify-run-history>Verify event history</button>
+        </section>
         ${r.queue_ms > 0 && !steps.length ? `<p class="run-queue-time">Recorded inference admission waits: ${fmtDur(r.queue_ms)} (startup and steps)</p>` : ""}
         ${steps.length ? `
         <div class="panel run-timing">
@@ -4267,6 +4285,43 @@ async function renderRunDetail(runId) {
   const block = await runBlockHtml(runId);
   if (!stillCurrent() || !stream.isConnected) return;
   stream.insertAdjacentHTML("beforeend", block);
+  const verifyButton = $(`[data-verify-run-history]`, stream);
+  const savedIntegrity = runIntegrityStates.get(runId);
+  if (savedIntegrity) {
+    setRunIntegrityState(runId, savedIntegrity);
+    if (savedIntegrity.state === "checking" && verifyButton) verifyButton.disabled = true;
+  }
+  verifyButton?.addEventListener("click", async () => {
+    if (verifyButton.disabled) return;
+    verifyButton.disabled = true;
+    setRunIntegrityState(runId, { text: "Checking the saved event history…", state: "checking", role: "status" });
+    try {
+      const verification = await api(`/v1/tasks/runs/${encodeURIComponent(runId)}/verify`);
+      if (!verification.ok) {
+        const location = verification.bad_seq ? `event ${verification.bad_seq}` : "the event sequence";
+        setRunIntegrityState(runId, { text: `Integrity check failed at ${location}. Preserve and review this transcript.`,
+          state: "failed", role: "alert" });
+      } else if (verification.legacy) {
+        const checkedLabel = `${verification.checked} chained event${verification.checked === 1 ? "" : "s"} verified`;
+        const legacyLabel = `${verification.legacy} older event${verification.legacy === 1 ? "" : "s"} ${verification.legacy === 1 ? "has" : "have"} no hash.`;
+        setRunIntegrityState(runId, { text: `${checkedLabel}; ${legacyLabel}`,
+          state: "partial", role: "status" });
+      } else if (verification.checked) {
+        setRunIntegrityState(runId, { text: `${verification.checked} chained event${verification.checked === 1 ? "" : "s"} verified.`,
+          state: "verified", role: "status" });
+      } else {
+        setRunIntegrityState(runId, { text: "No events were present to verify.", state: "empty", role: "status" });
+      }
+    } catch (error) {
+      setRunIntegrityState(runId, { text: `Transcript verification could not finish: ${error.message}`,
+        state: "failed", role: "alert" });
+    } finally {
+      if (verifyButton.isConnected) verifyButton.disabled = false;
+      const currentSection = $$('[data-run-integrity-run]', view).find(node => node.dataset.runIntegrityRun === runId);
+      const currentButton = currentSection && $("[data-verify-run-history]", currentSection);
+      if (currentButton) currentButton.disabled = false;
+    }
+  });
   $("#stop-this-run")?.addEventListener("click", async () => {
     await api(`/runs/${runId}/stop`, { method: "POST" });
     toast("Stop requested — already-finished steps are not undone.");

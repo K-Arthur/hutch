@@ -76,6 +76,121 @@ def test_executor_health_status_uses_a_steady_indicator(browser, live):
         page.close()
 
 
+def test_run_detail_reports_transcript_chain_verification_and_tampering(browser, live):
+    """Show the result of the real persisted event-chain verifier without starting a model run."""
+    import hashlib
+    import json
+    from pathlib import Path
+
+    base, app = live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="integrity-review", model="mock/demo", tools=[]))
+    # Keep the fixture terminal so the live test supervisor cannot turn it into a real execution.
+    run = Run(bot_id=bot.id, prompt="Check this persisted transcript.", status=RunStatus.succeeded,
+              finished_at=datetime.now(timezone.utc).isoformat())
+    store.create_run(run)
+    store.append_event(Event(run_id=run.id, type=EventType.message,
+                             data={"role": "assistant", "content": "The transcript is intact."}))
+    store.flush_events()
+    initial_verification = store.verify_chain(run.id)
+    assert initial_verification["ok"] is True and initial_verification["checked"] > 0
+
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    external: list[str] = []
+    verification_responses: list[dict[str, str | int]] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(base) else None)
+    page.on("response", lambda response: verification_responses.append({"url": response.url, "status": response.status})
+            if response.url.endswith(f"/api/v1/tasks/runs/{run.id}/verify") else None)
+    output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/transcript-integrity"
+    output.mkdir(parents=True, exist_ok=True)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(f"{base}/#/run/{run.id}")
+        page.get_by_role("heading", name=f"Run #{run.id[:12]}").wait_for()
+        result = page.locator("[data-run-integrity-result]")
+        viewport_results = []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.get_by_role("button", name="Verify event history").click()
+            page.wait_for_function("""() => {
+              const node = document.querySelector('[data-run-integrity-result]');
+              return node && node.dataset.state !== 'checking';
+            }""", timeout=5000)
+            expected_verified = (f"{initial_verification['checked']} chained event"
+                                 f"{'s' if initial_verification['checked'] != 1 else ''} verified")
+            assert expected_verified in result.inner_text(), (result.inner_text(), verification_responses)
+            assert "legacy events are not chained" not in result.inner_text()
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow == 0, f"{label} viewport overflows by {overflow}px"
+            page.screenshot(path=str(output / f"verified-{label}.png"), animations="disabled")
+            viewport_results.append({"size": label, "viewport": [width, height], "status": "verified",
+                                    "horizontal_overflow": overflow})
+
+        legacy_run = Run(bot_id=bot.id, prompt="Check an older transcript.", status=RunStatus.succeeded,
+                         finished_at=datetime.now(timezone.utc).isoformat())
+        store.create_run(legacy_run)
+        store.append_event(Event(run_id=legacy_run.id, type=EventType.message,
+                                 data={"role": "assistant", "content": "This event predates hashing."}))
+        store.flush_events()
+        with store._lock:
+            store._db.execute("UPDATE events SET hash = '' WHERE run_id = ? AND seq = 1", (legacy_run.id,))
+            store._db.commit()
+        legacy_verification = store.verify_chain(legacy_run.id)
+        assert legacy_verification["ok"] and legacy_verification["legacy"] == 1
+        page.goto(f"{base}/#/run/{legacy_run.id}")
+        page.get_by_role("heading", name=f"Run #{legacy_run.id[:12]}").wait_for()
+        page.get_by_role("button", name="Verify event history").click()
+        page.wait_for_function("""() => {
+          const node = document.querySelector('[data-run-integrity-result]');
+          return node && node.dataset.state !== 'checking';
+        }""", timeout=5000)
+        legacy_result = result.inner_text()
+        assert legacy_result == "0 chained events verified; 1 older event has no hash.", legacy_result
+        assert result.get_attribute("data-state") == "partial"
+        page.screenshot(path=str(output / "legacy-desktop.png"), animations="disabled")
+
+        page.goto(f"{base}/#/run/{run.id}")
+        page.get_by_role("heading", name=f"Run #{run.id[:12]}").wait_for()
+        store.flush_events()
+        with store._lock:
+            store._db.execute("UPDATE events SET data = ? WHERE run_id = ? AND seq = 1",
+                              ('{"role":"assistant","content":"changed after commit"}', run.id))
+            store._db.commit()
+        page.get_by_role("button", name="Verify event history").click()
+        result.get_by_text("Integrity check failed at event 1", exact=False).wait_for()
+        assert result.get_attribute("role") == "alert"
+        assert store.verify_chain(run.id)["ok"] is False
+        page.screenshot(path=str(output / "tampered-desktop.png"), animations="disabled")
+        assert not errors, errors
+        assert not external, external
+        (output / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_run_detail_reports_transcript_chain_verification_and_tampering",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": browser.version,
+            "playwright_version": package_version("playwright"),
+            "provider_calls": 0,
+            "scenario": "Locally persisted event hash chain is verified through the run UI, then detects a changed event payload",
+            "external_requests": external,
+            "verification_responses": verification_responses,
+            "page_errors": errors,
+            "captures": viewport_results,
+            "legacy_result": legacy_result,
+            "legacy_capture": "legacy-desktop.png",
+            "tampering_detected_at_seq": 1,
+            "tamper_capture": "tampered-desktop.png",
+            "source_sha256": {path: hashlib.sha256((output.parents[3] / path).read_bytes()).hexdigest()
+                              for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                           "src/hutch/server/app.py", "src/hutch/store.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        context.tracing.stop(path=str(output / "trace.zip"))
+        context.close()
+
+
 def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser, live):
     """Use the local mock runtime to inspect the reviewed task flow and durable specialist result."""
     base, app = live
