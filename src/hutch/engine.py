@@ -145,7 +145,7 @@ class Engine:
             self.store.release_expired_claims()
             active = self.store.active_runs()
             # Delegation persistence is not an execution grant. Until the dedicated child
-            # executor snapshots capabilities and isolates its workspace, keep those
+            # executor enforces inherited capabilities and transfers artifacts, keep those
             # internal queue rows visible but do not dispatch them as ordinary bot work.
             pending = sorted((r for r in active if r.parent_run_id is None
                               and r.status is RunStatus.pending and not r.lease_owner),
@@ -226,6 +226,16 @@ class Engine:
             self.store.transition_run(
                 run.id, RunStatus.failed, fence=run.fence, exit_reason="model_unavailable", error=reason,
                 event={"reason": "model_unavailable", "error": reason}, cancel_wins=True)
+        except (IllegalTransition, LeaseLost, KeyError):
+            pass
+
+    def _fail_unavailable_child_executor(self, run: Run) -> None:
+        """Keep even a directly invoked worker from treating lineage as ordinary bot work."""
+        reason = "Delegated execution is unavailable until its capability-enforcing executor is installed."
+        try:
+            self.store.transition_run(
+                run.id, RunStatus.failed, fence=run.fence, exit_reason="delegation_unavailable", error=reason,
+                event={"reason": "delegation_unavailable", "error": reason}, cancel_wins=True)
         except (IllegalTransition, LeaseLost, KeyError):
             pass
 
@@ -473,6 +483,15 @@ class Engine:
         }
 
     def _execute(self, bot: Bot, run: Run, cancel: threading.Event) -> None:
+        # The ordinary dispatcher already excludes children; enforce the same rule at the
+        # worker boundary so a direct/internal worker invocation cannot bypass that gate.
+        persisted = self.store.get_run(run.id)
+        if persisted is None:
+            return
+        if persisted.parent_run_id is not None:
+            if persisted.status is RunStatus.pending:
+                self._fail_unavailable_child_executor(persisted)
+            return
         try:
             runtime = get_runtime(bot)
         except RuntimeError as exc:

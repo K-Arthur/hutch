@@ -92,7 +92,8 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   ordinary dispatcher deliberately leaves delegated queue rows pending until a dedicated executor enforces the persisted capability
   snapshot and artifact contract. Children inherit the exact snapshot recorded on their parent, so later bot edits cannot widen
   the lineage's authority. The snapshot is not yet used to construct or enforce a child runtime; delegated artifact transfer and the
-  user-facing child executor remain open. Legacy active runs have no retroactive snapshot and cannot admit delegated work.
+  user-facing child executor remain open. The engine worker boundary also fails a directly invoked pending child before runtime or
+  tools start. Legacy runs have no retroactive snapshot and cannot admit delegated work.
 * `POST /api/v1/tasks/runs/{run_id}/resume` takes `{human_event_seq}` and requires `Idempotency-Key`. The run must still be
   `waiting_human` under a live owner lease, and the sequence must match its latest `human_needed` event. Schema v19 accepts one command per wait episode;
   another key for the same event and any stale event sequence conflict. Exact retries replay the recorded result without setting the

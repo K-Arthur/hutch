@@ -1,11 +1,13 @@
 import sqlite3
+import threading
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from threading import Barrier
 
 import pytest
 
 from hutch.engine import Engine
-from hutch.models import Bot, Run, RunStatus, Task
+from hutch.models import Bot, Run, RunStatus, Task, iso, utcnow
 from hutch.store import IdempotencyConflict, Store
 
 
@@ -217,6 +219,31 @@ def test_delegated_children_inherit_immutable_parent_capabilities_after_bot_edit
         with store._tx() as db:
             db.execute("UPDATE runs SET capability_snapshot_json = ? WHERE id = ?",
                        ('{"tools":["shell"]}', child.id))
+
+
+def test_direct_child_worker_fails_before_runtime_or_tools_start(store, config, monkeypatch):
+    import hutch.engine as engine_module
+
+    bot, parent = _running_parent(store)
+    child, _ = _child(store, parent, key="unavailable-child-executor")
+    # Ordinary claim admission correctly refuses a concurrent run for this same bot.
+    # Simulate a worker that was given a forged/stale claim to test the last boundary.
+    with store._tx() as db:
+        db.execute("UPDATE runs SET lease_owner = ?, lease_expires_at = ?, fence = fence + 1 WHERE id = ?",
+                   ("direct-child-worker", iso(utcnow() + timedelta(seconds=60)), child.id))
+    claimed = store.get_run(child.id)
+    monkeypatch.setattr(engine_module, "get_runtime",
+                        lambda *_: pytest.fail("delegated worker reached model runtime"))
+
+    engine = Engine(config, store, light=True)
+    # Even a stale/corrupt caller projection cannot hide the database lineage link.
+    engine._execute(bot, claimed.model_copy(update={"parent_run_id": None}), threading.Event())
+
+    failed = store.get_run(child.id)
+    assert failed.status is RunStatus.failed
+    assert failed.exit_reason == "delegation_unavailable"
+    assert "capability-enforcing executor" in failed.error
+    assert store.list_events(child.id)[-1].data["reason"] == "delegation_unavailable"
 
 
 def test_delegation_enforces_depth_fanout_and_active_child_limits(store):

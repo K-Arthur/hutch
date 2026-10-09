@@ -61,7 +61,8 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 - Stopping a delegated run now atomically marks its persisted descendants for cancellation before cleanup begins. The supervisor signals every owned descendant process; queued descendants stop immediately, while owned work remains visibly Cancelling until cleanup is verified. A racing child submission is either included in the cancellation tree or refused by the parent's stored cancel intent.
 - The ordinary scheduler leaves internal delegated runs queued. Parent linkage alone does not grant the bot's full current tool set or shared workspace; dispatch waits for the dedicated child executor and its capability/isolation boundary.
-- When a lineage run is explicitly executed in the internal engine path, it receives a private 0700 per-run workspace even if the bot uses a persistent managed folder or an operator-selected host folder; symlinked run workspaces fail closed.
+- A directly invoked internal worker now marks a queued delegated run as unavailable before resolving a runtime or constructing tools; the persisted queue entry is not an alternate execution path.
+- Workspace preparation for a lineage run selects a private 0700 per-run directory even if its bot uses a managed or host folder; symlinked run workspaces fail closed. The worker still refuses to execute a child until the dedicated capability-enforcing executor exists.
 - Schema v14 restores database snapshots into a new private directory with old work quarantined,
   original process identities detached from cleanup authority, device sessions revoked and
   schedules paused. Submission, worker and supervisor claims refuse execution until a local
