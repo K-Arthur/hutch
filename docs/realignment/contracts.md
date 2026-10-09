@@ -147,8 +147,10 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   event without an ID before closing SSE. Fetch a snapshot and its remaining resource pages,
   then replay from `change_cursor`; this cursor shares the snapshot's read transaction.
   A new client starts with a snapshot; migration does not invent historic invalidations.
-  Retention remains manual. A restored v11-or-newer history needs epoch rotation before services/clients
-  restart; see [operations](../operations.md). Schema v12 adds the `transcript_mirrors` resource,
+  The elected supervisor trims this content-free outbox to at most 50,000 rows every five minutes.
+  A cursor older than the retained boundary gets 409 `snapshot_required`; the global run-event and
+  transcript history is not pruned by this policy. A restored v11-or-newer history needs epoch
+  rotation before services/clients restart; see [operations](../operations.md). Schema v12 adds the `transcript_mirrors` resource,
   with run context, for delivery/error invalidation. A separate queue delivers JSONL files.
   Run resources expose `transcript_mirror` with `target_seq`, `delivered_seq`, `pending`,
   `error` and transient `worker_error`. These describe file delivery, not executor status.

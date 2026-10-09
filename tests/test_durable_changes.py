@@ -60,6 +60,32 @@ def test_retention_gaps_force_snapshot_including_empty_history(installed, remova
         durable_changes.read(store._db)
 
 
+def test_automatic_outbox_pruning_preserves_boundary_replay_and_resource_rows(installed):
+    store = installed
+    cursors = []
+    for i in range(5):
+        store.create_bot(Bot(name=f"retained-outbox-{i}"))
+        cursors.append(durable_changes.read(store._db)["cursor"])
+
+    assert store.prune_resource_changes(keep=2) == 3
+    page = durable_changes.read(store._db, cursors[2])
+    assert [change["resource_id"] for change in page["changes"]] == [
+        store.list_bots()[3].id, store.list_bots()[4].id,
+    ]
+    assert page["cursor"] == page["high_water"] == cursors[4]
+    with pytest.raises(durable_changes.SnapshotRequired, match="removed"):
+        durable_changes.read(store._db, cursors[1])
+    with pytest.raises(durable_changes.SnapshotRequired, match="removed"):
+        durable_changes.read(store._db)
+    assert len(store.list_bots()) == 5
+
+
+@pytest.mark.parametrize("keep", [0, -1, True, 1.5])
+def test_outbox_pruning_rejects_unbounded_or_ambiguous_retention(installed, keep):
+    with pytest.raises(ValueError, match="keep at least one row"):
+        installed.prune_resource_changes(keep=keep)
+
+
 def test_future_or_foreign_cursor_requires_snapshot(installed):
     epoch, _ = durable_changes.bounds(installed._db)
     for cursor in ("different:0", f"{epoch}:1", "malformed"):

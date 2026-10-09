@@ -54,6 +54,18 @@ def test_next_wakeup_honours_pending_approval_expiry(store, config):
     assert 5 < Engine(config, store).next_wakeup() <= 7.5
 
 
+def test_supervisor_tick_compacts_the_resource_outbox_at_a_bounded_interval(store, config, monkeypatch):
+    engine = Engine(config, store, light=True)
+    calls = []
+    monkeypatch.setattr(store, "prune_resource_changes", lambda keep: calls.append(keep) or 0)
+    engine.tick()
+    engine.tick()
+    assert calls == [50_000]
+    monkeypatch.setattr("hutch.engine.time.monotonic", lambda: engine._last_resource_change_prune + 301)
+    engine.tick()
+    assert calls == [50_000, 50_000]
+
+
 # ------------------------------------------------------------------- loop
 
 def test_idle_loop_does_not_spin(store, config):

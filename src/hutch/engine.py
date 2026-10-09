@@ -32,7 +32,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 
-from . import procguard, sandbox
+from . import durable_changes, procguard, sandbox
 from .approvals import ApprovalGate, expire_stale_approvals
 from .config import hutchConfig
 from .lifecycle import LIVE, TERMINAL as TERMINAL_STATUSES, IllegalTransition, LeaseLost
@@ -102,6 +102,7 @@ class Engine:
         self._background_thread: Optional[threading.Thread] = None
         self._background_stop: Optional[threading.Event] = None
         self._is_supervisor = False
+        self._last_resource_change_prune: float | None = None
         self._lock = threading.Lock()
         #: local models are scheduled resources (LM-6): batch by loaded model, gate by free slots. A worker process runs ONE
         #: run it was handed, so it does not need (or pay for) the dispatch machinery.
@@ -1012,11 +1013,16 @@ class Engine:
         return created
 
     def tick(self) -> list[Run]:
-        """One beat: recover orphans, expire approvals, claim due schedules, drain the queue."""
+        """One beat: recover, expire approvals, claim schedules, drain work and bound change replay."""
         self.recover_orphans()
         expire_stale_approvals(self.store, self.config.default_approval_ttl_seconds)
         created = self.scheduler_claims()
         self.dispatch_pending()
+        now = time.monotonic()
+        if (self._last_resource_change_prune is None
+                or now - self._last_resource_change_prune >= 300.0):
+            self.store.prune_resource_changes(durable_changes.MAX_RETAINED_ROWS)
+            self._last_resource_change_prune = now
         return created
 
     def next_wakeup(self, now: datetime | None = None) -> float:

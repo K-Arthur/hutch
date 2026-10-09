@@ -247,11 +247,14 @@ def test_resource_pages_snapshot_and_retention_reconciliation(live):
     later = httpx.get(f"{base}/api/v1/changes", params={"cursor": first["cursor"]}).json()
     assert len(later["changes"]) == 2 and not later["has_more"]
     assert first["cursor"] != later["cursor"] == later["high_water"]
+    boundary = httpx.get(f"{base}/api/v1/changes", params={"cursor": first["cursor"], "limit": 1}).json()
+    assert boundary["changes"][0]["resource_id"] == store.list_bots()[1].id
     snapshot = httpx.get(f"{base}/api/v1/snapshot?limit=1").json()
     assert snapshot["change_cursor"] == later["cursor"] and snapshot["truncated"]["bots"]
     assert httpx.get(f"{base}/api/v1/changes", params={"cursor": snapshot["change_cursor"]}).json()["changes"] == []
-    with store._tx() as db:
-        db.execute("DELETE FROM resource_outbox WHERE id = 2")
+    assert store.prune_resource_changes(keep=1) == 2
+    latest = httpx.get(f"{base}/api/v1/changes", params={"cursor": boundary["cursor"]}).json()
+    assert [change["resource_id"] for change in latest["changes"]] == [store.list_bots()[2].id]
     response = httpx.get(f"{base}/api/v1/changes", params={"cursor": first["cursor"]})
     assert response.status_code == 409
     assert response.json()["detail"]["code"] == "snapshot_required"

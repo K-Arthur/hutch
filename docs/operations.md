@@ -123,6 +123,15 @@ needed grants deliberately. If installed executor/UI bytes changed since validat
 with that release into another new directory. Configure the service to use the reviewed state
 directory only after cutover checks; the CLI does not switch your service configuration.
 
+## Change-feed retention
+
+The elected scheduler supervisor keeps at most 50,000 content-free `/api/v1/changes` invalidations,
+checking every five minutes. If a long-disconnected client presents a cursor older than the retained
+boundary, the page or stream asks it to fetch a bounded `/api/v1/snapshot` and resume from that
+snapshot's `change_cursor`. This only prunes invalidation hints; it does not delete conversations,
+messages, approvals, run transcripts or event history. Transcript/global-event retention is a
+separate, currently unbounded policy.
+
 A new resource epoch forces stale clients to reconcile a rewound history. Existing numeric
 transcript cursors lack this protection: close/reload clients after restore. Direct replacement
 of a live database is unsupported. If a command failed, preserve its incomplete directory and

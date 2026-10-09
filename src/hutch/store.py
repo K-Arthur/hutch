@@ -3001,6 +3001,11 @@ class Store:
                 self._db.rollback()
                 raise
 
+    def prune_resource_changes(self, keep: int = durable_changes.MAX_RETAINED_ROWS) -> int:
+        """Bound the content-free change outbox without deleting source records or transcripts."""
+        with self._tx() as db:
+            return durable_changes.prune(db, keep)
+
     @staticmethod
     def _event(r: sqlite3.Row) -> Event:
         return Event(id=r["id"], run_id=r["run_id"], seq=r["seq"], hash=r["hash"], ts=r["ts"],

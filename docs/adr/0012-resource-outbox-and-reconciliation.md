@@ -34,10 +34,17 @@ composer/settings form. A history gap clears cached terminal HTML. Approval requ
 status and review event commit together. Run/event resources return canonical decision
 summaries so a worker crash before its response event cannot leave an already-decided ask.
 
+The elected supervisor keeps at most 50,000 invalidation rows, checking every five minutes.
+Pruning deletes only outbox rows and leaves the epoch and committed tail untouched. A client at
+the exact boundary can continue because the first retained row keeps its original predecessor;
+older cursors receive `snapshot_required` and must reconcile a snapshot. Run transcript events,
+messages and other source resources are outside this retention policy.
+
 ## Boundaries and verification
 
 Existing resources are not fabricated as historic changes during migration; a new client
-starts with a snapshot. Retention is not automatic. The feed is an invalidation outbox, not
+starts with a snapshot. Retention bounds only this invalidation outbox; it is not a transcript
+or source-record retention policy. The feed is an invalidation outbox, not
 exactly-once external notification delivery, full event sourcing or a durable JSONL drainer.
 Schema v12 adds a separate recoverable JSONL queue and changes SQLite synchronization from
 NORMAL to FULL; see [ADR-0013](0013-recoverable-transcript-files.md). File delivery can lag or

@@ -10,6 +10,8 @@ import json
 import sqlite3
 import uuid
 
+MAX_RETAINED_ROWS = 50_000
+
 # Identifiers below are schema constants, never caller-provided SQL. Columns
 # are checked explicitly: SQLite silently accepts unknown UPDATE OF columns.
 # table, resource, identifier, material update columns, contextual identifiers
@@ -71,6 +73,27 @@ def install_resources(db: sqlite3.Connection, resources) -> None:
 def bounds(db: sqlite3.Connection) -> tuple[str, int]:
     row = db.execute("SELECT epoch, tail_id FROM resource_outbox_meta WHERE singleton = 1").fetchone()
     return str(row[0]), int(row[1])
+
+
+def prune(db: sqlite3.Connection, keep: int = MAX_RETAINED_ROWS) -> int:
+    """Remove only old invalidation rows, preserving the cursor boundary and high-water mark.
+
+    ``db`` must be inside the caller's write transaction. The first retained row
+    keeps its original ``previous_id`` so clients exactly at that boundary may
+    continue; older cursors detect the gap and must fetch a snapshot.
+    """
+    if isinstance(keep, bool) or not isinstance(keep, int) or keep < 1:
+        raise ValueError("resource-change retention must keep at least one row")
+    count = int(db.execute("SELECT COUNT(*) FROM resource_outbox").fetchone()[0])
+    if count <= keep:
+        return 0
+    first_retained = db.execute(
+        "SELECT id FROM resource_outbox ORDER BY id DESC LIMIT 1 OFFSET ?", (keep - 1,)
+    ).fetchone()
+    if first_retained is None:
+        return 0
+    result = db.execute("DELETE FROM resource_outbox WHERE id < ?", (int(first_retained[0]),))
+    return max(0, int(result.rowcount))
 
 
 class SnapshotRequired(ValueError):
