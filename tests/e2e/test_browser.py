@@ -805,6 +805,144 @@ def test_browser_pauses_when_a_human_challenge_appears_during_wait(browser, live
         page.close()
 
 
+def test_browser_hands_off_when_a_click_reveals_a_sensitive_field(browser, live, tmp_path):
+    from types import SimpleNamespace
+
+    from hutch.tools.browser import BrowserTool
+    from tests.test_tools import make_ctx
+
+    _base, app = live
+    bot = app.state.store.create_bot(Bot(name="late-sensitive-field", model="openai/gpt-4o-mini",
+                                         tools=["browser"], local_browser_handoff=True))
+    ctx = make_ctx(app.state.store, app.state.config, tmp_path, bot=bot)
+    ctx.headless = False
+    page = browser.new_page()
+    url = "https://account.example.test/start"
+    page.route(url, lambda route: route.fulfill(
+        status=200, content_type="text/html", body="""<!doctype html><button id="continue">Continue</button>
+          <main id="form"></main><script>window.hutchMarker='same-live-page';
+          document.querySelector('#continue').addEventListener('click', () => {
+            document.querySelector('#form').innerHTML='<label>Password <input id="password" type="password"></label>';
+          });</script>"""))
+    page.goto(url)
+    tool = BrowserTool()
+    tool._ensure = lambda _ctx: SimpleNamespace(pages=[page])
+    ctx.gate.decide = lambda *_args, **_kwargs: None
+    handoffs = []
+    tool_fills = []
+    page_fill = page.fill
+    page.fill = lambda selector, value, **kwargs: (tool_fills.append((selector, value)),
+                                                   page_fill(selector, value, **kwargs))[1]
+
+    def resume_human(reason, resume_url, **kwargs):
+        handoffs.append((reason, resume_url, kwargs))
+        assert page.evaluate("window.hutchMarker") == "same-live-page"
+        if len(handoffs) == 1:
+            page.locator("#password").fill("human-only-secret")
+
+    ctx.gate.wait_for_human = resume_human
+    try:
+        result = tool.run({"action": "click", "selector": "#continue"}, ctx)
+        assert len(handoffs) == 1
+        assert "password" in handoffs[0][0].lower()
+        assert "visible Hutch browser window" in handoffs[0][2]["handoff"]
+        assert not result.ok and result.data["action_completed"]
+        assert "click already happened" in result.output
+        assert "human-only-secret" not in result.output
+
+        attempted = tool.run({"action": "type", "selector": "#password", "text": "agent-secret"}, ctx)
+        assert not attempted.ok
+        assert len(handoffs) == 2
+        assert tool_fills == [], "the agent must never fill a sensitive field"
+        assert "agent-secret" not in attempted.output and "human-only-secret" not in attempted.output
+    finally:
+        page.close()
+
+
+def test_browser_hands_off_when_a_wait_reveals_a_sensitive_field(browser, live, tmp_path):
+    from types import SimpleNamespace
+
+    from hutch.tools.browser import BrowserTool
+    from tests.test_tools import make_ctx
+
+    _base, app = live
+    bot = app.state.store.create_bot(Bot(name="delayed-sensitive-field", model="openai/gpt-4o-mini",
+                                         tools=["browser"], local_browser_handoff=True))
+    ctx = make_ctx(app.state.store, app.state.config, tmp_path, bot=bot)
+    ctx.headless = False
+    page = browser.new_page()
+    url = "https://account.example.test/delayed"
+    page.route(url, lambda route: route.fulfill(
+        status=200, content_type="text/html", body="""<!doctype html><main id="form">Loading</main>
+          <script>window.hutchMarker='same-live-page'; setTimeout(() => {
+          document.querySelector('#form').innerHTML='<label>Password <input type="password" name="account-secret"></label>';
+          }, 40);</script>"""))
+    page.goto(url)
+    tool = BrowserTool()
+    tool._ensure = lambda _ctx: SimpleNamespace(pages=[page])
+    handoffs = []
+
+    def resume_human(reason, resume_url, **kwargs):
+        handoffs.append((reason, resume_url, kwargs))
+        assert page.evaluate("window.hutchMarker") == "same-live-page"
+        page.locator("input[name=account-secret]").fill("human-only-secret")
+
+    ctx.gate.wait_for_human = resume_human
+    try:
+        result = tool.run({"action": "wait", "seconds": 0.1}, ctx)
+        assert len(handoffs) == 1
+        assert "sensitive field" in handoffs[0][0].lower()
+        assert not result.ok and result.data["sensitive_field_revealed"]
+        assert result.data["action_completed"]
+        assert "human-only-secret" not in result.output
+    finally:
+        page.close()
+
+
+def test_browser_hands_off_when_text_entry_reveals_a_sensitive_field(browser, live, tmp_path):
+    from types import SimpleNamespace
+
+    from hutch.tools.browser import BrowserTool
+    from tests.test_tools import make_ctx
+
+    _base, app = live
+    bot = app.state.store.create_bot(Bot(name="progressive-sensitive-form", model="openai/gpt-4o-mini",
+                                         tools=["browser"], local_browser_handoff=True))
+    ctx = make_ctx(app.state.store, app.state.config, tmp_path, bot=bot)
+    ctx.headless = False
+    page = browser.new_page()
+    url = "https://account.example.test/progressive"
+    page.route(url, lambda route: route.fulfill(
+        status=200, content_type="text/html", body="""<!doctype html><label>Account name
+          <input id="account" autocomplete="username"></label><main id="form"></main>
+          <script>window.hutchMarker='same-live-page';
+          document.querySelector('#account').addEventListener('input', () => {
+            document.querySelector('#form').innerHTML='<label>Password <input id="password" type="password"></label>';
+          });</script>"""))
+    page.goto(url)
+    tool = BrowserTool()
+    tool._ensure = lambda _ctx: SimpleNamespace(pages=[page])
+    ctx.gate.decide = lambda *_args, **_kwargs: None
+    handoffs = []
+
+    def resume_human(reason, resume_url, **kwargs):
+        handoffs.append((reason, resume_url, kwargs))
+        assert page.evaluate("window.hutchMarker") == "same-live-page"
+        page.locator("#password").fill("human-only-secret")
+
+    ctx.gate.wait_for_human = resume_human
+    try:
+        result = tool.run({"action": "type", "selector": "#account", "text": "demo-account"}, ctx)
+        assert len(handoffs) == 1
+        assert "password" in handoffs[0][0].lower()
+        assert not result.ok and result.data["sensitive_field_revealed"]
+        assert result.data["action_completed"]
+        assert "text entry already happened" in result.output
+        assert "demo-account" not in result.output and "human-only-secret" not in result.output
+    finally:
+        page.close()
+
+
 def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewports(browser, live, monkeypatch):
     from pathlib import Path
 

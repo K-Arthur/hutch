@@ -566,6 +566,23 @@ class BrowserTool(Tool):
             data={"sensitive_input_blocked": True, "handoff_available": True, "origin": origin},
         )
 
+    @staticmethod
+    def _new_sensitive_field_result(page, ctx: ToolContext, *, had_sensitive_fields: bool,
+                                   completed_action: str) -> ToolResult | None:
+        """Hand off when an action or wait reveals a sensitive field on the live page."""
+        if had_sensitive_fields or not BrowserTool._page_has_sensitive_fields(page):
+            return None
+        result = BrowserTool._sensitive_entry_result(page, ctx)
+        result.data["sensitive_field_revealed"] = True
+        result.data["action_completed"] = True
+        if completed_action == "click":
+            result.output += " The click already happened and revealed the field; verify the page before retrying."
+        elif completed_action == "text entry":
+            result.output += " The text entry already happened and revealed the field; verify the page before retrying."
+        elif completed_action == "wait":
+            result.output += " The wait completed and a sensitive field appeared; inspect the page before continuing."
+        return result
+
     def run(self, args: dict[str, Any], ctx: ToolContext) -> ToolResult:
         args = dict(args)  # a human wait must not resume from a mutable caller argument object
         action = (args.get("action") or "").strip()
@@ -670,10 +687,15 @@ class BrowserTool(Tool):
                 return ToolResult(ok=False, output="error: browser target or form changed after review; request a new approval")
             if (refusal := ctx.begin_effect()):
                 return ToolResult(ok=False, output=f"error: {refusal}")
+            had_sensitive_fields = self._page_has_sensitive_fields(page)
             locator.click(timeout=10_000)
             checkpoint = self._await_human_challenge(page, ctx, completed_action="click")
             if checkpoint:
                 return checkpoint
+            sensitive = self._new_sensitive_field_result(
+                page, ctx, had_sensitive_fields=had_sensitive_fields, completed_action="click")
+            if sensitive:
+                return sensitive
             return ToolResult(ok=True, output=f"clicked {target}", data={"url": page.url})
 
         if action == "type":
@@ -693,10 +715,15 @@ class BrowserTool(Tool):
                 return ToolResult(ok=False, output="error: browser navigated after review; request a new approval")
             if (refusal := ctx.begin_effect()):
                 return ToolResult(ok=False, output=f"error: {refusal}")
+            had_sensitive_fields = self._page_has_sensitive_fields(page)
             page.fill(selector, text, timeout=10_000)
             checkpoint = self._await_human_challenge(page, ctx, completed_action="text entry")
             if checkpoint:
                 return checkpoint
+            sensitive = self._new_sensitive_field_result(
+                page, ctx, had_sensitive_fields=had_sensitive_fields, completed_action="text entry")
+            if sensitive:
+                return sensitive
             return ToolResult(ok=True, output=f"typed {len(text)} chars into {selector}")
 
         if action == "screenshot":
@@ -712,16 +739,26 @@ class BrowserTool(Tool):
 
         if action == "wait":
             if args.get("selector"):
+                had_sensitive_fields = self._page_has_sensitive_fields(page)
                 page.wait_for_selector(args["selector"], timeout=15_000)
                 checkpoint = self._await_human_challenge(page, ctx)
                 if checkpoint:
                     return checkpoint
+                sensitive = self._new_sensitive_field_result(
+                    page, ctx, had_sensitive_fields=had_sensitive_fields, completed_action="wait")
+                if sensitive:
+                    return sensitive
                 return ToolResult(ok=True, output=f"selector appeared: {args['selector']}")
             seconds = min(float(args.get("seconds") or 1), 30)
+            had_sensitive_fields = self._page_has_sensitive_fields(page)
             page.wait_for_timeout(int(seconds * 1000))
             checkpoint = self._await_human_challenge(page, ctx)
             if checkpoint:
                 return checkpoint
+            sensitive = self._new_sensitive_field_result(
+                page, ctx, had_sensitive_fields=had_sensitive_fields, completed_action="wait")
+            if sensitive:
+                return sensitive
             return ToolResult(ok=True, output=f"waited {seconds}s")
 
         return ToolResult(ok=False, output=f"unhandled action {action}")  # pragma: no cover
