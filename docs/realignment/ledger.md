@@ -2599,3 +2599,25 @@ The focused command `.venv/bin/pytest -q tests/test_google_calendar.py tests/tes
 passed **29 tests in 8.67s**. The browser fixtures verified the fixed Google authorization origin/path, opener isolation, local-only Bot grant, hybrid-Bot exclusion, no external requests, and desktop/tablet/phone layouts. The anonymous marketing captures confirm the same release boundary; I inspected the final phone table and viewport screenshots. `node --check src/hutch/server/static/app.js` and `git diff --check` passed. Captures, trace and validation records are in [`artifacts/google-mail/`](artifacts/google-mail/).
 
 This evidence is fixture-only. No Google account, consent, OAuth client, live Gmail API request, or secret was used. Google currently documents `gmail.readonly` as restricted, applies testing-user/authorization limits to projects in Testing, and requires verification for public use; applicable restricted-data access may also require a third-party security assessment. See [Gmail API scopes](https://developers.google.com/workspace/gmail/api/auth/scopes), [restricted-scope verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification), and [OAuth audience/testing limits](https://support.google.com/cloud/answer/15549945?hl=en). These constraints are not prevalence claims and do not establish public approval.
+
+## S6 exact-message Bot setup from Studio chat (2026-10-09)
+
+Implementation commit: `7ec16b8`.
+
+Every user-authored request in the current Studio conversation now offers **Make a bot**. It opens the existing
+four-step, user-reviewed Bot setup with that exact request as its source. The top-bar New action continues to use the
+latest request. Only earlier user messages can be separately selected as saved background; later messages, assistant
+replies and other conversations are excluded. The server still checks the source message's conversation and role on
+creation, and the user must review/confirm before any Bot is saved. Suggested professional display name/address stay
+editable and locally derived. This action does not perform natural-language prompt rewriting, create a run, or grant
+permissions; request refinement and asking follow-up questions remain open.
+
+The focused browser and anonymous marketing batch passed **5 tests in 13.44s** on Chromium **153.0.8010.12** /
+Playwright **1.63.0**. It checked keyboard activation, exact-source provenance, later-message exclusion, no Bot/run
+creation, a 44px touch target under coarse-pointer emulation, no page errors/external requests, and no horizontal
+overflow at desktop, tablet and phone widths. I inspected the actual app and website screenshots at each size. Captures,
+trace and source hashes are in `artifacts/bot-from-message/`; no real model/provider call, physical phone, or
+screen-reader session was used. `node --check` and `git diff --check` passed.
+
+The newly surfaced side-tab report is stale: those accents were already removed by `654ca75` and `8052655`, and the
+current stylesheet lines in the report are not one-sided borders. The current detector reports no side-tab finding.
