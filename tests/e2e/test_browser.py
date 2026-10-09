@@ -2597,7 +2597,7 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
         context.close()
 
 
-def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance(browser, live, monkeypatch):
+def test_bot_creation_reuses_only_the_selected_chat_messages_and_keeps_provenance(browser, live, monkeypatch):
     base, app = live
     monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
     store = app.state.store
@@ -2611,8 +2611,11 @@ def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance
             created_at=conversation["created_at"])
         store._insert_conversation_message(db, message_id="chat-context-old-answer", conversation_id=conversation["id"],
             seq=2, run_id="", role="assistant", content="Understood.", created_at=conversation["created_at"])
+        context_request = "Use public-facing launch notes only; do not contact stakeholders."
+        store._insert_conversation_message(db, message_id="chat-context-prior-constraint", conversation_id=conversation["id"],
+            seq=3, run_id="", role="user", content=context_request, created_at=conversation["created_at"])
         store._insert_conversation_message(db, message_id="chat-context-current-request", conversation_id=conversation["id"],
-            seq=3, run_id="", role="user", content=source_request, created_at=conversation["created_at"])
+            seq=4, run_id="", role="user", content=source_request, created_at=conversation["created_at"])
 
     out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-setup-context"
     out.mkdir(parents=True, exist_ok=True)
@@ -2636,6 +2639,16 @@ def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance
         source_toggle.check()
         purpose.fill("Track the launch checklist; notify me when a blocker needs attention.")
         assert page.locator("#setup-name-preview").inner_text() == "Launch Checklist Monitor"
+        context_picker = page.locator("#setup-context-picker")
+        assert context_picker.is_visible()
+        context_picker.locator(":scope > summary").click()
+        prior_constraint = page.locator('[data-setup-context-message="chat-context-prior-constraint"]')
+        private_context = page.locator('[data-setup-context-message="chat-context-private-old"]')
+        assert prior_constraint.is_visible() and not prior_constraint.is_checked()
+        assert private_context.is_visible() and not private_context.is_checked()
+        assert "public-facing launch notes" in context_picker.inner_text().lower()
+        prior_constraint.check()
+        assert "1 message selected" in page.locator("#setup-context-count").inner_text().lower()
 
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
@@ -2651,6 +2664,7 @@ def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance
             assert metrics["input"]["left"] >= -1 and metrics["input"]["right"] <= width + 1, (label, metrics)
             assert metrics["footerVisible"], (label, metrics)
             page.screenshot(path=str(out / f"chat-source-purpose-{label}.png"), animations="disabled")
+            page.screenshot(path=str(out / f"chat-source-context-{label}.png"), animations="disabled")
 
         page.set_viewport_size({"width": 390, "height": 844})
         page.locator(".setup-identity summary").click()
@@ -2679,7 +2693,7 @@ def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance
         page.get_by_role("heading", name="Review bot").wait_for()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
-            page.locator(".setup-source-details summary").click()
+            page.locator(".setup-source-details").first.locator(":scope > summary").click()
             assert page.get_by_text(source_request, exact=True).is_visible()
             metrics = page.evaluate("""() => ({
               viewport:[innerWidth, innerHeight], documentWidth:document.documentElement.scrollWidth,
@@ -2690,9 +2704,19 @@ def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance
             assert metrics["bodyOverflow"] <= 1, (label, metrics)
             assert metrics["footerVisible"], (label, metrics)
             page.screenshot(path=str(out / f"chat-source-review-{label}.png"), animations="disabled")
-            if label != "phone": page.locator(".setup-source-details summary").click()
+            if label != "phone": page.locator(".setup-source-details").first.locator(":scope > summary").click()
 
-        assert "chat-context-source · Launch planning · message 3" in page.locator(".setup-review-list").inner_text()
+        assert "chat-context-source · Launch planning · message 4" in page.locator(".setup-review-list").inner_text()
+        context_review = page.locator(".setup-review-list > div").filter(has_text="Earlier chat context")
+        context_review.locator("details summary").click()
+        assert page.get_by_text(context_request, exact=True).is_visible()
+        assert "saved bot instructions" in page.locator(".setup-review-list").inner_text().lower()
+        page.set_viewport_size({"width": 390, "height": 844})
+        context_review.scroll_into_view_if_needed()
+        context_box = context_review.bounding_box()
+        footer_box = page.locator(".modal-footer").bounding_box()
+        assert context_box["y"] + context_box["height"] <= footer_box["y"]
+        page.screenshot(path=str(out / "chat-source-review-context-phone.png"), animations="disabled")
         assert "will not start a run" in page.locator(".modal-body").inner_text().lower()
         assert store.list_runs() == []
         with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
@@ -2700,27 +2724,29 @@ def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance
             page.locator("#modal-confirm").click()
         assert created.value.status == 201, created.value.text()
         bot = store.get_bot("launch-checklist")
-        assert bot and bot.instructions == "Track the launch checklist; notify me when a blocker needs attention."
+        assert bot and bot.instructions.startswith("Track the launch checklist; notify me when a blocker needs attention.")
+        assert "Use public-facing launch notes only; do not contact stakeholders." in bot.instructions
+        assert bot.creation_context_sources[0].message_id == "chat-context-prior-constraint"
         assert bot.creation_source and bot.creation_source.model_dump() == {
             "conversation_id": conversation["id"], "message_id": "chat-context-current-request",
-            "source_bot_id": source_bot.id, "sequence": 3, "created_at": conversation["created_at"],
+            "source_bot_id": source_bot.id, "sequence": 4, "created_at": conversation["created_at"],
             "original_request": source_request,
         }
         assert store.list_runs() == []
         assert not errors, errors
         (out / "validation.json").write_text(json.dumps({
-            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_bot_creation_reuses_only_the_selected_chat_messages_and_keeps_provenance",
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright_version": package_version("playwright"),
-            "scenario": "latest user message explicitly seeds an editable Bot draft; older private turn is excluded; request provenance persists; creation starts no run; test-only connection key and no model call",
+            "scenario": "latest user message seeds an editable Bot draft; only explicitly selected earlier same-chat user messages are included as saved background; assistant/private unrelated turns are excluded; provenance persists; creation starts no run; no model call",
             "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
-            "screenshots": [f"chat-source-{state}-{size}.png" for state in ("purpose", "model", "review")
-                            for size in ("desktop", "tablet", "phone")],
+            "screenshots": [f"chat-source-{state}-{size}.png" for state in ("purpose", "context", "model", "review")
+                            for size in ("desktop", "tablet", "phone")] + ["chat-source-review-context-phone.png"],
             "page_errors": errors,
             "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
                               for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
-                                               "src/hutch/server/app.py", "src/hutch/models.py", "src/hutch/store.py",
-                                               "tests/test_api.py", "tests/e2e/test_browser.py")},
+                                               "src/hutch/server/app.py", "src/hutch/models.py", "src/hutch/estimate.py",
+                                               "src/hutch/store.py", "tests/test_api.py", "tests/e2e/test_browser.py")},
         }, indent=2) + "\n", encoding="utf-8")
     finally:
         try: context.tracing.stop(path=str(out / "trace.zip"))

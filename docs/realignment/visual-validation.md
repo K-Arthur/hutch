@@ -112,19 +112,22 @@ physical-device tests or screen-reader checks. The scoped Impeccable scan found 
 or copy-cadence defect; it reported only advisory type/radius/color mismatches in the older server-rendered stylesheet. The template
 line-height warning remains a path-scoped false-positive ignore: the linked stylesheet computes body text at **14px/22.4px (1.6)**.
 
-## Chat-sourced Bot creation (2026-10-09)
+## Chat-sourced Bot creation and selected context (2026-10-09)
 
-Chromium **153.0.8010.12** with Playwright **1.63.0** tested the New Bot flow from an active Studio conversation. It selects only
-the latest user-authored message, lets the user remove that source or edit the resulting purpose, and shows the original request
-and source conversation in the final review. An older private user message was present in the fixture and was not copied. Bot
-creation retained the original message id/content in the local Bot record, omitted the duplicated body from the API response, and
-started no run. I inspected the source and review captures at desktop 1440×960, tablet 900×1024, and phone 390×844; the dialog,
-textarea and footer fit without horizontal overflow. The fixture produced no page errors. Screens, trace, browser/version and source
-hashes are in [`artifacts/bot-setup-context/`](artifacts/bot-setup-context/). No model/provider call, physical phone or screen-reader
-was used. The anonymous marketing workflow screenshot was also inspected at these sizes; it makes the draft/review boundary and
-"no run on save" clear without overflow or external requests. The wizard still asks for configuration choices and does not yet
-infer a full setup or ask only unresolved questions. The Impeccable detector reported no findings in the edited Studio JavaScript,
-stylesheet or marketing HTML.
+Chromium **153.0.8010.12** with Playwright **1.63.0** tested the New Bot flow from an active Studio conversation. The latest
+user-authored message can seed an editable purpose; up to eight earlier user-authored messages from that exact conversation are
+available as optional, unchecked selections. Assistant replies and other chats are absent from the picker. The final review shows
+the exact selected text and warns that it becomes saved instructions and may be sent to the model on later runs. An older private
+message was present but left unselected. The API rejects assistant/cross-chat IDs, duplicates, oversized context and legacy-route
+use, persists exact source provenance, omits duplicated `original_request` fields from Bot API views, and creates no run. I inspected desktop
+1440×960, tablet 900×1024, and phone 390×844 setup captures, including a scrolled phone review showing the selected context above
+the fixed footer. Dialogs and review remain within the viewport without horizontal overflow. Captures, trace, browser/version and
+source hashes are in [`artifacts/bot-setup-context/`](artifacts/bot-setup-context/). Fixtures made no model/provider call and do
+not constitute physical-phone or screen-reader testing. The API/usage regression set passed **53 tests in 12.34s**, the focused Bot
+creation browser journey passed **1 test in 6.73s**, and the anonymous marketing check passed **1 test in 2.64s**. JavaScript syntax,
+Python compilation and `git diff --check` passed. Anonymous marketing wording was checked at all three sizes, with no external
+requests, errors or overflow. The setup still asks the owner to review configuration and does not infer a full setup or resolve
+missing details conversationally.
 
 The model step was additionally captured at all three sizes after using a fixture Bot with route `openai/gpt-4o-mini`. Its input is
 pre-filled and identified as that Bot's current route, with text explaining that it will become the new Bot's saved default and can

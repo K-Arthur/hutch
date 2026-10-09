@@ -1,9 +1,9 @@
 {
-  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_bot_creation_reuses_only_the_selected_chat_messages_and_keeps_provenance",
   "browser": "chromium",
   "browser_version": "153.0.8010.12",
   "playwright_version": "1.63.0",
-  "scenario": "latest user message explicitly seeds an editable Bot draft; older private turn is excluded; request provenance persists; creation starts no run; test-only connection key and no model call",
+  "scenario": "latest user message seeds an editable Bot draft; only explicitly selected earlier same-chat user messages are included as saved background; assistant/private unrelated turns are excluded; provenance persists; creation starts no run; no model call",
   "viewports": {
     "desktop": [
       1440,
@@ -22,21 +22,26 @@
     "chat-source-purpose-desktop.png",
     "chat-source-purpose-tablet.png",
     "chat-source-purpose-phone.png",
+    "chat-source-context-desktop.png",
+    "chat-source-context-tablet.png",
+    "chat-source-context-phone.png",
     "chat-source-model-desktop.png",
     "chat-source-model-tablet.png",
     "chat-source-model-phone.png",
     "chat-source-review-desktop.png",
     "chat-source-review-tablet.png",
-    "chat-source-review-phone.png"
+    "chat-source-review-phone.png",
+    "chat-source-review-context-phone.png"
   ],
   "page_errors": [],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "931713a0edd707108732ad3cad15371fc3ba0fd87473afa6db2af9176e1f4870",
-    "src/hutch/server/static/style.css": "af11776a60597d4d499939d4ca016e7eae2d05ca9bcc18646794aee4a0793eb6",
-    "src/hutch/server/app.py": "f16c8d85eb299645616bc93309de7030e4bae78f4255fc2550bea6f0defec0e8",
-    "src/hutch/models.py": "43540ef7a2acf5f9c07b0c50896e5497d7f7a84e75bd99b7eae6918ec81bd8b3",
-    "src/hutch/store.py": "c0c09359ff2bdaf712aca49a9b5b96f66094d7d2717fc01ac278d751196fe0ef",
-    "tests/test_api.py": "48450591dc192e39b7181d4765ef10b40c75c9777c095a042f25d922dee84a6b",
-    "tests/e2e/test_browser.py": "60ed501ed65d4f6bad0d34942575711f2cd83f52802ca73727218a18115ecf59"
+    "src/hutch/server/static/app.js": "eaa8c8841b759732e99286113d39ddaf1728b829bc448590e51770f4b37ed4ff",
+    "src/hutch/server/static/style.css": "cab7f95dffbbf7a1c15dfdc1b019ab56d8f56c9d90d111f865b8ce12832268f1",
+    "src/hutch/server/app.py": "232ffa882331a8082376d3ea9d84c6734131bfed7e6776fc936eb2a3ee0c17b6",
+    "src/hutch/models.py": "cf2abf198ced429a38362f74369015be659180182b1f2a6ad105dcb0c1717107",
+    "src/hutch/estimate.py": "ba72d3c304f6573b1bd858f3d91e721a0397e559bb65853840b05d7f9302bbe6",
+    "src/hutch/store.py": "1e65cef82759a85c526b62a4e1126f4de12f0a304b8d5592663b71dbf17d3273",
+    "tests/test_api.py": "9bc2d43796f41a12bdd602fb646de5cc7c858a4e10ffbeeca52739ced647ec4d",
+    "tests/e2e/test_browser.py": "c7c5db17c6ea305397935864ea36a3292c7fc54fb7c8aec3cdd71c9c9b4e440b"
   }
 }

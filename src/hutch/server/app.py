@@ -56,6 +56,8 @@ _MAX_ARTIFACT_BYTES = 4_000_000
 MAX_CONVERSATION_EXPORT_MESSAGES = 10_000
 MAX_CONVERSATION_EXPORT_SOURCE_BYTES = 2 * 1024 * 1024
 MAX_CONVERSATION_EXPORT_BYTES = 16 * 1024 * 1024
+MAX_BOT_CREATION_CONTEXT_MESSAGES = 8
+MAX_BOT_CREATION_SOURCE_CHARS = 20_000
 
 #: transcript window returned by default (PF-9): the run page stays usable at 10,000+ events
 DEFAULT_EVENT_WINDOW = 200
@@ -109,6 +111,7 @@ class BotCreate(BaseModel):
     limits: Optional[Limits] = None
     source_conversation_id: Optional[str] = Field(default=None, max_length=100)
     source_message_id: Optional[str] = Field(default=None, max_length=100)
+    source_context_message_ids: list[str] = Field(default_factory=list, max_length=MAX_BOT_CREATION_CONTEXT_MESSAGES)
 
     @field_validator("display_name")
     @classmethod
@@ -935,6 +938,9 @@ def create_app() -> FastAPI:
             # Keep the exact source request with the Bot's local durable record for
             # auditability, but do not repeat its full text in every roster/API view.
             bot_data["creation_source"] = bot.creation_source.model_dump(exclude={"original_request"})
+        bot_data["creation_context_sources"] = [
+            source.model_dump(exclude={"original_request"}) for source in bot.creation_context_sources
+        ]
         return {
             **bot_data,
             # Older records may have a workdir but no workspace_mode. Present the
@@ -1769,7 +1775,8 @@ def create_app() -> FastAPI:
             raise HTTPException(422, f"at most {MAX_RULES} command rules")
         return rules
 
-    def bot_from_create_request(body: BotCreate, *, creation_source: Optional[BotCreationSource] = None) -> Bot:
+    def bot_from_create_request(body: BotCreate, *, creation_source: Optional[BotCreationSource] = None,
+                                creation_context_sources: Optional[list[BotCreationSource]] = None) -> Bot:
         if not _SLUG_RE.match(body.name):
             raise HTTPException(422, "name must be a lowercase slug (a-z, 0-9, -)")
         if body.template:
@@ -1813,6 +1820,7 @@ def create_app() -> FastAPI:
         bot.risk_tier = body.risk_tier
         bot.local_browser_handoff = body.local_browser_handoff
         bot.creation_source = creation_source
+        bot.creation_context_sources = list(creation_context_sources or [])
         bot.command_rules = _checked_rules(body.command_rules)
         if body.limits is not None:
             bot.limits = body.limits
@@ -1846,7 +1854,12 @@ def create_app() -> FastAPI:
     @app.post("/api/v1/bots", status_code=201)
     def create_bot_v1(body: BotCreate, request: Request, response: Response) -> dict:
         key = idempotency_key(request)
-        digest = request_digest(body.model_dump(mode="json"))
+        request_data = body.model_dump(mode="json")
+        # Keep retries from pre-context clients compatible: an omitted optional
+        # context list has the same command identity it had before this field existed.
+        if not body.source_context_message_ids:
+            request_data.pop("source_context_message_ids", None)
+        digest = request_digest(request_data)
         try:
             replay = store.replay_bot_creation(key, digest)
         except IdempotencyConflict as exc:
@@ -1858,25 +1871,58 @@ def create_app() -> FastAPI:
             raise HTTPException(409, f"bot already exists: {body.name}")
         source_conversation_id = body.source_conversation_id
         source_message_id = body.source_message_id
-        if bool(source_conversation_id) != bool(source_message_id):
-            raise HTTPException(422, "source_conversation_id and source_message_id must be provided together")
+        context_message_ids = body.source_context_message_ids
+        if source_message_id and not source_conversation_id:
+            raise HTTPException(422, "source_conversation_id is required for a source message")
+        if source_conversation_id and not source_message_id and not context_message_ids:
+            raise HTTPException(422, "source_message_id or selected context messages are required for a source conversation")
+        if context_message_ids and not source_conversation_id:
+            raise HTTPException(422, "source_conversation_id is required for selected context messages")
+        if len(set(context_message_ids)) != len(context_message_ids):
+            raise HTTPException(422, "selected context messages must be unique")
+        if source_message_id and source_message_id in context_message_ids:
+            raise HTTPException(422, "the primary request cannot also be selected as additional context")
+        if context_message_ids and len(body.instructions) > MAX_BOT_CREATION_SOURCE_CHARS:
+            raise HTTPException(422, "saved Bot instructions exceed the 20,000-character limit when selected context is included")
         creation_source = None
-        if source_conversation_id and source_message_id:
+        creation_context_sources: list[BotCreationSource] = []
+        if source_conversation_id and (source_message_id or context_message_ids):
             conversation = store.get_conversation(source_conversation_id)
-            message = store.get_conversation_user_message(source_conversation_id, source_message_id)
-            if conversation is None or message is None:
-                raise HTTPException(404, "no such user message in the source conversation")
-            if len(message["content"]) > 20_000:
-                raise HTTPException(422, "source message exceeds the 20,000-character bot-draft limit")
-            creation_source = BotCreationSource(
-                conversation_id=source_conversation_id,
-                message_id=source_message_id,
-                source_bot_id=conversation["bot_id"],
-                sequence=message["seq"],
-                created_at=message["created_at"],
-                original_request=message["content"],
-            )
-        bot = bot_from_create_request(body, creation_source=creation_source)
+            if conversation is None:
+                raise HTTPException(404, "no such source conversation")
+            selected_text_chars = 0
+            if source_message_id:
+                message = store.get_conversation_user_message(source_conversation_id, source_message_id)
+                if message is None:
+                    raise HTTPException(404, "no such user message in the source conversation")
+                selected_text_chars += len(message["content"])
+                creation_source = BotCreationSource(
+                    conversation_id=source_conversation_id,
+                    message_id=source_message_id,
+                    source_bot_id=conversation["bot_id"],
+                    sequence=message["seq"],
+                    created_at=message["created_at"],
+                    original_request=message["content"],
+                )
+            for message_id in context_message_ids:
+                message = store.get_conversation_user_message(source_conversation_id, message_id)
+                if message is None:
+                    raise HTTPException(404, "selected context must be user messages from the source conversation")
+                selected_text_chars += len(message["content"])
+                if selected_text_chars > MAX_BOT_CREATION_SOURCE_CHARS:
+                    raise HTTPException(422, "selected source messages exceed the 20,000-character bot-draft limit")
+                creation_context_sources.append(BotCreationSource(
+                    conversation_id=source_conversation_id,
+                    message_id=message_id,
+                    source_bot_id=conversation["bot_id"],
+                    sequence=message["seq"],
+                    created_at=message["created_at"],
+                    original_request=message["content"],
+                ))
+            if selected_text_chars > MAX_BOT_CREATION_SOURCE_CHARS:
+                raise HTTPException(422, "selected source messages exceed the 20,000-character bot-draft limit")
+        bot = bot_from_create_request(body, creation_source=creation_source,
+                                      creation_context_sources=creation_context_sources)
         try:
             saved, created = store.create_bot_idempotent(bot, idem_key=key, request_hash=digest)
         except IdempotencyConflict as exc:
@@ -1888,7 +1934,7 @@ def create_app() -> FastAPI:
 
     @app.post("/api/bots", status_code=201)
     def create_bot(body: BotCreate) -> dict:
-        if body.source_conversation_id or body.source_message_id:
+        if body.source_conversation_id or body.source_message_id or body.source_context_message_ids:
             raise HTTPException(422, "chat-sourced Bot creation requires the versioned /api/v1/bots route")
         if not _SLUG_RE.match(body.name):
             raise HTTPException(422, "name must be a lowercase slug (a-z, 0-9, -)")

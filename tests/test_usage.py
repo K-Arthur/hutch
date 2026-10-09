@@ -62,6 +62,14 @@ def test_more_tools_and_a_longer_task_mean_a_bigger_prompt_estimate(config, stor
     assert RunEstimator(config, store, small, "y" * 4000).prompt_tokens > RunEstimator(config, store, small).prompt_tokens
 
 
+def test_coordinator_prompt_guidance_is_included_in_model_route_estimates(config, store):
+    bot = store.create_bot(Bot(name="estimate-coordinator", model="ollama/x", tools=[]))
+    regular_estimate = RunEstimator(config, store, bot).prompt_tokens
+    store.set_workspace_coordinator(bot.id)
+    coordinator_estimate = RunEstimator(config, store, bot).prompt_tokens
+    assert coordinator_estimate > regular_estimate
+
+
 def test_the_estimate_can_price_another_model_without_changing_the_bot(config, store):
     b = store.create_bot(Bot(name="s", model="ollama/x"))
     est = RunEstimator(config, store, b)

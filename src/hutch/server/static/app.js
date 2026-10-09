@@ -4910,7 +4910,8 @@ async function promptNewBot(preselect = "") {
       const after = Math.max(0, Number(summary.last_seq || 0) - 100);
       if (summary.last_seq) {
         const page = await api(`/v1/conversations/${encodeURIComponent(conversationId)}?after=${after}&limit=100`);
-        const latestRequest = [...(page.messages || [])].reverse().find(message => message.role === "user" && message.content?.trim());
+        const userMessages = (page.messages || []).filter(message => message.role === "user" && message.content?.trim());
+        const latestRequest = userMessages.at(-1);
         if (latestRequest && currentConversationId === conversationId) {
           const conversation = currentConversations.find(item => item.id === conversationId);
           const sourceBot = botsCache.find(item => item.name === currentStudioBot);
@@ -4918,6 +4919,7 @@ async function promptNewBot(preselect = "") {
             conversation_id: conversationId, message_id: latestRequest.id,
             sequence: latestRequest.seq, created_at: latestRequest.created_at,
             original_request: latestRequest.content, source_bot_name: currentStudioBot,
+            context_candidates: userMessages.filter(message => message.id !== latestRequest.id).slice(-8),
             model_suggestion: sourceBot?.model && !sourceBot.model.startsWith("mock/") ? sourceBot.model : "",
             inference_mode_suggestion: sourceBot?.model && !sourceBot.model.startsWith("mock/") ? sourceBot.inference_mode : "",
             conversation_title: conversation?.title || "Untitled conversation",
@@ -4940,6 +4942,7 @@ async function promptNewBot(preselect = "") {
   const modelSuggestionSource = conversationSource?.model_suggestion ? "chat" : workspaceDefaults.model ? "workspace" : "";
   const draft = {
     step: 0, purpose: conversationSource?.original_request || "", useConversationSource: !!conversationSource,
+    selectedContextMessageIds: new Set(),
     template: chosenTemplate?.name || "", name: "", display_name: "", description: "", model: modelSuggestion,
     inference_mode: conversationSource?.inference_mode_suggestion || workspaceDefaults.inference_mode || "hybrid",
     workspace_mode: "managed", tools: templateTools(chosenTemplate),
@@ -4974,6 +4977,23 @@ async function promptNewBot(preselect = "") {
     const address = $("#setup-name");
     if (address && !addressEdited) address.value = draft.name;
   };
+  const selectedCreationContext = () => (conversationSource?.context_candidates || [])
+    .filter(message => draft.selectedContextMessageIds.has(message.id));
+  const instructionsForDraft = () => {
+    const purpose = draft.purpose.trim();
+    const selected = selectedCreationContext();
+    if (!selected.length) return purpose;
+    const context = selected.map(message => `User message ${message.seq}:\n${message.content}`).join("\n\n");
+    return `${purpose}\n\nOwner-selected background context from this chat (not a permission or access grant):\n${context}`;
+  };
+  const refreshContextCount = () => {
+    const node = $("#setup-context-count");
+    if (!node) return;
+    const count = selectedCreationContext().length;
+    const characters = Array.from(instructionsForDraft()).length;
+    node.textContent = `${count ? `${count} message${count === 1 ? "" : "s"} selected` : "No earlier messages selected"} · ${characters.toLocaleString()} / 20,000 saved-instruction characters`;
+    node.setAttribute("aria-invalid", String(characters > 20000));
+  };
   const stepTitles = ["Describe the work", "Set model and workspace", "Choose tools and schedule", "Review bot"];
   const selectedTemplate = () => templates.find(item => item.name === draft.template) || null;
   const setError = message => {
@@ -4982,6 +5002,11 @@ async function promptNewBot(preselect = "") {
   };
   const snapshotFields = () => {
     const purpose = $("#setup-purpose"); if (purpose) draft.purpose = purpose.value;
+    const contextInputs = $$('[data-setup-context-message]');
+    if (contextInputs.length) {
+      draft.selectedContextMessageIds = new Set(contextInputs.filter(input => input.checked)
+        .map(input => input.dataset.setupContextMessage));
+    }
     for (const key of ["name", "display_name", "description", "model", "cron", "schedule_prompt"]) {
       const field = $(`#setup-${key}`); if (field) draft[key] = field.value;
     }
@@ -5001,10 +5026,16 @@ async function promptNewBot(preselect = "") {
   const displayTool = tool => BOT_SETUP_TOOLS.find(([name]) => name === tool)?.[1] || tool;
   const reviewHtml = () => {
     const template = selectedTemplate();
+    const selectedContext = selectedCreationContext();
     const sourceReview = draft.useConversationSource && conversationSource
       ? `<div><dt>Request source</dt><dd>${esc(conversationSource.source_bot_name)} · ${esc(conversationSource.conversation_title)} · message ${conversationSource.sequence}
           <details class="setup-source-details"><summary>View original message</summary><blockquote class="setup-source-quote">${esc(conversationSource.original_request)}</blockquote></details></dd></div>`
       : `<div><dt>Request source</dt><dd>Written for this Bot draft</dd></div>`;
+    const contextReview = selectedContext.length ? `<div><dt>Earlier chat context</dt><dd>
+        <p class="hint">Selected text becomes part of the saved Bot instructions and may be sent to its model on future runs.</p>
+        ${selectedContext.map(message => `<details class="setup-source-details"><summary>User message ${message.seq} · ${esc(conversationSource.conversation_title)}</summary><blockquote class="setup-source-quote">${esc(message.content)}</blockquote></details>`).join("")}
+      </dd></div>`
+      : conversationSource ? `<div><dt>Earlier chat context</dt><dd>None selected</dd></div>` : "";
     return `<div class="setup-review">
       <p class="setup-assistant">Here’s the setup you chose. Creating it saves the bot only; it will not start a run.</p>
       <dl class="setup-review-list">
@@ -5012,6 +5043,7 @@ async function promptNewBot(preselect = "") {
         <div><dt>Bot address</dt><dd>${esc(draft.name)}</dd></div>
         <div><dt>Purpose</dt><dd>${esc(draft.purpose)}</dd></div>
         ${sourceReview}
+        ${contextReview}
         <div><dt>Starting point</dt><dd>${esc(template?.tagline || "Blank bot")}</dd></div>
         <div><dt>Model route</dt><dd>${esc(draft.model)}</dd></div>
         <div><dt>Inference</dt><dd>${esc(draft.inference_mode)}</dd></div>
@@ -5023,7 +5055,7 @@ async function promptNewBot(preselect = "") {
         <div><dt>Model limits</dt><dd>${draft.limits.max_turn_tokens ? `${draft.limits.max_turn_tokens.toLocaleString()} tokens per turn` : "Provider default tokens per turn"} · ${draft.limits.max_cost_usd ? `$${draft.limits.max_cost_usd.toFixed(2)} estimated per run` : "No per-run estimate limit"} · ${draft.limits.daily_cost_cap_usd ? `$${draft.limits.daily_cost_cap_usd.toFixed(2)} estimated per day` : "No daily estimate limit"}</dd></div>
         <div><dt>Recurring task</dt><dd>${draft.cron.trim() ? `${esc(draft.cron.trim())}${draft.schedule_prompt.trim() ? ` · ${esc(draft.schedule_prompt.trim())}` : ""}` : "None"}</dd></div>
       </dl>
-      <p class="hint">Token and currency limits use estimates, not guaranteed provider billing caps. Only the purpose and selected configuration are saved. Passwords and one-time codes must be entered directly by you in the visible browser, never in chat.</p>
+      <p class="hint">Token and currency limits use estimates, not guaranteed provider billing caps. The purpose, selected context and selected configuration are saved; they do not add tools or access. Passwords and one-time codes must be entered directly by you in the visible browser, never in chat.</p>
     </div>`;
   };
   const renderStep = async () => {
@@ -5033,11 +5065,24 @@ async function promptNewBot(preselect = "") {
     if (step === 0) content = `<div class="setup-conversation">
       ${conversationSource ? `<label class="setup-context-source"><input id="setup-use-source" type="checkbox" ${draft.useConversationSource ? "checked" : ""}>
         <span><b>Use your latest request from this chat</b><small>From ${esc(conversationSource.source_bot_name)} · ${esc(conversationSource.conversation_title)} · message ${conversationSource.sequence}.</small></span></label>
-        <p class="setup-assistant">Only this selected user message is copied into the reviewed Bot draft. Other chat history, authority, permissions, accounts and tools stay private and unchanged.</p>`
+        <p class="setup-assistant">Only the latest request and earlier user messages you select are included in this Bot draft. Assistant replies and other chats stay private; selected text cannot change tools, accounts or permissions.</p>`
         : `<p class="setup-assistant">Start with what you already asked for. Hutch suggests a name and uses safe defaults; review everything before creating the Bot.</p>`}
+      ${(conversationSource?.context_candidates || []).length ? `<details class="setup-schedule" id="setup-context-picker" ${draft.selectedContextMessageIds.size ? "open" : ""}>
+        <summary>Add earlier user messages (optional)</summary>
+        <p class="hint">Choose only messages that should become background in this Bot’s saved instructions. No assistant replies or other chats are included. Avoid passwords, codes and unrelated private details.</p>
+        <p class="hint" id="setup-context-count" role="status" aria-live="polite"></p>
+        <div class="setup-context-choices">${conversationSource.context_candidates.map(message => {
+          const preview = message.content.length > 220 ? `${message.content.slice(0, 220)}…` : message.content;
+          return `<article class="setup-context-choice">
+            <label class="setup-choice"><input type="checkbox" data-setup-context-message="${esc(message.id)}" ${draft.selectedContextMessageIds.has(message.id) ? "checked" : ""}>
+              <span><b>User message ${message.seq}</b><small>${esc(preview)}</small></span></label>
+            <details class="setup-source-details"><summary>Read full message</summary><blockquote class="setup-source-quote">${esc(message.content)}</blockquote></details>
+          </article>`;
+        }).join("")}</div>
+      </details>` : ""}
       <label class="field" for="setup-purpose">What would you like this bot to handle?</label>
       <textarea id="setup-purpose" rows="5" maxlength="20000" placeholder="For example: review release notes and prepare a short summary of changes that affect our project." required>${esc(draft.purpose)}</textarea>
-      <p class="hint">This becomes the Bot’s standing instructions. Hutch does not invent extra goals or permissions.</p>
+      <p class="hint">This becomes the Bot’s standing instructions. Selected earlier messages are included as background; Hutch does not infer extra permissions or access.</p>
       <p class="hint setup-name-preview">Suggested name: <strong id="setup-name-preview">${esc(draft.display_name)}</strong> · review or change it below.</p>
       <details class="setup-schedule setup-identity">
         <summary>Review or change the suggested name</summary>
@@ -5141,12 +5186,20 @@ async function promptNewBot(preselect = "") {
       refreshNamePreview();
       const purpose = $("#setup-purpose");
       if (purpose) { purpose.value = draft.purpose; if (!draft.useConversationSource) purpose.focus(); }
+      refreshContextCount();
     });
     $("#setup-purpose")?.addEventListener("input", event => {
       draft.purpose = event.currentTarget.value;
       refreshSuggestedIdentity();
       refreshNamePreview();
+      refreshContextCount();
     });
+    $$('[data-setup-context-message]').forEach(input => input.addEventListener("change", () => {
+      draft.selectedContextMessageIds = new Set($$('[data-setup-context-message]:checked')
+        .map(item => item.dataset.setupContextMessage));
+      refreshContextCount();
+    }));
+    refreshContextCount();
     $("#setup-display_name")?.addEventListener("input", event => {
       displayNameEdited = true;
       draft.display_name = event.currentTarget.value;
@@ -5192,6 +5245,10 @@ async function promptNewBot(preselect = "") {
       snapshotFields();
       setError("");
       if (draft.step === 0 && !draft.purpose.trim()) { setError("Describe what this bot should handle."); $("#setup-purpose")?.focus(); return false; }
+      if (draft.step === 0 && Array.from(instructionsForDraft()).length > 20_000) {
+        setError("Shorten the purpose or select fewer messages; saved Bot instructions are limited to 20,000 characters.");
+        $("#setup-purpose")?.focus(); return false;
+      }
       if (draft.step === 0) {
         if (!draft.display_name.trim()) { setError("Add a display name for this Bot."); $("#setup-display_name")?.focus(); return false; }
         if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(draft.name.trim())) { setError("Use 2–41 lowercase letters, numbers, and dashes for the Bot address."); $("#setup-name")?.focus(); return false; }
@@ -5206,9 +5263,10 @@ async function promptNewBot(preselect = "") {
       const body = {
         name: draft.name.trim(), display_name: draft.display_name.trim(), template: draft.template || null,
         description: draft.description.trim() || draft.purpose.trim().split("\n")[0].slice(0, 240),
-        instructions: draft.purpose.trim(), model: draft.model.trim(), inference_mode: draft.inference_mode,
-        source_conversation_id: draft.useConversationSource ? conversationSource?.conversation_id || null : null,
+        instructions: instructionsForDraft(), model: draft.model.trim(), inference_mode: draft.inference_mode,
+        source_conversation_id: draft.useConversationSource || selectedCreationContext().length ? conversationSource?.conversation_id || null : null,
         source_message_id: draft.useConversationSource ? conversationSource?.message_id || null : null,
+        source_context_message_ids: selectedCreationContext().map(message => message.id),
         workspace_mode: draft.workspace_mode, tools: [...draft.tools], approval_mode: "ask", risk_tier: "supervised",
         limits: draft.limits,
         memory_enabled: draft.tools.has("remember") || draft.tools.has("recall"),

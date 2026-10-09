@@ -230,6 +230,8 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
         card = page.locator("#workflow .step-card").first
         text = card.inner_text().lower()
         assert "latest chat request" in text
+        assert "optionally select earlier user messages from that chat as saved background" in text
+        assert "assistant replies and other chats stay excluded" in text
         assert "professional display name and stable address" in text
         assert "without an extra model request" in text
         assert "model route from that bot or your workspace" in text

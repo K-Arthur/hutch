@@ -248,6 +248,7 @@ class Bot(BaseModel):
     paused: bool = False
     template: Optional[str] = None    # which starter template it came from
     creation_source: Optional[BotCreationSource] = None  # explicit request provenance; never grants authority
+    creation_context_sources: list[BotCreationSource] = Field(default_factory=list)  # owner-selected same-chat user messages
     preset: Optional[str] = None      # task preset this bot was configured from (LM-7)
     fallbacks: list[str] = Field(default_factory=list)   # tried in order when the model is unavailable (SR-8)
     escalation: Optional[Escalation] = None              # quality ladder (LM-9)

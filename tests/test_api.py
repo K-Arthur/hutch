@@ -125,6 +125,84 @@ def test_bot_creation_records_only_an_explicit_user_message_source(client):
     assert legacy.status_code == 422 and client.app.state.store.get_bot("legacy-source") is None
 
 
+def test_bot_creation_records_only_selected_same_chat_user_context(client):
+    source = make_bot(client, name="context-source-bot")
+    store = client.app.state.store
+    conversation, _ = store.create_conversation(
+        source["id"], "Launch planning", idem_key="selected-context-chat", request_hash="selected-context-chat")
+    messages = [
+        ("context-private", "user", "Payroll notes are private and unrelated."),
+        ("context-assistant", "assistant", "I suggest asking the launch team for updates."),
+        ("context-constraint", "user", "Use public launch notes only; never contact stakeholders."),
+        ("context-current-request", "user", "Track the launch checklist and report blockers."),
+        ("context-oversized", "user", "x" * 20_000),
+    ]
+    with store._tx() as db:
+        for sequence, (message_id, role, content) in enumerate(messages, 1):
+            store._insert_conversation_message(db, message_id=message_id, conversation_id=conversation["id"],
+                seq=sequence, run_id="", role=role, content=content, created_at=conversation["created_at"])
+
+    instructions = ("Track the launch checklist and report blockers.\n\n"
+                    "Owner-selected background context from this chat:\n"
+                    "Message 3:\nUse public launch notes only; never contact stakeholders.")
+    payload = {
+        "name": "launch-context-monitor", "model": "mock/demo", "tools": [], "instructions": instructions,
+        "source_conversation_id": conversation["id"], "source_message_id": "context-current-request",
+        "source_context_message_ids": ["context-constraint"],
+    }
+    headers = {"Idempotency-Key": "create-launch-context-monitor"}
+    created = client.post("/api/v1/bots", headers=headers, json=payload)
+    assert created.status_code == 201, created.text
+    bot = store.get_bot("launch-context-monitor")
+    assert bot is not None and bot.instructions == instructions
+    assert bot.creation_source and bot.creation_source.message_id == "context-current-request"
+    assert [source.model_dump() for source in bot.creation_context_sources] == [{
+        "conversation_id": conversation["id"], "message_id": "context-constraint", "source_bot_id": source["id"],
+        "sequence": 3, "created_at": conversation["created_at"],
+        "original_request": "Use public launch notes only; never contact stakeholders.",
+    }]
+    assert "original_request" not in created.json()["creation_context_sources"][0]
+    assert "Payroll notes" not in bot.instructions
+    assert "context-assistant" not in str(bot.creation_context_sources)
+
+    replay = client.post("/api/v1/bots", headers=headers, json=payload)
+    assert replay.status_code == 200
+    assert replay.json()["creation_context_sources"] == created.json()["creation_context_sources"]
+    changed_context = client.post("/api/v1/bots", headers=headers,
+        json={**payload, "source_context_message_ids": ["context-private"]})
+    assert changed_context.status_code == 409
+    assert store.get_bot("launch-context-monitor").instructions == instructions
+
+    assistant_context = client.post("/api/v1/bots", headers={"Idempotency-Key": "assistant-context-rejected"},
+        json={**payload, "name": "assistant-context", "source_context_message_ids": ["context-assistant"]})
+    assert assistant_context.status_code == 404
+    assert store.get_bot("assistant-context") is None
+
+    duplicate = client.post("/api/v1/bots", headers={"Idempotency-Key": "duplicate-context-rejected"},
+        json={**payload, "name": "duplicate-context", "source_context_message_ids": [
+            "context-constraint", "context-constraint"]})
+    assert duplicate.status_code == 422
+    assert store.get_bot("duplicate-context") is None
+
+    too_much = client.post("/api/v1/bots", headers={"Idempotency-Key": "oversized-context-rejected"},
+        json={**payload, "name": "oversized-context", "source_context_message_ids": ["context-oversized"]})
+    assert too_much.status_code == 422
+    assert store.get_bot("oversized-context") is None
+
+    other_conversation, _ = store.create_conversation(
+        source["id"], "Another launch chat", idem_key="other-selected-context-chat", request_hash="other-selected-context-chat")
+    with store._tx() as db:
+        store._insert_conversation_message(db, message_id="other-chat-context", conversation_id=other_conversation["id"],
+            seq=1, run_id="", role="user", content="Context from another chat.", created_at=other_conversation["created_at"])
+    cross_chat = client.post("/api/v1/bots", headers={"Idempotency-Key": "cross-chat-context-rejected"},
+        json={**payload, "name": "cross-chat-context", "source_context_message_ids": ["other-chat-context"]})
+    assert cross_chat.status_code == 404
+    assert store.get_bot("cross-chat-context") is None
+
+    legacy = client.post("/api/bots", json={**payload, "name": "legacy-context"})
+    assert legacy.status_code == 422 and store.get_bot("legacy-context") is None
+
+
 def test_bot_display_name_is_durable_editable_and_keeps_legacy_address(client):
     created = client.post("/api/v1/bots", headers={"Idempotency-Key": "professional-bot-name"}, json={
         "name": "launch-checklist", "display_name": "  Launch Readiness Analyst  ",

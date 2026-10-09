@@ -131,11 +131,16 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   preserves routes and old links. `GET /api/v1/model-routes?inference_mode=` supplies current model suggestions; the field remains
   explicit and the create handler validates the chosen route. Route listing may read a configured provider's non-inference model
   catalog, but it does not submit a model prompt or create product state. From Studio, the wizard may include the latest user
-  message of the active conversation as a checked, editable purpose draft. The user can deselect it; no other message or history
-  is copied. The versioned create body may include both `source_conversation_id` and `source_message_id` or neither. The server
-  accepts only a user message in that exact conversation, stores its original content and provenance in the Bot's local creation
-  record, and includes the source identifiers in the idempotency digest. Bot list/detail responses expose the source ids, source
-  Bot, sequence and timestamp but omit the duplicated message body. When that source Bot has a non-mock model route, the wizard
+  message of the active conversation as a checked, editable purpose draft. The user may also select up to eight earlier user
+  messages from that exact conversation; none is selected by default. Assistant replies and messages from other conversations are
+  not candidates. The final review shows each selected message, and the selected text is saved as explicitly labeled background in
+  the Bot's instructions, where it may be sent to the chosen model on future runs. The selection grants no tools, accounts or
+  permissions. The versioned create body requires `source_conversation_id` with either `source_message_id`, one or more
+  `source_context_message_ids`, or both. The server accepts only user messages in that exact conversation, rejects duplicate IDs,
+  caps selected source text and saved instructions at 20,000 characters, persists content and provenance in the local Bot record,
+  and includes selected identifiers in the idempotency digest. When no context IDs are supplied, the canonical digest remains
+  compatible with requests from older clients. Bot list/detail responses expose source ids, source Bot, sequence and timestamp
+  but omit duplicated `original_request` fields. When that source Bot has a non-mock model route, the wizard
   pre-fills it as an explicitly labelled, editable suggestion; the confirmed route becomes the new Bot's saved default. It does not
   silently fall back or start a run. The current wizard does not yet infer other configuration or ask
   only for unresolved details; name, starter, model/mode, workspace, tools, limits and schedule remain user-reviewed choices.
