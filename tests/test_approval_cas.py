@@ -38,6 +38,21 @@ def test_stop_expires_existing_and_late_approvals_without_a_sticky_grant(store):
     assert store.pending_approvals() == []
 
 
+def test_terminal_transition_expires_pending_approvals_atomically(store):
+    bot = store.create_bot(Bot(name="terminal-review"))
+    run = store.create_run(Run(bot_id=bot.id, prompt="fixture", status=RunStatus.running))
+    req = store.create_approval(ApprovalRequest(
+        run_id=run.id, bot_id=bot.id, tool="files", action="write fixture"))
+
+    done = store.transition_run(run.id, RunStatus.failed, exit_reason="interrupted", error="owner exited")
+
+    assert done.terminal
+    assert store.pending_approvals() == []
+    expired = store.get_approval(req.id)
+    assert expired.status is ApprovalStatus.expired and expired.decided_by == "interrupted"
+    assert not resolve_approval_ex(store, req.id, True, by="late-client").won
+
+
 def test_stale_worker_cannot_create_an_approval_after_ownership_changed(store):
     from hutch.lifecycle import LeaseLost
     bot = store.create_bot(Bot(name="stale-review"))

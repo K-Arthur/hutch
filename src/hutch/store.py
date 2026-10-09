@@ -1283,6 +1283,8 @@ class Store:
                 self._sealed.add(run_id)
         if emitted is not None or run.status is to:
             self.bus.notify("work", "runs", f"run:{run_id}", "events", "usage")
+        if run.status in TERMINAL:
+            self.bus.notify("approvals", f"approval:wake:{run_id}")
         return run
 
     def _apply_transition(self, db: sqlite3.Connection, run_id: str, to: RunStatus, fence: Optional[int],
@@ -1328,7 +1330,8 @@ class Store:
         patch: dict[str, Any] = {"status": to.value, **(fields or {})}
         terminal = to in TERMINAL
         if terminal:
-            patch["finished_at"] = iso(utcnow())
+            terminal_at = iso(utcnow())
+            patch["finished_at"] = terminal_at
             patch["exit_reason"] = exit_reason if exit_reason is not None else ""
             patch["error"] = (error or "")[:2_000]
         elif exit_reason is not None:
@@ -1339,6 +1342,15 @@ class Store:
             sets += ", lease_owner = '', lease_expires_at = NULL, sealed = 1"
         db.execute(f"UPDATE runs SET {sets} WHERE id = ?", (*args, run_id))
         if terminal:
+            # A terminal run cannot leave an actionable approval behind. Resolve
+            # outstanding requests in the same transaction as the status change,
+            # so observers never see a finished run with a pending decision.
+            decided_by = "stopped" if to is RunStatus.stopped else (
+                "interrupted" if exit_reason == "interrupted" else "run_ended")
+            approval_patch = json.dumps({"status": "expired", "resolved_at": terminal_at,
+                                         "decided_by": decided_by})
+            db.execute("UPDATE approvals SET status = 'expired', doc = json_patch(doc, ?) "
+                       "WHERE run_id = ? AND status = 'pending'", (approval_patch, run_id))
             # A crash can leave a reservation between admission and usage settlement. With no live caller to
             # verify the outcome, keep it held until an operator reconciles the provider record.
             db.execute("UPDATE usage_reservations SET status = 'uncertain', reason = "

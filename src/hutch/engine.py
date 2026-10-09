@@ -694,7 +694,6 @@ class Engine:
 
     def _recover_one(self, run: Run, extra_error: str = "", *, owner_exited: bool = False) -> Optional[Run]:
         """Fence an orphan, end its recorded processes, and decide its outcome only after cleanup is verified."""
-        from .models import ApprovalStatus
         owned = self.store.claim_recovery(run, self.owner_id, self.lease_seconds, owner_exited=owner_exited)
         if owned is None:
             return None                    # lease renewed, another supervisor won, or the run changed
@@ -729,9 +728,6 @@ class Engine:
             return None                 # a newer owner or state change won before the final decision
         self.store.close_procs(run.id)
         self.store.flush_events()
-        for req in self.store.pending_approvals():
-            if req.run_id == run.id:
-                self.store.decide_approval(req.id, ApprovalStatus.expired, "interrupted")
         return done_run
 
     def _end_recorded_processes(self, run: Run) -> list:

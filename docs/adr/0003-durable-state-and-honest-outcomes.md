@@ -49,7 +49,9 @@ Progress, process-group assignment, approval creation and usage reservation chec
 Settlement, unsent-call release and uncertainty writes also require the worker fence; uncertain
 holds require explicit reconciliation and cannot disappear at allowance rollover. Worker gates
 commit their request, waiting state and inline review event together. Requests cannot be rewritten, and expired/stopped
-execution cannot receive a late approval or standing grant.
+execution cannot receive a late approval or standing grant. Every terminal run transition expires its remaining pending
+approvals in the same SQLite transaction as the status change, so clients cannot observe a terminal run with an actionable
+approval still attached.
 Worker events carry their fence through buffering and validate it when committed, preventing stale
 replies from entering either transcript or canonical conversation history. Process records pair PID and start ticks with the
 kernel boot id; cleanup uses pidfds and checks the recorded process-group identity, never a raw PID or PGID after a check race.
