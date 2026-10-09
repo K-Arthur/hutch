@@ -75,6 +75,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `6ee3e29` | Opt-in per-bot local Linux browser handoff, cross-process profile/desktop leases, fail-closed headless behavior, host-aware settings, setup cleanup regression, updated support claims and inspected viewport evidence |
 | `6e91e95` | Add a bounded task prompt for each bot's existing recurring schedule across settings, creation, CLI and API; preserve legacy fallback and capture responsive browser evidence |
 | `2964567` | Align ChatGPT sign-in and Responses tool framing with the current preview, retain verified reauthorization hints, use conversation-stable OpenCode session headers, and record fixture/browser evidence |
+| `ec16d5c` | Add explicit, verified cross-chat artifact references with target-bound downloads, one-way revocation, Studio sharing controls, API regressions and desktop/tablet/phone captures |
 
 ## Verified behavior before this checkpoint
 
@@ -1308,3 +1309,28 @@ no page errors or horizontal overflow, and the phone dialog keeps its title and 
 view. Screenshots, trace, source hashes and viewport measurements are under `artifacts/scheduled-task/`; they were visually
 inspected. `node --check`, Python compilation, `git diff --check` and the targeted Impeccable detector passed. No provider or model
 call was made. The feature and its API/CLI/engine regression tests are committed in `6e91e95` (`feat(schedule): add per-bot recurring task prompts`).
+
+## S6 Explicit cross-chat artifact references (2026-10-09)
+
+Schema v17 now lets an operator grant one selected, active conversation a reference to a verified
+artifact from another chat, including a different bot. The grant records its source event and
+provenance, requires the original bytes to match their recorded size and SHA-256, and is immutable
+except for a one-way revocation. The receiving chat gets a target-bound download that stops working
+after revocation. No bytes are copied to its workspace or added to model context; the source run's
+own download remains available. A new destination must be deliberately selected before the Studio
+enables Share. The current marketing site now describes this boundary.
+
+`.venv/bin/python -m pytest -q tests/test_api.py tests/test_migration.py` passed **29 tests in
+5.05s**. The regressions cover cross-bot access, idempotent replay/conflict, byte integrity at grant
+and download, immutable history, durable change notifications, target binding and revocation. The
+focused browser journey passed **1 test in 5.53s** with Chromium **153.0.8010.12** and Playwright
+**1.63.0**. At desktop (1440×960), tablet (768×1024) and phone (390×844), sharing, download and
+revocation worked; all captures report zero horizontal/dialog overflow and no page errors. The Done
+button is visible on phone. Screenshots, trace and source hashes are in
+`artifacts/artifact-sharing/`; those captures were visually inspected. The public feature section
+was also refreshed at all three sizes; the anonymous marketing suite had passed **22 tests** after
+the copy/layout edits, with current source hashes in `artifacts/provider-signin/marketing-validation.json`.
+The targeted Impeccable detector returned no findings, JavaScript/Python syntax checks and
+`git diff --check` passed. No provider, paid request or physical device was used. This limited
+cross-chat reference feature does not complete the general artifact library, delegated artifact
+transfer or S6 bounded collaboration. Implementation and evidence commit: `ec16d5c`.
