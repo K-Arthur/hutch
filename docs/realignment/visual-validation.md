@@ -15,6 +15,28 @@ composer attachment and expanded source record; no horizontal overflow or page e
 in [`artifacts/workspace-task-dispatch/`](artifacts/workspace-task-dispatch/). These are fixture checks, not live-provider, screen-reader,
 or physical-device evidence.
 
+## Selected coordinator facts in a specialist task (schema v32)
+
+The handoff review shows current approved coordinator facts only inside a collapsed optional section. The owner must check each
+fact; none is selected by default. The review reports the current serialized size against the eight-fact/6,000-character bounds,
+shows the source scope and review revision, and warns about provider retention and the inability to recall submitted context. The
+completed task card expands to show the exact snapshot and source, and says the data stays with the task rather than becoming the
+specialist Bot's saved memory.
+
+Chromium **153.0.8010.12** / Playwright **1.63.0** passed
+`tests/e2e/test_browser.py::test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports` and
+`tests/e2e/test_website.py::test_public_workflow_describes_named_recurring_tasks`. The app review, selected fact, and stored
+provenance were exercised at **1440×960**, **900×1024**, and **390×844**; the anonymous marketing workflow was checked at
+**1440×900**, **900×1024**, and **390×844**. Screenshots show the phone sheet with the selected checkbox above its fixed footer
+and the exact fact card at all three app widths. No page errors or horizontal overflow appeared; the public page made no external
+requests. See `artifacts/workspace-task-dispatch/shared-facts-{desktop,tablet,phone}.png`, the review captures, validation JSON and
+Playwright trace. Local mock/SQLite fixtures only; no provider, account, screen-reader or physical-phone check.
+
+The one scoped Impeccable detector run on the Studio JavaScript, stylesheet and marketing HTML reported pre-existing side-rail
+styling on older quote/source cards and advisory radii in the same stylesheet; it returned no finding for the new task-fact UI or
+marketing page. The newly added task-fact row rail was removed during review, leaving a neutral outlined row. This slice did not
+alter the older quote/source treatments.
+
 ## Reviewed coordinator-to-specialist handoff (schema v29, 2026-10-09)
 
 `tests/e2e/test_browser.py::test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports` passed against a local mock

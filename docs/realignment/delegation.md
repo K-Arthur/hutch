@@ -31,6 +31,13 @@ file snapshots stay attributed to the child run. The parent model receives only 
 child files into the parent's workspace or prompt; the operator can inspect the child run's files in Studio. A human can separately
 use the existing explicit artifact-reference flow to share a verified artifact with another conversation.
 
+The separate, experimental coordinator-to-specialist handoff is not this same-Bot `delegate_task` path. Its review screen can
+optionally include up to eight current, owner-reviewed facts from the coordinator Bot or the exact coordinator chat (6,000
+serialized characters maximum). Nothing is selected by default. The exact values, revisions and scopes are stored with that task
+and shown as untrusted context to the specialist's run; they are not saved as specialist memory. Hutch warns that the selected
+specialist's provider may retain the submitted context. After dispatch, the provider copy cannot be recalled. See the
+[versioned handoff contract](contracts.md#3-versioned-resources-cursors-idempotency-pagination-partial-s8).
+
 ## Bounds and stopping
 
 Persisted admission limits a lineage to depth two and three lifetime direct children per parent; no more than two direct children

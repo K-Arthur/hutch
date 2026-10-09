@@ -19,7 +19,7 @@ from hutch.engine import Engine
 from hutch.lifecycle import IllegalTransition
 from hutch.models import RunStatus
 from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28,
-                         _migrate_29, _migrate_30, _migrate_31)
+                         _migrate_29, _migrate_30, _migrate_31, _migrate_32)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
@@ -27,7 +27,7 @@ FINISHED_1, FINISHED_2, ORPHAN, QUEUED = "run_582f4cc75ea4", "run_fa7f70664c38",
 
 
 def test_reply_reference_migration_preserves_old_rows_and_guards_scope():
-    assert SCHEMA_VERSION == 31
+    assert SCHEMA_VERSION == 32
     db = sqlite3.connect(":memory:")
     try:
         db.execute("CREATE TABLE bots (id TEXT PRIMARY KEY)")
@@ -187,6 +187,17 @@ def test_v27_workspace_coordinator_migration_tracks_selection_and_bot_deletion()
             db.execute("UPDATE workspace_task_checkpoints SET recovery_state='reconcile' WHERE event_seq=1")
         with pytest.raises(sqlite3.IntegrityError, match="removed only with their task"):
             db.execute("DELETE FROM workspace_task_checkpoints WHERE event_seq=1")
+        db.execute("ALTER TABLE bots ADD COLUMN doc TEXT NOT NULL DEFAULT '{}'")
+        db.execute("""CREATE TABLE memory_facts (
+            id TEXT PRIMARY KEY, bot_id TEXT NOT NULL, scope_kind TEXT NOT NULL, scope_id TEXT NOT NULL,
+            key TEXT NOT NULL, value TEXT NOT NULL, status TEXT NOT NULL, revision INTEGER NOT NULL,
+            content_hash TEXT NOT NULL)""")
+        _migrate_32(db)
+        share_columns = {row[1] for row in db.execute("PRAGMA table_info(workspace_task_fact_shares)")}
+        assert {"workspace_task_id", "source_fact_id", "source_bot_id", "source_display_name",
+                "source_scope_kind", "source_scope_id", "fact_key", "fact_value", "fact_revision",
+                "content_hash", "created_at"} <= share_columns
+        assert db.execute("SELECT COUNT(*) FROM workspace_task_fact_shares").fetchone()[0] == 0
         db.execute("DELETE FROM workspace_tasks WHERE id='task-a'")
         assert db.execute("SELECT COUNT(*) FROM workspace_task_checkpoints").fetchone()[0] == 0
     finally:

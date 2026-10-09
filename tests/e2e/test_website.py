@@ -187,6 +187,8 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
         assert "cannot continue a run after restart yet" in workflow.inner_text().lower()
         assert "the coordinator receives a specialist response only when you choose that exact reply" in workflow.inner_text().lower()
         assert "it remains marked as untrusted text" in workflow.inner_text().lower()
+        assert "up to eight current, approved coordinator facts for that task alone" in workflow.inner_text().lower()
+        assert "provider may retain what it receives under its terms" in workflow.inner_text().lower()
         assert "suggests a professional bot name" in workflow.inner_text().lower()
         assert "no extra model request" in workflow.inner_text().lower()
         assert "both values remain editable" in workflow.inner_text().lower()

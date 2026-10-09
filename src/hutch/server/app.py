@@ -211,6 +211,7 @@ class WorkspaceTaskCreate(BaseModel):
     target_bot_id: str = Field(min_length=1, max_length=100)
     task_brief: str = Field(min_length=1, max_length=20_000)
     assumptions: str = Field(default="", max_length=4_000)
+    memory_fact_ids: list[str] = Field(default_factory=list, max_length=8)
 
 
 class WorkspaceTaskCheckpointResource(BaseModel):
@@ -222,6 +223,19 @@ class WorkspaceTaskCheckpointResource(BaseModel):
     recovery_state: str
     reference_id: str = ""
     created_at: str
+
+
+class WorkspaceTaskSharedFactResource(BaseModel):
+    fact_id: str
+    source_bot_id: str
+    source_display_name: str
+    source_scope_kind: Literal["bot", "conversation"]
+    source_scope_id: str
+    source_conversation_id: str = ""
+    key: str
+    value: str
+    revision: int
+    content_hash: str
 
 
 class WorkspaceTaskResource(BaseModel):
@@ -253,6 +267,7 @@ class WorkspaceTaskResource(BaseModel):
     created_at: str
     checkpoint_count: int = 0
     checkpoints: list[WorkspaceTaskCheckpointResource] = Field(default_factory=list)
+    shared_facts: list[WorkspaceTaskSharedFactResource] = Field(default_factory=list)
 
 
 class RunRequest(BaseModel):
@@ -1598,7 +1613,7 @@ def create_app() -> FastAPI:
                 source_assistant_message_id=body.source_assistant_message_id,
                 target_bot_id=target.id, task_brief=task_brief, assumptions=assumptions,
                 run=run, task=task, capability_snapshot=Engine.capability_snapshot(target),
-                idem_key=key, request_hash=digest,
+                idem_key=key, request_hash=digest, memory_fact_ids=body.memory_fact_ids,
             )
         except IdempotencyConflict as exc:
             raise HTTPException(409, str(exc)) from None

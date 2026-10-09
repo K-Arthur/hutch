@@ -36,16 +36,18 @@ def _child(store, parent, prompt="inspect one bounded area", key="delegate", par
 
 
 def _remove_later_conversation_schema(db):
-    """Make a real pre-v25 fixture before lowering user_version for migration tests."""
+    """Remove post-v24 conversation/task schema before lowering user_version."""
     for trigger in (
         "workspace_task_checkpoint_event_insert", "messages_workspace_task_result_insert",
         "messages_workspace_task_result_update", "messages_choice_question_insert",
         "messages_choice_question_update", "conversation_question_definition_immutable",
         "conversation_question_resolve_once", "messages_reply_target_insert", "messages_reply_target_update",
+        "workspace_task_fact_share_source_guard", "workspace_task_fact_share_immutable",
+        "workspace_task_fact_share_no_delete",
     ):
         db.execute(f"DROP TRIGGER IF EXISTS {trigger}")
     db.execute("DROP INDEX IF EXISTS idx_messages_workspace_task_result")
-    for table in ("workspace_task_checkpoints", "workspace_tasks", "workspace_settings",
+    for table in ("workspace_task_fact_shares", "workspace_task_checkpoints", "workspace_tasks", "workspace_settings",
                   "conversation_questions", "google_calendar_grants"):
         db.execute(f"DROP TABLE IF EXISTS {table}")
     columns = {row[1] for row in db.execute("PRAGMA table_info(messages)")}

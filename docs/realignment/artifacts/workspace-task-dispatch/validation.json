@@ -24,6 +24,7 @@
     "target model/tools are visible",
     "assumptions are sent with the brief",
     "specialist result is shared only after composer review",
+    "only the user-selected reviewed fact enters task context and remains task-scoped",
     "selected result can be removed before the explicit follow-up is sent",
     "shared result is linked to its exact source and marked as untrusted context",
     "checkpoint timeline is bounded and contains only committed event markers",

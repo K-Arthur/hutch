@@ -569,6 +569,22 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .workspace-task-capabilities > div { min-width: 0; padding: var(--s-2) var(--s-3); border: 1px solid var(--line); border-radius: 10px; }
 .workspace-task-capabilities dt { color: var(--text-3); font-size: var(--fs-xs); }
 .workspace-task-capabilities dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+.workspace-task-fact-selector { min-width: 0; margin: var(--s-3) 0; padding: var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-panel); background: var(--panel); }
+.workspace-task-fact-selector > summary, .workspace-task-shared-facts > summary { width: fit-content; max-width: 100%; font-weight: 650; overflow-wrap: anywhere; }
+.workspace-task-fact-selector > p { margin: var(--s-2) 0; }
+.workspace-task-fact-list { display: grid; gap: var(--s-1); max-block-size: 16rem; overflow: auto; overscroll-behavior: contain; margin-top: var(--s-2); padding: 2px; }
+.workspace-task-fact-choice { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start; gap: var(--s-2); min-height: 44px; padding: var(--s-2); border: 1px solid var(--line); border-radius: var(--r-control); color: var(--text); cursor: pointer; }
+.workspace-task-fact-choice:has(input:checked) { border-color: var(--focus); background: var(--focus-wash); }
+.workspace-task-fact-choice input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--brand); }
+.workspace-task-fact-choice input:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.workspace-task-fact-choice input:disabled { cursor: not-allowed; }
+.workspace-task-fact-choice > span { display: grid; min-width: 0; gap: 2px; }
+.workspace-task-fact-choice > span > span, .workspace-task-shared-facts li > span { color: var(--text-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.workspace-task-fact-choice small, .workspace-task-shared-facts small { color: var(--text-3); font-size: var(--fs-xs); overflow-wrap: anywhere; }
+.workspace-task-shared-facts { min-width: 0; margin: var(--s-3) 0; padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--bg-subtle); }
+.workspace-task-shared-facts > p { margin: var(--s-2) 0; }
+.workspace-task-shared-facts ul { display: grid; gap: var(--s-2); margin: var(--s-3) 0 0; padding: 0; list-style: none; }
+.workspace-task-shared-facts li { display: grid; min-width: 0; gap: 2px; padding: var(--s-2) var(--s-3); border-radius: var(--r-control); background: var(--surface); }
 .answer-actions { display: flex; justify-content: flex-start; margin: 2px 0 10px; }
 .choice-card {
   width: min(100%, 560px); margin: var(--s-3) 0 var(--s-4); padding: var(--s-4);

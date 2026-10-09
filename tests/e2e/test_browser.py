@@ -84,6 +84,9 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
     specialist = app.state.store.create_bot(Bot(
         name="research-partner", display_name="Research Partner", model="mock/demo", tools=["memory"],
         instructions="Use this specialist's own saved instructions."))
+    task_fact = app.state.store.remember(coordinator.id, "launch-window", "The public launch is planned for November.")
+    app.state.store.review_fact(coordinator.id, task_fact.id, content_hash=task_fact.content_hash,
+                                action="approve", actor="fixture")
     app.state.store.set_workspace_coordinator(coordinator.id)
     output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workspace-task-dispatch"
     output.mkdir(parents=True, exist_ok=True)
@@ -115,6 +118,14 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
         dialog.locator("#workspace-task-brief").fill(
             "Compare two launch approaches and return a short recommendation with trade-offs.")
         dialog.locator("#workspace-task-assumptions").fill("Use public information only; do not contact anyone.")
+        fact_selector = dialog.locator(".workspace-task-fact-selector")
+        fact_selector.locator("summary").click()
+        selected_fact = fact_selector.locator(f'[data-workspace-task-fact="{task_fact.id}"]')
+        assert selected_fact.is_visible() and not selected_fact.is_checked()
+        assert "provider may retain" in fact_selector.inner_text().lower()
+        assert "not be added" in fact_selector.inner_text().lower()
+        selected_fact.check()
+        assert "1 of 8 selected" in dialog.locator("#workspace-task-facts-count").inner_text()
         page.locator(".toast").wait_for(state="detached", timeout=6000)
         for label, (width, height) in sizes.items():
             page.set_viewport_size({"width": width, "height": height})
@@ -125,9 +136,9 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
             page.screenshot(path=str(output / f"review-{label}.png"), animations="disabled")
             if label == "phone":
                 dialog.locator(".modal-body").evaluate("element => element.scrollTop = element.scrollHeight")
-                assumptions_box = dialog.locator("#workspace-task-assumptions").bounding_box()
+                selected_box = selected_fact.locator("xpath=..").bounding_box()
                 footer_box = dialog.locator(".modal-footer").bounding_box()
-                assert assumptions_box and footer_box and assumptions_box["y"] + assumptions_box["height"] <= footer_box["y"]
+                assert selected_box and footer_box and selected_box["y"] + selected_box["height"] <= footer_box["y"]
                 page.screenshot(path=str(output / "review-phone-fields.png"), animations="disabled")
 
         dialog.get_by_role("button", name="Send reviewed task").click()
@@ -139,12 +150,18 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
         page.locator(".toast").wait_for(state="detached", timeout=6000)
         task_card.get_by_text("Done", exact=True).wait_for(timeout=15000)
         assert "Latest specialist response" in task_card.inner_text()
+        shared_facts = task_card.locator(".workspace-task-shared-facts")
+        assert shared_facts.is_visible()
+        shared_facts.locator("summary").click()
+        assert "The public launch is planned for November." in shared_facts.inner_text()
+        assert "not added to the specialist Bot's saved memory" in shared_facts.inner_text()
         for label, (width, height) in sizes.items():
             page.set_viewport_size({"width": width, "height": height})
             page.evaluate("document.fonts.ready")
             assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
             assert task_card.is_visible()
             page.screenshot(path=str(output / f"timeline-{label}.png"), animations="disabled")
+            shared_facts.screenshot(path=str(output / f"shared-facts-{label}.png"), animations="disabled")
 
         checkpoint_summary = task_card.locator(".workspace-task-checkpoints > summary")
         assert "Progress checkpoints" in checkpoint_summary.inner_text()
@@ -178,7 +195,7 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
 
         assert errors == [], errors
         assert page.locator("#modal-root").inner_text() == ""
-        assert page.locator("[data-workspace-task] details:not(.workspace-task-checkpoints) summary").inner_text() == "Request and coordinator draft"
+        assert task_card.locator("details > summary").all_inner_texts()[-1] == "Request and coordinator draft"
         parent_conversation_id = app.state.store.list_conversations(coordinator.id)[0]["id"]
         task = app.state.store.list_workspace_tasks(parent_conversation_id)[0]
         assert task["target_bot_id"] == specialist.id
@@ -238,6 +255,7 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
             "page_errors": errors,
             "validation": ["coordinator answer stays a draft until reviewed", "target model/tools are visible",
                            "assumptions are sent with the brief", "specialist result is shared only after composer review",
+                           "only the user-selected reviewed fact enters task context and remains task-scoped",
                            "selected result can be removed before the explicit follow-up is sent",
                            "shared result is linked to its exact source and marked as untrusted context",
                            "checkpoint timeline is bounded and contains only committed event markers",

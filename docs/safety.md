@@ -231,13 +231,19 @@ separate specialist conversation/run. Hutch atomically preserves the source requ
 display name, child IDs and idempotency receipt. The task card remains linked from the originating coordinator turn and refreshes
 with the specialist's authoritative status and latest answer.
 
-Only the reviewed brief and assumptions enter the specialist conversation. The coordinator's other chat history, files, memory and
-permissions are not copied; the specialist's own enabled memory and workspace may still apply. A coordinator follow-up can include
+Only the reviewed brief and assumptions enter the specialist conversation by default. During the same review, the owner may leave
+all facts unselected or explicitly choose up to eight current, approved facts scoped to the coordinator Bot or this exact chat, with
+a 6,000-character serialized limit. Hutch snapshots the exact values, revisions, hashes, source Bot and scopes immutably with the
+task, then presents the snapshot only as untrusted context to that specialist run. It does not add those facts to the specialist's
+saved memory. The coordinator's other chat history, files, memory and permissions are not copied; the specialist's own enabled
+memory and workspace may still apply. The review names the specialist's saved provider route and warns that its provider may retain
+the submitted context under its terms. Once the run is sent, Hutch cannot recall that copy from the provider. A coordinator follow-up can include
 a specific successful specialist response only after the user selects that result and attaches it in the composer. Hutch checks
 its task, parent chat, source message and successful-run status, then snapshots the exact bounded response and source Bot name.
 The coordinator receives that snapshot as untrusted input; hostile markup cannot escape the wrapper. This explicit text share
-transfers no files, memory, credentials or permissions and does not happen automatically. The child has an empty inherited
-conversation context and uses its own saved route. A missing or changed route, instructions, permissions or workspace causes a
+transfers no files, credentials or permissions and does not happen automatically. The child receives only the reviewed brief,
+assumptions and exact optional fact snapshots; it has no other inherited conversation context and uses its own saved route. A
+missing or changed route, instructions, permissions or workspace causes a
 visible pre-execution failure; the task is not silently re-run under new authority. Exact retries return the same task, while the same
 idempotency key with changed content conflicts. Schema v31 records a bounded task timeline derived atomically from committed
 child-run events. It contains event sequence/type, run status, marker kind, recovery label, opaque decision/artifact reference,

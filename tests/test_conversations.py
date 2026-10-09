@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import time
 
 import pytest
@@ -533,12 +534,27 @@ def test_coordinator_dispatch_is_reviewed_atomic_and_stays_in_specialist_context
     source = client.get(f"/api/v1/conversations/{conversation['id']}").json()["messages"]
     source_user = next(row for row in source if row["run_id"] == source_run_id and row["role"] == "user")
     source_answer = next(row for row in source if row["run_id"] == source_run_id and row["role"] == "assistant")
+    store = client.app.state.store
+    # Pre-name-schema Bot JSON can still be read with a slug-derived display label.
+    with store._tx() as db:
+        db.execute("UPDATE bots SET doc = json_remove(doc, '$.display_name') WHERE id = ?", (coordinator["id"],))
+    shared_fact = store.remember(coordinator["id"], "launch-window", "The public launch is planned for November.",
+                                 conversation_id=conversation["id"])
+    store.review_fact(coordinator["id"], shared_fact.id, content_hash=shared_fact.content_hash,
+                      action="approve", actor="fixture")
+    unselected_fact = store.remember(coordinator["id"], "private-budget", "The internal budget is confidential.",
+                                     conversation_id=conversation["id"])
+    store.review_fact(coordinator["id"], unselected_fact.id, content_hash=unselected_fact.content_hash,
+                      action="approve", actor="fixture")
+    proposed_fact = store.remember(coordinator["id"], "unreviewed", "This proposal must not be shared.",
+                                   conversation_id=conversation["id"])
     reviewed_brief = "Compare the launch-plan options. Return a concise table of trade-offs and a recommendation."
     payload = {
         "parent_conversation_id": conversation["id"], "source_run_id": source_run_id,
         "source_user_message_id": source_user["id"], "source_assistant_message_id": source_answer["id"],
         "target_bot_id": specialist["id"], "task_brief": reviewed_brief,
         "assumptions": "Use public information only; do not contact anyone.",
+        "memory_fact_ids": [shared_fact.id],
     }
     headers = {"Idempotency-Key": "reviewed-specialist-task"}
     dispatched = client.post("/api/v1/workspace/tasks", json=payload, headers=headers)
@@ -549,6 +565,13 @@ def test_coordinator_dispatch_is_reviewed_atomic_and_stays_in_specialist_context
     assert record["task_brief"] == reviewed_brief and record["assumptions"] == payload["assumptions"]
     assert record["target_display_name"] == "Research Partner"
     assert record["model"] == specialist["model"] and record["tools"] == ["recall", "remember"]
+    assert record["shared_facts"] == [{
+        "fact_id": shared_fact.id, "source_bot_id": coordinator["id"],
+        "source_display_name": "Named Coordinator", "source_scope_kind": "conversation",
+        "source_scope_id": conversation["id"], "source_conversation_id": conversation["id"],
+        "key": "launch-window", "value": "The public launch is planned for November.",
+        "revision": shared_fact.revision, "content_hash": shared_fact.content_hash,
+    }]
     assert record["checkpoint_count"] >= 1
     assert record["checkpoints"][0]["kind"] == "task_submitted"
     assert record["checkpoints"][0]["event_type"] == "message"
@@ -557,7 +580,66 @@ def test_coordinator_dispatch_is_reviewed_atomic_and_stays_in_specialist_context
     assert [(message["role"], message["content"]) for message in child["messages"]] == [
         ("user", reviewed_brief + "\n\nUser-reviewed assumptions and constraints:\n" + payload["assumptions"])]
     run = client.app.state.store.get_run(record["child_run_id"])
-    assert run.origin == "workspace_task" and run.conversation_context == []
+    assert run.origin == "workspace_task" and len(run.conversation_context) == 1
+    shared_context = run.conversation_context[0]["content"]
+    encoded_facts = shared_context.split("<task_reference_facts_json>\n", 1)[1].split(
+        "\n</task_reference_facts_json>", 1)[0]
+    task_facts = json.loads(encoded_facts)
+    assert "task only" in shared_context and "not instructions" in shared_context
+    assert [fact["fact_id"] for fact in task_facts] == [shared_fact.id]
+    assert task_facts[0]["value"] == "The public launch is planned for November."
+    assert unselected_fact.value not in shared_context and proposed_fact.value not in shared_context
+    assert client.get(f"/api/v1/bots/{specialist['id']}/facts?conversation_id={record['child_conversation_id']}").json()["facts"] == []
+    with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+        with store._tx() as db:
+            db.execute("UPDATE workspace_task_fact_shares SET fact_value = 'forged' WHERE workspace_task_id = ?",
+                       (record["id"],))
+    with pytest.raises(sqlite3.IntegrityError, match="removed only with their task"):
+        with store._tx() as db:
+            db.execute("DELETE FROM workspace_task_fact_shares WHERE workspace_task_id = ?", (record["id"],))
+    changed_share = {**payload, "memory_fact_ids": [unselected_fact.id]}
+    assert client.post("/api/v1/workspace/tasks", json=changed_share, headers=headers).status_code == 409
+    unreviewed_share = {**payload, "memory_fact_ids": [proposed_fact.id]}
+    assert client.post("/api/v1/workspace/tasks", json=unreviewed_share,
+                       headers={"Idempotency-Key": "task-unreviewed-fact"}).status_code == 409
+    other_bot = client.post("/api/bots", json={"name": "other-private-owner", "model": "mock/demo"}).json()
+    other_conversation, _ = store.create_conversation(other_bot["id"], "Other owner's private facts",
+                                                       idem_key="other-owner-chat", request_hash="other-owner-chat")
+    foreign_fact = store.remember(other_bot["id"], "foreign", "Not part of this coordinator context.",
+                                  conversation_id=other_conversation["id"])
+    store.review_fact(other_bot["id"], foreign_fact.id, content_hash=foreign_fact.content_hash,
+                      action="approve", actor="fixture")
+    foreign_share = {**payload, "memory_fact_ids": [foreign_fact.id]}
+    assert client.post("/api/v1/workspace/tasks", json=foreign_share,
+                       headers={"Idempotency-Key": "task-foreign-fact"}).status_code == 409
+    too_many = {**payload, "memory_fact_ids": [f"missing-{n}" for n in range(9)]}
+    assert client.post("/api/v1/workspace/tasks", json=too_many,
+                       headers={"Idempotency-Key": "task-too-many-facts"}).status_code == 422
+    duplicate = {**payload, "memory_fact_ids": [shared_fact.id, shared_fact.id]}
+    assert client.post("/api/v1/workspace/tasks", json=duplicate,
+                       headers={"Idempotency-Key": "task-duplicate-facts"}).status_code == 409
+    large_facts = []
+    for n in range(4):
+        fact = store.remember(coordinator["id"], f"large-{n}", "x" * 1_700,
+                              conversation_id=conversation["id"])
+        store.review_fact(coordinator["id"], fact.id, content_hash=fact.content_hash,
+                          action="approve", actor="fixture")
+        large_facts.append(fact.id)
+    oversized = {**payload, "memory_fact_ids": large_facts}
+    refused = client.post("/api/v1/workspace/tasks", json=oversized,
+                          headers={"Idempotency-Key": "task-oversized-facts"})
+    assert refused.status_code == 409 and "6,000 characters" in refused.json()["detail"]
+    escaped_facts = []
+    for n in range(2):
+        fact = store.remember(coordinator["id"], f"escaped-{n}", "<>" * 450,
+                              conversation_id=conversation["id"])
+        store.review_fact(coordinator["id"], fact.id, content_hash=fact.content_hash,
+                          action="approve", actor="fixture")
+        escaped_facts.append(fact.id)
+    escaped_refused = client.post(
+        "/api/v1/workspace/tasks", json={**payload, "memory_fact_ids": escaped_facts},
+        headers={"Idempotency-Key": "task-escaped-facts"})
+    assert escaped_refused.status_code == 409 and "6,000 characters" in escaped_refused.json()["detail"]
     assert client.app.state.store.run_capability_snapshot(run.id) == client.app.state.engine.capability_snapshot(
         client.app.state.store.get_bot(specialist["id"]))
 

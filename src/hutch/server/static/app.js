@@ -2445,11 +2445,19 @@ function workspaceTaskCardHtml(task) {
           <span class="workspace-task-checkpoint-seq">Event ${Number(checkpoint.event_seq) || 0}</span></li>`;
       }).join("")}</ol>
     </details>` : "";
+  const sharedFacts = task.shared_facts || [];
+  const sharedFactsHtml = sharedFacts.length ? `<details class="workspace-task-shared-facts">
+      <summary>Reference facts shared for this task (${sharedFacts.length})</summary>
+      <p class="hint">These exact reviewed values were included in this task's model context. They were not added to the specialist Bot's saved memory.</p>
+      <ul>${sharedFacts.map(fact => `<li><strong>${esc(fact.key)}</strong><span>${esc(fact.value)}</span>
+        <small>From ${esc(fact.source_display_name)} · ${fact.source_scope_kind === "conversation" ? "this coordinator chat" : "coordinator-wide reference"} · revision ${Number(fact.revision) || 0}</small></li>`).join("")}</ul>
+    </details>` : "";
   return `<section class="workspace-task-card" data-workspace-task="${esc(task.id)}" aria-label="Task for ${esc(task.target_display_name)}">
     <div class="workspace-task-heading"><strong>Assigned to ${esc(task.target_display_name)}</strong>${statusChip(task.status, statusLabel)}</div>
     <p class="workspace-task-brief">${esc(task.task_brief)}</p>
     ${task.assumptions ? `<p class="workspace-task-assumptions"><b>Reviewed constraints:</b> ${esc(task.assumptions)}</p>` : ""}
     <p class="hint">Specialist settings: ${esc(capability)}</p>
+    ${sharedFactsHtml}
     ${task.result ? `<div class="workspace-task-result"><b>Latest specialist response</b><p>${esc(task.result)}${task.result_truncated ? "… [preview truncated]" : ""}</p></div>` : ""}
     ${task.reason && task.status !== "succeeded" ? `<p class="run-notice" role="status">${esc(task.reason)}</p>` : ""}
     ${checkpointHtml}
@@ -2511,6 +2519,40 @@ async function prepareWorkspaceTask(button) {
   if (!originalRequest || sourceAnswerMessage.role !== "assistant" || sourceAnswerMessage.run_id !== sourceRun) {
     toast("The coordinator messages no longer match this completed attempt.", "error"); return;
   }
+  let shareableFacts = [], factLoadError = "";
+  try {
+    const factsPage = await api(`/v1/bots/${encodeURIComponent(coordinator.id)}/facts?conversation_id=${encodeURIComponent(parentConversationId)}&limit=100`);
+    shareableFacts = (factsPage.facts || []).filter(fact => fact.status === "approved");
+  } catch (error) { factLoadError = error.message; }
+  let factChecks = [];
+  let factCount = null;
+  const selectedFactIds = () => factChecks.filter(input => input.checked)
+    .map(input => input.dataset.workspaceTaskFact);
+  const selectedFactSnapshots = () => selectedFactIds().map(id => {
+    const fact = shareableFacts.find(item => item.id === id);
+    return {
+      content_hash: fact.content_hash,
+      fact_id: fact.id,
+      key: fact.key,
+      revision: Number(fact.revision) || 0,
+      source_bot_id: coordinator.id,
+      source_conversation_id: fact.scope_kind === "conversation" ? fact.scope_id : "",
+      source_display_name: coordinator.display_name,
+      source_scope_id: fact.scope_id,
+      source_scope_kind: fact.scope_kind,
+      value: fact.value,
+    };
+  });
+  const factChoices = shareableFacts.length ? `<details class="workspace-task-fact-selector">
+      <summary>Reviewed reference facts to include (optional)</summary>
+      <p class="hint">Nothing is selected automatically. Choose up to 8 approved facts from this coordinator or chat. They will be sent through the specialist's saved model route for this task only, and will not be added to its saved memory. The provider may retain them under its terms.</p>
+      <p class="hint" id="workspace-task-facts-count" role="status">0 of 8 selected · 12 / 6,000 characters</p>
+      <div class="workspace-task-fact-list">${shareableFacts.map(fact => `<label class="workspace-task-fact-choice">
+        <input type="checkbox" data-workspace-task-fact="${esc(fact.id)}">
+        <span><strong>${esc(fact.key)}</strong><span>${esc(fact.value)}</span>
+          <small>${esc(factScopeLabel(fact))} · reviewed reference · revision ${Number(fact.revision) || 0}</small></span>
+      </label>`).join("")}</div>
+    </details>` : `<p class="hint">${factLoadError ? `Reviewed facts could not be loaded (${esc(factLoadError)}); the task can still be sent without them.` : "No reviewed coordinator facts are available to share with this task."}</p>`;
 
   openModal({
     returnFocus, title: "Prepare a task for a Bot", confirmText: "Send reviewed task", wide: true, tall: true,
@@ -2521,7 +2563,8 @@ async function prepareWorkspaceTask(button) {
       <div id="workspace-task-capability" aria-live="polite"></div>
       <label class="field">Reviewed task brief<textarea id="workspace-task-brief" rows="6" maxlength="20000">${esc(sourceAnswerMessage.content)}</textarea></label>
       <label class="field">Additional constraints or assumptions (optional)<textarea id="workspace-task-assumptions" rows="3" maxlength="4000" placeholder="For example: public sources only; do not contact anyone."></textarea></label>
-      <p class="hint">The specialist receives this reviewed brief and these constraints in a new conversation. The coordinator’s other chat history, files, memory, and permissions are not copied. The specialist uses its own saved model route and settings; its own enabled memory and workspace may still apply.</p>
+      ${factChoices}
+      <p class="hint">The specialist receives this reviewed brief and constraints in a new conversation. Other chat history, files, memory and permissions are not copied. The specialist uses its own saved model route and settings; its own enabled memory and workspace may still apply. Once a task starts, information already sent to a model cannot be recalled.</p>
       <p id="workspace-task-error" role="alert" hidden></p>`,
     onConfirm: async () => {
       const target = targets.find(bot => bot.id === $("#workspace-task-target").value);
@@ -2529,9 +2572,18 @@ async function prepareWorkspaceTask(button) {
       const assumptions = $("#workspace-task-assumptions").value.trim();
       const error = $("#workspace-task-error"), confirm = $("#modal-confirm");
       if (!target || !taskBrief) { error.textContent = "Choose a Bot and review a non-empty task brief."; error.hidden = false; return false; }
+      const selectedFacts = selectedFactSnapshots();
+      const serializedSize = Array.from(JSON.stringify(selectedFacts)
+        .replace(/</g, "\\u003c").replace(/>/g, "\\u003e")).length;
+      if (serializedSize > 6000) {
+        error.textContent = "Choose fewer reference facts; the task limit is 6,000 serialized characters.";
+        error.hidden = false;
+        return false;
+      }
       const body = {parent_conversation_id: parentConversationId, source_run_id: sourceRun,
         source_user_message_id: sourceUser, source_assistant_message_id: sourceAnswer,
-        target_bot_id: target.id, task_brief: taskBrief, assumptions};
+        target_bot_id: target.id, task_brief: taskBrief, assumptions,
+        memory_fact_ids: selectedFacts.map(fact => fact.fact_id)};
       const retry = await workspaceTaskKey(parentConversationId, sourceAnswer, target.id, body);
       confirm.disabled = true;
       try {
@@ -2556,6 +2608,20 @@ async function prepareWorkspaceTask(button) {
   };
   select.addEventListener("change", refreshCapabilities);
   refreshCapabilities();
+  factChecks = $$('[data-workspace-task-fact]');
+  factCount = $("#workspace-task-facts-count");
+  const refreshFactCount = () => {
+    if (!factCount) return;
+    const selected = selectedFactIds();
+    const serializedSize = Array.from(JSON.stringify(selectedFactSnapshots())
+      .replace(/</g, "\\u003c").replace(/>/g, "\\u003e")).length;
+    const overLimit = serializedSize > 6000;
+    factCount.textContent = `${selected.length} of 8 selected · ${serializedSize.toLocaleString()} / 6,000 characters${overLimit ? " · over limit" : ""}`;
+    factCount.setAttribute("aria-invalid", String(overLimit));
+    factChecks.forEach(input => { input.disabled = !input.checked && selected.length >= 8; });
+  };
+  factChecks.forEach(input => input.addEventListener("change", refreshFactCount));
+  refreshFactCount();
 }
 
 const seenThreads = new Set();
