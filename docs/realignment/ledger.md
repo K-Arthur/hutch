@@ -2621,3 +2621,12 @@ screen-reader session was used. `node --check` and `git diff --check` passed.
 
 The newly surfaced side-tab report is stale: those accents were already removed by `654ca75` and `8052655`, and the
 current stylesheet lines in the report are not one-sided borders. The current detector reports no side-tab finding.
+
+## Offline regression gate after schema v36 (2026-10-09)
+
+Commit `1703434` removes two brittle exact-current-schema assertions from historical migration tests. The
+Outlook Mail grant test now requires schema v35 or newer, and the reply-reference test requires v26 or newer;
+both still execute and assert the specific migration behavior. The complete offline suite then passed **1,456
+tests in 303.37s** with unhandled thread exceptions and syntax warnings treated as errors. The first run had
+only these two stale assertions failing against current schema v36; the rerun was fully green. Browser/live
+provider/performance release gates are not implied by this offline result.
