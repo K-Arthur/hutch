@@ -43,6 +43,7 @@
         "rule": "tight-leading",
         "value": "*",
         "files": [
+          ".worktrees/realign/src/hutch/server/templates/base.html",
           "src/hutch/server/templates/base.html"
         ],
         "createdAt": "2026-10-08T22:23:43.256Z",
