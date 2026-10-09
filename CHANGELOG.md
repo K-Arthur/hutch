@@ -1,5 +1,13 @@
 # Changelog
 
+## Reviewed OpenCode coding handoff (experimental, schema v39)
+
+- Studio can prepare a durable OpenCode coding task from a completed Bot answer after the owner reviews and edits the exact brief. The Bot must point to an existing Git project; each task is pinned to its reviewed commit in a separate worktree.
+- `hutch code run <task-id>` launches the installed OpenCode mini CLI only from an interactive Linux terminal. Its own sign-in, selected model and usage pool remain separate from Hutch. The task profile does not auto-approve and caps steps at 20; shell commands approved in OpenCode retain the Linux user's authority and are outside Hutch's sandbox and permission broker.
+- The CLI keeps OpenCode in its own verified process group in the current terminal session, hands over foreground terminal input, then restores it after verified cleanup. Reconciliation now includes the terminal session identity, so a reused numeric process-group ID is not treated as the original task.
+- Task state stays visible while process cleanup is incomplete. Process identity includes boot ID and start time; reconciliation never signals stale PIDs. The worktree is retained for human review and is not applied, committed, pushed or published by Hutch.
+- Updated product, architecture, safety, configuration, migration/operations and marketing claims. OpenCode's installed configuration loading, permission UX, model execution and live provider usage remain unverified; Pi/OpenCode Bot runtimes remain unavailable.
+
 ## Explicit Bot-to-Bot reference grants (schema v38)
 
 - A person can share one exact, current, reviewed memory fact with one named Bot. The grant is a durable, provenance-labelled reference snapshot available across that recipient Bot's chats; it does not transfer tools, accounts, credentials, files or other history.

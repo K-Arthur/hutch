@@ -1,6 +1,6 @@
 # Architecture
 
-Schema v35 separates reference facts, durable typed chat questions, explicit specialist-result references, task-only selected-fact snapshots, content-free workspace task checkpoints and immutable safe-continuation lineage from canonical chat messages, workspace files, execution receipts
+Schema v39 separates reference facts, durable typed chat questions, explicit specialist-result references, task-only selected-fact snapshots, content-free workspace task checkpoints, immutable safe-continuation lineage, and owner-reviewed local OpenCode coding handoffs from canonical chat messages, workspace files, execution receipts
 and provider credential stores. It also stores credential-free Google and Outlook Calendar/Mail account references and one selected-calendar or mailbox grant per Bot;
 refresh credentials remain in Linux Secret Service. Outlook Calendar and Mail use separate OAuth callbacks, token namespaces and scopes. Model proposals inherit persisted chat/run scope and execution fencing;
 human review binds immutable revision/scope hashes. Explicit sharing creates a bot-wide reference.
@@ -37,14 +37,15 @@ flowchart LR
   subgraph Core
     ENG["Engine<br/>dispatch · caps · transcripts · stop"]
     SCH["Scheduler<br/>croniter + IANA tz · catch-up"]
-    SCHED_STORE[("SQLite (WAL)<br/>bots · tasks · runs · events<br/>usage · reservations · conversations · approvals · devices")]
+    SCHED_STORE[("SQLite (WAL)<br/>bots · tasks · runs · events<br/>usage · reservations · conversations · approvals · devices · code_handoffs")]
     POL["Policy engine<br/>compound-command parser · path jail · URL guards"]
     GATE["Approval gate<br/>fail-closed · sticky allows"]
   end
 
   subgraph Runtimes
     BUILTIN["builtin loop<br/>(OpenAI-compatible)"]
-    EXT["Pi / OpenCode<br/>(recognized; disabled)"]
+    EXT["Pi / OpenCode bot runtime<br/>(disabled)"]
+    CODE["Reviewed coding handoff<br/>local OpenCode CLI + pinned worktree"]
   end
 
   subgraph Tools
@@ -56,6 +57,7 @@ flowchart LR
   end
 
   CLI --> ENG
+  CLI --> CODE
   UI --> API
   API --> ENG
   API --> CONV["Conversation service<br/>bounded history · idempotency"]
@@ -69,7 +71,14 @@ flowchart LR
   SH & FI & BR --> GATE
   GATE --> SCHED_STORE
   BUILTIN --> LLM["model provider<br/>openai · ollama · llama.cpp · lmstudio"]
+  API --> CODE
+  CODE --> SCHED_STORE
 ```
+
+The code-handoff API validates and records an immutable review; it does not launch an executor process. The owner later starts the
+local OpenCode CLI from `hutch code run` in an interactive Linux terminal. That terminal path uses the saved commit and a separate
+Git worktree. OpenCode command approvals, account usage and shell effects stay outside Hutch's executor, sandbox and usage ledger.
+The Bot's normal Pi/OpenCode runtime value remains disabled. See the [reviewed handoff contract](realignment/contracts.md#reviewed-opencode-coding-handoff-experimental-schema-v39).
 
 ## State layout
 
@@ -83,6 +92,7 @@ bots/<bot>/runs/<run_id>/
   workspace/                    # the bot's jailed world for this run
 bots/<bot>/browser-profile/     # persistent Chromium profile (logins survive runs)
 workspaces/<bot_id>/            # optional private folder shared across one bot's runs/chats
+code-worktrees/<handoff-id>/     # retained local coding-task branch; managed outside database backup
 ```
 
 Large tool outputs and files created with `write_file` are linked to their committed `tool_result`

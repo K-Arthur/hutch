@@ -133,6 +133,9 @@ grant for held operator review. Desktop, tablet and phone share/revoke flows are
 | `236dd99` | Show newest route-specific tool-call observations in Connections with honest loading/unknown/error states, bidirectional keyset paging, updated Bot-name guidance and inspected responsive evidence; focused API/browser suite 4 passed |
 | `6b3d643` | Record the Connections capability-evidence implementation and verification boundary |
 | `e47b193` | Reconcile the current Google Calendar, Gmail, Outlook Calendar, and Outlook Mail support matrix; correct typed API documentation and record focused fixture verification |
+| `fc8bb20` | Add schema-v39 reviewed OpenCode coding handoffs, pinned Git worktrees, local CLI launch/reconciliation, terminal-session identity, and PTY/process regressions |
+| `a976357` | Add Studio coding-task review/status cards, anonymous marketing disclosure, responsive UI/site checks and inspected screenshot evidence |
+| `6ba8ab9` | Classify terminal Ctrl+C exits as stopped only after process cleanup is verified |
 
 ## Dashboard polish continuation (2026-10-09)
 
@@ -2897,3 +2900,23 @@ unhandled-thread and syntax warnings promoted to errors then passed **1,476 test
 `uv run python -m pytest -vv --tb=short -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning --ignore=tests/e2e`.
 Browser/anonymous-site checks are separate; this run made no provider or model calls. The test-fixture correction and recorded
 verification are in `3f78e00`.
+
+## Main continuation: OpenCode coding-task handoff (2026-10-09)
+
+Work continued directly on local `main` from `4af8002`, per the user's direction. The reviewed handoff was split into backend/schema
+commit `fc8bb20` and Studio/marketing commit `a976357`. Hutch now gives OpenCode its own process group while keeping the current
+controlling terminal session, receives Ctrl+C in that foreground group, verifies process-group and session identity before
+cleanup, and restores the terminal to Hutch. Reconciliation checks the saved session identity as well as boot ID and process
+start time. A PTY fixture reads terminal input, receives Ctrl+C in the foreground group, and confirms terminal restoration; it
+starts no OpenCode process. OpenCode config loading, account usage and task completion remain live-verification gaps.
+
+The full offline run passed **1,483 tests, 2 skipped in 341.75s**, with `PytestUnhandledThreadExceptionWarning` and `SyntaxWarning`
+promoted to errors. The CLI interrupt-state mapping and final PTY test expansion followed the start of that full run; the final
+focused backend/migration/process batch passed **39 tests in 5.27s**. JavaScript syntax, Python compilation and `git diff --check`
+passed on the focused state. The Studio handoff browser check passed **1 test in 5.45s**; the anonymous marketing-site suite
+passed **27 tests in 36.65s** with no external requests. No OpenCode task or model call was started.
+
+The final UI uses `DESIGN.md` and main's CSS tokens as the styling authority. I inspected the Studio task card and OpenCode FAQ at
+desktop and phone sizes; the full capture sets include tablet and compact-phone widths. Screenshots, trace and validation data
+are in [`artifacts/opencode-handoff/`](artifacts/opencode-handoff/), and the OpenCode FAQ captures are with the ChatGPT consent
+marketing evidence. No push or publication was performed.

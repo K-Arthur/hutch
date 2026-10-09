@@ -133,6 +133,7 @@
   .status.succeeded, .chip.ok { color: rgb(240 244 249 / 0.75); }
   .status.succeeded::before, .chip.ok::before { background: var(--color-success); }
   .status.running, .chip.live { color: var(--color-accent); border-color: color-mix(in oklch, var(--color-primary) 32%, transparent); background: color-mix(in oklch, var(--color-primary) 8%, transparent); }
+  .status.running::before { animation: daemon-pulse 1.6s cubic-bezier(.4,0,.2,1) infinite; }
   .status.failed, .chip.danger { color: var(--color-error); border-color: color-mix(in oklch, var(--color-error) 40%, transparent); }
   .status.waiting_approval { color: var(--color-warning); border-color: color-mix(in oklch, var(--color-warning) 40%, transparent); }
   .status.pending, .status.stopped, .status.dismissed, .chip.muted { color: rgb(240 244 249 / 0.55); }

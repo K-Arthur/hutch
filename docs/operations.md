@@ -143,6 +143,50 @@ An intact chain exits successfully and reports the number of events checked. Old
 verification, and the CLI exits with status 1. Verification is read-only: it does not repair, delete, or rewrite the transcript. Keep
 the original database intact and make a separate backup before investigating a reported mismatch.
 
+## Reviewing an OpenCode coding task
+
+When a completed Studio answer offers **Prepare coding task**, review the original request and edit the suggested brief before
+confirming. Preparation is available only when the Bot's configured workspace is an existing Git repository and the OpenCode CLI
+is installed on the Linux Hutch host. In an interactive terminal on that host, run the exact command shown on the task card:
+
+```sh
+hutch code run <task-id>
+```
+
+The command creates a separate Git worktree at the reviewed commit and opens the installed OpenCode mini interface. OpenCode uses
+its own account, model and usage allowance. Review every OpenCode permission prompt: commands you approve run with your Linux
+user’s file, process and network access and do not pass through Hutch’s bubblewrap shell boundary. Do not include credentials in
+the task. The branch is retained for you to inspect; Hutch does not apply, commit, push or publish it.
+
+OpenCode runs in a separate process group inside the current terminal session. Hutch temporarily gives that group foreground
+terminal input, waits for it to exit, verifies and ends any remaining processes in its group, then restores terminal input to
+Hutch. Pressing Ctrl+C sends an interrupt to OpenCode's foreground group; Hutch records a stopped outcome only after cleanup is
+verified. This preserves interactive terminal behavior while allowing bounded cleanup; it is not a sandbox for approved shell
+commands. If Hutch cannot restore terminal control or verify cleanup, leave the task card visible and inspect the terminal before
+trying again.
+
+If terminal interruption reports that process cleanup could not be verified, leave the card visible and do not relaunch the task.
+Inspect the local terminal and task branch, then run `hutch code reconcile <task-id>` only after the OpenCode process group
+has exited. Reconcile never sends a signal; if boot/PID identity or process-group disappearance cannot be proved, it leaves the
+task active for review. Task records and immutable project identity are stored in schema v39; normal SQLite backup and restore
+retain them. Restoring state does not copy or remove the Git worktree, which must be managed separately.
+
+The local command is not a remote API worker. Launching a coding task makes OpenCode use its own account and may consume its
+provider quota; Hutch does not account for this usage. The version/help check used while preparing a task makes no model call.
+Never claim a Hutch hard spending limit for these tasks.
+
+### Common handoff errors
+
+- **OpenCode is not installed or has no interactive `mini` command:** install a supported OpenCode CLI on the Hutch host and
+  retry preparation. Hutch currently checks version/help only; config loading is not live-verified.
+- **Configure the repository root:** select the Git worktree root as the Bot's existing folder. Hutch records the commit at
+  preparation time; later source changes are not copied into the task.
+- **Project contains OpenCode plugin files:** the handoff refuses to start while `.opencode/plugins` or `.opencode/plugin`
+  exists, because a reported OpenCode behavior may load local plugin code despite isolation flags. Review/remove that project code
+  yourself only if it is appropriate for your project; Hutch will not bypass this guard.
+- **Cleanup could not be verified:** do not prepare another attempt or remove the worktree. Check the original terminal and
+  process group, then run the read-only reconcile command. A reused PID or a changed host boot identity is never signalled.
+
 ## Change-feed retention
 
 The elected scheduler supervisor keeps at most 50,000 content-free `/api/v1/changes` invalidations,
@@ -228,6 +272,9 @@ process-owning run remains Cancelling until its own process group has been verif
 preview requires the process executor and verified Linux Strict Offline prerequisites; it does not
 enable Pi/OpenCode child runs or parallel child tool calls. See
 [`realignment/delegation.md`](realignment/delegation.md) before enabling it.
+Schema v39 adds immutable, idempotent local OpenCode coding-handoff records and content-free change notifications. The reviewed
+Git project identity and source chat references migrate in the SQLite database; the task worktrees and private OpenCode session
+databases are separate files and are not included by database-only backup. See [Reviewing an OpenCode coding task](#reviewing-an-opencode-coding-task).
 Hutch does not infer that adjacent runs share a
 private context. New conversations and message submissions are written transactionally with their idempotency records. The
 `conversation_fts` index contains message text only; it excludes tool output, credentials, workspaces and bot memory.

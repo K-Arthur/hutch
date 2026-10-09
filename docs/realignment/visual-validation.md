@@ -953,3 +953,11 @@ review/revoke, passed **68 tests in 10.99s**. `node --check src/hutch/server/sta
 `git diff --check` passed. The provider-free Chromium flow covered desktop, tablet and phone for share review, owner view and
 recipient view; exact snapshots persisted across a fresh Store connection and revocation stopped subsequent recall. No live model,
 provider, account or external network request was used.
+
+## OpenCode coding-task handoff (schema v39)
+
+`tests/e2e/test_browser.py::test_opencode_coding_handoff_is_reviewed_and_responsive` exercised the complete chat-to-review-to-durable-card path using a temporary Git project and a mocked OpenCode availability response. It also exercised the unavailable-CLI error and retry, source/authority disclosure, keyboard focus trap, command copy, card disclosure, and 320px/390px/900px/1440px layouts. The test starts no OpenCode process, calls no model/provider, and observed no request outside the local Hutch fixture.
+
+I opened the saved review and prepared-card captures at desktop **1440×960**, tablet **900×1024**, phone **390×844** and compact phone **320×844**. At narrow widths, the modal body scrolls above its fixed actions, the brief and disclosure wrap, and the launch command stacks and wraps without page/card overflow. The modal's focus stays contained; the prepared card remains reachable above the pinned composer. The dialog displays only the project directory name, not its local path. The full trace, screenshots and machine-readable validation record are in [`artifacts/opencode-handoff/`](artifacts/opencode-handoff/); browser is Chromium **153.0.8010.12**, Playwright **1.63.0**, Python **3.13.15**. These screenshots are fixture evidence, not a live OpenCode session.
+
+The anonymous marketing test also opened the new coding-handoff FAQ and captured desktop **1440×900**, tablet **900×1024** and phone **390×844**. I inspected the desktop and phone captures; the FAQ names the local CLI, separate OpenCode account/usage, unsandboxed approved shell commands and retained review branch. `tests/test_code_handoff.py::test_interactive_process_keeps_terminal_and_owns_a_separate_group` separately verified a PTY child can read input, receive Ctrl+C while foreground, and return foreground input to Hutch. That terminal fixture is not a screenshot, real OpenCode session or provider call.

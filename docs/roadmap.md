@@ -88,6 +88,12 @@ Roughly ten Bots is the owner's initial heuristic, not a measured threshold.
    only the explicitly selected cross-message reference beyond the normal bounded chat context,
    and treat its contents as untrusted text with no action authority. Keep the action reachable by
    keyboard and phone touch.
+9. **OpenCode coding handoff (experimental, schema v39):** from a completed Studio exchange, review an editable task brief and
+   prepare a durable task against the Bot's configured Git folder. The owner launches the installed OpenCode CLI locally from a
+   Linux terminal; Hutch pins the branch to the reviewed commit and keeps the result in a separate worktree. OpenCode's own
+   permission prompts, model sign-in and usage remain outside Hutch's broker and budget controls, and approved shell commands
+   retain the user's host authority. This does not enable OpenCode/Pi as Hutch-managed runtimes. Live CLI startup/model behavior
+   is still unverified; see the dated research and `/api/v1/code-handoffs` contract.
 
 Gmail search requires Google's restricted OAuth scope under the current provider documentation.
 Public support depends on completing the required Google app verification and any security
@@ -127,6 +133,7 @@ Strict Offline Linux runs; it does not complete the broader S6 collaboration pla
 - [x] Per-bot Hybrid and Local model routing; known hosted route/fallback switching is blocked in Local mode. Local tools may still use the network.
 - [x] Test-only deterministic scenario fixture — exercises policy and tool plumbing without a model; not packaged or selectable in production
 - [ ] External runtime adapters (Pi, OpenCode): currently fail closed. Offline bounded protocol helpers exist; process I/O drainers, loss-recoverable OpenCode events, permission brokering, sandboxed process ownership, shared budget reservations and route/session mapping are required before re-enabling.
+- [x] Reviewed, owner-launched OpenCode CLI coding task: durable chat handoff, pinned isolated Git worktree, restrictive task profile, bounded iterations, verified process cleanup; no Hutch-managed runtime, brokered OpenCode approvals or Hutch usage cap
 - [x] Tools: shell (workspace-jailed, minimal env, HOME redirect), files (path jail),
       memory (SQLite facts), web_fetch (SSRF guards, clipping), browser (Playwright optional,
       persistent per-bot profiles, pause-to-human)

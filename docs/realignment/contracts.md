@@ -50,6 +50,7 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   `/api/v1/search/messages`, `/api/v1/tasks/runs`, `/api/v1/actions/approvals`, `/api/v1/usage`, `/api/v1/connections`,
   `/api/v1/schedules`, `/api/v1/capabilities`, `/api/v1/compatibility`, `/api/v1/model-capabilities`,
   `/api/v1/preferences/model-defaults`, `/api/v1/workspace/tasks`, cross-run transcript pages and stream at `/api/v1/events` and `/api/v1/events/stream`,
+  reviewed local coding-task records at `/api/v1/code-handoffs`,
   resource change pages and stream at `/api/v1/changes` and `/api/v1/changes/stream`,
   bounded reconciliation at `/api/v1/snapshot`, and partial remote device resources at `/api/v1/pairing/exchange` and
   `/api/v1/devices`. Versioned bot, run and approval lists accept bounded `limit`/`offset` pages; the legacy bot and approval
@@ -277,6 +278,24 @@ Workspace task records and workspace model defaults are available through `/api/
 observations are available through `/api/v1/model-capabilities`, scoped to the exact connection, account, model and route revision.
 No observation means unknown; this endpoint is not a live guarantee. The anonymous marketing site cannot reach local account state.
 Conversation artifact discovery and explicit artifact-share grants are implemented separately.
+
+* **Reviewed OpenCode coding handoff (experimental, schema v39).** `POST /api/v1/code-handoffs` requires `Idempotency-Key` and
+  `{conversation_id, source_run_id, source_user_message_id, source_assistant_message_id, task_brief}`. The source messages must
+  be the exact user request and successful assistant response from one completed run in that conversation. The Bot must point to
+  an existing Git repository through `workspace_mode=folder`; Hutch verifies the local OpenCode CLI contract and pins the current
+  Git root, common directory and commit. The proposed assistant text is retained as an editable suggestion, and `task_brief` is
+  the exact owner-reviewed text sent to OpenCode. The created record and its request/project identity are immutable. Reusing a key
+  with the same request returns the original record; changed input returns 409. `GET /api/v1/code-handoffs?conversation_id={id}&limit=100`
+  lists bounded status records for that chat. It does not expose host filesystem paths or credentials.
+  `hutch code run {id}` is a separate, owner-invoked Linux TTY action. It creates a new Git worktree from the pinned commit and
+  launches the installed OpenCode mini CLI with a private task profile, isolated session database and a 20-step ceiling; it never
+  uses `--auto`. The CLI keeps its own sign-in, provider/model choice and usage pool. Hutch does not broker its permission prompts,
+  sandbox commands the owner approves, enforce a hard spend cap, apply changes to the source folder, or publish the result. A
+  visible task record stays in `launching`, `running`, `stopping` or `cleanup_incomplete` until process cleanup is checked. Each
+  task process group is tied to a boot ID, PID start time, session and process group; reconcile never signals a reused identity.
+  The user reviews the retained local branch before applying any changes. OpenCode project-plugin directories fail closed while
+  upstream behavior remains unresolved. This does not enable OpenCode or Pi as Hutch-managed chat runtimes. Live provider sign-in,
+  model execution, permission UX and paid usage are unverified; see the dated [handoff research](../research/opencode-coding-handoff-2026-10-09.md).
 
 ## 4. Frontend acceptance items taken from the evidence ledger
 

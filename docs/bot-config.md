@@ -114,6 +114,16 @@ move an idle legacy bot to Hutch's built-in runtime after its saved model route 
 switch uses Hutch's model connection, tools and approval policy; credentials or sign-in state saved
 by Pi or OpenCode are never imported. An active run or missing Hutch route blocks the switch.
 
+Separately, an owner may prepare a reviewed coding task from a completed Studio answer when this Bot uses an existing Git
+repository as its `folder` workspace. The original request and proposed brief are shown for editing; the exact brief must be
+confirmed before a durable task appears in chat. Run its `hutch code run <task-id>` command from an interactive Linux terminal
+on the Hutch host. This local OpenCode CLI handoff uses OpenCode's own sign-in, model choice and usage allowance. OpenCode's
+permission prompts remain outside Hutch: commands approved there run with the Linux user's filesystem, process and network
+authority and are not contained by Hutch's bubblewrap shell sandbox. Hutch creates a separate worktree at the reviewed commit and
+does not change the source folder, commit, push, deploy or automatically apply the branch. Inspect it manually before use. Avoid
+secrets in the task. OpenCode runtime selection remains disabled; see the [handoff research](research/opencode-coding-handoff-2026-10-09.md)
+for the experimental boundary and verification gaps.
+
 Set the route policy with `hutch bot create helper --model ollama/llama3.2 --inference-mode local`
 or update it with `hutch bot update helper --inference-mode local`. The model must also be an
 allowed local route; change the model and mode together when moving a bot. Local-route mode

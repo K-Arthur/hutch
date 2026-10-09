@@ -31,6 +31,25 @@
         "reason": "The static HTML scanner does not resolve custom-property heading styles: rendered section headings compute to 27–40px against 15px body text. Captures show a clear hierarchy."
       },
       {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          "src/hutch/server/static/index.html"
+        ],
+        "createdAt": "2026-10-08T19:56:38.072Z",
+        "reason": "False positive: the working dot is rendered only while live API data reports active runs and is refreshed with run status; it signals actual changing work."
+      },
+      {
+        "rule": "tight-leading",
+        "value": "*",
+        "files": [
+          ".worktrees/realign/src/hutch/server/templates/base.html",
+          "src/hutch/server/templates/base.html"
+        ],
+        "createdAt": "2026-10-08T22:23:43.256Z",
+        "reason": "Agent: base.html links hutch.css, whose html/body font shorthand sets 14px/1.55; the template-only scanner cannot resolve the stylesheet and misestimates body leading."
+      },
+      {
         "rule": "low-contrast",
         "value": "*",
         "files": [
@@ -47,24 +66,6 @@
         ],
         "createdAt": "2026-10-09T00:27:11.344Z",
         "reason": "Agent: the only rendered layout transition is the FAQ disclosure from DaisyUI collapse CSS; website/styles.css overrides its title and answer transitions to none. The scan reads the bundled generic CSS and misses the page override."
-      },
-      {
-        "rule": "tight-leading",
-        "value": "*",
-        "files": [
-          "src/hutch/server/templates/base.html"
-        ],
-        "createdAt": "2026-10-09T08:26:28.944Z",
-        "reason": "The template links hutch.css, where html/body compute to 14px with 1.6 line-height. The template-only detector cannot resolve the linked stylesheet; the responsive browser check records the computed values at desktop, tablet, and phone."
-      },
-      {
-        "rule": "side-tab",
-        "value": "*",
-        "files": [
-          "src/hutch/server/static/style.css"
-        ],
-        "createdAt": "2026-10-09T15:21:46.653Z",
-        "reason": "The reported style.css lines are a code-block padding reset and a text-only checkpoint state label; neither draws a side rail. Exact-target detection reports no side-tab pattern. The separate legacy bot-card rails in hutch.css were removed."
       }
     ]
   }

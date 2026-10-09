@@ -54,6 +54,13 @@ The run uses the configured model and real tool responses. Review and resolve an
 shown by Hutch before the requested action can continue. `hutch daemon` runs schedules and
 approval expiry without the dashboard.
 
+For an experimental coding handoff, set the Bot's workspace to the root of an existing Git project. After a successful Studio
+reply, choose **Prepare coding task**, edit and confirm the brief, then run the exact `hutch code run <task-id>` command shown on
+its card from an interactive Linux terminal on the Hutch host. It launches your installed OpenCode CLI in a separate worktree at
+the reviewed commit. Hutch gives OpenCode foreground input in its own process group, then restores your terminal after verified
+cleanup. OpenCode has its own sign-in and usage; commands you approve there use your Linux account's full authority.
+Review the retained branch manually. Hutch does not apply or publish it; see [operations](docs/operations.md#reviewing-an-opencode-coding-task).
+
 ## Feature highlights
 
 - **Multiple named bots** — own model, tools, recurring tasks, memory, workspace; pause/resume; templates. New-bot setup suggests a clear, purpose-derived display name locally; you can edit it and the stable address before confirming. From any user message in Studio, choose **Make a bot** to start setup with that exact request, or use the top-bar action to seed the latest request. From a built-in workspace coordinator chat, you can optionally request a tool-free rewrite of the Bot's standing instructions using that source, your current draft, and earlier user messages you explicitly select; each request returns one response. It returns an editable proposal and any material questions; nothing is applied until you choose **Use this draft**. Each request uses the coordinator's normal model route, configured fallback and run/budget limits; hosted providers may retain submitted text. It creates no Bot and adds no access or permissions. Naming suggestions stay local and reviewable. Later requests, assistant replies and other chats stay out, and selection grants no permissions. The CLI accepts `--display-name`; older slug-only Bots receive readable labels. Choose one Bot as the workspace coordinator from its settings; it becomes the default Studio chat, while each Bot remains directly reachable. An experimental reviewed handoff lets the coordinator turn its completed answer into an editable task brief, select a specialist, and send the brief and assumptions into a separate chat. The review can also include up to eight currently approved coordinator facts, but only when selected and only for that task; those facts are marked untrusted and are not added to the specialist's saved memory. Provider retention follows its terms, and submitted context cannot be recalled. Task status, the latest response and an ordered content-free checkpoint timeline stay linked in the coordinator conversation. The timeline records committed event markers, not reasoning or action text, and does not restart or resume work. The specialist uses its own saved route and settings. You can attach one exact specialist response to a follow-up for the coordinator; only that bounded response is included as untrusted context, with no files, credentials or permissions transferred. Live provider execution remains unverified.
@@ -62,6 +69,7 @@ approval expiry without the dashboard.
 - **Per-bot model routing** — Hybrid allows local and hosted routes; Local keeps model calls on recognized local routes while tools may still use the network. Experimental Offline is offered only after Linux bubblewrap network/PID-namespace and Unix-socket broker checks pass. It removes browser/web tools and requires contained shell; the separate model service may still use the network.
 - **Switch models from the chat** — a composer menu shows what fits this machine, what it costs and what is missing; per message, never a silent edit of the bot
 - **Provider connections** — OpenCode Go uses its issued API key copied into Hutch; Xiaomi MiMo Token Plan and custom endpoints use their own scoped keys. An opt-in Sign in with ChatGPT preview uses the official local token-sharing flow when eligible. Each route keeps its own allowance and terms; Hutch never imports another app's sign-in files.
+- **Reviewed OpenCode coding handoff (experimental, Linux)** — from a completed chat answer, review an editable coding brief, then launch the installed OpenCode CLI in a new worktree pinned to the Bot's configured Git project commit. Hutch hands its interactive process group the controlling terminal and restores terminal input after verified cleanup. OpenCode uses its own sign-in, model and usage pool. Its terminal permission prompts are not brokered by Hutch; approved shell commands run with the Linux user's authority. Hutch does not apply or publish the resulting branch. This is separate from the OpenCode Go provider connection and does not enable the OpenCode bot runtime.
 - **Local inference admission** — one caller and eight waiters across Hutch workers; releases capacity during human waits,
   rechecks native Ollama memory headroom, and shows queue reasons. Fit remains estimated; real models are unverified.
   `hutch doctor` reports configuration problems with suggested fixes.
@@ -91,7 +99,7 @@ approval expiry without the dashboard.
   `/api/v1/tasks/runs` submissions and human-resume commands use restart-safe idempotency; resume is
   bound to the active human-needed event so an old action cannot skip a later challenge. Built-in
   chat runs can ask a bounded single- or multi-select question; answers resume with a normal chat
-  message and never approve an action. Pi/OpenCode do not support this path yet.
+  message and never approve an action. The experimental OpenCode coding handoff is a separate, owner-launched CLI flow; neither OpenCode nor Pi is available as a Hutch-managed chat runtime.
 - **Remote pairing (experimental)** — a one-time code opens the responsive dashboard on a paired browser, and Connections can list and
   revoke device sessions. Direct access requires explicit HTTPS binding. An operator-managed HTTPS reverse proxy can be configured with
   an exact trusted-proxy network and public-host allowlist; Hutch does not provision tunnels. Live network and physical-device checks
@@ -101,8 +109,7 @@ approval expiry without the dashboard.
   challenge is gone after Resume. Only one Hutch desktop handoff can be active at a time. Headless runs fail clearly at a challenge;
   the owned Chromium context sends HTTP(S) and WebSocket traffic through a local DNS-pinning proxy with implicit local bypass disabled.
   Local fixtures exercise the proxy; live public destinations and non-HTTP browser traffic are not verified. Phone handoff remains unavailable.
-- **External runtimes** — Pi and OpenCode are recognized in old bot configs but disabled before starting a process. Their
-  permission broker, process containment and provider budget path are not ready. Supported production execution uses Hutch's builtin runtime with a configured local or hosted model.
+- **External runtimes** — the Pi and OpenCode bot runtimes are recognized in old bot configs but disabled before starting a process. Hutch's permission broker, process containment and provider budget path for those runtimes are not ready. The experimental OpenCode coding handoff launches the user's interactive CLI separately; it does not make OpenCode a Hutch runtime.
 
 To opt a local Linux bot into the bounded child-task tool, use a supported numeric-loopback model route and verified Strict Offline
 host support, then run `hutch bot update <name> --inference-mode offline --sandbox strict --tools files,delegate_task`. Review the
@@ -115,6 +122,7 @@ delegation approval in chat or Needs you each time; configuration does not grant
 | [Architecture](docs/architecture.md) | component map, decision log, concurrency model |
 | [Safety model](docs/safety.md) | deny/ask/allow rules, approval flow, honest limits |
 | [Connections](docs/connections.md) | OpenCode Go API-key handoff, ChatGPT local sign-in preview, Google/Outlook Calendar and Outlook Mail reads, provider-specific limits |
+| [OpenCode coding handoff](docs/research/opencode-coding-handoff-2026-10-09.md) | Evidence, implementation boundary, public failure reports and live verification gaps |
 | [Bot configuration](docs/bot-config.md) | fields, model specs, schedules, limits, examples |
 | [Operations](docs/operations.md) | Linux sandbox requirements, remote pairing, incomplete cleanup, migration backups and restore |
 | [Models](docs/models.md) | chat model switcher, fit, model slots, prices, `hutch doctor` |
