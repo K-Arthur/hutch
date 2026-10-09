@@ -2693,6 +2693,8 @@ not green; rerun the full suite after later slices and before integration.
 
 ## Bot identity and Fleet visual recheck (2026-10-09)
 
+CSS cleanup, documentation and evidence commit: `93b744e`.
+
 The owner asked for automatic, more human and professional Bot names. The current flow is already automatic: it derives a concise
 professional role name and editable stable address from the user's stated purpose, refreshes both while they remain untouched,
 and keeps the human-facing label separate from the stable local Bot address. I retained work-descriptive titles rather than inventing a personal identity;
