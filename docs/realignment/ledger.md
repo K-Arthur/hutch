@@ -2633,7 +2633,7 @@ provider/performance release gates are not implied by this offline result.
 
 ## S6 coordinator-assisted Bot-purpose refinement (2026-10-09)
 
-Implementation commit: pending.
+Implementation commit: `ec7ccf1`.
 
 New Bot setup can request an optional purpose refinement from the built-in workspace coordinator. Each request returns one draft;
 the owner can edit the purpose and request another. The server accepts only the exact source user message, the current editable
