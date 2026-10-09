@@ -9,6 +9,7 @@
       "billing": "subscription",
       "session_header": "x-opencode-session",
       "get_key_url": "https://opencode.ai/auth",
+      "signin_guidance": "Sign in at OpenCode, subscribe to Go, and copy its provider API key. Hutch stores only the key you paste here; it never reads OpenCode's auth.json or browser session.",
       "source": "https://opencode.ai/docs/go/",
       "models_endpoint": true,
       "terms": {
@@ -18,6 +19,24 @@
       },
       "quota_hint": "Usage is capped as monthly dollar amounts with a 5-hour sub-limit of 20% and a weekly sub-limit of 50% (docs, 2026-10-07). The dollar value per token varies by model, so declare your allowance in tokens (a rough proxy) and calibrate it against the OpenCode console.",
       "model_protocol_hint": "The OpenCode docs list some model families (Claude Haiku, MiniMax, Qwen) on the Anthropic Messages endpoint and others (Grok, Muse Spark) on the OpenAI Responses endpoint; models.dev lists them all as OpenAI-compatible. Hutch speaks openai-chat and anthropic; Responses-only models are unsupported. If a model errors on the default, set its protocol: `hutch connections set-protocol opencode-go <model> anthropic`."
+    },
+    "chatgpt-plan": {
+      "title": "ChatGPT plan (Sign in with ChatGPT preview)",
+      "protocol": "openai-responses",
+      "base_url": "https://api.openai.com/v1",
+      "api_key_env": "",
+      "billing": "subscription",
+      "auth_type": "chatgpt-siws",
+      "auth_account_id": "",
+      "output_token_limit_enforced": false,
+      "models_endpoint": true,
+      "terms": {
+        "url": "https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations",
+        "requires_ack": false,
+        "notice": "Experimental preview. Availability depends on OpenAI's eligibility and account controls. Hutch uses the official local Sign in with ChatGPT flow and sends Responses API requests with storage disabled and streaming enabled. This preview does not let Hutch set a provider-enforced output-token limit; Hutch's usage reservations and allowances are estimates, not hard spending caps."
+      },
+      "quota_hint": "ChatGPT account usage is controlled by OpenAI. Hutch's token allowance is an admission estimate; the Responses preview omits output-token limits, so it cannot guarantee a per-response ceiling.",
+      "model_protocol_hint": "This route is fixed to OpenAI's Responses API and cannot be changed to Chat Completions or a custom endpoint."
     },
     "xiaomi-token-plan-sgp": {
       "title": "Xiaomi MiMo Token Plan - Singapore (subscription credits)",

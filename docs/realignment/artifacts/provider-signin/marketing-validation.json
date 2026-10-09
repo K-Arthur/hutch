@@ -1,0 +1,41 @@
+{
+  "test": "tests/e2e/test_website.py::test_provider_availability_is_readable_without_horizontal_page_scroll",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_website.py::test_provider_availability_is_readable_without_horizontal_page_scroll",
+  "captured_at": "2026-10-09T00:30:46.747681+00:00",
+  "python": "3.13.15",
+  "browser": "153.0.8010.12",
+  "index_sha256": "c9ab0df0949e681a5b66b4bba7c8cb83b1a7081951c2446ee43f0bfea067a0e4",
+  "styles_sha256": "a39d0c09d85129e066bac45e35b5660b12e4f542fd680e630e6fe4daf0273a7a",
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "tablet",
+      "width": 900,
+      "height": 1024
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "feature_grid_viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "feature_heading_layout": "icon and heading share a row",
+  "anonymous": true,
+  "external_requests": 0
+}

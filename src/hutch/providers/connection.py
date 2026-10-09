@@ -14,11 +14,20 @@ def provider_for_connection(book: ConnectionBook, name: str, model: str, *, reso
         raise ProviderError("bad_request", f"no connection named '{name}'", provider=name)
     key = book.key(name) if resolved_key is None else resolved_key
     if not key:
+        if conn.auth_type == "chatgpt-siws":
+            raise ProviderError("auth", "Sign in with ChatGPT and authorize plan use on Connections",
+                                provider=name)
         raise ProviderError(
             "auth", f"no API key for connection '{name}': set {conn.api_key_env or 'an environment variable'} in the "
                     f"environment that starts hutch, or run `hutch connections set-key {name}`", provider=name)
     protocol, base = conn.endpoint_for(model)
     headers = {"User-Agent": conn.user_agent, **conn.headers}
+    if conn.auth_type == "chatgpt-siws":
+        if protocol != "openai-responses":
+            raise ProviderError("bad_request", "Sign in with ChatGPT is available only through its Responses API route",
+                                provider=name)
+        from .openai_responses import OpenAIResponsesProvider
+        return OpenAIResponsesProvider(key, base_url=base)
     if protocol == "openai-chat":
         from .openai_compat import OpenAICompatProvider
         return OpenAICompatProvider(base, key, provider_name=name, headers=headers, session_header=conn.session_header)

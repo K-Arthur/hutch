@@ -47,6 +47,24 @@
         ],
         "createdAt": "2026-10-08T22:23:43.256Z",
         "reason": "The current dashboard h1 and template h1 use a computed 1.3 line-height; body copy uses 1.55. Fresh responsive captures measured the page heading at 16px/20.8px (1.30). The detector's 1.08 estimate does not match the rendered computed style."
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "website/index.html"
+        ],
+        "createdAt": "2026-10-09T00:27:11.262Z",
+        "reason": "Agent: all four primary CTAs use DaisyUI primary foreground #052e21 on #34d399; computed WCAG contrast is 7.70:1. The static HTML scan incorrectly pairs the foreground with page background #080c12."
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "website/index.html"
+        ],
+        "createdAt": "2026-10-09T00:27:11.344Z",
+        "reason": "Agent: the only rendered layout transition is the FAQ disclosure from DaisyUI collapse CSS; website/styles.css overrides its title and answer transitions to none. The scan reads the bundled generic CSS and misses the page override."
       }
     ]
   }

@@ -300,7 +300,7 @@
           <div class="card-body">
             <span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.2" cy="12" r="3.6"/><path d="M11.8 12H21M17.4 12v3.2M20.4 12v2.4"/></svg></span>
             <h3 class="card-title">Plans &amp; keys</h3>
-            <p>ChatGPT sign-in is not implemented. OpenCode Go key connections are experimental and limited by their published workload terms.</p>
+            <p>OpenCode Go uses its issued API key, copied into Hutch after you sign in there. Sign in with ChatGPT is an opt-in local preview; eligibility is unconfirmed and its output allowance is not provider-enforced.</p>
           </div>
         </article>
       </div>
@@ -513,8 +513,8 @@
             <tbody>
               <tr><td class="av-k">Public access</td><td class="av-v">Private source; no anonymous download or public release</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
               <tr><td class="av-k">Supported</td><td class="av-v">Linux executor, local SQLite state and fixture-tested lifecycle/control flows; actual runs need a configured model route</td><td><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></td></tr>
-              <tr><td class="av-k">Experimental</td><td class="av-v">Hosted-provider and local-inference routes, host-gated Offline isolation, HTTPS-paired dashboard access, local Linux browser handoff, and fixture-tested DNS-pinned HTTP(S)/WebSocket egress; public destinations and other browser traffic are unverified</td><td><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></td></tr>
-              <tr><td class="av-k">Unavailable</td><td class="av-v">macOS/Windows executor, phone browser handoff, authenticated PTY/desktop control, OpenCode/Pi harnesses and ChatGPT sign-in</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
+              <tr><td class="av-k">Experimental</td><td class="av-v">Hosted-provider and local-inference routes, OpenCode Go API-key handoff, opt-in local Sign in with ChatGPT preview (eligibility unconfirmed; no hard output-token limit), host-gated Offline isolation, HTTPS-paired dashboard access, local Linux browser handoff, and fixture-tested DNS-pinned HTTP(S)/WebSocket egress; public destinations and other browser traffic are unverified</td><td><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></td></tr>
+              <tr><td class="av-k">Unavailable</td><td class="av-v">macOS/Windows executor, phone browser handoff, authenticated PTY/desktop control and OpenCode/Pi harnesses</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
               <tr><td class="av-k">Data movement</td><td class="av-v">Prompts go to the selected hosted endpoint; network tools also contact their configured destinations</td><td><span class="ev">Per configuration</span></td></tr>
             </tbody>
           </table>
@@ -557,7 +557,7 @@
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">Can I run it on my ChatGPT or Claude subscription?</summary>
-          <div class="collapse-content"><p>ChatGPT sign-in and consumer chat-plan OAuth are not implemented. Hutch accepts explicitly configured provider connections; OpenCode Go is experimental and its published terms describe coding-agent use. No subscription is silently upgraded or used as a fallback.</p></div>
+          <div class="collapse-content"><p>OpenCode Go connects through its provider API key: sign in with OpenCode, copy the key, and add it to Hutch. Hutch does not reuse OpenCode's private sign-in file. Sign in with ChatGPT is available only as an opt-in local-app preview; eligibility for Hutch is unconfirmed, and its Responses API preview does not allow a provider-enforced output-token limit. Hutch never reuses consumer-app cookies or sessions, and no plan is silently upgraded or selected as a fallback.</p></div>
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">What does a runaway bot cost me?</summary>

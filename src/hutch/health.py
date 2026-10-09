@@ -97,12 +97,14 @@ def runtime_health(config: Any, store: Any, hw: Any = None, bot_models: Optional
     for name, c in book.configured().items():
         fails, last, at = failures(store, name)
         ack = book.ack_status(store, name)
-        has_key = book.key(name) is not None
+        has_key = book.has_key(name)
         h = ProviderHealth(name, "connection", _state_from(fails, "healthy"), c.title,
                            consecutive_failures=fails, last_error=last, last_error_at=at)
         if not has_key:
-            h.state, h.fix = "needs_setup", f"set ${c.api_key_env} or run `hutch connections set-key {name}`"
-            h.detail = "no API key"
+            h.state = "needs_setup"
+            h.fix = ("sign in with ChatGPT and authorize plan use on Connections" if c.auth_type == "chatgpt-siws"
+                     else f"set ${c.api_key_env} or run `hutch connections set-key {name}`")
+            h.detail = "no plan-authorized ChatGPT account" if c.auth_type == "chatgpt-siws" else "no API key"
         elif ack in ("required", "stale"):
             h.state, h.fix, h.detail = "needs_setup", f"acknowledge its terms: `hutch connections ack {name}`", \
                 "terms not acknowledged"

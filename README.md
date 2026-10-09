@@ -59,7 +59,7 @@ approval expiry without the dashboard.
 - **Model choice, local first** — native Ollama (context size always set), Anthropic, OpenAI, and OpenAI-compatible endpoints. There is no user-facing mock model or simulated run; live provider and local-model checks depend on your setup
 - **Per-bot model routing** — Hybrid allows local and hosted routes; Local keeps model calls on recognized local routes while tools may still use the network. Experimental Offline is offered only after Linux bubblewrap network/PID-namespace and Unix-socket broker checks pass. It removes browser/web tools and requires contained shell; the separate model service may still use the network.
 - **Switch models from the chat** — a composer menu shows what fits this machine, what it costs and what is missing; per message, never a silent edit of the bot
-- **Subscription plans as connections** — OpenCode Go, Xiaomi MiMo Token Plan or your own endpoint, each with its own key, allowance meter and terms notice
+- **Provider connections** — OpenCode Go uses its issued API key copied into Hutch; Xiaomi MiMo Token Plan and custom endpoints use their own scoped keys. An opt-in Sign in with ChatGPT preview uses the official local token-sharing flow when eligible. Each route keeps its own allowance and terms; Hutch never imports another app's sign-in files.
 - **Local inference admission** — one caller and eight waiters across Hutch workers; releases capacity during human waits,
   rechecks native Ollama memory headroom, and shows queue reasons. Fit remains estimated; real models are unverified.
   `hutch doctor` reports configuration problems with suggested fixes.
@@ -97,6 +97,7 @@ approval expiry without the dashboard.
 |---|---|
 | [Architecture](docs/architecture.md) | component map, decision log, concurrency model |
 | [Safety model](docs/safety.md) | deny/ask/allow rules, approval flow, honest limits |
+| [Connections](docs/connections.md) | OpenCode Go API-key handoff, ChatGPT local sign-in preview, provider-specific limits |
 | [Bot configuration](docs/bot-config.md) | fields, model specs, schedules, limits, examples |
 | [Operations](docs/operations.md) | Linux sandbox requirements, remote pairing, incomplete cleanup, migration backups and restore |
 | [Models](docs/models.md) | chat model switcher, fit, model slots, prices, `hutch doctor` |

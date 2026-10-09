@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import platform
 import threading
 import time
 from datetime import datetime, timezone
@@ -22,6 +23,7 @@ import uvicorn  # noqa: E402
 
 from hutch.models import ApprovalMode, Bot, Event, EventType, Run, RunStatus, RuntimeKind, Task  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
+from hutch.connections import ConnectionBook  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -69,6 +71,53 @@ def test_executor_health_status_uses_a_steady_indicator(browser, live):
         assert pill.is_hidden(), "healthy idle executors stay quiet in the header"
         assert page.locator("#daemon-label").inner_text() == "live"
         assert page.locator(".daemon-dot").evaluate("el => getComputedStyle(el).animationName") == "none"
+    finally:
+        page.close()
+
+
+def test_provider_connections_fit_phone_viewports_and_capture_signin_states(browser, live):
+    from pathlib import Path
+
+    base, app = live
+    ConnectionBook(app.state.config.state_dir).add("opencode-go", name="opencode-go")
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/provider-signin"
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        page.goto(base + "/#/connections")
+        page.get_by_role("heading", name="Connections").wait_for()
+        page.get_by_text("Sign in with ChatGPT").wait_for()
+        page.get_by_text("Sign in to Go there, copy its issued API key", exact=False).wait_for()
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
+                                     ("phone", 390, 844), ("compact-phone", 320, 740)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.screenshot(path=str(out / f"connections-{label}.png"), full_page=True, animations="disabled")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            nested_overflow = page.locator(
+                ".page-scroll, .container, .conn-card, .conn-card .bot-head, .conn-card .bot-facts"
+            ).evaluate_all("els => els.map(el => ({selector: el.className, overflow: el.scrollWidth - el.clientWidth}))"
+                           ".filter(item => item.overflow > 1)")
+            assert not nested_overflow, (label, nested_overflow)
+        chatgpt_button = page.get_by_role("button", name="Continue with ChatGPT")
+        assert chatgpt_button.is_visible() and not chatgpt_button.is_enabled()
+        assert page.get_by_text("no provider-enforced output-token limit", exact=False).is_visible()
+        assert page.get_by_text("Hutch does not read OpenCode's private auth file", exact=False).is_visible()
+        assert not errors, errors
+        (out / "connections-validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_provider_connections_fit_phone_viewports_and_capture_signin_states",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_provider_connections_fit_phone_viewports_and_capture_signin_states",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(), "hutch_version": package_version("hutch"),
+            "browser": browser.version,
+            "viewports": [{"name": label, "width": width, "height": height}
+                          for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
+                                                       ("phone", 390, 844), ("compact-phone", 320, 740))],
+            "connections": ["opencode-go", "chatgpt-plan-preview"],
+            "provider_credentials_used": False, "external_auth_completed": False,
+        }, indent=2) + "\n")
     finally:
         page.close()
 

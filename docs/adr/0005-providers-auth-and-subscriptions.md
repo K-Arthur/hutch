@@ -27,9 +27,9 @@ sends `OPENAI_API_KEY` to whatever URL it is given (baseline lead 5).
    |---|---|---|
    | Direct API: Anthropic, OpenAI, OpenAI-compatible with an explicit connection | supported (contract-tested with recorded fixtures; live only when a key is supplied) | |
    | Ollama native | supported (offline contract tests; live only where Ollama is installed) | |
-   | OpenCode Go / Zen as a **provider connection** | experimental | own `User-Agent`, `x-opencode-session` header; docs set no terms for non-coding workloads (B3) so the UI states "coding-agent workloads" |
+   | OpenCode Go / Zen as a **provider connection** | experimental | Hutch does not reuse OpenCode's CLI sign-in; the user signs into OpenCode Go, copies its issued provider API key, and stores that key in Hutch. Hutch sends its own `User-Agent` and `x-opencode-session`; terms establish coding-agent traffic, not general assistant eligibility (B3). |
    | OpenCode / Pi as **harness** | disabled; not supported executors | no approval broker, sandboxed process, or enforceable shared usage reservation; see ADR-0007 |
-   | Sign in with ChatGPT (open-source/local apps) | experimental, not implemented as a route in this phase | Responses API, `store:false`, `stream:true`, many fields unsupported (B1, B2); needs a native Responses adapter; eligibility for Hutch unconfirmed |
+   | Sign in with ChatGPT token sharing (local app) | experimental, opt-in and eligibility unconfirmed | Implemented as a separate PKCE/OIDC public-client route, owner-only local token store and fixed Responses API adapter (`store:false`, `stream:true`). Hutch omits preview-unsupported fields (B1, B2); the preview does not accept an output-token ceiling, so Hutch's usage admission is not a hard spend cap. No eligibility or live account use is claimed. |
    | Cookie scraping, spoofed client identity, credential laundering through a harness | blocked | never implemented |
 
 4. **Capabilities are validated, not assumed.** The route matrix is implemented and records protocol-level evidence, but it
@@ -37,6 +37,10 @@ sends `OPENAI_API_KEY` to whatever URL it is given (baseline lead 5).
    ids; tool-use capability probing, a persisted verification record, and refusal of unknown tool capability are pending.
    Until those land, model-level tool support must be described as unknown without an opt-in live probe; passing request
    fixtures are not live model evidence.
+   The ChatGPT plan route is opt-in with `HUTCH_ENABLE_CHATGPT_PLAN=1`; this flag does not establish eligibility.
+   Its issuer, audience, nonce and signature are verified; credentials stay under the Hutch state directory with
+   owner-only permissions, and an access token is sent only to `https://api.openai.com/v1/responses` or the official
+   model-list endpoint. Browser cookies, OpenCode's auth file and credentials from other clients are never read.
 5. **Usage and money.** Persist actual token counts and cost when returned, separately from per-call reservation estimates. Provider
    limits and reset times are displayed **only** when the provider reports them; otherwise "not reported". Before a hosted call Hutch
    atomically reserves estimated prompt + requested reply tokens and priced currency cost with the cap check. Successful responses

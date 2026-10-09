@@ -214,17 +214,16 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .step-body p { color: var(--color-semantic-text-2); font-size: var(--text-size-xs); line-height: 1.6; }
 
 /* ------------------------------------------------------------ feature cards */
-.feature .card-body { gap: var(--space-3); }
-.card-icon {
-  display: grid; place-items: center;
-  width: 42px; height: 42px;
-  border: 1px solid var(--color-semantic-border);
-  border-radius: var(--radius-panel);
-  background: var(--color-semantic-well);
-  color: var(--color-semantic-text-2);
+.feature .card-body {
+  display: grid; grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center; gap: var(--space-3);
 }
-.card-icon svg { width: 21px; height: 21px; }
-.feature:hover .card-icon { color: var(--color-semantic-brand); border-color: var(--color-semantic-border-strong); }
+.feature .card-body > p { grid-column: 1 / -1; }
+.card-icon {
+  display: grid; place-items: center; width: 24px; height: 24px;
+  color: var(--color-semantic-brand);
+}
+.card-icon svg { width: 20px; height: 20px; }
 .card-title { font-size: var(--text-size-base); font-weight: 700; letter-spacing: -0.01em; }
 .feature p { color: var(--color-semantic-text-2); font-size: var(--text-size-sm); }
 .feature code { font-family: var(--font-mono); font-size: 0.9em; color: var(--color-semantic-text); }
@@ -338,6 +337,8 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .faq-item { border-bottom: 1px solid var(--color-semantic-border-soft); border-radius: 0; background: transparent; }
 .faq-item .collapse-title { font-size: var(--text-size-base); font-weight: 650; letter-spacing: -0.008em; padding-inline: 0; }
 .faq-item .collapse-content { padding-inline: 0; }
+/* Native disclosure is immediate; avoid animating FAQ layout on every open/close. */
+.faq-item .collapse-title, .faq-item .collapse-content { transition: none; }
 .faq-item .collapse-content p { max-width: 72ch; color: var(--color-semantic-text-2); font-size: var(--text-size-sm); }
 .faq-item code { font-family: var(--font-mono); font-size: 0.9em; color: var(--color-semantic-text); }
 @media (max-width: 940px) {

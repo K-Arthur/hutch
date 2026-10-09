@@ -145,9 +145,9 @@ Subscription plans such as OpenCode Go and the Xiaomi MiMo Token Plan, and the i
 | CN-4 | Billing modes: per-token (priced), subscription / free (flat, still ledgered) | done | `PriceBook.flat_providers`, `usage` table |
 | CN-5 | Declared allowance enforced before the call; warning at 80% | done | `SpendGuard.quota_refusal`, `quota` log |
 | CN-6 | Terms notice acknowledged before first use; re-ack when it changes | done | `ConnectionBook.ack_status`, runtime fails fast with the fix |
-| CN-7 | Protocol per model (openai-chat / anthropic); Responses API rejected clearly | partial | Responses protocol not implemented |
+| CN-7 | Protocol per model (openai-chat / anthropic); Responses API restricted to the fixed Sign in with ChatGPT route | partial | `openai-responses` is implemented only for the opt-in SIWC route; other connections reject it. Per-model capability verification remains pending. |
 | CN-8 | Test a connection without spending tokens | done | `check_connection`, `hutch connections test` |
-| CN-9 | Consumer-plan OAuth sessions explicitly unsupported (vendor terms) | done | policy, documented in connections.md |
+| CN-9 | Consumer-app cookie/session reuse explicitly unsupported; official ChatGPT local-app token-sharing is a separate eligibility-gated preview | done | policy and route boundary documented in connections.md; SIWC is opt-in and does not reuse another app's credentials |
 | IG-1 | MCP client (stdio): bots can use MCP tools, all behind the approval gate | planned | |
 | IG-2 | Inbound webhook trigger for a bot | planned | |
 | IG-3 | Outbound notifications (approval needed, failure, result) to a webhook | planned | |

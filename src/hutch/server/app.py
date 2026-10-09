@@ -20,10 +20,11 @@ import stat
 from pathlib import Path
 from pathlib import PurePosixPath
 from typing import Any, Literal, Optional
+from urllib.parse import quote
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
@@ -254,6 +255,8 @@ class ConnectionResource(BaseModel):
     protocol: str
     model_protocols: dict[str, str]
     billing: str
+    auth_type: str
+    output_token_limit_enforced: bool
     key_present: bool
     key_source: str
     terms_status: str
@@ -473,6 +476,10 @@ class ConnectionAction(BaseModel):
     agree: bool = False
     window: Optional[str] = None
     tokens: Optional[int] = None
+
+
+class ChatGPTSignInRequest(BaseModel):
+    account_id: Optional[str] = None
 
 
 def create_app() -> FastAPI:
@@ -874,7 +881,9 @@ def create_app() -> FastAPI:
                          "account_daily_cost_cap_usd": account_cap,
                          "configured_account_daily_cost_cap_usd": conn.account_daily_cost_cap_usd,
                          "model_protocols": conn.model_protocols, "billing": conn.billing,
-                         "key_present": book.key(name) is not None, "key_source": book.key_source(name),
+                         "auth_type": conn.auth_type,
+                         "output_token_limit_enforced": conn.output_token_limit_enforced,
+                         "key_present": book.has_key(name), "key_source": book.key_source(name),
                          "terms_status": book.ack_status(store, name), "terms_url": conn.terms.url,
                          "quota_window": conn.quota.window, "quota_tokens": conn.quota.tokens,
                          "quota_used_tokens": quota_used, "quota_reserved_tokens": quota_reserved,
@@ -1573,16 +1582,84 @@ def create_app() -> FastAPI:
             out.append({
                 "name": name, "title": c.title, "template": c.template, "protocol": c.protocol,
                 "base_url": c.base_url, "api_key_env": c.api_key_env, "billing": c.billing,
-                "has_key": book.key(name) is not None, "key_source": book.key_source(name),
+                "has_key": book.has_key(name), "key_source": book.key_source(name),
+                "auth_type": c.auth_type,
+                "output_token_limit_enforced": c.output_token_limit_enforced,
                 "ack": book.ack_status(store, name),
                 "terms_notice": c.terms.notice, "terms_url": getattr(c.terms, "url", ""),
                 "quota_window": c.quota.window, "quota_tokens": c.quota.tokens, "warn_at": c.quota.warn_at,
                 "used": used, "quota_hint": c.quota_hint, "get_key_url": c.get_key_url,
+                "signin_guidance": book.templates().get(c.template, {}).get("signin_guidance", ""),
             })
+        from ..chatgpt_auth import ChatGPTAuthBook, chatgpt_plan_signin_enabled
         templates = [{"key": k, "title": v.get("title", k), "billing": v.get("billing", ""),
                       "base_url": v.get("base_url", ""), "terms_notice": (v.get("terms") or {}).get("notice", "")}
                      for k, v in book.templates().items()]
-        return {"connections": out, "templates": templates, "errors": book.errors}
+        accounts = ChatGPTAuthBook(config.state_dir).accounts()
+        return {"connections": out, "templates": templates, "errors": book.errors,
+                "chatgpt_enabled": chatgpt_plan_signin_enabled(), "chatgpt_accounts": accounts}
+
+    @app.post("/api/chatgpt/sign-in")
+    def chatgpt_sign_in(request: Request, body: ChatGPTSignInRequest) -> dict:
+        from ..chatgpt_auth import (ChatGPTAuthBook, ChatGPTAuthError, chatgpt_plan_signin_enabled,
+                                    loopback_callback_uri)
+        if not chatgpt_plan_signin_enabled():
+            raise HTTPException(409, "Sign in with ChatGPT is an eligibility-gated preview. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for this flow.")
+        try:
+            callback = loopback_callback_uri(request)
+            url = ChatGPTAuthBook(config.state_dir).start(callback, account_id=body.account_id or "")
+        except (ChatGPTAuthError, ValueError) as exc:
+            raise HTTPException(422, str(exc)) from None
+        return {"authorization_url": url}
+
+    @app.post("/api/chatgpt/accounts/{account_id}/disconnect")
+    def chatgpt_disconnect(account_id: str) -> dict:
+        from ..chatgpt_auth import ChatGPTAuthBook, ChatGPTAuthError
+        from ..connections import ConnectionBook
+        try:
+            revoked = ChatGPTAuthBook(config.state_dir).disconnect(account_id)
+            book = ConnectionBook(config.state_dir)
+            for name, conn in book.configured().items():
+                if conn.auth_type == "chatgpt-siws" and conn.auth_account_id == account_id:
+                    book.remove(name)
+        except ChatGPTAuthError as exc:
+            raise HTTPException(404, str(exc)) from None
+        detail = ("ChatGPT access revoked and removed from this Hutch." if revoked else
+                  "Local ChatGPT credentials were cleared, but OpenAI did not confirm remote revocation.")
+        return {"ok": True, "remote_revoked": revoked, "detail": detail}
+
+    @app.get("/auth/callback", include_in_schema=False)
+    def chatgpt_oauth_callback(request: Request):
+        from ..chatgpt_auth import (ChatGPTAuthBook, ChatGPTAuthError, chatgpt_plan_signin_enabled,
+                                    loopback_callback_uri)
+        from ..connections import ConnectionBook
+        if not chatgpt_plan_signin_enabled():
+            raise HTTPException(404, "Sign in with ChatGPT preview is disabled.")
+        try:
+            callback = loopback_callback_uri(request)
+            values: dict[str, str] = {}
+            for key in ("state", "code", "client_id", "error"):
+                entries = request.query_params.getlist(key)
+                if len(entries) > 1:
+                    raise ChatGPTAuthError("ChatGPT returned a duplicate sign-in field; start again")
+                values[key] = entries[0] if entries else ""
+            if not values["state"]:
+                raise ChatGPTAuthError("ChatGPT did not return sign-in state; start again")
+            result = ChatGPTAuthBook(config.state_dir).finish(
+                state=values["state"], code=values["code"], returned_client_id=values["client_id"],
+                error=values["error"], callback_uri=callback)
+            if result["plan_usage"] == "enabled":
+                ConnectionBook(config.state_dir).add_chatgpt_account(result["account_id"], result["email"])
+            status = "connected" if result["plan_usage"] == "enabled" else "identity-only"
+        except (ChatGPTAuthError, ValueError) as exc:
+            status = "error"
+            detail = str(exc)
+        response = RedirectResponse(f"/?chatgpt_result={status}#/connections", status_code=303)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        if status == "error":
+            response.headers["Location"] = f"/?chatgpt_result=error&detail={quote(str(detail))}#/connections"
+        return response
 
     @app.post("/api/connections", status_code=201)
     def connection_add_api(body: ConnectionCreate) -> dict:
@@ -1605,11 +1682,15 @@ def create_app() -> FastAPI:
         if book.get(name) is None:
             raise HTTPException(404, f"no such connection: {name}")
         if action == "set-key":
+            if book.get(name).auth_type != "api_key":
+                raise HTTPException(422, "This connection uses a sign-in account. Manage it from Connections instead of setting an API key.")
             if not (body.key or "").strip():
                 raise HTTPException(422, "The key was empty.")
             book.set_key(name, body.key.strip())      # written 0600; never echoed back
             return {"ok": True, "detail": f"Key stored for {name}."}
         if action == "clear-key":
+            if book.get(name).auth_type != "api_key":
+                raise HTTPException(422, "This connection uses a sign-in account. Disconnect the account from Connections instead.")
             book.clear_key(name)
             return {"ok": True, "detail": f"Stored key removed for {name}."}
         if action == "ack":

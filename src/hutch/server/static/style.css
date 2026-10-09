@@ -904,6 +904,18 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .bot-facts b { color: var(--text); font-weight: 600; }
 .card-actions { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-top: auto; padding-top: var(--s-2); }
 
+/* Provider connection headers combine multiple status chips and long endpoint
+   names. Let them wrap inside narrow screens instead of widening the page. */
+.conn-card { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.conn-card .bot-head { min-width: 0; flex-wrap: wrap; align-items: flex-start; }
+.conn-card .bot-head .chip { margin-left: 0 !important; max-width: 100%; white-space: normal; }
+.conn-card .bot-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; }
+.conn-card .bot-facts > div, .conn-card .bot-facts b { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
+.conn-card .hint { overflow-wrap: anywhere; }
+.conn-card button:disabled, .conn button:disabled {
+  background: var(--raised); border-color: var(--line-strong); color: var(--text-3); cursor: not-allowed;
+}
+
 /* ───────────────────────────── runs ───────────────────────────── */
 
 .runs-filter-bar { display: flex; gap: var(--s-3); align-items: center; flex-wrap: wrap; margin-bottom: var(--s-3); }
@@ -1177,7 +1189,7 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .needs-you::backdrop { background: rgba(0,0,0,.55); }
 .needs-you-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-3); }
 .needs-you-head h2 { margin: 0; font-size: var(--fs-xl); }
-.needs-you-head button { font-size: 24px; }
+.needs-you-head button { font-size: var(--fs-2xl); }
 .browser-alerts { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-3); margin: var(--s-3) 0; border: 1px solid var(--line); border-radius: var(--r-md); }
 .browser-alerts p { margin: var(--s-1) 0 0; }
 .browser-alerts .btn { flex: 0 0 auto; min-height: 44px; }

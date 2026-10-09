@@ -120,6 +120,19 @@ function toast(msg, isError = false) {
   if (!isError) setTimeout(dismiss, 4200);
 }
 
+// The local OAuth callback redirects to the Connections view with a short-lived
+// status only. Remove it from browser history before rendering the page.
+const chatgptCallback = new URLSearchParams(location.search);
+const chatgptResult = chatgptCallback.get("chatgpt_result");
+if (chatgptResult) {
+  const detail = chatgptCallback.get("detail");
+  const message = chatgptResult === "connected" ? "ChatGPT plan route connected."
+    : chatgptResult === "identity-only" ? "ChatGPT signed in, but plan use was not granted. Reauthorize to use it for models."
+    : detail || "ChatGPT sign-in did not complete. Start again from Connections.";
+  setTimeout(() => toast(message, chatgptResult === "error"), 0);
+  history.replaceState(null, "", `${location.pathname}${location.hash || "#/connections"}`);
+}
+
 // Bounded screen-reader announcer. The view itself is not a live region (it
 // re-rendered on every poll); only deliberate lifecycle changes pass through here.
 let announceTimer = null;
@@ -3028,6 +3041,26 @@ async function renderConnections() {
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
       <p class="page-subtitle">A named hosted endpoint with its own key, terms, and allowance. Reference its models as <code class="mono">&lt;connection&gt;/&lt;model&gt;</code>.</p>
+      <section class="panel conn-card" aria-labelledby="chatgpt-auth-title">
+        <div class="bot-head"><span class="bot-name" id="chatgpt-auth-title">Sign in with ChatGPT</span>
+          <span class="tag">experimental preview</span><span class="tag">local callback</span></div>
+        <p class="hint">Uses OpenAI's official local sign-in flow and requests separate plan-use permission. It does not provide Hutch access to ChatGPT conversations. Availability depends on OpenAI eligibility and your account.</p>
+        <p class="hint">This Responses preview has no provider-enforced output-token limit. Hutch's usage reservations and allowances are estimates, not a hard spending cap. <a href="https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations" target="_blank" rel="noopener noreferrer">Review preview limits</a>.</p>
+        ${data.chatgpt_enabled ? '<button class="btn primary small" data-chatgpt-signin>Continue with ChatGPT</button>'
+          : '<p class="hint">Preview sign-in is disabled. Set <code>HUTCH_ENABLE_CHATGPT_PLAN=1</code> only if Hutch is eligible for the local-app flow, then restart Hutch.</p><button class="btn primary small" disabled>Continue with ChatGPT</button>'}
+        ${(data.chatgpt_accounts || []).map(account => `
+          <div class="device-row" data-chatgpt-account="${esc(account.account_id)}">
+            <div><strong>${esc(account.email || "ChatGPT account")}</strong>
+              <span class="chip ${account.plan_usage ? "ok" : account.connected ? "warn" : "danger"}">${account.plan_usage ? "plan use authorized" : account.connected ? "identity only" : "disconnected"}</span>
+              <p class="hint">${account.plan_usage ? `Model route: <code>chatgpt-${esc(account.account_id.replace(/^acct_/, ""))}/&lt;model&gt;</code>`
+                : account.connected ? "Sign-in succeeded, but plan use was not granted. Authorize it before selecting models."
+                : "Local credentials are cleared; the saved registration can be reauthorized."}</p></div>
+            <div class="card-actions">
+              ${data.chatgpt_enabled ? `<button class="btn ghost small" data-chatgpt-reauthorize="${esc(account.account_id)}">${account.plan_usage ? "Reconnect" : "Authorize plan use"}</button>` : ""}
+              <button class="btn danger small" data-chatgpt-disconnect="${esc(account.account_id)}">Disconnect</button>
+            </div>
+          </div>`).join("")}
+      </section>
       <details class="device-manager">
         <summary>Paired devices <span class="tag">${devices.length}</span></summary>
         <p class="hint">A paired browser can access this Hutch host while it is online. On the host, run <code>hutch pairing create</code>, then open <a href="/pair">/pair</a> on the device and enter the one-time code. For another device, Hutch must use <code>--allow-remote</code> with trusted TLS certificates; keep it on a private network.</p>
@@ -3045,7 +3078,7 @@ async function renderConnections() {
             <span class="bot-name">${esc(c.title || c.name)}</span>
             <span class="tag mono">${esc(c.protocol)}</span>
             <span class="tag ${c.billing === "per_token" ? "info" : ""}">${esc(c.billing === "per_token" ? "per token" : "flat rate")}</span>
-            <span class="chip ${c.has_key ? "ok" : "danger"}" style="margin-left:auto;">${c.has_key ? "key set" : "no key"}</span>
+            <span class="chip ${c.has_key ? "ok" : "danger"}" style="margin-left:auto;">${c.auth_type === "chatgpt-siws" ? (c.has_key ? "signed in" : "sign-in needed") : (c.has_key ? "key set" : "no key")}</span>
             <span class="chip ${c.ack === "ok" || c.ack === "not_needed" ? "ok" : "warn"}">${esc(c.ack === "required" ? "terms need acknowledging" : c.ack === "stale" ? "terms changed" : c.ack === "ok" ? "terms accepted" : "no terms")}</span>
           </div>
           <div class="bot-facts">
@@ -3056,12 +3089,14 @@ async function renderConnections() {
           </div>
           ${c.quota_tokens ? `<div class="meter-track" style="width:100%;margin:8px 0;"><div class="meter-fill" style="width:${Math.min(100, c.used / c.quota_tokens * 100)}%"></div></div>` : ""}
           ${c.terms_notice ? `<p class="hint">${esc(c.terms_notice)}</p>` : ""}
+          ${c.auth_type === "chatgpt-siws" ? '<p class="hint">The provider does not accept a per-response output-token ceiling here. Hutch records estimates and provider-reported usage; it cannot guarantee a hard cap.</p>' : ""}
+          ${c.get_key_url && c.template === "opencode-go" ? `<p class="hint"><a href="${esc(c.get_key_url)}" target="_blank" rel="noopener noreferrer">Continue to OpenCode</a>. Sign in to Go there, copy its issued API key, then paste it into Hutch. Hutch does not read OpenCode's private auth file.</p>` : ""}
           <div class="card-actions" style="margin-top:12px;">
             <button class="btn ghost small" data-conn-action="test">${icon("zap")} Test</button>
-            <button class="btn ghost small" data-conn-action="key">Set key</button>
+            ${c.auth_type === "chatgpt-siws" ? "" : '<button class="btn ghost small" data-conn-action="key">Set key</button>'}
             ${c.ack === "required" || c.ack === "stale" ? `<button class="btn warn small" data-conn-action="ack">Accept terms</button>` : ""}
             <button class="btn ghost small" data-conn-action="allowance">Allowance</button>
-            <button class="btn ghost small" data-conn-action="clear-key">Remove key</button>
+            ${c.auth_type === "chatgpt-siws" ? "" : '<button class="btn ghost small" data-conn-action="clear-key">Remove key</button>'}
             <button class="btn danger small" data-conn-action="remove">Remove</button>
           </div>
           <p class="conn-result hint mono" hidden></p>
@@ -3072,8 +3107,50 @@ async function renderConnections() {
           <p class="hint">Hosted providers (OpenAI, Anthropic) read their env keys directly. A connection is for a custom endpoint or a flat-rate plan you own.</p>
         </div>`}
       ${data.errors?.length ? `<p class="hint" style="color:var(--warn);">${esc(data.errors.join(" "))}</p>` : ""}
-    </div></div>`;
+  </div></div>`;
   $(".device-manager").open = devicesOpen;
+
+  const beginChatGPTSignIn = async (accountId = "", button = null) => {
+    if (button) { button.disabled = true; button.textContent = "Opening ChatGPT…"; }
+    try {
+      const result = await api("/chatgpt/sign-in", { method: "POST", body: { account_id: accountId || null } });
+      if (typeof result.authorization_url !== "string" ||
+          !result.authorization_url.startsWith("https://auth.openai.com/api/accounts/authorize?")) {
+        throw new Error("Hutch returned an unexpected ChatGPT sign-in destination.");
+      }
+      location.assign(result.authorization_url);
+    } catch (err) {
+      if (button) { button.disabled = false; button.textContent = accountId ? "Reconnect" : "Continue with ChatGPT"; }
+      toast(err.message, true);
+    }
+  };
+  $("[data-chatgpt-signin]")?.addEventListener("click", event => beginChatGPTSignIn("", event.currentTarget));
+  $$('[data-chatgpt-reauthorize]').forEach(button => {
+    button.addEventListener("click", () => beginChatGPTSignIn(button.dataset.chatgptReauthorize, button));
+  });
+  $$('[data-chatgpt-disconnect]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const account = (data.chatgpt_accounts || []).find(item => item.account_id === button.dataset.chatgptDisconnect);
+      if (!account) return;
+      const confirmed = await confirmDialog({
+        title: "Disconnect ChatGPT",
+        body: `Clear Hutch's local credentials for <b>${esc(account.email || "this account")}</b> and request remote revocation?`,
+        confirmText: "Disconnect",
+        danger: true,
+      });
+      if (!confirmed) return;
+      button.disabled = true;
+      try {
+        const result = await api(`/chatgpt/accounts/${encodeURIComponent(account.account_id)}/disconnect`,
+          { method: "POST", body: {} });
+        toast(result.detail, !result.remote_revoked);
+        await renderConnections();
+      } catch (err) {
+        button.disabled = false;
+        toast(err.message, true);
+      }
+    });
+  });
 
   $("#btn-add-conn")?.addEventListener("click", () => {
     const tpls = data.templates || [];

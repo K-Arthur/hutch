@@ -535,6 +535,7 @@ def register_pages(app: FastAPI) -> None:
     # ----------------------------------------------------------- connections (CN)
 
     from ..connections import WINDOWS, ConnectionBook
+    from ..chatgpt_auth import ChatGPTAuthBook, ChatGPTAuthError, chatgpt_plan_signin_enabled, loopback_callback_uri
     from ..providers.connection import check_connection
 
     def conn_book() -> ConnectionBook:
@@ -551,7 +552,7 @@ def register_pages(app: FastAPI) -> None:
             account_cost_cap, _ = book.account_policy(c.account_id)
             projected = used + reserved
             out.append(_Obj({
-                "c": c, "key": book.key_source(name), "has_key": book.key(name) is not None,
+                "c": c, "key": book.key_source(name), "has_key": book.has_key(name),
                 "ack": book.ack_status(store, name), "used": used, "reserved": reserved,
                 "day": day, "day_reserved": day_reserved, "cost_used": cost_used,
                 "cost_reserved": cost_reserved, "account_cost_cap": account_cost_cap,
@@ -566,7 +567,38 @@ def register_pages(app: FastAPI) -> None:
         have = set(book.names())
         return page(request, "connections.html", nav="connections", conns=conn_views(book),
                     templates=[(k, v) for k, v in book.templates().items()], have=have, windows=list(WINDOWS),
-                    errors=book.errors)
+                    errors=book.errors, chatgpt_accounts=ChatGPTAuthBook(config.state_dir).accounts(),
+                    chatgpt_enabled=chatgpt_plan_signin_enabled())
+
+    @app.post("/connections/chatgpt/sign-in", include_in_schema=False)
+    async def chatgpt_sign_in_page(request: Request):
+        form = await read_form(request)
+        if not chatgpt_plan_signin_enabled():
+            return go("/connections", error="Sign in with ChatGPT is an eligibility-gated preview. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for this flow.")
+        try:
+            url = ChatGPTAuthBook(config.state_dir).start(
+                loopback_callback_uri(request), account_id=form.get("account_id"))
+        except ChatGPTAuthError as exc:
+            return go("/connections", error=str(exc))
+        response = RedirectResponse(url, status_code=303)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        return response
+
+    @app.post("/connections/chatgpt/disconnect", include_in_schema=False)
+    async def chatgpt_disconnect_page(request: Request):
+        form = await read_form(request)
+        account_id = form.get("account_id")
+        try:
+            revoked = ChatGPTAuthBook(config.state_dir).disconnect(account_id)
+            book = conn_book()
+            for name, conn in book.configured().items():
+                if conn.auth_type == "chatgpt-siws" and conn.auth_account_id == account_id:
+                    book.remove(name)
+        except ChatGPTAuthError as exc:
+            return go("/connections", error=str(exc))
+        return go("/connections", notice=("ChatGPT access was revoked and removed from this Hutch." if revoked else
+                                           "Local ChatGPT credentials were cleared, but OpenAI did not confirm remote revocation."))
 
     @app.post("/connections/add", include_in_schema=False)
     async def connection_add(request: Request):
@@ -588,12 +620,16 @@ def register_pages(app: FastAPI) -> None:
         if conn is None:
             raise HTTPException(404, f"No connection named '{name}'.")
         if action == "key":
+            if conn.auth_type != "api_key":
+                return go("/connections", error="This connection uses a sign-in account. Manage it from Connections instead of setting an API key.")
             key = form.get("key").strip()
             if not key:
                 return go("/connections", error="That key was empty.")
             book.set_key(name, key)          # written to a 0600 file; never echoed, logged or stored in the database
             return go("/connections", notice=f"Key stored for {name}.")
         if action == "clear-key":
+            if conn.auth_type != "api_key":
+                return go("/connections", error="This connection uses a sign-in account. Disconnect the account from Connections instead.")
             book.clear_key(name)
             return go("/connections", notice=f"Stored key removed for {name}.")
         if action == "ack":

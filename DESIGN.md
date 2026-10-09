@@ -3,7 +3,7 @@ name: Hutch
 description: Local-first multi-bot agent workspace — a conversation-first console for supervising, approving and reviewing bot work.
 colors:
   primary: "#34d399"
-  primary-ink: "#04140d"
+  primary-ink: "#052e21"
   primary-deep: "#10b981"
   surface-ground: "#05070a"
   surface-panel: "#080c12"
@@ -14,12 +14,14 @@ colors:
   selection: "rgba(82, 168, 255, 0.30)"
   line: "rgba(255, 255, 255, 0.07)"
   line-strong: "rgba(255, 255, 255, 0.14)"
+  border-emphasis: "#283649"
   hairline-top: "rgba(255, 255, 255, 0.06)"
   track: "rgba(255, 255, 255, 0.09)"
   text-primary: "#f0f4f9"
-  text-secondary: "#aebccb"
-  text-tertiary: "#8494a5"
+  text-secondary: "#9daebf"
+  text-tertiary: "#7d8ea4"
   focus: "#60a5fa"
+  focus-ink: "#04121f"
   success: "#34d399"
   warning: "#fbbf24"
   error: "#f87171"
@@ -36,6 +38,17 @@ typography:
     fontWeight: 700
     lineHeight: "1.25"
     letterSpacing: "-0.02em"
+  marketing-display:
+    fontFamily: "Archivo, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "176px"
+    fontWeight: 800
+    lineHeight: "1"
+  marketing-display-min:
+    fontSize: "88px"
+  micro-label:
+    fontSize: "11px"
+  metadata:
+    fontSize: "12px"
   mono:
     fontFamily: "ui-monospace, SFMono-Regular, \"SF Mono\", \"Cascadia Mono\", \"JetBrains Mono\", Menlo, Consolas, monospace"
     fontSize: "13px"
@@ -113,7 +126,7 @@ understand what the machine is actually doing, or it is chrome that should shrin
   first-run/welcome moments; per-bot identity is the lightweight sigil.
 
 **The Measure Rule.** Reading text caps at ~72ch; anything wider is layout debt.
-**The One-Ink Rule.** Emerald fills always carry near-black ink (#04140d); white on
+**The One-Ink Rule.** Emerald fills always carry near-black ink (#052e21); white on
 emerald is forbidden (≈2.5:1).
 **The Amber Rule.** Amber appears only where a person must act now — pending
 approvals, expiring deadlines under two minutes, the attention nav badge. Never as
@@ -125,13 +138,13 @@ prose, labels, or marketing.
 ## Colors
 
 - **Emerald `#34d399`** (lineage through `#10b981`/`#6ee7b7`) — brand, primary
-  buttons, live state, the mascot family. On-fill ink `#04140d` (7.6:1).
+  buttons, live state, the mascot family. On-fill ink `#052e21` (7.7:1).
 - **Azure `#60a5fa`** — interaction only: focus rings, selection, links. It is never
   a brand statement and never a status colour.
 - **Amber `#fbbf24`** — person-needed-now only (The Amber Rule).
 - **Rose `#f87171`** — failure: errors, denied outcomes, destructive actions.
 - **Neutrals** — ground `#05070a` → panel `#080c12` → raised `#10161f`, text
-  `#f0f4f9` / `#aebccb` / `#8494a5`, lines `rgba(255,255,255,0.07/0.14/0.22)`.
+  `#f0f4f9` / `#9daebf` / `#7d8ea4`, lines `rgba(255,255,255,0.07/0.14/0.22)`.
   Surfaces derive from one daisyUI theme (`hutch`) compiled in `app/src/input.css`
   — the marketing site compiles the same theme, so both surfaces share one ramp.
 
@@ -144,6 +157,10 @@ prose, labels, or marketing.
   never as decorative eyebrows.
 - **Mono:** ids, durations, tokens, budgets, code, timestamps — always with tabular
   numerals and ligatures disabled. Prose never uses mono (The Measured Rule).
+- **Marketing display:** the locally bundled Archivo variable font gives the site’s
+  oversized hero wordmark its brand voice; it is not used for application prose.
+- **Marketing micro type:** 11px is limited to compact table labels and numbered
+  proof captions; 12px is the smallest metadata size. Both remain secondary.
 
 ## Layout
 

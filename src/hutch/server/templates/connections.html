@@ -7,7 +7,40 @@
 
 <div class="banner wait">{{ icon("lock", 18) }}<div class="banner-body">
   <p><strong>Keys stay on this machine.</strong> A key is read from an environment variable, or from a file in Hutch's state directory (mode 0600). It is never stored in the database, shown on a page, put in a transcript, or returned by the API.</p>
-  <p class="muted">Logging in with a consumer plan's own session (Claude Pro/Max, ChatGPT) is deliberately not supported: those vendors' terms restrict such tokens to their own apps and forbid automated access except through an API key. Plans that issue an API key are supported.</p></div></div>
+  <p class="muted">Hutch never reads browser cookies or another app's private session files. OpenCode Go uses its issued API-key handoff. ChatGPT can be connected only through the official local Sign in with ChatGPT preview shown below; eligibility is not guaranteed.</p></div></div>
+
+<section class="panel conn" aria-labelledby="chatgpt-signin-title">
+  <header class="conn-head"><div><h2 id="chatgpt-signin-title">{{ icon("layers", 18) }} Sign in with ChatGPT</h2>
+    <div class="tags"><span class="tag">experimental preview</span><span class="tag">local callback only</span></div>
+    <p class="hint">This asks OpenAI for separate plan-use permission. It does not expose ChatGPT conversations. Availability depends on OpenAI's eligibility and account controls.</p></div></header>
+  <p class="hint">The current Responses preview does not accept a provider-enforced output-token limit. Hutch's allowance and usage reservations are estimates, not a hard spending cap. Review the <a href="https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations" rel="noopener noreferrer" target="_blank">preview limits</a> before connecting.</p>
+  {% if chatgpt_enabled %}
+  <form method="post" action="/connections/chatgpt/sign-in" class="inline-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn primary small">Continue with ChatGPT</button>
+  </form>
+  {% else %}
+  <p class="hint">Preview sign-in is disabled. Set <code>HUTCH_ENABLE_CHATGPT_PLAN=1</code> only if Hutch is eligible for OpenAI's local-app flow, then restart Hutch.</p>
+  <button class="btn primary small" disabled>Continue with ChatGPT</button>
+  {% endif %}
+  {% if chatgpt_accounts %}<div class="plain-list" aria-label="Saved ChatGPT accounts">
+    {% for account in chatgpt_accounts %}
+    <div class="list-row"><div><strong>{{ account.email or 'ChatGPT account' }}</strong>
+      {% if account.plan_usage %}<span class="chip st-succeeded">plan use authorized</span>
+      {% elif account.connected %}<span class="chip st-waiting_approval">identity only</span>
+      {% else %}<span class="chip st-failed">disconnected</span>{% endif %}
+      <p class="hint">{% if account.plan_usage %}Route: <code>chatgpt-{{ account.account_id.removeprefix('acct_') }}/&lt;model&gt;</code>
+        {% elif account.connected %}Sign-in succeeded, but model access was not granted. Reauthorize plan use to add a model route.
+        {% else %}Local credentials are cleared. The saved registration can be reauthorized.{% endif %}</p></div>
+      <div class="card-actions">
+        {% if chatgpt_enabled %}<form method="post" action="/connections/chatgpt/sign-in"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="account_id" value="{{ account.account_id }}">
+          <button class="btn small ghost">{% if account.plan_usage %}Reconnect{% else %}Authorize plan use{% endif %}</button></form>{% endif %}
+        <form method="post" action="/connections/chatgpt/disconnect" data-confirm="Clear this ChatGPT account from Hutch and request remote revocation?"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="account_id" value="{{ account.account_id }}">
+          <button class="btn small danger">Disconnect</button></form>
+      </div></div>
+    {% endfor %}
+  </div>{% endif %}
+</section>
 
 {% for e in errors %}<div class="flash error" role="alert">{{ icon("alert", 16) }}<span>{{ e }}</span></div>{% endfor %}
 
@@ -23,13 +56,21 @@
 
   <div class="conn-grid">
     <div class="conn-block">
-      <h3>API key</h3>
-      <p>{% if v.has_key %}<span class="chip st-succeeded">present</span> from the {{ v.key }}{% else %}<span class="chip st-failed">missing</span> set <span class="mono">${{ c.api_key_env }}</span> where hutch starts, or store one below{% endif %}</p>
-      <form method="post" action="/connections/{{ c.name }}/key" class="inline-form" autocomplete="off">
-        <input type="hidden" name="csrf" value="{{ csrf }}">
-        <input type="password" name="key" placeholder="paste a key to store it (not shown again)" autocomplete="off" aria-label="API key for {{ c.name }}">
-        <button class="btn small">Store</button></form>
-      {% if c.get_key_url %}<p class="hint"><a href="{{ c.get_key_url }}" rel="noopener noreferrer" target="_blank">Where to get a key</a></p>{% endif %}
+      {% if c.auth_type == 'chatgpt-siws' %}
+        <h3>ChatGPT account</h3>
+        <p><span class="chip st-succeeded">{{ v.key }}</span></p>
+        <p class="hint">Hutch refreshes this account's protected OAuth credential and sends it only to OpenAI's official Responses API.</p>
+        <p class="hint">Provider output-token limits are unavailable on this preview route; local usage caps are estimates.</p>
+      {% else %}
+        <h3>API key</h3>
+        <p>{% if v.has_key %}<span class="chip st-succeeded">present</span> from the {{ v.key }}{% else %}<span class="chip st-failed">missing</span> set <span class="mono">${{ c.api_key_env }}</span> where hutch starts, or store one below{% endif %}</p>
+        <form method="post" action="/connections/{{ c.name }}/key" class="inline-form" autocomplete="off">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="password" name="key" placeholder="paste a key to store it (not shown again)" autocomplete="off" aria-label="API key for {{ c.name }}">
+          <button class="btn small">Store</button></form>
+        {% if c.get_key_url %}<p class="hint"><a href="{{ c.get_key_url }}" rel="noopener noreferrer" target="_blank">{% if c.signin_guidance %}Continue to OpenCode{% else %}Where to get a key{% endif %}</a></p>
+          {% if c.signin_guidance %}<p class="hint">{{ c.signin_guidance }}</p>{% endif %}{% endif %}
+      {% endif %}
       <form method="post" action="/connections/{{ c.name }}/test" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}">
         <button class="btn small ghost">{{ icon("refresh", 14) }} Test (spends no tokens)</button></form>
     </div>
@@ -74,7 +115,7 @@
   {% endif %}
 
   <details class="conn-more"><summary>Per-model protocol</summary>
-    <p class="hint">{{ c.model_protocol_hint or "Some plans serve different models over different wire formats. Hutch speaks openai-chat and anthropic; the OpenAI Responses protocol is not supported yet." }}</p>
+    <p class="hint">{{ c.model_protocol_hint or "Some plans serve different models over different wire formats. Hutch speaks openai-chat and anthropic; the Responses protocol is reserved for the official Sign in with ChatGPT route." }}</p>
     {% if c.model_protocols %}<ul class="plain">{% for m, pr in c.model_protocols.items() %}<li><span class="mono">{{ m }}</span> uses <strong>{{ pr }}</strong></li>{% endfor %}</ul>{% endif %}
     <form method="post" action="/connections/{{ c.name }}/protocol" class="inline-form"><input type="hidden" name="csrf" value="{{ csrf }}">
       <input type="text" name="model" placeholder="model id" aria-label="Model id" required>

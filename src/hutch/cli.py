@@ -773,8 +773,12 @@ def conn_add(
 def conn_set_key(name: str = typer.Argument(...)) -> None:
     """Store a key in a 0600 file under the state directory (it is never printed or put in the database)."""
     book = _book()
-    if book.get(name) is None:
+    connection = book.get(name)
+    if connection is None:
         err.print(f"[red]no connection named {name}[/red]")
+        raise typer.Exit(code=1)
+    if connection.auth_type != "api_key":
+        err.print("[red]this connection uses a sign-in account; manage it from the Connections page[/red]")
         raise typer.Exit(code=1)
     key = typer.prompt(f"API key for {name} (input hidden)", hide_input=True).strip()
     if not key:

@@ -18,9 +18,10 @@ A Connection fixes that:
   allowance gone on day one" is the loudest complaint about the products Hutch is measured against;
 * a terms notice that must be acknowledged once (and again if the notice changes) before the first run.
 
-What this deliberately is NOT: logging in with a consumer plan's OAuth session (Claude Pro/Max, ChatGPT). Those
-vendors' terms restrict consumer-plan tokens to their own apps and prohibit automated access except via API key
-(LM-15), so Hutch never reads, stores or proxies such tokens. Subscription plans that issue an API key are fine.
+What this deliberately is NOT: reading a consumer app's browser cookies, scraping another client's auth files, or
+turning a consumer OAuth token into an arbitrary API key. Hutch never reads or proxies those sessions. Where a vendor
+provides a dedicated, documented local-app token-sharing flow, Hutch can implement that separate route with its own
+scope and request restrictions; OpenAI's Sign in with ChatGPT is currently an eligibility-gated preview.
 """
 
 from __future__ import annotations
@@ -89,6 +90,9 @@ class Connection:
     models_endpoint: bool = True
     quota_hint: str = ""
     model_protocol_hint: str = ""
+    auth_type: str = "api_key"
+    auth_account_id: str = ""
+    output_token_limit_enforced: bool = True
 
     def endpoint_for(self, model: str) -> tuple[str, str]:
         """(protocol, base url) for one model: plans may serve different models over different protocols."""
@@ -154,11 +158,24 @@ class ConnectionBook:
                     raise ValueError("connection endpoint is malformed or contains embedded credentials") from None
         terms = {**tpl.get("terms", {}), **row.get("terms", {})}
         q = row.get("quota") or {}
+        auth_type = merged.get("auth_type", "api_key")
+        if auth_type not in ("api_key", "chatgpt-siws"):
+            raise ValueError("unknown connection authentication flow")
         proto = merged.get("protocol", "openai-chat")
-        if proto in UNSUPPORTED_PROTOCOLS:
-            raise ValueError(f"protocol '{proto}' is not supported yet (use openai-chat or anthropic)")
-        if proto not in PROTOCOLS:
+        if proto == "openai-responses":
+            if (auth_type != "chatgpt-siws" or row.get("template") != "chatgpt-plan" or
+                    merged.get("base_url", "").rstrip("/") != "https://api.openai.com/v1"):
+                raise ValueError("protocol 'openai-responses' is not supported yet except through the verified ChatGPT route")
+        elif proto not in PROTOCOLS:
             raise ValueError(f"unknown protocol '{proto}'")
+        if auth_type == "chatgpt-siws":
+            if row.get("template") != "chatgpt-plan" or not re.fullmatch(r"acct_[0-9a-f]{24}",
+                                                                           str(merged.get("auth_account_id", ""))):
+                raise ValueError("Sign in with ChatGPT connections must reference a verified local account")
+            if merged.get("api_key_env"):
+                raise ValueError("Sign in with ChatGPT uses its protected OAuth account, not an API-key variable")
+            if merged.get("output_token_limit_enforced") is not False:
+                raise ValueError("Sign in with ChatGPT preview routes cannot enforce an output-token limit")
         billing = merged.get("billing", "per_token")
         if billing not in BILLING:
             raise ValueError(f"unknown billing mode '{billing}'")
@@ -193,7 +210,9 @@ class ConnectionBook:
                         requires_ack=bool(terms.get("requires_ack"))),
             get_key_url=merged.get("get_key_url", ""), source=merged.get("source", ""),
             models_endpoint=bool(merged.get("models_endpoint", True)), quota_hint=merged.get("quota_hint", ""),
-            model_protocol_hint=merged.get("model_protocol_hint", ""))
+            model_protocol_hint=merged.get("model_protocol_hint", ""), auth_type=auth_type,
+            auth_account_id=str(merged.get("auth_account_id", "")),
+            output_token_limit_enforced=bool(merged.get("output_token_limit_enforced", True)))
 
     def _write(self, rows: dict[str, Any]) -> None:
         self.state_dir.mkdir(parents=True, exist_ok=True)
@@ -206,7 +225,11 @@ class ConnectionBook:
     # -------------------------------------------------------------- queries
 
     def templates(self) -> dict[str, dict[str, Any]]:
-        return self._templates
+        # OAuth-backed templates are created only after the provider has verified
+        # the identity and issued account registration. Never expose them as a
+        # generic "add endpoint" form or CLI recipe.
+        return {name: row for name, row in self._templates.items()
+                if row.get("auth_type", "api_key") == "api_key"}
 
     def configured(self) -> dict[str, Connection]:
         return dict(self._conns)
@@ -237,6 +260,12 @@ class ConnectionBook:
         conn = self._conns.get(name)
         if conn is None:
             return None
+        if conn.auth_type == "chatgpt-siws":
+            from .chatgpt_auth import ChatGPTAuthBook, ChatGPTAuthError
+            try:
+                return ChatGPTAuthBook(self.state_dir).access_token(conn.auth_account_id)
+            except ChatGPTAuthError:
+                return None
         if conn.api_key_env and os.environ.get(conn.api_key_env):
             return os.environ[conn.api_key_env].strip()
         f = self.key_file(name)
@@ -247,15 +276,47 @@ class ConnectionBook:
 
     def key_source(self, name: str) -> str:
         conn = self._conns.get(name)
+        if conn and conn.auth_type == "chatgpt-siws":
+            return "Sign in with ChatGPT" if self.has_key(name) else "ChatGPT account needs sign-in or plan-use permission"
         if conn and conn.api_key_env and os.environ.get(conn.api_key_env):
             return f"environment variable {conn.api_key_env}"
         if self.key_file(name).exists():
             return "key file in the state directory"
         return "missing"
 
+    def has_key(self, name: str) -> bool:
+        """Check credential availability without refreshing tokens or making a network request."""
+        conn = self._conns.get(name)
+        if conn is None:
+            return False
+        if conn.auth_type == "chatgpt-siws":
+            from .chatgpt_auth import ChatGPTAuthBook
+            return ChatGPTAuthBook(self.state_dir).has_plan_usage(conn.auth_account_id)
+        if conn.api_key_env and os.environ.get(conn.api_key_env):
+            return True
+        return self.key_file(name).is_file() and self.key_file(name).stat().st_size > 0
+
+    def add_chatgpt_account(self, auth_account_id: str, email: str = "") -> Connection:
+        """Create the named route for an already verified SIWC account; generic forms cannot mint this authority."""
+        if not re.fullmatch(r"acct_[0-9a-f]{24}", auth_account_id):
+            raise ValueError("ChatGPT account identity is not valid")
+        for conn in self._conns.values():
+            if conn.auth_type == "chatgpt-siws" and conn.auth_account_id == auth_account_id:
+                return conn
+        base_name = "chatgpt-" + auth_account_id.removeprefix("acct_")
+        name = base_name
+        suffix = 2
+        while name in self._conns:
+            name = f"{base_name}-{suffix}"
+            suffix += 1
+        title = "ChatGPT plan" + (f" ({email})" if email and len(email) <= 320 else "")
+        return self.add("chatgpt-plan", name, title=title, account_id=name, auth_account_id=auth_account_id)
+
     def set_key(self, name: str, value: str) -> None:
         if name not in self._conns:
             raise KeyError(name)
+        if self._conns[name].auth_type != "api_key":
+            raise ValueError(f"connection '{name}' uses {self._conns[name].auth_type}; manage its account from Connections")
         self.keys_dir.mkdir(parents=True, exist_ok=True)
         os.chmod(self.keys_dir, 0o700)
         f = self.key_file(name)

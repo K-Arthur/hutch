@@ -16,12 +16,13 @@ Hutch currently sends. Live providers, models, and paid connections were not use
 | Anthropic Messages | Supported | Sends `max_tokens`, messages, tools and streaming; sends `output_config.effort` only for Hutch's current model-name allowlist. Thinking and temperature controls are omitted so provider model defaults apply. |
 | Ollama native `/api/chat` | Supported | Requires an explicit `num_ctx`; sends tool calls, output cap and keep-alive. `think` is sent only when the model advertises thinking capability. Recognized cloud-tagged model names are treated as hosted. |
 | Named OpenAI-compatible connection | Supported | Uses the common Chat Completions shape and `max_tokens`. Unknown dialect-specific fields are omitted. Tool-call behavior, usage, and context settings still depend on the configured server and model. |
-| OpenCode Go connection | Experimental | Uses a named API-key connection, configured user agent and stable session header. Eligibility for general assistant or unattended workloads is not established; review current plan terms. |
-| Sign in with ChatGPT token sharing | Experimental; not implemented | Requires a native Responses API request under the published preview contract. Hutch does not claim eligibility or send a request. Unsupported preview fields are listed in the matrix. |
+| OpenCode Go connection | Experimental | Sign in to Go with OpenCode, copy its issued API key, and store it in Hutch or a named environment variable. Hutch does not import `auth.json` or reuse another app's session. The provider docs describe coding-agent traffic; general assistant and unattended-workload eligibility remains unestablished. |
+| Sign in with ChatGPT token sharing | Experimental; locally fixture-tested, disabled by default | A local opt-in PKCE/OIDC sign-in creates a fixed Responses route. Hutch does not claim eligibility or live account verification. Preview-unsupported request fields are omitted; no provider-enforced output-token limit exists, so local allowances are estimates rather than a hard cap. |
 | OpenCode and Pi executors | Unavailable | Both fail before process creation. Pi's `--no-tools` can disable its built-in, extension, custom and MCP tools, but direct model traffic still bypasses Hutch's connection and budget reservation path. OpenCode permissions and message/session endpoints need a tested once-only approval bridge and durable recovery around its volatile event stream. |
 | Consumer-plan OAuth/session reuse | Blocked | Hutch does not read or forward consumer-app cookies or session tokens. Use a supported API-key connection. |
 
-`hutch connections test` can authenticate against a model-list endpoint without spending tokens.
+`hutch connections test` can authenticate against a model-list endpoint without spending tokens. For ChatGPT, model
+selection uses the account's non-billable list-visible model catalog only after an explicit selection request.
 It does not confirm tool calling. The opt-in one-token chat probe and persisted per-connection/model
 capability record in ADR-0005 remain unimplemented; model-level tool support stays unknown. Until
 that work lands, a fixture-tested route must not be described as a live model verification.

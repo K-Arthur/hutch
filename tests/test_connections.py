@@ -64,6 +64,8 @@ def test_templates_carry_the_endpoints_and_requirements_found_in_the_vendor_docs
     go = tpl["opencode-go"]
     assert go["base_url"] == "https://opencode.ai/zen/go/v1" and go["billing"] == "subscription"
     assert go["session_header"] == "x-opencode-session" and go["terms"]["requires_ack"]
+    assert go["get_key_url"] == "https://opencode.ai/auth"
+    assert "copy" in go["signin_guidance"] and "never reads OpenCode's auth.json" in go["signin_guidance"]
     assert "monitored" in go["terms"]["notice"] and "UNATTENDED" in go["terms"]["notice"]
     for region in ("sgp", "cn", "ams"):
         x = tpl[f"xiaomi-token-plan-{region}"]

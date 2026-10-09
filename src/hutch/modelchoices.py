@@ -120,24 +120,45 @@ def _hosted_choices(bot: Bot, book: PriceBook) -> list[Choice]:
     return out
 
 
-def _connection_choices(bot: Bot, store: Any, book: ConnectionBook, extra: set[str]) -> list[Choice]:
+def _connection_choices(bot: Bot, store: Any, book: ConnectionBook, extra: set[str], *,
+                        discover_hosted_models: bool = True) -> list[Choice]:
     out: list[Choice] = []
     for name, c in book.configured().items():
-        has_key = book.key(name) is not None
+        has_key = book.has_key(name)
         ack = book.ack_status(store, name)
-        models = sorted({m for m in extra if m.startswith(name + "/")})
-        for spec in models:
+        models = {m for m in extra if m.startswith(name + "/")}
+        model_error = ""
+        if has_key and c.auth_type == "chatgpt-siws" and discover_hosted_models:
+            # Model selection is an explicit user action; it may refresh the
+            # protected plan token and fetch the account's non-billable catalog.
+            from .chatgpt_auth import ChatGPTAuthBook, ChatGPTAuthError
+            try:
+                models.update(f"{name}/{row['slug']}"
+                              for row in ChatGPTAuthBook(book.state_dir).list_models(c.auth_account_id))
+            except ChatGPTAuthError as exc:
+                model_error = str(exc)
+        for spec in sorted(models):
             if not has_key:
-                state, fix = "setup", f"set ${c.api_key_env} or run `hutch connections set-key {name}`"
+                state = "setup"
+                fix = ("sign in with ChatGPT and authorize plan use on Connections" if c.auth_type == "chatgpt-siws"
+                       else f"set ${c.api_key_env} or run `hutch connections set-key {name}`")
             elif ack in ("required", "stale"):
                 state, fix = "setup", f"acknowledge its terms: `hutch connections ack {name}`"
+            elif model_error:
+                state, fix = "setup", model_error
             else:
                 state, fix = "ready", ""
-            note = fix and ("needs a key" if not has_key else "terms not acknowledged") or \
-                ("flat-rate plan" if c.flat else "pay per token")
+            note = ("needs a key" if not has_key else
+                    "terms not acknowledged" if ack in ("required", "stale") else
+                    "model list unavailable" if model_error else
+                    "subscription; output limit is provider-unbounded" if c.auth_type == "chatgpt-siws" else
+                    "flat-rate plan" if c.flat else "pay per token")
             out.append(Choice(spec=spec, label=short_label(spec), group=c.title, state=state, hosted=True,
                               note=note, fix=fix,
-                              detail=[f"connection {name}: {c.billing.replace('_', ' ')}", f"sends this chat to {c.title}"]))
+                              detail=[f"connection {name}: {c.billing.replace('_', ' ')}",
+                                      f"sends this chat to {c.title}"] +
+                                     (["Responses preview does not accept a provider-enforced output-token limit; Hutch estimates usage"]
+                                      if c.auth_type == "chatgpt-siws" else [])))
     return out
 
 
@@ -172,8 +193,10 @@ def model_choices(config: Any, store: Any, bot: Bot, hw: Optional[Hardware] = No
                  detail=[] if own_local or not bot.model else ["this route sends the chat to a hosted model service"])
     choices.append(own)
     seen = {bot.model}
+    allow_hosted_discovery = bot.inference_mode.value not in ("local", "offline")
     for c in (_local_choices(bot, hw, provider) + _hosted_choices(bot, book)
-              + _connection_choices(bot, store, cbook, known)):
+              + _connection_choices(bot, store, cbook, known,
+                                    discover_hosted_models=allow_hosted_discovery)):
         if bot.inference_mode.value in ("local", "offline") and not is_local(c.spec):
             continue
         if c.spec in seen:
@@ -229,8 +252,11 @@ def validate_override(config: Any, store: Any, bot: Bot, spec: str, hw: Optional
                              "switch models inside that runtime's own settings", 422)
     cbook = ConnectionBook(config.state_dir)
     if provider in cbook.names():
-        if cbook.key(provider) is None:
+        if not cbook.has_key(provider):
             c = cbook.get(provider)
+            if c.auth_type == "chatgpt-siws":
+                raise ModelNotUsable(f"{provider} has no plan-authorized ChatGPT account",
+                                     "sign in with ChatGPT and authorize plan use on Connections")
             raise ModelNotUsable(f"{provider} has no API key", f"set ${c.api_key_env} or run "
                                  f"`hutch connections set-key {provider}`")
         if cbook.ack_status(store, provider) in ("required", "stale"):

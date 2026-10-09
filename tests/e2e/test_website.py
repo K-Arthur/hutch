@@ -5,8 +5,10 @@ from __future__ import annotations
 import hashlib
 import http.server
 import json
+import platform
 import socketserver
 import threading
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -88,7 +90,10 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert "private" in text and "public package or release" in text
     assert "not a virtual machine" in text
     assert "browser egress" in text and "non-http" in text
-    assert "chatgpt sign-in is not implemented" in text
+    assert "sign in with chatgpt is an opt-in local preview" in text
+    assert "eligibility for hutch is unconfirmed" in text
+    assert "does not allow a provider-enforced output-token limit" in text
+    assert "chatgpt sign-in is not implemented" not in text
     assert "github.com/k-arthur/hutch" not in page.content().lower()
     assert not errors, errors
     context.close()
@@ -118,6 +123,66 @@ def test_static_site_makes_no_external_requests(browser, site_url):
     page.wait_for_timeout(350)
     assert external == [], external
     context.close()
+
+
+def test_provider_availability_is_readable_without_horizontal_page_scroll(browser, site_url):
+    context, page, errors = _page(browser, reduced_motion="reduce")
+    page.goto(site_url, wait_until="networkidle")
+    external = []
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(site_url) and not request.url.startswith("data:") else None)
+    out = ROOT / "docs/realignment/artifacts/provider-signin"
+    out.mkdir(parents=True, exist_ok=True)
+    source = (SITE_DIR / "index.html").read_bytes()
+    styles = (SITE_DIR / "styles.css").read_bytes()
+    viewports = (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844))
+    try:
+        assert page.locator("#get .availability").get_by_text("Public access", exact=True).count() == 1
+        availability = page.locator("#get").inner_text().lower()
+        assert "opencode go api-key handoff" in availability
+        assert "sign in with chatgpt preview" in availability
+        assert "eligibility unconfirmed" in availability
+        assert page.locator("a[href='#get']").count() >= 1
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            page.get_by_role("heading", name="How to get hutch").scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"marketing-{label}.png"), animations="disabled")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+        for label, width, height in (("desktop", 1440, 900), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.locator("#runs .grid").scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"marketing-features-{label}.png"), animations="disabled")
+            cards = page.locator("#runs .feature .card-body")
+            assert cards.count() == 6
+            for index in range(cards.count()):
+                card = cards.nth(index)
+                icon_box = card.locator(".card-icon").bounding_box()
+                title_box = card.locator(".card-title").bounding_box()
+                assert icon_box and title_box
+                assert icon_box["x"] + icon_box["width"] <= title_box["x"] + 1, (label, index, icon_box, title_box)
+                assert abs((icon_box["y"] + icon_box["height"] / 2) -
+                           (title_box["y"] + title_box["height"] / 2)) <= 2, (label, index, icon_box, title_box)
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+        assert external == [], external
+        assert not errors, errors
+        (out / "marketing-validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_website.py::test_provider_availability_is_readable_without_horizontal_page_scroll",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_website.py::test_provider_availability_is_readable_without_horizontal_page_scroll",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(), "browser": browser.version,
+            "index_sha256": hashlib.sha256(source).hexdigest(),
+            "styles_sha256": hashlib.sha256(styles).hexdigest(),
+            "viewports": [{"name": label, "width": width, "height": height}
+                          for label, width, height in viewports],
+            "feature_grid_viewports": [{"name": label, "width": width, "height": height}
+                                       for label, width, height in (("desktop", 1440, 900), ("phone", 390, 844))],
+            "feature_heading_layout": "icon and heading share a row",
+            "anonymous": True, "external_requests": len(external),
+        }, indent=2) + "\n")
+    finally:
+        context.close()
 
 
 def test_no_javascript_keeps_the_page_readable(browser, site_url):

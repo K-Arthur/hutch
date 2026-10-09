@@ -147,6 +147,26 @@ def test_connection_models_known_from_bots_appear_with_their_state(env, monkeypa
     assert plan.state == "ready" and "flat-rate" in plan.note
 
 
+@pytest.mark.parametrize("mode", ["local", "offline"])
+def test_local_and_offline_model_picker_never_discovers_chatgpt_models(env, monkeypatch, mode):
+    from hutch.chatgpt_auth import ChatGPTAuthBook
+    account_id = "acct_" + "a" * 24
+    ConnectionBook(env.config.state_dir).add_chatgpt_account(account_id)
+    original_has_key = ConnectionBook.has_key
+
+    def has_key(book, name):
+        if book.get(name) and book.get(name).auth_type == "chatgpt-siws":
+            return True
+        return original_has_key(book, name)
+
+    monkeypatch.setattr(ConnectionBook, "has_key", has_key)
+    monkeypatch.setattr(ChatGPTAuthBook, "list_models",
+                        lambda *_args, **_kwargs: pytest.fail("local route performed hosted model discovery"))
+    bot = mkbot(env, name=f"{mode}-bot", model="ollama/fake:8b", inference_mode=mode)
+    choices = model_choices(env.config, env.store, bot)
+    assert not any(choice.spec.startswith("chatgpt-") for choice in choices)
+
+
 def test_models_endpoint_returns_the_list_and_404s_for_unknown_bots(env):
     mkbot(env, model="ollama/fake:8b")
     r = env.get("/api/bots/chatty/models")

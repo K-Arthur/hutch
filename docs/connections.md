@@ -1,7 +1,8 @@
 # Connections: subscription plans and custom endpoints
 
-A **connection** is a named hosted endpoint with its own API key, protocol, headers, billing mode, usage
-allowance and terms notice. Use one in any bot as `<connection>/<model>`:
+A **connection** is a named hosted endpoint with its own provider-scoped credentials, protocol, headers, billing mode,
+usage allowance and terms notice. API-key routes use `<connection>/<model>`; the experimental ChatGPT plan route is
+created only after its separate authorization succeeds:
 
 ```bash
 hutch connections templates                          # what Hutch knows how to talk to
@@ -13,6 +14,17 @@ hutch connections test opencode-go                   # authenticates; spends no 
 hutch usage reservations                             # inspect held or uncertain usage
 hutch bot update my-bot --model opencode-go/zhipuai/glm-5.3
 ```
+
+For OpenCode Go, sign in and manage the plan on OpenCode, then copy its provider API key into Hutch. Hutch does not
+reuse OpenCode's private `auth.json`, browser profile or CLI sign-in. For the eligibility-gated ChatGPT preview, the
+Connections page starts OpenAI's official local sign-in flow; do not enable it unless Hutch is eligible for the flow:
+
+```bash
+HUTCH_ENABLE_CHATGPT_PLAN=1 hutch serve --host 127.0.0.1
+```
+
+This local opt-in switch is not proof of eligibility. ChatGPT plan access is not available through the generic API-key
+form or CLI `set-key` command. It uses the Responses API only and does not expose ChatGPT conversations.
 
 The same flow is on the dashboard's **Connections** page. Model ids may contain `/`
 (`opencode-go/zhipuai/glm-5.3`): the connection name is everything before the first slash.
@@ -34,7 +46,8 @@ exercised against a live account** (there are no keys on the development machine
 
 | Template | Endpoint | Key | Billing | Source |
 |---|---|---|---|---|
-| `opencode-go` | `https://opencode.ai/zen/go/v1` (OpenAI chat) | `OPENCODE_API_KEY` (from opencode.ai/auth) | flat subscription, dollar-denominated caps: 5-hour 20%, weekly 50%, monthly 100% | [OpenCode Go docs](https://opencode.ai/docs/go/) |
+| `opencode-go` | `https://opencode.ai/zen/go/v1` (OpenAI chat) | `OPENCODE_API_KEY` or a key pasted into Hutch, after the user signs into Go and copies its provider key | flat subscription, dollar-denominated caps: 5-hour 20%, weekly 50%, monthly 100% | [OpenCode Go docs](https://opencode.ai/docs/go/) |
+| `chatgpt-plan` | `https://api.openai.com/v1` (Responses only) | Official Sign in with ChatGPT local token-sharing flow; never an API key | subscription account; OpenAI controls actual allowance | [SIWC preview](https://developers.openai.com/siwc/token-sharing-open-source/) |
 | `xiaomi-token-plan-{sgp,cn,ams}` | `https://token-plan-<region>.xiaomimimo.com/v1` (OpenAI chat) and `/anthropic` (Anthropic messages) | `XIAOMI_TOKEN_PLAN_API_KEY` (`tp-...`) | subscription **Credits**, not tokens | [OpenClaw provider docs](https://docs.openclaw.ai/providers/xiaomi), [MiMo docs](https://mimo.mi.com/docs/en-US/tokenplan/subscription) |
 | `xiaomi` | `https://api.xiaomimimo.com/v1` | `XIAOMI_API_KEY` (`sk-...`) | per token (needs a price row) | same |
 | `custom-openai` | any `/v1/chat/completions` server: OpenRouter, Together, Groq, a company gateway, vLLM | your env var | per token or subscription | - |
@@ -52,8 +65,8 @@ OpenAI, Anthropic, Ollama, LM Studio and llama.cpp keep their built-in provider 
   stable per-run session id (`x-opencode-session: <run id>` for OpenCode Go).
 - **Protocol per model** (`CN-7`). Some plans split models across wire formats. Hutch speaks `openai-chat` and
   `anthropic`; set a model's protocol with `hutch connections set-protocol <name> <model> anthropic`. The OpenAI
-  *Responses* protocol is **not supported yet**, and a template or override that asks for it is rejected with a
-  clear message rather than failing at run time. The OpenCode docs list Claude Haiku, MiniMax and Qwen families on
+  *Responses* protocol is reserved for the fixed ChatGPT plan route; arbitrary connections cannot select it. A template
+  or override that asks for it is rejected with a clear message rather than failing at run time. The OpenCode docs list Claude Haiku, MiniMax and Qwen families on
   the Anthropic endpoint and Grok / Muse Spark on Responses, while models.dev lists every model as
   OpenAI-compatible; the two sources conflict, so Hutch ships no per-model overrides and tells you how to set one.
 - **Billing** (`CN-4`). `per_token` is priced from `prices.json`; with no price row a hosted model **cannot run
@@ -102,12 +115,36 @@ OpenAI, Anthropic, Ollama, LM Studio and llama.cpp keep their built-in provider 
 - In general, provider terms do not necessarily allow routing a per-seat subscription key through a third-party
   tool, and some plans apply risk controls to unusual traffic.
 
+## Sign in with ChatGPT preview
+
+This separate local-app flow uses PKCE, one-use state and nonce, OpenAI dynamic client registration, a stable Hutch
+host ID, a loopback-only callback, and signature/issuer/audience/expiry verification. ChatGPT bearer credentials are
+stored in the Hutch state directory with owner-only permissions and are returned by neither the API nor the page.
+Hutch refreshes them for the official OpenAI API host only. Disconnect clears local tokens and requests revocation.
+No browser cookie, ChatGPT conversation, or credential from another app is used.
+
+The operator must set `HUTCH_ENABLE_CHATGPT_PLAN=1` and bind Hutch to local `127.0.0.1`. OpenAI's preview eligibility
+is not confirmed for Hutch, so the route is experimental and disabled by default. Read the current
+[eligibility and preview limits](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations) first.
+The Responses route always streams and sends `store:false`; it omits unsupported preview fields, including
+`max_output_tokens`. OpenAI therefore does not enforce Hutch's per-response output ceiling. Hutch usage reservations
+and any operator allowance are estimates, can be exceeded by one response, and are not a hard spend cap. No live
+ChatGPT account was used to verify this integration.
+
+If the sign-in control is disabled, leave it disabled unless Hutch has confirmed eligibility; setting the local flag is
+not an eligibility grant. If the callback expires or Hutch was opened through a hostname, HTTPS proxy, or remote device,
+restart the flow from `http://127.0.0.1:<port>` on the Hutch host. If sign-in succeeds without plan-use permission,
+the account cannot select ChatGPT models until it is reauthorized with that permission. When Hutch is not eligible or
+you need a provider-enforced output limit, use an OpenAI API connection with an API key; ChatGPT Plus/Pro membership
+does not itself create API billing credentials.
+
 ## Deliberately unsupported
 
-**Logging in with a consumer plan's own session** (Claude Pro/Max, ChatGPT Plus/Pro, Copilot...). Anthropic's
+**Reusing a consumer app's login session** (Claude Pro/Max, ChatGPT Plus/Pro, Copilot...). Anthropic's
 documentation says OAuth tokens from consumer plans are for use inside its own applications and that using them
 in other products or tools is not permitted; its consumer terms prohibit automated access except through an API
-key. Hutch therefore never reads, stores or proxies such tokens (`LM-15`). Plans that issue an **API key**
+key. Hutch never reads or proxies browser cookies, CLI auth files or copied session tokens (`LM-15`). This is separate
+from the official, eligibility-gated ChatGPT local-app preview above. Plans that issue an **API key**
 (OpenCode Go, MiMo Token Plan, and the API products themselves) are supported through Hutch's built-in provider clients. Vendor
 CLI harnesses (`pi`, `opencode`) are currently disabled; Hutch does not launch them or use their independent authentication.
 

@@ -151,9 +151,13 @@ def run_doctor(config: Any, store: Any, hw: Any = None, deep: bool = False, onli
     # ---- connections
     book = ConnectionBook(config.state_dir)
     for name, c in book.configured().items():
-        if book.key(name) is None:
-            add(f"connection:{name}", f"Connection: {name}", FAIL, "no API key",
-                f"set ${c.api_key_env} or run `hutch connections set-key {name}`")
+        if not book.has_key(name):
+            if c.auth_type == "chatgpt-siws":
+                add(f"connection:{name}", f"Connection: {name}", FAIL, "no plan-authorized ChatGPT account",
+                    "sign in with ChatGPT and authorize plan use on Connections")
+            else:
+                add(f"connection:{name}", f"Connection: {name}", FAIL, "no API key",
+                    f"set ${c.api_key_env} or run `hutch connections set-key {name}`")
             continue
         ack = book.ack_status(store, name)
         if ack in ("required", "stale"):
