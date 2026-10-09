@@ -2293,3 +2293,22 @@ The new automatic suggestions were captured and inspected at desktop **1440×960
 No overflow/page errors were reported; `node --check` and `git diff --check` passed. Evidence and updated source hashes are in
 `artifacts/bot-naming/`. This remains a deterministic English-language naming heuristic; it is not model-generated semantic
 understanding, and users review or edit the suggestion before creation.
+
+## Coordinator task-brief refinement (2026-10-09)
+
+Commit `8336335` gives the selected workspace coordinator scoped drafting guidance: preserve intent, organize only provided or
+explicitly selected context, ask about material gaps, and never imply new authority. The review sheet keeps the source request linked,
+lets the operator refine the goal and constraints or add an optional expected deliverable, shows the selected specialist's saved
+settings, and requires an explicit send. The combined task brief is checked against its 20,000-character server boundary before the
+request leaves the browser. No schema or hidden model call was added.
+
+`tests/test_runtime_builtin.py::test_workspace_coordinator_gets_scoped_task_brief_guidance` passed; the focused
+`tests/test_runtime_builtin.py tests/test_conversations.py` group passed **56 tests in 36.64s**. The responsive handoff journey passed
+**1 test in 18.99s**, including over-limit rejection, original-request provenance, optional deliverable, selected facts, result return
+and the bounded task timeline at **1440×960**, **900×1024**, and **390×844**. The anonymous workflow copy test passed **1 test in
+2.73s** at **1440×900**, **900×1024**, and **390×844**; validation records zero external requests, browser errors or overflow. I
+inspected the original-request/saved-settings and edited-task views at desktop/tablet/phone, plus the anonymous workflow card at the
+same public-site sizes. Captures and trace are in `artifacts/workspace-task-dispatch/`. `node --check`, `git diff --check`, and
+`impeccable detect --json src/hutch/server/static/app.js website/index.html` passed; the detector returned no findings. Tests use
+mock/SQLite fixtures and do not verify live model draft quality, screen readers or physical devices. T-COORDINATOR-BRIEF is partial:
+the prompt boundary and review UI work in fixtures, but live draft quality and end-to-end clarification remain unverified.
