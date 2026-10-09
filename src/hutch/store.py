@@ -478,16 +478,27 @@ def _migrate_21(db: sqlite3.Connection) -> None:
                    (row["schedule_id"], row["bot_id"], row["created_at"]))
 
 
+def _migrate_22(db: sqlite3.Connection) -> None:
+    """Persist immutable parent links for bounded, same-bot delegation."""
+    db.execute("ALTER TABLE runs ADD COLUMN parent_run_id TEXT REFERENCES runs(id)")
+    db.execute("CREATE INDEX idx_runs_parent ON runs(parent_run_id, created_at)")
+    db.execute("""CREATE TRIGGER runs_parent_run_id_immutable
+        BEFORE UPDATE OF parent_run_id ON runs
+        WHEN OLD.parent_run_id IS NOT NEW.parent_run_id
+        BEGIN SELECT RAISE(ABORT, 'run parent is immutable'); END""")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
-               _migrate_19, _migrate_20, _migrate_21]
+               _migrate_19, _migrate_20, _migrate_21, _migrate_22]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
 _RUN_COMPUTED = {"status_label", "terminal", "needs_person"}
 #: the run columns that are authoritative over whatever the JSON document says
-_RUN_COLS = "doc, status, fence, lease_owner, lease_expires_at, cancel_requested, pgid, conversation_id, conversation_context"
+_RUN_COLS = ("doc, status, fence, lease_owner, lease_expires_at, cancel_requested, pgid, conversation_id, "
+             "conversation_context, parent_run_id")
 _TERMINAL_VALUES = tuple(sorted(st.value for st in TERMINAL))
 _LIVE_VALUES = tuple(sorted(st.value for st in ACTIVE_STATUSES if st is not RunStatus.pending))
 #: fields only the owner writes while a run is claimed: merged into the document in one statement (no read-modify-write)
@@ -1026,7 +1037,7 @@ class Store:
 
     @staticmethod
     def _run(row: sqlite3.Row) -> Run:
-        """A Run from its row: the columns, not the JSON, are authoritative for status, fence, lease and cancel."""
+        """A Run from its row: columns are authoritative for lifecycle and delegation lineage."""
         run = Run.model_validate_json(row["doc"])
         run.status = RunStatus(row["status"])
         run.fence = row["fence"]
@@ -1036,6 +1047,7 @@ class Store:
         run.pgid = row["pgid"]
         run.conversation_id = row["conversation_id"]
         run.conversation_context = json.loads(row["conversation_context"] or "[]")
+        run.parent_run_id = row["parent_run_id"]
         return run
 
     # ------------------------------------------------------------ tasks
@@ -1079,6 +1091,8 @@ class Store:
     # ------------------------------------------------------------- runs
 
     def create_run(self, run: Run) -> Run:
+        if run.parent_run_id is not None:
+            raise ValueError("delegated runs must use submit_delegated_run")
         with self._lock:
             self._assert_execution_ready(self._db)
             self._db.execute(
@@ -1095,6 +1109,8 @@ class Store:
         """Admit work: the task and its run are created together, linked, in ONE transaction (or not at all).
 
         The old path made three separate commits and marked the task done before anything had run."""
+        if run.parent_run_id is not None:
+            raise ValueError("delegated runs must use submit_delegated_run")
         run.task_id = task.id
         with self._tx() as db:
             self._assert_execution_ready(db)
@@ -1129,6 +1145,8 @@ class Store:
     def submit_run_idempotent(self, run: Run, task: Task, *, idem_key: str,
                               request_hash: str) -> tuple[Run, bool]:
         """Atomically persist a standalone run, its task, and its v1 retry record."""
+        if run.parent_run_id is not None:
+            raise ValueError("delegated runs must use submit_delegated_run")
         scope = "api:v1:tasks:runs"
         run.task_id = task.id
         with self._tx() as db:
@@ -1151,6 +1169,103 @@ class Store:
                        "VALUES (?, ?, ?, ?, ?)",
                        (scope, idem_key, request_hash, _canonical({"run_id": run.id}), iso(utcnow())))
         self.bus.notify("work", "runs", f"run:{run.id}")
+        return run, True
+
+    def submit_delegated_run(self, *, parent_run_id: str, parent_fence: int, run: Run, task: Task,
+                             idem_key: str, request_hash: str) -> tuple[Run, bool]:
+        """Create one bounded child run under a live parent, with durable lineage and exact retry semantics.
+
+        A child uses the same bot identity and conversation as its parent. This primitive does not
+        execute a child or grant it capabilities; those remain owned by the ordinary runtime path.
+        Depth is capped at two, each parent may create three children total, and at most two direct
+        children may be active at once. The transaction reserves those slots across processes.
+        """
+        if not parent_run_id or not idem_key or not request_hash:
+            raise ValueError("a parent run and an idempotency key/request hash are required")
+        if task.kind != "delegated":
+            raise ValueError("a delegated task must use kind='delegated'")
+        if run.status is not RunStatus.pending:
+            raise ValueError("a delegated run must enter the queue as pending")
+        if run.parent_run_id not in (None, parent_run_id):
+            raise ValueError("delegated run parent does not match the authorized parent")
+        prompt = task.prompt.strip()
+        if not prompt or len(prompt) > 4000 or run.prompt != prompt:
+            raise ValueError("delegated prompt must be non-empty, at most 4000 characters, and match its task")
+
+        scope = f"run:{parent_run_id}:delegations"
+        now = iso(utcnow())
+        active_marks = ",".join("?" for _ in ACTIVE_STATUSES)
+        active_values = tuple(status.value for status in ACTIVE_STATUSES)
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (replay["run_id"],)).fetchone()
+                if row is None:
+                    raise RuntimeError("delegated run retry record points to missing state")
+                return self._run(row), False
+            self._assert_execution_ready(db)
+
+            parent = db.execute("SELECT id, bot_id, status, fence, lease_owner, lease_expires_at, cancel_requested, "
+                                "conversation_id, conversation_context FROM runs WHERE id = ?",
+                                (parent_run_id,)).fetchone()
+            if parent is None:
+                raise KeyError(parent_run_id)
+            if (parent["status"] != RunStatus.running.value or parent["fence"] != parent_fence
+                    or not parent["lease_owner"] or not parent["lease_expires_at"]
+                    or parent["lease_expires_at"] <= now or parent["cancel_requested"]):
+                raise ValueError("delegation requires the current, live run owner")
+            if run.bot_id != parent["bot_id"] or task.bot_id != parent["bot_id"]:
+                raise ValueError("delegated work must keep the parent's bot permissions")
+
+            chain = db.execute("""WITH RECURSIVE ancestors(id, parent_run_id, depth, path) AS (
+                                  SELECT id, parent_run_id, 0, ',' || id || ',' FROM runs WHERE id = ?
+                                  UNION ALL
+                                  SELECT r.id, r.parent_run_id, a.depth + 1, a.path || r.id || ','
+                                  FROM runs r JOIN ancestors a ON r.id = a.parent_run_id
+                                  WHERE instr(a.path, ',' || r.id || ',') = 0
+                                ) SELECT MAX(depth) FROM ancestors""", (parent_run_id,)).fetchone()
+            child_depth = int(chain[0] or 0) + 1
+            if child_depth > 2:
+                raise ValueError("delegation depth limit is two")
+            child_count = db.execute("SELECT COUNT(*) FROM runs WHERE parent_run_id = ?", (parent_run_id,)).fetchone()[0]
+            if child_count >= 3:
+                raise ValueError("delegation fan-out limit is three children")
+            active_children = db.execute(
+                f"SELECT COUNT(*) FROM runs WHERE parent_run_id = ? AND status IN ({active_marks})",
+                (parent_run_id, *active_values)).fetchone()[0]
+            if active_children >= 2:
+                raise ValueError("delegation concurrent-child limit is two")
+
+            run.parent_run_id = parent_run_id
+            run.origin = "delegated"
+            run.task_id = task.id
+            run.conversation_id = parent["conversation_id"] or ""
+            run.conversation_context = json.loads(parent["conversation_context"] or "[]")
+            if run.conversation_id:
+                conversation = db.execute("SELECT bot_id FROM conversations WHERE id = ?",
+                                          (run.conversation_id,)).fetchone()
+                attached = db.execute("SELECT 1 FROM conversation_runs WHERE conversation_id = ? AND run_id = ?",
+                                      (run.conversation_id, parent_run_id)).fetchone()
+                if conversation is None or conversation["bot_id"] != parent["bot_id"] or attached is None:
+                    raise ValueError("parent run is not attached to its own conversation")
+            db.execute("INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done, state, run_id) "
+                       "VALUES (?, ?, ?, ?, ?, 0, 'queued', ?)",
+                       (task.id, task.bot_id, task.kind, prompt, task.created_at, run.id))
+            db.execute("INSERT INTO runs (id, bot_id, task_id, doc, status, created_at, conversation_id, "
+                       "conversation_context, parent_run_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       (run.id, run.bot_id, task.id, self._run_json(run), run.status.value, run.created_at,
+                        run.conversation_id, json.dumps(run.conversation_context, ensure_ascii=False), parent_run_id))
+            if run.conversation_id:
+                db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
+                           (run.conversation_id, run.id, now))
+            db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash, _canonical({"run_id": run.id}), now))
+
+        changed = ["work", "runs", f"run:{run.id}"]
+        if run.conversation_id:
+            changed.extend(["conversations", f"conversation:{run.conversation_id}"])
+        self.bus.notify(*changed)
         return run, True
 
     @staticmethod
@@ -1294,6 +1409,8 @@ class Store:
                                     idem_key: str, request_hash: str, context_messages: int = 12,
                                     context_chars: int = 16_000) -> tuple[str, bool]:
         """Append a user message and admit its run atomically, with a bounded context snapshot and durable idempotency."""
+        if run.parent_run_id is not None:
+            raise ValueError("delegated runs must use submit_delegated_run")
         scope = f"api:v1:conversation:{conversation_id}:messages"
         now = iso(utcnow())
         with self._tx() as db:
@@ -1515,6 +1632,8 @@ class Store:
         for one window. Now the last-fire marker is compared and advanced, the occurrence row is inserted (unique per bot and
         window) and the run is created in a single write transaction: exactly one caller can win.
         """
+        if run.parent_run_id is not None:
+            raise ValueError("delegated runs must use submit_delegated_run")
         schedule_id = schedule_id or f"schedule:{run.bot_id}"
         marker_key = f"{schedule_id}:last_fire"
         dispatch_key = f"{schedule_id}:last_dispatch"

@@ -319,6 +319,7 @@ class Run(BaseModel):
     schedule_id: str = ""              # source schedule for recurring work; empty for other origins
     plan_id: Optional[str] = None
     plan_task_id: Optional[str] = None
+    parent_run_id: Optional[str] = None  # bounded delegation lineage; immutable after admission
     rehearsal: bool = False           # dry run: mutating actions are simulated
     model_override: str = ""          # the model picked for THIS message in the chat switcher (bot.model is untouched)
     conversation_id: str = ""          # canonical conversation this run belongs to, if submitted through /api/v1
@@ -332,6 +333,13 @@ class Run(BaseModel):
     pgid: int = 0                     # process group of the worker, so a supervisor that did not spawn it can still end it
     verified: Optional[bool] = None   # did the task's expectation hold? None = no expectation was declared
     reason: str = ""                  # why a waiting/recovering run is in that state (shown with the label)
+
+    @field_validator("parent_run_id")
+    @classmethod
+    def valid_parent_run_id(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and (not value or value != value.strip() or len(value) > 80):
+            raise ValueError("parent_run_id must be a non-empty run ID")
+        return value
 
     @computed_field  # type: ignore[prop-decorator]
     @property

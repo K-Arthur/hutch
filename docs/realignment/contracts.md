@@ -79,6 +79,12 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   and 200, even if a restore hold or provider-route change happened after admission. A changed body or a key reused by another command
   returns 409. New submissions still respect the restore hold and model-route checks. The legacy `/api/bots/{ref}/run` alias remains
   available without versioned idempotency for compatibility.
+* Schema v22 adds nullable, database-guarded immutable `runs.parent_run_id` for bounded delegation lineage. The internal store admission accepts a
+  child only from its current live parent fence, retains the same bot identity and conversation, and persists the child task, run,
+  parent link and idempotency receipt together. It enforces at most two levels, three direct children per parent over its lifetime,
+  and two active direct children. This is a persistence/admission primitive only: there is no chat tool or public child-run endpoint
+  yet, and aggregate parent budgets, capability snapshotting, lineage cancellation, independent child workspaces, and delegated
+  artifact transfer remain open.
 * `POST /api/v1/tasks/runs/{run_id}/resume` takes `{human_event_seq}` and requires `Idempotency-Key`. The run must still be
   `waiting_human` under a live owner lease, and the sequence must match its latest `human_needed` event. Schema v19 accepts one command per wait episode;
   another key for the same event and any stale event sequence conflict. Exact retries replay the recorded result without setting the

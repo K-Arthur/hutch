@@ -36,8 +36,9 @@ guaranteed external spending limit. The app must make that governance legible, n
   source of truth); events are paginated by per-run `seq`.
 - Bots have model, tools, schedule (cron + IANA tz + catch-up), memory, sticky allows,
   estimate-based usage limits, and a per-bot workspace folder.
-- Mock runtime (`mock/demo`) powers deterministic demos/tests; a "demo" label must always
-  be visible so a mock success is never read as real.
+- Product runs require a configured real model route. Deterministic execution scenarios live
+  under test support only and are excluded from packaged builds; there is no product demo runtime
+  or seeded demo command.
 - CLI (`hutch …`) and server-rendered pages coexist; retired pages redirect into the SPA.
 
 ## Capabilities and Constraints
@@ -86,8 +87,9 @@ User-pinned v2 contract (binding):
   `docs/performance.md` baselines, Playwright e2e in `tests/e2e/`.
 - Before/after captures in `/tmp/opencode/shots/` — the "after" set was rejected by the
   user as amateurish and ugly. The incumbent skin is anti-reference for this work.
-- No real customer data, no live provider keys in this repo's state; use the deterministic
-  demo fixture (`hutch demo seed`) in an isolated `HUTCH_STATE_DIR` for all visual QA.
+- No real customer data or live provider keys are used for visual QA. Use the isolated test
+  server and clearly labelled synthetic lifecycle fixtures only for states that are difficult
+  to hold naturally; marketing captures must come from the actual empty first-run product.
 
 ## Quality Gates (user-set, 2026-10-07)
 
