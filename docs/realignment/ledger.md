@@ -76,6 +76,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `6e91e95` | Add a bounded task prompt for each bot's existing recurring schedule across settings, creation, CLI and API; preserve legacy fallback and capture responsive browser evidence |
 | `2964567` | Align ChatGPT sign-in and Responses tool framing with the current preview, retain verified reauthorization hints, use conversation-stable OpenCode session headers, and record fixture/browser evidence |
 | `ec16d5c` | Add explicit, verified cross-chat artifact references with target-bound downloads, one-way revocation, Studio sharing controls, API regressions and desktop/tablet/phone captures |
+| `cf3f98d` | Show active artifact recipients in the source chat, allow revocation from either chat, and invalidate both source and target views durably; add responsive captures and API/migration/browser regressions |
 
 ## Verified behavior before this checkpoint
 
@@ -1334,3 +1335,21 @@ The targeted Impeccable detector returned no findings, JavaScript/Python syntax 
 `git diff --check` passed. No provider, paid request or physical device was used. This limited
 cross-chat reference feature does not complete the general artifact library, delegated artifact
 transfer or S6 bounded collaboration. Implementation and evidence commit: `ec16d5c`.
+
+## S6 Source-side artifact grant management (2026-10-09)
+
+The originating chat now lists each active recipient beside its verified file and can stop sharing
+without opening the recipient chat. The receiving chat retains its own revoke control. Schema v18
+adds transactional source-conversation outbox invalidations for share creation and revocation, and
+the in-process change bus refreshes both open views. A revoke from either side removes the other
+chat's grant view and disables the target-bound download; the source-run download remains intact.
+
+`.venv/bin/python -m pytest -q tests/test_api.py tests/test_migration.py` passed **29 tests in
+5.68s**. The focused Chromium browser journey passed **1 test in 6.69s** (Chromium
+**153.0.8010.12**, Playwright **1.63.0**) with source and recipient grant/revoke behavior at desktop
+(1440×960), tablet (768×1024), and phone (390×844). Results report zero horizontal/dialog overflow
+and no page errors. The source-share screenshots, result JSON and trace are in
+`artifacts/artifact-sharing/`; screenshots were visually inspected. Python compilation,
+`node --check`, `git diff --check`, and the targeted Impeccable detector (no findings) passed. This
+used local fixture data only; no provider, phone, or screen-reader check was performed. The
+implementation/evidence commit is `cf3f98d`.
