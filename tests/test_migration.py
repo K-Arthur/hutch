@@ -310,6 +310,10 @@ def test_upgrade_preserves_bot_ids_schedules_memory_and_allows(v4):
                                  "AND name='conversation_artifact_shares_source_update_outbox'").fetchone()
         assert store._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
                                  "AND name='human_wait_resumes'").fetchone()
+        assert store._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                                 "AND name='code_handoffs'").fetchone()
+        assert "runner_session" in {row[1] for row in store._db.execute("PRAGMA table_info(code_handoffs)")}
+        assert store._db.execute("SELECT COUNT(*) FROM code_handoffs").fetchone()[0] == 0
         bots = {b.id: b for b in store.list_bots()}
         assert set(bots) == {BRIEFING, SWEEPER}                                  # ids unchanged
         briefing = bots[BRIEFING]

@@ -43,10 +43,12 @@ bot_app = typer.Typer(no_args_is_help=True, help="Manage bots.")
 schedule_app = typer.Typer(no_args_is_help=True, help="Manage a bot's recurring tasks.")
 run_app = typer.Typer(no_args_is_help=True, help="Inspect runs.")
 apr_app = typer.Typer(no_args_is_help=True, help="Resolve pending approvals.")
+code_app = typer.Typer(no_args_is_help=True, help="Launch and review local OpenCode coding handoffs.")
 app.add_typer(bot_app, name="bot")
 bot_app.add_typer(schedule_app, name="schedules")
 app.add_typer(run_app, name="runs")
 app.add_typer(apr_app, name="approvals")
+app.add_typer(code_app, name="code")
 conn_app = typer.Typer(no_args_is_help=True, help="Hosted endpoints and subscription plans, each with its own key.")
 usage_app = typer.Typer(no_args_is_help=True, help="Inspect and reconcile model-usage reservations.")
 app.add_typer(conn_app, name="connections")
@@ -76,6 +78,200 @@ def _require_run(store: Store, run_id: str) -> "Run":
         err.print(f"[red]no such run:[/red] {run_id}")
         raise typer.Exit(code=1)
     return run
+
+
+@code_app.command("run")
+def code_run(handoff_id: str = typer.Argument(..., help="Reviewed code task ID from the Hutch chat")) -> None:
+    """Launch the reviewed task in OpenCode's interactive CLI and a pinned Git worktree."""
+    import sys
+
+    if sys.platform != "linux" or not sys.stdin.isatty() or not sys.stdout.isatty():
+        err.print("Run this command in an interactive terminal on the Linux Hutch host.", style="red", markup=False)
+        raise typer.Exit(2)
+    from . import procguard
+    from .code_handoff import (CodeHandoffError, create_task_worktree, inspect_opencode,
+                               safe_opencode_environment, opencode_task_command, task_prompt,
+                               worktree_change_summary, write_task_config, assert_no_project_plugins,
+                               spawn_interactive, restore_terminal)
+
+    if not procguard.supported():
+        err.print("This Linux host lacks verified process identity support; the OpenCode task cannot start.",
+                  style="red", markup=False)
+        raise typer.Exit(2)
+    store = _store()
+    process = None
+    runner_record: Optional[dict] = None
+    terminal_group: Optional[int] = None
+    config_path: Optional[Path] = None
+    task: Optional[dict] = None
+    worktree: Optional[Path] = None
+    try:
+        task = store.code_handoff(handoff_id)
+        if task is None:
+            err.print(f"No coding task named {handoff_id}.", style="red", markup=False)
+            raise typer.Exit(1)
+        executable, version_text = inspect_opencode()
+        task = store.claim_code_handoff(handoff_id)
+        try:
+            worktree, branch = create_task_worktree(task, get_config().state_dir)
+            assert_no_project_plugins(worktree)
+            config_path = write_task_config(get_config().state_dir, handoff_id)
+            cache_home = get_config().state_dir / "opencode-task-runtime" / handoff_id
+            env = safe_opencode_environment(config_path, cache_home=cache_home)
+            env["OPENCODE_DB"] = str(cache_home / "sessions.db")
+            prompt = task_prompt(task)
+            command = opencode_task_command(executable, handoff_id, prompt)
+            console.print(Panel.fit(
+                f"Task: {handoff_id}\nProject: {task['project_name']} at {task['base_commit'][:12]}\n"
+                f"Branch: {branch}\nOpenCode: {version_text}\n\n"
+                "OpenCode uses its own sign-in and usage limits. Hutch will not auto-approve shell commands, "
+                "commit, push, or apply changes to your original folder. Review OpenCode permission prompts.",
+                title="Reviewed coding task"))
+            console.print("Starting OpenCode's interactive mini interface. Press Ctrl+C there to stop the task.")
+            console.file.flush() if hasattr(console, "file") else None
+            process, terminal_group, terminal_session = spawn_interactive(command, cwd=worktree, env=env)
+            identity = procguard.identity(process.pid)
+            if identity is None or identity.pgrp != process.pid or identity.session != terminal_session:
+                if process.poll() is None:
+                    if identity is not None:
+                        procguard.end_recorded([{"pid": process.pid, "pgid": process.pid,
+                                                 "starttime": identity.starttime,
+                                                 "boot_id": procguard.boot_id()}], term_grace=1, kill_grace=2)
+                    process.wait(timeout=5)
+                raise CodeHandoffError("OpenCode started without a verifiable Linux process identity")
+            runner_record = {"pid": process.pid, "pgid": process.pid, "starttime": identity.starttime,
+                             "boot_id": procguard.boot_id(), "session": terminal_session}
+            store.start_code_handoff(
+                handoff_id, worktree_path=str(worktree), branch_name=branch, opencode_version=version_text,
+                runner_pid=process.pid, runner_starttime=identity.starttime, runner_boot_id=runner_record["boot_id"],
+                runner_session=terminal_session,
+            )
+        except BaseException:
+            unresolved = procguard.end_recorded([runner_record], term_grace=2, kill_grace=2) if runner_record else []
+            if process is not None:
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    pass
+            if task is not None:
+                try:
+                    status = "cleanup_incomplete" if unresolved else "failed"
+                    message = ("OpenCode may still have a process in its task group; run the reconcile command "
+                               "after checking the terminal." if unresolved else "OpenCode could not be started")
+                    store.finish_code_handoff(handoff_id, status=status, changed_files=0,
+                                              summary="Launch did not complete; any created worktree was retained.",
+                                              exit_code=None, error=message)
+                except ValueError:
+                    pass
+            raise
+
+        interrupted = False
+        try:
+            exit_code = process.wait()
+        except KeyboardInterrupt:
+            interrupted = True
+            store.mark_code_handoff_stopping(handoff_id)
+            if runner_record:
+                unresolved = procguard.end_recorded([runner_record], term_grace=3, kill_grace=3)
+            else:
+                unresolved = []
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                unresolved = unresolved or [procguard.identity(process.pid)]
+            exit_code = process.returncode if process.returncode is not None else 130
+
+        if not interrupted and runner_record:
+            unresolved = procguard.end_recorded([runner_record], term_grace=2, kill_grace=2)
+        if terminal_group is not None:
+            restore_terminal(terminal_group)
+            terminal_group = None
+        interrupted = interrupted or exit_code in (130, -2)
+        if unresolved:
+            status = "cleanup_incomplete"
+            changed_count = 0
+            summary = "OpenCode's process group is still present; changes were not summarized."
+            error = ("Cleanup could not be verified. Inspect the local terminal; use the reconcile command "
+                     "after all OpenCode processes for this task have exited.")
+        else:
+            changed_count, summary = worktree_change_summary(worktree, str(task["base_commit"]), branch)
+        if interrupted and not unresolved:
+            status = "stopped"
+            error = "OpenCode stopped after a terminal interrupt. The isolated worktree is retained."
+        elif not unresolved and exit_code == 0 and changed_count:
+            status, error = "changes_ready", ""
+        elif not unresolved and exit_code == 0:
+            status, error = "complete_no_changes", ""
+        elif not unresolved:
+            status = "failed"
+            error = f"OpenCode exited with code {exit_code}; inspect the retained worktree for partial changes."
+        store.finish_code_handoff(handoff_id, status=status, changed_files=changed_count,
+                                  summary=summary, exit_code=exit_code, error=error)
+        console.print(f"\n{summary}")
+        console.print(f"Worktree retained at: {worktree}", markup=False)
+        console.print("Review the branch before copying or merging any changes into the source project.")
+        if unresolved:
+            raise typer.Exit(1)
+        if interrupted:
+            raise typer.Exit(130)
+        if exit_code:
+            raise typer.Exit(exit_code)
+    except (CodeHandoffError, ValueError, OSError, RuntimeError) as exc:
+        err.print(str(exc), style="red", markup=False)
+        if task is not None:
+            try:
+                store.finish_code_handoff(handoff_id, status="failed", changed_files=0,
+                                          summary="The task did not finish; inspect the retained worktree.",
+                                          exit_code=None, error=str(exc))
+            except ValueError:
+                pass
+        raise typer.Exit(1) from None
+    finally:
+        if terminal_group is not None:
+            try:
+                restore_terminal(terminal_group)
+            except CodeHandoffError:
+                pass
+        if config_path is not None:
+            config_path.unlink(missing_ok=True)
+        store.close()
+
+
+@code_app.command("reconcile")
+def code_reconcile(handoff_id: str = typer.Argument(..., help="Coding task ID shown in its chat card")) -> None:
+    """Mark a task interrupted only when its exact saved OpenCode process identity is gone."""
+    from . import procguard
+
+    store = _store()
+    try:
+        task = store.code_handoff(handoff_id)
+        if task is None:
+            err.print(f"No coding task named {handoff_id}.", style="red", markup=False)
+            raise typer.Exit(1)
+        active_statuses = {"launching", "running", "stopping", "cleanup_incomplete"}
+        if task["status"] not in active_statuses:
+            console.print(f"{handoff_id}: {task['status']} — no reconciliation needed.")
+            return
+        if task["status"] == "launching" or not task["runner_pid"] or not task["runner_starttime"] \
+                or not task["runner_session"]:
+            console.print("No complete process identity was saved. The task stays visible for operator review.")
+            return
+        same_boot = procguard.boot_id() == task["runner_boot_id"]
+        current = procguard.identity(int(task["runner_pid"])) if same_boot else None
+        exact_leader = (current is not None and current.starttime == int(task["runner_starttime"])
+                        and current.pgrp == int(task["runner_pid"])
+                        and current.session == int(task["runner_session"]))
+        group_members = (procguard.unverified_group(int(task["runner_pid"]),
+                                                   session_id=int(task["runner_session"])) if same_boot else [])
+        if exact_leader or group_members:
+            console.print("The recorded OpenCode process group is still present or cannot be safely distinguished. "
+                          "No process was signalled and the task stays active.")
+            return
+        store.interrupt_code_handoff(handoff_id,
+                                     summary="The recorded OpenCode process group is gone; the isolated worktree is retained for review.")
+        console.print("Marked interrupted after verifying the recorded process group is gone. The worktree was retained.")
+    finally:
+        store.close()
 
 
 # ------------------------------------------------------------------- setup

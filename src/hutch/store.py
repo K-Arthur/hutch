@@ -1064,12 +1064,67 @@ def _migrate_38(db: sqlite3.Connection) -> None:
                                              ("revoked_at",), ("source_bot_id", "target_bot_id")),))
 
 
+def _migrate_39(db: sqlite3.Connection) -> None:
+    """Persist reviewed, local OpenCode coding handoffs without importing CLI credentials."""
+    db.execute("""CREATE TABLE code_handoffs (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE RESTRICT,
+        bot_id TEXT NOT NULL REFERENCES bots(id) ON DELETE RESTRICT,
+        source_run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE RESTRICT,
+        source_user_message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE RESTRICT,
+        source_assistant_message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE RESTRICT,
+        original_request TEXT NOT NULL,
+        proposed_brief TEXT NOT NULL,
+        task_brief TEXT NOT NULL CHECK(length(task_brief) BETWEEN 1 AND 20000),
+        project_root TEXT NOT NULL,
+        project_name TEXT NOT NULL CHECK(length(project_name) BETWEEN 1 AND 255),
+        project_device INTEGER NOT NULL,
+        project_inode INTEGER NOT NULL,
+        git_common_dir TEXT NOT NULL,
+        base_commit TEXT NOT NULL CHECK(length(base_commit) IN (40,64)),
+        status TEXT NOT NULL DEFAULT 'prepared' CHECK(status IN (
+            'prepared','launching','running','stopping','cleanup_incomplete','changes_ready',
+            'complete_no_changes','stopped','interrupted','failed')),
+        worktree_path TEXT,
+        branch_name TEXT,
+        opencode_version TEXT NOT NULL DEFAULT '',
+        runner_pid INTEGER,
+        runner_starttime INTEGER,
+        runner_boot_id TEXT NOT NULL DEFAULT '',
+        runner_session INTEGER,
+        changed_files INTEGER NOT NULL DEFAULT 0 CHECK(changed_files >= 0),
+        summary TEXT NOT NULL DEFAULT '',
+        exit_code INTEGER,
+        error TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX idx_code_handoffs_conversation ON code_handoffs(conversation_id, created_at, id)")
+    db.execute("""CREATE TRIGGER code_handoff_request_immutable BEFORE UPDATE ON code_handoffs
+        WHEN NEW.id IS NOT OLD.id OR NEW.conversation_id IS NOT OLD.conversation_id
+          OR NEW.bot_id IS NOT OLD.bot_id OR NEW.source_run_id IS NOT OLD.source_run_id
+          OR NEW.source_user_message_id IS NOT OLD.source_user_message_id
+          OR NEW.source_assistant_message_id IS NOT OLD.source_assistant_message_id
+          OR NEW.original_request IS NOT OLD.original_request OR NEW.proposed_brief IS NOT OLD.proposed_brief
+          OR NEW.task_brief IS NOT OLD.task_brief OR NEW.project_root IS NOT OLD.project_root
+          OR NEW.project_name IS NOT OLD.project_name
+          OR NEW.project_device IS NOT OLD.project_device OR NEW.project_inode IS NOT OLD.project_inode
+          OR NEW.git_common_dir IS NOT OLD.git_common_dir OR NEW.base_commit IS NOT OLD.base_commit
+          OR NEW.created_at IS NOT OLD.created_at
+          OR (OLD.worktree_path IS NOT NULL AND NEW.worktree_path IS NOT OLD.worktree_path)
+          OR (OLD.branch_name IS NOT NULL AND NEW.branch_name IS NOT OLD.branch_name)
+        BEGIN SELECT RAISE(ABORT, 'code handoff request and workspace identity are immutable'); END""")
+    durable_changes.install_resources(db, (("code_handoffs", "code_handoffs", "id",
+                                             ("status", "updated_at", "changed_files", "summary", "error"),
+                                             ("conversation_id", "bot_id")),))
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
                _migrate_19, _migrate_20, _migrate_21, _migrate_22, _migrate_23, _migrate_24, _migrate_25, _migrate_26,
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
-               _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38]
+               _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -2746,6 +2801,167 @@ class Store:
         self._mirror.wake.set()
         self.bus.notify("work", "runs", f"run:{run.id}", "conversations", f"conversation:{conversation_id}")
         return run.id, True
+
+    def create_code_handoff(self, *, conversation_id: str, source_run_id: str,
+                            source_user_message_id: str, source_assistant_message_id: str,
+                            task_brief: str, project_root: str, project_name: str,
+                            project_device: int, project_inode: int,
+                            git_common_dir: str, base_commit: str, idem_key: str, request_hash: str
+                            ) -> tuple[str, bool]:
+        """Save a reviewed coding brief tied to one configured Git folder and immutable base revision."""
+        scope = "api:v1:code-handoffs"
+        handoff_id = "code_" + uuid.uuid4().hex[:24]
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                if not replay.get("handoff_id"):
+                    raise RuntimeError("idempotent coding handoff response is incomplete")
+                if db.execute("SELECT 1 FROM code_handoffs WHERE id = ?", (replay["handoff_id"],)).fetchone() is None:
+                    raise RuntimeError("idempotent coding handoff points to missing state")
+                return str(replay["handoff_id"]), False
+
+            source = db.execute("""SELECT c.bot_id, c.archived, r.status AS run_status,
+                    u.content AS original_request, a.content AS proposed_brief, b.doc AS bot_doc
+                FROM conversations c
+                JOIN runs r ON r.id = ? AND r.conversation_id = c.id
+                JOIN messages u ON u.id = ? AND u.conversation_id = c.id AND u.run_id = r.id AND u.role = 'user'
+                JOIN messages a ON a.id = ? AND a.conversation_id = c.id AND a.run_id = r.id AND a.role = 'assistant'
+                JOIN bots b ON b.id = c.bot_id
+                WHERE c.id = ?""",
+                (source_run_id, source_user_message_id, source_assistant_message_id, conversation_id),
+            ).fetchone()
+            if source is None:
+                raise ValueError("the source request and Bot reply must be from the same chat attempt")
+            if source["archived"]:
+                raise ValueError("unarchive this chat before preparing a coding task")
+            if source["run_status"] != RunStatus.succeeded.value:
+                raise ValueError("wait for the Bot's reply to finish before preparing a coding task")
+            if db.execute("SELECT 1 FROM conversation_questions WHERE run_id = ? AND status = 'pending' LIMIT 1",
+                          (source_run_id,)).fetchone():
+                raise ValueError("answer the Bot's pending question before preparing a coding task")
+            bot = Bot.model_validate_json(source["bot_doc"])
+            configured_root = Path(bot.workdir).expanduser().resolve(strict=True) if bot.workdir else None
+            if bot.workspace_mode != "folder" or configured_root is None or str(configured_root) != project_root:
+                raise PermissionError("coding handoffs require this Bot's explicitly configured project folder")
+            if not task_brief.strip():
+                raise ValueError("reviewed coding task cannot be empty")
+            db.execute("""INSERT INTO code_handoffs(
+                id, conversation_id, bot_id, source_run_id, source_user_message_id, source_assistant_message_id,
+                original_request, proposed_brief, task_brief, project_root, project_name, project_device, project_inode,
+                git_common_dir, base_commit, status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'prepared', ?, ?)""",
+                (handoff_id, conversation_id, source["bot_id"], source_run_id, source_user_message_id,
+                 source_assistant_message_id, source["original_request"], source["proposed_brief"],
+                 task_brief.strip(), project_root, project_name, int(project_device), int(project_inode), git_common_dir,
+                 base_commit, now, now))
+            db.execute("INSERT INTO idempotency_keys(scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash, _canonical({"handoff_id": handoff_id}), now))
+        self.bus.notify("work", "code_handoffs", f"conversation:{conversation_id}", f"bot:{source['bot_id']}")
+        return handoff_id, True
+
+    def code_handoff(self, handoff_id: str) -> Optional[dict[str, Any]]:
+        """Read one coding handoff, including local-only workspace identity for the CLI consumer."""
+        with self._lock:
+            row = self._db.execute("SELECT * FROM code_handoffs WHERE id = ?", (handoff_id,)).fetchone()
+        return dict(row) if row else None
+
+    def replay_code_handoff(self, *, idem_key: str, request_hash: str) -> Optional[dict[str, Any]]:
+        """Resolve an idempotent API retry before re-checking the current project/CLI environment."""
+        with self._lock:
+            replay = self._idempotency_replay(self._db, "api:v1:code-handoffs", idem_key, request_hash)
+            if replay is None:
+                return None
+            row = self._db.execute("SELECT * FROM code_handoffs WHERE id = ?", (replay.get("handoff_id"),)).fetchone()
+        if row is None:
+            raise RuntimeError("idempotent coding handoff points to missing state")
+        return dict(row)
+
+    def list_code_handoffs(self, conversation_id: str, *, limit: int = 100) -> list[dict[str, Any]]:
+        """Return bounded, credential-free coding handoff status for one conversation."""
+        limit = max(1, min(int(limit), 100))
+        with self._lock:
+            rows = self._db.execute("""SELECT id, conversation_id, bot_id, source_run_id,
+                    source_user_message_id, source_assistant_message_id, original_request,
+                    proposed_brief, task_brief, project_name, base_commit, status, branch_name, opencode_version,
+                    changed_files, summary, exit_code, error, created_at, updated_at
+                FROM code_handoffs WHERE conversation_id = ? ORDER BY created_at, id LIMIT ?""",
+                (conversation_id, limit)).fetchall()
+        return [dict(row) for row in rows]
+
+    def claim_code_handoff(self, handoff_id: str) -> dict[str, Any]:
+        """Atomically claim one prepared handoff for a local CLI process."""
+        now = iso(utcnow())
+        with self._tx() as db:
+            changed = db.execute("UPDATE code_handoffs SET status = 'launching', updated_at = ?, error = '' "
+                                 "WHERE id = ? AND status = 'prepared'", (now, handoff_id)).rowcount
+            if changed != 1:
+                row = db.execute("SELECT status FROM code_handoffs WHERE id = ?", (handoff_id,)).fetchone()
+                if row is None:
+                    raise KeyError(handoff_id)
+                raise ValueError(f"coding task is {row['status']} and cannot be launched again")
+            row = db.execute("SELECT * FROM code_handoffs WHERE id = ?", (handoff_id,)).fetchone()
+        self.bus.notify("work", "code_handoffs", f"conversation:{row['conversation_id']}")
+
+    def mark_code_handoff_stopping(self, handoff_id: str) -> bool:
+        """Keep cancellation visible until the recorded OpenCode process group is verified gone."""
+        now = iso(utcnow())
+        with self._tx() as db:
+            changed = db.execute("UPDATE code_handoffs SET status = 'stopping', updated_at = ? "
+                                 "WHERE id = ? AND status = 'running'", (now, handoff_id)).rowcount
+            row = db.execute("SELECT conversation_id FROM code_handoffs WHERE id = ?", (handoff_id,)).fetchone()
+        if changed and row:
+            self.bus.notify("work", "code_handoffs", f"conversation:{row['conversation_id']}")
+        return bool(changed)
+        return dict(row)
+
+    def start_code_handoff(self, handoff_id: str, *, worktree_path: str, branch_name: str,
+                           opencode_version: str, runner_pid: int, runner_starttime: int,
+                           runner_boot_id: str, runner_session: int) -> None:
+        """Bind the launched CLI and isolated checkout to the already-claimed task."""
+        now = iso(utcnow())
+        with self._tx() as db:
+            changed = db.execute("""UPDATE code_handoffs SET status = 'running', worktree_path = ?,
+                    branch_name = ?, opencode_version = ?, runner_pid = ?, runner_starttime = ?,
+                    runner_boot_id = ?, runner_session = ?, updated_at = ? WHERE id = ? AND status = 'launching'""",
+                (worktree_path, branch_name, opencode_version, runner_pid, runner_starttime, runner_boot_id,
+                 runner_session, now, handoff_id)).rowcount
+            if changed != 1:
+                raise ValueError("coding task lost its launch claim before OpenCode started")
+            row = db.execute("SELECT conversation_id FROM code_handoffs WHERE id = ?", (handoff_id,)).fetchone()
+        self.bus.notify("work", "code_handoffs", f"conversation:{row['conversation_id']}")
+
+    def finish_code_handoff(self, handoff_id: str, *, status: str, changed_files: int,
+                            summary: str, exit_code: Optional[int], error: str = "") -> None:
+        """Record observed CLI completion; retain changed worktrees for owner review."""
+        allowed_statuses = {"changes_ready", "complete_no_changes", "stopped", "interrupted", "failed",
+                            "cleanup_incomplete"}
+        if status not in allowed_statuses:
+            raise ValueError("invalid coding handoff completion state")
+        now = iso(utcnow())
+        with self._tx() as db:
+            changed = db.execute("""UPDATE code_handoffs SET status = ?, changed_files = ?, summary = ?,
+                    exit_code = ?, error = ?, updated_at = ? WHERE id = ?
+                    AND status IN ('launching','running','stopping')""",
+                (status, max(0, int(changed_files)), summary[:4000], exit_code,
+                 error[:2000], now, handoff_id)).rowcount
+            if changed != 1:
+                raise ValueError("coding task is no longer owned by this CLI process")
+            row = db.execute("SELECT conversation_id FROM code_handoffs WHERE id = ?", (handoff_id,)).fetchone()
+        self.bus.notify("work", "code_handoffs", f"conversation:{row['conversation_id']}")
+
+    def interrupt_code_handoff(self, handoff_id: str, *, summary: str = "") -> bool:
+        """Mark a dead local CLI as interrupted without signalling or deleting its worktree."""
+        now = iso(utcnow())
+        with self._tx() as db:
+            changed = db.execute("""UPDATE code_handoffs SET status = 'interrupted', summary = ?,
+                    updated_at = ? WHERE id = ? AND status IN ('running','stopping','cleanup_incomplete')""",
+                (summary[:4000], now, handoff_id)).rowcount
+            row = db.execute("SELECT conversation_id FROM code_handoffs WHERE id = ?", (handoff_id,)).fetchone()
+        if changed and row:
+            self.bus.notify("work", "code_handoffs", f"conversation:{row['conversation_id']}")
+        return bool(changed)
 
     def submit_workspace_task(self, *, parent_conversation_id: str, source_run_id: str,
                               source_user_message_id: str, source_assistant_message_id: str,

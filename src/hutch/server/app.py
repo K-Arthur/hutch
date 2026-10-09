@@ -218,6 +218,82 @@ class WorkspaceTaskCreate(BaseModel):
     memory_fact_ids: list[str] = Field(default_factory=list, max_length=8)
 
 
+class CodeHandoffCreate(BaseModel):
+    conversation_id: str = Field(min_length=1, max_length=100)
+    source_run_id: str = Field(min_length=1, max_length=100)
+    source_user_message_id: str = Field(min_length=1, max_length=128)
+    source_assistant_message_id: str = Field(min_length=1, max_length=128)
+    task_brief: str = Field(min_length=1, max_length=20_000)
+
+
+class CodeHandoffResource(BaseModel):
+    id: str
+    conversation_id: str
+    bot_id: str
+    source_run_id: str
+    source_user_message_id: str
+    source_assistant_message_id: str
+    original_request: str
+    proposed_brief: str
+    task_brief: str
+    project_name: str
+    base_commit: str
+    status: Literal["prepared", "launching", "running", "stopping", "cleanup_incomplete",
+                    "changes_ready", "complete_no_changes", "stopped", "interrupted", "failed"]
+    status_label: str
+    branch_name: Optional[str] = None
+    opencode_version: str = ""
+    changed_files: int = 0
+    summary: str = ""
+    exit_code: Optional[int] = None
+    error: str = ""
+    launch_command: str
+    reconcile_command: str
+    created_at: str
+    updated_at: str
+
+
+def _code_handoff_resource(row: dict[str, Any]) -> dict[str, Any]:
+    labels = {
+        "prepared": "Ready to launch locally",
+        "launching": "Preparing OpenCode",
+        "running": "OpenCode is running in a local terminal",
+        "stopping": "Stopping OpenCode; cleanup is being checked",
+        "cleanup_incomplete": "Cleanup could not be verified",
+        "changes_ready": "Changes ready for review",
+        "complete_no_changes": "Finished without file changes",
+        "stopped": "Stopped; worktree retained",
+        "interrupted": "Interrupted; worktree retained",
+        "failed": "OpenCode task failed; worktree retained",
+    }
+    handoff_id = str(row["id"])
+    return {
+        "id": handoff_id,
+        "conversation_id": row["conversation_id"],
+        "bot_id": row["bot_id"],
+        "source_run_id": row["source_run_id"],
+        "source_user_message_id": row["source_user_message_id"],
+        "source_assistant_message_id": row["source_assistant_message_id"],
+        "original_request": row["original_request"],
+        "proposed_brief": row["proposed_brief"],
+        "task_brief": row["task_brief"],
+        "project_name": row["project_name"],
+        "base_commit": row["base_commit"],
+        "status": row["status"],
+        "status_label": labels.get(row["status"], "Status unavailable"),
+        "branch_name": row.get("branch_name"),
+        "opencode_version": row.get("opencode_version", ""),
+        "changed_files": int(row.get("changed_files", 0)),
+        "summary": row.get("summary", ""),
+        "exit_code": row.get("exit_code"),
+        "error": row.get("error", ""),
+        "launch_command": f"hutch code run {handoff_id}",
+        "reconcile_command": f"hutch code reconcile {handoff_id}",
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
 class WorkspaceTaskCheckpointResource(BaseModel):
     event_id: int
     event_seq: int
@@ -2005,6 +2081,67 @@ def create_app() -> FastAPI:
         if result is None:
             raise HTTPException(500, "The task was admitted but its durable task record could not be read")
         return result
+
+    @app.get("/api/v1/code-handoffs", response_model=list[CodeHandoffResource])
+    def list_code_handoffs(conversation_id: str, limit: int = 100) -> list[dict[str, Any]]:
+        if store.get_conversation(conversation_id) is None:
+            raise HTTPException(404, "No such conversation")
+        return [_code_handoff_resource(row) for row in
+                store.list_code_handoffs(conversation_id, limit=max(1, min(limit, 100)))]
+
+    @app.post("/api/v1/code-handoffs", response_model=CodeHandoffResource)
+    def create_code_handoff(body: CodeHandoffCreate, request: Request, response: Response) -> dict[str, Any]:
+        key = idempotency_key(request)
+        payload = body.model_dump()
+        digest = request_digest(payload)
+        try:
+            replay = store.replay_code_handoff(idem_key=key, request_hash=digest)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        if replay is not None:
+            response.status_code = 200
+            return _code_handoff_resource(replay)
+
+        conversation = store.get_conversation(body.conversation_id)
+        if conversation is None:
+            raise HTTPException(404, "No such conversation")
+        bot = store.get_bot(conversation["bot_id"])
+        if bot is None:
+            raise HTTPException(404, "No Bot owns this conversation")
+        if platform.system() != "Linux":
+            raise HTTPException(409, "OpenCode coding handoffs are currently supported on the Linux Hutch host")
+        if bot.workspace_mode != "folder" or not bot.workdir:
+            raise HTTPException(409, "Set this Bot's workspace to the project folder before preparing a coding task")
+        try:
+            from ..code_handoff import inspect_opencode, inspect_project
+            inspect_opencode()  # Check local CLI contract; never make a provider/model request here.
+            project = inspect_project(bot.workdir)
+            handoff_id, created = store.create_code_handoff(
+                conversation_id=body.conversation_id,
+                source_run_id=body.source_run_id,
+                source_user_message_id=body.source_user_message_id,
+                source_assistant_message_id=body.source_assistant_message_id,
+                task_brief=body.task_brief,
+                project_root=project["project_root"], project_name=Path(project["project_root"]).name,
+                project_device=project["project_device"], project_inode=project["project_inode"],
+                git_common_dir=project["git_common_dir"], base_commit=project["base_commit"],
+                idem_key=key, request_hash=digest,
+            )
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except KeyError as exc:
+            raise HTTPException(404, f"No such source resource: {exc.args[0]}") from None
+        except PermissionError as exc:
+            raise HTTPException(403, str(exc)) from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        except OSError as exc:
+            raise HTTPException(422, "The configured project folder could not be inspected") from None
+        response.status_code = 201 if created else 200
+        row = store.code_handoff(handoff_id)
+        if row is None:
+            raise HTTPException(500, "The coding task was prepared but its durable record could not be loaded")
+        return _code_handoff_resource(row)
 
     @app.post("/api/v1/workspace/tasks/{task_id}/continue", response_model=WorkspaceTaskResource)
     def continue_workspace_task(task_id: str, request: Request, response: Response) -> dict:

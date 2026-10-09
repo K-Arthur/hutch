@@ -145,6 +145,13 @@ def test_an_unrelated_process_is_left_alone():
         reap(bystander); reap(sh)
 
 
+def test_group_inspection_checks_the_saved_session_identity():
+    current = procguard.identity(os.getpid())
+    assert current is not None
+    assert procguard.unverified_group(current.pgrp, session_id=current.session)
+    assert procguard.unverified_group(current.pgrp, session_id=current.session + 1) == []
+
+
 def test_a_process_group_id_that_was_recycled_is_not_touched():
     """not_before is the leader's recorded start time: anything that started earlier cannot be this run's."""
     sh = spawn_sh("sleep 300 & wait")

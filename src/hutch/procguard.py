@@ -81,9 +81,10 @@ def _all() -> dict[int, Proc]:
     return out
 
 
-def unverified_group(pgid: int) -> list[Proc]:
+def unverified_group(pgid: int, *, session_id: int | None = None) -> list[Proc]:
     """List possible members without signalling when no persisted group identity is available."""
-    return [p for p in _all().values() if p.pgrp == pgid and _alive(p)]
+    return [p for p in _all().values() if p.pgrp == pgid and (session_id is None or p.session == session_id)
+            and _alive(p)]
 
 
 def _alive(p: Proc) -> bool:
@@ -116,7 +117,8 @@ def _signal_exact(p: Proc, sig: int, expected_boot: str) -> bool:
         return False
     try:
         current = _read(p.pid)
-        if current is None or current.starttime != p.starttime:
+        if (current is None or current.starttime != p.starttime or current.pgrp != p.pgrp
+                or current.session != p.session):
             return False
         try:
             signal.pidfd_send_signal(fd, sig)
@@ -127,17 +129,25 @@ def _signal_exact(p: Proc, sig: int, expected_boot: str) -> bool:
         os.close(fd)
 
 
-def _group_snapshot(pgid: int, anchor_pid: int, anchor_start: int) -> Optional[list[Proc]]:
+def signal_exact(p: Proc, sig: int, expected_boot: str) -> bool:
+    """Signal one previously inspected process through its pidfd identity."""
+    return _signal_exact(p, sig, expected_boot)
+
+
+def _group_snapshot(pgid: int, anchor_pid: int, anchor_start: int,
+                    expected_session: int | None = None) -> Optional[list[Proc]]:
     """Return members only while the recorded process-group identity still matches.
 
     A new group reusing a numeric PGID must be led by the same numeric PID. If that PID now has a different start tick, this
     is a different group and must never be signalled.
     """
     anchor = _read(anchor_pid)
-    if anchor is not None and (anchor.starttime != anchor_start or anchor.pgrp != pgid):
+    if anchor is not None and (anchor.starttime != anchor_start or anchor.pgrp != pgid
+                               or (expected_session is not None and anchor.session != expected_session)):
         return None
     table = _all()
-    members = [p for p in table.values() if p.pgrp == pgid and p.starttime >= anchor_start and _alive(p)]
+    members = [p for p in table.values() if p.pgrp == pgid and p.starttime >= anchor_start
+               and (expected_session is None or p.session == expected_session) and _alive(p)]
     if anchor is not None and anchor.pid not in {p.pid for p in members} and _alive(anchor):
         return None
     found = {p.pid: p for p in members}
@@ -152,8 +162,8 @@ def _group_snapshot(pgid: int, anchor_pid: int, anchor_start: int) -> Optional[l
 
 
 def end_recorded(records: Iterable[dict], term_grace: float = 2.0, kill_grace: float = 2.0) -> list[Proc]:
-    """End processes using persisted (pid, starttime, boot_id) identities and verify every process group is empty."""
-    anchors: dict[int, tuple[int, int, str]] = {}
+    """End processes using persisted boot/PID/start and optional session identities, then verify each group is empty."""
+    anchors: dict[int, tuple[int, int, str, int | None]] = {}
     unresolved: list[Proc] = []
     for row in records:
         pgid, pid = int(row.get("pgid", 0)), int(row.get("pid", 0))
@@ -171,13 +181,14 @@ def end_recorded(records: Iterable[dict], term_grace: float = 2.0, kill_grace: f
             continue
         old = anchors.get(pgid)
         if old is None or start < old[1]:
-            anchors[pgid] = (pid, start, saved_boot)
+            raw_session = row.get("session")
+            anchors[pgid] = (pid, start, saved_boot, int(raw_session) if raw_session is not None else None)
 
     def snapshot() -> tuple[list[Proc], list[Proc]]:
         found: dict[int, Proc] = {}
         unknown: list[Proc] = []
-        for pgid, (pid, start, saved_boot) in anchors.items():
-            members = _group_snapshot(pgid, pid, start)
+        for pgid, (pid, start, saved_boot, session_id) in anchors.items():
+            members = _group_snapshot(pgid, pid, start, expected_session=session_id)
             if members is None:
                 # The original leader PID was reused. Do not act on the numeric group.
                 continue
@@ -219,7 +230,8 @@ def end_groups(pgids: Iterable[int], not_before: int = 0, term_grace: float = 2.
     for pgid in pgids:
         anchor = _read(pgid)
         if anchor is not None and anchor.pgrp == pgid and anchor.starttime >= not_before:
-            anchors.append({"pid": pgid, "pgid": pgid, "starttime": anchor.starttime, "boot_id": boot_id()})
+            anchors.append({"pid": pgid, "pgid": pgid, "starttime": anchor.starttime, "boot_id": boot_id(),
+                            "session": anchor.session})
     return end_recorded(anchors, term_grace=term_grace, kill_grace=kill_grace)
 
 
