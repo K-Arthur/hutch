@@ -2279,3 +2279,17 @@ desktop. All browser checks reported zero horizontal overflow and page errors; t
 Screenshots and traces are in `artifacts/safe-task-continuation/` and the refreshed `artifacts/workspace-task-dispatch/` captures.
 `node --check`, Python compilation and `git diff --check` passed. Fixtures used local SQLite and a mock runtime only; no provider
 call, physical phone or screen-reader check was made. This is no-effect retry support, not process restoration or general recovery.
+
+## Purpose-derived naming quality follow-up
+
+Commit `f23c2e5` improves the deterministic New Bot name suggestion: it keeps “follow-up” as a compound, shortens “tasks” to a
+name-form “Task,” trims source/target clauses such as “from each meeting” and “into monthly folders,” and uses “Organizer” for
+organize/organise/sort requests. Purpose updates still refresh both suggested fields only until the user edits them; names remain
+reviewable, addresses stay stable after edits, and the local naming step makes no provider call or run.
+
+The responsive naming journey first failed on the intended regression: “Follow Up Each Monitor” instead of the expected
+“Follow-up Task Monitor.” After the fix it passed **1 test in 4.13s**; the public-workflow truth check passed **1 test in 2.96s**.
+The new automatic suggestions were captured and inspected at desktop **1440×960**, tablet **900×1024** and phone **390×844**.
+No overflow/page errors were reported; `node --check` and `git diff --check` passed. Evidence and updated source hashes are in
+`artifacts/bot-naming/`. This remains a deterministic English-language naming heuristic; it is not model-generated semantic
+understanding, and users review or edit the suggestion before creation.
