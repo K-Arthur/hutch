@@ -383,3 +383,20 @@ journey passed **1 browser test in 3.37s** using Chromium **153.0.8010.12** and 
 
 These are local fixture and emulated-phone captures only. No live model, provider sign-in, physical
 phone or screen reader was used.
+
+## Compact bot navigation and in-chat approval recheck (2026-10-09)
+
+The browser recheck covers the product decision to keep one bot roster in Studio for small setups
+and show Fleet at ten bots, along with the separate review queue remaining useful for accumulated
+requests. One-bot navigation stayed in Studio without a Fleet or Manage-all-bots destination. At ten
+bots, Fleet search and paused-state filters returned the expected counts. A pending action remained
+in its conversation; expanding its review details survived the transcript refresh with focus on the
+Approve control, and resolving it kept the same conversation selected. A queue-discovery failure did
+not hide the two bots needing attention.
+
+Five fixture browser checks passed in **8.88s** using Chromium **153.0.8010.12** and Playwright
+**1.63.0**. The inline approval was checked at 390×844; Fleet attention captures were visually
+inspected at 1440×1000 and 390×844. Both report zero horizontal overflow and no page errors; the
+phone attention bar does not cover the Fleet controls. The screenshots and source-hash metadata are
+in [`artifacts/fleet-attention/`](artifacts/fleet-attention/). These use synthetic waits and approvals,
+not a live provider, executor or device.

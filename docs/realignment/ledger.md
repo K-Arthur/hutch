@@ -93,6 +93,8 @@ fast-forwarded only after implementation and verification for this checkpoint pa
 | `85cdf83` | Record the S6 descendant-cancellation checkpoint in the continuation ledger |
 | `690d3ca` | Keep persisted delegated runs pending until a dedicated executor can enforce their permissions and workspace boundary |
 | `6db26ff` | Record the S6 fail-closed dispatcher checkpoint in the continuation ledger |
+| `48fdf92` | Bound the content-free resource-change outbox to 50,000 rows with boundary-safe snapshot recovery |
+| `095ccc0` | Record resource-change retention implementation and focused verification |
 | `b21ec5d` | Force internal lineage runs into a private per-run workspace and fail closed on symlinks |
 | `b5e0034` | Recover idle legacy Pi/OpenCode bot records to Hutch's built-in runtime after route validation; close the active-run race, document provider sign-in boundaries, correct the stale marketing CSS cache key, and add API/browser/cache regression evidence |
 | `6017f35` | Record the legacy runtime recovery commit in this continuation ledger |
@@ -1805,3 +1807,16 @@ cover boundary replay, stale and absent cursor reconciliation, source-resource p
 retention values and the five-minute pruning cadence. This backend-only slice changes no rendered
 view, so it adds no new screenshots; existing responsive captures remain in the preceding visual
 checkpoints.
+
+## Compact bot navigation and in-chat approvals recheck (2026-10-09)
+
+The recheck confirmed Studio remains the primary surface for a small setup and Fleet becomes
+available at ten bots. Pending action details stay reviewable in the active conversation, with the
+decision button retaining focus across transcript refresh. Fleet still surfaces both queued action
+reviews and a human-needed browser wait when approval-list discovery fails.
+
+Five Chromium/Playwright browser checks passed in **8.88s**, covering the one-bot path, the ten-bot
+threshold and filters, inline approval review/resolution, and Fleet attention at desktop and phone
+sizes. I inspected the generated **1440×1000** and **390×844** Fleet screenshots; they have no page
+errors or horizontal overflow. Source hashes and captures are in `artifacts/fleet-attention/`.
+Synthetic states were used; no provider, real action or device was exercised.
