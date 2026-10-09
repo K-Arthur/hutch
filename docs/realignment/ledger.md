@@ -8,7 +8,9 @@ implemented but not yet exercised against a live dependency.
 The implementation branch is `realign/platform` in `.worktrees/realign`. It was based on the last coherent pre-realignment
 history, then merged with the local `main` history in commit `0ab3058` on 2026-10-07. Later main changes were reconciled by
 `cf82f73` (main `44ca869`) and `fdf6592` (main `307ce1d`). The merges preserve both histories. Marketing copy is owned in this
-worktree. Application contracts and code are reconciled here with the merged UI. No push or publication is authorized.
+worktree. Application contracts and code are reconciled here with the merged UI. Main's PF-2 tool-output source-card change
+(`c0ebc21`) was integrated through merge `6fab391`; its direct file route was adapted to Hutch's recorded size/hash verifier
+instead of retaining an unchecked path-only `FileResponse`. No push or publication is authorized.
 
 The main checkout may contain unrelated local tooling artifacts; preserve them during final integration. The final integration step
 is a local `main` fast-forward only after all implementation and verification gates pass.
@@ -96,6 +98,8 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `35c045c` | Reject delegated worker processes before recording their process group; 84 worker/delegation/lifecycle tests passed |
 | `536c892` | Record the worker-entrypoint guard; full offline suite 1,333 passed |
 | `c352d22` | Add the approved, same-bot Strict Offline child-task preview, responsive Settings opt-in, documentation and inspected app/site captures; focused suite 230 passed |
+| `c0ebc21` | Main: per-tool output limits, full-output artifact card and compatibility serving route (adapted during integration to verified no-follow serving) |
+| `6fab391` | Merge main PF-2 with the realignment branch; preserve versioned APIs and safer artifact verification, add responsive source-card test/captures and update public/configuration contracts |
 
 ## Dashboard polish continuation (2026-10-09)
 
@@ -1661,5 +1665,27 @@ desktop (1440×900), tablet (900×1024), and phone (390×844) had no overflow, e
 page errors. Chromium **153.0.8010.12**, Playwright **1.63.0**. Detector findings for changed UI
 targets: none. See `delegation.md` and `visual-validation.md` for boundaries and artifact links.
 
-Commit `c352d22` contains this implementation slice. Full repository and merged-main regression
-results are pending; no live hosted provider, paid call, physical phone or screen-reader run was used.
+Commit `c352d22` contains the delegation slice. The subsequent main integration and current verification boundary are recorded
+below; no live hosted provider, paid call, physical phone or screen-reader run was used.
+
+## Main PF-2 integration and regression checkpoint (2026-10-08)
+
+Main's newer `c0ebc21` source-card and per-tool output limit change is now integrated in merge commit `6fab391`. The source card
+links to the full run artifact, and its compatibility route verifies the recorded file size and SHA-256 through the existing
+no-follow reader before returning readable `text/plain` inline. Versioned artifact downloads remain attachment responses. The
+reviewed main implementation's direct `FileResponse` path-only serving was not retained. Tool details now keep both artifact
+actions outside the scroll-limited preview, and on narrow screens keep long names on one line with ellipsis and a full-name title.
+
+The complete offline suite after the merge passed **1,346 tests in 281.29s**, with unhandled background-thread exceptions and
+`SyntaxWarning`s treated as failures. The full local app and website browser suite passed **102 tests in 240.02s**. This includes
+the source-card route's SHA-256/size checks, script-inert plain-text opening, and desktop (1440×960), tablet (768×1024), and
+phone (390×844) layouts. I inspected all three final captures under `artifacts/tool-source-card/`; there is no horizontal
+overflow or browser page error. API artifact integrity and patch tests passed **3 tests**; `node --check`, Python compilation,
+`git diff --check`, and the Impeccable detector (dashboard JS/CSS plus marketing HTML) passed, with the detector returning `[]`.
+
+Merge commit `6fab391` has both `realign/platform` and main `c0ebc21` as parents; the branch is ahead of the current main ref
+and is ready for a local fast-forward after this checkpoint is committed. The end-to-end local suite does not close the live
+release gates in S5–S9: process adapters for OpenCode/Pi remain disabled, model/provider and SIWC eligibility were not verified
+live, general delegation and transferred artifacts remain unavailable, and remote PTY/physical desktop control, trusted tunnel,
+screen reader and physical-device checks remain unavailable or unverified. Current support boundaries remain as stated in the
+slice table; this checkpoint does not promote experimental or unverified capabilities to supported.
