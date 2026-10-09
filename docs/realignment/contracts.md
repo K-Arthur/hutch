@@ -74,6 +74,13 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   still pending; unknown remains unverified and is called out in the route description.
 * Conversation create, message submit, and archive require `Idempotency-Key`. Exact retries return the same resource/run; reusing the
   key with different request content returns 409. An absent key returns 428.
+* `POST /api/v1/bots` accepts the existing typed bot configuration plus `Idempotency-Key`. The bot and creation receipt commit
+  together. A first create returns 201, an exact retry returns the same bot with 200, and reusing a key with different JSON or
+  colliding with an existing bot returns 409. It creates no conversation turn or run. Guided setup gathers purpose, template,
+  model route/inference mode, workspace, tools, ask-first approval policy, limits and optional schedule, then displays these values
+  before sending the command. `GET /api/v1/model-routes?inference_mode=` supplies current model suggestions; the field remains
+  explicit and the create handler validates the chosen route. Route listing may read a configured provider's non-inference model
+  catalog, but it does not submit a model prompt or create product state.
 * `POST /api/v1/tasks/runs` takes `{bot, prompt, rehearse?, model?}` and requires `Idempotency-Key`. The run, task and replay
   response are stored in one SQLite transaction. A new request returns 201; an exact retry returns the same run with `replayed: true`
   and 200, even if a restore hold or provider-route change happened after admission. A changed body or a key reused by another command
@@ -95,6 +102,7 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   Parent Stop cascades and children remain visible while cleanup is verified. This is a preview, not general-purpose delegation:
   external runtimes, cross-bot work, parallel tool calls, artifact transfer, and recovery continuation after a parent process dies
   between approval and child admission remain unavailable. Legacy runs have no retroactive snapshot and cannot admit delegated work.
+* **Planned coordinator/cross-Bot contract — not landed.** A workspace has one owner-named coordinator Bot with its own direct conversation. Users may also continue to converse directly with every task Bot. Only the coordinator may dispatch to other Bots; specialists return correlated task/result/question events to that coordinator and cannot message sibling Bots. Each child records the immutable original user request, source message/conversation, derived task-brief revision and provenance, selected context/artifact references, owner, target Bot, capability snapshot, budget reservation, lineage, and idempotency key. A child receives only its task plus explicitly shared context; it does not inherit the coordinator's tools, secrets, private history, account grants, or budget authority. At admission, Hutch validates the target Bot's own currently enabled capabilities and the workspace's delegation bounds. Prompt refinement can clarify outcome, sources, constraints, and deliverable, but cannot grant capabilities or change a Bot's standing instructions. The coordinator presents the edited brief and any assumptions; a new persistent Bot or standing-role edit requires explicit review and confirmation. Task state and result delivery are separate durable facts: `succeeded_delivery_pending` / `delivery_failed` never trigger a second effect; retrying delivery reuses the recorded result. The parent conversation shows the owner, target Bot, status/reason, approved scope, result/artifact references, usage, and stop control. This contract is informed by [Grok Bot's message and delegation documentation](../research/grok-bot-product-review-2026-10-09.md), while retaining Hutch's per-Bot workspace and browser isolation.
 * `POST /api/v1/tasks/runs/{run_id}/resume` takes `{human_event_seq}` and requires `Idempotency-Key`. The run must still be
   `waiting_human` under a live owner lease, and the sequence must match its latest `human_needed` event. Schema v19 accepts one command per wait episode;
   another key for the same event and any stale event sequence conflict. Exact retries replay the recorded result without setting the

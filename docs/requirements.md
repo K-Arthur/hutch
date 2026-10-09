@@ -3,7 +3,8 @@
 Source: *Hutch requirements v0.2 draft*, 7 Oct 2026 (UI = dashboard, LM = local models,
 CO = collaboration, SR = safety and reliability, PF = performance). IDs are stable so issues and
 commits can cite them. Evidence for the *why* is in
-[research/offerings-and-failures.md](research/offerings-and-failures.md).
+[research/offerings-and-failures.md](research/offerings-and-failures.md) and the
+[Grok Bot product review](research/grok-bot-product-review-2026-10-09.md).
 
 **Status key:** `done` — implemented and covered by a test or a recorded measurement ·
 `partial` — implemented with a stated gap · `later` — scheduled after v0.1 per the draft ·
@@ -12,7 +13,7 @@ commits can cite them. Evidence for the *why* is in
 > Performance numbers in the draft are *proposed targets*. Measured values live in
 > [performance.md](performance.md) and the committed `benchmarks/baseline.json`.
 
-*Status column last updated: 2026-10-09. The owner-requested chat setup, structured choices, and Google/Microsoft account integrations below are planned and not implemented.*
+*Status column last updated: 2026-10-09. The guided bot setup exists, but carrying the current conversation into a draft and asking only for missing details remains open. A named workspace coordinator and durable cross-bot replies are planned. Typed chat choices and Google/Microsoft account integrations remain planned. Protected browser credential entry and human checkpoints are partial and still need headed/live verification.*
 
 ## Dashboard and app
 
@@ -24,7 +25,7 @@ commits can cite them. Evidence for the *why* is in
 | UI-4 | Run detail: steps, elapsed, spend, context vs caps | MVP | done | `views.run_meters`: steps, elapsed, spend, tokens, context vs caps, plus absolute model/tool/Hutch timing |
 | UI-5 | Approvals inbox: parsed segments, rule, once/always/deny, countdown | MVP | done | approval card: parsed segments, rule, once/always/plan/deny, live countdown; outward never offers always |
 | UI-6 | Every waiting state names its cause and a fix | MVP | done | `views.explain_run`, `explain_outcome` and the stale cause: every wait names a cause and a fix |
-| UI-7 | New bot: template gallery → purpose, model preset, permissions+budget; YAML view | MVP | planned | |
+| UI-7 | New bot: template gallery → purpose, model preset, permissions+budget; YAML view | MVP | partial | Guided chat configures purpose, template, model route, tools, limits, approval policy and optional schedule. YAML import/export remains unbuilt. |
 | UI-8 | First run clearly requests a configured real local or hosted model; no seeded bots or simulated runs | MVP | partial | CLI/app empty setup and fail-closed bot creation implemented; full visual/release validation pending |
 | UI-9 | Schedules page: next runs in each bot's zone, coalesced misses, pause all | MVP | planned | |
 | UI-10 | Memory page with provenance, edit, delete, export | Later | partial | bot page lists memory with the run that wrote it, delete; edit/export + dedicated page pending |
@@ -32,8 +33,10 @@ commits can cite them. Evidence for the *why* is in
 | UI-12 | Server-rendered templates + HTMX, no build step; stop/approve are plain POSTs | MVP | done | Jinja2 + htmx 2.0.4 vendored, no build step; every action is a plain POST; CSRF + Host/Origin checks |
 | UI-13 | Approvals inbox usable at phone width | Later | done | approvals inbox verified at 390px in Chromium (full-width, thumb-sized actions) |
 | UI-14 | Localhost app run by a user-level systemd service; Tauri shell after v0.1 | MVP, then later | planned | |
-| UI-15 | Create a bot through a guided chat that produces a reviewable configuration draft | MVP follow-up | planned | Must show role, model and inference mode, workspace, tools/permissions, approval policy, limits and optional schedule before an idempotent create; creating a bot never starts a run. The existing bot form remains available until chat setup passes migration and visual checks. |
+| UI-15 | Create or refine a bot through chat using the current conversation, ask only for missing details, then review and confirm the complete draft | MVP follow-up | partial | The deterministic six-step setup gathers purpose, starter, model/mode, workspace, tools, ask-first approval, limits and optional schedule; creation is idempotent and does not start a run. It does not yet extract already-stated purpose/configuration from the live conversation or ask only unresolved questions. The user reviews and explicitly confirms persistent bot creation. Evidence: `tests/e2e/test_browser.py::test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone`, API retry/race tests, and `realignment/artifacts/bot-setup/`. |
 | UI-16 | Bots can ask typed single- or multi-select questions in chat and resume after a reply | MVP follow-up | planned | Choice cards are persisted, keyboard/screen-reader usable, and fit phone layouts. A reply only supplies information: it cannot approve an action, grant a permission, or change account scope. Keep `waiting_for_answer` distinct from action approval and browser `waiting_human`. |
+| UI-17 | Users can enter passwords and complete web forms without exposing secrets to the model | MVP follow-up | partial | Opt-in local Linux browser handoff lets the person enter secrets in the visible owned profile. Agent typing is blocked on conventional password, OTP, payment-credential and secret-labelled fields; all browser `type` event/receipt values are redacted, approvals bind a process-keyed fingerprint, and screenshots fail closed while a visible sensitive field exists. Ordinary fields remain approval-gated. Automated field detection is not exhaustive for custom widgets; never paste credentials into chat. Evidence: `tests/test_browser_profiles.py::test_sensitive_browser_entry_is_redacted_and_pauses_for_the_person`; live headed/provider challenges not tested. |
+| UI-18 | Browser work can pause for CAPTCHA and other human-only checkpoints | MVP follow-up | partial | Local Linux handoff pauses the same profile for detected CAPTCHA/2FA/security markers or a visible sensitive field, states the origin/reason, and checks the challenge again after explicit Resume without reloading the page. Hutch never solves or bypasses CAPTCHA. Consent and payment actions still use the normal exact-action approval flow. Evidence: `tests/test_browser_profiles.py::test_login_challenge_only_waits_when_same_live_browser_is_visible` and `tests/e2e/test_browser.py::test_studio_resumes_only_the_active_human_wait_with_v1_command`; live third-party challenges and physical-device behavior remain unverified. |
 
 ## Local models and presets
 
@@ -60,9 +63,9 @@ commits can cite them. Evidence for the *why* is in
 
 | ID | Requirement | Phase | Status | Where |
 |---|---|---|---|---|
-| CO-1 | One planner and a fixed list of allowed specialists | v0.1 | planned | |
-| CO-2 | Structured messages: task, result, question — no free chat | v0.1 | partial | `delegate_task` accepts a bounded task string and returns final text; question/typed-result schemas are not implemented (`docs/realignment/delegation.md`) |
-| CO-3 | Specialists cannot message each other; only the planner wakes a bot | v0.1 | partial | Same-bot child lineage has no sibling messaging, but generic specialist selection/planner orchestration is unavailable |
+| CO-1 | One user-named workspace coordinator and an owner-approved roster of allowed specialists | v0.1 | planned | A named coordinator is a directly conversable Bot; it does not inherit specialist tools or private history. |
+| CO-2 | Structured, correlated task/result/question events with durable delivery status | v0.1 | partial | `delegate_task` accepts a bounded task string and returns final text; question/typed-result schemas and durable result-to-coordinator delivery are not implemented (`docs/realignment/delegation.md`) |
+| CO-3 | The coordinator dispatches to specialists and receives their replies; user can also chat directly with each Bot; specialists cannot message peers | v0.1 | partial | Same-bot child lineage has no sibling messaging, but named coordinator routing and cross-Bot results are unavailable |
 | CO-4 | Own workspace per specialist; explicit, logged file copy; per-bot memory | v0.1 | partial | Child runs get private workspaces and no runtime memory; explicit artifact transfer is unavailable |
 | CO-5 | Planner sees results and artifact refs, not transcripts | v0.1 | partial | Parent model receives final child text; artifact references are not returned to model context |
 | CO-6 | Engine enforces max hops, tasks, parallel specialists, wall-clock | v0.1 | partial | Depth/fan-out, child step/time limits and lineage cancellation are enforced; exposed child calls are serial and no plans exist |
@@ -70,7 +73,9 @@ commits can cite them. Evidence for the *why* is in
 | CO-8 | Same task posted twice pauses the plan | v0.1 | partial | Exact retries of the same tool step replay its child; semantic duplicate detection across later steps is absent |
 | CO-9 | Stop plan kills every child run | v0.1 | partial | Run Stop cascades to persisted descendants; there is no plan resource or plan Stop command |
 | CO-10 | Child approvals in the one inbox tagged with plan; bounded plan-level approval | v0.1 | partial | Child approvals appear in the shared conversation/Needs you flow and always ask; no plan grouping or plan-level grant exists |
-| CO-11 | Plan page: board + handoff timeline with cost | v0.1 | planned | |
+| CO-11 | Coordinator conversation shows a durable handoff timeline, ownership, status, and cost; Fleet stays secondary until the roster is large | v0.1 | planned | A separate plan page is not required for ordinary work. The owner-set starting heuristic for a dedicated Fleet surface is about ten Bots; validate in visual/usability work. |
+| CO-12 | One named, directly conversable workspace coordinator routes bounded work to selected Bots and receives durable results; the user can still chat directly with each task Bot | v0.1 follow-up | planned | Grok Bot’s official docs support message-first setup, visible asynchronous handoffs, and separate direct Bot conversations. Hutch needs an explicit coordinator identity, cross-Bot lineage, durable result delivery, and direct-user chat parity; see [Grok Bot product review](research/grok-bot-product-review-2026-10-09.md). |
+| CO-13 | Coordinator improves a task request from current conversation context without changing intent or authority | v0.1 follow-up | planned | Preserve original request/provenance; show an editable task brief and assumptions; ask only about unresolved inputs; do not broaden tools, account/destination, budget, permission, context sharing, or standing Bot instructions. New Bot creation and persistent role edits require separate review/confirmation. |
 
 ## Safety and reliability
 

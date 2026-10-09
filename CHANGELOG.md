@@ -14,6 +14,7 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Added
 
+- Document the Grok Bot message-first named-Bot and coordinator workflow as a product reference. Record Hutch's context-aware task-brief requirements, explicit authority boundaries, durable cross-Bot result delivery, user-reported organization complaints, and the decision to retain per-Bot workspace/browser isolation. No Grok Bot account or live integration was tested.
 - Experimental reverse-proxy HTTPS support now requires an explicit trusted proxy address/CIDR, exact public-host allowlist and HTTPS
   forwarding. Untrusted forwarding metadata is stripped, malformed public hosts are rejected, and the capability API exposes the
   configured-but-fixture-tested status. HTTP and WebSocket Origin schemes must match normalized HTTPS. Hutch still does not provision

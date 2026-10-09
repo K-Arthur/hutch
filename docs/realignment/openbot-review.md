@@ -13,6 +13,11 @@ The supplied signed GitHub video failed in the native browser with “Unable to 
 before any frame could be observed. It is not visual evidence. Its temporary authorization
 URL is deliberately absent from this repository.
 
+The product-level comparison with Grok Bot's official documentation is maintained separately in
+[`../research/grok-bot-product-review-2026-10-09.md`](../research/grok-bot-product-review-2026-10-09.md).
+OpenBot remains a source-code/security reference; Grok Bot is the stronger reference for the
+message-first named-Bot, coordinator, and human-takeover interaction model.
+
 ## Useful patterns observed in code
 
 - [Inline approvals](https://github.com/CopilotKit/OpenBot/blob/59e28898238fe8510275dc02bc25cf9f4a90a77c/app/src/components/approvals/inline-approval.tsx)

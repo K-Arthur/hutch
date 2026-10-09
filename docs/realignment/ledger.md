@@ -1830,3 +1830,34 @@ measured host headroom; the admission rule remains unchanged. The isolated journ
 the complete non-browser suite passed **1,364 tests in 286.69s** with unhandled background-thread
 exceptions and `SyntaxWarning`s treated as errors. Browser and anonymous-site suites remain separate
 gates. No real model, provider, paid account or external runtime was used.
+
+## Grok Bot product-reference checkpoint (2026-10-09)
+
+Reviewed the current public Grok Bot documentation for Bot profiles, message-first setup, direct and group chats,
+asynchronous handoffs, Team Bots, computer access, approvals, skills/routines, and recovery. Its most transferable
+patterns are a durable named role, task-specific messages that state outcome and boundary, one owner per handoff
+stage, direct conversation with individual Bots, visible asynchronous return messages, and a small roster of
+specialists. The documentation warns that too many parallel handoffs can duplicate work and create noisy updates.
+
+Hutch's extension is a user-named workspace coordinator with a durable conversation and explicit cross-Bot task
+lineage. The coordinator will improve a task brief using the user's current request and selected context, preserve
+the original text/provenance, show assumptions for correction, and ask only for unresolved details. Prompt text may
+not grant additional permissions, accounts, data, budgets, or change a standing Bot role. User confirmation remains
+required for persistent Bot creation and standing-role edits. Task completion and result delivery are separate,
+durable states so a lost notification cannot replay a completed effect. Users retain direct conversations with each
+task Bot. A full fleet-management page remains secondary until the roster grows; roughly ten Bots is the user's
+starting heuristic, not a research result.
+
+Grok Bot's official docs say all personal Bots share one account computer, including files, browser sign-ins and
+command credentials; individual screens are not isolation boundaries. Hutch retains its per-Bot browser profiles,
+managed workspaces, capability snapshots and explicit artifact sharing instead. Its docs also keep approval, login,
+secret and external-message draft cards out of group conversations, so Hutch's human-required actions remain in an
+accountable one-to-one chat. Public user reports of concurrent-task organization confusion and shared-computer
+concerns were reviewed as anecdotes only. Recovery docs also disclose that restoring the last saved snapshot can
+lose recent unsynced work; Hutch's status/recovery UI must distinguish waiting, recovery and result-delivery failure.
+
+Research is in `docs/research/grok-bot-product-review-2026-10-09.md`; source citations are there. Documentation was
+reviewed on 2026-10-09, but Grok Bot was not run or connected. Hutch's guided creation wizard is implemented and
+fixture-captured; live-conversation context reuse, named coordinator, cross-Bot routing and durable result delivery
+remain unimplemented. Acceptance: UI-15 and CO-12/13 in `docs/requirements.md`, the planned coordinator contract in
+`docs/realignment/contracts.md`, and T-COORDINATOR-BRIEF/T-CROSS-BOT-DELIVERY in `docs/realignment/tests.md`.

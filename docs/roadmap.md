@@ -2,18 +2,33 @@
 
 ## Owner-requested product scope added 2026-10-09
 
-The product owner identified chat-led bot setup, structured choice prompts, and Google Calendar,
-Gmail and Outlook account integrations as key features. They are **planned; the current app does
-not provide them yet**. Keep the compact Studio/Fleet navigation and inline action approvals while
-adding these flows inside the conversation where possible.
+The product owner identified chat-led bot setup, structured choice prompts, Google Calendar,
+Gmail and Outlook integrations, and a named coordinator Bot as key product requirements. A
+deterministic bot-setup wizard and inline approvals already exist, but setup still asks the user to
+repeat information from chat; typed choices, these account integrations, and the workspace
+coordinator are not implemented. Keep chat as the normal work surface and make bot configuration
+and approvals appear in context where possible. The roster should remain small by default; use a
+searchable Fleet surface when the user has enough Bots to need it. Roughly ten Bots is the product
+owner's initial heuristic, not a research-established cutoff.
 
 1. Add bounded, typed choice prompts that persist across restart. The bot can ask a single-select
    or multi-select question, and the user can answer in chat. This response supplies information
    only; a tool action or permission still requires its own approval.
-2. Add a “create a bot” conversation that builds a staged draft, lets the person revise it, and
-   shows the complete configuration for review. Bot creation is idempotent and does not launch a
-   run by itself. Keep the existing explicit form available during rollout.
-3. Add named, revocable, user-delegated Google and Microsoft connections. Start with calendar
+2. Make bot setup conversational and context-aware. Carry forward the purpose, constraints, model,
+   tools, and workspace choices the user has already stated; ask only for unresolved information.
+   Show the complete staged configuration for review, then create idempotently only after explicit
+   confirmation. Creating a bot never starts a run by itself. Keep the direct configuration route
+   available during rollout.
+3. Add a user-named, workspace-level coordinator Bot with its own direct conversation. It can select
+   existing task Bots or propose a long-lived specialist when the role is distinct and reusable.
+   Carry the original user request into an editable, outcome-focused task brief with provenance,
+   selected context, owner, deliverable, constraints, and action boundary. The coordinator receives
+   correlated status and durable results; the user can still chat directly with each task Bot. Keep
+   one owner per stage and the existing depth, fan-out, time, budget, permission, and cancellation
+   limits. A lost result delivery must not rerun a completed child. Prompt refinement cannot grant
+   new capabilities or modify a Bot's standing instructions. Creating a persistent specialist or
+   changing its role requires separate review and confirmation.
+4. Add named, revocable, user-delegated Google and Microsoft connections. Start with calendar
    availability and event lookup; calendar writes, message sending and any other external write
    need a fresh review showing the account, destination and complete payload. Keep each account
    grant scoped to the selected bot and capability. Store OAuth refresh credentials in the OS
@@ -26,6 +41,14 @@ a verified capability. These features must not appear in marketing as supported 
 OAuth, recovery, revocation, action-receipt and desktop/tablet/phone journeys pass. No account,
 provider request or scope has been enabled by this planning update.
 
+This product direction follows the useful parts of Grok Bot's official documentation: named Bots
+have durable roles, setup starts in chat, one outcome is assigned to one owner at each delegation
+stage, and asynchronous handoffs return to a visible conversation. Hutch deliberately does not
+copy Grok Bot's account-wide shared computer, files, browser sessions, and command credentials;
+Hutch retains isolated workspaces and explicit context/artifact sharing. The source review,
+including group-chat limits, recovery behavior, and individual user complaints, is recorded in
+[`research/grok-bot-product-review-2026-10-09.md`](research/grok-bot-product-review-2026-10-09.md).
+
 Schema v15 adds chat-scoped reference proposals, exact-revision human review, explicit sharing,
 bounded FTS5 recall and retained review history. Memory disabled in bot settings also disables
 runtime use while retaining human management. Facts are not automatically injected into system
@@ -37,8 +60,8 @@ bytes enter the target workspace or model context.
 Optional generic browser alerts work while the Hutch tab is open; they do not provide background push.
 Per-bot Hutch-managed workspaces and up to 100 independently scheduled tasks are implemented.
 Conversation export is scoped and explains what it excludes. A general artifact library, delegated
-artifact transfer, webhook/push notifications, permanent scoped deletion, and a general multi-bot
-planner remain open. A narrow same-bot `delegate_task` preview is available only for supervised
+artifact transfer, webhook/push notifications, permanent scoped deletion, and the named workspace
+coordinator with cross-Bot handoff remain open. A narrow same-bot `delegate_task` preview is available only for supervised
 Strict Offline Linux runs; it does not complete the broader S6 collaboration plan.
 
 ## Phase 0 — MVP (shipped, Oct 2026)
