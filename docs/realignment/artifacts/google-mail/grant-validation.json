@@ -1,0 +1,67 @@
+{
+  "test": "tests/e2e/test_browser.py::test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone",
+  "command": "PLAYWRIGHT_BROWSERS_PATH=/home/kevina/.cache/ms-playwright .venv/bin/pytest -q tests/e2e/test_browser.py::test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone",
+  "captured_at": "2026-10-09T19:13:44.819423+00:00",
+  "browser": "153.0.8010.12",
+  "provider_credentials_used": false,
+  "provider_calls": 0,
+  "scenario": "Synthetic connected Gmail account; local grant is persisted only for a loopback Local-inference Bot; hybrid Bot is absent; fixed Google OAuth destination is opened with no opener; no external network requests",
+  "external_requests": [],
+  "page_errors": [],
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "horizontal_overflow": 0,
+      "screens": [
+        "gmail-overview-desktop.png",
+        "gmail-granted-desktop.png"
+      ]
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "horizontal_overflow": 0,
+      "screens": [
+        "gmail-overview-tablet.png",
+        "gmail-granted-tablet.png"
+      ]
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "horizontal_overflow": 0,
+      "screens": [
+        "gmail-overview-phone.png",
+        "gmail-granted-phone.png"
+      ]
+    }
+  ],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "44b94310fe918a6e00b0b63ca279df5158ec2b462be04af402b4ee24e3c695a0",
+    "src/hutch/server/static/style.css": "3ca514093c71699c427180bb622219c5d2b7eebfb9f2611f3d377554d6ff0343",
+    "src/hutch/server/app.py": "db5d9e490cda36b6a5bf74ecc080c3d35a1dfa3bd830cb0bc6e99d9a2290b828",
+    "src/hutch/server/security.py": "2623ea8ff06977c40fbfc56dcdb15a2633e7ef90273f7491d6fa5d59bb813643",
+    "src/hutch/store.py": "650bf5d8f1bd5b3d3dde64a2721e4fa4a717e733d9312132d69ef1c46ab487a5",
+    "src/hutch/google_calendar.py": "dad7c21b8f5ac416de6de619595a9b11ff9f55c244c249fffafaad984da10660",
+    "src/hutch/google_mail.py": "07fc56e6918d2ccdb8759e2c648a2ec31b9d261916c4223413f0650d683bed1a",
+    "src/hutch/tools/google_mail.py": "8a17828f999f3178324bb1cbe28724fbfb6da131675631f9f1db329c2d85a976"
+  },
+  "inspected_screenshots": [
+    "gmail-overview-desktop.png",
+    "gmail-overview-tablet.png",
+    "gmail-overview-phone.png",
+    "gmail-granted-desktop.png",
+    "gmail-granted-tablet.png",
+    "gmail-granted-phone.png"
+  ]
+}

@@ -845,11 +845,11 @@ def test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone(browser
         page.close()
 
 
-def test_gmail_unavailability_is_explicit_and_has_no_dead_connect_control(browser, live):
+def test_gmail_preview_discloses_restricted_scope_and_requires_local_setup(browser, live):
     from pathlib import Path
 
     base, _ = live
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/gmail-availability"
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/google-mail"
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -860,38 +860,171 @@ def test_gmail_unavailability_is_explicit_and_has_no_dead_connect_control(browse
     try:
         page.goto(base + "/#/connections")
         page.get_by_role("heading", name="Connections").wait_for()
-        card = page.locator("#gmail-unavailable")
+        card = page.locator('[aria-labelledby="google-mail-title"]')
         card.wait_for()
         text = card.inner_text().lower()
-        assert "not available" in text
+        assert "experimental" in text and "local inference only" in text
         assert "gmail.readonly" in text and "restricted" in text
         assert "verification" in text and "security assessment" in text
-        assert "requests no gmail scope" in text
-        assert "google calendar access is separate" in text
+        assert "account-wide" in text and "cannot send" in text
         assert card.get_by_role("button").count() == 0
-        assert card.get_by_role("link", name="Google Gmail scope and verification requirements").count() == 1
+        page.locator("#google-mail-access summary").click()
+        assert "unavailable until the hutch operator configures" in card.inner_text().lower()
+        assert card.get_by_role("link", name="Review Google's Gmail scope requirements").count() == 1
         captures = []
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             card.scroll_into_view_if_needed()
-            page.screenshot(path=str(out / f"gmail-unavailable-{label}.png"), animations="disabled")
+            page.screenshot(path=str(out / f"unconfigured-{label}.png"), animations="disabled")
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, overflow)
             captures.append({"size": label, "viewport": [width, height], "horizontal_overflow": overflow})
         assert not errors, errors
         assert not external, external
-        (out / "validation.json").write_text(json.dumps({
-            "test": "tests/e2e/test_browser.py::test_gmail_unavailability_is_explicit_and_has_no_dead_connect_control",
+        (out / "unconfigured-validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_gmail_preview_discloses_restricted_scope_and_requires_local_setup",
             "browser": browser.version, "playwright_version": package_version("playwright"),
             "provider_credentials_used": False, "provider_calls": 0,
-            "scenario": "Connections identifies Gmail as unavailable, explains the restricted gmail.readonly scope and verification boundary, separates Calendar consent, and offers no dead connect control",
+            "scenario": "Private-preview Gmail is labelled experimental; Connections explains restricted gmail.readonly account consent, verification/security assessment and Local-inference-only boundaries; an unconfigured host receives actionable setup details and no dead Connect control",
             "external_requests": external, "page_errors": errors, "captures": captures,
+            "inspected_screenshots": [f"unconfigured-{size}.png" for size in ("desktop", "tablet", "phone")],
             "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
                               for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                            "src/hutch/server/app.py", "docs/connections.md", "docs/requirements.md")},
         }, indent=2) + "\n", encoding="utf-8")
     finally:
         context.close()
+
+
+def test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone(browser, live, monkeypatch):
+    from pathlib import Path
+
+    from hutch.google_calendar import OAuthStart
+    from hutch.google_mail import GOOGLE_MAIL_SCOPE
+    from hutch.models import InferenceMode
+
+    base, app = live
+    monkeypatch.setenv("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "fixture-client.apps.googleusercontent.com")
+    account_id = "gmail_0123456789abcdef01234567"
+
+    class FixtureGoogleMailBook:
+        accounts_rows = [{"id": account_id, "label": "Personal Gmail", "created_at": "2026-10-09T00:00:00+00:00",
+                          "scopes": [GOOGLE_MAIL_SCOPE], "status": "connected"}]
+
+        class Secrets:
+            @staticmethod
+            def available():
+                return True
+
+        def __init__(self, state_dir, client_id):
+            self.secrets = self.Secrets()
+
+        def accounts(self):
+            return list(self.accounts_rows)
+
+        @staticmethod
+        def callback_uri(request):
+            port = request.scope["server"][1]
+            return f"http://127.0.0.1:{port}/api/v1/connections/google-mail/callback"
+
+        @classmethod
+        def start(cls, label, callback):
+            return OAuthStart("https://accounts.google.com/o/oauth2/v2/auth?state=fixture", "fixture")
+
+        @classmethod
+        def _account(cls, reference):
+            from hutch.google_calendar import GoogleCalendarError
+            account = next((row for row in cls.accounts_rows if row["id"] == reference), None)
+            if not account:
+                raise GoogleCalendarError("Gmail account is not connected")
+            return account
+
+    monkeypatch.setattr("hutch.google_mail.GoogleMailBook", FixtureGoogleMailBook)
+    local = app.state.store.create_bot(Bot(name="gmail-local", display_name="Mailbox Analyst", model="ollama/qwen3:4b",
+                                           inference_mode=InferenceMode.local, tools=[]))
+    hybrid = app.state.store.create_bot(Bot(name="gmail-hybrid", display_name="Hosted Assistant", model="openai/gpt-4o-mini",
+                                            inference_mode=InferenceMode.hybrid, tools=[]))
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    page.add_init_script("""
+      window.__gmailOAuth = { target: null, url: null, opener: 'not-set', closed: false };
+      window.open = (_url, target) => {
+        window.__gmailOAuth.target = target;
+        return {
+          set opener(value) { window.__gmailOAuth.opener = value; },
+          location: { replace(value) { window.__gmailOAuth.url = value; } },
+          close() { window.__gmailOAuth.closed = true; }
+        };
+      };
+    """)
+    errors, external = [], []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url) if not request.url.startswith(base) else None)
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/google-mail"
+    out.mkdir(parents=True, exist_ok=True)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(base + "/#/connections")
+        card = page.locator('[aria-labelledby="google-mail-title"]')
+        card.wait_for()
+        page.locator("#google-mail-access summary").click()
+        page.get_by_role("button", name="Connect Gmail").wait_for()
+        page.locator("#google-mail-label").fill("Work")
+        page.get_by_role("button", name="Connect Gmail").click()
+        page.get_by_text("Finish Google sign-in in the new browser tab", exact=False).wait_for()
+        oauth = page.evaluate("window.__gmailOAuth")
+        assert oauth["target"] == "_blank" and oauth["opener"] is None
+        destination = urlsplit(oauth["url"])
+        assert destination.scheme == "https" and destination.hostname == "accounts.google.com"
+        assert destination.path == "/o/oauth2/v2/auth" and parse_qs(destination.query)["state"] == ["fixture"]
+        page.get_by_role("button", name="Dismiss notification").click()
+
+        account = page.locator(f'[data-google-mail-account="{account_id}"]')
+        account.wait_for()
+        bot_selector = account.locator("[data-google-mail-bot]")
+        options = bot_selector.locator("option").all_inner_texts()
+        assert options == ["Mailbox Analyst"] and "Hosted Assistant" not in options
+        account.get_by_role("button", name="Grant search access").click()
+        page.get_by_text("Can search sender, subject, date and short previews", exact=False).wait_for()
+        grant = app.state.store.google_mail_grant(local.id)
+        assert grant and grant["account_id"] == account_id
+        assert app.state.store.google_mail_grant(hybrid.id) is None
+        assert "loopback endpoint" in page.locator("[data-google-mail-account]").inner_text()
+        page.get_by_role("button", name="Dismiss notification").click()
+
+        captures = []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            card.scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"gmail-overview-{label}.png"), animations="disabled")
+            account.scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"gmail-granted-{label}.png"), animations="disabled")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            captures.append({"size": label, "viewport": [width, height], "horizontal_overflow": overflow,
+                             "screens": [f"gmail-overview-{label}.png", f"gmail-granted-{label}.png"]})
+        assert not errors, errors
+        assert not external, external
+        (out / "grant-validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone",
+            "command": "PLAYWRIGHT_BROWSERS_PATH=/home/kevina/.cache/ms-playwright .venv/bin/pytest -q tests/e2e/test_browser.py::test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone",
+            "captured_at": datetime.now(timezone.utc).isoformat(), "browser": browser.version,
+            "provider_credentials_used": False, "provider_calls": 0,
+            "scenario": "Synthetic connected Gmail account; local grant is persisted only for a loopback Local-inference Bot; hybrid Bot is absent; fixed Google OAuth destination is opened with no opener; no external network requests",
+            "external_requests": external, "page_errors": errors, "captures": captures,
+            "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
+                              for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                           "src/hutch/server/app.py", "src/hutch/server/security.py", "src/hutch/store.py",
+                                           "src/hutch/google_calendar.py", "src/hutch/google_mail.py",
+                                           "src/hutch/tools/google_mail.py")},
+            "inspected_screenshots": [f"gmail-overview-{size}.png" for size in ("desktop", "tablet", "phone")]
+                                      + [f"gmail-granted-{size}.png" for size in ("desktop", "tablet", "phone")],
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "grant-trace.zip"))
+        finally:
+            context.close()
 
 
 def test_browser_pauses_when_a_human_challenge_appears_during_wait(browser, live, tmp_path):

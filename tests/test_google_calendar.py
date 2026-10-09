@@ -253,6 +253,7 @@ def test_disconnect_deletes_provider_grant_and_local_metadata(tmp_path):
 
 def test_secret_tool_receives_refresh_token_over_stdin_never_as_argument(monkeypatch):
     calls = []
+    monkeypatch.setattr("hutch.google_calendar._SECRET_PROBE_RESULT", None)
 
     class Result:
         returncode = 0

@@ -2582,3 +2582,20 @@ Chromium **153.0.8010.12** / Playwright **1.63.0**. I inspected the refreshed pr
 three widths, the source excerpt and remove control remain visible, and no horizontal overflow or page errors occurred. `node --check`
 and `git diff --check` passed. Evidence and traces are in [`artifacts/message-replies/`](artifacts/message-replies/). This used only a
 synthetic local conversation; no model/provider request, screen reader or physical device was used.
+
+## Gmail search private preview (2026-10-09)
+
+Implementation commit: recorded after the code-and-evidence commit.
+
+Connections now offers a clearly labelled, owner-configured Gmail search preview. It requests Google's restricted,
+account-wide `gmail.readonly` scope through a local installed-app PKCE flow and Linux Secret Service. Search is limited to
+ten results with sender, subject, received date, and a bounded provider snippet. No send or mailbox-write tool exists.
+Only built-in Bots whose primary, fallback, and escalation routes remain loopback Local can receive a grant; the route is
+checked again when the tool registry is built and immediately before a search. The local model service itself is outside
+Hutch's verification boundary. Public availability remains blocked on Google's applicable scope verification and any
+required security assessment. See [connections.md](../connections.md) for owner setup and the linked Google requirements.
+
+The focused command `.venv/bin/pytest -q tests/test_google_calendar.py tests/test_google_mail.py tests/test_google_mail_api.py tests/e2e/test_browser.py::test_gmail_preview_discloses_restricted_scope_and_requires_local_setup tests/e2e/test_browser.py::test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone tests/e2e/test_website.py::test_provider_availability_is_readable_without_horizontal_page_scroll tests/e2e/test_website.py::test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_viewports --no-header`
+passed **29 tests in 8.67s**. The browser fixtures verified the fixed Google authorization origin/path, opener isolation, local-only Bot grant, hybrid-Bot exclusion, no external requests, and desktop/tablet/phone layouts. The anonymous marketing captures confirm the same release boundary; I inspected the final phone table and viewport screenshots. `node --check src/hutch/server/static/app.js` and `git diff --check` passed. Captures, trace and validation records are in [`artifacts/google-mail/`](artifacts/google-mail/).
+
+This evidence is fixture-only. No Google account, consent, OAuth client, live Gmail API request, or secret was used. Google currently documents `gmail.readonly` as restricted, applies testing-user/authorization limits to projects in Testing, and requires verification for public use; applicable restricted-data access may also require a third-party security assessment. See [Gmail API scopes](https://developers.google.com/workspace/gmail/api/auth/scopes), [restricted-scope verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification), and [OAuth audience/testing limits](https://support.google.com/cloud/answer/15549945?hl=en). These constraints are not prevalence claims and do not establish public approval.

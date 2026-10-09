@@ -32,14 +32,47 @@ revocation. If Google does not confirm revocation, Hutch reports that explicitly
 owner to review connected apps in their Google Account. Never import consumer-app browser cookies,
 CLI auth files, or another product's private sign-in state.
 
-Gmail is not connected in Hutch. Outlook Calendar and Outlook Mail use separate experimental
-local flows; calendar consent does not grant mailbox access. A future message-search flow would
-need Google's restricted `gmail.readonly` scope. Google's current rules require restricted-scope
-verification for public apps, and a security assessment when restricted data is accessed from or
-through a third-party server. Hutch has no Gmail sign-in route and requests no Gmail scope; the
-Connections page explains this without presenting a dead connect control. Calendar writes, Gmail
-reads/sends, Outlook Mail sends, arbitrary API URLs, deletion and mailbox settings are unavailable.
-See the Outlook Mail section below.
+## Gmail message search (experimental private preview; local setup required)
+
+Hutch has an owner-configured, read-only Gmail search path for private preview. This does not make
+Gmail available in a public release: `gmail.readonly` is a restricted, account-wide OAuth scope.
+Google's OAuth project must enable the Gmail API and use a Desktop OAuth client. Set
+`HUTCH_GOOGLE_OAUTH_CLIENT_ID`, then run Hutch in a Linux desktop session with an unlocked Secret
+Service. Start sign-in from the Hutch host at `http://127.0.0.1:<port>` on Connections. The local
+installed-app flow uses authorization code with PKCE; Linux Secret Service stores refresh tokens,
+access tokens stay in process memory, and SQLite/browser storage never receive the tokens. The
+callback is one-use, expires after ten minutes, and has authorization query fields removed before
+access logging.
+
+Google's grant authorizes access across the signed-in account, even though Hutch can grant one
+connected account to one Bot. Hutch's tool only searches up to ten matches and returns sender,
+subject, received date, and a 1,200-character-capped provider snippet. The `gmail.readonly` scope is
+broader than those returned fields; Hutch does not fetch message bodies, attachments, labels, or
+settings, and it cannot send, edit, forward, or delete messages. Search terms and returned previews
+are stored with the local run history as untrusted data.
+
+Only a Bot using Hutch's built-in runtime and Local inference can receive a grant. Every configured
+primary, fallback, and escalation route must be a loopback model endpoint; hosted fallback and
+remote custom endpoints are rejected. This prevents Hutch from intentionally sending Gmail previews
+to hosted model routes. The operator-selected service listening on loopback remains outside Hutch's
+verification boundary, so operators must trust that local model service. Hybrid, hosted, and Strict
+Offline Bots do not receive this Gmail tool.
+
+Google permits development/testing use under specific exceptions, but an OAuth project in Testing
+is limited to 100 listed test users and authorizations/refresh tokens expire after seven days. This
+is a Google project restriction, not a Hutch setting. Public distribution requires the applicable
+restricted-scope verification. Google also requires an annual third-party security assessment for
+apps that can access restricted user data from or through a third-party server. Hutch has not
+completed Google verification or a security assessment and must not be described as publicly
+approved for Gmail. [Google's Gmail scope table](https://developers.google.com/workspace/gmail/api/auth/scopes),
+[restricted-scope verification rules](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification),
+and [Testing-user limits](https://support.google.com/cloud/answer/15549945?hl=en) are the current
+source for those constraints.
+
+Disconnect clears Hutch's local token and Bot grants, then requests token revocation. If Google does
+not confirm revocation, Connections says so and points the owner to Google's connected-app settings.
+Calendar consent is separate. Gmail sending and all mailbox changes remain unavailable. Outlook
+Calendar and Outlook Mail use separate permissions and accounts; see the Outlook sections below.
 See the current provider
 references: [Google Calendar scopes](https://developers.google.com/workspace/calendar/api/auth),
 [Google installed-app OAuth](https://developers.google.com/identity/protocols/oauth2/native-app),

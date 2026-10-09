@@ -16,6 +16,8 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ## [Unreleased]
 
+- Added an experimental private-preview Gmail search connection using an owner-configured Google Desktop OAuth client and Linux Secret Service. It requests restricted account-wide `gmail.readonly`, returns bounded headers/snippets only, and grants access only to built-in Bots whose complete model route set is loopback Local. Hybrid, hosted, remote model endpoints and hosted fallbacks are rejected. No Gmail send or mailbox-write operation exists; public release is unavailable pending Google scope verification and any applicable security assessment. Live account consent is unverified.
+
 ### Added
 
 - Run detail and `hutch runs verify <run-id>` now expose a read-only event-chain audit with verified, legacy/partial, and tampered states. Legacy events are clearly unverified; a detected mismatch makes the CLI exit nonzero.

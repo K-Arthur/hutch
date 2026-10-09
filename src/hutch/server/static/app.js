@@ -442,13 +442,17 @@ function toast(msg, isError = false) {
 const chatgptCallback = new URLSearchParams(location.search);
 const chatgptResult = chatgptCallback.get("chatgpt_result");
 const googleCalendarResult = chatgptCallback.get("google_calendar_result");
+const googleMailResult = chatgptCallback.get("google_mail_result");
 const outlookCalendarResult = chatgptCallback.get("outlook_calendar_result");
 const outlookMailResult = chatgptCallback.get("outlook_mail_result");
-if (chatgptResult || googleCalendarResult || outlookCalendarResult || outlookMailResult) {
+if (chatgptResult || googleCalendarResult || googleMailResult || outlookCalendarResult || outlookMailResult) {
   const detail = chatgptCallback.get("detail");
   const message = outlookMailResult
     ? outlookMailResult === "connected" ? "Outlook Mail account connected. Grant one Bot read access from Connections."
       : detail || "Outlook Mail sign-in did not complete. Start again from Connections."
+    : googleMailResult
+    ? googleMailResult === "connected" ? "Gmail account connected. Grant one Local-inference Bot search access from Connections."
+      : detail || "Gmail sign-in did not complete. Start again from Connections."
     : outlookCalendarResult
     ? outlookCalendarResult === "connected" ? "Outlook Calendar account connected. Choose a calendar and grant one Bot read access from Connections."
       : detail || "Outlook Calendar sign-in did not complete. Start again from Connections."
@@ -458,7 +462,7 @@ if (chatgptResult || googleCalendarResult || outlookCalendarResult || outlookMai
     : chatgptResult === "connected" ? "ChatGPT plan route connected."
     : chatgptResult === "identity-only" ? "ChatGPT signed in, but plan use was not granted. Reauthorize to use it for models."
     : detail || "ChatGPT sign-in did not complete. Start again from Connections.";
-  setTimeout(() => toast(message, chatgptResult === "error" || googleCalendarResult === "error" || outlookCalendarResult === "error" || outlookMailResult === "error"), 0);
+  setTimeout(() => toast(message, chatgptResult === "error" || googleCalendarResult === "error" || googleMailResult === "error" || outlookCalendarResult === "error" || outlookMailResult === "error"), 0);
   history.replaceState(null, "", `${location.pathname}${location.hash || "#/connections"}`);
 }
 
@@ -4353,12 +4357,15 @@ async function renderConnections() {
     <div class="ctx-actions"><button class="btn primary small" id="btn-add-conn">${icon("plus")} Add connection</button></div>`);
   const conns = data.connections || [];
   const googleCalendar = data.google_calendar || { configured: false, secret_store_available: false, accounts: [], grants: [] };
+  const googleMail = data.google_mail || { configured: false, secret_store_available: false, accounts: [], grants: [] };
+  const googleMailBots = bots.filter(bot => bot.inference_mode === "local");
   const outlookCalendar = data.outlook_calendar || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const outlookMail = data.outlook_mail || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const windows = { "5h": "per 5 hours", "day": "per day", "week": "per week", "month": "per month" };
   const devicesOpen = $(".device-manager")?.open || false;
   const outlookCalendarAccessOpen = $("#outlook-calendar-access")?.open || false;
   const outlookMailAccessOpen = $("#outlook-mail-access")?.open || false;
+  const googleMailAccessOpen = $("#google-mail-access")?.open || false;
   const googleCalendarAccountsHtml = (googleCalendar.accounts || []).map(account => {
     const grants = (googleCalendar.grants || []).filter(grant => grant.account_id === account.id);
     const grantRows = grants.length ? grants.map(grant => `
@@ -4388,6 +4395,32 @@ async function renderConnections() {
   }).join("");
   const orphanCalendarGrants = (googleCalendar.grants || []).filter(grant =>
     !(googleCalendar.accounts || []).some(account => account.id === grant.account_id));
+  const googleMailAccountsHtml = (googleMail.accounts || []).map(account => {
+    const grants = (googleMail.grants || []).filter(grant => grant.account_id === account.id);
+    const grantRows = grants.length ? grants.map(grant => `
+      <div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Can search sender, subject, date and short previews · ${esc(account.label)}</p></div>
+        <button class="btn ghost small" type="button" data-google-mail-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")
+      : '<p class="hint">No Bot has access to this account.</p>';
+    return `<article class="google-calendar-account" data-google-mail-account="${esc(account.id)}">
+      <div class="device-row"><div><strong>${esc(account.label)}</strong> <span class="chip ok">connected</span>
+        <p class="hint">Restricted <code>gmail.readonly</code> access · connected ${esc(new Date(account.created_at).toLocaleDateString())}</p></div>
+        <button class="btn danger small" type="button" data-google-mail-disconnect="${esc(account.id)}">Disconnect</button>
+      </div>
+      <div class="google-calendar-grants" aria-label="Bots with Gmail access">${grantRows}</div>
+      <div class="google-calendar-grant-form" data-google-mail-grant-form="${esc(account.id)}">
+        <label class="field">Grant this mailbox to one Local-inference Bot
+          <select data-google-mail-bot ${googleMailBots.length ? "" : "disabled"} aria-label="Local-inference Bot for Gmail access">
+            ${googleMailBots.length ? googleMailBots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("") : '<option value="">Create or switch a Bot to Local inference</option>'}
+          </select>
+        </label>
+        <button class="btn primary small" type="button" data-google-mail-grant="${esc(account.id)}" ${googleMailBots.length ? "" : "disabled"}>Grant search access</button>
+        <p class="hint">Before saving, Hutch verifies that the built-in Bot's primary, fallback and escalation models all use loopback endpoints. Hosted fallback and remote custom endpoints are refused.</p>
+        <p class="hint" role="status" aria-live="polite" data-google-mail-status></p>
+      </div>
+    </article>`;
+  }).join("");
+  const orphanGoogleMailGrants = (googleMail.grants || []).filter(grant =>
+    !(googleMail.accounts || []).some(account => account.id === grant.account_id));
   const outlookCalendarAccountsHtml = (outlookCalendar.accounts || []).map(account => {
     const grants = (outlookCalendar.grants || []).filter(grant => grant.account_id === account.id);
     const grantRows = grants.length ? grants.map(grant => `
@@ -4482,12 +4515,26 @@ async function renderConnections() {
         ${googleCalendarAccountsHtml || '<p class="hint">No Google Calendar accounts connected.</p>'}
         ${orphanCalendarGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanCalendarGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-google-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
       </section>
-      <section class="panel conn-card" id="gmail-unavailable" aria-labelledby="gmail-unavailable-title">
-        <div class="bot-head"><span class="bot-name" id="gmail-unavailable-title">Gmail</span>
-          <span class="tag">not available</span></div>
-        <p class="hint">Gmail is not connected in Hutch. Google Calendar access is separate and does not grant access to Gmail.</p>
-        <p class="hint">Message search would require Google's restricted <code>gmail.readonly</code> scope. Public apps need Google's restricted-scope verification; apps that access restricted data from or through a third-party server also need a security assessment. Hutch has no Gmail sign-in flow and requests no Gmail scope.</p>
-        <p class="hint"><a href="https://developers.google.com/workspace/gmail/api/auth/scopes" target="_blank" rel="noopener noreferrer" aria-label="Google Gmail scope and verification requirements">Review Google's Gmail scope and verification requirements</a>.</p>
+      <section class="panel conn-card outlook-calendar-card" aria-labelledby="google-mail-title">
+        <div class="bot-head"><span class="bot-name" id="google-mail-title">Gmail</span>
+          <span class="tag">experimental</span><span class="tag">Local inference only</span></div>
+        <p class="hint">Search a connected mailbox for up to 10 matches. Hutch returns only sender, subject, received date and a short preview, which becomes untrusted local run history. It cannot send, edit, forward, delete or fetch attachments. Only built-in Bots with loopback Local model routes and no hosted fallbacks can receive Gmail access; Hutch cannot verify what the operator's local model service does.</p>
+        <p class="hint"><strong>Google permission:</strong> <code>gmail.readonly</code> is a restricted, account-wide scope. Each Bot grant is enforced by Hutch, but Google consent is broader and remains managed in your Google Account. Public distribution requires Google's restricted-scope verification; server-side access can also require a security assessment. This private-preview integration is not approved for public release.</p>
+        <p class="hint"><a href="https://developers.google.com/workspace/gmail/api/auth/scopes" target="_blank" rel="noopener noreferrer">Review Google's Gmail scope requirements</a> · <a href="https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification" target="_blank" rel="noopener noreferrer">Review restricted-scope verification</a>.</p>
+        <details class="outlook-calendar-details" id="google-mail-access" ${googleMailAccessOpen ? "open" : ""}>
+          <summary>Manage Gmail access</summary>
+          ${!googleMail.configured ? '<p class="hint" role="status">Unavailable until the Hutch operator configures <code>HUTCH_GOOGLE_OAUTH_CLIENT_ID</code> with an eligible Google Desktop OAuth client. This requests restricted <code>gmail.readonly</code> consent, separately from Calendar.</p>' : ''}
+          ${googleMail.configured && !googleMail.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting. Refresh tokens stay outside SQLite and browser storage.</p>' : ''}
+          ${googleMail.configured && googleMail.secret_store_available ? `<div class="google-calendar-connect outlook-calendar-connect">
+            <label class="field" for="google-mail-label">Account label
+              <input id="google-mail-label" type="text" maxlength="80" autocomplete="off" placeholder="Personal or Work" aria-describedby="google-mail-label-help">
+            </label>
+            <button class="btn primary small" id="google-mail-connect" type="button">Connect Gmail</button>
+            <p class="hint" id="google-mail-label-help">Sign in from this Hutch host at <code>127.0.0.1</code>. Google's restricted-scope verification, test-user and token-expiry rules still apply to your OAuth project.</p>
+          </div>` : ''}
+          ${googleMailAccountsHtml || '<p class="hint">No Gmail accounts connected.</p>'}
+          ${orphanGoogleMailGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A Bot grant refers to a disconnected Gmail account. Revoke it before reconnecting.</p>${orphanGoogleMailGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Gmail search access</p></div><button class="btn ghost small" data-google-mail-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ''}
+        </details>
       </section>
       <section class="panel conn-card outlook-calendar-card" aria-labelledby="outlook-calendar-title">
         <div class="bot-head"><span class="bot-name" id="outlook-calendar-title">Outlook Calendar</span>
@@ -4579,6 +4626,7 @@ async function renderConnections() {
   $(".device-manager").open = devicesOpen;
   $("#outlook-calendar-access").open = outlookCalendarAccessOpen;
   $("#outlook-mail-access").open = outlookMailAccessOpen;
+  $("#google-mail-access").open = googleMailAccessOpen;
 
   const beginChatGPTSignIn = async (accountId = "", button = null) => {
     if (button) { button.disabled = true; button.textContent = "Opening ChatGPT…"; }
@@ -4727,6 +4775,89 @@ async function renderConnections() {
       try {
         const result = await api(`/v1/connections/google-calendar/accounts/${encodeURIComponent(button.dataset.googleCalendarDisconnect)}/disconnect`, { method: "POST", body: {} });
         toast(result.detail, result.provider_revocation !== "confirmed");
+        await renderConnections();
+      } catch (err) { button.disabled = false; toast(err.message, true); }
+    });
+  });
+
+  $("#google-mail-connect")?.addEventListener("click", async event => {
+    const button = event.currentTarget;
+    const label = $("#google-mail-label")?.value.trim();
+    if (!label) { toast("Enter a label for this Gmail account.", true); $("#google-mail-label")?.focus(); return; }
+    const authWindow = window.open("about:blank", "_blank");
+    if (!authWindow) {
+      toast("Allow Hutch to open a browser tab, then try Google sign-in again.", true);
+      return;
+    }
+    authWindow.opener = null;
+    button.disabled = true;
+    button.textContent = "Opening Google…";
+    try {
+      const result = await api("/v1/connections/google-mail/sign-in", { method: "POST", body: { label } });
+      let authUrl;
+      try { authUrl = new URL(result.authorization_url); }
+      catch { throw new Error("Hutch returned an invalid Google sign-in destination."); }
+      if (authUrl.origin !== "https://accounts.google.com" || authUrl.pathname !== "/o/oauth2/v2/auth" ||
+          authUrl.username || authUrl.password || authUrl.hash || !authUrl.search) {
+        throw new Error("Hutch returned an unexpected Google sign-in destination.");
+      }
+      authWindow.location.replace(authUrl.href);
+      toast("Finish Google sign-in in the new browser tab, then reload Connections here.");
+    } catch (err) {
+      authWindow.close();
+      toast(err.message, true);
+    } finally {
+      button.disabled = false;
+      button.textContent = "Connect Gmail";
+    }
+  });
+  $$('[data-google-mail-grant]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const form = button.closest("[data-google-mail-grant-form]");
+      const bot = $("[data-google-mail-bot]", form).value;
+      const status = $("[data-google-mail-status]", form);
+      const existing = (googleMail.grants || []).find(grant => grant.bot_id === bot);
+      if (existing && existing.account_id !== button.dataset.googleMailGrant && !(await confirmDialog({
+        title: "Replace Gmail access",
+        body: `<b>${esc(grantedBotLabel(existing))}</b> already has a grant to another mailbox. Replace it with this Gmail account?`,
+        confirmText: "Replace grant",
+      }))) return;
+      button.disabled = true;
+      status.textContent = "Saving this Bot's local-only Gmail grant…";
+      try {
+        const result = await api("/v1/connections/google-mail/grants", { method: "POST", body: {
+          bot, account_id: button.dataset.googleMailGrant } });
+        toast(result.detail);
+        await renderConnections();
+      } catch (err) { status.textContent = err.message; button.disabled = false; }
+    });
+  });
+  $$('[data-google-mail-ungrant]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const grant = (googleMail.grants || []).find(row => row.bot_id === button.dataset.googleMailUngrant);
+      if (!(await confirmDialog({ title: "Revoke Bot Gmail access",
+        body: `Stop <b>${esc(grantedBotLabel(grant))}</b> from searching the granted Gmail mailbox?`,
+        confirmText: "Revoke access" }))) return;
+      button.disabled = true;
+      try {
+        await api(`/v1/connections/google-mail/grants/${encodeURIComponent(button.dataset.googleMailUngrant)}`, { method: "DELETE" });
+        toast("Bot Gmail access revoked.");
+        await renderConnections();
+      } catch (err) { button.disabled = false; toast(err.message, true); }
+    });
+  });
+  $$('[data-google-mail-disconnect]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const account = (googleMail.accounts || []).find(row => row.id === button.dataset.googleMailDisconnect);
+      const botNames = (googleMail.grants || []).filter(row => row.account_id === account?.id).map(grantedBotLabel);
+      const grants = botNames.length ? `<p>This also removes Hutch Gmail access for ${botNames.map(esc).join(", ")}.</p>` : "";
+      if (!(await confirmDialog({ title: "Disconnect Gmail",
+        body: `Clear Hutch's local refresh credential for <b>${esc(account?.label || "this account")}</b> and request Google's token revocation?${grants} Google consent is account-wide; check your Google Account if remote revocation is not confirmed.`,
+        confirmText: "Disconnect", danger: true }))) return;
+      button.disabled = true;
+      try {
+        const result = await api(`/v1/connections/google-mail/accounts/${encodeURIComponent(button.dataset.googleMailDisconnect)}/disconnect`, { method: "POST", body: {} });
+        toast(result.detail, result.provider_revocation === "not_confirmed");
         await renderConnections();
       } catch (err) { button.disabled = false; toast(err.message, true); }
     });

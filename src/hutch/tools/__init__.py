@@ -12,6 +12,7 @@ from .choice import AskUserChoiceTool
 from .google_calendar import GoogleCalendarEventsTool
 from .outlook_calendar import OutlookCalendarEventsTool
 from .outlook_mail import OutlookMailSearchTool
+from .google_mail import GoogleMailSearchTool
 
 #: name -> factory (browser is imported lazily so the dependency stays optional)
 _CATALOG: dict[str, type[Tool]] = {
@@ -91,6 +92,21 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
         outlook_mail_grant = outlook_mail_grant_reader(ctx.bot.id) if callable(outlook_mail_grant_reader) else None
         if outlook_mail_grant:
             tools["outlook_mail_search"] = OutlookMailSearchTool(outlook_mail_grant)
+    if ctx is not None and getattr(getattr(ctx.bot, "inference_mode", None), "value", "") == "local":
+        # Gmail's restricted data stays with an explicitly loopback-routed
+        # built-in Bot. Also omit the tool if later Bot edits add remote
+        # fallbacks or move its primary endpoint off this machine.
+        from ..google_mail import validate_local_gmail_bot
+        from ..google_calendar import GoogleCalendarError
+        google_mail_grant_reader = getattr(ctx.store, "google_mail_grant", None)
+        google_mail_grant = google_mail_grant_reader(ctx.bot.id) if callable(google_mail_grant_reader) else None
+        try:
+            validate_local_gmail_bot(ctx.bot)
+            gmail_route_is_local = True
+        except GoogleCalendarError:
+            gmail_route_is_local = False
+        if google_mail_grant and gmail_route_is_local:
+            tools["google_mail_search"] = GoogleMailSearchTool(google_mail_grant)
     return tools
 
 

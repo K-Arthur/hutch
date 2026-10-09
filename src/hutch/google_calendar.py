@@ -60,6 +60,9 @@ class SecretToolStore:
     """Use Linux Secret Service through secret-tool without putting values in argv."""
 
     service = "hutch.google-calendar"
+    feature_name = "Google Calendar"
+    account_pattern = ACCOUNT_RE
+    probe_account = "gcal_000000000000000000000000"
 
     def __init__(self, *, run=None):
         self._run = run
@@ -75,7 +78,7 @@ class SecretToolStore:
             runner = self._run or subprocess.run
             try:
                 result = runner(["secret-tool", "lookup", "service", self.service, "account",
-                                 "gcal_000000000000000000000000"], text=True, capture_output=True,
+                                 self.probe_account], text=True, capture_output=True,
                                 timeout=3, check=False, env=self._environment())
                 # `secret-tool lookup` returns 1 with no output when the service
                 # is healthy but no matching item exists; DBus/keyring failures
@@ -92,10 +95,10 @@ class SecretToolStore:
             "PATH", "LANG", "DBUS_SESSION_BUS_ADDRESS", "XDG_RUNTIME_DIR", "DISPLAY", "WAYLAND_DISPLAY"
         ) if key in os.environ}
 
-    @staticmethod
-    def _account(account_id: str) -> str:
-        if not ACCOUNT_RE.fullmatch(account_id):
-            raise GoogleCalendarError("Google Calendar account reference is invalid")
+    @classmethod
+    def _account(cls, account_id: str) -> str:
+        if not cls.account_pattern.fullmatch(account_id):
+            raise GoogleCalendarError(f"{cls.feature_name} account reference is invalid")
         return account_id
 
     def _call(self, args: list[str], *, input_text: str | None = None):
@@ -112,7 +115,7 @@ class SecretToolStore:
         return result.stdout
 
     def put(self, account_id: str, value: str) -> None:
-        self._call(["store", "--label=Hutch Google Calendar refresh token", "service", self.service,
+        self._call(["store", f"--label=Hutch {self.feature_name} refresh token", "service", self.service,
                     "account", self._account(account_id)], input_text=value + "\n")
 
     def get(self, account_id: str) -> str | None:
@@ -162,17 +165,29 @@ def _atomic_private_json(path: Path, value: dict[str, Any]) -> None:
 class GoogleCalendarBook:
     """OAuth accounts and Calendar API operations for one local Hutch state directory."""
 
+    feature_name = "Google Calendar"
+    client_id_env = "HUTCH_GOOGLE_OAUTH_CLIENT_ID"
+    storage_name = "google-calendar"
+    account_prefix = "gcal_"
+    account_pattern = ACCOUNT_RE
+    callback_path = CALLBACK_PATH
+    oauth_scopes = SCOPES
+    required_scopes = SCOPES
+    api_host = "www.googleapis.com"
+    api_base = CALENDAR_API
+    secret_store_type = SecretToolStore
+
     def __init__(self, state_dir: Path, client_id: str, *, secrets_store: SecretStore | None = None,
                  transport: httpx.BaseTransport | None = None,
                  clock=time.time):
-        self.root = Path(state_dir) / "google-calendar"
+        self.root = Path(state_dir) / self.storage_name
         self.pending_dir = self.root / "pending"
         self.accounts_path = self.root / "accounts.json"
         self.lock_path = self.root / ".lock"
         self.client_id = str(client_id or "").strip()
         if len(self.client_id) > 512 or any(ord(c) < 32 for c in self.client_id):
             raise GoogleCalendarError("Set HUTCH_GOOGLE_OAUTH_CLIENT_ID to a Google Desktop OAuth client ID")
-        self.secrets = secrets_store or SecretToolStore()
+        self.secrets = secrets_store or self.secret_store_type()
         self.transport = transport
         self.clock = clock
 
@@ -191,20 +206,20 @@ class GoogleCalendarBook:
             finally:
                 os.close(fd)
 
-    @staticmethod
-    def _validate_callback(uri: str) -> None:
+    @classmethod
+    def _validate_callback(cls, uri: str) -> None:
         try:
             parts = urlsplit(uri)
             valid = (parts.scheme == "http" and parts.hostname == "127.0.0.1" and
-                     parts.port is not None and 1 <= parts.port <= 65535 and parts.path == CALLBACK_PATH and
+                     parts.port is not None and 1 <= parts.port <= 65535 and parts.path == cls.callback_path and
                      not parts.query and not parts.fragment and parts.username is None and parts.password is None)
         except ValueError:
             valid = False
         if not valid:
-            raise GoogleCalendarError("Google Calendar sign-in must use Hutch's exact local 127.0.0.1 callback")
+            raise GoogleCalendarError(f"{cls.feature_name} sign-in must use Hutch's exact local 127.0.0.1 callback")
 
-    @staticmethod
-    def callback_uri(request: Any) -> str:
+    @classmethod
+    def callback_uri(cls, request: Any) -> str:
         host = request.headers.get("host", "")
         try:
             host_parts = urlsplit("//" + host)
@@ -221,21 +236,21 @@ class GoogleCalendarBook:
         except (KeyError, TypeError, ValueError, IndexError):
             valid = False
         if not valid:
-            raise GoogleCalendarError("Google Calendar sign-in must start and finish from Hutch on this computer at 127.0.0.1")
-        return f"http://127.0.0.1:{port}{CALLBACK_PATH}"
+            raise GoogleCalendarError(f"{cls.feature_name} sign-in must start and finish from Hutch on this computer at 127.0.0.1")
+        return f"http://127.0.0.1:{port}{cls.callback_path}"
 
     def _require_client_id(self) -> None:
         if not self.client_id:
-            raise GoogleCalendarError("Google Calendar is not configured; set HUTCH_GOOGLE_OAUTH_CLIENT_ID to a Google Desktop OAuth client ID and restart Hutch")
+            raise GoogleCalendarError(f"{self.feature_name} is not configured; set {self.client_id_env} to a Google Desktop OAuth client ID and restart Hutch")
 
     def start(self, label: str, redirect_uri: str) -> OAuthStart:
         self._require_client_id()
         self._validate_callback(redirect_uri)
         clean_label = " ".join(str(label or "").split())
         if not 1 <= len(clean_label) <= 80:
-            raise GoogleCalendarError("Choose a Google Calendar account label from 1 to 80 characters")
+            raise GoogleCalendarError(f"Choose a {self.feature_name} account label from 1 to 80 characters")
         if not self.secrets.available():
-            raise GoogleCalendarError("Install and unlock Linux Secret Service (secret-tool) before connecting Google Calendar")
+            raise GoogleCalendarError(f"Install and unlock Linux Secret Service (secret-tool) before connecting {self.feature_name}")
         self.pending_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
         os.chmod(self.pending_dir, 0o700)
         now = self.clock()
@@ -248,7 +263,7 @@ class GoogleCalendarBook:
             except (OSError, ValueError, TypeError):
                 pending_path.unlink(missing_ok=True)
         if sum(1 for path in self.pending_dir.glob("*.json")) >= 10:
-            raise GoogleCalendarError("Too many Google Calendar sign-in requests are pending; wait for one to expire and retry")
+            raise GoogleCalendarError(f"Too many {self.feature_name} sign-in requests are pending; wait for one to expire and retry")
         state = secrets.token_urlsafe(32)
         verifier = secrets.token_urlsafe(48)
         challenge = _b64url(hashlib.sha256(verifier.encode("ascii")).digest())
@@ -258,7 +273,7 @@ class GoogleCalendarBook:
         _atomic_private_json(self.pending_dir / f"{state}.json", pending)
         url = AUTH_URL + "?" + urlencode({
             "client_id": self.client_id, "redirect_uri": redirect_uri, "response_type": "code",
-            "scope": " ".join(SCOPES), "access_type": "offline", "prompt": "consent select_account",
+            "scope": " ".join(self.oauth_scopes), "access_type": "offline", "prompt": "consent select_account",
             "code_challenge": challenge, "code_challenge_method": "S256", "state": state,
         })
         return OAuthStart(url, state)
@@ -270,9 +285,9 @@ class GoogleCalendarBook:
         except FileNotFoundError:
             return {"version": 1, "accounts": {}}
         except (OSError, json.JSONDecodeError):
-            raise GoogleCalendarError("Google Calendar account records are unreadable; preserve the file and inspect it locally") from None
+            raise GoogleCalendarError(f"{self.feature_name} account records are unreadable; preserve the file and inspect it locally") from None
         if not isinstance(value, dict) or value.get("version") != 1 or not isinstance(value.get("accounts"), dict):
-            raise GoogleCalendarError("Google Calendar account records have an unsupported format")
+            raise GoogleCalendarError(f"{self.feature_name} account records have an unsupported format")
         return value
 
     def _write_accounts(self, value: dict[str, Any]) -> None:
@@ -280,20 +295,20 @@ class GoogleCalendarBook:
 
     def _read_pending(self, state: str) -> dict[str, Any]:
         if not re.fullmatch(r"[A-Za-z0-9_-]{32,128}", state):
-            raise GoogleCalendarError("This Google Calendar sign-in request is invalid; start again")
+            raise GoogleCalendarError(f"This {self.feature_name} sign-in request is invalid; start again")
         path = self.pending_dir / f"{state}.json"
         with self._lock_context():
             try:
                 os.chmod(path, 0o600)
                 pending = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
-                raise GoogleCalendarError("This Google Calendar sign-in request is missing or already used; start again") from None
+                raise GoogleCalendarError(f"This {self.feature_name} sign-in request is missing or already used; start again") from None
             try:
                 path.unlink()
             except OSError:
-                raise GoogleCalendarError("This Google Calendar sign-in request could not be consumed; start again") from None
+                raise GoogleCalendarError(f"This {self.feature_name} sign-in request could not be consumed; start again") from None
         if float(pending.get("expires_at", 0)) < self.clock():
-            raise GoogleCalendarError("This Google Calendar sign-in request expired; start again")
+            raise GoogleCalendarError(f"This {self.feature_name} sign-in request expired; start again")
         return pending
 
     def cancel(self, state: str) -> None:
@@ -330,7 +345,7 @@ class GoogleCalendarBook:
             raise GoogleCalendarError("Google did not return a valid authorization code; start sign-in again")
         pending = self._read_pending(state)
         if not secrets.compare_digest(str(pending.get("redirect_uri", "")), redirect_uri):
-            raise GoogleCalendarError("This Google Calendar callback does not match the sign-in request; start again")
+            raise GoogleCalendarError(f"This {self.feature_name} callback does not match the sign-in request; start again")
         with self._http() as client:
             try:
                 response = client.post(TOKEN_URL, data={"client_id": self.client_id, "code": code,
@@ -348,12 +363,12 @@ class GoogleCalendarBook:
                 not isinstance(access, str) or not 1 <= len(access) <= 2048 or
                 any(ord(c) < 33 or ord(c) > 126 for c in access) or token_type != "bearer" or
                 not isinstance(expires, (int, float)) or isinstance(expires, bool) or not 0 < expires <= 86400 or
-                not set(SCOPES).issubset(scope_set)):
-            raise GoogleCalendarError("Google did not grant both requested read-only Calendar scopes with offline access; disconnect and reconnect")
-        account_id = "gcal_" + secrets.token_hex(12)
+                not set(self.required_scopes).issubset(scope_set)):
+            raise GoogleCalendarError(f"Google did not grant the requested read-only {self.feature_name} scopes with offline access; disconnect and reconnect")
+        account_id = self.account_prefix + secrets.token_hex(12)
         created = datetime.fromtimestamp(self.clock(), timezone.utc).isoformat()
         account = {"id": account_id, "label": pending["label"], "created_at": created,
-                   "scopes": list(SCOPES), "status": "connected"}
+                   "scopes": list(self.oauth_scopes), "status": "connected"}
         try:
             self.secrets.put(account_id, refresh)
             with self._lock_context():
@@ -374,12 +389,12 @@ class GoogleCalendarBook:
             return [dict(row) for _, row in sorted(accounts.items(), key=lambda pair: pair[1].get("created_at", ""))]
 
     def _account(self, account_id: str) -> dict[str, Any]:
-        if not ACCOUNT_RE.fullmatch(account_id):
-            raise GoogleCalendarError("Google Calendar account reference is invalid")
+        if not self.account_pattern.fullmatch(account_id):
+            raise GoogleCalendarError(f"{self.feature_name} account reference is invalid")
         with self._lock_context():
             account = self._read_accounts()["accounts"].get(account_id)
         if not account:
-            raise GoogleCalendarError("Google Calendar account is not connected; reconnect it from Connections")
+            raise GoogleCalendarError(f"{self.feature_name} account is not connected; reconnect it from Connections")
         return account
 
     def access_token(self, account_id: str) -> str:
@@ -392,13 +407,13 @@ class GoogleCalendarBook:
                 return cached[1]
             refresh = self.secrets.get(account_id)
             if not refresh:
-                raise GoogleCalendarError("Google Calendar refresh credential is missing; disconnect and reconnect this account")
+                raise GoogleCalendarError(f"{self.feature_name} refresh credential is missing; disconnect and reconnect this account")
             with self._http() as client:
                 try:
                     response = client.post(TOKEN_URL, data={"client_id": self.client_id,
                         "refresh_token": refresh, "grant_type": "refresh_token"})
                 except httpx.HTTPError:
-                    raise GoogleCalendarError("Could not refresh Google Calendar access; check the network and retry") from None
+                    raise GoogleCalendarError(f"Could not refresh {self.feature_name} access; check the network and retry") from None
             payload = self._json(response, "access-token refresh")
             token = payload.get("access_token")
             expires = payload.get("expires_in")
@@ -406,17 +421,17 @@ class GoogleCalendarBook:
                     any(ord(c) < 33 or ord(c) > 126 for c in token) or
                     str(payload.get("token_type", "")).lower() != "bearer" or
                     not isinstance(expires, (int, float)) or isinstance(expires, bool) or not 0 < expires <= 86400):
-                raise GoogleCalendarError("Google returned an invalid access-token response; reconnect this account")
+                raise GoogleCalendarError(f"Google returned an invalid {self.feature_name} access-token response; reconnect this account")
             rotated = payload.get("refresh_token")
             if isinstance(rotated, str) and rotated:
                 self.secrets.put(account_id, rotated)
             _ACCESS_CACHE[cache_key] = (self.clock() + float(expires), token)
             return token
 
-    def _get(self, url: str, account_id: str, params: dict[str, str] | None = None, purpose="Calendar data") -> dict[str, Any]:
+    def _get(self, url: str, account_id: str, params: dict[str, Any] | None = None, purpose="Calendar data") -> dict[str, Any]:
         parts = urlsplit(url)
-        if parts.scheme != "https" or parts.hostname != "www.googleapis.com" or parts.username or parts.password:
-            raise GoogleCalendarError("Refusing a Calendar API destination outside Google's verified API host")
+        if parts.scheme != "https" or parts.hostname != self.api_host or parts.username or parts.password:
+            raise GoogleCalendarError(f"Refusing a {self.feature_name} API destination outside Google's verified API host")
         def request(token: str) -> httpx.Response:
             with self._http() as client:
                 try:
@@ -437,13 +452,13 @@ class GoogleCalendarBook:
                 if cached is not None and secrets.compare_digest(cached[1], token):
                     _ACCESS_CACHE.pop(cache_key, None)
             response = request(self.access_token(account_id))
-        if response.request.url.host != "www.googleapis.com":
-            raise GoogleCalendarError("Google Calendar request changed destination; no credentials were forwarded")
+        if response.request.url.host != self.api_host:
+            raise GoogleCalendarError(f"Google {self.feature_name} request changed destination; no credentials were forwarded")
         return self._json(response, purpose)
 
     def list_calendars(self, account_id: str) -> list[dict[str, Any]]:
         self._account(account_id)
-        url = f"{CALENDAR_API}/users/me/calendarList"
+        url = f"{self.api_base}/users/me/calendarList"
         params: dict[str, str] = {"maxResults": "100", "showDeleted": "false", "showHidden": "false",
                                   "fields": "items(id,summary,primary,accessRole),nextPageToken"}
         result: list[dict[str, Any]] = []
@@ -489,7 +504,7 @@ class GoogleCalendarBook:
             raise GoogleCalendarError("Calendar result limit must be between 1 and 100")
         if not isinstance(query, str) or len(query) > 200 or any(ord(c) < 32 for c in query):
             raise GoogleCalendarError("Calendar search query must be at most 200 plain-text characters")
-        url = f"{CALENDAR_API}/calendars/{quote(calendar_id, safe='')}/events"
+        url = f"{self.api_base}/calendars/{quote(calendar_id, safe='')}/events"
         payload = self._get(url, account_id, {"timeMin": start.isoformat().replace("+00:00", "Z"),
             "timeMax": end.isoformat().replace("+00:00", "Z"), "singleEvents": "true", "orderBy": "startTime",
             "maxResults": str(limit), "fields": "items(summary,start,end,location),nextPageToken",
@@ -510,8 +525,8 @@ class GoogleCalendarBook:
         return events
 
     def disconnect(self, account_id: str) -> dict[str, Any]:
-        if not ACCOUNT_RE.fullmatch(account_id):
-            raise GoogleCalendarError("Google Calendar account reference is invalid")
+        if not self.account_pattern.fullmatch(account_id):
+            raise GoogleCalendarError(f"{self.feature_name} account reference is invalid")
         try:
             self._account(account_id)
         except GoogleCalendarError as exc:

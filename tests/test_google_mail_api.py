@@ -1,0 +1,140 @@
+from __future__ import annotations
+
+from urllib.parse import parse_qs, urlsplit
+
+from fastapi.testclient import TestClient
+
+from hutch.google_calendar import OAuthStart
+from hutch.google_mail import GOOGLE_MAIL_SCOPE
+from hutch.models import Bot, InferenceMode
+from hutch.server.app import create_app
+
+
+ACCOUNT_ID = "gmail_0123456789abcdef01234567"
+
+
+class FixtureGoogleMailBook:
+    callback_scopes = []
+    accounts_rows = [{"id": ACCOUNT_ID, "label": "Personal Gmail", "created_at": "2026-10-09T00:00:00+00:00",
+                      "scopes": [GOOGLE_MAIL_SCOPE], "status": "connected"}]
+
+    class Secrets:
+        @staticmethod
+        def available():
+            return True
+
+    def __init__(self, state_dir, client_id):
+        self.secrets = self.Secrets()
+        self.client_id = client_id
+
+    def accounts(self):
+        return list(self.accounts_rows)
+
+    @classmethod
+    def callback_uri(cls, request):
+        cls.callback_scopes.append((request.scope.get("query_string"), request.scope.get("hutch_oauth_query")))
+        if request.headers.get("host", "").startswith("127.0.0.1"):
+            return "http://127.0.0.1:18787/api/v1/connections/google-mail/callback"
+        from hutch.google_calendar import GoogleCalendarError
+        raise GoogleCalendarError("Gmail sign-in must start and finish from Hutch on this computer at 127.0.0.1")
+
+    def start(self, label, callback):
+        return OAuthStart("https://accounts.google.com/o/oauth2/v2/auth?state=fixture", "fixture")
+
+    def _account(self, account_id):
+        from hutch.google_calendar import GoogleCalendarError
+        account = next((row for row in self.accounts_rows if row["id"] == account_id), None)
+        if account is None:
+            raise GoogleCalendarError("Gmail account is not connected; reconnect it from Connections")
+        return account
+
+    def finish(self, state, code, callback):
+        self.callback_scopes.append(("finish", state, code, callback))
+        return self.accounts_rows[0]
+
+    def cancel(self, state):
+        self.callback_scopes.append(("cancel", state))
+
+    def disconnect(self, account_id):
+        return {"removed": True, "provider_revocation": "confirmed"}
+
+
+def test_gmail_connection_and_grant_require_local_inference_and_are_revocable(tmp_path, monkeypatch):
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "fixture-desktop-client.apps.googleusercontent.com")
+    app = create_app()
+    with TestClient(app, base_url="http://127.0.0.1:18787") as client:
+        monkeypatch.setattr("hutch.google_mail.GoogleMailBook", FixtureGoogleMailBook)
+        local = client.app.state.store.create_bot(Bot(name="local-mail-reviewer", display_name="Mail Reviewer",
+            model="ollama/qwen3:4b", inference_mode=InferenceMode.local, tools=[]))
+        hybrid = client.app.state.store.create_bot(Bot(name="hybrid-mail-reviewer", model="mock/demo", tools=[]))
+        remote_local = client.app.state.store.create_bot(Bot(name="remote-local-mail-reviewer", model="ollama/qwen3:4b",
+            inference_mode=InferenceMode.local, base_url="https://models.example.test/v1", tools=[]))
+
+        resource = client.get("/api/v1/connections/google-mail")
+        assert resource.status_code == 200
+        assert resource.json() == {"configured": True, "secret_store_available": True,
+                                   "accounts": FixtureGoogleMailBook.accounts_rows, "grants": []}
+        assert client.get("/api/connections").json()["google_mail"]["accounts"][0]["label"] == "Personal Gmail"
+
+        start = client.post("/api/v1/connections/google-mail/sign-in", json={"label": "Personal Gmail"})
+        assert start.status_code == 200, start.text
+        assert start.headers["cache-control"] == "no-store"
+        assert start.headers["referrer-policy"] == "no-referrer"
+        assert urlsplit(start.json()["authorization_url"]).hostname == "accounts.google.com"
+
+        blocked = client.post("/api/v1/connections/google-mail/grants", json={"bot": hybrid.id,
+            "account_id": ACCOUNT_ID})
+        assert blocked.status_code == 409
+        assert "Local inference" in blocked.text and "hosted routes" in blocked.text
+        remote_blocked = client.post("/api/v1/connections/google-mail/grants", json={"bot": remote_local.id,
+            "account_id": ACCOUNT_ID})
+        assert remote_blocked.status_code == 409
+        assert "loopback-only Local model endpoints" in remote_blocked.text
+        granted = client.post("/api/v1/connections/google-mail/grants", json={"bot": local.id,
+            "account_id": ACCOUNT_ID})
+        assert granted.status_code == 200, granted.text
+        assert granted.json()["grant"]["account_id"] == ACCOUNT_ID
+        assert "sender, subject, date" in granted.json()["detail"]
+        assert "loopback endpoint" in granted.json()["detail"]
+        assert "Hybrid and hosted routes are blocked" in granted.json()["detail"]
+        assert "account-wide" in granted.json()["detail"]
+        assert client.app.state.store.google_mail_grant(local.id)["account_id"] == ACCOUNT_ID
+
+        removed = client.delete(f"/api/v1/connections/google-mail/grants/{local.id}")
+        assert removed.status_code == 200 and removed.json() == {"removed": True}
+        client.app.state.store.set_google_mail_grant(local.id, ACCOUNT_ID)
+        disconnected = client.post(f"/api/v1/connections/google-mail/accounts/{ACCOUNT_ID}/disconnect", json={})
+        assert disconnected.status_code == 200
+        assert disconnected.json()["provider_revocation"] == "confirmed"
+        assert client.app.state.store.list_google_mail_grants() == []
+
+
+def test_gmail_callback_strips_authorization_code_from_access_log_scope(tmp_path, monkeypatch):
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "fixture-desktop-client.apps.googleusercontent.com")
+    FixtureGoogleMailBook.callback_scopes.clear()
+    with TestClient(create_app(), base_url="http://127.0.0.1:18787", follow_redirects=False) as client:
+        monkeypatch.setattr("hutch.google_mail.GoogleMailBook", FixtureGoogleMailBook)
+        response = client.get("/api/v1/connections/google-mail/callback?state=one-time-state&code=one-time-code")
+    assert response.status_code == 303
+    assert response.headers["location"].endswith("google_mail_result=connected#/connections")
+    scope_query, values = FixtureGoogleMailBook.callback_scopes[0]
+    assert scope_query == b""
+    assert values == {"state": ["one-time-state"], "code": ["one-time-code"]}
+    assert FixtureGoogleMailBook.callback_scopes[1][0:3] == ("finish", "one-time-state", "one-time-code")
+
+
+def test_gmail_denied_callback_consumes_state_without_echoing_provider_error(tmp_path, monkeypatch):
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "fixture-desktop-client.apps.googleusercontent.com")
+    FixtureGoogleMailBook.callback_scopes.clear()
+    with TestClient(create_app(), base_url="http://127.0.0.1:18787", follow_redirects=False) as client:
+        monkeypatch.setattr("hutch.google_mail.GoogleMailBook", FixtureGoogleMailBook)
+        response = client.get("/api/v1/connections/google-mail/callback?state=one-time-state&error=access_denied")
+    values = parse_qs(urlsplit(response.headers["location"]).query)
+    assert response.status_code == 303
+    assert values["google_mail_result"] == ["error"]
+    assert values["detail"] == ["Gmail access was not granted; no account was connected"]
+    assert "access_denied" not in response.headers["location"]
+    assert FixtureGoogleMailBook.callback_scopes[-1] == ("cancel", "one-time-state")

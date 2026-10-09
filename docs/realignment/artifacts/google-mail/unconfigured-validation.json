@@ -1,0 +1,48 @@
+{
+  "test": "tests/e2e/test_browser.py::test_gmail_preview_discloses_restricted_scope_and_requires_local_setup",
+  "browser": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "provider_credentials_used": false,
+  "provider_calls": 0,
+  "scenario": "Private-preview Gmail is labelled experimental; Connections explains restricted gmail.readonly account consent, verification/security assessment and Local-inference-only boundaries; an unconfigured host receives actionable setup details and no dead Connect control",
+  "external_requests": [],
+  "page_errors": [],
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "horizontal_overflow": 0
+    }
+  ],
+  "inspected_screenshots": [
+    "unconfigured-desktop.png",
+    "unconfigured-tablet.png",
+    "unconfigured-phone.png"
+  ],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "44b94310fe918a6e00b0b63ca279df5158ec2b462be04af402b4ee24e3c695a0",
+    "src/hutch/server/static/style.css": "3ca514093c71699c427180bb622219c5d2b7eebfb9f2611f3d377554d6ff0343",
+    "src/hutch/server/app.py": "db5d9e490cda36b6a5bf74ecc080c3d35a1dfa3bd830cb0bc6e99d9a2290b828",
+    "docs/connections.md": "d8c8e2fd0804b5d2d004123024d149d5c62ef610ca7b62fa0714c7335ea15964",
+    "docs/requirements.md": "23900df544589bde3536b12daa571c14def250ba3075a83cdca39559cd3aae08"
+  }
+}

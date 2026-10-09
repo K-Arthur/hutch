@@ -277,7 +277,7 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
     external = []
     page.on("request", lambda request: external.append(request.url)
             if not request.url.startswith(site_url) and not request.url.startswith("data:") else None)
-    out = ROOT / "docs/realignment/artifacts/provider-signin"
+    out = ROOT / "docs/realignment/artifacts/google-mail/marketing"
     out.mkdir(parents=True, exist_ok=True)
     source = (SITE_DIR / "index.html").read_bytes()
     styles = (SITE_DIR / "styles.css").read_bytes()
@@ -290,7 +290,9 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
         assert "eligibility unconfirmed" in availability
         assert "read-only google/outlook calendar" in availability
         assert "account consent unverified" in availability
-        assert "outlook mail" not in availability
+        assert "private gmail search" in availability
+        assert "public release awaits google scope verification" in availability
+        assert "outlook mail previews" in availability
         assert page.locator("a[href='#get']").count() >= 1
         for label, width, height in viewports:
             page.set_viewport_size({"width": width, "height": height})
@@ -338,7 +340,7 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
 
 def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_viewports(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
-    out = ROOT / "docs/realignment/artifacts/outlook-mail/site"
+    out = ROOT / "docs/realignment/artifacts/google-mail/site-availability"
     out.mkdir(parents=True, exist_ok=True)
     source = (SITE_DIR / "index.html").read_bytes()
     styles = (SITE_DIR / "styles.css").read_bytes()
@@ -353,11 +355,12 @@ def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_
         text = row.inner_text().lower()
         assert "experimental" in row.inner_text().lower()
         assert "account consent unverified" in text
-        assert "password/captcha handoff" in text
+        assert "credential/captcha handoff" in text
         assert "browser field detection" in text
-        assert "outlook mail search previews" in text
-        assert "provider account consent unverified" in text
-        assert "gmail unavailable pending scope verification" in text
+        assert "outlook mail previews" in text
+        assert "account consent unverified" in text
+        assert "private gmail search" in text
+        assert "public release awaits google scope verification" in text
         wrapper = page.locator("#get .overflow-x-auto")
         for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})

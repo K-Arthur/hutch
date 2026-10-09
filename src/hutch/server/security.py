@@ -191,6 +191,7 @@ class SecurityMiddleware:
             await self.app(scope, receive, send)
             return
         if scope.get("path") in ("/auth/callback", "/api/v1/connections/google-calendar/callback",
+                                  "/api/v1/connections/google-mail/callback",
                                   "/api/v1/connections/outlook-calendar/callback",
                                   "/api/v1/connections/outlook-mail/callback"):
             # Authorization codes and state values must not survive in
