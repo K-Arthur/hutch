@@ -465,11 +465,26 @@ def test_versioned_connections_schedules_and_capabilities_are_typed_and_secret_f
     assert route["quota_reserved_tokens"] == 123 and route["account_daily_cost_reserved_usd"] == 0.45
     assert "never-return-this-key" not in connections.text
 
-    bot = make_bot(client, name="scheduled-v1", cron="0 9 * * 1", timezone="America/Vancouver")
+    bot = make_bot(client, name="scheduled-v1", cron="0 9 * * 1", timezone="America/Vancouver",
+                   schedule_prompt="Review new release notes and write a concise report.")
     schedules = client.get("/api/v1/schedules").json()
     schedule = next(row for row in schedules if row["bot_id"] == bot["id"])
     assert schedule["cron"] == "0 9 * * 1" and schedule["timezone"] == "America/Vancouver"
+    assert schedule["prompt"] == "Review new release notes and write a concise report."
     assert schedule["next_fire"] and schedule["last_dispatched"]
+    assert client.get("/api/bots/scheduled-v1").json()["schedule"]["prompt"] == schedule["prompt"]
+    updated = client.patch("/api/bots/scheduled-v1", json={"schedule_prompt": "Check the weekly security feed."})
+    assert updated.status_code == 200 and updated.json()["schedule"]["prompt"] == "Check the weekly security feed."
+    reset = client.patch("/api/bots/scheduled-v1", json={"schedule_prompt": ""})
+    assert reset.status_code == 200 and reset.json()["schedule"]["prompt"] == ""
+    assert client.patch("/api/bots/scheduled-v1", json={"clear_cron": True,
+                      "schedule_prompt": "Prompt without a schedule"}).status_code == 422
+    no_cron_prompt = client.post("/api/bots", json={"name": "prompt-needs-cron", "model": "mock/demo",
+                                                     "schedule_prompt": "Prompt without a schedule"})
+    assert no_cron_prompt.status_code == 422
+    overlong_prompt = client.post("/api/bots", json={"name": "prompt-too-long", "model": "mock/demo",
+                                                      "cron": "0 9 * * 1", "schedule_prompt": "x" * 4001})
+    assert overlong_prompt.status_code == 422
 
     capabilities = {row["id"]: row for row in client.get("/api/v1/capabilities").json()}
     assert capabilities["strict_offline"]["status"] in {"experimental", "unavailable"}

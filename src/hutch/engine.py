@@ -894,7 +894,9 @@ def _ollama_loaded() -> set[str]:
 def bot_prompt_for_schedule(bot: Bot) -> str:
     """Prompt used for scheduled runs — stable and self-describing."""
     when = utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    task = bot.schedule.prompt.strip() if bot.schedule else ""
+    task = task or bot.instructions or "execute your standing task and write a report to the workspace."
     return (
         f"[scheduled run — {when}]\n{bot.description or bot.name}: "
-        f"{bot.instructions or 'execute your standing task and write a report to the workspace.'}"
+        f"{task}"
     )

@@ -21,7 +21,7 @@ import pytest
 pw = pytest.importorskip("playwright.sync_api")
 import uvicorn  # noqa: E402
 
-from hutch.models import ApprovalMode, Bot, Event, EventType, Run, RunStatus, RuntimeKind, Task  # noqa: E402
+from hutch.models import ApprovalMode, Bot, Event, EventType, Run, RunStatus, RuntimeKind, Schedule, Task  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
 from hutch.connections import ConnectionBook  # noqa: E402
 
@@ -891,6 +891,133 @@ def test_bot_limits_can_be_saved_from_the_phone_settings(browser, live):
     assert limits.daily_token_cap == 7500 and limits.max_cost_usd == 0.65
     assert not errors, errors
     ctx.close()
+
+
+def test_scheduled_task_prompt_can_be_created_edited_and_reloaded(browser, live):
+    base, app = live
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/scheduled-task"
+    out.mkdir(parents=True, exist_ok=True)
+    page.context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(base + "/#/chat")
+        page.locator("#topbar-new-bot").click()
+        page.get_by_role("heading", name="Create a bot").wait_for()
+        form = page.locator("#modal-bot-form")
+        modal_captures = []
+        for label, width, height in (("desktop", 1440, 960), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.screenshot(path=str(out / f"create-{label}.png"), animations="disabled")
+            metrics = page.evaluate("""() => ({
+                viewport: [innerWidth, innerHeight],
+                document: [document.documentElement.scrollWidth, document.documentElement.scrollHeight],
+                dialogVisible: Boolean(document.querySelector('[role=dialog]'))
+            })""")
+            assert metrics["document"][0] - metrics["viewport"][0] <= 1, (label, metrics)
+            assert metrics["dialogVisible"], (label, metrics)
+            modal_captures.append({"size": label, **metrics})
+        schedule_prompt_field = form.locator('[name="schedule_prompt"]')
+        schedule_prompt_field.scroll_into_view_if_needed()
+        page.screenshot(path=str(out / "create-task-prompt-phone.png"), animations="disabled")
+        prompt_position = page.evaluate("""() => {
+            const input = document.querySelector('#modal-bot-form [name=schedule_prompt]').getBoundingClientRect();
+            const footer = document.querySelector('.modal-footer').getBoundingClientRect();
+            const title = document.querySelector('#modal-title').getBoundingClientRect();
+            const confirm = document.querySelector('#modal-confirm').getBoundingClientRect();
+            return {top: input.top, bottom: input.bottom, footerTop: footer.top,
+                    visibleAboveFooter: input.top >= 0 && input.bottom <= footer.top,
+                    titleVisible: title.top >= 0 && title.bottom <= innerHeight,
+                    confirmVisible: confirm.top >= footer.top && confirm.bottom <= innerHeight};
+        }""")
+        assert prompt_position["visibleAboveFooter"], prompt_position
+        assert prompt_position["titleVisible"] and prompt_position["confirmVisible"], prompt_position
+        modal_captures.append({"size": "phone-task-prompt", **prompt_position})
+        form.locator('[name="name"]').fill("scheduled-research")
+        form.locator('[name="model"]').fill("mock/demo")
+        form.locator('[name="schedule_prompt"]').fill("Review release notes and report important changes.")
+        page.locator("#modal-confirm").click()
+        assert page.get_by_text("Add a cron schedule before setting its task prompt.").is_visible()
+        assert app.state.store.get_bot("scheduled-research") is None
+        page.locator("#toast-root .toast-close").click()
+
+        form.locator('[name="cron"]').fill("0 9 * * 1")
+        page.locator("#modal-confirm").click()
+        wait_for(lambda: app.state.store.get_bot("scheduled-research") is not None)
+        bot = app.state.store.get_bot("scheduled-research")
+        assert bot.schedule and bot.schedule.prompt == "Review release notes and report important changes."
+        while page.locator("#toast-root .toast-close").count():
+            page.locator("#toast-root .toast-close").last.click()
+
+        page.evaluate("location.hash = '#/bot/scheduled-research'")
+        page.locator("#form-schedule").wait_for()
+        prompt = page.locator('#form-schedule [name="schedule_prompt"]')
+        assert prompt.input_value() == "Review release notes and report important changes."
+        assert page.get_by_text("Leave blank to run the bot’s standing instructions.", exact=False).is_visible()
+
+        page.set_viewport_size({"width": 390, "height": 844})
+        prompt = page.locator('#form-schedule [name="schedule_prompt"]')
+        prompt.fill("Check the weekly security feed and list actionable changes.")
+        page.locator('#form-schedule [name="cron"]').fill("0 8 * * 1")
+        old_form = page.locator("#form-schedule").element_handle()
+        with page.expect_response(lambda response: response.url.endswith("/api/bots/scheduled-research")
+                                  and response.request.method == "PATCH") as saved:
+            page.locator('#form-schedule button[type="submit"]').click()
+        assert saved.value.status == 200, saved.value.text()
+        wait_for(lambda: app.state.store.get_bot("scheduled-research").schedule.prompt
+                 == "Check the weekly security feed and list actionable changes.")
+        page.wait_for_function("form => !form.isConnected", arg=old_form)
+        page.locator("#form-schedule").wait_for(state="visible")
+        assert page.locator('#form-schedule [name="schedule_prompt"]').input_value() \
+            == "Check the weekly security feed and list actionable changes."
+        page.reload()
+        page.locator("#form-schedule").wait_for()
+        assert page.locator('#form-schedule [name="schedule_prompt"]').input_value() \
+            == "Check the weekly security feed and list actionable changes."
+
+        captures = []
+        sizes = {"desktop": (1440, 960), "tablet": (900, 1024), "phone": (390, 844)}
+        for label, (width, height) in sizes.items():
+            page.set_viewport_size({"width": width, "height": height})
+            prompt = page.locator('#form-schedule [name="schedule_prompt"]')
+            prompt.scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"settings-{label}.png"), full_page=True, animations="disabled")
+            metrics = page.evaluate("""() => ({
+                viewport: [innerWidth, innerHeight],
+                document: [document.documentElement.scrollWidth, document.documentElement.scrollHeight],
+                promptVisible: (() => { const r = document.querySelector('#form-schedule [name=schedule_prompt]').getBoundingClientRect();
+                  return r.width > 0 && r.height > 0 && r.right <= innerWidth + 1; })()
+            })""")
+            assert metrics["document"][0] - metrics["viewport"][0] <= 1, (label, metrics)
+            assert metrics["promptVisible"], (label, metrics)
+            captures.append({"size": label, **metrics})
+        page.context.tracing.stop(path=str(out / "scheduled-task-trace.zip"))
+        assert not errors, errors
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_scheduled_task_prompt_can_be_created_edited_and_reloaded",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_scheduled_task_prompt_can_be_created_edited_and_reloaded",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(),
+            "hutch_version": package_version("hutch"),
+            "browser": browser.browser_type.name,
+            "browser_version": browser.version,
+            "playwright_version": package_version("playwright"),
+            "captures": captures,
+            "creation_modal_captures": modal_captures,
+            "scenario": "fixture bot creation and schedule settings persistence; no model/provider call",
+            "page_errors": errors,
+            "source_sha256": {
+                "app.js": hashlib.sha256((Path(__file__).resolve().parents[2]
+                                           / "src/hutch/server/static/app.js").read_bytes()).hexdigest(),
+                "style.css": hashlib.sha256((Path(__file__).resolve().parents[2]
+                                              / "src/hutch/server/static/style.css").read_bytes()).hexdigest(),
+                "app.py": hashlib.sha256((Path(__file__).resolve().parents[2]
+                                           / "src/hutch/server/app.py").read_bytes()).hexdigest(),
+            },
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        page.close()
 
 
 def test_model_route_setting_explains_host_gated_offline_mode_and_saves_on_phone(browser, live):

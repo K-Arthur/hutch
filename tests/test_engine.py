@@ -216,6 +216,14 @@ def test_bot_prompt_for_schedule_mentions_standing_task():
     assert "scheduled run" in prompt and "Collect all new issues" in prompt
 
 
+def test_scheduled_task_prompt_is_separate_from_bot_instructions():
+    bot = mock_bot(instructions="You are a careful research assistant.",
+                   schedule=Schedule(cron="0 9 * * 1", prompt="Review the new release notes and report changes."))
+    prompt = bot_prompt_for_schedule(bot)
+    assert "Review the new release notes and report changes." in prompt
+    assert "careful research assistant" not in prompt
+
+
 def test_retired_legacy_route_fails_before_a_worker_or_action(store, config, monkeypatch):
     monkeypatch.delenv("HUTCH_TESTING", raising=False)
     bot = store.create_bot(mock_bot(name="legacy-route", tools=["files"]))

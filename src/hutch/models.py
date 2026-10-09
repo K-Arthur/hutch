@@ -95,6 +95,12 @@ class Schedule(BaseModel):
     cron: str                          # 5-field cron expression
     timezone: str = "UTC"              # IANA name; schedule fires in this zone
     catch_up: CatchUpPolicy = CatchUpPolicy.coalesce
+    prompt: str = Field(default="", max_length=4000)  # task to perform; empty preserves legacy instruction fallback
+
+    @field_validator("prompt")
+    @classmethod
+    def _prompt(cls, value: str) -> str:
+        return value.strip()
 
     model_config = {"frozen": True}
 

@@ -94,6 +94,7 @@ class BotCreate(BaseModel):
     cron: Optional[str] = None
     timezone: str = "UTC"
     catch_up: CatchUpPolicy = CatchUpPolicy.coalesce
+    schedule_prompt: str = Field(default="", max_length=4000)
     approval_mode: ApprovalMode = ApprovalMode.ask
     risk_tier: RiskTier = RiskTier.supervised
     command_rules: list[CommandRule] = []
@@ -149,6 +150,7 @@ class BotPatch(BaseModel):
     cron: Optional[str] = None
     clear_cron: bool = False
     timezone: Optional[str] = None
+    schedule_prompt: Optional[str] = Field(default=None, max_length=4000)
 
 
 class RunRequest(BaseModel):
@@ -357,6 +359,7 @@ class ScheduleResource(BaseModel):
     cron: str
     timezone: str
     catch_up: str
+    prompt: str = ""
     paused: bool
     next_fire: Optional[str] = None
     last_dispatched: Optional[str] = None
@@ -934,7 +937,8 @@ def create_app() -> FastAPI:
             nxt = scheduler.next_fire(bot)
             rows.append({"id": f"schedule:{bot.id}", "bot_id": bot.id, "bot_name": bot.name,
                          "cron": bot.schedule.cron, "timezone": bot.schedule.timezone,
-                         "catch_up": bot.schedule.catch_up.value, "paused": bot.paused,
+                         "catch_up": bot.schedule.catch_up.value, "prompt": bot.schedule.prompt,
+                         "paused": bot.paused,
                          "next_fire": nxt.isoformat() if nxt else None,
                          "last_dispatched": scheduler._last_dispatched(bot).isoformat(),
                          "last_skip": scheduler.last_skip(bot)})
@@ -1123,10 +1127,12 @@ def create_app() -> FastAPI:
             else:
                 bot.workdir = None
             bot.workspace_mode = body.workspace_mode
+        if body.schedule_prompt.strip() and not body.cron:
+            raise HTTPException(422, "a scheduled task prompt requires a cron schedule")
         if body.cron:
             try:
                 bot.schedule = Schedule(cron=body.cron, timezone=body.timezone,
-                                        catch_up=body.catch_up)
+                                        catch_up=body.catch_up, prompt=body.schedule_prompt)
             except Exception:
                 raise HTTPException(422, "invalid schedule")
         try:
@@ -1186,13 +1192,21 @@ def create_app() -> FastAPI:
             bot.workspace_mode = "folder" if bot.workdir else "fresh"
         if body.paused is not None: bot.paused = body.paused
         if body.clear_cron:
+            if body.schedule_prompt and body.schedule_prompt.strip():
+                raise HTTPException(422, "a scheduled task prompt requires a cron schedule")
             bot.schedule = None
         else:
             cron = body.cron or (bot.schedule.cron if bot.schedule else None)
             tz = body.timezone or (bot.schedule.timezone if bot.schedule else "UTC")
+            task_prompt = (bot.schedule.prompt if bot.schedule else "")
+            if body.schedule_prompt is not None:
+                task_prompt = body.schedule_prompt.strip()
             if cron:
                 bot.schedule = Schedule(cron=cron, timezone=tz,
-                                        catch_up=bot.schedule.catch_up if bot.schedule else CatchUpPolicy.coalesce)
+                                        catch_up=bot.schedule.catch_up if bot.schedule else CatchUpPolicy.coalesce,
+                                        prompt=task_prompt)
+            elif task_prompt:
+                raise HTTPException(422, "a scheduled task prompt requires a cron schedule")
         try:
             validate_offline_bot(bot, check_host=body.inference_mode is InferenceMode.offline,
                                  refresh_host=proposed_mode is InferenceMode.offline)

@@ -218,3 +218,20 @@ the public feature-section captures and validation metadata are in [`artifacts/p
 `generated-files/results.json` records fixture provenance and download hashes. No model, provider or paid call was made. This is
 per-conversation discovery and is not a cross-chat artifact library, live-provider test, physical-device check or screen-reader
 certification.
+
+## Recurring-task prompt settings (2026-10-09)
+
+Bot creation and bot settings expose one optional task prompt for the bot's single cron schedule.
+The create dialog rejects a nonempty task without cron; settings preserve the prompt after a save and
+reload. The text explains that a blank prompt uses the standing bot instructions, and the schedule
+removal action is labeled explicitly. At phone size, the prompt field, dialog title and fixed create
+action remain visible together after scrolling the dialog body.
+
+Chromium **153.0.8010.12** with Playwright **1.63.0** captured the create dialog at desktop
+(1440×960) and phone (390×844), the scrolled phone prompt, and settings at desktop (1440×960),
+tablet (900×1024) and phone (390×844). All checks reported no page errors or horizontal overflow;
+the screenshots were inspected. The browser journey passed **1 test in 3.14s**. API, CLI and engine
+regressions passed **34 tests in 23.04s**. Captures, trace, viewport measurements, source hashes and
+fixture provenance are in [`artifacts/scheduled-task/`](artifacts/scheduled-task/). No provider or
+model call was made. This verifies one recurring schedule per bot; it does not add multiple
+independent task streams or delegation.

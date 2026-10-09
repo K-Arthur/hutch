@@ -2813,15 +2813,20 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
           <form class="panel form-grid" id="form-schedule">
             <div class="panel-title">Schedule</div>
             <div class="form-grid row2">
-              <label class="field">Cron (blank = on demand)
+              <label class="field">Cron expression
                 <input type="text" name="cron" value="${esc(sched.cron || "")}" placeholder="0 9 * * 1">
+                <span class="hint">Use “Make it on-demand” below to remove the schedule.</span>
               </label>
               <label class="field">Timezone
                 <input type="text" name="timezone" value="${esc(sched.timezone || "UTC")}">
               </label>
             </div>
+            <label class="field">Scheduled task prompt
+              <textarea name="schedule_prompt" rows="3" maxlength="4000" aria-describedby="schedule-prompt-help">${esc(sched.prompt || "")}</textarea>
+              <span class="hint" id="schedule-prompt-help">Leave blank to run the bot’s standing instructions. This schedule has one task prompt.</span>
+            </label>
             <div class="meta-row"><span>Next run</span><span class="mono">${esc(b.next_run_local || "—")}</span></div>
-            <div class="meta-row"><span>Missed windows</span><span class="mono">${esc(sched.catch_up || "coalesce")} · changed with <code class="mono">hutch bot schedule</code></span></div>
+            <div class="meta-row"><span>Missed windows</span><span class="mono">${esc(sched.catch_up || "coalesce")} · changed with <code class="mono">hutch bot update</code></span></div>
             <div class="btn-row">
               <button class="btn primary small" type="submit">Save schedule</button>
               <button class="btn ghost small" type="button" id="btn-clear-schedule">Make it on-demand</button>
@@ -2973,7 +2978,13 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   $("#form-schedule").addEventListener("submit", ev => {
     ev.preventDefault();
     const fd = new FormData(ev.target);
-    patch({ cron: fd.get("cron").trim(), timezone: fd.get("timezone").trim() }, "Schedule saved.");
+    const cron = fd.get("cron").trim();
+    const schedulePrompt = fd.get("schedule_prompt").trim();
+    if (schedulePrompt && !cron) {
+      toast("Add a cron schedule before setting its task prompt.", true);
+      return;
+    }
+    patch({ cron, timezone: fd.get("timezone").trim(), schedule_prompt: schedulePrompt }, "Schedule saved.");
   });
   $("#btn-clear-schedule").addEventListener("click", () => patch({ clear_cron: true }, "Now on demand."));
   $("#form-risk").addEventListener("submit", ev => {
@@ -3385,6 +3396,10 @@ async function promptNewBot(preselect = "") {
           <input type="text" name="cron" placeholder="0 9 * * 1">
         </label>
       </div>
+      <label class="field">Scheduled task prompt (optional)
+        <textarea name="schedule_prompt" rows="3" maxlength="4000" aria-describedby="new-schedule-prompt-help"></textarea>
+        <span class="hint" id="new-schedule-prompt-help">Leave blank to run the bot’s standing instructions. A task prompt needs a cron schedule.</span>
+      </label>
       <label class="field">What it does (description)
         <input type="text" name="description" placeholder="Sort the downloads folder, on demand">
       </label>
@@ -3398,6 +3413,12 @@ async function promptNewBot(preselect = "") {
       const fd = new FormData($("#modal-bot-form"));
       const name = fd.get("name").trim();
       if (!name) return false;
+      const cron = fd.get("cron").trim();
+      const schedulePrompt = fd.get("schedule_prompt").trim();
+      if (schedulePrompt && !cron) {
+        toast("Add a cron schedule before setting its task prompt.", true);
+        return false;
+      }
       try {
         await api("/bots", {
           method: "POST",
@@ -3405,7 +3426,8 @@ async function promptNewBot(preselect = "") {
             name,
             template: fd.get("template") || null,
             model: fd.get("model").trim(),
-            cron: fd.get("cron").trim() || null,
+            cron: cron || null,
+            schedule_prompt: schedulePrompt,
             description: fd.get("description").trim(),
           },
         });

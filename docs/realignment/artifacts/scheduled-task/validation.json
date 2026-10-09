@@ -1,0 +1,90 @@
+{
+  "test": "tests/e2e/test_browser.py::test_scheduled_task_prompt_can_be_created_edited_and_reloaded",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_scheduled_task_prompt_can_be_created_edited_and_reloaded",
+  "captured_at": "2026-10-09T01:20:33.047172+00:00",
+  "python": "3.13.15",
+  "hutch_version": "0.1.0",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "document": [
+        1440,
+        960
+      ],
+      "promptVisible": true
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "document": [
+        900,
+        1024
+      ],
+      "promptVisible": true
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "document": [
+        390,
+        844
+      ],
+      "promptVisible": true
+    }
+  ],
+  "creation_modal_captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "document": [
+        1440,
+        960
+      ],
+      "dialogVisible": true
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "document": [
+        390,
+        844
+      ],
+      "dialogVisible": true
+    },
+    {
+      "size": "phone-task-prompt",
+      "top": 556.0625,
+      "bottom": 636.453125,
+      "footerTop": 775,
+      "visibleAboveFooter": true,
+      "titleVisible": true,
+      "confirmVisible": true
+    }
+  ],
+  "scenario": "fixture bot creation and schedule settings persistence; no model/provider call",
+  "page_errors": [],
+  "source_sha256": {
+    "app.js": "511f1781d9e4e94e728ee186cb1208ca5ef71a39d56c92915cc898b83df17b20",
+    "style.css": "f64358d133c588eb769a639a3e43b394739a898ba915a8ef3108ffc948e02751",
+    "app.py": "92528f9059823011e2822ca2e6208479b029a25e22b68fd7569c744def456483"
+  }
+}

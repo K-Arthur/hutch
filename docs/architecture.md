@@ -110,10 +110,16 @@ provider reservations and protocol tests are complete.
 
 ### D2 — Bots are configs, runs are executions
 
-A **Bot** is a stored config (model, tools, schedule, limits). A **Run** is one execution with its
+A **Bot** is a stored config (model, tools, one optional schedule, limits). A **Run** is one execution with its
 own workspace directory, transcript, step/token accounting, and terminal status. Tasks are the
 queue between scheduler and engine. One active run per bot at a time (single-instance lock);
 global concurrency default 2.
+
+Each bot's single cron schedule has an optional task prompt separate from standing bot
+instructions. A blank task prompt preserves legacy behavior by using the bot instructions, then a
+generic workspace-report task if the instructions are empty. The prompt is limited to 4,000
+characters and can be changed in bot settings, through the API, or with `hutch bot update`.
+Multiple independent recurring tasks per bot are not supported yet.
 
 ### D3 — Scheduling correctness is a feature, not a detail
 

@@ -23,7 +23,7 @@ dashboard, or the REST API, and live in `hutch.db`.
 | `base_url` | str? | null | override endpoint for OpenAI-compatible providers |
 | `runtime` | enum | `builtin` | `builtin`; legacy values `mock`, `pi` and `opencode` are retained for migration but fail closed as unsupported |
 | `tools` | list | `["shell","files","memory"]` | allowlist; groups expand (see below) |
-| `schedule` | obj? | null | `{cron, timezone, catch_up}` — omit for on-demand |
+| `schedule` | obj? | null | `{cron, timezone, catch_up, prompt}` — omit for on-demand; `prompt` is the recurring task, separate from standing `instructions` |
 | `limits` | obj | see below | runtime limits and usage admission budgets |
 | `approval_mode` | enum | `ask` | `ask` · `auto` |
 | `memory_enabled` | bool | true | allow runtime fact proposal/retrieval tools; facts are never automatically injected |
@@ -114,6 +114,10 @@ individually. Everything runs through the policy engine (`docs/safety.md`).
 
 - `cron`: standard 5-field expression, evaluated **in the bot's timezone**
 - `timezone`: IANA name (`Europe/Berlin`, `America/New_York`, `UTC`)
+- `prompt`: optional task to perform at each occurrence, up to 4,000 characters. Blank keeps
+  compatibility with existing bots by using their standing `instructions` (or the generic report
+  task when instructions are empty). This is one recurring schedule per bot; separate independent
+  schedules/task streams per bot are not supported yet.
 - `catch_up`:
   - `coalesce` *(default)* — if windows were missed (asleep machine, daemon down), run once and
     tag the run `missed_windows=N`
@@ -164,6 +168,20 @@ hutch bot create weekly-research \
   --cron "0 9 * * 1" --tz Europe/Berlin \
   --approvals ask
 ```
+
+Give scheduled work its own task prompt instead of using the bot's standing instructions:
+
+```bash
+hutch bot create weekly-research \
+  --model ollama/llama3.2 \
+  --cron "0 9 * * 1" --tz Europe/Berlin \
+  --schedule-prompt "Review new release notes and write a concise report."
+hutch bot update weekly-research \
+  --schedule-prompt "Check the weekly security feed and summarize relevant changes."
+```
+
+Clear `--schedule-prompt` with an empty value to return to the standing-instructions fallback.
+Use `--clear-cron` to remove the bot's only schedule.
 
 Trusted cleanup bot, auto-approve within policy:
 

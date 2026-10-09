@@ -240,6 +240,7 @@ def bot_create(
                               help=f"comma list; groups shell/files/memory/browser; all: {','.join(ALL_TOOL_NAMES)}"),
     cron: Optional[str] = typer.Option(None, "--cron", help="5-field cron schedule"),
     tz: str = typer.Option("UTC", "--tz", help="IANA timezone for the schedule"),
+    schedule_prompt: str = typer.Option("", "--schedule-prompt", help="task prompt for each scheduled run"),
     catch_up: CatchUpPolicy = typer.Option(CatchUpPolicy.coalesce, "--catch-up"),
     approval: ApprovalMode = typer.Option(ApprovalMode.ask, "--approvals", help="ask | auto"),
     workdir: Optional[str] = typer.Option(None, "--workdir", help="a folder of yours the bot works in, e.g. ~/Downloads"),
@@ -330,8 +331,14 @@ def bot_create(
     bot.limits = Limits(max_steps=max_steps, timeout_seconds=timeout, max_turn_tokens=max_turn_tokens,
                         daily_token_cap=token_cap, max_cost_usd=max_cost_usd,
                         daily_cost_cap_usd=daily_cost_cap_usd)
+    if len(schedule_prompt) > 4000:
+        err.print("[red]--schedule-prompt must be 4000 characters or fewer[/red]")
+        raise typer.Exit(code=1)
+    if schedule_prompt.strip() and not cron:
+        err.print("[red]--schedule-prompt requires --cron[/red]")
+        raise typer.Exit(code=1)
     if cron:
-        bot.schedule = Schedule(cron=cron, timezone=tz, catch_up=catch_up)
+        bot.schedule = Schedule(cron=cron, timezone=tz, catch_up=catch_up, prompt=schedule_prompt)
     from .providers.registry import validate_offline_bot
     try:
         validate_offline_bot(bot, check_host=inference_mode is InferenceMode.offline,
@@ -427,6 +434,8 @@ def bot_update(
     cron: Optional[str] = typer.Option(None, "--cron", help="new cron expression"),
     clear_cron: bool = typer.Option(False, "--clear-cron", help="remove scheduling (on-demand only)"),
     tz: Optional[str] = typer.Option(None, "--tz"),
+    schedule_prompt: Optional[str] = typer.Option(
+        None, "--schedule-prompt", help="task prompt for scheduled runs (pass an empty value to use bot instructions)"),
     paused: Optional[bool] = typer.Option(None, "--paused/--resumed"),
     max_steps: Optional[int] = typer.Option(None, "--max-steps", min=1),
     timeout_seconds: Optional[int] = typer.Option(None, "--timeout-seconds", min=1),
@@ -494,12 +503,30 @@ def bot_update(
     }.items() if value is not None}
     if limit_updates:
         bot.limits = Limits.model_validate({**bot.limits.model_dump(), **limit_updates})
-    if clear_cron: bot.schedule = None
-    elif cron or tz:
-        sched = bot.schedule or Schedule(cron=cron or "0 9 * * *", timezone=tz or "UTC")
-        if cron: sched = sched.model_copy(update={"cron": cron})
-        if tz: sched = sched.model_copy(update={"timezone": tz})
-        bot.schedule = sched
+    if clear_cron:
+        if schedule_prompt is not None and len(schedule_prompt) > 4000:
+            err.print("[red]--schedule-prompt must be 4000 characters or fewer[/red]")
+            raise typer.Exit(code=1)
+        if schedule_prompt and schedule_prompt.strip():
+            err.print("[red]--schedule-prompt requires a cron schedule[/red]")
+            raise typer.Exit(code=1)
+        bot.schedule = None
+    elif cron or tz or schedule_prompt is not None:
+        if schedule_prompt is not None and len(schedule_prompt) > 4000:
+            err.print("[red]--schedule-prompt must be 4000 characters or fewer[/red]")
+            raise typer.Exit(code=1)
+        if bot.schedule is None and not cron:
+            if schedule_prompt and schedule_prompt.strip():
+                err.print("[red]--schedule-prompt requires --cron or an existing schedule[/red]")
+                raise typer.Exit(code=1)
+        else:
+            sched = bot.schedule or Schedule(cron=cron or "0 9 * * *", timezone=tz or "UTC")
+            bot.schedule = Schedule(
+                cron=cron or sched.cron,
+                timezone=tz or sched.timezone,
+                catch_up=sched.catch_up,
+                prompt=schedule_prompt if schedule_prompt is not None else sched.prompt,
+            )
     from .providers.registry import validate_offline_bot
     try:
         validate_offline_bot(bot, check_host=inference_mode is InferenceMode.offline,

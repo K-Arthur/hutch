@@ -52,6 +52,12 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   Held values include all unresolved reservations, regardless of their age. Only measured ledger
   usage is windowed; a stale worker cannot settle/release a hold after losing ownership, and
   uncertain usage requires explicit reconciliation against the provider record.
+* `GET /api/v1/schedules` includes each bot's `cron`, `timezone`, `catch_up`, `paused`, and `prompt`.
+  Bot creation accepts `schedule_prompt` with `cron`; bot updates accept it for an existing or
+  simultaneously updated schedule. Prompts are trimmed and limited to 4,000 characters. A nonempty
+  task prompt without a schedule is rejected. Empty prompts preserve compatibility by executing the
+  bot's standing `instructions`, then the generic workspace-report task if those are empty. This is
+  one schedule per bot, not a multi-task scheduler.
 * `GET /api/v1/compatibility` returns a versioned provider/runtime route matrix. Each route has an implementation state,
   Hutch's request fields, documented omissions, verification boundary, and dated policy/API sources. `supported` means
   Hutch's common request/response contract has recorded tests; it does not certify every provider version, model, tool

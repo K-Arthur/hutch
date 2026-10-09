@@ -83,6 +83,32 @@ def test_bot_limit_flags_create_and_update_estimate_controls(state_env):
     assert invalid.exit_code != 0
 
 
+def test_schedule_task_prompt_create_update_and_clear(state_env):
+    assert runner.invoke(app, ["init"]).exit_code == 0
+    created = runner.invoke(app, ["bot", "create", "weekly", "--model", "mock/demo",
+                                  "--cron", "0 9 * * 1", "--schedule-prompt",
+                                  "Review the release notes and report changes."])
+    assert created.exit_code == 0, created.output
+    shown = runner.invoke(app, ["bot", "show", "weekly"])
+    assert '"prompt": "Review the release notes and report changes."' in shown.output
+
+    updated = runner.invoke(app, ["bot", "update", "weekly", "--schedule-prompt",
+                                  "Check the weekly security feed."])
+    assert updated.exit_code == 0, updated.output
+    assert '"prompt": "Check the weekly security feed."' in runner.invoke(app, ["bot", "show", "weekly"]).output
+
+    cleared = runner.invoke(app, ["bot", "update", "weekly", "--schedule-prompt", ""])
+    assert cleared.exit_code == 0, cleared.output
+    assert '"prompt": ""' in runner.invoke(app, ["bot", "show", "weekly"]).output
+
+    invalid = runner.invoke(app, ["bot", "create", "prompt-only", "--model", "mock/demo",
+                                  "--schedule-prompt", "A task without a schedule"])
+    assert invalid.exit_code != 0 and "requires --cron" in invalid.output
+    too_long = runner.invoke(app, ["bot", "create", "long-prompt", "--model", "mock/demo",
+                                   "--cron", "0 9 * * 1", "--schedule-prompt", "x" * 4001])
+    assert too_long.exit_code != 0 and "4000 characters or fewer" in too_long.output
+
+
 def test_run_command_test_scenario_fixture_succeeds(state_env):
     runner.invoke(app, ["init"])
     result = runner.invoke(app, ["bot", "create", "quick", "--model", "mock/demo",
