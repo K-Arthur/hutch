@@ -1300,6 +1300,8 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .settings-list { display: grid; gap: 0; }
 .settings-list .meta-row { padding: var(--s-3) 0; border-bottom: 1px solid var(--line); }
 .settings-list .meta-row:last-child { border-bottom: 0; }
+.background-consent-row > span { min-width: 0; overflow-wrap: anywhere; }
+.background-consent-row > .btn { flex: none; min-height: 44px; white-space: nowrap; }
 
 .schedule-manager { display: grid; gap: var(--s-4); }
 .schedule-manager-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-4); }

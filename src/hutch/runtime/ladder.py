@@ -173,6 +173,19 @@ class SpendGuard:
         """Why this call must not happen, or None. Local models are free and always allowed."""
         if rung.local:
             return None
+        connection = self.connections.get(rung.provider) if self.connections else None
+        if connection is not None and connection.auth_type == "chatgpt-siws":
+            from ..chatgpt_consent import has_background_provider_consent, is_background_run
+            if is_background_run(self.run):
+                # A long-lived run must observe a permission revoked after it
+                # started. Providers are checked before every request, so read
+                # the authoritative Bot record here instead of trusting the
+                # execution process's startup snapshot.
+                current_bot = self.store.get_bot(self.bot.id) if hasattr(self.store, "get_bot") else self.bot
+                if current_bot is None or not has_background_provider_consent(
+                        current_bot, rung.provider, connection.auth_account_id):
+                    return (f"this scheduled or specialist run has no current express consent to use the ChatGPT plan "
+                            f"for {rung.provider}; review and allow background use in this Bot's settings")
         _, account_cap, _ = self.account_policy(rung)
         quota = self.quota_refusal(rung, est_prompt_tokens, max_turn_tokens)
         if quota:

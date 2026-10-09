@@ -76,6 +76,96 @@ def test_executor_health_status_uses_a_steady_indicator(browser, live):
         page.close()
 
 
+def test_chatgpt_background_permission_is_explicit_responsive_and_reversible(browser, live):
+    """Exercise the ChatGPT plan permission using only a local synthetic account."""
+    from hutch.chatgpt_auth import ChatGPTAuthBook, PLAN_SCOPE
+
+    base, app = live
+    account_id = "acct_0123456789abcdef01234567"
+    ChatGPTAuthBook(app.state.config.state_dir)._write_accounts({"version": 1, "host_id": "fixture-host", "accounts": {
+        account_id: {"access_token": "fixture-token", "refresh_token": "", "expires_at": 9_999_999_999,
+                     "scopes": [PLAN_SCOPE], "client_id": "fixture-client", "subject": "fixture-subject"}
+    }})
+    connection = ConnectionBook(app.state.config.state_dir).add_chatgpt_account(account_id, "Fixture account")
+    bot = app.state.store.create_bot(Bot(name="weekly-review", display_name="Weekly Project Reviewer",
+                                         model=f"{connection.name}/gpt-fixture", tools=[]))
+    output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/chatgpt-background-consent"
+    output.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    external: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(base) else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    viewports = (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844))
+    try:
+        page.goto(f"{base}/#/bot/{bot.name}")
+        page.get_by_role("heading", name="Weekly Project Reviewer").wait_for()
+        panel = page.get_by_role("region", name="ChatGPT plan for unattended runs")
+        assert "Permission required" in panel.inner_text()
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            panel.scroll_into_view_if_needed()
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") == 0, label
+            page.screenshot(path=str(output / f"needs-consent-{label}.png"), animations="disabled")
+
+        trigger = page.get_by_role("button", name="Review and allow")
+        trigger.click()
+        dialog = page.get_by_role("dialog", name="Allow scheduled ChatGPT plan use?")
+        assert "Fixture account" in dialog.inner_text()
+        assert "only for this Bot" in dialog.inner_text()
+        page.screenshot(path=str(output / "permission-review-phone.png"), animations="disabled")
+        page.locator("#modal-confirm").focus()
+        page.keyboard.press("Tab")
+        assert page.evaluate("document.activeElement.id") == "modal-close"
+        page.keyboard.press("Shift+Tab")
+        assert page.evaluate("document.activeElement.id") == "modal-confirm"
+        page.get_by_role("button", name="Allow background use").click()
+        page.get_by_role("button", name="Revoke").wait_for()
+        assert page.evaluate("document.activeElement.dataset.backgroundProvider") == connection.name
+        page.set_viewport_size({"width": 390, "height": 844})
+        panel.scroll_into_view_if_needed()
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") == 0
+        page.screenshot(path=str(output / "allowed-phone.png"), animations="disabled")
+        page.set_viewport_size({"width": 1440, "height": 960})
+        assert "Allowed for this route" in panel.inner_text()
+        panel.evaluate("el => el.scrollIntoView({block: 'start', behavior: 'instant'})")
+        page.screenshot(path=str(output / "allowed-desktop.png"), animations="disabled")
+
+        page.get_by_role("button", name="Revoke").click()
+        page.get_by_role("dialog", name="Revoke ChatGPT background use?").get_by_role(
+            "button", name="Revoke permission").click()
+        page.get_by_role("button", name="Review and allow").wait_for()
+        assert page.evaluate("document.activeElement.dataset.backgroundProvider") == connection.name
+        assert not app.state.store.get_bot(bot.id).background_provider_consents
+        assert not errors, errors
+        assert not external, external
+        context.tracing.stop(path=str(output / "trace.zip"))
+        (output / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_chatgpt_background_permission_is_explicit_responsive_and_reversible",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": browser.version,
+            "playwright_version": package_version("playwright"),
+            "synthetic_account": True,
+            "provider_requests": 0,
+            "external_requests": external,
+            "page_errors": errors,
+            "viewports": [{"size": label, "viewport": [width, height], "horizontal_overflow": 0}
+                          for label, width, height in viewports],
+            "allowed_permission_viewports": {"desktop": [1440, 960], "phone": [390, 844]},
+            "verified": ["permission is explicit", "modal keyboard focus is trapped", "focus returns to refreshed control",
+                         "permission can be revoked", "no provider calls", "no external requests"],
+        }, indent=2) + "\n")
+    finally:
+        try:
+            context.tracing.stop()
+        except Exception:
+            pass
+        context.close()
+
+
 def test_run_detail_reports_transcript_chain_verification_and_tampering(browser, live):
     """Show the result of the real persisted event-chain verifier without starting a model run."""
     import hashlib
@@ -4246,7 +4336,7 @@ def test_legacy_external_runtime_can_move_to_hutch_and_run_a_real_local_route(br
         assert page.get_by_text("OpenCode execution is unavailable in Hutch.").is_visible()
         assert "Hutch never imports private sign-in files or credentials" in page.locator("#runtime-recovery").inner_text()
         isolation_help = page.locator("#inference-mode-help").inner_text()
-        assert "hutch doctor" in isolation_help
+        assert "Hutch verified that the isolated worker" in isolation_help
         assert "/home/" not in isolation_help, "host diagnostic paths belong in the CLI, not a narrow settings panel"
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})

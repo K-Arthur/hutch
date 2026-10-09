@@ -604,6 +604,7 @@ def register_pages(app: FastAPI) -> None:
         account_id = form.get("account_id")
         try:
             revoked = ChatGPTAuthBook(config.state_dir).disconnect(account_id)
+            store.revoke_background_provider_consents(account_id=account_id)
             book = conn_book()
             for name, conn in book.configured().items():
                 if conn.auth_type == "chatgpt-siws" and conn.auth_account_id == account_id:
@@ -674,6 +675,8 @@ def register_pages(app: FastAPI) -> None:
                 return go("/connections", error=str(exc))
             return go("/connections", notice="Protocol saved for that model.")
         if action == "remove":
+            if conn.auth_type == "chatgpt-siws":
+                store.revoke_background_provider_consents(provider=name)
             book.remove(name)
             return go("/connections", notice=f"Removed {name} and its stored key.")
         raise HTTPException(404, "Unknown action.")

@@ -607,6 +607,17 @@ class SchedulePut(BaseModel):
     prompt: str = Field(default="", max_length=4000)
 
 
+class BackgroundProviderConsentRequest(BaseModel):
+    route_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class BackgroundProviderConsentResource(BaseModel):
+    provider: str
+    title: str
+    state: Literal["allowed", "needs_consent", "sign_in_required"]
+    route_fingerprint: str
+
+
 class EventPageResource(BaseModel):
     events: list[dict[str, Any]]
     after: int
@@ -1024,13 +1035,16 @@ def create_app() -> FastAPI:
             raise HTTPException(404, f"no such bot: {ref}")
         return bot
 
-    def bot_view(bot: Bot) -> dict:
+    def bot_view(bot: Bot, connections=None) -> dict:
+        from ..chatgpt_consent import chatgpt_background_view
+        from ..connections import ConnectionBook
+
         nxt = scheduler.next_fire(bot)
         last = store.last_successful_run(bot.id)
         active = store.active_run_for_bot(bot.id)
         stats = store.bot_stats().get(bot.id, {}).get("counts", {})
         measured_tokens, reserved_tokens, measured_cost, reserved_cost = store.bot_budget_today(bot.id)
-        bot_data = bot.model_dump()
+        bot_data = bot.model_dump(exclude={"background_provider_consents"})
         if bot.creation_source is not None:
             # Keep the exact source request with the Bot's local durable record for
             # auditability, but do not repeat its full text in every roster/API view.
@@ -1058,6 +1072,8 @@ def create_app() -> FastAPI:
             "memory_count": store.count_facts(bot.id),
             "sticky_allows": store.list_sticky_allows(bot.id),
             "is_workspace_coordinator": store.workspace_coordinator_id() == bot.id,
+            "chatgpt_background": chatgpt_background_view(
+                bot, connections if connections is not None else ConnectionBook(config.state_dir)),
         }
 
     def run_view(run) -> dict:
@@ -1260,7 +1276,10 @@ def create_app() -> FastAPI:
         """
         limit = max(1, min(limit, 500))
         snap = store.reconciliation_snapshot(limit)
-        bots = [bot.model_dump(mode="json") for bot in snap["items"]["bots"]]
+        # Background grants contain local account identifiers. The public
+        # snapshot uses the same safe Bot shape as the ordinary list route.
+        bots = [bot.model_dump(mode="json", exclude={"background_provider_consents"})
+                for bot in snap["items"]["bots"]]
         bot_names = {bot["id"]: bot["name"] for bot in bots}
         bot_display_names = {bot["id"]: bot["display_name"] for bot in bots}
         def bot_name(bot_id: str) -> str:
@@ -1429,6 +1448,41 @@ def create_app() -> FastAPI:
                              "last_skip": scheduler.last_skip(bot, scheduled)})
         start = max(0, offset)
         return rows[start:start + max(1, min(limit, 100))]
+
+    @app.put("/api/v1/bots/{ref}/background-provider-consents/{provider}",
+             response_model=BackgroundProviderConsentResource)
+    def allow_bot_background_provider(ref: str, provider: str,
+                                      body: BackgroundProviderConsentRequest) -> dict:
+        bot = bot_or_404(ref)
+        from ..connections import ConnectionBook
+        from ..chatgpt_consent import chatgpt_background_view
+        book = ConnectionBook(config.state_dir)
+        connection = book.get(provider)
+        if connection is None or connection.auth_type != "chatgpt-siws":
+            raise HTTPException(404, "That ChatGPT plan connection is no longer configured")
+        if not book.has_key(provider):
+            raise HTTPException(409, "Reconnect this ChatGPT account before allowing background use")
+        try:
+            saved = store.grant_background_provider_consent(
+                bot.id, provider, connection.auth_account_id, body.route_fingerprint)
+        except KeyError:
+            raise HTTPException(404, f"no such bot: {ref}") from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        row = next((item for item in chatgpt_background_view(saved, book) if item["provider"] == provider), None)
+        if row is None or row["state"] != "allowed":
+            # The account can be disconnected while the SQLite grant is being
+            # written. Do not leave a dormant grant that could become active
+            # again if the same account is later reconnected.
+            store.revoke_background_provider_consents(provider=provider, bot_id=bot.id)
+            raise HTTPException(409, "The ChatGPT account changed while saving consent. Review the current route and try again.")
+        return row
+
+    @app.delete("/api/v1/bots/{ref}/background-provider-consents/{provider}", status_code=204)
+    def revoke_bot_background_provider(ref: str, provider: str) -> Response:
+        bot = bot_or_404(ref)
+        store.revoke_background_provider_consents(provider=provider, bot_id=bot.id)
+        return Response(status_code=204)
 
     @app.put("/api/v1/bots/{ref}/schedules/{schedule_id}", response_model=ScheduleResource)
     def put_schedule(ref: str, schedule_id: str, body: SchedulePut) -> dict:
@@ -1733,13 +1787,17 @@ def create_app() -> FastAPI:
 
     @app.get("/api/bots")
     def list_bots() -> list[dict]:
-        return [bot_view(b) for b in store.list_bots()]
+        from ..connections import ConnectionBook
+        connections = ConnectionBook(config.state_dir)
+        return [bot_view(b, connections) for b in store.list_bots()]
 
     @app.get("/api/v1/bots")
     def list_bots_v1(limit: int = 100, offset: int = 0) -> list[dict]:
         bots = store.list_bots()
+        from ..connections import ConnectionBook
+        connections = ConnectionBook(config.state_dir)
         start = max(0, offset)
-        return [bot_view(bot) for bot in bots[start:start + max(1, min(limit, 500))]]
+        return [bot_view(bot, connections) for bot in bots[start:start + max(1, min(limit, 500))]]
 
     @app.get("/api/bots/templates")
     def bot_templates() -> list[dict]:
@@ -3319,6 +3377,7 @@ def create_app() -> FastAPI:
         from ..connections import ConnectionBook
         try:
             revoked = ChatGPTAuthBook(config.state_dir).disconnect(account_id)
+            store.revoke_background_provider_consents(account_id=account_id)
             book = ConnectionBook(config.state_dir)
             for name, conn in book.configured().items():
                 if conn.auth_type == "chatgpt-siws" and conn.auth_account_id == account_id:
@@ -3411,6 +3470,9 @@ def create_app() -> FastAPI:
                 raise HTTPException(422, str(exc)) from None
             return {"ok": True, "detail": "Allowance estimate saved. Hutch tracks local token totals; provider accounting can differ."}
         if action == "remove":
+            connection = book.get(name)
+            if connection and connection.auth_type == "chatgpt-siws":
+                store.revoke_background_provider_consents(provider=name)
             book.remove(name)
             return {"ok": True, "detail": f"Removed {name} and its stored key."}
         raise HTTPException(404, "Unknown action.")

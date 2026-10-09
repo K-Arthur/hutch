@@ -880,6 +880,10 @@ function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confir
       const [field, selector] = FACT_BUTTONS.find(([field]) => modalReturnFocus.dataset[field]);
       ($$(selector).find(button => button.dataset[field] === modalReturnFocus.dataset[field]) || $('#chat-prompt'))?.focus();
     }
+    else if (modalReturnFocus?.dataset.backgroundProvider) {
+      ($$('[data-background-provider]').find(button =>
+        button.dataset.backgroundProvider === modalReturnFocus.dataset.backgroundProvider) || $('#nav-toggle'))?.focus();
+    }
     else if (modalReturnFocus?.isConnected && modalReturnFocus.getClientRects().length) modalReturnFocus.focus();
     else ($('#chat-prompt') || $('#nav-toggle'))?.focus();
     if (feedRefreshPending) {
@@ -3910,6 +3914,18 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             <div class="btn-row"><button class="btn primary small" type="submit">Save model settings</button></div>
           </form>
 
+          ${(b.chatgpt_background || []).length ? `<section class="panel" aria-labelledby="background-plan-consent-title">
+            <div class="panel-title" id="background-plan-consent-title">ChatGPT plan for unattended runs</div>
+            <p class="hint">Scheduled tasks and coordinator-assigned specialist tasks can run while you are away. Hutch requires a separate, explicit permission for each ChatGPT account used by this Bot. It covers only this Bot’s current model, fallback and escalation routes. Changing those routes or disconnecting the account removes the permission.</p>
+            <div class="settings-list">${b.chatgpt_background.map(route => `
+              <div class="meta-row background-consent-row">
+                <span><b>${esc(route.title)}</b><br><span class="hint">${route.state === "allowed" ? "Allowed for this route" : route.state === "sign_in_required" ? "Sign in again before enabling" : "Permission required"}</span></span>
+                ${route.state === "sign_in_required"
+                  ? `<a class="btn ghost small" href="#/connections">Open Connections</a>`
+                  : `<button class="btn ${route.state === "allowed" ? "ghost" : "primary"} small" type="button" data-background-provider="${esc(route.provider)}" data-route-fingerprint="${esc(route.route_fingerprint)}" data-consent-state="${esc(route.state)}">${route.state === "allowed" ? "Revoke" : "Review and allow"}</button>`}
+              </div>`).join("")}</div>
+          </section>` : ""}
+
           <section class="panel" aria-labelledby="tool-settings-title">
             <div class="panel-title" id="tool-settings-title">Tools</div>
             <p class="hint" id="tool-settings-help">Choose what this bot may call. Every action still passes Hutch’s policy and approval checks. Strict Offline removes browser and public-page tools.</p>
@@ -4114,6 +4130,41 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     const fd = new FormData(ev.target);
     patch({ model: fd.get("model").trim(), inference_mode: fd.get("inference_mode") }, "Model settings saved.");
   });
+  $$('[data-background-provider]').forEach(button => button.addEventListener("click", () => {
+    const provider = button.dataset.backgroundProvider;
+    if (button.dataset.consentState === "allowed") {
+      openModal({
+        title: "Revoke ChatGPT background use?",
+        bodyHtml: `<p>Scheduled and coordinator-assigned specialist runs for <b>${esc(b.display_name || b.name)}</b> will stop using this ChatGPT account after any current request finishes. Messages you start remain governed by this Bot’s model and provider settings.</p>`,
+        confirmText: "Revoke permission", confirmClass: "danger", returnFocus: button,
+        onConfirm: async () => {
+          try {
+            await api(`/v1/bots/${encodeURIComponent(b.id)}/background-provider-consents/${encodeURIComponent(provider)}`, { method: "DELETE" });
+            toast("Background permission revoked.");
+            await renderBotDetail(b.name);
+            return true;
+          } catch (err) { toast(`Permission not revoked: ${err.message}`, true); return false; }
+        },
+      });
+      return;
+    }
+    const route = (b.chatgpt_background || []).find(item => item.provider === provider);
+    openModal({
+      title: "Allow scheduled ChatGPT plan use?",
+      bodyHtml: `<p>Allow <b>${esc(route?.title || "this ChatGPT account")}</b> to serve this Bot’s scheduled tasks and coordinator-assigned specialist tasks when you are not in the conversation?</p><p>Hutch will use the plan only for this Bot and its current model, fallback and escalation routes. The permission is stored on this Hutch machine, is tied to this account, and stops matching if its route changes. You can revoke it here at any time. OpenAI’s preview eligibility and usage limits still apply.</p>`,
+      confirmText: "Allow background use", returnFocus: button,
+      onConfirm: async () => {
+        try {
+          await api(`/v1/bots/${encodeURIComponent(b.id)}/background-provider-consents/${encodeURIComponent(provider)}`, {
+            method: "PUT", body: { route_fingerprint: button.dataset.routeFingerprint },
+          });
+          toast("Background permission saved for this ChatGPT account and route.");
+          await renderBotDetail(b.name);
+          return true;
+        } catch (err) { toast(`Permission not saved: ${err.message}`, true); return false; }
+      },
+    });
+  }));
   $("#btn-runtime-to-builtin")?.addEventListener("click", () =>
     patch({ runtime: "builtin" }, "Switched to Hutch’s built-in runtime."));
   $("#form-tools").addEventListener("submit", ev => {

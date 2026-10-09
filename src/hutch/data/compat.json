@@ -147,7 +147,7 @@
       "state": "experimental",
       "harness": "Hutch builtin runtime; opt-in local public-client sign-in",
       "api_shape": "Fixed OpenAI Responses API at https://api.openai.com/v1",
-      "auth_flow": "Experimental PKCE/OIDC local callback with dynamic registration and chatgpt.tokens.use.direct scope. Disabled unless HUTCH_ENABLE_CHATGPT_PLAN=1. Hutch eligibility remains unconfirmed; no live account was used.",
+      "auth_flow": "Experimental PKCE/OIDC local callback with dynamic registration and chatgpt.tokens.use.direct scope. Disabled unless HUTCH_ENABLE_CHATGPT_PLAN=1. Scheduled and coordinator-assigned work requires explicit per-Bot/account consent bound to the current model/fallback/escalation routes; each provider request rechecks consent. Revocation blocks later requests and account disconnect removes grants. Hutch eligibility remains unconfirmed; no live account was used.",
       "models": "Fetched from the official account model-list endpoint when the user opens model selection; only list-visible models are offered. No live catalog was used.",
       "streaming": "Required and fixture-tested. Interrupted streams are not replayed; missing usage remains estimated/uncertain.",
       "tool_calls": "Hutch function-tool calls are mapped through the normal approval and execution path in recorded fixtures. Hosted MCP and other excluded preview tools are not sent.",
@@ -162,11 +162,12 @@
         "sent": ["model", "full input history", "function tools through additional_tools input items", "instructions", "stream=true", "store=false"],
         "omitted": ["background", "conversation", "max_output_tokens", "max_tool_calls", "metadata", "temperature", "top_p", "truncation", "user", "previous_response_id", "system-role message"]
       },
-      "verification": "Local OAuth, signature-verification, account-store, API-route and Responses-body fixtures pass. No OpenAI account, authorization server, or paid provider was used live. Hutch eligibility is unconfirmed.",
-      "verified_on": "2026-10-08",
+      "verification": "Local OAuth, signature-verification, account-store, API-route, consent/revocation, snapshot-redaction and Responses-body fixtures pass. No OpenAI account, authorization server, or paid provider was used live. Hutch eligibility is unconfirmed.",
+      "verified_on": "2026-10-09",
       "policy_evidence": [
-        {"title": "Sign in with ChatGPT token sharing", "url": "https://developers.openai.com/siwc/token-sharing-open-source", "observed_on": "2026-10-08"},
-        {"title": "Sign in with ChatGPT preview limitations", "url": "https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations", "observed_on": "2026-10-08"}
+        {"title": "Sign in with ChatGPT token sharing", "url": "https://developers.openai.com/siwc/token-sharing-open-source", "observed_on": "2026-10-09"},
+        {"title": "Sign in with ChatGPT preview limitations", "url": "https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations", "observed_on": "2026-10-09"},
+        {"title": "Sign in with ChatGPT Terms", "url": "https://openai.com/policies/sign-in-with-chatgpt-terms/", "observed_on": "2026-10-09"}
       ]
     },
     {

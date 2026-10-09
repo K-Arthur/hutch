@@ -436,6 +436,30 @@ def test_when_the_whole_chain_is_down_the_error_names_the_last_cause(store, conf
     assert e.value.reason == "error" and "ollama serve" in e.value.detail
 
 
+def test_unconsented_scheduled_chatgpt_plan_route_stops_before_provider_construction(store, config, tmp_path):
+    from hutch.chatgpt_auth import ChatGPTAuthBook, PLAN_SCOPE
+    from hutch.connections import ConnectionBook
+
+    account_id = "acct_0123456789abcdef01234567"
+    ChatGPTAuthBook(config.state_dir)._write_accounts({"version": 1, "host_id": "fixture-host", "accounts": {
+        account_id: {"access_token": "fixture-token", "refresh_token": "", "expires_at": 9_999_999_999,
+                    "scopes": [PLAN_SCOPE], "client_id": "fixture-client", "subject": "fixture-subject"}
+    }})
+    route = ConnectionBook(config.state_dir).add_chatgpt_account(account_id, "Fixture account")
+    ctx, run, _, tools = build(store, config, tmp_path, model=f"{route.name}/gpt-fixture", tools=())
+    run.origin = "schedule"
+    constructed = []
+
+    def provider_factory(provider, base_url):
+        constructed.append((provider, base_url))
+        raise AssertionError("an unconsented background route must stop before provider construction")
+
+    with pytest.raises(RunAborted, match="express consent"):
+        run_it(runtime(provider_factory=provider_factory), run, ctx, tools)
+    assert constructed == []
+    assert store.unresolved_usage_reservations() == []
+
+
 def test_a_mid_run_outage_falls_back_without_restarting_the_run(store, config, tmp_path, ollama, oai):
     ollama.script = agent_script([{"tool_calls": [WRITE]}])
     oai.script = lambda b: {"content": "finished on the fallback"}

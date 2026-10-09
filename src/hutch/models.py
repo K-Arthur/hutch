@@ -150,6 +150,16 @@ class Limits(BaseModel):
     model_config = {"frozen": True}
 
 
+class BackgroundProviderConsent(BaseModel):
+    """Explicit authorization for one provider account and one Bot routing configuration."""
+
+    provider: str = Field(min_length=1, max_length=80)
+    account_id: str = Field(min_length=1, max_length=80)
+    route_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+    terms_revision: str = Field(min_length=1, max_length=32)
+    granted_at: str = Field(default_factory=lambda: iso(utcnow()))
+
+
 class Escalation(BaseModel):
     """Move up the ladder when a local model is not up to the job (LM-9) - one rung at a time."""
 
@@ -252,6 +262,7 @@ class Bot(BaseModel):
     preset: Optional[str] = None      # task preset this bot was configured from (LM-7)
     fallbacks: list[str] = Field(default_factory=list)   # tried in order when the model is unavailable (SR-8)
     escalation: Optional[Escalation] = None              # quality ladder (LM-9)
+    background_provider_consents: list[BackgroundProviderConsent] = Field(default_factory=list)
     risk_tier: RiskTier = RiskTier.supervised            # SR-12
     command_rules: list[CommandRule] = Field(default_factory=list)
     think: Optional[bool] = None      # None = off for small local models, model default for hosted (SR-5)

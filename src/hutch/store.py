@@ -37,6 +37,7 @@ from .models import (
     ACTIVE_STATUSES,
     ApprovalRequest,
     ApprovalStatus,
+    BackgroundProviderConsent,
     Bot,
     Event,
     EventType,
@@ -1520,6 +1521,55 @@ class Store:
                 "SELECT doc FROM bots WHERE id = ? OR name = ?", (ref, ref)
             ).fetchone()
         return Bot.model_validate_json(row["doc"]) if row else None
+
+    def grant_background_provider_consent(self, bot_id: str, provider: str, account_id: str,
+                                         expected_fingerprint: str) -> Bot:
+        """Persist consent only if the reviewed routing still matches inside this write transaction."""
+        from .chatgpt_consent import (CHATGPT_TERMS_REVISION, background_route_fingerprint,
+                                      bot_route_provider_names)
+        with self._tx() as db:
+            row = db.execute("SELECT doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
+            if row is None:
+                raise KeyError(bot_id)
+            bot = Bot.model_validate_json(row["doc"])
+            if background_route_fingerprint(bot) != expected_fingerprint:
+                raise ValueError("The Bot's model routing changed. Review it again before allowing background use.")
+            if provider not in bot_route_provider_names(bot):
+                raise ValueError("This ChatGPT connection is no longer in the Bot's model route, fallback, or escalation chain.")
+            consent = BackgroundProviderConsent(provider=provider, account_id=account_id,
+                                                route_fingerprint=expected_fingerprint,
+                                                terms_revision=CHATGPT_TERMS_REVISION)
+            bot.background_provider_consents = [item for item in bot.background_provider_consents
+                                                if item.provider != provider] + [consent]
+            db.execute("UPDATE bots SET doc = ? WHERE id = ?", (bot.model_dump_json(), bot_id))
+        self.bus.notify("work", "bots")
+        return bot
+
+    def revoke_background_provider_consents(self, *, provider: str | None = None,
+                                            account_id: str | None = None,
+                                            bot_id: str | None = None) -> int:
+        """Remove stored unattended-use grants on explicit revoke or account disconnect."""
+        if provider is None and account_id is None:
+            raise ValueError("choose a provider or account when revoking background consent")
+        changed = 0
+        with self._tx() as db:
+            if bot_id is None:
+                rows = db.execute("SELECT id, doc FROM bots").fetchall()
+            else:
+                rows = db.execute("SELECT id, doc FROM bots WHERE id = ?", (bot_id,)).fetchall()
+            for row in rows:
+                bot = Bot.model_validate_json(row["doc"])
+                retained = [item for item in bot.background_provider_consents
+                            if not ((provider is None or item.provider == provider) and
+                                    (account_id is None or item.account_id == account_id))]
+                if len(retained) == len(bot.background_provider_consents):
+                    continue
+                bot.background_provider_consents = retained
+                db.execute("UPDATE bots SET doc = ? WHERE id = ?", (bot.model_dump_json(), row["id"]))
+                changed += 1
+        if changed:
+            self.bus.notify("work", "bots")
+        return changed
 
     def set_google_calendar_grant(self, bot_ref: str, account_id: str, calendar_id: str,
                                   calendar_name: str) -> Optional[dict[str, str]]:

@@ -1054,7 +1054,18 @@ def conn_remove(name: str = typer.Argument(...), yes: bool = typer.Option(False,
     """Remove a connection and its stored key file."""
     if not yes and not typer.confirm(f"remove connection '{name}' and its stored key?"):
         raise typer.Exit()
-    console.print("removed" if _book().remove(name) else "no such connection")
+    book = _book()
+    connection = book.get(name)
+    if connection is None:
+        console.print("no such connection")
+        return
+    if connection.auth_type == "chatgpt-siws":
+        store = _store()
+        try:
+            store.revoke_background_provider_consents(provider=name)
+        finally:
+            store.close()
+    console.print("removed" if book.remove(name) else "no such connection")
 
 
 @usage_app.command("reservations")
