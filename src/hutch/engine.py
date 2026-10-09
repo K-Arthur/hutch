@@ -375,29 +375,31 @@ class Engine:
 
     def stop_run(self, run_id: str, *, idem_key: Optional[str] = None,
                  request_hash: Optional[str] = None) -> bool:
-        """Stop one run. The intent is recorded in the database, so it works from any process; if this process owns the run it
-        also takes the fast path: cancel flag, abort model I/O, unblock approvals, kill child process groups."""
-        run = self.store.request_cancel(run_id, idem_key=idem_key, request_hash=request_hash)
-        if run is None:
+        """Stop a run and its persisted descendants, signaling every process this supervisor owns."""
+        runs = self.store.request_cancel_tree(run_id, idem_key=idem_key, request_hash=request_hash)
+        if runs is None:
             return False
-        cancel = self._cancels.get(run_id)
-        if cancel:
-            cancel.set()
-        gate = self._gates.get(run_id)
-        if gate:
-            gate.cancel_requested = True
-            self.bus.notify(f"approval:wake:{run_id}")
-        ctx = self._ctxs.get(run_id)
-        if ctx:
-            for hook in list(ctx.cancel_hooks):
-                try:
-                    hook()
-                except Exception:
-                    pass
-            ctx.procs.request_cleanup()
-        proc = self._procs.get(run_id)
-        if proc is not None and proc.poll() is None:
-            self._signal_group(proc, signal.SIGTERM)      # the worker unwinds cooperatively; the watcher escalates if it will not
+        for run in runs:
+            if run.status in TERMINAL_STATUSES:
+                continue
+            cancel = self._cancels.get(run.id)
+            if cancel:
+                cancel.set()
+            gate = self._gates.get(run.id)
+            if gate:
+                gate.cancel_requested = True
+                self.bus.notify(f"approval:wake:{run.id}")
+            ctx = self._ctxs.get(run.id)
+            if ctx:
+                for hook in list(ctx.cancel_hooks):
+                    try:
+                        hook()
+                    except Exception:
+                        pass
+                ctx.procs.request_cleanup()
+            proc = self._procs.get(run.id)
+            if proc is not None and proc.poll() is None:
+                self._signal_group(proc, signal.SIGTERM)  # its supervisor escalates if cooperative cleanup stalls
         return True
 
     def stop_owned(self) -> int:

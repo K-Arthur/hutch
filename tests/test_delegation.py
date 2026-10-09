@@ -4,6 +4,7 @@ from threading import Barrier
 
 import pytest
 
+from hutch.engine import Engine
 from hutch.models import Bot, Run, RunStatus, Task
 from hutch.store import IdempotencyConflict, Store
 
@@ -224,6 +225,98 @@ def test_delegation_enforces_depth_fanout_and_active_child_limits(store):
         claimed_grandchild.id, RunStatus.running, fence=claimed_grandchild.fence)
     with pytest.raises(ValueError, match="depth limit"):
         _child(store, running_grandchild, key="great-grandchild")
+
+
+def test_cancelling_a_run_cancels_all_existing_descendants_and_blocks_new_children(store):
+    _, root = _running_parent(store)
+    child, _ = _child(store, root, key="cancel-child")
+
+    store.transition_run(root.id, RunStatus.succeeded, fence=root.fence, exit_reason="completed")
+    claimed_child = store.claim_run(child.id, "delegation-cancel-child", 60)
+    assert claimed_child is not None
+    child = store.transition_run(claimed_child.id, RunStatus.running, fence=claimed_child.fence)
+    grandchild, _ = _child(store, child, key="cancel-grandchild")
+
+    cancelled = store.request_cancel_tree(root.id, idem_key="stop-delegation-tree",
+                                         request_hash="sha256:stop-tree")
+    assert cancelled is not None
+    states = {run.id: run for run in cancelled}
+    assert states[child.id].status is RunStatus.cancelling
+    assert states[child.id].cancel_requested is True
+    assert states[grandchild.id].status is RunStatus.stopped
+
+    replay = store.request_cancel_tree(root.id, idem_key="stop-delegation-tree",
+                                       request_hash="sha256:stop-tree")
+    assert replay is not None
+    with pytest.raises(IdempotencyConflict):
+        store.request_cancel_tree(root.id, idem_key="stop-delegation-tree",
+                                  request_hash="sha256:changed-stop-tree")
+    with pytest.raises(ValueError, match="current, live run owner"):
+        _child(store, child, key="too-late-child")
+
+
+def test_child_admission_racing_with_tree_stop_cannot_escape_cancellation(store, config):
+    _, parent = _running_parent(store)
+    gate = Barrier(2)
+
+    def submit_child():
+        contender = Store(config)
+        try:
+            gate.wait(timeout=10)
+            try:
+                child, _ = _child(contender, parent, key="stop-race-child")
+                return child.id
+            except ValueError as exc:
+                assert "current, live run owner" in str(exc)
+                return None
+        finally:
+            contender.close()
+
+    def stop_tree():
+        stopper = Store(config)
+        try:
+            gate.wait(timeout=10)
+            assert stopper.request_cancel_tree(parent.id) is not None
+        finally:
+            stopper.close()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        submission = pool.submit(submit_child)
+        stopping = pool.submit(stop_tree)
+        child_id = submission.result(timeout=15)
+        stopping.result(timeout=15)
+
+    children = store._db.execute("SELECT id FROM runs WHERE parent_run_id = ?", (parent.id,)).fetchall()
+    assert len(children) == (1 if child_id else 0)
+    if child_id:
+        child = store.get_run(child_id)
+        assert child is not None
+        assert child.cancel_requested or child.status in (RunStatus.cancelling, RunStatus.stopped)
+
+
+def test_engine_stop_signals_owned_processes_for_descendants(store, config):
+    _, root = _running_parent(store)
+    child, _ = _child(store, root, key="signal-child")
+    store.transition_run(root.id, RunStatus.succeeded, fence=root.fence, exit_reason="completed")
+    claimed = store.claim_run(child.id, "signal-child-owner", 60)
+    assert claimed is not None
+    child = store.transition_run(claimed.id, RunStatus.running, fence=claimed.fence)
+    grandchild, _ = _child(store, child, key="signal-grandchild")
+
+    class LiveProcess:
+        def poll(self):
+            return None
+
+    engine = Engine(config, store, light=True)
+    process = LiveProcess()
+    engine._procs[child.id] = process
+    signalled = []
+    engine._signal_group = lambda owned, _sig: signalled.append(owned)
+
+    assert engine.stop_run(root.id) is True
+    assert signalled == [process]
+    assert store.get_run(child.id).status is RunStatus.cancelling
+    assert store.get_run(grandchild.id).status is RunStatus.stopped
 
 
 def test_delegation_admission_is_atomic_across_independent_sqlite_connections(store, config):

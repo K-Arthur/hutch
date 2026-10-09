@@ -183,7 +183,7 @@ See [ADR-0015](adr/0015-held-database-restoration.md) and [Operations](operation
 > that also enforces the per-bot rule across processes; the owner heartbeats a lease; every owner write carries a fence;
 > expired leases already refuse owner writes and cannot be revived by heartbeat; recovery bumps the fence; status changes only through `Store.transition_run` against the
 > table in `lifecycle.py`; schedule occurrences are claimed in the same transaction as the run they create. Stop is an intent in
-> the database. Under `serve` and `daemon` each run is its own OS process (`hutch.worker`) in its own session, so a kill is a real
+> the database and marks persisted descendants before any cleanup or process signal. Under `serve` and `daemon` each run is its own OS process (`hutch.worker`) in its own session, so a kill is a real
 > kill, and a worker outlives a dead supervisor and is adopted by the next one (`HUTCH_EXECUTOR=thread` is an explicit
 > compatibility/test mode; `hutch run`, `serve`, and `daemon` use process workers). Event sequence numbers and hash chains are assigned at commit time from the
 > database tail, so several processes can safely write one run's transcript. Recovery atomically takes the expired owner and

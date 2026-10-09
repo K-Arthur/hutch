@@ -2011,12 +2011,24 @@ class Store:
 
     def request_cancel(self, run_id: str, *, idem_key: Optional[str] = None,
                        request_hash: Optional[str] = None) -> Optional[Run]:
-        """Record that a person wants this run stopped. ANY process may call this; the owner (or recovery) acts on it.
+        """Request cancellation for a run and every persisted descendant, from any process."""
+        cancelled = self.request_cancel_tree(run_id, idem_key=idem_key, request_hash=request_hash)
+        if cancelled is None:
+            return None
+        for run in cancelled:
+            if run.id == run_id:
+                return run
+        return self.get_run(run_id)
 
-        A queued run nobody owns is ended here. A claimed or live run moves to ``cancelling`` and stays there until the
-        owner has verified everything it started is gone. (The old Stop flipped an in-memory flag and only worked in the
-        process that owned the run.)
+    def request_cancel_tree(self, run_id: str, *, idem_key: Optional[str] = None,
+                            request_hash: Optional[str] = None) -> Optional[list[Run]]:
+        """Atomically fence new descendant admission, then request each existing run to stop.
+
+        All `cancel_requested` bits are committed before any status transition or process signal. A racing child admission
+        therefore either commits first and appears in this tree query, or observes its parent cancelled and is refused.
+        Live runs remain in `cancelling` until their own supervisor verifies cleanup.
         """
+        now = iso(utcnow())
         with self._tx() as db:
             scope = f"api:v1:run:{run_id}:stop"
             replay = None
@@ -2024,33 +2036,49 @@ class Store:
                 if request_hash is None:
                     raise ValueError("request_hash is required with an idempotency key")
                 replay = self._idempotency_replay(db, scope, idem_key, request_hash)
-            row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
-            if row is None:
+            tree_rows = db.execute(f"""WITH RECURSIVE tree(id, depth, path) AS (
+                                          SELECT id, 0, ',' || id || ',' FROM runs WHERE id = ?
+                                          UNION ALL
+                                          SELECT r.id, t.depth + 1, t.path || r.id || ','
+                                          FROM runs r JOIN tree t ON r.parent_run_id = t.id
+                                          WHERE instr(t.path, ',' || r.id || ',') = 0
+                                      )
+                                      SELECT r.id, r.status FROM runs r JOIN tree t ON t.id = r.id
+                                      ORDER BY t.depth DESC, r.id""", (run_id,)).fetchall()
+            if not tree_rows:
                 return None
             if replay is None:
-                if RunStatus(row["status"]) not in TERMINAL:
-                    db.execute("UPDATE runs SET cancel_requested = 1 WHERE id = ?", (run_id,))
-                    patch = _canonical({"status": "expired", "resolved_at": iso(utcnow()), "decided_by": "stopped"})
-                    db.execute("UPDATE approvals SET status = 'expired', doc = json_patch(doc, ?) "
-                               "WHERE run_id = ? AND status = 'pending'", (patch, run_id))
+                ids = [row["id"] for row in tree_rows]
+                id_marks = ",".join("?" for _ in ids)
+                terminal_marks = ",".join("?" for _ in TERMINAL)
+                db.execute(f"UPDATE runs SET cancel_requested = 1 WHERE id IN ({id_marks}) "
+                           f"AND status NOT IN ({terminal_marks})", (*ids, *(status.value for status in TERMINAL)))
+                patch = _canonical({"status": "expired", "resolved_at": now, "decided_by": "stopped"})
+                db.execute(f"UPDATE approvals SET status = 'expired', doc = json_patch(doc, ?) "
+                           f"WHERE status = 'pending' AND run_id IN ({id_marks})", (patch, *ids))
                 if idem_key is not None:
                     db.execute("INSERT INTO idempotency_keys(scope, key, request_hash, response_json, created_at) "
                                "VALUES (?, ?, ?, ?, ?)",
-                               (scope, idem_key, request_hash, _canonical({"run_id": run_id}), iso(utcnow())))
-            elif RunStatus(row["status"]) in TERMINAL:
-                return self._run(row)
-        run = self.get_run(run_id)
-        assert run is not None
-        try:
-            if run.status is RunStatus.pending and not run.lease_owner:
-                run = self.transition_run(run_id, RunStatus.stopped, exit_reason="stopped before start",
-                                          error="stopped before it started", event={"reason": "stopped before start"})
-            elif run.status is not RunStatus.cancelling:
-                run = self.transition_run(run_id, RunStatus.cancelling, event={"reason": "stop requested"})
-        except (IllegalTransition, LeaseLost):
-            run = self.get_run(run_id) or run                     # finished in the meantime: nothing to stop
-        self.bus.notify(f"approval:wake:{run_id}", f"human:{run_id}", f"run:{run_id}", "approvals", "work")
-        return run
+                               (scope, idem_key, request_hash, _canonical({"run_id": run_id}), now))
+
+        cancelled: list[Run] = []
+        for item in tree_rows:
+            run = self.get_run(item["id"])
+            if run is None:
+                continue
+            try:
+                if run.status in TERMINAL:
+                    pass
+                elif run.status is RunStatus.pending and not run.lease_owner:
+                    run = self.transition_run(run.id, RunStatus.stopped, exit_reason="stopped before start",
+                                              error="stopped before it started", event={"reason": "stopped before start"})
+                elif run.status is not RunStatus.cancelling:
+                    run = self.transition_run(run.id, RunStatus.cancelling, event={"reason": "stop requested"})
+            except (IllegalTransition, LeaseLost):
+                run = self.get_run(run.id) or run
+            cancelled.append(run)
+        self.bus.notify("approvals", "work", *(f"run:{run.id}" for run in cancelled))
+        return cancelled
 
     def is_cancel_requested(self, run_id: str) -> bool:
         with self._lock:

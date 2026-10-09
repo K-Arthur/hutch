@@ -85,8 +85,10 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   and two active direct children. The first child snapshots the top-level parent's execution-time currency limit; nested children inherit
   it even if a later caller supplies a larger value. `reserve_usage` serializes measured usage and reserved/uncertain holds across all
   runs in that subtree in the same transaction as the per-run, bot, and account checks. Legacy runs upgraded from v22 have no invented
-  delegation ceiling. This is still a persistence/admission primitive only: no chat tool or public child-run endpoint exists yet, and
-  capability snapshotting, lineage cancellation, independent child workspaces, and delegated artifact transfer remain open.
+  delegation ceiling. Stopping any run also persists cancellation intent for its descendants before cleanup, and a racing child
+  submission either appears in that tree or observes its cancelled parent and is refused. This is still a persistence/admission
+  primitive only: no chat tool or public child-run endpoint exists yet. Capability snapshotting, independent child workspaces, and
+  delegated artifact transfer remain open.
 * `POST /api/v1/tasks/runs/{run_id}/resume` takes `{human_event_seq}` and requires `Idempotency-Key`. The run must still be
   `waiting_human` under a live owner lease, and the sequence must match its latest `human_needed` event. Schema v19 accepts one command per wait episode;
   another key for the same event and any stale event sequence conflict. Exact retries replay the recorded result without setting the
