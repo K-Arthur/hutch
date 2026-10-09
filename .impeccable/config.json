@@ -64,7 +64,7 @@
           "src/hutch/server/static/style.css"
         ],
         "createdAt": "2026-10-09T15:21:46.653Z",
-        "reason": "Agent: both referenced selectors use uniform 1px neutral outlines, and a fresh exact-file scan reports 0 side-tab anti-patterns; this is a stale hook false positive for the current stylesheet."
+        "reason": "Agent: cited current lines are a neutral full-outline blockquote and text alignment, not side-tab accents; exact-target scan reports no side-tab anti-pattern."
       }
     ]
   }

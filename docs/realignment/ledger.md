@@ -2312,3 +2312,29 @@ same public-site sizes. Captures and trace are in `artifacts/workspace-task-disp
 `impeccable detect --json src/hutch/server/static/app.js website/index.html` passed; the detector returned no findings. Tests use
 mock/SQLite fixtures and do not verify live model draft quality, screen readers or physical devices. T-COORDINATOR-BRIEF is partial:
 the prompt boundary and review UI work in fixtures, but live draft quality and end-to-end clarification remain unverified.
+
+## S6 Optional same-chat context in Bot creation (2026-10-09)
+
+Commit `382670d` extends chat-sourced Bot setup so the owner may select up to eight earlier user-authored messages from the same
+conversation as saved background. Nothing is selected by default; assistant messages, other chats and unrelated same-chat turns
+are never copied unless explicitly chosen. The final review shows each exact selected message and explains that it becomes part of
+saved instructions and may be sent to the selected model on later runs. Selection does not grant tools, accounts or permissions.
+The API checks exact conversation and role, rejects duplicates/cross-chat references and over-limit payloads, persists source ids
+and provenance without repeating `original_request` in Bot API metadata, and treats a changed context selection under a reused
+idempotency key as a conflict. The shared instructions cap remains 20,000 characters. Bot records are JSON-backed and the new
+context-provenance list has an empty default for older records, so no SQLite schema migration was needed. The same change fixes
+system-prompt formatting in route estimates when the selected Bot is the workspace coordinator.
+
+`uv run pytest -q tests/test_api.py tests/test_usage.py` passed **53 tests in 12.34s**; the responsive context-selection browser
+journey passed **1 test in 6.73s**; and the anonymous marketing check passed **1 test in 2.64s**. JavaScript syntax, Python
+compilation and `git diff --check` passed. Chromium **153.0.8010.12** / Playwright **1.63.0** captured and I inspected desktop
+**1440×960**, tablet **900×1024**, and phone **390×844**, including a scrolled phone review with the selected text above the fixed
+footer. Marketing-card screenshots were inspected at desktop **1440×900**, tablet **900×1024**, and phone **390×844**; the
+anonymous test recorded no external requests, page errors or horizontal overflow. Screens, trace and source hashes are under
+`artifacts/bot-setup-context/`. No model/provider call, screen-reader session or physical phone was used. The latest exact-target
+Impeccable scan reported three advisory radius-token mismatches and no side-tab anti-pattern. The path-scoped side-tab exception
+records that the cited lines are a neutral full-outline blockquote and text alignment, not accent borders.
+
+This advances but does not complete `owner-chat-bot-creation`: the owner can preserve selected existing context, but the wizard
+still requires review of its full configuration and does not infer safe settings or ask conversationally only for unresolved
+details. Implementation commit: `382670d`.
