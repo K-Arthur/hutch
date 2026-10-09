@@ -1489,7 +1489,7 @@ async function renderChatStudio(preferredBot = null) {
   // wire composer
   const form = $("#chat-form"), txt = $("#chat-prompt"), sendBtn = $("#chat-send");
   const box = $("#composer-box");
-  const switcher = window.hutchModelSwitcher?.mount($("#model-switch-slot"), detail);
+  const switcher = window.hutchModelSwitcher?.mount($("#model-switch-slot"), detail, selectedConversation.id);
   if (selectedConversation.archived) {
     txt.disabled = true;
     txt.placeholder = "This conversation is archived. Start a new one to continue.";
@@ -1592,6 +1592,7 @@ async function renderChatStudio(preferredBot = null) {
         method: "POST", headers: { "Idempotency-Key": key }, body,
       });
       clearMessageIdempotencyKey(composerConversationId, key);
+      if (body.model) switcher?.consumeOverride(body.model);
       if (replySnapshot && selectedReply?.id === replySnapshot) setReply(null);
       const titleOption = conversationSwitcher?.selectedOptions?.[0];
       if (titleOption && titleOption.textContent.trim().endsWith("New conversation")) {

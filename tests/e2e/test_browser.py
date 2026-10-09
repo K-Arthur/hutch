@@ -2264,6 +2264,7 @@ def test_composer_switcher_menu_check_keyboard_and_per_message_override(browser,
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.goto(base + "/")
+    first_conversation = page.locator("#conversation-switcher").input_value()
     btn = page.locator(".ms-btn")
     btn.wait_for()
     assert "tiny:1b" in btn.inner_text()
@@ -2288,6 +2289,12 @@ def test_composer_switcher_menu_check_keyboard_and_per_message_override(browser,
     chosen = btn.inner_text().strip()
     assert chosen == "small:2b"
     assert "is-custom" in btn.get_attribute("class")
+    page.locator("#studio-new-conversation").click()
+    page.wait_for_function("old => document.querySelector('#conversation-switcher').value !== old", arg=first_conversation)
+    assert "tiny:1b" in page.locator(".ms-btn").get_attribute("aria-label")
+    assert "is-custom" not in page.locator(".ms-btn").get_attribute("class")
+    page.locator("#conversation-switcher").select_option(first_conversation)
+    page.wait_for_function("() => document.querySelector('.ms-btn')?.getAttribute('aria-label')?.includes('small:2b')")
 
     page.locator("#chat-prompt").fill("hello there")
     with page.expect_response(lambda r: "/api/v1/conversations/" in r.url and r.url.endswith("/messages")
@@ -2302,10 +2309,94 @@ def test_composer_switcher_menu_check_keyboard_and_per_message_override(browser,
     })
     assert app.state.store.get_run(body["id"]).status is RunStatus.succeeded
 
-    page.reload()                                           # the choice is remembered for this bot
+    assert "tiny:1b" in btn.inner_text(), "the one-message override returns to the Bot default after send"
+    assert "is-custom" not in btn.get_attribute("class")
+    model_key_prefix = f"hutch.model.{app.state.store.get_bot('chatty').id}."
+    assert page.evaluate("prefix => Object.keys(localStorage).filter(key => key.startsWith(prefix))", model_key_prefix) == []
+
+    page.reload()                                           # a consumed override does not apply to later messages
     page.locator(".ms-btn").wait_for()
-    assert page.locator(".ms-btn").inner_text().strip() == chosen
+    assert page.locator(".ms-btn").inner_text().strip() == "tiny:1b"
     assert not errors, errors
+
+
+def test_model_switcher_can_explicitly_save_the_selected_route_as_bot_default(browser, switcher_env, request):
+    base, app, _fake = switcher_env
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/model-default-choice"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(f"{base}/#/chat/chatty")
+        button = page.locator(".ms-btn")
+        button.wait_for()
+        button.click()
+        page.locator('.ms-item[data-spec="ollama/small:2b"]').click()
+        assert "small:2b" in button.get_attribute("aria-label")
+        assert "One-message override" in button.get_attribute("title")
+        assert app.state.store.get_bot("chatty").model == "ollama/tiny:1b"
+
+        button.click()
+        save = page.locator("[data-save-default]")
+        save.wait_for()
+        assert "Save as Bot default" in save.inner_text()
+        assert "scheduled runs" in save.inner_text()
+        captures = []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
+              menu:document.querySelector('.ms-menu').getBoundingClientRect().toJSON(), save:document.querySelector('[data-save-default]').getBoundingClientRect().toJSON()})""")
+            assert metrics["documentWidth"] - width <= 1, (label, metrics)
+            assert metrics["menu"]["x"] >= 0 and metrics["menu"]["right"] <= width + 1, (label, metrics)
+            assert metrics["save"]["x"] >= 0 and metrics["save"]["right"] <= width + 1, (label, metrics)
+            assert metrics["save"]["bottom"] <= height, (label, metrics)
+            page.screenshot(path=str(out / f"save-default-menu-{label}.png"), animations="disabled")
+            captures.append({"viewport": [width, height], "menu": metrics["menu"], "save": metrics["save"],
+                             "document_width": metrics["documentWidth"]})
+
+        page.set_viewport_size({"width": 390, "height": 844})
+        with page.expect_response(lambda response: response.url.endswith("/api/bots/chatty")
+                                  and response.request.method == "PATCH") as saved:
+            page.locator("[data-save-default]").click()
+        assert saved.value.status == 200, saved.value.text()
+        assert app.state.store.get_bot("chatty").model == "ollama/small:2b"
+        assert app.state.store.list_runs(limit=20) == []
+        model_key_prefix = f"hutch.model.{app.state.store.get_bot('chatty').id}."
+        assert page.evaluate("prefix => Object.keys(localStorage).filter(key => key.startsWith(prefix))", model_key_prefix) == []
+        assert "small:2b" in button.get_attribute("aria-label")
+        assert "is-custom" not in button.get_attribute("class")
+
+        page.reload()
+        button = page.locator(".ms-btn")
+        button.wait_for()
+        assert "small:2b" in button.get_attribute("aria-label")
+        button.click()
+        assert page.locator("[data-save-default]").count() == 0
+        assert app.state.store.get_bot("chatty").model == "ollama/small:2b"
+        assert app.state.store.list_runs(limit=20) == []
+        assert not errors, errors
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_model_switcher_can_explicitly_save_the_selected_route_as_bot_default",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_model_switcher_can_explicitly_save_the_selected_route_as_bot_default",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(), "browser": browser.version,
+            "playwright_version": package_version("playwright"), "captures": captures,
+            "page_errors": errors, "runs_created": len(app.state.store.list_runs(limit=20)),
+            "provider_calls": 0,
+            "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
+                              for relative in ("src/hutch/server/static/model-switcher.js",
+                                               "src/hutch/server/static/model-switcher.css", "src/hutch/server/app.py",
+                                               "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace.zip"))
+        except Exception:
+            pass
+        context.close()
 
 
 def test_all_models_dialog_filters_explains_and_applies(browser, switcher_env, request):

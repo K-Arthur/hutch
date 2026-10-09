@@ -221,6 +221,11 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
         assert "editable suggestion" in text
         assert "seed new bots only" in text
         assert "does not start a run" in text
+        model_card = page.locator("#runs .feature").filter(has_text="Hutch supports configured OpenAI").first
+        model_text = model_card.inner_text().lower()
+        assert "next message" in model_text
+        assert "save as bot default" in model_text
+        assert "scheduled runs" in model_text
         for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             card.scroll_into_view_if_needed()
@@ -229,6 +234,11 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1 and box and box["x"] >= 0 and box["x"] + box["width"] <= width + 1, (label, box, overflow)
             captures.append({"size": label, "viewport": [width, height], "card": box, "overflow": overflow})
+            model_card.scroll_into_view_if_needed()
+            model_card.screenshot(path=str(out / f"site-model-default-choice-{label}.png"), animations="disabled")
+            model_box = model_card.bounding_box()
+            assert overflow <= 1 and model_box and model_box["x"] >= 0 and model_box["x"] + model_box["width"] <= width + 1, (label, model_box, overflow)
+            captures.append({"size": label, "viewport": [width, height], "model_card": model_box, "overflow": overflow})
         assert not external, external
         assert not errors, errors
         (out / "site-validation.json").write_text(json.dumps({

@@ -34,6 +34,22 @@ card was captured and inspected at 1440×900, 900×1024, and 390×844; there wer
 No provider/model call, physical phone, or screen-reader was used. CO-14 remains partial because coordinator/specialist routing
 and actual route identity on cross-Bot runs remain unimplemented.
 
+## One-message model overrides and saved Bot defaults (2026-10-09)
+
+Chromium **153.0.8010.12** / Playwright **1.63.0** exercised the composer model picker with a FakeOllama route. A selected route
+was applied to the next accepted message in one conversation, the run retained that `model_override`, and the composer returned to
+the saved Bot route. A different conversation retained its own default; returning to the first conversation restored its unsent
+selection. The browser fixture then used the separate **Save as Bot default** action, confirmed the model-only Bot update, verified
+that the pending override cleared, and checked that no run was created by saving. The one-message menu and save control fit within
+the viewport at 1440×960, 900×1024, and 390×844; I inspected each capture, including the phone's visible `1×` marker. Artifacts,
+trace, source hashes and measurements are in [`artifacts/model-default-choice/`](artifacts/model-default-choice/). The
+`test_composer_switcher_menu_check_keyboard_and_per_message_override` and
+`test_model_switcher_can_explicitly_save_the_selected_route_as_bot_default` browser checks made no live model/provider call.
+
+The anonymous marketing inference card now distinguishes a one-message route choice from saving a Bot default for later chats and
+scheduled runs. Chromium **153.0.8010.12** inspected it at 1440×900, 900×1024, and 390×844; there were no external requests, page
+errors, or horizontal overflow. Captures and updated source hash are in [`artifacts/bot-setup-context/site/`](artifacts/bot-setup-context/site/).
+
 ## Message-anchored replies (2026-10-09)
 
 Chromium **153.0.8010.12** with Playwright **1.63.0** exercised selecting a specific Bot response by keyboard, checking focus moves

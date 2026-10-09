@@ -22,8 +22,11 @@ Rules worth knowing:
 - **Local model routes keep tools online.** A bot configured with `inference_mode=local` hides hosted choices and blocks hosted message overrides, fallbacks and escalation. Known Ollama cloud-tagged names are refused, but a local model server may still proxy traffic and network tools keep their own egress rules. Select **Hybrid** to allow hosted routes.
 - **Offline is a separate, host-gated experiment.** On Linux, Settings/API/CLI offer it only after a fresh bubblewrap network/PID-namespace probe blocks TCP to both loopback and a host interface, verifies the isolated PID view, and confirms a Unix socket remains reachable. Each worker runs in fresh namespaces with a credential-free environment; saved connection definitions and key files are hidden by read-only empty mounts while Hutch's shared SQLite run state remains available. Its only model egress is a private per-run Unix socket brokered by Hutch to the configured numeric loopback endpoint; browser and web-fetch tools are omitted, and shell requires strict containment. systemd scopes provide resource caps only. Check `/api/v1/capabilities` for the current host result. Hutch cannot constrain networking inside the separate model-server process, so a local Ollama/LM Studio/vLLM service may still proxy or download data. A label, tag or loopback URL alone is not proof that model execution itself stayed local. If host verification fails, mode changes and run starts are refused.
 
-- **Per message, never a silent edit.** The choice is stored on the run as `model_override`. The bot's own model is
-  untouched, so scheduled runs keep using it. The choice is remembered per bot in your browser.
+- **One message, or explicitly save it.** A different route selected in the composer is a one-message override for the
+  current conversation. The route is stored on that run as `model_override` and the chip returns to the Bot default after the
+  message is accepted; if sending fails, the unsent selection stays available for retry. The pending override is remembered
+  only for that conversation in this browser. The Bot's saved model and scheduled runs remain unchanged. Choose **Save as Bot
+  default** in the same model menu to update the Bot settings explicitly; later chats and scheduled runs then use that route.
 - **In Hybrid, a hosted pick is your explicit consent for that message.** The "ask before the first hosted call" rule exists
   to stop a *local-first bot* drifting off your machine on its own; it does not fire when you picked the hosted model
   yourself. Local-route mode refuses hosted choices. Estimate-based limits and exact response-usage recording still apply; provider billing can differ from Hutch's estimates.
@@ -48,8 +51,8 @@ These preferences seed creation only. If the model route is blank, a new Bot sti
 user chooses a usable route. They do not edit existing Bot settings, current conversations, scheduled tasks or runs.
 When setup begins from a chat Bot with a configured route, that route is shown as an editable suggestion ahead of the workspace
 default; the user can change it before saving. Explicit choices in the setup request take precedence. The ordinary Bot settings
-remain the saved per-Bot default, and the composer model pill remains a per-message choice that does not silently change the
-saved Bot setting. Coordinator and specialist Bot routing is not yet implemented.
+remain the saved per-Bot default. The composer offers a one-message override, then returns to the saved route; a separate
+**Save as Bot default** action changes future chats and schedules. Coordinator and specialist Bot routing is not yet implemented.
 
 The versioned provider compatibility matrix is available at `GET /api/v1/compatibility` and in
 [provider compatibility](realignment/provider-compatibility.md). It records Hutch's request mapping and evidence for each

@@ -82,6 +82,12 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   still pending; unknown remains unverified and is called out in the route description.
 * Conversation create, message submit, and archive require `Idempotency-Key`. Exact retries return the same resource/run; reusing the
   key with different request content returns 409. An absent key returns 428.
+* Studio's composer model picker scopes a pending alternate route to the current conversation. The override is sent as the message's
+  `model` and persisted on the resulting run; it clears only after the message command is accepted, so a rejected/failed send can be
+  retried with the same visible choice. The selection survives page reload for that conversation in browser storage and does not
+  carry to another conversation. **Save as Bot default** submits a model-only `PATCH /api/bots/{ref}` through the same route and
+  inference-mode validation as Settings. It affects later chats and scheduled runs, not an existing run; a regular model choice
+  never mutates the Bot setting. Provider/account fallback is not part of either operation.
 * `POST /api/v1/bots` accepts the existing typed bot configuration plus `Idempotency-Key`. The bot and creation receipt commit
   together. A first create returns 201, an exact retry returns the same bot with 200, and reusing a key with different JSON or
   colliding with an existing bot returns 409. It creates no conversation turn or run. Guided setup gathers purpose, template,

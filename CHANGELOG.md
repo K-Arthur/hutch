@@ -14,6 +14,7 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Added
 
+- Studio's composer model picker marks alternate routes as one-message, conversation-scoped overrides and clears them after an accepted send. A separate **Save as Bot default** action validates and updates the Bot route used by later chats and scheduled runs.
 - Preferences can set a validated workspace model route and inference mode for new Bots. Chat-sourced and workspace-default choices remain editable in the setup draft; an explicit choice wins. Changing this preference leaves existing Bots, conversations and runs unchanged.
 - Studio's New Bot flow can seed an editable draft from the latest user message in the active chat. A configured non-mock model route from that chat's Bot is an editable suggestion for the new Bot's saved default. The user can opt out; Hutch copies no other conversation turns, persists the original request provenance, and still requires review before saving. It creates no run and does not infer permissions or account access.
 - Studio conversations can reply to a specific Bot message. The composer shows a removable, bounded reference; same-chat scope, untrusted quote labelling, stable idempotent retries and transcript/export provenance are enforced by schema v25.

@@ -1,9 +1,9 @@
 /* Model switcher for the chat composer.
  *
  * A compact menu (the bot's own model first, then what is usable right now, a check on the one in use) and an
- * "All models" dialog for everything else, including what needs setup and why. Picking a model applies to the
- * messages you send from this chat; it never edits the bot, so scheduled runs keep using the bot's own model.
- * Data comes from GET /api/bots/<name>/models; the server validates the choice again when a message is sent.
+ * "All models" dialog for everything else, including what needs setup and why. A selected route overrides the
+ * next message in this conversation only; an accepted send consumes the override. Saving it as the Bot default
+ * is a separate, explicit action. Data comes from GET /api/bots/<name>/models; the server validates on send and save.
  */
 (function () {
   "use strict";
@@ -27,9 +27,9 @@
     set(k, v) { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch { /* private mode */ } },
   };
 
-  function mount(slot, bot) {
+  function mount(slot, bot, conversationId) {
     if (!slot) return null;
-    const key = `hutch.model.${bot.name}`;
+    const key = `hutch.model.${bot.id}.${conversationId || "none"}`;
     let data = { default: bot.model, models: [{ spec: bot.model, label: shortName(bot.model), group: "This bot",
                                                   state: "ready", default: true, note: "this bot's own model" }] };
     let selected = store.get(key) || "";
@@ -55,9 +55,11 @@
       const custom = spec !== data.default;
       label.textContent = m ? m.label : shortName(spec);
       btn.classList.toggle("is-custom", custom);
-      btn.title = custom ? `Using ${spec} for this chat. The bot's own model is ${data.default}.`
-                         : `Model: ${spec} (this bot's own). Click to switch for this chat.`;
-      btn.setAttribute("aria-label", `Model: ${m ? m.label : shortName(spec)}. Change model`);
+      btn.title = custom ? `One-message override: ${spec}. The Bot default stays ${data.default}; this override clears after the next message is accepted.`
+                         : `Model: ${spec} (this Bot's default). Choose another route for one message or save it as the Bot default.`;
+      btn.setAttribute("aria-label", custom
+        ? `Model: ${m ? m.label : shortName(spec)}. One-message override for this conversation; Bot default is ${shortName(data.default)}. Change model.`
+        : `Model: ${m ? m.label : shortName(spec)}. Bot default. Change model.`);
     }
 
     function choose(spec) {
@@ -65,6 +67,45 @@
       store.set(key, selected);
       paintButton();
       closeMenu(true);
+      if (selected) toast(`${shortName(spec)} is selected for the next message in this conversation. Bot default stays ${shortName(data.default)}.`);
+    }
+
+    function consumeOverride(spec) {
+      if (!spec || selected !== spec || spec === data.default) return false;
+      selected = "";
+      store.set(key, "");
+      paintButton();
+      return true;
+    }
+
+    function setLocalDefault(spec) {
+      data.default = spec;
+      data.models = data.models.map(m => ({ ...m, default: m.spec === spec }));
+      if (!data.models.some(m => m.spec === spec)) {
+        data.models.unshift({ spec, label: shortName(spec), group: "This bot", state: "ready",
+                              default: true, note: "this bot's own model" });
+      }
+      bot.model = spec;
+    }
+
+    async function saveAsDefault(button) {
+      const spec = active();
+      button.disabled = true;
+      try {
+        const saved = await api(`/bots/${encodeURIComponent(bot.name)}`, {
+          method: "PATCH", body: { model: spec },
+        });
+        setLocalDefault(saved.model);
+        selected = "";
+        store.set(key, "");
+        paintButton();
+        await refresh();
+        closeMenu(true);
+        toast(`Saved ${shortName(saved.model)} as ${bot.name}'s default. Future and scheduled runs will use it.`);
+      } catch (err) {
+        button.disabled = false;
+        toast(`Could not save this Bot's model default: ${err.message}`, true);
+      }
     }
 
     function item(m) {
@@ -89,7 +130,11 @@
         `<div class="ms-sep" role="separator"></div>
          <button type="button" class="ms-item ms-more" role="menuitem" data-more>
            <span class="ms-item-main"><span class="ms-item-name">All models</span>
-             <span class="ms-item-note">${hidden > 0 ? `${hidden} more, with what each needs` : "fit, cost and setup for each"}</span></span></button>`;
+             <span class="ms-item-note">${hidden > 0 ? `${hidden} more, with what each needs` : "fit, cost and setup for each"}</span></span></button>
+         ${active() !== data.default ? `<div class="ms-sep" role="separator"></div>
+         <button type="button" class="ms-item ms-save-default" role="menuitem" data-save-default>
+           <span class="ms-item-main"><span class="ms-item-name">Save as Bot default</span>
+             <span class="ms-item-note">${escHtml(shortName(active()))}; future chats and scheduled runs use this route.</span></span></button>` : ""}`;
     }
 
     const items = () => Array.from(menu.querySelectorAll(".ms-item"));
@@ -103,10 +148,11 @@
         paintButton();
         if (!menu.hidden) {                              // re-render without dropping the keyboard user's place
           const had = menu.contains(document.activeElement) ? document.activeElement : null;
-          const spec = had && had.dataset.spec, more = had && had.hasAttribute("data-more");
+          const spec = had && had.dataset.spec, more = had && had.hasAttribute("data-more"),
+            saveDefault = had && had.hasAttribute("data-save-default");
           renderMenu();
           if (had) (items().find(i => (spec && i.dataset.spec === spec) || (more && i.hasAttribute("data-more"))) ||
-                    items()[0])?.focus();
+                    items().find(i => saveDefault && i.hasAttribute("data-save-default")) || items()[0])?.focus();
         }
       } catch { /* keep what we have: the button still works with the bot's own model */ }
     }
@@ -131,10 +177,11 @@
     btn.addEventListener("keydown", ev => {
       if (menu.hidden && (ev.key === "ArrowUp" || ev.key === "ArrowDown")) { ev.preventDefault(); openMenu(); }
     });
-    menu.addEventListener("click", ev => {
+    menu.addEventListener("click", async ev => {
       const it = ev.target.closest(".ms-item");
       if (!it) return;
       if (it.hasAttribute("data-more")) { closeMenu(false); openAll(); return; }
+      if (it.hasAttribute("data-save-default")) { await saveAsDefault(it); return; }
       choose(it.dataset.spec);
     });
     menu.addEventListener("keydown", ev => {
@@ -198,6 +245,7 @@
           selected = spec === data.default ? "" : spec;
           store.set(key, selected);
           paintButton();
+          if (selected) toast(`${shortName(spec)} is selected for the next message in this conversation. Bot default stays ${shortName(data.default)}.`);
           return true;
         },
       });
@@ -218,7 +266,7 @@
 
     paintButton();
     refresh();
-    return { selected: () => (active() === data.default ? "" : active()), refresh };
+    return { selected: () => (active() === data.default ? "" : active()), consumeOverride, refresh };
   }
 
   window.hutchModelSwitcher = { mount };

@@ -18,7 +18,7 @@
 
 .ms-menu {
   position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 30; width: 320px; max-width: calc(100vw - 24px);
-  padding: 8px; border: 1px solid var(--line-strong); background: var(--overlay);
+  max-height: min(70vh, 480px); overflow: auto; padding: 8px; border: 1px solid var(--line-strong); background: var(--overlay);
   border-radius: var(--r-panel); box-shadow: var(--sh-pop);
 }
 .ms-menu[hidden] { display: none; }
@@ -36,6 +36,8 @@
 .ms-item-check { color: var(--brand); display: inline-flex; flex: none; width: 16px; }
 .ms-sep { height: 1px; margin: 4px 6px; background: var(--line); }
 .ms-more .ms-item-name { color: var(--text); }
+.ms-save-default { color: var(--brand-hi); }
+.ms-save-default .ms-item-name { font-weight: 700; }
 .ms-tag {
   display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px;
   border: 1px solid var(--line); border-radius: var(--r-chip);
@@ -84,4 +86,8 @@
 }
 /* phone: the model chip shows dot + caret only, so the composer placeholder
    keeps a single line (same label-hiding pattern as the context header). */
-@media (max-width: 640px) { .ms-btn .ms-label { display: none; } }
+@media (max-width: 640px) {
+  .ms-btn .ms-label { display: none; }
+  .ms-btn.is-custom .ms-label { display: inline-block; flex: none; width: auto; font-size: 0; }
+  .ms-btn.is-custom .ms-label::after { content: "1×"; color: var(--brand-hi); font: 600 10px/1 var(--mono); }
+}
