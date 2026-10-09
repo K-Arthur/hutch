@@ -56,7 +56,7 @@ approval expiry without the dashboard.
 ## Feature highlights
 
 - **Multiple named bots** — own model, tools, recurring tasks, memory, workspace; pause/resume; templates
-- **Model choice, local first** — native Ollama (context size always set), Anthropic, OpenAI, and OpenAI-compatible endpoints. There is no user-facing mock model or simulated run; live provider and local-model checks depend on your setup
+- **Model choice, local first** — native Ollama (context size always set), Anthropic, OpenAI, and OpenAI-compatible endpoints. There is no user-facing mock model or simulated run; setting `HUTCH_TESTING` does not change product behavior. Live provider and local-model checks depend on your setup
 - **Per-bot model routing** — Hybrid allows local and hosted routes; Local keeps model calls on recognized local routes while tools may still use the network. Experimental Offline is offered only after Linux bubblewrap network/PID-namespace and Unix-socket broker checks pass. It removes browser/web tools and requires contained shell; the separate model service may still use the network.
 - **Switch models from the chat** — a composer menu shows what fits this machine, what it costs and what is missing; per message, never a silent edit of the bot
 - **Provider connections** — OpenCode Go uses its issued API key copied into Hutch; Xiaomi MiMo Token Plan and custom endpoints use their own scoped keys. An opt-in Sign in with ChatGPT preview uses the official local token-sharing flow when eligible. Each route keeps its own allowance and terms; Hutch never imports another app's sign-in files.

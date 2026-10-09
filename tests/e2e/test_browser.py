@@ -1662,7 +1662,8 @@ def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live
         while page.locator("#toast-root .toast-close").count():
             page.locator("#toast-root .toast-close").last.click()
 
-        page.evaluate("location.hash = '#/bot/scheduled-research'")
+        # Hash-only navigation was unreliable under full-suite load; exercise the route directly.
+        page.goto(f"{base}/#/bot/scheduled-research")
         page.locator("#form-schedule").wait_for()
         prompt = page.locator('#form-schedule [name="schedule_prompt"]')
         assert prompt.input_value() == "Review release notes and report important changes."
@@ -2002,6 +2003,34 @@ def test_switcher_fits_a_phone_screen(browser, switcher_env, request):
     box = page.locator(".ms-menu").bounding_box()
     assert box["x"] >= 0 and box["x"] + box["width"] <= 390, box
     assert page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth") <= 1
+
+
+def test_retired_mock_route_is_visibly_unavailable_in_the_model_picker(browser, live):
+    """A migrated legacy row stays inspectable, but is never presented as a runnable model."""
+    base, app = live
+    app.state.store.create_bot(Bot(name="legacy-mock", model="mock/demo", tools=[]))
+    page = browser.new_page(viewport={"width": 1280, "height": 800}, reduced_motion="reduce")
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        page.goto(f"{base}/#/chat/legacy-mock")
+        page.locator(".ms-btn").wait_for()
+        page.locator(".ms-btn").click()
+        own = page.locator('.ms-item[data-spec="mock/demo"]')
+        own.wait_for(state="visible")
+        assert "legacy test route; choose a real model" in own.inner_text()
+        assert own.get_attribute("aria-checked") == "true"
+        page.locator(".ms-more").click()
+        row = page.locator('.ms-row:has(input[name="ms-pick"][value="mock/demo"])')
+        row.wait_for(state="visible")
+        assert "needs setup" in row.inner_text()
+        assert page.locator('input[name="ms-pick"][value="mock/demo"]').is_disabled()
+        assert "Choose a configured Ollama, OpenAI, Anthropic, or compatible route" in row.inner_text()
+        assert "leaves this machine" not in row.inner_text(), "a retired mock has no hosted destination"
+        page.screenshot(path="/tmp/hutch-legacy-mock-picker.png", animations="disabled")
+        assert not errors, errors
+    finally:
+        page.close()
 
 
 def test_small_workspace_has_one_roster_and_legacy_routes_do_not_trap_back(browser, live):

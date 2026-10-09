@@ -98,6 +98,14 @@ def test_legacy_bot_defaults_to_hybrid(env):
     assert env.get("/api/bots/chatty").json()["inference_mode"] == "hybrid"
 
 
+def test_test_harness_flag_cannot_make_a_retired_mock_model_look_runnable(env):
+    bot = mkbot(env, model="mock/demo")
+    own = model_choices(env.config, env.store, bot)[0]
+    assert own.state == "setup" and "legacy test route" in own.note
+    with pytest.raises(ModelNotUsable, match="test-only"):
+        validate_override(env.config, env.store, bot, "mock/demo")
+
+
 def test_api_requires_local_primary_when_local_mode_is_selected(env):
     created = env.post("/api/bots", json={"name": "local-bot", "model": "ollama/fake:8b",
                                           "inference_mode": "local", "tools": []})
@@ -241,6 +249,6 @@ def test_a_bot_on_another_runtime_cannot_be_overridden(env):
 
 
 def test_validate_override_returns_empty_for_no_choice(env):
-    bot = mkbot(env)
+    bot = mkbot(env, model="ollama/fake:8b")
     assert validate_override(env.config, env.store, bot, "") == bot.model
     assert validate_override(env.config, env.store, bot, "ollama/anything:1b") == "ollama/anything:1b"

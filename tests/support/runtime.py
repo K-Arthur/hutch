@@ -8,6 +8,7 @@ command, then replies with a summary.
 
 from __future__ import annotations
 
+import os
 from typing import Callable
 
 from hutch.models import Event, EventType, Run
@@ -76,3 +77,36 @@ class TestScenarioRuntime:
         ctx.emit(Event(run_id=run.id, type=EventType.message,
                        data={"role": "assistant", "content": final}))
         return final
+
+
+def test_runtime_for(bot, production_factory):
+    """Inject scenarios only inside the test harness, never from product runtime selection."""
+    from hutch.models import RuntimeKind
+
+    provider = bot.model.partition("/")[0].strip().lower()
+    if os.environ.get("HUTCH_TESTING") == "1" and (
+        not bot.model or provider == "mock" or bot.runtime is RuntimeKind.mock
+    ):
+        return TestScenarioRuntime()
+    return production_factory(bot)
+
+
+def test_model_choices_for(bot, args, kwargs, production_factory):
+    """Keep retired mock routes visibly unavailable even in test-driven UI fixtures."""
+    choices = production_factory(*args, **kwargs)
+    if os.environ.get("HUTCH_TESTING") == "1" and bot.model.startswith("mock/"):
+        own = next((choice for choice in choices if choice.spec == bot.model), None)
+        if own is not None:
+            own.state = "setup"
+            own.note = "legacy test route; choose a real model"
+            own.fix = "Choose a configured Ollama, OpenAI, Anthropic, or compatible route"
+    return choices
+
+
+def test_validate_override_for(bot, spec, args, kwargs, production_factory):
+    """Allow fixture-only mock routes through test entrypoints, not product code."""
+    candidate = (spec or bot.model or "").strip()
+    provider, separator, model = candidate.partition("/")
+    if os.environ.get("HUTCH_TESTING") == "1" and separator and provider.strip().lower() == "mock" and model.strip():
+        return candidate
+    return production_factory(*args, **kwargs)

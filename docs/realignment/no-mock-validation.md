@@ -14,7 +14,9 @@ live model/provider behavior or complete the remaining S5–S9 product work.
 - The public `hutch demo seed` command and production `MockRuntime` are removed. The deterministic
   `TestScenarioRuntime` lives under `tests/support/`; it is included only in the source test suite,
   not in built wheels. Its synthetic usage/output exists solely to exercise policy and persistence
-  tests. The explicit `HUTCH_TESTING` test harness flag is not enabled by normal app commands.
+  tests. Product runtime selection, model validation, and model-picker state never inspect
+  `HUTCH_TESTING`; the test harness injects its scenario directly into the in-process Engine and
+  supervised test workers.
 - The website no longer ships mock-run screenshots or a scripted approval button. Its product
   image is a capture of the actual empty first-run UI; copy says when a model route and provider
   have not been verified live.
@@ -33,13 +35,12 @@ and the anonymous website. It checks that empty/mocked production route creation
 runs fail before a tool call, route changes from Local to Hybrid work in one update, the removed
 `hutch demo seed` command is unavailable, and site copy/assets contain no simulated product flow.
 
-The packaged-runtime boundary also has a regression for an accidentally inherited
-`HUTCH_TESTING=1`: because the wheel intentionally excludes `tests/`, a mock route now returns an
-actionable `RuntimeUnavailable` instead of leaking `ModuleNotFoundError`. The focused runtime suite
-passed **8 tests** with unhandled pytest-thread warnings and `SyntaxWarning`s treated as failures.
-`uv build --wheel --out-dir /tmp/hutch-test-runtime-boundary` succeeded, and importing Hutch only
-from that wheel with the test flag set produced the same clear error. This does not alter or expose
-test fixtures in the package.
+The packaged-runtime boundary has regressions with `HUTCH_TESTING=1` set: mock routes remain
+unavailable, the model picker marks legacy mock records for repair, and runtime selection never
+imports `tests.support`. A test-only `sitecustomize` injects the scenario into real supervised worker
+processes; one worker-recovery test that starts an isolated supervisor opts in explicitly. The
+focused runtime, Engine, and worker suites passed **29 tests** with unhandled pytest-thread warnings
+and `SyntaxWarning`s treated as failures. These are local fixture checks, not live-provider tests.
 
 The capture utility is `capture_first_run.py`. It refuses to take a screenshot unless the real
 application reports empty bot, run, approval, conversation, and configured-connection lists. The
@@ -67,3 +68,27 @@ Historical mock-based benchmark and lifecycle artifacts remain in the realignmen
 as records of earlier test methods. They are not product features and are no longer copied to the
 marketing site. Live Ollama, hosted providers, Pi/OpenCode execution, remote phone control, and
 physical-device checks remain separate unverified gates.
+
+## Source-tree test-flag and legacy picker check (2026-10-09)
+
+Product runtime selection, model-choice state and override validation no longer read
+`HUTCH_TESTING`. Pytest injects its deterministic scenario through a test-only fixture, including
+the isolated cancellation and supervised-worker scripts; the flag cannot activate a product
+runtime, make `mock/demo` selectable or route work into the scenario. Legacy rows remain visible
+for repair and are labeled as setup-required without claiming that a mock route sends data to a
+hosted service.
+
+The regression was first reproduced in a rendered Chromium model picker: the legacy route was
+disabled but incorrectly carried the “leaves this machine” label. After the correction, the
+focused runtime, model-choice, cancellation-process and browser regression group passed **37
+tests** with thread and syntax warnings treated as errors. The inspected 1280×800 Chromium capture
+is `artifacts/no-mock-setup/legacy-mock-picker.png`; the disabled row says “needs setup,” gives the
+real-route repair, and does not claim hosted routing. Chromium **153.0.8010.12** / Playwright
+**1.63.0**. This browser uses the deterministic test harness only to keep the rest of the local UI
+available; no model was called.
+
+The final complete offline run, after the hosted-label correction and the explicit browser navigation
+used by the existing schedule-settings test, passed **1,449 tests, 2 skipped in 518.16 seconds**.
+The wheel was rebuilt and imported in an isolated Python process with `HUTCH_TESTING=1`; it contains
+no `tests/` package and returns the expected actionable `RuntimeUnavailable` for `mock/demo`. These
+checks do not claim live provider or model verification.

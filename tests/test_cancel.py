@@ -59,7 +59,11 @@ OWNER_SCRIPT = """
     import time
     from hutch.config import get_config
     from hutch.store import Store
-    from hutch.engine import Engine
+    import hutch.engine as engine_module
+    from hutch.runtime import get_runtime
+    from tests.support.runtime import test_runtime_for
+    engine_module.get_runtime = lambda bot: test_runtime_for(bot, get_runtime)
+    Engine = engine_module.Engine
     from hutch.models import RunStatus
     cfg = get_config(); st = Store(cfg); eng = Engine(cfg, st)
     bot = st.get_bot("asker")
@@ -202,7 +206,11 @@ CRASH_SCRIPT = """
     from pathlib import Path
     from hutch.config import get_config
     from hutch.store import Store
-    from hutch.engine import Engine
+    import hutch.engine as engine_module
+    from hutch.runtime import get_runtime
+    from tests.support.runtime import test_runtime_for
+    engine_module.get_runtime = lambda bot: test_runtime_for(bot, get_runtime)
+    Engine = engine_module.Engine
     import tests.support.runtime as mock_mod
     from hutch.runtime.steps import call_tool
     def execute(self, run, ctx, tools, stop):

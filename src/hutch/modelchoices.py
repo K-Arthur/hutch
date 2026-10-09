@@ -181,16 +181,15 @@ def model_choices(config: Any, store: Any, bot: Bot, hw: Optional[Hardware] = No
     choices: list[Choice] = []
     own_local = is_local(bot.model) if bot.model else False
     retired_fixture = bot.model.startswith("mock/")
-    test_fixture = retired_fixture and os.environ.get("HUTCH_TESTING") == "1"
+    own_hosted = bool(bot.model) and not own_local and not retired_fixture
     own = Choice(spec=bot.model, label=short_label(bot.model) if bot.model else "Choose a model",
-                 group="This bot", state="ready" if test_fixture else ("setup" if not bot.model or retired_fixture else "ready"),
-                 default=True, hosted=bool(bot.model) and not own_local,
-                 note=("test-only execution fixture" if test_fixture else
-                       "no model route is configured" if not bot.model else
+                 group="This bot", state="setup" if not bot.model or retired_fixture else "ready",
+                 default=True, hosted=own_hosted,
+                 note=("no model route is configured" if not bot.model else
                        "legacy test route; choose a real model" if retired_fixture else
                        "this bot's own model" if own_local else "this bot's own hosted model route"),
-                 fix="Choose a configured Ollama, OpenAI, Anthropic, or compatible route" if not test_fixture and (not bot.model or retired_fixture) else "",
-                 detail=[] if own_local or not bot.model else ["this route sends the chat to a hosted model service"])
+                 fix="Choose a configured Ollama, OpenAI, Anthropic, or compatible route" if not bot.model or retired_fixture else "",
+                 detail=["this route sends the chat to a hosted model service"] if own_hosted else [])
     choices.append(own)
     seen = {bot.model}
     allow_hosted_discovery = bot.inference_mode.value not in ("local", "offline")
@@ -229,8 +228,6 @@ def validate_override(config: Any, store: Any, bot: Bot, spec: str, hw: Optional
     if not model:
         raise ModelNotUsable(f"'{spec}' names a provider but no model", "add the model name after the slash", 422)
     if provider == "mock":
-        if os.environ.get("HUTCH_TESTING") == "1":
-            return spec
         raise ModelNotUsable("Mock inference is test-only and cannot run user tasks",
                              "choose a configured Ollama, OpenAI, Anthropic, or compatible model route", 422)
     if bot.inference_mode.value in ("local", "offline") and not is_local(spec):

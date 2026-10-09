@@ -35,7 +35,10 @@ def make_ctx(store, config, tmp_path, approval_mode=ApprovalMode.auto, tools=("s
 
 
 def test_get_runtime_dispatch():
-    assert get_runtime(Bot(name="a", model="mock/demo")).kind == "test-scenario"
+    from hutch.runtime import RuntimeUnavailable
+
+    with pytest.raises(RuntimeUnavailable, match="mock runtime was removed"):
+        get_runtime(Bot(name="a", model="mock/demo"))
     assert get_runtime(Bot(name="b", runtime="pi")).kind == "pi"
     assert get_runtime(Bot(name="c", runtime="opencode")).kind == "opencode"
     assert get_runtime(Bot(name="d", model="openai/gpt-4o-mini")).kind == "builtin"
@@ -47,6 +50,14 @@ def test_mock_and_unconfigured_routes_are_not_available_outside_the_test_harness
     for bot in (Bot(name="legacy-mock", model="mock/demo"), Bot(name="unconfigured")):
         with pytest.raises(RuntimeUnavailable):
             get_runtime(bot)
+
+
+def test_test_harness_environment_cannot_enable_a_product_mock_runtime(monkeypatch):
+    from hutch.runtime import RuntimeUnavailable
+
+    monkeypatch.setenv("HUTCH_TESTING", "1")
+    with pytest.raises(RuntimeUnavailable, match="mock runtime was removed"):
+        get_runtime(Bot(name="no-product-mock", model="mock/demo"))
 
 
 def test_test_runtime_missing_from_distribution_fails_with_actionable_error(monkeypatch):
@@ -63,7 +74,7 @@ def test_test_runtime_missing_from_distribution_fails_with_actionable_error(monk
 
     monkeypatch.setenv("HUTCH_TESTING", "1")
     monkeypatch.setattr(builtins, "__import__", without_test_support)
-    with pytest.raises(RuntimeUnavailable, match="test-only runtime.*not included"):
+    with pytest.raises(RuntimeUnavailable, match="mock runtime was removed"):
         get_runtime(Bot(name="packaged-fixture", model="mock/demo"))
 
 

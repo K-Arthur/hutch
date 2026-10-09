@@ -1692,3 +1692,23 @@ release gates in S5–S9: process adapters for OpenCode/Pi remain disabled, mode
 live, general delegation and transferred artifacts remain unavailable, and remote PTY/physical desktop control, trusted tunnel,
 screen reader and physical-device checks remain unavailable or unverified. Current support boundaries remain as stated in the
 slice table; this checkpoint does not promote experimental or unverified capabilities to supported.
+
+## S0 packaged mock boundary and legacy model-picker truth (2026-10-09)
+
+The test-only `HUTCH_TESTING` switch no longer changes product runtime selection, model-choice availability, or model override
+validation. Pytest now injects its deterministic scenario through test fixtures; subprocess cancellation and worker tests opt in
+explicitly, so production code does not regain a mock route to make tests pass. The installed wheel excludes `tests/` and rejects
+`mock/demo` with an actionable `RuntimeUnavailable` even when that environment flag is present.
+
+Visual review of the legacy model picker exposed a separate misleading badge: retired `mock/demo` records were labeled as sending
+the chat off-machine. The real model-choice state now marks the route unavailable, gives the real-route repair, and does not claim
+that the route is hosted. Chromium **153.0.8010.12** / Playwright **1.63.0** passed the rendered legacy-picker regression. The
+1280×800 capture was opened and inspected at `artifacts/no-mock-setup/legacy-mock-picker.png`; the disabled row has a visible
+“needs setup” status and repair guidance, no false hosted badge, and no page error. The browser fixture made no provider call.
+
+Focused verification after the final product/UI correction passed **37 tests in 27.80s** with unhandled thread exceptions and
+`SyntaxWarning`s treated as errors. The existing schedule-settings browser journey had one timeout in the initial whole-suite
+run; it passed alone, and its navigation was made explicit so the browser test does not depend on a hash-only transition during
+pending UI updates. The final complete offline suite then passed **1,449 tests, 2 skipped in 518.16s**, again treating unhandled
+thread exceptions and `SyntaxWarning`s as failures. The final wheel build and isolated `HUTCH_TESTING=1` import passed. No live
+provider, paid call, or publication was used.
