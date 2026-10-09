@@ -2895,4 +2895,5 @@ from the claimed historical schema. The helper now removes that later table befo
 migration cases passed, and `tests/test_delegation.py` passed **29 tests, 1 skipped**. The complete non-browser suite with
 unhandled-thread and syntax warnings promoted to errors then passed **1,476 tests, 2 skipped, in 284.69s** using
 `uv run python -m pytest -vv --tb=short -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning --ignore=tests/e2e`.
-Browser/anonymous-site checks are separate; this run made no provider or model calls.
+Browser/anonymous-site checks are separate; this run made no provider or model calls. The test-fixture correction and recorded
+verification are in `3f78e00`.
