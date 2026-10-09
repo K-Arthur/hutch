@@ -1,0 +1,58 @@
+{
+  "test": "tests/e2e/test_browser.py::test_outlook_mail_grant_and_consent_boundary_fit_all_viewports",
+  "captured_at": "2026-10-09T17:18:15.927343+00:00",
+  "browser": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "provider_credentials_used": false,
+  "provider_calls": 0,
+  "scenario": "Fixture account metadata and consent redirect; actual local API persists one Bot grant; no mail content or Microsoft call",
+  "external_requests": [],
+  "page_errors": [],
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "scenes": [
+        "permission disclosure",
+        "granted account"
+      ],
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "scenes": [
+        "permission disclosure",
+        "granted account"
+      ],
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "scenes": [
+        "permission disclosure",
+        "granted account"
+      ],
+      "horizontal_overflow": 0
+    }
+  ],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "89c56bd9edf9e8db4d29f583c09f3332a5b2fdf50c713197efe9e6695d488dba",
+    "src/hutch/server/static/style.css": "cab7f95dffbbf7a1c15dfdc1b019ab56d8f56c9d90d111f865b8ce12832268f1",
+    "src/hutch/server/app.py": "31c7a1f1a801c595518269121277f179c768b69f44bae3a37d6297525c73026c",
+    "src/hutch/server/security.py": "ed5082c5978a21cc9d3cabad394fe034ef89859ebe1ede2d3e70852415749ff5",
+    "src/hutch/store.py": "705fe90e07c1bd0762bd9370f110b346e99888a8ebacfca0af8a1da69c6594d4",
+    "src/hutch/outlook_mail.py": "85440b4aff2dccd22c36e9d120d92c8e9a29ec15a491ecd3823857027e297227",
+    "src/hutch/tools/outlook_mail.py": "0673012abd7346494416bf5a7203e7f325f3745107b8772eaae9382d125a849b"
+  }
+}

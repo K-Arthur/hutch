@@ -845,6 +845,144 @@ def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewport
         page.close()
 
 
+def test_outlook_mail_grant_and_consent_boundary_fit_all_viewports(browser, live, monkeypatch):
+    base, app = live
+    monkeypatch.setenv("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "fixture-public-client")
+
+    class FixtureOutlookMailBook:
+        accounts_rows = [{"id": "msmail_0123456789abcdef01234567", "label": "Work",
+                          "created_at": "2026-10-09T00:00:00+00:00", "scopes": ["Mail.Read"],
+                          "status": "connected"}]
+
+        class Secrets:
+            @staticmethod
+            def available():
+                return True
+
+        def __init__(self, state_dir, client_id):
+            self.secrets = self.Secrets()
+
+        @classmethod
+        def accounts(cls):
+            return cls.accounts_rows
+
+        @classmethod
+        def _account(cls, account_id):
+            assert account_id == "msmail_0123456789abcdef01234567"
+            return cls.accounts_rows[0]
+
+        @staticmethod
+        def callback_uri(request):
+            port = request.scope["server"][1]
+            return f"http://localhost:{port}/api/v1/connections/outlook-mail/callback"
+
+        @staticmethod
+        def start(label, callback):
+            from hutch.outlook_calendar import OAuthStart
+            return OAuthStart("https://login.microsoftonline.com/common/oauth2/v2.0/authorize?state=fixture", "fixture")
+
+    monkeypatch.setattr("hutch.outlook_mail.OutlookMailBook", FixtureOutlookMailBook)
+    bot = Bot(name="mail-assistant", display_name="Mail Assistant", model="mock/demo", tools=[])
+    app.state.store.create_bot(bot)
+    output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/outlook-mail"
+    output.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    page.add_init_script("""
+      window.__outlookMailOAuth = { target: null, url: null, opener: 'not-set', closed: false };
+      window.open = (_url, target) => {
+        window.__outlookMailOAuth.target = target;
+        return {
+          set opener(value) { window.__outlookMailOAuth.opener = value; },
+          location: { replace(value) { window.__outlookMailOAuth.url = value; } },
+          close() { window.__outlookMailOAuth.closed = true; }
+        };
+      };
+    """)
+    errors, external = [], []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(base) else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(base + "/#/connections")
+        page.get_by_role("heading", name="Connections").wait_for()
+        card = page.locator(".outlook-mail-card")
+        card.wait_for()
+        assert "Mail.Read" in card.inner_text()
+        assert "cannot send, edit, delete or forward email" in card.inner_text()
+        assert "provider consent must be revoked separately" in card.inner_text()
+        assert "including Deleted Items and Clutter" in card.inner_text()
+        card.locator("details > summary").click()
+        assert page.get_by_role("button", name="Connect Outlook Mail").is_enabled()
+        page.locator("#outlook-mail-label").fill("Work")
+        page.get_by_role("button", name="Connect Outlook Mail").click()
+        page.get_by_text("Finish Microsoft sign-in in the new browser tab", exact=False).wait_for()
+        oauth = page.evaluate("window.__outlookMailOAuth")
+        assert oauth["target"] == "_blank" and oauth["opener"] is None
+        authorization_url = urlsplit(oauth["url"])
+        assert authorization_url.scheme == "https" and authorization_url.hostname == "login.microsoftonline.com"
+        assert authorization_url.path == "/common/oauth2/v2.0/authorize"
+        assert parse_qs(authorization_url.query)["state"] == ["fixture"]
+
+        grant = card.get_by_role("button", name="Grant read access")
+        assert grant.is_enabled()
+        grant.click()
+        page.locator(".toast-msg").wait_for()
+        grant_notice = page.locator(".toast-msg").last.inner_text()
+        assert "in Work" in grant_notice
+        assert "msmail_0123456789abcdef01234567" not in grant_notice
+        card.locator("details > summary").click()
+        page.get_by_text("Can search message previews", exact=False).wait_for()
+        page.get_by_text("Matching previews are sent to that Bot's selected model", exact=False).wait_for()
+        while page.locator(".toast").count():
+            page.locator(".toast-close").first.click()
+
+        captures = []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            card = page.locator(".outlook-mail-card")
+            if not card.locator("details").evaluate("element => element.open"):
+                card.locator("details > summary").click()
+            scroll = page.locator(".page-scroll")
+            scroll.evaluate("element => { element.scrollTop = 0; }")
+            card.evaluate("element => { const scroller = document.querySelector('.page-scroll'); "
+                          "if (scroller) scroller.scrollTop += element.getBoundingClientRect().top - 96; }")
+            page.screenshot(path=str(output / f"overview-{label}.png"), animations="disabled")
+            account = page.locator("[data-outlook-mail-account]")
+            account.evaluate("element => { const scroller = document.querySelector('.page-scroll'); "
+                             "if (scroller) scroller.scrollTop += element.getBoundingClientRect().top - 140; }")
+            page.screenshot(path=str(output / f"granted-{label}.png"), animations="disabled")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            captures.append({"size": label, "viewport": [width, height], "scenes": ["permission disclosure", "granted account"],
+                             "horizontal_overflow": overflow})
+        assert page.get_by_role("button", name="Revoke Bot access").bounding_box()["height"] >= 44
+        assert not errors, errors
+        assert not external, external
+        (output / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_outlook_mail_grant_and_consent_boundary_fit_all_viewports",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": browser.version, "playwright_version": package_version("playwright"),
+            "provider_credentials_used": False, "provider_calls": 0,
+            "scenario": "Fixture account metadata and consent redirect; actual local API persists one Bot grant; no mail content or Microsoft call",
+            "external_requests": external, "page_errors": errors, "captures": captures,
+            "source_sha256": {path: hashlib.sha256((output.parents[3] / path).read_bytes()).hexdigest()
+                              for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                           "src/hutch/server/app.py", "src/hutch/server/security.py",
+                                           "src/hutch/store.py", "src/hutch/outlook_mail.py",
+                                           "src/hutch/tools/outlook_mail.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+        context.tracing.stop(path=str(output / "trace.zip"))
+    finally:
+        if context.tracing:
+            try:
+                context.tracing.stop()
+            except Exception:
+                pass
+        context.close()
+
+
 def test_opt_in_chatgpt_signin_is_fixture_intercepted_and_responsive(browser, live, monkeypatch):
     from pathlib import Path
 

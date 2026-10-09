@@ -336,9 +336,9 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
         context.close()
 
 
-def test_outlook_calendar_support_row_is_truthful_and_reachable_at_all_viewports(browser, site_url):
+def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_viewports(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
-    out = ROOT / "docs/realignment/artifacts/outlook-calendar/site"
+    out = ROOT / "docs/realignment/artifacts/outlook-mail/site"
     out.mkdir(parents=True, exist_ok=True)
     source = (SITE_DIR / "index.html").read_bytes()
     styles = (SITE_DIR / "styles.css").read_bytes()
@@ -355,7 +355,9 @@ def test_outlook_calendar_support_row_is_truthful_and_reachable_at_all_viewports
         assert "account consent unverified" in text
         assert "password/captcha handoff" in text
         assert "browser field detection" in text
-        assert "outlook mail" not in page.locator("#get").inner_text().lower()
+        assert "outlook mail search previews" in text
+        assert "provider account consent unverified" in text
+        assert "gmail unavailable pending scope verification" in text
         wrapper = page.locator("#get .overflow-x-auto")
         for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
@@ -378,7 +380,7 @@ def test_outlook_calendar_support_row_is_truthful_and_reachable_at_all_viewports
         assert not external, external
         assert not errors, errors
         (out / "site-validation.json").write_text(json.dumps({
-            "test": "tests/e2e/test_website.py::test_outlook_calendar_support_row_is_truthful_and_reachable_at_all_viewports",
+            "test": "tests/e2e/test_website.py::test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_viewports",
             "captured_at": datetime.now(timezone.utc).isoformat(),
             "python": platform.python_version(), "browser": browser.version,
             "playwright_version": package_version("playwright"),

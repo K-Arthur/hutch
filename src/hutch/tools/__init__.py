@@ -11,6 +11,7 @@ from .delegation import DelegateTaskTool
 from .choice import AskUserChoiceTool
 from .google_calendar import GoogleCalendarEventsTool
 from .outlook_calendar import OutlookCalendarEventsTool
+from .outlook_mail import OutlookMailSearchTool
 
 #: name -> factory (browser is imported lazily so the dependency stays optional)
 _CATALOG: dict[str, type[Tool]] = {
@@ -62,7 +63,7 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
         # cannot create additional host-network requests from this worker. A
         # Google Calendar read is an external account request too.
         expanded = [name for name in expanded if name not in {
-            "web_fetch", "browser", "google_calendar_events", "outlook_calendar_events"}]
+            "web_fetch", "browser", "google_calendar_events", "outlook_calendar_events", "outlook_mail_search"}]
     for name in expanded:
         if name == "delegate_task" and (ctx is None or ctx.delegation_submit is None):
             continue
@@ -86,6 +87,10 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
         outlook_grant = outlook_grant_reader(ctx.bot.id) if callable(outlook_grant_reader) else None
         if outlook_grant:
             tools["outlook_calendar_events"] = OutlookCalendarEventsTool(outlook_grant)
+        outlook_mail_grant_reader = getattr(ctx.store, "outlook_mail_grant", None)
+        outlook_mail_grant = outlook_mail_grant_reader(ctx.bot.id) if callable(outlook_mail_grant_reader) else None
+        if outlook_mail_grant:
+            tools["outlook_mail_search"] = OutlookMailSearchTool(outlook_mail_grant)
     return tools
 
 

@@ -61,6 +61,9 @@ class SecretToolStore:
     """Use Linux Secret Service through secret-tool without putting values in argv."""
 
     service = "hutch.outlook-calendar"
+    feature = "Outlook Calendar"
+    account_pattern = ACCOUNT_RE
+    probe_account = "mscal_000000000000000000000000"
 
     def __init__(self, *, run=None):
         self._run = run
@@ -71,10 +74,10 @@ class SecretToolStore:
             "PATH", "LANG", "DBUS_SESSION_BUS_ADDRESS", "XDG_RUNTIME_DIR", "DISPLAY", "WAYLAND_DISPLAY"
         ) if key in os.environ}
 
-    @staticmethod
-    def _account(account_id: str) -> str:
-        if not ACCOUNT_RE.fullmatch(account_id):
-            raise OutlookCalendarError("Outlook Calendar account reference is invalid")
+    @classmethod
+    def _account(cls, account_id: str) -> str:
+        if not cls.account_pattern.fullmatch(account_id):
+            raise OutlookCalendarError(f"{cls.feature} account reference is invalid")
         return account_id
 
     def available(self) -> bool:
@@ -88,7 +91,7 @@ class SecretToolStore:
             runner = self._run or subprocess.run
             try:
                 result = runner(["secret-tool", "lookup", "service", self.service, "account",
-                                 "mscal_000000000000000000000000"], text=True, capture_output=True,
+                                 self.probe_account], text=True, capture_output=True,
                                 timeout=3, check=False, env=self._environment())
                 ready = result.returncode == 0 or (result.returncode == 1 and not result.stderr)
             except (OSError, subprocess.TimeoutExpired):
@@ -99,7 +102,7 @@ class SecretToolStore:
     def _call(self, args: list[str], *, input_text: str | None = None):
         if not self.available():
             raise OutlookCalendarError(
-                "Linux Secret Service is unavailable; install and unlock secret-tool before connecting Outlook Calendar")
+                f"Linux Secret Service is unavailable; install and unlock secret-tool before connecting {self.feature}")
         try:
             runner = self._run or subprocess.run
             result = runner(["secret-tool", *args], input=input_text, text=True, capture_output=True,
@@ -113,7 +116,7 @@ class SecretToolStore:
         return result.stdout
 
     def put(self, account_id: str, value: str) -> None:
-        self._call(["store", "--label=Hutch Outlook Calendar refresh token", "service", self.service,
+        self._call(["store", f"--label=Hutch {self.feature} refresh token", "service", self.service,
                     "account", self._account(account_id)], input_text=value + "\n")
 
     def get(self, account_id: str) -> str | None:
@@ -162,16 +165,26 @@ def _atomic_private_json(path: Path, value: dict[str, Any]) -> None:
 class OutlookCalendarBook:
     """OAuth accounts and Graph calendar operations for one local Hutch state directory."""
 
+    feature = "Outlook Calendar"
+    storage_name = "outlook-calendar"
+    account_prefix = "mscal_"
+    account_pattern = ACCOUNT_RE
+    callback_path = CALLBACK_PATH
+    oauth_scopes = SCOPES
+    required_scopes = (CALENDAR_SCOPE,)
+    secret_store_type = SecretToolStore
+    error_type = OutlookCalendarError
+
     def __init__(self, state_dir: Path, client_id: str, *, secrets_store: SecretStore | None = None,
                  transport: httpx.BaseTransport | None = None, clock=time.time):
-        self.root = Path(state_dir) / "outlook-calendar"
+        self.root = Path(state_dir) / self.storage_name
         self.pending_dir = self.root / "pending"
         self.accounts_path = self.root / "accounts.json"
         self.lock_path = self.root / ".lock"
         self.client_id = str(client_id or "").strip()
         if len(self.client_id) > 512 or any(ord(c) < 32 for c in self.client_id):
-            raise OutlookCalendarError("Set HUTCH_OUTLOOK_OAUTH_CLIENT_ID to a Microsoft public-client application ID")
-        self.secrets = secrets_store or SecretToolStore()
+            raise self.error_type(f"Set HUTCH_OUTLOOK_OAUTH_CLIENT_ID to a Microsoft public-client application ID for {self.feature}")
+        self.secrets = secrets_store or self.secret_store_type()
         self.transport = transport
         self.clock = clock
 
@@ -190,20 +203,20 @@ class OutlookCalendarBook:
             finally:
                 os.close(fd)
 
-    @staticmethod
-    def _validate_callback(uri: str) -> None:
+    @classmethod
+    def _validate_callback(cls, uri: str) -> None:
         try:
             parts = urlsplit(uri)
             valid = (parts.scheme == "http" and parts.hostname == "localhost" and
-                     parts.port is not None and 1 <= parts.port <= 65535 and parts.path == CALLBACK_PATH and
+                     parts.port is not None and 1 <= parts.port <= 65535 and parts.path == cls.callback_path and
                      not parts.query and not parts.fragment and parts.username is None and parts.password is None)
         except ValueError:
             valid = False
         if not valid:
-            raise OutlookCalendarError("Outlook Calendar sign-in must use Hutch's localhost callback")
+            raise cls.error_type(f"{cls.feature} sign-in must use Hutch's localhost callback")
 
-    @staticmethod
-    def callback_uri(request: Any) -> str:
+    @classmethod
+    def callback_uri(cls, request: Any) -> str:
         """Return the registered localhost loopback URI only for a local HTTP request."""
         try:
             host_parts = urlsplit("//" + request.headers.get("host", ""))
@@ -219,24 +232,24 @@ class OutlookCalendarBook:
         except (KeyError, TypeError, ValueError, IndexError):
             valid = False
         if not valid:
-            raise OutlookCalendarError(
-                "Outlook Calendar sign-in must start and finish from Hutch on this computer over loopback HTTP")
-        return f"http://localhost:{port}{CALLBACK_PATH}"
+            raise cls.error_type(
+                f"{cls.feature} sign-in must start and finish from Hutch on this computer over loopback HTTP")
+        return f"http://localhost:{port}{cls.callback_path}"
 
     def _require_client_id(self) -> None:
         if not self.client_id:
-            raise OutlookCalendarError(
-                "Outlook Calendar is not configured; set HUTCH_OUTLOOK_OAUTH_CLIENT_ID to a Microsoft public-client application ID and restart Hutch")
+            raise self.error_type(
+                f"{self.feature} is not configured; set HUTCH_OUTLOOK_OAUTH_CLIENT_ID to a Microsoft public-client application ID and restart Hutch")
 
     def start(self, label: str, redirect_uri: str) -> OAuthStart:
         self._require_client_id()
         self._validate_callback(redirect_uri)
         clean_label = " ".join(str(label or "").split())
         if not 1 <= len(clean_label) <= 80 or any(ord(c) < 32 or ord(c) == 127 for c in clean_label):
-            raise OutlookCalendarError("Choose an Outlook Calendar label from 1 to 80 plain-text characters")
+            raise self.error_type(f"Choose an {self.feature} label from 1 to 80 plain-text characters")
         if not self.secrets.available():
-            raise OutlookCalendarError(
-                "Install and unlock Linux Secret Service (secret-tool) before connecting Outlook Calendar")
+            raise self.error_type(
+                f"Install and unlock Linux Secret Service (secret-tool) before connecting {self.feature}")
         self.pending_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
         os.chmod(self.pending_dir, 0o700)
         now = self.clock()
@@ -248,7 +261,7 @@ class OutlookCalendarBook:
             except (OSError, ValueError, TypeError):
                 path.unlink(missing_ok=True)
         if sum(1 for _ in self.pending_dir.glob("*.json")) >= 10:
-            raise OutlookCalendarError("Too many Outlook Calendar sign-in requests are pending; wait for one to expire and retry")
+            raise self.error_type(f"Too many {self.feature} sign-in requests are pending; wait for one to expire and retry")
         state = secrets.token_urlsafe(32)
         verifier = secrets.token_urlsafe(48)
         challenge = _b64url(hashlib.sha256(verifier.encode("ascii")).digest())
@@ -258,7 +271,7 @@ class OutlookCalendarBook:
         })
         url = AUTH_URL + "?" + urlencode({
             "client_id": self.client_id, "redirect_uri": redirect_uri, "response_type": "code",
-            "response_mode": "query", "scope": " ".join(SCOPES), "prompt": "select_account",
+            "response_mode": "query", "scope": " ".join(self.oauth_scopes), "prompt": "select_account",
             "code_challenge": challenge, "code_challenge_method": "S256", "state": state,
         })
         return OAuthStart(url, state)
@@ -270,10 +283,10 @@ class OutlookCalendarBook:
         except FileNotFoundError:
             return {"version": 1, "accounts": {}}
         except (OSError, json.JSONDecodeError):
-            raise OutlookCalendarError(
-                "Outlook Calendar account records are unreadable; preserve the file and inspect it locally") from None
+            raise self.error_type(
+                f"{self.feature} account records are unreadable; preserve the file and inspect it locally") from None
         if not isinstance(value, dict) or value.get("version") != 1 or not isinstance(value.get("accounts"), dict):
-            raise OutlookCalendarError("Outlook Calendar account records have an unsupported format")
+            raise self.error_type(f"{self.feature} account records have an unsupported format")
         return value
 
     def _write_accounts(self, value: dict[str, Any]) -> None:
@@ -281,21 +294,21 @@ class OutlookCalendarBook:
 
     def _read_pending(self, state: str) -> dict[str, Any]:
         if not isinstance(state, str) or not STATE_RE.fullmatch(state):
-            raise OutlookCalendarError("This Outlook Calendar sign-in request is invalid; start again")
+            raise self.error_type(f"This {self.feature} sign-in request is invalid; start again")
         path = self.pending_dir / f"{state}.json"
         with self._lock_context():
             try:
                 os.chmod(path, 0o600)
                 pending = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
-                raise OutlookCalendarError(
-                    "This Outlook Calendar sign-in request is missing or already used; start again") from None
+                raise self.error_type(
+                    f"This {self.feature} sign-in request is missing or already used; start again") from None
             try:
                 path.unlink()
             except OSError:
-                raise OutlookCalendarError("This Outlook Calendar sign-in request could not be consumed; start again") from None
+                raise self.error_type(f"This {self.feature} sign-in request could not be consumed; start again") from None
         if float(pending.get("expires_at", 0)) < self.clock():
-            raise OutlookCalendarError("This Outlook Calendar sign-in request expired; start again")
+            raise self.error_type(f"This {self.feature} sign-in request expired; start again")
         return pending
 
     def cancel(self, state: str) -> None:
@@ -308,36 +321,35 @@ class OutlookCalendarBook:
             options["transport"] = self.transport
         return httpx.Client(**options)
 
-    @staticmethod
-    def _json(response: httpx.Response, purpose: str) -> dict[str, Any]:
+    def _json(self, response: httpx.Response, purpose: str) -> dict[str, Any]:
         if 300 <= response.status_code < 400:
-            raise OutlookCalendarError(f"Microsoft redirected the {purpose}; Hutch stopped without forwarding credentials")
+            raise self.error_type(f"Microsoft redirected the {purpose}; Hutch stopped without forwarding credentials")
         if response.status_code == 401:
-            raise OutlookCalendarError(f"Microsoft rejected the {purpose}; reconnect Outlook Calendar and try again")
+            raise self.error_type(f"Microsoft rejected the {purpose}; reconnect {self.feature} and try again")
         if response.status_code == 403:
-            raise OutlookCalendarError(
-                f"Microsoft denied the {purpose}; confirm Calendars.ReadBasic consent and check any organization policy")
+            raise self.error_type(
+                f"Microsoft denied the {purpose}; confirm the requested read-only {self.required_scopes[0]} consent and check any organization policy")
         if response.status_code == 404:
-            raise OutlookCalendarError(f"Microsoft could not find the selected calendar during {purpose}; select it again")
+            raise self.error_type(f"Microsoft could not find the selected {self.feature} resource during {purpose}; select it again")
         if response.status_code == 429:
-            raise OutlookCalendarError(f"Microsoft rate-limited the {purpose}; wait and try again")
+            raise self.error_type(f"Microsoft rate-limited the {purpose}; wait and try again")
         if response.status_code >= 400:
-            raise OutlookCalendarError(f"Microsoft {purpose} failed (HTTP {response.status_code})")
+            raise self.error_type(f"Microsoft {purpose} failed (HTTP {response.status_code})")
         try:
             value = response.json()
         except ValueError:
-            raise OutlookCalendarError(f"Microsoft returned an unreadable {purpose} response") from None
+            raise self.error_type(f"Microsoft returned an unreadable {purpose} response") from None
         if not isinstance(value, dict):
-            raise OutlookCalendarError(f"Microsoft returned an invalid {purpose} response")
+            raise self.error_type(f"Microsoft returned an invalid {purpose} response")
         return value
 
     def finish(self, state: str, code: str, redirect_uri: str) -> dict[str, str]:
         self._validate_callback(redirect_uri)
         if not isinstance(code, str) or not 1 <= len(code) <= 2048 or any(ord(c) < 32 for c in code):
-            raise OutlookCalendarError("Microsoft did not return a valid authorization code; start sign-in again")
+            raise self.error_type("Microsoft did not return a valid authorization code; start sign-in again")
         pending = self._read_pending(state)
         if not secrets.compare_digest(str(pending.get("redirect_uri", "")), redirect_uri):
-            raise OutlookCalendarError("This Outlook Calendar callback does not match the sign-in request; start again")
+            raise self.error_type(f"This {self.feature} callback does not match the sign-in request; start again")
         with self._http() as client:
             try:
                 response = client.post(TOKEN_URL, data={
@@ -345,24 +357,26 @@ class OutlookCalendarBook:
                     "redirect_uri": redirect_uri, "grant_type": "authorization_code",
                 })
             except httpx.HTTPError:
-                raise OutlookCalendarError("Could not contact Microsoft's token service; start a fresh sign-in") from None
+                raise self.error_type("Could not contact Microsoft's token service; start a fresh sign-in") from None
         payload = self._json(response, "authorization code exchange")
         refresh = payload.get("refresh_token")
         access = payload.get("access_token")
         expires = payload.get("expires_in")
         scope_set = set(str(payload.get("scope", "")).split())
+        scope_granted = all(scope in scope_set or f"https://graph.microsoft.com/{scope}" in scope_set
+                            for scope in self.required_scopes)
         if (not isinstance(refresh, str) or not 1 <= len(refresh) <= 4096 or
                 not isinstance(access, str) or not 1 <= len(access) <= 4096 or
                 any(ord(c) < 33 or ord(c) > 126 for c in access) or
                 str(payload.get("token_type", "")).lower() != "bearer" or
                 not isinstance(expires, (int, float)) or isinstance(expires, bool) or not 0 < expires <= 86400 or
-                CALENDAR_SCOPE not in scope_set and f"https://graph.microsoft.com/{CALENDAR_SCOPE}" not in scope_set):
-            raise OutlookCalendarError(
-                "Microsoft did not grant the requested read-only Calendars.ReadBasic permission with offline access; disconnect and reconnect")
-        account_id = "mscal_" + secrets.token_hex(12)
+                not scope_granted):
+            raise self.error_type(
+                f"Microsoft did not grant the requested read-only {self.required_scopes[0]} permission with offline access; disconnect and reconnect")
+        account_id = self.account_prefix + secrets.token_hex(12)
         created = datetime.fromtimestamp(self.clock(), timezone.utc).isoformat()
         account = {"id": account_id, "label": pending["label"], "created_at": created,
-                   "scopes": [CALENDAR_SCOPE], "status": "connected"}
+                   "scopes": list(self.required_scopes), "status": "connected"}
         try:
             self.secrets.put(account_id, refresh)
             with self._lock_context():
@@ -383,12 +397,12 @@ class OutlookCalendarBook:
             return [dict(row) for _, row in sorted(accounts.items(), key=lambda pair: pair[1].get("created_at", ""))]
 
     def _account(self, account_id: str) -> dict[str, Any]:
-        if not isinstance(account_id, str) or not ACCOUNT_RE.fullmatch(account_id):
-            raise OutlookCalendarError("Outlook Calendar account reference is invalid")
+        if not isinstance(account_id, str) or not self.account_pattern.fullmatch(account_id):
+            raise self.error_type(f"{self.feature} account reference is invalid")
         with self._lock_context():
             account = self._read_accounts()["accounts"].get(account_id)
         if not account:
-            raise OutlookCalendarError("Outlook Calendar account is not connected; reconnect it from Connections")
+            raise self.error_type(f"{self.feature} account is not connected; reconnect it from Connections")
         return account
 
     def access_token(self, account_id: str) -> str:
@@ -402,7 +416,7 @@ class OutlookCalendarBook:
             refresh = self.secrets.get(account_id)
             if not refresh:
                 raise OutlookCalendarError(
-                    "Outlook Calendar refresh credential is missing; disconnect and reconnect this account")
+                    f"{self.feature} refresh credential is missing; disconnect and reconnect this account")
             with self._http() as client:
                 try:
                     response = client.post(TOKEN_URL, data={
@@ -410,7 +424,7 @@ class OutlookCalendarBook:
                     })
                 except httpx.HTTPError:
                     raise OutlookCalendarError(
-                        "Could not refresh Outlook Calendar access; check the network and retry") from None
+                        f"Could not refresh {self.feature} access; check the network and retry") from None
             payload = self._json(response, "access-token refresh")
             token = payload.get("access_token")
             expires = payload.get("expires_in")
@@ -418,7 +432,7 @@ class OutlookCalendarBook:
                     any(ord(c) < 33 or ord(c) > 126 for c in token) or
                     str(payload.get("token_type", "")).lower() != "bearer" or
                     not isinstance(expires, (int, float)) or isinstance(expires, bool) or not 0 < expires <= 86400):
-                raise OutlookCalendarError("Microsoft returned an invalid access-token response; reconnect this account")
+                raise self.error_type(f"Microsoft returned an invalid {self.feature} access-token response; reconnect this account")
             rotated = payload.get("refresh_token")
             if isinstance(rotated, str) and 1 <= len(rotated) <= 4096:
                 self.secrets.put(account_id, rotated)
@@ -436,10 +450,10 @@ class OutlookCalendarBook:
             valid = False
         if not valid:
             raise OutlookCalendarError(
-                "Refusing a Microsoft Graph destination outside the verified v1.0 calendar endpoint")
+                "Refusing a Microsoft Graph destination outside the verified v1.0 API host")
 
     def _get(self, url: str, account_id: str, params: dict[str, str] | None = None,
-             purpose: str = "Calendar data") -> dict[str, Any]:
+             purpose: str = "Calendar data", *, prefer: str = 'outlook.timezone="UTC"') -> dict[str, Any]:
         self._validate_graph_url(url)
 
         def request(token: str) -> httpx.Response:
@@ -447,10 +461,10 @@ class OutlookCalendarBook:
                 try:
                     return client.get(url, params=params, headers={
                         "Authorization": f"Bearer {token}", "Accept": "application/json",
-                        'Prefer': 'outlook.timezone="UTC"',
+                        "Prefer": prefer,
                     })
                 except httpx.HTTPError:
-                    raise OutlookCalendarError(
+                    raise self.error_type(
                         f"Could not contact Microsoft Graph for {purpose}; check the network and retry") from None
 
         token = self.access_token(account_id)
@@ -463,7 +477,7 @@ class OutlookCalendarBook:
                     _ACCESS_CACHE.pop(key, None)
             response = request(self.access_token(account_id))
         if response.request.url.host != "graph.microsoft.com" or response.request.url.scheme != "https":
-            raise OutlookCalendarError("Microsoft Graph request changed destination; no credentials were forwarded")
+            raise self.error_type("Microsoft Graph request changed destination; no credentials were forwarded")
         return self._json(response, purpose)
 
     def _next_link(self, value: Any, endpoint_path: str) -> str | None:
@@ -562,8 +576,8 @@ class OutlookCalendarBook:
         return events
 
     def disconnect(self, account_id: str) -> dict[str, Any]:
-        if not isinstance(account_id, str) or not ACCOUNT_RE.fullmatch(account_id):
-            raise OutlookCalendarError("Outlook Calendar account reference is invalid")
+        if not isinstance(account_id, str) or not self.account_pattern.fullmatch(account_id):
+            raise self.error_type(f"{self.feature} account reference is invalid")
         try:
             self._account(account_id)
         except OutlookCalendarError as exc:

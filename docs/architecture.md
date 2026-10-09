@@ -1,8 +1,8 @@
 # Architecture
 
-Schema v34 separates reference facts, durable typed chat questions, explicit specialist-result references, task-only selected-fact snapshots, content-free workspace task checkpoints and immutable safe-continuation lineage from canonical chat messages, workspace files, execution receipts
-and provider credential stores. It also stores credential-free Google and Outlook Calendar account references and one selected-calendar grant per Bot;
-refresh credentials remain in Linux Secret Service. Model proposals inherit persisted chat/run scope and execution fencing;
+Schema v35 separates reference facts, durable typed chat questions, explicit specialist-result references, task-only selected-fact snapshots, content-free workspace task checkpoints and immutable safe-continuation lineage from canonical chat messages, workspace files, execution receipts
+and provider credential stores. It also stores credential-free Google and Outlook Calendar/Mail account references and one selected-calendar or mailbox grant per Bot;
+refresh credentials remain in Linux Secret Service. Outlook Calendar and Mail use separate OAuth callbacks, token namespaces and scopes. Model proposals inherit persisted chat/run scope and execution fencing;
 human review binds immutable revision/scope hashes. Explicit sharing creates a bot-wide reference.
 Facts are retrieved as bounded JSON tool data through SQLite FTS5, never automatically placed in system
 instructions. During a reviewed coordinator handoff only, the owner may explicitly select up to eight current approved facts

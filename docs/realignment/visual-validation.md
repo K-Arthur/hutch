@@ -741,6 +741,24 @@ the permission explanation remains readable, the single-calendar grant fits the 
 Evidence and source hashes are in [`artifacts/outlook-calendar/`](artifacts/outlook-calendar/). These fixtures do not verify a
 Microsoft registration, account, consent screen, Graph response or live provider access.
 
+## Outlook Mail Connections states (2026-10-09)
+
+`tests/e2e/test_browser.py::test_outlook_mail_grant_and_consent_boundary_fit_all_viewports` passed with a synthetic
+Microsoft account and intercepted authorization destination. The real local API persisted the Bot grant; no mailbox content or
+Microsoft request was used. At desktop **1440×960**, tablet **900×1024**, and phone **390×844**, the expanded permission
+disclosure and the granted-account state had zero horizontal overflow, browser errors, or external requests. I inspected both
+captures at each size; the account-level `Mail.Read` notice stays readable, the per-Bot grant and revoke controls fit, and the
+phone layout remains reachable. Chromium **153.0.8010.12** / Playwright **1.63.0** evidence and screenshots are in
+[`artifacts/outlook-mail/`](artifacts/outlook-mail/). This does not verify a Microsoft registration, account, consent screen,
+search result or live Graph request.
+
+The anonymous marketing table test, `tests/e2e/test_website.py::test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_viewports`,
+also passed at desktop **1440×900**, tablet **900×1024**, and phone **390×844**. I inspected the viewport captures and complete
+table captures at all three sizes. The experimental row names Outlook Mail search previews, preserves the provider-consent and
+Gmail-verification limits, has no page/table overflow, and sends no external requests. Its source hashes, screenshots and test
+metadata are in [`artifacts/outlook-mail/site/`](artifacts/outlook-mail/site/). No account, provider, screen reader or physical
+phone was used.
+
 The anonymous marketing support table was shortened without dropping the consent, field-detection, or public-destination limits.
 At phone width, its repeated support-status column is hidden because the first column already labels every capability; the
 explanation now wraps without horizontal table scrolling. Chromium **153.0.8010.12** / Playwright **1.63.0** passed

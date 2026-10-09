@@ -431,9 +431,13 @@ const chatgptCallback = new URLSearchParams(location.search);
 const chatgptResult = chatgptCallback.get("chatgpt_result");
 const googleCalendarResult = chatgptCallback.get("google_calendar_result");
 const outlookCalendarResult = chatgptCallback.get("outlook_calendar_result");
-if (chatgptResult || googleCalendarResult || outlookCalendarResult) {
+const outlookMailResult = chatgptCallback.get("outlook_mail_result");
+if (chatgptResult || googleCalendarResult || outlookCalendarResult || outlookMailResult) {
   const detail = chatgptCallback.get("detail");
-  const message = outlookCalendarResult
+  const message = outlookMailResult
+    ? outlookMailResult === "connected" ? "Outlook Mail account connected. Grant one Bot read access from Connections."
+      : detail || "Outlook Mail sign-in did not complete. Start again from Connections."
+    : outlookCalendarResult
     ? outlookCalendarResult === "connected" ? "Outlook Calendar account connected. Choose a calendar and grant one Bot read access from Connections."
       : detail || "Outlook Calendar sign-in did not complete. Start again from Connections."
     : googleCalendarResult
@@ -442,7 +446,7 @@ if (chatgptResult || googleCalendarResult || outlookCalendarResult) {
     : chatgptResult === "connected" ? "ChatGPT plan route connected."
     : chatgptResult === "identity-only" ? "ChatGPT signed in, but plan use was not granted. Reauthorize to use it for models."
     : detail || "ChatGPT sign-in did not complete. Start again from Connections.";
-  setTimeout(() => toast(message, chatgptResult === "error" || googleCalendarResult === "error" || outlookCalendarResult === "error"), 0);
+  setTimeout(() => toast(message, chatgptResult === "error" || googleCalendarResult === "error" || outlookCalendarResult === "error" || outlookMailResult === "error"), 0);
   history.replaceState(null, "", `${location.pathname}${location.hash || "#/connections"}`);
 }
 
@@ -4291,6 +4295,7 @@ async function renderConnections() {
   const conns = data.connections || [];
   const googleCalendar = data.google_calendar || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const outlookCalendar = data.outlook_calendar || { configured: false, secret_store_available: false, accounts: [], grants: [] };
+  const outlookMail = data.outlook_mail || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const windows = { "5h": "per 5 hours", "day": "per day", "week": "per week", "month": "per month" };
   const devicesOpen = $(".device-manager")?.open || false;
   const googleCalendarAccountsHtml = (googleCalendar.accounts || []).map(account => {
@@ -4351,6 +4356,31 @@ async function renderConnections() {
   }).join("");
   const orphanOutlookGrants = (outlookCalendar.grants || []).filter(grant =>
     !(outlookCalendar.accounts || []).some(account => account.id === grant.account_id));
+  const outlookMailAccountsHtml = (outlookMail.accounts || []).map(account => {
+    const grants = (outlookMail.grants || []).filter(grant => grant.account_id === account.id);
+    const grantRows = grants.length ? grants.map(grant => `
+      <div class="device-row"><div><strong>${esc(grant.bot_name)}</strong><p class="hint">Can search message previews · ${esc(account.label)}</p></div>
+        <button class="btn ghost small" type="button" data-outlook-mail-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")
+      : '<p class="hint">No Bot has access to this account.</p>';
+    return `<article class="google-calendar-account" data-outlook-mail-account="${esc(account.id)}">
+      <div class="device-row"><div><strong>${esc(account.label)}</strong> <span class="chip ok">connected</span>
+        <p class="hint">Delegated Mail.Read · connected ${esc(new Date(account.created_at).toLocaleDateString())}</p></div>
+        <button class="btn danger small" type="button" data-outlook-mail-disconnect="${esc(account.id)}">Disconnect</button>
+      </div>
+      <div class="google-calendar-grants" aria-label="Bots with Outlook Mail access">${grantRows}</div>
+      <div class="google-calendar-grant-form" data-outlook-mail-grant-form="${esc(account.id)}">
+        <label class="field">Grant this mailbox to one Bot
+          <select data-outlook-mail-bot ${bots.length ? "" : "disabled"} aria-label="Bot for Outlook Mail access">
+            ${bots.length ? bots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("") : '<option value="">Create a Bot first</option>'}
+          </select>
+        </label>
+        <button class="btn primary small" type="button" data-outlook-mail-grant="${esc(account.id)}" ${bots.length ? "" : "disabled"}>Grant read access</button>
+        <p class="hint" role="status" aria-live="polite" data-outlook-mail-status></p>
+      </div>
+    </article>`;
+  }).join("");
+  const orphanOutlookMailGrants = (outlookMail.grants || []).filter(grant =>
+    !(outlookMail.accounts || []).some(account => account.id === grant.account_id));
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
       <p class="page-subtitle">A named hosted endpoint with its own key, terms, and allowance. Reference its models as <code class="mono">&lt;connection&gt;/&lt;model&gt;</code>.</p>
@@ -4409,6 +4439,26 @@ async function renderConnections() {
           </div>
           ${outlookCalendarAccountsHtml || '<p class="hint">No Outlook Calendar accounts connected.</p>'}
           ${orphanOutlookGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookGrants.map(grant => `<div class="device-row"><div><strong>${esc(grant.bot_name)}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-outlook-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
+        </details>
+      </section>
+      <section class="panel conn-card outlook-calendar-card outlook-mail-card" aria-labelledby="outlook-mail-title">
+        <div class="bot-head"><span class="bot-name" id="outlook-mail-title">Outlook Mail</span>
+          <span class="tag">experimental</span><span class="tag">read only</span></div>
+        <p class="hint">Search across a connected mailbox, including Deleted Items and Clutter. Hutch returns sender, subject, received time and a short, untrusted preview for up to 10 matches. Grant one mailbox to a Bot from here.</p>
+        <p class="hint"><strong>Permission boundary:</strong> Microsoft's delegated <code>Mail.Read</code> consent applies to the signed-in account; Hutch enables the search tool only for the Bot you grant. Matching previews are sent to that Bot's selected model and kept in its run history. Hutch cannot send, edit, delete or forward email, and cannot read attachments. Local disconnect clears Hutch's credential and grants; provider consent must be revoked separately.</p>
+        ${!outlookMail.configured ? '<p class="hint" role="status">Unavailable until the Hutch operator configures <code>HUTCH_OUTLOOK_OAUTH_CLIENT_ID</code> for a Microsoft public-client application registration.</p>' : ''}
+        ${outlookMail.configured && !outlookMail.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting an account. Hutch never stores refresh tokens in SQLite or browser storage.</p>' : ''}
+        <details class="outlook-calendar-details">
+          <summary>Manage Outlook Mail access</summary>
+          <div class="google-calendar-connect outlook-calendar-connect">
+            <label class="field" for="outlook-mail-label">Account label
+              <input id="outlook-mail-label" type="text" maxlength="80" autocomplete="off" placeholder="Work or Personal" aria-describedby="outlook-mail-label-help">
+            </label>
+            <button class="btn primary small" id="outlook-mail-connect" type="button" ${!outlookMail.configured || !outlookMail.secret_store_available ? "disabled" : ""}>Connect Outlook Mail</button>
+            <p class="hint" id="outlook-mail-label-help">Use a Microsoft registration that supports the accounts you want. Add <code>http://localhost/api/v1/connections/outlook-mail/callback</code> under Mobile and desktop application redirects. Mail consent is separate from calendar consent.</p>
+          </div>
+          ${outlookMailAccountsHtml || '<p class="hint">No Outlook Mail accounts connected.</p>'}
+          ${orphanOutlookMailGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookMailGrants.map(grant => `<div class="device-row"><div><strong>${esc(grant.bot_name)}</strong><p class="hint">Outlook Mail access</p></div><button class="btn ghost small" data-outlook-mail-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
         </details>
       </section>
       <details class="device-manager">
@@ -4720,6 +4770,90 @@ async function renderConnections() {
       button.disabled = true;
       try {
         const result = await api(`/v1/connections/outlook-calendar/accounts/${encodeURIComponent(button.dataset.outlookCalendarDisconnect)}/disconnect`, { method: "POST", body: {} });
+        toast(result.detail);
+        await renderConnections();
+      } catch (err) { button.disabled = false; toast(err.message, true); }
+    });
+  });
+
+  $("#outlook-mail-connect")?.addEventListener("click", async event => {
+    const button = event.currentTarget;
+    const label = $("#outlook-mail-label")?.value.trim();
+    if (!label) { toast("Enter a label for this Outlook Mail account.", true); $("#outlook-mail-label")?.focus(); return; }
+    const authWindow = window.open("about:blank", "_blank");
+    if (!authWindow) {
+      toast("Allow Hutch to open a browser tab, then try Microsoft sign-in again.", true);
+      return;
+    }
+    authWindow.opener = null;
+    button.disabled = true;
+    button.textContent = "Opening Microsoft…";
+    try {
+      const result = await api("/v1/connections/outlook-mail/sign-in", { method: "POST", body: { label } });
+      let authUrl;
+      try { authUrl = new URL(result.authorization_url); }
+      catch { throw new Error("Hutch returned an invalid Microsoft sign-in destination."); }
+      if (authUrl.origin !== "https://login.microsoftonline.com" ||
+          authUrl.pathname !== "/common/oauth2/v2.0/authorize" ||
+          authUrl.username || authUrl.password || authUrl.hash || !authUrl.search) {
+        throw new Error("Hutch returned an unexpected Microsoft sign-in destination.");
+      }
+      authWindow.location.replace(authUrl.href);
+      toast("Finish Microsoft sign-in in the new browser tab, then reload Connections here.");
+    } catch (err) {
+      authWindow.close();
+      toast(err.message, true);
+    } finally {
+      button.disabled = false;
+      button.textContent = "Connect Outlook Mail";
+    }
+  });
+  $$('[data-outlook-mail-grant]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const form = button.closest("[data-outlook-mail-grant-form]");
+      const bot = $("[data-outlook-mail-bot]", form).value;
+      const status = $("[data-outlook-mail-status]", form);
+      const existing = (outlookMail.grants || []).find(grant => grant.bot_id === bot);
+      if (existing && existing.account_id !== button.dataset.outlookMailGrant && !(await confirmDialog({
+        title: "Replace Outlook Mail access",
+        body: `<b>${esc(existing.bot_name)}</b> already has access to another mailbox. Replace that grant with this Outlook account?`,
+        confirmText: "Replace grant",
+      }))) return;
+      button.disabled = true;
+      status.textContent = "Saving this Bot's Outlook Mail grant…";
+      try {
+        const result = await api("/v1/connections/outlook-mail/grants", { method: "POST", body: {
+          bot, account_id: button.dataset.outlookMailGrant } });
+        toast(result.detail);
+        await renderConnections();
+      } catch (err) { status.textContent = err.message; button.disabled = false; }
+    });
+  });
+  $$('[data-outlook-mail-ungrant]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const grant = (outlookMail.grants || []).find(row => row.bot_id === button.dataset.outlookMailUngrant);
+      if (!(await confirmDialog({ title: "Revoke Bot Outlook Mail access",
+        body: `Stop <b>${esc(grant?.bot_name || "this Bot")}</b> from searching the granted Outlook mailbox?`,
+        confirmText: "Revoke access" }))) return;
+      button.disabled = true;
+      try {
+        await api(`/v1/connections/outlook-mail/grants/${encodeURIComponent(button.dataset.outlookMailUngrant)}`, { method: "DELETE" });
+        toast("Bot Outlook Mail access revoked.");
+        await renderConnections();
+      } catch (err) { button.disabled = false; toast(err.message, true); }
+    });
+  });
+  $$('[data-outlook-mail-disconnect]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const account = (outlookMail.accounts || []).find(row => row.id === button.dataset.outlookMailDisconnect);
+      const botNames = (outlookMail.grants || []).filter(row => row.account_id === account?.id).map(row => row.bot_name);
+      const grants = botNames.length ? `<p>This also removes Hutch mail access for ${botNames.map(esc).join(", ")}.</p>` : "";
+      if (!(await confirmDialog({ title: "Disconnect Outlook Mail",
+        body: `Clear Hutch's local refresh credential for <b>${esc(account?.label || "this account")}</b>? Microsoft consent is not revoked by Hutch; revoke it separately in your Microsoft account or organisation settings.${grants}`,
+        confirmText: "Disconnect", danger: true }))) return;
+      button.disabled = true;
+      try {
+        const result = await api(`/v1/connections/outlook-mail/accounts/${encodeURIComponent(button.dataset.outlookMailDisconnect)}/disconnect`, { method: "POST", body: {} });
         toast(result.detail);
         await renderConnections();
       } catch (err) { button.disabled = false; toast(err.message, true); }

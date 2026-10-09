@@ -43,10 +43,12 @@ user-authored messages from that same conversation. Only selected text is copied
 replies and other conversations stay excluded. The review names each selected message and warns that saved text may be sent to the
 Bot's model on future runs. Selected conversation text grants no tools, accounts, or permissions.
 
-The Connections support table may list Google Calendar and Outlook Calendar as experimental, read-only local integrations that
+The Connections support table may list Google Calendar, Outlook Calendar, and Outlook Mail as experimental, read-only local integrations that
 require operator OAuth configuration and Linux Secret Service. No provider account or consent verification has been performed.
-For Outlook, Hutch requests delegated `Calendars.ReadBasic`, limits each Bot to one owner-selected calendar, and cannot revoke
-Microsoft's account-level consent itself. Do not imply support for Gmail, Outlook Mail, calendar writes, or provider-side verification.
+For Outlook Calendar, Hutch requests delegated `Calendars.ReadBasic`; for Outlook Mail it requests delegated `Mail.Read` and returns
+bounded message previews to a Bot explicitly granted one mailbox. Microsoft consent is account-level, and Hutch cannot revoke it itself.
+Gmail remains unavailable pending Google restricted-scope verification. Do not imply support for Gmail, calendar writes, mail changes,
+or provider-side verification.
 
 The coordinator workflow may say that a completed coordinator answer can be prepared as a task for one selected Bot. The user must
 choose the specialist, review its saved settings, edit the goal, optionally add an expected deliverable and constraints, and explicitly

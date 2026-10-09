@@ -19,15 +19,31 @@ from hutch.engine import Engine
 from hutch.lifecycle import IllegalTransition
 from hutch.models import RunStatus
 from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28,
-                         _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34)
+                         _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34,
+                         _migrate_35)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
 FINISHED_1, FINISHED_2, ORPHAN, QUEUED = "run_582f4cc75ea4", "run_fa7f70664c38", "run_3cefb894fd73", "run_e169d5380ff5"
 
 
+def test_outlook_mail_grant_migration_adds_account_scoped_bot_access():
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("PRAGMA foreign_keys=ON")
+        db.execute("CREATE TABLE bots (id TEXT PRIMARY KEY)")
+        db.execute("INSERT INTO bots VALUES ('bot-1')")
+        _migrate_35(db)
+        db.execute("INSERT INTO outlook_mail_grants VALUES ('bot-1', 'msmail_000000000000000000000001', 'now')")
+        row = db.execute("SELECT bot_id, account_id, granted_at FROM outlook_mail_grants").fetchone()
+        assert row == ("bot-1", "msmail_000000000000000000000001", "now")
+        assert SCHEMA_VERSION == 35
+    finally:
+        db.close()
+
+
 def test_reply_reference_migration_preserves_old_rows_and_guards_scope():
-    assert SCHEMA_VERSION == 34
+    assert SCHEMA_VERSION == 35
     db = sqlite3.connect(":memory:")
     try:
         db.execute("CREATE TABLE bots (id TEXT PRIMARY KEY)")

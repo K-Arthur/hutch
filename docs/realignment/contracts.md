@@ -58,7 +58,16 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   Microsoft authorization URL; Microsoft returns only to the local loopback callback. Calendar listing, one-calendar-per-Bot
   grant/revoke, and local-account disconnect are exposed under `/api/v1/connections/outlook-calendar`. Disconnect clears Hutch's
   refresh token/grants but does not revoke account-level Microsoft consent. The Bot read tool returns at most 25 events and only
-  subject, start, end and location; its grant is rechecked for each invocation. No mail or calendar-write route is present.
+  subject, start, end and location; its grant is rechecked for each invocation. This Calendar connection exposes no mail or
+  calendar-write operation.
+* **Outlook Mail search (experimental, schema v35).** `GET /api/v1/connections/outlook-mail` returns typed, credential-free account
+  and Bot-grant metadata. `POST /api/v1/connections/outlook-mail/sign-in` starts an isolated local PKCE flow that requests delegated
+  `Mail.Read` and `offline_access`; it does not reuse Calendar's credential. The callback is loopback-only, one-use, and scrubbed from
+  access logs. The owner grants one mailbox to one Bot. `outlook_mail_search` uses the fixed Graph v1.0 `/me/messages` `$search`
+  endpoint, which includes Deleted Items and Clutter, and returns at most ten sender/subject/date/body-preview records. Preview text
+  is untrusted and enters the selected model and the run history. This Mail connection exposes no send, modify, delete, forward,
+  attachment or settings operation. Removing a grant blocks later calls; disconnect removes the local refresh token/grants but leaves Microsoft consent
+  for the account owner to revoke separately. Account consent and live Graph behavior remain unverified.
 * **Coordinator specialist handoff, explicit result return, progress markers, and task-only reviewed facts (schema v32).** `GET /api/v1/workspace/tasks?conversation_id={id}&limit=100` returns up to 100
   task records scoped to one coordinator conversation, including source request/answer IDs, the proposed and reviewed briefs,
   assumptions, target Bot/display-name snapshot, route/capability snapshot, child conversation/run IDs, authoritative run status,
