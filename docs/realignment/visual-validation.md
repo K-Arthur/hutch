@@ -171,6 +171,18 @@ manually. The final source detector returned `[]`. In this tested flow, accessib
 focus and 44px phone target; contrast, screen-reader use, 320px reflow, 200% zoom and user text-spacing overrides remain untested.
 The dark theme uses the existing tokens without new colors; no contrast calculation was performed. No render profiling was done.
 The persisted option and live capability message come from Hutch's API, and headless runs refuse to pretend a person can take over.
+
+### Settings capture refresh (2026-10-09)
+
+After the setup wizard changes, I reran `.venv/bin/python -m pytest -q
+tests/e2e/test_browser.py::test_local_browser_handoff_setting_is_explicit_and_persists
+-W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning`; all **3 viewport cases
+passed in 17.51s**. I reopened the current desktop (1440×1000), tablet (900×1024) and phone (390×844) screenshots.
+The Linux-only limitation and experimental state are readable beside the saved setting; the form stays within each viewport,
+has no page errors or horizontal overflow, and persists its selected value. The metadata source hashes match the committed
+JavaScript/CSS/server/template/model files. This is a settings fixture only: no run, provider call or actual browser challenge
+was started. Current captures and trace are the `*-enabled.png`, `*.json` and `*-trace.zip` files in
+[`artifacts/local-browser-handoff/`](artifacts/local-browser-handoff/).
 No P0–P3 defect was observed in the changed settings path; the real visible login challenge and cross-browser behavior remain open.
 
 ## Marketing source recapture (2026-10-08)

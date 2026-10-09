@@ -1864,7 +1864,7 @@ remain unimplemented. Acceptance: UI-15 and CO-12/13 in `docs/requirements.md`, 
 
 ## Browser credential entry, human checkpoints and owner additions (2026-10-09)
 
-The browser tool now blocks `type` before browser input when conventional password, passcode/OTP, payment-secret,
+Commit `0e7ef76` implements the local browser handoff and guided setup slice. The browser tool now blocks `type` before browser input when conventional password, passcode/OTP, payment-secret,
 or token field metadata matches. Safe-to-record arguments replace typed values with a redacted marker and opaque
 reference. The approval detail contains a process-keyed value fingerprint and character count rather than text;
 navigation records remove URL userinfo, secret-like query values, and fragments. Screenshots fail closed while a
