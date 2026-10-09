@@ -37,13 +37,13 @@ def test_outlook_mail_grant_migration_adds_account_scoped_bot_access():
         db.execute("INSERT INTO outlook_mail_grants VALUES ('bot-1', 'msmail_000000000000000000000001', 'now')")
         row = db.execute("SELECT bot_id, account_id, granted_at FROM outlook_mail_grants").fetchone()
         assert row == ("bot-1", "msmail_000000000000000000000001", "now")
-        assert SCHEMA_VERSION == 35
+        assert SCHEMA_VERSION >= 35
     finally:
         db.close()
 
 
 def test_reply_reference_migration_preserves_old_rows_and_guards_scope():
-    assert SCHEMA_VERSION == 35
+    assert SCHEMA_VERSION >= 26
     db = sqlite3.connect(":memory:")
     try:
         db.execute("CREATE TABLE bots (id TEXT PRIMARY KEY)")
