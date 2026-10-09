@@ -17,7 +17,7 @@ from hutch.config import get_config, hutchConfig
 from hutch.engine import Engine
 from hutch.lifecycle import IllegalTransition
 from hutch.models import RunStatus
-from hutch.store import SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28, _migrate_29
+from hutch.store import SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28, _migrate_29, _migrate_30
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
@@ -25,7 +25,7 @@ FINISHED_1, FINISHED_2, ORPHAN, QUEUED = "run_582f4cc75ea4", "run_fa7f70664c38",
 
 
 def test_reply_reference_migration_preserves_old_rows_and_guards_scope():
-    assert SCHEMA_VERSION == 29
+    assert SCHEMA_VERSION == 30
     db = sqlite3.connect(":memory:")
     try:
         db.execute("CREATE TABLE bots (id TEXT PRIMARY KEY)")
@@ -120,6 +120,19 @@ def test_v27_workspace_coordinator_migration_tracks_selection_and_bot_deletion()
         assert db.execute("SELECT COUNT(*) FROM resource_outbox WHERE resource='workspace'").fetchone()[0] == 2
         _migrate_29(db)
         assert db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='workspace_tasks'").fetchone()
+        db.executescript("""
+            CREATE TABLE messages (
+                id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, role TEXT NOT NULL,
+                run_id TEXT NOT NULL, content TEXT NOT NULL);
+            CREATE TABLE runs (id TEXT PRIMARY KEY, status TEXT NOT NULL);
+        """)
+        _migrate_30(db)
+        columns = {row[1] for row in db.execute("PRAGMA table_info(messages)")}
+        assert {"workspace_task_result_id", "workspace_task_result_message_id",
+                "workspace_task_result_display_name", "workspace_task_result_content",
+                "workspace_task_result_truncated"} <= columns
+        assert db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' "
+                          "AND name='messages_workspace_task_result_insert'").fetchone()
     finally:
         db.close()
 
@@ -143,6 +156,8 @@ def test_upgrade_preserves_bot_ids_schedules_memory_and_allows(v4):
         assert store.schema_version == SCHEMA_VERSION
         assert store._db.execute("SELECT coordinator_bot_id FROM workspace_settings WHERE id=1").fetchone()[0] is None
         assert store._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='workspace_tasks'").fetchone()
+        assert store._db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' "
+                                 "AND name='messages_workspace_task_result_insert'").fetchone()
         assert store._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversation_artifact_shares'").fetchone()
         assert store._db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' "
                                  "AND name='conversation_artifact_shares_source_insert_outbox'").fetchone()

@@ -33,6 +33,7 @@ let currentConversationId = null;
 let currentConversations = [];
 let studioGeneration = 0;
 let activeReplySelectionHandler = null;
+let activeWorkspaceResultSelectionHandler = null;
 let activeChoiceSubmitHandler = null;
 const requestedHumanResumes = new Set();
 
@@ -1457,6 +1458,10 @@ async function renderChatStudio(preferredBot = null) {
               <div class="reply-composer-preview" id="reply-composer-preview" role="status" aria-live="polite"></div>
               <button class="btn ghost small" id="reply-composer-clear" type="button" aria-label="Remove reply reference">Remove</button>
             </div>
+            <div class="reply-composer workspace-result-composer" id="workspace-result-composer" hidden>
+              <div class="reply-composer-preview" id="workspace-result-composer-preview" role="status" aria-live="polite"></div>
+              <button class="btn ghost small" id="workspace-result-composer-clear" type="button" aria-label="Remove specialist result reference">Remove</button>
+            </div>
             <div class="composer-row">
               <div class="cmenu-wrap">
                 <button class="composer-util" type="button" id="composer-menu-btn" aria-label="Message options" aria-haspopup="dialog" aria-expanded="false" aria-controls="composer-menu">${icon("plus")}</button>
@@ -1544,10 +1549,14 @@ async function renderChatStudio(preferredBot = null) {
   const composerConversationId = selectedConversation.id;
   const composerDraftId = `${bot.name}:${composerConversationId}`;
   const replyStorageKey = `hutch-reply:${composerDraftId}`;
+  const workspaceResultStorageKey = `hutch-workspace-result:${composerDraftId}`;
   let selectedReply = null;
+  let selectedWorkspaceTaskResult = null;
   let replySelectionGeneration = 0;
   const replyComposer = $("#reply-composer");
+  const workspaceResultComposer = $("#workspace-result-composer");
   const setReply = (message, persist = true) => {
+    if (message && selectedWorkspaceTaskResult) setWorkspaceTaskResult(null);
     selectedReply = message;
     if (message) {
       if (persist) storageSet(replyStorageKey, message.id);
@@ -1558,6 +1567,52 @@ async function renderChatStudio(preferredBot = null) {
       if (persist) storageRemove(replyStorageKey);
       replyComposer.hidden = true;
       $("#reply-composer-preview").textContent = "";
+    }
+  };
+  const setWorkspaceTaskResult = (task, persist = true) => {
+    if (task && selectedReply) setReply(null);
+    selectedWorkspaceTaskResult = task ? {
+      id: task.id,
+      result_message_id: task.result_message_id,
+      target_display_name: task.target_display_name,
+      result: task.result || "",
+      result_truncated: Boolean(task.result_truncated),
+    } : null;
+    if (selectedWorkspaceTaskResult) {
+      if (persist) storageSet(workspaceResultStorageKey, JSON.stringify({
+        task_id: task.id, result_message_id: task.result_message_id,
+      }));
+      const excerpt = String(task.result || "").replace(/\s+/g, " ").slice(0, 150);
+      const coordinatorName = botDisplayName(bot);
+      $("#workspace-result-composer-preview").innerHTML =
+        `<span class="reply-composer-by">Sharing ${esc(task.target_display_name)}’s response with ${esc(coordinatorName)}</span>` +
+        `<span class="reply-composer-text">${esc(excerpt)}${task.result_truncated || task.result?.length > 150 ? "…" : ""}</span>` +
+        `<span class="reply-composer-note">Only this response is sent as untrusted context. Files, memory and permissions stay private.</span>`;
+      workspaceResultComposer.hidden = false;
+    } else {
+      if (persist) storageRemove(workspaceResultStorageKey);
+      workspaceResultComposer.hidden = true;
+      $("#workspace-result-composer-preview").textContent = "";
+    }
+  };
+  activeWorkspaceResultSelectionHandler = async (taskId, resultMessageId) => {
+    if (generation !== studioGeneration || composerConversationId !== currentConversationId) return;
+    const selectionRequest = ++replySelectionGeneration;
+    try {
+      const tasks = await api(`/v1/workspace/tasks?conversation_id=${encodeURIComponent(composerConversationId)}&limit=100`);
+      if (generation !== studioGeneration || composerConversationId !== currentConversationId
+          || selectionRequest !== replySelectionGeneration) return;
+      const task = tasks.find(item => item.id === taskId);
+      if (!task || task.status !== "succeeded" || !task.result
+          || task.result_message_id !== resultMessageId) {
+        throw new Error("That specialist result is no longer available. Refresh the conversation and choose the current response.");
+      }
+      setWorkspaceTaskResult(task);
+      $("#chat-prompt").focus({preventScroll: true});
+    } catch (err) {
+      if (generation !== studioGeneration || composerConversationId !== currentConversationId
+          || selectionRequest !== replySelectionGeneration) return;
+      toast(`Could not reference this specialist response: ${err.message}`, true);
     }
   };
   activeReplySelectionHandler = async messageId => {
@@ -1624,6 +1679,11 @@ async function renderChatStudio(preferredBot = null) {
     setReply(null);
     txt.focus({ preventScroll: true });
   });
+  $("#workspace-result-composer-clear").addEventListener("click", () => {
+    replySelectionGeneration++;
+    setWorkspaceTaskResult(null);
+    txt.focus({ preventScroll: true });
+  });
   const rememberedReply = storageGet(replyStorageKey);
   if (rememberedReply) {
     const restoreGeneration = replySelectionGeneration;
@@ -1641,6 +1701,26 @@ async function renderChatStudio(preferredBot = null) {
           toast("The saved reply reference is no longer available. Choose the Bot message again.", true);
         }
       });
+  }
+  const rememberedWorkspaceResult = storageGet(workspaceResultStorageKey);
+  if (rememberedWorkspaceResult && !rememberedReply) {
+    try {
+      const saved = JSON.parse(rememberedWorkspaceResult);
+      const restoreGeneration = replySelectionGeneration;
+      void api(`/v1/workspace/tasks?conversation_id=${encodeURIComponent(composerConversationId)}&limit=100`)
+        .then(tasks => {
+          const task = tasks.find(item => item.id === saved.task_id);
+          if (generation === studioGeneration && composerConversationId === currentConversationId
+              && !selectedWorkspaceTaskResult && !selectedReply && restoreGeneration === replySelectionGeneration
+              && storageGet(workspaceResultStorageKey) === rememberedWorkspaceResult
+              && task?.status === "succeeded" && task.result_message_id === saved.result_message_id && task.result) {
+            setWorkspaceTaskResult(task, false);
+          }
+        })
+        .catch(() => {});
+    } catch {
+      storageRemove(workspaceResultStorageKey);
+    }
   }
   txt.value = loadDraft(composerDraftId);
   const autogrow = () => { txt.style.height = "auto"; txt.style.height = Math.min(txt.scrollHeight, 220) + "px"; };
@@ -1669,10 +1749,16 @@ async function renderChatStudio(preferredBot = null) {
     sendBtn.setAttribute("aria-label", "Sending…");
     const snapshot = txt.value;
     const replySnapshot = selectedReply?.id || null;
+    const workspaceResultSnapshot = selectedWorkspaceTaskResult
+      ? {...selectedWorkspaceTaskResult} : null;
     lastPrompt = text;
     try {
       const body = { prompt: text, rehearse: !!rehearseOpt?.checked, model: switcher?.selected() || null };
       if (replySnapshot) body.reply_to_message_id = replySnapshot;
+      if (workspaceResultSnapshot) {
+        body.workspace_task_result_id = workspaceResultSnapshot.id;
+        body.workspace_task_result_message_id = workspaceResultSnapshot.result_message_id;
+      }
       const key = await messageIdempotencyKey(composerConversationId, body);
       const r = await api(`/v1/conversations/${encodeURIComponent(composerConversationId)}/messages`, {
         method: "POST", headers: { "Idempotency-Key": key }, body,
@@ -1680,6 +1766,9 @@ async function renderChatStudio(preferredBot = null) {
       clearMessageIdempotencyKey(composerConversationId, key);
       if (body.model) switcher?.consumeOverride(body.model);
       if (replySnapshot && selectedReply?.id === replySnapshot) setReply(null);
+      if (workspaceResultSnapshot && selectedWorkspaceTaskResult?.id === workspaceResultSnapshot.id) {
+        setWorkspaceTaskResult(null);
+      }
       const titleOption = conversationSwitcher?.selectedOptions?.[0];
       if (titleOption && titleOption.textContent.trim().endsWith("New conversation")) {
         titleOption.textContent = text.slice(0, 72);
@@ -2262,12 +2351,18 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = []) {
         data-source-run="${esc(runId)}" data-source-user="${esc(userMessage.id)}"
         data-source-answer="${esc(botMessage.id)}" data-source-request="${esc(run.prompt)}">Prepare for a Bot</button>` : "";
   const relatedTasks = workspaceTasks.filter(task => task.source_run_id === runId).map(workspaceTaskCardHtml).join("");
+  const workspaceResultPreview = userMessage?.workspace_task_result_id
+    ? `<details class="reply-reference-quote workspace-task-result-reference">
+        <summary>Specialist response from ${esc(userMessage.workspace_task_result_display_name || "another Bot")}</summary>
+        <blockquote>${esc(userMessage.workspace_task_result_content || "")}${userMessage.workspace_task_result_truncated ? "… [shared response truncated]" : ""}</blockquote>
+        <span>Shared from task ${esc(userMessage.workspace_task_result_id)}. Treated as untrusted reference text.</span>
+      </details>` : "";
   const stepCount = events.filter(e => e.type === "tool_call").length;
 
   const html = `
     <article class="thread${anim}" data-run-id="${esc(runId)}">
       <div class="msg you">
-        <div class="bubble">${replyPreview}${esc(run.prompt)}</div>
+        <div class="bubble">${replyPreview}${workspaceResultPreview}${esc(run.prompt)}</div>
         <span class="stamp">${timeAgo(run.created_at)}${run.origin === "schedule" ? " · scheduled" : ""}</span>
       </div>
       <div class="msg agent">
@@ -2313,6 +2408,7 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = []) {
 function workspaceTaskCardHtml(task) {
   const active = ACTIVE.has(task.status);
   const statusLabel = statusInfo[task.status]?.label || task.status || "Status unavailable";
+  const coordinator = botsCache.find(bot => bot.name === currentStudioBot && bot.is_workspace_coordinator);
   const capability = [task.model, task.inference_mode, task.tools?.length ? task.tools.join(", ") : "no tools",
     `${task.risk_tier || "unknown"} action policy`, `${task.workspace_mode || "configured"} workspace`].filter(Boolean).join(" · ");
   return `<section class="workspace-task-card" data-workspace-task="${esc(task.id)}" aria-label="Task for ${esc(task.target_display_name)}">
@@ -2328,6 +2424,9 @@ function workspaceTaskCardHtml(task) {
     </details>
     <div class="btn-row">
       <button class="btn ghost small" type="button" data-open-workspace-task="${esc(task.child_conversation_id)}">Open specialist chat</button>
+      ${coordinator && task.status === "succeeded" && task.result && task.result_message_id
+        ? `<button class="btn ghost small" type="button" data-discuss-specialist-result="${esc(task.id)}"
+            data-result-message-id="${esc(task.result_message_id)}">Discuss with ${esc(botDisplayName(coordinator))}</button>` : ""}
       ${active ? `<button class="btn ghost small" type="button" data-stop-run="${esc(task.child_run_id)}">Stop specialist</button>` : ""}
     </div>
   </section>`;
@@ -2696,6 +2795,12 @@ function wireFeedInteractions() {
   stream.dataset.wired = "1";
   const runId = currentRunId;
   stream.addEventListener("click", ev => {
+    const discussResult = ev.target.closest("[data-discuss-specialist-result]");
+    if (discussResult) {
+      void activeWorkspaceResultSelectionHandler?.(discussResult.dataset.discussSpecialistResult,
+        discussResult.dataset.resultMessageId);
+      return;
+    }
     const assignTask = ev.target.closest("[data-prepare-bot-task]");
     if (assignTask) { void prepareWorkspaceTask(assignTask); return; }
     const openWorkspaceTask = ev.target.closest("[data-open-workspace-task]");

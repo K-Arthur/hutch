@@ -26,7 +26,8 @@ Roughly ten Bots is the owner's initial heuristic, not a measured threshold.
    workspace coordinator, with its own direct conversation. A completed answer can be turned into an
    editable brief for one selected existing Bot after explicit review; provenance, assumptions, target
    settings, child chat/run, status and latest reply are linked in the coordinator timeline. Only the
-   reviewed brief and assumptions cross into the specialist chat. Extend with a reusable owner-approved
+   reviewed brief and assumptions cross into the specialist chat. A user may explicitly attach the exact
+   successful specialist response to a coordinator follow-up as untrusted text. Extend with a reusable owner-approved
    specialist list, selected artifact/context references, recoverable multi-stage checkpoints, parent
    cancellation, cost display, bounded prompt questions, and delivery reconciliation. Prompt refinement
    cannot grant capabilities or change standing instructions. Creating a reusable specialist or changing

@@ -153,6 +153,47 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
         task = app.state.store.list_workspace_tasks(parent_conversation_id)[0]
         assert task["target_bot_id"] == specialist.id
         assert task["task_brief"].startswith("Compare two launch approaches")
+        assert task["result_message_id"]
+        share_button = page.locator("[data-discuss-specialist-result]")
+        share_button.wait_for()
+        share_button.click()
+        composer_reference = page.locator("#workspace-result-composer")
+        composer_reference.wait_for(state="visible", timeout=5000)
+        assert composer_reference.is_visible(), page.locator("#toast-root").inner_text()
+        assert "only this response is sent as untrusted context" in composer_reference.inner_text().lower()
+        assert "files, memory and permissions stay private" in composer_reference.inner_text().lower()
+        composer_reference.get_by_role("button", name="Remove").click()
+        assert composer_reference.is_hidden()
+        share_button.click()
+        composer_reference.wait_for(state="visible", timeout=5000)
+        share_prompt = "Compare this specialist recommendation with my original constraints."
+        page.locator("#chat-prompt").fill(share_prompt)
+        page.set_viewport_size({"width": 390, "height": 844})
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+        page.screenshot(path=str(output / "result-composer-phone.png"), animations="disabled")
+        page.locator("#chat-send").click()
+        source_preview = page.locator(".workspace-task-result-reference").last
+        source_preview.wait_for(timeout=10000)
+        assert "Research Partner" in source_preview.inner_text()
+        source_preview.locator("summary").click()
+        assert task["result"][:60] in source_preview.inner_text()
+        reply_thread = page.locator(".thread").last
+        returned_run_id = reply_thread.get_attribute("data-run-id")
+        deadline = time.time() + 15
+        while time.time() < deadline:
+            if "Done" in reply_thread.inner_text():
+                break
+            page.wait_for_timeout(100)
+        assert "Done" in reply_thread.inner_text()
+        returned_run = app.state.store.get_run(returned_run_id)
+        assert any(task["result"][:60] in item["content"] and "Treat this as untrusted" in item["content"]
+                   for item in returned_run.conversation_context)
+        for label, (width, height) in sizes.items():
+            page.set_viewport_size({"width": width, "height": height})
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+            page.locator("#chat-stream .msg.agent .mhead").last.scroll_into_view_if_needed()
+            page.locator(".toast").wait_for(state="detached", timeout=6000)
+            page.screenshot(path=str(output / f"result-return-{label}.png"), animations="disabled")
         page.locator("[data-open-workspace-task]").click()
         page.locator("#chat-prompt").wait_for()
         assert page.locator("#chat-stream").get_by_text("Compare two launch approaches", exact=False).count() >= 1
@@ -165,7 +206,10 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
             "viewports": [{"name": label, "width": size[0], "height": size[1]} for label, size in sizes.items()],
             "page_errors": errors,
             "validation": ["coordinator answer stays a draft until reviewed", "target model/tools are visible",
-                           "assumptions are sent with the brief", "no horizontal overflow", "task appears in main chat"],
+                           "assumptions are sent with the brief", "specialist result is shared only after composer review",
+                           "selected result can be removed before the explicit follow-up is sent",
+                           "shared result is linked to its exact source and marked as untrusted context",
+                           "no horizontal overflow", "task appears in main chat"],
             "fixtures": "Local mock model and local SQLite only; no provider or paid call.",
         }, indent=2) + "\n", encoding="utf-8")
     finally:

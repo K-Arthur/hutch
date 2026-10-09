@@ -233,6 +233,7 @@ class WorkspaceTaskResource(BaseModel):
     reason: str
     result: str
     result_truncated: bool = False
+    result_message_id: Optional[str] = None
     model: str
     inference_mode: str
     tools: list[str]
@@ -268,6 +269,8 @@ class ConversationMessageRequest(BaseModel):
     rehearse: bool = False
     model: Optional[str] = None
     reply_to_message_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    workspace_task_result_id: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    workspace_task_result_message_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
 
 
 class ChoiceAnswerRequest(BaseModel):
@@ -332,6 +335,11 @@ class ConversationMessageResource(BaseModel):
     reply_to_message_id: Optional[str] = None
     reply_to_role: Optional[str] = None
     reply_to_excerpt: Optional[str] = None
+    workspace_task_result_id: Optional[str] = None
+    workspace_task_result_message_id: Optional[str] = None
+    workspace_task_result_display_name: Optional[str] = None
+    workspace_task_result_content: Optional[str] = None
+    workspace_task_result_truncated: bool = False
     choice_question_id: Optional[str] = None
     content_truncated: bool = False
 
@@ -367,6 +375,11 @@ class ConversationExportMessage(BaseModel):
     content: str
     created_at: str
     reply_to_message_id: Optional[str] = None
+    workspace_task_result_id: Optional[str] = None
+    workspace_task_result_message_id: Optional[str] = None
+    workspace_task_result_display_name: Optional[str] = None
+    workspace_task_result_content: Optional[str] = None
+    workspace_task_result_truncated: bool = False
 
 
 class ConversationExportResource(BaseModel):
@@ -1356,9 +1369,14 @@ def create_app() -> FastAPI:
         except ModelNotUsable as exc:
             raise HTTPException(exc.status, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
         key = idempotency_key(request)
-        request_body = body.model_dump(exclude={"reply_to_message_id"})
+        request_body = body.model_dump(exclude={"reply_to_message_id", "workspace_task_result_id",
+                                                "workspace_task_result_message_id"})
         if body.reply_to_message_id is not None:
             request_body["reply_to_message_id"] = body.reply_to_message_id
+        if body.workspace_task_result_id is not None:
+            request_body["workspace_task_result_id"] = body.workspace_task_result_id
+        if body.workspace_task_result_message_id is not None:
+            request_body["workspace_task_result_message_id"] = body.workspace_task_result_message_id
         digest = request_digest({"conversation_id": conversation_id, **request_body})
         run = Run(bot_id=bot.id, prompt=body.prompt, origin="manual:api", rehearsal=body.rehearse,
                   model_override="" if model == bot.model else model)
@@ -1366,7 +1384,9 @@ def create_app() -> FastAPI:
         try:
             run_id, created = store.submit_conversation_message(
                 conversation_id, body.prompt, run, task, idem_key=key, request_hash=digest,
-                reply_to_message_id=body.reply_to_message_id)
+                reply_to_message_id=body.reply_to_message_id,
+                workspace_task_result_id=body.workspace_task_result_id,
+                workspace_task_result_message_id=body.workspace_task_result_message_id)
         except IdempotencyConflict as exc:
             raise HTTPException(409, str(exc)) from None
         except KeyError:

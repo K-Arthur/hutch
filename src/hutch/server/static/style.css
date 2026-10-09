@@ -589,6 +589,8 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .reply-reference-quote { margin: 0 0 6px; padding: 7px 10px; border-left: 2px solid var(--brand); background: rgba(255,255,255,.035); }
 .reply-reference-quote > span, .reply-composer-by { display: block; color: var(--text-2); font-size: var(--fs-xs); font-weight: 650; }
 .reply-reference-quote blockquote { margin: 3px 0 0; color: var(--text-2); font-size: var(--fs-sm); line-height: 1.45; }
+.workspace-task-result-reference summary { cursor: pointer; font-size: var(--fs-xs); font-weight: 650; }
+.workspace-task-result-reference > span { display: block; margin-top: 4px; color: var(--text-3); font-size: var(--fs-xs); }
 
 /* turn head: quiet identity row above the work — no card, no border */
 .mhead { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
@@ -746,6 +748,7 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .reply-composer[hidden] { display: none; }
 .reply-composer-preview { display: grid; gap: 2px; min-width: 0; }
 .reply-composer-text { color: var(--text-2); font-size: var(--fs-sm); line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reply-composer-note { color: var(--text-3); font-size: var(--fs-xs); line-height: 1.35; }
 .reply-composer .btn { flex: none; }
 .composer-row { display: flex; align-items: flex-end; gap: 6px; padding: 8px 8px 8px 10px; }
 .composer-textarea {

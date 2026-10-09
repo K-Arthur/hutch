@@ -232,7 +232,11 @@ display name, child IDs and idempotency receipt. The task card remains linked fr
 with the specialist's authoritative status and latest answer.
 
 Only the reviewed brief and assumptions enter the specialist conversation. The coordinator's other chat history, files, memory and
-permissions are not copied; the specialist's own enabled memory and workspace may still apply. The child has an empty inherited
+permissions are not copied; the specialist's own enabled memory and workspace may still apply. A coordinator follow-up can include
+a specific successful specialist response only after the user selects that result and attaches it in the composer. Hutch checks
+its task, parent chat, source message and successful-run status, then snapshots the exact bounded response and source Bot name.
+The coordinator receives that snapshot as untrusted input; hostile markup cannot escape the wrapper. This explicit text share
+transfers no files, memory, credentials or permissions and does not happen automatically. The child has an empty inherited
 conversation context and uses its own saved route. A missing or changed route, instructions, permissions or workspace causes a
 visible pre-execution failure; the task is not silently re-run under new authority. Exact retries return the same task, while the same
 idempotency key with changed content conflicts. This initial handoff does not implement an owner-approved specialist allowlist,

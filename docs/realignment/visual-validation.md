@@ -1,5 +1,20 @@
 # Visual validation record
 
+## Explicit specialist-result return (schema v30, 2026-10-09)
+
+`tests/e2e/test_browser.py::test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports` now continues beyond the
+specialist's completed task. The user selects the exact successful answer, sees its source Bot and bounded preview in the coordinator
+composer, may remove it, and explicitly sends a follow-up. The coordinator timeline retains a collapsible source record and the next
+coordinator run receives only the selected answer as untrusted context. The API test covers wrong task/message pairs, a message from
+another chat, incompatible reply types, exact retries, changed-body conflicts, clipping, escaped hostile markup and exported
+provenance. The fixture does not share files, memory, credentials or permissions.
+
+Chromium **153.0.8010.12** / Playwright **1.63.0** passed the responsive handoff/result-return browser journey against local SQLite
+and mock execution. I inspected desktop **1440×960**, tablet **900×1024**, and phone **390×844** screenshots, including the phone
+composer attachment and expanded source record; no horizontal overflow or page errors appeared. New result captures and trace are
+in [`artifacts/workspace-task-dispatch/`](artifacts/workspace-task-dispatch/). These are fixture checks, not live-provider, screen-reader,
+or physical-device evidence.
+
 ## Reviewed coordinator-to-specialist handoff (schema v29, 2026-10-09)
 
 `tests/e2e/test_browser.py::test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports` passed against a local mock
