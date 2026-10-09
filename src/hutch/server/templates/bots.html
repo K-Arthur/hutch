@@ -8,7 +8,7 @@
 <div class="card-grid">
   {% for b in bots %}
   <article class="card bot-card {{ 'state-running' if b.active_run_id else ('state-paused' if b.paused else '') }}">
-    <header><a href="/bots/{{ b.name }}" class="bot-name">{{ icon("bot", 17) }} {{ b.name }}</a>
+    <header><a href="/bots/{{ b.name }}" class="bot-name">{{ icon("bot", 17) }} {{ b.display_name }}</a>
       {% if b.paused %}<span class="chip st-paused">paused</span>{% elif b.active_run_id %}<span class="chip st-running">running</span>{% else %}<span class="chip st-idle">idle</span>{% endif %}</header>
     <p class="desc">{{ b.description or "No description." }}</p>
     <div class="tags"><span class="tag">{{ b.model }}</span><span class="tag">{{ b.schedule.cron if b.schedule else "on demand" }}</span><span class="tag">{{ b.approval_mode.value }}</span></div>

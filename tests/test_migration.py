@@ -17,7 +17,7 @@ from hutch.config import get_config, hutchConfig
 from hutch.engine import Engine
 from hutch.lifecycle import IllegalTransition
 from hutch.models import RunStatus
-from hutch.store import SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27
+from hutch.store import SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
@@ -25,7 +25,7 @@ FINISHED_1, FINISHED_2, ORPHAN, QUEUED = "run_582f4cc75ea4", "run_fa7f70664c38",
 
 
 def test_reply_reference_migration_preserves_old_rows_and_guards_scope():
-    assert SCHEMA_VERSION == 27
+    assert SCHEMA_VERSION == 28
     db = sqlite3.connect(":memory:")
     try:
         db.execute("CREATE TABLE bots (id TEXT PRIMARY KEY)")
@@ -95,6 +95,33 @@ def test_v26_calendar_grant_migration_is_empty_and_idempotent():
         db.close()
 
 
+def test_v27_workspace_coordinator_migration_tracks_selection_and_bot_deletion():
+    db = sqlite3.connect(":memory:")
+    db.execute("PRAGMA foreign_keys=ON")
+    try:
+        db.executescript("""
+            CREATE TABLE bots (id TEXT PRIMARY KEY);
+            CREATE TABLE resource_outbox (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, previous_id INTEGER NOT NULL,
+                resource TEXT NOT NULL, resource_id TEXT NOT NULL, operation TEXT NOT NULL,
+                ts TEXT NOT NULL, context TEXT NOT NULL);
+            CREATE TABLE resource_outbox_meta (
+                singleton INTEGER PRIMARY KEY CHECK(singleton = 1), epoch TEXT NOT NULL, tail_id INTEGER NOT NULL);
+            INSERT INTO resource_outbox_meta VALUES (1, 'epoch', 0);
+            INSERT INTO bots VALUES ('coordinator-bot');
+        """)
+        _migrate_28(db)
+        assert db.execute("SELECT coordinator_bot_id FROM workspace_settings WHERE id=1").fetchone()[0] is None
+        db.execute("UPDATE workspace_settings SET coordinator_bot_id='coordinator-bot' WHERE id=1")
+        assert db.execute("SELECT resource, operation FROM resource_outbox ORDER BY id DESC LIMIT 1").fetchone() == (
+            "workspace", "updated")
+        db.execute("DELETE FROM bots WHERE id='coordinator-bot'")
+        assert db.execute("SELECT coordinator_bot_id FROM workspace_settings WHERE id=1").fetchone()[0] is None
+        assert db.execute("SELECT COUNT(*) FROM resource_outbox WHERE resource='workspace'").fetchone()[0] == 2
+    finally:
+        db.close()
+
+
 @pytest.fixture()
 def v4(config):
     config.ensure()
@@ -112,6 +139,7 @@ def test_upgrade_preserves_bot_ids_schedules_memory_and_allows(v4):
     store = Store(v4)
     try:
         assert store.schema_version == SCHEMA_VERSION
+        assert store._db.execute("SELECT coordinator_bot_id FROM workspace_settings WHERE id=1").fetchone()[0] is None
         assert store._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversation_artifact_shares'").fetchone()
         assert store._db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' "
                                  "AND name='conversation_artifact_shares_source_insert_outbox'").fetchone()
@@ -122,7 +150,8 @@ def test_upgrade_preserves_bot_ids_schedules_memory_and_allows(v4):
         bots = {b.id: b for b in store.list_bots()}
         assert set(bots) == {BRIEFING, SWEEPER}                                  # ids unchanged
         briefing = bots[BRIEFING]
-        assert briefing.name == "briefing" and briefing.schedule.cron == "0 9 * * 1"
+        assert briefing.name == "briefing" and briefing.display_name == "Briefing"
+        assert briefing.schedule.cron == "0 9 * * 1"
         assert briefing.schedule.timezone == "Europe/London"
         assert briefing.schedules[0].id == f"schedule:{BRIEFING}"
         assert briefing.schedules[0] == briefing.schedule

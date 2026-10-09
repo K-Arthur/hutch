@@ -1,0 +1,42 @@
+{
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewports": {
+    "desktop": [
+      1440,
+      960
+    ],
+    "tablet": [
+      900,
+      1024
+    ],
+    "phone": [
+      390,
+      844
+    ]
+  },
+  "scenario": "purpose-derived name and address are generated locally; edits persist and are reviewed; no run or model/provider request occurs",
+  "inspected_screenshots": [
+    "identity-desktop.png",
+    "identity-tablet.png",
+    "identity-phone.png",
+    "review-desktop.png",
+    "review-tablet.png",
+    "review-phone.png",
+    "review-end-desktop.png",
+    "review-end-tablet.png",
+    "review-end-phone.png",
+    "chat-desktop.png",
+    "chat-tablet.png",
+    "chat-phone.png"
+  ],
+  "page_errors": [],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "7fc9983df3c02bc18cd61fa4ea71eba024b76585c61b9383525a743bbec7ef9d",
+    "src/hutch/server/static/style.css": "074c6678db6471537536bf2f1e0732e4d42cebb186ccd7c7c0fde3b5591cd080",
+    "src/hutch/server/app.py": "a54c2f698fd68258c5fe935c611ef631fa665e91156d5af8e35b3afa8233fc51",
+    "tests/e2e/test_browser.py": "a3ca169739ab159ab6be1495bbf463d7477b23a7539dc1530cbef77a2fed2098"
+  }
+}

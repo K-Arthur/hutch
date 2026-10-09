@@ -1787,7 +1787,8 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         page.locator("#modal-confirm").click()
         page.locator('input[name="setup-template"][value=""]').check()
         page.locator("#modal-confirm").click()
-        page.get_by_label("Bot name").fill("guided-release-reviewer")
+        page.locator("#setup-display_name").fill("Release Notes Reviewer")
+        page.locator("#setup-name").fill("guided-release-reviewer")
         page.get_by_label("Short description").fill("Summarize project release notes")
         page.locator("#modal-confirm").click()
         page.get_by_role("heading", name="Set its model and workspace").wait_for()
@@ -1903,6 +1904,125 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         context.close()
 
 
+def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(browser, live, monkeypatch):
+    base, app = live
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-naming"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: requests.append(request.url))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(f"{base}/#/chat")
+        page.locator("#topbar-new-bot").click()
+        purpose = page.get_by_label("What would you like this bot to handle?")
+        purpose.fill("Track the launch checklist and notify me when a blocker needs attention.")
+        page.locator("#modal-confirm").click()
+        page.locator('input[name="setup-template"][value=""]').check()
+        page.locator("#modal-confirm").click()
+
+        display_name = page.locator("#setup-display_name")
+        address = page.locator("#setup-name")
+        assert display_name.input_value() == "Launch Checklist Monitor"
+        assert address.input_value() == "launch-checklist-monitor"
+
+        page.locator("#setup-back").click()
+        page.locator("#setup-back").click()
+        purpose.fill("Review release notes for changes affecting our project.")
+        page.locator("#modal-confirm").click()
+        page.locator('input[name="setup-template"][value=""]').check()
+        page.locator("#modal-confirm").click()
+        assert display_name.input_value() == "Release Notes Reviewer"
+        assert address.input_value() == "release-notes-reviewer"
+
+        display_name.fill("Launch Readiness Analyst")
+        assert address.input_value() == "launch-readiness-analyst"
+        address.fill("launch-ops")
+
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.screenshot(path=str(out / f"identity-{label}.png"), animations="disabled")
+            metrics = page.evaluate("""() => ({
+              viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
+              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
+              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom<=innerHeight
+            })""")
+            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
+            assert metrics["footerVisible"], (label, metrics)
+
+        page.locator("#modal-confirm").click()
+        page.get_by_label("Model route").fill("openai/gpt-4o-mini")
+        page.locator("#modal-confirm").click()
+        page.locator("#modal-confirm").click()
+        page.get_by_role("heading", name="Review setup").wait_for()
+        review = page.locator(".setup-review-list").inner_text()
+        assert "Launch Readiness Analyst" in review and "launch-ops" in review
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.screenshot(path=str(out / f"review-{label}.png"), animations="disabled")
+            metrics = page.evaluate("""() => ({
+              viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
+              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
+              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom<=innerHeight
+            })""")
+            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
+            assert metrics["footerVisible"], (label, metrics)
+            page.locator(".setup-review-list > div").last.scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"review-end-{label}.png"), animations="disabled")
+            end = page.evaluate("""() => {
+              const last = document.querySelector('.setup-review-list > div:last-child').getBoundingClientRect();
+              const footer = document.querySelector('.modal-footer').getBoundingClientRect();
+              return {lastBottom:last.bottom,footerTop:footer.top,viewport:[innerWidth,innerHeight]};
+            }""")
+            assert end["lastBottom"] <= end["footerTop"] + 1, (label, end)
+            page.locator(".modal-body").evaluate("element => { element.scrollTop = 0; }")
+
+        assert app.state.store.list_runs() == []
+        with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
+                                 and response.request.method == "POST") as created:
+            page.locator("#modal-confirm").click()
+        assert created.value.status == 201, created.value.text()
+        bot = app.state.store.get_bot("launch-ops")
+        assert bot is not None and bot.display_name == "Launch Readiness Analyst"
+        assert bot.instructions == "Review release notes for changes affecting our project."
+        assert app.state.store.list_runs() == []
+        assert not any("/chat/completions" in url or "/responses" in url for url in requests)
+        page.locator(".ctx-id h1").wait_for()
+        assert page.locator(".ctx-id h1").inner_text() == "Launch Readiness Analyst"
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.screenshot(path=str(out / f"chat-{label}.png"), animations="disabled")
+            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight],
+              documentWidth:document.documentElement.scrollWidth, headingVisible:!!document.querySelector('.ctx-id h1')})""")
+            assert metrics["documentWidth"] - width <= 1 and metrics["headingVisible"], (label, metrics)
+        assert not errors, errors
+        (out / "validation.json").write_text(json.dumps({
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"),
+            "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
+            "scenario": "purpose-derived name and address are generated locally; edits persist and are reviewed; no run or model/provider request occurs",
+            "inspected_screenshots": [f"identity-{size}.png" for size in ("desktop", "tablet", "phone")]
+                                     + [f"review-{size}.png" for size in ("desktop", "tablet", "phone")]
+                                     + [f"review-end-{size}.png" for size in ("desktop", "tablet", "phone")]
+                                     + [f"chat-{size}.png" for size in ("desktop", "tablet", "phone")],
+            "page_errors": errors,
+            "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
+                              for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                               "src/hutch/server/app.py", "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace.zip"))
+        except Exception:
+            pass
+        context.close()
+
+
 def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance(browser, live, monkeypatch):
     base, app = live
     monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
@@ -1961,7 +2081,8 @@ def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance
         page.locator("#modal-confirm").click()
         page.locator('input[name="setup-template"][value=""]').check()
         page.locator("#modal-confirm").click()
-        page.get_by_label("Bot name").fill("launch-checklist")
+        page.locator("#setup-display_name").fill("Launch Checklist Monitor")
+        page.locator("#setup-name").fill("launch-checklist")
         page.locator("#modal-confirm").click()
         model_route = page.get_by_label("Model route")
         assert model_route.input_value() == "openai/gpt-4o-mini"
@@ -2072,7 +2193,8 @@ def test_workspace_model_default_is_editable_persistent_and_seeds_new_bot_setup(
         page.locator("#setup-purpose").fill("Prepare a weekly project summary.")
         page.locator("#modal-confirm").click()
         page.locator("#modal-confirm").click()
-        page.get_by_label("Bot name").fill("workspace-default-child")
+        page.locator("#setup-display_name").fill("Project Summary Assistant")
+        page.locator("#setup-name").fill("workspace-default-child")
         page.locator("#modal-confirm").click()
         page.get_by_role("heading", name="Set its model and workspace").wait_for()
         assert page.get_by_label("Model route").input_value() == "openai/gpt-4o-mini"

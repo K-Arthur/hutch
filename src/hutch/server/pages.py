@@ -66,6 +66,9 @@ class Form:
     def getlist(self, key: str) -> list[str]:
         return list(self._d.get(key, []))
 
+    def has(self, key: str) -> bool:
+        return key in self._d
+
     def flag(self, key: str) -> bool:
         return self.get(key) in ("1", "on", "true", "yes")
 
@@ -320,6 +323,11 @@ def register_pages(app: FastAPI) -> None:
             store.upsert_bot(bot, preserve_schedules=True)
             return go(nxt, notice=f"{'Paused' if bot.paused else 'Resumed'} {name}.")
         if action == "update":
+            if form.has("display_name"):
+                display_name = " ".join(form.get("display_name").split())
+                if not display_name or len(display_name) > 80:
+                    return go(nxt, error="Display name must contain 1–80 characters.")
+                bot.display_name = display_name
             bot.description = form.get("description")
             bot.model = form.get("model").strip() or bot.model
             bot.instructions = form.get("instructions")

@@ -7,7 +7,7 @@
 <form class="filters" method="get" action="/runs">
   <label class="field inline"><span>Bot</span>
     <select name="bot" onchange="this.form.submit()"><option value="">all bots</option>
-      {% for b in bots %}<option value="{{ b.name }}" {{ 'selected' if b.name == f_bot else '' }}>{{ b.name }}</option>{% endfor %}</select></label>
+      {% for b in bots %}<option value="{{ b.name }}" {{ 'selected' if b.name == f_bot else '' }}>{{ b.display_name }}</option>{% endfor %}</select></label>
   <label class="field inline"><span>Status</span>
     <select name="status" onchange="this.form.submit()">
       {% for key, label in [("", "all"), ("active", "active"), ("succeeded", "succeeded"), ("failed", "failed"), ("stopped", "stopped")] %}

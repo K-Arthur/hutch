@@ -1,12 +1,19 @@
 # Architecture
 
-Schema v27 separates reference facts and durable typed chat questions from canonical chat messages, workspace files, execution receipts
+Schema v28 separates reference facts and durable typed chat questions from canonical chat messages, workspace files, execution receipts
 and provider credential stores. It also stores credential-free Google Calendar account references and one selected-calendar grant per Bot;
 the refresh credential remains in Linux Secret Service. Model proposals inherit persisted chat/run scope and execution fencing;
 human review binds immutable revision/scope hashes. Explicit sharing creates a bot-wide reference.
 Facts are retrieved as bounded JSON tool data through SQLite FTS5, never automatically placed in system
 instructions. Archived/replaced/unreviewed versions are excluded. Retained versions/reviews remain
 private persistent data; archive is not erasure. See ADR-0008 and the continuation ledger for actual checks.
+
+Bots retain a stable machine address (`name`) for routes, files and old links, with a separate human-facing
+`display_name`. Older records receive a readable label derived from their address. Guided creation suggests a
+professional label from the owner's stated purpose using a deterministic local heuristic; the owner can edit
+both label and address before confirming. The CLI also accepts `--display-name`. This naming step does not call a model,
+change permissions or start a run.
+Schema v28 also stores the owner's selected workspace coordinator; cross-Bot dispatch is still incomplete.
 
 hutch is a local-first multi-bot agent platform: one Python process family that stores everything
 in one state directory, drives LLM agents through a policy-gated tool layer, and exposes both a CLI

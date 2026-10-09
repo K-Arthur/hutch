@@ -39,7 +39,7 @@ from ..config import get_config
 from ..durable_changes import SnapshotRequired
 from ..engine import Engine, bot_prompt_for_schedule
 from ..lifecycle import LABELS
-from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, BotCreationSource, CatchUpPolicy, CommandRule, Event, EventType, InferenceMode, Limits, MemoryItem, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task
+from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, BotCreationSource, CatchUpPolicy, CommandRule, Event, EventType, InferenceMode, Limits, MemoryItem, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task, bot_slug_display_name
 from ..store import ActiveRunConflict, BotConflict, IdempotencyConflict, Store
 from ..state_snapshot import ExecutionHeld
 from ..templates import TEMPLATE_INFO, TEMPLATES
@@ -87,6 +87,7 @@ def _decode_conversation_artifact_cursor(value: Optional[str]) -> Optional[tuple
 
 class BotCreate(BaseModel):
     name: str
+    display_name: Optional[str] = Field(default=None, max_length=80)
     template: Optional[str] = None
     description: str = ""
     instructions: str = ""
@@ -108,6 +109,16 @@ class BotCreate(BaseModel):
     limits: Optional[Limits] = None
     source_conversation_id: Optional[str] = Field(default=None, max_length=100)
     source_message_id: Optional[str] = Field(default=None, max_length=100)
+
+    @field_validator("display_name")
+    @classmethod
+    def _display_name(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = " ".join(value.split())
+        if not normalized:
+            raise ValueError("display name cannot be blank")
+        return normalized
 
 
 class RestoreReportResource(BaseModel):
@@ -140,6 +151,7 @@ class RestorePageResource(BaseModel):
 
 
 class BotPatch(BaseModel):
+    display_name: Optional[str] = Field(default=None, max_length=80)
     description: Optional[str] = None
     instructions: Optional[str] = None
     model: Optional[str] = None
@@ -161,10 +173,34 @@ class BotPatch(BaseModel):
     timezone: Optional[str] = None
     schedule_prompt: Optional[str] = Field(default=None, max_length=4000)
 
+    @field_validator("display_name")
+    @classmethod
+    def _display_name(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = " ".join(value.split())
+        if not normalized:
+            raise ValueError("display name cannot be blank")
+        return normalized
+
 
 class WorkspaceModelDefaultsUpdate(BaseModel):
     model: str = Field(default="", max_length=200)
     inference_mode: InferenceMode = InferenceMode.hybrid
+
+
+class WorkspaceCoordinatorUpdate(BaseModel):
+    bot_id: Optional[str] = Field(default=None, min_length=1, max_length=100)
+
+
+class WorkspaceCoordinatorBotResource(BaseModel):
+    id: str
+    name: str
+    display_name: str
+
+
+class WorkspaceCoordinatorResource(BaseModel):
+    coordinator: Optional[WorkspaceCoordinatorBotResource]
 
 
 class RunRequest(BaseModel):
@@ -454,6 +490,7 @@ class ScheduleResource(BaseModel):
     id: str
     bot_id: str
     bot_name: str
+    bot_display_name: Optional[str] = None
     name: str
     cron: str
     timezone: str
@@ -768,12 +805,14 @@ def create_app() -> FastAPI:
             "cost_reserved_today_usd": reserved_cost,
             "memory_count": store.count_facts(bot.id),
             "sticky_allows": store.list_sticky_allows(bot.id),
+            "is_workspace_coordinator": store.workspace_coordinator_id() == bot.id,
         }
 
     def run_view(run) -> dict:
         bot = store.get_bot(run.bot_id)
         unresolved = store.count_unresolved_actions(run.id)
         return {**run.model_dump(), "bot_name": bot.name if bot else "?",
+                "bot_display_name": bot.display_name if bot else "?",
                 "receipt_review_required": bool(unresolved), "unresolved_action_count": unresolved,
                 "needs_person": run.needs_person or bool(unresolved)}
 
@@ -971,16 +1010,22 @@ def create_app() -> FastAPI:
         snap = store.reconciliation_snapshot(limit)
         bots = [bot.model_dump(mode="json") for bot in snap["items"]["bots"]]
         bot_names = {bot["id"]: bot["name"] for bot in bots}
+        bot_display_names = {bot["id"]: bot["display_name"] for bot in bots}
         def bot_name(bot_id: str) -> str:
             if bot_id not in bot_names:
                 bot = store.get_bot(bot_id)
                 bot_names[bot_id] = bot.name if bot else "?"
+                bot_display_names[bot_id] = bot.display_name if bot else "?"
             return bot_names[bot_id]
 
         runs = [{**run.model_dump(mode="json"), "bot_name": bot_name(run.bot_id)}
                 for run in snap["items"]["runs"]]
+        for row in runs:
+            row["bot_display_name"] = bot_display_names.get(row["bot_id"], "?")
         approvals = [{**req.model_dump(mode="json"), "bot_name": bot_name(req.bot_id)}
                      for req in snap["items"]["approvals"]]
+        for row in approvals:
+            row["bot_display_name"] = bot_display_names.get(row["bot_id"], "?")
         conversations = []
         for row in snap["items"]["conversations"]:
             conversations.append({**row, "archived": bool(row["archived"]), "is_legacy": bool(row["is_legacy"])})
@@ -1123,6 +1168,7 @@ def create_app() -> FastAPI:
             for scheduled in bot.schedules or ([bot.schedule] if bot.schedule else []):
                 nxt = scheduler.next_fire(bot, schedule=scheduled)
                 rows.append({"id": scheduled.id, "bot_id": bot.id, "bot_name": bot.name,
+                             "bot_display_name": bot.display_name,
                              "name": scheduled.name, "cron": scheduled.cron, "timezone": scheduled.timezone,
                              "catch_up": scheduled.catch_up.value, "prompt": scheduled.prompt,
                              "created_at": scheduled.created_at, "paused": bot.paused,
@@ -1155,7 +1201,8 @@ def create_app() -> FastAPI:
             raise HTTPException(404, f"no such bot: {ref}")
         saved = next(item for item in updated.schedules if item.id == schedule_id)
         nxt = scheduler.next_fire(updated, schedule=saved)
-        return {"id": saved.id, "bot_id": updated.id, "bot_name": updated.name, "name": saved.name,
+        return {"id": saved.id, "bot_id": updated.id, "bot_name": updated.name,
+                "bot_display_name": updated.display_name, "name": saved.name,
                 "cron": saved.cron, "timezone": saved.timezone, "catch_up": saved.catch_up.value,
                 "prompt": saved.prompt, "created_at": saved.created_at, "paused": updated.paused,
                 "next_fire": nxt.isoformat() if nxt else None,
@@ -1420,6 +1467,19 @@ def create_app() -> FastAPI:
         store.kv_set(_WORKSPACE_MODEL_DEFAULTS_KEY, json.dumps(result, sort_keys=True, separators=(",", ":")))
         return result
 
+    @app.get("/api/v1/workspace/coordinator", response_model=WorkspaceCoordinatorResource)
+    def read_workspace_coordinator() -> dict:
+        """Return the explicitly selected local workspace coordinator, if any."""
+        return {"coordinator": store.workspace_coordinator()}
+
+    @app.put("/api/v1/workspace/coordinator", response_model=WorkspaceCoordinatorResource)
+    def write_workspace_coordinator(body: WorkspaceCoordinatorUpdate) -> dict:
+        """Select one existing Bot or clear the role without changing Bot authority."""
+        try:
+            return {"coordinator": store.set_workspace_coordinator(body.bot_id)}
+        except KeyError:
+            raise HTTPException(404, "No Bot with that ID or name exists") from None
+
     def _checked_workdir(raw: str) -> str:
         from ..workdir import validate_workdir
         try:
@@ -1454,11 +1514,16 @@ def create_app() -> FastAPI:
             bot.name, bot.template = body.name, body.template
         else:
             bot = Bot(name=body.name)
+        # Bot.name remains the stable machine address. The separate display
+        # identity is user-facing and defaults from that address for API/CLI callers.
+        bot.display_name = body.display_name or bot_slug_display_name(body.name)
         tools = expand_tools(body.tools)
         unknown = [t for t in tools if t not in ALL_TOOL_NAMES]
         if unknown:
             raise HTTPException(422, f"unknown tools: {unknown}")
         bot.description = body.description or bot.description
+        if body.display_name is not None:
+            bot.display_name = body.display_name
         bot.instructions = body.instructions or bot.instructions
         workspace_defaults = get_workspace_model_defaults()
         requested_model = body.model.strip()
@@ -1611,6 +1676,7 @@ def create_app() -> FastAPI:
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         if body.description is not None: bot.description = body.description
+        if body.display_name is not None: bot.display_name = body.display_name
         if body.instructions is not None: bot.instructions = body.instructions
         if body.model is not None: bot.model = body.model
         if changing_runtime: bot.runtime = proposed_runtime
@@ -2160,6 +2226,7 @@ def create_app() -> FastAPI:
             bot = store.get_bot(req.bot_id)
             run = store.get_run(req.run_id)
             out.append({**req.model_dump(), "bot_name": bot.name if bot else "?",
+                        "bot_display_name": bot.display_name if bot else "?",
                         "conversation_id": run.conversation_id if run else None})
         return out
 
@@ -2175,7 +2242,8 @@ def create_app() -> FastAPI:
         if req is None:
             raise HTTPException(404, "no such approval")
         bot = store.get_bot(req.bot_id)
-        return {**req.model_dump(), "bot_name": bot.name if bot else "?"}
+        return {**req.model_dump(), "bot_name": bot.name if bot else "?",
+                "bot_display_name": bot.display_name if bot else "?"}
 
     @app.post("/api/approvals/{approval_id}/approve")
     @app.post("/api/v1/actions/approvals/{approval_id}/approve")

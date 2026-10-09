@@ -35,6 +35,10 @@ chat and revoke it later. The source bytes remain with the original run; Hutch d
 add them to that chat's model context. This is a per-file grant, not a general shared library. Shell-created files are not
 automatically attached to chat.
 
+The Bot-setup workflow may say that Hutch derives an editable professional display name and stable local address from the purpose
+written by the user. This is a deterministic browser-side suggestion, with no additional model request; the owner reviews both values
+before confirming creation. Do not imply that a suggested name changes the Bot's permissions, standing instructions, or authority.
+
 The product preview is a real first-run application capture with an empty state directory. It
 contains no seeded bots, conversations, runs, approvals, credentials, or provider output. Older
 fixture-generated images have been removed from `website/assets/captures`; their source artifacts

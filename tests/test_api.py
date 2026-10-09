@@ -118,6 +118,59 @@ def test_bot_creation_records_only_an_explicit_user_message_source(client):
     assert legacy.status_code == 422 and client.app.state.store.get_bot("legacy-source") is None
 
 
+def test_bot_display_name_is_durable_editable_and_keeps_legacy_address(client):
+    created = client.post("/api/v1/bots", headers={"Idempotency-Key": "professional-bot-name"}, json={
+        "name": "launch-checklist", "display_name": "  Launch Readiness Analyst  ",
+        "model": "mock/demo", "tools": [],
+    })
+    assert created.status_code == 201, created.text
+    bot = client.app.state.store.get_bot("launch-checklist")
+    assert bot is not None
+    assert bot.display_name == "Launch Readiness Analyst"
+    assert created.json()["display_name"] == "Launch Readiness Analyst"
+    assert client.get("/api/bots/launch-checklist").json()["name"] == "launch-checklist"
+
+    updated = client.patch("/api/bots/launch-checklist", json={"display_name": "Release Operations Lead"})
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["display_name"] == "Release Operations Lead"
+    assert client.app.state.store.get_bot("launch-checklist").display_name == "Release Operations Lead"
+
+    legacy = make_bot(client, name="qa-review-bot")
+    assert legacy["display_name"] == "QA Review Bot"
+    assert client.patch("/api/bots/qa-review-bot", json={"display_name": "   "}).status_code == 422
+    assert client.app.state.store.get_bot("qa-review-bot").display_name == "QA Review Bot"
+
+
+def test_named_workspace_coordinator_is_recoverable_and_clears_when_bot_is_deleted(tmp_path, monkeypatch):
+    state = tmp_path / "coordinator-state"
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(state))
+    with TestClient(create_app()) as client:
+        assert client.get("/api/v1/workspace/coordinator").json() == {"coordinator": None}
+        coordinator = make_bot(client, name="workspace-coordinator")
+        specialist = make_bot(client, name="workspace-specialist")
+
+        selected = client.put("/api/v1/workspace/coordinator", json={"bot_id": coordinator["id"]})
+        assert selected.status_code == 200, selected.text
+        assert selected.json() == {"coordinator": {"id": coordinator["id"], "name": "workspace-coordinator",
+                                                     "display_name": "Workspace Coordinator"}}
+        assert client.get("/api/v1/workspace/coordinator").json() == selected.json()
+        bots = {bot["id"]: bot for bot in client.get("/api/bots").json()}
+        assert bots[coordinator["id"]]["is_workspace_coordinator"] is True
+        assert bots[specialist["id"]]["is_workspace_coordinator"] is False
+
+        missing = client.put("/api/v1/workspace/coordinator", json={"bot_id": "missing-bot"})
+        assert missing.status_code == 404
+        assert client.get("/api/v1/workspace/coordinator").json() == selected.json()
+
+    # The workspace role is durable state, not a browser-only preference.
+    with TestClient(create_app()) as reopened:
+        assert reopened.get("/api/v1/workspace/coordinator").json() == {
+            "coordinator": {"id": coordinator["id"], "name": "workspace-coordinator",
+                            "display_name": "Workspace Coordinator"}}
+        assert reopened.delete("/api/bots/workspace-coordinator").status_code == 200
+        assert reopened.get("/api/v1/workspace/coordinator").json() == {"coordinator": None}
+
+
 def test_unavailable_external_runtime_can_be_migrated_to_builtin_only(client):
     store = client.app.state.store
     bot = store.create_bot(Bot(name="legacy-opencode", model="ollama/qwen3:4b",

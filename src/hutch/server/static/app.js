@@ -902,6 +902,11 @@ function confirmDialog({ title, body, confirmText = "Confirm", danger = false })
 
 let botsCache = [];
 
+function botDisplayName(ref) {
+  if (ref && typeof ref === "object") return ref.display_name || ref.bot_display_name || ref.name || "Bot";
+  return botsCache.find(bot => bot.name === ref || bot.id === ref)?.display_name || ref || "Bot";
+}
+
 const routes = [
   [/^#\/chat(?:\/([\w-]+))?$/, m => renderChatStudio(m ? m[1] : null), "chat"],
   [/^#\/conversation\/([\w-]+)$/, m => openConversation(m[1]), "chat"],
@@ -981,7 +986,7 @@ function renderRoster() {
   const focusedSettings = list.contains(focus) ? focus.getAttribute("href") : null;
   $("#fleet-nav").hidden = botsCache.length < 10;
   const q = ($("#bot-search")?.value || "").trim().toLowerCase();
-  const bots = q ? botsCache.filter(b => b.name.toLowerCase().includes(q) || (b.description || "").toLowerCase().includes(q)) : botsCache;
+  const bots = q ? botsCache.filter(b => `${b.display_name || b.name} ${b.name} ${b.description || ""}`.toLowerCase().includes(q)) : botsCache;
   if (!bots.length) {
     list.innerHTML = `<div class="roster-empty">${botsCache.length ? "No bot matches." : "No bots yet — create one."}</div>`;
     return;
@@ -993,13 +998,13 @@ function renderRoster() {
     return `
       <div class="roster-entry"><button class="roster-row" type="button" data-switch-bot="${esc(b.name)}"
         ${b.name === currentStudioBot && location.hash.startsWith("#/chat") ? 'aria-current="true"' : ""}
-        title="${esc(b.name)} — ${word}">
+        title="${esc(b.display_name || b.name)} — ${word}">
         ${botAvatar(b.name, 30, pip)}
         <span class="roster-id">
-          <span class="roster-name">${esc(b.name)}</span>
+          <span class="roster-name">${esc(b.display_name || b.name)}</span>
           <span class="roster-sub">${esc(truncate(b.model || "", 20))} · ${word}</span>
         </span>
-      </button><a class="roster-settings icon-btn" href="#/bot/${esc(b.name)}" aria-label="Settings for ${esc(b.name)}" title="Settings for ${esc(b.name)}">${icon("sliders")}</a></div>`;
+      </button><a class="roster-settings icon-btn" href="#/bot/${esc(b.name)}" aria-label="Settings for ${esc(b.display_name || b.name)}" title="Settings for ${esc(b.display_name || b.name)}">${icon("sliders")}</a></div>`;
   }).join("");
   $$("#roster-list [data-switch-bot]").forEach(row =>
     row.addEventListener("click", () => { location.hash = `#/chat/${encodeURIComponent(row.dataset.switchBot)}`; }));
@@ -1417,7 +1422,7 @@ async function renderChatStudio(preferredBot = null) {
   setTopContext(`
     <div class="ctx-id">
       ${botAvatar(bot.name, 30, state === "running" ? "running" : state === "paused" ? "paused" : "")}
-      <h1>${esc(bot.name)}</h1>
+      <h1>${esc(bot.display_name || bot.name)}</h1>
       <div class="ctx-meta">
         ${bot.paused ? '<span class="tag">paused</span>' : ""}
         ${activeRun ? statusChip(activeRun.status, activeRun.status_label) : ""}
@@ -1471,8 +1476,8 @@ async function renderChatStudio(preferredBot = null) {
                   </div>
                 </div>
               </div>
-              <label class="visually-hidden" for="chat-prompt">Message ${esc(bot.name)}</label>
-              <textarea class="composer-textarea" id="chat-prompt" rows="1" placeholder="Message ${esc(bot.name)}…" aria-describedby="chat-help"></textarea>
+              <label class="visually-hidden" for="chat-prompt">Message ${esc(bot.display_name || bot.name)}</label>
+              <textarea class="composer-textarea" id="chat-prompt" rows="1" placeholder="Message ${esc(bot.display_name || bot.name)}…" aria-describedby="chat-help"></textarea>
               <div class="composer-actions">
                 <span class="model-switch-slot" id="model-switch-slot"></span>
                 <button class="composer-send" id="chat-send" type="submit" aria-label="Send message">${icon("up")}</button>
@@ -2139,7 +2144,7 @@ function announceRunLifecycle(runs) {
     const prev = seenRunStatus.get(r.id);
     if (prev === r.status) continue;
     if (r.status === "waiting_approval" && prev !== undefined) {
-      announce(`${r.bot_name || "Your bot"} needs your approval before continuing.`);
+      announce(`${botDisplayName(r.bot_display_name || r.bot_name || "Your bot")} needs your approval before continuing.`);
     } else if (prev !== undefined && ACTIVE.has(prev) && !ACTIVE.has(r.status)) {
       announce(`Run ${r.status_label || statusInfo[r.status]?.label || "status unavailable"}.`);
     }
@@ -2158,7 +2163,7 @@ function welcomeHtml() {
         <div class="hero-agent" id="hero-agent" aria-hidden="true">
           <img class="hero-img" src="/static/agent/f3-p1.webp" alt="" width="160" height="227" decoding="async">
         </div>
-        <h2>${esc(b.name)}</h2>
+        <h2>${esc(botDisplayName(b))}</h2>
         <p class="hint">${esc(b.description || "No description yet.")}</p>
       </div>
       <div class="welcome-steps">
@@ -2235,7 +2240,7 @@ async function runBlockHtml(runId, messages = null) {
     && !choiceMessageIds.has(e.data?.message_id)).pop();
   const userMessage = messages?.find(m => m.role === "user" && m.run_id === runId);
   const botMessage = messages?.filter(m => m.role === "assistant" && m.run_id === runId).at(-1);
-  const botName = run.bot_name || currentStudioBot;
+  const botName = botDisplayName(run.bot_display_name || run.bot_name || currentStudioBot);
   const replyExcerpt = userMessage?.reply_to_excerpt || "Referenced Bot message";
   const replyPreview = userMessage?.reply_to_message_id ? `<aside class="reply-reference-quote">
     <span>Reply to ${esc(botName)}’s message</span><blockquote>${esc(replyExcerpt.slice(0, 240))}${replyExcerpt.length > 240 ? "…" : ""}</blockquote>
@@ -2295,7 +2300,7 @@ function receiptCardHtml(action) {
   const report = action.reconciliation;
   return `<section class="receipt-card" data-receipt-card="${esc(action.id)}" ${report ? 'data-receipt-reviewed="true"' : ''}>
     <b>${report ? esc(receiptOutcomes[report.outcome] || report.outcome) + ' · human report' : 'Action outcome needs review'}</b>
-    <p>${esc(action.bot_name || '')} · ${esc(action.summary || action.tool)}</p>
+    <p>${esc(botDisplayName(action.bot_display_name || action.bot_name || ''))} · ${esc(action.summary || action.tool)}</p>
     <p class="hint">${report ? 'Original execution status remains unchanged.' : 'This action may already have happened. Check the destination before repeating it.'}</p>
     <div class="btn-row"><button class="btn ghost small" type="button" data-receipt-review="${esc(action.id)}">${report ? 'View recorded outcome' : 'Review action outcome'}</button>
       <a class="btn ghost small" href="#/run/${esc(action.run_id)}">Open attempt</a></div>
@@ -2906,7 +2911,7 @@ async function renderOverview() {
   setTopContext(`<div class="ctx-id"><h1>Activity</h1></div>`);
   const row = (r) => `
     <a class="ov-row" href="#/run/${esc(r.id)}">
-      <span class="ov-row-main"><b>${esc(r.bot_name)}</b>${statusChip(r.status)}</span>
+      <span class="ov-row-main"><b>${esc(botDisplayName(r.bot_display_name || r.bot_name))}</b>${statusChip(r.status)}</span>
       <span class="ov-row-prompt">${esc(truncate(r.prompt || "", 90))}</span>
       <span class="ov-row-meta mono">${r.steps} steps · ${fmt(r.tokens)} tok · ${timeAgo(r.created_at)}</span>
     </a>`;
@@ -2925,7 +2930,7 @@ async function renderOverview() {
           ${!o.needs_count ? `<div class="empty-state">${icon("check", "icon-lg")}<p>Nothing needs you.</p></div>` : ""}
           ${(o.approvals || []).map(a => `
             <a class="ov-approval" href="#/approvals">
-              <span class="ov-approval-head"><b>${esc(a.bot_name)}</b> <span class="tag">${esc(a.tool)}</span> <span class="tag ${a.risk === "high" ? "danger" : ""}">${esc(a.risk)} risk</span></span>
+              <span class="ov-approval-head"><b>${esc(botDisplayName(a.bot_display_name || a.bot_name))}</b> <span class="tag">${esc(a.tool)}</span> <span class="tag ${a.risk === "high" ? "danger" : ""}">${esc(a.risk)} risk</span></span>
               <span class="ov-approval-action">${esc(a.action)}</span>
             </a>`).join("")}
           ${(o.humans || []).map(r => `<div class="ov-item">${row(r)}${waitBox(r.wait)}</div>`).join("")}
@@ -2939,7 +2944,7 @@ async function renderOverview() {
           <h2 class="ov-h">${icon("clock")} Stale <span class="count">${(o.stale || []).length}</span></h2>
           ${(o.stale || []).length ? (o.stale || []).map(x => `
             <a class="ov-row" href="#/bot/${esc(x.bot_name)}">
-              <span class="ov-row-main"><b>${esc(x.bot_name)}</b><span class="status stale">stale</span></span>
+              <span class="ov-row-main"><b>${esc(botDisplayName(x.bot_display_name || x.bot_name))}</b><span class="status stale">stale</span></span>
               <span class="ov-row-meta">last success ${timeAgo(x.last_success)}</span>
             </a>`).join("") : `<div class="empty-state">${icon("check", "icon-lg")}<p>Every scheduled bot is up to date.</p></div>`}
         </section>
@@ -2971,7 +2976,7 @@ async function renderBots() {
           <article class="bot-card" data-fleet-bot="${esc(b.name)}">
             <div class="bot-head">
               ${botAvatar(b.name, 32, botState(b) === "running" ? "running" : b.paused ? "paused" : "")}
-              <span class="bot-name">${esc(b.name)}</span>
+              <span class="bot-name">${esc(b.display_name || b.name)}</span>
               ${b.active_run_id ? statusChip(b.active_run_status, b.active_run_status_label) : `<span class="tag">${esc(botStatusLabel(b))}</span>`}
             </div>
             <p class="bot-desc">${esc(b.description || "No description.")}</p>
@@ -3234,7 +3239,7 @@ async function refreshApprovals() {
     const expanded = new Set($$("#needs-you [data-approval-card]").filter(c => c.querySelector("details[open]"))
       .map(c => c.dataset.approvalCard));
     $("#approvals-pending").innerHTML = pending.length
-      ? pending.map(a => approvalCardHtml(a, { botName: a.bot_name })).join("")
+      ? pending.map(a => approvalCardHtml(a, { botName: botDisplayName(a.bot_display_name || a.bot_name) })).join("")
       : `<div class="empty-state">${icon("check", "icon-lg")}<p>No pending approvals.</p><p class="hint">Requests appear in their conversation and here.</p></div>`;
     const total = stats.pending_approvals;
     $("#approvals-pagination").innerHTML = total ? `<span class="hint">${offset + 1}–${offset + pending.length} of ${total} requests</span>
@@ -3243,7 +3248,7 @@ async function refreshApprovals() {
     $("#approvals-prev")?.addEventListener("click", () => { approvalOffset = Math.max(0, offset - APPROVAL_PAGE_SIZE); refreshApprovals(); });
     $("#approvals-next")?.addEventListener("click", () => { approvalOffset = offset + APPROVAL_PAGE_SIZE; refreshApprovals(); });
     $("#approvals-resolved").innerHTML = resolved.length
-      ? resolved.map(a => approvalResolvedHtml(a, a.status, a.bot_name)).join("")
+      ? resolved.map(a => approvalResolvedHtml(a, a.status, botDisplayName(a.bot_display_name || a.bot_name))).join("")
       : `<p class="hint">No recent decisions.</p>`;
     $('#receipts-pending').innerHTML = receipts.length ? receipts.map(receiptCardHtml).join('') : '<p class="hint">No uncertain action receipts.</p>';
     $('#receipts-pagination').innerHTML = receipts.length ? `<span class="hint">${receiptPageOffset + 1}–${receiptPageOffset + receipts.length} of ${stats.unresolved_actions} actions</span>
@@ -3372,7 +3377,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   setTopContext(`
     <div class="ctx-id">
       ${botAvatar(b.name, 30)}
-      <h1>${esc(b.name)} settings</h1>
+          <h1>${esc(b.display_name || b.name)} settings</h1>
     </div>
     <div class="ctx-actions">
       <a class="btn ghost small" href="#/chat/${esc(b.name)}">${icon("chat")} Open Studio</a>
@@ -3387,7 +3392,11 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
       <div class="detail-grid">
         <div>
           <form class="panel form-grid" id="form-identity">
-            <div class="panel-title">Instructions</div>
+            <div class="panel-title">Identity and instructions</div>
+            <label class="field">Display name
+              <input type="text" name="display_name" maxlength="80" value="${esc(b.display_name || b.name)}" required>
+              <span class="hint">Shown in chats and lists. The Bot address in existing links stays the same.</span>
+            </label>
             <label class="field">Description
               <input type="text" name="description" value="${esc(b.description || "")}" placeholder="What this bot does">
             </label>
@@ -3598,7 +3607,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   $("#form-identity").addEventListener("submit", ev => {
     ev.preventDefault();
     const fd = new FormData(ev.target);
-    patch({ description: fd.get("description"), instructions: fd.get("instructions") }, "Saved.");
+    patch({ display_name: fd.get("display_name"), description: fd.get("description"), instructions: fd.get("instructions") }, "Saved.");
   });
   $("#form-model").addEventListener("submit", ev => {
     ev.preventDefault();
@@ -4220,6 +4229,42 @@ const BOT_SETUP_TOOLS = [
   ["delegate_task", "Delegate a bounded task", "Request a separately approved child task."],
 ];
 
+function suggestBotDisplayName(purpose) {
+  const text = (purpose || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  const patterns = [
+    { re: /\b(?:monitor|watch|track|follow|flag|keep an eye on|keep up with)\b/i, role: "Monitor" },
+    { re: /\b(?:review|audit|check|evaluate|inspect)\b/i, role: "Reviewer" },
+    { re: /\b(?:research|investigate|find|compare|analy[sz]e)\b/i, role: "Analyst" },
+    { re: /\b(?:plan|schedule|organize|prepare)\b/i, role: "Planner" },
+    { re: /\b(?:coordinate|manage)\b/i, role: "Coordinator" },
+    { re: /\b(?:draft|write|compose)\b/i, role: "Writer" },
+    { re: /\b(?:summari[sz]e|recap|brief)\b/i, role: "Briefing Assistant" },
+    { re: /\b(?:answer|support|respond)\b/i, role: "Support Specialist" },
+    { re: /\b(?:automate|handle)\b/i, role: "Operations Assistant" },
+  ];
+  let selected = null;
+  for (const item of patterns) {
+    const match = item.re.exec(text);
+    if (match && (!selected || match.index < selected.match.index)) selected = { ...item, match };
+  }
+  if (!selected) return "Workspace Assistant";
+  let subject = text.slice(selected.match.index + selected.match[0].length)
+    .split(/\b(?:and then|and|then|so that|when|whenever|if|unless|before|after|while|to notify|for)\b/i, 1)[0]
+    .replace(/^(?:\s|the\s+|my\s+|our\s+|a\s+|an\s+|me\s+|us\s+)+/i, "");
+  const stop = new Set(["a", "about", "an", "and", "are", "as", "at", "be", "by", "changes", "from", "in", "into", "is", "it", "of", "on", "or", "the", "this", "to", "with", "me", "my", "our", "us", "you", "your", "bot", "agent", "please", "daily", "weekly", "affecting", "anything", "requests", "tasks", "things", "whatever", "what", "work"]);
+  const acronyms = new Set(["ai", "api", "ci", "cd", "crm", "hr", "qa", "sre", "ui", "ux"]);
+  const words = (subject.match(/[a-z0-9]+/gi) || []).filter(word => !stop.has(word.toLowerCase())).slice(0, 3);
+  const title = words.map(word => acronyms.has(word.toLowerCase()) ? word.toUpperCase() : word[0].toUpperCase() + word.slice(1).toLowerCase());
+  return (title.length ? [...title, ...selected.role.split(" ")] : ["Workspace", ...selected.role.split(" ")]).join(" ");
+}
+
+function suggestedBotAddress(displayName) {
+  const normalized = (displayName || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 41).replace(/-+$/g, "");
+  return normalized.length >= 2 ? normalized : "workspace-assistant";
+}
+
 function templateTools(template) {
   const result = new Set();
   for (const tool of template?.tools || []) {
@@ -4273,7 +4318,7 @@ async function promptNewBot(preselect = "") {
   const modelSuggestionSource = conversationSource?.model_suggestion ? "chat" : workspaceDefaults.model ? "workspace" : "";
   const draft = {
     step: 0, purpose: conversationSource?.original_request || "", useConversationSource: !!conversationSource,
-    template: chosenTemplate?.name || "", name: "", description: "", model: modelSuggestion,
+    template: chosenTemplate?.name || "", name: "", display_name: "", description: "", model: modelSuggestion,
     inference_mode: conversationSource?.inference_mode_suggestion || workspaceDefaults.inference_mode || "hybrid",
     workspace_mode: "managed", tools: templateTools(chosenTemplate),
     local_browser_handoff: false,
@@ -4281,6 +4326,24 @@ async function promptNewBot(preselect = "") {
     limits: { max_steps: 24, timeout_seconds: 900, daily_token_cap: 200000,
       max_turn_tokens: 0, max_cost_usd: 0, daily_cost_cap_usd: 0 },
   };
+  let displayNameEdited = false;
+  let addressEdited = false;
+  const occupiedAddresses = new Set(botsCache.map(bot => bot.name));
+  const uniqueAddress = value => {
+    const base = suggestedBotAddress(value);
+    if (!occupiedAddresses.has(base)) return base;
+    for (let suffix = 2; suffix < 10000; suffix++) {
+      const ending = `-${suffix}`;
+      const candidate = `${base.slice(0, 41 - ending.length).replace(/-+$/g, "")}${ending}`;
+      if (!occupiedAddresses.has(candidate)) return candidate;
+    }
+    return base;
+  };
+  const refreshSuggestedIdentity = () => {
+    if (!displayNameEdited) draft.display_name = suggestBotDisplayName(draft.purpose);
+    if (!addressEdited) draft.name = uniqueAddress(draft.display_name);
+  };
+  refreshSuggestedIdentity();
   const stepTitles = ["What should it do?", "Choose a starting point", "Name your bot", "Set its model and workspace", "Choose tools and schedule", "Review setup"];
   const selectedTemplate = () => templates.find(item => item.name === draft.template) || null;
   const setError = message => {
@@ -4289,7 +4352,7 @@ async function promptNewBot(preselect = "") {
   };
   const snapshotFields = () => {
     const purpose = $("#setup-purpose"); if (purpose) draft.purpose = purpose.value;
-    for (const key of ["name", "description", "model", "cron", "schedule_prompt"]) {
+    for (const key of ["name", "display_name", "description", "model", "cron", "schedule_prompt"]) {
       const field = $(`#setup-${key}`); if (field) draft[key] = field.value;
     }
     for (const key of ["inference_mode", "workspace_mode"]) {
@@ -4315,7 +4378,8 @@ async function promptNewBot(preselect = "") {
     return `<div class="setup-review">
       <p class="setup-assistant">Here’s the setup you chose. Creating it saves the bot only; it will not start a run.</p>
       <dl class="setup-review-list">
-        <div><dt>Name</dt><dd>${esc(draft.name)}</dd></div>
+        <div><dt>Display name</dt><dd>${esc(draft.display_name)}</dd></div>
+        <div><dt>Bot address</dt><dd>${esc(draft.name)}</dd></div>
         <div><dt>Purpose</dt><dd>${esc(draft.purpose)}</dd></div>
         ${sourceReview}
         <div><dt>Starting point</dt><dd>${esc(template?.tagline || "Blank bot")}</dd></div>
@@ -4355,9 +4419,11 @@ async function promptNewBot(preselect = "") {
       </fieldset>
     </div>`;
     if (step === 2) content = `<div class="setup-conversation form-grid">
-      <p class="setup-assistant">Give the bot a short name for its address and a description for its roster card.</p>
-      <label class="field" for="setup-name">Bot name<input id="setup-name" maxlength="42" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="release-reviewer" value="${esc(draft.name)}" required>
-        <span class="hint">Use 2–41 lowercase letters, numbers, and dashes.</span></label>
+      <p class="setup-assistant">Hutch suggested a professional name from the purpose you gave. Edit it before creating the Bot.</p>
+      <label class="field" for="setup-display_name">Display name<input id="setup-display_name" maxlength="80" autocomplete="off" placeholder="Release Notes Reviewer" value="${esc(draft.display_name)}" required>
+        <span class="hint">Used in chats and lists. Changing this name does not change permissions or instructions.</span></label>
+      <label class="field" for="setup-name">Bot address<input id="setup-name" maxlength="41" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="release-notes-reviewer" value="${esc(draft.name)}" required>
+        <span class="hint">Stable local address for links; it follows the display name until you edit it.</span></label>
       <label class="field" for="setup-description">Short description<input id="setup-description" maxlength="240" placeholder="What people can ask this bot to do" value="${esc(draft.description)}"></label>
     </div>`;
     if (step === 3) {
@@ -4435,8 +4501,26 @@ async function promptNewBot(preselect = "") {
     $("#setup-use-source")?.addEventListener("change", event => {
       draft.useConversationSource = event.currentTarget.checked;
       draft.purpose = draft.useConversationSource ? conversationSource.original_request : "";
+      refreshSuggestedIdentity();
       const purpose = $("#setup-purpose");
       if (purpose) { purpose.value = draft.purpose; if (!draft.useConversationSource) purpose.focus(); }
+    });
+    $("#setup-purpose")?.addEventListener("input", event => {
+      draft.purpose = event.currentTarget.value;
+      refreshSuggestedIdentity();
+    });
+    $("#setup-display_name")?.addEventListener("input", event => {
+      displayNameEdited = true;
+      draft.display_name = event.currentTarget.value;
+      if (!addressEdited) {
+        draft.name = uniqueAddress(draft.display_name);
+        const address = $("#setup-name");
+        if (address) address.value = draft.name;
+      }
+    });
+    $("#setup-name")?.addEventListener("input", event => {
+      addressEdited = true;
+      draft.name = event.currentTarget.value;
     });
     $$('input[name="setup-template"]').forEach(input => input.addEventListener("change", () => {
       draft.template = input.value;
@@ -4468,7 +4552,8 @@ async function promptNewBot(preselect = "") {
       setError("");
       if (draft.step === 0 && !draft.purpose.trim()) { setError("Describe what this bot should handle."); $("#setup-purpose")?.focus(); return false; }
       if (draft.step === 2) {
-        if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(draft.name.trim())) { setError("Use 2–41 lowercase letters, numbers, and dashes for the bot name."); $("#setup-name")?.focus(); return false; }
+        if (!draft.display_name.trim()) { setError("Add a display name for this Bot."); $("#setup-display_name")?.focus(); return false; }
+        if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(draft.name.trim())) { setError("Use 2–41 lowercase letters, numbers, and dashes for the Bot address."); $("#setup-name")?.focus(); return false; }
       }
       if (draft.step === 3 && !draft.model.trim()) { setError("Choose or enter a configured model route."); $("#setup-model")?.focus(); return false; }
       if (draft.step === 4 && draft.schedule_prompt.trim() && !draft.cron.trim()) { setError("Add a cron schedule before setting its task prompt."); $("#setup-cron")?.focus(); return false; }
@@ -4478,7 +4563,7 @@ async function promptNewBot(preselect = "") {
       }
       if (draft.step < 5) { draft.step += 1; await renderStep(); return false; }
       const body = {
-        name: draft.name.trim(), template: draft.template || null,
+        name: draft.name.trim(), display_name: draft.display_name.trim(), template: draft.template || null,
         description: draft.description.trim() || draft.purpose.trim().split("\n")[0].slice(0, 240),
         instructions: draft.purpose.trim(), model: draft.model.trim(), inference_mode: draft.inference_mode,
         source_conversation_id: draft.useConversationSource ? conversationSource?.conversation_id || null : null,
@@ -4494,7 +4579,7 @@ async function promptNewBot(preselect = "") {
         const key = await creationKey(body);
         const bot = await api("/v1/bots", { method: "POST", headers: { "Idempotency-Key": key }, body });
         storageRemove("hutch-pending-bot-create");
-        toast(`Bot “${bot.name}” created. It has not started a run.`);
+        toast(`Bot “${bot.display_name || draft.display_name}” created. It has not started a run.`);
         location.hash = `#/chat/${encodeURIComponent(bot.name)}`;
         return true;
       } catch (err) { setError(err.message); if (button) button.disabled = false; return false; }

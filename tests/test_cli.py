@@ -30,6 +30,15 @@ def test_bot_create_and_validation(state_env, monkeypatch):
     ok = runner.invoke(app, ["bot", "create", "my-scout", "--model", "mock/demo",
                              "--tools", "web_fetch,files", "--approvals", "auto"])
     assert ok.exit_code == 0, ok.output
+    assert "My Scout" in ok.output and "my-scout" in ok.output
+    assert '"display_name": "My Scout"' in runner.invoke(app, ["bot", "show", "my-scout"]).output
+
+    named = runner.invoke(app, ["bot", "create", "release-notes", "--model", "mock/demo",
+                                "--display-name", "Release Notes Reviewer"])
+    assert named.exit_code == 0, named.output
+    assert "Release Notes Reviewer" in named.output
+    listing = runner.invoke(app, ["bot", "list"])
+    assert listing.exit_code == 0 and "Release Notes Reviewer" in listing.output and "release-notes" in listing.output
 
     bad_name = runner.invoke(app, ["bot", "create", "Bad Name"])
     assert bad_name.exit_code != 0

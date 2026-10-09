@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import uuid
 from datetime import datetime, time, timedelta, timezone
 from enum import Enum
@@ -213,9 +214,22 @@ class ApprovalMode(str, Enum):
     auto = "auto"      # auto-approve non-denied actions (denylist still enforced)
 
 
+_BOT_NAME_ACRONYMS = {"ai": "AI", "api": "API", "ci": "CI", "cd": "CD", "crm": "CRM",
+                      "hr": "HR", "qa": "QA", "sre": "SRE", "ui": "UI", "ux": "UX"}
+
+
+def bot_slug_display_name(value: str) -> str:
+    """Turn a legacy machine address into a stable human-facing fallback."""
+    words = [word for word in re.split(r"[-_]+", value.strip()) if word]
+    if not words:
+        return "Workspace Assistant"
+    return " ".join(_BOT_NAME_ACRONYMS.get(word.casefold(), word[:1].upper() + word[1:]) for word in words)
+
+
 class Bot(BaseModel):
     id: str = Field(default_factory=lambda: new_id("bot"))
     name: str                         # slug, unique
+    display_name: str = Field(default="", max_length=80)
     description: str = ""
     instructions: str = ""            # system-prompt level guidance
     model: str = ""                   # a configured provider/model route; empty legacy records need setup before use
@@ -249,6 +263,9 @@ class Bot(BaseModel):
 
     @model_validator(mode="after")
     def folder_workspace_requires_path(self) -> "Bot":
+        # Persisted Bot documents from older schemas have no display_name.
+        # Normalize here so API and server-rendered views share one fallback.
+        self.display_name = " ".join(self.display_name.split()) or bot_slug_display_name(self.name)
         # Existing bot JSON only has ``workdir``. When a pre-mode record loads,
         # preserve its actual behavior and surface it as the folder choice.
         if self.workdir and self.workspace_mode == "fresh":

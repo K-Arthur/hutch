@@ -27,6 +27,7 @@ from .models import (
     RunStatus,
     RuntimeKind,
     Schedule,
+    bot_slug_display_name,
 )
 from .lifecycle import TERMINAL
 from .store import Store
@@ -112,7 +113,7 @@ def status() -> None:
     scheduler = Scheduler(store)
     bots = store.list_bots()
     table = Table(title="hutch status")
-    for col in ("bot", "model", "schedule", "paused", "next run (local tz)", "last success"):
+    for col in ("bot", "address", "model", "schedule", "paused", "next run (local tz)", "last success"):
         table.add_column(col)
     import datetime as dt
     for bot in bots:
@@ -121,7 +122,7 @@ def status() -> None:
         last = store.last_successful_run(bot.id)
         last_s = "never (stale)" if last is None else f"{dt.datetime.fromisoformat(last.finished_at or last.created_at).astimezone().strftime('%b %d %H:%M')}"
         sched = f"{bot.schedule.cron} ({bot.schedule.timezone})" if bot.schedule else "on demand"
-        table.add_row(bot.name, bot.model, sched, "yes" if bot.paused else "no", nxt_s, last_s)
+        table.add_row(bot.display_name, bot.name, bot.model, sched, "yes" if bot.paused else "no", nxt_s, last_s)
     if bots:
         console.print(table)
     else:
@@ -311,11 +312,11 @@ def bot_list() -> None:
         console.print("No bots yet. Configure a real model route, then create one with `hutch bot create` or the dashboard.")
         return
     table = Table()
-    for col in ("name", "model", "runtime", "tools", "schedule", "approvals", "paused"):
+    for col in ("display name", "address", "model", "runtime", "tools", "schedule", "approvals", "paused"):
         table.add_column(col)
     for b in bots:
         sched = b.schedule.cron if b.schedule else "on demand"
-        table.add_row(b.name, b.model, b.runtime.value, ",".join(b.tools), sched,
+        table.add_row(b.display_name, b.name, b.model, b.runtime.value, ",".join(b.tools), sched,
                       b.approval_mode.value, "yes" if b.paused else "")
     console.print(table)
 
@@ -339,6 +340,7 @@ def bot_templates() -> None:
 def bot_create(
     name: str = typer.Argument(..., help="Bot name (slug)"),
     template: Optional[str] = typer.Option(None, "--template", "-t", help="Start from a template"),
+    display_name: Optional[str] = typer.Option(None, "--display-name", help="Human-facing name (defaults from the address)"),
     description: str = typer.Option("", "--description", "-d"),
     instructions: str = typer.Option("", "--instructions", "-i"),
     model: Optional[str] = typer.Option(None, "--model", "-m",
@@ -393,6 +395,13 @@ def bot_create(
         bot.name, bot.template = name, template
     else:
         bot = Bot(name=name)
+
+    if display_name is not None:
+        display_name = " ".join(display_name.split())
+        if not display_name or len(display_name) > 80:
+            err.print("[red]--display-name must contain 1–80 characters[/red]")
+            raise typer.Exit(code=1)
+    bot.display_name = display_name or bot_slug_display_name(name)
 
     tool_list = expand_tools([t.strip() for t in tools.split(",") if t.strip()])
     unknown = [t for t in tool_list if t not in ALL_TOOL_NAMES]
@@ -463,7 +472,7 @@ def bot_create(
     if info and info.needs_folder and not bot.workdir:
         console.print(f"[yellow]note:[/yellow] {template} reads files ({info.reads}). It has no working folder yet, so it starts "
                       f"with an empty workspace: set one with `hutch bot update {name} --workdir <folder>`.")
-    console.print(f"[green]created[/green] [bold]{name}[/bold] "
+    console.print(f"[green]created[/green] [bold]{bot.display_name}[/bold] ({name}) "
                   f"(model {bot.model}, runtime {bot.runtime.value}, tools: {', '.join(bot.tools)})")
 
 

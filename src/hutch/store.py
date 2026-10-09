@@ -594,11 +594,25 @@ def _migrate_27(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX IF NOT EXISTS idx_google_calendar_grants_account ON google_calendar_grants(account_id)")
 
 
+def _migrate_28(db: sqlite3.Connection) -> None:
+    """Persist the one named coordinator for Hutch's local workspace."""
+    db.execute("""CREATE TABLE workspace_settings (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        coordinator_bot_id TEXT REFERENCES bots(id) ON DELETE SET NULL,
+        updated_at TEXT NOT NULL
+    )""")
+    db.execute("INSERT INTO workspace_settings(id, coordinator_bot_id, updated_at) VALUES (1, NULL, ?)",
+               (iso(utcnow()),))
+    from .durable_changes import install_resources
+    install_resources(db, (("workspace_settings", "workspace", "id",
+                            ("coordinator_bot_id", "updated_at"), ()),))
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
                _migrate_19, _migrate_20, _migrate_21, _migrate_22, _migrate_23, _migrate_24, _migrate_25, _migrate_26,
-               _migrate_27]
+               _migrate_27, _migrate_28]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -1097,6 +1111,37 @@ class Store:
         with self._lock:
             rows = self._db.execute("SELECT doc FROM bots ORDER BY name").fetchall()
         return [Bot.model_validate_json(r["doc"]) for r in rows]
+
+    def workspace_coordinator(self) -> Optional[dict[str, str]]:
+        """Return the current named coordinator Bot, if the owner selected one."""
+        with self._lock:
+            row = self._db.execute(
+                "SELECT b.id, b.name, b.doc FROM workspace_settings w JOIN bots b ON b.id = w.coordinator_bot_id "
+                "WHERE w.id = 1"
+            ).fetchone()
+        bot = Bot.model_validate_json(row["doc"]) if row else None
+        return {"id": row["id"], "name": row["name"], "display_name": bot.display_name} if bot else None
+
+    def workspace_coordinator_id(self) -> Optional[str]:
+        coordinator = self.workspace_coordinator()
+        return coordinator["id"] if coordinator else None
+
+    def set_workspace_coordinator(self, bot_ref: Optional[str]) -> Optional[dict[str, str]]:
+        """Select or clear the one workspace coordinator without changing Bot authority."""
+        with self._tx() as db:
+            bot_id = None
+            if bot_ref is not None:
+                row = db.execute("SELECT id FROM bots WHERE id = ? OR name = ? LIMIT 1", (bot_ref, bot_ref)).fetchone()
+                if row is None:
+                    raise KeyError(bot_ref)
+                bot_id = row["id"]
+            db.execute("UPDATE workspace_settings SET coordinator_bot_id = ?, updated_at = ? WHERE id = 1",
+                       (bot_id, iso(utcnow())))
+            row = db.execute("SELECT b.id, b.name, b.doc FROM workspace_settings w "
+                             "JOIN bots b ON b.id = w.coordinator_bot_id WHERE w.id = 1").fetchone()
+        self.bus.notify("workspace", "bots", "workspace:coordinator")
+        bot = Bot.model_validate_json(row["doc"]) if row else None
+        return {"id": row["id"], "name": row["name"], "display_name": bot.display_name} if bot else None
 
     def get_bot(self, ref: str) -> Optional[Bot]:
         """Look up a bot by id or name."""

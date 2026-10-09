@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
-{% block title %}{{ bot.name }}{% endblock %}
+{% block title %}{{ bot.display_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
     <p class="crumb"><a href="/bots">Bots</a></p>
-    <h1>{{ icon("bot", 24) }} {{ bot.name }}</h1>
+    <h1>{{ icon("bot", 24) }} {{ bot.display_name }}</h1>
     <p class="sub">{{ bot.description or "No description." }}</p>
     <div class="tags"><span class="tag">{{ bot.model }}</span><span class="tag">{{ bot.runtime.value }}</span>
       <span class="tag">{{ bot.schedule.cron ~ " (" ~ bot.schedule.timezone ~ ")" if bot.schedule else "on demand" }}</span>
@@ -24,7 +24,7 @@
   <h2>{{ icon("play", 18) }} Give it a task</h2>
   <form method="post" action="/bots/{{ bot.name }}/run" class="compose">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <textarea name="prompt" rows="3" required placeholder="What should {{ bot.name }} do? e.g. summarize this week's AI news"></textarea>
+    <textarea name="prompt" rows="3" required placeholder="What should {{ bot.display_name }} do? e.g. summarize this week's AI news"></textarea>
     <div class="compose-row">
       <label class="check" title="Mutating actions are simulated and logged. Reads still run, so you can see what it would do before it does it."><input type="checkbox" name="rehearse" value="1"> Rehearse (dry run - nothing is changed)</label>
       <button class="btn primary" type="submit">{{ icon("play", 15) }} Start run</button>
@@ -65,6 +65,8 @@
   <h2>{{ icon("cpu", 18) }} Settings</h2>
   <form method="post" action="/bots/{{ bot.name }}/update" class="settings">
     <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="field"><span>Display name</span><input type="text" name="display_name" value="{{ bot.display_name }}" maxlength="80" required>
+      <small>Shown in chats and lists. Existing links keep the same Bot address.</small></label>
     <label class="field"><span>Description</span><input type="text" name="description" value="{{ bot.description }}"></label>
     <label class="field"><span>Model route</span><input type="text" name="model" value="{{ bot.model }}" required><small>Choose a configured Ollama, OpenAI, Anthropic, or compatible route.</small></label>
     <label class="field"><span>Schedule (cron, blank = on demand)</span><input type="text" name="cron" value="{{ bot.schedule.cron if bot.schedule else '' }}" placeholder="0 9 * * 1"></label>
@@ -93,7 +95,7 @@
     <div class="form-actions"><button class="btn primary">Save</button></div>
   </form>
   <details class="danger-zone"><summary>Delete this bot</summary>
-    <form method="post" action="/bots/{{ bot.name }}/delete" data-confirm="Delete {{ bot.name }}? Its memory and always-allowed actions go too; run history stays on disk.">
-      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn danger">{{ icon("trash", 15) }} Delete {{ bot.name }}</button></form></details>
+    <form method="post" action="/bots/{{ bot.name }}/delete" data-confirm="Delete {{ bot.display_name }}? Its memory and always-allowed actions go too; run history stays on disk.">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn danger">{{ icon("trash", 15) }} Delete {{ bot.display_name }}</button></form></details>
 </section>
 {% endblock %}

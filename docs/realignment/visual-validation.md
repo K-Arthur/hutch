@@ -516,3 +516,24 @@ handoff is unavailable. I inspected each capture: cards remain inset and readabl
 card does not cover neighboring content, the phone model-route chips wrap without horizontal page
 scroll, and the handoff wording stays within its card. These are local screenshots only; no live
 challenge or provider session was used.
+
+## Purpose-derived Bot names and address review (2026-10-09)
+
+The New Bot wizard now proposes a professional display name and local address from the purpose text using a deterministic
+browser-side rule. Changing purpose refreshes the suggestion until either field is edited; later edits remain visible through the
+complete review. The visible chat identity uses the display name while routes continue using the unchanged local address. The naming
+step made no model/provider request and creation started no run.
+
+The Chromium **153.0.8010.12** / Playwright **1.63.0** journey passed within a three-test focused bot-setup run (**3 passed in
+9.66s**) at desktop **1440×960**, tablet **900×1024**, and phone **390×844**. I inspected the identity form, review top and bottom,
+and resulting chat at all sizes. The review remains scrollable above its fixed action footer; the chat header shows the human display
+name; no horizontal overflow or page errors were recorded. Captures, trace, exact source hashes and validation JSON are in
+[`artifacts/bot-naming/`](artifacts/bot-naming/). The API/migration set separately passed **50 tests in 8.98s**, and the anonymous
+marketing/token checks passed **31 tests in 33.46s**. The browser uses a test-only provider-shaped route and submits no inference
+request. No live model, provider, account, physical phone or screen reader was used.
+
+The anonymous marketing workflow copy was checked by `tests/e2e/test_website.py::test_public_workflow_describes_named_recurring_tasks`
+after adding the naming claim guard (**1 passed in 3.04s**). Its captures at **1440×900**, **900×1024**, and **390×844** all
+report zero overflow and no page errors, and their recorded `website/index.html` hash matches the source. I inspected the workflow
+section at desktop, tablet and phone widths; the added naming explanation wraps within the first step card without shifting or
+overlapping its peers. Updated captures and validation are under [`artifacts/scheduled-tasks/`](artifacts/scheduled-tasks/).
