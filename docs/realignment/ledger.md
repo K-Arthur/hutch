@@ -2060,3 +2060,28 @@ consent screen, token, event data, Gmail/Outlook account, or live provider reque
 OAuth verification and Windows/macOS credential stores remain unavailable. This code therefore
 remains opt-in behind `HUTCH_GOOGLE_OAUTH_CLIENT_ID` and Linux Secret Service, not a publicly verified
 integration. Implementation commit: `ce5d99c`.
+
+## Purpose-derived professional Bot names and coordinator selection foundation (2026-10-09)
+
+Commit `1e6b1ab` separates a Bot's human-facing `display_name` from its stable address. New Bot
+setup derives an editable professional name and address locally from the user's stated purpose, shows
+both again for review, and does not make an additional model/provider request or start a run. Names
+are normalized and persisted through API, CLI, dashboard settings, chat, approvals, schedules, and
+history while legacy Bot addresses and links remain unchanged. Existing records get a readable
+fallback such as `QA Review Bot` from their stable slug. The CLI accepts `--display-name` and shows
+both name and address.
+
+Schema v28 and `/api/v1/workspace/coordinator` add one durable workspace coordinator selection and
+Bot-list identity metadata. This is selection groundwork only: the coordinator still has no direct
+conversation view, task-brief review, cross-Bot dispatch, correlated replies, or delegation controls.
+Those remain part of the open S6 collaboration acceptance.
+
+Focused API/migration checks passed **17 tests**, the responsive Bot-setup journey passed **3 browser
+tests in 15.45s**, and the full CLI suite passed **12 tests in 8.40s**. `node --check`, Python
+compilation and `git diff --check` passed. Anonymous marketing and token checks passed **31 tests**;
+the revised professional-name/no-extra-model-call/editability claim passed its targeted site test.
+I inspected the Bot identity, review and chat captures at desktop **1440×960**, tablet **900×1024**
+and phone **390×844**, plus the marketing workflow at desktop/tablet/phone sizes. Captures and
+Playwright trace are in `artifacts/bot-naming/`; updated public workflow captures and source hashes
+are in `artifacts/scheduled-tasks/`. Browser fixtures made no provider calls; no live provider,
+physical phone or screen-reader check was performed.
