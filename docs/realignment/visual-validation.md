@@ -667,3 +667,24 @@ checkpoint rows stay above the phone composer. The Impeccable detector found no 
 side-tab findings in this stylesheet; it still reports three pre-existing advisory radius
 values outside the documented token scale. No live provider, account, or physical device was
 used.
+
+## Outlook Calendar Connections states (2026-10-09)
+
+`tests/e2e/test_browser.py::test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewports` passed **1 test** using
+synthetic Microsoft account/calendar responses, a real local API/store grant, and intercepted sign-in navigation. It captured the
+unconnected disclosure and granted account at desktop **1440×960**, tablet **900×1024**, and phone **390×844**. All sizes reported
+zero horizontal overflow, no browser errors, and no external requests. I inspected overview and granted-state captures for all sizes;
+the permission explanation remains readable, the single-calendar grant fits the layout, and the phone keeps its controls reachable.
+Evidence and source hashes are in [`artifacts/outlook-calendar/`](artifacts/outlook-calendar/). These fixtures do not verify a
+Microsoft registration, account, consent screen, Graph response or live provider access.
+
+The anonymous marketing support table was shortened without dropping the consent, field-detection, or public-destination limits.
+At phone width, its repeated support-status column is hidden because the first column already labels every capability; the
+explanation now wraps without horizontal table scrolling. Chromium **153.0.8010.12** / Playwright **1.63.0** passed
+`tests/e2e/test_website.py::test_outlook_calendar_support_row_is_truthful_and_reachable_at_all_viewports` and
+`tests/e2e/test_website.py::test_provider_availability_is_readable_without_horizontal_page_scroll` (**2 passed**). Desktop
+**1440×900**, tablet **900×1024**, and phone **390×844** report no page overflow, browser errors, or external requests. I inspected
+the anonymous viewport captures and complete desktop/tablet/phone table captures; all five rows, including the full experimental
+limitations, remain readable. Source and style hashes are recorded in
+[`artifacts/outlook-calendar/site/site-validation.json`](artifacts/outlook-calendar/site/site-validation.json). No live provider,
+account, screen reader or physical phone was used.

@@ -429,15 +429,19 @@ function toast(msg, isError = false) {
 const chatgptCallback = new URLSearchParams(location.search);
 const chatgptResult = chatgptCallback.get("chatgpt_result");
 const googleCalendarResult = chatgptCallback.get("google_calendar_result");
-if (chatgptResult || googleCalendarResult) {
+const outlookCalendarResult = chatgptCallback.get("outlook_calendar_result");
+if (chatgptResult || googleCalendarResult || outlookCalendarResult) {
   const detail = chatgptCallback.get("detail");
-  const message = googleCalendarResult
+  const message = outlookCalendarResult
+    ? outlookCalendarResult === "connected" ? "Outlook Calendar account connected. Choose a calendar and grant one Bot read access from Connections."
+      : detail || "Outlook Calendar sign-in did not complete. Start again from Connections."
+    : googleCalendarResult
     ? googleCalendarResult === "connected" ? "Google Calendar account connected. Choose a calendar and grant one Bot read access from Connections."
       : detail || "Google Calendar sign-in did not complete. Start again from Connections."
     : chatgptResult === "connected" ? "ChatGPT plan route connected."
     : chatgptResult === "identity-only" ? "ChatGPT signed in, but plan use was not granted. Reauthorize to use it for models."
     : detail || "ChatGPT sign-in did not complete. Start again from Connections.";
-  setTimeout(() => toast(message, chatgptResult === "error" || googleCalendarResult === "error"), 0);
+  setTimeout(() => toast(message, chatgptResult === "error" || googleCalendarResult === "error" || outlookCalendarResult === "error"), 0);
   history.replaceState(null, "", `${location.pathname}${location.hash || "#/connections"}`);
 }
 
@@ -4205,6 +4209,7 @@ async function renderConnections() {
     <div class="ctx-actions"><button class="btn primary small" id="btn-add-conn">${icon("plus")} Add connection</button></div>`);
   const conns = data.connections || [];
   const googleCalendar = data.google_calendar || { configured: false, secret_store_available: false, accounts: [], grants: [] };
+  const outlookCalendar = data.outlook_calendar || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const windows = { "5h": "per 5 hours", "day": "per day", "week": "per week", "month": "per month" };
   const devicesOpen = $(".device-manager")?.open || false;
   const googleCalendarAccountsHtml = (googleCalendar.accounts || []).map(account => {
@@ -4236,6 +4241,35 @@ async function renderConnections() {
   }).join("");
   const orphanCalendarGrants = (googleCalendar.grants || []).filter(grant =>
     !(googleCalendar.accounts || []).some(account => account.id === grant.account_id));
+  const outlookCalendarAccountsHtml = (outlookCalendar.accounts || []).map(account => {
+    const grants = (outlookCalendar.grants || []).filter(grant => grant.account_id === account.id);
+    const grantRows = grants.length ? grants.map(grant => `
+      <div class="device-row"><div><strong>${esc(grant.bot_name)}</strong><p class="hint">Can read ${esc(grant.calendar_name)} · ${esc(account.label)}</p></div>
+        <button class="btn ghost small" type="button" data-outlook-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")
+      : '<p class="hint">No Bot has access to this account.</p>';
+    return `<article class="google-calendar-account" data-outlook-calendar-account="${esc(account.id)}">
+      <div class="device-row"><div><strong>${esc(account.label)}</strong> <span class="chip ok">connected</span>
+        <p class="hint">Delegated Calendars.ReadBasic · connected ${esc(new Date(account.created_at).toLocaleDateString())}</p></div>
+        <button class="btn danger small" type="button" data-outlook-calendar-disconnect="${esc(account.id)}">Disconnect</button>
+      </div>
+      <div class="google-calendar-grants" aria-label="Bots with Outlook Calendar access">${grantRows}</div>
+      <div class="google-calendar-grant-form" data-outlook-calendar-grant-form="${esc(account.id)}">
+        <label class="field">Grant one calendar to a Bot
+          <select data-outlook-calendar-bot ${bots.length ? "" : "disabled"} aria-label="Bot for Outlook Calendar access">
+            ${bots.length ? bots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("") : '<option value="">Create a Bot first</option>'}
+          </select>
+        </label>
+        <button class="btn ghost small" type="button" data-outlook-calendar-load-calendars="${esc(account.id)}" ${bots.length ? "" : "disabled"}>Load calendars</button>
+        <label class="field" hidden data-outlook-calendar-calendar-field>Calendar
+          <select data-outlook-calendar-calendar aria-label="Outlook calendar to grant" disabled><option value="">Choose a calendar…</option></select>
+        </label>
+        <button class="btn primary small" type="button" data-outlook-calendar-grant="${esc(account.id)}" disabled>Grant read access</button>
+        <p class="hint" role="status" aria-live="polite" data-outlook-calendar-status></p>
+      </div>
+    </article>`;
+  }).join("");
+  const orphanOutlookGrants = (outlookCalendar.grants || []).filter(grant =>
+    !(outlookCalendar.accounts || []).some(account => account.id === grant.account_id));
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
       <p class="page-subtitle">A named hosted endpoint with its own key, terms, and allowance. Reference its models as <code class="mono">&lt;connection&gt;/&lt;model&gt;</code>.</p>
@@ -4275,6 +4309,26 @@ async function renderConnections() {
         </div>
         ${googleCalendarAccountsHtml || '<p class="hint">No Google Calendar accounts connected.</p>'}
         ${orphanCalendarGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanCalendarGrants.map(grant => `<div class="device-row"><div><strong>${esc(grant.bot_name)}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-google-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
+      </section>
+      <section class="panel conn-card outlook-calendar-card" aria-labelledby="outlook-calendar-title">
+        <div class="bot-head"><span class="bot-name" id="outlook-calendar-title">Outlook Calendar</span>
+          <span class="tag">experimental</span><span class="tag">read only</span></div>
+        <p class="hint">Connect a Microsoft account through its official local sign-in flow. Hutch uses delegated <code>Calendars.ReadBasic</code>; it cannot read event bodies, attachments or extensions. Grant one selected calendar to one Bot. Matching titles, times and locations go to that Bot's selected model and remain in its run history.</p>
+        <p class="hint"><strong>Permission boundary:</strong> Microsoft consent applies to the signed-in account. Hutch enforces each Bot's selected-calendar grant locally, and calendar text stays untrusted. Disconnect clears Hutch's refresh credential and Bot grants; Microsoft consent must be revoked separately in your account or organisation settings.</p>
+        <details class="outlook-calendar-details">
+          <summary>Manage Outlook Calendar access</summary>
+          ${!outlookCalendar.configured ? '<p class="hint" role="status">Unavailable until the Hutch operator configures <code>HUTCH_OUTLOOK_OAUTH_CLIENT_ID</code> for a Microsoft public-client application registration.</p>' : ''}
+          ${outlookCalendar.configured && !outlookCalendar.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting an account. Hutch never stores refresh tokens in SQLite or browser storage.</p>' : ''}
+          <div class="google-calendar-connect outlook-calendar-connect">
+            <label class="field" for="outlook-calendar-label">Account label
+              <input id="outlook-calendar-label" type="text" maxlength="80" autocomplete="off" placeholder="Work or Personal" aria-describedby="outlook-calendar-label-help">
+            </label>
+            <button class="btn primary small" id="outlook-calendar-connect" type="button" ${!outlookCalendar.configured || !outlookCalendar.secret_store_available ? "disabled" : ""}>Connect Outlook Calendar</button>
+            <p class="hint" id="outlook-calendar-label-help">Choose supported account types in the Microsoft registration for the accounts you want (organization, personal, or both); the <code>common</code> authority cannot expand that choice. Add <code>http://localhost/api/v1/connections/outlook-calendar/callback</code> under Mobile and desktop application redirects. Sign in from this Hutch host.</p>
+          </div>
+          ${outlookCalendarAccountsHtml || '<p class="hint">No Outlook Calendar accounts connected.</p>'}
+          ${orphanOutlookGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookGrants.map(grant => `<div class="device-row"><div><strong>${esc(grant.bot_name)}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-outlook-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
+        </details>
       </section>
       <details class="device-manager">
         <summary>Paired devices <span class="tag">${devices.length}</span></summary>
@@ -4472,6 +4526,120 @@ async function renderConnections() {
       try {
         const result = await api(`/v1/connections/google-calendar/accounts/${encodeURIComponent(button.dataset.googleCalendarDisconnect)}/disconnect`, { method: "POST", body: {} });
         toast(result.detail, result.provider_revocation !== "confirmed");
+        await renderConnections();
+      } catch (err) { button.disabled = false; toast(err.message, true); }
+    });
+  });
+
+  $("#outlook-calendar-connect")?.addEventListener("click", async event => {
+    const button = event.currentTarget;
+    const label = $("#outlook-calendar-label")?.value.trim();
+    if (!label) { toast("Enter a label for this Outlook Calendar account.", true); $("#outlook-calendar-label")?.focus(); return; }
+    const authWindow = window.open("about:blank", "_blank");
+    if (!authWindow) {
+      toast("Allow Hutch to open a browser tab, then try Microsoft sign-in again.", true);
+      return;
+    }
+    authWindow.opener = null;
+    button.disabled = true;
+    button.textContent = "Opening Microsoft…";
+    try {
+      const result = await api("/v1/connections/outlook-calendar/sign-in", { method: "POST", body: { label } });
+      let authUrl;
+      try { authUrl = new URL(result.authorization_url); }
+      catch { throw new Error("Hutch returned an invalid Microsoft sign-in destination."); }
+      if (authUrl.origin !== "https://login.microsoftonline.com" ||
+          authUrl.pathname !== "/common/oauth2/v2.0/authorize" ||
+          authUrl.username || authUrl.password || authUrl.hash || !authUrl.search) {
+        throw new Error("Hutch returned an unexpected Microsoft sign-in destination.");
+      }
+      authWindow.location.replace(authUrl.href);
+      toast("Finish Microsoft sign-in in the new browser tab, then reload Connections here.");
+    } catch (err) {
+      authWindow.close();
+      toast(err.message, true);
+    } finally {
+      button.disabled = false;
+      button.textContent = "Connect Outlook Calendar";
+    }
+  });
+  $$('[data-outlook-calendar-load-calendars]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const form = button.closest("[data-outlook-calendar-grant-form]");
+      const status = $("[data-outlook-calendar-status]", form);
+      const calendarField = $("[data-outlook-calendar-calendar-field]", form);
+      const calendarSelect = $("[data-outlook-calendar-calendar]", form);
+      const grantButton = $("[data-outlook-calendar-grant]", form);
+      button.disabled = true;
+      button.textContent = "Loading…";
+      status.textContent = "Loading calendars from Microsoft…";
+      try {
+        const result = await api(`/v1/connections/outlook-calendar/calendars?account_id=${encodeURIComponent(button.dataset.outlookCalendarLoadCalendars)}`);
+        const rows = result.calendars || [];
+        calendarSelect.innerHTML = `<option value="">Choose a calendar…</option>${rows.map(calendar => `<option value="${esc(calendar.id)}">${esc(calendar.name)}${calendar.primary ? " · default" : ""}</option>`).join("")}`;
+        calendarField.hidden = false;
+        calendarSelect.disabled = false;
+        grantButton.disabled = true;
+        status.textContent = rows.length ? `${rows.length} calendar${rows.length === 1 ? "" : "s"} loaded. Select one to continue.` : "Microsoft returned no calendars for this account.";
+        calendarSelect.focus();
+      } catch (err) { status.textContent = err.message; }
+      finally { button.disabled = false; button.textContent = "Load calendars"; }
+    });
+  });
+  $$('[data-outlook-calendar-grant-form] [data-outlook-calendar-calendar]').forEach(select => {
+    select.addEventListener("change", () => {
+      const form = select.closest("[data-outlook-calendar-grant-form]");
+      $("[data-outlook-calendar-grant]", form).disabled = !select.value;
+    });
+  });
+  $$('[data-outlook-calendar-grant]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const form = button.closest("[data-outlook-calendar-grant-form]");
+      const bot = $("[data-outlook-calendar-bot]", form).value;
+      const calendar = $("[data-outlook-calendar-calendar]", form).value;
+      const status = $("[data-outlook-calendar-status]", form);
+      const existing = (outlookCalendar.grants || []).find(grant => grant.bot_id === bot);
+      if (existing && !(await confirmDialog({
+        title: "Replace calendar access",
+        body: `<b>${esc(existing.bot_name)}</b> already has access to <b>${esc(existing.calendar_name)}</b>. Replace that grant with the selected Outlook calendar?`,
+        confirmText: "Replace grant",
+      }))) return;
+      button.disabled = true;
+      status.textContent = "Verifying the selected calendar with Microsoft…";
+      try {
+        const result = await api("/v1/connections/outlook-calendar/grants", { method: "POST", body: {
+          bot, account_id: button.dataset.outlookCalendarGrant, calendar_id: calendar } });
+        toast(result.detail);
+        await renderConnections();
+      } catch (err) { status.textContent = err.message; button.disabled = false; }
+    });
+  });
+  $$('[data-outlook-calendar-ungrant]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const grant = (outlookCalendar.grants || []).find(row => row.bot_id === button.dataset.outlookCalendarUngrant);
+      if (!(await confirmDialog({ title: "Revoke Bot calendar access",
+        body: `Stop <b>${esc(grant?.bot_name || "this Bot")}</b> from reading the granted Outlook Calendar?`,
+        confirmText: "Revoke access" }))) return;
+      button.disabled = true;
+      try {
+        await api(`/v1/connections/outlook-calendar/grants/${encodeURIComponent(button.dataset.outlookCalendarUngrant)}`, { method: "DELETE" });
+        toast("Bot Outlook Calendar access revoked.");
+        await renderConnections();
+      } catch (err) { button.disabled = false; toast(err.message, true); }
+    });
+  });
+  $$('[data-outlook-calendar-disconnect]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const account = (outlookCalendar.accounts || []).find(row => row.id === button.dataset.outlookCalendarDisconnect);
+      const botNames = (outlookCalendar.grants || []).filter(row => row.account_id === account?.id).map(row => row.bot_name);
+      const grants = botNames.length ? `<p>This also removes Hutch calendar access for ${botNames.map(esc).join(", ")}.</p>` : "";
+      if (!(await confirmDialog({ title: "Disconnect Outlook Calendar",
+        body: `Clear Hutch's local refresh credential for <b>${esc(account?.label || "this account")}</b>? Microsoft consent is not revoked by Hutch; you must revoke it separately in your Microsoft account or organisation settings.${grants}`,
+        confirmText: "Disconnect", danger: true }))) return;
+      button.disabled = true;
+      try {
+        const result = await api(`/v1/connections/outlook-calendar/accounts/${encodeURIComponent(button.dataset.outlookCalendarDisconnect)}/disconnect`, { method: "POST", body: {} });
+        toast(result.detail);
         await renderConnections();
       } catch (err) { button.disabled = false; toast(err.message, true); }
     });

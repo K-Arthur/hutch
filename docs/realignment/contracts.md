@@ -53,6 +53,12 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   bounded reconciliation at `/api/v1/snapshot`, and partial remote device resources at `/api/v1/pairing/exchange` and
   `/api/v1/devices`. Versioned bot, run and approval lists accept bounded `limit`/`offset` pages; the legacy bot and approval
   aliases keep their prior response behavior.
+* **Outlook Calendar (experimental, schema v33).** `GET /api/v1/connections/outlook-calendar` returns typed, credential-free
+  account and Bot-grant metadata. Sign-in begins at `POST /api/v1/connections/outlook-calendar/sign-in` and returns a validated
+  Microsoft authorization URL; Microsoft returns only to the local loopback callback. Calendar listing, one-calendar-per-Bot
+  grant/revoke, and local-account disconnect are exposed under `/api/v1/connections/outlook-calendar`. Disconnect clears Hutch's
+  refresh token/grants but does not revoke account-level Microsoft consent. The Bot read tool returns at most 25 events and only
+  subject, start, end and location; its grant is rechecked for each invocation. No mail or calendar-write route is present.
 * **Coordinator specialist handoff, explicit result return, progress markers, and task-only reviewed facts (schema v32).** `GET /api/v1/workspace/tasks?conversation_id={id}&limit=100` returns up to 100
   task records scoped to one coordinator conversation, including source request/answer IDs, the proposed and reviewed briefs,
   assumptions, target Bot/display-name snapshot, route/capability snapshot, child conversation/run IDs, authoritative run status,

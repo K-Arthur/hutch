@@ -806,6 +806,69 @@ class GoogleCalendarDisconnectResource(BaseModel):
     detail: str
 
 
+class OutlookCalendarSignInRequest(BaseModel):
+    label: str = Field(min_length=1, max_length=80)
+
+
+class OutlookCalendarGrantRequest(BaseModel):
+    bot: str = Field(min_length=1, max_length=128)
+    account_id: str = Field(min_length=1, max_length=64)
+    calendar_id: str = Field(min_length=1, max_length=1024)
+
+
+class OutlookCalendarAccountResource(BaseModel):
+    id: str
+    label: str
+    created_at: str
+    scopes: list[str]
+    status: Literal["connected"]
+
+
+class OutlookCalendarGrantResource(BaseModel):
+    bot_id: str
+    bot_name: Optional[str] = None
+    account_id: str
+    calendar_id: str
+    calendar_name: str
+    granted_at: str
+
+
+class OutlookCalendarResource(BaseModel):
+    configured: bool
+    secret_store_available: bool
+    accounts: list[OutlookCalendarAccountResource]
+    grants: list[OutlookCalendarGrantResource]
+
+
+class OutlookCalendarCalendarResource(BaseModel):
+    id: str
+    name: str
+    primary: bool
+
+
+class OutlookCalendarListResource(BaseModel):
+    calendars: list[OutlookCalendarCalendarResource]
+
+
+class OutlookCalendarAuthorizationResource(BaseModel):
+    authorization_url: str
+
+
+class OutlookCalendarGrantResponseResource(BaseModel):
+    grant: dict[str, str]
+    detail: str
+
+
+class OutlookCalendarUnGrantResource(BaseModel):
+    removed: bool
+
+
+class OutlookCalendarDisconnectResource(BaseModel):
+    removed: bool
+    provider_revocation: Literal["unavailable", "not_needed"]
+    detail: str
+
+
 def create_app() -> FastAPI:
     config = get_config()
     store = Store(config)
@@ -2538,12 +2601,18 @@ def create_app() -> FastAPI:
         accounts = ChatGPTAuthBook(config.state_dir).accounts()
         from ..google_calendar import GoogleCalendarBook
         calendar_book = GoogleCalendarBook(config.state_dir, os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", ""))
+        from ..outlook_calendar import OutlookCalendarBook
+        outlook_book = OutlookCalendarBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
         return {"connections": out, "templates": templates, "errors": book.errors,
                 "chatgpt_enabled": chatgpt_plan_signin_enabled(), "chatgpt_accounts": accounts,
                 "google_calendar": {"configured": bool(os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "").strip()),
                                     "secret_store_available": calendar_book.secrets.available(),
                                     "accounts": calendar_book.accounts(),
-                                    "grants": store.list_google_calendar_grants()}}
+                                    "grants": store.list_google_calendar_grants()},
+                "outlook_calendar": {"configured": bool(os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "").strip()),
+                                     "secret_store_available": outlook_book.secrets.available(),
+                                     "accounts": outlook_book.accounts(),
+                                     "grants": store.list_outlook_calendar_grants()}}
 
     @app.get("/api/v1/connections/google-calendar", response_model=GoogleCalendarResource)
     def google_calendar_connections() -> dict:
@@ -2649,6 +2718,111 @@ def create_app() -> FastAPI:
         response.headers["Referrer-Policy"] = "no-referrer"
         if status == "error":
             response.headers["Location"] = f"/?google_calendar_result=error&detail={quote(detail)}#/connections"
+        return response
+
+    @app.get("/api/v1/connections/outlook-calendar", response_model=OutlookCalendarResource)
+    def outlook_calendar_connections() -> dict:
+        from ..outlook_calendar import OutlookCalendarBook
+        client_id = os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "")
+        book = OutlookCalendarBook(config.state_dir, client_id)
+        return {"configured": bool(client_id.strip()), "secret_store_available": book.secrets.available(),
+                "accounts": book.accounts(), "grants": store.list_outlook_calendar_grants()}
+
+    @app.post("/api/v1/connections/outlook-calendar/sign-in",
+              response_model=OutlookCalendarAuthorizationResource)
+    def outlook_calendar_sign_in(request: Request, body: OutlookCalendarSignInRequest, response: Response) -> dict:
+        from ..outlook_calendar import OutlookCalendarBook, OutlookCalendarError
+        try:
+            book = OutlookCalendarBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            result = book.start(body.label, book.callback_uri(request))
+        except OutlookCalendarError as exc:
+            raise HTTPException(409, str(exc)) from None
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        return {"authorization_url": result.url}
+
+    @app.get("/api/v1/connections/outlook-calendar/calendars", response_model=OutlookCalendarListResource)
+    def outlook_calendar_calendars(account_id: str) -> dict:
+        from ..outlook_calendar import OutlookCalendarBook, OutlookCalendarError
+        try:
+            book = OutlookCalendarBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            return {"calendars": book.list_calendars(account_id)}
+        except OutlookCalendarError as exc:
+            raise HTTPException(422, str(exc)) from None
+
+    @app.post("/api/v1/connections/outlook-calendar/grants", response_model=OutlookCalendarGrantResponseResource)
+    def outlook_calendar_grant(body: OutlookCalendarGrantRequest) -> dict:
+        from ..outlook_calendar import OutlookCalendarBook, OutlookCalendarError
+        bot = store.get_bot(body.bot)
+        if bot is None:
+            raise HTTPException(404, "No Bot with that name or ID exists")
+        try:
+            book = OutlookCalendarBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            calendars = book.list_calendars(body.account_id)
+        except OutlookCalendarError as exc:
+            raise HTTPException(422, str(exc)) from None
+        selected = next((row for row in calendars if row["id"] == body.calendar_id), None)
+        if selected is None:
+            raise HTTPException(422, "Choose a calendar returned by the connected Microsoft account")
+        grant = store.set_outlook_calendar_grant(bot.id, body.account_id, selected["id"], selected["name"])
+        detail = (f"{bot.display_name} can read events from {selected['name']}. Microsoft granted delegated, "
+                  "read-only Calendars.ReadBasic account consent; Hutch exposes only this calendar to the Bot. "
+                  "Matching event titles, times and locations are sent to the selected model and retained in this "
+                  "Bot's run history. Bodies and attachments are excluded by the selected permission; Hutch also "
+                  "does not request attendees or response extensions.")
+        return {"grant": grant, "detail": detail}
+
+    @app.delete("/api/v1/connections/outlook-calendar/grants/{bot_ref}",
+                response_model=OutlookCalendarUnGrantResource)
+    def outlook_calendar_ungrant(bot_ref: str) -> dict:
+        bot = store.get_bot(bot_ref)
+        if bot is None:
+            raise HTTPException(404, "No Bot with that name or ID exists")
+        return {"removed": store.remove_outlook_calendar_grant(bot.id)}
+
+    @app.post("/api/v1/connections/outlook-calendar/accounts/{account_id}/disconnect",
+              response_model=OutlookCalendarDisconnectResource)
+    def outlook_calendar_disconnect(account_id: str) -> dict:
+        from ..outlook_calendar import OutlookCalendarBook, OutlookCalendarError
+        try:
+            result = OutlookCalendarBook(config.state_dir,
+                os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "")).disconnect(account_id)
+        except OutlookCalendarError as exc:
+            raise HTTPException(422, str(exc)) from None
+        if not result["removed"]:
+            raise HTTPException(404, "Outlook Calendar account is not connected")
+        store.remove_outlook_calendar_account_grants(account_id)
+        detail = ("Hutch removed the local refresh credential and Bot grants. Microsoft does not offer a "
+                  "revocation endpoint for this sign-in flow; review connected application consent in your "
+                  "Microsoft account or organisation settings to revoke provider access.")
+        return {**result, "detail": detail}
+
+    @app.get("/api/v1/connections/outlook-calendar/callback", include_in_schema=False)
+    def outlook_calendar_oauth_callback(request: Request):
+        from ..outlook_calendar import OutlookCalendarBook, OutlookCalendarError
+        status, detail = "connected", ""
+        try:
+            callback = OutlookCalendarBook.callback_uri(request)
+            values: dict[str, str] = {}
+            for key in ("state", "code", "error"):
+                entries = request.scope.get("hutch_oauth_query", {}).get(key, [])
+                if len(entries) > 1:
+                    raise OutlookCalendarError("Microsoft returned a duplicate sign-in field; start again")
+                values[key] = entries[0] if entries else ""
+            if not values["state"]:
+                raise OutlookCalendarError("Microsoft did not return sign-in state; start again")
+            book = OutlookCalendarBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            if values["error"]:
+                book.cancel(values["state"])
+                raise OutlookCalendarError("Outlook Calendar access was not granted; no account was connected")
+            book.finish(values["state"], values["code"], callback)
+        except OutlookCalendarError as exc:
+            status, detail = "error", str(exc)
+        response = RedirectResponse(f"/?outlook_calendar_result={status}#/connections", status_code=303)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        if status == "error":
+            response.headers["Location"] = f"/?outlook_calendar_result=error&detail={quote(detail)}#/connections"
         return response
 
     @app.post("/api/chatgpt/sign-in")

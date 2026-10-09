@@ -574,6 +574,135 @@ def test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone(browser
         page.close()
 
 
+def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewports(browser, live, monkeypatch):
+    from pathlib import Path
+
+    base, app = live
+    monkeypatch.setenv("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "fixture-public-client")
+
+    class FixtureOutlookCalendarBook:
+        accounts_rows = [{"id": "mscal_0123456789abcdef01234567", "label": "Work",
+                          "created_at": "2026-10-09T00:00:00+00:00", "scopes": ["Calendars.ReadBasic"],
+                          "status": "connected"}]
+
+        class Secrets:
+            @staticmethod
+            def available():
+                return True
+
+        def __init__(self, state_dir, client_id):
+            self.secrets = self.Secrets()
+
+        @classmethod
+        def accounts(cls):
+            return cls.accounts_rows
+
+        @staticmethod
+        def list_calendars(account_id):
+            return [{"id": "primary", "name": "Work Calendar", "primary": True},
+                    {"id": "team", "name": "Team Calendar", "primary": False}]
+
+        @staticmethod
+        def start(label, callback):
+            from hutch.outlook_calendar import OAuthStart
+            return OAuthStart("https://login.microsoftonline.com/common/oauth2/v2.0/authorize?state=fixture",
+                              "fixture")
+
+        @staticmethod
+        def callback_uri(request):
+            port = request.scope["server"][1]
+            return f"http://localhost:{port}/api/v1/connections/outlook-calendar/callback"
+
+    monkeypatch.setattr("hutch.outlook_calendar.OutlookCalendarBook", FixtureOutlookCalendarBook)
+    bot = Bot(name="calendar-planner", display_name="Meeting Planner", model="mock/demo", tools=[])
+    app.state.store.create_bot(bot)
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page.add_init_script("""
+      window.__outlookOAuth = { target: null, url: null, opener: 'not-set', closed: false };
+      window.open = (_url, target) => {
+        window.__outlookOAuth.target = target;
+        return {
+          set opener(value) { window.__outlookOAuth.opener = value; },
+          location: { replace(value) { window.__outlookOAuth.url = value; } },
+          close() { window.__outlookOAuth.closed = true; }
+        };
+      };
+    """)
+    errors, external = [], []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(base) else None)
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/outlook-calendar"
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        page.goto(base + "/#/connections")
+        page.get_by_role("heading", name="Connections").wait_for()
+        card = page.locator(".outlook-calendar-card")
+        assert "Calendars.ReadBasic" in card.inner_text()
+        assert "Microsoft consent applies to the signed-in account" in card.inner_text()
+        assert "event bodies, attachments or extensions" in card.inner_text()
+        card.locator("details > summary").click()
+        assert "common" in card.inner_text()
+        assert "cannot expand that choice" in card.inner_text()
+        assert page.get_by_role("button", name="Connect Outlook Calendar").is_enabled()
+        page.locator("#outlook-calendar-label").fill("Work")
+        page.get_by_role("button", name="Connect Outlook Calendar").click()
+        page.get_by_text("Finish Microsoft sign-in in the new browser tab", exact=False).wait_for()
+        oauth = page.evaluate("window.__outlookOAuth")
+        assert oauth["target"] == "_blank" and oauth["opener"] is None
+        authorization_url = urlsplit(oauth["url"])
+        assert authorization_url.scheme == "https" and authorization_url.hostname == "login.microsoftonline.com"
+        assert authorization_url.path == "/common/oauth2/v2.0/authorize"
+        assert parse_qs(authorization_url.query)["state"] == ["fixture"]
+
+        page.get_by_role("button", name="Load calendars").click()
+        calendar = page.locator("[data-outlook-calendar-calendar]")
+        calendar.wait_for(state="visible")
+        calendar.select_option("primary")
+        grant_button = page.get_by_role("button", name="Grant read access")
+        assert grant_button.is_enabled()
+        grant_button.click()
+        card.locator("details > summary").click()
+        page.get_by_text("Can read Work Calendar", exact=False).wait_for()
+        assert page.get_by_text("Calendars.ReadBasic account consent", exact=False).is_visible()
+        while page.locator(".toast").count():
+            page.locator(".toast-close").first.click()
+
+        captures = []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            card = page.locator(".outlook-calendar-card")
+            if not card.locator("details").evaluate("element => element.open"):
+                card.locator("details > summary").click()
+            scroll = page.locator(".page-scroll")
+            scroll.evaluate("element => { element.scrollTop = 0; }")
+            page.screenshot(path=str(out / f"overview-{label}.png"), full_page=True, animations="disabled")
+            account = page.locator("[data-outlook-calendar-account]")
+            account.scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"granted-{label}.png"), full_page=True, animations="disabled")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            captures.append({"size": label, "viewport": [width, height], "scenes": ["connection disclosure", "granted account"],
+                             "horizontal_overflow": overflow})
+        assert page.get_by_role("button", name="Revoke Bot access").bounding_box()["height"] >= 44
+        assert not errors, errors
+        assert not external, external
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewports",
+            "captured_at": datetime.now(timezone.utc).isoformat(), "browser": browser.version,
+            "provider_credentials_used": False, "provider_calls": 0,
+            "scenario": "Synthetic Microsoft account metadata and calendar list; actual local API persists one Bot grant; sign-in navigation is intercepted",
+            "external_requests": external, "page_errors": errors, "captures": captures,
+            "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
+                              for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                           "src/hutch/server/app.py", "src/hutch/server/security.py",
+                                           "src/hutch/store.py", "src/hutch/outlook_calendar.py",
+                                           "src/hutch/tools/outlook_calendar.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        page.close()
+
+
 def test_opt_in_chatgpt_signin_is_fixture_intercepted_and_responsive(browser, live, monkeypatch):
     from pathlib import Path
 

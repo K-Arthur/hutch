@@ -32,15 +32,51 @@ revocation. If Google does not confirm revocation, Hutch reports that explicitly
 owner to review connected apps in their Google Account. Never import consumer-app browser cookies,
 CLI auth files, or another product's private sign-in state.
 
-Gmail and Outlook remain planned, not connected. Gmail message-body access has separate Google
-consent and verification requirements; do not present the working Calendar flow as Gmail support.
-Microsoft Graph will use delegated permissions only if implemented. Calendar writes, mail reads or
-sends, arbitrary API URLs, deletion and mailbox settings are unavailable. See the current provider
+Gmail remains planned, not connected. Outlook Calendar has a separate experimental local flow; it
+does not provide Outlook Mail or public-provider verification. Gmail message-body access has separate
+Google consent and verification requirements; do not present either Calendar flow as Gmail support.
+Calendar writes, mail reads or sends, arbitrary API URLs, deletion and mailbox settings are unavailable.
+See the current provider
 references: [Google Calendar scopes](https://developers.google.com/workspace/calendar/api/auth),
 [Google installed-app OAuth](https://developers.google.com/identity/protocols/oauth2/native-app),
 [Gmail scopes](https://developers.google.com/workspace/gmail/api/auth/scopes),
 [Microsoft Graph permissions](https://learn.microsoft.com/en-us/graph/permissions-reference), and
 [Microsoft authorization-code/PKCE guidance](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow).
+
+## Outlook Calendar event lookup (experimental, local setup required)
+
+The Connections page can connect a Microsoft work, school, or personal account through the local
+public-client authorization-code flow when the app registration supports that account type. This is
+an experimental read-only capability, not Outlook
+Mail support. It remains unavailable until the operator configures `HUTCH_OUTLOOK_OAUTH_CLIENT_ID`
+for a Microsoft Entra public-client application and runs Hutch on Linux with an unlocked Secret
+Service. No Microsoft account, tenant, consent screen, or live Graph request was used in verification.
+
+Under **Mobile and desktop applications**, register
+`http://localhost/api/v1/connections/outlook-calendar/callback` as the redirect. Microsoft ignores the
+port for localhost redirects, and Hutch binds its actual listener port into the callback. Choose the
+registration's supported account types deliberately: select organizational accounts only, personal
+accounts only, or both as appropriate; `/common` does not override that registration choice. It uses
+the `common` authority, authorization code with S256 PKCE, and delegated `Calendars.ReadBasic`
+plus `offline_access`; it requests no mail scope, write scope, or tenant-wide app-only permission.
+Linux Secret Service stores only the refresh token. Short-lived access tokens stay in process memory;
+SQLite records the account label and each Bot's selected-calendar grant. The browser receives neither
+token. Callback state is one-use, expires after ten minutes, and is stripped from access logs.
+
+Microsoft consent is account-wide. Hutch adds a local boundary by granting a Bot only one calendar
+chosen from that account's verified calendar list. The Bot tool reads at most 25 events in a requested
+range no longer than 366 days, and asks Graph only for subject, start, end, and location. These fields
+are sent to the Bot's selected model and retained in its run history. Event text is untrusted input;
+the tool cannot create, change, invite, or delete events. Strict Offline mode removes this online tool.
+
+Disconnect clears Hutch's refresh token and all Hutch Bot grants. Microsoft Graph does not offer a
+revocation endpoint suitable for this local public-client flow, so the UI directs the account owner to
+revoke consent separately in their Microsoft account or organisation settings. This does not claim
+that provider-side consent was revoked. See [Microsoft Graph permissions](https://learn.microsoft.com/en-us/graph/permissions-reference),
+[List calendars](https://learn.microsoft.com/en-us/graph/api/user-list-calendars?view=graph-rest-1.0),
+[List calendarView](https://learn.microsoft.com/en-us/graph/api/calendar-list-calendarview?view=graph-rest-1.0),
+[authorization code with PKCE](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow),
+and [redirect URI guidance](https://learn.microsoft.com/en-us/entra/identity-platform/reply-url).
 
 A **connection** is a named hosted endpoint with its own provider-scoped credentials, protocol, headers, billing mode,
 usage allowance and terms notice. API-key routes use `<connection>/<model>`; the experimental ChatGPT plan route is

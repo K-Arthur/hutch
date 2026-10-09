@@ -7,7 +7,8 @@ Gmail and Outlook integrations, a named coordinator Bot, and human completion of
 key product requirements. Studio has purpose-derived editable Bot naming, a user-reviewed chat-seeded
 setup draft, typed built-in-runtime choices, inline approvals, and an experimental read-only Calendar
 path. The named coordinator now has one user-confirmed, durable cross-Bot handoff to a selected specialist;
-multi-step team planning and restart-safe checkpoints remain open. Gmail and Outlook are not implemented.
+multi-step team planning and restart-safe checkpoints remain open. Outlook Calendar has an experimental
+read-only local integration; Gmail and Outlook Mail are not implemented.
 Keep chat as the normal work surface and make Bot configuration, handoff review, and approvals appear in
 context. The roster should remain small by default; use a searchable Fleet surface as the setup grows.
 Roughly ten Bots is the owner's initial heuristic, not a measured threshold.
@@ -33,14 +34,14 @@ Roughly ten Bots is the owner's initial heuristic, not a measured threshold.
    committed-event markers and exposes a bounded timeline, but tasks cannot resume after restart yet. Prompt refinement
    cannot grant capabilities or change standing instructions. Creating a reusable specialist or changing
    its role needs separate review and confirmation.
-4. **Google Calendar read lookup is implemented as an experimental local path (IG-5 partial).**
-   The operator must configure a Google Desktop OAuth client and Linux Secret Service; no live
-   account or consent-screen verification has been completed. Google authorizes read-only access
-   account-wide while Hutch exposes only the selected calendar to each Bot. Calendar writes are
-   still unavailable. Next implement named Gmail/Outlook connections only after scope and review
-   requirements are settled; event creation, message sending and every external write must have a
-   fresh review showing account, destination and complete payload. Keep refresh credentials in the
-   OS credential store rather than SQLite, transcripts, prompts or browser storage.
+4. **Google and Outlook Calendar reads are experimental local paths (IG-5 and IG-7 partial).**
+   Each operator must configure its Google Desktop or Microsoft public-client OAuth registration and
+   Linux Secret Service; no live account or consent-screen verification has been completed. Both providers authorize read-only access
+   account-wide while Hutch exposes only the selected calendar to each Bot. Outlook uses delegated
+   `Calendars.ReadBasic`; it does not connect Outlook Mail. Calendar writes and Gmail remain unavailable.
+   Event creation, message sending and every external write need a fresh review showing account,
+   destination and complete payload. Keep refresh credentials in the OS credential store rather than
+   SQLite, transcripts, prompts or browser storage.
 
 5. Give the workspace and each Bot an explicit model default. The workspace choice seeds new-Bot
    setup; the coordinator and each specialist keep their own editable route and inference mode.

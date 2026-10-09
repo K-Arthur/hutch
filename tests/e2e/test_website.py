@@ -189,8 +189,8 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
         assert "it remains marked as untrusted text" in workflow.inner_text().lower()
         assert "up to eight current, approved coordinator facts for that task alone" in workflow.inner_text().lower()
         assert "provider may retain what it receives under its terms" in workflow.inner_text().lower()
-        assert "suggests a professional bot name" in workflow.inner_text().lower()
-        assert "no extra model request" in workflow.inner_text().lower()
+        assert "locally suggests a professional display name and stable address" in workflow.inner_text().lower()
+        assert "without an extra model request" in workflow.inner_text().lower()
         assert "both values remain editable" in workflow.inner_text().lower()
         for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
@@ -229,7 +229,8 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
         card = page.locator("#workflow .step-card").first
         text = card.inner_text().lower()
         assert "latest chat request" in text
-        assert "editable professional name" in text
+        assert "professional display name and stable address" in text
+        assert "without an extra model request" in text
         assert "model route from that bot or your workspace" in text
         assert "no tools" in text and "no schedule" in text
         assert "recurring work" in text
@@ -282,8 +283,11 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
         assert page.locator("#get .availability").get_by_text("Public access", exact=True).count() == 1
         availability = page.locator("#get").inner_text().lower()
         assert "opencode go api-key handoff" in availability
-        assert "sign in with chatgpt preview" in availability
+        assert "chatgpt sign-in preview" in availability
         assert "eligibility unconfirmed" in availability
+        assert "read-only google/outlook calendar" in availability
+        assert "account consent unverified" in availability
+        assert "outlook mail" not in availability
         assert page.locator("a[href='#get']").count() >= 1
         for label, width, height in viewports:
             page.set_viewport_size({"width": width, "height": height})
@@ -325,6 +329,61 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
             "feature_heading_layout": "icon and heading share a row",
             "anonymous": True, "external_requests": len(external),
         }, indent=2) + "\n")
+    finally:
+        context.close()
+
+
+def test_outlook_calendar_support_row_is_truthful_and_reachable_at_all_viewports(browser, site_url):
+    context, page, errors = _page(browser, reduced_motion="reduce")
+    out = ROOT / "docs/realignment/artifacts/outlook-calendar/site"
+    out.mkdir(parents=True, exist_ok=True)
+    source = (SITE_DIR / "index.html").read_bytes()
+    styles = (SITE_DIR / "styles.css").read_bytes()
+    external = []
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(site_url) and not request.url.startswith("data:") else None)
+    captures = []
+    try:
+        page.goto(site_url, wait_until="networkidle")
+        row = page.locator("#get .availability tbody tr").filter(has_text="Outlook Calendar")
+        assert row.count() == 1
+        text = row.inner_text().lower()
+        assert "experimental" in row.inner_text().lower()
+        assert "account consent unverified" in text
+        assert "password/captcha handoff" in text
+        assert "browser field detection" in text
+        assert "outlook mail" not in page.locator("#get").inner_text().lower()
+        wrapper = page.locator("#get .overflow-x-auto")
+        for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.evaluate("document.documentElement.style.scrollBehavior = 'auto'")
+            page.locator("#get .availability").evaluate(
+                "element => window.scrollTo(0, window.scrollY + element.getBoundingClientRect().top - 80)")
+            page.screenshot(path=str(out / f"availability-viewport-{label}.png"), animations="disabled")
+            page.locator("#get .availability").screenshot(
+                path=str(out / f"availability-table-{label}.png"), animations="disabled")
+            metrics = wrapper.evaluate("element => ({scrollWidth: element.scrollWidth, clientWidth: element.clientWidth})")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            assert metrics["scrollWidth"] <= metrics["clientWidth"] + 1, (label, metrics)
+            if width <= 640:
+                assert page.locator("#get .availability thead th:visible").count() == 2
+            captures.append({"size": label, "viewport": [width, height], "table": metrics,
+                             "table_capture": f"availability-table-{label}.png",
+                             "viewport_capture": f"availability-viewport-{label}.png",
+                             "page_overflow": overflow})
+        assert not external, external
+        assert not errors, errors
+        (out / "site-validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_website.py::test_outlook_calendar_support_row_is_truthful_and_reachable_at_all_viewports",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(), "browser": browser.version,
+            "playwright_version": package_version("playwright"),
+            "index_sha256": hashlib.sha256(source).hexdigest(),
+            "styles_sha256": hashlib.sha256(styles).hexdigest(),
+            "captures": captures, "anonymous": True,
+            "external_requests": external, "page_errors": errors,
+        }, indent=2) + "\n", encoding="utf-8")
     finally:
         context.close()
 

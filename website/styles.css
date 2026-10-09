@@ -328,6 +328,14 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .availability .av-k { font-family: var(--font-mono); font-size: var(--text-size-2xs); font-weight: 700; color: var(--color-semantic-brand); white-space: nowrap; }
 .availability .av-v { color: var(--color-semantic-text-2); font-size: var(--text-size-xs); }
 .get-term .term-body a { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 640px) {
+  .availability { min-width: 0; table-layout: fixed; }
+  /* The first cell already carries each row's support label. Drop the repeated
+     status column on phones to give the useful explanation room to wrap. */
+  .availability th:last-child, .availability td:last-child { display: none; }
+  .availability th:first-child, .availability .av-k { width: 96px; }
+  .availability th, .availability td { padding-inline: 8px; overflow-wrap: anywhere; }
+}
 
 /* ------------------------------------------------------------------- faq */
 .faq-layout { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: var(--space-12); align-items: start; }

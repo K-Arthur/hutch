@@ -39,6 +39,11 @@ The Bot-setup workflow may say that Hutch derives an editable professional displ
 written by the user. This is a deterministic browser-side suggestion, with no additional model request; the owner reviews both values
 before confirming creation. Do not imply that a suggested name changes the Bot's permissions, standing instructions, or authority.
 
+The Connections support table may list Google Calendar and Outlook Calendar as experimental, read-only local integrations that
+require operator OAuth configuration and Linux Secret Service. No provider account or consent verification has been performed.
+For Outlook, Hutch requests delegated `Calendars.ReadBasic`, limits each Bot to one owner-selected calendar, and cannot revoke
+Microsoft's account-level consent itself. Do not imply support for Gmail, Outlook Mail, calendar writes, or provider-side verification.
+
 The coordinator workflow may say that a completed coordinator answer can be prepared as a task for one selected Bot. The user must
 choose the specialist, review its saved settings, edit the brief and assumptions, and explicitly confirm. Hutch records the relationship
 between source request, proposal, reviewed handoff and child result. Only the reviewed brief and assumptions cross into the new chat;

@@ -19,7 +19,7 @@ from hutch.engine import Engine
 from hutch.lifecycle import IllegalTransition
 from hutch.models import RunStatus
 from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28,
-                         _migrate_29, _migrate_30, _migrate_31, _migrate_32)
+                         _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
@@ -27,7 +27,7 @@ FINISHED_1, FINISHED_2, ORPHAN, QUEUED = "run_582f4cc75ea4", "run_fa7f70664c38",
 
 
 def test_reply_reference_migration_preserves_old_rows_and_guards_scope():
-    assert SCHEMA_VERSION == 32
+    assert SCHEMA_VERSION == 33
     db = sqlite3.connect(":memory:")
     try:
         db.execute("CREATE TABLE bots (id TEXT PRIMARY KEY)")
@@ -93,6 +93,19 @@ def test_v26_calendar_grant_migration_is_empty_and_idempotent():
         columns = [row[1] for row in db.execute("PRAGMA table_info(google_calendar_grants)")]
         assert columns == ["bot_id", "account_id", "calendar_id", "calendar_name", "granted_at"]
         assert db.execute("SELECT COUNT(*) FROM google_calendar_grants").fetchone()[0] == 0
+    finally:
+        db.close()
+
+
+def test_v32_outlook_calendar_grant_migration_is_empty_and_idempotent():
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("CREATE TABLE bots (id TEXT PRIMARY KEY)")
+        _migrate_33(db)
+        _migrate_33(db)
+        columns = [row[1] for row in db.execute("PRAGMA table_info(outlook_calendar_grants)")]
+        assert columns == ["bot_id", "account_id", "calendar_id", "calendar_name", "granted_at"]
+        assert db.execute("SELECT COUNT(*) FROM outlook_calendar_grants").fetchone()[0] == 0
     finally:
         db.close()
 
