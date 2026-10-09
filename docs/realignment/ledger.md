@@ -2194,3 +2194,19 @@ passed. Screenshots and trace are under `artifacts/workspace-task-dispatch/`. Th
 no live provider, human account, screen reader or physical phone was used. Provider-side copies cannot be recalled. This
 closes only the optional task-only fact-sharing contract, not general cross-Bot memory grants, safe task continuation, or
 the remaining S6/S9 release gates.
+
+## S9 Coordinator quote/source side-tab cleanup
+
+Commit `8052655` replaces the left-edge stripes on assistant quote blocks and the coordinator's quoted request with a uniform
+1px neutral outline and the existing sunken surface. The source card remains a semantic blockquote, but its role is communicated
+through content and a full surface boundary rather than a side-tab accent. The responsive browser test checks matching top/left
+border widths and colors, captures the source card at desktop/tablet/phone sizes, and retains the existing no-overflow and task-flow
+assertions. The scoped CSS detector reports no side-tab findings after the change; pre-existing radius advisories were not changed.
+
+Chromium **153.0.8010.12** / Playwright **1.63.0** passed
+`tests/e2e/test_browser.py::test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports` in **19.01s** using local mock/SQLite.
+I inspected the request block at **1440×960**, **900×1024** and **390×844**; the outline is quiet at all sizes, and the phone modal
+keeps the content reachable above its sticky footer. The first browser attempt crashed while `/tmp` had only **444 MiB** free; the
+disk-backed temporary-directory rerun passed. `node --check` and `git diff --check` passed. Evidence is in
+`artifacts/workspace-task-dispatch/review-source-{desktop,tablet,phone}.png`, `validation.json` and the Playwright trace. No
+screen-reader or physical-device check was performed.
