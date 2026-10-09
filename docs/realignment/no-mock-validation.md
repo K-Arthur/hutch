@@ -33,6 +33,14 @@ and the anonymous website. It checks that empty/mocked production route creation
 runs fail before a tool call, route changes from Local to Hybrid work in one update, the removed
 `hutch demo seed` command is unavailable, and site copy/assets contain no simulated product flow.
 
+The packaged-runtime boundary also has a regression for an accidentally inherited
+`HUTCH_TESTING=1`: because the wheel intentionally excludes `tests/`, a mock route now returns an
+actionable `RuntimeUnavailable` instead of leaking `ModuleNotFoundError`. The focused runtime suite
+passed **8 tests** with unhandled pytest-thread warnings and `SyntaxWarning`s treated as failures.
+`uv build --wheel --out-dir /tmp/hutch-test-runtime-boundary` succeeded, and importing Hutch only
+from that wheel with the test flag set produced the same clear error. This does not alter or expose
+test fixtures in the package.
+
 The capture utility is `capture_first_run.py`. It refuses to take a screenshot unless the real
 application reports empty bot, run, approval, conversation, and configured-connection lists. The
 2026-10-08 capture used an isolated temporary state directory and an environment with no inherited

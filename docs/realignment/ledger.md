@@ -1481,3 +1481,17 @@ public-destination validation remain open.
 The Studio's working dots and the server-rendered live-connection mark remain static; “Working…”, “live” and “reconnecting” carry
 the state. Shared page headings retain the 1.4 line-height fixed in `4a3e5c0`. The responsive browser regression checks both status
 marks and computed heading styles across desktop, tablet and phone. No provider or model request is involved.
+
+## Packaged test-runtime boundary (2026-10-08)
+
+An accidental `HUTCH_TESTING=1` in a wheel install previously let a legacy mock route fall through
+to an uncaught import failure because the test-only runtime is intentionally excluded from the
+wheel. It now fails closed with an actionable `RuntimeUnavailable` asking the operator to configure
+a real model route. The source test harness still loads its fixture unchanged. Regression commit:
+`fc8fa5e`.
+
+`.venv/bin/python -m pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning
+-W error::SyntaxWarning tests/test_runtime.py` passed **8 tests in 0.33s**. `uv build --wheel
+--out-dir /tmp/hutch-test-runtime-boundary` succeeded; a clean `/tmp` process importing only that
+wheel with `HUTCH_TESTING=1` printed the intended error and exited normally. No marketing change is
+needed because this is a packaged test-flag edge, not a public capability or product flow.
