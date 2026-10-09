@@ -3431,6 +3431,130 @@ def test_bot_creation_reuses_only_the_selected_chat_messages_and_keeps_provenanc
         context.close()
 
 
+def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, monkeypatch):
+    """A message-level action carries the selected request into reviewed setup without retyping it."""
+    import hashlib
+    from pathlib import Path
+
+    base, app = live
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    store = app.state.store
+    bot = store.create_bot(Bot(name="request-source", display_name="Project Partner", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(bot.id, "Project planning", idem_key="request-source-conversation",
+                                                request_hash="request-source-conversation")
+    selected_request = "Review the supplier proposals and recommend the strongest fit for our rollout."
+    later_request = "Separately, remind me to book a dentist appointment next month."
+    first_run = Run(bot_id=bot.id, prompt=selected_request, conversation_id=conversation["id"], status=RunStatus.succeeded)
+    store.create_run(first_run)
+    with store._tx() as db:
+        db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
+                   (conversation["id"], first_run.id, first_run.created_at))
+        store._insert_conversation_message(db, message_id="selected-request-message", conversation_id=conversation["id"],
+            seq=1, run_id=first_run.id, role="user", content=selected_request, created_at=first_run.created_at)
+    store.append_event(Event(run_id=first_run.id, type=EventType.message,
+        data={"role": "assistant", "content": "I compared the supplier proposals."}))
+    store.flush_events()
+    second_run = Run(bot_id=bot.id, prompt=later_request, conversation_id=conversation["id"], status=RunStatus.succeeded)
+    store.create_run(second_run)
+    with store._tx() as db:
+        db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
+                   (conversation["id"], second_run.id, second_run.created_at))
+        store._insert_conversation_message(db, message_id="later-request-message", conversation_id=conversation["id"],
+            seq=3, run_id=second_run.id, role="user", content=later_request, created_at=second_run.created_at)
+    store.append_event(Event(run_id=second_run.id, type=EventType.message,
+        data={"role": "assistant", "content": "I can help with that separately."}))
+    store.flush_events()
+    bot_count_before = len(store.list_bots())
+    run_count_before = len(store.list_runs(limit=100))
+
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-from-message"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(8000)
+    errors, external = [], []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url) if not request.url.startswith(base) else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    touch_context = None
+    try:
+        page.goto(f"{base}/#/chat/{bot.name}")
+        action = page.locator('[data-create-bot-from-request="selected-request-message"]')
+        action.wait_for(state="visible")
+        assert action.get_attribute("aria-label") == "Create a bot from this request"
+        action.focus()
+        page.keyboard.press("Enter")
+        page.wait_for_timeout(300)
+        assert page.get_by_role("heading", name="Describe the work").is_visible(), page.locator("#toast-root").inner_text()
+        assert page.get_by_label("What would you like this bot to handle?").input_value() == selected_request
+        assert "Use this request from this chat" in page.locator(".setup-context-source").inner_text()
+        assert "Only this request and earlier user messages you select" in page.locator(".bot-setup").inner_text()
+        assert page.locator('[data-setup-context-message="later-request-message"]').count() == 0
+        assert later_request not in page.locator(".bot-setup").inner_text()
+        assert "message 1" in page.locator(".bot-setup").inner_text()
+        action_target = action.bounding_box()
+        assert action_target and action_target["height"] >= 32
+        captures = []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            metrics = page.evaluate("""() => ({width:document.documentElement.scrollWidth, viewport:innerWidth,
+              dialog:document.querySelector('[role=dialog]').getBoundingClientRect().toJSON(),
+              footer:document.querySelector('.modal-footer').getBoundingClientRect().toJSON()})""")
+            assert metrics["width"] - width <= 1, (label, metrics)
+            assert metrics["dialog"]["left"] >= -1 and metrics["dialog"]["right"] <= width + 1, (label, metrics)
+            assert metrics["footer"]["bottom"] <= height + 1, (label, metrics)
+            page.screenshot(path=str(out / f"selected-request-{label}.png"), animations="disabled")
+            captures.append({"size": label, "viewport": [width, height], "horizontal_overflow": metrics["width"] - width,
+                             "selected_message": "selected-request-message"})
+        touch_context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True,
+                                            has_touch=True, reduced_motion="reduce")
+        touch_page = touch_context.new_page()
+        touch_page.set_default_timeout(8000)
+        touch_page.on("pageerror", lambda error: errors.append(str(error)))
+        touch_page.on("request", lambda request: external.append(request.url) if not request.url.startswith(base) else None)
+        touch_page.goto(f"{base}/#/chat/{bot.name}")
+        touch_action = touch_page.locator('[data-create-bot-from-request="selected-request-message"]')
+        touch_action.wait_for(state="visible")
+        assert touch_page.evaluate("matchMedia('(pointer: coarse)').matches")
+        touch_box = touch_action.bounding_box()
+        assert touch_box and touch_box["height"] >= 44, touch_box
+        touch_action.tap()
+        touch_page.get_by_role("heading", name="Describe the work").wait_for(state="visible")
+        touch_metrics = touch_page.evaluate("""() => ({width:document.documentElement.scrollWidth, viewport:innerWidth,
+          dialog:document.querySelector('[role=dialog]').getBoundingClientRect().toJSON(),
+          footer:document.querySelector('.modal-footer').getBoundingClientRect().toJSON()})""")
+        assert touch_metrics["width"] - 390 <= 1, touch_metrics
+        assert touch_metrics["dialog"]["left"] >= -1 and touch_metrics["dialog"]["right"] <= 391, touch_metrics
+        assert touch_metrics["footer"]["bottom"] <= 845, touch_metrics
+        touch_page.screenshot(path=str(out / "selected-request-phone.png"), animations="disabled")
+        captures.append({"size": "phone-touch", "viewport": [390, 844], "pointer": "coarse",
+                         "touch_target_height": touch_box["height"],
+                         "horizontal_overflow": touch_metrics["width"] - 390,
+                         "selected_message": "selected-request-message"})
+        assert not errors, errors
+        assert not external, external
+        assert len(store.list_bots()) == bot_count_before
+        assert len(store.list_runs(limit=100)) == run_count_before
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_user_can_start_bot_setup_from_the_exact_chat_request",
+            "command": ".venv/bin/pytest -q tests/e2e/test_browser.py::test_user_can_start_bot_setup_from_the_exact_chat_request --no-header",
+            "browser": browser.version, "playwright_version": package_version("playwright"),
+            "provider_calls": 0, "external_requests": external, "page_errors": errors,
+            "scenario": "Keyboard-activate a message action in a multi-request conversation; exact source is carried into reviewed Bot setup; later unrelated user text is excluded; creation is not confirmed and no Bot/run is added",
+            "captures": captures,
+            "source_sha256": {name: hashlib.sha256((out.parents[3] / name).read_bytes()).hexdigest()
+                              for name in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                           "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace.zip"))
+        finally:
+            if touch_context is not None:
+                touch_context.close()
+            context.close()
+
+
 def test_workspace_model_default_is_editable_persistent_and_seeds_new_bot_setup(browser, live, monkeypatch):
     base, app = live
     monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")

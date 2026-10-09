@@ -21,11 +21,15 @@ Roughly ten Bots is the owner's initial heuristic, not a measured threshold.
    restart; answering creates an idempotent user turn anchored to the Bot's question. It supplies
    information only; a tool action or permission still requires its own approval. External runtime
    support and final desktop/tablet/phone visual/release validation remain open.
-2. Make bot setup conversational and context-aware. Carry forward the purpose, constraints, model,
+2. Make bot setup conversational and context-aware. From any visible user message, the owner can
+   start setup with that exact request; the top-bar path uses the latest request. Carry forward only
+   the chosen request and explicitly selected earlier user context; never copy later messages,
+   assistant replies, permissions or unrelated chats. Carry forward the purpose, constraints, model,
    tools, and workspace choices the user has already stated; ask only for unresolved information.
    Show the complete staged configuration for review, then create idempotently only after explicit
    confirmation. Creating a bot never starts a run by itself. Keep the direct configuration route
-   available during rollout.
+   available during rollout. Message-level source selection is implemented and responsive-fixture
+   tested; natural-language refinement and clarification are still open.
 3. **Coordinator foundation landed; multi-step orchestration remains open.** One Bot can be named the
    workspace coordinator, with its own direct conversation. A completed answer can be turned into an
    editable brief for one selected existing Bot after explicit review; provenance, assumptions, target

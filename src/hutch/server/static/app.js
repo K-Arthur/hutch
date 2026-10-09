@@ -35,6 +35,7 @@ let currentWorkspaceTasks = [];
 let studioGeneration = 0;
 let activeReplySelectionHandler = null;
 let activeWorkspaceResultSelectionHandler = null;
+let activeBotCreationFromMessageHandler = null;
 let activeChoiceSubmitHandler = null;
 const requestedHumanResumes = new Set();
 const runIntegrityStates = new Map();
@@ -1658,6 +1659,10 @@ async function renderChatStudio(preferredBot = null) {
       toast(`Could not reference that message: ${err.message}`, true);
     }
   };
+  activeBotCreationFromMessageHandler = async messageId => {
+    if (generation !== studioGeneration || composerConversationId !== currentConversationId) return;
+    await promptNewBot("", messageId);
+  };
   activeChoiceSubmitHandler = async form => {
     if (generation !== studioGeneration || composerConversationId !== currentConversationId) return;
     if (form.dataset.submitting === "1") return;
@@ -2370,6 +2375,8 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = []) {
     <span>Reply to ${esc(botName)}’s message</span><blockquote>${esc(replyExcerpt.slice(0, 240))}${replyExcerpt.length > 240 ? "…" : ""}</blockquote>
   </aside>` : "";
   const replyAction = botMessage ? `<div class="answer-actions"><button class="btn ghost small" type="button" data-reply-message="${esc(botMessage.id)}" aria-label="Reply to ${esc(botName)} message">Reply to this</button></div>` : "";
+  const createBotAction = userMessage ? `<div class="request-actions"><button class="btn ghost small" type="button"
+      data-create-bot-from-request="${esc(userMessage.id)}" aria-label="Create a bot from this request">Make a bot</button></div>` : "";
   const coordinator = botsCache.find(bot => bot.name === currentStudioBot);
   const prepareTaskAction = coordinator?.is_workspace_coordinator && run.status === "succeeded"
     && userMessage && botMessage && !waitingForChoice
@@ -2390,6 +2397,7 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = []) {
       <div class="msg you">
         <div class="bubble">${replyPreview}${workspaceResultPreview}${esc(run.prompt)}</div>
         <span class="stamp">${timeAgo(run.created_at)}${run.origin === "schedule" ? " · scheduled" : ""}</span>
+        ${createBotAction}
       </div>
       <div class="msg agent">
         <div class="mhead">
@@ -2999,6 +3007,11 @@ function wireFeedInteractions() {
     if (continueTask) { continueWorkspaceTask(continueTask); return; }
     const reply = ev.target.closest("[data-reply-message]");
     if (reply) { void activeReplySelectionHandler?.(reply.dataset.replyMessage); return; }
+    const createBotFromRequest = ev.target.closest("[data-create-bot-from-request]");
+    if (createBotFromRequest) {
+      void activeBotCreationFromMessageHandler?.(createBotFromRequest.dataset.createBotFromRequest);
+      return;
+    }
     const receipt = ev.target.closest('[data-receipt-review]');
     if (receipt) { void reviewReceipt(receipt.dataset.receiptReview, receipt); return; }
     if (ev.target.closest('[data-receipt-queue]')) { void openNeedsYou(); return; }
@@ -5266,7 +5279,7 @@ function templateTools(template) {
   return result;
 }
 
-async function promptNewBot(preselect = "") {
+async function promptNewBot(preselect = "", sourceMessageId = "") {
   let templates;
   try { templates = await api("/bots/templates"); }
   catch (err) { toast(`Bot setup is unavailable: ${err.message}`, true); return; }
@@ -5283,14 +5296,23 @@ async function promptNewBot(preselect = "") {
         const page = await api(`/v1/conversations/${encodeURIComponent(conversationId)}?after=${after}&limit=100`);
         const userMessages = (page.messages || []).filter(message => message.role === "user" && message.content?.trim());
         const latestRequest = userMessages.at(-1);
-        if (latestRequest && currentConversationId === conversationId) {
+        const selectedRequest = sourceMessageId
+          ? userMessages.find(message => message.id === sourceMessageId)
+          : latestRequest;
+        if (sourceMessageId && !selectedRequest) {
+          toast("That request is no longer available in this chat window. Refresh the conversation and try again.", true);
+          return;
+        }
+        if (selectedRequest && currentConversationId === conversationId) {
           const conversation = currentConversations.find(item => item.id === conversationId);
           const sourceBot = botsCache.find(item => item.name === currentStudioBot);
           conversationSource = {
-            conversation_id: conversationId, message_id: latestRequest.id,
-            sequence: latestRequest.seq, created_at: latestRequest.created_at,
-            original_request: latestRequest.content, source_bot_name: currentStudioBot,
-            context_candidates: userMessages.filter(message => message.id !== latestRequest.id).slice(-8),
+            conversation_id: conversationId, message_id: selectedRequest.id,
+            sequence: selectedRequest.seq, created_at: selectedRequest.created_at,
+            original_request: selectedRequest.content, source_bot_name: currentStudioBot,
+            is_latest_request: selectedRequest.id === latestRequest?.id,
+            context_candidates: userMessages.filter(message => message.id !== selectedRequest.id
+              && Number(message.seq) < Number(selectedRequest.seq)).slice(-8),
             model_suggestion: sourceBot?.model && !sourceBot.model.startsWith("mock/") ? sourceBot.model : "",
             inference_mode_suggestion: sourceBot?.model && !sourceBot.model.startsWith("mock/") ? sourceBot.inference_mode : "",
             conversation_title: conversation?.title || "Untitled conversation",
@@ -5435,8 +5457,8 @@ async function promptNewBot(preselect = "") {
     let content = "";
     if (step === 0) content = `<div class="setup-conversation">
       ${conversationSource ? `<label class="setup-context-source"><input id="setup-use-source" type="checkbox" ${draft.useConversationSource ? "checked" : ""}>
-        <span><b>Use your latest request from this chat</b><small>From ${esc(conversationSource.source_bot_name)} · ${esc(conversationSource.conversation_title)} · message ${conversationSource.sequence}.</small></span></label>
-        <p class="setup-assistant">Only the latest request and earlier user messages you select are included in this Bot draft. Assistant replies and other chats stay private; selected text cannot change tools, accounts or permissions.</p>`
+        <span><b>${conversationSource.is_latest_request ? "Use your latest request from this chat" : "Use this request from this chat"}</b><small>From ${esc(conversationSource.source_bot_name)} · ${esc(conversationSource.conversation_title)} · message ${conversationSource.sequence}.</small></span></label>
+        <p class="setup-assistant">Only ${conversationSource.is_latest_request ? "the latest request" : "this request"} and earlier user messages you select are included in this Bot draft. Assistant replies and other chats stay private; selected text cannot change tools, accounts or permissions.</p>`
         : `<p class="setup-assistant">Start with what you already asked for. Hutch suggests a name and uses safe defaults; review everything before creating the Bot.</p>`}
       ${(conversationSource?.context_candidates || []).length ? `<details class="setup-schedule" id="setup-context-picker" ${draft.selectedContextMessageIds.size ? "open" : ""}>
         <summary>Add earlier user messages (optional)</summary>

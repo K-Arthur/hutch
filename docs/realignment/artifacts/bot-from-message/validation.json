@@ -1,0 +1,55 @@
+{
+  "test": "tests/e2e/test_browser.py::test_user_can_start_bot_setup_from_the_exact_chat_request",
+  "command": ".venv/bin/pytest -q tests/e2e/test_browser.py::test_user_can_start_bot_setup_from_the_exact_chat_request --no-header",
+  "browser": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "provider_calls": 0,
+  "external_requests": [],
+  "page_errors": [],
+  "scenario": "Keyboard-activate a message action in a multi-request conversation; exact source is carried into reviewed Bot setup; later unrelated user text is excluded; creation is not confirmed and no Bot/run is added",
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "horizontal_overflow": 0,
+      "selected_message": "selected-request-message"
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "horizontal_overflow": 0,
+      "selected_message": "selected-request-message"
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "horizontal_overflow": 0,
+      "selected_message": "selected-request-message"
+    },
+    {
+      "size": "phone-touch",
+      "viewport": [
+        390,
+        844
+      ],
+      "pointer": "coarse",
+      "touch_target_height": 44,
+      "horizontal_overflow": 0,
+      "selected_message": "selected-request-message"
+    }
+  ],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "4ca2eeaada5c4539b5dce826bd0b6b5592fdf3c260384fe0be46e6b96f31279d",
+    "src/hutch/server/static/style.css": "7663488ab5873e7167380ebca0e939f4b1d04acacde7d9a1e995ee2ccafb03cd",
+    "tests/e2e/test_browser.py": "2e7a69f55c5eadf39f33923efe9632b8baba1aa7018abe765168708ad724c76a"
+  }
+}

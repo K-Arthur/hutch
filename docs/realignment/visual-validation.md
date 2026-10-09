@@ -826,3 +826,22 @@ at desktop **1440×960**, tablet **900×1024**, and phone **390×844**; the cont
 screens, and all three document widths matched the viewport. A terminal fixture run prevented the active supervisor from starting it.
 No provider call or external request was made. The captures and trace are under [`artifacts/transcript-integrity/`](artifacts/transcript-integrity/).
 The matching CLI verifier reports legacy events as partial and returns a nonzero exit on tampering; its intact/legacy/tampered cases pass in `tests/test_cli.py`.
+
+## Exact-message Bot setup from Studio chat (2026-10-09)
+
+The browser journey `test_user_can_start_bot_setup_from_the_exact_chat_request` used a seeded conversation
+with two unrelated user requests, keyboard-activated **Make a bot** on the earlier request, and confirmed
+the exact text/source in the review flow while excluding the later request. No Bot or run was created.
+The anonymous marketing journey checked the current setup and model-default copy, with zero external
+requests, JavaScript errors, and horizontal overflow.
+
+The focused browser/marketing batch passed **5 tests in 13.44s** on Chromium **153.0.8010.12** and
+Playwright **1.63.0**. Captures were opened and inspected at app desktop **1440×960**, tablet **900×1024**,
+and phone **390×844**, including a separate `is_mobile`/coarse-pointer run that tapped the action and
+measured its touch target at **44px**. The anonymous marketing site was inspected at desktop **1440×900**,
+tablet **900×1024**, and phone **390×844**. Node syntax validation and `git diff --check` passed.
+
+App screenshots, trace and source hashes are in [`artifacts/bot-from-message/`](artifacts/bot-from-message/);
+the anonymous marketing cards and validation are in [`artifacts/bot-from-message/marketing/`](artifacts/bot-from-message/marketing/).
+Fixtures were local and no model/provider call was made. Screen-reader, physical-device and cross-browser
+validation were not performed.

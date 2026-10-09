@@ -38,10 +38,11 @@ automatically attached to chat.
 The Bot-setup workflow may say that Hutch derives an editable professional display name and stable local address from the purpose
 written by the user. This is a deterministic browser-side suggestion, with no additional model request; the owner reviews both values
 before confirming creation. Do not imply that a suggested name changes the Bot's permissions, standing instructions, or authority.
-When setup starts from an active chat, the owner can reuse its latest user message and optionally select up to eight earlier
-user-authored messages from that same conversation. Only selected text is copied into the saved instructions as background; assistant
-replies and other conversations stay excluded. The review names each selected message and warns that saved text may be sent to the
-Bot's model on future runs. Selected conversation text grants no tools, accounts, or permissions.
+From any visible user message in chat, the owner can choose **Make a bot** to reuse that exact request; the top-bar setup path
+uses the latest request. The owner can optionally select up to eight earlier user-authored messages from that same conversation.
+Later messages, assistant replies and other conversations stay excluded. The review names each selected message and warns that saved
+text may be sent to the Bot's model on future runs. Selected conversation text grants no tools, accounts, or permissions. Natural-language
+rewriting or clarification is still experimental work and must not be described as automatic or model-generated.
 
 The Connections support table may list Google Calendar, Outlook Calendar, and Outlook Mail as experimental, read-only local integrations that
 require operator OAuth configuration and Linux Secret Service. No provider account or consent verification has been performed.

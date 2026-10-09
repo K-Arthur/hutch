@@ -529,6 +529,8 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
    agent language by position and tone, never by loud color */
 .msg.you .bubble { background: #1d2735; color: var(--text); border: 1px solid var(--line-strong); border-bottom-right-radius: 6px; }
 .stamp { font: 400 var(--fs-2xs)/1 var(--mono); color: var(--text-3); padding: 0 4px; }
+.request-actions { display: flex; justify-content: flex-end; margin: -1px 0 var(--s-2); }
+.request-actions .btn { min-height: 32px; }
 
 /* agent answers are plain readable text under their name row (no container):
    the transcript stays literature, not a stack of boxes */
@@ -1414,7 +1416,7 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
   .workspace-file-attachments { margin-left: 10px; }
   .workspace-file-attachment .btn { min-height: 44px; }
   .cmenu-files { min-height: 44px; }
-  .answer-actions .btn, .reply-composer .btn { min-height: 44px; }
+  .answer-actions .btn, .request-actions .btn, .reply-composer .btn { min-height: 44px; }
 }
 
 /* forced colors: system paints what matters; state never rides on color alone */

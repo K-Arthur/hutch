@@ -218,7 +218,7 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
 
 def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
-    out = ROOT / "docs/realignment/artifacts/bot-setup-context/site"
+    out = ROOT / "docs/realignment/artifacts/bot-from-message/marketing"
     out.mkdir(parents=True, exist_ok=True)
     source = (SITE_DIR / "index.html").read_bytes()
     external = []
@@ -229,8 +229,10 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
         page.goto(site_url, wait_until="networkidle")
         card = page.locator("#workflow .step-card").first
         text = card.inner_text().lower()
-        assert "latest chat request" in text
-        assert "optionally select earlier user messages from that chat as saved background" in text
+        assert "make a bot under the request you want to reuse" in text
+        assert "latest request" in text
+        assert "later messages, assistant replies and other chats stay excluded" in text
+        assert "optional earlier user messages become saved background" in text
         assert "assistant replies and other chats stay excluded" in text
         assert "professional display name and stable address" in text
         assert "without an extra model request" in text
