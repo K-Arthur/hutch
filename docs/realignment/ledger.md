@@ -5,12 +5,12 @@ implemented but not yet exercised against a live dependency.
 
 ## Ownership and integration
 
-The implementation branch is `realign/platform` in `.worktrees/realign`. It was based on the last coherent pre-realignment
-history, then merged with the local `main` history in commit `0ab3058` on 2026-10-07. Later main changes were reconciled by
-`cf82f73` (main `44ca869`) and `fdf6592` (main `307ce1d`). The merges preserve both histories. Marketing copy is owned in this
-worktree. Application contracts and code are reconciled here with the merged UI. Main's PF-2 tool-output source-card change
-(`c0ebc21`) was integrated through merge `6fab391`; its direct file route was adapted to Hutch's recorded size/hash verifier
-instead of retaining an unchecked path-only `FileResponse`. No push or publication is authorized.
+The early realignment work was developed on `realign/platform` in `.worktrees/realign`, based on the last coherent pre-realignment
+history and merged with local `main` through `0ab3058`, `cf82f73` (main `44ca869`), and `fdf6592` (main `307ce1d`). The merges
+preserve both histories. After the user's 2026-10-09 direction to continue on `main`, application and marketing work continued in
+the shared `/home/kevina/CodingProjects/hutch` checkout; the schedule-control slice is committed there as `8a87ac9`. Main's PF-2
+tool-output source-card change (`c0ebc21`) was integrated through merge `6fab391`; its direct file route was adapted to Hutch's
+recorded size/hash verifier instead of retaining an unchecked path-only `FileResponse`. No push or publication is authorized.
 
 The main checkout may contain unrelated local tooling artifacts; preserve them during final integration. Local `main` is
 fast-forwarded only after implementation and verification for this checkpoint pass; do not push or publish as part of this work.
@@ -136,6 +136,9 @@ grant for held operator review. Desktop, tablet and phone share/revoke flows are
 | `fc8bb20` | Add schema-v39 reviewed OpenCode coding handoffs, pinned Git worktrees, local CLI launch/reconciliation, terminal-session identity, and PTY/process regressions |
 | `a976357` | Add Studio coding-task review/status cards, anonymous marketing disclosure, responsive UI/site checks and inspected screenshot evidence |
 | `6ba8ab9` | Classify terminal Ctrl+C exits as stopped only after process cleanup is verified |
+| `a79aed2` | Add persistent Bot pinning, searchable roster and flat 2D product mascots while retaining detailed 3D marketing art |
+| `38e20e0` | Record mascot and Bot-roster research, design and visual verification |
+| `8a87ac9` | Add schema-v40 workspace schedule overview/control, atomic pause fencing, responsive app/site UI, docs and inspected evidence |
 
 ## Dashboard polish continuation (2026-10-09)
 
@@ -2951,3 +2954,28 @@ phone renders were inspected for Studio/chat, the open phone/tablet roster, mark
 workflow copy and the detailed marketing mascot. No external browser requests or live
 provider calls were made. No full end-to-end product suite, screen reader, physical
 phone, or live provider was exercised in this slice; those remain separate gates.
+
+## Workspace schedules overview and durable pause (schema v40)
+
+Commit `8a87ac9` completes UI-9 on local `main`. The Monitor navigation now opens a bounded,
+chronologically ordered view of recurring tasks across Bots, with each next occurrence formatted in
+its configured time zone, catch-up policy, last-skip record, effective pause status and direct Bot
+settings links. The workspace-wide pause is a separate durable control from each Bot's pause. The
+scheduler checks it before producing due claims and again inside the transaction that claims an
+occurrence and creates its run; a due snapshot read before pause cannot start work afterward. Queued
+and running work continues, and missed windows follow each task's catch-up policy after resume.
+Schema v40 adds the checked pause flag/timestamp and replaces the workspace outbox trigger so device
+reconnects refresh the view.
+
+The main app visual test uses temporary SQLite state and a configured local model route but makes no
+model call. API, migration and scheduler coverage passed **11 focused tests** after the final pause
+and missed-window assertions; the broader affected-module run passed **66 tests** before those final
+assertion-only changes. The responsive app test passed **1 test in 4.24s**, and the anonymous
+marketing test passed **1 in 3.67s**, both with Chromium **153.0.8010.12** / Playwright **1.63.0**.
+Screenshots cover populated and empty views at **1440×960**, **900×1024**, and **390×844**; the phone
+also has top and bottom scroll captures. The marketing Scheduling card was inspected at desktop,
+tablet and phone sizes. Tests report no page errors or external requests. Node syntax, Python
+compilation, JSON parsing and `git diff --check` passed. Evidence and trace are in
+[`artifacts/schedules/`](artifacts/schedules/) and the marketing captures are in
+[`artifacts/bot-purpose-refinement/marketing/`](artifacts/bot-purpose-refinement/marketing/).
+These checks do not exercise a live provider schedule, physical phone or screen reader.
