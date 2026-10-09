@@ -1914,6 +1914,82 @@ def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance
         context.close()
 
 
+def test_workspace_model_default_is_editable_persistent_and_seeds_new_bot_setup(browser, live, monkeypatch):
+    base, app = live
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
+    source_bot = app.state.store.create_bot(Bot(name="workspace-default-source", model="mock/demo", tools=[]))
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workspace-model-defaults"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(f"{base}/#/chat/{source_bot.name}")
+        page.locator("#conversation-switcher").wait_for()
+        page.locator("#prefs-toggle").click()
+        page.get_by_role("button", name="Model defaults for new Bots").click()
+        page.get_by_role("heading", name="Model defaults for new Bots").wait_for()
+        page.locator("#workspace-default-model").fill("openai/gpt-4o-mini")
+        page.locator("#workspace-default-mode").select_option("hybrid")
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
+              modal:document.querySelector('.modal-card').getBoundingClientRect().toJSON(),
+              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight})""")
+            assert metrics["documentWidth"] - width <= 1, (label, metrics)
+            assert metrics["modal"]["x"] >= 0 and metrics["modal"]["right"] <= width + 1, (label, metrics)
+            assert metrics["footerVisible"], (label, metrics)
+            page.screenshot(path=str(out / f"preferences-{label}.png"), animations="disabled")
+        page.set_viewport_size({"width": 1440, "height": 960})
+        page.locator("#modal-confirm").click()
+        page.get_by_role("status").filter(has_text="Workspace defaults saved").wait_for()
+        assert app.state.store.kv_get("workspace:model-defaults") == '{"configured":true,"inference_mode":"hybrid","model":"openai/gpt-4o-mini"}'
+        page.reload()
+        page.locator("#conversation-switcher").wait_for()
+        page.locator("#topbar-new-bot").click()
+        page.get_by_role("heading", name="What should it do?").wait_for()
+        page.locator("#setup-purpose").fill("Prepare a weekly project summary.")
+        page.locator("#modal-confirm").click()
+        page.locator("#modal-confirm").click()
+        page.get_by_label("Bot name").fill("workspace-default-child")
+        page.locator("#modal-confirm").click()
+        page.get_by_role("heading", name="Set its model and workspace").wait_for()
+        assert page.get_by_label("Model route").input_value() == "openai/gpt-4o-mini"
+        assert "Workspace default for new Bots" in page.locator(".setup-conversation").inner_text()
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
+              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
+              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight})""")
+            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
+            assert metrics["footerVisible"], (label, metrics)
+            page.screenshot(path=str(out / f"bot-setup-{label}.png"), animations="disabled")
+        assert app.state.store.list_bots() == [app.state.store.get_bot(source_bot.id)]
+        assert app.state.store.list_runs(limit=20) == []
+        assert not errors, errors
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_workspace_model_default_is_editable_persistent_and_seeds_new_bot_setup",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_workspace_model_default_is_editable_persistent_and_seeds_new_bot_setup",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(), "browser": browser.version,
+            "playwright_version": package_version("playwright"),
+            "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
+            "page_errors": errors,
+            "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
+                              for relative in ("src/hutch/server/static/index.html", "src/hutch/server/static/app.js",
+                                               "src/hutch/server/static/style.css", "src/hutch/server/app.py",
+                                               "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace.zip"))
+        except Exception:
+            pass
+        context.close()
+
+
 def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live):
     base, app = live
     page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")

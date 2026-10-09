@@ -20,6 +20,20 @@ be changed before saving. I inspected the desktop, tablet and phone captures; ea
 view without horizontal overflow. This did not call the model. The anonymous website card now describes the same optional suggestion;
 its browser test asserts the wording and recaptures the responsive card.
 
+## Workspace model defaults for new Bots (2026-10-09)
+
+Chromium **153.0.8010.12** / Playwright **1.63.0** exercised Preferences → Model defaults for new Bots, saved a validated
+hosted-route fixture, reloaded the page, and started Bot setup. The preference persists across reload, seeds the editable model
+field, and creates neither a run nor a Bot before the user completes setup. The API fixture separately verifies that existing
+Bots remain unchanged, explicit route/mode choices win, invalid routes do not replace the saved preference, and clearing it
+restores per-Bot route selection. I inspected the preference dialog and Bot model step at 1440×960, 900×1024, and 390×844;
+the inputs and footer remained visible with no horizontal overflow. Captures, trace, validation results, and source hashes are in
+[`artifacts/workspace-model-defaults/`](artifacts/workspace-model-defaults/). The anonymous marketing workflow now says that
+Preferences can set a default for new Bots, a chat Bot route can still be suggested, and the choice affects new Bots only. Its
+card was captured and inspected at 1440×900, 900×1024, and 390×844; there were no external requests, page errors, or overflow.
+No provider/model call, physical phone, or screen-reader was used. CO-14 remains partial because coordinator/specialist routing
+and actual route identity on cross-Bot runs remain unimplemented.
+
 ## Message-anchored replies (2026-10-09)
 
 Chromium **153.0.8010.12** with Playwright **1.63.0** exercised selecting a specific Bot response by keyboard, checking focus moves

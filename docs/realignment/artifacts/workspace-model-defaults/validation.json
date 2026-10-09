@@ -1,0 +1,30 @@
+{
+  "test": "tests/e2e/test_browser.py::test_workspace_model_default_is_editable_persistent_and_seeds_new_bot_setup",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_workspace_model_default_is_editable_persistent_and_seeds_new_bot_setup",
+  "captured_at": "2026-10-09T10:32:38.251008+00:00",
+  "python": "3.13.15",
+  "browser": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewports": {
+    "desktop": [
+      1440,
+      960
+    ],
+    "tablet": [
+      900,
+      1024
+    ],
+    "phone": [
+      390,
+      844
+    ]
+  },
+  "page_errors": [],
+  "source_sha256": {
+    "src/hutch/server/static/index.html": "a4b8457428880c3c60653387ed91f49f11e0c77f14645bd71ef3983fe466c1ed",
+    "src/hutch/server/static/app.js": "a8c4f7a1276e48bfe94b277f70dc9f09ddabea071134cbc8c185659efe0c4a43",
+    "src/hutch/server/static/style.css": "af11776a60597d4d499939d4ca016e7eae2d05ca9bcc18646794aee4a0793eb6",
+    "src/hutch/server/app.py": "15b74982cb8d98568b72e8d1a33fa97e2b7079802684e38f7fc5870ed4c82789",
+    "tests/e2e/test_browser.py": "c64472fd528aa225de47442a388253f9a0476fcf65e97325c2e6d642ea67dd2c"
+  }
+}

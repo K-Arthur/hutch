@@ -37,6 +37,20 @@ API: `GET /api/bots/<name>/models` returns `{default, models:[{spec,label,group,
 `POST /api/bots/<name>/run` takes an optional `"model": "provider/model"` (409 = usable once set up, 422 = malformed
 or unknown).
 
+## Workspace defaults for new Bots
+
+Preferences can store a workspace model route and inference mode for **new Bot drafts**. The setting is available in Studio
+under Preferences → **Model defaults for new Bots**, and through `GET`/`PUT /api/v1/preferences/model-defaults`. A route is
+validated before it is saved; Strict Offline also requires the local host check and a verified local route. Leave the model
+blank to have each new Bot choose its own route. Saving an empty route clears the model default.
+
+These preferences seed creation only. If the model route is blank, a new Bot still inherits the selected routing mode after the
+user chooses a usable route. They do not edit existing Bot settings, current conversations, scheduled tasks or runs.
+When setup begins from a chat Bot with a configured route, that route is shown as an editable suggestion ahead of the workspace
+default; the user can change it before saving. Explicit choices in the setup request take precedence. The ordinary Bot settings
+remain the saved per-Bot default, and the composer model pill remains a per-message choice that does not silently change the
+saved Bot setting. Coordinator and specialist Bot routing is not yet implemented.
+
 The versioned provider compatibility matrix is available at `GET /api/v1/compatibility` and in
 [provider compatibility](realignment/provider-compatibility.md). It records Hutch's request mapping and evidence for each
 route. The route state describes the common protocol contract, not whether a particular live model can reliably use tools;

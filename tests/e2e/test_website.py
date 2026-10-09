@@ -217,8 +217,9 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
         card = page.locator("#workflow .step-card").first
         text = card.inner_text().lower()
         assert "latest chat request" in text
-        assert "edit before saving" in text
-        assert "editable default suggestion" in text
+        assert "default model route in preferences" in text
+        assert "editable suggestion" in text
+        assert "seed new bots only" in text
         assert "does not start a run" in text
         for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})

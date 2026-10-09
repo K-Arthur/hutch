@@ -1032,6 +1032,60 @@ function applyEffects() {
   const cb = $("#pref-reduce"); if (cb) cb.checked = reduce;
 }
 applyEffects();
+
+async function openWorkspaceModelDefaultsDialog() {
+  let defaults;
+  try { defaults = await api("/v1/preferences/model-defaults"); }
+  catch (err) { toast(`Workspace defaults are unavailable: ${err.message}`, true); return; }
+  const initialMode = defaults.inference_mode || "hybrid";
+  let routeChoices = [];
+  try { routeChoices = await api(`/v1/model-routes?inference_mode=${encodeURIComponent(initialMode)}`); }
+  catch { /* a route can still be entered and the server validates it on save */ }
+  const optionHtml = routes => routes.filter(route => route.state === "ready" && !route.spec.startsWith("mock/"))
+    .map(route => `<option value="${esc(route.spec)}" label="${esc(`${route.group}: ${route.note || route.label}`)}"></option>`).join("");
+  const bodyHtml = `<div class="setup-conversation form-grid">
+      <p class="setup-assistant">These defaults seed new Bot drafts. They do not change existing Bots, chats or runs. Hosted routes send prompts to their provider; Local routing keeps inference on this machine while tools may still use the network. Strict Offline requires verified host isolation.</p>
+      <label class="field" for="workspace-default-model">Default model route<input id="workspace-default-model" list="workspace-default-routes" maxlength="200" autocomplete="off" placeholder="Choose or enter provider/model" value="${esc(defaults.model || "")}">
+        <datalist id="workspace-default-routes">${optionHtml(routeChoices)}</datalist>
+        <span class="hint">Leave empty to choose a route for each new Bot. Existing Bots keep their own saved model.</span></label>
+      <label class="field" for="workspace-default-mode">Default routing<select id="workspace-default-mode">
+        <option value="hybrid" ${initialMode === "hybrid" ? "selected" : ""}>Hybrid — local or hosted</option>
+        <option value="local" ${initialMode === "local" ? "selected" : ""}>Local — this machine</option>
+        <option value="offline" ${initialMode === "offline" ? "selected" : ""}>Strict Offline — host-gated</option>
+      </select></label>
+      <p class="hint" role="status" aria-live="polite">${defaults.configured ? "A saved default is shown. Review availability before using it for a new Bot." : "No workspace model default is set."}</p>
+      <div id="workspace-default-error" role="alert" hidden></div>
+    </div>`;
+  openModal({
+    title: "Model defaults for new Bots", bodyHtml, confirmText: "Save workspace defaults",
+    returnFocus: $("#prefs-toggle"),
+    onConfirm: async () => {
+      const model = $("#workspace-default-model")?.value.trim() || "";
+      const inference_mode = $("#workspace-default-mode")?.value || "hybrid";
+      const error = $("#workspace-default-error");
+      error.hidden = true;
+      try {
+        const saved = await api("/v1/preferences/model-defaults", {
+          method: "PUT", body: { model, inference_mode },
+        });
+        toast(saved.configured ? "Workspace defaults saved for future Bots." : "Workspace model default cleared.");
+        return true;
+      } catch (err) {
+        error.textContent = err.message;
+        error.hidden = false;
+        return false;
+      }
+    },
+  });
+  $("#workspace-default-mode")?.addEventListener("change", async ev => {
+    try {
+      routeChoices = await api(`/v1/model-routes?inference_mode=${encodeURIComponent(ev.target.value)}`);
+      const list = $("#workspace-default-routes");
+      if (list) list.innerHTML = optionHtml(routeChoices);
+    } catch { /* existing or manually entered routes remain editable */ }
+  });
+}
+
 matchMedia("(prefers-reduced-motion: reduce)").addEventListener?.("change", applyEffects);
 {
   const t = $("#prefs-toggle"), pop = $("#prefs-pop");
@@ -1053,6 +1107,11 @@ matchMedia("(prefers-reduced-motion: reduce)").addEventListener?.("change", appl
     store$.set("hutch:reduce-effects", cb.checked);
     applyEffects();
     toast(cb.checked ? "Effects reduced" : "Effects restored");
+  });
+  $("#prefs-model-defaults")?.addEventListener("click", () => {
+    pop.hidden = true;
+    t.setAttribute("aria-expanded", "false");
+    openWorkspaceModelDefaultsDialog();
   });
 }
 
@@ -3867,6 +3926,9 @@ async function promptNewBot(preselect = "") {
   let templates;
   try { templates = await api("/bots/templates"); }
   catch (err) { toast(`Bot setup is unavailable: ${err.message}`, true); return; }
+  let workspaceDefaults = { model: "", inference_mode: "hybrid", configured: false };
+  try { workspaceDefaults = await api("/v1/preferences/model-defaults"); }
+  catch (err) { toast(`Workspace model defaults could not be loaded; choose a route manually. ${err.message}`, true); }
   let conversationSource = null;
   if (currentConversationId && currentStudioBot && /^#\/chat(?:\/|$)/.test(location.hash || "#/chat")) {
     try {
@@ -3884,6 +3946,7 @@ async function promptNewBot(preselect = "") {
             sequence: latestRequest.seq, created_at: latestRequest.created_at,
             original_request: latestRequest.content, source_bot_name: currentStudioBot,
             model_suggestion: sourceBot?.model && !sourceBot.model.startsWith("mock/") ? sourceBot.model : "",
+            inference_mode_suggestion: sourceBot?.model && !sourceBot.model.startsWith("mock/") ? sourceBot.inference_mode : "",
             conversation_title: conversation?.title || "Untitled conversation",
           };
         }
@@ -3900,10 +3963,13 @@ async function promptNewBot(preselect = "") {
     ? "Experimental on this Linux desktop. A person enters passwords, passcodes and verification codes in the visible browser. Hutch never types them or accepts them in chat. This does not enable phone browser control."
     : `Unavailable on this host: ${browserHandoffCapability.reason} This does not enable phone browser control.`;
   const chosenTemplate = templates.find(item => item.name === preselect) || null;
+  const modelSuggestion = conversationSource?.model_suggestion || workspaceDefaults.model || "";
+  const modelSuggestionSource = conversationSource?.model_suggestion ? "chat" : workspaceDefaults.model ? "workspace" : "";
   const draft = {
     step: 0, purpose: conversationSource?.original_request || "", useConversationSource: !!conversationSource,
-    template: chosenTemplate?.name || "", name: "", description: "", model: conversationSource?.model_suggestion || "",
-    inference_mode: "hybrid", workspace_mode: "managed", tools: templateTools(chosenTemplate),
+    template: chosenTemplate?.name || "", name: "", description: "", model: modelSuggestion,
+    inference_mode: conversationSource?.inference_mode_suggestion || workspaceDefaults.inference_mode || "hybrid",
+    workspace_mode: "managed", tools: templateTools(chosenTemplate),
     local_browser_handoff: false,
     cron: "", schedule_prompt: "",
     limits: { max_steps: 24, timeout_seconds: 900, daily_token_cap: 200000,
@@ -3999,7 +4065,7 @@ async function promptNewBot(preselect = "") {
         <p class="setup-assistant">Choose a model route already configured in Hutch. This becomes the Bot’s saved default; saving the Bot does not start a run. Hosted routes send the conversation to that provider; local routes keep inference on this machine.</p>
         <label class="field" for="setup-model">Model route<input id="setup-model" list="setup-model-routes" maxlength="240" autocomplete="off" placeholder="Choose or enter provider/model" value="${esc(draft.model)}" required>
           <datalist id="setup-model-routes">${options}</datalist>
-          <span class="hint">${conversationSource?.model_suggestion ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route: ${esc(conversationSource.model_suggestion)}. Review it or change it here.` : "Choose a route for the new Bot; no model is inherited from the chat."} ${readyRoutes.length ? `${readyRoutes.length} currently available route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} <a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.</span></label>
+          <span class="hint">${modelSuggestionSource === "chat" ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route and routing mode: ${esc(conversationSource.model_suggestion)}. Review both or change them here.` : modelSuggestionSource === "workspace" ? `Workspace default for new Bots: ${esc(workspaceDefaults.model)}. Review it or change it here.` : "Choose a route for the new Bot; no workspace model default is set."} ${readyRoutes.length ? `${readyRoutes.length} currently available route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} <a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.</span></label>
         <label class="field" for="setup-inference_mode">Inference mode<select id="setup-inference_mode">
           <option value="hybrid" ${draft.inference_mode === "hybrid" ? "selected" : ""}>Hybrid — local or hosted</option>
           <option value="local" ${draft.inference_mode === "local" ? "selected" : ""}>Local — this machine</option>

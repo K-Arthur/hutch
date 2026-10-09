@@ -633,6 +633,72 @@ def test_v1_model_route_picker_returns_advisory_choices_without_creating_state(c
     assert client.get("/api/v1/tasks/runs?limit=10").json() == []
 
 
+def test_workspace_model_defaults_seed_only_new_bots_and_explicit_routes_win(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
+    existing = make_bot(client, name="already-configured", model="openai/gpt-4o-mini")
+
+    before = client.get("/api/v1/preferences/model-defaults")
+    assert before.status_code == 200, before.text
+    assert before.json() == {"model": "", "inference_mode": "hybrid", "configured": False}
+
+    saved = client.put("/api/v1/preferences/model-defaults", json={
+        "model": "openai/gpt-4o-mini", "inference_mode": "hybrid",
+    })
+    assert saved.status_code == 200, saved.text
+    assert saved.json() == {"model": "openai/gpt-4o-mini", "inference_mode": "hybrid", "configured": True}
+    assert client.app.state.store.get_bot(existing["id"]).model == "openai/gpt-4o-mini"
+
+    inherited = client.post("/api/v1/bots", headers={"Idempotency-Key": "workspace-default-bot"}, json={
+        "name": "workspace-default-bot", "tools": [],
+    })
+    assert inherited.status_code == 201, inherited.text
+    assert inherited.json()["model"] == "openai/gpt-4o-mini"
+    assert inherited.json()["inference_mode"] == "hybrid"
+
+    explicit = client.post("/api/v1/bots", headers={"Idempotency-Key": "explicit-model-bot"}, json={
+        "name": "explicit-model-bot", "model": "mock/test", "inference_mode": "hybrid", "tools": [],
+    })
+    assert explicit.status_code == 201, explicit.text
+    assert explicit.json()["model"] == "mock/test"
+    assert explicit.json()["inference_mode"] == "hybrid"
+
+
+def test_workspace_model_defaults_reject_unavailable_routes_and_can_be_cleared(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
+    saved = client.put("/api/v1/preferences/model-defaults", json={
+        "model": "openai/gpt-4o-mini", "inference_mode": "hybrid",
+    })
+    assert saved.status_code == 200, saved.text
+
+    rejected = client.put("/api/v1/preferences/model-defaults", json={
+        "model": "provider-that-does-not-exist/model", "inference_mode": "hybrid",
+    })
+    assert rejected.status_code == 422
+    assert client.get("/api/v1/preferences/model-defaults").json()["model"] == "openai/gpt-4o-mini"
+
+    mode_mismatch = client.put("/api/v1/preferences/model-defaults", json={
+        "model": "openai/gpt-4o-mini", "inference_mode": "local",
+    })
+    assert mode_mismatch.status_code == 422
+    assert client.get("/api/v1/preferences/model-defaults").json()["inference_mode"] == "hybrid"
+
+    cleared = client.put("/api/v1/preferences/model-defaults", json={"model": "", "inference_mode": "hybrid"})
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json() == {"model": "", "inference_mode": "hybrid", "configured": False}
+
+    mode_only = client.put("/api/v1/preferences/model-defaults", json={"model": "", "inference_mode": "local"})
+    assert mode_only.status_code == 200, mode_only.text
+    # Isolate inference-mode inheritance from provider availability; no model call occurs.
+    monkeypatch.setattr("hutch.modelchoices.validate_override", lambda config, store, bot, spec: spec)
+    created = client.post("/api/v1/bots", headers={"Idempotency-Key": "workspace-mode-only-bot"}, json={
+        "name": "workspace-mode-only-bot", "model": "ollama/llama3.1", "tools": [],
+    })
+    assert created.status_code == 201, created.text
+    assert created.json()["model"] == "ollama/llama3.1"
+    assert created.json()["inference_mode"] == "local"
+    assert [bot["name"] for bot in client.get("/api/v1/bots").json()] == ["workspace-mode-only-bot"]
+
+
 def test_bot_limits_are_editable_and_validated(client):
     make_bot(client)
     saved = client.patch("/api/bots/api-bot", json={"limits": {

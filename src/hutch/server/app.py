@@ -92,7 +92,7 @@ class BotCreate(BaseModel):
     instructions: str = ""
     model: str = ""
     base_url: Optional[str] = None
-    inference_mode: InferenceMode = InferenceMode.hybrid
+    inference_mode: Optional[InferenceMode] = None
     tools: list[str] = ["shell", "files", "memory"]
     memory_enabled: bool = True
     cron: Optional[str] = None
@@ -160,6 +160,11 @@ class BotPatch(BaseModel):
     clear_cron: bool = False
     timezone: Optional[str] = None
     schedule_prompt: Optional[str] = Field(default=None, max_length=4000)
+
+
+class WorkspaceModelDefaultsUpdate(BaseModel):
+    model: str = Field(default="", max_length=200)
+    inference_mode: InferenceMode = InferenceMode.hybrid
 
 
 class RunRequest(BaseModel):
@@ -1265,6 +1270,48 @@ def create_app() -> FastAPI:
         draft = Bot(name="bot-setup-draft", model="", tools=[], inference_mode=inference_mode)
         return choices_json(model_choices(config, store, draft))
 
+    _WORKSPACE_MODEL_DEFAULTS_KEY = "workspace:model-defaults"
+
+    def get_workspace_model_defaults() -> dict:
+        raw = store.kv_get(_WORKSPACE_MODEL_DEFAULTS_KEY)
+        if raw is None:
+            return {"model": "", "inference_mode": InferenceMode.hybrid.value, "configured": False}
+        try:
+            saved = json.loads(raw)
+            result = WorkspaceModelDefaultsUpdate.model_validate(saved)
+        except (json.JSONDecodeError, ValueError, TypeError):
+            raise HTTPException(500, "workspace model defaults are damaged; clear or restore the local state") from None
+        return {"model": result.model, "inference_mode": result.inference_mode.value,
+                "configured": bool(result.model)}
+
+    @app.get("/api/v1/preferences/model-defaults")
+    def read_workspace_model_defaults() -> dict:
+        """Read model defaults used only to seed future Bot drafts."""
+        return get_workspace_model_defaults()
+
+    @app.put("/api/v1/preferences/model-defaults")
+    def write_workspace_model_defaults(body: WorkspaceModelDefaultsUpdate) -> dict:
+        """Save a validated default for new Bots; existing Bot/run settings are untouched."""
+        model = body.model.strip()
+        if model:
+            from ..modelchoices import ModelNotUsable, validate_override
+            from ..providers.registry import validate_inference_mode, validate_offline_bot
+            draft = Bot(name="workspace-model-default", model=model, tools=[], inference_mode=body.inference_mode)
+            try:
+                validate_inference_mode(body.inference_mode, model)
+                validate_override(config, store, draft, model)
+                if body.inference_mode is InferenceMode.offline:
+                    validate_offline_bot(draft, check_host=True, refresh_host=True)
+            except ModelNotUsable as exc:
+                raise HTTPException(exc.status, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
+            except ValueError as exc:
+                raise HTTPException(422, str(exc)) from None
+        elif body.inference_mode is InferenceMode.offline:
+            raise HTTPException(422, "choose a verified local model route before making Strict offline the workspace default")
+        result = {"model": model, "inference_mode": body.inference_mode.value, "configured": bool(model)}
+        store.kv_set(_WORKSPACE_MODEL_DEFAULTS_KEY, json.dumps(result, sort_keys=True, separators=(",", ":")))
+        return result
+
     def _checked_workdir(raw: str) -> str:
         from ..workdir import validate_workdir
         try:
@@ -1305,18 +1352,22 @@ def create_app() -> FastAPI:
             raise HTTPException(422, f"unknown tools: {unknown}")
         bot.description = body.description or bot.description
         bot.instructions = body.instructions or bot.instructions
-        bot.model = body.model
+        workspace_defaults = get_workspace_model_defaults()
+        requested_model = body.model.strip()
+        inherited_default = not requested_model and bool(workspace_defaults["model"])
+        bot.model = requested_model or workspace_defaults["model"]
+        selected_mode = body.inference_mode or InferenceMode(workspace_defaults["inference_mode"])
         from ..providers.registry import validate_inference_mode, validate_offline_bot
         try:
-            validate_inference_mode(body.inference_mode, bot.model, base_url=body.base_url)
+            validate_inference_mode(selected_mode, bot.model, base_url=body.base_url)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         from ..modelchoices import ModelNotUsable, validate_override
         try:
-            bot.model = validate_override(config, store, bot, body.model)
+            bot.model = validate_override(config, store, bot, bot.model)
         except ModelNotUsable as exc:
             raise HTTPException(422, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
-        bot.inference_mode = body.inference_mode
+        bot.inference_mode = selected_mode
         bot.base_url = body.base_url
         bot.tools = tools
         bot.memory_enabled = body.memory_enabled
@@ -1348,8 +1399,8 @@ def create_app() -> FastAPI:
             except Exception:
                 raise HTTPException(422, "invalid schedule")
         try:
-            validate_offline_bot(bot, check_host=body.inference_mode is InferenceMode.offline,
-                                 refresh_host=body.inference_mode is InferenceMode.offline)
+            validate_offline_bot(bot, check_host=selected_mode is InferenceMode.offline,
+                                 refresh_host=selected_mode is InferenceMode.offline)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         return bot
