@@ -93,6 +93,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `ec73e1e` | Persist credential-free root execution capabilities atomically and inherit the immutable snapshot for bounded lineage; schema-v24 focused regressions pass |
 | `8063243` | Fail directly invoked delegated workers from the authoritative persisted lineage before runtime or tool setup; focused lifecycle/workspace suite 90 passed |
 | `35c045c` | Reject delegated worker processes before recording their process group; 84 worker/delegation/lifecycle tests passed |
+| `536c892` | Record the worker-entrypoint guard; full offline suite 1,333 passed |
 
 ## Dashboard polish continuation (2026-10-09)
 
@@ -1599,9 +1600,9 @@ The direct-worker regression supplies a stale Run projection with the immutable 
 the authoritative row, fails the child as `delegation_unavailable`, and never resolves a runtime. The process worker also rejects a
 validly fenced child before recording a process group. `.venv/bin/python -m pytest -q
 -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning tests/test_delegation.py tests/test_worker.py
-tests/test_engine.py tests/test_engine_loop.py tests/test_claims.py tests/test_cancel.py` passed **84 tests in 51.83s**. The prior
-complete suite, before the one-line dispatch guard and workspace selection change, passed 1,423 tests; rerun the complete suite after
-all remaining realignment work.
+tests/test_engine.py tests/test_engine_loop.py tests/test_claims.py tests/test_cancel.py` passed **84 tests in 51.83s**. The later
+full offline suite at `536c892` passed **1,333 tests in 251.04s** with unhandled-thread and syntax warnings treated as errors; browser
+end-to-end checks remain a separate release gate after main integration.
 
 ## S6 immutable capability snapshot (schema v24, 2026-10-09)
 
@@ -1616,5 +1617,4 @@ Focused verification: `.venv/bin/python -m pytest -q -W error::pytest.PytestUnha
 -W error::SyntaxWarning tests/test_delegation.py tests/test_migration.py tests/test_engine.py tests/test_claims.py` passed **65 tests
 in 25.30s**. This covers v21/v22/v23 upgrade backups, empty legacy snapshots, immutable parent-to-child copying after bot edits,
 credential-free Offline policy capture and a completed Engine run saving its start-time snapshot. No provider, account credential, or
-delegated runtime was contacted or started. `git diff --check` passed before commit; the complete suite has not been rerun after
-this schema change.
+delegated runtime was contacted or started. `git diff --check` passed before commit.
