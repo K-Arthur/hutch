@@ -737,6 +737,27 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .cmenu-sub { display: block; margin-top: 2px; font-size: var(--fs-2xs); color: var(--text-3); }
 .cmenu-facts { display: flex; flex-direction: column; gap: 5px; padding: 6px 10px 2px; font: 400 var(--fs-2xs)/1.5 var(--mono); color: var(--text-3); }
 
+.cmenu-files {
+  all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 9px;
+  width: 100%; min-height: 38px; padding: 7px 10px; border-radius: var(--r-ctl);
+  color: var(--text-2); font-size: var(--fs-sm);
+}
+.cmenu-files:hover, .cmenu-files:focus-visible { color: var(--text); background: var(--raised); }
+.cmenu-files:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+.conversation-files-list { display: grid; gap: 8px; margin-top: var(--s-3); }
+.conversation-file {
+  display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-ctl);
+}
+.conversation-file > .icon { flex: none; color: var(--text-3); }
+.conversation-file-copy { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
+.conversation-file-copy strong { overflow-wrap: anywhere; font: 500 var(--fs-sm)/1.4 var(--mono); color: var(--text); }
+.conversation-file-copy > span { color: var(--text-3); font-size: var(--fs-xs); line-height: 1.45; }
+.conversation-file-copy .conversation-file-state { color: var(--text-2); }
+.conversation-file > .btn { flex: none; }
+#conversation-files-more { display: flex; justify-content: center; margin-top: var(--s-3); }
+
 .quick-prompts { display: grid; gap: 1px; }
 .quick-prompts button {
   all: unset; box-sizing: border-box; cursor: pointer;
@@ -1134,6 +1155,12 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
   .turn-meta { flex-wrap: wrap; }
 }
 
+@media (max-width: 480px) {
+  .conversation-file { align-items: flex-start; flex-wrap: wrap; }
+  .conversation-file-copy { flex-basis: calc(100% - 28px); }
+  .conversation-file > .btn { margin-left: auto; }
+}
+
 /* phone: the context header carries name + actions, not chips or long labels.
    font-size:0 kills the button's text node (the icon is an svg, unaffected);
    hover styles are identical so the zeroed size is invisible. */
@@ -1158,6 +1185,7 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
   .ws-nav a { padding: 10px var(--s-3); }
   .workspace-file-attachments { margin-left: 10px; }
   .workspace-file-attachment .btn { min-height: 44px; }
+  .cmenu-files { min-height: 44px; }
 }
 
 /* forced colors: system paints what matters; state never rides on color alone */
