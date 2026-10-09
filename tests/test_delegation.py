@@ -246,6 +246,31 @@ def test_direct_child_worker_fails_before_runtime_or_tools_start(store, config, 
     assert store.list_events(child.id)[-1].data["reason"] == "delegation_unavailable"
 
 
+def test_process_worker_refuses_child_before_recording_process_group(store, config, monkeypatch):
+    import hutch.worker as worker
+
+    _, parent = _running_parent(store)
+    child, _ = _child(store, parent, key="worker-child-entrypoint")
+    with store._tx() as db:
+        db.execute("UPDATE runs SET lease_owner = ?, lease_expires_at = ?, fence = fence + 1 WHERE id = ?",
+                   ("process-child-worker", iso(utcnow() + timedelta(seconds=60)), child.id))
+    claimed = store.get_run(child.id)
+    observer = Store(config)
+    monkeypatch.setattr(worker, "get_config", lambda: config)
+    monkeypatch.setattr(worker, "Store", lambda _: observer)
+
+    try:
+        result = worker.main([child.id, "--owner", claimed.lease_owner, "--fence", str(claimed.fence)])
+    finally:
+        observer.close()
+
+    failed = store.get_run(child.id)
+    assert result == 0
+    assert failed.status is RunStatus.failed
+    assert failed.exit_reason == "delegation_unavailable"
+    assert failed.pgid == 0
+
+
 def test_delegation_enforces_depth_fanout_and_active_child_limits(store):
     _, root = _running_parent(store)
     child1, _ = _child(store, root, key="child-1")

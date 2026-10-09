@@ -50,6 +50,17 @@ def main(argv: list[str] | None = None) -> int:
             print(f"hutch.worker: {args.run_id} is not claimed by {args.owner} at fence {args.fence} "
                   f"(status {run.status.value}, owner {run.lease_owner!r}, fence {run.fence})", file=sys.stderr)
             return EXIT_NOT_OURS
+        if run.parent_run_id is not None:
+            # This must run before recording our process group or starting signal handling:
+            # delegated rows stay visible, but have no worker until the child executor can
+            # enforce the inherited capability snapshot and artifact boundary.
+            engine = Engine(config, store, owner_id=args.owner, light=True)
+            engine._fail_unavailable_child_executor(run)
+            latest = store.get_run(run.id)
+            if latest is None or latest.status not in LIVE:
+                return EXIT_OK
+            print(f"hutch.worker: {args.run_id} has no capability-enforcing delegated executor", file=sys.stderr)
+            return EXIT_NOT_OURS
         bot = store.get_bot(run.bot_id)
         if bot is None:
             engine = Engine(config, store, owner_id=args.owner, light=True)
