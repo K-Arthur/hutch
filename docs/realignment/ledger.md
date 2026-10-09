@@ -2059,4 +2059,4 @@ Google scope warning is visible before connection. Evidence is in `artifacts/goo
 consent screen, token, event data, Gmail/Outlook account, or live provider request was used; public
 OAuth verification and Windows/macOS credential stores remain unavailable. This code therefore
 remains opt-in behind `HUTCH_GOOGLE_OAUTH_CLIENT_ID` and Linux Secret Service, not a publicly verified
-integration. Implementation commit: pending.
+integration. Implementation commit: `ce5d99c`.
