@@ -42,7 +42,7 @@
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
 body { min-height: 100vh; display: flex; flex-direction: column;
   background-image: radial-gradient(1100px 560px at 50% -12%, var(--glow-page), transparent 72%);
   background-repeat: no-repeat;

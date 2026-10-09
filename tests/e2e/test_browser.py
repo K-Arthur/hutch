@@ -107,9 +107,26 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
               scroll.scrollTop = scroll.scrollHeight;
             }""")
             page.evaluate("document.fonts.ready")
+            studio_body = page.locator("body").evaluate("""element => {
+              const style = getComputedStyle(element);
+              return {fontSize: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight)};
+            }""")
+            studio_body_ratio = studio_body["lineHeight"] / studio_body["fontSize"]
+            assert studio_body_ratio >= 1.5, (label, studio_body)
             indicator = page.locator("#dashboard-polish-typing-fixture .typing-dots span").first
             animation = indicator.evaluate("element => getComputedStyle(element).animationName")
             assert animation == "none", f"typing feedback should be steady, got {animation!r}"
+            indicator_states = page.evaluate("""() => {
+              const slot = document.querySelector('#dashboard-polish-typing-fixture');
+              slot.insertAdjacentHTML('beforeend', '<span class="workflow"><a class="w working"><i class="wdot"></i></a></span><span class="status running">running</span>');
+              const workflowDot = slot.querySelector('.workflow .wdot');
+              const runningStatus = slot.querySelector('.status.running');
+              return {
+                workflowDot: getComputedStyle(workflowDot).animationName,
+                runningStatus: getComputedStyle(runningStatus, '::before').animationName,
+              };
+            }""")
+            assert indicator_states == {"workflowDot": "none", "runningStatus": "none"}, (label, indicator_states)
             indicator_box = page.locator("#dashboard-polish-typing-fixture").bounding_box()
             assert indicator_box and indicator_box["height"] >= 24, (label, indicator_box)
             studio_overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
@@ -126,6 +143,12 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
             }""")
             ratio = heading_metrics["lineHeight"] / heading_metrics["fontSize"]
             assert ratio >= 1.39, (label, heading_metrics)
+            body_metrics = page.locator("body").evaluate("""element => {
+              const style = getComputedStyle(element);
+              return {fontSize: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight)};
+            }""")
+            body_ratio = body_metrics["lineHeight"] / body_metrics["fontSize"]
+            assert body_ratio >= 1.5, (label, body_metrics)
             live_status = page.locator("#live-pill")
             live_status.wait_for()
             live_status_animation = live_status.evaluate(
@@ -138,8 +161,11 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
             page.screenshot(path=str(connections_capture), full_page=True, animations="disabled")
             captures.append({"size": label, "viewport": [width, height], "typing_animation": animation,
                              "typing_indicator_box": indicator_box,
+                             "status_animations": indicator_states,
                              "live_status_animation": live_status_animation,
+                             "studio_body": studio_body, "studio_body_line_height_ratio": round(studio_body_ratio, 3),
                              "heading": heading_metrics, "heading_line_height_ratio": round(ratio, 3),
+                             "body": body_metrics, "body_line_height_ratio": round(body_ratio, 3),
                              "horizontal_overflow": max(studio_overflow, template_overflow),
                              "screenshots": [studio_capture.name, connections_capture.name]})
         assert not errors, errors
@@ -151,10 +177,11 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
             "captured_at": datetime.now(timezone.utc).isoformat(),
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright_version": package_version("playwright"),
-            "scenario": "Synthetic visual-only working indicator fixture; server-rendered Connections heading and steady live-status mark; no run or provider call",
+            "scenario": "Synthetic visual-only working, workflow and running-status indicators; server-rendered Connections typography and live-status mark; no run or provider call",
             "provider_calls": 0, "page_errors": errors, "captures": captures,
             "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
-                              for path in ("src/hutch/server/static/style.css", "src/hutch/server/static/hutch.css",
+                              for path in ("app/src/input.css", "src/hutch/server/static/ui.css",
+                                           "src/hutch/server/static/style.css", "src/hutch/server/static/hutch.css",
                                            "src/hutch/server/static/app.js")},
         }, indent=2) + "\n", encoding="utf-8")
     finally:

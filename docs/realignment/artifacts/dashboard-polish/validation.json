@@ -1,11 +1,11 @@
 {
   "test": "tests/e2e/test_browser.py::test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable",
-  "captured_at": "2026-10-09T03:58:12.768027+00:00",
+  "captured_at": "2026-10-09T08:29:09.509009+00:00",
   "browser": "chromium",
   "browser_version": "153.0.8010.12",
   "playwright_version": "1.63.0",
-  "scenario": "Synthetic visual-only working indicator fixture; server-rendered Connections heading and steady live-status mark; no run or provider call",
+  "scenario": "Synthetic visual-only working, workflow and running-status indicators; server-rendered Connections typography and live-status mark; no run or provider call",
   "provider_calls": 0,
   "page_errors": [],
   "captures": [
@@ -22,12 +22,26 @@
         "width": 760,
         "height": 32.140625
       },
+      "status_animations": {
+        "workflowDot": "none",
+        "runningStatus": "none"
+      },
       "live_status_animation": "none",
+      "studio_body": {
+        "fontSize": 14,
+        "lineHeight": 21.7
+      },
+      "studio_body_line_height_ratio": 1.55,
       "heading": {
         "fontSize": 30,
         "lineHeight": 42
       },
       "heading_line_height_ratio": 1.4,
+      "body": {
+        "fontSize": 14,
+        "lineHeight": 22.4
+      },
+      "body_line_height_ratio": 1.6,
       "horizontal_overflow": 0,
       "screenshots": [
         "studio-desktop.png",
@@ -47,12 +61,26 @@
         "width": 760,
         "height": 32.140625
       },
+      "status_animations": {
+        "workflowDot": "none",
+        "runningStatus": "none"
+      },
       "live_status_animation": "none",
+      "studio_body": {
+        "fontSize": 14,
+        "lineHeight": 21.7
+      },
+      "studio_body_line_height_ratio": 1.55,
       "heading": {
         "fontSize": 30,
         "lineHeight": 42
       },
       "heading_line_height_ratio": 1.4,
+      "body": {
+        "fontSize": 14,
+        "lineHeight": 22.4
+      },
+      "body_line_height_ratio": 1.6,
       "horizontal_overflow": 0,
       "screenshots": [
         "studio-tablet.png",
@@ -72,12 +100,26 @@
         "width": 390,
         "height": 32.140625
       },
+      "status_animations": {
+        "workflowDot": "none",
+        "runningStatus": "none"
+      },
       "live_status_animation": "none",
+      "studio_body": {
+        "fontSize": 14,
+        "lineHeight": 21.7
+      },
+      "studio_body_line_height_ratio": 1.55,
       "heading": {
         "fontSize": 24,
         "lineHeight": 33.6
       },
       "heading_line_height_ratio": 1.4,
+      "body": {
+        "fontSize": 14,
+        "lineHeight": 22.4
+      },
+      "body_line_height_ratio": 1.6,
       "horizontal_overflow": 0,
       "screenshots": [
         "studio-phone.png",
@@ -86,8 +128,10 @@
     }
   ],
   "source_sha256": {
-    "src/hutch/server/static/style.css": "ce11615835fd1fa5fc61bad5ce5f268bf73a38bca7ca0e2d82b2fcd061f346ee",
-    "src/hutch/server/static/hutch.css": "b210610e3326b243cead46022dae19aa0603498467251eae2d9528052a07e2b2",
-    "src/hutch/server/static/app.js": "686ded3fc4fc53886b4aed5e0908a62d6b2a7c56382eb16f5a95682eb3e56818"
+    "app/src/input.css": "71efaff6c91d0ed0ffe3254c6222371ea3c8e45fc694298288a6fea86051d5f6",
+    "src/hutch/server/static/ui.css": "3b79bd2aa64efe92fe18de5f2fc26efe754b11647cb5bbbfbaee1fe0eb92b359",
+    "src/hutch/server/static/style.css": "41fea6bee897d58a91a52d8080ddf0368b8f18a29e189fe414af608afcf948c4",
+    "src/hutch/server/static/hutch.css": "8bf03427660e8da814ac179c8ea58efd66ebfd0b97386e68d8aca47c3ecf6003",
+    "src/hutch/server/static/app.js": "2d2fe7e799d1a387453d4fdadb6a51ed5263baea04f3ae6aa260a0d68a5d4666"
   }
 }

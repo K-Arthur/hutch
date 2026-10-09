@@ -314,7 +314,6 @@ a:hover { text-decoration: underline; }
 .pill.reconnecting { color: var(--warn); border-color: rgba(251, 191, 36, 0.4); }
 .pill.held { color: var(--warn); border-color: var(--line-strong); }
 .pill.offline { color: var(--danger); border-color: rgba(248, 113, 113, 0.45); }
-@keyframes daemon-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
 /* ── top bar (context header of the current view) ── */
 .app-top {
@@ -337,12 +336,9 @@ a:hover { text-decoration: underline; }
 .workflow .w:hover { text-decoration: none; }
 .workflow .wdot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
 .workflow .working { color: var(--brand-hi); }
-.workflow .working .wdot { animation: daemon-pulse 2.4s var(--ease) infinite; }
 .workflow .queued { color: var(--text-3); }
 .workflow .needs { color: var(--warn); }
 .workflow .needs:hover { text-decoration: underline; }
-@media (prefers-reduced-motion: reduce) { .workflow .working .wdot { animation: none !important; } }
-:root.reduce-effects .workflow .working .wdot { animation: none !important; }
 
 main#view {
   grid-row: 2; grid-column: 2;
@@ -411,7 +407,6 @@ button.small, a.small { min-height: 26px; font-size: var(--fs-sm); padding: 0 va
 .status.succeeded, .chip.ok { color: var(--text-2); border-color: var(--line-strong); background: transparent; }
 .status.succeeded::before, .chip.ok::before { background: var(--brand-deep); }
 .status.running, .chip.warn.live { color: var(--brand-hi); border-color: var(--brand-line); background: var(--brand-wash); }
-.status.running::before { animation: daemon-pulse 1.6s var(--ease) infinite; }
 .status.failed, .chip.danger { color: var(--danger); border-color: rgba(248, 113, 113, 0.4); background: transparent; }
 .status.waiting_approval { color: var(--warn); border-color: rgba(251, 191, 36, 0.4); background: transparent; }
 .status.pending, .status.stopped, .status.dismissed, .chip.muted { color: var(--text-3); }

@@ -12,14 +12,16 @@ provider calls, not a screen-reader or physical-device check.
 
 ## Dashboard polish (2026-10-09)
 
-The Studio's three working dots and the server-rendered live-connection mark remain still; “Working…”, “live” and “reconnecting” carry
-the state. Shared server-rendered headings use a 1.4 line-height. The browser test checks the computed heading and status animation,
-and places a visual-only working-indicator fixture in the actual Studio chat layout; it does not claim that a run was active. Chromium
-**153.0.8010.12** / Playwright **1.63.0**
-passed at 1440×960, 900×1024 and 390×844, with no page errors or horizontal overflow. The heading measured 30/42 px on desktop/tablet
-and 24/33.6 px on phone. Screens, trace, source hashes and measurements are in
-[`artifacts/dashboard-polish/`](artifacts/dashboard-polish/). I inspected the Studio phone capture with the steady dots visible and
-the Connections phone capture with its heading and controls fitting the viewport.
+The Studio's three working dots, legacy workflow dot, running-status dot and server-rendered live-connection mark remain still;
+“Working…”, “running”, “live” and “reconnecting” carry the state. A regression check covers both the source CSS and its generated
+Tailwind output so rebuilding the legacy dashboard cannot reintroduce the pulse. Studio body text computes to 14px/21.7px (1.55);
+server-rendered body text computes to 14px/22.4px (1.6). Their headings use 1.3 and 1.4 line-height respectively. The browser test
+checks those computed values and status animations, and places a visual-only working-indicator fixture in the Studio chat layout; it
+does not claim that a run was active. Chromium **153.0.8010.12** /
+Playwright **1.63.0** passed at 1440×960, 900×1024 and 390×844, with no page errors or horizontal overflow. Headings measured 30/42 px
+on desktop/tablet and 24/33.6 px on phone. Screens, trace, source hashes and measurements are in
+[`artifacts/dashboard-polish/`](artifacts/dashboard-polish/). I inspected the Studio and Connections captures at all three widths;
+the phone layouts fit, and the status labels remain legible without an animated dot.
 
 The base-template static detector does not resolve its linked `hutch.css` heading rule and still estimates the browser default line
 height. The existing path-scoped ignore remains, with its reason updated to the new computed measurements; no new ignore was added.

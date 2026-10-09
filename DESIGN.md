@@ -32,6 +32,12 @@ typography:
     fontWeight: 400
     lineHeight: "1.55"
     letterSpacing: "normal"
+  server-body:
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Noto Sans\", Arial, sans-serif, \"Apple Color Emoji\""
+    fontSize: "14px"
+    fontWeight: 400
+    lineHeight: "1.6"
+    letterSpacing: "normal"
   heading:
     fontFamily: "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Noto Sans\", Arial, sans-serif"
     fontSize: "22px"
@@ -150,7 +156,8 @@ prose, labels, or marketing.
 
 ## Typography
 
-- **Body:** system sans, 14px/1.55 default; conversation text 15px/1.65;
+- **Body:** system sans, 14px/1.55 in the legacy console and 14px/1.6 in
+  server-rendered pages; conversation text is 15px/1.65;
   editor text (composer, instructions) 16px+.
 - **Headings:** 22px/1.25 weight 700, tracking −0.02em; section heads 16px/650;
   micro-labels 11px mono uppercase, tracking +0.07em — used only as data labels,
@@ -230,8 +237,8 @@ language after explicit user direction ("right angles feel too off"):
 - Pair every icon with a word for state; give every control a visible focus ring.
 - Use mono only for machine-measured values.
 - Show real server state: if the API cannot confirm it, say "unknown".
-- Keep motion short, functional and state-linked; honour reduced motion and the
-  Reduce effects override (the typing dots are the one live animation).
+- Keep motion short and functional; honor reduced motion and the Reduce effects
+  override. Status dots stay steady; text carries the current state.
 
 **Don't**
 - Never put white on emerald, or amber on something that isn't person-needed.

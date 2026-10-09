@@ -71,12 +71,14 @@ git history; re-verify after changing any value in this table.
   The earlier square-button pass was corrected after review (see below): the mix
   of 0px buttons beside 50% circles, 5px inputs and 8px panels is what read as
   inconsistent, not the roundness itself.
-- **Type:** 11, 12, 13, 14 (body), 16, 18. System sans for all UI; a system
-  serif for the page `<h1>` only (the one editorial signature, 30px at 1.3
-  line-height); `ui-monospace` for tool names, IDs, cron, timestamps, and code.
+- **Type:** 11, 12, 13, 14 (body; 1.55 in the legacy console, 1.6 in
+  server-rendered pages), 16, 18. System sans for UI; a system serif for the
+  server-rendered page `<h1>` (30px/1.4) and a 30px/1.3 legacy `<h1>`; `ui-monospace`
+  for tool names, IDs, cron, timestamps, and code.
 - **Spacing:** 4 / 8 / 12 / 16 / 20 / 24.
-- **Motion:** 120–180ms ease-out; transform/opacity only; every animation
-  respects `prefers-reduced-motion`.
+- **Motion:** 120–180ms ease-out for transitions; transform/opacity only.
+  Status dots remain steady so a persistent state does not imply a heartbeat.
+  Every remaining animation respects `prefers-reduced-motion`.
 - **Layers:** sticky 40, nav 50, modal 100, toast 110. Never increase an
   arbitrary z-index to fix stacking.
 - **Focus:** one treatment everywhere — `:focus-visible { outline: 2px solid
@@ -117,10 +119,9 @@ its own click. If a decision loses a cross-device race (409), it reconciles agai
 resolved state rather than leaving dead buttons. The queue and a "Recently decided"
 list (`?status=resolved`) refresh every 5 s.
 
-**Attention.** The Approvals nav item carries the pending count and a pulsing dot
-anywhere in the app; a newly-arrived approval is announced once through the bounded
-live region. It is the same 6px dot + word pattern as every other status — never
-colour alone — and its pulse is disabled under `prefers-reduced-motion`.
+**Attention.** The Approvals nav item carries the pending count anywhere in the app;
+a newly-arrived approval is announced once through the bounded live region. The
+status dot is steady; count, label, and live announcement carry the changing state.
 
 ### Status chip
 
