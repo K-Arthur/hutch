@@ -48,11 +48,22 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
 * Landed local routes: `/api/v1/health`, `/api/v1/status-labels`, `/api/v1/bots`, `/api/v1/conversations`,
   conversation-scoped `/api/v1/conversations/{id}/artifacts`, run-scoped `/api/v1/tasks/runs/{id}/artifacts` and verified downloads,
   `/api/v1/search/messages`, `/api/v1/tasks/runs`, `/api/v1/actions/approvals`, `/api/v1/usage`, `/api/v1/connections`,
-  `/api/v1/schedules`, `/api/v1/capabilities`, `/api/v1/compatibility`, `/api/v1/workspace/tasks`, cross-run transcript pages and stream at `/api/v1/events` and `/api/v1/events/stream`,
+  `/api/v1/schedules`, `/api/v1/capabilities`, `/api/v1/compatibility`, `/api/v1/model-capabilities`,
+  `/api/v1/preferences/model-defaults`, `/api/v1/workspace/tasks`, cross-run transcript pages and stream at `/api/v1/events` and `/api/v1/events/stream`,
   resource change pages and stream at `/api/v1/changes` and `/api/v1/changes/stream`,
   bounded reconciliation at `/api/v1/snapshot`, and partial remote device resources at `/api/v1/pairing/exchange` and
   `/api/v1/devices`. Versioned bot, run and approval lists accept bounded `limit`/`offset` pages; the legacy bot and approval
   aliases keep their prior response behavior.
+* **Google Calendar (experimental, schema v27).** The local installed-app PKCE flow requests the read-only Calendar List and event scopes.
+  The owner uses `/api/v1/connections/google-calendar` to connect an account and select one calendar for a Bot;
+  `google_calendar_events` returns bounded event title/time/location fields and rechecks the grant.
+  Refresh credentials are stored in Linux Secret Service. The OAuth scope remains account-wide, and Hutch's selected-calendar limit is
+  enforced by its tool. No write operation is exposed; live Google consent and OAuth verification are unverified.
+* **Gmail (experimental private preview).** `/api/v1/connections/google-mail` uses a separate PKCE connection and requests account-wide restricted
+  `gmail.readonly`; it cannot reuse Calendar consent. The owner grants one mailbox to a Bot. Search returns up to ten bounded sender/subject/date/snippet previews. Hutch
+  offers the tool only to its built-in runtime in Local inference mode after checking the primary, fallback and escalation routes are
+  loopback-only; this keeps previews away from hosted provider models. The local inference service is outside Hutch's isolation boundary.
+  Gmail is not cleared for public release pending Google scope verification and any applicable security assessment; no live account was tested.
 * **Outlook Calendar (experimental, schema v33).** `GET /api/v1/connections/outlook-calendar` returns typed, credential-free
   account and Bot-grant metadata. Sign-in begins at `POST /api/v1/connections/outlook-calendar/sign-in` and returns a validated
   Microsoft authorization URL; Microsoft returns only to the local loopback callback. Calendar listing, one-calendar-per-Bot
@@ -261,8 +272,11 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
 TLS certificate/key files. The `/pair` page exchanges a code without exposing the token to JavaScript-readable storage. The Connections
 disclosure lists sessions, identifies the current device, and lets an operator revoke any active session. This has fixture/browser
 coverage, but no live network or physical-device validation.
-Workspace-management resources and verified capability records are not available; the marketing site cannot
-reach localhost. Conversation artifact discovery and explicit artifact-share grants are implemented separately.
+Workspace task records and workspace model defaults are available through `/api/v1/workspace/tasks` and
+`/api/v1/preferences/model-defaults`; these are not general workspace filesystem-management endpoints. Positive, passive tool-call
+observations are available through `/api/v1/model-capabilities`, scoped to the exact connection, account, model and route revision.
+No observation means unknown; this endpoint is not a live guarantee. The anonymous marketing site cannot reach local account state.
+Conversation artifact discovery and explicit artifact-share grants are implemented separately.
 
 ## 4. Frontend acceptance items taken from the evidence ledger
 

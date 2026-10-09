@@ -2845,3 +2845,19 @@ were used. The side-tab detector report on `style.css` was a false positive: its
 referenced selectors are a padded code block and uniformly outlined checkpoint rows. A file-scoped `side-tab` value ignore was
 already present in shared Impeccable configuration and was retained after a direct detector scan returned no such issue; other
 detector rules remain enabled for the stylesheet.
+
+## Account integration support matrix and API contract correction (2026-10-09)
+
+The current provider compatibility guide now has a separate account-integration matrix for Google Calendar, Gmail, Outlook Calendar,
+and Outlook Mail. It distinguishes experimental fixture-tested behavior from live account/consent verification, records the exact
+OAuth scope and per-Bot grant boundary, and explains what account data reaches the selected model and run history. It calls out the
+public-release restriction for Gmail's account-wide `gmail.readonly` scope and its built-in, loopback-Local-only model route gate.
+The API contract now includes Google Calendar and Gmail resources, lists the passive model-capability and workspace-default routes,
+and no longer says capability evidence is unavailable. General workspace filesystem management is still not a v1 API.
+
+Official Google scope and restricted-data policies and Microsoft Graph delegated permission descriptions were checked on 2026-10-09.
+The focused account/API contract run
+`uv run pytest -q tests/test_google_calendar.py tests/test_google_mail.py tests/test_google_mail_api.py tests/test_outlook_calendar.py tests/test_outlook_calendar_api.py tests/test_outlook_mail.py tests/test_outlook_mail_api.py tests/test_compat.py tests/test_api.py::test_versioned_connections_schedules_and_capabilities_are_typed_and_secret_free --no-header`
+passed **60 tests in 4.31s**. `git diff --check` passed. These are local HTTP/OAuth fixtures; no account, consent, provider request,
+new screenshot, or visual UI change was involved. Prior inspected desktop/tablet/phone connection captures remain in the named
+Google Calendar, Gmail, Outlook Calendar and Outlook Mail artifact directories.
