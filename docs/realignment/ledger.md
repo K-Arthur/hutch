@@ -1929,5 +1929,4 @@ marketing HTML.
 
 This is a narrow UI-15 increment, not completion: the wizard still asks for the name, template, model/mode, workspace, tools, limits
 and schedule, and it does not infer safe configuration or ask only unresolved questions. No new permissions, accounts, tools,
-budgets, runs or conversation history are authorized by the source message. The implementation commit is recorded in the
-following validation checkpoint.
+budgets, runs or conversation history are authorized by the source message. Implementation commit: `8445134`.
