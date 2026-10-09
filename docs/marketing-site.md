@@ -47,8 +47,11 @@ The Connections support table may list Google Calendar, Outlook Calendar, and Ou
 require operator OAuth configuration and Linux Secret Service. No provider account or consent verification has been performed.
 For Outlook Calendar, Hutch requests delegated `Calendars.ReadBasic`; for Outlook Mail it requests delegated `Mail.Read` and returns
 bounded message previews to a Bot explicitly granted one mailbox. Microsoft consent is account-level, and Hutch cannot revoke it itself.
-Gmail remains unavailable pending Google restricted-scope verification. Do not imply support for Gmail, calendar writes, mail changes,
-or provider-side verification.
+Gmail may be described only as an owner-configured private preview: it requests restricted, account-wide `gmail.readonly`, returns bounded
+sender/subject/date/snippet previews, and grants the Hutch tool only to built-in Bots with loopback Local model routes and no hosted
+fallback. Google's permission remains broader than Hutch's Bot grant. Public release is unavailable pending applicable Google scope
+verification and any required security assessment. No live provider account or consent has been verified. Do not imply supported Gmail,
+calendar writes, mail changes, or provider-side approval.
 
 The coordinator workflow may say that a completed coordinator answer can be prepared as a task for one selected Bot. The user must
 choose the specialist, review its saved settings, edit the goal, optionally add an expected deliverable and constraints, and explicitly

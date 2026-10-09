@@ -8,8 +8,10 @@ key product requirements. Studio has purpose-derived editable Bot naming, a user
 setup draft, typed built-in-runtime choices, inline approvals, and an experimental read-only Calendar
 path. The named coordinator now has one user-confirmed, durable cross-Bot handoff to a selected specialist;
 multi-step team planning and restart-safe checkpoints remain open. Outlook Calendar and Outlook Mail
-have separate experimental read-only local integrations; neither has live provider verification.
-Gmail remains unavailable pending its restricted-scope release path.
+have separate experimental read-only local integrations; neither has live provider verification. Gmail
+has an owner-configured private-preview search limited to built-in Bots on loopback Local model routes;
+public release remains unavailable pending Google's restricted-scope verification and any required
+security assessment. No live Google account or consent was tested.
 Keep chat as the normal work surface and make Bot configuration, handoff review, and approvals appear in
 context. The roster should remain small by default; use a searchable Fleet surface as the setup grows.
 Roughly ten Bots is the owner's initial heuristic, not a measured threshold.
@@ -35,14 +37,17 @@ Roughly ten Bots is the owner's initial heuristic, not a measured threshold.
    lists, selected artifact/context references, parent cancellation, cost display, bounded prompt questions,
    and delivery reconciliation. Prompt refinement cannot grant capabilities or change standing instructions.
    Creating a reusable specialist or changing its role needs separate review and confirmation.
-4. **Google/Outlook Calendar and Outlook Mail reads are experimental local paths (IG-5 and IG-7 partial).**
-   Each operator must configure its Google Desktop or Microsoft public-client OAuth registration and
+4. **Google/Outlook Calendar and Outlook Mail reads are experimental local paths (IG-5–IG-8 partial).**
+   Each operator configures a Google Desktop or Microsoft public-client OAuth registration and
    Linux Secret Service; no live account or consent-screen verification has been completed. Provider
    grants are account-wide; Hutch limits each Bot to one selected calendar or mailbox. Outlook Calendar uses delegated
    `Calendars.ReadBasic`. Outlook Mail is a separate flow with delegated `Mail.Read`; each Bot can
    search at most ten matching messages and receives sender, subject, received time and a short
-   untrusted preview. It cannot send, edit, delete, forward or fetch attachments. Live account and
-   consent verification remain open. Calendar writes and Gmail remain unavailable.
+   untrusted preview. It cannot send, edit, delete, forward or fetch attachments. Gmail is a private
+   preview using restricted, account-wide `gmail.readonly`; it returns only bounded sender/subject/date/snippet
+   previews to built-in Bots whose model routes all use loopback Local endpoints and have no hosted
+   fallback. Google OAuth still authorizes broader account-level access, which Hutch cannot narrow.
+   Live account and consent verification remain open. Calendar writes and all mail changes remain unavailable.
    Event creation, message sending and every external write need a fresh review showing account,
    destination and complete payload. Keep refresh credentials in the OS credential store rather than
    SQLite, transcripts, prompts or browser storage.
@@ -75,10 +80,10 @@ Roughly ten Bots is the owner's initial heuristic, not a measured threshold.
    and treat its contents as untrusted text with no action authority. Keep the action reachable by
    keyboard and phone touch.
 
-Gmail body search/read requires Google restricted OAuth scopes under the current provider
-documentation. Public support depends on completing the required Google app verification and any
-security assessment; until then this integration must remain unavailable or explicitly limited to
-a verified capability. These features must not appear in marketing as supported until their real
+Gmail search requires Google's restricted OAuth scope under the current provider documentation.
+Public support depends on completing the required Google app verification and any security
+assessment; until then only the explicitly documented owner-configured private preview is available,
+and marketing must label it experimental and unavailable for public release. These features must not appear in marketing as supported until their real
 OAuth, recovery, revocation, action-receipt and desktop/tablet/phone journeys pass. No account,
 provider request or scope has been enabled by this planning update.
 
