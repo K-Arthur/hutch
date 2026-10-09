@@ -17,8 +17,11 @@
       844
     ]
   },
-  "scenario": "purpose-derived name and address are generated locally; edits persist and are reviewed; no run or model/provider request occurs",
+  "scenario": "purpose-derived names preserve follow-up compounds, trim secondary clauses, use an action-appropriate organizer role, and remain editable/reviewed; no run or model/provider request occurs",
   "inspected_screenshots": [
+    "automatic-name-desktop.png",
+    "automatic-name-tablet.png",
+    "automatic-name-phone.png",
     "identity-desktop.png",
     "identity-tablet.png",
     "identity-phone.png",
@@ -34,9 +37,9 @@
   ],
   "page_errors": [],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "7fc9983df3c02bc18cd61fa4ea71eba024b76585c61b9383525a743bbec7ef9d",
-    "src/hutch/server/static/style.css": "074c6678db6471537536bf2f1e0732e4d42cebb186ccd7c7c0fde3b5591cd080",
-    "src/hutch/server/app.py": "a54c2f698fd68258c5fe935c611ef631fa665e91156d5af8e35b3afa8233fc51",
-    "tests/e2e/test_browser.py": "a3ca169739ab159ab6be1495bbf463d7477b23a7539dc1530cbef77a2fed2098"
+    "src/hutch/server/static/app.js": "8fe9b8baf64da886f69c1b4c3017ea18482342e2e1840fef2561a2d1d5a21f8b",
+    "src/hutch/server/static/style.css": "9f3a7520670f789dadc20f0106c7eb96a23684722dbd923495f887a4a21d683c",
+    "src/hutch/server/app.py": "46269ce38bd1fc9c80060b48cc07e8410be8d585bcff00418f9ce4f135b7ef3c",
+    "tests/e2e/test_browser.py": "9b71d5d0141314df9b5417453cf60cb08ad3acd89ca54dadfb86baabcb17a6fb"
   }
 }

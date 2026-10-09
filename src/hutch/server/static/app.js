@@ -4842,7 +4842,8 @@ function suggestBotDisplayName(purpose) {
     { re: /\b(?:monitor|watch|track|follow|flag|keep an eye on|keep up with)\b/i, role: "Monitor" },
     { re: /\b(?:review|audit|check|evaluate|inspect)\b/i, role: "Reviewer" },
     { re: /\b(?:research|investigate|find|compare|analy[sz]e)\b/i, role: "Analyst" },
-    { re: /\b(?:plan|schedule|organize|prepare)\b/i, role: "Planner" },
+    { re: /\b(?:organize|organise|sort)\b/i, role: "Organizer" },
+    { re: /\b(?:plan|schedule|prepare)\b/i, role: "Planner" },
     { re: /\b(?:coordinate|manage)\b/i, role: "Coordinator" },
     { re: /\b(?:draft|write|compose)\b/i, role: "Writer" },
     { re: /\b(?:summari[sz]e|recap|brief)\b/i, role: "Briefing Assistant" },
@@ -4856,12 +4857,16 @@ function suggestBotDisplayName(purpose) {
   }
   if (!selected) return "Workspace Assistant";
   let subject = text.slice(selected.match.index + selected.match[0].length)
-    .split(/[.;,:!?]|\b(?:and then|and|then|so that|when|whenever|if|unless|before|after|while|to notify|notify me|for)\b/i, 1)[0]
+    .split(/[.;,:!?]|\b(?:and then|and|then|so that|when|whenever|if|unless|before|after|while|to notify|notify me|from|into|for)\b/i, 1)[0]
+    .replace(/\bfollow[ -]+up\b/gi, "follow-up")
+    .replace(/\btasks\b/gi, "task")
     .replace(/^(?:\s|the\s+|my\s+|our\s+|a\s+|an\s+|me\s+|us\s+)+/i, "");
-  const stop = new Set(["a", "about", "an", "and", "are", "as", "at", "be", "by", "changes", "from", "in", "into", "is", "it", "of", "on", "or", "the", "this", "to", "with", "me", "my", "our", "us", "you", "your", "bot", "agent", "please", "daily", "weekly", "affecting", "anything", "requests", "tasks", "things", "whatever", "what", "work"]);
+  const stop = new Set(["a", "about", "an", "and", "are", "as", "at", "be", "by", "changes", "each", "from", "in", "into", "is", "it", "of", "on", "or", "the", "this", "to", "with", "me", "my", "our", "us", "you", "your", "bot", "agent", "please", "daily", "weekly", "affecting", "anything", "requests", "things", "whatever", "what", "work"]);
   const acronyms = new Set(["ai", "api", "ci", "cd", "crm", "hr", "qa", "sre", "ui", "ux"]);
-  const words = (subject.match(/[a-z0-9]+/gi) || []).filter(word => !stop.has(word.toLowerCase())).slice(0, 3);
-  const title = words.map(word => acronyms.has(word.toLowerCase()) ? word.toUpperCase() : word[0].toUpperCase() + word.slice(1).toLowerCase());
+  const words = (subject.match(/[a-z0-9]+(?:-[a-z0-9]+)*/gi) || []).filter(word => !stop.has(word.toLowerCase())).slice(0, 3);
+  const title = words.map(word => acronyms.has(word.toLowerCase()) ? word.toUpperCase()
+    : word.split("-").map((part, index) => index === 0
+      ? part[0].toUpperCase() + part.slice(1).toLowerCase() : part.toLowerCase()).join("-"));
   return (title.length ? [...title, ...selected.role.split(" ")] : ["Workspace", ...selected.role.split(" ")]).join(" ");
 }
 

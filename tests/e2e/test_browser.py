@@ -2484,6 +2484,20 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
         address = page.locator("#setup-name")
         assert display_name.input_value() == "Launch Checklist Monitor"
         assert address.input_value() == "launch-checklist-monitor"
+        purpose.fill("Track my follow-up tasks from each meeting and remind me when anything is overdue.")
+        assert display_name.input_value() == "Follow-up Task Monitor"
+        assert address.input_value() == "follow-up-task-monitor"
+        purpose.fill("Organize my receipts into monthly folders and tell me when one is missing.")
+        assert display_name.input_value() == "Receipts Organizer"
+        assert address.input_value() == "receipts-organizer"
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.screenshot(path=str(out / f"automatic-name-{label}.png"), animations="disabled")
+            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight],
+              documentWidth:document.documentElement.scrollWidth,
+              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth})""")
+            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
+        page.set_viewport_size({"width": 1440, "height": 960})
         purpose.fill("Review release notes for changes affecting our project.")
         assert display_name.input_value() == "Release Notes Reviewer"
         assert address.input_value() == "release-notes-reviewer"
@@ -2554,8 +2568,9 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright_version": package_version("playwright"),
             "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
-            "scenario": "purpose-derived name and address are generated locally; edits persist and are reviewed; no run or model/provider request occurs",
-            "inspected_screenshots": [f"identity-{size}.png" for size in ("desktop", "tablet", "phone")]
+            "scenario": "purpose-derived names preserve follow-up compounds, trim secondary clauses, use an action-appropriate organizer role, and remain editable/reviewed; no run or model/provider request occurs",
+            "inspected_screenshots": [f"automatic-name-{size}.png" for size in ("desktop", "tablet", "phone")]
+                                     + [f"identity-{size}.png" for size in ("desktop", "tablet", "phone")]
                                      + [f"review-{size}.png" for size in ("desktop", "tablet", "phone")]
                                      + [f"review-end-{size}.png" for size in ("desktop", "tablet", "phone")]
                                      + [f"chat-{size}.png" for size in ("desktop", "tablet", "phone")],
