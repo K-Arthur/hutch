@@ -150,6 +150,24 @@ def test_only_the_bots_allowed_tools_reach_the_prompt(store, config, tmp_path, o
     assert names == ["remember"]
 
 
+def test_tool_free_bot_draft_run_cannot_call_tools_even_when_the_bot_has_them(store, config, tmp_path, ollama):
+    from hutch.engine import Engine
+
+    ctx, run, _, _ = build(store, config, tmp_path, tools=("files", "browser", "memory"))
+    run.tool_access = "none"
+    tools = Engine.tools_for_run(run, ctx.bot, ctx)
+    assert tools == {}
+
+    ollama.script = agent_script([{"tool_calls": [WRITE]}])
+    with pytest.raises(RunAborted, match="tool-free"):
+        run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
+
+    request = ollama.of("/api/chat")[0]["body"]
+    assert request.get("tools", []) == []
+    assert "only propose the Bot's standing instructions" in request["messages"][0]["content"]
+    assert not (ctx.workspace / "out.md").exists()
+
+
 def test_structured_choice_is_conversation_only_and_pauses_the_model_loop(store, config, tmp_path, ollama):
     from hutch.models import Task, RunStatus
     from hutch.tools import ALL_TOOL_NAMES

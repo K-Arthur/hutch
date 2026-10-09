@@ -845,3 +845,15 @@ App screenshots, trace and source hashes are in [`artifacts/bot-from-message/`](
 the anonymous marketing cards and validation are in [`artifacts/bot-from-message/marketing/`](artifacts/bot-from-message/marketing/).
 Fixtures were local and no model/provider call was made. Screen-reader, physical-device and cross-browser
 validation were not performed.
+
+## Bot-purpose refinement and truthful marketing copy (2026-10-09)
+
+The new coordinator draft was inspected before and after application at desktop **1440×960**, tablet **900×1024**, and phone
+**390×844** in Chromium **153.0.8010.12** / Playwright **1.63.0**. The responsive fixture checked that the suggestion does not
+replace the original purpose until **Use this draft**, carries no later user message or assistant reply, keeps the suggested
+professional Bot name visible, leaves the setup review controls reachable, and produces no page errors or horizontal overflow.
+I inspected all four app captures, including the applied purpose at phone width. The anonymous marketing workflow and Bot-setup
+copy tests passed in the same viewport family; I inspected the final workflow screenshots after placing the experimental purpose
+draft under Bot setup. No external requests or page errors occurred. App captures, trace and hashes plus anonymous marketing
+captures are in [`artifacts/bot-purpose-refinement/`](artifacts/bot-purpose-refinement/). All responses were fixtures: no live
+model/provider call, screen reader, or physical phone was used.

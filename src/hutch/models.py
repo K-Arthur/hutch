@@ -355,6 +355,7 @@ class Run(BaseModel):
     delegation_budget_cost_usd: Optional[float] = None  # immutable shared currency cap inherited by descendants
     rehearsal: bool = False           # dry run: mutating actions are simulated
     model_override: str = ""          # the model picked for THIS message in the chat switcher (bot.model is untouched)
+    tool_access: Literal["bot", "none"] = "bot"  # per-run capability ceiling; "none" is reserved for review-only drafts
     conversation_id: str = ""          # canonical conversation this run belongs to, if submitted through /api/v1
     conversation_context: list[dict[str, str]] = Field(default_factory=list, exclude=True)
     owner: str = ""                   # pid of the process executing this run (kept for compatibility; see lease_owner)

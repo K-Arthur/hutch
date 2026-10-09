@@ -3555,6 +3555,122 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
             context.close()
 
 
+def test_coordinator_can_refine_a_bot_purpose_without_changing_its_source_or_authority(browser, live, monkeypatch):
+    """The opt-in draft is tool-free, reviewable, responsive, and restricted to selected messages."""
+    import hashlib
+    import json
+    from pathlib import Path
+
+    base, app = live
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    store = app.state.store
+    coordinator = store.create_bot(Bot(name="purpose-coordinator", display_name="Mara",
+        model="openai/gpt-4o-mini", tools=["files", "memory"]))
+    store.set_workspace_coordinator(coordinator.id)
+    conversation, _ = store.create_conversation(coordinator.id, "Bot planning",
+        idem_key="purpose-coordinator-chat", request_hash="purpose-coordinator-chat")
+    for seq, message_id, role, content in (
+        (1, "purpose-context-earlier", "user", "Use British spelling and keep the report to one page."),
+        (2, "purpose-source-message", "user", "Prepare a weekly project status report for leadership."),
+        (3, "purpose-source-answer", "assistant", "I can help you define a reporting Bot."),
+        (4, "purpose-later-message", "user", "Do not use this unrelated private follow-up."),
+    ):
+        message_run = Run(bot_id=coordinator.id, prompt=content, status=RunStatus.succeeded,
+                          conversation_id=conversation["id"])
+        store.create_run(message_run)
+        with store._tx() as db:
+            db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
+                       (conversation["id"], message_run.id, message_run.created_at))
+            store._insert_conversation_message(db, message_id=message_id, conversation_id=conversation["id"],
+                seq=seq, run_id=message_run.id, role=role, content=content, created_at=message_run.created_at)
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-purpose-refinement"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    calls: list[dict] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.route("**/api/v1/conversations/*/bot-purpose-drafts", lambda route: (
+        calls.append(json.loads(route.request.post_data or "{}")),
+        route.fulfill(status=201, json={"id": "fixture-purpose-draft-run"})
+    ) if route.request.method == "POST" else route.continue_())
+    page.route("**/api/v1/tasks/runs/fixture-purpose-draft-run**", lambda route: route.fulfill(
+        status=200, json={"id": "fixture-purpose-draft-run", "terminal": True, "status": "succeeded",
+                         "status_label": "Succeeded", "events": [{"type": "message", "data": {
+                             "role": "assistant", "content": "Prepare a weekly leadership report from the project information the owner provides.\n\nSeparate confirmed facts from assumptions, highlight material changes, and list unanswered questions. Keep the report to one page, use British spelling, and do not contact anyone."}}]}
+    ))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(f"{base}/#/chat/{coordinator.name}")
+        page.locator("#conversation-switcher").wait_for()
+        page.locator('[data-create-bot-from-request="purpose-source-message"]').click()
+        original = "Prepare a weekly project status report for leadership."
+        purpose = page.get_by_label("What would you like this bot to handle?")
+        assert purpose.input_value() == original
+        assert "Make a bot" in page.locator("[data-create-bot-from-request='purpose-source-message']").inner_text()
+        page.locator("#setup-context-picker > summary").click()
+        selected_context = page.locator('[data-setup-context-message="purpose-context-earlier"]')
+        selected_context.check()
+        refine = page.get_by_role("button", name="Draft clearer instructions with Mara")
+        assert refine.evaluate("el => el.getBoundingClientRect().height") >= 44
+        refine.click()
+        suggestion_text = "Prepare a weekly leadership report from the project information the owner provides.\n\nSeparate confirmed facts from assumptions, highlight material changes, and list unanswered questions. Keep the report to one page, use British spelling, and do not contact anyone."
+        page.locator("#setup-purpose-draft-text").wait_for()
+        assert purpose.input_value() == original, "the suggestion must not overwrite the user's purpose automatically"
+        assert page.locator("#setup-purpose-draft-text").input_value() == suggestion_text
+        assert len(calls) == 1
+        assert calls[0] == {"source_message_id": "purpose-source-message", "purpose": original,
+                            "context_message_ids": ["purpose-context-earlier"]}
+        assert "Do not use this unrelated private follow-up." not in json.dumps(calls)
+        assert "I can help you define a reporting Bot." not in json.dumps(calls)
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.locator("#setup-purpose-draft-text").evaluate("el => el.scrollIntoView({block:'center',inline:'nearest'})")
+            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight],
+              documentWidth:document.documentElement.scrollWidth,
+              modalWidth:document.querySelector('.modal-card').scrollWidth-document.querySelector('.modal-card').clientWidth,
+              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom<=innerHeight,
+              actionHeight:document.querySelector('#setup-purpose-draft-use').getBoundingClientRect().height,
+              textareaVisible:(() => {const field=document.querySelector('#setup-purpose-draft-text').getBoundingClientRect();
+                const body=document.querySelector('.modal-body').getBoundingClientRect();
+                const footer=document.querySelector('.modal-footer').getBoundingClientRect();
+                return {ok:field.top>=body.top-1 && field.bottom<=footer.top+1,
+                  field:[field.top,field.bottom],body:[body.top,body.bottom],footerTop:footer.top,
+                  scrollTop:document.querySelector('.modal-body').scrollTop,
+                  scrollHeight:document.querySelector('.modal-body').scrollHeight,
+                  clientHeight:document.querySelector('.modal-body').clientHeight};})()})""")
+            assert metrics["documentWidth"] - width <= 1 and metrics["modalWidth"] <= 1, (label, metrics)
+            assert metrics["footerVisible"] and metrics["actionHeight"] >= 44 and metrics["textareaVisible"]["ok"], (label, metrics)
+            page.screenshot(path=str(out / f"review-draft-{label}.png"), animations="disabled")
+        page.get_by_role("button", name="Use this draft").click()
+        assert purpose.input_value() == suggestion_text
+        assert page.locator("#setup-name-preview").inner_text(), "the professional name suggestion remains visible for review"
+        purpose.evaluate("el => el.scrollIntoView({block:'center',inline:'nearest'})")
+        assert "Draft applied to the purpose field" in page.locator("#setup-purpose-draft-status").inner_text()
+        page.screenshot(path=str(out / "purpose-applied-phone.png"), animations="disabled")
+        assert not errors, errors
+        (out / "validation.json").write_text(json.dumps({
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_coordinator_can_refine_a_bot_purpose_without_changing_its_source_or_authority",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"),
+            "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
+            "scenario": "owner explicitly requests one review-only coordinator response using the exact source, editable purpose and only selected earlier user messages; assistant replies and later user messages stay excluded; suggestion does not overwrite purpose or authority until accepted; fixture response, no provider call",
+            "screenshots": [f"review-draft-{size}.png" for size in ("desktop", "tablet", "phone")]
+                           + ["purpose-applied-phone.png"],
+            "draft_request_count": len(calls), "page_errors": errors,
+            "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
+                              for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                               "src/hutch/server/app.py", "src/hutch/models.py", "src/hutch/store.py",
+                                               "tests/test_conversations.py", "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace.zip"))
+        except Exception:
+            pass
+        context.close()
+
+
 def test_workspace_model_default_is_editable_persistent_and_seeds_new_bot_setup(browser, live, monkeypatch):
     base, app = live
     monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")

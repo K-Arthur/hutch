@@ -507,6 +507,65 @@ def test_conversation_authority_is_independent_of_message_page_and_other_convers
     assert listed["active_run_id"] == first.id
 
 
+def test_bot_purpose_draft_uses_only_selected_source_and_has_no_tools(conversation_client):
+    client = conversation_client
+    coordinator = client.post("/api/bots", json={
+        "name": "draft-coordinator", "display_name": "Mara", "model": "mock/demo",
+        "tools": ["files", "memory"],
+    }).json()
+    assert client.put("/api/v1/workspace/coordinator", json={"bot_id": coordinator["id"]}).status_code == 200
+    conversation = client.post("/api/v1/conversations", json={"bot": coordinator["id"]},
+                               headers={"Idempotency-Key": "draft-coordinator-chat"}).json()
+    base = f"/api/v1/conversations/{conversation['id']}/messages"
+    earlier_run = client.post(base, json={"prompt": "Use British spelling."},
+                              headers={"Idempotency-Key": "draft-earlier"}).json()["id"]
+    source_run = client.post(base, json={"prompt": "Prepare a weekly project report."},
+                             headers={"Idempotency-Key": "draft-source"}).json()["id"]
+    later_run = client.post(base, json={"prompt": "Do not use this unrelated private later request."},
+                            headers={"Idempotency-Key": "draft-later"}).json()["id"]
+    messages = client.get(f"/api/v1/conversations/{conversation['id']}").json()["messages"]
+    source = next(message for message in messages if message["run_id"] == source_run and message["role"] == "user")
+    earlier = next(message for message in messages if message["content"] == "Use British spelling.")
+    request_body = {"source_message_id": source["id"], "purpose": "Prepare a useful weekly status report.",
+                    "context_message_ids": [earlier["id"]]}
+    headers = {"Idempotency-Key": "draft-purpose-1"}
+    drafted = client.post(f"/api/v1/conversations/{conversation['id']}/bot-purpose-drafts",
+                         json=request_body, headers=headers)
+    assert drafted.status_code == 201, drafted.text
+    run = client.app.state.store.get_run(drafted.json()["id"])
+    assert run.origin == "manual:bot_draft" and run.tool_access == "none"
+    assert len(run.conversation_context) == 1
+    selected = run.conversation_context[0]["content"]
+    assert "Prepare a weekly project report." in selected
+    assert "Prepare a useful weekly status report." in selected
+    assert "Use British spelling." in selected
+    assert "Do not use this unrelated private later request." not in selected
+    from hutch.engine import Engine
+    snapshot = Engine.capability_snapshot(client.app.state.store.get_bot(coordinator["id"]), run.tool_access)
+    assert snapshot["tools"] == []
+    assert snapshot["memory_enabled"] is False and snapshot["browser_handoff"] is False
+    assert snapshot["shell_network"] is False and snapshot["tool_access"] == "none"
+    replay = client.post(f"/api/v1/conversations/{conversation['id']}/bot-purpose-drafts",
+                         json=request_body, headers=headers)
+    assert replay.status_code == 200 and replay.json()["id"] == run.id and replay.json()["replayed"] is True
+    changed = client.post(f"/api/v1/conversations/{conversation['id']}/bot-purpose-drafts",
+                          json={**request_body, "purpose": "Changed purpose"}, headers=headers)
+    assert changed.status_code == 409
+    later = next(message for message in messages if message["content"] == "Do not use this unrelated private later request.")
+    invalid = client.post(f"/api/v1/conversations/{conversation['id']}/bot-purpose-drafts",
+                          json={**request_body, "context_message_ids": [later["id"]]},
+                          headers={"Idempotency-Key": "draft-purpose-later-context"})
+    assert invalid.status_code == 422
+    escaped_run = client.post(base, json={"prompt": "<" * 5_000},
+                              headers={"Idempotency-Key": "draft-escaped-source"}).json()["id"]
+    escaped_source = next(message for message in client.get(f"/api/v1/conversations/{conversation['id']}").json()["messages"]
+                          if message["run_id"] == escaped_run and message["role"] == "user")
+    oversized_encoded = client.post(f"/api/v1/conversations/{conversation['id']}/bot-purpose-drafts",
+        json={"source_message_id": escaped_source["id"], "purpose": "Summarize it.", "context_message_ids": []},
+        headers={"Idempotency-Key": "draft-purpose-oversized-safe-encoding"})
+    assert oversized_encoded.status_code == 422 and "shorten" in oversized_encoded.json()["detail"]
+
+
 def test_coordinator_dispatch_is_reviewed_atomic_and_stays_in_specialist_context(conversation_client, monkeypatch):
     client = conversation_client
     coordinator = client.post("/api/bots", json={

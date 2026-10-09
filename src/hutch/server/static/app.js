@@ -5310,6 +5310,10 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
             conversation_id: conversationId, message_id: selectedRequest.id,
             sequence: selectedRequest.seq, created_at: selectedRequest.created_at,
             original_request: selectedRequest.content, source_bot_name: currentStudioBot,
+            source_bot_display_name: sourceBot ? botDisplayName(sourceBot) : currentStudioBot,
+            source_bot_is_coordinator: !!sourceBot?.is_workspace_coordinator,
+            source_bot_runtime: sourceBot?.runtime || "",
+            source_bot_model: sourceBot?.model && !sourceBot.model.startsWith("mock/") ? sourceBot.model : "",
             is_latest_request: selectedRequest.id === latestRequest?.id,
             context_candidates: userMessages.filter(message => message.id !== selectedRequest.id
               && Number(message.seq) < Number(selectedRequest.seq)).slice(-8),
@@ -5337,6 +5341,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
     step: 0, purpose: conversationSource?.original_request || "", useConversationSource: !!conversationSource,
     selectedContextMessageIds: new Set(),
     template: chosenTemplate?.name || "", name: "", display_name: "", description: "", model: modelSuggestion,
+    purposeRefinement: null, purposeRefinementStatus: "",
     inference_mode: conversationSource?.inference_mode_suggestion || workspaceDefaults.inference_mode || "hybrid",
     workspace_mode: "managed", tools: templateTools(chosenTemplate),
     local_browser_handoff: false,
@@ -5372,6 +5377,30 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
   };
   const selectedCreationContext = () => (conversationSource?.context_candidates || [])
     .filter(message => draft.selectedContextMessageIds.has(message.id));
+  const currentPurposeDraftFingerprint = () => JSON.stringify({
+    source_message_id: draft.useConversationSource ? conversationSource?.message_id || "" : "",
+    purpose: draft.purpose, context: selectedCreationContext().map(message => message.id),
+  });
+  const markPurposeDraftFreshness = () => {
+    const suggestion = draft.purposeRefinement;
+    if (!suggestion) return;
+    draft.purposeRefinementStatus = suggestion.sourceFingerprint === currentPurposeDraftFingerprint()
+      ? "Draft ready. Review it before applying; no Bot configuration has changed."
+      : "The purpose or selected context changed after this suggestion. Draft again before applying it.";
+    const status = $("#setup-purpose-draft-status");
+    if (status) status.textContent = draft.purposeRefinementStatus;
+  };
+  const purposeRefinementHtml = () => {
+    if (!draft.purposeRefinement) return "";
+    const suggestion = draft.purposeRefinement;
+    return `<section class="setup-purpose-draft" aria-labelledby="setup-purpose-draft-title">
+      <h4 id="setup-purpose-draft-title">Coordinator’s instruction draft</h4>
+      ${suggestion ? `<p class="hint">Review and edit the suggestion. Your original request remains linked; nothing changes until you apply it.</p>
+        <label class="field" for="setup-purpose-draft-text">Proposed standing instructions<textarea id="setup-purpose-draft-text" rows="7" maxlength="20000">${esc(suggestion.content)}</textarea></label>
+        <p class="hint">Open questions are listed instead of guessed. To add an answer, update the purpose above and draft again; later chat messages are not sent.</p>
+        <button type="button" class="btn small" id="setup-purpose-draft-use">Use this draft</button>` : ""}
+    </section>`;
+  };
   const instructionsForDraft = () => {
     const purpose = draft.purpose.trim();
     const selected = selectedCreationContext();
@@ -5475,8 +5504,15 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
       </details>` : ""}
       <label class="field" for="setup-purpose">What would you like this bot to handle?</label>
       <textarea id="setup-purpose" rows="5" maxlength="20000" placeholder="For example: review release notes and prepare a short summary of changes that affect our project." required>${esc(draft.purpose)}</textarea>
-      <p class="hint">This becomes the Bot’s standing instructions. Selected earlier messages are included as background; Hutch does not infer extra permissions or access.</p>
-      <p class="hint setup-name-preview">Suggested name: <strong id="setup-name-preview">${esc(draft.display_name)}</strong> · review or change it below.</p>
+        <p class="hint">This becomes the Bot’s standing instructions. Selected earlier messages are included as background; Hutch does not infer extra permissions or access.</p>
+        ${conversationSource?.source_bot_is_coordinator && conversationSource.source_bot_runtime === "builtin" && conversationSource.source_bot_model ? `<div class="setup-refine-action">
+          <button type="button" class="btn small" id="setup-refine-purpose">Draft clearer instructions with ${esc(conversationSource.source_bot_display_name)}</button>
+          <p class="hint">Each draft request returns one response using ${esc(conversationSource.source_bot_display_name)}’s saved route (${esc(conversationSource.source_bot_model)}) and configured fallback. It receives this request, your purpose, and only earlier messages you selected. No tools are available. Normal usage limits apply; hosted providers may retain the text under their terms. Review before applying.</p>
+          <p class="hint">Stop a running draft from the coordinator chat. No Bot settings change until you apply it.</p>
+          <p class="hint" role="status" aria-live="polite" id="setup-purpose-draft-status">${esc(draft.purposeRefinementStatus)}</p>
+        </div>` : ""}
+        ${purposeRefinementHtml()}
+        <p class="hint setup-name-preview">Suggested name: <strong id="setup-name-preview">${esc(draft.display_name)}</strong> · review or change it below.</p>
       <details class="setup-schedule setup-identity">
         <summary>Review or change the suggested name</summary>
         <div class="form-grid">
@@ -5579,19 +5615,102 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
       refreshNamePreview();
       const purpose = $("#setup-purpose");
       if (purpose) { purpose.value = draft.purpose; if (!draft.useConversationSource) purpose.focus(); }
+      const refine = $("#setup-refine-purpose");
+      if (refine) refine.disabled = !draft.useConversationSource;
       refreshContextCount();
+      markPurposeDraftFreshness();
     });
     $("#setup-purpose")?.addEventListener("input", event => {
       draft.purpose = event.currentTarget.value;
       refreshSuggestedIdentity();
       refreshNamePreview();
       refreshContextCount();
+      markPurposeDraftFreshness();
     });
     $$('[data-setup-context-message]').forEach(input => input.addEventListener("change", () => {
       draft.selectedContextMessageIds = new Set($$('[data-setup-context-message]:checked')
         .map(item => item.dataset.setupContextMessage));
       refreshContextCount();
+      markPurposeDraftFreshness();
     }));
+    $("#setup-purpose-draft-use")?.addEventListener("click", () => {
+      const suggestion = $("#setup-purpose-draft-text")?.value || "";
+      if (!suggestion.trim() || suggestion.length > 20_000) {
+        setError("Review a non-empty instruction draft within the 20,000-character limit.");
+        return;
+      }
+      const sourceState = draft.purposeRefinement?.sourceFingerprint;
+      if (!draft.useConversationSource || sourceState !== currentPurposeDraftFingerprint()) {
+        setError("The purpose or selected context changed after this draft was requested. Draft again before using it.");
+        return;
+      }
+      draft.purpose = suggestion;
+      draft.purposeRefinement = null;
+      draft.purposeRefinementStatus = "Draft applied to the purpose field. Review it and the remaining Bot settings before creating.";
+      refreshSuggestedIdentity();
+      void renderStep().then(() => $("#setup-purpose")?.focus());
+    });
+    $("#setup-refine-purpose")?.addEventListener("click", async event => {
+      snapshotFields();
+      setError("");
+      if (!conversationSource?.source_bot_is_coordinator || !draft.useConversationSource || !draft.purpose.trim()) {
+        setError("Use the selected coordinator request and review a non-empty purpose before drafting.");
+        return;
+      }
+      if (Array.from(instructionsForDraft()).length > 20_000) {
+        setError("Shorten the purpose or select fewer messages before drafting; the combined text exceeds 20,000 characters.");
+        return;
+      }
+      const body = {source_message_id: conversationSource.message_id, purpose: draft.purpose,
+        context_message_ids: selectedCreationContext().map(message => message.id)};
+      const sourceFingerprint = currentPurposeDraftFingerprint();
+      const keyStorage = `hutch-bot-purpose-draft:${conversationSource.conversation_id}:${conversationSource.message_id}`;
+      const fingerprint = await payloadFingerprint(body);
+      let key;
+      try {
+        const prior = JSON.parse(storageGet(keyStorage) || "null");
+        key = prior?.fingerprint === fingerprint ? prior.key : null;
+      } catch { /* replace a damaged retry marker */ }
+      if (!key) {
+        key = newIdempotencyKey();
+        storageSet(keyStorage, JSON.stringify({fingerprint, key}));
+      }
+      const button = event.currentTarget;
+      button.disabled = true;
+      draft.purposeRefinement = null;
+      draft.purposeRefinementStatus = "Starting one tool-free model response with the workspace coordinator…";
+      const status = $("#setup-purpose-draft-status");
+      if (status) status.textContent = draft.purposeRefinementStatus;
+      try {
+        const run = await api(`/v1/conversations/${encodeURIComponent(conversationSource.conversation_id)}/bot-purpose-drafts`, {
+          method: "POST", headers: {"Idempotency-Key": key}, body,
+        });
+        const deadline = Date.now() + 120_000;
+        let state;
+        while (Date.now() < deadline) {
+          state = await api(`/v1/tasks/runs/${encodeURIComponent(run.id)}?events=200`);
+          if (state.terminal) break;
+          draft.purposeRefinementStatus = `Coordinator draft is ${state.status_label || state.status}; you can keep this sheet open or stop the run in chat.`;
+          const progress = $("#setup-purpose-draft-status");
+          if (progress) progress.textContent = draft.purposeRefinementStatus;
+          await new Promise(resolve => setTimeout(resolve, 900));
+        }
+        if (!state?.terminal) throw new Error("The request is still running. Its status and Stop control are in the coordinator chat.");
+        if (state.status !== "succeeded") throw new Error(state.error || state.reason || `Draft ended as ${state.status_label || state.status}.`);
+        const answer = [...(state.events || [])].reverse().find(item => item.type === "message" && item.data?.role === "assistant")?.data?.content || "";
+        if (!answer.trim()) throw new Error("The coordinator did not return an instruction draft.");
+        if (answer.length > 20_000) throw new Error("The coordinator draft exceeds the 20,000-character limit; edit it in chat before using it.");
+        draft.purposeRefinement = {content: answer, sourceFingerprint};
+        draft.purposeRefinementStatus = "Draft ready. Review it before applying; no Bot configuration has changed.";
+        await renderStep();
+        $("#setup-purpose-draft-text")?.focus();
+      } catch (error) {
+        draft.purposeRefinementStatus = `Draft not applied: ${error.message}`;
+        const progress = $("#setup-purpose-draft-status");
+        if (progress) progress.textContent = draft.purposeRefinementStatus;
+        button.disabled = false;
+      }
+    });
     refreshContextCount();
     $("#setup-display_name")?.addEventListener("input", event => {
       displayNameEdited = true;

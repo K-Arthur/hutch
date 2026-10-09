@@ -1,0 +1,38 @@
+{
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_coordinator_can_refine_a_bot_purpose_without_changing_its_source_or_authority",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewports": {
+    "desktop": [
+      1440,
+      960
+    ],
+    "tablet": [
+      900,
+      1024
+    ],
+    "phone": [
+      390,
+      844
+    ]
+  },
+  "scenario": "owner explicitly requests one review-only coordinator response using the exact source, editable purpose and only selected earlier user messages; assistant replies and later user messages stay excluded; suggestion does not overwrite purpose or authority until accepted; fixture response, no provider call",
+  "screenshots": [
+    "review-draft-desktop.png",
+    "review-draft-tablet.png",
+    "review-draft-phone.png",
+    "purpose-applied-phone.png"
+  ],
+  "draft_request_count": 1,
+  "page_errors": [],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "5316e190abfcabe18137379cc38950b1012596df8b40a649367b105ae1604abb",
+    "src/hutch/server/static/style.css": "e145d449b9993eb6bcb0da14c96838b96aba5b6880b3a486390ca13eea1c2152",
+    "src/hutch/server/app.py": "0fb1b4974af4c1aedf7539cf2695886e58c9b6a6e20cbc269814435e8bd65392",
+    "src/hutch/models.py": "11668b36b61fe204e07f0b4d29711203e52290d412e39578205bfff0586737f3",
+    "src/hutch/store.py": "1635fd993232f3d6b72498c0ac055da95dd45f2ddab10a5427e540323bb4dbb6",
+    "tests/test_conversations.py": "e6ccad41576042a278b711a5b32e578adfecc647c18dbdc24c57dd95456d908f",
+    "tests/e2e/test_browser.py": "68689cfcbedf7dffdca792335e19a0091e2d7fd782339be67b778109113e772d"
+  }
+}

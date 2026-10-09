@@ -29,7 +29,10 @@ Roughly ten Bots is the owner's initial heuristic, not a measured threshold.
    Show the complete staged configuration for review, then create idempotently only after explicit
    confirmation. Creating a bot never starts a run by itself. Keep the direct configuration route
    available during rollout. Message-level source selection is implemented and responsive-fixture
-   tested; natural-language refinement and clarification are still open.
+   tested. The workspace coordinator can optionally return one tool-free response per refinement
+   request, grounded in the exact source, current purpose and explicitly selected earlier user
+   context. The user must review and apply it. Multi-round clarification and generative naming remain
+   open; current deterministic, local naming suggestions still require user review.
 3. **Coordinator foundation landed; multi-step orchestration remains open.** One Bot can be named the
    workspace coordinator, with its own direct conversation. A completed answer can be turned into an
    editable brief for one selected existing Bot after explicit review; provenance, assumptions, target

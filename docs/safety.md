@@ -222,6 +222,18 @@ checkpoint. A model response that bundles a choice request with any other tool c
 a batch before sibling calls can run. Pi/OpenCode adapters do not support the chat primitive while
 those external runtimes remain disabled.
 
+## Bot-purpose drafting
+
+The optional New Bot refinement action is available only from a built-in workspace coordinator chat. It sends the exact source
+user request, the owner's editable current purpose and only earlier user messages explicitly selected from that same conversation.
+The request uses a normal run and budget reservation, but the run has no tools and cannot execute actions even if the coordinator
+Bot ordinarily has capabilities. The runtime does not receive the Bot's recent chat history beyond this explicit context. A model
+tool call is refused without execution; truncation fails closed rather than escalating or dropping context. The coordinator can
+suggest wording and list material unanswered questions, but cannot create the Bot or change any permissions. The source remains
+unchanged until the owner applies the editable suggestion; full configuration review and a separate create confirmation still
+follow. Each request returns one response; the owner may edit the purpose and submit another, but there is no interactive
+clarification loop. Model behavior is fixture-tested, not live-provider verified.
+
 ## Coordinator handoffs
 
 The workspace coordinator can prepare a specialist task only from its own completed assistant answer and the matching user

@@ -168,7 +168,7 @@ def test_static_site_makes_no_external_requests(browser, site_url):
 
 def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
-    out = ROOT / "docs/realignment/artifacts/workspace-task-dispatch/site"
+    out = ROOT / "docs/realignment/artifacts/bot-purpose-refinement/marketing"
     out.mkdir(parents=True, exist_ok=True)
     index = (SITE_DIR / "index.html").read_bytes()
     external = []
@@ -182,6 +182,13 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
         assert "local supervisor" in page.locator("body").inner_text().lower()
         assert "built-in chat can ask you to choose among options" in workflow.inner_text().lower()
         assert "your answer continues the conversation and never approves an action" in workflow.inner_text().lower()
+        assert "experimental (built-in coordinator only)" in workflow.inner_text().lower()
+        assert "tool-free purpose rewrite from the exact source" in workflow.inner_text().lower()
+        assert "each request returns one response" in workflow.inner_text().lower()
+        assert "earlier user messages you select" in workflow.inner_text().lower()
+        assert "hosted providers may retain the text" in workflow.inner_text().lower()
+        assert "drafting creates no bot or permission changes" in workflow.inner_text().lower()
+        assert "live quality is unverified" in workflow.inner_text().lower()
         assert "experimental coordinator handoff" in workflow.inner_text().lower()
         assert "content-free progress timeline" in workflow.inner_text().lower()
         assert "continue only from a safe checkpoint" in workflow.inner_text().lower()
@@ -240,6 +247,7 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
         assert "no tools" in text and "no schedule" in text
         assert "recurring work" in text
         assert "does not start a run" in text
+        assert "experimental (built-in coordinator only)" in page.locator("#workflow").inner_text().lower()
         model_card = page.locator("#runs .feature").filter(has_text="Hutch supports configured OpenAI").first
         model_text = model_card.inner_text().lower()
         assert "next message" in model_text

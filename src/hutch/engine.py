@@ -191,6 +191,9 @@ class Engine:
                             "Review the Bot settings and submit the task again.")
                         return False
                 target = bot.model_copy(update={"model": run.model_override}) if run.model_override else bot
+            if run.tool_access == "none" and target.runtime.value != "builtin":
+                self._fail_unavailable_runtime(run, "tool-free review runs require the built-in runtime")
+                return False
             get_runtime(target)
         except ValueError as exc:
             if run.parent_run_id is not None:
@@ -485,16 +488,16 @@ class Engine:
         return run_dir, workspace, workdir_error
 
     @staticmethod
-    def capability_snapshot(bot: Bot) -> dict[str, object]:
+    def capability_snapshot(bot: Bot, tool_access: str = "bot") -> dict[str, object]:
         """The credential-free permission/routing policy active when a run starts."""
         from .tools import expand_tools
 
         fingerprint = lambda value: hashlib.sha256((value or "").encode("utf-8")).hexdigest()
         offline = bot.inference_mode.value == "offline"
-        tools = expand_tools(bot.tools)
+        tools = [] if tool_access == "none" else expand_tools(bot.tools)
         if offline:
             tools = [name for name in tools if name not in {"web_fetch", "browser"}]
-        return {
+        snapshot = {
             "snapshot_version": 1,
             "bot_id": bot.id,
             "description_sha256": fingerprint(bot.description),
@@ -521,6 +524,21 @@ class Engine:
             "selfcheck": bot.selfcheck,
             "num_ctx": bot.num_ctx,
         }
+        if tool_access == "none":
+            snapshot["tool_access"] = "none"
+            snapshot["memory_enabled"] = False
+            snapshot["shell_network"] = False
+            snapshot["browser_handoff"] = False
+        return snapshot
+
+    @staticmethod
+    def tools_for_run(run: Run, bot: Bot, ctx: ToolContext) -> dict[str, Tool]:
+        """Apply run-level restrictions before constructing any action or conversation tool."""
+        if run.tool_access == "none":
+            if bot.runtime.value != "builtin":
+                raise ValueError("tool-free review runs require the built-in runtime")
+            return {}
+        return build_tools(bot.tools, ctx)
 
     @staticmethod
     def _delegated_bot(bot: Bot, snapshot: dict[str, object]) -> Bot:
@@ -668,6 +686,9 @@ class Engine:
                     persisted, "The specialist's model, instructions, permissions or workspace changed after review. "
                     "Review the Bot settings and submit the task again.")
                 return
+        if run.tool_access == "none" and bot.runtime.value != "builtin":
+            self._fail_unavailable_runtime(run, "tool-free review runs require the built-in runtime")
+            return
         try:
             runtime = get_runtime(bot)
         except RuntimeError as exc:
@@ -694,7 +715,7 @@ class Engine:
             run = self.store.transition_run(
                 run.id, RunStatus.running, fence=run.fence, event={"origin": run.origin},
                 fields={"started_at": iso(utcnow()), "workspace": str(workspace), "owner": str(os.getpid())},
-                capability_snapshot=self.capability_snapshot(bot) if run.parent_run_id is None else None)
+                capability_snapshot=self.capability_snapshot(bot, run.tool_access) if run.parent_run_id is None else None)
         except (IllegalTransition, LeaseLost, KeyError):
             self._finish_unstarted(run)
             return
@@ -716,12 +737,13 @@ class Engine:
                 ctx, task, idem, request_hash, deadline)
         # remember every process this run starts, so a supervisor that did not spawn it can still end it after a crash
         ctx.procs.on_register = lambda pid, pgid, st, kind, boot: self.store.add_proc(run.id, pid, pgid, st, kind, boot)
-        tools = build_tools(bot.tools, ctx)
+        tools = self.tools_for_run(run, bot, ctx)
         if "delegate_task" in bot.tools and "delegate_task" not in tools:
             emit(Event(run_id=run.id, type=EventType.log,
                        data={"note": "delegate_task is unavailable: it requires a supervised Strict Offline built-in run"}))
         emit(Event(run_id=run.id, type=EventType.log,
                    data={"runtime": runtime.kind, "model": bot.model,
+                         "tool_access": run.tool_access,
                          "inference_mode": bot.inference_mode.value,
                          "browser_handoff": "local_desktop" if bot.local_browser_handoff else "headless",
                          "tools": sorted(tools), "limits": bot.limits.model_dump(),

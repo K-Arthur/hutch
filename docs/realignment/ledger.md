@@ -2630,3 +2630,34 @@ both still execute and assert the specific migration behavior. The complete offl
 tests in 303.37s** with unhandled thread exceptions and syntax warnings treated as errors. The first run had
 only these two stale assertions failing against current schema v36; the rerun was fully green. Browser/live
 provider/performance release gates are not implied by this offline result.
+
+## S6 coordinator-assisted Bot-purpose refinement (2026-10-09)
+
+Implementation commit: pending.
+
+New Bot setup can request an optional purpose refinement from the built-in workspace coordinator. Each request returns one draft;
+the owner can edit the purpose and request another. The server accepts only the exact source user message, the current editable
+purpose, and up to eight explicitly selected earlier user messages from that same chat. It excludes later messages, assistant
+replies and all other chat history. Source values are encoded as bounded untrusted data; if safe encoding exceeds the 24,000
+character window, the request receives an actionable `422` before run admission. Idempotent retry is exact-payload-bound and
+changed content conflicts.
+
+The refinement is a normal admitted conversation run, using the coordinator's saved route and configured fallback under normal
+usage reservations. Run-level `tool_access=none` selects the built-in runtime with an empty tool registry, disables saved Bot
+memory/browser/shell capabilities in its snapshot, rejects any returned tool calls without execution, and fails on truncation
+rather than escalating or dropping context. Its system guidance forbids answering or carrying out the underlying request. The
+model's text remains a suggestion in a separate editor; the original purpose and inferred professional name stay unchanged until
+the owner applies the result, after which the local name suggestion updates from the revised purpose. Bot settings review and
+creation remain separate, and draft generation does not grant authority or start a new Bot.
+
+`tests/test_conversations.py tests/test_runtime_builtin.py` passed **58 tests in 38.16s**, including selected-context boundaries,
+idempotent replay/conflict, oversized escaped payload rejection, empty tools, and a malicious provider tool-call attempt with no
+file effect. Responsive application validation passed **1 test in 3.69s**; anonymous marketing copy validation passed **2 tests
+in 4.47s** on Chromium **153.0.8010.12** / Playwright **1.63.0**. The app was captured and inspected at desktop **1440×960**,
+tablet **900×1024**, and phone **390×844**, both before application and after applying on phone. The marketing site was captured
+and inspected at desktop **1440×900**, tablet **900×1024**, and phone **390×844**; there were no horizontal overflows, page errors,
+or external requests. Evidence is under [`artifacts/bot-purpose-refinement/`](artifacts/bot-purpose-refinement/).
+
+No live model/provider call, provider retention behavior, screen reader or physical phone was tested. Multi-round clarification
+is not implemented: answers to open questions must be added to the editable purpose and submitted in a new explicit request.
+Naming remains a local deterministic suggestion rather than model-generated, and live semantic quality remains unverified.

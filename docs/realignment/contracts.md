@@ -274,6 +274,17 @@ maximum page size is 100. `POST /api/v1/conversations/{id}/archive` hides/restor
 receipts. `GET /api/v1/search/messages?q=...` performs explicit FTS5 search over non-legacy conversations only; retrieved text is
 not automatically added to a model prompt.
 
+`POST /api/v1/conversations/{id}/bot-purpose-drafts` takes `{source_message_id, purpose, context_message_ids}` and requires
+`Idempotency-Key`. It is available only from an unpaused built-in workspace coordinator conversation. The source must be a user
+message in that conversation; each selected context ID must name a unique earlier user message from the same conversation, with
+at most eight IDs. Source, purpose and selected context are limited to 20,000 combined characters and the safely encoded model
+context to 24,000 characters. Later messages, assistant replies and other chats are excluded. Hutch admits an ordinary
+conversation run that uses the coordinator's saved route/fallback and usage reservation, but persists `tool_access=none` for that
+run; provider tool calls cannot execute, and prompt truncation does not silently drop context or trigger escalation. This endpoint
+returns the normal run resource (201 when created, 200 on an exact replay); reusing a key with changed input returns 409. The model
+response is a review-only suggestion. It does not create a Bot or change authority; the owner applies any revised purpose in the
+client and completes the separate Bot setup review.
+
 Schema v8 imports each historical run into its own legacy conversation. It does not infer continuity or combine contexts. The
 Studio lets the operator select these imported threads; the builtin runtime receives up to 12 prior messages and 16,000 characters.
 External runtimes do not consume this history.

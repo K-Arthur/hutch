@@ -256,6 +256,17 @@ checks current hardware headroom before generation; estimated fit and resident-a
 are qualified in `docs/models.md`. This is not strict-offline enforcement or control of other
 clients of the same model server. `HUTCH_MODEL_SLOTS` no longer widens inference concurrency.
 
+## Review-only Bot-purpose drafting
+
+New Bot setup may submit one optional refinement to the workspace coordinator. Hutch supplies the exact source user message,
+the owner's current purpose draft and only earlier user messages the owner selected from that conversation. The request is bounded
+and labelled as untrusted data. It runs as a normal conversation attempt, so existing admission, model routing and budget
+reservation apply; it is restricted at the run level to the built-in runtime with an empty tool registry. A provider tool call,
+prompt truncation or second response ends the attempt without invoking a tool or silently escalating. The result is a proposal
+only: the user edits it and explicitly applies it to the purpose field. Bot creation remains a separate confirmation, and this
+flow cannot alter the proposed Bot's model, account, memory, workspace or permissions. Each request makes one draft; the owner
+can edit the purpose and submit another request, but an interactive clarification loop is not implemented.
+
 ## What is deliberately NOT here (yet)
 
 Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, a cross-run artifact library, remote

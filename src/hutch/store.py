@@ -2415,6 +2415,7 @@ class Store:
     def submit_conversation_message(self, conversation_id: str, prompt: str, run: Run, task: Task, *,
                                     idem_key: str, request_hash: str, context_messages: int = 12,
                                     context_chars: int = 16_000,
+                                    conversation_context_override: Optional[list[dict[str, str]]] = None,
                                     reply_to_message_id: Optional[str] = None,
                                     workspace_task_result_id: Optional[str] = None,
                                     workspace_task_result_message_id: Optional[str] = None,
@@ -2530,23 +2531,33 @@ class Store:
                 result_suffix = "\n</specialist_result_json>"
                 result_context = {"role": "user", "content": result_prefix + encoded_result + result_suffix}
 
-            recent = db.execute("SELECT role, content FROM messages WHERE conversation_id = ? "
-                                "ORDER BY seq DESC LIMIT ?", (conversation_id, context_messages)).fetchall()
-            context: list[dict[str, str]] = []
-            selected_context = quote_context or result_context
-            remaining = max(0, context_chars - len(selected_context["content"])) if selected_context else context_chars
-            for row in reversed(recent):
-                if remaining <= 0:
-                    break
-                content = str(row["content"])
-                if len(content) > remaining:
-                    marker = "[earlier text omitted]\n"
-                    content = (marker + content[-(remaining - len(marker)):]) if remaining > len(marker) else content[-remaining:]
-                if content:
-                    context.append({"role": row["role"], "content": content})
-                    remaining -= len(content)
-            if selected_context:
-                context.append(selected_context)
+            if conversation_context_override is not None:
+                if quote_context is not None or result_context is not None:
+                    raise ValueError("an explicit context window cannot be combined with reply or task references")
+                if any(not isinstance(item, dict) or item.get("role") != "user"
+                       or not isinstance(item.get("content"), str) for item in conversation_context_override):
+                    raise ValueError("an explicit context window may contain only user-provided text")
+                if sum(len(item["content"]) for item in conversation_context_override) > context_chars:
+                    raise ValueError("the explicit context window exceeds its character limit")
+                context = [dict(item) for item in conversation_context_override]
+            else:
+                recent = db.execute("SELECT role, content FROM messages WHERE conversation_id = ? "
+                                    "ORDER BY seq DESC LIMIT ?", (conversation_id, context_messages)).fetchall()
+                context = []
+                selected_context = quote_context or result_context
+                remaining = max(0, context_chars - len(selected_context["content"])) if selected_context else context_chars
+                for row in reversed(recent):
+                    if remaining <= 0:
+                        break
+                    content = str(row["content"])
+                    if len(content) > remaining:
+                        marker = "[earlier text omitted]\n"
+                        content = (marker + content[-(remaining - len(marker)):]) if remaining > len(marker) else content[-remaining:]
+                    if content:
+                        context.append({"role": row["role"], "content": content})
+                        remaining -= len(content)
+                if selected_context:
+                    context.append(selected_context)
             run.conversation_id = conversation_id
             run.conversation_context = context
             run.task_id = task.id

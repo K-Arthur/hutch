@@ -11,6 +11,20 @@ prompts and backups. Store credentials through configured connections, never ref
 A **bot** is a stored configuration; a **run** is one execution of it. Bots are managed via CLI,
 dashboard, or the REST API, and live in `hutch.db`.
 
+## Conversation-driven Bot setup
+
+In Studio, **Make a bot** on a user message seeds the four-step setup with that exact request. The owner may select up to eight
+earlier user messages from the same conversation as saved background; assistant replies, later requests and other chats stay
+excluded. New Bot setup suggests a professional display name and stable address locally from the purpose. Both remain editable,
+and updating the purpose refreshes only suggestions the owner has not edited.
+
+From a built-in workspace coordinator chat, the owner may request a tool-free refinement of the current purpose. Each request
+returns one proposal using the exact source message, current editable purpose and only the selected earlier user messages. The owner
+can edit the purpose and request another response; there is no multi-turn clarification exchange. Refinement uses normal model
+route, fallback and budget controls, but the run has no tools and cannot create a Bot or change its authority. The owner must apply
+the suggestion and then review the complete Bot setup before saving. Hosted providers may retain submitted text under their terms;
+the suggestion quality has not been verified against a live provider.
+
 ## Fields
 
 | Field | Type | Default | Meaning |
