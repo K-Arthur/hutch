@@ -2364,6 +2364,8 @@ or `UI-18` because credential-field heuristics, live handoff and third-party cha
 
 ## Purpose-derived reminder and filing names (2026-10-09)
 
+Implementation commit: `a43c4fa`.
+
 The local naming rule now recognizes reminder/alert requests and file/archive/categorize requests. Reminder action and alert-condition
 phrasing is normalized into professional name nouns (for example, “renew my passport” becomes “Passport Renewal Reminder” and
 “alert me when an invoice is overdue” becomes “Invoice Reminder”); common time/status words are omitted, and “receipts” is normalized
