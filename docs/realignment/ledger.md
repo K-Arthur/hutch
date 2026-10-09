@@ -123,6 +123,7 @@ credentials. This is passive fixture-backed evidence, not a live provider guaran
 | `63b29bc` | Add schema-v34 safe checkpoint continuation, review/confirmation UI, truthful public copy, regression coverage and inspected desktop/tablet/phone evidence; live model recovery remains unverified |
 | `5cdd65f` | Recheck same-page human browser challenges before actions and after waits/effects; add async Chromium regression and document retry/verification boundaries |
 | `28bf0ac` | Record the no-mock/product-availability audit and verify OpenCode Go is a provider API-key flow rather than OAuth session sharing |
+| `2bba9c8` | Add schema-v37 passive model tool-call evidence, exact effective route identity, bounded `/api/v1/model-capabilities`, support docs and full offline validation (1,471 passed, 2 skipped) |
 
 ## Dashboard polish continuation (2026-10-09)
 
