@@ -1282,5 +1282,5 @@ The marketing-site State card now says where conversation files can be found and
 checks passed **22 tests in 28.46s**, and the full marketing feature section was recaptured at all three widths in a focused pass
 (**1 passed in 3.29s**). No external model/provider call was used. Screen-reader and physical-phone behavior remain unverified. A
 shared cross-chat artifact library, standing tasks and delegation remain open. The screenshot metadata was refreshed after switching
-the conversation page to a newest-first keyset cursor; captures were visually reinspected. This local slice is ready for its progressive
-commit, after which the hash will be added here.
+the conversation page to a newest-first keyset cursor; captures were visually reinspected. Source, documentation, tests and scoped
+visual evidence are committed in `273efa4` (`feat(studio): browse files across a conversation`).
