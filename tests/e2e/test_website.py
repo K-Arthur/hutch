@@ -229,9 +229,10 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
         card = page.locator("#workflow .step-card").first
         text = card.inner_text().lower()
         assert "latest chat request" in text
-        assert "default model route in preferences" in text
-        assert "editable suggestion" in text
-        assert "seed new bots only" in text
+        assert "editable professional name" in text
+        assert "model route from that bot or your workspace" in text
+        assert "no tools" in text and "no schedule" in text
+        assert "recurring work" in text
         assert "does not start a run" in text
         model_card = page.locator("#runs .feature").filter(has_text="Hutch supports configured OpenAI").first
         model_text = model_card.inner_text().lower()

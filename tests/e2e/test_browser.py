@@ -1971,9 +1971,10 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
     try:
         page.goto(base + "/#/chat")
         page.locator("#topbar-new-bot").click()
-        page.get_by_role("heading", name="What should it do?").wait_for()
+        page.get_by_role("heading", name="Describe the work").wait_for()
         page.get_by_label("What would you like this bot to handle?").fill(
             "Review release notes and prepare a short summary of changes that affect our project.")
+        assert page.locator("#setup-name-preview").inner_text() == "Release Notes Reviewer"
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.screenshot(path=str(out / f"purpose-{label}.png"), animations="disabled")
@@ -1988,21 +1989,30 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
             assert metrics["dialog"]["left"] >= -1 and metrics["dialog"]["right"] <= width + 1, (label, metrics)
             assert metrics["footerVisible"], (label, metrics)
         page.set_viewport_size({"width": 390, "height": 844})
-        page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Choose a starting point").wait_for()
-        page.locator("#setup-back").click()
-        assert "Review release notes" in page.locator("#setup-purpose").input_value()
-        page.locator("#modal-confirm").click()
-        page.locator('input[name="setup-template"][value=""]').check()
-        page.locator("#modal-confirm").click()
+        page.locator(".setup-identity summary").click()
         page.locator("#setup-display_name").fill("Release Notes Reviewer")
         page.locator("#setup-name").fill("guided-release-reviewer")
         page.get_by_label("Short description").fill("Summarize project release notes")
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Set its model and workspace").wait_for()
+        page.get_by_role("heading", name="Set model and workspace").wait_for()
+        page.locator("#setup-back").click()
+        assert "Review release notes" in page.locator("#setup-purpose").input_value()
+        page.locator("#modal-confirm").click()
+        page.get_by_role("heading", name="Set model and workspace").wait_for()
         page.get_by_label("Model route").fill("openai/gpt-4o-mini")
         page.locator("#modal-confirm").click()
         page.get_by_role("heading", name="Choose tools and schedule").wait_for()
+        assert page.locator("#setup-tools input:checked").count() == 0
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.locator(".modal-body").evaluate("element => { element.scrollTop = 0; }")
+            page.screenshot(path=str(out / f"options-{label}.png"), animations="disabled")
+            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
+              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
+              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight})""")
+            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
+            assert metrics["footerVisible"], (label, metrics)
+        page.set_viewport_size({"width": 390, "height": 844})
         page.get_by_text("Human browser handoff (optional)").click()
         handoff_choice = page.locator("#setup-local-browser-handoff")
         handoff_enabled = handoff_choice.is_enabled()
@@ -2035,6 +2045,7 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         }""")
         assert handoff_metrics["control"]["top"] >= 0 and handoff_metrics["control"]["bottom"] <= 844, handoff_metrics
         page.set_viewport_size({"width": 390, "height": 844})
+        page.get_by_text("Enable tools (none enabled by default)").click()
         page.locator('input[name="setup-tool"][value="read_file"]').check()
         page.get_by_text("Add a recurring task (optional)").click()
         page.get_by_label("Scheduled task prompt").fill("Review release notes and report important changes.")
@@ -2043,7 +2054,7 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         assert app.state.store.get_bot("guided-release-reviewer") is None
         page.get_by_label("Cron schedule", exact=True).fill("0 9 * * 1")
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Review setup").wait_for()
+        page.get_by_role("heading", name="Review bot").wait_for()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.screenshot(path=str(out / f"review-{label}.png"), animations="disabled")
@@ -2095,6 +2106,7 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
             "scenario": "guided setup against a configured-shape route with a test-only dummy key; no model call was made; create persists configuration and does not start a run; checked review details at both ends and handoff disclosure at phone width",
             "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
             "inspected_screenshots": ["purpose-desktop.png", "purpose-tablet.png", "purpose-phone.png",
+                                      "options-desktop.png", "options-tablet.png", "options-phone.png",
                                       "configuration-desktop.png", "configuration-tablet.png", "configuration-phone.png",
                                       "configuration-handoff-phone.png", "review-desktop.png", "review-tablet.png",
                                       "review-phone.png", "review-details-end-desktop.png", "review-details-end-tablet.png",
@@ -2199,21 +2211,12 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
         page.locator("#topbar-new-bot").click()
         purpose = page.get_by_label("What would you like this bot to handle?")
         purpose.fill("Track the launch checklist and notify me when a blocker needs attention.")
-        page.locator("#modal-confirm").click()
-        page.locator('input[name="setup-template"][value=""]').check()
-        page.locator("#modal-confirm").click()
-
+        page.locator(".setup-identity summary").click()
         display_name = page.locator("#setup-display_name")
         address = page.locator("#setup-name")
         assert display_name.input_value() == "Launch Checklist Monitor"
         assert address.input_value() == "launch-checklist-monitor"
-
-        page.locator("#setup-back").click()
-        page.locator("#setup-back").click()
         purpose.fill("Review release notes for changes affecting our project.")
-        page.locator("#modal-confirm").click()
-        page.locator('input[name="setup-template"][value=""]').check()
-        page.locator("#modal-confirm").click()
         assert display_name.input_value() == "Release Notes Reviewer"
         assert address.input_value() == "release-notes-reviewer"
 
@@ -2236,7 +2239,7 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
         page.get_by_label("Model route").fill("openai/gpt-4o-mini")
         page.locator("#modal-confirm").click()
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Review setup").wait_for()
+        page.get_by_role("heading", name="Review bot").wait_for()
         review = page.locator(".setup-review-list").inner_text()
         assert "Launch Readiness Analyst" in review and "launch-ops" in review
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
@@ -2329,7 +2332,7 @@ def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance
         page.goto(f"{base}/#/chat/{source_bot.name}")
         page.locator("#conversation-switcher").wait_for()
         page.locator("#topbar-new-bot").click()
-        page.get_by_role("heading", name="What should it do?").wait_for()
+        page.get_by_role("heading", name="Describe the work").wait_for()
         source_toggle = page.get_by_label("Use your latest request from this chat")
         assert source_toggle.is_checked()
         purpose = page.get_by_label("What would you like this bot to handle?")
@@ -2339,6 +2342,7 @@ def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance
         assert purpose.input_value() == ""
         source_toggle.check()
         purpose.fill("Track the launch checklist; notify me when a blocker needs attention.")
+        assert page.locator("#setup-name-preview").inner_text() == "Launch Checklist Monitor"
 
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
@@ -2356,9 +2360,7 @@ def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance
             page.screenshot(path=str(out / f"chat-source-purpose-{label}.png"), animations="disabled")
 
         page.set_viewport_size({"width": 390, "height": 844})
-        page.locator("#modal-confirm").click()
-        page.locator('input[name="setup-template"][value=""]').check()
-        page.locator("#modal-confirm").click()
+        page.locator(".setup-identity summary").click()
         page.locator("#setup-display_name").fill("Launch Checklist Monitor")
         page.locator("#setup-name").fill("launch-checklist")
         page.locator("#modal-confirm").click()
@@ -2379,8 +2381,9 @@ def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance
             page.screenshot(path=str(out / f"chat-source-model-{label}.png"), animations="disabled")
         page.set_viewport_size({"width": 390, "height": 844})
         page.locator("#modal-confirm").click()
+        page.get_by_role("heading", name="Choose tools and schedule").wait_for()
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Review setup").wait_for()
+        page.get_by_role("heading", name="Review bot").wait_for()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.locator(".setup-source-details summary").click()
@@ -2467,14 +2470,13 @@ def test_workspace_model_default_is_editable_persistent_and_seeds_new_bot_setup(
         page.reload()
         page.locator("#conversation-switcher").wait_for()
         page.locator("#topbar-new-bot").click()
-        page.get_by_role("heading", name="What should it do?").wait_for()
+        page.get_by_role("heading", name="Describe the work").wait_for()
         page.locator("#setup-purpose").fill("Prepare a weekly project summary.")
-        page.locator("#modal-confirm").click()
-        page.locator("#modal-confirm").click()
+        page.locator(".setup-identity summary").click()
         page.locator("#setup-display_name").fill("Project Summary Assistant")
         page.locator("#setup-name").fill("workspace-default-child")
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Set its model and workspace").wait_for()
+        page.get_by_role("heading", name="Set model and workspace").wait_for()
         assert page.get_by_label("Model route").input_value() == "openai/gpt-4o-mini"
         assert "Workspace default for new Bots" in page.locator(".setup-conversation").inner_text()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):

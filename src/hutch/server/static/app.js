@@ -4632,7 +4632,7 @@ function suggestBotDisplayName(purpose) {
   }
   if (!selected) return "Workspace Assistant";
   let subject = text.slice(selected.match.index + selected.match[0].length)
-    .split(/\b(?:and then|and|then|so that|when|whenever|if|unless|before|after|while|to notify|for)\b/i, 1)[0]
+    .split(/[.;,:!?]|\b(?:and then|and|then|so that|when|whenever|if|unless|before|after|while|to notify|notify me|for)\b/i, 1)[0]
     .replace(/^(?:\s|the\s+|my\s+|our\s+|a\s+|an\s+|me\s+|us\s+)+/i, "");
   const stop = new Set(["a", "about", "an", "and", "are", "as", "at", "be", "by", "changes", "from", "in", "into", "is", "it", "of", "on", "or", "the", "this", "to", "with", "me", "my", "our", "us", "you", "your", "bot", "agent", "please", "daily", "weekly", "affecting", "anything", "requests", "tasks", "things", "whatever", "what", "work"]);
   const acronyms = new Set(["ai", "api", "ci", "cd", "crm", "hr", "qa", "sre", "ui", "ux"]);
@@ -4726,7 +4726,15 @@ async function promptNewBot(preselect = "") {
     if (!addressEdited) draft.name = uniqueAddress(draft.display_name);
   };
   refreshSuggestedIdentity();
-  const stepTitles = ["What should it do?", "Choose a starting point", "Name your bot", "Set its model and workspace", "Choose tools and schedule", "Review setup"];
+  const refreshNamePreview = () => {
+    const preview = $("#setup-name-preview");
+    if (preview) preview.textContent = draft.display_name;
+    const displayName = $("#setup-display_name");
+    if (displayName && !displayNameEdited) displayName.value = draft.display_name;
+    const address = $("#setup-name");
+    if (address && !addressEdited) address.value = draft.name;
+  };
+  const stepTitles = ["Describe the work", "Set model and workspace", "Choose tools and schedule", "Review bot"];
   const selectedTemplate = () => templates.find(item => item.name === draft.template) || null;
   const setError = message => {
     const node = $("#bot-setup-error");
@@ -4786,40 +4794,34 @@ async function promptNewBot(preselect = "") {
       ${conversationSource ? `<label class="setup-context-source"><input id="setup-use-source" type="checkbox" ${draft.useConversationSource ? "checked" : ""}>
         <span><b>Use your latest request from this chat</b><small>From ${esc(conversationSource.source_bot_name)} · ${esc(conversationSource.conversation_title)} · message ${conversationSource.sequence}.</small></span></label>
         <p class="setup-assistant">Only this selected user message is copied into the reviewed Bot draft. Other chat history, authority, permissions, accounts and tools stay private and unchanged.</p>`
-        : `<p class="setup-assistant">I’ll turn your answers into a bot draft. This is a guided setup, not an AI-generated configuration.</p>`}
+        : `<p class="setup-assistant">Start with what you already asked for. Hutch suggests a name and uses safe defaults; review everything before creating the Bot.</p>`}
       <label class="field" for="setup-purpose">What would you like this bot to handle?</label>
       <textarea id="setup-purpose" rows="5" maxlength="20000" placeholder="For example: review release notes and prepare a short summary of changes that affect our project." required>${esc(draft.purpose)}</textarea>
-      <p class="hint">This becomes the bot’s standing instructions. You can edit it later.</p>
+      <p class="hint">This becomes the Bot’s standing instructions. Hutch does not invent extra goals or permissions.</p>
+      <p class="hint setup-name-preview">Suggested name: <strong id="setup-name-preview">${esc(draft.display_name)}</strong> · review or change it below.</p>
+      <details class="setup-schedule setup-identity">
+        <summary>Review or change the suggested name</summary>
+        <div class="form-grid">
+          <label class="field" for="setup-display_name">Display name<input id="setup-display_name" maxlength="80" autocomplete="off" placeholder="Release Notes Reviewer" value="${esc(draft.display_name)}" required>
+            <span class="hint">Suggested from the request. Used in chats and lists.</span></label>
+          <label class="field" for="setup-name">Bot address<input id="setup-name" maxlength="41" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="release-notes-reviewer" value="${esc(draft.name)}" required>
+            <span class="hint">Stable local address; it follows the display name until you edit it.</span></label>
+          <label class="field" for="setup-description">Short description<input id="setup-description" maxlength="240" placeholder="What people can ask this Bot to do" value="${esc(draft.description)}"></label>
+        </div>
+      </details>
     </div>`;
-    if (step === 1) content = `<div class="setup-conversation">
-      <p class="setup-assistant">Start blank, or choose a real starter configuration. You can change every permission before creating the bot.</p>
-      <fieldset class="setup-template-options"><legend class="sr-only">Starting point</legend>
-        <label class="setup-choice"><input type="radio" name="setup-template" value="" ${draft.template ? "" : "checked"}>
-          <span><b>Blank bot</b><small>No tools enabled by default.</small></span></label>
-        ${templates.map(template => `<label class="setup-choice"><input type="radio" name="setup-template" value="${esc(template.name)}" ${draft.template === template.name ? "checked" : ""}>
-          <span><b>${esc(template.tagline || template.name)}</b><small>${esc(template.description || template.safety || "Starter configuration")}</small></span></label>`).join("")}
-      </fieldset>
-    </div>`;
-    if (step === 2) content = `<div class="setup-conversation form-grid">
-      <p class="setup-assistant">Hutch suggested a professional name from the purpose you gave. Edit it before creating the Bot.</p>
-      <label class="field" for="setup-display_name">Display name<input id="setup-display_name" maxlength="80" autocomplete="off" placeholder="Release Notes Reviewer" value="${esc(draft.display_name)}" required>
-        <span class="hint">Used in chats and lists. Changing this name does not change permissions or instructions.</span></label>
-      <label class="field" for="setup-name">Bot address<input id="setup-name" maxlength="41" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="release-notes-reviewer" value="${esc(draft.name)}" required>
-        <span class="hint">Stable local address for links; it follows the display name until you edit it.</span></label>
-      <label class="field" for="setup-description">Short description<input id="setup-description" maxlength="240" placeholder="What people can ask this bot to do" value="${esc(draft.description)}"></label>
-    </div>`;
-    if (step === 3) {
+    if (step === 1) {
       let routeOptions = [];
       try { routeOptions = await api(`/v1/model-routes?inference_mode=${encodeURIComponent(draft.inference_mode)}`); }
       catch { /* the route can still be entered directly; creation validates it */ }
-      if (draft.step !== 3) return;
+      if (draft.step !== 1) return;
       const readyRoutes = routeOptions.filter(route => route.state === "ready" && !route.spec.startsWith("mock/"));
       const options = readyRoutes.map(route => `<option value="${esc(route.spec)}" label="${esc(`${route.group}: ${route.note || route.label}`)}"></option>`).join("");
       content = `<div class="setup-conversation form-grid">
-        <p class="setup-assistant">Choose a model route already configured in Hutch. This becomes the Bot’s saved default; saving the Bot does not start a run. Hosted routes send the conversation to that provider; local routes keep inference on this machine.</p>
+        <p class="setup-assistant">${draft.model ? "Hutch found a configured route from this chat or your workspace. Review it below." : "Choose a configured model route. Safe defaults fill the other setup choices."} It becomes the Bot’s saved default; creating the Bot does not start a run.</p>
         <label class="field" for="setup-model">Model route<input id="setup-model" list="setup-model-routes" maxlength="240" autocomplete="off" placeholder="Choose or enter provider/model" value="${esc(draft.model)}" required>
           <datalist id="setup-model-routes">${options}</datalist>
-          <span class="hint">${modelSuggestionSource === "chat" ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route and routing mode: ${esc(conversationSource.model_suggestion)}. Review both or change them here.` : modelSuggestionSource === "workspace" ? `Workspace default for new Bots: ${esc(workspaceDefaults.model)}. Review it or change it here.` : "Choose a route for the new Bot; no workspace model default is set."} ${readyRoutes.length ? `${readyRoutes.length} currently available route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} <a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.</span></label>
+          <span class="hint">${modelSuggestionSource === "chat" ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route and routing mode: ${esc(conversationSource.model_suggestion)}.` : modelSuggestionSource === "workspace" ? `Workspace default for new Bots: ${esc(workspaceDefaults.model)}.` : "No workspace or chat model route is configured yet."} ${readyRoutes.length ? `${readyRoutes.length} ready route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} Hosted routes send prompts to that provider; local routes use this machine. <a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.</span></label>
         <label class="field" for="setup-inference_mode">Inference mode<select id="setup-inference_mode">
           <option value="hybrid" ${draft.inference_mode === "hybrid" ? "selected" : ""}>Hybrid — local or hosted</option>
           <option value="local" ${draft.inference_mode === "local" ? "selected" : ""}>Local — this machine</option>
@@ -4831,12 +4833,24 @@ async function promptNewBot(preselect = "") {
         </select></label>
       </div>`;
     }
-    if (step === 4) content = `<div class="setup-conversation form-grid">
-      <p class="setup-assistant">Choose only the abilities this bot needs. Actions that require approval stay under Hutch’s ask-first policy.</p>
-      <fieldset class="setup-tool-options" id="setup-tools"><legend>Tools and permissions</legend>
-        ${BOT_SETUP_TOOLS.map(([tool, label, help]) => `<label class="tool-option"><input type="checkbox" name="setup-tool" value="${esc(tool)}" ${draft.tools.has(tool) ? "checked" : ""}>
-          <span class="tool-option-copy"><b>${esc(label)}</b><small>${esc(help)}</small></span></label>`).join("")}
-      </fieldset>
+    if (step === 2) content = `<div class="setup-conversation form-grid">
+      <p class="setup-assistant">Bots start with no tools unless a starter is selected. Choose only abilities this Bot needs; actions that require approval stay ask-first.</p>
+      <details class="setup-schedule" ${draft.template ? "open" : ""}>
+        <summary>Choose a starting point</summary>
+        <fieldset class="setup-template-options"><legend class="sr-only">Starting point</legend>
+          <label class="setup-choice"><input type="radio" name="setup-template" value="" ${draft.template ? "" : "checked"}>
+            <span><b>Blank bot</b><small>No tools enabled by default.</small></span></label>
+          ${templates.map(template => `<label class="setup-choice"><input type="radio" name="setup-template" value="${esc(template.name)}" ${draft.template === template.name ? "checked" : ""}>
+            <span><b>${esc(template.tagline || template.name)}</b><small>${esc(template.description || template.safety || "Starter configuration")}</small></span></label>`).join("")}
+        </fieldset>
+      </details>
+      <details class="setup-schedule" id="setup-tools-details" ${draft.tools.size ? "open" : ""}>
+        <summary>Enable tools (none enabled by default)</summary>
+        <fieldset class="setup-tool-options" id="setup-tools"><legend>Tools and permissions</legend>
+          ${BOT_SETUP_TOOLS.map(([tool, label, help]) => `<label class="tool-option"><input type="checkbox" name="setup-tool" value="${esc(tool)}" ${draft.tools.has(tool) ? "checked" : ""}>
+            <span class="tool-option-copy"><b>${esc(label)}</b><small>${esc(help)}</small></span></label>`).join("")}
+        </fieldset>
+      </details>
       <details class="setup-schedule">
         <summary>Add a recurring task (optional)</summary>
         <div class="form-grid">
@@ -4870,30 +4884,33 @@ async function promptNewBot(preselect = "") {
         </div>
       </details>
     </div>`;
-    if (step === 5) content = reviewHtml();
+    if (step === 3) content = reviewHtml();
     const root = $("#modal-root");
     const body = $(".modal-body", root), title = $("#modal-title"), confirm = $("#modal-confirm");
     if (!body || !title || !confirm) return;
     title.textContent = stepTitles[step];
     body.innerHTML = `<div class="bot-setup" aria-live="polite"><div class="setup-progress">Step ${step + 1} of ${stepTitles.length}</div>${back}${content}<p class="setup-error" id="bot-setup-error" role="alert" hidden></p></div>`;
     body.scrollTop = 0;
-    confirm.textContent = step === 5 ? "Create bot" : "Continue";
+    confirm.textContent = step === 3 ? "Create bot" : "Continue";
     confirm.disabled = false;
     $("#setup-back")?.addEventListener("click", () => { snapshotFields(); draft.step = Math.max(0, draft.step - 1); void renderStep(); });
     $("#setup-use-source")?.addEventListener("change", event => {
       draft.useConversationSource = event.currentTarget.checked;
       draft.purpose = draft.useConversationSource ? conversationSource.original_request : "";
       refreshSuggestedIdentity();
+      refreshNamePreview();
       const purpose = $("#setup-purpose");
       if (purpose) { purpose.value = draft.purpose; if (!draft.useConversationSource) purpose.focus(); }
     });
     $("#setup-purpose")?.addEventListener("input", event => {
       draft.purpose = event.currentTarget.value;
       refreshSuggestedIdentity();
+      refreshNamePreview();
     });
     $("#setup-display_name")?.addEventListener("input", event => {
       displayNameEdited = true;
       draft.display_name = event.currentTarget.value;
+      refreshNamePreview();
       if (!addressEdited) {
         draft.name = uniqueAddress(draft.display_name);
         const address = $("#setup-name");
@@ -4907,6 +4924,8 @@ async function promptNewBot(preselect = "") {
     $$('input[name="setup-template"]').forEach(input => input.addEventListener("change", () => {
       draft.template = input.value;
       draft.tools = templateTools(selectedTemplate());
+      const toolsDetails = $("#setup-tools-details");
+      if (toolsDetails && draft.tools.size) toolsDetails.open = true;
     }));
     $$('input[name="setup-tool"]').forEach(input => input.addEventListener("change", () => {
       if (input.checked) draft.tools.add(input.value); else draft.tools.delete(input.value);
@@ -4914,7 +4933,7 @@ async function promptNewBot(preselect = "") {
     $("#setup-inference_mode")?.addEventListener("change", async () => {
       snapshotFields(); draft.inference_mode = $("#setup-inference_mode").value; await renderStep();
     });
-    (step === 0 ? $("#setup-purpose") : $("input, textarea, select", body))?.focus();
+    (step === 0 ? $("#setup-purpose") : step === 1 ? $("#setup-model") : $("input, textarea, select", body))?.focus();
   };
   const creationKey = async body => {
     const fingerprint = await payloadFingerprint(body), keyName = "hutch-pending-bot-create";
@@ -4933,17 +4952,17 @@ async function promptNewBot(preselect = "") {
       snapshotFields();
       setError("");
       if (draft.step === 0 && !draft.purpose.trim()) { setError("Describe what this bot should handle."); $("#setup-purpose")?.focus(); return false; }
-      if (draft.step === 2) {
+      if (draft.step === 0) {
         if (!draft.display_name.trim()) { setError("Add a display name for this Bot."); $("#setup-display_name")?.focus(); return false; }
         if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(draft.name.trim())) { setError("Use 2–41 lowercase letters, numbers, and dashes for the Bot address."); $("#setup-name")?.focus(); return false; }
       }
-      if (draft.step === 3 && !draft.model.trim()) { setError("Choose or enter a configured model route."); $("#setup-model")?.focus(); return false; }
-      if (draft.step === 4 && draft.schedule_prompt.trim() && !draft.cron.trim()) { setError("Add a cron schedule before setting its task prompt."); $("#setup-cron")?.focus(); return false; }
-      if (draft.step === 4) {
+      if (draft.step === 1 && !draft.model.trim()) { setError("Choose or enter a configured model route."); $("#setup-model")?.focus(); return false; }
+      if (draft.step === 2 && draft.schedule_prompt.trim() && !draft.cron.trim()) { setError("Add a cron schedule before setting its task prompt."); $("#setup-cron")?.focus(); return false; }
+      if (draft.step === 2) {
         const invalidLimit = $$(".bot-setup input[type=number]").find(field => !field.checkValidity());
         if (invalidLimit) { setError("Check the execution and usage limit values."); invalidLimit.focus(); return false; }
       }
-      if (draft.step < 5) { draft.step += 1; await renderStep(); return false; }
+      if (draft.step < 3) { draft.step += 1; await renderStep(); return false; }
       const body = {
         name: draft.name.trim(), display_name: draft.display_name.trim(), template: draft.template || null,
         description: draft.description.trim() || draft.purpose.trim().split("\n")[0].slice(0, 240),

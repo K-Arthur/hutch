@@ -1,5 +1,20 @@
 # Visual validation record
 
+## Reduced Bot-creation setup (2026-10-09)
+
+Studio Bot creation now uses four reviewable screens. The first uses the selected latest chat request when present and shows a
+local purpose-based name suggestion; model/workspace settings follow, while starters, tools, schedules, execution limits and browser
+handoff remain optional disclosures. The blank setup starts with no tools and no schedule. The final screen presents the full draft
+and confirms that saving creates no run. No model request was made by the setup flow.
+
+Chromium **153.0.8010.12** / Playwright **1.63.0** passed four Bot-creation browser journeys and the anonymous marketing-copy
+journey (**5 passed in 13.19s**) using local app fixtures and SQLite. I inspected the compact first screen and options screen at
+desktop **1440×960**, tablet **900×1024**, and phone **390×844**, then reviewed the phone's human-handoff disclosure and complete
+draft review. The anonymous marketing card was checked at **1440×900**, **900×1024**, and **390×844**; it made no external
+requests and showed no overflow or page errors. Captures and trace are in [`artifacts/bot-setup/`](artifacts/bot-setup/) and
+[`artifacts/bot-setup-context/site/`](artifacts/bot-setup-context/site/). These checks used a test-only credential-shaped value,
+made no provider call, and do not cover a physical phone or screen reader.
+
 ## Explicit specialist-result return (schema v30, 2026-10-09)
 
 `tests/e2e/test_browser.py::test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports` now continues beyond the
