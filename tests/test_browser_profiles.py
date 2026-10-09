@@ -261,7 +261,8 @@ def test_browser_typing_approval_binds_text_destination_and_profile(
         def evaluate_all(self, _script):
             return False
 
-    page = types.SimpleNamespace(url="https://example.com/compose", fill=lambda *a, **kw: fills.append(a),
+    page = types.SimpleNamespace(url="https://example.com/compose", inner_text=lambda _selector: "Compose message",
+                                 frames=[], fill=lambda *a, **kw: fills.append(a),
                                  locator=lambda _selector: Locator())
     tool = BrowserTool()
     monkeypatch.setattr(tool, "_ensure", lambda _: types.SimpleNamespace(pages=[page]))

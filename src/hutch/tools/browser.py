@@ -494,6 +494,52 @@ class BrowserTool(Tool):
         return markers
 
     @staticmethod
+    def _await_human_challenge(page, ctx: ToolContext, *, completed_action: str = "") -> ToolResult | None:
+        """Pause before continuing when a challenge appears after any browser action.
+
+        Sites can reveal bot checks asynchronously or after a click. Reinspect the
+        same page after every explicit resume; never read or act through a challenge
+        simply because the initial navigation was clean.
+        """
+        try:
+            body_sample = page.inner_text("body")[:8192].lower()
+            markers = BrowserTool._human_challenge_markers(page, body_sample)
+        except Exception:
+            note = f" The {completed_action} already happened; do not repeat it until the destination is checked." if completed_action else " No further action was taken."
+            return ToolResult(False, "error: Hutch could not verify the browser page state." + note,
+                              {"page_state_unverified": True, "action_completed": bool(completed_action)})
+        if not markers:
+            return None
+
+        current_url = getattr(page, "url", "")
+        origin = display_url_origin(current_url) or "the current page"
+        if ctx.headless or not ctx.bot.local_browser_handoff:
+            completed = f" The {completed_action} already happened; check the site before deciding whether to try again." if completed_action else ""
+            return ToolResult(
+                False,
+                (f"error: a login, CAPTCHA, identity check, or verification step is active at {origin}, but this run "
+                 "has no visible human handoff. Hutch did not continue. Enable Local browser handoff on a Linux desktop "
+                 "and start the task again; Hutch does not solve or bypass challenges." + completed),
+                {"handoff_available": False, "url": _redact_sensitive_url(current_url),
+                 "action_completed": bool(completed_action)},
+            )
+
+        reason = (f"Human verification is needed at {origin}: complete the login, CAPTCHA, identity check, or "
+                  "two-factor prompt in the visible Hutch browser.")
+        handoff = ("Automation is paused in this bot's browser. Check the site and complete the human step in this same "
+                   "window, then resume. Hutch will not solve or bypass challenges, and it will not reload the page.")
+        while markers:
+            ctx.gate.wait_for_human(reason, _redact_sensitive_url(getattr(page, "url", "")), handoff=handoff)
+            try:
+                body_sample = page.inner_text("body")[:8192].lower()
+                markers = BrowserTool._human_challenge_markers(page, body_sample)
+            except Exception:
+                note = f" The {completed_action} already happened; verify the site before retrying." if completed_action else ""
+                return ToolResult(False, "error: Hutch could not verify the browser page after your resume; automation remains stopped." + note,
+                                  {"page_state_unverified": True, "action_completed": bool(completed_action)})
+        return None
+
+    @staticmethod
     def _sensitive_entry_result(page, ctx: ToolContext) -> ToolResult:
         current_url = getattr(page, "url", "")
         origin = display_url_origin(current_url) or "the current page"
@@ -553,42 +599,37 @@ class BrowserTool(Tool):
             recorded_url = _redact_sensitive_url(url)
             ctx.gate.decide("browser", f"open {display_url_origin(url)}", {"url": recorded_url}, decision)
             page.goto(url, timeout=30_000, wait_until="domcontentloaded")
+            checkpoint = self._await_human_challenge(page, ctx, completed_action="navigation")
+            if checkpoint:
+                return checkpoint
             title = page.title()
-            body_sample = page.inner_text("body")[:500].lower()
-            walls = self._human_challenge_markers(page, body_sample)
             sensitive_fields = self._page_has_sensitive_fields(page)
-            if walls or sensitive_fields:
-                if ctx.headless:
-                    subject = "a login, CAPTCHA or verification step" if walls else "a password or other sensitive field"
+            if sensitive_fields:
+                if ctx.headless or not ctx.bot.local_browser_handoff:
                     return ToolResult(
                         ok=False,
-                        output=(f"error: the page contains {subject}, but this bot's browser is headless. Enable Local "
-                                "browser handoff in the bot settings on a Linux desktop. Complete the step in the visible "
-                                "browser; Hutch does not solve challenges or type secrets."),
+                        output=("error: the page contains a password or other sensitive field, but this run has no visible "
+                                "human handoff. Enable Local browser handoff in the bot settings on a Linux desktop. "
+                                "Complete the step in the visible browser; Hutch does not solve challenges or type secrets."),
                         data={"handoff_available": False, "url": recorded_url},
                     )
                 origin = display_url_origin(page.url)
-                reason = (f"Human verification is needed at {origin}: complete the login, CAPTCHA, identity check, "
-                          "two-factor prompt, or sensitive form field in the visible Hutch browser.")
-                handoff = ("Automation is paused in this bot's browser. Check the site, complete the human step in this "
-                           "same window, then resume. Hutch will not solve or bypass challenges, and it will not reload "
-                           "the page when control returns, so unsaved form state stays in place.")
-                # After every explicit resume, inspect the same live page. Do
-                # not reload away entered form values. If the challenge remains,
-                # keep automation paused until it clears.
-                if sensitive_fields or walls:
-                    ctx.gate.wait_for_human(reason, _redact_sensitive_url(page.url), handoff=handoff)
-                    title = page.title()
-                    body_sample = page.inner_text("body")[:500].lower()
-                    walls = self._human_challenge_markers(page, body_sample)
-                while walls:
-                    ctx.gate.wait_for_human(
-                        reason, _redact_sensitive_url(page.url), handoff=handoff,
-                    )
-                    title = page.title()
-                    body_sample = page.inner_text("body")[:500].lower()
-                    walls = self._human_challenge_markers(page, body_sample)
+                ctx.gate.wait_for_human(
+                    f"A password, passcode, or other sensitive field needs you at {origin}; Hutch will not type or save its value.",
+                    _redact_sensitive_url(page.url),
+                    handoff=("Automation is paused in this bot's browser. Check the site, enter the value yourself in this "
+                             "same visible window, and finish the step. Hutch will not type or save it."),
+                )
+                checkpoint = self._await_human_challenge(page, ctx)
+                if checkpoint:
+                    return checkpoint
+                title = page.title()
             return ToolResult(ok=True, output=f"opened {display_url_origin(url)}\ntitle: {title}", data={"url": recorded_url})
+
+        if action != "type":
+            checkpoint = self._await_human_challenge(page, ctx)
+            if checkpoint:
+                return checkpoint
 
         if action == "read":
             text = page.inner_text("body")
@@ -630,12 +671,18 @@ class BrowserTool(Tool):
             if (refusal := ctx.begin_effect()):
                 return ToolResult(ok=False, output=f"error: {refusal}")
             locator.click(timeout=10_000)
+            checkpoint = self._await_human_challenge(page, ctx, completed_action="click")
+            if checkpoint:
+                return checkpoint
             return ToolResult(ok=True, output=f"clicked {target}", data={"url": page.url})
 
         if action == "type":
             selector, text = args.get("selector", ""), args.get("text", "")
             if self._is_sensitive_target(page, selector):
                 return self._sensitive_entry_result(page, ctx)
+            checkpoint = self._await_human_challenge(page, ctx)
+            if checkpoint:
+                return checkpoint
             url = page.url
             ctx.gate.decide("browser", f"type into {selector}", {
                 "action": action, "selector": selector, "text": "[redacted]", "text_chars": len(text),
@@ -647,6 +694,9 @@ class BrowserTool(Tool):
             if (refusal := ctx.begin_effect()):
                 return ToolResult(ok=False, output=f"error: {refusal}")
             page.fill(selector, text, timeout=10_000)
+            checkpoint = self._await_human_challenge(page, ctx, completed_action="text entry")
+            if checkpoint:
+                return checkpoint
             return ToolResult(ok=True, output=f"typed {len(text)} chars into {selector}")
 
         if action == "screenshot":
@@ -663,9 +713,15 @@ class BrowserTool(Tool):
         if action == "wait":
             if args.get("selector"):
                 page.wait_for_selector(args["selector"], timeout=15_000)
+                checkpoint = self._await_human_challenge(page, ctx)
+                if checkpoint:
+                    return checkpoint
                 return ToolResult(ok=True, output=f"selector appeared: {args['selector']}")
             seconds = min(float(args.get("seconds") or 1), 30)
             page.wait_for_timeout(int(seconds * 1000))
+            checkpoint = self._await_human_challenge(page, ctx)
+            if checkpoint:
+                return checkpoint
             return ToolResult(ok=True, output=f"waited {seconds}s")
 
         return ToolResult(ok=False, output=f"unhandled action {action}")  # pragma: no cover

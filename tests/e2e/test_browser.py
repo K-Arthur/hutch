@@ -765,6 +765,46 @@ def test_gmail_unavailability_is_explicit_and_has_no_dead_connect_control(browse
         context.close()
 
 
+def test_browser_pauses_when_a_human_challenge_appears_during_wait(browser, live, tmp_path):
+    from types import SimpleNamespace
+
+    from hutch.tools.browser import BrowserTool
+    from tests.test_tools import make_ctx
+
+    _base, app = live
+    bot = app.state.store.create_bot(Bot(name="late-human-checkpoint", model="openai/gpt-4o-mini",
+                                         tools=["browser"], local_browser_handoff=True))
+    ctx = make_ctx(app.state.store, app.state.config, tmp_path, bot=bot)
+    ctx.headless = False
+    page = browser.new_page()
+    page.set_content("<main id='page'>Account overview</main>")
+    page.evaluate("window.hutchSessionMarker = 'same-live-page'")
+    page.evaluate("setTimeout(() => { document.querySelector('#page').textContent = 'Human verification is required.'; }, 30)")
+    tool = BrowserTool()
+    tool._ensure = lambda _ctx: SimpleNamespace(pages=[page])
+    handoffs = []
+
+    def resume_human(reason, url, **kwargs):
+        handoffs.append((reason, url, kwargs))
+        assert page.evaluate("window.hutchSessionMarker") == "same-live-page"
+        if len(handoffs) == 2:
+            page.locator("#page").evaluate("el => { el.textContent = 'Account overview'; }")
+
+    ctx.gate.wait_for_human = resume_human
+    try:
+        result = tool.run({"action": "wait", "seconds": 0.1}, ctx)
+        assert len(handoffs) == 2, "the page must stay paused when the challenge remains after a resume"
+        assert "Human verification is needed" in handoffs[0][0]
+        assert "same window" in handoffs[0][2]["handoff"]
+        assert result.ok and "waited 0.1s" in result.output
+        assert page.evaluate("window.hutchSessionMarker") == "same-live-page"
+        read = tool.run({"action": "read"}, ctx)
+        assert read.ok and "Account overview" in read.output
+        assert "Human verification" not in read.output
+    finally:
+        page.close()
+
+
 def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewports(browser, live, monkeypatch):
     from pathlib import Path
 
