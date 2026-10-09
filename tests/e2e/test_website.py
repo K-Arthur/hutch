@@ -179,7 +179,9 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
         page.goto(site_url, wait_until="networkidle")
         workflow = page.locator("#workflow")
         assert "named recurring tasks" in workflow.inner_text().lower()
-        assert "local supervisor" in workflow.inner_text().lower()
+        assert "local supervisor" in page.locator("body").inner_text().lower()
+        assert "built-in chat can ask you to choose among options" in workflow.inner_text().lower()
+        assert "your answer continues the conversation and never approves an action" in workflow.inner_text().lower()
         for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             workflow.get_by_role("heading", name="Keep each task reviewable from request to result.").scroll_into_view_if_needed()

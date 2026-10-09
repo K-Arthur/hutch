@@ -1,0 +1,94 @@
+{
+  "test": "tests/e2e/test_browser.py::test_chat_choice_question_is_selectable_and_readable_at_all_viewports",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_chat_choice_question_is_selectable_and_readable_at_all_viewports",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewports": [
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "state": "pending",
+      "horizontal_overflow": 0
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        900,
+        1024
+      ],
+      "state": "pending",
+      "horizontal_overflow": 0
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        390,
+        844
+      ],
+      "state": "pending",
+      "horizontal_overflow": 0
+    },
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "state": "answered",
+      "api_status": 201,
+      "answer_run_initial_status": "pending",
+      "selected_labels": [
+        "Risks",
+        "Timeline"
+      ],
+      "horizontal_overflow": 0
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        900,
+        1024
+      ],
+      "state": "answered",
+      "api_status": 201,
+      "answer_run_initial_status": "pending",
+      "selected_labels": [
+        "Risks",
+        "Timeline"
+      ],
+      "horizontal_overflow": 0
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        390,
+        844
+      ],
+      "state": "answered",
+      "api_status": 201,
+      "answer_run_initial_status": "pending",
+      "selected_labels": [
+        "Risks",
+        "Timeline"
+      ],
+      "horizontal_overflow": 0
+    }
+  ],
+  "page_errors": [],
+  "provider_calls": 0,
+  "fixture_boundary": "SQLite-seeded questions exercise the real Store, API, HTML and chat-submit path; no model is invoked.",
+  "source_sha256": {
+    "src/hutch/models.py": "4580f21f9c2c2cda7a22fecf2517b6dddd1c0d84aaa27765c799547565b6cf1c",
+    "src/hutch/store.py": "d5f5c8c8ae50a65a4ebae31fb8fcdeaae5263a768a57219a43b02209f7582846",
+    "src/hutch/tools/choice.py": "df9c88d865c35537cf65c0fb716645f79c76449c288064f0526d95e06eff87c0",
+    "src/hutch/runtime/builtin.py": "1c4d3848e0009cd5bcc27e723c56ec62040a2725ee134b0930afd95a41c4a1a0",
+    "src/hutch/server/app.py": "82910802cb7637240ac41daa67247dec1ccba73c79dc993bc2bd312b42768494",
+    "src/hutch/server/static/app.js": "782301c8ff4a1c5bd3722b9ef07bcee974929819e4846b75020ba7b20c8ace07",
+    "src/hutch/server/static/style.css": "a9d060e0a72a3c761f1987adb54796de5f943fbba0836b160ca9c60b5b04fc59"
+  },
+  "captured_at": "2026-10-09T11:22:51.214200+00:00"
+}

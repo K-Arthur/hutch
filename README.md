@@ -87,7 +87,9 @@ approval expiry without the dashboard.
   bounded recent history to the builtin runtime. The versioned API has SQLite full-text search, restart-safe command idempotency,
   cross-run transcript replay and bounded snapshot reconciliation after a cursor gap. Standalone
   `/api/v1/tasks/runs` submissions and human-resume commands use restart-safe idempotency; resume is
-  bound to the active human-needed event so an old action cannot skip a later challenge.
+  bound to the active human-needed event so an old action cannot skip a later challenge. Built-in
+  chat runs can ask a bounded single- or multi-select question; answers resume with a normal chat
+  message and never approve an action. Pi/OpenCode do not support this path yet.
 - **Remote pairing (experimental)** — a one-time code opens the responsive dashboard on a paired browser, and Connections can list and
   revoke device sessions. Direct access requires explicit HTTPS binding. An operator-managed HTTPS reverse proxy can be configured with
   an exact trusted-proxy network and public-host allowlist; Hutch does not provision tunnels. Live network and physical-device checks

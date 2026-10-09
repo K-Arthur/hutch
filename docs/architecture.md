@@ -1,6 +1,6 @@
 # Architecture
 
-Schema v15 separates reference facts from canonical chat messages, workspace files, execution receipts
+Schema v26 separates reference facts and durable typed chat questions from canonical chat messages, workspace files, execution receipts
 and provider credential stores. Model proposals inherit persisted chat/run scope and execution fencing;
 human review binds immutable revision/scope hashes. Explicit sharing creates a bot-wide reference.
 Facts are retrieved as bounded JSON tool data through SQLite FTS5, never automatically placed in system
@@ -63,7 +63,7 @@ flowchart LR
 Everything lives under one directory (default `~/.local/state/hutch`, override `HUTCH_STATE_DIR`):
 
 ```
-hutch.db                      # SQLite (WAL): bots, tasks, runs, events, usage/reservations, conversations, approvals, memory, receipts, artifact-share grants
+hutch.db                      # SQLite (WAL): bots, tasks, runs, events, usage/reservations, conversations/questions, approvals, memory, receipts, artifact-share grants
 bots/<bot>/runs/<run_id>/
   transcript.jsonl              # append-only run transcript (mirror of events)
   artifacts/<version>-<tool>.txt # immutable clipped outputs and write_file snapshots
@@ -221,7 +221,11 @@ remain open. HTTP(S)/WebSocket browser connections use a locally tested DNS-pinn
 processes. Schema v9 stores canonical conversations, user/assistant messages, run links and revocable device sessions; old runs are imported one per legacy
 conversation to avoid guessing continuity. Versioned conversation writes and run admission are idempotent and transactional. The
 builtin runtime receives a capped snapshot of earlier messages; Studio uses the versioned conversation endpoints. Versioned stop and
-approval decisions are also idempotent.
+approval decisions are also idempotent. Schema v26 stores a Bot-authored choice prompt and its options with the assistant message and
+hash-chained `choice_requested` event in one fenced transaction. A selected answer atomically records the chosen option IDs, adds a
+user message linked to the question, and admits the next conversation run under the normal idempotency key. Questions are separate
+from approvals and browser/CAPTCHA handoff: they do not change run authority or permissions. A provider response that combines a
+choice prompt with other tool calls is rejected as a batch before any of those calls run.
 
 Worker signal listeners and asynchronous process cleanup are owned work: listeners wake on normal
 completion as well as Stop, and finalization joins earlier cleanup before its final process check.

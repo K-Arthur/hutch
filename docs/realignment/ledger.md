@@ -1992,3 +1992,32 @@ matches the tested picker files. `node --check`, `git diff --check`, artifact JS
 passed; the detector returned no findings. This verifies the ordinary-Bot picker only. CO-14 remains partial because
 workspace-coordinator/specialist model controls and actual model identity on cross-Bot runs are not implemented. No
 live provider, physical phone or screen-reader check was performed.
+
+## S6 typed chat choices (2026-10-09)
+
+Schema v26 adds immutable single- and multi-select questions to built-in conversation runs. The conversation-only
+`ask_user_choice` tool is separate from the bot action allowlist and approval path. The runtime stops after saving the question;
+mixed provider batches containing that tool are rejected before any sibling tool runs. The Studio renders a keyboard-selectable
+question card and labels its parent conversation “Waiting for your choice,” while the execution run remains terminal. One answer
+transaction links the selected option IDs to the question, records a normal user message referencing the exact assistant question,
+and creates an idempotent next run. Choices cannot approve or authorize actions. Questions and pending decisions survive restart;
+the answer is one-use, scoped to the same conversation, and changed requests on a reused idempotency key conflict.
+
+Focused persistence, runtime, API and migration checks passed **66 tests** across `tests/test_conversations.py`,
+`tests/test_runtime_builtin.py` and `tests/test_migration.py`. The browser journey passed at desktop **1440×960**, tablet
+**900×1024** and phone **390×844** using Chromium **153.0.8010.12** / Playwright **1.63.0**. It exercised keyboard selection,
+multi-select, the real answer API, persisted answered state and zero horizontal overflow; I inspected pending, selected and
+answered captures. `node --check` and the Impeccable detector passed with no findings. Artifacts and source hashes are in
+[`artifacts/structured-choices/`](artifacts/structured-choices/); the test is
+`tests/e2e/test_browser.py::test_chat_choice_question_is_selectable_and_readable_at_all_viewports`.
+The full offline suite passed **1,379 tests in 334.17s** (`.venv/bin/python -m pytest -q --ignore=tests/e2e`); the final browser
+journey passed separately in **4.72s**. The migration tests now also cover replaying v25/v26 upgrades against a current fixture.
+
+The browser uses SQLite-seeded questions and makes **zero model/provider calls**; a newly submitted answer run is queued in this
+fixture because its engine tick is disabled. No live OpenCode/Pi adapter, provider, physical phone or screen-reader check was
+performed. External runtimes do not expose the tool yet; CAPTCHA and other browser human-control events remain a separate,
+unimplemented handoff capability. The anonymous marketing workflow now says the built-in chat can ask for a preference and that
+the response is not approval. `tests/e2e/test_website.py` passed **25 tests**; I inspected the workflow at **1440×900**,
+**900×1024** and **390×844**. Its browser made no external requests and reported no errors or page overflow; updated captures and
+the page hash are in [`artifacts/scheduled-tasks/site-validation.json`](artifacts/scheduled-tasks/site-validation.json) and the
+adjacent `site-workflow-*.png` files. Implementation commit: pending.

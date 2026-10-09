@@ -5,15 +5,17 @@
 The product owner identified chat-led bot setup, structured choice prompts, Google Calendar,
 Gmail and Outlook integrations, and a named coordinator Bot as key product requirements. A
 deterministic bot-setup wizard and inline approvals already exist, but setup still asks the user to
-repeat information from chat; typed choices, these account integrations, and the workspace
+repeat information from chat; typed choices now work for the built-in runtime, while these account integrations and the workspace
 coordinator are not implemented. Keep chat as the normal work surface and make bot configuration
 and approvals appear in context where possible. The roster should remain small by default; use a
 searchable Fleet surface when the user has enough Bots to need it. Roughly ten Bots is the product
 owner's initial heuristic, not a research-established cutoff.
 
-1. Add bounded, typed choice prompts that persist across restart. The bot can ask a single-select
-   or multi-select question, and the user can answer in chat. This response supplies information
-   only; a tool action or permission still requires its own approval.
+1. **Typed choices, core implemented (schema v26):** conversational built-in runs can ask a bounded
+   single-select or multi-select question. The question/options and one-use answer persist across
+   restart; answering creates an idempotent user turn anchored to the Bot's question. It supplies
+   information only; a tool action or permission still requires its own approval. External runtime
+   support and final desktop/tablet/phone visual/release validation remain open.
 2. Make bot setup conversational and context-aware. Carry forward the purpose, constraints, model,
    tools, and workspace choices the user has already stated; ask only for unresolved information.
    Show the complete staged configuration for review, then create idempotently only after explicit

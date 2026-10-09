@@ -132,6 +132,45 @@ def test_only_the_bots_allowed_tools_reach_the_prompt(store, config, tmp_path, o
     assert names == ["remember"]
 
 
+def test_structured_choice_is_conversation_only_and_pauses_the_model_loop(store, config, tmp_path, ollama):
+    from hutch.models import Task, RunStatus
+    from hutch.tools import ALL_TOOL_NAMES
+
+    bot = Bot(name="choice-chat", model="ollama/fake:8b", tools=["files"], selfcheck=False,
+              instructions="Ask before choosing.")
+    store.create_bot(bot)
+    conversation, _ = store.create_conversation(bot.id, "choice", idem_key="choice-chat",
+                                                request_hash="choice-chat")
+    run = Run(bot_id=bot.id, prompt="Plan a report", conversation_id=conversation["id"])
+    store.create_run(run)
+    claimed = store.claim_run(run.id, "choice-runtime-test", 120)
+    run = store.transition_run(run.id, RunStatus.running, fence=claimed.fence)
+    emitted = []
+
+    def emit(event):
+        emitted.append(event)
+        store.append_event(event)
+
+    gate = ApprovalGate(store, bot, run, PolicyEngine(), emit, poll_seconds=0.05)
+    ctx = ToolContext(bot=bot, run=run, store=store, policy=gate.policy, gate=gate,
+                      config=config, workspace=tmp_path, emit=emit)
+    tools = build_tools(bot.tools, ctx)
+    assert "ask_user_choice" in tools and "ask_user_choice" not in ALL_TOOL_NAMES
+    ollama.script = agent_script([
+        {"tool_calls": [{"name": "ask_user_choice", "arguments": {
+            "question": "Which report should I prepare?", "selection_mode": "single",
+            "options": ["Weekly", "Monthly"]}}]},
+        {"content": "must not run before the user answers"},
+    ])
+    assert run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools) == ""
+    store.flush_events()
+    assert len(ollama.of("/api/chat")) == 1
+    events = store.list_events(run.id)
+    request = next(event for event in events if event.type is EventType.choice_requested)
+    assert request.data["question"] == "Which report should I prepare?"
+    assert store.verify_chain(run.id)["ok"]
+
+
 def test_a_bot_with_a_context_override_gets_exactly_that_window(store, config, tmp_path, ollama):
     ollama.script = agent_script([{"content": "ok"}])
     ctx, run, emitted, tools = build(store, config, tmp_path, num_ctx=12000)

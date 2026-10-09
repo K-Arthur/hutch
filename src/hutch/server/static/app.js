@@ -33,6 +33,7 @@ let currentConversationId = null;
 let currentConversations = [];
 let studioGeneration = 0;
 let activeReplySelectionHandler = null;
+let activeChoiceSubmitHandler = null;
 const requestedHumanResumes = new Set();
 
 /* ------------------------------------------------------------------ utils */
@@ -89,6 +90,36 @@ function clearMessageIdempotencyKey(conversationId, key) {
     if (previous?.key === key) localStorage.removeItem(storageKey);
   } catch { storageRemove(storageKey); }
 }
+
+async function choiceAnswerIdempotencyKey(conversationId, questionId, body) {
+  const storageKey = `hutch-pending-choice:${conversationId}:${questionId}`;
+  const fingerprint = await payloadFingerprint(body);
+  try {
+    const previous = JSON.parse(localStorage.getItem(storageKey) || "null");
+    if (previous?.fingerprint === fingerprint && previous?.key) return previous.key;
+  } catch { /* replace a damaged browser-local retry marker */ }
+  const key = newIdempotencyKey();
+  storageSet(storageKey, JSON.stringify({ key, fingerprint }));
+  return key;
+}
+
+function clearChoiceIdempotencyKey(conversationId, questionId, key) {
+  const storageKey = `hutch-pending-choice:${conversationId}:${questionId}`;
+  try {
+    const previous = JSON.parse(localStorage.getItem(storageKey) || "null");
+    if (previous?.key === key) localStorage.removeItem(storageKey);
+  } catch { storageRemove(storageKey); }
+}
+
+function choiceDraftKey(conversationId, questionId) {
+  return `hutch-choice-draft:${conversationId}:${questionId}`;
+}
+
+document.addEventListener("click", ev => {
+  const openChoice = ev.target.closest("[data-open-choice-conversation]");
+  if (!openChoice) return;
+  void openConversation(openChoice.dataset.openChoiceConversation);
+});
 
 async function createStudioConversation(bot) {
   const storageKey = `hutch-pending-conversation:${bot.id}`;
@@ -1533,6 +1564,47 @@ async function renderChatStudio(preferredBot = null) {
       toast(`Could not reference that message: ${err.message}`, true);
     }
   };
+  activeChoiceSubmitHandler = async form => {
+    if (generation !== studioGeneration || composerConversationId !== currentConversationId) return;
+    if (form.dataset.submitting === "1") return;
+    const questionId = form.dataset.choiceQuestion;
+    const optionIds = [...form.querySelectorAll("input:checked")].map(input => input.value);
+    const error = form.querySelector("[data-choice-error]");
+    if (!optionIds.length) {
+      error.textContent = "Choose an option before sending your answer.";
+      return;
+    }
+    const button = form.querySelector("[type=submit]");
+    const questionRunId = form.dataset.choiceRun;
+    const body = { option_ids: optionIds, model: switcher?.selected() || null };
+    form.dataset.submitting = "1";
+    button.disabled = true;
+    form.querySelectorAll("input").forEach(input => { input.disabled = true; });
+    error.textContent = "";
+    try {
+      const key = await choiceAnswerIdempotencyKey(composerConversationId, questionId, body);
+      const result = await api(`/v1/conversations/${encodeURIComponent(composerConversationId)}/questions/${encodeURIComponent(questionId)}/answer`, {
+        method: "POST", headers: { "Idempotency-Key": key }, body,
+      });
+      clearChoiceIdempotencyKey(composerConversationId, questionId, key);
+      storageRemove(choiceDraftKey(composerConversationId, questionId));
+      if (body.model) switcher?.consumeOverride(body.model);
+      terminalRunCache.delete(questionRunId);
+      toast(ACTIVE.has(result.status) && activeRun ? "Answer sent — queued behind the current run." : "Answer sent.");
+      if (generation !== studioGeneration) return;
+      currentRunId = result.id;
+      subscribeRun(result.id);
+      renderChatFeed();
+      refreshRoster();
+    } catch (err) {
+      error.textContent = err.message || "Your answer could not be sent.";
+      form.querySelectorAll("input").forEach(input => { input.disabled = false; });
+      button.disabled = false;
+      if (/already answered/i.test(err.message || "")) renderChatFeed();
+    } finally {
+      if (form.isConnected) form.dataset.submitting = "";
+    }
+  };
   $("#reply-composer-clear").addEventListener("click", () => {
     replySelectionGeneration++;
     setReply(null);
@@ -2138,6 +2210,7 @@ async function runBlockHtml(runId, messages = null) {
   const items = groupToolItems(pairToolEvents(events));
   const dur = fmtDur((run.finished_at ? new Date(run.finished_at) : Date.now()) - new Date(run.created_at));
   const running = ACTIVE.has(run.status);
+  const waitingForChoice = Object.values(run.choice_states || {}).some(state => state.status === "pending");
   const activityLabel = statusInfo[run.status]?.label || "Status unavailable";
   const activeHumanEventSeq = run.status === "waiting_human"
     ? [...events].reverse().find(e => e.type === "human_needed")?.seq ?? null
@@ -2145,13 +2218,17 @@ async function runBlockHtml(runId, messages = null) {
   const anim = seenThreads.has(runId) ? "" : " enter";
   seenThreads.add(runId);
 
-  const steps = [], cards = [];
+  const steps = [], cards = [], choiceCards = [];
   items.forEach(item => {
-    const html = renderFeedItem(item, runId, resolvedMap, activeHumanEventSeq);
-    (item.kind === "event" && (item.e.type === "approval_request" || item.e.type === "human_needed") ? cards : steps).push(html);
+    const html = renderFeedItem(item, runId, resolvedMap, activeHumanEventSeq,
+      run.choice_states || {}, run.conversation_id || "");
+    if (item.kind === "event" && item.e.type === "choice_requested") choiceCards.push(html);
+    else (item.kind === "event" && (item.e.type === "approval_request" || item.e.type === "human_needed") ? cards : steps).push(html);
   });
 
-  const message = events.filter(e => e.type === "message" && e.data?.role !== "user").pop();
+  const choiceMessageIds = new Set(events.filter(e => e.type === "choice_requested").map(e => e.data?.message_id));
+  const message = events.filter(e => e.type === "message" && e.data?.role !== "user"
+    && !choiceMessageIds.has(e.data?.message_id)).pop();
   const userMessage = messages?.find(m => m.role === "user" && m.run_id === runId);
   const botMessage = messages?.filter(m => m.role === "assistant" && m.run_id === runId).at(-1);
   const botName = run.bot_name || currentStudioBot;
@@ -2172,7 +2249,9 @@ async function runBlockHtml(runId, messages = null) {
         <div class="mhead">
           ${botAvatar(botName, 26, run.status === "running" ? "running" : "")}
           <b>${esc(botName)}</b>
-          ${statusChip(run.status, run.status_label)}
+          ${waitingForChoice
+            ? statusChip("waiting_for_answer", "Waiting for your choice")
+            : statusChip(run.status, run.status_label)}
           ${running ? `<button class="btn ghost small" data-stop-run="${esc(runId)}" ${run.status === "cancelling" ? "disabled" : ""}>${run.status === "cancelling" ? "Stopping" : "Stop"}</button>` : ""}
           <a class="mrun mono" href="#/run/${esc(runId)}" title="${esc(runId)} · ${esc(run.origin || "manual")} · ${dur}">#${esc(runId.slice(4, 12))}</a>
         </div>
@@ -2187,6 +2266,7 @@ async function runBlockHtml(runId, messages = null) {
           ${steps.join("")}
         </details>` : ""}
         ${message && message.data?.content ? `<div class="answer">${esc(message.data.content)}</div>${replyAction}` : ""}
+        ${choiceCards.join("")}
         ${run.transcript_mirror?.error || run.transcript_mirror?.worker_error
           ? `<p class="run-notice" role="status">Transcript file needs attention: ${esc(run.transcript_mirror.error || run.transcript_mirror.worker_error)}. Database history remains available.</p>`
           : run.transcript_mirror?.pending ? '<p class="hint" role="status">Transcript file is catching up. History shown here is committed in the database.</p>' : ""}
@@ -2333,10 +2413,10 @@ function typingHtml() {
   </div>`;
 }
 
-function renderFeedItem(item, runId, resolvedMap, activeHumanEventSeq) {
+function renderFeedItem(item, runId, resolvedMap, activeHumanEventSeq, choiceStates = {}, conversationId = "") {
   if (item.kind === "tool") return toolLineHtml(item, item.call?.e ?? item.result.e, runId);
   if (item.kind === "group") return toolGroupHtml(item, runId);
-  return renderChatEvent(item.e, resolvedMap, activeHumanEventSeq);
+  return renderChatEvent(item.e, resolvedMap, activeHumanEventSeq, choiceStates, conversationId);
 }
 
 function toolLineHtml(item, anchorEvent, runId, includeFileAttachments = true) {
@@ -2520,6 +2600,19 @@ function wireFeedInteractions() {
       try { localStorage.setItem(`hutch-expanded:${blockRun}`, JSON.stringify(ids)); } catch {}
     }
   });
+  stream.addEventListener("submit", ev => {
+    const form = ev.target.closest("[data-choice-form]");
+    if (!form) return;
+    ev.preventDefault();
+    void activeChoiceSubmitHandler?.(form);
+  });
+  stream.addEventListener("change", ev => {
+    const input = ev.target.closest("[data-choice-option]");
+    const form = input?.closest("[data-choice-form]");
+    if (!form) return;
+    const selected = [...form.querySelectorAll("input:checked")].map(item => item.value);
+    storageSet(choiceDraftKey(currentConversationId, form.dataset.choiceQuestion), JSON.stringify(selected));
+  });
 }
 
 /* Client expiry disables controls; only a server receipt declares the outcome. */
@@ -2700,7 +2793,53 @@ async function resolveApproval(id, choice, card) {
   if (needsYouDialog.open) await refreshApprovals();
 }
 
-function renderChatEvent(e, resolvedMap, activeHumanEventSeq = null) {
+function choiceCardHtml(e, state, conversationId) {
+  const data = e.data || {};
+  const questionId = String(data.question_id || "");
+  const runId = String(e.run_id || "");
+  const options = Array.isArray(data.options) ? data.options : [];
+  if (!questionId || !state || !options.length) {
+    return '<section class="choice-card" role="status"><b>Choice unavailable</b><p>The saved answer state could not be verified. Refresh the conversation before continuing.</p></section>';
+  }
+  if (state.status === "answered") {
+    const selected = state.selected_labels || [];
+    return `<section class="choice-card answered" aria-label="Choice answered">
+      <div class="choice-card-head"><span class="choice-kicker">Your choice</span><span class="choice-state">Answered</span></div>
+      <p class="choice-question">${esc(data.question || "")}</p>
+      <p class="choice-selection">${selected.map(label => `<span>${esc(label)}</span>`).join("") || "Selection recorded"}</p>
+    </section>`;
+  }
+  if (state.status !== "pending") {
+    return '<section class="choice-card" role="status"><b>Choice closed</b><p>This question is no longer accepting an answer.</p></section>';
+  }
+  const selectedConversation = currentConversations.find(item => item.id === conversationId);
+  const inConversation = location.hash.startsWith("#/chat") && currentConversationId === conversationId;
+  const canAnswer = inConversation && !selectedConversation?.archived && !!activeChoiceSubmitHandler;
+  if (!canAnswer) {
+    return `<section class="choice-card" aria-label="Bot question">
+      <div class="choice-card-head"><span class="choice-kicker">Bot question</span><span class="choice-state">Waiting for you</span></div>
+      <p class="choice-question">${esc(data.question || "")}</p>
+      ${selectedConversation?.archived && inConversation
+        ? '<p class="hint">Restore this conversation to answer.</p>'
+        : `<button class="btn ghost small" type="button" data-open-choice-conversation="${esc(conversationId)}">Open conversation to choose</button>`}
+    </section>`;
+  }
+  const multi = data.selection_mode === "multiple";
+  let draft = [];
+  try { draft = JSON.parse(storageGet(choiceDraftKey(conversationId, questionId)) || "[]"); } catch {}
+  const controls = options.map(option => `<label class="choice-option">
+      <input data-choice-option type="${multi ? "checkbox" : "radio"}" name="choice-${esc(questionId)}" value="${esc(option.id)}" ${draft.includes(option.id) ? "checked" : ""} ${multi ? "" : "required"}>
+      <span>${esc(option.label)}</span>
+    </label>`).join("");
+  return `<form class="choice-card" data-choice-form data-choice-question="${esc(questionId)}" data-choice-run="${esc(runId)}">
+    <div class="choice-card-head"><span class="choice-kicker">Bot question</span><span class="choice-state">${multi ? "Choose any that fit" : "Choose one"}</span></div>
+    <fieldset class="choice-options"><legend class="choice-question">${esc(data.question || "")}</legend>${controls}</fieldset>
+    <p class="choice-error" data-choice-error role="status" aria-live="polite"></p>
+    <button class="btn primary choice-submit" type="submit">Send answer</button>
+  </form>`;
+}
+
+function renderChatEvent(e, resolvedMap, activeHumanEventSeq = null, choiceStates = {}, conversationId = "") {
   const t = e.ts ? e.ts.slice(11, 19) : "";
   const d = e.data || {};
   switch (e.type) {
@@ -2730,6 +2869,8 @@ function renderChatEvent(e, resolvedMap, activeHumanEventSeq = null) {
       return `<div class="run-cause"><b>${icon("alert")} Needs a person:</b> ${esc(d.reason || d.note || "A login, CAPTCHA, or 2FA step is waiting.")} ${
         d.handoff ? `<br><span class="hint">${esc(d.handoff)}</span>` : ""}${action ? `<div class="human-resume-action">${action}</div>` : ""}</div>`;
     }
+    case "choice_requested":
+      return choiceCardHtml(e, choiceStates[d.question_id], conversationId);
     case "log": {
       const note = (d.note || d.message || "").trim();
       if (!note) return "";   // empty log notes must not leave an orphan row

@@ -205,6 +205,23 @@ calls still happen; rehearsal is not a network-disconnected preview. The tools e
 Limits: a rehearsal still calls the model (and so can cost money on a hosted one), and a read that has a side effect on
 someone else's server (a `GET` that logs you out) still happens.
 
+## Conversational questions
+
+The built-in runtime offers `ask_user_choice` only when a run belongs to a conversation. It is a
+chat primitive, not a Bot-granted action capability: it is absent from the tool permission list and
+cannot perform or approve an external action. Questions have bounded text and 2–12 distinct
+options. Hutch persists the Bot message, immutable option list and `choice_requested` event in one
+owned transaction, then ends that run. The answer endpoint checks the same conversation and Bot,
+validates the selected option IDs, and admits one ordinary user turn atomically. A concurrent second
+answer loses; an exact retry returns its original run. The user selection adds information to the
+prompt and does not change tools, permissions, account scope or approval state.
+
+Choice questions are not `waiting_approval` or `waiting_human`: approvals govern an exact external
+effect, while browser `waiting_human` is reserved for a live login, CAPTCHA, 2FA or other human-only
+checkpoint. A model response that bundles a choice request with any other tool call is rejected as
+a batch before sibling calls can run. Pi/OpenCode adapters do not support the chat primitive while
+those external runtimes remain disabled.
+
 ## Approval flow
 
 1. A tool hits an **ask** verdict → an `ApprovalRequest` row is created; the run enters

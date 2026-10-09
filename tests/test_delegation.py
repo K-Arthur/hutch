@@ -8,7 +8,7 @@ import pytest
 
 from hutch.engine import Engine
 from hutch.models import Bot, Event, EventType, InferenceMode, Limits, Run, RunStatus, Task, iso, utcnow
-from hutch.store import IdempotencyConflict, Store
+from hutch.store import IdempotencyConflict, SCHEMA_VERSION, Store
 
 
 def _running_parent(store, capability_snapshot=None):
@@ -719,7 +719,7 @@ def test_schema_v21_migrates_existing_runs_with_no_parent_link(config):
     upgraded = Store(config)
     try:
         legacy = upgraded.get_run(run.id)
-        assert upgraded.schema_version == 24
+        assert upgraded.schema_version == SCHEMA_VERSION
         assert legacy.parent_run_id is None
         assert legacy.delegation_budget_cost_usd is None
         assert (config.db_path.parent / "hutch.db.bak-v21").exists()
@@ -744,7 +744,7 @@ def test_schema_v22_migration_preserves_lineage_without_inventing_a_budget(store
     upgraded = Store(config)
     try:
         restored = upgraded.get_run(child.id)
-        assert upgraded.schema_version == 24
+        assert upgraded.schema_version == SCHEMA_VERSION
         assert restored.parent_run_id == parent.id
         assert restored.delegation_budget_cost_usd is None
         assert (config.db_path.parent / "hutch.db.bak-v22").exists()
@@ -767,7 +767,7 @@ def test_schema_v23_migration_adds_empty_capability_snapshots(config):
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == 24
+        assert upgraded.schema_version == SCHEMA_VERSION
         assert upgraded.run_capability_snapshot(run.id) is None
         assert (config.db_path.parent / "hutch.db.bak-v23").exists()
     finally:

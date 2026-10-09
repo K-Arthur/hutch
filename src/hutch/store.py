@@ -511,8 +511,10 @@ def _migrate_24(db: sqlite3.Connection) -> None:
 
 def _migrate_25(db: sqlite3.Connection) -> None:
     """Persist explicit same-conversation assistant-message reply references."""
-    db.execute("ALTER TABLE messages ADD COLUMN reply_to_message_id TEXT REFERENCES messages(id)")
-    db.execute("""CREATE TRIGGER messages_reply_target_insert
+    columns = {row[1] for row in db.execute("PRAGMA table_info(messages)")}
+    if "reply_to_message_id" not in columns:
+        db.execute("ALTER TABLE messages ADD COLUMN reply_to_message_id TEXT REFERENCES messages(id)")
+    db.execute("""CREATE TRIGGER IF NOT EXISTS messages_reply_target_insert
         BEFORE INSERT ON messages
         WHEN NEW.reply_to_message_id IS NOT NULL
           AND (NEW.role != 'user' OR NOT EXISTS (
@@ -521,7 +523,55 @@ def _migrate_25(db: sqlite3.Connection) -> None:
               AND target.conversation_id = NEW.conversation_id
               AND target.role = 'assistant'))
         BEGIN SELECT RAISE(ABORT, 'reply target must be an assistant message in this conversation'); END""")
-    db.execute("""CREATE TRIGGER messages_reply_target_update
+
+
+def _migrate_26(db: sqlite3.Connection) -> None:
+    """Persist typed chat questions and one-use answers independently of approvals and human handoff."""
+    db.execute("""CREATE TABLE IF NOT EXISTS conversation_questions (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id),
+        run_id TEXT NOT NULL REFERENCES runs(id),
+        bot_id TEXT NOT NULL REFERENCES bots(id),
+        assistant_message_id TEXT NOT NULL UNIQUE REFERENCES messages(id),
+        question TEXT NOT NULL,
+        selection_mode TEXT NOT NULL CHECK(selection_mode IN ('single', 'multiple')),
+        options_json TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'answered')),
+        answer_run_id TEXT REFERENCES runs(id),
+        answer_message_id TEXT REFERENCES messages(id),
+        selected_option_ids_json TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL,
+        answered_at TEXT
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_conversation_questions_pending ON conversation_questions(conversation_id, status, created_at)")
+    columns = {row[1] for row in db.execute("PRAGMA table_info(messages)")}
+    if "choice_question_id" not in columns:
+        db.execute("ALTER TABLE messages ADD COLUMN choice_question_id TEXT REFERENCES conversation_questions(id)")
+    db.execute("""CREATE TRIGGER IF NOT EXISTS messages_choice_question_insert
+        BEFORE INSERT ON messages
+        WHEN NEW.choice_question_id IS NOT NULL
+          AND (NEW.role != 'user' OR NOT EXISTS (
+            SELECT 1 FROM conversation_questions q
+            WHERE q.id = NEW.choice_question_id AND q.conversation_id = NEW.conversation_id))
+        BEGIN SELECT RAISE(ABORT, 'choice answer must belong to its conversation'); END""")
+    db.execute("""CREATE TRIGGER IF NOT EXISTS messages_choice_question_update
+        BEFORE UPDATE OF choice_question_id, conversation_id, role ON messages
+        WHEN NEW.choice_question_id IS NOT NULL
+          AND (NEW.role != 'user' OR NOT EXISTS (
+            SELECT 1 FROM conversation_questions q
+            WHERE q.id = NEW.choice_question_id AND q.conversation_id = NEW.conversation_id))
+        BEGIN SELECT RAISE(ABORT, 'choice answer must belong to its conversation'); END""")
+    db.execute("""CREATE TRIGGER IF NOT EXISTS conversation_question_definition_immutable
+        BEFORE UPDATE OF conversation_id, run_id, bot_id, assistant_message_id, question,
+                         selection_mode, options_json, created_at ON conversation_questions
+        BEGIN SELECT RAISE(ABORT, 'conversation question definition is immutable'); END""")
+    db.execute("""CREATE TRIGGER IF NOT EXISTS conversation_question_resolve_once
+        BEFORE UPDATE OF status, answer_run_id, answer_message_id, selected_option_ids_json, answered_at
+        ON conversation_questions
+        WHEN OLD.status != 'pending' OR NEW.status != 'answered' OR NEW.answer_run_id IS NULL
+          OR NEW.answer_message_id IS NULL OR NEW.answered_at IS NULL
+        BEGIN SELECT RAISE(ABORT, 'conversation question resolves once'); END""")
+    db.execute("""CREATE TRIGGER IF NOT EXISTS messages_reply_target_update
         BEFORE UPDATE OF reply_to_message_id, conversation_id, role ON messages
         WHEN NEW.reply_to_message_id IS NOT NULL
           AND (NEW.role != 'user' OR NOT EXISTS (
@@ -535,7 +585,7 @@ def _migrate_25(db: sqlite3.Connection) -> None:
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
-               _migrate_19, _migrate_20, _migrate_21, _migrate_22, _migrate_23, _migrate_24, _migrate_25]
+               _migrate_19, _migrate_20, _migrate_21, _migrate_22, _migrate_23, _migrate_24, _migrate_25, _migrate_26]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -1132,10 +1182,12 @@ class Store:
     @staticmethod
     def _insert_conversation_message(db: sqlite3.Connection, *, message_id: str, conversation_id: str, seq: int,
                                     run_id: str, role: str, content: str, created_at: str,
-                                    reply_to_message_id: Optional[str] = None) -> None:
-        db.execute("INSERT INTO messages (id, conversation_id, seq, run_id, role, content, created_at, reply_to_message_id) "
-                   "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                   (message_id, conversation_id, seq, run_id, role, content, created_at, reply_to_message_id))
+                                    reply_to_message_id: Optional[str] = None,
+                                    choice_question_id: Optional[str] = None) -> None:
+        db.execute("INSERT INTO messages (id, conversation_id, seq, run_id, role, content, created_at, reply_to_message_id, choice_question_id) "
+                   "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                   (message_id, conversation_id, seq, run_id, role, content, created_at,
+                    reply_to_message_id, choice_question_id))
         db.execute("INSERT INTO conversation_fts (message_id, conversation_id, content) VALUES (?, ?, ?)",
                    (message_id, conversation_id, content))
         db.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (created_at, conversation_id))
@@ -1635,10 +1687,73 @@ class Store:
             rows = self._db.execute(sql, args).fetchall()
         return [dict(row) for row in rows]
 
+    def create_conversation_question(self, run_id: str, question: str, selection_mode: str,
+                                    labels: list[str], *, fence: int) -> dict[str, Any]:
+        """Commit a Bot's chat choice prompt, transcript message, and event as one fenced transaction."""
+        question = question.strip() if isinstance(question, str) else ""
+        if not question or len(question) > 1_000:
+            raise ValueError("question must contain 1–1,000 characters")
+        if selection_mode not in {"single", "multiple"}:
+            raise ValueError("selection mode must be single or multiple")
+        if not isinstance(labels, list) or not 2 <= len(labels) <= 12:
+            raise ValueError("a choice question needs 2–12 options")
+        normalized: list[str] = []
+        for label in labels:
+            if not isinstance(label, str) or not label.strip() or len(label.strip()) > 160:
+                raise ValueError("each choice must contain 1–160 characters")
+            normalized.append(label.strip())
+        if len({label.casefold() for label in normalized}) != len(normalized):
+            raise ValueError("choice labels must be distinct")
+        choice_id = f"choice_{uuid.uuid4().hex[:16]}"
+        message_id = f"msg_{uuid.uuid4().hex[:12]}"
+        options = [{"id": f"opt_{uuid.uuid4().hex[:12]}", "label": label} for label in normalized]
+        now = iso(utcnow())
+        # Earlier buffered tool-call and model-step events must precede the durable question.
+        self.flush_events()
+        events = [
+            Event(run_id=run_id, type=EventType.message,
+                  data={"role": "assistant", "content": question, "message_id": message_id}),
+            Event(run_id=run_id, type=EventType.choice_requested,
+                  data={"question_id": choice_id, "message_id": message_id, "question": question,
+                        "selection_mode": selection_mode, "options": options}),
+        ]
+        with self._tx() as db:
+            run_row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
+            self._check_lease(run_row, run_id, fence)
+            if RunStatus(run_row["status"]) is not RunStatus.running or run_row["cancel_requested"]:
+                raise LeaseLost(run_id, "this run is no longer accepting a chat question")
+            if not run_row["conversation_id"]:
+                raise ValueError("structured chat choices are only available in conversations")
+            conv = db.execute("SELECT bot_id, archived FROM conversations WHERE id = ?",
+                              (run_row["conversation_id"],)).fetchone()
+            if conv is None:
+                raise ValueError("conversation ownership is unavailable")
+            # The authoritative bot id is on runs, not the serialized run document.
+            owner = db.execute("SELECT bot_id FROM runs WHERE id = ?", (run_id,)).fetchone()
+            if owner is None or conv["bot_id"] != owner["bot_id"] or conv["archived"]:
+                raise ValueError("conversation is unavailable for a chat question")
+            # `_insert_events` gives the message its canonical sequence and mirrors it to the FTS-backed transcript.
+            self._insert_events(db, run_id, events)
+            db.execute("""INSERT INTO conversation_questions
+                (id, conversation_id, run_id, bot_id, assistant_message_id, question, selection_mode,
+                 options_json, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)""",
+                (choice_id, run_row["conversation_id"], run_id, owner["bot_id"], message_id,
+                 question, selection_mode, _canonical(options), now))
+        self._mirror.wake.set()
+        for event in events:
+            self._fan_out(event)
+        self.bus.notify("events", f"run:{run_id}", "conversations", f"conversation:{run_row['conversation_id']}")
+        return {"id": choice_id, "conversation_id": run_row["conversation_id"], "run_id": run_id,
+                "bot_id": owner["bot_id"], "assistant_message_id": message_id, "question": question,
+                "selection_mode": selection_mode, "options": options, "status": "pending", "created_at": now}
+
     def submit_conversation_message(self, conversation_id: str, prompt: str, run: Run, task: Task, *,
                                     idem_key: str, request_hash: str, context_messages: int = 12,
                                     context_chars: int = 16_000,
-                                    reply_to_message_id: Optional[str] = None) -> tuple[str, bool]:
+                                    reply_to_message_id: Optional[str] = None,
+                                    choice_question_id: Optional[str] = None,
+                                    choice_option_ids: Optional[list[str]] = None) -> tuple[str, bool]:
         """Append a user message and admit its run atomically, with a bounded context snapshot and durable idempotency."""
         if run.parent_run_id is not None or run.delegation_budget_cost_usd is not None:
             raise ValueError("delegated runs must use submit_delegated_run")
@@ -1657,6 +1772,38 @@ class Store:
                 raise PermissionError("conversation belongs to another bot")
             if conversation["archived"]:
                 raise ValueError("conversation is archived")
+
+            choice_question = None
+            selected_labels: list[str] = []
+            if choice_question_id is not None:
+                choice_question = db.execute(
+                    "SELECT * FROM conversation_questions WHERE id = ? AND conversation_id = ? AND bot_id = ?",
+                    (choice_question_id, conversation_id, run.bot_id)).fetchone()
+                if choice_question is None:
+                    raise ValueError("choice question is unavailable in this conversation")
+                if choice_question["status"] != "pending":
+                    raise ValueError("choice question was already answered")
+                options = json.loads(choice_question["options_json"])
+                submitted_ids = choice_option_ids or []
+                valid_ids = {option["id"] for option in options}
+                if (not submitted_ids or len(submitted_ids) != len(set(submitted_ids))
+                        or any(option_id not in valid_ids for option_id in submitted_ids)):
+                    raise ValueError("select one or more valid options")
+                if choice_question["selection_mode"] == "single" and len(submitted_ids) != 1:
+                    raise ValueError("select exactly one option")
+                # Persist/render in the immutable order shown in the original question.
+                ordered_ids = [option["id"] for option in options if option["id"] in submitted_ids]
+                selected_labels = [option["label"] for option in options if option["id"] in submitted_ids]
+                prompt = (f"For the question {json.dumps(choice_question['question'], ensure_ascii=False)}, "
+                          f"I selected: {', '.join(json.dumps(label, ensure_ascii=False) for label in selected_labels)}. "
+                          "This is my conversational preference, not approval to perform an action.")
+                run.prompt = prompt
+                task.prompt = prompt
+                reply_to_message_id = choice_question["assistant_message_id"]
+            else:
+                ordered_ids = []
+                if choice_option_ids:
+                    raise ValueError("choice options require a choice question")
 
             quoted = None
             quote_context = None
@@ -1704,7 +1851,8 @@ class Store:
             message_id = f"msg_{uuid.uuid4().hex[:12]}"
             self._insert_conversation_message(db, message_id=message_id, conversation_id=conversation_id, seq=seq,
                                              run_id=run.id, role="user", content=prompt, created_at=now,
-                                             reply_to_message_id=reply_to_message_id)
+                                             reply_to_message_id=reply_to_message_id,
+                                             choice_question_id=choice_question_id)
             if not conversation["title"].strip():
                 title = prompt.strip().replace("\n", " ")[:72] or "Conversation"
                 db.execute("UPDATE conversations SET title = ? WHERE id = ?", (title, conversation_id))
@@ -1719,7 +1867,19 @@ class Store:
                         conversation_id, json.dumps(context, ensure_ascii=False)))
             user_event = Event(run_id=run.id, type=EventType.message,
                                data={"role": "user", "content": prompt})
-            self._insert_events(db, run.id, [user_event])
+            events = [user_event]
+            if choice_question is not None:
+                events.append(Event(run_id=run.id, type=EventType.choice_answered,
+                                    data={"question_id": choice_question_id,
+                                          "option_ids": ordered_ids,
+                                          "selected_labels": selected_labels}))
+                changed = db.execute("""UPDATE conversation_questions SET status = 'answered', answer_run_id = ?,
+                    answer_message_id = ?, selected_option_ids_json = ?, answered_at = ?
+                    WHERE id = ? AND status = 'pending'""",
+                    (run.id, message_id, _canonical(ordered_ids), now, choice_question_id)).rowcount
+                if changed != 1:
+                    raise ValueError("choice question was already answered")
+            self._insert_events(db, run.id, events)
             db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) VALUES (?, ?, ?, ?, ?)",
                        (scope, idem_key, request_hash, _canonical({"run_id": run.id}), now))
         self._mirror.wake.set()
@@ -2797,7 +2957,8 @@ class Store:
                                       (conversation_id,)).fetchone()[0]
                 for offset, e in enumerate(replies):
                     Store._insert_conversation_message(
-                        db, message_id=f"msg_{uuid.uuid4().hex[:12]}", conversation_id=conversation_id,
+                        db, message_id=str(e.data.get("message_id") or f"msg_{uuid.uuid4().hex[:12]}"),
+                        conversation_id=conversation_id,
                         seq=next_seq + offset, run_id=run_id, role="assistant", content=e.data["content"], created_at=e.ts)
 
     def _writer_loop(self) -> None:
@@ -3288,6 +3449,31 @@ class Store:
                     f"WHERE run_id = ? AND id IN ({marks})", (run_id, *part)).fetchall()
                 states.update({row["id"]: {"result": row["status"], "by": row["decided_by"],
                                            "resolved_at": row["resolved_at"]} for row in rows})
+        return states
+
+    def choice_states_for_events(self, run_id: str, events: list[Event]) -> dict[str, Any]:
+        """Return durable chat-question state for choice-request events in one run."""
+        ids = list({str(e.data["question_id"]) for e in events
+                    if e.type is EventType.choice_requested and e.data.get("question_id")})
+        states: dict[str, Any] = {}
+        with self._lock:
+            for offset in range(0, len(ids), 200):
+                part = ids[offset:offset + 200]
+                marks = ",".join("?" for _ in part)
+                rows = self._db.execute(
+                    f"SELECT id, status, selection_mode, options_json, selected_option_ids_json, answered_at, "
+                    f"answer_message_id, answer_run_id FROM conversation_questions WHERE run_id = ? AND id IN ({marks})",
+                    (run_id, *part)).fetchall()
+                for row in rows:
+                    options = json.loads(row["options_json"])
+                    selected_ids = json.loads(row["selected_option_ids_json"] or "[]")
+                    states[row["id"]] = {
+                        "status": row["status"], "selection_mode": row["selection_mode"],
+                        "selected_option_ids": selected_ids,
+                        "selected_labels": [option["label"] for option in options if option["id"] in selected_ids],
+                        "answered_at": row["answered_at"], "answer_message_id": row["answer_message_id"],
+                        "answer_run_id": row["answer_run_id"],
+                    }
         return states
 
     def get_approval(self, approval_id: str) -> Optional[ApprovalRequest]:

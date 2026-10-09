@@ -8,6 +8,7 @@ from .memory import MemoryRecallTool, MemorySaveTool
 from .shell import ShellTool
 from .webfetch import WebFetchTool
 from .delegation import DelegateTaskTool
+from .choice import AskUserChoiceTool
 
 #: name -> factory (browser is imported lazily so the dependency stays optional)
 _CATALOG: dict[str, type[Tool]] = {
@@ -68,6 +69,10 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
             tools[name] = BrowserTool()
         elif name in _CATALOG:
             tools[name] = _CATALOG[name]()
+    # A clarification is an ordinary conversation primitive, not a Bot-granted
+    # action capability. It is never offered to scheduled or CLI-only runs.
+    if ctx is not None and getattr(getattr(ctx, "run", None), "conversation_id", ""):
+        tools["ask_user_choice"] = AskUserChoiceTool()
     return tools
 
 

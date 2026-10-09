@@ -196,6 +196,11 @@ class ConversationMessageRequest(BaseModel):
     reply_to_message_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
 
 
+class ChoiceAnswerRequest(BaseModel):
+    option_ids: list[str] = Field(min_length=1, max_length=12)
+    model: Optional[str] = None
+
+
 class ConversationArchiveRequest(BaseModel):
     archived: bool = True
 
@@ -253,6 +258,7 @@ class ConversationMessageResource(BaseModel):
     reply_to_message_id: Optional[str] = None
     reply_to_role: Optional[str] = None
     reply_to_excerpt: Optional[str] = None
+    choice_question_id: Optional[str] = None
     content_truncated: bool = False
 
 
@@ -1225,6 +1231,44 @@ def create_app() -> FastAPI:
         result["replayed"] = not created
         return result
 
+    @app.post("/api/v1/conversations/{conversation_id}/questions/{question_id}/answer", response_model=dict)
+    def answer_conversation_question(conversation_id: str, question_id: str, body: ChoiceAnswerRequest,
+                                     request: Request, response: Response) -> dict:
+        conversation = store.get_conversation(conversation_id)
+        if conversation is None:
+            raise HTTPException(404, f"no such conversation: {conversation_id}")
+        bot = store.get_bot(conversation["bot_id"])
+        if bot is None:
+            raise HTTPException(404, "conversation bot no longer exists")
+        store.assert_execution_ready()
+        from ..modelchoices import ModelNotUsable, validate_override
+        try:
+            model = validate_override(config, store, bot, body.model or "")
+        except ModelNotUsable as exc:
+            raise HTTPException(exc.status, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
+        key = idempotency_key(request)
+        digest = request_digest({"conversation_id": conversation_id, "question_id": question_id,
+                                 "option_ids": body.option_ids, "model": body.model})
+        run = Run(bot_id=bot.id, prompt="", origin="manual:api",
+                  model_override="" if model == bot.model else model)
+        task = Task(bot_id=bot.id, kind="on_demand", prompt="")
+        try:
+            run_id, created = store.submit_conversation_message(
+                conversation_id, "", run, task, idem_key=key, request_hash=digest,
+                choice_question_id=question_id, choice_option_ids=body.option_ids)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except KeyError:
+            raise HTTPException(404, f"no such conversation: {conversation_id}") from None
+        except PermissionError:
+            raise HTTPException(404, f"no such conversation: {conversation_id}") from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        response.status_code = 201 if created else 200
+        result = run_view(run_or_404(run_id))
+        result["replayed"] = not created
+        return result
+
     @app.post("/api/v1/conversations/{conversation_id}/archive", response_model=ConversationResource)
     def archive_conversation(conversation_id: str, body: ConversationArchiveRequest,
                              request: Request, response: Response) -> dict:
@@ -1721,6 +1765,7 @@ def create_app() -> FastAPI:
         window = store.tail_events(run_id, events) if events else store.list_events(run_id)
         view["events"] = [e.model_dump() for e in window]
         view["approval_states"] = store.approval_states_for_events(run_id, window)
+        view["choice_states"] = store.choice_states_for_events(run_id, window)
         view["transcript_mirror"] = store._mirror.status(run_id)
         view["unknown_actions"] = store.list_actions(run_id, unresolved=True, limit=5)
         view["reviewed_actions"] = store.list_actions(run_id, reviewed=True, limit=5)
@@ -1934,6 +1979,7 @@ def create_app() -> FastAPI:
         evs = (store.events_before(run_id, before, limit) if before
                else store.list_events(run_id, after_seq=after, limit=limit))
         return {"events": [e.model_dump() for e in evs], "approval_states": store.approval_states_for_events(run_id, evs),
+                "choice_states": store.choice_states_for_events(run_id, evs),
                 "status": run.status.value,
                 "last_seq": store.last_seq(run_id)}
 

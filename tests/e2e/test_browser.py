@@ -3798,3 +3798,106 @@ def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser
     }, indent=2) + "\n")
     context.tracing.stop(path=str(out / f"{size}-trace.zip"))
     context.close()
+
+
+def test_chat_choice_question_is_selectable_and_readable_at_all_viewports(browser, live, monkeypatch):
+    """Persisted multiple-choice questions behave like chat input on desktop, tablet and phone."""
+    import hashlib
+    import json
+    from pathlib import Path
+
+    base, app = live
+    store = app.state.store
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/structured-choices"
+    out.mkdir(parents=True, exist_ok=True)
+    sizes = {"desktop": (1440, 960), "tablet": (900, 1024), "phone": (390, 844)}
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(8000)
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    trace = []
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        bot = store.create_bot(Bot(name="choice-visual", model="mock/demo", tools=[]))
+        conversation, _ = store.create_conversation(
+            bot.id, "Report format", idem_key="choice-conv-visual", request_hash="choice-conv-visual")
+        prompt = "Prepare a concise planning note"
+        run = Run(bot_id=bot.id, prompt=prompt, conversation_id=conversation["id"])
+        store.submit_conversation_message(
+            conversation["id"], prompt, run, Task(bot_id=bot.id, kind="on_demand", prompt=prompt),
+            idem_key="choice-message-visual", request_hash="choice-message-visual")
+        claimed = store.claim_run(run.id, "visual-choice-owner", lease_seconds=60)
+        assert claimed is not None
+        store.transition_run(run.id, RunStatus.running, fence=claimed.fence)
+        question = store.create_conversation_question(
+            run.id, "Which sections should the note include?", "multiple",
+            ["Risks", "Timeline", "Owners"], fence=claimed.fence)
+        store.transition_run(run.id, RunStatus.succeeded, fence=claimed.fence)
+        page.goto(f"{base}/#/chat/{bot.name}")
+        page.locator("#conversation-switcher").wait_for()
+        assert page.locator("#conversation-switcher").input_value() == conversation["id"]
+        run_card = page.locator(f'#chat-stream [data-run-id="{run.id}"]')
+        form = run_card.locator("[data-choice-form]")
+        form.wait_for(state="visible")
+        assert form.locator("legend").inner_text() == "Which sections should the note include?"
+        assert run_card.locator(".mhead .status").inner_text() == "Waiting for your choice"
+        options = form.locator("[data-choice-option]")
+        assert options.count() == 3
+        assert options.nth(0).evaluate("el => el.closest('.choice-option').getBoundingClientRect().height") >= 44
+
+        for label, (width, height) in sizes.items():
+            page.set_viewport_size({"width": width, "height": height})
+            page.screenshot(path=str(out / f"{label}-pending.png"), full_page=True, animations="disabled")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            trace.append({"viewport": label, "size": [width, height], "state": "pending",
+                          "horizontal_overflow": overflow})
+
+        options.nth(0).focus()
+        page.keyboard.press("Space")
+        options.nth(1).check()
+        assert options.nth(0).is_checked() and options.nth(1).is_checked()
+        for label, (width, height) in sizes.items():
+            page.set_viewport_size({"width": width, "height": height})
+            assert options.nth(0).is_checked() and options.nth(1).is_checked()
+            page.screenshot(path=str(out / f"{label}-selected.png"), full_page=True, animations="disabled")
+
+        endpoint = f"/api/v1/conversations/{conversation['id']}/questions/{question['id']}/answer"
+        with page.expect_response(lambda response: response.url.endswith(endpoint)) as answer_response:
+            form.get_by_role("button", name="Send answer").click()
+        response = answer_response.value
+        assert response.status == 201, response.text()
+        answered = run_card.locator(".choice-card.answered")
+        answered.wait_for(state="visible")
+        assert answered.locator(".choice-selection span").all_inner_texts() == ["Risks", "Timeline"]
+        if page.locator(".toast-close").count():
+            page.locator(".toast-close").last.click()
+        for label, (width, height) in sizes.items():
+            page.set_viewport_size({"width": width, "height": height})
+            page.screenshot(path=str(out / f"{label}-answered.png"), full_page=True, animations="disabled")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            trace.append({"viewport": label, "size": [width, height], "state": "answered",
+                          "api_status": response.status,
+                          "answer_run_initial_status": response.json()["status"],
+                          "selected_labels": ["Risks", "Timeline"], "horizontal_overflow": overflow})
+
+        assert not errors, errors
+        context.tracing.stop(path=str(out / "trace.zip"))
+        (out / "results.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_chat_choice_question_is_selectable_and_readable_at_all_viewports",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_chat_choice_question_is_selectable_and_readable_at_all_viewports",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"), "viewports": trace,
+            "page_errors": errors, "provider_calls": 0,
+            "fixture_boundary": "SQLite-seeded questions exercise the real Store, API, HTML and chat-submit path; no model is invoked.",
+            "source_sha256": {name: hashlib.sha256((out.parents[3] / name).read_bytes()).hexdigest() for name in (
+                "src/hutch/models.py", "src/hutch/store.py", "src/hutch/tools/choice.py",
+                "src/hutch/runtime/builtin.py", "src/hutch/server/app.py",
+                "src/hutch/server/static/app.js", "src/hutch/server/static/style.css")},
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+        }, indent=2) + "\n")
+    finally:
+        context.close()

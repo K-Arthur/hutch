@@ -61,6 +61,21 @@ distinct inside the user's message and the composer reference fits the narrow vi
 are in [`artifacts/message-replies/`](artifacts/message-replies/). This is a synthetic local conversation with no provider call, and
 does not constitute screen-reader or physical-device validation.
 
+## Typed chat choices (2026-10-09)
+
+The built-in conversation runtime can save a single- or multi-select question and wait for the user in the same chat. The browser
+journey selected multiple options using keyboard input, submitted them through the real answer API, and confirmed the answered
+labels and linked question. The pending card has a distinct “Waiting for your choice” label; it does not present the question as an
+approval or an active run. Chromium **153.0.8010.12** / Playwright **1.63.0** passed at 1440×960, 900×1024 and 390×844 with no
+horizontal overflow or page errors. I inspected desktop pending, tablet keyboard-selected and phone answered captures; option rows
+meet touch-target sizing, focus is visible, and selected labels wrap on the phone. Captures, a Playwright trace, source hashes and
+viewport records are in [`artifacts/structured-choices/`](artifacts/structured-choices/). The local SQLite fixture made no model
+or provider call; its answer run stays queued because the test disables execution ticks. This does not verify external runtimes,
+screen readers or a physical phone. The anonymous marketing workflow now describes this as a built-in chat capability and separates
+the answer from action approval. The site suite passed **25 tests** with no external requests, page errors or overflow; I inspected
+the three workflow captures in [`artifacts/scheduled-tasks/`](artifacts/scheduled-tasks/), and its JSON record contains the tested
+page hash.
+
 ## Scoped conversation export (2026-10-08)
 
 The Studio composer menu opens an export-scope dialog before downloading the JSON. The dialog explains included message provenance,

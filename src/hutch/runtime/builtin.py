@@ -659,6 +659,30 @@ class BuiltinRuntime:
             if result.finish_reason == "length":
                 self._log(ctx, run, "note", f"the reply hit the per-turn cap of {self._turn_cap(bot, session.rung)} tokens")
 
+            # A question is a durable chat checkpoint. Do not run sibling calls
+            # from the same provider batch, and do not ask the provider again
+            # until the user has made the choice in a new conversation turn.
+            if any(tc.name == "ask_user_choice" for tc in result.tool_calls) and len(result.tool_calls) > 1:
+                messages.append({"role": "assistant", "content": result.content or "", "tool_calls": [
+                    {"id": tc.id, "type": "function",
+                     "function": {"name": tc.name,
+                                  "arguments": tc.raw if (tc.parse_error and tc.raw) else json.dumps(tc.arguments)}}
+                    for tc in result.tool_calls]})
+                for tc in result.tool_calls:
+                    note = ("rejected: ask_user_choice must be the only tool call in a provider response; "
+                            "no call from this response was run")
+                    tool = tools.get(tc.name)
+                    try:
+                        recorded = tool.recorded_arguments(tc.arguments, ctx) if tool is not None else {"redacted": True}
+                    except Exception:
+                        recorded = {"redacted": True}
+                    ctx.emit(Event(run_id=run.id, type=EventType.tool_call,
+                                   data={"tool": tc.name, "args": recorded}))
+                    ctx.emit(Event(run_id=run.id, type=EventType.tool_result,
+                                   data={"tool": tc.name, "ok": False, "output": note}))
+                    messages.append({"role": "tool", "tool_call_id": tc.id, "name": tc.name, "content": note})
+                continue
+
             messages.append({"role": "assistant", "content": result.content or "", "tool_calls": [
                 {"id": tc.id, "type": "function",
                  "function": {"name": tc.name,
@@ -703,6 +727,8 @@ class BuiltinRuntime:
                 tool_timer = StepTimer()
                 res = call_tool(run, ctx, tools, tc.name, args, tool_timer)
                 run.tool_ms += tool_timer.tool_ms
+                if res.data.get("question_pending"):
+                    return ""
                 messages.append({"role": "tool", "tool_call_id": tc.id, "name": tc.name,
                                  "content": res.output or "(empty)"})
 

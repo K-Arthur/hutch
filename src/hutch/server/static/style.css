@@ -407,6 +407,7 @@ button.small, a.small { min-height: 26px; font-size: var(--fs-sm); padding: 0 va
 .status.succeeded, .chip.ok { color: var(--text-2); border-color: var(--line-strong); background: transparent; }
 .status.succeeded::before, .chip.ok::before { background: var(--brand-deep); }
 .status.running, .chip.warn.live { color: var(--brand-hi); border-color: var(--brand-line); background: var(--brand-wash); }
+.status.waiting_for_answer { color: var(--brand-hi); border-color: var(--brand-line); background: var(--brand-wash); }
 .status.failed, .chip.danger { color: var(--danger); border-color: rgba(248, 113, 113, 0.4); background: transparent; }
 .status.waiting_approval { color: var(--warn); border-color: rgba(251, 191, 36, 0.4); background: transparent; }
 .status.pending, .status.stopped, .status.dismissed, .chip.muted { color: var(--text-3); }
@@ -543,6 +544,31 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .answer ul, .answer ol { padding-left: var(--s-5); }
 .answer blockquote { margin: var(--s-2) 0; padding-left: var(--s-3); border-left: 2px solid var(--line-strong); color: var(--text-2); }
 .answer-actions { display: flex; justify-content: flex-start; margin: 2px 0 10px; }
+.choice-card {
+  width: min(100%, 560px); margin: var(--s-3) 0 var(--s-4); padding: var(--s-4);
+  border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface);
+}
+.choice-card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-3); }
+.choice-kicker { color: var(--text-2); font-size: var(--fs-xs); font-weight: 650; letter-spacing: .02em; }
+.choice-state { color: var(--text-2); font-size: var(--fs-xs); }
+.choice-question { display: block; min-width: 0; margin: 0 0 var(--s-3); padding: 0; color: var(--text); font-size: var(--fs-md); font-weight: 650; line-height: 1.5; }
+.choice-options { display: grid; gap: var(--s-2); min-width: 0; margin: 0; padding: 0; border: 0; }
+.choice-option {
+  display: flex; align-items: center; gap: var(--s-3); min-height: 48px; padding: var(--s-3);
+  border: 1px solid var(--line); border-radius: var(--r-control); background: var(--bg-subtle); cursor: pointer;
+}
+.choice-option:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.choice-option input { flex: 0 0 20px; width: 20px; height: 20px; margin: 0; accent-color: var(--brand); }
+.choice-option span { min-width: 0; color: var(--text); line-height: 1.5; overflow-wrap: anywhere; }
+.choice-option:has(input:checked) { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 8%, var(--bg-subtle)); }
+.choice-submit { min-height: 44px; margin-top: var(--s-3); }
+.choice-error { min-height: 1.4em; margin: var(--s-2) 0 0; color: var(--warn); font-size: var(--fs-xs); }
+.choice-selection { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: 0; }
+.choice-selection span { padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-chip); color: var(--text); background: var(--bg-subtle); }
+@media (max-width: 640px) {
+  .choice-card { width: 100%; padding: var(--s-3); }
+  .choice-submit { width: 100%; }
+}
 .reply-reference-quote { margin: 0 0 6px; padding: 7px 10px; border-left: 2px solid var(--brand); background: rgba(255,255,255,.035); }
 .reply-reference-quote > span, .reply-composer-by { display: block; color: var(--text-2); font-size: var(--fs-xs); font-weight: 650; }
 .reply-reference-quote blockquote { margin: 3px 0 0; color: var(--text-2); font-size: var(--fs-sm); line-height: 1.45; }

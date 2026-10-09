@@ -386,6 +386,8 @@ class EventType(str, Enum):
     step = "step"                     # one model turn: tokens, cost, timing split
     human_needed = "human_needed"     # login / CAPTCHA / 2FA wall: a person must act
     human_resumed = "human_resumed"
+    choice_requested = "choice_requested"  # conversational clarification; grants no action authority
+    choice_answered = "choice_answered"
 
 
 class Event(BaseModel):

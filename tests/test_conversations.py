@@ -321,6 +321,73 @@ def submitted_conversation(store):
     return conversation["id"], claimed
 
 
+def test_structured_choice_answer_is_durable_scoped_and_single_use(store):
+    from hutch.models import Event, EventType, Run, Task, RunStatus
+    from hutch.store import IdempotencyConflict
+
+    conversation_id, question_run = submitted_conversation(store)
+    question = store.create_conversation_question(
+        question_run.id,
+        "Which report should I prepare?",
+        "single",
+        ["Weekly summary", "Detailed audit"],
+        fence=question_run.fence,
+    )
+    assert question["status"] == "pending"
+    assert question["options"] == [
+        {"id": question["options"][0]["id"], "label": "Weekly summary"},
+        {"id": question["options"][1]["id"], "label": "Detailed audit"},
+    ]
+
+    event = Event(run_id=question_run.id, type=EventType.choice_requested,
+                  data={"question_id": question["id"]})
+    state = store.choice_states_for_events(question_run.id, [event])
+    assert state[question["id"]]["status"] == "pending"
+    assert store.get_conversation_message(conversation_id, question["assistant_message_id"])["content"] == question["question"]
+    store.transition_run(question_run.id, RunStatus.succeeded, fence=question_run.fence)
+
+    answer = Run(bot_id=question_run.bot_id, prompt="")
+    task = Task(bot_id=question_run.bot_id, kind="conversation", prompt="")
+    answer_id, created = store.submit_conversation_message(
+        conversation_id, "", answer, task, idem_key="choice-answer", request_hash="choice-answer-1",
+        choice_question_id=question["id"], choice_option_ids=[question["options"][1]["id"]])
+    assert created is True
+    saved = store.get_run(answer_id)
+    assert "Detailed audit" in saved.prompt
+    assert saved.conversation_context[-1]["content"].startswith("[Explicit reply reference to assistant message ")
+    user_message = next(message for message in store.list_conversation_messages(conversation_id)
+                        if message["run_id"] == answer_id and message["role"] == "user")
+    assert user_message["choice_question_id"] == question["id"]
+    assert user_message["reply_to_message_id"] == question["assistant_message_id"]
+    answer_events = store.list_events(answer_id)
+    assert any(e.type is EventType.choice_answered and e.data["question_id"] == question["id"]
+               for e in answer_events)
+    answered = store.choice_states_for_events(question_run.id, [event])[question["id"]]
+    assert answered["status"] == "answered"
+    assert answered["selected_labels"] == ["Detailed audit"]
+
+    replay, created_again = store.submit_conversation_message(
+        conversation_id, "", Run(bot_id=question_run.bot_id, prompt=""),
+        Task(bot_id=question_run.bot_id, kind="conversation", prompt=""), idem_key="choice-answer",
+        request_hash="choice-answer-1", choice_question_id=question["id"],
+        choice_option_ids=[question["options"][1]["id"]])
+    assert replay == answer_id and created_again is False
+    import pytest
+    with pytest.raises(IdempotencyConflict):
+        store.submit_conversation_message(
+            conversation_id, "", Run(bot_id=question_run.bot_id, prompt=""),
+            Task(bot_id=question_run.bot_id, kind="conversation", prompt=""), idem_key="choice-answer",
+            request_hash="different-selection", choice_question_id=question["id"],
+            choice_option_ids=[question["options"][0]["id"]])
+
+    with pytest.raises(ValueError, match="already answered"):
+        store.submit_conversation_message(
+            conversation_id, "", Run(bot_id=question_run.bot_id, prompt=""),
+            Task(bot_id=question_run.bot_id, kind="conversation", prompt=""), idem_key="second-choice-answer",
+            request_hash="second-choice-answer", choice_question_id=question["id"],
+            choice_option_ids=[question["options"][0]["id"]])
+
+
 def test_terminal_drain_commits_reply_and_history_atomically(store, config):
     import sqlite3
     from hutch.models import Event, EventType, RunStatus
@@ -336,6 +403,47 @@ def test_terminal_drain_commits_reply_and_history_atomically(store, config):
     store.flush_events()
     assert len(store.list_conversation_messages(conversation_id)) == 2
     assert store.verify_chain(run.id)["ok"]
+
+
+def test_chat_choice_answer_api_is_idempotent_and_survives_restart(tmp_path, monkeypatch):
+    from hutch.models import RunStatus
+
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    app = create_app()
+    app.state.engine.tick = lambda: None
+    conversation_id, question_run = submitted_conversation(app.state.store)
+    question = app.state.store.create_conversation_question(
+        question_run.id, "Which inbox should I review?", "single", ["Work", "Personal"],
+        fence=question_run.fence)
+    app.state.store.transition_run(question_run.id, RunStatus.succeeded, fence=question_run.fence)
+    url = f"/api/v1/conversations/{conversation_id}/questions/{question['id']}/answer"
+    body = {"option_ids": [question["options"][0]["id"]]}
+    headers = {"Idempotency-Key": "choice-api-answer"}
+    with TestClient(app) as client:
+        created = client.post(url, json=body, headers=headers)
+        assert created.status_code == 201, created.text
+        answer_run_id = created.json()["id"]
+        replay = client.post(url, json=body, headers=headers)
+        assert replay.status_code == 200 and replay.json()["id"] == answer_run_id
+        assert replay.json()["replayed"] is True
+        conflict = client.post(url, json={"option_ids": [question["options"][1]["id"]]}, headers=headers)
+        assert conflict.status_code == 409
+        second = client.post(url, json={"option_ids": [question["options"][1]["id"]]},
+                             headers={"Idempotency-Key": "choice-api-second"})
+        assert second.status_code == 409 and "already answered" in second.json()["detail"]
+        messages = client.get(f"/api/v1/conversations/{conversation_id}?limit=20").json()["messages"]
+        answer = next(message for message in messages if message["run_id"] == answer_run_id)
+        assert answer["choice_question_id"] == question["id"]
+        assert answer["reply_to_message_id"] == question["assistant_message_id"]
+        run = client.get(f"/api/v1/tasks/runs/{question_run.id}").json()
+        assert run["choice_states"][question["id"]]["selected_labels"] == ["Work"]
+
+    # The pending/answered projection is backed by SQLite, not the page or process memory.
+    with TestClient(create_app()) as reopened:
+        run = reopened.get(f"/api/v1/tasks/runs/{question_run.id}").json()
+        assert run["choice_states"][question["id"]]["status"] == "answered"
+        answer = reopened.get(f"/api/v1/conversations/{conversation_id}?limit=20").json()["messages"]
+        assert any(message.get("choice_question_id") == question["id"] for message in answer)
 
 
 def test_same_terminal_transition_cannot_project_a_zombie_reply(store, config):

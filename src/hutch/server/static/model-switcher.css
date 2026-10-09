@@ -89,5 +89,5 @@
 @media (max-width: 640px) {
   .ms-btn .ms-label { display: none; }
   .ms-btn.is-custom .ms-label { display: inline-block; flex: none; width: auto; font-size: 0; }
-  .ms-btn.is-custom .ms-label::after { content: "1×"; color: var(--brand-hi); font: 600 10px/1 var(--mono); }
+  .ms-btn.is-custom .ms-label::after { content: "1×"; color: var(--brand-hi); font: 600 10px/1 var(--mono); } /* hutch-emoji-allow: multiplication sign marks a one-message override */
 }
