@@ -1718,9 +1718,9 @@ async function renderChatFeed() {
   restoreFactUi(stream, factUi);
   if (wasNearBottom) scroll.scrollTop = scroll.scrollHeight;
 
-  // The thinking bubble lives in a stable slot AFTER the feed: full re-renders
-  // replace the transcript every event batch, and re-inserting the dots would
-  // restart their bounce each time. Here the animation runs continuously.
+  // The working indicator lives in a stable slot AFTER the feed: full re-renders
+  // replace the transcript every event batch, so keeping its slot stable avoids
+  // needless DOM churn while the server reports an active run.
   let slot = $("#typing-slot");
   if (!slot) {
     slot = document.createElement("div");

@@ -81,6 +81,15 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `18b9b7b` | Add versioned human resume bound to the latest active human-needed event and owner lease; enforce one resume per wait sequence, idempotent replay and schema-v19 migration coverage |
 | `ee3f179` | Add event-bound, idempotent Resume directly to the active Studio chat; keep historical waits read-only and capture desktop/tablet/phone behavior |
 
+## Dashboard polish continuation (2026-10-09)
+
+The Studio typing indicator no longer animates continuously; its visible label and run-status state communicate work. The shared
+server-rendered heading rule now uses a 1.4 line-height. Chromium **153.0.8010.12** / Playwright **1.63.0** verified the computed
+styles at 1440×960, 900×1024 and 390×844 with no page errors or horizontal overflow. Screens and trace are in
+`artifacts/dashboard-polish/`; the working indicator is a visual-only fixture rather than an active execution. The base-template
+source detector does not resolve its linked stylesheet, so the existing path-scoped `tight-leading` exception remains with an updated
+reason reflecting the browser measurements. See `visual-validation.md` for the exact command and captures.
+
 ## Verified behavior before this checkpoint
 
 | Check | Evidence | Result |

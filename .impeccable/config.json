@@ -46,7 +46,7 @@
           "src/hutch/server/templates/base.html"
         ],
         "createdAt": "2026-10-08T22:23:43.256Z",
-        "reason": "The current dashboard h1 and template h1 use a computed 1.3 line-height; body copy uses 1.55. Fresh responsive captures measured the page heading at 16px/20.8px (1.30). The detector's 1.08 estimate does not match the rendered computed style."
+        "reason": "The shared h1 rule in hutch.css now sets a 1.4 line-height; browser captures at desktop, tablet and phone measured headings at 30px/42px and 24px/33.6px. The base-template scanner estimates the browser default without resolving the linked stylesheet."
       },
       {
         "rule": "low-contrast",

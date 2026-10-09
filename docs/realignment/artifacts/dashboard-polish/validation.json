@@ -1,0 +1,90 @@
+{
+  "test": "tests/e2e/test_browser.py::test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable",
+  "captured_at": "2026-10-09T02:58:05.920477+00:00",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "scenario": "Synthetic visual-only working indicator fixture and actual server-rendered Connections heading; no run or provider call",
+  "provider_calls": 0,
+  "page_errors": [],
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "typing_animation": "none",
+      "typing_indicator_box": {
+        "x": 476,
+        "y": 833.015625,
+        "width": 760,
+        "height": 32.140625
+      },
+      "heading": {
+        "fontSize": 30,
+        "lineHeight": 42
+      },
+      "heading_line_height_ratio": 1.4,
+      "horizontal_overflow": 0,
+      "screenshots": [
+        "studio-desktop.png",
+        "connections-desktop.png"
+      ]
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "typing_animation": "none",
+      "typing_indicator_box": {
+        "x": 70,
+        "y": 905.015625,
+        "width": 760,
+        "height": 32.140625
+      },
+      "heading": {
+        "fontSize": 30,
+        "lineHeight": 42
+      },
+      "heading_line_height_ratio": 1.4,
+      "horizontal_overflow": 0,
+      "screenshots": [
+        "studio-tablet.png",
+        "connections-tablet.png"
+      ]
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "typing_animation": "none",
+      "typing_indicator_box": {
+        "x": 0,
+        "y": 700.078125,
+        "width": 390,
+        "height": 32.140625
+      },
+      "heading": {
+        "fontSize": 24,
+        "lineHeight": 33.6
+      },
+      "heading_line_height_ratio": 1.4,
+      "horizontal_overflow": 0,
+      "screenshots": [
+        "studio-phone.png",
+        "connections-phone.png"
+      ]
+    }
+  ],
+  "source_sha256": {
+    "src/hutch/server/static/style.css": "52b800e9246b826458ce000fdda3c6a6ac0bdada01cc15ac28027b863f023c39",
+    "src/hutch/server/static/hutch.css": "a1e66cf3ab57e0c2c1b7e2406a2aaf6e67dd20acb48b5dfd0868b1278a31f1ef",
+    "src/hutch/server/static/app.js": "66b72a6105bde3c0639baf7d8be1ed0d99a6f2ca41eb5b0b235aaa4a6ba75be4"
+  }
+}

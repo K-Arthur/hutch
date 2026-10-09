@@ -76,6 +76,90 @@ def test_executor_health_status_uses_a_steady_indicator(browser, live):
         page.close()
 
 
+def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(browser, live):
+    """Inspect the real dashboard styles at desktop, tablet, and phone widths."""
+    base, app = live
+    app.state.store.create_bot(Bot(name="dashboard-polish", model="mock/demo", tools=[]))
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/dashboard-polish"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960})
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    trace_stopped = False
+    captures = []
+    sizes = {"desktop": (1440, 960), "tablet": (900, 1024), "phone": (390, 844)}
+    try:
+        for label, (width, height) in sizes.items():
+            page.set_viewport_size({"width": width, "height": height})
+            page.goto(f"{base}/#/chat/dashboard-polish")
+            page.locator("#conversation-switcher").wait_for()
+            page.locator("#chat-scroll").wait_for()
+            page.evaluate("""() => {
+              const slot = document.createElement('div');
+              slot.id = 'dashboard-polish-typing-fixture';
+              slot.className = 'typing-slot';
+              slot.setAttribute('aria-hidden', 'true');
+              slot.innerHTML = '<div class="typing"><span class="typing-dots"><span></span><span></span><span></span></span><span class="typing-label">Working…</span></div>';
+              const scroll = document.querySelector('#chat-scroll');
+              scroll.append(slot);
+              scroll.scrollTop = scroll.scrollHeight;
+            }""")
+            page.evaluate("document.fonts.ready")
+            indicator = page.locator("#dashboard-polish-typing-fixture .typing-dots span").first
+            animation = indicator.evaluate("element => getComputedStyle(element).animationName")
+            assert animation == "none", f"typing feedback should be steady, got {animation!r}"
+            indicator_box = page.locator("#dashboard-polish-typing-fixture").bounding_box()
+            assert indicator_box and indicator_box["height"] >= 24, (label, indicator_box)
+            studio_overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert studio_overflow <= 1, (label, studio_overflow)
+            studio_capture = out / f"studio-{label}.png"
+            page.screenshot(path=str(studio_capture), animations="disabled")
+
+            page.goto(f"{base}/connections")
+            heading = page.locator("#main h1")
+            heading.wait_for()
+            heading_metrics = heading.evaluate("""element => {
+              const style = getComputedStyle(element);
+              return {fontSize: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight)};
+            }""")
+            ratio = heading_metrics["lineHeight"] / heading_metrics["fontSize"]
+            assert ratio >= 1.39, (label, heading_metrics)
+            template_overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert template_overflow <= 1, (label, template_overflow)
+            connections_capture = out / f"connections-{label}.png"
+            page.screenshot(path=str(connections_capture), full_page=True, animations="disabled")
+            captures.append({"size": label, "viewport": [width, height], "typing_animation": animation,
+                             "typing_indicator_box": indicator_box,
+                             "heading": heading_metrics, "heading_line_height_ratio": round(ratio, 3),
+                             "horizontal_overflow": max(studio_overflow, template_overflow),
+                             "screenshots": [studio_capture.name, connections_capture.name]})
+        assert not errors, errors
+        context.tracing.stop(path=str(out / "trace.zip"))
+        trace_stopped = True
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"),
+            "scenario": "Synthetic visual-only working indicator fixture and actual server-rendered Connections heading; no run or provider call",
+            "provider_calls": 0, "page_errors": errors, "captures": captures,
+            "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
+                              for path in ("src/hutch/server/static/style.css", "src/hutch/server/static/hutch.css",
+                                           "src/hutch/server/static/app.js")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        if not trace_stopped:
+            # Trace is stopped explicitly on success; on assertion failure retain diagnostic state too.
+            try:
+                context.tracing.stop(path=str(out / "trace-failed.zip"))
+            except Exception:
+                pass
+        context.close()
+
+
 def test_provider_connections_fit_phone_viewports_and_capture_signin_states(browser, live):
     from pathlib import Path
 

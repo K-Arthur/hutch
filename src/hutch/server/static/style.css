@@ -144,8 +144,8 @@ a:hover { text-decoration: underline; }
 /* Reduce-effects control (persistent, app-wide) + system preference both land here. */
 @media (prefers-reduced-motion: reduce) { :root { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; } }
 :root.reduce-effects { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; }
-@media (prefers-reduced-motion: reduce) { .spine-pulse, .typing-dots span, .toast { animation: none !important; } }
-:root.reduce-effects .spine-pulse, :root.reduce-effects .typing-dots span,
+@media (prefers-reduced-motion: reduce) { .spine-pulse, .toast { animation: none !important; } }
+:root.reduce-effects .spine-pulse,
 :root.reduce-effects .toast { animation: none !important; }
 
 .icon { flex: none; vertical-align: -2px; }
@@ -627,15 +627,9 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .typing-slot:empty { margin: 0; padding: 0; }
 .typing { display: inline-flex; align-items: center; gap: 10px; padding: 6px 2px; color: var(--text-3); font-size: var(--fs-sm); }
 .typing-dots { display: inline-flex; gap: 5px; }
-.typing-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); animation: typing-pulse 1.3s var(--ease) infinite; }
-.typing-dots span:nth-child(2) { animation-delay: 0.16s; }
-.typing-dots span:nth-child(3) { animation-delay: 0.32s; }
-@keyframes typing-pulse {
-  0%, 60%, 100% { transform: scale(0.86); opacity: 0.4; }
-  30% { transform: scale(1); opacity: 1; background: var(--brand); }
-}
-:root.reduce-effects .typing-dots span { animation: none; opacity: 0.8; transform: none; }
-@media (prefers-reduced-motion: reduce) { .typing-dots span { animation: none; opacity: 0.8; transform: none; } }
+.typing-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); }
+.typing-dots span:nth-child(2) { opacity: 0.72; }
+.typing-dots span:nth-child(3) { opacity: 0.48; }
 
 /* one-time arrival motion for genuinely new turns (JS gates the class so
    re-renders never replay it) */

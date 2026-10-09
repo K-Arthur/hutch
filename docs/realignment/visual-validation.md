@@ -1,5 +1,20 @@
 # Visual validation record
 
+## Dashboard polish (2026-10-09)
+
+The Studio's three working dots now remain still; the visible “Working…” label and run status carry the state. Shared server-rendered
+headings use a 1.4 line-height. The browser test checks the real computed heading styles and places a visual-only working-indicator
+fixture in the actual Studio chat layout; it does not claim that a run was active. Chromium **153.0.8010.12** / Playwright **1.63.0**
+passed at 1440×960, 900×1024 and 390×844, with no page errors or horizontal overflow. The heading measured 30/42 px on desktop/tablet
+and 24/33.6 px on phone. Screens, trace, source hashes and measurements are in
+[`artifacts/dashboard-polish/`](artifacts/dashboard-polish/). I inspected the Studio phone capture with the steady dots visible and
+the Connections phone capture with its heading and controls fitting the viewport.
+
+The base-template static detector does not resolve its linked `hutch.css` heading rule and still estimates the browser default line
+height. The existing path-scoped ignore remains, with its reason updated to the new computed measurements; no new ignore was added.
+
+## Baseline visual validation
+
 Captured 2026-10-07 from the `realign/platform` worktree after the shared-budget UI and marketing copy changes. The marketing site was
 served from this worktree. Hutch used `/tmp/hutch-s5-visual.mbtpt6`, a disposable state directory populated by `hutch init` and one
 OpenCode Go connection configured with a synthetic account ID, a 100k token allowance, and a $5 estimate limit. No API key was stored,

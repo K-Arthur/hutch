@@ -59,7 +59,7 @@ def test_static_assets_expose_new_behaviour(client):
     assert "return statusInfo[status] ? !statusInfo[status].terminal : true" in js
     assert 'status.replace("_", " ")' not in js
     assert ".typing-dots" in css
-    assert "typing-pulse" in css
+    assert "typing-pulse" not in css
 
 
 def test_approval_review_surface_is_shared(client):
