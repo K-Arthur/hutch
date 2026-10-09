@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import platform
+import re
 import threading
 import time
 from datetime import datetime, timezone
@@ -3224,38 +3225,52 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
         page.goto(f"{base}/#/chat")
+        first_request = "Track the launch checklist and notify me when a blocker needs attention."
+        occupied_name = page.evaluate("purpose => suggestBotDisplayName(purpose, [])", first_request)
+        app.state.store.create_bot(Bot(name="occupied-name", display_name=occupied_name, model="mock/demo", tools=[]))
+        page.reload()
+        page.locator("#roster-list [data-switch-bot]").wait_for()
+        expected_person, expected_role = occupied_name.split(" · ", 1)
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.locator(".ctx-subtitle").wait_for(state="visible")
+            assert page.locator(".ctx-id h1").inner_text() == expected_person
+            assert page.locator(".ctx-subtitle").inner_text() == f"AI bot · {expected_role}"
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+            page.screenshot(path=str(out / f"chat-identity-{label}.png"), animations="disabled")
+        page.set_viewport_size({"width": 1440, "height": 960})
         page.locator("#topbar-new-bot").click()
         purpose = page.get_by_label("What would you like this bot to handle?")
-        purpose.fill("Track the launch checklist and notify me when a blocker needs attention.")
+        purpose.fill(first_request)
         page.locator(".setup-identity summary").click()
         display_name = page.locator("#setup-display_name")
         address = page.locator("#setup-name")
-        assert display_name.input_value() == "Launch Checklist Monitor"
-        assert address.input_value() == "launch-checklist-monitor"
+
+        def assert_identity(role: str, local_address: str) -> str:
+            identity, actual_role = display_name.input_value().split(" · ", 1)
+            assert re.fullmatch(r"[A-Z][a-z]+ [A-Z][a-z]+", identity)
+            assert actual_role == role
+            assert address.input_value() == local_address
+            return identity
+
+        first_identity = assert_identity("Launch Checklist Monitor", "launch-checklist-monitor")
+        assert first_identity != occupied_name.split(" · ", 1)[0]
         purpose.fill("Track my follow-up tasks from each meeting and remind me when anything is overdue.")
-        assert display_name.input_value() == "Follow-up Task Monitor"
-        assert address.input_value() == "follow-up-task-monitor"
+        assert_identity("Follow-up Task Monitor", "follow-up-task-monitor")
         purpose.fill("Organize my receipts into monthly folders and tell me when one is missing.")
-        assert display_name.input_value() == "Receipt Organizer"
-        assert address.input_value() == "receipt-organizer"
+        assert_identity("Receipt Organizer", "receipt-organizer")
         purpose.fill("Remind me to renew my passport next month.")
-        assert display_name.input_value() == "Passport Renewal Reminder"
-        assert address.input_value() == "passport-renewal-reminder"
+        assert_identity("Passport Renewal Reminder", "passport-renewal-reminder")
         purpose.fill("Alert me when an invoice is overdue.")
-        assert display_name.input_value() == "Invoice Reminder"
-        assert address.input_value() == "invoice-reminder"
+        assert_identity("Invoice Reminder", "invoice-reminder")
         purpose.fill("File my monthly expense receipts into folders every Friday.")
-        assert display_name.input_value() == "Expense Receipt Organizer"
-        assert address.input_value() == "expense-receipt-organizer"
+        assert_identity("Expense Receipt Organizer", "expense-receipt-organizer")
         purpose.fill("Coordinate work across my bots and keep me updated.")
-        assert display_name.input_value() == "Workspace Coordinator"
-        assert address.input_value() == "workspace-coordinator"
+        assert_identity("Workspace Coordinator", "workspace-coordinator")
         purpose.fill("Create a weekly project status update for leadership.")
-        assert display_name.input_value() == "Project Status Reporter"
-        assert address.input_value() == "project-status-reporter"
+        assert_identity("Project Status Reporter", "project-status-reporter")
         purpose.fill("I need a bot that prepares weekly project status updates for my leadership team.")
-        assert display_name.input_value() == "Project Status Reporter"
-        assert address.input_value() == "project-status-reporter"
+        assert_identity("Project Status Reporter", "project-status-reporter")
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.screenshot(path=str(out / f"automatic-name-{label}.png"), animations="disabled")
@@ -3265,8 +3280,7 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
             assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
         page.set_viewport_size({"width": 1440, "height": 960})
         purpose.fill("Review release notes for changes affecting our project.")
-        assert display_name.input_value() == "Release Notes Reviewer"
-        assert address.input_value() == "release-notes-reviewer"
+        assert_identity("Release Notes Reviewer", "release-notes-reviewer")
 
         display_name.fill("Launch Readiness Analyst")
         assert address.input_value() == "launch-readiness-analyst"
@@ -3332,6 +3346,7 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
         assert not any("/chat/completions" in url or "/responses" in url for url in requests)
         page.locator(".ctx-id h1").wait_for()
         assert page.locator(".ctx-id h1").inner_text() == "Launch Readiness Analyst"
+        assert page.locator(".ctx-subtitle").get_by_text("AI bot").is_visible()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.screenshot(path=str(out / f"chat-{label}.png"), animations="disabled")
@@ -3344,8 +3359,9 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright_version": package_version("playwright"),
             "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
-            "scenario": "purpose-derived names preserve follow-up compounds, trim secondary/time/status clauses, use action-appropriate monitor/reviewer/organizer/reminder/reporter roles, strip a bot-creation request wrapper, normalize reminder actions and receipt nouns, name Bot-team coordination as Workspace Coordinator, and remain editable/reviewed with a reachable phone address field; no run or model/provider request occurs",
-            "inspected_screenshots": [f"automatic-name-{size}.png" for size in ("desktop", "tablet", "phone")]
+            "scenario": "purpose-derived names pair a non-duplicated friendly teammate name with a clear monitor/reviewer/organizer/reminder/reporter role; role names preserve follow-up compounds, trim secondary/time/status clauses, normalize reminder actions and receipt nouns, and identify the workspace coordinator; local addresses follow roles; the owner can edit either value; chats keep the AI Bot label and role visible at every viewport; no run or model/provider request occurs",
+            "inspected_screenshots": [f"chat-identity-{size}.png" for size in ("desktop", "tablet", "phone")]
+                                     + [f"automatic-name-{size}.png" for size in ("desktop", "tablet", "phone")]
                                      + [f"identity-{size}.png" for size in ("desktop", "tablet", "phone")]
                                      + ["identity-phone-address-visible.png"]
                                      + [f"review-{size}.png" for size in ("desktop", "tablet", "phone")]
@@ -3574,8 +3590,7 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
         assert action.get_attribute("aria-label") == "Create a bot from this request"
         action.focus()
         page.keyboard.press("Enter")
-        page.wait_for_timeout(300)
-        assert page.get_by_role("heading", name="Describe the work").is_visible(), page.locator("#toast-root").inner_text()
+        page.get_by_role("heading", name="Describe the work").wait_for(state="visible")
         assert page.get_by_label("What would you like this bot to handle?").input_value() == selected_request
         assert "Use this request from this chat" in page.locator(".setup-context-source").inner_text()
         assert "Only this request and earlier user messages you select" in page.locator(".bot-setup").inner_text()

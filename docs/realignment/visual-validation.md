@@ -687,6 +687,27 @@ report zero overflow and no page errors, and their recorded `website/index.html`
 section at desktop, tablet and phone widths; the added naming explanation wraps within the first step card without shifting or
 overlapping its peers. Updated captures and validation are under [`artifacts/scheduled-tasks/`](artifacts/scheduled-tasks/).
 
+## Friendly Bot names with visible roles (2026-10-09)
+
+The setup suggestion now pairs a deterministic, roster-unique teammate name with the purpose-derived role. Its stable local address
+uses the role so the same purpose remains discoverable in CLI/API routes. The Studio header separates the personal-style name from
+“AI bot · [role]”, including at phone widths; it does not describe a Bot as a human operator. The setup name and address remain
+editable. Name generation makes no model request and creates no run.
+
+The focused Chromium naming journey and anonymous website workflow check passed together (**2 passed in 9.56s**) at app sizes
+**1440×960**, **900×1024**, **390×844**, and public-site sizes **1440×900**, **900×1024**, **390×844**. The generated-name browser
+fixture creates an existing Bot with the deterministic candidate first, then verifies that the next Bot receives a different
+identity while retaining the same role-based address. I inspected generated chat headers, the phone address field above its fixed
+footer, and the public workflow card at each site size. The role remains readable on phone, with no horizontal overflow. No
+provider request was made; the website test was anonymous and made no external request. Captures and metadata are in
+[`artifacts/bot-naming-quality/`](artifacts/bot-naming-quality/) and
+[`artifacts/bot-purpose-refinement/marketing/`](artifacts/bot-purpose-refinement/marketing/).
+
+The exact-message **Make a bot** browser journey also passed after replacing a fixed 300 ms assertion delay with a wait for the
+wizard heading (**1 passed in 5.56s**). The prior assertion ran before the wizard's local capability/preferences requests had
+completed; the journey now waits for the real visible state. The separate coordinator direct-chat journey passed in the same
+focused run (**1 passed in 5.14s**). No provider request was made; the journey used a synthetic local route.
+
 ## Named workspace coordinator direct chat (2026-10-09)
 
 The selected coordinator is ordered first in the roster, labelled there and in Studio, and opens as the default chat on a fresh

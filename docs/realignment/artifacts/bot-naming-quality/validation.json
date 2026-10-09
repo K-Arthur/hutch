@@ -17,8 +17,11 @@
       844
     ]
   },
-  "scenario": "purpose-derived names preserve follow-up compounds, trim secondary/time/status clauses, use action-appropriate monitor/reviewer/organizer/reminder/reporter roles, strip a bot-creation request wrapper, normalize reminder actions and receipt nouns, name Bot-team coordination as Workspace Coordinator, and remain editable/reviewed with a reachable phone address field; no run or model/provider request occurs",
+  "scenario": "purpose-derived names pair a non-duplicated friendly teammate name with a clear monitor/reviewer/organizer/reminder/reporter role; role names preserve follow-up compounds, trim secondary/time/status clauses, normalize reminder actions and receipt nouns, and identify the workspace coordinator; local addresses follow roles; the owner can edit either value; chats keep the AI Bot label and role visible at every viewport; no run or model/provider request occurs",
   "inspected_screenshots": [
+    "chat-identity-desktop.png",
+    "chat-identity-tablet.png",
+    "chat-identity-phone.png",
     "automatic-name-desktop.png",
     "automatic-name-tablet.png",
     "automatic-name-phone.png",
@@ -38,9 +41,9 @@
   ],
   "page_errors": [],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "cc6058233abbc10c4f8ab59f7f2bc7906137b84f1c67f2261b5f202968528c87",
-    "src/hutch/server/static/style.css": "35cbdaaf53a167b2b79cfdd68bd080fe24fe5fb6949dbfe4ae97ef4e0715624c",
+    "src/hutch/server/static/app.js": "98e27ca546c36c703020f26e7f37152cc38d0db3c115011f448402dee20e73a9",
+    "src/hutch/server/static/style.css": "3230dbbb6872155652ceb6ea71ef9b562e490ed0eb9464401a6c68508d14f868",
     "src/hutch/server/app.py": "e90058a0a7bae0a93da7b3cd97983fa2b0db0ac85858d321edd283ad89b7e137",
-    "tests/e2e/test_browser.py": "63ce63be9e4d7814352d229971bc1c7bc6eb326649b6bb56ff60ca27f8fe6dbc"
+    "tests/e2e/test_browser.py": "20e0c1b0c0e10a395b8960c19a462ea78ff91efcfcddf043231bfd47d0a71996"
   }
 }

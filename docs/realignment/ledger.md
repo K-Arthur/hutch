@@ -2717,3 +2717,21 @@ adapters remain unavailable until permission, process, budget and recovery contr
 
 After the latest marketing-copy edit, the anonymous Plans & keys and expanded FAQ browser check passed **1 test in 2.76s** at
 desktop, tablet and phone widths. I inspected the refreshed phone captures; no page error, overflow or external request occurred.
+
+## Friendly purpose-derived Bot names (2026-10-09)
+
+The owner asked for automatic Bot names that feel more human and professional. Guided setup now pairs a deterministic friendly
+teammate name with the role derived from the request; the separate local address remains role-based. An existing teammate identity
+is skipped when a name is reused, both fields stay editable, and the chat header presents the generated human-facing name alongside
+“AI bot · [role]” at desktop, tablet and phone sizes. Naming stays local and starts no run. The naming form, contract, test matrix,
+anonymous marketing copy, and OpenBot reference review now document this behavior. Current OpenBot docs model profile name/title/role
+separately and treat capabilities as separately governed; this was used as a design reference only, with no OpenBot code or live
+service run. The supplied video still could not be played in the browser and was not treated as evidence.
+
+`uv run pytest -q tests/e2e/test_browser.py::test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes tests/e2e/test_website.py::test_public_workflow_describes_named_recurring_tasks --no-header` passed **2 tests in 9.56s** on Chromium **153.0.8010.12** / Playwright **1.63.0**. The browser test checked that a roster collision gets a different name, the role-based address remains stable, name edits persist, and no model request/run occurs. I inspected generated chat labels and the creation review at desktop/tablet/phone and the anonymous site workflow at those site sizes. No overflow, browser error or external website request occurred. Fixtures only: no real provider, OpenBot account or physical device. See [`visual-validation.md`](visual-validation.md#friendly-bot-names-with-visible-roles-2026-10-09) and the named evidence directories there.
+
+`tests/test_api.py::test_bot_display_name_is_durable_editable_and_keeps_legacy_address` and
+`tests/test_cli.py::test_bot_create_and_validation` passed (**2 tests in 0.81s**). The exact-chat-request Bot-setup journey also
+passed (**1 test in 5.56s**) after replacing its fixed 300 ms check with a condition-based wait for the wizard heading; the
+previous assertion ran before setup finished its local requests. The responsive coordinator direct-chat journey passed separately
+in the paired check (**1 test in 5.14s**). These are local browser/store fixtures and use no model inference.

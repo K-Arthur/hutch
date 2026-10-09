@@ -502,7 +502,9 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 
 /* Context header content (rendered into #app-top-context per view) */
 .ctx-id { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ctx-heading { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ctx-id h1 { font-size: var(--fs-lg); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctx-subtitle { color: var(--text-3); font-size: var(--fs-xs); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ctx-meta { display: flex; align-items: center; gap: var(--s-2); min-width: 0; flex-wrap: wrap; }
 .coordinator-label-compact { display: none; }
 .ctx-actions { margin-left: auto; display: flex; align-items: center; gap: var(--s-2); flex: none; }

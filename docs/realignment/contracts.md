@@ -134,8 +134,10 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   together. A first create returns 201, an exact retry returns the same bot with 200, and reusing a key with different JSON or
   colliding with an existing bot returns 409. It creates no conversation turn or run. Guided setup gathers purpose, template,
   model route/inference mode, workspace, tools, ask-first approval policy, limits and optional schedule, then displays these values
-  before sending the command. It also proposes an editable human-facing `display_name` and stable local `name` address from the
-  purpose with a deterministic browser-side heuristic. No model request is made for naming, and a name change grants no authority.
+  before sending the command. It also proposes an editable human-facing `display_name` that pairs a locally generated teammate name
+  with a purpose-derived work role, plus a stable local `name` address derived from that role. Existing teammate names are skipped
+  when possible. Studio labels the active chat as an AI Bot so the friendly name does not imply a human operator. The deterministic
+  browser-side heuristic makes no model request, and a name change grants no authority.
   API callers may omit `display_name`; the server derives a readable fallback from the stable address. Updating only `display_name`
   preserves routes and old links. `GET /api/v1/model-routes?inference_mode=` supplies current model suggestions; the field remains
   explicit and the create handler validates the chosen route. Route listing may read a configured provider's non-inference model

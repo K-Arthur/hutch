@@ -84,3 +84,22 @@ boundary; `tests/test_tools.py` verifies independent equal-content memory and sc
 Navigation evidence is in `navigation.md` and `navigation-visual-validation.md`. This review
 does not claim a reduction in missed approvals, faster real-user completion, or comparative
 security. No customer telemetry or controlled usability study supports those claims.
+
+## Current profile and routine model (2026-10-09)
+
+The upstream repository has moved well beyond the older multi-agent-canvas reference. Its current
+documentation separates a coworker's `name`, `title`, and `role` in a durable profile, keeps each
+channel tied to its own conversation, and routes browser and file effects through a server policy
+gateway that records decisions. Its routine guide says work runs with the creator's grants and
+posts the result as an ordinary message in the chosen Bot channel. These are design references;
+Hutch did not run OpenBot or test an account against it. See current upstream
+[coworker profiles](https://github.com/CopilotKit/OpenBot/blob/main/docs/coworkers.md),
+[architecture](https://github.com/CopilotKit/OpenBot/blob/main/docs/architecture.md), and
+[routine boundaries](https://github.com/CopilotKit/OpenBot/blob/main/docs/routines.md).
+
+For Hutch's existing one-field display-name contract, the resulting UI pairs a locally generated,
+friendly teammate name with its work role, keeps that purpose-based role in the chat header at
+phone sizes, and labels the session as an AI Bot. Stable routing still uses the local address.
+The arrangement adapts the upstream distinction between profile identity and role; it is not
+evidence that a human persona improves trust or task quality. The reports above remain individual
+acceptance scenarios rather than prevalence claims.

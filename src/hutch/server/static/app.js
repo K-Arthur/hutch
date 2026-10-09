@@ -1454,10 +1454,17 @@ async function renderChatStudio(preferredBot = null) {
   currentRunId = activeRun?.id || selectedConversation.latest_run_id || null;
 
   const state = botState(detail);
+  const botTitle = bot.display_name || bot.name;
+  const botTitleParts = botTitle.split(" · ");
+  const botHeading = botTitleParts.length > 1 ? botTitleParts.slice(0, -1).join(" · ") : botTitle;
+  const botRole = botTitleParts.length > 1 ? botTitleParts[botTitleParts.length - 1] : "";
   setTopContext(`
     <div class="ctx-id">
       ${botAvatar(bot.name, 30, state === "running" ? "running" : state === "paused" ? "paused" : "")}
-        <h1>${esc(bot.display_name || bot.name)}</h1>
+        <div class="ctx-heading">
+          <h1>${esc(botHeading)}</h1>
+          <span class="ctx-subtitle" title="${esc(botRole)}">AI bot${botRole ? ` · ${esc(botRole)}` : ""}</span>
+        </div>
         <div class="ctx-meta${bot.is_workspace_coordinator ? " workspace-coordinator-meta" : ""}">
           ${bot.is_workspace_coordinator ? '<span class="tag" id="workspace-coordinator-pill" aria-label="Workspace coordinator"><span class="coordinator-label-wide">Workspace coordinator</span><span class="coordinator-label-compact" aria-hidden="true">Coordinator</span></span>' : ""}
           ${bot.paused ? '<span class="tag">paused</span>' : ""}
@@ -5259,7 +5266,7 @@ const BOT_SETUP_TOOLS = [
   ["delegate_task", "Delegate a bounded task", "Request a separately approved child task."],
 ];
 
-function suggestBotDisplayName(purpose) {
+function suggestBotRoleName(purpose) {
   const text = (purpose || "").replace(/\s+/g, " ").trim()
     .replace(/^(?:(?:please|can you|could you|i want|i need|i'd like|i would like|set up|create)\s+)*(?:a\s+)?(?:new\s+)?(?:bot|agent|assistant)\s+(?:to|that|which)\s+/i, "");
   if (!text) return "";
@@ -5316,8 +5323,32 @@ function suggestBotDisplayName(purpose) {
     : ["Workspace", ...selected.role.split(" ")]).join(" ");
 }
 
+function suggestBotDisplayName(purpose, existingBots = botsCache) {
+  const role = suggestBotRoleName(purpose);
+  if (!role) return "";
+  const givenNames = ["Avery", "Jordan", "Riley", "Morgan", "Casey", "Taylor", "Rowan", "Quinn",
+    "Alex", "Jamie", "Cameron", "Sage", "Reese", "Drew", "Robin", "Sam"];
+  const familyNames = ["Bennett", "Chen", "Clarke", "Ellis", "James", "Kim", "Lee", "Morgan",
+    "Patel", "Reed", "Rivera", "Shah", "Singh", "Taylor", "Walker", "Wright"];
+  const identities = givenNames.flatMap(given => familyNames.map(family => `${given} ${family}`));
+  const occupied = new Set((existingBots || []).map(bot =>
+    (bot.display_name || bot.name || "").trim().split(" · ", 1)[0].toLowerCase()));
+  let seed = 0;
+  for (const char of `${purpose || ""}`.toLowerCase()) seed = (Math.imul(seed, 31) + char.charCodeAt(0)) | 0;
+  const start = (seed >>> 0) % identities.length;
+  let identity = "";
+  for (let offset = 0; offset < identities.length; offset++) {
+    const candidate = identities[(start + offset) % identities.length];
+    if (!occupied.has(candidate.toLowerCase())) { identity = candidate; break; }
+  }
+  if (!identity) identity = `${identities[start]} ${(existingBots || []).length + 1}`;
+  return `${identity} · ${role}`;
+}
+
 function suggestedBotAddress(displayName) {
-  const normalized = (displayName || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+  const pieces = (displayName || "").split(" · ");
+  const addressSource = pieces[pieces.length - 1];
+  const normalized = addressSource.normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 41).replace(/-+$/g, "");
   return normalized.length >= 2 ? normalized : "workspace-assistant";
 }
@@ -5567,8 +5598,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
       <details class="setup-schedule setup-identity">
         <summary>Review or change the suggested name</summary>
         <div class="form-grid">
-          <label class="field" for="setup-display_name">Display name<input id="setup-display_name" maxlength="80" autocomplete="off" placeholder="Release Notes Reviewer" value="${esc(draft.display_name)}" required>
-            <span class="hint">Suggested from the request. Used in chats and lists.</span></label>
+          <label class="field" for="setup-display_name">Display name<input id="setup-display_name" maxlength="80" autocomplete="off" placeholder="Avery Morgan · Project Status Reporter" value="${esc(draft.display_name)}" required>
+            <span class="hint">Hutch pairs a friendly teammate name with the Bot’s work role. The role stays visible in chats and lists.</span></label>
           <label class="field" for="setup-name">Bot address<input id="setup-name" maxlength="41" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="release-notes-reviewer" value="${esc(draft.name)}" required>
             <span class="hint">Stable local address; it follows the display name until you edit it.</span></label>
           <label class="field" for="setup-description">Short description<input id="setup-description" maxlength="240" placeholder="What people can ask this Bot to do" value="${esc(draft.description)}"></label>
