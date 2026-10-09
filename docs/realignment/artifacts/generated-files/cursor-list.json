@@ -1,0 +1,22 @@
+{
+  "browser": "firefox",
+  "browser_version": "155.0",
+  "playwright": "1.63.0",
+  "viewport": [
+    390,
+    844
+  ],
+  "screenshot": "large-list-phone.png",
+  "loaded_items": 51,
+  "unique_filenames": 51,
+  "horizontal_overflow_px": 0,
+  "page_errors": [],
+  "source_sha256": {
+    "src/hutch/runtime/steps.py": "da05be64a1288a20be1582226bd1fcc6724a0c699c6757de4d6078497e56c4b5",
+    "src/hutch/store.py": "dc38022c170fdd8a4dc3d834174dd2c1d45f7b475885ccf006552e6028cc6fd6",
+    "src/hutch/server/app.py": "35ae98ee7beebf6a1ad7c92d314a5626a350cbf2a97b33e592d4db285af1af86",
+    "src/hutch/server/static/app.js": "4ff8f4fc137aaf79286c86c291b10b00969241a57339b9d99df5c3a5c38411b0",
+    "src/hutch/server/static/style.css": "f64358d133c588eb769a639a3e43b394739a898ba915a8ef3108ffc948e02751"
+  },
+  "fixture": "51 unverified saved-output references; no provider calls"
+}

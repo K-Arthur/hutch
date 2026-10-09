@@ -1271,11 +1271,13 @@ share them with another conversation, or create a cross-chat library.
 
 API regression coverage exercises two artifact kinds from one tool event, stable cursor pages while a newer artifact is inserted, verified bytes, an adjacent conversation
 for the same bot, a second bot, invalid bounds and an unknown conversation. The focused `tests/test_api.py` suite passed **15 tests
-in 3.05s**. Browser coverage creates a fixture file, opens the conversation list, downloads with Enter at desktop (1440×1000), tablet
+in 3.92s**. Browser coverage creates a fixture file, opens the conversation list, downloads with Enter at desktop (1440×1000), tablet
 (768×1024) and phone (390×844), then verifies Done restores focus to composer options. A separate phone empty-state check verifies Escape
-close, focus return and the explicit no-files message. The latest browser run passed **2 tests in 7.44s**. Browser: Firefox **155.0**;
+close, focus return and the explicit no-files message. A 51-item phone fixture also traverses the Load more cursor and confirms every
+item appears once without overflow. The latest browser run passed **3 tests in 8.57s**. Browser: Firefox **155.0**;
 Playwright **1.63.0**; all captures record no page errors or horizontal overflow. The screenshots, result JSON and source hashes are in
-`artifacts/generated-files/`. The captures were visually inspected.
+`artifacts/generated-files/`. The captures were visually inspected. The large-list phone state and source/runtime metadata are in
+`artifacts/generated-files/large-list-phone.png` and `artifacts/generated-files/cursor-list.json`.
 
 The marketing-site State card now says where conversation files can be found and qualifies that shell-created files are not attached;
 `docs/marketing-site.md`, `README.md`, `docs/architecture.md`, and the v1 contract were updated with the same boundary. Anonymous site

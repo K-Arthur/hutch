@@ -474,6 +474,69 @@ def test_conversation_file_browser_explains_the_empty_state(browser, live):
         page.close()
 
 
+def test_conversation_file_browser_loads_the_next_cursor_page(browser, live):
+    base, app = live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="many-files-bot", model="mock/demo", runtime=RuntimeKind.mock, tools=["files"]))
+    conversation, _ = store.create_conversation(
+        bot.id, "Many files", idem_key="many-files-conversation", request_hash="many-files-request")
+    run = Run(bot_id=bot.id, prompt="create many files", conversation_id=conversation["id"],
+              status=RunStatus.succeeded)
+    store.create_run(run)
+    with store._tx() as db:
+        db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
+                   (conversation["id"], run.id, run.created_at))
+    for index in range(51):
+        filename = f"{index + 1:03d}-saved-output.txt"
+        store.append_event(Event(run_id=run.id, type=EventType.tool_result, data={
+            "tool": "read_file", "output": "saved result", "chars": 12,
+            "artifact": f"artifacts/{filename}",
+        }))
+
+    page = browser.new_page(viewport={"width": 390, "height": 844}, reduced_motion="reduce")
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        page.goto(f"{base}/#/chat/{bot.name}")
+        page.locator("#conversation-switcher").wait_for()
+        assert page.locator("#conversation-switcher").input_value() == conversation["id"]
+        page.locator("#composer-menu-btn").click()
+        page.get_by_role("button", name="Browse files in this chat").click()
+        dialog = page.get_by_role("dialog", name="Files in this chat")
+        dialog.wait_for()
+        status = dialog.locator("#conversation-files-status")
+        page.wait_for_function("() => document.querySelector('#conversation-files-status')?.textContent === '50 items'")
+        assert dialog.locator(".conversation-file").count() == 50
+        dialog.get_by_role("button", name="Load more").click()
+        page.wait_for_function("() => document.querySelector('#conversation-files-status')?.textContent === '51 items'")
+        filenames = dialog.locator(".conversation-file-copy strong").all_text_contents()
+        assert len(filenames) == 51 and len(set(filenames)) == 51
+        assert dialog.get_by_role("button", name="Load more").count() == 0
+        page.locator(".conversation-file").last.scroll_into_view_if_needed()
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow <= 1
+        assert dialog.evaluate("el => el.scrollWidth - el.clientWidth") <= 1
+        assert not errors, errors
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/generated-files"
+        out.mkdir(parents=True, exist_ok=True)
+        screenshot = out / "large-list-phone.png"
+        page.screenshot(path=str(screenshot), animations="disabled")
+        repo = Path(__file__).resolve().parents[2]
+        source_files = ("src/hutch/runtime/steps.py", "src/hutch/store.py", "src/hutch/server/app.py",
+                        "src/hutch/server/static/app.js", "src/hutch/server/static/style.css")
+        (out / "cursor-list.json").write_text(json.dumps({
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright": package_version("playwright"), "viewport": [390, 844],
+            "screenshot": screenshot.name, "loaded_items": len(filenames),
+            "unique_filenames": len(set(filenames)), "horizontal_overflow_px": overflow,
+            "page_errors": errors, "source_sha256": {
+                name: hashlib.sha256((repo / name).read_bytes()).hexdigest() for name in source_files
+            }, "fixture": "51 unverified saved-output references; no provider calls"
+        }, indent=2) + "\n")
+    finally:
+        page.close()
+
+
 def test_studio_conversation_survives_reload_and_archive(browser, live):
     base, app = live
     bot = app.state.store.create_bot(Bot(name="durable-chat", model="mock/demo", tools=[]))

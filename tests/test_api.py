@@ -205,7 +205,7 @@ def test_conversation_artifacts_are_scoped_and_paged(client):
     items = first_page["artifacts"]
     second_page = client.get(url, params={"limit": 1, "cursor": first_page["next_cursor"]}).json()
     assert second_page["artifacts"][0]["kind"] == "workspace_file"
-    assert second_page["artifacts"][0]["id"].split(":")[0] == items[0]["id"].split(":")[0]
+    assert second_page["artifacts"][0]["version"] == items[0]["version"]
     assert second_page["next_cursor"]
     items += second_page["artifacts"]
     third_page = client.get(url, params={"limit": 1, "cursor": second_page["next_cursor"]}).json()

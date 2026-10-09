@@ -206,8 +206,11 @@ the download still passes through the source run's SHA-256 and size checks.
 
 Firefox **155.0** with Playwright **1.63.0** captured the app and open file browser at desktop (1440×1000), tablet
 (768×1024) and phone (390×844). All report zero page errors and zero horizontal overflow; screenshots were visually inspected.
-The browser journeys passed **2 tests in 7.44s** and the API suite passed **15 tests in 3.05s**. The API regression also inserts a newer
-artifact between cursor requests and verifies the remaining older items, including a boundary between two artifact kinds from one event.
+The browser journeys passed **3 tests in 8.57s** and the API suite passed **15 tests in 3.92s**. One phone-sized browser journey loads a
+51st item through the cursor control and verifies unique filenames and no overflow. Its inspected large-list state is saved with source
+hash and fixture metadata in [`artifacts/generated-files/large-list-phone.png`](artifacts/generated-files/large-list-phone.png) and
+[`artifacts/generated-files/cursor-list.json`](artifacts/generated-files/cursor-list.json). The API regression also inserts a newer artifact
+between cursor requests and verifies the remaining older items, including a boundary between two artifact kinds from one event.
 The anonymous marketing-site suite passed **22 tests**
 after the public copy clarified that files remain discoverable from the conversation; a final focused feature-section recapture passed
 at desktop, tablet and phone sizes. App captures and source hashes are in [`artifacts/generated-files/`](artifacts/generated-files/);
