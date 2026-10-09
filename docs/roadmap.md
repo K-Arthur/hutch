@@ -1,5 +1,31 @@
 # Roadmap
 
+## Owner-requested product scope added 2026-10-09
+
+The product owner identified chat-led bot setup, structured choice prompts, and Google Calendar,
+Gmail and Outlook account integrations as key features. They are **planned; the current app does
+not provide them yet**. Keep the compact Studio/Fleet navigation and inline action approvals while
+adding these flows inside the conversation where possible.
+
+1. Add bounded, typed choice prompts that persist across restart. The bot can ask a single-select
+   or multi-select question, and the user can answer in chat. This response supplies information
+   only; a tool action or permission still requires its own approval.
+2. Add a “create a bot” conversation that builds a staged draft, lets the person revise it, and
+   shows the complete configuration for review. Bot creation is idempotent and does not launch a
+   run by itself. Keep the existing explicit form available during rollout.
+3. Add named, revocable, user-delegated Google and Microsoft connections. Start with calendar
+   availability and event lookup; calendar writes, message sending and any other external write
+   need a fresh review showing the account, destination and complete payload. Keep each account
+   grant scoped to the selected bot and capability. Store OAuth refresh credentials in the OS
+   credential store rather than SQLite, transcripts, prompts or browser storage.
+
+Gmail body search/read requires Google restricted OAuth scopes under the current provider
+documentation. Public support depends on completing the required Google app verification and any
+security assessment; until then this integration must remain unavailable or explicitly limited to
+a verified capability. These features must not appear in marketing as supported until their real
+OAuth, recovery, revocation, action-receipt and desktop/tablet/phone journeys pass. No account,
+provider request or scope has been enabled by this planning update.
+
 Schema v15 adds chat-scoped reference proposals, exact-revision human review, explicit sharing,
 bounded FTS5 recall and retained review history. Memory disabled in bot settings also disables
 runtime use while retaining human management. Facts are not automatically injected into system

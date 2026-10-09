@@ -12,7 +12,7 @@ commits can cite them. Evidence for the *why* is in
 > Performance numbers in the draft are *proposed targets*. Measured values live in
 > [performance.md](performance.md) and the committed `benchmarks/baseline.json`.
 
-*Status column last updated: realignment S5 shared budget reservations and offline adapter protocol helpers; external runtimes and local/hybrid modes remain open.*
+*Status column last updated: 2026-10-09. The owner-requested chat setup, structured choices, and Google/Microsoft account integrations below are planned and not implemented.*
 
 ## Dashboard and app
 
@@ -20,7 +20,7 @@ commits can cite them. Evidence for the *why* is in
 |---|---|---|---|---|
 | UI-1 | Home shows Needs you / Running now / Stale | MVP | done | `views.home_state` served at `/`: Needs you / Running now / Stale, each with cause and fix; `tests/test_views.py`, `tests/test_dashboard.py` |
 | UI-2 | Stop all in every header; per-run Stop kills child processes | MVP | done | Stop all in every header (plain POST + confirm); engine kills process groups; tested incl. forked helper |
-| UI-3 | Run event streams resume from durable cursors and resources publish ordered updates | MVP | partial | Per-run `seq` and cross-run SQLite event IDs replay from `Last-Event-ID`; two-processes' transcript events are polled, pages are bounded, and missing cursors require a reconciliation snapshot. Non-run resource updates still need a durable outbox; real-socket tests are in `tests/test_sse_resume.py` |
+| UI-3 | Run event streams resume from durable cursors and resources publish ordered updates | MVP | done | Per-run `seq`, cross-run SQLite event IDs and transactional resource invalidations replay from `Last-Event-ID`; pages are bounded, the retained boundary remains replayable, and older cursors require a reconciliation snapshot. See `tests/test_sse_resume.py`, `tests/test_durable_changes.py`, and the retention checkpoint in `realignment/ledger.md` |
 | UI-4 | Run detail: steps, elapsed, spend, context vs caps | MVP | done | `views.run_meters`: steps, elapsed, spend, tokens, context vs caps, plus absolute model/tool/Hutch timing |
 | UI-5 | Approvals inbox: parsed segments, rule, once/always/deny, countdown | MVP | done | approval card: parsed segments, rule, once/always/plan/deny, live countdown; outward never offers always |
 | UI-6 | Every waiting state names its cause and a fix | MVP | done | `views.explain_run`, `explain_outcome` and the stale cause: every wait names a cause and a fix |
@@ -32,6 +32,8 @@ commits can cite them. Evidence for the *why* is in
 | UI-12 | Server-rendered templates + HTMX, no build step; stop/approve are plain POSTs | MVP | done | Jinja2 + htmx 2.0.4 vendored, no build step; every action is a plain POST; CSRF + Host/Origin checks |
 | UI-13 | Approvals inbox usable at phone width | Later | done | approvals inbox verified at 390px in Chromium (full-width, thumb-sized actions) |
 | UI-14 | Localhost app run by a user-level systemd service; Tauri shell after v0.1 | MVP, then later | planned | |
+| UI-15 | Create a bot through a guided chat that produces a reviewable configuration draft | MVP follow-up | planned | Must show role, model and inference mode, workspace, tools/permissions, approval policy, limits and optional schedule before an idempotent create; creating a bot never starts a run. The existing bot form remains available until chat setup passes migration and visual checks. |
+| UI-16 | Bots can ask typed single- or multi-select questions in chat and resume after a reply | MVP follow-up | planned | Choice cards are persisted, keyboard/screen-reader usable, and fit phone layouts. A reply only supplies information: it cannot approve an action, grant a permission, or change account scope. Keep `waiting_for_answer` distinct from action approval and browser `waiting_human`. |
 
 ## Local models and presets
 
@@ -152,8 +154,32 @@ Subscription plans such as OpenCode Go and the Xiaomi MiMo Token Plan, and the i
 | IG-2 | Inbound webhook trigger for a bot | planned | |
 | IG-3 | Outbound notifications (approval needed, failure, result) to a webhook | planned | |
 | IG-4 | "Save this run as a bot" (routine capture without a recorder) | planned | |
+| IG-5 | Connect a named Google Calendar account for availability and event lookup; event creation is a separate exact-action approval | planned | Delegated OAuth only; disclose selected calendar and data sent to the model; revocation ends future use. Use the narrowest compatible Calendar scope, not calendar sharing or deletion. |
+| IG-6 | Connect Gmail with separately selectable read and send abilities | planned | Reading message content uses Google restricted scopes and requires an explicit app-verification/security-assessment path before public release. Sending always reviews exact recipients and content; no delete, filter, or forwarding authority in the first release. |
+| IG-7 | Connect a Microsoft Outlook account for calendar and mail tasks | planned | Use delegated Microsoft Graph permissions and grant only the selected capability; never request tenant-wide app-only `.All` access. Sending and calendar changes require exact-action review. |
+| IG-8 | OAuth account grants are named, revocable, least-privilege and stored outside the application database | planned | Bind tool calls to the selected user account and requested scope; do not import browser cookies or another app's private token file. Reconnection and scope expansion require fresh consent. |
 | TP-1 | Role templates (sales, PM, marketing, analytics, support, ops) | planned | |
 | TP-2 | Bot customization: persona/tone, reusable skills, delivery target | planned | |
+
+### Owner-requested conversation and personal-account features (2026-10-09)
+
+These requirements were added after the original realignment plan. They are product scope, not claims
+about current behavior. The first delivery order is typed chat choices, a staged chat-led bot draft,
+then account integrations. The order keeps user experience work testable before adding long-lived
+third-party authority.
+
+For integrations, Hutch must show which account and operation a bot can use, keep credentials out
+of prompts/transcripts and the SQLite database, scope access per bot, and revoke it from Connections.
+Every external write is a fresh immutable approval containing the account, destination, exact
+payload, and expiry; a conversation choice never grants that authority. OAuth must use an explicit
+user-delegated flow suitable for a local app. The provider's current scope and review requirements
+must be checked before implementation: [Google Calendar scopes](https://developers.google.com/workspace/calendar/api/auth),
+[Gmail scopes](https://developers.google.com/workspace/gmail/api/auth/scopes),
+[Microsoft Graph permissions](https://learn.microsoft.com/en-us/graph/permissions-reference), and
+[Microsoft authorization-code/PKCE guidance](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow).
+Gmail message-body access is a material release dependency because Google's current documentation
+classifies the relevant read scopes as restricted and describes verification/security-assessment
+requirements.
 
 ## Out of scope (unchanged)
 
