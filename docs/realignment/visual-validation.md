@@ -821,3 +821,4 @@ checked intact history and then confirmed that a modified stored payload raises 
 at desktop **1440×960**, tablet **900×1024**, and phone **390×844**; the control stays reachable, stacks below its status on narrow
 screens, and all three document widths matched the viewport. A terminal fixture run prevented the active supervisor from starting it.
 No provider call or external request was made. The captures and trace are under [`artifacts/transcript-integrity/`](artifacts/transcript-integrity/).
+The matching CLI verifier reports legacy events as partial and returns a nonzero exit on tampering; its intact/legacy/tampered cases pass in `tests/test_cli.py`.

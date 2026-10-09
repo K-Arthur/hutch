@@ -1,6 +1,6 @@
 {
   "test": "tests/e2e/test_browser.py::test_run_detail_reports_transcript_chain_verification_and_tampering",
-  "captured_at": "2026-10-09T18:45:48.546602+00:00",
+  "captured_at": "2026-10-09T18:51:19.685903+00:00",
   "browser": "153.0.8010.12",
   "playwright_version": "1.63.0",
   "provider_calls": 0,
@@ -8,19 +8,19 @@
   "external_requests": [],
   "verification_responses": [
     {
-      "url": "http://127.0.0.1:36667/api/v1/tasks/runs/run_d6a528c48b4f/verify",
+      "url": "http://127.0.0.1:44433/api/v1/tasks/runs/run_fd6ff9e5b14a/verify",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:36667/api/v1/tasks/runs/run_d6a528c48b4f/verify",
+      "url": "http://127.0.0.1:44433/api/v1/tasks/runs/run_fd6ff9e5b14a/verify",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:36667/api/v1/tasks/runs/run_d6a528c48b4f/verify",
+      "url": "http://127.0.0.1:44433/api/v1/tasks/runs/run_fd6ff9e5b14a/verify",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:36667/api/v1/tasks/runs/run_d6a528c48b4f/verify",
+      "url": "http://127.0.0.1:44433/api/v1/tasks/runs/run_fd6ff9e5b14a/verify",
       "status": 200
     }
   ],
@@ -56,8 +56,16 @@
   ],
   "legacy_result": "0 chained events verified; 1 older event has no hash.",
   "legacy_capture": "legacy-desktop.png",
+  "legacy_viewport": [
+    1440,
+    960
+  ],
   "tampering_detected_at_seq": 1,
   "tamper_capture": "tampered-desktop.png",
+  "tamper_viewport": [
+    1440,
+    960
+  ],
   "source_sha256": {
     "src/hutch/server/static/app.js": "147ba13aef3e57513d21468c79640092ba1af5c32b3e7beddb005aade52cfab3",
     "src/hutch/server/static/style.css": "3ca514093c71699c427180bb622219c5d2b7eebfb9f2611f3d377554d6ff0343",

@@ -2562,10 +2562,13 @@ The run detail now calls the real `/api/v1/tasks/runs/{id}/verify` endpoint and 
 older unhashed events as partial verification, or the first detected mismatch as an alert. The check is read-only. A responsive browser
 journey verifies an intact stored chain at desktop, tablet and phone sizes, modifies a committed event payload in its isolated test
 database, then confirms that the page identifies event 1 as tampered. Its fixture run is terminal so the live test supervisor cannot
-start execution while the history is inspected; no model/provider request occurs. Standalone CLI audit remains open, so SR-11 is partial.
+start execution while the history is inspected; no model/provider request occurs. The new `hutch runs verify <run-id>` command reports
+the same verified, partial-legacy, or tampered result, exits with status 1 for a mismatch, and closes its store cleanly. Historic rows
+without hashes remain explicitly unverified; SR-11 now has both CLI and UI audit surfaces.
 
 `node --check src/hutch/server/static/app.js`, `git diff --check`, and
-`.venv/bin/pytest -q tests/test_store_events.py tests/e2e/test_browser.py::test_run_detail_reports_transcript_chain_verification_and_tampering --no-header`
-passed (**17 tests in 3.45s** on Chromium **153.0.8010.12**). Inspected desktop **1440×960**, tablet **900×1024**, and phone
+`.venv/bin/pytest -q tests/test_store_events.py tests/test_cli.py::test_runs_verify_reports_intact_legacy_and_tampered_event_history tests/e2e/test_browser.py::test_run_detail_reports_transcript_chain_verification_and_tampering --no-header`
+passed (**18 tests in 4.44s** on Chromium **153.0.8010.12**). Inspected desktop **1440×960**, tablet **900×1024**, and phone
 **390×844** captures showed no horizontal overflow; the event-verification controls stack on compact layouts. Tamper alert, screenshots,
 Playwright trace, request/result metadata and source hashes are recorded in [`artifacts/transcript-integrity/`](artifacts/transcript-integrity/).
+The complete CLI and store-event suites also passed **29 tests in 7.85s** with thread/syntax warnings treated as errors.

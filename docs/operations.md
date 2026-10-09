@@ -129,6 +129,20 @@ needed grants deliberately. If installed executor/UI bytes changed since validat
 with that release into another new directory. Configure the service to use the reviewed state
 directory only after cutover checks; the CLI does not switch your service configuration.
 
+## Auditing run transcript integrity
+
+Every newly written run event is linked into an ordered SHA-256 chain. Inspect an individual run from its detail page or verify it
+from the terminal:
+
+```sh
+hutch runs verify <run-id>
+```
+
+An intact chain exits successfully and reports the number of events checked. Older events written before hashing are reported as
+**partial** because their original links do not exist; Hutch cannot prove their historical integrity. A changed or missing event fails
+verification, and the CLI exits with status 1. Verification is read-only: it does not repair, delete, or rewrite the transcript. Keep
+the original database intact and make a separate backup before investigating a reported mismatch.
+
 ## Change-feed retention
 
 The elected scheduler supervisor keeps at most 50,000 content-free `/api/v1/changes` invalidations,

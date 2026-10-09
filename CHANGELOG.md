@@ -18,6 +18,7 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Added
 
+- Run detail and `hutch runs verify <run-id>` now expose a read-only event-chain audit with verified, legacy/partial, and tampered states. Legacy events are clearly unverified; a detected mismatch makes the CLI exit nonzero.
 - Schema v34 adds one owner-confirmed fresh attempt from a tightly gated checkpoint for failed/stopped built-in coordinator tasks. The new run gets only the reviewed task brief/constraints and the latest committed assistant text as untrusted progress; prior actions, receipts, selected facts, credentials and tool results do not transfer. Unknown effects, any recorded action, newer specialist work, pending questions, changed permissions, external runtimes and archived chats stay blocked. Exact retries are idempotent. This is not process resume and may use additional model quota.
 - Purpose-based Bot names now preserve common hyphenated phrases, ignore trailing request clauses, and use an organizer label for organization requests; suggestions remain local, editable, and stable-address-aware.
 - The workspace coordinator now has scoped task-drafting guidance and a clearer specialist review: the operator can edit the goal, add an expected deliverable and constraints, inspect the specialist's saved settings, and confirm dispatch while the source request remains linked. Task wording cannot grant access; live model drafting quality remains unverified.

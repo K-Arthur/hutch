@@ -4,8 +4,51 @@ import pytest
 from typer.testing import CliRunner
 
 from hutch.cli import app
+from hutch.models import Bot, Event, EventType, Run, RunStatus
 
 runner = CliRunner()
+
+
+def test_runs_verify_reports_intact_legacy_and_tampered_event_history(state_env):
+    from hutch.cli import _store
+
+    assert runner.invoke(app, ["init"]).exit_code == 0
+    store = _store()
+    bot = store.create_bot(Bot(name="audit-review", display_name="Audit Review", model="mock/demo", tools=[]))
+
+    def make_run(prompt: str) -> Run:
+        run = Run(bot_id=bot.id, prompt=prompt, status=RunStatus.succeeded)
+        store.create_run(run)
+        store.append_event(Event(run_id=run.id, type=EventType.message,
+                                 data={"role": "assistant", "content": prompt}))
+        store.flush_events()
+        return run
+
+    try:
+        intact = make_run("intact transcript")
+        result = runner.invoke(app, ["runs", "verify", intact.id])
+        assert result.exit_code == 0 and "1 chained event verified" in result.output, result.output
+
+        legacy = make_run("legacy transcript")
+        with store._lock:
+            store._db.execute("UPDATE events SET hash = '' WHERE run_id = ? AND seq = 1", (legacy.id,))
+            store._db.commit()
+        result = runner.invoke(app, ["runs", "verify", legacy.id])
+        assert result.exit_code == 0 and "partial" in result.output.lower()
+        assert "1 older event has no hash" in result.output, result.output
+
+        tampered = make_run("tampered transcript")
+        with store._lock:
+            store._db.execute("UPDATE events SET data = ? WHERE run_id = ? AND seq = 1",
+                              ('{"role":"assistant","content":"changed"}', tampered.id))
+            store._db.commit()
+        result = runner.invoke(app, ["runs", "verify", tampered.id])
+        assert result.exit_code == 1 and "integrity check failed at event 1" in result.output.lower(), result.output
+
+        missing = runner.invoke(app, ["runs", "verify", "run_missing"])
+        assert missing.exit_code == 1 and "no such run" in missing.output.lower(), missing.output
+    finally:
+        store.close()
 
 
 @pytest.fixture()

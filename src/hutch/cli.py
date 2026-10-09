@@ -824,6 +824,31 @@ def runs_show(run_id: str = typer.Argument(...)) -> None:
         _print_event(ev)
 
 
+@run_app.command("verify")
+def runs_verify(run_id: str = typer.Argument(...)) -> None:
+    """Recompute a run's persisted event hash chain without changing its history."""
+    store = _store()
+    try:
+        _require_run(store, run_id)
+        result = store.verify_chain(run_id)
+        checked, legacy, total = result["checked"], result["legacy"], result["total"]
+        if not result["ok"]:
+            location = f"event {result['bad_seq']}" if result["bad_seq"] else "the event sequence"
+            err.print(f"integrity check failed at {location}; {checked} chained events passed before the failure; "
+                      f"{legacy} older events have no hash ({total} total).", style="red", markup=False)
+            raise typer.Exit(code=1)
+        if legacy:
+            checked_label = f"{checked} chained event{'s' if checked != 1 else ''} verified"
+            legacy_label = f"{legacy} older event{'s' if legacy != 1 else ''} {'have' if legacy != 1 else 'has'} no hash"
+            console.print(f"partial: {checked_label}; {legacy_label}.", markup=False)
+        elif checked:
+            console.print(f"{checked} chained event{'s' if checked != 1 else ''} verified.", markup=False)
+        else:
+            console.print("No events were present to verify.", markup=False)
+    finally:
+        store.close()
+
+
 @app.command()
 def stop(run_id: str = typer.Argument(...)) -> None:
     """Stop a run."""

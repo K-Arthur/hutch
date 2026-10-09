@@ -116,12 +116,12 @@ def test_run_detail_reports_transcript_chain_verification_and_tampering(browser,
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.get_by_role("button", name="Verify event history").click()
-            page.wait_for_function("""() => {
-              const node = document.querySelector('[data-run-integrity-result]');
-              return node && node.dataset.state !== 'checking';
-            }""", timeout=5000)
             expected_verified = (f"{initial_verification['checked']} chained event"
                                  f"{'s' if initial_verification['checked'] != 1 else ''} verified")
+            page.wait_for_function("""() => {
+              const node = document.querySelector('[data-run-integrity-result]');
+              return node && node.dataset.state === 'verified' && node.textContent.includes('chained event');
+            }""", timeout=5000)
             assert expected_verified in result.inner_text(), (result.inner_text(), verification_responses)
             assert "legacy events are not chained" not in result.inner_text()
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
@@ -130,6 +130,7 @@ def test_run_detail_reports_transcript_chain_verification_and_tampering(browser,
             viewport_results.append({"size": label, "viewport": [width, height], "status": "verified",
                                     "horizontal_overflow": overflow})
 
+        page.set_viewport_size({"width": 1440, "height": 960})
         legacy_run = Run(bot_id=bot.id, prompt="Check an older transcript.", status=RunStatus.succeeded,
                          finished_at=datetime.now(timezone.utc).isoformat())
         store.create_run(legacy_run)
@@ -146,11 +147,12 @@ def test_run_detail_reports_transcript_chain_verification_and_tampering(browser,
         page.get_by_role("button", name="Verify event history").click()
         page.wait_for_function("""() => {
           const node = document.querySelector('[data-run-integrity-result]');
-          return node && node.dataset.state !== 'checking';
+          return node && node.dataset.state === 'partial' && node.textContent.includes('older event');
         }""", timeout=5000)
         legacy_result = result.inner_text()
         assert legacy_result == "0 chained events verified; 1 older event has no hash.", legacy_result
         assert result.get_attribute("data-state") == "partial"
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") == 0
         page.screenshot(path=str(output / "legacy-desktop.png"), animations="disabled")
 
         page.goto(f"{base}/#/run/{run.id}")
@@ -161,9 +163,13 @@ def test_run_detail_reports_transcript_chain_verification_and_tampering(browser,
                               ('{"role":"assistant","content":"changed after commit"}', run.id))
             store._db.commit()
         page.get_by_role("button", name="Verify event history").click()
-        result.get_by_text("Integrity check failed at event 1", exact=False).wait_for()
+        page.wait_for_function("""() => {
+          const node = document.querySelector('[data-run-integrity-result]');
+          return node && node.dataset.state === 'failed' && node.textContent.includes('event 1');
+        }""", timeout=5000)
         assert result.get_attribute("role") == "alert"
         assert store.verify_chain(run.id)["ok"] is False
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") == 0
         page.screenshot(path=str(output / "tampered-desktop.png"), animations="disabled")
         assert not errors, errors
         assert not external, external
@@ -180,8 +186,10 @@ def test_run_detail_reports_transcript_chain_verification_and_tampering(browser,
             "captures": viewport_results,
             "legacy_result": legacy_result,
             "legacy_capture": "legacy-desktop.png",
+            "legacy_viewport": [1440, 960],
             "tampering_detected_at_seq": 1,
             "tamper_capture": "tampered-desktop.png",
+            "tamper_viewport": [1440, 960],
             "source_sha256": {path: hashlib.sha256((output.parents[3] / path).read_bytes()).hexdigest()
                               for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                            "src/hutch/server/app.py", "src/hutch/store.py")},
