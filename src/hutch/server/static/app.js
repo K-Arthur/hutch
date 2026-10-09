@@ -4995,9 +4995,11 @@ const BOT_SETUP_TOOLS = [
 ];
 
 function suggestBotDisplayName(purpose) {
-  const text = (purpose || "").replace(/\s+/g, " ").trim();
+  const text = (purpose || "").replace(/\s+/g, " ").trim()
+    .replace(/^(?:(?:please|can you|could you|i want|i need|i'd like|i would like|set up|create)\s+)*(?:a\s+)?(?:new\s+)?(?:bot|agent|assistant)\s+(?:to|that|which)\s+/i, "");
   if (!text) return "";
   const patterns = [
+    { re: /\b(?:prepare|prepares|write|writes|draft|drafts|compile|compiles|generate|generates|produce|produces|create|creates)\b(?=[^.!?]{0,80}\b(?:reports?|updates?|briefings?|summaries)\b)/i, role: "Reporter" },
     { re: /\b(?:monitor|watch|track|follow|flag|keep an eye on|keep up with)\b/i, role: "Monitor" },
     { re: /\b(?:review|audit|check|evaluate|inspect)\b/i, role: "Reviewer" },
     { re: /\b(?:research|investigate|find|compare|analy[sz]e)\b/i, role: "Analyst" },
@@ -5039,7 +5041,7 @@ function suggestBotDisplayName(purpose) {
       subject = subject.slice(action[0].length).replace(/^\s+(?:the|my|our|a|an)\s+/i, " ");
     }
   }
-  const stop = new Set(["a", "about", "an", "and", "are", "as", "at", "be", "by", "changes", "each", "from", "in", "into", "is", "it", "of", "on", "or", "the", "this", "to", "with", "me", "my", "our", "us", "you", "your", "bot", "agent", "please", "daily", "weekly", "monthly", "affecting", "anything", "requests", "things", "whatever", "what", "work", "next", "today", "tomorrow", "tonight", "month", "week", "year", "due", "overdue", "late", "missing"]);
+  const stop = new Set(["a", "about", "an", "and", "are", "as", "at", "be", "by", "changes", "each", "from", "in", "into", "is", "it", "of", "on", "or", "the", "this", "to", "with", "me", "my", "our", "us", "you", "your", "bot", "agent", "please", "daily", "weekly", "monthly", "quarterly", "affecting", "anything", "requests", "things", "whatever", "what", "work", "next", "today", "tomorrow", "tonight", "month", "week", "year", "due", "overdue", "late", "missing", "report", "reports", "update", "updates", "briefing", "briefings", "summary", "summaries"]);
   const acronyms = new Set(["ai", "api", "ci", "cd", "crm", "hr", "qa", "sre", "ui", "ux"]);
   const words = (subject.match(/[a-z0-9]+(?:-[a-z0-9]+)*/gi) || []).filter(word => !stop.has(word.toLowerCase())).slice(0, 3);
   const title = words.map(word => acronyms.has(word.toLowerCase()) ? word.toUpperCase()

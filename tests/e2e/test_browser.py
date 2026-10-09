@@ -2613,7 +2613,7 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
 def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(browser, live, monkeypatch):
     base, app = live
     monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-naming"
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-naming-quality"
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -2650,6 +2650,12 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
         purpose.fill("Coordinate work across my bots and keep me updated.")
         assert display_name.input_value() == "Workspace Coordinator"
         assert address.input_value() == "workspace-coordinator"
+        purpose.fill("Create a weekly project status update for leadership.")
+        assert display_name.input_value() == "Project Status Reporter"
+        assert address.input_value() == "project-status-reporter"
+        purpose.fill("I need a bot that prepares weekly project status updates for my leadership team.")
+        assert display_name.input_value() == "Project Status Reporter"
+        assert address.input_value() == "project-status-reporter"
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.screenshot(path=str(out / f"automatic-name-{label}.png"), animations="disabled")
@@ -2676,6 +2682,16 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
             })""")
             assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
             assert metrics["footerVisible"], (label, metrics)
+
+        page.locator("#setup-name").scroll_into_view_if_needed()
+        address_visibility = page.evaluate("""() => {
+          const address = document.querySelector('#setup-name').getBoundingClientRect();
+          const footer = document.querySelector('.modal-footer').getBoundingClientRect();
+          return {addressTop:address.top,addressBottom:address.bottom,footerTop:footer.top,
+            viewport:[innerWidth,innerHeight]};
+        }""")
+        assert address_visibility["addressBottom"] <= address_visibility["footerTop"] + 1, address_visibility
+        page.screenshot(path=str(out / "identity-phone-address-visible.png"), animations="disabled")
 
         page.locator("#modal-confirm").click()
         page.get_by_label("Model route").fill("openai/gpt-4o-mini")
@@ -2728,9 +2744,10 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright_version": package_version("playwright"),
             "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
-            "scenario": "purpose-derived names preserve follow-up compounds, trim secondary/time/status clauses, use action-appropriate monitor/reviewer/organizer/reminder roles, normalize reminder actions and receipt nouns, name Bot-team coordination as Workspace Coordinator, and remain editable/reviewed; no run or model/provider request occurs",
+            "scenario": "purpose-derived names preserve follow-up compounds, trim secondary/time/status clauses, use action-appropriate monitor/reviewer/organizer/reminder/reporter roles, strip a bot-creation request wrapper, normalize reminder actions and receipt nouns, name Bot-team coordination as Workspace Coordinator, and remain editable/reviewed with a reachable phone address field; no run or model/provider request occurs",
             "inspected_screenshots": [f"automatic-name-{size}.png" for size in ("desktop", "tablet", "phone")]
                                      + [f"identity-{size}.png" for size in ("desktop", "tablet", "phone")]
+                                     + ["identity-phone-address-visible.png"]
                                      + [f"review-{size}.png" for size in ("desktop", "tablet", "phone")]
                                      + [f"review-end-{size}.png" for size in ("desktop", "tablet", "phone")]
                                      + [f"chat-{size}.png" for size in ("desktop", "tablet", "phone")],

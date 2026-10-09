@@ -1,0 +1,46 @@
+{
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewports": {
+    "desktop": [
+      1440,
+      960
+    ],
+    "tablet": [
+      900,
+      1024
+    ],
+    "phone": [
+      390,
+      844
+    ]
+  },
+  "scenario": "purpose-derived names preserve follow-up compounds, trim secondary/time/status clauses, use action-appropriate monitor/reviewer/organizer/reminder/reporter roles, strip a bot-creation request wrapper, normalize reminder actions and receipt nouns, name Bot-team coordination as Workspace Coordinator, and remain editable/reviewed with a reachable phone address field; no run or model/provider request occurs",
+  "inspected_screenshots": [
+    "automatic-name-desktop.png",
+    "automatic-name-tablet.png",
+    "automatic-name-phone.png",
+    "identity-desktop.png",
+    "identity-tablet.png",
+    "identity-phone.png",
+    "identity-phone-address-visible.png",
+    "review-desktop.png",
+    "review-tablet.png",
+    "review-phone.png",
+    "review-end-desktop.png",
+    "review-end-tablet.png",
+    "review-end-phone.png",
+    "chat-desktop.png",
+    "chat-tablet.png",
+    "chat-phone.png"
+  ],
+  "page_errors": [],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "9e1a300de9ab9ca565c34ea53b56d35780508daceae08f05ad091540b07ca93c",
+    "src/hutch/server/static/style.css": "cab7f95dffbbf7a1c15dfdc1b019ab56d8f56c9d90d111f865b8ce12832268f1",
+    "src/hutch/server/app.py": "31c7a1f1a801c595518269121277f179c768b69f44bae3a37d6297525c73026c",
+    "tests/e2e/test_browser.py": "34f17e623d5d8319452ff3b767db4fcd763db0f4cd1fd63e19d6f88218d39ada"
+  }
+}

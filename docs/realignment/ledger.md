@@ -2407,3 +2407,18 @@ The UI test uses a local Microsoft authorization interception and fixture Graph 
 Microsoft registration, user consent, mailbox, or Graph request was available, so this is an
 experimental implementation and live-provider support remains unverified. Gmail remains unavailable
 pending its restricted-scope verification path.
+
+
+## Purpose-derived report names and conversational Bot requests (2026-10-09)
+
+A test-first browser regression showed that “Create a weekly project status update for leadership” produced the generic “Workspace
+Assistant.” The local naming rule now recognizes report/update/brief/summary creation verbs and suggests “Project Status Reporter”; it
+also removes a leading conversational wrapper such as “I need a bot that…” before deriving the name. This remains a concise deterministic
+English heuristic. It adds neither model inference nor permissions, and the user can edit the proposed display name and address.
+
+`uv run pytest -q tests/e2e/test_browser.py::test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes -x` first failed on the
+fallback assertion, then passed **1 test in 6.68s** after the change. Chromium **153.0.8010.12** / Playwright **1.63.0** checked desktop
+**1440×960**, tablet **900×1024** and phone **390×844**; I inspected the suggested names and a phone screenshot with the address field
+scrolled above the sticky footer. The journey confirmed no model/provider request and no run on creation. `node --check` and
+`git diff --check` passed. Evidence and source hashes are in `artifacts/bot-naming-quality/`. This does not provide general semantic
+understanding or non-English naming.
