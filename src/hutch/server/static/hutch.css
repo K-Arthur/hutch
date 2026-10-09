@@ -258,7 +258,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .meter-cap { color: var(--faint); font-size: 12px; }
 .meter-note { color: var(--faint); font-size: 11.5px; margin-top: 4px; }
 .bar { height: 6px; background: var(--bg-subtle); border-radius: 999px; overflow: hidden; margin-top: 8px; display: flex; }
-.bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .3s; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
 .lv-warn .bar i { background: var(--amber); }
 .lv-hot .bar i { background: var(--red); }
 .lv-hot .meter-val { color: var(--red); }
@@ -279,16 +279,15 @@ tbody tr:last-child td { border-bottom: 0; }
 .turn-body { white-space: pre-wrap; overflow-wrap: anywhere; }
 .turn.user .turn-body { background: var(--elevated); border: 1px solid var(--border-strong); border-radius: var(--r); padding: 10px 14px; }
 .turn.agent .turn-body { color: var(--text); }
-.toolline { border: 0; border-left: 2px solid var(--border-strong); margin-left: 4px; padding: 0 0 0 10px; }
+.toolline { border: 0; margin-left: 4px; padding: 0 0 0 10px; }
 .toolline > summary { display: flex; align-items: center; gap: 8px; min-height: 28px; cursor: pointer; list-style: none; color: var(--dim); font-size: 12.5px; border-radius: 4px; }
 .toolline > summary::-webkit-details-marker { display: none; }
 .toolline > summary:hover { background: var(--elevated); }
 .toolline strong { font: 600 12.5px var(--mono); color: var(--text); flex: none; }
 .toolline .argsum { font: 12px var(--mono); color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
 .toolline time, .toolline .more { margin-left: auto; color: var(--faint); font: 11px var(--mono); flex: none; }
-.toolline.result { border-left-color: rgba(98, 192, 115, .45); margin-top: -6px; }
+.toolline.result { margin-top: -6px; }
 .toolline.result > summary { color: var(--accent); }
-.toolline.result.bad { border-left-color: rgba(248, 113, 113, .6); }
 .toolline.result.bad > summary, .toolline.result.bad .argsum { color: var(--red); }
 .toolline[open] > summary { color: var(--text); }
 .toolline pre { margin: 4px 0 8px; padding: 8px 10px; background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--dim); max-height: 320px; overflow: auto; }

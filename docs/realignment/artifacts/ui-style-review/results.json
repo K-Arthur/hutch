@@ -1,0 +1,50 @@
+{
+  "stylesheet": "http://127.0.0.1:18803/static/hutch.css",
+  "browser": "Firefox",
+  "browserVersion": "155.0",
+  "fixture": "Synthetic budget meter and tool rows rendered with the actual dashboard stylesheet. No production state or provider calls.",
+  "screenshots": [
+    {
+      "viewport": "desktop",
+      "pageErrors": [],
+      "stylesheetStatus": [
+        200
+      ],
+      "viewportWidth": 1440,
+      "documentWidth": 1440,
+      "transcriptBorder": "1px",
+      "toollineLeftBorder": "0px",
+      "toollineIndent": "10px",
+      "barTransition": "none",
+      "barFillRatio": 72
+    },
+    {
+      "viewport": "tablet",
+      "pageErrors": [],
+      "stylesheetStatus": [
+        200
+      ],
+      "viewportWidth": 900,
+      "documentWidth": 900,
+      "transcriptBorder": "1px",
+      "toollineLeftBorder": "0px",
+      "toollineIndent": "10px",
+      "barTransition": "none",
+      "barFillRatio": 72
+    },
+    {
+      "viewport": "phone",
+      "pageErrors": [],
+      "stylesheetStatus": [
+        200
+      ],
+      "viewportWidth": 390,
+      "documentWidth": 390,
+      "transcriptBorder": "1px",
+      "toollineLeftBorder": "0px",
+      "toollineIndent": "10px",
+      "barTransition": "none",
+      "barFillRatio": 72
+    }
+  ]
+}

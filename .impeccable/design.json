@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-08T00:00:00Z",
+  "generatedAt": "2026-10-09T00:42:04Z",
   "title": "Design System: Hutch",
   "extensions": {
     "colorMeta": {
@@ -8,54 +8,434 @@
         "role": "primary",
         "displayName": "Hutch Emerald",
         "canonical": "#34d399",
-        "tonalRamp": ["#0a2e24", "#0f4a38", "#156b4d", "#1b8f63", "#27b57f", "#34d399", "#6ee7b7", "#c4f5e4"]
+        "tonalRamp": [
+          "#000f07",
+          "#002c1c",
+          "#004c33",
+          "#006f4d",
+          "#009467",
+          "#00bb83",
+          "#4ae3a8",
+          "#c1ffe0"
+        ]
       },
-      "focus": {
-        "role": "interaction",
-        "displayName": "Focus Azure",
-        "canonical": "#60a5fa",
-        "tonalRamp": ["#0f2748", "#164075", "#1f5ea6", "#2c7fd0", "#4398ee", "#60a5fa", "#8fc3ff", "#cfe3ff"]
+      "primary-ink": {
+        "role": "on-primary",
+        "displayName": "Emerald Ink",
+        "canonical": "#052e21",
+        "tonalRamp": [
+          "#000f08",
+          "#032c1f",
+          "#22483a",
+          "#416758",
+          "#608777",
+          "#80a998",
+          "#a5cfbd",
+          "#cffae7"
+        ]
       },
-      "warning": {
-        "role": "state",
-        "displayName": "Attention Amber",
-        "canonical": "#fbbf24",
-        "tonalRamp": ["#3d2c05", "#5e4408", "#8a630c", "#b78611", "#e0a51a", "#fbbf24", "#ffd666", "#ffeab0"]
-      },
-      "error": {
-        "role": "state",
-        "displayName": "Failure Rose",
-        "canonical": "#f87171",
-        "tonalRamp": ["#3b1414", "#5e1f1f", "#8a2f2f", "#b44848", "#d95c5c", "#f87171", "#ffabab", "#ffd6d6"]
+      "primary-deep": {
+        "role": "primary-variant",
+        "displayName": "Deep Emerald",
+        "canonical": "#10b981",
+        "tonalRamp": [
+          "#000f07",
+          "#002c1c",
+          "#004d33",
+          "#006f4c",
+          "#009466",
+          "#14ba82",
+          "#53e2a7",
+          "#c1ffe0"
+        ]
       },
       "surface-ground": {
         "role": "neutral",
         "displayName": "Graphite Ground",
         "canonical": "#05070a",
-        "tonalRamp": ["#05070a", "#080c12", "#0b1019", "#0f151f", "#141b26", "#1a2230", "#232c3d", "#2f3a4e"]
+        "tonalRamp": [
+          "#090b0f",
+          "#212428",
+          "#3d4044",
+          "#5a5e63",
+          "#7a7e82",
+          "#9b9fa4",
+          "#c0c4ca",
+          "#eaeff4"
+        ]
+      },
+      "surface-panel": {
+        "role": "neutral",
+        "displayName": "Graphite Panel",
+        "canonical": "#080c12",
+        "tonalRamp": [
+          "#070b11",
+          "#20242b",
+          "#3b4048",
+          "#595e66",
+          "#787e86",
+          "#999fa8",
+          "#bec5ce",
+          "#e8eff9"
+        ]
+      },
+      "surface-raised": {
+        "role": "neutral",
+        "displayName": "Graphite Raised",
+        "canonical": "#10161f",
+        "tonalRamp": [
+          "#060b14",
+          "#1e242e",
+          "#39404b",
+          "#575e69",
+          "#767e8a",
+          "#979fab",
+          "#bcc5d2",
+          "#e6effd"
+        ]
+      },
+      "surface-sidebar": {
+        "role": "neutral",
+        "displayName": "Sidebar Black",
+        "canonical": "#030508",
+        "tonalRamp": [
+          "#080c10",
+          "#202429",
+          "#3c4045",
+          "#595e64",
+          "#797e84",
+          "#9a9fa5",
+          "#bfc5cb",
+          "#e9eff6"
+        ]
+      },
+      "surface-sunken": {
+        "role": "neutral",
+        "displayName": "Sunken Black",
+        "canonical": "#020406",
+        "tonalRamp": [
+          "#080c0f",
+          "#202529",
+          "#3b4145",
+          "#595e63",
+          "#787e83",
+          "#999fa4",
+          "#bfc5ca",
+          "#e9eff5"
+        ]
+      },
+      "bubble-user": {
+        "role": "neutral",
+        "displayName": "User Bubble Slate",
+        "canonical": "#1d2735",
+        "tonalRamp": [
+          "#040b18",
+          "#1b2532",
+          "#364150",
+          "#535f6f",
+          "#727e8f",
+          "#93a0b1",
+          "#b8c5d8",
+          "#e4f0ff"
+        ]
+      },
+      "selection": {
+        "role": "interaction",
+        "displayName": "Selection Azure",
+        "canonical": "rgba(82, 168, 255, 0.30)",
+        "tonalRamp": [
+          "#000b1d",
+          "#0a2540",
+          "#26425f",
+          "#44607f",
+          "#6280a0",
+          "#83a2c3",
+          "#a8c8eb",
+          "#e3f0ff"
+        ]
+      },
+      "line": {
+        "role": "neutral-border",
+        "displayName": "Quiet Divider",
+        "canonical": "rgba(255, 255, 255, 0.07)",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#222427",
+          "#3e4043",
+          "#5b5e61",
+          "#7b7d81",
+          "#9c9fa2",
+          "#c2c4c8",
+          "#eceff3"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral-border",
+        "displayName": "Strong Divider",
+        "canonical": "rgba(255, 255, 255, 0.14)",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#222427",
+          "#3e4043",
+          "#5c5e61",
+          "#7b7d80",
+          "#9c9ea2",
+          "#c2c4c8",
+          "#eceff2"
+        ]
+      },
+      "border-emphasis": {
+        "role": "neutral-border",
+        "displayName": "Emphasis Slate",
+        "canonical": "#283649",
+        "tonalRamp": [
+          "#020b1b",
+          "#172537",
+          "#324154",
+          "#4f5f74",
+          "#6e7f95",
+          "#8fa0b7",
+          "#b4c6de",
+          "#e4f0ff"
+        ]
+      },
+      "hairline-top": {
+        "role": "neutral-border",
+        "displayName": "Surface Hairline",
+        "canonical": "rgba(255, 255, 255, 0.06)",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#222427",
+          "#3e4043",
+          "#5b5e61",
+          "#7b7d81",
+          "#9c9fa2",
+          "#c2c4c8",
+          "#eceff3"
+        ]
+      },
+      "track": {
+        "role": "neutral-border",
+        "displayName": "Progress Track",
+        "canonical": "rgba(255, 255, 255, 0.09)",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#222427",
+          "#3e4043",
+          "#5c5e61",
+          "#7b7d81",
+          "#9c9ea2",
+          "#c2c4c8",
+          "#eceff2"
+        ]
+      },
+      "text-primary": {
+        "role": "text",
+        "displayName": "Primary Text",
+        "canonical": "#f0f4f9",
+        "tonalRamp": [
+          "#090b0e",
+          "#212428",
+          "#3d4044",
+          "#5b5e62",
+          "#7a7e82",
+          "#9b9fa3",
+          "#c1c4c9",
+          "#ebeff4"
+        ]
+      },
+      "text-secondary": {
+        "role": "text",
+        "displayName": "Secondary Text",
+        "canonical": "#9daebf",
+        "tonalRamp": [
+          "#020c18",
+          "#182532",
+          "#334150",
+          "#505f6f",
+          "#6f7f8f",
+          "#90a1b1",
+          "#b5c6d8",
+          "#e2f0ff"
+        ]
+      },
+      "text-tertiary": {
+        "role": "text",
+        "displayName": "Tertiary Text",
+        "canonical": "#7d8ea4",
+        "tonalRamp": [
+          "#020b1b",
+          "#172536",
+          "#324154",
+          "#4f5f73",
+          "#6e7f94",
+          "#8fa0b7",
+          "#b4c6dd",
+          "#e4f0ff"
+        ]
+      },
+      "focus": {
+        "role": "interaction",
+        "displayName": "Focus Azure",
+        "canonical": "#60a5fa",
+        "tonalRamp": [
+          "#000b1f",
+          "#00234b",
+          "#003e7d",
+          "#145dac",
+          "#3a7ed0",
+          "#5ca1f5",
+          "#9cc7ff",
+          "#e4f0ff"
+        ]
+      },
+      "focus-ink": {
+        "role": "on-interaction",
+        "displayName": "Focus Ink",
+        "canonical": "#04121f",
+        "tonalRamp": [
+          "#010c19",
+          "#162634",
+          "#314251",
+          "#4e6070",
+          "#6d8091",
+          "#8ea1b3",
+          "#b3c7da",
+          "#e1f1ff"
+        ]
+      },
+      "success": {
+        "role": "success",
+        "displayName": "Success Emerald",
+        "canonical": "#34d399",
+        "tonalRamp": [
+          "#000f07",
+          "#002c1c",
+          "#004c33",
+          "#006f4d",
+          "#009467",
+          "#00bb83",
+          "#4ae3a8",
+          "#c1ffe0"
+        ]
+      },
+      "warning": {
+        "role": "warning",
+        "displayName": "Attention Amber",
+        "canonical": "#fbbf24",
+        "tonalRamp": [
+          "#110a00",
+          "#302100",
+          "#523c00",
+          "#775800",
+          "#9f7600",
+          "#c89500",
+          "#f5ba17",
+          "#ffecc8"
+        ]
+      },
+      "error": {
+        "role": "error",
+        "displayName": "Failure Rose",
+        "canonical": "#f87171",
+        "tonalRamp": [
+          "#1f0002",
+          "#4b000a",
+          "#7c0017",
+          "#a7242f",
+          "#cd4a4e",
+          "#f46e6e",
+          "#ffaaa6",
+          "#ffe8e7"
+        ]
       }
     },
     "typographyMeta": {
-      "body": { "displayName": "System Sans", "purpose": "All conversational and interface language." },
-      "heading": { "displayName": "System Sans Display", "purpose": "Page and section titles, tight tracking." },
-      "mono": { "displayName": "System Mono", "purpose": "Machine-measured values only: ids, durations, tokens, budgets, code." }
+      "body": {
+        "displayName": "System Sans",
+        "purpose": "Conversational and interface language at 14px/1.55; conversation text is 15px/1.65."
+      },
+      "heading": {
+        "displayName": "System Sans Display",
+        "purpose": "Page and section titles; 22px/1.25 with tight tracking."
+      },
+      "marketing-display": {
+        "displayName": "Archivo Display",
+        "purpose": "Oversized marketing hero wordmark only; not application prose."
+      },
+      "marketing-display-min": {
+        "displayName": "Archivo Display Compact",
+        "purpose": "Responsive minimum size for the marketing wordmark."
+      },
+      "micro-label": {
+        "displayName": "Micro Label",
+        "purpose": "Compact data labels, never decorative eyebrows."
+      },
+      "metadata": {
+        "displayName": "Metadata",
+        "purpose": "Secondary interface metadata; 12px is the smallest metadata size."
+      },
+      "mono": {
+        "displayName": "System Mono",
+        "purpose": "Measured values, code and timestamps only; prose never uses mono."
+      }
     },
     "shadows": [
-      { "name": "sh-1", "value": "0 1px 0 rgba(255,255,255,0.06), 0 2px 8px rgba(0,0,0,0.50)", "purpose": "Panels, cards, tables — resting elevation with a top hairline." },
-      { "name": "sh-2", "value": "0 1px 0 rgba(255,255,255,0.06), 0 10px 28px rgba(0,0,0,0.55)", "purpose": "Composer and elevated controls." },
-      { "name": "sh-pop", "value": "0 1px 0 rgba(255,255,255,0.06), 0 24px 64px rgba(0,0,0,0.70)", "purpose": "Modals, popovers, drawers — floating layers." }
+      {
+        "name": "sh-1",
+        "value": "0 1px 0 rgba(255,255,255,0.06), 0 2px 8px rgba(0,0,0,0.50)",
+        "purpose": "Panels, cards, tables — resting elevation with a top hairline."
+      },
+      {
+        "name": "sh-2",
+        "value": "0 1px 0 rgba(255,255,255,0.06), 0 10px 28px rgba(0,0,0,0.55)",
+        "purpose": "Composer and elevated controls."
+      },
+      {
+        "name": "sh-pop",
+        "value": "0 1px 0 rgba(255,255,255,0.06), 0 24px 64px rgba(0,0,0,0.70)",
+        "purpose": "Modals, popovers, drawers — floating layers."
+      }
     ],
     "motion": [
-      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default easing for state transitions (dur-fast 110ms, dur 160ms, dur-slow 260ms)." },
-      { "name": "ease-out-soft", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Decelerating entrance motion (msg-in 260ms, drawer slides)." },
-      { "name": "typing-bounce", "value": "translateY loop, 1.3s, delays 0/0.16/0.32s", "purpose": "The one live animation: thinking indicator, shown only while the server reports a run active; static under reduced motion or Reduce effects." },
-      { "name": "hero-float", "value": "translateY ±7px, 7s ease-in-out", "purpose": "First-run mascot presence; static under reduced motion or Reduce effects." }
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Default easing for state transitions (dur-fast 110ms, dur 160ms, dur-slow 260ms)."
+      },
+      {
+        "name": "ease-out-soft",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Decelerating entrance motion (msg-in 260ms, drawer slides)."
+      },
+      {
+        "name": "typing-bounce",
+        "value": "translateY loop, 1.3s, delays 0/0.16/0.32s",
+        "purpose": "The one live animation: thinking indicator, shown only while the server reports a run active; static under reduced motion or Reduce effects."
+      },
+      {
+        "name": "hero-float",
+        "value": "translateY ±7px, 7s ease-in-out",
+        "purpose": "First-run mascot presence; static under reduced motion or Reduce effects."
+      }
     ],
     "breakpoints": [
-      { "name": "phone", "value": "640px" },
-      { "name": "shell-collapse", "value": "900px" },
-      { "name": "drawer-overlay", "value": "1099px" },
-      { "name": "drawer-column", "value": "1100px" }
+      {
+        "name": "phone",
+        "value": "640px"
+      },
+      {
+        "name": "shell-collapse",
+        "value": "900px"
+      },
+      {
+        "name": "drawer-overlay",
+        "value": "1099px"
+      },
+      {
+        "name": "drawer-column",
+        "value": "1100px"
+      }
     ]
   },
   "components": [
@@ -63,74 +443,101 @@
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "The single emerald action per view; dark ink on fill, never white.",
-      "html": "<button class=\"ds-btn ds-btn-primary\">Allow once</button>",
-      "css": ".ds-btn-primary { background: var(--color-primary); color: var(--color-primary-content); border: 1px solid var(--color-primary); border-radius: var(--r-ctl); padding: 0 16px; min-height: 32px; font: 600 14px/1 ui-sans-serif, system-ui, sans-serif; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background 110ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-primary:hover { background: var(--color-accent); border-color: var(--color-accent); } .ds-btn-primary:focus-visible { outline: 2px solid var(--color-secondary); outline-offset: 2px; } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary[disabled] { opacity: 0.45; cursor: not-allowed; }"
+      "description": "The emerald action for the main decision on a view; near-black ink, clear focus, short state transition.",
+      "html": "<button class=\"ds-btn-primary\">Allow once</button>",
+      "css": ".ds-btn-primary { background: var(--color-primary, #34d399); color: var(--color-primary-content, #052e21); border: 1px solid var(--color-primary, #34d399); border-radius: 8px; padding: 0 16px; min-height: 32px; font: 600 14px/1 ui-sans-serif, system-ui, sans-serif; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: background-color 110ms cubic-bezier(.4,0,.2,1), border-color 110ms cubic-bezier(.4,0,.2,1); } .ds-btn-primary:hover { background: var(--color-accent, #6ee7b7); border-color: var(--color-accent, #6ee7b7); } .ds-btn-primary:focus-visible { outline: 2px solid var(--color-secondary, #60a5fa); outline-offset: 2px; } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:disabled { opacity: .45; cursor: not-allowed; }"
     },
     {
       "name": "Ghost Button",
       "kind": "button",
       "refersTo": "button-ghost",
-      "description": "Secondary actions and header controls; hairline border, quiet hover.",
-      "html": "<button class=\"ds-btn ds-btn-ghost\">Settings</button>",
-      "css": ".ds-btn-ghost { background: transparent; color: var(--color-base-content); opacity: 0.8; border: 1px solid rgba(255,255,255,0.08); border-radius: var(--r-ctl); padding: 0 16px; min-height: 32px; font: 600 14px/1 ui-sans-serif, system-ui, sans-serif; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background 110ms, opacity 110ms; } .ds-btn-ghost:hover { opacity: 1; background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.16); } .ds-btn-ghost:focus-visible { outline: 2px solid var(--color-secondary); outline-offset: 2px; }"
+      "description": "A secondary action with a quiet hairline border and restrained hover state.",
+      "html": "<button class=\"ds-btn-ghost\">Settings</button>",
+      "css": ".ds-btn-ghost { background: transparent; color: var(--color-base-content, #f0f4f9); border: 1px solid rgba(255,255,255,.14); border-radius: 8px; padding: 0 16px; min-height: 32px; font: 600 14px/1 ui-sans-serif, system-ui, sans-serif; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: background-color 110ms, border-color 110ms, color 110ms; } .ds-btn-ghost:hover { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.22); } .ds-btn-ghost:focus-visible { outline: 2px solid var(--color-secondary, #60a5fa); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-text",
+      "description": "A compact field on a sunken surface with a visible azure focus ring.",
+      "html": "<label class=\"ds-field\"><span>Task name</span><input type=\"text\" value=\"release-notes\"></label>",
+      "css": ".ds-field { display: grid; gap: 6px; color: #9daebf; font: 500 12px/1.4 ui-sans-serif, system-ui, sans-serif; } .ds-field input { width: 100%; background: #05070a; color: #f0f4f9; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; padding: 8px 12px; font: 400 14px/1.5 ui-sans-serif, system-ui, sans-serif; } .ds-field input:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; border-color: #60a5fa; }"
     },
     {
       "name": "Status Chip",
       "kind": "chip",
       "refersTo": "status-chip",
-      "description": "State as dot + word, never colour alone; amber reserved for needs-you, rose for failed.",
-      "html": "<span class=\"ds-chip\"><i class=\"dot\"></i>needs you</span>",
-      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 5px; font: 600 11px/1 ui-monospace, monospace; padding: 4px 9px; border: 1px solid rgba(255,255,255,0.14); border-radius: var(--r-chip); color: var(--text-secondary, #aebccb); background: transparent; } .ds-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-warning); } .ds-chip .dot:focus-visible, .ds-chip:focus-visible { outline: 2px solid var(--color-secondary); }"
+      "description": "State is shown as a small dot and a readable word; colour never carries meaning alone.",
+      "html": "<span class=\"ds-chip\"><i></i>needs you</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border: 1px solid rgba(255,255,255,.14); border-radius: 100px; color: #9daebf; background: transparent; font: 600 11px/1.2 ui-monospace, monospace; } .ds-chip i { width: 6px; height: 6px; border-radius: 50%; background: #fbbf24; } .ds-chip:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }"
     },
     {
-      "name": "Chat Bubble (user)",
+      "name": "User Message",
       "kind": "custom",
       "refersTo": "chat-bubble-user",
-      "description": "Right-aligned muted slate bubble with a 6px tail corner; agent replies are plain text, no container.",
-      "html": "<div class=\"ds-bubble-user\">sort this week's downloads into folders</div>",
-      "css": ".ds-bubble-user { background: var(--bubble-user, #1d2735); color: var(--color-base-content); border: 1px solid rgba(255,255,255,0.14); border-radius: var(--r-chat) var(--r-chat) 6px var(--r-chat); padding: 9px 14px; max-width: min(560px, 88%); font: 400 15px/1.55 ui-sans-serif, system-ui, sans-serif; white-space: pre-wrap; overflow-wrap: anywhere; }"
+      "description": "Right-aligned slate bubble with a small tail corner; agent replies remain plain text.",
+      "html": "<div class=\"ds-bubble-user\">Sort this week’s downloads into folders.</div>",
+      "css": ".ds-bubble-user { max-width: min(560px, 88%); margin-left: auto; padding: 9px 14px; color: #f0f4f9; background: #1d2735; border: 1px solid rgba(255,255,255,.14); border-radius: 18px 18px 6px 18px; font: 400 15px/1.55 ui-sans-serif, system-ui, sans-serif; white-space: pre-wrap; overflow-wrap: anywhere; }"
     },
     {
       "name": "Approval Card",
       "kind": "card",
       "refersTo": "card",
-      "description": "System action gate while pending; flattens to a ledger row once decided.",
-      "html": "<div class=\"ds-approval\"><div class=\"row\"><span class=\"ds-chip\"><i class=\"dot\"></i>Approval required</span><b>tidy-downloads</b></div><p class=\"act\">write report.md (309 chars)</p><button class=\"ds-btn ds-btn-primary\">Allow once</button> <button class=\"ds-btn ds-btn-ghost\">Deny</button></div>",
-      "css": ".ds-approval { background: var(--color-base-200); border: 1px solid rgba(255,255,255,0.14); border-radius: var(--r-panel); padding: 16px; display: grid; gap: 10px; } .ds-approval .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; } .ds-approval .act { margin: 0; font: 600 15px/1.55 ui-sans-serif, system-ui, sans-serif; }"
+      "description": "A pending action shows the request first and the decision controls together; decided history returns to a ledger row.",
+      "html": "<section class=\"ds-approval\"><div><span class=\"ds-chip\"><i></i>needs you</span> <strong>tidy-downloads</strong></div><p>Write report.md</p><button class=\"ds-btn-primary\">Allow once</button> <button class=\"ds-btn-ghost\">Deny</button></section>",
+      "css": ".ds-approval { display: grid; gap: 12px; padding: 16px; background: #080c12; color: #f0f4f9; border: 1px solid rgba(255,255,255,.14); border-radius: 12px; } .ds-approval > div { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; } .ds-approval p { margin: 0; font: 600 15px/1.55 ui-sans-serif, system-ui, sans-serif; }"
     },
     {
-      "name": "Roster Row",
+      "name": "Bot Roster Row",
       "kind": "nav",
-      "refersTo": "navigation",
-      "description": "Sidebar bot row: sigil avatar, name, mono sub-line; selected uses the emerald wash.",
-      "html": "<button class=\"ds-roster\"><span class=\"av\">R</span><span class=\"id\"><b>release-notes</b><small>mock/demo · idle</small></span></button>",
-      "css": ".ds-roster { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 32px minmax(0,1fr); align-items: center; gap: 10px; width: 100%; padding: 7px 12px; border-radius: var(--r-ctl); color: var(--text-secondary, #aebccb); cursor: pointer; } .ds-roster:hover { background: rgba(255,255,255,0.045); color: var(--color-base-content); } .ds-roster[aria-current=\"true\"] { background: rgba(52,211,153,0.09); color: var(--color-base-content); } .ds-roster .av { width: 30px; height: 30px; border-radius: 50%; background: var(--color-primary); color: var(--color-primary-content); display: grid; place-items: center; font: 700 12px/1 ui-monospace, monospace; } .ds-roster .id { display: grid; min-width: 0; } .ds-roster .id b { font-size: 14px; } .ds-roster small { font: 400 11px/1.4 ui-monospace, monospace; color: var(--text-tertiary, #8494a5); }"
+      "description": "A compact bot identity row pairs the name and status with a restrained active surface.",
+      "html": "<button class=\"ds-roster\"><span class=\"ds-avatar\">R</span><span><b>release-notes</b><small>idle</small></span></button>",
+      "css": ".ds-roster { width: 100%; display: grid; grid-template-columns: 32px minmax(0,1fr); align-items: center; gap: 10px; padding: 7px 12px; color: #9daebf; background: transparent; border: 0; border-radius: 8px; text-align: left; cursor: pointer; } .ds-roster:hover, .ds-roster[aria-current=\"true\"] { background: rgba(52,211,153,.09); color: #f0f4f9; } .ds-roster:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; } .ds-roster > span:last-child { display: grid; min-width: 0; } .ds-roster b { overflow: hidden; text-overflow: ellipsis; font-size: 14px; } .ds-roster small { color: #7d8ea4; font: 400 11px/1.4 ui-monospace, monospace; } .ds-avatar { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: #34d399; color: #052e21; font: 700 12px/1 ui-monospace, monospace; }"
     }
   ],
   "narrative": {
     "northStar": "An instrument that never lies, and never shouts.",
-    "overview": "Hutch is a local-first multi-bot agent workspace: a conversation-first console where a person sends tasks to bots, watches real execution, and decides consequential approvals. The design job is trust under time pressure — every pixel either helps someone understand what the machine is actually doing, or it is chrome that should shrink. Layered graphite surfaces carry elevation by shadow and hairline rather than glow; colour does jobs (emerald brand, azure interaction, amber person-needed, rose failure); the 3D mascot appears only in first-run moments while per-bot identity stays a lightweight sigil.",
+    "overview": "Hutch is a local-first multi-bot agent workspace: an operator console where a person sends tasks to bots, watches real execution, and decides consequential approvals. The design job is trust under time pressure — every pixel either helps someone understand what the machine is actually doing, or it is chrome that should shrink.",
     "keyCharacteristics": [
       "Layered graphite surfaces with elevation by offset+blur shadow and a top hairline — never glow.",
-      "One conversation column (760px) carries the story; operational ledgers support it as tables.",
-      "Colour does jobs: emerald brand, azure interaction, amber person-needed-now, rose failure — everything else neutral.",
-      "Mono type reserved for machine-measured values with tabular numerals.",
-      "Motion is short, state-linked and disable-able; the typing dots are the one live animation."
+      "One conversation column (760px) carries the story; operational ledgers (runs, usage, approvals) support it as tables, not as the homepage.",
+      "Colour does jobs: emerald is the brand and the primary action; azure is interaction only; amber means a human must act now; rose means failure. Everything else is neutral so those four stay legible.",
+      "Mono type is reserved for measured values (ids, durations, counts, budgets) — it signals \"this number came from the machine\".",
+      "The 3D mascot (one sprite set shared with the marketing site) appears only in first-run/welcome moments; per-bot identity is the lightweight sigil."
     ],
     "rules": [
-      { "name": "The Measure Rule", "body": "Reading text caps at ~72ch; anything wider is layout debt.", "section": "layout" },
-      { "name": "The One-Ink Rule", "body": "Emerald fills always carry near-black ink (#04140d); white on emerald is forbidden (≈2.5:1).", "section": "colors" },
-      { "name": "The Amber Rule", "body": "Amber appears only where a person must act now — pending approvals, deadlines under two minutes, the attention badge. Never as decoration, never on done or failed.", "section": "colors" },
-      { "name": "The Scale Rule", "body": "Every corner radius comes from rounded.*; no ad-hoc values.", "section": "shapes" },
-      { "name": "The Measured Rule", "body": "Mono type is only for values the server measured — never prose, labels, or marketing.", "section": "typography" }
+      {
+        "name": "The Measure Rule",
+        "body": "Reading text caps at ~72ch; anything wider is layout debt.",
+        "section": "layout"
+      },
+      {
+        "name": "The One-Ink Rule",
+        "body": "Emerald fills always carry near-black ink (#052e21); white on emerald is forbidden (≈2.5:1).",
+        "section": "colors"
+      },
+      {
+        "name": "The Amber Rule",
+        "body": "Amber appears only where a person must act now — pending approvals, expiring deadlines under two minutes, the attention nav badge. Never as decoration, never on \"done\" or \"failed\".",
+        "section": "colors"
+      },
+      {
+        "name": "The Scale Rule",
+        "body": "Every corner radius comes from `rounded.*`; no ad-hoc values.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Measured Rule",
+        "body": "Mono type is only for values the server measured — never for prose, labels, or marketing.",
+        "section": "typography"
+      }
     ],
     "dos": [
-      "Do take every radius from rounded.*; keep the pill only for chips.",
-      "Do pair every icon with a word for state; give every control a visible focus ring.",
-      "Do use mono only for machine-measured values.",
-      "Do show real server state: if the API cannot confirm it, say \"unknown\".",
-      "Do keep motion short, functional and state-linked; honour reduced motion and the Reduce effects override."
+      "Take every radius from `rounded.*`; keep the pill only for chips.",
+      "Pair every icon with a word for state; give every control a visible focus ring.",
+      "Use mono only for machine-measured values.",
+      "Show real server state: if the API cannot confirm it, say \"unknown\".",
+      "Keep motion short, functional and state-linked; honour reduced motion and the Reduce effects override (the typing dots are the one live animation)."
     ],
     "donts": [
       "Never put white on emerald, or amber on something that isn't person-needed.",

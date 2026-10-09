@@ -163,3 +163,35 @@ physical-device or screen-reader certification. Exact final counts are in the le
 # Design-hook triage (2026-10-08)
 
 The `pulsing-dot` finding on `src/hutch/server/static/index.html` is a scoped false positive. The animated dot is the `.workflow .working` indicator: it is rendered only while the refreshed API status reports active runs, and disappears when no run is working. A value-specific hook ignore is persisted for this file only in `.impeccable/config.json`; the other detector rules remain active.
+
+## Dashboard tool and meter styling review (2026-10-09)
+
+The Impeccable stop hook reported two dashboard stylesheet findings: a left accent rail on transcript tool rows and an animated
+meter width. Tool rows now keep their existing indentation, summary text and success/error colours without the rail; meter fills
+update immediately without a width transition. This keeps the full amount visible without animating a layout property. The existing
+website `cramped-padding`, primary-button `low-contrast` and FAQ `layout-transition` exceptions, and the live-run `pulsing-dot`
+exception, remain scoped to their individual worktree files. The stop hook scanned `.worktrees/realign/...` from the repository root,
+so it did not load those nested worktree exceptions; the detector run from the worktree uses them. No new site or status-dot exception
+was added.
+
+The synthetic component fixture loads the actual `/static/hutch.css` and renders a budget meter plus success, failure and ordinary
+tool rows at desktop (1440×1000), tablet (900×1024) and phone (390×844). The captures and desktop trace are in
+[`artifacts/ui-style-review/`](artifacts/ui-style-review/): [desktop](artifacts/ui-style-review/desktop.png),
+[tablet](artifacts/ui-style-review/tablet.png), [phone](artifacts/ui-style-review/phone.png), and
+[results](artifacts/ui-style-review/results.json). Firefox 155.0 reported HTTP 200 for the stylesheet, no page errors and no
+horizontal overflow at all three sizes. Computed styles confirm a 0px tool-row left border, 10px text inset, no meter transition,
+and an accurate 72% fill. Captures were visually inspected. The focused dashboard/view suite passed **39 tests**; the targeted
+Impeccable detector returned no findings for the edited stylesheet or the configured website/dashboard/template targets, and
+`git diff --check` passed.
+
+Reproduce with an empty temporary state directory and loopback-only server:
+
+```bash
+HUTCH_STATE_DIR=/tmp/hutch-style-review .venv/bin/hutch init
+HUTCH_STATE_DIR=/tmp/hutch-style-review .venv/bin/hutch serve --host 127.0.0.1 --port 18803
+PLAYWRIGHT_BROWSERS_PATH=/tmp/hutch-playwright-browsers .venv/bin/python \
+  docs/realignment/capture_ui_style_review.py --app http://127.0.0.1:18803/
+```
+
+The fixture is synthetic and makes no model/provider call. It validates this stylesheet in isolation, not a live transcript or device.
+The same change refreshes `.impeccable/design.json` from `DESIGN.md` without rewriting the human-authored design guide.
