@@ -2511,3 +2511,19 @@ failed because no handoff occurred. The focused click, wait, text-entry, asynchr
 tests now pass: **5 passed in 3.72s** using local Chromium **153.0.8010.12** / Playwright **1.63.0**. `python -m compileall -q
 src/hutch` and `git diff --check` passed. No site, provider, account, or secret was used. This validates fixture behavior only; live
 third-party forms and nonstandard credential widgets remain unverified.
+
+
+## S9 Browser-suite follow-up: provider disclosure state (2026-10-09)
+
+Implementation commit: `f8c71f0`.
+
+The next full browser-file run passed **101 tests** and exposed one remaining failure in Outlook Calendar. The access grant was
+persisted, but `renderConnections()` replaced the page contents and collapsed the currently open details panel, hiding the newly
+granted calendar from the operator. Connections now preserves the expanded Outlook Calendar and Outlook Mail access panels when
+refreshing provider state. The E2E test scopes the calendar region by its accessible label and ensures the disclosure is open before
+checking the persisted grant. `uv run pytest -q tests/e2e/test_browser.py::test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewports --no-header`
+then passed **1 test in 2.35s**; `node --check src/hutch/server/static/app.js` and `git diff --check` passed.
+
+The full browser suite was not repeated after this targeted fix; the prior run had 101 passes and this final focused rerun covers its
+sole failing journey. The journey uses local account/calendar fixtures and intercepted sign-in, with no Microsoft account, consent,
+or live Graph request.
