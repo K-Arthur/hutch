@@ -1006,7 +1006,7 @@ def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewport
     try:
         page.goto(base + "/#/connections")
         page.get_by_role("heading", name="Connections").wait_for()
-        card = page.locator(".outlook-calendar-card")
+        card = page.locator('[aria-labelledby="outlook-calendar-title"]')
         assert "Calendars.ReadBasic" in card.inner_text()
         assert "Microsoft consent applies to the signed-in account" in card.inner_text()
         assert "event bodies, attachments or extensions" in card.inner_text()
@@ -1040,7 +1040,7 @@ def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewport
         captures = []
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
-            card = page.locator(".outlook-calendar-card")
+            card = page.locator('[aria-labelledby="outlook-calendar-title"]')
             if not card.locator("details").evaluate("element => element.open"):
                 card.locator("details > summary").click()
             scroll = page.locator(".page-scroll")
@@ -3800,8 +3800,8 @@ def test_small_workspace_has_one_roster_and_legacy_routes_do_not_trap_back(brows
     assert not page.locator("#monitor-nav").get_attribute("open")
     assert page.get_by_text("Manage all bots", exact=True).count() == 0
     assert page.get_by_role("button", name="Context", exact=True).count() == 0
-    page.get_by_role("link", name="Settings for one-bot").click()
-    page.get_by_role("heading", name="one-bot settings", exact=True).wait_for()
+    page.get_by_role("link", name="Settings for One Bot").click()
+    page.get_by_role("heading", name="One Bot settings", exact=True).wait_for()
     assert page.get_by_text("Recent runs", exact=True).count() == 0
     page.goto(base + "/#/overview")
     page.get_by_role("heading", name="Activity", exact=True).wait_for()
@@ -3830,7 +3830,7 @@ def test_bot_workspace_modes_are_clear_and_persist_across_settings(browser, live
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
         page.goto(base + "/#/bot/workspace-helper")
-        page.get_by_role("heading", name="workspace-helper settings", exact=True).wait_for()
+        page.get_by_role("heading", name="Workspace Helper settings", exact=True).wait_for()
         mode = page.locator('#form-risk [name="workspace_mode"]')
         assert mode.input_value() == "fresh"
         if width <= 390:
@@ -3909,7 +3909,7 @@ def test_local_browser_handoff_setting_is_explicit_and_persists(browser, live, w
     page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
     try:
         page.goto(base + "/#/bot/local-handoff")
-        page.get_by_role("heading", name="local-handoff settings", exact=True).wait_for()
+        page.get_by_role("heading", name="Local Handoff settings", exact=True).wait_for()
         handoff = page.locator('#form-risk [name="local_browser_handoff"]')
         assert handoff.input_value() == "false"
         assert handoff.get_attribute("aria-describedby") == "browser-handoff-help"
@@ -3995,10 +3995,10 @@ def test_bot_and_conversation_switches_isolate_unsent_drafts(browser, live):
     page.locator("#chat-prompt").fill("Private draft for A")
     # No debounce wait: immediate navigation must preserve the draft in its own context.
     page.locator('[data-switch-bot="draft-b"]').click()
-    page.wait_for_function("document.querySelector('#chat-prompt')?.placeholder.includes('draft-b')")
+    page.wait_for_function("document.querySelector('#chat-prompt')?.placeholder.includes('Draft B')")
     assert page.locator("#chat-prompt").input_value() == ""
     page.locator('[data-switch-bot="draft-a"]').click()
-    page.wait_for_function("document.querySelector('#chat-prompt')?.placeholder.includes('draft-a')")
+    page.wait_for_function("document.querySelector('#chat-prompt')?.placeholder.includes('Draft A')")
     assert page.locator("#chat-prompt").input_value() == "Private draft for A"
     page.locator("#studio-new-conversation").click()
     page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value !== id", arg=first)
@@ -4596,7 +4596,7 @@ def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(br
     page.wait_for_timeout(150)
     assert held, "hold a run response across navigation"
     page.evaluate("location.hash = '#/bot/resource-replay'")
-    page.get_by_role("heading", name="resource-replay settings", exact=True).wait_for()
+    page.get_by_role("heading", name="Resource Replay settings", exact=True).wait_for()
     settings.fill("Late run responses cannot replace this form")
     for route in held:
         route.continue_()
