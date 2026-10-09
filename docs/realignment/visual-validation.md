@@ -265,3 +265,20 @@ regressions passed **34 tests in 23.04s**. Captures, trace, viewport measurement
 fixture provenance are in [`artifacts/scheduled-task/`](artifacts/scheduled-task/). No provider or
 model call was made. This verifies one recurring schedule per bot; it does not add multiple
 independent task streams or delegation.
+
+## Inline human-resume action (2026-10-09)
+
+Studio chat now places a 44 px minimum-height Resume action beside only the latest `human_needed`
+event while its run is waiting for a person. The local browser fixture included an earlier challenge
+and a newer current challenge; only the current one exposed the action. Clicking it submitted the
+event sequence to the versioned Resume API with a deterministic per-run/per-event idempotency key.
+The accepted state disables the button and says that Hutch is waiting for the run to continue.
+
+Chromium **153.0.8010.12** with Playwright **1.63.0** passed **3 responsive browser journeys in
+3.70s** at desktop (1440×1000), tablet (768×1024) and phone (390×844). All reported zero horizontal
+overflow and no page errors; the button exceeded 44 px at each size. The three screenshots and
+viewport/API/source-hash metadata are in [`artifacts/human-resume/`](artifacts/human-resume/), and
+were visually inspected. Focused API/migration tests passed **34 tests in 5.01s**. No provider or
+external browser call was made. The fixture verified command acceptance and persistence, but kept
+the scheduler idle, so a live worker consuming the request and continuing after a real person clears
+a challenge remains unverified. No screen-reader or physical-phone check was performed.
