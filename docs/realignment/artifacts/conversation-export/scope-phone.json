@@ -1,0 +1,35 @@
+{
+  "test": "tests/e2e/test_browser.py::test_conversation_export_shows_scope_and_downloads_json",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright": "1.63.0",
+  "viewport": [
+    390,
+    844
+  ],
+  "screenshot": "scope-phone.png",
+  "trace": "scope-phone-trace.zip",
+  "page_errors": [],
+  "horizontal_overflow_px": 0,
+  "scope": {
+    "included": [
+      "conversation metadata",
+      "ordered message text and provenance"
+    ],
+    "excluded": [
+      "stored provider credentials and connection secrets",
+      "tool receipts",
+      "action receipts",
+      "workspace content",
+      "artifact bytes",
+      "memory records"
+    ],
+    "notice": "Message text is included verbatim. Review it for sensitive content before sharing the file."
+  },
+  "provider_calls": 0,
+  "source_sha256": {
+    "src/hutch/server/app.py": "758c96c5ecbad990fcf15fe74f2c30555ce699d9e346651991ad280eca2b7e77",
+    "src/hutch/server/static/app.js": "f70bc27f233f49a36da24a7e86e325219da3b8445179204a457a4bbe6452fd02",
+    "src/hutch/store.py": "4221f9a6617509903327a37932e53aff27199bcdbdc98e21a0a60ca708c374de"
+  }
+}

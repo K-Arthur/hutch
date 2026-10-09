@@ -919,6 +919,78 @@ def test_studio_conversation_survives_reload_and_archive(browser, live):
     context.close()
 
 
+@pytest.mark.parametrize("label,width,height", [("desktop", 1440, 960), ("tablet", 900, 1024),
+                                                  ("phone", 390, 844)])
+def test_conversation_export_shows_scope_and_downloads_json(browser, live, tmp_path, label, width, height):
+    base, app = live
+    store = app.state.store
+    bot = store.create_bot(Bot(name=f"export-{label}", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(bot.id, "Export fixture", idem_key=f"export-{label}",
+                                                request_hash=f"export-{label}")
+    with store._tx() as db:
+        store._insert_conversation_message(db, message_id=f"export-user-{label}",
+            conversation_id=conversation["id"], seq=1, run_id="", role="user",
+            content="A message that will be in the export.", created_at="2026-01-01T00:00:00+00:00")
+
+    page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    trace_stopped = False
+    try:
+        page.goto(f"{base}/#/chat/{bot.name}")
+        page.locator("#conversation-switcher").wait_for()
+        assert page.locator("#conversation-switcher").input_value() == conversation["id"]
+        page.locator("#composer-menu-btn").click()
+        page.locator("#conversation-export-open").click()
+        dialog = page.get_by_role("dialog", name="Export conversation")
+        dialog.get_by_text("conversation metadata and ordered message text with run provenance").wait_for()
+        dialog.get_by_text("Message text is included verbatim", exact=False).wait_for()
+        assert dialog.get_by_text("artifact files", exact=False).count() == 1
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow <= 1, (label, overflow)
+
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/conversation-export"
+        out.mkdir(parents=True, exist_ok=True)
+        screenshot = out / f"scope-{label}.png"
+        trace = out / f"scope-{label}-trace.zip"
+        page.screenshot(path=str(screenshot), animations="disabled")
+        with page.expect_download() as download_info:
+            dialog.get_by_role("button", name="Download JSON").click()
+        download = download_info.value
+        assert download.suggested_filename == "hutch-conversation-export.json"
+        downloaded = tmp_path / download.suggested_filename
+        download.save_as(str(downloaded))
+        payload = json.loads(downloaded.read_text(encoding="utf-8"))
+        assert payload["conversation"]["id"] == conversation["id"]
+        assert payload["messages"][0]["content"] == "A message that will be in the export."
+        assert "tool receipts" in payload["scope"]["excluded"]
+        assert not errors, errors
+        page.context.tracing.stop(path=str(trace))
+        trace_stopped = True
+
+        repo = Path(__file__).resolve().parents[2]
+        (out / f"scope-{label}.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_conversation_export_shows_scope_and_downloads_json",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright": package_version("playwright"), "viewport": [width, height],
+            "screenshot": screenshot.name, "trace": trace.name,
+            "page_errors": errors, "horizontal_overflow_px": overflow,
+            "scope": payload["scope"], "provider_calls": 0,
+            "source_sha256": {name: hashlib.sha256((repo / name).read_bytes()).hexdigest()
+                              for name in ("src/hutch/server/app.py", "src/hutch/server/static/app.js",
+                                           "src/hutch/store.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        if not trace_stopped:
+            try:
+                page.context.tracing.stop(path=str(Path(__file__).resolve().parents[2] /
+                    "docs/realignment/artifacts/conversation-export" / f"scope-{label}-trace-failed.zip"))
+            except Exception:
+                pass
+        page.close()
+
+
 def test_stopping_status_uses_human_label_and_stays_nonterminal(browser, live, monkeypatch):
     base, app = live
     monkeypatch.setattr(app.state.engine, "tick", lambda: [])  # hold this UI fixture in cancelling

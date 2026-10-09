@@ -120,6 +120,81 @@ def test_versioned_resources_are_documented(tmp_path, monkeypatch):
         assert "/api/v1/tasks/runs/{run_id}" in paths
 
 
+def test_conversation_export_names_its_limited_scope(tmp_path, monkeypatch):
+    from hutch.models import Bot
+
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    app = create_app()
+    store = app.state.store
+    bot = store.create_bot(Bot(name="export-chat", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(bot.id, "Export scope", idem_key="export-create",
+                                                request_hash="export-create")
+    with store._tx() as db:
+        store._insert_conversation_message(db, message_id="export-user", conversation_id=conversation["id"],
+                                           seq=1, run_id="run-with-private-events", role="user",
+                                           content="Please summarize the plan.", created_at="2026-01-01T00:00:00+00:00")
+        store._insert_conversation_message(db, message_id="export-assistant", conversation_id=conversation["id"],
+                                           seq=2, run_id="run-with-private-events", role="assistant",
+                                           content="Here is the summary.", created_at="2026-01-01T00:00:01+00:00")
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/conversations/{conversation['id']}/export")
+        assert response.status_code == 200, response.text
+        assert "attachment; filename=\"hutch-conversation-export.json\"" in response.headers["content-disposition"]
+        payload = response.json()
+        assert payload["format"] == "hutch-conversation-export-v1"
+        assert payload["scope"]["included"] == ["conversation metadata", "ordered message text and provenance"]
+        assert "tool receipts" in payload["scope"]["excluded"]
+        assert [message["content"] for message in payload["messages"]] == [
+            "Please summarize the plan.", "Here is the summary."]
+        assert set(payload["messages"][0]) == {"id", "seq", "run_id", "role", "content", "created_at"}
+        assert "actions" not in payload and "artifacts" not in payload and "credentials" not in payload
+
+
+def test_conversation_export_refuses_oversized_history(tmp_path, monkeypatch):
+    from hutch.models import Bot
+
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    app = create_app()
+    store = app.state.store
+    bot = store.create_bot(Bot(name="large-export", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(bot.id, "Large export", idem_key="large-create",
+                                                request_hash="large-create")
+    stamp = "2026-01-01T00:00:00+00:00"
+    with store._tx() as db:
+        for start in range(0, 10_001, 500):
+            end = min(start + 500, 10_001)
+            for seq in range(start + 1, end + 1):
+                store._insert_conversation_message(db, message_id=f"export-{seq}",
+                    conversation_id=conversation["id"], seq=seq, run_id="", role="user",
+                    content="bounded message", created_at=stamp)
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/conversations/{conversation['id']}/export")
+        assert response.status_code == 413
+        assert "10,000 messages" in response.json()["detail"]
+
+
+def test_conversation_export_refuses_oversized_message_text(tmp_path, monkeypatch):
+    from hutch.models import Bot
+
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    app = create_app()
+    store = app.state.store
+    bot = store.create_bot(Bot(name="large-export-text", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(bot.id, "Large export text", idem_key="large-text-create",
+                                                request_hash="large-text-create")
+    with store._tx() as db:
+        store._insert_conversation_message(db, message_id="huge-export", conversation_id=conversation["id"],
+                                           seq=1, run_id="", role="user", content="x" * (2 * 1024 * 1024 + 1),
+                                           created_at="2026-01-01T00:00:00+00:00")
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/conversations/{conversation['id']}/export")
+        assert response.status_code == 413
+        assert "2 MiB" in response.json()["detail"]
+
+
 def submitted_conversation(store):
     from hutch.models import Bot, Run, RunStatus, Task
     bot = store.create_bot(Bot(name="transactional-chat", model="mock/demo", tools=[]))

@@ -53,6 +53,9 @@ _ARTIFACT_NAME_RE = re.compile(r"^[0-9]{3,6}-[a-z0-9_-]{1,40}\.txt$")
 _ARTIFACT_SHA_RE = re.compile(r"^[a-f0-9]{64}$")
 _CONVERSATION_ARTIFACT_CURSOR_RE = re.compile(r"^([1-9][0-9]{0,18}):(tool_output|workspace_file)$")
 _MAX_ARTIFACT_BYTES = 4_000_000
+MAX_CONVERSATION_EXPORT_MESSAGES = 10_000
+MAX_CONVERSATION_EXPORT_SOURCE_BYTES = 2 * 1024 * 1024
+MAX_CONVERSATION_EXPORT_BYTES = 16 * 1024 * 1024
 
 #: transcript window returned by default (PF-9): the run page stays usable at 10,000+ events
 DEFAULT_EVENT_WINDOW = 200
@@ -242,6 +245,39 @@ class ConversationDetail(ConversationResource):
     messages: list[ConversationMessageResource]
     last_seq: int
     has_more: bool
+
+
+class ConversationExportScope(BaseModel):
+    included: list[str]
+    excluded: list[str]
+    notice: str
+
+
+class ConversationExportMetadata(BaseModel):
+    id: str
+    bot_id: str
+    title: str
+    created_at: str
+    updated_at: str
+    archived: bool
+    is_legacy: bool
+    message_count: int
+
+
+class ConversationExportMessage(BaseModel):
+    id: str
+    seq: int
+    run_id: str
+    role: str
+    content: str
+    created_at: str
+
+
+class ConversationExportResource(BaseModel):
+    format: Literal["hutch-conversation-export-v1"]
+    scope: ConversationExportScope
+    conversation: ConversationExportMetadata
+    messages: list[ConversationExportMessage]
 
 
 class ArtifactShareTargetResource(BaseModel):
@@ -1059,6 +1095,35 @@ def create_app() -> FastAPI:
             raise HTTPException(409, str(exc)) from None
         response.status_code = 201 if created else 200
         return store.get_conversation(row["id"])
+
+    @app.get("/api/v1/conversations/{conversation_id}/export", response_model=ConversationExportResource)
+    def export_conversation(conversation_id: str, response: Response) -> ConversationExportResource:
+        snapshot = store.conversation_export_snapshot(
+            conversation_id, max_messages=MAX_CONVERSATION_EXPORT_MESSAGES,
+            max_source_bytes=MAX_CONVERSATION_EXPORT_SOURCE_BYTES)
+        if snapshot is None:
+            raise HTTPException(404, f"no such conversation: {conversation_id}")
+        if snapshot["limit"] == "messages":
+            raise HTTPException(
+                413, "Conversation export is limited to 10,000 messages; use the paginated conversation API.")
+        if snapshot["limit"] == "bytes":
+            raise HTTPException(413, "Conversation export source data exceeds 2 MiB; use the paginated conversation API.")
+
+        resource = ConversationExportResource(
+            format="hutch-conversation-export-v1",
+            scope=ConversationExportScope(
+                included=["conversation metadata", "ordered message text and provenance"],
+                excluded=["stored provider credentials and connection secrets", "tool receipts", "action receipts",
+                          "workspace content", "artifact bytes", "memory records"],
+                notice="Message text is included verbatim. Review it for sensitive content before sharing the file.",
+            ),
+            conversation=snapshot["conversation"], messages=snapshot["messages"],
+        )
+        if len(resource.model_dump_json().encode("utf-8")) > MAX_CONVERSATION_EXPORT_BYTES:
+            raise HTTPException(413, "Conversation export exceeds 16 MiB; use the paginated conversation API.")
+        response.headers["Content-Disposition"] = 'attachment; filename="hutch-conversation-export.json"'
+        response.headers["Cache-Control"] = "no-store"
+        return resource
 
     @app.get("/api/v1/conversations/{conversation_id}", response_model=ConversationDetail)
     def get_conversation(conversation_id: str, after: int = 0, limit: int = 100) -> dict:

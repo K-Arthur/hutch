@@ -14,6 +14,7 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Added
 
+- Studio can download a bounded conversation JSON export after showing its scope. It contains whitelisted metadata and ordered message text/provenance; the manifest explicitly excludes credentials, receipts, workspace content, artifact bytes and memory, and warns that message text is copied verbatim.
 - Bots can own up to 100 independently timed recurring tasks, each with its own name, timezone,
   catch-up policy and prompt. Settings, per-task v1 CRUD and `hutch bot schedules` manage them;
   older schedule fields remain aliases for the first task. Schema v20 separates occurrence claims

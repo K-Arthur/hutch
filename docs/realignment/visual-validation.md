@@ -1,5 +1,15 @@
 # Visual validation record
 
+## Scoped conversation export (2026-10-08)
+
+The Studio composer menu opens an export-scope dialog before downloading the JSON. The dialog explains included message provenance,
+excluded stored credentials and other private records, verbatim message text, and the size limits. Chromium **153.0.8010.12** /
+Playwright **1.63.0** exercised the download, parsed the resulting file, checked the exclusions, and captured the dialog at 1440×960,
+900×1024 and 390×844. All three sizes had zero page errors and zero horizontal overflow. Screenshots, traces and source-hash/viewport records are
+in [`artifacts/conversation-export/`](artifacts/conversation-export/); the test is
+`tests/e2e/test_browser.py::test_conversation_export_shows_scope_and_downloads_json`. This is a synthetic local conversation with no
+provider calls, not a screen-reader or physical-device check.
+
 ## Dashboard polish (2026-10-09)
 
 The Studio's three working dots and the server-rendered live-connection mark remain still; “Working…”, “live” and “reconnecting” carry

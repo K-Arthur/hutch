@@ -338,6 +338,41 @@ async function openConversationFiles(conversationId, returnFocus) {
   await load();
 }
 
+function openConversationExport(conversationId, returnFocus) {
+  openModal({
+    title: "Export conversation",
+    returnFocus,
+    bodyHtml: `<p>This JSON includes conversation metadata and ordered message text with run provenance.</p>
+      <p>It excludes stored provider credentials, tool and action receipts, workspace content, artifact files, and memory records.</p>
+      <p class="hint">Message text is included verbatim, so review it for sensitive content before sharing. Exports are limited to 10,000 messages and 2 MiB of source data.</p>`,
+    confirmText: "Download JSON",
+    onConfirm: async () => {
+      try {
+        const response = await fetch(`/api/v1/conversations/${encodeURIComponent(conversationId)}/export`, {
+          headers: { Accept: "application/json" },
+        });
+        if (!response.ok) {
+          let message = `Download failed (${response.status})`;
+          try { message = (await response.json()).detail || message; } catch {}
+          throw new Error(message);
+        }
+        const file = await response.blob();
+        const url = URL.createObjectURL(file);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "hutch-conversation-export.json";
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        toast("Conversation export downloaded. Review its message text before sharing.");
+        return true;
+      } catch (error) {
+        toast(`Could not export this conversation: ${error.message}`, true);
+        return false;
+      }
+    },
+  });
+}
+
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, c =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1324,6 +1359,7 @@ async function renderChatStudio(preferredBot = null) {
                   </div>
                   <div class="cmenu-sep"></div>
                   <button class="cmenu-files" id="conversation-files-open" type="button">${icon("folder")} Browse files in this chat</button>
+                  <button class="cmenu-files" id="conversation-export-open" type="button">Export conversation as JSON</button>
                   <div class="cmenu-sep"></div>
                   <label class="cmenu-row"><input type="checkbox" id="rehearse-opt">
                     <span>Rehearse this run<span class="cmenu-sub">simulates writes and commands; model calls and reads still happen</span></span></label>
@@ -1472,6 +1508,10 @@ async function renderChatStudio(preferredBot = null) {
   $("#conversation-files-open").addEventListener("click", () => {
     setMenu(false);
     void openConversationFiles(composerConversationId, menuBtn);
+  });
+  $("#conversation-export-open").addEventListener("click", () => {
+    setMenu(false);
+    openConversationExport(composerConversationId, menuBtn);
   });
 
   // composer "+" menu: popover with rehearse, Enter behaviour, and live budget

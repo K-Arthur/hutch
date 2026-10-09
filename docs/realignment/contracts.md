@@ -190,6 +190,15 @@ message pagination. Chat binds header Stop to that ID and keeps the active attem
 inside its six-attempt window. Failed attempt refresh retains prior details with a Retry
 notice; it cannot turn a known wait into completion or hide the primary control.
 
+`GET /api/v1/conversations/{id}/export` downloads `hutch-conversation-export.json` as
+`hutch-conversation-export-v1`. Its manifest says the file contains only whitelisted conversation
+metadata and ordered message text/run provenance. Stored provider credentials, tool/action receipts,
+workspace contents, artifact bytes, and memory records are excluded. Message text is copied verbatim;
+the export warns users to review it before sharing because sensitive text typed into a chat is not
+automatically redacted. The consistent snapshot is capped at 10,000 messages, 2 MiB of source data,
+and 16 MiB encoded JSON. Larger histories receive HTTP 413 and should be retrieved through the
+paginated conversation API. Studio's composer menu presents this scope before starting the download.
+
 ## 6. Remote pairing (partial, experimental)
 
 On the Hutch host, run `hutch pairing create`; the 14-character code is shown once and expires in 60 seconds. Exchange it over HTTPS

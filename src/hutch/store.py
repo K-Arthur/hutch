@@ -1362,6 +1362,67 @@ class Store:
                 "FROM conversations c WHERE c.id = ?", (conversation_id,)).fetchone()
             return self._with_conversation_authority(row) if row else None
 
+    def conversation_export_snapshot(self, conversation_id: str, *, max_messages: int,
+                                     max_source_bytes: int) -> Optional[dict[str, Any]]:
+        """Read one bounded, consistent conversation export without loading unrelated state.
+
+        The returned message rows are explicitly projected. Tool events, receipts, artifacts,
+        memory, workspaces, and credentials are not part of this export surface.
+        """
+        with self._lock:
+            if self._db.in_transaction:
+                raise RuntimeError("conversation exports cannot be read inside another database transaction")
+            self._db.execute("BEGIN")
+            try:
+                row = self._db.execute(
+                    "SELECT c.id, c.bot_id, c.title, c.created_at, c.updated_at, c.archived, c.is_legacy, "
+                    "COUNT(m.id) AS message_count "
+                    "FROM conversations c LEFT JOIN messages m ON m.conversation_id = c.id "
+                    "WHERE c.id = ? GROUP BY c.id", (conversation_id,)
+                ).fetchone()
+                if row is None:
+                    self._db.commit()
+                    return None
+
+                conversation = {
+                    "id": row["id"], "bot_id": row["bot_id"], "title": row["title"],
+                    "created_at": row["created_at"], "updated_at": row["updated_at"],
+                    "archived": bool(row["archived"]), "is_legacy": bool(row["is_legacy"]),
+                    "message_count": int(row["message_count"]),
+                }
+                count = conversation["message_count"]
+                if count > max_messages:
+                    self._db.commit()
+                    return {"conversation": conversation, "messages": None, "limit": "messages"}
+
+                source_bytes = self._db.execute(
+                    "SELECT COALESCE(SUM(length(CAST(id AS BLOB)) + length(CAST(run_id AS BLOB)) + "
+                    "length(CAST(role AS BLOB)) + length(CAST(content AS BLOB)) + "
+                    "length(CAST(created_at AS BLOB)) + 64), 0) "
+                    "+ length(CAST(? AS BLOB)) + length(CAST(? AS BLOB)) + length(CAST(? AS BLOB)) + "
+                    "length(CAST(? AS BLOB)) + length(CAST(? AS BLOB)) + 256 "
+                    "FROM messages WHERE conversation_id = ?",
+                    (conversation["id"], conversation["bot_id"], conversation["title"],
+                     conversation["created_at"], conversation["updated_at"], conversation_id)
+                ).fetchone()[0]
+                if source_bytes > max_source_bytes:
+                    self._db.commit()
+                    return {"conversation": conversation, "messages": None, "limit": "bytes"}
+
+                rows = self._db.execute(
+                    "SELECT id, seq, run_id, role, content, created_at FROM messages "
+                    "WHERE conversation_id = ? ORDER BY seq", (conversation_id,)
+                ).fetchall()
+                messages = [{"id": item["id"], "seq": int(item["seq"]), "run_id": item["run_id"],
+                             "role": item["role"], "content": item["content"],
+                             "created_at": item["created_at"]} for item in rows]
+            except BaseException:
+                self._db.rollback()
+                raise
+            else:
+                self._db.commit()
+            return {"conversation": conversation, "messages": messages, "limit": None}
+
     def _with_conversation_authority(self, row: sqlite3.Row) -> dict[str, Any]:
         """Choose control ownership from every attached run, independently of message pagination.
 
