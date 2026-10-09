@@ -1881,10 +1881,30 @@ feature section at desktop, tablet and phone sizes; the new handoff claim is lab
 does not produce horizontal overflow. Captures and hashes are in `artifacts/provider-signin/`; the inspected
 `website/index.html` SHA-256 is `011d718edfd980d0c7250ba07fe91c5f5987f54c034963ad5e4cb1b06248531d`.
 
-Three further owner requirements were recorded but are not implemented: editable workspace/per-Bot model defaults
-with explicit per-run overrides and visible actual routes (CO-14), durable cross-Bot safe-progress checkpoints
-(CO-15), and separately controlled Bot memory with explicit provenance-carrying sharing (CO-16). Existing
-ordinary Bot model settings, run events/action receipts and Bot-scoped reviewed facts are foundations only. The
-user also requested message-anchored replies; inspection of `app.js` found no current message-level reply action,
-so UI-19 and T-MESSAGE-REPLY specify a same-conversation, editable composer reference. These requirements are
-pending implementation and are not claimed by the marketing site.
+Three further owner requirements remain unimplemented: editable workspace/per-Bot model defaults with explicit
+per-run overrides and visible actual routes (CO-14), durable cross-Bot safe-progress checkpoints (CO-15), and
+separately controlled Bot memory with explicit provenance-carrying sharing (CO-16). Existing ordinary Bot model
+settings, run events/action receipts and Bot-scoped reviewed facts are foundations only. Message-anchored replies
+are now implemented as UI-19; see the next checkpoint. The marketing site does not claim unsupported coordinator,
+model-default, checkpoint or memory-sharing behavior.
+
+## S6 message-anchored replies (schema v25, 2026-10-09)
+
+Commit `104fe62` adds a message-level **Reply to this** action in Studio and a removable composer reference. The
+selected reference is scoped to the current conversation and survives reload with the user's unsent draft. The
+versioned send command preserves it through exact idempotent retries; reusing the key for a different target conflicts.
+The transcript and JSON export retain the message ID. The API returns only an assistant message in the requested
+conversation; absence and cross-chat attempts share a 404. Transactional admission and database triggers repeat the
+same role/conversation checks. The explicitly referenced text is labelled untrusted, fits inside the bounded context
+budget, truncates at 4,000 characters and cannot alter stored Bot permissions, account, approval policy or budget.
+
+`tests/test_conversations.py tests/test_migration.py` passed **22 tests** with unhandled-thread and syntax warnings
+as errors. This includes schema-v24-to-v25 migration, legacy rows, role and conversation isolation, update/insert
+guards, 4,000-character context bounds, history/export persistence, exact replay through an application restart,
+and conflicting-target rejection. `tests/e2e/test_browser.py::test_bot_message_reply_is_keyboard_accessible_editable_and_persisted`
+passed **3 Chromium viewport cases** at 1440×1000, 900×1024 and touch 390×844. Keyboard selection/removal and focus,
+reload restoration, anchored sending, 44px touch targets, no page errors and no horizontal overflow were checked.
+Chromium **153.0.8010.12** / Playwright **1.63.0** screenshots, traces and matching source hashes are in
+`artifacts/message-replies/`; I inspected both preview and sent states at all three sizes. The Impeccable detector
+returned no findings for `app.js` and `style.css`. There was no live model/provider call; physical phone and
+screen-reader behavior remain unverified. The whole repository suite was not rerun for this slice.
