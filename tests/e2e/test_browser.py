@@ -951,6 +951,93 @@ def test_approve_from_the_phone_ui_resumes_the_run(browser, live):
     ctx.close()
 
 
+@pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (768, 1024, "tablet"), (390, 844, "phone")])
+def test_studio_resumes_only_the_active_human_wait_with_v1_command(browser, live, monkeypatch, width, height, size):
+    """The current human challenge is resumable from chat through its versioned command."""
+    import hashlib
+    import json
+    from pathlib import Path
+
+    base, app = live
+    store = app.state.store
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    bot = store.create_bot(Bot(name="human-resume-chat", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(
+        bot.id, "Sign-in check", idem_key="human-resume-conversation", request_hash="human-resume-conversation")
+    prompt = "Continue after the sign-in check"
+    run = Run(bot_id=bot.id, prompt=prompt)
+    run_id, created = store.submit_conversation_message(
+        conversation["id"], prompt, run, Task(bot_id=bot.id, kind="on_demand", prompt=prompt),
+        idem_key="human-resume-message", request_hash="human-resume-message")
+    assert created and run_id == run.id
+    claimed = store.claim_run(run.id, "browser-human-resume-owner", lease_seconds=60)
+    assert claimed is not None
+    store.transition_run(run.id, RunStatus.running, fence=claimed.fence)
+    store.transition_run(run.id, RunStatus.waiting_human, fence=claimed.fence)
+    store.append_event(Event(run_id=run.id, type=EventType.human_needed,
+                             data={"reason": "Complete the earlier sign-in step"}))
+    store.transition_run(run.id, RunStatus.running, fence=claimed.fence,
+                         event={"reason": "The first sign-in step was cleared"})
+    store.transition_run(run.id, RunStatus.waiting_human, fence=claimed.fence)
+    store.append_event(Event(run_id=run.id, type=EventType.human_needed,
+                             data={"reason": "Sign in to the current local fixture site"}))
+    store.flush_events()
+    event_seq = store.last_seq(run.id)
+
+    page = browser.new_page(viewport={"width": width, "height": height}, reduced_motion="reduce")
+    errors = []
+    page.set_default_timeout(8000)
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        page.goto(f"{base}/#/chat/{bot.name}")
+        page.locator("#conversation-switcher").wait_for()
+        assert page.locator("#conversation-switcher").input_value() == conversation["id"]
+        run_card = page.locator(f'#chat-stream [data-run-id="{run.id}"]')
+        assert run_card.locator(".run-cause").count() == 2
+        card = run_card.locator(".run-cause").last
+        assert run_card.locator("[data-human-resume]").count() == 1
+        card.get_by_role("button", name="I've cleared it — resume").wait_for()
+        resume = card.locator("[data-human-resume]")
+        assert resume.count() == 1
+        assert resume.get_attribute("data-event-seq") == str(event_seq)
+        assert resume.evaluate("el => el.getBoundingClientRect().height") >= 44
+
+        out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/human-resume"
+        out.mkdir(parents=True, exist_ok=True)
+        screenshot = out / f"{size}.png"
+        page.screenshot(path=str(screenshot), full_page=True, animations="disabled")
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow <= 1, (size, overflow)
+
+        route = f"/api/v1/tasks/runs/{run.id}/resume"
+        with page.expect_response(lambda response: response.url.endswith(route)) as response_info:
+            resume.click()
+        response = response_info.value
+        assert response.status == 200, response.text()
+        assert response.json() == {"resumed": run.id, "human_event_seq": event_seq, "replayed": False}
+        assert response.request.headers.get("idempotency-key") == f"studio-human-resume:{run.id}:{event_seq}"
+        assert response.request.post_data_json == {"human_event_seq": event_seq}
+        assert store.kv_get(f"resume:{run.id}") == "1"
+        requested = page.get_by_role("button", name="Resume requested; waiting for the run to continue")
+        requested.wait_for()
+        assert requested.is_disabled()
+        assert not errors, errors
+        (out / f"{size}.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_studio_resumes_only_the_active_human_wait_with_v1_command",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "viewport": {"width": width, "height": height}, "event_seq": event_seq,
+            "api_path": route, "api_status": response.status, "api_replayed": response.json()["replayed"],
+            "idempotency_key": f"studio-human-resume:{run.id}:{event_seq}",
+            "horizontal_overflow": overflow, "page_errors": errors,
+            "provider_calls": 0, "captured_at": datetime.now(timezone.utc).isoformat(),
+            "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
+                              for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                           "src/hutch/server/app.py", "src/hutch/store.py")},
+        }, indent=2) + "\n")
+    finally:
+        page.close()
+
+
 def test_real_device_pairing_and_revocation_are_usable_at_all_viewports(browser, live):
     """Exercise the one-time exchange, visible device inventory and both revoke paths."""
     import hashlib

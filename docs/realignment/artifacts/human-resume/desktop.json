@@ -1,0 +1,24 @@
+{
+  "test": "tests/e2e/test_browser.py::test_studio_resumes_only_the_active_human_wait_with_v1_command",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "event_seq": 4,
+  "api_path": "/api/v1/tasks/runs/run_14904b7a66ab/resume",
+  "api_status": 200,
+  "api_replayed": false,
+  "idempotency_key": "studio-human-resume:run_14904b7a66ab:4",
+  "horizontal_overflow": 0,
+  "page_errors": [],
+  "provider_calls": 0,
+  "captured_at": "2026-10-09T02:39:21.870156+00:00",
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "382d4651b5795c1f774c83ce8b7511c93b9f9496a2c6b8d8c4f74507171f7e48",
+    "src/hutch/server/static/style.css": "834d4bc18ccba8d378c71a3ad7e0400aada08c911920206b07ae8e4af69edc93",
+    "src/hutch/server/app.py": "7316e7575814cfdfd633a9645b2435b7a79990dcd81400a1baee7793384eae44",
+    "src/hutch/store.py": "8b59fb4d4a7e9014c58c6f26a8128e6fcd07a7129b891a369080a6a84c871cb2"
+  }
+}

@@ -647,6 +647,8 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .run-cause { margin: 2px 0 8px; font-size: var(--fs-sm); color: var(--text-2); }
 .run-cause b { color: var(--text); }
 .run-cause .icon { color: var(--warn); }
+.human-resume-action { margin-top: var(--s-2); }
+.human-resume-action .btn { min-height: 44px; }
 
 /* failure reads as plain red text — no bordered box, no tinted slab */
 .run-error { display: flex; gap: var(--s-2); align-items: baseline; flex-wrap: wrap; margin: 2px 0 6px; font-size: var(--fs-sm); color: var(--danger); }

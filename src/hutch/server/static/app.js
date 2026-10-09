@@ -32,6 +32,7 @@ let statusInfo = { ...DEFAULT_STATUS_INFO };
 let currentConversationId = null;
 let currentConversations = [];
 let studioGeneration = 0;
+const requestedHumanResumes = new Set();
 
 /* ------------------------------------------------------------------ utils */
 
@@ -1520,6 +1521,31 @@ async function requestStop(runId, button) {
   }
 }
 
+async function requestHumanResume(runId, rawEventSeq, button) {
+  const eventSeq = Number(rawEventSeq);
+  if (!runId || !Number.isSafeInteger(eventSeq) || eventSeq < 1 || button?.disabled) return;
+  if (button) button.disabled = true;
+  const key = `studio-human-resume:${runId}:${eventSeq}`;
+  try {
+    await api(`/v1/tasks/runs/${encodeURIComponent(runId)}/resume`, {
+      method: "POST", headers: { "Idempotency-Key": key }, body: { human_event_seq: eventSeq },
+    });
+    requestedHumanResumes.add(`${runId}:${eventSeq}`);
+    if (button?.isConnected) {
+      button.disabled = true;
+      button.textContent = "Resume requested";
+      button.setAttribute("aria-label", "Resume requested; waiting for the run to continue");
+      button.setAttribute("aria-live", "polite");
+    }
+    toast("Resume requested. Hutch will continue when the run confirms it.");
+    scheduleFeedRender();
+  } catch (error) {
+    if (button?.isConnected) button.disabled = false;
+    toast(`Resume was not confirmed: ${error.message}`, true);
+    scheduleFeedRender();
+  }
+}
+
 function syncStudioRunControls(run) {
   if (feedMode !== "studio" || !$("#conversation-switcher")) return;
   const active = run && isActiveStatus(run.status, run.terminal);
@@ -1943,12 +1969,15 @@ async function runBlockHtml(runId) {
   const dur = fmtDur((run.finished_at ? new Date(run.finished_at) : Date.now()) - new Date(run.created_at));
   const running = ACTIVE.has(run.status);
   const activityLabel = statusInfo[run.status]?.label || "Status unavailable";
+  const activeHumanEventSeq = run.status === "waiting_human"
+    ? [...events].reverse().find(e => e.type === "human_needed")?.seq ?? null
+    : null;
   const anim = seenThreads.has(runId) ? "" : " enter";
   seenThreads.add(runId);
 
   const steps = [], cards = [];
   items.forEach(item => {
-    const html = renderFeedItem(item, runId, resolvedMap);
+    const html = renderFeedItem(item, runId, resolvedMap, activeHumanEventSeq);
     (item.kind === "event" && (item.e.type === "approval_request" || item.e.type === "human_needed") ? cards : steps).push(html);
   });
 
@@ -2120,10 +2149,10 @@ function typingHtml() {
   </div>`;
 }
 
-function renderFeedItem(item, runId, resolvedMap) {
+function renderFeedItem(item, runId, resolvedMap, activeHumanEventSeq) {
   if (item.kind === "tool") return toolLineHtml(item, item.call?.e ?? item.result.e, runId);
   if (item.kind === "group") return toolGroupHtml(item, runId);
-  return renderChatEvent(item.e, resolvedMap);
+  return renderChatEvent(item.e, resolvedMap, activeHumanEventSeq);
 }
 
 function toolLineHtml(item, anchorEvent, runId, includeFileAttachments = true) {
@@ -2254,6 +2283,8 @@ function wireFeedInteractions() {
     const receipt = ev.target.closest('[data-receipt-review]');
     if (receipt) { void reviewReceipt(receipt.dataset.receiptReview, receipt); return; }
     if (ev.target.closest('[data-receipt-queue]')) { void openNeedsYou(); return; }
+    const resume = ev.target.closest("[data-human-resume]");
+    if (resume) { void requestHumanResume(resume.dataset.runId, resume.dataset.eventSeq, resume); return; }
     const stop = ev.target.closest("[data-stop-run]");
     if (stop) { requestStop(stop.dataset.stopRun, stop); return; }
     const more = ev.target.closest("[data-show-more]");
@@ -2469,7 +2500,7 @@ async function resolveApproval(id, choice, card) {
   if (needsYouDialog.open) await refreshApprovals();
 }
 
-function renderChatEvent(e, resolvedMap) {
+function renderChatEvent(e, resolvedMap, activeHumanEventSeq = null) {
   const t = e.ts ? e.ts.slice(11, 19) : "";
   const d = e.data || {};
   switch (e.type) {
@@ -2486,9 +2517,19 @@ function renderChatEvent(e, resolvedMap) {
       return approvalCardHtml({ ...d, deadline, run_id: e.run_id || currentRunId },
         { botName: currentStudioBot || "" });
     }
-    case "human_needed":
+    case "human_needed": {
+      const eventSeq = Number(e.seq);
+      const runId = e.run_id || currentRunId;
+      const isCurrentWait = Number.isSafeInteger(eventSeq) && eventSeq === activeHumanEventSeq;
+      const resumeWasRequested = isCurrentWait && requestedHumanResumes.has(`${runId}:${eventSeq}`);
+      const action = isCurrentWait
+        ? (resumeWasRequested
+          ? '<p class="hint" role="status">Resume requested. Waiting for the run to continue.</p>'
+          : `<button class="btn primary" type="button" data-human-resume data-run-id="${esc(runId)}" data-event-seq="${eventSeq}">I've cleared it — resume</button>`)
+        : "";
       return `<div class="run-cause"><b>${icon("alert")} Needs a person:</b> ${esc(d.reason || d.note || "A login, CAPTCHA, or 2FA step is waiting.")} ${
-        d.handoff ? `<br><span class="hint">${esc(d.handoff)}</span>` : ""}</div>`;
+        d.handoff ? `<br><span class="hint">${esc(d.handoff)}</span>` : ""}${action ? `<div class="human-resume-action">${action}</div>` : ""}</div>`;
+    }
     case "log": {
       const note = (d.note || d.message || "").trim();
       if (!note) return "";   // empty log notes must not leave an orphan row

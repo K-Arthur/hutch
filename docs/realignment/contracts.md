@@ -73,8 +73,11 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
 * `POST /api/v1/tasks/runs/{run_id}/resume` takes `{human_event_seq}` and requires `Idempotency-Key`. The run must still be
   `waiting_human` under a live owner lease, and the sequence must match its latest `human_needed` event. Schema v19 accepts one command per wait episode;
   another key for the same event and any stale event sequence conflict. Exact retries replay the recorded result without setting the
-  resume marker again, so an old action cannot resume a later login challenge. Legacy resume routes remain available without this
-  event-sequence guarantee until clients migrate.
+  resume marker again, so an old action cannot resume a later login challenge. Studio chat renders Resume only beside the newest
+  human-needed event for the currently waiting run, and submits that event sequence with a stable per-wait idempotency key. Older
+  human challenges remain in the transcript without an active Resume button. A successful command is shown as requested; the worker
+  still reloads and rechecks the challenge before continuing. Server-rendered compatibility pages and legacy resume routes remain
+  available without this event-sequence guarantee until they are retired.
 * Conversation artifact pages use `limit` 1–100 and an opaque `cursor`, include only verified or explicitly unverified
   artifacts from runs attached to that conversation and bot, newest first, and return `next_cursor` when another page exists.
   The keyset is ordered by event ID descending, then artifact kind ascending, so a page boundary remains stable if newer artifacts
