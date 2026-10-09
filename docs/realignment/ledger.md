@@ -2585,7 +2585,7 @@ synthetic local conversation; no model/provider request, screen reader or physic
 
 ## Gmail search private preview (2026-10-09)
 
-Implementation commit: recorded after the code-and-evidence commit.
+Implementation commit: `502eabf`.
 
 Connections now offers a clearly labelled, owner-configured Gmail search preview. It requests Google's restricted,
 account-wide `gmail.readonly` scope through a local installed-app PKCE flow and Linux Secret Service. Search is limited to
