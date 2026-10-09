@@ -286,8 +286,18 @@ def test_conversation_artifact_share_is_explicit_cross_bot_idempotent_and_revoca
     duplicate = client.post(share_url, json=body, headers={"Idempotency-Key": "another-share-key"})
     assert duplicate.status_code == 200 and duplicate.json()["id"] == share["id"]
     share_changes = [item for item in store.list_resource_changes(changes_before_share)["changes"]
-                     if item["resource"] == "conversations" and item["resource_id"] == target["id"]]
-    assert sum(item["operation"] == "created" for item in share_changes) == 1
+                     if item["resource"] == "conversations"]
+    target_share_changes = [item for item in share_changes if item["resource_id"] == target["id"]]
+    source_share_changes = [item for item in share_changes if item["resource_id"] == source["id"]]
+    assert sum(item["operation"] == "created" for item in target_share_changes) == 1
+    assert sum(item["operation"] == "updated" for item in source_share_changes) == 1
+
+    source_items = client.get(source_url).json()["artifacts"]
+    source_workspace_file = next(item for item in source_items if item["kind"] == "workspace_file")
+    assert source_workspace_file["shared_with"] == [{
+        "id": share["id"], "target_conversation_id": target["id"],
+        "target_conversation_title": "Selected recipient", "created_at": share["created_at"],
+    }]
 
     shared = client.get(target_url).json()["artifacts"]
     assert len(shared) == 1
@@ -306,17 +316,24 @@ def test_conversation_artifact_share_is_explicit_cross_bot_idempotent_and_revoca
     revoked = client.delete(revoke_url, headers=revoke_headers)
     assert revoked.status_code == 200 and revoked.json()["revoked_at"]
     revoke_changes = [item for item in store.list_resource_changes(changes_before_share)["changes"]
-                      if item["resource"] == "conversations" and item["resource_id"] == target["id"]]
-    assert sum(item["operation"] == "updated" for item in revoke_changes) == 1
+                      if item["resource"] == "conversations"]
+    target_revoke_changes = [item for item in revoke_changes if item["resource_id"] == target["id"]]
+    source_revoke_changes = [item for item in revoke_changes if item["resource_id"] == source["id"]]
+    assert sum(item["operation"] == "updated" for item in target_revoke_changes) == 1
+    assert sum(item["operation"] == "updated" for item in source_revoke_changes) == 2
     assert client.get(target_url).json()["artifacts"] == []
     revoke_replay = client.delete(revoke_url, headers=revoke_headers)
     assert revoke_replay.status_code == 200 and revoke_replay.json()["id"] == share["id"]
     assert client.get(shared_url).status_code == 404, "revocation must stop later downloads through the grant"
     assert client.get(f"/api/v1/tasks/runs/{run.id}/artifacts/{filename}").content == payload
+    source_items = client.get(source_url).json()["artifacts"]
+    assert next(item for item in source_items if item["kind"] == "workspace_file")["shared_with"] == []
 
     renewed = client.post(share_url, json=body, headers={"Idempotency-Key": "share-again"})
     assert renewed.status_code == 201 and renewed.json()["id"] != share["id"]
     assert len(client.get(target_url).json()["artifacts"]) == 1
+    source_items = client.get(source_url).json()["artifacts"]
+    assert next(item for item in source_items if item["kind"] == "workspace_file")["shared_with"][0]["id"] == renewed.json()["id"]
     rows = store._db.execute("SELECT id, revoked_at FROM conversation_artifact_shares ORDER BY created_at, id").fetchall()
     assert len(rows) == 2 and rows[0]["id"] == share["id"] and rows[0]["revoked_at"]
 

@@ -119,6 +119,15 @@ function conversationArtifactHtml(item) {
   const size = item.kind === "workspace_file" && Number.isInteger(item.size_bytes) && item.size_bytes >= 0
     ? conversationArtifactSize(item.size_bytes) : item.size_bytes ? conversationArtifactSize(item.size_bytes)
     : item.chars ? `${Number(item.chars).toLocaleString("en-US")} characters` : "";
+  const sharedWith = Array.isArray(item.shared_with) ? item.shared_with : [];
+  const sharedWithHtml = sharedWith.length ? `<div class="conversation-file-grants" aria-label="Active shares">
+    ${sharedWith.map(target => `<div class="conversation-file-grant">
+      <span>Shared with ${esc(target.target_conversation_title || "another chat")}</span>
+      <button class="btn ghost small" type="button" data-artifact-unshare="${esc(target.id)}"
+        data-share-target="${esc(target.target_conversation_id)}"
+        data-share-name="${esc(target.target_conversation_title || "another chat")}" aria-label="Stop sharing ${esc(filename)} with ${esc(target.target_conversation_title || "another chat")}">Stop sharing</button>
+    </div>`).join("")}
+  </div>` : "";
   const safeUrl = item.state === "available" && typeof item.download_url === "string"
     && (/^\/api\/v1\/tasks\/runs\/[a-zA-Z0-9_-]{4,80}\/artifacts\/[0-9]{3,6}-[a-z0-9_-]{1,40}\.txt$/.test(item.download_url)
       || /^\/api\/v1\/conversations\/[a-zA-Z0-9_-]{4,80}\/artifact-shares\/ash_[a-f0-9]{24}\/content$/.test(item.download_url))
@@ -138,6 +147,7 @@ function conversationArtifactHtml(item) {
           : safeUrl ? `<button class="btn ghost small" type="button" data-artifact-share data-run="${esc(item.run_id)}" data-version="${esc(item.version)}" data-kind="${esc(item.kind)}" aria-label="Share ${esc(filename)} with another chat">Share</button>` : ""}
       </div>
     </div>
+    ${sharedWithHtml}
     <div class="conversation-file-share" hidden></div>
   </article>`;
 }
@@ -304,15 +314,19 @@ async function openConversationFiles(conversationId, returnFocus) {
     const unshare = event.target.closest("[data-artifact-unshare]");
     if (unshare) {
       const shareId = unshare.dataset.artifactUnshare;
+      const targetId = unshare.dataset.shareTarget || conversationId;
+      const targetName = unshare.dataset.shareName || "this chat";
       const article = unshare.closest(".conversation-file");
       unshare.disabled = true;
       status.textContent = "Stopping the share…";
-      void api(`/v1/conversations/${encodeURIComponent(conversationId)}/artifact-shares/${encodeURIComponent(shareId)}`, {
+      void api(`/v1/conversations/${encodeURIComponent(targetId)}/artifact-shares/${encodeURIComponent(shareId)}`, {
         method: "DELETE", headers: { "Idempotency-Key": newIdempotencyKey() },
       }).then(async () => {
         cursor = ""; count = 0; list.innerHTML = "";
         await load();
-        status.textContent = "This chat no longer has access to the shared file. Its source file remains in the original chat.";
+        status.textContent = targetId === conversationId
+          ? "This chat no longer has access to the shared file. Its source file remains in the original chat."
+          : `Sharing with ${targetName} has stopped. The source file remains in this chat.`;
         if (!article.isConnected) $("#modal-confirm")?.focus({ preventScroll: true });
       }).catch(error => {
         status.textContent = `Could not stop sharing: ${error.message}`;

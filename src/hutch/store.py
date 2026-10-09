@@ -380,9 +380,38 @@ def _migrate_17(db: sqlite3.Connection) -> None:
                             ("revoked_at", "revoked_by"), ("source_run_id",)),))
 
 
+def _migrate_18(db: sqlite3.Connection) -> None:
+    """Invalidate the originating conversation when its active share list changes."""
+    db.execute("""CREATE TRIGGER conversation_artifact_shares_source_insert_outbox
+        AFTER INSERT ON conversation_artifact_shares
+        BEGIN
+            INSERT INTO resource_outbox(previous_id, resource, resource_id, operation, ts, context)
+            SELECT meta.tail_id, 'conversations', c.id, 'updated',
+                   strftime('%Y-%m-%dT%H:%M:%fZ','now'), json_object('bot_id', c.bot_id)
+            FROM resource_outbox_meta meta
+            JOIN runs r ON r.id = NEW.source_run_id
+            JOIN conversations c ON c.id = r.conversation_id
+            WHERE meta.singleton = 1;
+            UPDATE resource_outbox_meta SET tail_id = last_insert_rowid() WHERE singleton = 1;
+        END""")
+    db.execute("""CREATE TRIGGER conversation_artifact_shares_source_update_outbox
+        AFTER UPDATE OF revoked_at, revoked_by ON conversation_artifact_shares
+        WHEN OLD.revoked_at IS NOT NEW.revoked_at OR OLD.revoked_by IS NOT NEW.revoked_by
+        BEGIN
+            INSERT INTO resource_outbox(previous_id, resource, resource_id, operation, ts, context)
+            SELECT meta.tail_id, 'conversations', c.id, 'updated',
+                   strftime('%Y-%m-%dT%H:%M:%fZ','now'), json_object('bot_id', c.bot_id)
+            FROM resource_outbox_meta meta
+            JOIN runs r ON r.id = NEW.source_run_id
+            JOIN conversations c ON c.id = r.conversation_id
+            WHERE meta.singleton = 1;
+            UPDATE resource_outbox_meta SET tail_id = last_insert_rowid() WHERE singleton = 1;
+        END""")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
-               _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17]
+               _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -1111,6 +1140,7 @@ class Store:
                 raise KeyError("source artifact does not exist")
             if not source["conversation_id"]:
                 raise ValueError("only artifacts from a chat can be shared")
+            source_conversation_id = source["conversation_id"]
             if source["conversation_id"] == target_conversation_id:
                 raise ValueError("choose a different chat; this file is already in its source chat")
             linked = db.execute("SELECT 1 FROM conversation_runs WHERE conversation_id = ? AND run_id = ?",
@@ -1146,7 +1176,9 @@ class Store:
                        (scope, idem_key, request_hash, _canonical({"share_id": share_id}), now))
             row = db.execute("SELECT s.*, e.seq AS source_version FROM conversation_artifact_shares s "
                              "JOIN events e ON e.id = s.source_event_id WHERE s.id = ?", (share_id,)).fetchone()
-        self.bus.notify("conversations", f"conversation:{target_conversation_id}")
+        if created:
+            self.bus.notify("conversations", f"conversation:{target_conversation_id}",
+                            f"conversation:{source_conversation_id}")
         return dict(row), created
 
     def replay_conversation_artifact_share(self, target_conversation_id: str, *, idem_key: str,
@@ -1175,6 +1207,25 @@ class Store:
                 (share_id, target_conversation_id)).fetchone()
         return dict(row) if row is not None else None
 
+    def active_artifact_share_targets(self, source_conversation_id: str, source_run_id: str,
+                                      source_version: int, artifact_kind: str) -> list[dict[str, str]]:
+        """List active recipients only when the artifact is attached to the source chat."""
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT s.id, s.target_conversation_id, "
+                "COALESCE(NULLIF(target.title, ''), 'Untitled chat') AS target_conversation_title, s.created_at "
+                "FROM conversation_artifact_shares s "
+                "JOIN events e ON e.id = s.source_event_id AND e.run_id = s.source_run_id "
+                "JOIN runs r ON r.id = s.source_run_id "
+                "JOIN conversation_runs cr ON cr.run_id = r.id AND cr.conversation_id = r.conversation_id "
+                "JOIN conversations source ON source.id = cr.conversation_id "
+                "JOIN conversations target ON target.id = s.target_conversation_id "
+                "WHERE source.id = ? AND s.source_run_id = ? AND e.seq = ? "
+                "AND s.artifact_kind = ? AND s.revoked_at IS NULL "
+                "ORDER BY s.created_at, s.id",
+                (source_conversation_id, source_run_id, source_version, artifact_kind)).fetchall()
+        return [dict(row) for row in rows]
+
     def revoke_conversation_artifact_share(self, target_conversation_id: str, share_id: str, *, actor: str,
                                            idem_key: str, request_hash: str) -> tuple[dict[str, Any], bool]:
         """Revoke one shared reference without deleting its source file or audit record."""
@@ -1194,6 +1245,8 @@ class Store:
                              (share_id, target_conversation_id)).fetchone()
             if row is None:
                 raise KeyError(share_id)
+            source_conversation_id = db.execute("SELECT conversation_id FROM runs WHERE id = ?",
+                                                (row["source_run_id"],)).fetchone()[0]
             changed = row["revoked_at"] is None
             if changed:
                 db.execute("UPDATE conversation_artifact_shares SET revoked_at = ?, revoked_by = ? WHERE id = ?",
@@ -1204,7 +1257,8 @@ class Store:
             result = db.execute("SELECT s.*, e.seq AS source_version FROM conversation_artifact_shares s "
                                 "JOIN events e ON e.id = s.source_event_id WHERE s.id = ?", (share_id,)).fetchone()
         if changed:
-            self.bus.notify("conversations", f"conversation:{target_conversation_id}")
+            self.bus.notify("conversations", f"conversation:{target_conversation_id}",
+                            f"conversation:{source_conversation_id}")
         return dict(result), changed
 
     def submit_scheduled(self, run: Run, task: Task, *, occurrence: str, expected_marker: Optional[str], new_marker: str,

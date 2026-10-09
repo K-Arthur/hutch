@@ -64,7 +64,7 @@ managed infrastructure until trusted-proxy handling is documented and validated.
 ## Database migration and restore
 
 Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. This
-realignment branch uses schema v17; `hutch doctor` displays the current version. Keep the matching
+realignment branch uses schema v18; `hutch doctor` displays the current version. Keep the matching
 release and pre-upgrade backups. A normal snapshot captures committed database history, including
 WAL pages; event buffers that have not committed yet are outside its scope:
 
@@ -155,8 +155,11 @@ delivery intent per committed batch in the same transaction as canonical event r
 installations preserve pending delivery state and their pre-upgrade backup.
 Schema v17 adds explicit cross-chat artifact references. A share is a durable database grant; it
 does not copy bytes into the target workspace or conversation context. Its target-specific download
-URL stops working after revocation, while the source run's own download remains. Keep the v16
-pre-upgrade backup until the upgraded application and shared-file list have been checked.
+URL stops working after revocation, while the source run's own download remains. The originating
+chat lists active recipients and can revoke a grant; the receiving chat can also stop its access.
+Schema v18 adds transactional source-chat invalidations when a share is granted or revoked, so open
+source Files views refresh after changes from another device. Keep the matching pre-upgrade backup
+until the upgraded application and shared-file list have been checked.
 Hutch does not infer that adjacent runs share a
 private context. New conversations and message submissions are written transactionally with their idempotency records. The
 `conversation_fts` index contains message text only; it excludes tool output, credentials, workspaces and bot memory.

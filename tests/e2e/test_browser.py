@@ -627,6 +627,30 @@ def test_verified_artifact_can_be_shared_with_another_chat_and_revoked(browser, 
                 for row in shared_rows), shared_page.text()
             files_dialog.get_by_role("button", name="Done").click()
 
+            page.locator("#composer-menu-btn").click()
+            page.get_by_role("button", name="Browse files in this chat").click()
+            source_files = page.get_by_role("dialog", name="Files in this chat")
+            source_files.wait_for()
+            source_revoke = source_files.get_by_role(
+                "button", name="Stop sharing report.txt with Recipient chat")
+            source_revoke.wait_for(state="visible")
+            source_share_capture = out / f"source-shares-{name}.png"
+            page.screenshot(path=str(source_share_capture), animations="disabled")
+            if name == "desktop":
+                source_revoke.focus()
+                page.keyboard.press("Enter")
+                page.wait_for_function(
+                    "() => document.querySelector('#conversation-files-status')?.textContent?.includes('Sharing with Recipient chat has stopped')")
+                assert page.request.get(f"{base}{shared_rows[0]['download_url']}").status == 404
+                assert not page.request.get(
+                    f"{base}/api/v1/conversations/{target['id']}/artifacts").json().get("artifacts")
+                regrant = page.request.post(
+                    f"{base}/api/v1/conversations/{target['id']}/artifact-shares",
+                    data={"source_run_id": run.id, "source_version": 1, "kind": "workspace_file"},
+                    headers={"Idempotency-Key": "share-ui-source-regrant"})
+                assert regrant.status == 201, regrant.text()
+            source_files.get_by_role("button", name="Done").click()
+
             page.goto(f"{base}/#/chat/{target_bot.name}")
             page.locator("#conversation-switcher").wait_for()
             assert page.locator("#conversation-switcher").input_value() == target["id"]
@@ -661,6 +685,7 @@ def test_verified_artifact_can_be_shared_with_another_chat_and_revoked(browser, 
             assert client_artifact.status == 200 and client_artifact.body() == payload
             captures.append({"viewport": name, "size": [width, height], "screenshot": screenshot.name,
                              "share_chooser_screenshot": chooser.name,
+                             "source_share_screenshot": source_share_capture.name,
                              "download_sha256": digest, "horizontal_overflow_px": overflow,
                              "dialog_overflow_px": dialog_overflow,
                              "done_button_bounds": done_box,

@@ -6,7 +6,8 @@ runtime use while retaining human management. Facts are not automatically inject
 prompts. Clipped tool outputs and successful `write_file` snapshots now have run-scoped version
 records and SHA-256-verified downloads; generated-file links appear directly in Studio chat while
 tool details stay collapsed. Owners can add a verified artifact reference to another selected chat;
-the target-bound download is revocable, and no bytes enter the target workspace or model context.
+both chats show the active grant and can revoke it. The target-bound download is revocable, and no
+bytes enter the target workspace or model context.
 Optional generic browser alerts work while the Hutch tab is open; they do not provide background push.
 Per-bot Hutch-managed workspaces now persist when explicitly selected. A general artifact library,
 delegated artifact transfer, multi-task standing work, webhook/push notifications, bounded delegation
@@ -79,7 +80,9 @@ and permanent scoped deletion/export remain required realignment work.
   epoch/committed-ID replay, canonical approval summaries and targeted UI refresh. Schema v12 adds
   recoverable bounded JSONL delivery, visible errors and FULL WAL synchronization. Schema v17 adds
   explicit, idempotent, revocable references to verified artifacts across chats; the receiving chat
-  gets provenance and a target-bound download, not a file copy or model-context injection. A general
+  gets provenance and a target-bound download, not a file copy or model-context injection. The source
+  Files list shows active recipient chats and can revoke their grants. Schema v18 adds durable
+  invalidations to both chats when access changes. A general
   artifact library, delegated artifact transfer, automatic event retention, capability verification,
   and idempotent resume/bot-run commands remain open.
 - **Provider compatibility: route-level matrix implemented.** `GET /api/v1/compatibility` records supported,

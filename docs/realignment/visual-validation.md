@@ -243,15 +243,17 @@ action remain visible together after scrolling the dialog body.
 
 The local Chromium fixture journey shares a verified file reference from one bot chat to another,
 downloads the bytes from the recipient's Files list, then revokes access and confirms the source
-download remains intact. The share action stays disabled until a destination is explicitly chosen.
-The test also exercises keyboard activation for opening, cancelling and confirming the share, and
-checks that the Files dialog's Done button remains visible at each viewport.
+download remains intact. The source Files list displays its active recipient and can revoke the
+grant; the recipient can also stop access. The share action stays disabled until a destination is
+explicitly chosen. The test exercises keyboard activation for opening, cancelling, sharing and
+revoking from the source chat, and checks that the Files dialog's Done button remains visible at
+each viewport.
 
 Captures use Chromium **153.0.8010.12** and Playwright **1.63.0** at desktop (1440×960), tablet
 (768×1024) and phone (390×844). All three report zero horizontal overflow, zero dialog overflow and
 no page errors. The phone capture shows the full recipient chooser and fixed Done action; its button
-is within the viewport at x=303, y=788, 70×44 px. Desktop, tablet and phone chooser/recipient views,
-source hashes, viewport bounds, result JSON and Playwright trace are saved in
+is within the viewport at x=303, y=788, 70×44 px. Desktop, tablet and phone chooser, active source
+grant and recipient views, source hashes, viewport bounds, result JSON and Playwright trace are saved in
 [`artifacts/artifact-sharing/`](artifacts/artifact-sharing/). These are local fixture results only:
 no provider calls or physical phone were used, and no screen-reader run was performed.
 

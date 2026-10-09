@@ -82,10 +82,12 @@ current conversation, so the operator can find an earlier result without leaving
 query checks both conversation and bot ownership; downloads still resolve to the source run and
 verify its recorded size and hash. The owner may explicitly grant another selected conversation a
 reference to one verified artifact. That grant is stored in SQLite, appears with source-chat
-provenance, and has its own target-bound download URL so revocation blocks later downloads. The file
-bytes stay in the source run: the reference neither copies them into the other workspace nor adds
-them to that chat's model context. This is not a general artifact library or implicit bot-to-bot
-sharing.
+provenance, and has its own target-bound download URL so revocation blocks later downloads. The
+originating chat lists active recipients beside the file and can revoke a grant there; the receiving
+chat can also stop its access. The file bytes stay in the source run: the reference neither copies
+them into the other workspace nor adds them to that chat's model context. This is not a general
+artifact library or implicit bot-to-bot sharing. Schema v18 adds durable invalidations for the source
+conversation when a grant is created or revoked, including changes made from another device.
 Arbitrary shell-created files are not attached automatically. Bots
 default to a fresh workspace per run; operators may select a private Hutch-managed directory
 shared only by that bot, or an existing validated user folder.

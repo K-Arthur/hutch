@@ -232,6 +232,13 @@ class ConversationDetail(ConversationResource):
     has_more: bool
 
 
+class ArtifactShareTargetResource(BaseModel):
+    id: str
+    target_conversation_id: str
+    target_conversation_title: str
+    created_at: str
+
+
 class ArtifactResource(BaseModel):
     id: str
     run_id: str
@@ -249,6 +256,7 @@ class ArtifactResource(BaseModel):
     download_url: Optional[str] = None
     share_id: Optional[str] = None
     shared_from: Optional[str] = None
+    shared_with: list[ArtifactShareTargetResource] = Field(default_factory=list)
 
 
 class ConversationArtifactShareRequest(BaseModel):
@@ -1412,7 +1420,12 @@ def create_app() -> FastAPI:
                 # the query; other chats stay private unless explicitly shared.
                 if run.bot_id != conversation["bot_id"] or run.conversation_id != conversation_id:
                     continue
-                item = artifact_resource(run, event, kind)
+                base_item = artifact_resource(run, event, kind)
+                active_shares = store.active_artifact_share_targets(
+                    conversation_id, run.id, event.seq, kind)
+                item = base_item.model_copy(update={
+                    "shared_with": [ArtifactShareTargetResource(**share) for share in active_shares],
+                })
             items.append(item)
         next_cursor = None
         if has_more:

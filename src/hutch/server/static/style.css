@@ -757,6 +757,10 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 .conversation-file-copy > span { color: var(--text-3); font-size: var(--fs-xs); line-height: 1.45; }
 .conversation-file-copy .conversation-file-state { color: var(--text-2); }
 .conversation-file-actions { display: flex; flex: none; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+.conversation-file-grants { display: grid; gap: 6px; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line); }
+.conversation-file-grant { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.conversation-file-grant > span { min-width: 0; color: var(--text-2); font-size: var(--fs-xs); line-height: 1.45; overflow-wrap: anywhere; }
+.conversation-file-grant > .btn { flex: none; }
 .conversation-file-share { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
 .conversation-file-share[hidden] { display: none; }
 .conversation-file-share .field { margin: 0; }
@@ -779,6 +783,7 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 @media (max-width: 520px) {
   .conversation-file-main { align-items: flex-start; }
   .conversation-file-actions { max-width: 118px; }
+  .conversation-file-grant { align-items: flex-start; }
   .artifact-share-actions > button { flex: 1 1 auto; }
 }
 

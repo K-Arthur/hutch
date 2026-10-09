@@ -71,14 +71,17 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   arrive while browsing and can split two artifact kinds recorded by one event without repeating either. Available downloads use
   the existing run-scoped endpoint, which rechecks the recorded size and SHA-256 through no-follow file access.
   Missing and legacy-unverified files remain visible without a download link. Active explicit shares also appear in the target
-  conversation with the source chat title and a target-bound download URL.
+  conversation with the source chat title and a target-bound download URL. Owned artifact entries include a typed `shared_with`
+  list of active grants, with target chat titles, so the source chat can manage and revoke each grant. Schema v18 records source
+  and target conversation invalidations transactionally for creates and revocations.
 * `POST /api/v1/conversations/{conversation_id}/artifact-shares` requires `Idempotency-Key` and a verified source `run_id`, event
   `source_version`, and artifact `kind`. The selected target must be a different, active conversation; the source event must belong
   to a conversation and remain linked to its source run. Hutch verifies hash, size and bytes before committing. A successful
   grant adds a reference to the target's Files list; it does not copy bytes into a workspace or add them to model context. Reusing
-  the same key and request replays the original grant, while a changed request conflicts. `DELETE
-  /api/v1/conversations/{conversation_id}/artifact-shares/{share_id}` also requires an idempotency key and records a one-way revocation;
-  the audit row is retained, the share-specific content URL returns 404, and the source run's own download remains available.
+  the same key and request replays the original grant, while a changed request conflicts. Both source and target Files lists can
+  issue the same target-bound `DELETE /api/v1/conversations/{conversation_id}/artifact-shares/{share_id}`. It requires an
+  idempotency key and records a one-way revocation. The audit row is retained, the share-specific content URL returns 404, and
+  the source run's own download remains available.
   These are user-selected cross-chat references, not a general library, automatic bot-to-bot sharing, or a substitute for the
   still-unimplemented delegation artifact contract.
 * Conversation history is cursor-paginated with `after` and a maximum page size of 100. Run events keep the existing per-run `seq`
