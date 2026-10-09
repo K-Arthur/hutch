@@ -1631,6 +1631,159 @@ def test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone(browser
         context.close()
 
 
+def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(browser, live, monkeypatch):
+    base, app = live
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-setup"
+    out.mkdir(parents=True, exist_ok=True)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(base + "/#/chat")
+        page.locator("#topbar-new-bot").click()
+        page.get_by_role("heading", name="What should it do?").wait_for()
+        page.get_by_label("What would you like this bot to handle?").fill(
+            "Review release notes and prepare a short summary of changes that affect our project.")
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.screenshot(path=str(out / f"purpose-{label}.png"), animations="disabled")
+            metrics = page.evaluate("""() => ({
+                viewport: [innerWidth, innerHeight],
+                documentWidth: document.documentElement.scrollWidth,
+                dialog: (() => { const r = document.querySelector('[role=dialog]').getBoundingClientRect();
+                  return {left:r.left,right:r.right,top:r.top,bottom:r.bottom}; })(),
+                footerVisible: document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight
+            })""")
+            assert metrics["documentWidth"] - width <= 1, (label, metrics)
+            assert metrics["dialog"]["left"] >= -1 and metrics["dialog"]["right"] <= width + 1, (label, metrics)
+            assert metrics["footerVisible"], (label, metrics)
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.locator("#modal-confirm").click()
+        page.get_by_role("heading", name="Choose a starting point").wait_for()
+        page.locator("#setup-back").click()
+        assert "Review release notes" in page.locator("#setup-purpose").input_value()
+        page.locator("#modal-confirm").click()
+        page.locator('input[name="setup-template"][value=""]').check()
+        page.locator("#modal-confirm").click()
+        page.get_by_label("Bot name").fill("guided-release-reviewer")
+        page.get_by_label("Short description").fill("Summarize project release notes")
+        page.locator("#modal-confirm").click()
+        page.get_by_role("heading", name="Set its model and workspace").wait_for()
+        page.get_by_label("Model route").fill("openai/gpt-4o-mini")
+        page.locator("#modal-confirm").click()
+        page.get_by_role("heading", name="Choose tools and schedule").wait_for()
+        page.get_by_text("Human browser handoff (optional)").click()
+        handoff_choice = page.locator("#setup-local-browser-handoff")
+        handoff_enabled = handoff_choice.is_enabled()
+        if handoff_enabled:
+            handoff_choice.check()
+        else:
+            assert "unavailable on this host" in page.locator(".setup-schedule p.hint").last.inner_text().lower()
+        handoff_choice.scroll_into_view_if_needed()
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.screenshot(path=str(out / f"configuration-{label}.png"), animations="disabled")
+            metrics = page.evaluate("""() => ({
+                viewport: [innerWidth, innerHeight], documentWidth: document.documentElement.scrollWidth,
+                modalBodyWidth: document.querySelector('.modal-body').scrollWidth,
+                modalBodyClientWidth: document.querySelector('.modal-body').clientWidth,
+                titleVisible: document.querySelector('#modal-title').getBoundingClientRect().top >= 0,
+                footerVisible: document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight
+            })""")
+            assert metrics["documentWidth"] - width <= 1, (label, metrics)
+            assert metrics["modalBodyWidth"] - metrics["modalBodyClientWidth"] <= 1, (label, metrics)
+            assert metrics["titleVisible"] and metrics["footerVisible"], (label, metrics)
+        page.set_viewport_size({"width": 390, "height": 844})
+        handoff_choice.scroll_into_view_if_needed()
+        page.screenshot(path=str(out / "configuration-handoff-phone.png"), animations="disabled")
+        handoff_metrics = page.evaluate("""() => {
+            const control = document.querySelector('#setup-local-browser-handoff').getBoundingClientRect();
+            const hints = document.querySelectorAll('.setup-schedule p.hint');
+            const hint = hints[hints.length - 1].getBoundingClientRect();
+            return {control: {top: control.top, bottom: control.bottom}, hint: {top: hint.top, bottom: hint.bottom}, viewport: [innerWidth, innerHeight]};
+        }""")
+        assert handoff_metrics["control"]["top"] >= 0 and handoff_metrics["control"]["bottom"] <= 844, handoff_metrics
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.locator('input[name="setup-tool"][value="read_file"]').check()
+        page.get_by_text("Add a recurring task (optional)").click()
+        page.get_by_label("Scheduled task prompt").fill("Review release notes and report important changes.")
+        page.locator("#modal-confirm").click()
+        assert page.get_by_role("alert").inner_text() == "Add a cron schedule before setting its task prompt."
+        assert app.state.store.get_bot("guided-release-reviewer") is None
+        page.get_by_label("Cron schedule", exact=True).fill("0 9 * * 1")
+        page.locator("#modal-confirm").click()
+        page.get_by_role("heading", name="Review setup").wait_for()
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.screenshot(path=str(out / f"review-{label}.png"), animations="disabled")
+            metrics = page.evaluate("""() => {
+                const dialog = document.querySelector('[role=dialog]').getBoundingClientRect();
+                const body = document.querySelector('.modal-body');
+                return {
+                    viewport: [innerWidth, innerHeight],
+                    documentWidth: document.documentElement.scrollWidth,
+                    bodyOverflow: body.scrollWidth - body.clientWidth,
+                    dialog: {left: dialog.left, right: dialog.right},
+                    titleVisible: document.querySelector('#modal-title').getBoundingClientRect().top >= 0,
+                    footerVisible: document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight
+                };
+            }""")
+            assert metrics["documentWidth"] - width <= 1, (label, metrics)
+            assert metrics["bodyOverflow"] <= 1, (label, metrics)
+            assert metrics["dialog"]["left"] >= -1 and metrics["dialog"]["right"] <= width + 1, (label, metrics)
+            assert metrics["titleVisible"] and metrics["footerVisible"], (label, metrics)
+            page.locator(".setup-review-list > div").last.scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"review-details-end-{label}.png"), animations="disabled")
+            end_metrics = page.evaluate("""() => {
+                const last = document.querySelector('.setup-review-list > div:last-child').getBoundingClientRect();
+                const footer = document.querySelector('.modal-footer').getBoundingClientRect();
+                return {last: {top: last.top, bottom: last.bottom}, footer: {top: footer.top, bottom: footer.bottom}, viewport: [innerWidth, innerHeight]};
+            }""")
+            assert end_metrics["last"]["top"] >= 0 and end_metrics["last"]["bottom"] <= end_metrics["footer"]["top"] + 1, (label, end_metrics)
+            page.locator(".modal-body").evaluate("element => { element.scrollTop = 0; }")
+        assert page.get_by_text("It will not start a run.", exact=False).is_visible()
+        assert page.get_by_text("Browser handoff", exact=True).is_visible()
+        assert app.state.store.list_runs() == []
+        with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
+                                 and response.request.method == "POST") as created:
+            page.locator("#modal-confirm").click()
+        assert created.value.status == 201, created.value.text()
+        wait_for(lambda: app.state.store.get_bot("guided-release-reviewer") is not None)
+        bot = app.state.store.get_bot("guided-release-reviewer")
+        assert bot.instructions == "Review release notes and prepare a short summary of changes that affect our project."
+        assert bot.description == "Summarize project release notes"
+        assert bot.tools == ["read_file"] and bot.approval_mode is ApprovalMode.ask
+        assert bot.local_browser_handoff is handoff_enabled
+        assert bot.schedule and bot.schedule.prompt == "Review release notes and report important changes."
+        assert app.state.store.list_runs() == [], "bot creation must not submit a run"
+        assert not errors, errors
+        (out / "validation.json").write_text(json.dumps({
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"),
+            "scenario": "guided setup against a configured-shape route with a test-only dummy key; no model call was made; create persists configuration and does not start a run; checked review details at both ends and handoff disclosure at phone width",
+            "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
+            "inspected_screenshots": ["purpose-desktop.png", "purpose-tablet.png", "purpose-phone.png",
+                                      "configuration-desktop.png", "configuration-tablet.png", "configuration-phone.png",
+                                      "configuration-handoff-phone.png", "review-desktop.png", "review-tablet.png",
+                                      "review-phone.png", "review-details-end-desktop.png", "review-details-end-tablet.png",
+                                      "review-details-end-phone.png"],
+            "page_errors": errors,
+            "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
+                              for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                               "src/hutch/server/app.py", "src/hutch/store.py", "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace.zip"))
+        except Exception:
+            pass
+        context.close()
+
+
 def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live):
     base, app = live
     page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
@@ -1641,53 +1794,14 @@ def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live
     page.context.tracing.start(screenshots=True, snapshots=True, sources=False)
     trace_stopped = False
     try:
-        page.goto(base + "/#/chat")
-        page.locator("#topbar-new-bot").click()
-        page.get_by_role("heading", name="Create a bot").wait_for()
-        form = page.locator("#modal-bot-form")
-        modal_captures = []
-        for label, width, height in (("desktop", 1440, 960), ("phone", 390, 844)):
-            page.set_viewport_size({"width": width, "height": height})
-            page.screenshot(path=str(out / f"create-{label}.png"), animations="disabled")
-            metrics = page.evaluate("""() => ({
-                viewport: [innerWidth, innerHeight],
-                document: [document.documentElement.scrollWidth, document.documentElement.scrollHeight],
-                dialogVisible: Boolean(document.querySelector('[role=dialog]'))
-            })""")
-            assert metrics["document"][0] - metrics["viewport"][0] <= 1, (label, metrics)
-            assert metrics["dialogVisible"], (label, metrics)
-            modal_captures.append({"size": label, **metrics})
-        schedule_prompt_field = form.locator('[name="schedule_prompt"]')
-        schedule_prompt_field.scroll_into_view_if_needed()
-        page.screenshot(path=str(out / "create-task-prompt-phone.png"), animations="disabled")
-        prompt_position = page.evaluate("""() => {
-            const input = document.querySelector('#modal-bot-form [name=schedule_prompt]').getBoundingClientRect();
-            const footer = document.querySelector('.modal-footer').getBoundingClientRect();
-            const title = document.querySelector('#modal-title').getBoundingClientRect();
-            const confirm = document.querySelector('#modal-confirm').getBoundingClientRect();
-            return {top: input.top, bottom: input.bottom, footerTop: footer.top,
-                    visibleAboveFooter: input.top >= 0 && input.bottom <= footer.top,
-                    titleVisible: title.top >= 0 && title.bottom <= innerHeight,
-                    confirmVisible: confirm.top >= footer.top && confirm.bottom <= innerHeight};
-        }""")
-        assert prompt_position["visibleAboveFooter"], prompt_position
-        assert prompt_position["titleVisible"] and prompt_position["confirmVisible"], prompt_position
-        modal_captures.append({"size": "phone-task-prompt", **prompt_position})
-        form.locator('[name="name"]').fill("scheduled-research")
-        form.locator('[name="model"]').fill("mock/demo")
-        form.locator('[name="schedule_prompt"]').fill("Review release notes and report important changes.")
-        page.locator("#modal-confirm").click()
-        assert page.get_by_text("Add a cron schedule before setting its task prompt.").is_visible()
-        assert app.state.store.get_bot("scheduled-research") is None
-        page.locator("#toast-root .toast-close").click()
-
-        form.locator('[name="cron"]').fill("0 9 * * 1")
-        page.locator("#modal-confirm").click()
-        wait_for(lambda: app.state.store.get_bot("scheduled-research") is not None)
+        app.state.store.create_bot(Bot(
+            name="scheduled-research", model="mock/demo", tools=[],
+            instructions="Review release notes and report important changes.",
+            schedules=[Schedule(cron="0 9 * * 1", timezone="UTC",
+                                prompt="Review release notes and report important changes.")],
+        ))
         bot = app.state.store.get_bot("scheduled-research")
         assert bot.schedule and bot.schedule.prompt == "Review release notes and report important changes."
-        while page.locator("#toast-root .toast-close").count():
-            page.locator("#toast-root .toast-close").last.click()
 
         # Hash-only navigation was unreliable under full-suite load; exercise the route directly.
         page.goto(f"{base}/#/bot/scheduled-research")
@@ -1826,8 +1940,7 @@ def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live
             "browser_version": browser.version,
             "playwright_version": package_version("playwright"),
             "captures": captures,
-            "creation_modal_captures": modal_captures,
-            "scenario": "create, edit, retain, remove, and promote independent task streams through the dashboard; fixture only, no model/provider call",
+            "scenario": "edit, retain, remove, and promote independent task streams through the dashboard; isolated bot fixture only, no model/provider call",
             "page_errors": errors,
             "source_sha256": {
                 "app.js": hashlib.sha256((Path(__file__).resolve().parents[2]

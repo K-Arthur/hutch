@@ -52,6 +52,16 @@ class Tool:
         reported as an unknown outcome and never silently replayed."""
         return ""
 
+    def recorded_arguments(self, args: dict[str, Any], ctx: "ToolContext") -> dict[str, Any]:
+        """Return the safe-to-persist view of a tool call and its action receipt.
+
+        Most tools record their frozen arguments verbatim. Tools that accept
+        transient secrets or other sensitive values must override this method.
+        The returned object is used only for audit events and receipts; the
+        original immutable arguments are still passed to ``run`` in memory.
+        """
+        return args
+
     def spec(self) -> dict[str, Any]:
         """OpenAI-style function tool schema."""
         return {

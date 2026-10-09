@@ -34,6 +34,33 @@ owner's initial heuristic, not a research-established cutoff.
    grant scoped to the selected bot and capability. Store OAuth refresh credentials in the OS
    credential store rather than SQLite, transcripts, prompts or browser storage.
 
+5. Give the workspace and each Bot an explicit model default. The workspace choice seeds new-Bot
+   setup; the coordinator and each specialist keep their own editable route and inference mode.
+   A chat/run override applies once unless the user chooses **Save as this Bot’s default**. Show
+   the actual provider/model and usage for every run, keep route readiness visible, and fail with
+   an actionable reason if a selected route is unavailable. Never silently switch to a hosted
+   provider, another billing account, or a different inference mode. Coordinator dispatch uses the
+   target Bot’s saved default unless the user explicitly selects an allowed per-task override.
+6. Persist structured progress checkpoints for coordinator and specialist work. A checkpoint
+   captures completed work, remaining work, durable event position, artifact references, model
+   route, budget/permission snapshot, and any pending question, approval, or human handoff; it is
+   not hidden model reasoning. Resume only from a committed safe boundary. If an external effect
+   may have happened without a verified receipt, stop at `outcome_unknown` for reconciliation
+   instead of replaying it. Keep the owning child’s wait visible and resumable after restart.
+7. Keep long-term memory Bot-scoped and separate from chats, task briefs, artifacts, receipts and
+   credentials. Users can choose the memory policy for each Bot and inspect, revise, disable or
+   clear retained facts. A child receives only task text and explicitly selected context. Sharing a
+   fact or artifact across Bots is a visible, revocable, provenance-carrying grant; task context is
+   not silently promoted into a specialist’s standing memory, and coordinator memory is never
+   inherited by a specialist.
+8. Let users reply to a particular Bot message. The message action attaches its stable ID and a
+   short author-labeled excerpt to the composer; the user can clear or replace it before sending.
+   Persist the relationship with the user message and display it in the transcript so the reply
+   stays understandable later. Validate that the source belongs to the same conversation, include
+   only the explicitly selected cross-message reference beyond the normal bounded chat context,
+   and treat its contents as untrusted text with no action authority. Keep the action reachable by
+   keyboard and phone touch.
+
 Gmail body search/read requires Google restricted OAuth scopes under the current provider
 documentation. Public support depends on completing the required Google app verification and any
 security assessment; until then this integration must remain unavailable or explicitly limited to

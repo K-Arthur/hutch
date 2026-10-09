@@ -182,17 +182,9 @@ pattern.
 
 ### Browser actions
 
-`goto` uses URL policy. `click` and `type` always ask because either can send data or buy something;
-sticky grants and auto mode cannot cover them. The request binds the selector/label, typed text,
-page URL and bot profile. A changed URL after review refuses the action. This does not verify an
-account identity or prevent a page changing its DOM at the same URL. Each browser-tool instance owns a separate context and
-persistent profile, with an OS file lease across run workers. HTTP(S)/WebSocket connections pass through the DNS-pinning local
-proxy; this has only local Chromium fixture coverage and does not confine unrelated browser protocols. Headless is
-the default. Chromium's implicit local/link-local proxy bypass is disabled, service workers are blocked, and denied request logs
-retain only the origin. A bot may opt into **Local browser handoff** on a Linux desktop: Hutch opens the same profile in a visible window,
-holds an exclusive Hutch browser-handoff/profile lease, pauses automation at a detected login/CAPTCHA/MFA wall, and rechecks the page after Resume.
-If the resumed page still shows a challenge, Hutch keeps waiting. Without the setting, a headless run returns an actionable failure
-instead of claiming to wait for a person. This is local desktop control only and does not enable phone control.
+`goto` uses URL policy. `click` and ordinary `type` always ask because either can send data or buy something; sticky grants and auto mode cannot cover them. Browser `type` values are redacted from durable events and action receipts, and review binds a process-keyed fingerprint, character count, selector/label, page URL and bot profile. A changed URL after review refuses the action. This does not verify an account identity or prevent a page changing its DOM at the same URL. Each browser-tool instance owns a separate context and persistent profile, with an OS file lease across run workers. HTTP(S)/WebSocket connections pass through the DNS-pinning local proxy; this has only local Chromium fixture coverage and does not confine unrelated browser protocols. Headless is the default. Chromium's implicit local/link-local proxy bypass is disabled, service workers are blocked, and denied request logs retain only the origin.
+
+Sensitive-entry protection blocks agent `type` calls on conventional password, passcode/OTP, verification-code, payment-card, and secret/token fields before browser input or durable action creation. Hutch never supports entering a password or one-time code through chat. Screenshots fail closed while a conventional sensitive field is visible. Detection uses visible labels and common DOM attributes; a custom widget or an unmarked field can evade it, so do not treat the detector as a secret vault. A bot may opt into **Local browser handoff** on a Linux desktop: Hutch opens the same isolated profile in a visible window, holds an exclusive browser-handoff/profile lease, pauses at a detected login/CAPTCHA/MFA or sensitive-field checkpoint, and tells the person to enter credentials or complete the challenge directly in that browser. Hutch does not type secrets or solve/bypass CAPTCHA. The human-needed event records a reason/origin, not the secret. Resume is tied to the current wait event; the browser is not reloaded, and the page is checked again afterward. If the challenge remains, Hutch keeps waiting. Without the setting or a usable display, a headless run returns an actionable failure instead of claiming to wait for a person. This experimental path is local desktop control only; phone handoff, custom-field completeness, screen-reader support, and live third-party challenges are unverified.
 
 ## Rehearse (dry run)
 

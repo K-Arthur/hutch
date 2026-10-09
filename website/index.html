@@ -293,7 +293,7 @@
           <div class="card-body">
             <span class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.8" width="10" height="18.4" rx="2.4"/><path d="M11 18.4h2"/></svg></span>
             <h3 class="card-title">Remote</h3>
-            <p>The responsive dashboard supports experimental HTTPS-paired sessions. Remote phone control and browser handoff are unavailable; local same-session browser handoff is experimental on a Linux desktop.</p>
+            <p>The responsive dashboard supports experimental HTTPS-paired sessions. A person can take over the same visible Linux browser to enter passwords and one-time codes or complete CAPTCHA; Hutch does not type secrets or solve challenges. Resume checks the live page without reloading it. Phone browser handoff is unavailable.</p>
           </div>
         </article>
         <article class="card feature border border-line bg-surface">
@@ -445,7 +445,7 @@
             </li>
             <li>
               <b>Phone supervision is not remote access.</b>
-              <span>The phone dashboard supports experimental paired control. Browser handoff is experimental on the local Linux desktop and unavailable from a phone.</span>
+              <span>The phone dashboard supports experimental paired control, but cannot take over the browser. On Linux desktop, a person can enter passwords, codes and CAPTCHA responses in the same visible browser; Hutch never types credentials or bypasses challenges.</span>
             </li>
             <li>
               <b>Delegation has a narrow boundary.</b>
@@ -517,7 +517,7 @@
             <tbody>
               <tr><td class="av-k">Public access</td><td class="av-v">Private source; no anonymous download or public release</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
               <tr><td class="av-k">Supported</td><td class="av-v">Linux executor, local SQLite state and fixture-tested lifecycle/control flows; actual runs need a configured model route</td><td><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></td></tr>
-              <tr><td class="av-k">Experimental</td><td class="av-v">Hosted-provider and local-inference routes, OpenCode Go API-key handoff, opt-in local Sign in with ChatGPT preview (eligibility unconfirmed; no hard output-token limit), host-gated Offline isolation, bounded same-bot child tasks with approval on every request, HTTPS-paired dashboard access, local Linux browser handoff, and fixture-tested DNS-pinned HTTP(S)/WebSocket egress; public destinations and other browser traffic are unverified</td><td><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></td></tr>
+              <tr><td class="av-k">Experimental</td><td class="av-v">Hosted-provider and local-inference routes, OpenCode Go API-key handoff, opt-in local Sign in with ChatGPT preview (eligibility unconfirmed; no hard output-token limit), host-gated Offline isolation, bounded same-bot child tasks with approval on every request, HTTPS-paired dashboard access, local Linux browser handoff for human credential/CAPTCHA entry, and fixture-tested DNS-pinned HTTP(S)/WebSocket egress; field detection, public destinations and other browser traffic are unverified</td><td><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></td></tr>
               <tr><td class="av-k">Unavailable</td><td class="av-v">macOS/Windows executor, phone browser handoff, authenticated PTY/desktop control and OpenCode/Pi harnesses</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
               <tr><td class="av-k">Data movement</td><td class="av-v">Prompts go to the selected hosted endpoint; network tools also contact their configured destinations</td><td><span class="ev">Per configuration</span></td></tr>
             </tbody>

@@ -1,0 +1,44 @@
+{
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "scenario": "guided setup against a configured-shape route with a test-only dummy key; no model call was made; create persists configuration and does not start a run; checked review details at both ends and handoff disclosure at phone width",
+  "viewports": {
+    "desktop": [
+      1440,
+      960
+    ],
+    "tablet": [
+      900,
+      1024
+    ],
+    "phone": [
+      390,
+      844
+    ]
+  },
+  "inspected_screenshots": [
+    "purpose-desktop.png",
+    "purpose-tablet.png",
+    "purpose-phone.png",
+    "configuration-desktop.png",
+    "configuration-tablet.png",
+    "configuration-phone.png",
+    "configuration-handoff-phone.png",
+    "review-desktop.png",
+    "review-tablet.png",
+    "review-phone.png",
+    "review-details-end-desktop.png",
+    "review-details-end-tablet.png",
+    "review-details-end-phone.png"
+  ],
+  "page_errors": [],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "0d013e94b9f2caa7b4c0db86bde67b7c42078718e401bb88d3c87ba4f015ad9b",
+    "src/hutch/server/static/style.css": "93e249b8af48dcd6659e4f4ceef02c0f2f18616d23843f7558dd40e74357ac36",
+    "src/hutch/server/app.py": "3f9b63b47fbf22d6bd2035af51550ac4a3286cdb4883c5aaf6ef81647b36077f",
+    "src/hutch/store.py": "71a9904bef23b31fcd65f0be0a88bfec663d70ba8923a1ebb44e6f0cd8ee0cb3",
+    "tests/e2e/test_browser.py": "8e0be54edebb6ee00d94f1606cb7d4d4c9d58b0983ebac26c7840b57d0d24fb0"
+  }
+}

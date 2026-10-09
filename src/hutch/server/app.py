@@ -40,7 +40,7 @@ from ..durable_changes import SnapshotRequired
 from ..engine import Engine, bot_prompt_for_schedule
 from ..lifecycle import LABELS
 from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, CommandRule, Event, EventType, InferenceMode, Limits, MemoryItem, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task
-from ..store import ActiveRunConflict, IdempotencyConflict, Store
+from ..store import ActiveRunConflict, BotConflict, IdempotencyConflict, Store
 from ..state_snapshot import ExecutionHeld
 from ..templates import TEMPLATE_INFO, TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
@@ -1232,6 +1232,13 @@ def create_app() -> FastAPI:
             for i in TEMPLATE_INFO.values()
         ]
 
+    @app.get("/api/v1/model-routes")
+    def model_routes_v1(inference_mode: InferenceMode = InferenceMode.hybrid) -> list[dict]:
+        """Return route choices for setup without creating a bot or run."""
+        from ..modelchoices import choices_json, model_choices
+        draft = Bot(name="bot-setup-draft", model="", tools=[], inference_mode=inference_mode)
+        return choices_json(model_choices(config, store, draft))
+
     def _checked_workdir(raw: str) -> str:
         from ..workdir import validate_workdir
         try:
@@ -1256,12 +1263,9 @@ def create_app() -> FastAPI:
             raise HTTPException(422, f"at most {MAX_RULES} command rules")
         return rules
 
-    @app.post("/api/bots", status_code=201)
-    def create_bot(body: BotCreate) -> dict:
+    def bot_from_create_request(body: BotCreate) -> Bot:
         if not _SLUG_RE.match(body.name):
             raise HTTPException(422, "name must be a lowercase slug (a-z, 0-9, -)")
-        if store.get_bot(body.name):
-            raise HTTPException(409, f"bot already exists: {body.name}")
         if body.template:
             if body.template not in TEMPLATES:
                 raise HTTPException(422, f"unknown template: {body.template}")
@@ -1321,6 +1325,38 @@ def create_app() -> FastAPI:
                                  refresh_host=body.inference_mode is InferenceMode.offline)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
+        return bot
+
+    @app.post("/api/v1/bots", status_code=201)
+    def create_bot_v1(body: BotCreate, request: Request, response: Response) -> dict:
+        key = idempotency_key(request)
+        digest = request_digest(body.model_dump(mode="json"))
+        try:
+            replay = store.replay_bot_creation(key, digest)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        if replay is not None:
+            response.status_code = 200
+            return bot_view(replay)
+        if store.get_bot(body.name):
+            raise HTTPException(409, f"bot already exists: {body.name}")
+        bot = bot_from_create_request(body)
+        try:
+            saved, created = store.create_bot_idempotent(bot, idem_key=key, request_hash=digest)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except BotConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        response.status_code = 201 if created else 200
+        return bot_view(saved)
+
+    @app.post("/api/bots", status_code=201)
+    def create_bot(body: BotCreate) -> dict:
+        if not _SLUG_RE.match(body.name):
+            raise HTTPException(422, "name must be a lowercase slug (a-z, 0-9, -)")
+        if store.get_bot(body.name):
+            raise HTTPException(409, f"bot already exists: {body.name}")
+        bot = bot_from_create_request(body)
         store.create_bot(bot)
         return bot_view(bot)
 

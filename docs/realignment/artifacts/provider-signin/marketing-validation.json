@@ -1,10 +1,10 @@
 {
   "test": "tests/e2e/test_website.py::test_provider_availability_is_readable_without_horizontal_page_scroll",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_website.py::test_provider_availability_is_readable_without_horizontal_page_scroll",
-  "captured_at": "2026-10-09T01:57:08.631257+00:00",
+  "captured_at": "2026-10-09T09:41:03.054984+00:00",
   "python": "3.13.15",
   "browser": "153.0.8010.12",
-  "index_sha256": "3ccf1fe731053cfcd72d272befcc6c57aadc751ece70078e637eeff716413a1a",
+  "index_sha256": "011d718edfd980d0c7250ba07fe91c5f5987f54c034963ad5e4cb1b06248531d",
   "styles_sha256": "2c79db7ec2dcdd800d40236f570a4e117ad3058b96e7a92080ea119d9ed0aabb",
   "viewports": [
     {

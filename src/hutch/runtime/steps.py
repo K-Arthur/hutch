@@ -151,7 +151,8 @@ def _summary(name: str, args: dict[str, Any]) -> str:
     return name
 
 
-def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolContext, run: Run) -> ToolResult:
+def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolContext, run: Run,
+                      *, receipt_args: Optional[dict[str, Any]] = None) -> ToolResult:
     """Run a tool; if the call can have a lasting effect, bracket the EFFECT with an intent and a receipt (ADR-0003).
 
     The tool calls ``ctx.begin_effect()`` after policy and approval, immediately before it acts; that writes the intent and
@@ -161,14 +162,15 @@ def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolCont
     effect = "" if ctx.dry_run else tool.effect(args, ctx)
     if not effect:
         return tool.run(args, ctx)
-    key = hashlib.sha256(f"{run.id}|{name}|{json.dumps(args, sort_keys=True, default=str)}".encode()).hexdigest()[:24]
+    recorded = args if receipt_args is None else receipt_args
+    key = hashlib.sha256(f"{run.id}|{name}|{json.dumps(recorded, sort_keys=True, default=str)}".encode()).hexdigest()[:24]
     began: dict[str, str] = {}
     ctx.gate.last_authorization = None
 
     def begin() -> Optional[str]:
         try:
-            began["id"] = ctx.store.begin_action(run.id, name, key, effect, _summary(name, args), fence=run.fence,
-                arguments=args, authority=ctx.gate.last_authorization,
+            began["id"] = ctx.store.begin_action(run.id, name, key, effect, _summary(name, recorded), fence=run.fence,
+                arguments=recorded, authority=ctx.gate.last_authorization,
                 scope={"workspace": str(ctx.workspace.resolve()), "model": run.model_used or ctx.bot.model,
                        "browser_profile": ctx.bot.id if effect == "web" else None})
         except LeaseLost as exc:
@@ -219,13 +221,26 @@ def call_tool(run: Run, ctx: ToolContext, tools: dict[str, Tool], name: str, arg
             raise ValueError("tool arguments exceed 1 MiB; reduce the request")
     except (TypeError, ValueError, RecursionError) as exc:
         return ToolResult(ok=False, output=f"error: invalid tool arguments ({exc}); nothing was run")
-    ctx.emit(Event(run_id=run.id, type=EventType.tool_call, data={"tool": name, "args": args}))
     tool = tools.get(name)
+    recorded_args = args
+    if tool is not None:
+        try:
+            recorded_args = freeze(tool.recorded_arguments(args, ctx))
+        except Exception:
+            # A tool's persistence boundary must fail closed: raw arguments are
+            # never emitted if the tool cannot produce its safe representation.
+            result = ToolResult(ok=False, output="error: tool arguments could not be made safe to record; nothing was run")
+            ctx.emit(Event(run_id=run.id, type=EventType.tool_call,
+                           data={"tool": name, "args": {"redacted": True}}))
+            ctx.emit(Event(run_id=run.id, type=EventType.tool_result,
+                           data={"tool": name, "ok": False, "output": result.output}))
+            return result
+    ctx.emit(Event(run_id=run.id, type=EventType.tool_call, data={"tool": name, "args": recorded_args}))
     t1 = time.perf_counter()
     if tool is None:
         result = ToolResult(ok=False, output=f"error: unknown tool '{name}' — available: {sorted(tools)}")
     else:
-        result = _run_with_receipt(tool, name, args, ctx, run)
+        result = _run_with_receipt(tool, name, args, ctx, run, receipt_args=recorded_args)
     if timer is not None:
         timer.tool_ms += (time.perf_counter() - t1) * 1000.0
     if name == "write_file" and result.ok and not result.data.get("simulated"):

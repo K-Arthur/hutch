@@ -16,11 +16,16 @@ Requires the optional extra:  pip install "hutch[browser]"
 from __future__ import annotations
 
 import os
+import hashlib
+import hmac
+import re
+import secrets
 import stat
 import sys
 import threading
 import time
 from typing import Any, Callable, Optional
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 try:
     import fcntl
@@ -38,8 +43,49 @@ from .base import Tool, ToolContext, ToolResult, _schema, clip, rehearsed
 # instance-owned so a bot cannot inherit another bot's cookies or page.
 _GLOBAL_BROWSER_LOCK = threading.Lock()
 
-_LOGIN_WALL_RE = ("captcha", "are you a robot", "sign in", "log in", "two-factor",
-                  "verification code", "one-time code", "authenticate")
+_LOGIN_WALL_RE = ("captcha", "are you a robot", "are you human", "sign in to continue", "log in to continue",
+                  "two-factor", "verification code", "one-time code", "verify your identity",
+                  "security check", "human verification", "authenticator app", "security code",
+                  "confirm your purchase", "confirm payment", "payment confirmation", "accept cookies to continue",
+                  "consent required", "touch your security key", "scan the qr code")
+_SENSITIVE_FIELD_RE = re.compile(
+    r"(?:password|passcode|one[-_ ]?time[-_ ]?code|verification[-_ ]?code|security[-_ ]?code|"
+    r"recovery[-_ ]?code|authenticator|\botp\b|\btotp\b|\bpin\b|\bcvv\b|\bcvc\b|"
+    r"card[-_ ]?number|client[-_ ]?secret|api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token)",
+    re.IGNORECASE,
+)
+_SENSITIVE_FIELD_JS = r"""els => els.some(el => {
+  const autocomplete = (el.getAttribute('autocomplete') || '').trim().toLowerCase();
+  const labelText = el.labels ? Array.from(el.labels).map(label => label.innerText || '').join(' ') : '';
+  const metadata = [el.type, autocomplete, el.name, el.id, el.getAttribute('aria-label'),
+    el.getAttribute('placeholder'), el.getAttribute('data-testid'), labelText].filter(Boolean).join(' ');
+  return String(el.type || '').toLowerCase() === 'password' ||
+    ['current-password','new-password','one-time-code','cc-number','cc-csc','cc-exp',
+     'cc-exp-month','cc-exp-year'].includes(autocomplete) ||
+    /(?:password|passcode|one[-_ ]?time[-_ ]?code|verification[-_ ]?code|security[-_ ]?code|recovery[-_ ]?code|authenticator|\botp\b|\btotp\b|\bpin\b|\bcvv\b|\bcvc\b|card[-_ ]?number|client[-_ ]?secret|api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token)/i.test(metadata);
+})"""
+_VISIBLE_SENSITIVE_FIELD_JS = r"""() => {
+  const visible = el => {
+    const rect = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+  };
+  const nodes = Array.from(document.querySelectorAll('input,textarea')).filter(visible);
+  return nodes.some(el => {
+    const autocomplete = (el.getAttribute('autocomplete') || '').trim().toLowerCase();
+    const labelText = el.labels ? Array.from(el.labels).map(label => label.innerText || '').join(' ') : '';
+    const metadata = [el.type, autocomplete, el.name, el.id, el.getAttribute('aria-label'),
+      el.getAttribute('placeholder'), el.getAttribute('data-testid'), labelText].filter(Boolean).join(' ');
+    return String(el.type || '').toLowerCase() === 'password' ||
+      ['current-password','new-password','one-time-code','cc-number','cc-csc','cc-exp',
+       'cc-exp-month','cc-exp-year'].includes(autocomplete) ||
+      /(?:password|passcode|one[-_ ]?time[-_ ]?code|verification[-_ ]?code|security[-_ ]?code|recovery[-_ ]?code|authenticator|\botp\b|\btotp\b|\bpin\b|\bcvv\b|\bcvc\b|card[-_ ]?number|client[-_ ]?secret|api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token)/i.test(metadata);
+  });
+}"""
+_URL_SECRET_KEY_RE = re.compile(
+    r"(?:token|secret|password|credential|auth|code|state|otp|ticket|assertion|session|key)", re.I
+)
+_APPROVAL_FINGERPRINT_KEY = secrets.token_bytes(32)
 
 _ACTIONS = {
     "goto": "Navigate to a URL (public http/https).",
@@ -53,6 +99,28 @@ _ACTIONS = {
 
 class BrowserUnavailable(Exception):
     pass
+
+
+def _redact_sensitive_url(url: str) -> str:
+    """Keep navigable public URL context without persisting common URL credentials."""
+    try:
+        parts = urlsplit(url)
+        hostname = parts.hostname or ""
+        if not hostname:
+            return "[redacted URL]"
+        # URL userinfo is rejected by the browser proxy, but arguments are
+        # recorded before navigation policy runs. Strip it at that earlier
+        # persistence boundary too.
+        netloc = f"[{hostname}]" if ":" in hostname else hostname
+        if parts.port is not None:
+            netloc += f":{parts.port}"
+        query = urlencode([
+            (key, "[redacted]" if _URL_SECRET_KEY_RE.search(key) else value)
+            for key, value in parse_qsl(parts.query, keep_blank_values=True)
+        ])
+        return urlunsplit((parts.scheme, netloc, parts.path, query, ""))
+    except (TypeError, ValueError):
+        return "[redacted URL]"
 
 
 def local_handoff_status() -> tuple[bool, str]:
@@ -236,6 +304,80 @@ class BrowserTool(Tool):
         action = (args.get("action") or "").strip()
         return {"click": "web", "type": "web", "screenshot": "fs"}.get(action, "")
 
+    def recorded_arguments(self, args: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
+        """Persist a reviewable call without persisting typed values or URL credentials."""
+        action = (args.get("action") or "").strip()
+        if action == "type":
+            recorded = {"action": "type", "selector": args.get("selector", ""),
+                        "text": "[redacted]", "text_redacted": True}
+            # Different form entries must not collapse onto one action key;
+            # the opaque reference contains no recoverable input data.
+            recorded["value_ref"] = secrets.token_hex(12)
+            return recorded
+        recorded = {key: args[key] for key in ("action", "url", "selector", "label", "seconds") if key in args}
+        if action == "goto" and isinstance(recorded.get("url"), str):
+            recorded["url"] = _redact_sensitive_url(recorded["url"])
+        return recorded
+
+    @staticmethod
+    def _is_sensitive_target(page, selector: str) -> bool:
+        if not selector or _SENSITIVE_FIELD_RE.search(selector):
+            return True
+        try:
+            matched = page.locator(selector).evaluate_all(_SENSITIVE_FIELD_JS)
+        except Exception:
+            # A selector that cannot be safely inspected must not receive text.
+            return True
+        return matched is not False
+
+    @staticmethod
+    def _page_has_sensitive_fields(page) -> bool:
+        try:
+            return page.evaluate(_VISIBLE_SENSITIVE_FIELD_JS) is not False
+        except Exception:
+            # Do not capture a page if this browser implementation cannot
+            # establish that visible credential fields are absent.
+            return True
+
+    @staticmethod
+    def _human_challenge_markers(page, body_sample: str) -> list[str]:
+        markers = [marker for marker in _LOGIN_WALL_RE if marker in body_sample]
+        try:
+            frames = getattr(page, "frames", ())
+            if any(re.search(r"captcha|recaptcha|turnstile|challenge", str(getattr(frame, "url", "")), re.I)
+                   for frame in frames[1:]):
+                markers.append("challenge frame")
+        except Exception:
+            pass
+        return markers
+
+    @staticmethod
+    def _sensitive_entry_result(page, ctx: ToolContext) -> ToolResult:
+        current_url = getattr(page, "url", "")
+        origin = display_url_origin(current_url) or "the current page"
+        if ctx.headless or not ctx.bot.local_browser_handoff:
+            return ToolResult(
+                ok=False,
+                output=("error: Hutch did not enter or save that value. This field appears to contain a password, "
+                        "passcode, payment credential, or verification code. Enable Local browser handoff on a Linux "
+                        "desktop, then enter it directly in the visible browser; do not send it in chat."),
+                data={"sensitive_input_blocked": True, "handoff_available": False, "origin": origin},
+            )
+        ctx.gate.wait_for_human(
+            f"A password, passcode, or other sensitive field needs you at {origin}; Hutch will not type or save its value.",
+            _redact_sensitive_url(current_url),
+            handoff=("Automation is paused. Check the site and enter the password, passcode, payment detail, or "
+                     "verification code directly in this visible Hutch browser window. Do not put it in chat. "
+                     "Hutch will not include the value in chat events, approvals, action receipts, or screenshots. "
+                     "Finish the step, then resume; this page will stay open."),
+        )
+        return ToolResult(
+            ok=False,
+            output=("error: Hutch did not type the sensitive value. The human browser step has returned; continue only "
+                    "with non-sensitive actions or ask the operator to finish the form directly."),
+            data={"sensitive_input_blocked": True, "handoff_available": True, "origin": origin},
+        )
+
     def run(self, args: dict[str, Any], ctx: ToolContext) -> ToolResult:
         args = dict(args)  # a human wait must not resume from a mutable caller argument object
         action = (args.get("action") or "").strip()
@@ -266,33 +408,45 @@ class BrowserTool(Tool):
 
         if action == "goto":
             url = (args.get("url") or "").strip()
-            ctx.gate.decide("browser", f"open {url}", {"url": url}, decision)
+            recorded_url = _redact_sensitive_url(url)
+            ctx.gate.decide("browser", f"open {display_url_origin(url)}", {"url": recorded_url}, decision)
             page.goto(url, timeout=30_000, wait_until="domcontentloaded")
             title = page.title()
             body_sample = page.inner_text("body")[:500].lower()
-            walls = [w for w in _LOGIN_WALL_RE if w in body_sample]
-            if walls:
+            walls = self._human_challenge_markers(page, body_sample)
+            sensitive_fields = self._page_has_sensitive_fields(page)
+            if walls or sensitive_fields:
                 if ctx.headless:
+                    subject = "a login, CAPTCHA or verification step" if walls else "a password or other sensitive field"
                     return ToolResult(
                         ok=False,
-                        output=("error: the page requires a person to complete a login/CAPTCHA step, but this bot's browser "
-                                "is headless. Enable Local browser handoff in the bot settings on a Linux desktop and retry. "
-                                "Hutch did not wait or attempt to solve the challenge."),
-                        data={"handoff_available": False, "url": url},
+                        output=(f"error: the page contains {subject}, but this bot's browser is headless. Enable Local "
+                                "browser handoff in the bot settings on a Linux desktop. Complete the step in the visible "
+                                "browser; Hutch does not solve challenges or type secrets."),
+                        data={"handoff_available": False, "url": recorded_url},
                     )
-                # Keep the same headed browser alive. A resume is accepted only
-                # after a reload confirms the challenge is no longer present.
-                while walls:
-                    reason = f"login/CAPTCHA wall at {url} ({', '.join(walls)})"
-                    ctx.gate.wait_for_human(
-                        reason, url,
-                        handoff="Complete this step in the visible Hutch browser window. Automation is paused until you resume.",
-                    )
-                    page.reload(wait_until="domcontentloaded")
+                origin = display_url_origin(page.url)
+                reason = (f"Human verification is needed at {origin}: complete the login, CAPTCHA, identity check, "
+                          "two-factor prompt, or sensitive form field in the visible Hutch browser.")
+                handoff = ("Automation is paused in this bot's browser. Check the site, complete the human step in this "
+                           "same window, then resume. Hutch will not solve or bypass challenges, and it will not reload "
+                           "the page when control returns, so unsaved form state stays in place.")
+                # After every explicit resume, inspect the same live page. Do
+                # not reload away entered form values. If the challenge remains,
+                # keep automation paused until it clears.
+                if sensitive_fields or walls:
+                    ctx.gate.wait_for_human(reason, _redact_sensitive_url(page.url), handoff=handoff)
                     title = page.title()
                     body_sample = page.inner_text("body")[:500].lower()
-                    walls = [w for w in _LOGIN_WALL_RE if w in body_sample]
-            return ToolResult(ok=True, output=f"opened {url}\ntitle: {title}", data={"url": url})
+                    walls = self._human_challenge_markers(page, body_sample)
+                while walls:
+                    ctx.gate.wait_for_human(
+                        reason, _redact_sensitive_url(page.url), handoff=handoff,
+                    )
+                    title = page.title()
+                    body_sample = page.inner_text("body")[:500].lower()
+                    walls = self._human_challenge_markers(page, body_sample)
+            return ToolResult(ok=True, output=f"opened {display_url_origin(url)}\ntitle: {title}", data={"url": recorded_url})
 
         if action == "read":
             text = page.inner_text("body")
@@ -314,9 +468,13 @@ class BrowserTool(Tool):
 
         if action == "type":
             selector, text = args.get("selector", ""), args.get("text", "")
+            if self._is_sensitive_target(page, selector):
+                return self._sensitive_entry_result(page, ctx)
             url = page.url
             ctx.gate.decide("browser", f"type into {selector}", {
-                "action": action, "selector": selector, "text": text, "url": url,
+                "action": action, "selector": selector, "text": "[redacted]", "text_chars": len(text),
+                "value_fingerprint": hmac.new(_APPROVAL_FINGERPRINT_KEY, text.encode("utf-8"), hashlib.sha256).hexdigest(),
+                "url": _redact_sensitive_url(url),
                 "profile_bot_id": ctx.bot.id}, outward=True)
             if page.url != url:
                 return ToolResult(ok=False, output="error: browser navigated after review; request a new approval")
@@ -326,6 +484,10 @@ class BrowserTool(Tool):
             return ToolResult(ok=True, output=f"typed {len(text)} chars into {selector}")
 
         if action == "screenshot":
+            if self._page_has_sensitive_fields(page):
+                return ToolResult(ok=False, output=("error: Hutch did not save a screenshot because a visible password, "
+                                                    "payment credential, or verification field is on this page"),
+                                  data={"screenshot_blocked_sensitive_fields": True})
             if (refusal := ctx.begin_effect()):
                 return ToolResult(ok=False, output=f"error: {refusal}")
             path = ctx.workspace / f"screenshot-{int(time.time())}.png"

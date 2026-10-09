@@ -543,6 +543,10 @@ class ActiveRunConflict(RuntimeError):
         self.status = status
 
 
+class BotConflict(RuntimeError):
+    """A bot name or stable identity is already owned by another creation command."""
+
+
 class UsageBudgetRefusal(ValueError):
     """The requested model call cannot be reserved under a configured token or currency cap."""
 
@@ -859,6 +863,29 @@ class Store:
     # ------------------------------------------------------------- bots
 
     def create_bot(self, bot: Bot) -> Bot:
+        created, _ = self._create_bot(bot)
+        return created
+
+    def replay_bot_creation(self, idem_key: str, request_hash: str) -> Optional[Bot]:
+        """Return a committed bot command before mutable config checks, or reject changed-key reuse."""
+        with self._lock:
+            replay = self._idempotency_replay(self._db, "api:v1:bots:create", idem_key, request_hash)
+            if replay is None:
+                return None
+            row = self._db.execute("SELECT doc FROM bots WHERE id = ?", (replay["bot_id"],)).fetchone()
+        if row is None:
+            raise RuntimeError("idempotent bot response points to missing state")
+        return Bot.model_validate_json(row["doc"])
+
+    def create_bot_idempotent(self, bot: Bot, *, idem_key: str,
+                              request_hash: str) -> tuple[Bot, bool]:
+        """Atomically create one bot and its command result, including across Store connections."""
+        if not idem_key or not request_hash:
+            raise ValueError("bot creation requires an idempotency key and request hash")
+        return self._create_bot(bot, idem_key=idem_key, request_hash=request_hash)
+
+    def _create_bot(self, bot: Bot, *, idem_key: Optional[str] = None,
+                    request_hash: Optional[str] = None) -> tuple[Bot, bool]:
         # Template schedules are deep-copied from process-wide template objects;
         # resolve any cross-bot identity collision and start clocks at creation.
         schedules = bot.schedules or ([bot.schedule] if bot.schedule else [])
@@ -866,6 +893,18 @@ class Store:
         if len(ids) != len(set(ids)):
             raise ValueError("scheduled task IDs must be unique within a bot")
         with self._tx() as db:
+            scope = "api:v1:bots:create"
+            replay = (self._idempotency_replay(db, scope, idem_key, request_hash)
+                      if idem_key is not None and request_hash is not None else None)
+            if replay is not None:
+                row = db.execute("SELECT doc FROM bots WHERE id = ?", (replay["bot_id"],)).fetchone()
+                if row is None:
+                    raise RuntimeError("idempotent bot response points to missing state")
+                return Bot.model_validate_json(row["doc"]), False
+            existing = db.execute("SELECT id FROM bots WHERE id = ? OR name = ? LIMIT 1",
+                                  (bot.id, bot.name)).fetchone()
+            if existing is not None:
+                raise BotConflict(f"bot already exists: {bot.name}")
             identity_table = db.execute(
                 "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'schedule_identities'"
             ).fetchone()
@@ -896,8 +935,12 @@ class Store:
             if identity_table:
                 db.executemany("INSERT INTO schedule_identities (schedule_id, bot_id, created_at) VALUES (?, ?, ?)",
                                [(schedule.id, bot.id, schedule.created_at) for schedule in refreshed])
+            if idem_key is not None and request_hash is not None:
+                db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
+                           "VALUES (?, ?, ?, ?, ?)",
+                           (scope, idem_key, request_hash, _canonical({"bot_id": bot.id}), iso(utcnow())))
         self.bus.notify("work", "bots")
-        return bot
+        return bot, True
 
     def upsert_bot(self, bot: Bot, *, preserve_schedules: bool = False,
                    primary_schedule_update: Schedule | None | object = _SCHEDULE_UNCHANGED,

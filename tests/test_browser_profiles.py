@@ -128,6 +128,9 @@ def test_login_challenge_only_waits_when_same_live_browser_is_visible(config, he
         def inner_text(self, _selector):
             return page_state["body"]
 
+        def evaluate(self, _script):
+            return False
+
         def reload(self, **_kwargs):
             page_state["reloads"] += 1
             page_state["body"] = "Signed in dashboard"
@@ -154,7 +157,7 @@ def test_login_challenge_only_waits_when_same_live_browser_is_visible(config, he
     tool._ensure = lambda _ctx: types.SimpleNamespace(pages=[page])
 
     result = tool.run({"action": "goto", "url": page.url}, ctx)
-    assert page_state["reloads"] == (0 if headless else 1)
+    assert page_state["reloads"] == 0
     assert len(gate.waited) == (0 if headless else 1)
     if headless:
         assert not result.ok and "Enable Local browser handoff" in result.output
@@ -162,8 +165,85 @@ def test_login_challenge_only_waits_when_same_live_browser_is_visible(config, he
     else:
         assert result.ok
         args, kwargs = gate.waited[0]
-        assert "login/CAPTCHA wall" in args[0]
-        assert kwargs["handoff"].startswith("Complete this step in the visible Hutch browser window")
+        assert "Human verification is needed" in args[0]
+        assert "same window" in kwargs["handoff"]
+
+
+def test_sensitive_browser_entry_is_redacted_and_pauses_for_the_person(store, config, tmp_path):
+    from hutch.models import ApprovalMode
+    from hutch.runtime.steps import call_tool
+    from tests.test_tools import make_ctx
+
+    secret = "credential-value-never-save-this"
+    ctx = make_ctx(store, config, tmp_path, approval_mode=ApprovalMode.auto)
+    ctx.headless = False
+    ctx.bot.local_browser_handoff = True
+    waits = []
+    fills = []
+
+    class Locator:
+        def evaluate_all(self, _script):
+            return True
+
+    class Page:
+        url = "https://accounts.example.test/sign-in"
+
+        def locator(self, _selector):
+            return Locator()
+
+        def evaluate(self, _script):
+            return True
+
+        def fill(self, *args, **kwargs):
+            fills.append((args, kwargs))
+
+        def screenshot(self, **_kwargs):
+            raise AssertionError("sensitive page must not be screenshotted")
+
+    page = Page()
+    tool = BrowserTool()
+    tool._browser = types.SimpleNamespace(pages=[page])
+    ctx.gate.wait_for_human = lambda reason, url, **kwargs: waits.append((reason, url, kwargs))
+    ctx.gate.decide = lambda *_args, **_kwargs: None
+    tools = {"browser": tool}
+
+    result = call_tool(ctx.run, ctx, tools, "browser", {
+        "action": "type", "selector": "#account-password", "text": secret,
+    })
+
+    assert not result.ok
+    assert fills == []
+    assert len(waits) == 1
+    assert "password" in waits[0][0].lower()
+    assert secret not in repr(waits)
+    events = repr([event.data for event in ctx._emitted])
+    assert secret not in events
+    assert "[redacted]" in events
+    assert store.list_actions(ctx.run.id) == []
+    assert store.pending_approvals() == []
+
+    screenshot = call_tool(ctx.run, ctx, tools, "browser", {"action": "screenshot"})
+    assert not screenshot.ok
+    assert not list(ctx.workspace.glob("screenshot-*.png"))
+    assert secret not in repr([event.data for event in ctx._emitted])
+
+
+def test_browser_recorded_url_drops_userinfo_and_secret_query_values(store, config, tmp_path):
+    from tests.test_tools import make_ctx
+
+    ctx = make_ctx(store, config, tmp_path)
+    recorded = BrowserTool().recorded_arguments({
+        "action": "goto",
+        "url": "https://account-name:credential-value@accounts.example.test/continue?access_token=query-secret&campaign=spring#private-fragment",
+    }, ctx)
+    serialized = repr(recorded)
+    assert "account-name" not in serialized
+    assert "credential-value" not in serialized
+    assert "query-secret" not in serialized
+    assert "private-fragment" not in serialized
+    assert "accounts.example.test/continue" in serialized
+    assert "campaign" in serialized and "spring" in serialized
+    assert "%5Bredacted%5D" in serialized
 
 
 @pytest.mark.parametrize("navigate_during_review", [False, True])
@@ -177,7 +257,12 @@ def test_browser_typing_approval_binds_text_destination_and_profile(
     store.allow_sticky(ctx.bot.id, "browser:*")
     args = {"action": "type", "selector": "#recipient", "text": "reviewed recipient"}
     fills = []
-    page = types.SimpleNamespace(url="https://example.com/compose", fill=lambda *a, **kw: fills.append(a))
+    class Locator:
+        def evaluate_all(self, _script):
+            return False
+
+    page = types.SimpleNamespace(url="https://example.com/compose", fill=lambda *a, **kw: fills.append(a),
+                                 locator=lambda _selector: Locator())
     tool = BrowserTool()
     monkeypatch.setattr(tool, "_ensure", lambda _: types.SimpleNamespace(pages=[page]))
     wait = ctx.gate._wait
@@ -185,8 +270,13 @@ def test_browser_typing_approval_binds_text_destination_and_profile(
     def human(req, action, **wait_args):
         stored = store.get_approval(req.id)
         assert stored.outward and not stored.sticky_key
-        assert stored.detail == {"action": "type", "selector": "#recipient", "text": "reviewed recipient",
-                                 "url": "https://example.com/compose", "profile_bot_id": ctx.bot.id}
+        assert stored.detail["action"] == "type"
+        assert stored.detail["selector"] == "#recipient"
+        assert stored.detail["text"] == "[redacted]"
+        assert stored.detail["text_chars"] == len("reviewed recipient")
+        assert stored.detail["value_fingerprint"]
+        assert stored.detail["url"] == "https://example.com/compose"
+        assert stored.detail["profile_bot_id"] == ctx.bot.id
         args["text"] = "unreviewed recipient"
         if navigate_during_review:
             page.url = "https://elsewhere.example/compose"

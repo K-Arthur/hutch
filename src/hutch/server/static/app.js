@@ -3755,90 +3755,255 @@ async function renderConnections() {
   });
 }
 
-/* -------------------------------------------------------- new-bot modal */
+/* -------------------------------------------------------- guided bot setup */
+
+const SETUP_TOOL_EXPANSIONS = { files: ["read_file", "list_files", "write_file"], memory: ["remember", "recall"] };
+const BOT_SETUP_TOOLS = [
+  ["read_file", "Read workspace files", "Open text files in this bot’s workspace."],
+  ["list_files", "List workspace files", "See file names in this bot’s workspace."],
+  ["write_file", "Write workspace files", "Create or replace workspace files; policy still applies."],
+  ["shell", "Run shell commands", "Run commands within Hutch’s configured shell boundary."],
+  ["web_fetch", "Fetch public pages", "Read public pages through Hutch’s checked network path."],
+  ["browser", "Use an isolated browser", "Control this bot’s private browser profile."],
+  ["remember", "Propose reference facts", "Suggest facts for review before they can be recalled."],
+  ["recall", "Recall reviewed facts", "Search facts approved for this bot and conversation."],
+  ["delegate_task", "Delegate a bounded task", "Request a separately approved child task."],
+];
+
+function templateTools(template) {
+  const result = new Set();
+  for (const tool of template?.tools || []) {
+    for (const expanded of (SETUP_TOOL_EXPANSIONS[tool] || [tool])) result.add(expanded);
+  }
+  return result;
+}
 
 async function promptNewBot(preselect = "") {
-  const templates = await api("/bots/templates");
-  const html = `
-    <form id="modal-bot-form" class="form-grid">
-      <label class="field">Name
-        <input type="text" name="name" placeholder="my-agent" pattern="[a-z0-9][a-z0-9-]{1,40}" required
-          spellcheck="false" autocapitalize="none">
-        <span class="hint">lowercase slug: letters, digits, dashes</span>
-      </label>
-      <div id="idp-root" class="panel" style="margin:0;">${identityPickerHtml()}</div>
-      <label class="field">Start from a template
-        <select name="template">
-          <option value="">— blank —</option>
-          ${templates.map(t => `<option value="${esc(t.name)}">${esc(t.tagline || t.name)}</option>`).join("")}
-        </select>
-      </label>
-      <p class="hint" id="tpl-note">Blank bots start with no tools — you wire what they can do.</p>
-      <div class="form-grid row2">
-        <label class="field">Model
-          <input type="text" name="model" placeholder="provider/model" required>
-          <span class="hint">Use a configured route, such as openai/gpt-4o-mini or an installed ollama model. Model names are validated before a run.</span>
-        </label>
-        <label class="field">Schedule (cron, optional)
-          <input type="text" name="cron" placeholder="0 9 * * 1">
-        </label>
-      </div>
-      <label class="field">Scheduled task prompt (optional)
-        <textarea name="schedule_prompt" rows="3" maxlength="4000" aria-describedby="new-schedule-prompt-help"></textarea>
-        <span class="hint" id="new-schedule-prompt-help">Leave blank to run the bot’s standing instructions. A task prompt needs a cron schedule.</span>
-      </label>
-      <label class="field">What it does (description)
-        <input type="text" name="description" placeholder="Sort the downloads folder, on demand">
-      </label>
-    </form>`;
-
+  let templates;
+  try { templates = await api("/bots/templates"); }
+  catch (err) { toast(`Bot setup is unavailable: ${err.message}`, true); return; }
+  let browserHandoffCapability = { status: "unavailable", reason: "The host has not confirmed local browser support." };
+  try {
+    const capabilities = await api("/v1/capabilities");
+    browserHandoffCapability = capabilities.find(capability => capability.id === "browser_handoff") || browserHandoffCapability;
+  } catch { /* host-dependent options remain unavailable unless verified */ }
+  const browserHandoffReady = ["supported", "experimental"].includes(browserHandoffCapability.status);
+  const browserHandoffHelp = browserHandoffReady
+    ? "Experimental on this Linux desktop. A person enters passwords, passcodes and verification codes in the visible browser. Hutch never types them or accepts them in chat. This does not enable phone browser control."
+    : `Unavailable on this host: ${browserHandoffCapability.reason} This does not enable phone browser control.`;
+  const chosenTemplate = templates.find(item => item.name === preselect) || null;
+  const draft = {
+    step: 0, purpose: "", template: chosenTemplate?.name || "", name: "", description: "", model: "",
+    inference_mode: "hybrid", workspace_mode: "managed", tools: templateTools(chosenTemplate),
+    local_browser_handoff: false,
+    cron: "", schedule_prompt: "",
+    limits: { max_steps: 24, timeout_seconds: 900, daily_token_cap: 200000,
+      max_turn_tokens: 0, max_cost_usd: 0, daily_cost_cap_usd: 0 },
+  };
+  const stepTitles = ["What should it do?", "Choose a starting point", "Name your bot", "Set its model and workspace", "Choose tools and schedule", "Review setup"];
+  const selectedTemplate = () => templates.find(item => item.name === draft.template) || null;
+  const setError = message => {
+    const node = $("#bot-setup-error");
+    if (node) { node.textContent = message; node.hidden = !message; }
+  };
+  const snapshotFields = () => {
+    const purpose = $("#setup-purpose"); if (purpose) draft.purpose = purpose.value;
+    for (const key of ["name", "description", "model", "cron", "schedule_prompt"]) {
+      const field = $(`#setup-${key}`); if (field) draft[key] = field.value;
+    }
+    for (const key of ["inference_mode", "workspace_mode"]) {
+      const field = $(`#setup-${key}`); if (field) draft[key] = field.value;
+    }
+    const handoff = $("#setup-local-browser-handoff");
+    if (handoff) draft.local_browser_handoff = handoff.checked;
+    for (const key of Object.keys(draft.limits)) {
+      const field = $(`#setup-limit-${key}`);
+      if (field) draft.limits[key] = ["max_cost_usd", "daily_cost_cap_usd"].includes(key)
+        ? Number(field.value) : Number.parseInt(field.value, 10);
+    }
+    const tools = $("#setup-tools");
+    if (tools) draft.tools = new Set($$("input[name=setup-tool]:checked", tools).map(input => input.value));
+  };
+  const displayTool = tool => BOT_SETUP_TOOLS.find(([name]) => name === tool)?.[1] || tool;
+  const reviewHtml = () => {
+    const template = selectedTemplate();
+    return `<div class="setup-review">
+      <p class="setup-assistant">Here’s the setup you chose. Creating it saves the bot only; it will not start a run.</p>
+      <dl class="setup-review-list">
+        <div><dt>Name</dt><dd>${esc(draft.name)}</dd></div>
+        <div><dt>Purpose</dt><dd>${esc(draft.purpose)}</dd></div>
+        <div><dt>Starting point</dt><dd>${esc(template?.tagline || "Blank bot")}</dd></div>
+        <div><dt>Model route</dt><dd>${esc(draft.model)}</dd></div>
+        <div><dt>Inference</dt><dd>${esc(draft.inference_mode)}</dd></div>
+        <div><dt>Workspace</dt><dd>${esc(draft.workspace_mode)}</dd></div>
+        <div><dt>Approval</dt><dd>Ask before actions that require approval</dd></div>
+        <div><dt>Tools</dt><dd>${draft.tools.size ? [...draft.tools].map(displayTool).map(esc).join(", ") : "No tools enabled"}</dd></div>
+        <div><dt>Browser handoff</dt><dd>${draft.local_browser_handoff ? "On · human can take over in the visible Linux browser" : "Off"}</dd></div>
+        <div><dt>Execution limits</dt><dd>${draft.limits.max_steps} steps · ${draft.limits.timeout_seconds} seconds · ${draft.limits.daily_token_cap.toLocaleString()} estimated tokens per day</dd></div>
+        <div><dt>Model limits</dt><dd>${draft.limits.max_turn_tokens ? `${draft.limits.max_turn_tokens.toLocaleString()} tokens per turn` : "Provider default tokens per turn"} · ${draft.limits.max_cost_usd ? `$${draft.limits.max_cost_usd.toFixed(2)} estimated per run` : "No per-run estimate limit"} · ${draft.limits.daily_cost_cap_usd ? `$${draft.limits.daily_cost_cap_usd.toFixed(2)} estimated per day` : "No daily estimate limit"}</dd></div>
+        <div><dt>Recurring task</dt><dd>${draft.cron.trim() ? `${esc(draft.cron.trim())}${draft.schedule_prompt.trim() ? ` · ${esc(draft.schedule_prompt.trim())}` : ""}` : "None"}</dd></div>
+      </dl>
+      <p class="hint">Token and currency limits use estimates, not guaranteed provider billing caps. Only the purpose and selected configuration are saved. Passwords and one-time codes must be entered directly by you in the visible browser, never in chat.</p>
+    </div>`;
+  };
+  const renderStep = async () => {
+    const step = draft.step;
+    const back = step ? `<button type="button" class="btn ghost small setup-back" id="setup-back">${icon("arrow-left")} Back</button>` : "";
+    let content = "";
+    if (step === 0) content = `<div class="setup-conversation">
+      <p class="setup-assistant">I’ll turn your answers into a bot draft. This is a guided setup, not an AI-generated configuration.</p>
+      <label class="field" for="setup-purpose">What would you like this bot to handle?</label>
+      <textarea id="setup-purpose" rows="5" maxlength="4000" placeholder="For example: review release notes and prepare a short summary of changes that affect our project." required>${esc(draft.purpose)}</textarea>
+      <p class="hint">This becomes the bot’s standing instructions. You can edit it later.</p>
+    </div>`;
+    if (step === 1) content = `<div class="setup-conversation">
+      <p class="setup-assistant">Start blank, or choose a real starter configuration. You can change every permission before creating the bot.</p>
+      <fieldset class="setup-template-options"><legend class="sr-only">Starting point</legend>
+        <label class="setup-choice"><input type="radio" name="setup-template" value="" ${draft.template ? "" : "checked"}>
+          <span><b>Blank bot</b><small>No tools enabled by default.</small></span></label>
+        ${templates.map(template => `<label class="setup-choice"><input type="radio" name="setup-template" value="${esc(template.name)}" ${draft.template === template.name ? "checked" : ""}>
+          <span><b>${esc(template.tagline || template.name)}</b><small>${esc(template.description || template.safety || "Starter configuration")}</small></span></label>`).join("")}
+      </fieldset>
+    </div>`;
+    if (step === 2) content = `<div class="setup-conversation form-grid">
+      <p class="setup-assistant">Give the bot a short name for its address and a description for its roster card.</p>
+      <label class="field" for="setup-name">Bot name<input id="setup-name" maxlength="42" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="release-reviewer" value="${esc(draft.name)}" required>
+        <span class="hint">Use 2–41 lowercase letters, numbers, and dashes.</span></label>
+      <label class="field" for="setup-description">Short description<input id="setup-description" maxlength="240" placeholder="What people can ask this bot to do" value="${esc(draft.description)}"></label>
+    </div>`;
+    if (step === 3) {
+      let routeOptions = [];
+      try { routeOptions = await api(`/v1/model-routes?inference_mode=${encodeURIComponent(draft.inference_mode)}`); }
+      catch { /* the route can still be entered directly; creation validates it */ }
+      if (draft.step !== 3) return;
+      const readyRoutes = routeOptions.filter(route => route.state === "ready" && !route.spec.startsWith("mock/"));
+      const options = readyRoutes.map(route => `<option value="${esc(route.spec)}" label="${esc(`${route.group}: ${route.note || route.label}`)}"></option>`).join("");
+      content = `<div class="setup-conversation form-grid">
+        <p class="setup-assistant">Choose a model route already configured in Hutch. Hosted routes send the conversation to that provider; local routes keep inference on this machine.</p>
+        <label class="field" for="setup-model">Model route<input id="setup-model" list="setup-model-routes" maxlength="240" autocomplete="off" placeholder="Choose or enter provider/model" value="${esc(draft.model)}" required>
+          <datalist id="setup-model-routes">${options}</datalist>
+          <span class="hint">${readyRoutes.length ? `${readyRoutes.length} currently available route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} <a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.</span></label>
+        <label class="field" for="setup-inference_mode">Inference mode<select id="setup-inference_mode">
+          <option value="hybrid" ${draft.inference_mode === "hybrid" ? "selected" : ""}>Hybrid — allow local and configured hosted routes</option>
+          <option value="local" ${draft.inference_mode === "local" ? "selected" : ""}>Local — use local inference routes</option>
+          <option value="offline" ${draft.inference_mode === "offline" ? "selected" : ""}>Strict offline — block network egress</option>
+        </select><span class="hint">Strict offline requires a verified local route.</span></label>
+        <label class="field" for="setup-workspace_mode">Workspace<select id="setup-workspace_mode">
+          <option value="fresh" ${draft.workspace_mode === "fresh" ? "selected" : ""}>Fresh — a clean workspace for each run</option>
+          <option value="managed" ${draft.workspace_mode === "managed" ? "selected" : ""}>Managed — keep this bot’s workspace between runs</option>
+        </select></label>
+      </div>`;
+    }
+    if (step === 4) content = `<div class="setup-conversation form-grid">
+      <p class="setup-assistant">Choose only the abilities this bot needs. Actions that require approval stay under Hutch’s ask-first policy.</p>
+      <fieldset class="setup-tool-options" id="setup-tools"><legend>Tools and permissions</legend>
+        ${BOT_SETUP_TOOLS.map(([tool, label, help]) => `<label class="tool-option"><input type="checkbox" name="setup-tool" value="${esc(tool)}" ${draft.tools.has(tool) ? "checked" : ""}>
+          <span class="tool-option-copy"><b>${esc(label)}</b><small>${esc(help)}</small></span></label>`).join("")}
+      </fieldset>
+      <details class="setup-schedule">
+        <summary>Add a recurring task (optional)</summary>
+        <div class="form-grid">
+          <label class="field" for="setup-cron">Cron schedule<input id="setup-cron" maxlength="100" placeholder="0 9 * * 1" value="${esc(draft.cron)}"></label>
+          <label class="field" for="setup-schedule_prompt">Scheduled task prompt<textarea id="setup-schedule_prompt" maxlength="4000" rows="3" placeholder="Leave blank to use the standing instructions">${esc(draft.schedule_prompt)}</textarea>
+            <span class="hint">A scheduled task prompt needs a cron schedule.</span></label>
+        </div>
+      </details>
+      <details class="setup-schedule">
+        <summary>Adjust execution and usage limits</summary>
+        <div class="form-grid">
+          <div class="form-grid row2">
+            <label class="field" for="setup-limit-max_steps">Maximum steps<input type="number" id="setup-limit-max_steps" min="1" step="1" value="${draft.limits.max_steps}" required></label>
+            <label class="field" for="setup-limit-timeout_seconds">Time limit (seconds)<input type="number" id="setup-limit-timeout_seconds" min="1" step="1" value="${draft.limits.timeout_seconds}" required></label>
+            <label class="field" for="setup-limit-daily_token_cap">Daily estimated tokens<input type="number" id="setup-limit-daily_token_cap" min="0" step="1" value="${draft.limits.daily_token_cap}" required></label>
+            <label class="field" for="setup-limit-max_turn_tokens">Tokens per turn<input type="number" id="setup-limit-max_turn_tokens" min="0" step="1" value="${draft.limits.max_turn_tokens}" required></label>
+            <label class="field" for="setup-limit-max_cost_usd">Estimated cost per run (USD)<input type="number" id="setup-limit-max_cost_usd" min="0" step="0.01" value="${draft.limits.max_cost_usd}" required></label>
+            <label class="field" for="setup-limit-daily_cost_cap_usd">Estimated daily cost (USD)<input type="number" id="setup-limit-daily_cost_cap_usd" min="0" step="0.01" value="${draft.limits.daily_cost_cap_usd}" required></label>
+          </div>
+          <p class="hint">Token and currency limits use estimates. Provider billing can differ; use provider-side controls for a guaranteed spending limit. 0 means no estimate limit.</p>
+        </div>
+      </details>
+      <details class="setup-schedule">
+        <summary>Human browser handoff (optional)</summary>
+        <div class="form-grid">
+          <label class="tool-option" for="setup-local-browser-handoff">
+            <input type="checkbox" id="setup-local-browser-handoff" ${draft.local_browser_handoff ? "checked" : ""} ${browserHandoffReady ? "" : "disabled"}>
+            <span class="tool-option-copy"><b>Let me take over this bot’s browser</b><small>Pause for login, CAPTCHA, 2FA and sensitive form fields. Hutch will not solve challenges or type passwords.</small></span>
+          </label>
+          <p class="hint">${esc(browserHandoffHelp)}</p>
+        </div>
+      </details>
+    </div>`;
+    if (step === 5) content = reviewHtml();
+    const root = $("#modal-root");
+    const body = $(".modal-body", root), title = $("#modal-title"), confirm = $("#modal-confirm");
+    if (!body || !title || !confirm) return;
+    title.textContent = stepTitles[step];
+    body.innerHTML = `<div class="bot-setup" aria-live="polite"><div class="setup-progress">Step ${step + 1} of ${stepTitles.length}</div>${back}${content}<p class="setup-error" id="bot-setup-error" role="alert" hidden></p></div>`;
+    body.scrollTop = 0;
+    confirm.textContent = step === 5 ? "Create bot" : "Continue";
+    confirm.disabled = false;
+    $("#setup-back")?.addEventListener("click", () => { snapshotFields(); draft.step = Math.max(0, draft.step - 1); void renderStep(); });
+    $$('input[name="setup-template"]').forEach(input => input.addEventListener("change", () => {
+      draft.template = input.value;
+      draft.tools = templateTools(selectedTemplate());
+    }));
+    $$('input[name="setup-tool"]').forEach(input => input.addEventListener("change", () => {
+      if (input.checked) draft.tools.add(input.value); else draft.tools.delete(input.value);
+    }));
+    $("#setup-inference_mode")?.addEventListener("change", async () => {
+      snapshotFields(); draft.inference_mode = $("#setup-inference_mode").value; await renderStep();
+    });
+    (step === 0 ? $("#setup-purpose") : $("input, textarea, select", body))?.focus();
+  };
+  const creationKey = async body => {
+    const fingerprint = await payloadFingerprint(body), keyName = "hutch-pending-bot-create";
+    try {
+      const previous = JSON.parse(localStorage.getItem(keyName) || "null");
+      if (previous?.fingerprint === fingerprint && previous?.key) return previous.key;
+    } catch { /* replace a damaged retry marker */ }
+    const key = newIdempotencyKey();
+    storageSet(keyName, JSON.stringify({ key, fingerprint }));
+    return key;
+  };
   openModal({
-    title: "Create a bot",
-    bodyHtml: html,
-    confirmText: "Create bot",
+    title: stepTitles[0], bodyHtml: `<div class="bot-setup"></div>`, confirmText: "Continue", wide: true, tall: true,
+    returnFocus: document.activeElement,
     onConfirm: async () => {
-      const fd = new FormData($("#modal-bot-form"));
-      const name = fd.get("name").trim();
-      if (!name) return false;
-      const cron = fd.get("cron").trim();
-      const schedulePrompt = fd.get("schedule_prompt").trim();
-      if (schedulePrompt && !cron) {
-        toast("Add a cron schedule before setting its task prompt.", true);
-        return false;
+      snapshotFields();
+      setError("");
+      if (draft.step === 0 && !draft.purpose.trim()) { setError("Describe what this bot should handle."); $("#setup-purpose")?.focus(); return false; }
+      if (draft.step === 2) {
+        if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(draft.name.trim())) { setError("Use 2–41 lowercase letters, numbers, and dashes for the bot name."); $("#setup-name")?.focus(); return false; }
       }
+      if (draft.step === 3 && !draft.model.trim()) { setError("Choose or enter a configured model route."); $("#setup-model")?.focus(); return false; }
+      if (draft.step === 4 && draft.schedule_prompt.trim() && !draft.cron.trim()) { setError("Add a cron schedule before setting its task prompt."); $("#setup-cron")?.focus(); return false; }
+      if (draft.step === 4) {
+        const invalidLimit = $$(".bot-setup input[type=number]").find(field => !field.checkValidity());
+        if (invalidLimit) { setError("Check the execution and usage limit values."); invalidLimit.focus(); return false; }
+      }
+      if (draft.step < 5) { draft.step += 1; await renderStep(); return false; }
+      const body = {
+        name: draft.name.trim(), template: draft.template || null,
+        description: draft.description.trim() || draft.purpose.trim().split("\n")[0].slice(0, 240),
+        instructions: draft.purpose.trim(), model: draft.model.trim(), inference_mode: draft.inference_mode,
+        workspace_mode: draft.workspace_mode, tools: [...draft.tools], approval_mode: "ask", risk_tier: "supervised",
+        limits: draft.limits,
+        memory_enabled: draft.tools.has("remember") || draft.tools.has("recall"),
+        local_browser_handoff: draft.local_browser_handoff,
+        cron: draft.cron.trim() || null, schedule_prompt: draft.schedule_prompt.trim(),
+      };
+      const button = $("#modal-confirm"); if (button) button.disabled = true;
       try {
-        await api("/bots", {
-          method: "POST",
-          body: {
-            name,
-            template: fd.get("template") || null,
-            model: fd.get("model").trim(),
-            cron: cron || null,
-            schedule_prompt: schedulePrompt,
-            description: fd.get("description").trim(),
-          },
-        });
-        sigilSet(name, picker.get());
-        toast(`Bot "${name}" created.`);
-        location.hash = `#/chat/${encodeURIComponent(name)}`;
+        const key = await creationKey(body);
+        const bot = await api("/v1/bots", { method: "POST", headers: { "Idempotency-Key": key }, body });
+        storageRemove("hutch-pending-bot-create");
+        toast(`Bot “${bot.name}” created. It has not started a run.`);
+        location.hash = `#/chat/${encodeURIComponent(bot.name)}`;
         return true;
-      } catch (err) {
-        toast(err.message, true);
-        return false;
-      }
+      } catch (err) { setError(err.message); if (button) button.disabled = false; return false; }
     },
   });
-  // live template note so choosing isn't a guess
-  const picker = mountIdentityPicker($("#idp-root"), "draft");
-  const sel = $('select[name="template"]'), note = $("#tpl-note");
-  const describe = () => {
-    const t = templates.find(x => x.name === sel.value);
-    note.textContent = !t ? "Blank bots start with no tools — you wire what they can do."
-      : `${t.tagline || ""} ${t.reads ? `Reads: ${t.reads}. ` : ""}${t.produces ? `Produces: ${t.produces}. ` : ""}${t.needs_folder ? "Needs a working folder." : ""}`;
-  };
-  sel.addEventListener("change", describe);
-  if (preselect && templates.some(x => x.name === preselect)) sel.value = preselect;
-  describe();
+  await renderStep();
 }
 
 /* ----------------------------------------------------------- shared wire */

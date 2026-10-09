@@ -74,8 +74,14 @@ rate and network controls. Hutch does not start or configure a tunnel, and this 
 production remote-support certification.
 
 Local same-session browser handoff is experimental and opt-in per bot; it needs a Linux display and the optional Playwright browser.
-It keeps Hutch's owned browser visible on the host while a person completes a login challenge; it does not provide phone control or
-physical desktop input. Authenticated PTY/physical desktop control and remote browser handoff are not implemented.
+Enable **Let me take over this bot’s browser** in the bot setup or settings. When Hutch pauses, read the shown origin and reason,
+complete the password, passkey, one-time code, CAPTCHA, or other requested step directly in the visible browser window, then choose
+Resume beside the current wait event in that conversation. Hutch resumes the same page in the same bot profile without reloading it,
+and checks that the challenge is gone. If the checkpoint remains, Hutch stays paused. Do not paste passwords or verification codes into
+chat; Hutch never types them or solves/bypasses CAPTCHA. Ordinary form entries still require action review, and page screenshots are
+blocked while a conventional sensitive field is visible. Custom widgets may not be detected. This flow is local Linux desktop only;
+phone handoff, remote browser control, authenticated PTY and physical desktop input are not implemented. A headed live third-party
+challenge has not been tested.
 
 ## Database migration and restore
 

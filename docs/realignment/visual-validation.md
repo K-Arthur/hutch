@@ -400,3 +400,31 @@ inspected at 1440×1000 and 390×844. Both report zero horizontal overflow and n
 phone attention bar does not cover the Fleet controls. The screenshots and source-hash metadata are
 in [`artifacts/fleet-attention/`](artifacts/fleet-attention/). These use synthetic waits and approvals,
 not a live provider, executor or device.
+
+## Guided bot setup and human handoff (2026-10-09)
+
+Chromium **153.0.8010.12** / Playwright **1.63.0** ran
+`.venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone`.
+The fixture passed **1 test in 5.19s** against a configured-shape provider route and a test-only dummy key; it made no model call and
+verified idempotent bot creation does not start a run. Sensitive-input and same-session challenge unit regressions passed **3 tests
+in 0.55s**. The browser journey captured purpose, tool/limit/handoff configuration and the full review at desktop (1440×960), tablet
+(900×1024) and phone (390×844), including a phone-focused handoff disclosure and a second view scrolled to the final review row.
+
+I inspected the purpose/configuration/review captures, the phone handoff panel, and the bottom of the review list at all three sizes.
+The layouts fit their viewports; the fixed Create control remains visible while the complete review stays scrollable above it, and the
+phone handoff disclosure remains readable. Playwright reported no page errors or horizontal overflow. Source hashes, trace and captures
+are in [`artifacts/bot-setup/`](artifacts/bot-setup/). These are local fixture screenshots, not a live sign-in, real CAPTCHA, physical
+phone, or screen-reader test. Field detection remains heuristic.
+
+## Marketing copy for local human browser handoff (2026-10-09)
+
+The anonymous marketing-site suite passed **24 tests in 29.03s** with warnings treated as errors.
+It verified the public capability language, local assets, anonymous page loading and zero external
+requests. The inspected feature-section captures were regenerated from `website/index.html`
+(SHA-256 `011d718edfd980d0c7250ba07fe91c5f5987f54c034963ad5e4cb1b06248531d`) at desktop
+(1440×900), tablet (900×1024) and phone (390×844); see [`artifacts/provider-signin/`](artifacts/provider-signin/). The new
+copy identifies same-session password/code/CAPTCHA entry as experimental on Linux and says phone
+handoff is unavailable. I inspected each capture: cards remain inset and readable, the long state
+card does not cover neighboring content, the phone model-route chips wrap without horizontal page
+scroll, and the handoff wording stays within its card. These are local screenshots only; no live
+challenge or provider session was used.

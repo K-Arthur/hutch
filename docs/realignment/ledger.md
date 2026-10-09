@@ -1861,3 +1861,30 @@ reviewed on 2026-10-09, but Grok Bot was not run or connected. Hutch's guided cr
 fixture-captured; live-conversation context reuse, named coordinator, cross-Bot routing and durable result delivery
 remain unimplemented. Acceptance: UI-15 and CO-12/13 in `docs/requirements.md`, the planned coordinator contract in
 `docs/realignment/contracts.md`, and T-COORDINATOR-BRIEF/T-CROSS-BOT-DELIVERY in `docs/realignment/tests.md`.
+
+## Browser credential entry, human checkpoints and owner additions (2026-10-09)
+
+The browser tool now blocks `type` before browser input when conventional password, passcode/OTP, payment-secret,
+or token field metadata matches. Safe-to-record arguments replace typed values with a redacted marker and opaque
+reference. The approval detail contains a process-keyed value fingerprint and character count rather than text;
+navigation records remove URL userinfo, secret-like query values, and fragments. Screenshots fail closed while a
+conventional sensitive field is visible. A bot with the opt-in Linux local browser handoff pauses the same owned
+profile for a person to enter sensitive data or complete a detected CAPTCHA/MFA/login step, then resumes without
+reloading the live page. Detection remains heuristic, and no live account challenge or physical-phone handoff was
+tested.
+
+Focused browser profile, proxy and NetGuard regressions passed **115 tests in 6.08s** with background-thread and
+syntax warnings treated as errors. The guided creation fixture passed **1 Chromium journey in 5.19s** at desktop
+(1440×960), tablet (900×1024) and phone (390×844); its 13 setup/review captures and source hashes are in
+`artifacts/bot-setup/`. The anonymous website suite passed **24 tests in 29.03s**. I inspected the current marketing
+feature section at desktop, tablet and phone sizes; the new handoff claim is labeled experimental/desktop-only and
+does not produce horizontal overflow. Captures and hashes are in `artifacts/provider-signin/`; the inspected
+`website/index.html` SHA-256 is `011d718edfd980d0c7250ba07fe91c5f5987f54c034963ad5e4cb1b06248531d`.
+
+Three further owner requirements were recorded but are not implemented: editable workspace/per-Bot model defaults
+with explicit per-run overrides and visible actual routes (CO-14), durable cross-Bot safe-progress checkpoints
+(CO-15), and separately controlled Bot memory with explicit provenance-carrying sharing (CO-16). Existing
+ordinary Bot model settings, run events/action receipts and Bot-scoped reviewed facts are foundations only. The
+user also requested message-anchored replies; inspection of `app.js` found no current message-level reply action,
+so UI-19 and T-MESSAGE-REPLY specify a same-conversation, editable composer reference. These requirements are
+pending implementation and are not claimed by the marketing site.

@@ -493,6 +493,81 @@ def test_bot_create_requires_a_real_route_outside_the_test_harness(client, monke
     assert client.get("/api/bots").json() == []
 
 
+def test_v1_bot_creation_is_atomic_idempotent_and_does_not_start_a_run(client):
+    body = {
+        "name": "guided-researcher",
+        "model": "mock/demo",
+        "tools": ["files"],
+        "description": "Research briefs",
+        "instructions": "Prepare a concise research brief.",
+        "workspace_mode": "managed",
+        "approval_mode": "ask",
+        "inference_mode": "hybrid",
+    }
+    url = "/api/v1/bots"
+    assert client.post(url, json=body).status_code == 428
+    headers = {"Idempotency-Key": "create-guided-researcher"}
+
+    created = client.post(url, json=body, headers=headers)
+    assert created.status_code == 201, created.text
+    bot = created.json()
+    assert bot["name"] == "guided-researcher"
+    assert bot["description"] == "Research briefs"
+    assert bot["workspace_mode"] == "managed"
+    assert set(bot["tools"]) == {"list_files", "read_file", "write_file"}
+    assert client.get("/api/v1/tasks/runs?limit=10").json() == []
+
+    replay = client.post(url, json=body, headers=headers)
+    assert replay.status_code == 200 and replay.json()["id"] == bot["id"]
+    assert len(client.get("/api/v1/bots").json()) == 1
+
+    changed = client.post(url, json={**body, "instructions": "Different draft."}, headers=headers)
+    assert changed.status_code == 409 and "Idempotency-Key" in changed.text
+    duplicate_name = client.post(url, json=body, headers={"Idempotency-Key": "create-again"})
+    assert duplicate_name.status_code == 409
+
+
+def test_v1_bot_creation_is_atomic_across_store_connections(client):
+    config = client.app.state.config
+    first_store = client.app.state.store
+    second_store = Store(config)
+    barrier = Barrier(2)
+    key = "concurrent-bot-create"
+    digest = "canonical-bot-request"
+
+    def create(store):
+        bot = Bot(name="same-concurrent-bot", model="ollama/fake:1b", tools=[])
+        barrier.wait()
+        return store.create_bot_idempotent(bot, idem_key=key, request_hash=digest)
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(create, (first_store, second_store)))
+        assert len({bot.id for bot, _created in results}) == 1
+        assert sorted(created for _bot, created in results) == [False, True]
+        assert len(first_store.list_bots()) == 1
+        replay, created = first_store.create_bot_idempotent(
+            Bot(name="same-concurrent-bot", model="ollama/fake:1b", tools=[]),
+            idem_key=key, request_hash=digest)
+        assert replay.id == results[0][0].id and not created
+        with pytest.raises(ValueError, match="different request"):
+            first_store.create_bot_idempotent(Bot(name="same-concurrent-bot"), idem_key=key,
+                                              request_hash="changed")
+    finally:
+        second_store.close()
+
+
+def test_v1_model_route_picker_returns_advisory_choices_without_creating_state(client):
+    routes = client.get("/api/v1/model-routes?inference_mode=hybrid")
+    assert routes.status_code == 200, routes.text
+    assert isinstance(routes.json(), list)
+    assert all({"spec", "state", "label", "group"} <= set(route) for route in routes.json())
+    assert not any(route["spec"].startswith("mock/") and route["state"] == "ready"
+                   for route in routes.json())
+    assert client.get("/api/v1/bots").json() == []
+    assert client.get("/api/v1/tasks/runs?limit=10").json() == []
+
+
 def test_bot_limits_are_editable_and_validated(client):
     make_bot(client)
     saved = client.patch("/api/bots/api-bot", json={"limits": {
