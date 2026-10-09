@@ -65,6 +65,11 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   still pending; unknown remains unverified and is called out in the route description.
 * Conversation create, message submit, and archive require `Idempotency-Key`. Exact retries return the same resource/run; reusing the
   key with different request content returns 409. An absent key returns 428.
+* `POST /api/v1/tasks/runs` takes `{bot, prompt, rehearse?, model?}` and requires `Idempotency-Key`. The run, task and replay
+  response are stored in one SQLite transaction. A new request returns 201; an exact retry returns the same run with `replayed: true`
+  and 200, even if a restore hold or provider-route change happened after admission. A changed body or a key reused by another command
+  returns 409. New submissions still respect the restore hold and model-route checks. The legacy `/api/bots/{ref}/run` alias remains
+  available without versioned idempotency for compatibility.
 * Conversation artifact pages use `limit` 1–100 and an opaque `cursor`, include only verified or explicitly unverified
   artifacts from runs attached to that conversation and bot, newest first, and return `next_cursor` when another page exists.
   The keyset is ordered by event ID descending, then artifact kind ascending, so a page boundary remains stable if newer artifacts
@@ -89,7 +94,7 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   `Last-Event-ID`. Each page is bounded to 500 events. If a cursor is ahead of the restored database or falls behind retained
   history, page reads return 409 `snapshot_required`; the stream emits the same event without advancing its SSE ID. Fetch the
   bounded snapshot, continue every non-null `next` URL, then replay after `replay_after` to include changes made during paging.
-* Versioned stop and approval resolve commands require `Idempotency-Key`. Approvals also require the reviewed `action_hash`; reuse
+* Versioned stop, run-create and approval-resolve commands require `Idempotency-Key`. Approvals also require the reviewed `action_hash`; reuse
   with different arguments conflicts. Resume and legacy bot-run commands do not yet accept keys. Global replay currently retains
   all events; automatic retention/pruning policy remains unimplemented. A missing leading range or a restored database behind a
   client cursor is detected and requires snapshot reconciliation. This stream contains run transcript events.

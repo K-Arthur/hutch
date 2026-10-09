@@ -907,6 +907,51 @@ class Store:
         self.bus.notify("work", "runs", f"run:{run.id}")
         return run
 
+    def replay_submitted_run(self, idem_key: str, request_hash: str) -> Optional[Run]:
+        """Return a previously admitted v1 run, or None when the key is unused.
+
+        Call before mutable routing/admission checks so a retry still returns its
+        original result after a restore hold or provider configuration change.
+        The write path rechecks under BEGIN IMMEDIATE to close the concurrent
+        first-request race.
+        """
+        with self._lock:
+            replay = self._idempotency_replay(self._db, "api:v1:tasks:runs", idem_key, request_hash)
+            if replay is None:
+                return None
+            row = self._db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?",
+                                   (replay["run_id"],)).fetchone()
+            if row is None:
+                raise RuntimeError("idempotent run response points to missing state")
+            return self._run(row)
+
+    def submit_run_idempotent(self, run: Run, task: Task, *, idem_key: str,
+                              request_hash: str) -> tuple[Run, bool]:
+        """Atomically persist a standalone run, its task, and its v1 retry record."""
+        scope = "api:v1:tasks:runs"
+        run.task_id = task.id
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?",
+                                 (replay["run_id"],)).fetchone()
+                if row is None:
+                    raise RuntimeError("idempotent run response points to missing state")
+                return self._run(row), False
+            self._assert_execution_ready(db)
+            db.execute("INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done, state, run_id) "
+                       "VALUES (?, ?, ?, ?, ?, 0, 'queued', ?)",
+                       (task.id, task.bot_id, task.kind, task.prompt, task.created_at, run.id))
+            db.execute("INSERT INTO runs (id, bot_id, task_id, doc, status, created_at, conversation_id, conversation_context) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                       (run.id, run.bot_id, task.id, self._run_json(run), run.status.value, run.created_at,
+                        run.conversation_id, json.dumps(run.conversation_context, ensure_ascii=False)))
+            db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash, _canonical({"run_id": run.id}), iso(utcnow())))
+        self.bus.notify("work", "runs", f"run:{run.id}")
+        return run, True
+
     @staticmethod
     def _idempotency_replay(db: sqlite3.Connection, scope: str, key: str, request_hash: str) -> Optional[dict[str, Any]]:
         row = db.execute("SELECT request_hash, response_json FROM idempotency_keys WHERE scope = ? AND key = ?",

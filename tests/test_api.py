@@ -3,12 +3,15 @@ from __future__ import annotations
 import hashlib
 import sqlite3
 import time
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 
 import pytest
 from fastapi.testclient import TestClient
 
-from hutch.models import Bot, Event, EventType, Run, RunStatus
+from hutch.models import Bot, Event, EventType, Run, RunStatus, Task
 from hutch.server.app import create_app
+from hutch.store import Store
 
 
 @pytest.fixture()
@@ -510,6 +513,81 @@ def test_full_mock_run_via_api(client):
 
     after = client.get(f"/api/runs/{run_id}/events?after={run['events'][0]['id']}").json()
     assert len(after["events"]) == len(run["events"]) - 1
+
+
+def test_v1_manual_run_is_idempotent_and_legacy_alias_remains(client):
+    bot = make_bot(client, name="retryable-run", paused=True)
+    url = "/api/v1/tasks/runs"
+    body = {"bot": bot["id"], "prompt": "prepare a short report", "rehearse": True}
+
+    assert client.post(url, json=body).status_code == 428
+
+    headers = {"Idempotency-Key": "manual-run-create-once"}
+    created = client.post(url, json=body, headers=headers)
+    assert created.status_code == 201, created.text
+    run_id = created.json()["id"]
+    assert created.json()["replayed"] is False
+
+    replay = client.post(url, json=body, headers=headers)
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["id"] == run_id and replay.json()["replayed"] is True
+
+    changed = client.post(url, json={**body, "prompt": "different request"}, headers=headers)
+    assert changed.status_code == 409
+    changed_bot = client.post(url, json={**body, "bot": "missing-bot"}, headers=headers)
+    assert changed_bot.status_code == 409
+    cross_command = client.post("/api/v1/conversations", json={"bot": bot["id"], "title": "Other command"},
+                                headers=headers)
+    assert cross_command.status_code == 409
+
+    store = client.app.state.store
+    assert store._db.execute("SELECT COUNT(*) FROM runs WHERE bot_id = ?", (bot["id"],)).fetchone()[0] == 1
+    assert store._db.execute("SELECT COUNT(*) FROM tasks WHERE bot_id = ?", (bot["id"],)).fetchone()[0] == 1
+
+    legacy = client.post("/api/bots/retryable-run/run", json={"prompt": "legacy request"})
+    assert legacy.status_code == 201, legacy.text
+    assert legacy.json()["id"] != run_id
+    assert store._db.execute("SELECT COUNT(*) FROM runs WHERE bot_id = ?", (bot["id"],)).fetchone()[0] == 2
+
+    # A lost-response retry can still retrieve its committed result during restore
+    # review; a genuinely new command remains held and creates no work.
+    with store._tx() as db:
+        db.execute("INSERT INTO state_restores(id, created_at, source_schema, manifest_hash, verified_code_hash, report_json) "
+                   "VALUES (?, ?, ?, ?, ?, ?)",
+                   ("restore_retry_test", "2026-10-09T00:00:00Z", store.schema_version, "fixture", "fixture", "{}"))
+    replay_while_held = client.post(url, json=body, headers=headers)
+    assert replay_while_held.status_code == 200 and replay_while_held.json()["id"] == run_id
+    assert replay_while_held.json()["replayed"] is True
+    held = client.post(url, json=body, headers={"Idempotency-Key": "manual-run-new-during-hold"})
+    assert held.status_code == 409 and held.json()["code"] == "restore_review_required"
+    assert store._db.execute("SELECT COUNT(*) FROM runs WHERE bot_id = ?", (bot["id"],)).fetchone()[0] == 2
+    assert store._db.execute("SELECT COUNT(*) FROM tasks WHERE bot_id = ?", (bot["id"],)).fetchone()[0] == 2
+
+
+def test_v1_run_idempotency_is_atomic_across_store_connections(client):
+    bot = make_bot(client, name="concurrent-run", paused=True)
+    config = client.app.state.config
+    first_store = client.app.state.store
+    second_store = Store(config)
+    barrier = Barrier(2)
+    key = "same-run-from-two-connections"
+    digest = "request-hash-for-concurrent-run"
+
+    def submit(store):
+        run = Run(bot_id=bot["id"], prompt="the same run", origin="manual:api:v1", rehearsal=True)
+        task = Task(bot_id=bot["id"], kind="on_demand", prompt="the same run")
+        barrier.wait()
+        return store.submit_run_idempotent(run, task, idem_key=key, request_hash=digest)
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(submit, (first_store, second_store)))
+        assert len({run.id for run, _created in results}) == 1
+        assert sorted(created for _run, created in results) == [False, True]
+        assert first_store._db.execute("SELECT COUNT(*) FROM runs WHERE bot_id = ?", (bot["id"],)).fetchone()[0] == 1
+        assert first_store._db.execute("SELECT COUNT(*) FROM tasks WHERE bot_id = ?", (bot["id"],)).fetchone()[0] == 1
+    finally:
+        second_store.close()
 
 
 def test_approval_flow_via_api(client):

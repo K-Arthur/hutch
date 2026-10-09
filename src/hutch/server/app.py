@@ -159,6 +159,13 @@ class RunRequest(BaseModel):
     model: Optional[str] = None          # run this message on another model (the chat switcher); bot is unchanged
 
 
+class VersionedRunCreateRequest(BaseModel):
+    bot: str = Field(min_length=1, max_length=100)
+    prompt: str = Field(min_length=1, max_length=20_000)
+    rehearse: bool = False
+    model: Optional[str] = Field(default=None, max_length=200)
+
+
 class ConversationCreate(BaseModel):
     bot: str
     title: str = Field(default="", max_length=120)
@@ -1351,6 +1358,37 @@ def create_app() -> FastAPI:
         return {"default": bot.model, "models": choices_json(model_choices(config, store, bot))}
 
     # --------------------------------------------------------------- runs
+
+    @app.post("/api/v1/tasks/runs", response_model=dict)
+    def create_run_v1(body: VersionedRunCreateRequest, request: Request, response: Response) -> dict:
+        key = idempotency_key(request)
+        digest = request_digest(body.model_dump())
+        try:
+            replay = store.replay_submitted_run(key, digest)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        if replay is not None:
+            response.status_code = 200
+            return {**run_view(replay), "replayed": True}
+
+        # A restore hold is reported before route validation for new commands.
+        # Exact retries above return the already admitted run without authorizing
+        # another dispatch or hiding its result behind mutable host configuration.
+        bot = bot_or_404(body.bot)
+        store.assert_execution_ready()
+        from ..modelchoices import ModelNotUsable, validate_override
+        try:
+            model = validate_override(config, store, bot, body.model or "")
+        except ModelNotUsable as exc:
+            raise HTTPException(exc.status, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
+        try:
+            run, created = engine.submit_idempotent(
+                bot, body.prompt, idem_key=key, request_hash=digest, rehearsal=body.rehearse,
+                model="" if model == bot.model else model)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        response.status_code = 201 if created else 200
+        return {**run_view(run), "replayed": not created}
 
     @app.get("/api/runs")
     @app.get("/api/v1/tasks/runs")

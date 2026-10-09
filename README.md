@@ -79,7 +79,8 @@ approval expiry without the dashboard.
 - **Reconnectable state** — ordered resource invalidations and snapshot reconciliation; chat approvals refresh without replacing the draft
 - **Conversations (preview)** — the Studio stores separate threads across restarts, offers thread switching and archive, and sends a
   bounded recent history to the builtin runtime. The versioned API has SQLite full-text search, restart-safe command idempotency,
-  cross-run transcript replay and bounded snapshot reconciliation after a cursor gap.
+  cross-run transcript replay and bounded snapshot reconciliation after a cursor gap. Standalone
+  `/api/v1/tasks/runs` submissions also use restart-safe idempotency; the legacy bot-run route stays available for compatibility.
 - **Remote pairing (experimental)** — a one-time code opens the responsive dashboard on a paired browser, and Connections can list and
   revoke device sessions. Direct access requires explicit HTTPS binding; live network and physical-device checks are still open. Remote
   browser/PTY handoff and a trusted tunnel are unavailable, and loopback remains the supported service boundary. See [remote operations](docs/operations.md#remote-pairing-experimental).
