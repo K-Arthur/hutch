@@ -74,6 +74,7 @@ fast-forwarded only after implementation and verification for this checkpoint pa
 | `0b98ebb` | Defer Studio chat-feed replacement while review dialogs are open; preserve focus across a background refresh, with refreshed file-download and fact-review captures |
 | `a292608` | Correct the Stop all browser test to match the standalone login page |
 | `1367516` | Schema v16 replaces per-event transcript mirror triggers with transactionally batched intent writes; adds legacy-trigger migration/backup tests, matched performance diagnosis, refreshed captures, and corrected ADR/operations/safety guidance |
+| `e711e7d` | Add explicitly trusted HTTPS reverse-proxy forwarding, host/Origin validation, source-IP propagation, capability reporting, docs and local security regressions; no real network path claimed |
 | `6ee3e29` | Opt-in per-bot local Linux browser handoff, cross-process profile/desktop leases, fail-closed headless behavior, host-aware settings, setup cleanup regression, updated support claims and inspected viewport evidence |
 | `6e91e95` | Add a bounded task prompt for each bot's existing recurring schedule across settings, creation, CLI and API; preserve legacy fallback and capture responsive browser evidence |
 | `2964567` | Align ChatGPT sign-in and Responses tool framing with the current preview, retain verified reauthorization hints, use conversation-stable OpenCode session headers, and record fixture/browser evidence |
