@@ -1582,7 +1582,7 @@ async function renderChatStudio(preferredBot = null) {
     if (message) {
       if (persist) storageSet(replyStorageKey, message.id);
       const excerpt = String(message.content || "").slice(0, 240);
-      $("#reply-composer-preview").innerHTML = `<span class="reply-composer-by">Replying to ${esc(bot.name)}</span><span class="reply-composer-text">${esc(excerpt)}${message.content?.length > 240 ? "…" : ""}</span>`;
+      $("#reply-composer-preview").innerHTML = `<span class="reply-composer-by">Replying to ${esc(botDisplayName(bot))}</span><span class="reply-composer-text">${esc(excerpt)}${message.content?.length > 240 ? "…" : ""}</span>`;
       replyComposer.hidden = false;
     } else {
       if (persist) storageRemove(replyStorageKey);

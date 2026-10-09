@@ -5259,7 +5259,8 @@ def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser
     base, app = live
     monkeypatch.setattr(app.state.engine, "tick", lambda: None)
     store = app.state.store
-    bot = store.create_bot(Bot(name="reply-fixture", model="mock/demo", tools=[]))
+    bot = store.create_bot(Bot(name="reply-fixture", display_name="Project Delivery Partner",
+                               model="mock/demo", tools=[]))
     bot_label = bot.display_name or bot.name
     conversation, _ = store.create_conversation(bot.id, "Reply reference", idem_key="reply-conversation",
                                                 request_hash="reply-conversation")
@@ -5291,6 +5292,8 @@ def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser
     preview = page.locator("#reply-composer")
     preview.wait_for(state="visible")
     assert "migration finished successfully" in page.locator("#reply-composer-preview").inner_text()
+    assert f"Replying to {bot_label}" in page.locator("#reply-composer-preview").inner_text()
+    assert "reply-fixture" not in page.locator("#reply-composer-preview").inner_text()
     assert page.locator("#chat-prompt").evaluate("el => el === document.activeElement")
     page.locator("#chat-prompt").fill("Can you explain that result?")
     if size == "phone":

@@ -190,6 +190,10 @@ distinct inside the user's message and the composer reference fits the narrow vi
 are in [`artifacts/message-replies/`](artifacts/message-replies/). This is a synthetic local conversation with no provider call, and
 does not constitute screen-reader or physical-device validation.
 
+The reply preview now uses the Bot's human-facing display name while keeping its internal address for routing. A regression fixture
+deliberately gives the Bot different values (`Project Delivery Partner` and `reply-fixture`) and checks that the preview exposes only
+the display name. The same responsive reply journey verifies the linked message remains unchanged.
+
 ## Typed chat choices (2026-10-09)
 
 The built-in conversation runtime can save a single- or multi-select question and wait for the user in the same chat. The browser

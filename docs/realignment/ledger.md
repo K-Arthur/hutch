@@ -2572,3 +2572,13 @@ passed (**18 tests in 4.44s** on Chromium **153.0.8010.12**). Inspected desktop 
 **390×844** captures showed no horizontal overflow; the event-verification controls stack on compact layouts. Tamper alert, screenshots,
 Playwright trace, request/result metadata and source hashes are recorded in [`artifacts/transcript-integrity/`](artifacts/transcript-integrity/).
 The complete CLI and store-event suites also passed **29 tests in 7.85s** with thread/syntax warnings treated as errors.
+
+## Bot display name in message replies (2026-10-09)
+
+The message-reference composer now identifies the Bot by its editable human-facing display name while retaining the internal address
+for routing. A test-first browser regression used `Project Delivery Partner` as the display name and `reply-fixture` as the address;
+the prior UI exposed the latter. The fixed reply journey passed at desktop, tablet and phone sizes (**3 passed in 5.01s**) on
+Chromium **153.0.8010.12** / Playwright **1.63.0**. I inspected the refreshed preview captures: the display name is readable at all
+three widths, the source excerpt and remove control remain visible, and no horizontal overflow or page errors occurred. `node --check`
+and `git diff --check` passed. Evidence and traces are in [`artifacts/message-replies/`](artifacts/message-replies/). This used only a
+synthetic local conversation; no model/provider request, screen reader or physical device was used.
