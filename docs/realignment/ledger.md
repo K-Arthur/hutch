@@ -2920,3 +2920,34 @@ The final UI uses `DESIGN.md` and main's CSS tokens as the styling authority. I 
 desktop and phone sizes; the full capture sets include tablet and compact-phone widths. Screenshots, trace and validation data
 are in [`artifacts/opencode-handoff/`](artifacts/opencode-handoff/), and the OpenCode FAQ captures are with the ChatGPT consent
 marketing evidence. No push or publication was performed.
+
+## Searchable Bot roster and mascot split (2026-10-09)
+
+Commit `a79aed2` adds a persistent pin preference to the existing Bot record. Studio
+keeps the named workspace coordinator first, then lists pinned Bots and all remaining
+Bots in one searchable roster. Pinning affects navigation only; it does not hide,
+pause, or alter permissions. Stable alphabetical ordering makes both groups consistent
+across backend response order. On narrow screens the roster can be reopened repeatedly,
+closed accessibly, and pin controls keep 44px touch targets. The implementation also
+replaces product-app 3D sprites with distinct flat 2D Bot silhouettes; detailed 3D
+mascot artwork remains on the public marketing site.
+
+The decisions and bounded research evidence are in
+[`docs/research/bot-roster-and-mascot-review-2026-10-09.md`](../research/bot-roster-and-mascot-review-2026-10-09.md).
+The operator-app design system, product guide, README, roadmap, website copy and
+Impeccable design sidecar were updated. `docs/realignment/visual-validation.md` records
+manual inspection and the fixture-only visual acceptance boundary. Screenshot sets,
+source hashes, metadata and the browser trace are stored in `artifacts/pinned-roster/`,
+`artifacts/workspace-coordinator/` and
+`artifacts/bot-purpose-refinement/marketing/`.
+
+Verification after the final implementation change: `uv run pytest -q tests/test_api.py`
+passed **36 tests in 14.31s**; the focused pin/roster Playwright test passed **1 test in
+3.83s**; the coordinator responsive browser test passed **1 test in 2.84s**; and the
+anonymous website suite passed **27 tests in 35.03s**. The nearby naming-picker plus
+pin browser checks passed **2 tests in 6.76s**. JavaScript syntax, Python compilation,
+JSON parsing for the design sidecar and `git diff --check` passed. Desktop, tablet and
+phone renders were inspected for Studio/chat, the open phone/tablet roster, marketing
+workflow copy and the detailed marketing mascot. No external browser requests or live
+provider calls were made. No full end-to-end product suite, screen reader, physical
+phone, or live provider was exercised in this slice; those remain separate gates.
