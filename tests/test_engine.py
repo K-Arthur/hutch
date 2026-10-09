@@ -73,6 +73,10 @@ def test_run_blocking_success_flow(store, config, tmp_path):
     assert run.exit_reason == "completed"
     assert run.workspace and "workspace" in run.workspace
     assert run.steps >= 3
+    snapshot = store.run_capability_snapshot(run.id)
+    assert snapshot is not None
+    assert snapshot["bot_id"] == bot.id
+    assert snapshot["tools"] == sorted(snapshot["tools"])
 
     events = store.list_events(run.id)
     kinds = [e.type.value for e in events]
@@ -89,6 +93,21 @@ def test_run_blocking_success_flow(store, config, tmp_path):
     # workspace artifacts
     from pathlib import Path
     assert (Path(run.workspace) / "report.md").exists()
+
+
+def test_offline_capability_snapshot_is_credential_free_and_disables_network_tools():
+    bot = mock_bot(tools=("browser", "web_fetch", "shell", "files"),
+                   inference_mode="offline", shell_network=True,
+                   base_url="http://127.0.0.1:8080/v1?token=not-for-the-snapshot")
+
+    snapshot = Engine.capability_snapshot(bot)
+
+    assert "browser" not in snapshot["tools"]
+    assert "web_fetch" not in snapshot["tools"]
+    assert snapshot["shell_network"] is False
+    assert snapshot["browser_handoff"] is False
+    assert "base_url" not in snapshot
+    assert "not-for-the-snapshot" not in json.dumps(snapshot)
 
 
 def test_scheduled_tick_creates_catchup_run(store, config):

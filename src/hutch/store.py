@@ -497,17 +497,29 @@ def _migrate_23(db: sqlite3.Connection) -> None:
         BEGIN SELECT RAISE(ABORT, 'delegation budget is immutable'); END""")
 
 
+def _migrate_24(db: sqlite3.Connection) -> None:
+    """Persist immutable, credential-free execution capabilities for delegation lineage."""
+    db.execute("ALTER TABLE runs ADD COLUMN capability_snapshot_json TEXT NOT NULL DEFAULT ''")
+    db.execute("""CREATE TRIGGER runs_capability_snapshot_immutable
+        BEFORE UPDATE OF capability_snapshot_json ON runs
+        WHEN OLD.capability_snapshot_json != ''
+          OR NEW.capability_snapshot_json = ''
+          OR OLD.status != 'pending'
+          OR NEW.status != 'running'
+        BEGIN SELECT RAISE(ABORT, 'run capabilities are immutable'); END""")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
-               _migrate_19, _migrate_20, _migrate_21, _migrate_22, _migrate_23]
+               _migrate_19, _migrate_20, _migrate_21, _migrate_22, _migrate_23, _migrate_24]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
 _RUN_COMPUTED = {"status_label", "terminal", "needs_person"}
 #: the run columns that are authoritative over whatever the JSON document says
 _RUN_COLS = ("doc, status, fence, lease_owner, lease_expires_at, cancel_requested, pgid, conversation_id, "
-             "conversation_context, parent_run_id, delegation_budget_cost_usd")
+             "conversation_context, parent_run_id, delegation_budget_cost_usd, capability_snapshot_json")
 _TERMINAL_VALUES = tuple(sorted(st.value for st in TERMINAL))
 _LIVE_VALUES = tuple(sorted(st.value for st in ACTIVE_STATUSES if st is not RunStatus.pending))
 #: fields only the owner writes while a run is claimed: merged into the document in one statement (no read-modify-write)
@@ -1226,7 +1238,8 @@ class Store:
             self._assert_execution_ready(db)
 
             parent = db.execute("SELECT id, bot_id, status, fence, lease_owner, lease_expires_at, cancel_requested, "
-                                "conversation_id, conversation_context, parent_run_id, delegation_budget_cost_usd "
+                                "conversation_id, conversation_context, parent_run_id, delegation_budget_cost_usd, "
+                                "capability_snapshot_json "
                                 "FROM runs WHERE id = ?",
                                 (parent_run_id,)).fetchone()
             if parent is None:
@@ -1237,6 +1250,13 @@ class Store:
                 raise ValueError("delegation requires the current, live run owner")
             if run.bot_id != parent["bot_id"] or task.bot_id != parent["bot_id"]:
                 raise ValueError("delegated work must keep the parent's bot permissions")
+            parent_capabilities = parent["capability_snapshot_json"]
+            try:
+                parsed_capabilities = json.loads(parent_capabilities or "")
+            except (TypeError, json.JSONDecodeError):
+                parsed_capabilities = None
+            if not isinstance(parsed_capabilities, dict):
+                raise ValueError("delegation requires the parent's immutable capability snapshot")
             # Only a top-level delegation snapshots the caller's execution-time bot policy.
             # Every later level inherits the already-persisted ceiling; a child cannot
             # widen its tree by passing a newer bot setting.
@@ -1279,11 +1299,11 @@ class Store:
                        "VALUES (?, ?, ?, ?, ?, 0, 'queued', ?)",
                        (task.id, task.bot_id, task.kind, prompt, task.created_at, run.id))
             db.execute("INSERT INTO runs (id, bot_id, task_id, doc, status, created_at, conversation_id, "
-                       "conversation_context, parent_run_id, delegation_budget_cost_usd) "
-                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       "conversation_context, parent_run_id, delegation_budget_cost_usd, capability_snapshot_json) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                        (run.id, run.bot_id, task.id, self._run_json(run), run.status.value, run.created_at,
                         run.conversation_id, json.dumps(run.conversation_context, ensure_ascii=False), parent_run_id,
-                        delegated_budget))
+                        delegated_budget, parent_capabilities))
             if run.conversation_id:
                 db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
                            (run.conversation_id, run.id, now))
@@ -1874,7 +1894,8 @@ class Store:
 
     def transition_run(self, run_id: str, to: RunStatus, *, fence: Optional[int] = None, exit_reason: Optional[str] = None,
                        error: Optional[str] = None, event: Optional[dict[str, Any]] = None, bump_fence: bool = False,
-                       fields: Optional[dict[str, Any]] = None, cancel_wins: bool = False) -> Run:
+                       fields: Optional[dict[str, Any]] = None, cancel_wins: bool = False,
+                       capability_snapshot: Optional[dict[str, Any]] = None) -> Run:
         """Move a run to ``to`` - the ONLY way status changes for a claimed run (ADR-0003).
 
         In one transaction: the fence is checked (``LeaseLost``), the move is checked against the lifecycle table
@@ -1882,6 +1903,13 @@ class Store:
         task, and the ``status`` event is written. If any part fails nothing changed. ``bump_fence`` is used by recovery so the
         previous owner can no longer write. A move to the state the run is already in is a no-op.
         """
+        snapshot_json = None
+        if capability_snapshot is not None:
+            if not isinstance(capability_snapshot, dict):
+                raise ValueError("run capabilities must be a JSON object")
+            snapshot_json = _canonical(capability_snapshot)
+            if len(snapshot_json.encode("utf-8")) > 64 * 1024:
+                raise ValueError("run capability snapshot exceeds 64 KiB")
         with self._buf_cv:                                       # lock order: event buffer, then database (as append_event)
             # A reader that sees the new status must also see every event that came before it. Wait out the writer's in-flight
             # batch, then commit this run's still-buffered events in the SAME transaction as the status change.
@@ -1891,7 +1919,8 @@ class Store:
             with self._tx() as db:
                 kept = self._worker_events(db, run_id, mine)
                 row, emitted = self._apply_transition(db, run_id, to, fence, exit_reason, error, event, bump_fence, fields,
-                                                      earlier=kept, cancel_wins=cancel_wins)
+                                                      earlier=kept, cancel_wins=cancel_wins,
+                                                      capability_snapshot_json=snapshot_json)
             self.dropped_events += len(mine) - len(kept)
             if mine:
                 done = {id(e) for e in mine}
@@ -1914,7 +1943,8 @@ class Store:
     def _apply_transition(self, db: sqlite3.Connection, run_id: str, to: RunStatus, fence: Optional[int],
                           exit_reason: Optional[str], error: Optional[str], event: Optional[dict[str, Any]],
                           bump_fence: bool, fields: Optional[dict[str, Any]],
-                          earlier: Optional[list[Event]] = None, cancel_wins: bool = False) -> tuple[sqlite3.Row, Optional[Event]]:
+                          earlier: Optional[list[Event]] = None, cancel_wins: bool = False,
+                          capability_snapshot_json: Optional[str] = None) -> tuple[sqlite3.Row, Optional[Event]]:
         from .models import EventType
         row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
         if row is None:
@@ -1950,6 +1980,16 @@ class Store:
             if earlier:              # nothing to change, but the buffered events still commit
                 self._insert_events(db, run_id, list(earlier))
             return row, None
+        snapshot_to_write = None
+        if capability_snapshot_json is not None:
+            existing_snapshot = row["capability_snapshot_json"] or ""
+            if existing_snapshot:
+                if existing_snapshot != capability_snapshot_json:
+                    raise LeaseLost(run_id, "run capability snapshot is immutable")
+            else:
+                if cur is not RunStatus.pending or to is not RunStatus.running:
+                    raise ValueError("capabilities can only be captured when a run starts")
+                snapshot_to_write = capability_snapshot_json
         doc = json.loads(row["doc"])
         patch: dict[str, Any] = {"status": to.value, **(fields or {})}
         terminal = to in TERMINAL
@@ -1962,6 +2002,9 @@ class Store:
             patch["exit_reason"] = exit_reason
         sets, args = "status = ?, doc = json_patch(doc, ?), fence = ?", [to.value, json.dumps(patch, default=str),
                                                                         row["fence"] + (1 if bump_fence else 0)]
+        if snapshot_to_write is not None:
+            sets += ", capability_snapshot_json = ?"
+            args.append(snapshot_to_write)
         if terminal:
             sets += ", lease_owner = '', lease_expires_at = NULL, sealed = 1"
         db.execute(f"UPDATE runs SET {sets} WHERE id = ?", (*args, run_id))
@@ -2084,6 +2127,17 @@ class Store:
         with self._lock:
             row = self._db.execute("SELECT cancel_requested FROM runs WHERE id = ?", (run_id,)).fetchone()
         return bool(row and row["cancel_requested"])
+
+    def run_capability_snapshot(self, run_id: str) -> Optional[dict[str, Any]]:
+        """Return the immutable, credential-free permission snapshot captured when execution began."""
+        with self._lock:
+            row = self._db.execute("SELECT capability_snapshot_json FROM runs WHERE id = ?", (run_id,)).fetchone()
+        if row is None or not row["capability_snapshot_json"]:
+            return None
+        value = json.loads(row["capability_snapshot_json"])
+        if not isinstance(value, dict):
+            raise RuntimeError("run capability snapshot is not a JSON object")
+        return value
 
     def get_run(self, run_id: str) -> Optional[Run]:
         with self._lock:

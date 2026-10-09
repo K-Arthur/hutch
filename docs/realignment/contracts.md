@@ -79,7 +79,7 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   and 200, even if a restore hold or provider-route change happened after admission. A changed body or a key reused by another command
   returns 409. New submissions still respect the restore hold and model-route checks. The legacy `/api/bots/{ref}/run` alias remains
   available without versioned idempotency for compatibility.
-* Schema v22 adds nullable, database-guarded immutable `runs.parent_run_id` for bounded delegation lineage; schema v23 adds an immutable nullable `delegation_budget_cost_usd` snapshot. The internal store admission accepts a
+* Schema v22 adds nullable, database-guarded immutable `runs.parent_run_id` for bounded delegation lineage; schema v23 adds an immutable nullable `delegation_budget_cost_usd` snapshot; schema v24 stores an immutable credential-free `capability_snapshot_json` captured with the root run's pending-to-running transition. The internal store admission accepts a
   child only from its current live parent fence, retains the same bot identity and conversation, and persists the child task, run,
   parent link and idempotency receipt together. It enforces at most two levels, three direct children per parent over its lifetime,
   and two active direct children. The first child snapshots the top-level parent's execution-time currency limit; nested children inherit
@@ -90,7 +90,9 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   primitive only: no chat tool or public child-run endpoint exists yet. An explicitly executed lineage run receives a private
   0700 per-run workspace even when its bot normally shares a managed or user folder; a symlinked run workspace fails closed. The
   ordinary dispatcher deliberately leaves delegated queue rows pending until a dedicated executor enforces the persisted capability
-  snapshot and artifact contract. Capability snapshotting and delegated artifact transfer remain open.
+  snapshot and artifact contract. Children inherit the exact snapshot recorded on their parent, so later bot edits cannot widen
+  the lineage's authority. The snapshot is not yet used to construct or enforce a child runtime; delegated artifact transfer and the
+  user-facing child executor remain open. Legacy active runs have no retroactive snapshot and cannot admit delegated work.
 * `POST /api/v1/tasks/runs/{run_id}/resume` takes `{human_event_seq}` and requires `Idempotency-Key`. The run must still be
   `waiting_human` under a live owner lease, and the sequence must match its latest `human_needed` event. Schema v19 accepts one command per wait episode;
   another key for the same event and any stale event sequence conflict. Exact retries replay the recorded result without setting the

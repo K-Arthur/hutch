@@ -96,9 +96,11 @@ shared only by that bot, or an existing validated user folder.
 These choices do not move files. Managed workspaces are separate from SQLite backups and survive
 bot deletion. A run with persisted parent lineage always gets its own private 0700 run workspace,
 regardless of the bot's managed or host-folder setting; an unexpected workspace symlink fails closed.
-The ordinary dispatcher leaves those delegated rows pending until a dedicated executor enforces a
-capability snapshot and artifact contract. Run-output artifacts stay with their source run and
-conversation context.
+Schema v24 captures a credential-free capability snapshot in the same transition that starts each new
+root run. Internal child admission copies the parent's immutable snapshot, so editing the bot cannot
+silently widen a future child. This snapshot is not yet used to construct or enforce a child runtime.
+The ordinary dispatcher leaves delegated rows pending until a dedicated executor enforces that
+snapshot and artifact contract. Run-output artifacts stay with their source run and conversation context.
 
 ## Key decisions
 

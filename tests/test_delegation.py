@@ -9,13 +9,16 @@ from hutch.models import Bot, Run, RunStatus, Task
 from hutch.store import IdempotencyConflict, Store
 
 
-def _running_parent(store):
+def _running_parent(store, capability_snapshot=None):
     bot = store.create_bot(Bot(name="delegate-parent", model="mock/demo", tools=[]))
+    capability_snapshot = capability_snapshot or {
+        "bot_id": bot.id, "tools": [], "risk_tier": bot.risk_tier.value, "sandbox": bot.sandbox}
     parent = store.submit_run(Run(bot_id=bot.id, prompt="coordinate work"),
                               Task(bot_id=bot.id, prompt="coordinate work"))
     claimed = store.claim_run(parent.id, "delegation-test-owner", 60)
     assert claimed is not None
-    return bot, store.transition_run(claimed.id, RunStatus.running, fence=claimed.fence)
+    return bot, store.transition_run(claimed.id, RunStatus.running, fence=claimed.fence,
+                                     capability_snapshot=capability_snapshot)
 
 
 def _child(store, parent, prompt="inspect one bounded area", key="delegate", parent_budget_cost_usd=None):
@@ -93,7 +96,8 @@ def test_delegated_child_keeps_parent_conversation_attachment_and_context(store)
     assert inserted is True
     claimed = store.claim_run(parent_id, "delegation-chat-owner", 60)
     assert claimed is not None
-    parent = store.transition_run(claimed.id, RunStatus.running, fence=claimed.fence)
+    parent = store.transition_run(claimed.id, RunStatus.running, fence=claimed.fence,
+                                  capability_snapshot={"bot_id": bot.id, "tools": bot.tools})
 
     child, _ = _child(store, parent, key="conversation-child")
 
@@ -198,6 +202,21 @@ def test_descendants_share_the_root_cost_reservation_and_keep_its_limit(store):
     store.reserve_usage(
         run_id=grandchild.id, bot_id=bot.id, provider="vendor-a", account_id="budget-account", model="model-a",
         reserved_tokens=100, reserved_cost_usd=0.05, max_run_cost_usd=5.0, expected_fence=grandchild.fence)
+
+
+def test_delegated_children_inherit_immutable_parent_capabilities_after_bot_edits(store):
+    original = {"tools": ["read_file"], "risk_tier": "supervised", "sandbox": "strict",
+                "shell_network": False, "limits": {"max_steps": 4}}
+    bot, parent = _running_parent(store, capability_snapshot=original)
+    store.upsert_bot(bot.model_copy(update={"tools": ["shell"], "sandbox": "off", "shell_network": True}))
+
+    child, _ = _child(store, parent, key="capability-snapshot-child")
+    assert store.run_capability_snapshot(parent.id) == original
+    assert store.run_capability_snapshot(child.id) == original
+    with pytest.raises(sqlite3.IntegrityError, match="run capabilities are immutable"):
+        with store._tx() as db:
+            db.execute("UPDATE runs SET capability_snapshot_json = ? WHERE id = ?",
+                       ('{"tools":["shell"]}', child.id))
 
 
 def test_delegation_enforces_depth_fanout_and_active_child_limits(store):
@@ -394,6 +413,8 @@ def test_schema_v21_migrates_existing_runs_with_no_parent_link(config):
     store.close()
 
     db = sqlite3.connect(config.db_path)
+    db.execute("DROP TRIGGER runs_capability_snapshot_immutable")
+    db.execute("ALTER TABLE runs DROP COLUMN capability_snapshot_json")
     db.execute("DROP TRIGGER runs_delegation_budget_immutable")
     db.execute("ALTER TABLE runs DROP COLUMN delegation_budget_cost_usd")
     db.execute("DROP TRIGGER runs_parent_run_id_immutable")
@@ -406,7 +427,7 @@ def test_schema_v21_migrates_existing_runs_with_no_parent_link(config):
     upgraded = Store(config)
     try:
         legacy = upgraded.get_run(run.id)
-        assert upgraded.schema_version == 23
+        assert upgraded.schema_version == 24
         assert legacy.parent_run_id is None
         assert legacy.delegation_budget_cost_usd is None
         assert (config.db_path.parent / "hutch.db.bak-v21").exists()
@@ -420,6 +441,8 @@ def test_schema_v22_migration_preserves_lineage_without_inventing_a_budget(store
     store.close()
 
     db = sqlite3.connect(config.db_path)
+    db.execute("DROP TRIGGER runs_capability_snapshot_immutable")
+    db.execute("ALTER TABLE runs DROP COLUMN capability_snapshot_json")
     db.execute("DROP TRIGGER runs_delegation_budget_immutable")
     db.execute("ALTER TABLE runs DROP COLUMN delegation_budget_cost_usd")
     db.execute("PRAGMA user_version = 22")
@@ -429,9 +452,31 @@ def test_schema_v22_migration_preserves_lineage_without_inventing_a_budget(store
     upgraded = Store(config)
     try:
         restored = upgraded.get_run(child.id)
-        assert upgraded.schema_version == 23
+        assert upgraded.schema_version == 24
         assert restored.parent_run_id == parent.id
         assert restored.delegation_budget_cost_usd is None
         assert (config.db_path.parent / "hutch.db.bak-v22").exists()
+    finally:
+        upgraded.close()
+
+
+def test_schema_v23_migration_adds_empty_capability_snapshots(config):
+    store = Store(config)
+    bot = store.create_bot(Bot(name="legacy-v23-run", model="mock/demo", tools=[]))
+    run = store.submit_run(Run(bot_id=bot.id, prompt="legacy"), Task(bot_id=bot.id, prompt="legacy"))
+    store.close()
+
+    db = sqlite3.connect(config.db_path)
+    db.execute("DROP TRIGGER runs_capability_snapshot_immutable")
+    db.execute("ALTER TABLE runs DROP COLUMN capability_snapshot_json")
+    db.execute("PRAGMA user_version = 23")
+    db.commit()
+    db.close()
+
+    upgraded = Store(config)
+    try:
+        assert upgraded.schema_version == 24
+        assert upgraded.run_capability_snapshot(run.id) is None
+        assert (config.db_path.parent / "hutch.db.bak-v23").exists()
     finally:
         upgraded.close()

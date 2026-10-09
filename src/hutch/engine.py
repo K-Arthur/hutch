@@ -444,6 +444,34 @@ class Engine:
             workdir_error = f"Could not prepare the {'isolated child ' if delegated else ''}workspace: {exc}"
         return run_dir, workspace, workdir_error
 
+    @staticmethod
+    def capability_snapshot(bot: Bot) -> dict[str, object]:
+        """The credential-free permission/routing policy active when a run starts."""
+        from .tools import expand_tools
+
+        offline = bot.inference_mode.value == "offline"
+        tools = expand_tools(bot.tools)
+        if offline:
+            tools = [name for name in tools if name not in {"web_fetch", "browser"}]
+        return {
+            "bot_id": bot.id,
+            "runtime": bot.runtime.value,
+            "model": bot.model,
+            "tools": sorted(tools),
+            "risk_tier": bot.risk_tier.value,
+            "command_rules": [rule.model_dump(mode="json") for rule in bot.command_rules],
+            "sandbox": bot.sandbox,
+            "shell_network": bool(bot.shell_network and not offline),
+            "inference_mode": bot.inference_mode.value,
+            "approval_mode": bot.approval_mode.value,
+            "memory_enabled": bool(bot.memory_enabled),
+            "browser_handoff": bool(bot.local_browser_handoff and not offline),
+            "limits": bot.limits.model_dump(mode="json"),
+            "tool_limits": dict(bot.tool_limits),
+            "fallbacks": list(bot.fallbacks),
+            "escalation": bot.escalation.model_dump(mode="json") if bot.escalation else None,
+        }
+
     def _execute(self, bot: Bot, run: Run, cancel: threading.Event) -> None:
         try:
             runtime = get_runtime(bot)
@@ -470,7 +498,8 @@ class Engine:
         try:
             run = self.store.transition_run(
                 run.id, RunStatus.running, fence=run.fence, event={"origin": run.origin},
-                fields={"started_at": iso(utcnow()), "workspace": str(workspace), "owner": str(os.getpid())})
+                fields={"started_at": iso(utcnow()), "workspace": str(workspace), "owner": str(os.getpid())},
+                capability_snapshot=self.capability_snapshot(bot) if run.parent_run_id is None else None)
         except (IllegalTransition, LeaseLost, KeyError):
             self._finish_unstarted(run)
             return
