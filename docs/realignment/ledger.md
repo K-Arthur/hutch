@@ -94,6 +94,7 @@ fast-forwarded only after implementation and verification for this checkpoint pa
 | `6db26ff` | Record the S6 fail-closed dispatcher checkpoint in the continuation ledger |
 | `b21ec5d` | Force internal lineage runs into a private per-run workspace and fail closed on symlinks |
 | `b5e0034` | Recover idle legacy Pi/OpenCode bot records to Hutch's built-in runtime after route validation; close the active-run race, document provider sign-in boundaries, correct the stale marketing CSS cache key, and add API/browser/cache regression evidence |
+| `6017f35` | Record the legacy runtime recovery commit in this continuation ledger |
 | `ec73e1e` | Persist credential-free root execution capabilities atomically and inherit the immutable snapshot for bounded lineage; schema-v24 focused regressions pass |
 | `8063243` | Fail directly invoked delegated workers from the authoritative persisted lineage before runtime or tool setup; focused lifecycle/workspace suite 90 passed |
 | `35c045c` | Reject delegated worker processes before recording their process group; 84 worker/delegation/lifecycle tests passed |
