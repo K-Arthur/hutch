@@ -10,6 +10,7 @@ import socketserver
 import threading
 from datetime import datetime, timezone
 from html.parser import HTMLParser
+from importlib.metadata import version as package_version
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
@@ -196,6 +197,45 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
             "captured_at": datetime.now(timezone.utc).isoformat(),
             "python": platform.python_version(), "browser": browser.version,
             "index_sha256": hashlib.sha256(index).hexdigest(), "captures": captures,
+            "anonymous": True, "external_requests": len(external), "page_errors": errors,
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        context.close()
+
+
+def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, site_url):
+    context, page, errors = _page(browser, reduced_motion="reduce")
+    out = ROOT / "docs/realignment/artifacts/bot-setup-context/site"
+    out.mkdir(parents=True, exist_ok=True)
+    source = (SITE_DIR / "index.html").read_bytes()
+    external = []
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(site_url) and not request.url.startswith("data:") else None)
+    captures = []
+    try:
+        page.goto(site_url, wait_until="networkidle")
+        card = page.locator("#workflow .step-card").first
+        text = card.inner_text().lower()
+        assert "latest chat request" in text
+        assert "edit before saving" in text
+        assert "does not start a run" in text
+        for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            card.scroll_into_view_if_needed()
+            card.screenshot(path=str(out / f"site-chat-bot-setup-{label}.png"), animations="disabled")
+            box = card.bounding_box()
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1 and box and box["x"] >= 0 and box["x"] + box["width"] <= width + 1, (label, box, overflow)
+            captures.append({"size": label, "viewport": [width, height], "card": box, "overflow": overflow})
+        assert not external, external
+        assert not errors, errors
+        (out / "site-validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_website.py::test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_website.py::test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(), "browser": browser.version,
+            "playwright_version": package_version("playwright"),
+            "index_sha256": hashlib.sha256(source).hexdigest(), "captures": captures,
             "anonymous": True, "external_requests": len(external), "page_errors": errors,
         }, indent=2) + "\n", encoding="utf-8")
     finally:

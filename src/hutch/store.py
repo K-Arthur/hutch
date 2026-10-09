@@ -1605,6 +1605,15 @@ class Store:
                                    (conversation_id, message_id)).fetchone()
         return dict(row) if row else None
 
+    def get_conversation_user_message(self, conversation_id: str, message_id: str) -> Optional[dict[str, Any]]:
+        """Read one full user request, scoped to a conversation, for explicit Bot-creation provenance."""
+        with self._lock:
+            row = self._db.execute(
+                "SELECT id, conversation_id, seq, run_id, role, content, created_at FROM messages "
+                "WHERE conversation_id = ? AND id = ? AND role = 'user'", (conversation_id, message_id)
+            ).fetchone()
+        return dict(row) if row else None
+
     def search_conversation_messages(self, query: str, *, bot_id: Optional[str] = None, limit: int = 20) -> list[dict[str, Any]]:
         terms = re.findall(r"[^\W_]+", query, flags=re.UNICODE)
         if not terms:

@@ -161,6 +161,19 @@ class Escalation(BaseModel):
     model_config = {"frozen": True}
 
 
+class BotCreationSource(BaseModel):
+    """One explicitly selected user message used to seed a reviewed Bot draft."""
+
+    conversation_id: str
+    message_id: str
+    source_bot_id: str
+    sequence: int
+    created_at: str
+    original_request: str = Field(max_length=20_000)
+
+    model_config = {"frozen": True}
+
+
 class RiskTier(str, Enum):
     """SR-12: what the bot may do. High-risk actions (secrets, exfiltration, privilege escalation) are always
     blocked; the tier decides what happens to MEDIUM-risk ones."""
@@ -220,6 +233,7 @@ class Bot(BaseModel):
     local_browser_handoff: bool = False  # show this bot's browser on the Linux desktop for same-session human control
     paused: bool = False
     template: Optional[str] = None    # which starter template it came from
+    creation_source: Optional[BotCreationSource] = None  # explicit request provenance; never grants authority
     preset: Optional[str] = None      # task preset this bot was configured from (LM-7)
     fallbacks: list[str] = Field(default_factory=list)   # tried in order when the model is unavailable (SR-8)
     escalation: Optional[Escalation] = None              # quality ladder (LM-9)

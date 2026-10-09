@@ -39,7 +39,7 @@ from ..config import get_config
 from ..durable_changes import SnapshotRequired
 from ..engine import Engine, bot_prompt_for_schedule
 from ..lifecycle import LABELS
-from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, CommandRule, Event, EventType, InferenceMode, Limits, MemoryItem, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task
+from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, BotCreationSource, CatchUpPolicy, CommandRule, Event, EventType, InferenceMode, Limits, MemoryItem, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task
 from ..store import ActiveRunConflict, BotConflict, IdempotencyConflict, Store
 from ..state_snapshot import ExecutionHeld
 from ..templates import TEMPLATE_INFO, TEMPLATES
@@ -106,6 +106,8 @@ class BotCreate(BaseModel):
     local_browser_handoff: bool = False
     workdir: Optional[str] = None
     limits: Optional[Limits] = None
+    source_conversation_id: Optional[str] = Field(default=None, max_length=100)
+    source_message_id: Optional[str] = Field(default=None, max_length=100)
 
 
 class RestoreReportResource(BaseModel):
@@ -667,8 +669,13 @@ def create_app() -> FastAPI:
         active = store.active_run_for_bot(bot.id)
         stats = store.bot_stats().get(bot.id, {}).get("counts", {})
         measured_tokens, reserved_tokens, measured_cost, reserved_cost = store.bot_budget_today(bot.id)
+        bot_data = bot.model_dump()
+        if bot.creation_source is not None:
+            # Keep the exact source request with the Bot's local durable record for
+            # auditability, but do not repeat its full text in every roster/API view.
+            bot_data["creation_source"] = bot.creation_source.model_dump(exclude={"original_request"})
         return {
-            **bot.model_dump(),
+            **bot_data,
             # Older records may have a workdir but no workspace_mode. Present the
             # effective choice so the settings control never hides an active folder.
             "workspace_mode": "folder" if bot.workdir else bot.workspace_mode,
@@ -1282,7 +1289,7 @@ def create_app() -> FastAPI:
             raise HTTPException(422, f"at most {MAX_RULES} command rules")
         return rules
 
-    def bot_from_create_request(body: BotCreate) -> Bot:
+    def bot_from_create_request(body: BotCreate, *, creation_source: Optional[BotCreationSource] = None) -> Bot:
         if not _SLUG_RE.match(body.name):
             raise HTTPException(422, "name must be a lowercase slug (a-z, 0-9, -)")
         if body.template:
@@ -1316,6 +1323,7 @@ def create_app() -> FastAPI:
         bot.approval_mode = body.approval_mode
         bot.risk_tier = body.risk_tier
         bot.local_browser_handoff = body.local_browser_handoff
+        bot.creation_source = creation_source
         bot.command_rules = _checked_rules(body.command_rules)
         if body.limits is not None:
             bot.limits = body.limits
@@ -1359,7 +1367,27 @@ def create_app() -> FastAPI:
             return bot_view(replay)
         if store.get_bot(body.name):
             raise HTTPException(409, f"bot already exists: {body.name}")
-        bot = bot_from_create_request(body)
+        source_conversation_id = body.source_conversation_id
+        source_message_id = body.source_message_id
+        if bool(source_conversation_id) != bool(source_message_id):
+            raise HTTPException(422, "source_conversation_id and source_message_id must be provided together")
+        creation_source = None
+        if source_conversation_id and source_message_id:
+            conversation = store.get_conversation(source_conversation_id)
+            message = store.get_conversation_user_message(source_conversation_id, source_message_id)
+            if conversation is None or message is None:
+                raise HTTPException(404, "no such user message in the source conversation")
+            if len(message["content"]) > 20_000:
+                raise HTTPException(422, "source message exceeds the 20,000-character bot-draft limit")
+            creation_source = BotCreationSource(
+                conversation_id=source_conversation_id,
+                message_id=source_message_id,
+                source_bot_id=conversation["bot_id"],
+                sequence=message["seq"],
+                created_at=message["created_at"],
+                original_request=message["content"],
+            )
+        bot = bot_from_create_request(body, creation_source=creation_source)
         try:
             saved, created = store.create_bot_idempotent(bot, idem_key=key, request_hash=digest)
         except IdempotencyConflict as exc:
@@ -1371,6 +1399,8 @@ def create_app() -> FastAPI:
 
     @app.post("/api/bots", status_code=201)
     def create_bot(body: BotCreate) -> dict:
+        if body.source_conversation_id or body.source_message_id:
+            raise HTTPException(422, "chat-sourced Bot creation requires the versioned /api/v1/bots route")
         if not _SLUG_RE.match(body.name):
             raise HTTPException(422, "name must be a lowercase slug (a-z, 0-9, -)")
         if store.get_bot(body.name):

@@ -1,0 +1,39 @@
+{
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "scenario": "latest user message explicitly seeds an editable Bot draft; older private turn is excluded; request provenance persists; creation starts no run; test-only connection key and no model call",
+  "viewports": {
+    "desktop": [
+      1440,
+      960
+    ],
+    "tablet": [
+      900,
+      1024
+    ],
+    "phone": [
+      390,
+      844
+    ]
+  },
+  "screenshots": [
+    "chat-source-purpose-desktop.png",
+    "chat-source-purpose-tablet.png",
+    "chat-source-purpose-phone.png",
+    "chat-source-review-desktop.png",
+    "chat-source-review-tablet.png",
+    "chat-source-review-phone.png"
+  ],
+  "page_errors": [],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "8fec65eff8dc784f7b69976ee26c64d6ab5a41ffd69763c4b3281fbaf6ea7b61",
+    "src/hutch/server/static/style.css": "af11776a60597d4d499939d4ca016e7eae2d05ca9bcc18646794aee4a0793eb6",
+    "src/hutch/server/app.py": "f16c8d85eb299645616bc93309de7030e4bae78f4255fc2550bea6f0defec0e8",
+    "src/hutch/models.py": "43540ef7a2acf5f9c07b0c50896e5497d7f7a84e75bd99b7eae6918ec81bd8b3",
+    "src/hutch/store.py": "c0c09359ff2bdaf712aca49a9b5b96f66094d7d2717fc01ac278d751196fe0ef",
+    "tests/test_api.py": "48450591dc192e39b7181d4765ef10b40c75c9777c095a042f25d922dee84a6b",
+    "tests/e2e/test_browser.py": "3d2dda871e1e211414f0460290966212562432266ece2d66743341654657d53d"
+  }
+}

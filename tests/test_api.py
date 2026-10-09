@@ -53,6 +53,71 @@ def test_health_and_stats(client):
     assert stats["bots"] == 0 and stats["pending_approvals"] == 0
 
 
+def test_bot_creation_records_only_an_explicit_user_message_source(client):
+    source = make_bot(client, name="source-conversation-bot", paused=True)
+    store = client.app.state.store
+    conversation, _ = store.create_conversation(
+        source["id"], "Planning chat", idem_key="bot-source-conversation", request_hash="source-conversation")
+    source_request = "Track the launch checklist and tell me when a blocker needs my attention."
+    with store._tx() as db:
+        store._insert_conversation_message(db, message_id="bot-source-user-message",
+            conversation_id=conversation["id"], seq=1, run_id="", role="user",
+            content=source_request, created_at=conversation["created_at"])
+        store._insert_conversation_message(db, message_id="bot-source-assistant-message",
+            conversation_id=conversation["id"], seq=2, run_id="", role="assistant",
+            content="I can help you create a dedicated launch coordinator.", created_at=conversation["created_at"])
+
+    payload = {
+        "name": "launch-checklist", "description": "Monitor the launch checklist",
+        "instructions": "Track launch blockers; ask before notifying people.", "model": "mock/demo", "tools": [],
+        "source_conversation_id": conversation["id"], "source_message_id": "bot-source-user-message",
+    }
+    headers = {"Idempotency-Key": "create-launch-checklist"}
+    created = client.post("/api/v1/bots", headers=headers, json=payload)
+    assert created.status_code == 201, created.text
+    bot = client.app.state.store.get_bot("launch-checklist")
+    assert bot is not None
+    assert bot.instructions == payload["instructions"]
+    assert "original_request" not in created.json()["creation_source"]
+    assert bot.creation_source.model_dump() == {
+        "conversation_id": conversation["id"], "message_id": "bot-source-user-message",
+        "source_bot_id": source["id"], "sequence": 1, "created_at": conversation["created_at"],
+        "original_request": source_request,
+    }
+
+    replay = client.post("/api/v1/bots", headers=headers, json=payload)
+    assert replay.status_code == 200
+    assert replay.json()["creation_source"] == {
+        "conversation_id": conversation["id"], "message_id": "bot-source-user-message",
+        "source_bot_id": source["id"], "sequence": 1, "created_at": conversation["created_at"],
+    }
+    changed = client.post("/api/v1/bots", headers=headers,
+                          json={**payload, "source_message_id": "bot-source-assistant-message"})
+    assert changed.status_code == 409
+
+    invalid = client.post("/api/v1/bots", headers={"Idempotency-Key": "source-must-be-user"},
+                          json={**payload, "name": "invalid-source", "source_message_id": "bot-source-assistant-message"})
+    assert invalid.status_code == 404
+    assert client.app.state.store.get_bot("invalid-source") is None
+
+    other, _ = store.create_conversation(source["id"], "Another chat",
+        idem_key="other-bot-source-conversation", request_hash="other-source-conversation")
+    with store._tx() as db:
+        store._insert_conversation_message(db, message_id="other-chat-user-message", conversation_id=other["id"],
+            seq=1, run_id="", role="user", content="This request belongs to another chat.",
+            created_at=other["created_at"])
+    cross_chat = client.post("/api/v1/bots", headers={"Idempotency-Key": "source-must-be-same-chat"},
+        json={**payload, "name": "cross-chat-source", "source_message_id": "other-chat-user-message"})
+    assert cross_chat.status_code == 404
+    assert client.app.state.store.get_bot("cross-chat-source") is None
+
+    unpaired = client.post("/api/v1/bots", headers={"Idempotency-Key": "source-fields-must-pair"},
+                           json={**payload, "name": "unpaired-source", "source_message_id": None})
+    assert unpaired.status_code == 422
+    legacy = client.post("/api/bots", json={**payload, "name": "legacy-source"})
+    assert legacy.status_code == 422 and client.app.state.store.get_bot("legacy-source") is None
+
+
 def test_unavailable_external_runtime_can_be_migrated_to_builtin_only(client):
     store = client.app.state.store
     bot = store.create_bot(Bot(name="legacy-opencode", model="ollama/qwen3:4b",

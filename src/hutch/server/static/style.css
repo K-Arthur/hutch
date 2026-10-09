@@ -1164,6 +1164,13 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .setup-back { margin: 0 0 var(--s-3); }
 .setup-conversation { display: grid; gap: var(--s-4); max-width: 720px; margin: 0 auto; }
 .setup-assistant { margin: 0; padding: var(--s-4); border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--raised); color: var(--text); line-height: 1.55; }
+.setup-context-source { display: flex; align-items: flex-start; gap: var(--s-3); padding: var(--s-4); border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--raised); cursor: pointer; }
+.setup-context-source input { flex: none; width: 18px; height: 18px; margin: 2px 0 0; }
+.setup-context-source span { display: grid; gap: var(--s-1); min-width: 0; }
+.setup-context-source small { color: var(--text-2); line-height: 1.5; overflow-wrap: anywhere; }
+.setup-source-details { margin-top: var(--s-2); }
+.setup-source-details summary { color: var(--link); cursor: pointer; }
+.setup-source-quote { max-height: 16rem; overflow: auto; margin: var(--s-2) 0 0; padding: var(--s-3); border-radius: 8px; background: var(--raised); color: var(--text-2); white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
 .setup-conversation .field { min-width: 0; }
 .setup-conversation textarea { min-height: 124px; }
 .setup-template-options, .setup-tool-options { display: grid; gap: var(--s-2); min-width: 0; margin: 0; padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-panel); }

@@ -1858,8 +1858,9 @@ lose recent unsynced work; Hutch's status/recovery UI must distinguish waiting, 
 
 Research is in `docs/research/grok-bot-product-review-2026-10-09.md`; source citations are there. Documentation was
 reviewed on 2026-10-09, but Grok Bot was not run or connected. Hutch's guided creation wizard is implemented and
-fixture-captured; live-conversation context reuse, named coordinator, cross-Bot routing and durable result delivery
-remain unimplemented. Acceptance: UI-15 and CO-12/13 in `docs/requirements.md`, the planned coordinator contract in
+fixture-captured; latest-user-message draft reuse is now a narrow UI-15 increment, while full configuration inference,
+asking only unresolved questions, named coordinator, cross-Bot routing and durable result delivery remain open. Acceptance:
+UI-15 and CO-12/13 in `docs/requirements.md`, the planned coordinator contract in
 `docs/realignment/contracts.md`, and T-COORDINATOR-BRIEF/T-CROSS-BOT-DELIVERY in `docs/realignment/tests.md`.
 
 ## Browser credential entry, human checkpoints and owner additions (2026-10-09)
@@ -1908,3 +1909,25 @@ Chromium **153.0.8010.12** / Playwright **1.63.0** screenshots, traces and match
 `artifacts/message-replies/`; I inspected both preview and sent states at all three sizes. The Impeccable detector
 returned no findings for `app.js` and `style.css`. There was no live model/provider call; physical phone and
 screen-reader behavior remain unverified. The whole repository suite was not rerun for this slice.
+
+## S6 conversation-sourced Bot creation (2026-10-09)
+
+Studio's New Bot wizard now fetches only the most recent user-authored message from the active conversation and presents it as an
+editable purpose draft with a checked opt-out. Older turns, including the fixture's unrelated private message, are not copied. The
+review identifies the source Bot, conversation and message sequence, and can show the original request alongside the edited Bot
+instructions. `POST /api/v1/bots` accepts paired conversation/message identifiers only for a user message in that exact chat;
+the durable Bot document keeps original text and provenance, while Bot API views expose metadata but not a second copy of the
+message body. Source identifiers participate in the idempotency digest. The operation still creates no conversation turn or run.
+
+`tests/test_api.py::test_bot_creation_records_only_an_explicit_user_message_source` passed. Chromium **153.0.8010.12** /
+Playwright **1.63.0** passed `tests/e2e/test_browser.py::test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance` at desktop 1440×960, tablet 900×1024 and phone 390×844. It verified opt-out, edit, exclusion of an older private turn, persisted exact provenance, no run, no page errors and no horizontal overflow. I inspected the purpose and review screenshots at all three sizes; the modal, source choice, quote and footer fit the phone layout. Artifacts, trace and source hashes are in `artifacts/bot-setup-context/`. No provider/model call, physical phone or screen reader was used.
+
+The marketing workflow now describes the same editable, latest-message draft and says Bot creation does not run work. The anonymous
+Chromium check passed at the same three widths with no external requests, page errors or overflow; I inspected the step card captures
+in `artifacts/bot-setup-context/site/`. The Impeccable detector returned no findings for the edited Studio JavaScript, stylesheet or
+marketing HTML.
+
+This is a narrow UI-15 increment, not completion: the wizard still asks for the name, template, model/mode, workspace, tools, limits
+and schedule, and it does not infer safe configuration or ask only unresolved questions. No new permissions, accounts, tools,
+budgets, runs or conversation history are authorized by the source message. The implementation commit is recorded in the
+following validation checkpoint.

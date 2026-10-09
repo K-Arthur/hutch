@@ -3867,6 +3867,27 @@ async function promptNewBot(preselect = "") {
   let templates;
   try { templates = await api("/bots/templates"); }
   catch (err) { toast(`Bot setup is unavailable: ${err.message}`, true); return; }
+  let conversationSource = null;
+  if (currentConversationId && currentStudioBot && /^#\/chat(?:\/|$)/.test(location.hash || "#/chat")) {
+    try {
+      const conversationId = currentConversationId;
+      const summary = await api(`/v1/conversations/${encodeURIComponent(conversationId)}?after=0&limit=1`);
+      const after = Math.max(0, Number(summary.last_seq || 0) - 100);
+      if (summary.last_seq) {
+        const page = await api(`/v1/conversations/${encodeURIComponent(conversationId)}?after=${after}&limit=100`);
+        const latestRequest = [...(page.messages || [])].reverse().find(message => message.role === "user" && message.content?.trim());
+        if (latestRequest && currentConversationId === conversationId) {
+          const conversation = currentConversations.find(item => item.id === conversationId);
+          conversationSource = {
+            conversation_id: conversationId, message_id: latestRequest.id,
+            sequence: latestRequest.seq, created_at: latestRequest.created_at,
+            original_request: latestRequest.content, source_bot_name: currentStudioBot,
+            conversation_title: conversation?.title || "Untitled conversation",
+          };
+        }
+      }
+    } catch { /* a source is optional; setup remains available without chat history */ }
+  }
   let browserHandoffCapability = { status: "unavailable", reason: "The host has not confirmed local browser support." };
   try {
     const capabilities = await api("/v1/capabilities");
@@ -3878,7 +3899,8 @@ async function promptNewBot(preselect = "") {
     : `Unavailable on this host: ${browserHandoffCapability.reason} This does not enable phone browser control.`;
   const chosenTemplate = templates.find(item => item.name === preselect) || null;
   const draft = {
-    step: 0, purpose: "", template: chosenTemplate?.name || "", name: "", description: "", model: "",
+    step: 0, purpose: conversationSource?.original_request || "", useConversationSource: !!conversationSource,
+    template: chosenTemplate?.name || "", name: "", description: "", model: "",
     inference_mode: "hybrid", workspace_mode: "managed", tools: templateTools(chosenTemplate),
     local_browser_handoff: false,
     cron: "", schedule_prompt: "",
@@ -3912,11 +3934,16 @@ async function promptNewBot(preselect = "") {
   const displayTool = tool => BOT_SETUP_TOOLS.find(([name]) => name === tool)?.[1] || tool;
   const reviewHtml = () => {
     const template = selectedTemplate();
+    const sourceReview = draft.useConversationSource && conversationSource
+      ? `<div><dt>Request source</dt><dd>${esc(conversationSource.source_bot_name)} · ${esc(conversationSource.conversation_title)} · message ${conversationSource.sequence}
+          <details class="setup-source-details"><summary>View original message</summary><blockquote class="setup-source-quote">${esc(conversationSource.original_request)}</blockquote></details></dd></div>`
+      : `<div><dt>Request source</dt><dd>Written for this Bot draft</dd></div>`;
     return `<div class="setup-review">
       <p class="setup-assistant">Here’s the setup you chose. Creating it saves the bot only; it will not start a run.</p>
       <dl class="setup-review-list">
         <div><dt>Name</dt><dd>${esc(draft.name)}</dd></div>
         <div><dt>Purpose</dt><dd>${esc(draft.purpose)}</dd></div>
+        ${sourceReview}
         <div><dt>Starting point</dt><dd>${esc(template?.tagline || "Blank bot")}</dd></div>
         <div><dt>Model route</dt><dd>${esc(draft.model)}</dd></div>
         <div><dt>Inference</dt><dd>${esc(draft.inference_mode)}</dd></div>
@@ -3936,9 +3963,12 @@ async function promptNewBot(preselect = "") {
     const back = step ? `<button type="button" class="btn ghost small setup-back" id="setup-back">${icon("arrow-left")} Back</button>` : "";
     let content = "";
     if (step === 0) content = `<div class="setup-conversation">
-      <p class="setup-assistant">I’ll turn your answers into a bot draft. This is a guided setup, not an AI-generated configuration.</p>
+      ${conversationSource ? `<label class="setup-context-source"><input id="setup-use-source" type="checkbox" ${draft.useConversationSource ? "checked" : ""}>
+        <span><b>Use your latest request from this chat</b><small>From ${esc(conversationSource.source_bot_name)} · ${esc(conversationSource.conversation_title)} · message ${conversationSource.sequence}.</small></span></label>
+        <p class="setup-assistant">Only this selected user message is copied into the reviewed Bot draft. Other chat history, authority, permissions, accounts and tools stay private and unchanged.</p>`
+        : `<p class="setup-assistant">I’ll turn your answers into a bot draft. This is a guided setup, not an AI-generated configuration.</p>`}
       <label class="field" for="setup-purpose">What would you like this bot to handle?</label>
-      <textarea id="setup-purpose" rows="5" maxlength="4000" placeholder="For example: review release notes and prepare a short summary of changes that affect our project." required>${esc(draft.purpose)}</textarea>
+      <textarea id="setup-purpose" rows="5" maxlength="20000" placeholder="For example: review release notes and prepare a short summary of changes that affect our project." required>${esc(draft.purpose)}</textarea>
       <p class="hint">This becomes the bot’s standing instructions. You can edit it later.</p>
     </div>`;
     if (step === 1) content = `<div class="setup-conversation">
@@ -4028,6 +4058,12 @@ async function promptNewBot(preselect = "") {
     confirm.textContent = step === 5 ? "Create bot" : "Continue";
     confirm.disabled = false;
     $("#setup-back")?.addEventListener("click", () => { snapshotFields(); draft.step = Math.max(0, draft.step - 1); void renderStep(); });
+    $("#setup-use-source")?.addEventListener("change", event => {
+      draft.useConversationSource = event.currentTarget.checked;
+      draft.purpose = draft.useConversationSource ? conversationSource.original_request : "";
+      const purpose = $("#setup-purpose");
+      if (purpose) { purpose.value = draft.purpose; if (!draft.useConversationSource) purpose.focus(); }
+    });
     $$('input[name="setup-template"]').forEach(input => input.addEventListener("change", () => {
       draft.template = input.value;
       draft.tools = templateTools(selectedTemplate());
@@ -4071,6 +4107,8 @@ async function promptNewBot(preselect = "") {
         name: draft.name.trim(), template: draft.template || null,
         description: draft.description.trim() || draft.purpose.trim().split("\n")[0].slice(0, 240),
         instructions: draft.purpose.trim(), model: draft.model.trim(), inference_mode: draft.inference_mode,
+        source_conversation_id: draft.useConversationSource ? conversationSource?.conversation_id || null : null,
+        source_message_id: draft.useConversationSource ? conversationSource?.message_id || null : null,
         workspace_mode: draft.workspace_mode, tools: [...draft.tools], approval_mode: "ask", risk_tier: "supervised",
         limits: draft.limits,
         memory_enabled: draft.tools.has("remember") || draft.tools.has("recall"),

@@ -88,7 +88,13 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   model route/inference mode, workspace, tools, ask-first approval policy, limits and optional schedule, then displays these values
   before sending the command. `GET /api/v1/model-routes?inference_mode=` supplies current model suggestions; the field remains
   explicit and the create handler validates the chosen route. Route listing may read a configured provider's non-inference model
-  catalog, but it does not submit a model prompt or create product state.
+  catalog, but it does not submit a model prompt or create product state. From Studio, the wizard may include the latest user
+  message of the active conversation as a checked, editable purpose draft. The user can deselect it; no other message or history
+  is copied. The versioned create body may include both `source_conversation_id` and `source_message_id` or neither. The server
+  accepts only a user message in that exact conversation, stores its original content and provenance in the Bot's local creation
+  record, and includes the source identifiers in the idempotency digest. Bot list/detail responses expose the source ids, source
+  Bot, sequence and timestamp but omit the duplicated message body. The current wizard does not yet infer configuration or ask
+  only for unresolved details; name, starter, model/mode, workspace, tools, limits and schedule remain user-reviewed choices.
 * `POST /api/v1/tasks/runs` takes `{bot, prompt, rehearse?, model?}` and requires `Idempotency-Key`. The run, task and replay
   response are stored in one SQLite transaction. A new request returns 201; an exact retry returns the same run with `replayed: true`
   and 200, even if a restore hold or provider-route change happened after admission. A changed body or a key reused by another command

@@ -1784,6 +1784,121 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         context.close()
 
 
+def test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance(browser, live, monkeypatch):
+    base, app = live
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
+    store = app.state.store
+    source_bot = store.create_bot(Bot(name="chat-context-source", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(source_bot.id, "Launch planning",
+        idem_key="chat-context-conversation", request_hash="chat-context-conversation")
+    source_request = "Track the launch checklist and notify me when a blocker needs my attention."
+    with store._tx() as db:
+        store._insert_conversation_message(db, message_id="chat-context-private-old", conversation_id=conversation["id"],
+            seq=1, run_id="", role="user", content="My private payroll notes are not part of the Bot request.",
+            created_at=conversation["created_at"])
+        store._insert_conversation_message(db, message_id="chat-context-old-answer", conversation_id=conversation["id"],
+            seq=2, run_id="", role="assistant", content="Understood.", created_at=conversation["created_at"])
+        store._insert_conversation_message(db, message_id="chat-context-current-request", conversation_id=conversation["id"],
+            seq=3, run_id="", role="user", content=source_request, created_at=conversation["created_at"])
+
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-setup-context"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(f"{base}/#/chat/{source_bot.name}")
+        page.locator("#conversation-switcher").wait_for()
+        page.locator("#topbar-new-bot").click()
+        page.get_by_role("heading", name="What should it do?").wait_for()
+        source_toggle = page.get_by_label("Use your latest request from this chat")
+        assert source_toggle.is_checked()
+        purpose = page.get_by_label("What would you like this bot to handle?")
+        assert purpose.input_value() == source_request
+        assert "private payroll" not in purpose.input_value().lower()
+        source_toggle.uncheck()
+        assert purpose.input_value() == ""
+        source_toggle.check()
+        purpose.fill("Track the launch checklist; notify me when a blocker needs attention.")
+
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            metrics = page.evaluate("""() => {
+              const dialog = document.querySelector('[role=dialog]').getBoundingClientRect();
+              const input = document.querySelector('#setup-purpose').getBoundingClientRect();
+              return {viewport:[innerWidth, innerHeight], documentWidth:document.documentElement.scrollWidth,
+                dialog:{left:dialog.left,right:dialog.right}, input:{left:input.left,right:input.right},
+                footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight};
+            }""")
+            assert metrics["documentWidth"] - width <= 1, (label, metrics)
+            assert metrics["dialog"]["left"] >= -1 and metrics["dialog"]["right"] <= width + 1, (label, metrics)
+            assert metrics["input"]["left"] >= -1 and metrics["input"]["right"] <= width + 1, (label, metrics)
+            assert metrics["footerVisible"], (label, metrics)
+            page.screenshot(path=str(out / f"chat-source-purpose-{label}.png"), animations="disabled")
+
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.locator("#modal-confirm").click()
+        page.locator('input[name="setup-template"][value=""]').check()
+        page.locator("#modal-confirm").click()
+        page.get_by_label("Bot name").fill("launch-checklist")
+        page.locator("#modal-confirm").click()
+        page.get_by_label("Model route").fill("openai/gpt-4o-mini")
+        page.locator("#modal-confirm").click()
+        page.locator("#modal-confirm").click()
+        page.get_by_role("heading", name="Review setup").wait_for()
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.locator(".setup-source-details summary").click()
+            assert page.get_by_text(source_request, exact=True).is_visible()
+            metrics = page.evaluate("""() => ({
+              viewport:[innerWidth, innerHeight], documentWidth:document.documentElement.scrollWidth,
+              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
+              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight
+            })""")
+            assert metrics["documentWidth"] - width <= 1, (label, metrics)
+            assert metrics["bodyOverflow"] <= 1, (label, metrics)
+            assert metrics["footerVisible"], (label, metrics)
+            page.screenshot(path=str(out / f"chat-source-review-{label}.png"), animations="disabled")
+            if label != "phone": page.locator(".setup-source-details summary").click()
+
+        assert "chat-context-source · Launch planning · message 3" in page.locator(".setup-review-list").inner_text()
+        assert "will not start a run" in page.locator(".modal-body").inner_text().lower()
+        assert store.list_runs() == []
+        with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
+                                 and response.request.method == "POST") as created:
+            page.locator("#modal-confirm").click()
+        assert created.value.status == 201, created.value.text()
+        bot = store.get_bot("launch-checklist")
+        assert bot and bot.instructions == "Track the launch checklist; notify me when a blocker needs attention."
+        assert bot.creation_source and bot.creation_source.model_dump() == {
+            "conversation_id": conversation["id"], "message_id": "chat-context-current-request",
+            "source_bot_id": source_bot.id, "sequence": 3, "created_at": conversation["created_at"],
+            "original_request": source_request,
+        }
+        assert store.list_runs() == []
+        assert not errors, errors
+        (out / "validation.json").write_text(json.dumps({
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"),
+            "scenario": "latest user message explicitly seeds an editable Bot draft; older private turn is excluded; request provenance persists; creation starts no run; test-only connection key and no model call",
+            "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
+            "screenshots": [f"chat-source-{state}-{size}.png" for state in ("purpose", "review")
+                            for size in ("desktop", "tablet", "phone")],
+            "page_errors": errors,
+            "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
+                              for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                               "src/hutch/server/app.py", "src/hutch/models.py", "src/hutch/store.py",
+                                               "tests/test_api.py", "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try: context.tracing.stop(path=str(out / "trace.zip"))
+        except Exception: pass
+        context.close()
+
+
 def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live):
     base, app = live
     page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")

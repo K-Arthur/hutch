@@ -1,5 +1,19 @@
 # Visual validation record
 
+## Chat-sourced Bot creation (2026-10-09)
+
+Chromium **153.0.8010.12** with Playwright **1.63.0** tested the New Bot flow from an active Studio conversation. It selects only
+the latest user-authored message, lets the user remove that source or edit the resulting purpose, and shows the original request
+and source conversation in the final review. An older private user message was present in the fixture and was not copied. Bot
+creation retained the original message id/content in the local Bot record, omitted the duplicated body from the API response, and
+started no run. I inspected the source and review captures at desktop 1440×960, tablet 900×1024, and phone 390×844; the dialog,
+textarea and footer fit without horizontal overflow. The fixture produced no page errors. Screens, trace, browser/version and source
+hashes are in [`artifacts/bot-setup-context/`](artifacts/bot-setup-context/). No model/provider call, physical phone or screen-reader
+was used. The anonymous marketing workflow screenshot was also inspected at these sizes; it makes the draft/review boundary and
+"no run on save" clear without overflow or external requests. The wizard still asks for configuration choices and does not yet
+infer a full setup or ask only unresolved questions. The Impeccable detector reported no findings in the edited Studio JavaScript,
+stylesheet or marketing HTML.
+
 ## Message-anchored replies (2026-10-09)
 
 Chromium **153.0.8010.12** with Playwright **1.63.0** exercised selecting a specific Bot response by keyboard, checking focus moves
