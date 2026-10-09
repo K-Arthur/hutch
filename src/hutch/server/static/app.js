@@ -4409,10 +4409,26 @@ async function renderRunDetail(runId) {
 
 /* ---------------------------------------------------------- connections */
 
+function modelCapabilityResultsMarkup(page, error) {
+  if (error) return `<p class="hint bad" role="alert">Observation history could not be loaded: ${esc(error)}. Model capability remains unknown until Hutch can read the evidence.</p>`;
+  if (!page?.items?.length) return '<p class="hint" role="status">No tool-call observations recorded yet. Capability is unknown, not passed or failed; model availability checks do not test tool calling.</p>';
+  return `<ol class="model-capability-list" aria-label="Latest model tool-call observations">${page.items.map(item => `
+    <li class="model-capability-row">
+      <div class="model-capability-main"><strong>${esc(item.provider)} · ${esc(item.model)}</strong>
+        <span class="tag ok">Observed</span>
+        <p class="hint">Returned <code>${esc(item.source_tool)}</code> · route revision <code>${esc(item.route_revision.slice(0, 12))}</code></p></div>
+      <time class="hint" datetime="${esc(item.observed_at)}">${esc(new Date(item.observed_at).toLocaleString())}</time>
+    </li>`).join("")}</ol>
+    <p class="hint">Showing the latest ${page.items.length} recorded observation${page.items.length === 1 ? "" : "s"}. An absent record means unknown; it does not mean the model failed a test.</p>`;
+}
+
 async function renderConnections() {
   let data;
   try { data = await api("/connections"); }
   catch (err) { view.innerHTML = errorState(err); return; }
+  const modelCapabilityRequest = api("/v1/model-capabilities?direction=desc&limit=5")
+    .then(page => ({ page, error: "" }))
+    .catch(err => ({ page: null, error: err.message }));
   let bots = [];
   try { bots = await api("/bots"); }
   catch { /* Provider and device controls remain usable if the Bot list is unavailable. */ }
@@ -4693,6 +4709,12 @@ async function renderConnections() {
           <p class="hint">Hosted providers (OpenAI, Anthropic) read their env keys directly. A connection is for a custom endpoint or a flat-rate plan you own.</p>
         </div>`}
       ${data.errors?.length ? `<p class="hint" style="color:var(--warn);">${esc(data.errors.join(" "))}</p>` : ""}
+      <section class="panel conn-card model-capability-card" aria-labelledby="model-capabilities-title">
+        <div class="bot-head"><span class="bot-name" id="model-capabilities-title">Model tool-call observations</span>
+          <span class="tag">observed evidence</span></div>
+        <p class="hint">Hutch records a tool-call observation only after a normal, owned Bot run receives a declared tool call with valid arguments and its usage reservation is settled or retained for reconciliation. Each record applies to that exact connection, account, model and route revision. It is evidence from one past response, not a guarantee about the next run.</p>
+        <div id="model-capability-results"><p class="hint" role="status">Loading model tool-call observations…</p></div>
+      </section>
   </div></div>`;
   $(".device-manager").open = devicesOpen;
   $("#outlook-calendar-access").open = outlookCalendarAccessOpen;
@@ -5249,6 +5271,11 @@ async function renderConnections() {
       }
     });
   });
+  const modelCapabilityResult = await modelCapabilityRequest;
+  const modelCapabilityResults = $("#model-capability-results");
+  if (modelCapabilityResults?.isConnected) {
+    modelCapabilityResults.innerHTML = modelCapabilityResultsMarkup(modelCapabilityResult.page, modelCapabilityResult.error);
+  }
 }
 
 /* -------------------------------------------------------- guided bot setup */
@@ -5594,12 +5621,12 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
           <p class="hint" role="status" aria-live="polite" id="setup-purpose-draft-status">${esc(draft.purposeRefinementStatus)}</p>
         </div>` : ""}
         ${purposeRefinementHtml()}
-        <p class="hint setup-name-preview">Suggested name: <strong id="setup-name-preview">${esc(draft.display_name)}</strong> · review or change it below.</p>
+        <p class="hint setup-name-preview">Suggested Bot name: <strong id="setup-name-preview">${esc(draft.display_name)}</strong> · review or change it below.</p>
       <details class="setup-schedule setup-identity">
         <summary>Review or change the suggested name</summary>
         <div class="form-grid">
           <label class="field" for="setup-display_name">Display name<input id="setup-display_name" maxlength="80" autocomplete="off" placeholder="Avery Morgan · Project Status Reporter" value="${esc(draft.display_name)}" required>
-            <span class="hint">Hutch pairs a friendly teammate name with the Bot’s work role. The role stays visible in chats and lists.</span></label>
+            <span class="hint">Hutch suggests a friendly, professional name with the Bot’s work role. Both are editable, and chats and lists keep the AI Bot label visible.</span></label>
           <label class="field" for="setup-name">Bot address<input id="setup-name" maxlength="41" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="release-notes-reviewer" value="${esc(draft.name)}" required>
             <span class="hint">Stable local address; it follows the display name until you edit it.</span></label>
           <label class="field" for="setup-description">Short description<input id="setup-description" maxlength="240" placeholder="What people can ask this Bot to do" value="${esc(draft.description)}"></label>

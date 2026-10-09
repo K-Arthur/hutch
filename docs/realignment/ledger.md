@@ -2810,8 +2810,10 @@ immutable row stores the run, provider route/account, model, route identity hash
 tool arguments, credentials or response content. Duplicate observations for the same exact route revision are ignored. Invalid,
 unknown, tool-free draft and unreserved calls do not create evidence. A route change produces a different revision and no
 capability is inferred for it. The record is still only a past response, not a future guarantee; absent evidence is unknown.
-`GET /api/v1/model-capabilities` provides typed keyset pagination capped at 100 rows. No UI or marketing change was needed for
-this API/persistence slice, so the earlier responsive screenshots remain valid; provider/model evidence is fixture-only.
+`GET /api/v1/model-capabilities` provides typed keyset pagination capped at 100 rows. Connections now shows up to five newest records,
+using descending ID cursors, and explicitly separates observed, unknown, and history-unavailable states. Naming setup copy calls the
+generated role/name pair a suggested Bot label, says both values are editable, and preserves the AI Bot label elsewhere. This private
+operational evidence does not change marketing claims. Provider/model evidence remains fixture-only.
 
 The first full-suite run exposed that built-in route identity omitted the effective `OLLAMA_HOST` override. That made production
 route pinning reject local Ollama connections despite their configured host. `_route_identity` now includes that effective
@@ -2819,3 +2821,26 @@ endpoint; focused model-switcher, rehearsal, risk-policy and workspace tests pas
 suite passed **183 tests in 62.39s**; the complete non-browser suite with thread-exception and syntax warnings promoted to errors
 passed **1,471 tests, 2 skipped, in 276.71s**. Python compilation and `git diff --check` passed. No live provider, paid call or
 visual UI change occurred.
+
+## Connections capability evidence and naming clarity (2026-10-09)
+
+Connections now displays the five newest immutable model tool-call observations with provider/model, safe tool name, time and a
+short route-revision fingerprint. It does not display account identifiers. Copy explains that a record applies only to that exact
+route revision and is evidence from a past response, not a guarantee. An empty page means unknown; a failed evidence request is
+shown separately and does not block connection management. Descending keyset pagination uses the exclusive `after_id` cursor to
+continue toward older records while ascending pagination remains compatible.
+
+The setup wizard already derives an editable professional role and human-friendly name locally from the user's stated request. Its
+copy now calls the result a suggested Bot name, clarifies that the role and label can be changed, and retains the visible AI Bot label
+in chat and lists. The naming generator remains deterministic, deduplicates current roster names and makes no model call.
+
+The API pagination regression and four-state browser journey were added; the latter captures loading, empty, unavailable and populated
+evidence at 1440×960, 900×1024, 390×844 and 320×740. It also checks nested/page overflow, page errors, and absence of external
+requests, using a synthetic API response only. Captures and validation metadata are in [`artifacts/model-capabilities/`](artifacts/model-capabilities/).
+The exact focused run `node --check src/hutch/server/static/app.js && uv run pytest -q tests/test_api.py::test_versioned_connections_schedules_and_capabilities_are_typed_and_secret_free tests/e2e/test_browser.py::test_model_capability_observations_show_unknown_and_latest_evidence tests/e2e/test_browser.py::test_provider_connections_fit_phone_viewports_and_capture_signin_states tests/e2e/test_browser.py::test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes --no-header`
+passed **4 tests in 10.95s** on Chromium **153.0.8010.12**; `git diff --check` passed. I inspected the loading, empty, unavailable,
+and observed card captures on representative desktop, tablet, phone and compact-phone views. No provider credentials or live model call
+were used. The side-tab detector report on `style.css` was a false positive: its two
+referenced selectors are a padded code block and uniformly outlined checkpoint rows. A file-scoped `side-tab` value ignore was
+already present in shared Impeccable configuration and was retained after a direct detector scan returned no such issue; other
+detector rules remain enabled for the stylesheet.

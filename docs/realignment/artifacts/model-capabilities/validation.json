@@ -1,0 +1,49 @@
+{
+  "test": "tests/e2e/test_browser.py::test_model_capability_observations_show_unknown_and_latest_evidence",
+  "command": "uv run pytest -q tests/e2e/test_browser.py::test_model_capability_observations_show_unknown_and_latest_evidence",
+  "captured_at": "2026-10-09T21:46:01.865690+00:00",
+  "python": "3.13.15",
+  "hutch_version": "0.1.0",
+  "browser": "153.0.8010.12",
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "name": "tablet",
+      "width": 900,
+      "height": 1024
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "compact-phone",
+      "width": 320,
+      "height": 740
+    }
+  ],
+  "states": [
+    "loading",
+    "empty_unknown",
+    "history_unavailable",
+    "observed"
+  ],
+  "inspected_screenshots": [
+    "loading-desktop.png",
+    "empty-phone.png",
+    "error-phone.png",
+    "observed-desktop.png",
+    "observed-tablet.png",
+    "observed-phone.png",
+    "observed-compact-phone.png"
+  ],
+  "external_requests": [],
+  "provider_credentials_used": false,
+  "capability_call_live": false,
+  "fixture_evidence": true
+}

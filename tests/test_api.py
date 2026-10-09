@@ -1304,7 +1304,15 @@ def test_versioned_connections_schedules_and_capabilities_are_typed_and_secret_f
     next_page = client.get(f"/api/v1/model-capabilities?limit=1&after_id={body['next_after_id']}")
     assert next_page.status_code == 200
     assert len(next_page.json()["items"]) == 1
+    latest_page = client.get("/api/v1/model-capabilities?direction=desc&limit=1")
+    assert latest_page.status_code == 200
+    latest = latest_page.json()
+    assert latest["items"][0]["model"] == "fixture-model-2" and latest["next_after_id"] is not None
+    older_page = client.get(f"/api/v1/model-capabilities?direction=desc&limit=1&after_id={latest['next_after_id']}")
+    assert older_page.status_code == 200
+    assert older_page.json()["items"][0]["model"] == "fixture-model"
     assert client.get("/api/v1/model-capabilities?limit=101").status_code == 422
+    assert client.get("/api/v1/model-capabilities?direction=sideways").status_code == 422
 
     bot = make_bot(client, name="scheduled-v1", cron="0 9 * * 1", timezone="America/Vancouver",
                    schedule_prompt="Review new release notes and write a concise report.")

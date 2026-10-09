@@ -1423,9 +1423,10 @@ def create_app() -> FastAPI:
         return compatibility_matrix()
 
     @app.get("/api/v1/model-capabilities", response_model=ModelCapabilityPageResource)
-    def model_capability_observations(after_id: int = Query(default=0, ge=0),
-                                      limit: int = Query(default=50, ge=1, le=100)) -> dict:
-        rows = store.list_model_capability_observations(after_id=after_id, limit=limit)
+    def model_capability_observations(after_id: Optional[int] = Query(default=None, ge=0),
+                                      limit: int = Query(default=50, ge=1, le=100),
+                                      direction: Literal["asc", "desc"] = Query(default="asc")) -> dict:
+        rows = store.list_model_capability_observations(after_id=after_id, limit=limit, direction=direction)
         has_more = len(rows) > limit
         items = rows[:limit]
         scope = "exact connection, account, model, and route revision"

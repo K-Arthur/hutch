@@ -123,7 +123,9 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   capability, retention policy, quota, or live connection. Schema v37 records a positive tool-call observation only from a
   normal owned run with settled or uncertain shared-account reservation, keyed to its exact connection/account/model/route revision; invalid or undeclared calls do not
   count, no record remains unknown, and the observation is not a guarantee. `GET /api/v1/model-capabilities` returns the
-  immutable records with bounded keyset pagination. No extra capability probe is issued. `hutch connections test` only checks
+  immutable records with bounded keyset pagination; `direction=desc` returns newest records first and uses the same exclusive
+  `after_id` cursor name to page toward older IDs. Connections shows the five newest records when available, and keeps empty and
+  unavailable history visibly unknown. No extra capability probe is issued. `hutch connections test` only checks
   authentication/model discovery. Its legacy standalone `--chat` option is refused because that path bypassed the normal
   shared usage reservation and reconciliation contract; use a normal Bot run to exercise model behavior.
 * Conversation create, message submit, and archive require `Idempotency-Key`. Exact retries return the same resource/run; reusing the

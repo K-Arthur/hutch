@@ -20,6 +20,8 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ## [Unreleased]
 
+- Connections now shows up to five newest, route-specific tool-call observations from normal Bot runs, with explicit unknown and history-unavailable states; this evidence is not a capability guarantee. Model-capability pagination supports newest-first keyset reads.
+- Bot setup labels the generated name as a suggested Bot identity, explains its professional work-role pairing, and keeps the AI Bot identity explicit in chat and lists.
 - Schema v37 records one immutable, positive tool-call observation per exact provider connection/account/model/route revision when a normal, owned Bot run with settled or uncertain usage reservation receives a declared call with valid arguments. Added bounded, typed `GET /api/v1/model-capabilities`; no extra paid probe is made, invalid calls do not count, and absent evidence remains unknown.
 
 - Added an experimental private-preview Gmail search connection using an owner-configured Google Desktop OAuth client and Linux Secret Service. It requests restricted account-wide `gmail.readonly`, returns bounded headers/snippets only, and grants access only to built-in Bots whose complete model route set is loopback Local. Hybrid, hosted, remote model endpoints and hosted fallbacks are rejected. No Gmail send or mailbox-write operation exists; public release is unavailable pending Google scope verification and any applicable security assessment. Live account consent is unverified.

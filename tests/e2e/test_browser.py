@@ -846,6 +846,107 @@ def test_provider_connections_fit_phone_viewports_and_capture_signin_states(brow
         page.close()
 
 
+def test_model_capability_observations_show_unknown_and_latest_evidence(browser, live):
+    base, _app = live
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/model-capabilities"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    external: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    viewports = (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844),
+                 ("compact-phone", 320, 740))
+    capability_state = {"items": [], "error": False, "hold": True}
+    pending_capability_routes = []
+    def capability_response(route):
+        if capability_state["hold"]:
+            capability_state["hold"] = False
+            pending_capability_routes.append(route)
+            return
+        if capability_state["error"]:
+            route.fulfill(status=503, json={"detail": "Fixture history unavailable"})
+            return
+        route.fulfill(json={"items": capability_state["items"], "next_after_id": None})
+    page.route("**/api/v1/model-capabilities**", capability_response)
+    try:
+        page.goto(base + "/#/connections")
+        panel = page.get_by_role("region", name="Model tool-call observations")
+        panel.wait_for()
+        loading_state = panel.locator("#model-capability-results [role=status]")
+        loading_state.wait_for()
+        assert "Loading model tool-call observations" in loading_state.inner_text()
+        panel.scroll_into_view_if_needed()
+        page.screenshot(path=str(out / "loading-desktop.png"), animations="disabled")
+        assert len(pending_capability_routes) == 1
+        pending_capability_routes.pop().fulfill(json={"items": [], "next_after_id": None})
+        empty_state = panel.locator("#model-capability-results [role=status]")
+        empty_state.wait_for()
+        assert "unknown, not passed or failed" in empty_state.inner_text()
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            panel.scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"empty-{label}.png"), animations="disabled")
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+
+        capability_state["error"] = True
+        page.reload()
+        panel = page.get_by_role("region", name="Model tool-call observations")
+        error_state = panel.locator("#model-capability-results [role=alert]")
+        error_state.wait_for()
+        assert "history could not be loaded" in error_state.inner_text()
+        for label, width, height in (("desktop", 1440, 960), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            panel.scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"error-{label}.png"), animations="disabled")
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+
+        capability_state["error"] = False
+        capability_state["items"] = [{"id": 2, "run_id": "run_fixture", "provider": "fixture-route",
+            "account_id": "fixture-account", "model": "fixture-model", "route_revision": "a" * 64,
+            "capability": "function_tool_calls", "source_tool": "list_files",
+            "observed_at": datetime.now(timezone.utc).isoformat(), "status": "observed",
+            "scope": "exact connection, account, model, and route revision"}]
+        page.reload()
+        panel = page.get_by_role("region", name="Model tool-call observations")
+        panel.get_by_text("fixture-route · fixture-model", exact=True).wait_for()
+        panel.get_by_text("list_files", exact=True).wait_for()
+        panel.get_by_text("route revision aaaaaaaaaaaa", exact=False).wait_for()
+        assert "fixture-account" not in panel.inner_text()
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            panel.scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"observed-{label}.png"), animations="disabled")
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+            nested_overflow = panel.evaluate("el => el.scrollWidth - el.clientWidth")
+            assert nested_overflow <= 1, (label, nested_overflow)
+        assert not errors, errors
+        assert not external, external
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_model_capability_observations_show_unknown_and_latest_evidence",
+            "command": "uv run pytest -q tests/e2e/test_browser.py::test_model_capability_observations_show_unknown_and_latest_evidence",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(), "hutch_version": package_version("hutch"),
+            "browser": browser.version,
+            "viewports": [{"name": label, "width": width, "height": height} for label, width, height in viewports],
+            "states": ["loading", "empty_unknown", "history_unavailable", "observed"],
+            "inspected_screenshots": ["loading-desktop.png", "empty-phone.png", "error-phone.png",
+                                      "observed-desktop.png", "observed-tablet.png", "observed-phone.png",
+                                      "observed-compact-phone.png"],
+            "external_requests": external, "provider_credentials_used": False,
+            "capability_call_live": False, "fixture_evidence": True,
+        }, indent=2) + "\n")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "model-capabilities-trace.zip"))
+        except Exception:
+            pass
+        context.close()
+
+
 def test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone(browser, live, monkeypatch):
     from pathlib import Path
 
@@ -3275,6 +3376,8 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
             page.screenshot(path=str(out / f"chat-identity-{label}.png"), animations="disabled")
         page.set_viewport_size({"width": 1440, "height": 960})
         page.locator("#topbar-new-bot").click()
+        page.get_by_text("Suggested Bot name:", exact=False).wait_for(state="visible")
+        page.get_by_text("Hutch suggests a friendly, professional name", exact=False).wait_for(state="attached")
         purpose = page.get_by_label("What would you like this bot to handle?")
         purpose.fill(first_request)
         page.locator(".setup-identity summary").click()

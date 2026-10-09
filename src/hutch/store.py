@@ -3600,13 +3600,24 @@ class Store:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING""",
                 (run.id, provider, account_id, model, route_revision, capability, source_tool, iso(utcnow())))
 
-    def list_model_capability_observations(self, *, after_id: int = 0, limit: int = 50) -> list[dict[str, Any]]:
-        if after_id < 0 or not 1 <= limit <= 100:
+    def list_model_capability_observations(self, *, after_id: Optional[int] = None, limit: int = 50,
+                                           direction: str = "asc") -> list[dict[str, Any]]:
+        if (after_id is not None and after_id < 0) or not 1 <= limit <= 100 or direction not in {"asc", "desc"}:
             raise ValueError("model capability pagination is out of range")
         with self._lock:
-            rows = self._db.execute("""SELECT id, run_id, provider, account_id, model, route_revision,
-                capability, source_tool, observed_at FROM model_capability_observations
-                WHERE id > ? ORDER BY id LIMIT ?""", (after_id, limit + 1)).fetchall()
+            if direction == "desc":
+                if after_id is None:
+                    rows = self._db.execute("""SELECT id, run_id, provider, account_id, model, route_revision,
+                        capability, source_tool, observed_at FROM model_capability_observations
+                        ORDER BY id DESC LIMIT ?""", (limit + 1,)).fetchall()
+                else:
+                    rows = self._db.execute("""SELECT id, run_id, provider, account_id, model, route_revision,
+                        capability, source_tool, observed_at FROM model_capability_observations
+                        WHERE id < ? ORDER BY id DESC LIMIT ?""", (after_id, limit + 1)).fetchall()
+            else:
+                rows = self._db.execute("""SELECT id, run_id, provider, account_id, model, route_revision,
+                    capability, source_tool, observed_at FROM model_capability_observations
+                    WHERE id > ? ORDER BY id LIMIT ?""", (after_id or 0, limit + 1)).fetchall()
         return [dict(row) for row in rows]
 
     def _notify_run(self, run: Run) -> None:

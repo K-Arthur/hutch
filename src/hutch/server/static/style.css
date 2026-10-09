@@ -1057,6 +1057,13 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .conn-card .bot-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; }
 .conn-card .bot-facts > div, .conn-card .bot-facts b { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
 .conn-card .hint { overflow-wrap: anywhere; }
+.model-capability-card { margin-top: var(--s-4); }
+.model-capability-list { display: grid; gap: var(--s-2); list-style: none; margin: var(--s-3) 0; padding: 0; }
+.model-capability-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); min-width: 0; padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-control); background: var(--surface); }
+.model-capability-main { display: flex; align-items: baseline; gap: var(--s-2); flex-wrap: wrap; min-width: 0; }
+.model-capability-main strong { overflow-wrap: anywhere; }
+.model-capability-main .hint { flex-basis: 100%; margin: 0; }
+.model-capability-row > time { flex: none; text-align: right; }
 .conn-card button:disabled, .conn button:disabled {
   background: var(--raised); border-color: var(--line-strong); color: var(--text-3); cursor: not-allowed;
 }
@@ -1068,6 +1075,8 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .google-calendar-grant-form .hint { grid-column: 1 / -1; margin: 0; }
 .google-calendar-orphan-grants { margin-top: var(--s-3); padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-card); }
 @media (max-width: 640px) {
+  .model-capability-row { flex-direction: column; }
+  .model-capability-row > time { text-align: left; }
   .google-calendar-connect, .google-calendar-grant-form { grid-template-columns: minmax(0, 1fr); }
   .google-calendar-connect .hint, .google-calendar-grant-form .hint { grid-column: 1; }
   .google-calendar-connect button, .google-calendar-grant-form button { min-height: 44px; width: 100%; }
