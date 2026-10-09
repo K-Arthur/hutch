@@ -17,7 +17,7 @@ def _running_parent(store):
     return bot, store.transition_run(claimed.id, RunStatus.running, fence=claimed.fence)
 
 
-def _child(store, parent, prompt="inspect one bounded area", key="delegate"):
+def _child(store, parent, prompt="inspect one bounded area", key="delegate", parent_budget_cost_usd=None):
     return store.submit_delegated_run(
         parent_run_id=parent.id,
         parent_fence=parent.fence,
@@ -25,6 +25,7 @@ def _child(store, parent, prompt="inspect one bounded area", key="delegate"):
         task=Task(bot_id=parent.bot_id, kind="delegated", prompt=prompt),
         idem_key=key,
         request_hash=f"sha256:{key}",
+        parent_budget_cost_usd=parent_budget_cost_usd,
     )
 
 
@@ -144,6 +145,60 @@ def test_delegation_cannot_link_a_run_to_itself(store):
     assert store._db.execute("SELECT 1 FROM tasks WHERE id = ?", (task.id,)).fetchone() is None
 
 
+def test_descendants_share_the_root_cost_reservation_and_keep_its_limit(store):
+    from hutch.store import UsageBudgetRefusal
+
+    bot, root = _running_parent(store)
+    root_reservation = store.reserve_usage(
+        run_id=root.id, bot_id=bot.id, provider="vendor-a", account_id="budget-account", model="model-a",
+        reserved_tokens=100, reserved_cost_usd=0.70, max_run_cost_usd=1.0, expected_fence=root.fence)
+    store.add_usage(root.id, bot.id, "vendor-a", "model-a", 100, 0, cost_usd=0.70,
+                    account_id="budget-account", reservation_id=root_reservation, expected_fence=root.fence)
+    child, _ = store.submit_delegated_run(
+        parent_run_id=root.id,
+        parent_fence=root.fence,
+        run=Run(bot_id=bot.id, prompt="bounded child work"),
+        task=Task(bot_id=bot.id, kind="delegated", prompt="bounded child work"),
+        idem_key="budget-child",
+        request_hash="sha256:budget-child",
+        parent_budget_cost_usd=1.0,
+    )
+    assert child.delegation_budget_cost_usd == 1.0
+    assert store.get_run(child.id).delegation_budget_cost_usd == 1.0
+    with pytest.raises(sqlite3.IntegrityError, match="delegation budget is immutable"):
+        with store._tx() as db:
+            db.execute("UPDATE runs SET delegation_budget_cost_usd = 5 WHERE id = ?", (child.id,))
+
+    store.transition_run(root.id, RunStatus.succeeded, fence=root.fence, exit_reason="completed")
+    claimed = store.claim_run(child.id, "delegation-budget-child", 60)
+    assert claimed is not None
+    child = store.transition_run(claimed.id, RunStatus.running, fence=claimed.fence)
+    with pytest.raises(UsageBudgetRefusal, match=r"delegated run tree.*\$1.00 cap"):
+        store.reserve_usage(
+            run_id=child.id, bot_id=bot.id, provider="vendor-a", account_id="budget-account", model="model-a",
+            reserved_tokens=100, reserved_cost_usd=0.31, max_run_cost_usd=5.0, expected_fence=child.fence)
+
+    child_reservation = store.reserve_usage(
+        run_id=child.id, bot_id=bot.id, provider="vendor-a", account_id="budget-account", model="model-a",
+        reserved_tokens=100, reserved_cost_usd=0.25, max_run_cost_usd=5.0, expected_fence=child.fence)
+    store.mark_usage_uncertain(child_reservation, "provider response missing", expected_fence=child.fence)
+
+    grandchild, _ = _child(store, child, prompt="verify the bounded result", key="budget-grandchild",
+                           parent_budget_cost_usd=5.0)
+    assert grandchild.delegation_budget_cost_usd == 1.0
+    store.transition_run(child.id, RunStatus.succeeded, fence=child.fence, exit_reason="completed")
+    claimed_grandchild = store.claim_run(grandchild.id, "delegation-budget-grandchild", 60)
+    assert claimed_grandchild is not None
+    grandchild = store.transition_run(claimed_grandchild.id, RunStatus.running, fence=claimed_grandchild.fence)
+    with pytest.raises(UsageBudgetRefusal, match=r"delegated run tree.*\$1.00 cap"):
+        store.reserve_usage(
+            run_id=grandchild.id, bot_id=bot.id, provider="vendor-a", account_id="budget-account", model="model-a",
+            reserved_tokens=100, reserved_cost_usd=0.06, max_run_cost_usd=5.0, expected_fence=grandchild.fence)
+    store.reserve_usage(
+        run_id=grandchild.id, bot_id=bot.id, provider="vendor-a", account_id="budget-account", model="model-a",
+        reserved_tokens=100, reserved_cost_usd=0.05, max_run_cost_usd=5.0, expected_fence=grandchild.fence)
+
+
 def test_delegation_enforces_depth_fanout_and_active_child_limits(store):
     _, root = _running_parent(store)
     child1, _ = _child(store, root, key="child-1")
@@ -204,6 +259,8 @@ def test_schema_v21_migrates_existing_runs_with_no_parent_link(config):
     store.close()
 
     db = sqlite3.connect(config.db_path)
+    db.execute("DROP TRIGGER runs_delegation_budget_immutable")
+    db.execute("ALTER TABLE runs DROP COLUMN delegation_budget_cost_usd")
     db.execute("DROP TRIGGER runs_parent_run_id_immutable")
     db.execute("DROP INDEX idx_runs_parent")
     db.execute("ALTER TABLE runs DROP COLUMN parent_run_id")
@@ -214,8 +271,32 @@ def test_schema_v21_migrates_existing_runs_with_no_parent_link(config):
     upgraded = Store(config)
     try:
         legacy = upgraded.get_run(run.id)
-        assert upgraded.schema_version == 22
+        assert upgraded.schema_version == 23
         assert legacy.parent_run_id is None
+        assert legacy.delegation_budget_cost_usd is None
         assert (config.db_path.parent / "hutch.db.bak-v21").exists()
+    finally:
+        upgraded.close()
+
+
+def test_schema_v22_migration_preserves_lineage_without_inventing_a_budget(store, config):
+    bot, parent = _running_parent(store)
+    child, _ = _child(store, parent, key="migrate-v22-child")
+    store.close()
+
+    db = sqlite3.connect(config.db_path)
+    db.execute("DROP TRIGGER runs_delegation_budget_immutable")
+    db.execute("ALTER TABLE runs DROP COLUMN delegation_budget_cost_usd")
+    db.execute("PRAGMA user_version = 22")
+    db.commit()
+    db.close()
+
+    upgraded = Store(config)
+    try:
+        restored = upgraded.get_run(child.id)
+        assert upgraded.schema_version == 23
+        assert restored.parent_run_id == parent.id
+        assert restored.delegation_budget_cost_usd is None
+        assert (config.db_path.parent / "hutch.db.bak-v22").exists()
     finally:
         upgraded.close()

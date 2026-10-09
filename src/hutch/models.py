@@ -320,6 +320,7 @@ class Run(BaseModel):
     plan_id: Optional[str] = None
     plan_task_id: Optional[str] = None
     parent_run_id: Optional[str] = None  # bounded delegation lineage; immutable after admission
+    delegation_budget_cost_usd: Optional[float] = None  # immutable shared currency cap inherited by descendants
     rehearsal: bool = False           # dry run: mutating actions are simulated
     model_override: str = ""          # the model picked for THIS message in the chat switcher (bot.model is untouched)
     conversation_id: str = ""          # canonical conversation this run belongs to, if submitted through /api/v1

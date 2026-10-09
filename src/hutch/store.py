@@ -488,17 +488,26 @@ def _migrate_22(db: sqlite3.Connection) -> None:
         BEGIN SELECT RAISE(ABORT, 'run parent is immutable'); END""")
 
 
+def _migrate_23(db: sqlite3.Connection) -> None:
+    """Persist an immutable shared currency ceiling for each delegated subtree."""
+    db.execute("ALTER TABLE runs ADD COLUMN delegation_budget_cost_usd REAL")
+    db.execute("""CREATE TRIGGER runs_delegation_budget_immutable
+        BEFORE UPDATE OF delegation_budget_cost_usd ON runs
+        WHEN OLD.delegation_budget_cost_usd IS NOT NEW.delegation_budget_cost_usd
+        BEGIN SELECT RAISE(ABORT, 'delegation budget is immutable'); END""")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
-               _migrate_19, _migrate_20, _migrate_21, _migrate_22]
+               _migrate_19, _migrate_20, _migrate_21, _migrate_22, _migrate_23]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
 _RUN_COMPUTED = {"status_label", "terminal", "needs_person"}
 #: the run columns that are authoritative over whatever the JSON document says
 _RUN_COLS = ("doc, status, fence, lease_owner, lease_expires_at, cancel_requested, pgid, conversation_id, "
-             "conversation_context, parent_run_id")
+             "conversation_context, parent_run_id, delegation_budget_cost_usd")
 _TERMINAL_VALUES = tuple(sorted(st.value for st in TERMINAL))
 _LIVE_VALUES = tuple(sorted(st.value for st in ACTIVE_STATUSES if st is not RunStatus.pending))
 #: fields only the owner writes while a run is claimed: merged into the document in one statement (no read-modify-write)
@@ -1048,6 +1057,7 @@ class Store:
         run.conversation_id = row["conversation_id"]
         run.conversation_context = json.loads(row["conversation_context"] or "[]")
         run.parent_run_id = row["parent_run_id"]
+        run.delegation_budget_cost_usd = row["delegation_budget_cost_usd"]
         return run
 
     # ------------------------------------------------------------ tasks
@@ -1091,7 +1101,7 @@ class Store:
     # ------------------------------------------------------------- runs
 
     def create_run(self, run: Run) -> Run:
-        if run.parent_run_id is not None:
+        if run.parent_run_id is not None or run.delegation_budget_cost_usd is not None:
             raise ValueError("delegated runs must use submit_delegated_run")
         with self._lock:
             self._assert_execution_ready(self._db)
@@ -1109,7 +1119,7 @@ class Store:
         """Admit work: the task and its run are created together, linked, in ONE transaction (or not at all).
 
         The old path made three separate commits and marked the task done before anything had run."""
-        if run.parent_run_id is not None:
+        if run.parent_run_id is not None or run.delegation_budget_cost_usd is not None:
             raise ValueError("delegated runs must use submit_delegated_run")
         run.task_id = task.id
         with self._tx() as db:
@@ -1145,7 +1155,7 @@ class Store:
     def submit_run_idempotent(self, run: Run, task: Task, *, idem_key: str,
                               request_hash: str) -> tuple[Run, bool]:
         """Atomically persist a standalone run, its task, and its v1 retry record."""
-        if run.parent_run_id is not None:
+        if run.parent_run_id is not None or run.delegation_budget_cost_usd is not None:
             raise ValueError("delegated runs must use submit_delegated_run")
         scope = "api:v1:tasks:runs"
         run.task_id = task.id
@@ -1172,7 +1182,8 @@ class Store:
         return run, True
 
     def submit_delegated_run(self, *, parent_run_id: str, parent_fence: int, run: Run, task: Task,
-                             idem_key: str, request_hash: str) -> tuple[Run, bool]:
+                             idem_key: str, request_hash: str,
+                             parent_budget_cost_usd: float | None = None) -> tuple[Run, bool]:
         """Create one bounded child run under a live parent, with durable lineage and exact retry semantics.
 
         A child uses the same bot identity and conversation as its parent. This primitive does not
@@ -1188,6 +1199,15 @@ class Store:
             raise ValueError("a delegated run must enter the queue as pending")
         if run.parent_run_id not in (None, parent_run_id):
             raise ValueError("delegated run parent does not match the authorized parent")
+        if run.delegation_budget_cost_usd is not None:
+            raise ValueError("delegation budget is assigned from the authorized parent")
+        if parent_budget_cost_usd is not None:
+            from math import isfinite
+            parent_budget_cost_usd = float(parent_budget_cost_usd)
+            if not isfinite(parent_budget_cost_usd) or parent_budget_cost_usd < 0:
+                raise ValueError("parent delegated budget must be finite and non-negative")
+            if parent_budget_cost_usd == 0:
+                parent_budget_cost_usd = None
         prompt = task.prompt.strip()
         if not prompt or len(prompt) > 4000 or run.prompt != prompt:
             raise ValueError("delegated prompt must be non-empty, at most 4000 characters, and match its task")
@@ -1206,7 +1226,8 @@ class Store:
             self._assert_execution_ready(db)
 
             parent = db.execute("SELECT id, bot_id, status, fence, lease_owner, lease_expires_at, cancel_requested, "
-                                "conversation_id, conversation_context FROM runs WHERE id = ?",
+                                "conversation_id, conversation_context, parent_run_id, delegation_budget_cost_usd "
+                                "FROM runs WHERE id = ?",
                                 (parent_run_id,)).fetchone()
             if parent is None:
                 raise KeyError(parent_run_id)
@@ -1216,6 +1237,11 @@ class Store:
                 raise ValueError("delegation requires the current, live run owner")
             if run.bot_id != parent["bot_id"] or task.bot_id != parent["bot_id"]:
                 raise ValueError("delegated work must keep the parent's bot permissions")
+            # Only a top-level delegation snapshots the caller's execution-time bot policy.
+            # Every later level inherits the already-persisted ceiling; a child cannot
+            # widen its tree by passing a newer bot setting.
+            delegated_budget = (parent["delegation_budget_cost_usd"]
+                                if parent["parent_run_id"] is not None else parent_budget_cost_usd)
 
             chain = db.execute("""WITH RECURSIVE ancestors(id, parent_run_id, depth, path) AS (
                                   SELECT id, parent_run_id, 0, ',' || id || ',' FROM runs WHERE id = ?
@@ -1237,6 +1263,7 @@ class Store:
                 raise ValueError("delegation concurrent-child limit is two")
 
             run.parent_run_id = parent_run_id
+            run.delegation_budget_cost_usd = delegated_budget
             run.origin = "delegated"
             run.task_id = task.id
             run.conversation_id = parent["conversation_id"] or ""
@@ -1252,9 +1279,11 @@ class Store:
                        "VALUES (?, ?, ?, ?, ?, 0, 'queued', ?)",
                        (task.id, task.bot_id, task.kind, prompt, task.created_at, run.id))
             db.execute("INSERT INTO runs (id, bot_id, task_id, doc, status, created_at, conversation_id, "
-                       "conversation_context, parent_run_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       "conversation_context, parent_run_id, delegation_budget_cost_usd) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                        (run.id, run.bot_id, task.id, self._run_json(run), run.status.value, run.created_at,
-                        run.conversation_id, json.dumps(run.conversation_context, ensure_ascii=False), parent_run_id))
+                        run.conversation_id, json.dumps(run.conversation_context, ensure_ascii=False), parent_run_id,
+                        delegated_budget))
             if run.conversation_id:
                 db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
                            (run.conversation_id, run.id, now))
@@ -1409,7 +1438,7 @@ class Store:
                                     idem_key: str, request_hash: str, context_messages: int = 12,
                                     context_chars: int = 16_000) -> tuple[str, bool]:
         """Append a user message and admit its run atomically, with a bounded context snapshot and durable idempotency."""
-        if run.parent_run_id is not None:
+        if run.parent_run_id is not None or run.delegation_budget_cost_usd is not None:
             raise ValueError("delegated runs must use submit_delegated_run")
         scope = f"api:v1:conversation:{conversation_id}:messages"
         now = iso(utcnow())
@@ -1632,7 +1661,7 @@ class Store:
         for one window. Now the last-fire marker is compared and advanced, the occurrence row is inserted (unique per bot and
         window) and the run is created in a single write transaction: exactly one caller can win.
         """
-        if run.parent_run_id is not None:
+        if run.parent_run_id is not None or run.delegation_budget_cost_usd is not None:
             raise ValueError("delegated runs must use submit_delegated_run")
         schedule_id = schedule_id or f"schedule:{run.bot_id}"
         marker_key = f"{schedule_id}:last_fire"
@@ -3237,6 +3266,48 @@ class Store:
                 raise UsageBudgetRefusal(
                     f"the next call could pass this run's ${max_run_cost_usd:.2f} cap; "
                     f"${spent + held:.4f} is spent or reserved")
+
+            tree_cap = run_doc_row["delegation_budget_cost_usd"]
+            if tree_cap is not None:
+                tree_rows = db.execute("""WITH RECURSIVE ancestors(id, parent_run_id, path) AS (
+                                            SELECT id, parent_run_id, ',' || id || ',' FROM runs WHERE id = ?
+                                            UNION ALL
+                                            SELECT p.id, p.parent_run_id, a.path || p.id || ','
+                                            FROM runs p JOIN ancestors a ON p.id = a.parent_run_id
+                                            WHERE instr(a.path, ',' || p.id || ',') = 0
+                                        ), roots(id) AS (
+                                            SELECT id FROM ancestors WHERE parent_run_id IS NULL LIMIT 1
+                                        ), descendants(id, path) AS (
+                                            SELECT id, ',' || id || ',' FROM roots
+                                            UNION ALL
+                                            SELECT r.id, d.path || r.id || ',' FROM runs r
+                                            JOIN descendants d ON r.parent_run_id = d.id
+                                            WHERE instr(d.path, ',' || r.id || ',') = 0
+                                        )
+                                        SELECT r.id, r.doc FROM runs r JOIN descendants d ON d.id = r.id""",
+                                       (run_id,)).fetchall()
+                if not tree_rows:
+                    raise UsageBudgetRefusal("cannot verify the delegated run tree budget; provider call refused")
+                tree_ids = [row["id"] for row in tree_rows]
+                tree_docs = {row["id"]: json.loads(row["doc"]) for row in tree_rows}
+                marks = ",".join("?" for _ in tree_ids)
+                measured_rows = db.execute(
+                    f"SELECT run_id, SUM(cost_usd) AS cost FROM usage WHERE run_id IN ({marks}) GROUP BY run_id",
+                    tuple(tree_ids)).fetchall()
+                measured = {row["run_id"]: float(row["cost"] or 0.0) for row in measured_rows}
+                tree_spent = sum(max(measured.get(tree_id, 0.0),
+                                     float(tree_docs[tree_id].get("cost_usd", 0) or 0.0))
+                                 for tree_id in tree_ids)
+                tree_held_row = db.execute(
+                    f"SELECT SUM(reserved_cost_usd) AS cost FROM usage_reservations "
+                    f"WHERE run_id IN ({marks}) AND status IN (?, ?)",
+                    (*tree_ids, *active)).fetchone()
+                tree_held = float(tree_held_row["cost"] or 0.0)
+                tree_total = tree_spent + tree_held
+                if tree_total + reserved_cost_usd > float(tree_cap) + 1e-9:
+                    raise UsageBudgetRefusal(
+                        f"the next call could pass this delegated run tree's ${float(tree_cap):.2f} cap; "
+                        f"${tree_total:.4f} is spent or reserved")
 
             bot_ledger_spent, bot_ledger_tokens = totals(
                 "SELECT SUM(cost_usd) AS cost, SUM(prompt_tokens + completion_tokens) AS tokens FROM usage "
