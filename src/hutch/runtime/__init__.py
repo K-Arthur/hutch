@@ -24,7 +24,15 @@ def get_runtime(bot: Bot) -> AgentRuntime:
     if os.environ.get("HUTCH_TESTING") == "1" and (not bot.model or provider == "mock"
                                                      or bot.runtime is RuntimeKind.mock):
         # The deterministic tool-flow fixture lives under tests and is not included in the wheel.
-        from tests.support.runtime import TestScenarioRuntime
+        try:
+            from tests.support.runtime import TestScenarioRuntime
+        except ModuleNotFoundError as exc:
+            if exc.name not in {"tests", "tests.support", "tests.support.runtime"}:
+                raise
+            raise RuntimeUnavailable(
+                "The test-only runtime is not included in packaged builds. "
+                "Configure a real model route before starting this bot."
+            ) from None
         return TestScenarioRuntime()
     if bot.runtime is RuntimeKind.mock or provider == "mock":
         raise RuntimeUnavailable("The mock runtime was removed. Select a configured Ollama, OpenAI, Anthropic, or compatible model route.")

@@ -49,6 +49,24 @@ def test_mock_and_unconfigured_routes_are_not_available_outside_the_test_harness
             get_runtime(bot)
 
 
+def test_test_runtime_missing_from_distribution_fails_with_actionable_error(monkeypatch):
+    import builtins
+
+    from hutch.runtime import RuntimeUnavailable
+
+    original_import = builtins.__import__
+
+    def without_test_support(name, *args, **kwargs):
+        if name == "tests.support.runtime":
+            raise ModuleNotFoundError("No module named 'tests'", name="tests")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setenv("HUTCH_TESTING", "1")
+    monkeypatch.setattr(builtins, "__import__", without_test_support)
+    with pytest.raises(RuntimeUnavailable, match="test-only runtime.*not included"):
+        get_runtime(Bot(name="packaged-fixture", model="mock/demo"))
+
+
 def test_test_scenario_runtime_exercises_real_tool_authority(store, config, tmp_path):
     ctx, run, emitted = make_ctx(store, config, tmp_path)
     tools = build_tools(ctx.bot.tools, ctx)
