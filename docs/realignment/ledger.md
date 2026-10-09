@@ -87,6 +87,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `53a3c24` | Record the v23 shared delegated-budget checkpoint in the continuation ledger |
 | `976138b` | Cascade Stop intent through persisted descendants atomically, signal owned descendant workers, and keep cleanup visible; full suite 1,423 passed |
 | `85cdf83` | Record the S6 descendant-cancellation checkpoint in the continuation ledger |
+| `690d3ca` | Keep persisted delegated runs pending until a dedicated executor can enforce their permissions and workspace boundary |
 
 ## Dashboard polish continuation (2026-10-09)
 
