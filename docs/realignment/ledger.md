@@ -114,6 +114,7 @@ fast-forwarded only after implementation and verification for this checkpoint pa
 | `657e9b8` | Record local `main` fast-forward completion without pushing |
 | `264f828` | Add experimental Outlook Calendar with local PKCE, Secret Service token storage, one-calendar-per-Bot grants, bounded read-only Graph access, truthful public availability copy, and inspected responsive app/site evidence; live Microsoft access remains unverified |
 | `63b29bc` | Add schema-v34 safe checkpoint continuation, review/confirmation UI, truthful public copy, regression coverage and inspected desktop/tablet/phone evidence; live model recovery remains unverified |
+| `5cdd65f` | Recheck same-page human browser challenges before actions and after waits/effects; add async Chromium regression and document retry/verification boundaries |
 
 ## Dashboard polish continuation (2026-10-09)
 
@@ -2439,3 +2440,21 @@ Connections page had no Gmail status. After adding the informational card, the f
 `artifacts/gmail-availability/`; no client ID, Google account, scope request, or live provider call was used. Research checked Google's
 [Gmail scope table](https://developers.google.com/workspace/gmail/api/auth/scopes) and
 [restricted-scope verification rules](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification).
+
+
+## S7 Late browser human checkpoints (2026-10-09)
+
+Implementation commit: `5cdd65f`.
+
+The browser tool now checks for CAPTCHA, login, identity, and 2FA markers before page actions and after navigation, waits, clicks, and
+text entry. When a check appears in the same live page, local handoff pauses until explicit human resume; Hutch reinspects that page
+without reloading it. If a click or text entry already ran before the challenge was detected, the error tells the operator that it
+happened and warns against retrying blindly. The existing sensitive-field guard still blocks agent entry and screenshots.
+
+Before the fix, a local Playwright case let the tool read a page after a human-check marker was present without pausing. The updated
+Chromium fixture makes the marker appear asynchronously during a wait, verifies that the same JavaScript page state survives two human
+resumes, and then confirms that the cleared page can be read. The focused browser/profile/form suite passed **17 tests in 7.62s**;
+`python -m compileall -q src/hutch`, `node --check src/hutch/server/static/app.js`, and `git diff --check` passed. No UI source changed,
+so this backend guard required no new screenshots. The challenge and human responses are fixture-controlled: no real account, live
+third-party challenge, headed desktop, physical phone, or screen reader was tested. UI-18 remains partial until those support limits
+are exercised and the wider handoff release gate passes.
