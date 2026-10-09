@@ -364,7 +364,7 @@ def test_strict_offline_delegation_runs_as_child_after_explicit_approval(store, 
     bot = store.create_bot(Bot(
         name="offline-delegation-e2e", model="ollama/fake:1b", base_url=fake.url,
         inference_mode=InferenceMode.offline, sandbox="strict", tools=["delegate_task"],
-        approval_mode=ApprovalMode.auto, selfcheck=False,
+        approval_mode=ApprovalMode.auto, selfcheck=False, num_ctx=4096,
         limits=Limits(max_steps=8, timeout_seconds=60, max_cost_usd=1.0),
     ))
     root = Run(bot_id=bot.id, prompt="Coordinate the task.",

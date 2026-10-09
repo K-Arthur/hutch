@@ -1820,3 +1820,13 @@ threshold and filters, inline approval review/resolution, and Fleet attention at
 sizes. I inspected the generated **1440×1000** and **390×844** Fleet screenshots; they have no page
 errors or horizontal overflow. Source hashes and captures are in `artifacts/fleet-attention/`.
 Synthetic states were used; no provider, real action or device was exercised.
+
+## Strict-offline delegation regression checkpoint (2026-10-09)
+
+The first full offline rerun exposed one fixture failure: the host had less available memory than
+the test's default inference preset required, so the truthful memory-headroom admission rejected
+the child before it started. The fixture now asks for a 4,096-token context, which fits the
+measured host headroom; the admission rule remains unchanged. The isolated journey passed, then
+the complete non-browser suite passed **1,364 tests in 286.69s** with unhandled background-thread
+exceptions and `SyntaxWarning`s treated as errors. Browser and anonymous-site suites remain separate
+gates. No real model, provider, paid account or external runtime was used.
