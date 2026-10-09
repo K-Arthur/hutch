@@ -33,7 +33,7 @@
         <input type="hidden" name="next" value="{{ request.url.path }}">
         <button class="btn danger small" type="submit" title="Stop all runs now. Kills child processes, not just the agent loop.">{{ icon("stop", 14) }}<span>Stop all</span></button>
       </form>
-      <span id="live-pill" class="pill pulse" role="status" aria-live="polite" title="Live updates connected">live</span>
+      <span id="live-pill" class="pill" role="status" aria-live="polite" title="Live updates connected">live</span>
     </div>{% endif %}
   </header>
 

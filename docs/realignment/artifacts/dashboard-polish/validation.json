@@ -1,11 +1,11 @@
 {
   "test": "tests/e2e/test_browser.py::test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable",
-  "captured_at": "2026-10-09T02:58:05.920477+00:00",
+  "captured_at": "2026-10-09T03:58:12.768027+00:00",
   "browser": "chromium",
   "browser_version": "153.0.8010.12",
   "playwright_version": "1.63.0",
-  "scenario": "Synthetic visual-only working indicator fixture and actual server-rendered Connections heading; no run or provider call",
+  "scenario": "Synthetic visual-only working indicator fixture; server-rendered Connections heading and steady live-status mark; no run or provider call",
   "provider_calls": 0,
   "page_errors": [],
   "captures": [
@@ -22,6 +22,7 @@
         "width": 760,
         "height": 32.140625
       },
+      "live_status_animation": "none",
       "heading": {
         "fontSize": 30,
         "lineHeight": 42
@@ -46,6 +47,7 @@
         "width": 760,
         "height": 32.140625
       },
+      "live_status_animation": "none",
       "heading": {
         "fontSize": 30,
         "lineHeight": 42
@@ -70,6 +72,7 @@
         "width": 390,
         "height": 32.140625
       },
+      "live_status_animation": "none",
       "heading": {
         "fontSize": 24,
         "lineHeight": 33.6
@@ -83,8 +86,8 @@
     }
   ],
   "source_sha256": {
-    "src/hutch/server/static/style.css": "52b800e9246b826458ce000fdda3c6a6ac0bdada01cc15ac28027b863f023c39",
-    "src/hutch/server/static/hutch.css": "a1e66cf3ab57e0c2c1b7e2406a2aaf6e67dd20acb48b5dfd0868b1278a31f1ef",
-    "src/hutch/server/static/app.js": "66b72a6105bde3c0639baf7d8be1ed0d99a6f2ca41eb5b0b235aaa4a6ba75be4"
+    "src/hutch/server/static/style.css": "ce11615835fd1fa5fc61bad5ce5f268bf73a38bca7ca0e2d82b2fcd061f346ee",
+    "src/hutch/server/static/hutch.css": "b210610e3326b243cead46022dae19aa0603498467251eae2d9528052a07e2b2",
+    "src/hutch/server/static/app.js": "686ded3fc4fc53886b4aed5e0908a62d6b2a7c56382eb16f5a95682eb3e56818"
   }
 }

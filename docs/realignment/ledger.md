@@ -1475,3 +1475,9 @@ and Playwright **1.63.0**. No public destination, model or provider was contacte
 regressions were committed as `bb5e4b9`; the updated support boundary is in `docs/safety.md`,
 ADR-0006, `docs/realignment/tests.md`, and the evidence ledger. Other non-HTTP egress and live
 public-destination validation remain open.
+
+## Dashboard motion and readability follow-up (2026-10-09)
+
+The Studio's working dots and the server-rendered live-connection mark remain static; “Working…”, “live” and “reconnecting” carry
+the state. Shared page headings retain the 1.4 line-height fixed in `4a3e5c0`. The responsive browser regression checks both status
+marks and computed heading styles across desktop, tablet and phone. No provider or model request is involved.

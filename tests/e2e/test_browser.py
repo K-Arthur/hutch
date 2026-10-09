@@ -126,12 +126,19 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
             }""")
             ratio = heading_metrics["lineHeight"] / heading_metrics["fontSize"]
             assert ratio >= 1.39, (label, heading_metrics)
+            live_status = page.locator("#live-pill")
+            live_status.wait_for()
+            live_status_animation = live_status.evaluate(
+                "element => getComputedStyle(element, '::before').animationName"
+            )
+            assert live_status_animation == "none", (label, live_status_animation)
             template_overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert template_overflow <= 1, (label, template_overflow)
             connections_capture = out / f"connections-{label}.png"
             page.screenshot(path=str(connections_capture), full_page=True, animations="disabled")
             captures.append({"size": label, "viewport": [width, height], "typing_animation": animation,
                              "typing_indicator_box": indicator_box,
+                             "live_status_animation": live_status_animation,
                              "heading": heading_metrics, "heading_line_height_ratio": round(ratio, 3),
                              "horizontal_overflow": max(studio_overflow, template_overflow),
                              "screenshots": [studio_capture.name, connections_capture.name]})
@@ -144,7 +151,7 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
             "captured_at": datetime.now(timezone.utc).isoformat(),
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright_version": package_version("playwright"),
-            "scenario": "Synthetic visual-only working indicator fixture and actual server-rendered Connections heading; no run or provider call",
+            "scenario": "Synthetic visual-only working indicator fixture; server-rendered Connections heading and steady live-status mark; no run or provider call",
             "provider_calls": 0, "page_errors": errors, "captures": captures,
             "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
                               for path in ("src/hutch/server/static/style.css", "src/hutch/server/static/hutch.css",
