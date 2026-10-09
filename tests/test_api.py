@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import sqlite3
 import time
 
 import pytest
@@ -224,6 +225,163 @@ def test_conversation_artifacts_are_scoped_and_paged(client):
     assert client.get(f"/api/v1/conversations/{conversation['id']}/artifacts",
                       params={"limit": 100}).json()["artifacts"]
     assert all(item["run_id"] != sibling_run for item in items)
+
+
+def test_conversation_artifact_share_is_explicit_cross_bot_idempotent_and_revocable(client, tmp_path):
+    source_bot = make_bot(client, name="share-source", paused=True)
+    target_bot = make_bot(client, name="share-target", paused=True)
+    store, config = client.app.state.store, client.app.state.config
+    source, _ = store.create_conversation(source_bot["id"], "Private source", idem_key="share-source-conv",
+                                          request_hash="share-source-request")
+    target, _ = store.create_conversation(target_bot["id"], "Selected recipient", idem_key="share-target-conv",
+                                          request_hash="share-target-request")
+    run = Run(bot_id=source_bot["id"], prompt="build report", conversation_id=source["id"],
+              status=RunStatus.succeeded)
+    store.create_run(run)
+    with store._tx() as db:
+        db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
+                   (source["id"], run.id, run.created_at))
+    payload = b"approved report contents\n"
+    filename = "001-report.txt"
+    artifact_dir = config.run_dir(source_bot["name"], run.id) / "artifacts"
+    artifact_dir.mkdir(parents=True)
+    path = artifact_dir / filename
+    path.write_bytes(payload)
+    store.append_event(Event(run_id=run.id, type=EventType.tool_result, data={
+        "tool": "write_file", "output": "report saved", "chars": len(payload),
+        "artifact": f"artifacts/{filename}", "artifact_sha256": hashlib.sha256(payload).hexdigest(),
+        "artifact_bytes": len(payload),
+        "workspace_file": {"artifact": f"artifacts/{filename}", "sha256": hashlib.sha256(payload).hexdigest(),
+                           "bytes": len(payload), "name": "report.txt", "path": "report.txt"},
+    }))
+
+    source_url = f"/api/v1/conversations/{source['id']}/artifacts"
+    target_url = f"/api/v1/conversations/{target['id']}/artifacts"
+    assert len(client.get(source_url).json()["artifacts"]) == 2
+    assert client.get(target_url).json()["artifacts"] == []
+    share_url = f"/api/v1/conversations/{target['id']}/artifact-shares"
+    body = {"source_run_id": run.id, "source_version": 1, "kind": "workspace_file"}
+    changes_before_share = store.list_resource_changes()["cursor"]
+    assert client.post(share_url, json=body).status_code == 428
+
+    headers = {"Idempotency-Key": "explicit-report-share"}
+    created = client.post(share_url, json=body, headers=headers)
+    assert created.status_code == 201, created.text
+    share = created.json()
+    assert share["target_conversation_id"] == target["id"]
+    assert share["source_run_id"] == run.id and share["source_version"] == 1
+    assert share["kind"] == "workspace_file" and share["actor"] == "operator"
+    assert share["revoked_at"] is None
+    with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+        with store._tx() as db:
+            db.execute("UPDATE conversation_artifact_shares SET source_run_id = 'forged' WHERE id = ?",
+                       (share["id"],))
+    with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+        with store._tx() as db:
+            db.execute("DELETE FROM conversation_artifact_shares WHERE id = ?", (share["id"],))
+
+    replay = client.post(share_url, json=body, headers=headers)
+    assert replay.status_code == 200 and replay.json()["id"] == share["id"]
+    assert client.post(share_url, json={**body, "kind": "tool_output"}, headers=headers).status_code == 409
+    duplicate = client.post(share_url, json=body, headers={"Idempotency-Key": "another-share-key"})
+    assert duplicate.status_code == 200 and duplicate.json()["id"] == share["id"]
+    share_changes = [item for item in store.list_resource_changes(changes_before_share)["changes"]
+                     if item["resource"] == "conversations" and item["resource_id"] == target["id"]]
+    assert sum(item["operation"] == "created" for item in share_changes) == 1
+
+    shared = client.get(target_url).json()["artifacts"]
+    assert len(shared) == 1
+    assert shared[0]["share_id"] == share["id"] and shared[0]["shared_from"] == "Private source"
+    assert shared[0]["run_id"] == run.id and shared[0]["filename"] == "report.txt"
+    shared_url = shared[0]["download_url"]
+    assert f"/conversations/{target['id']}/artifact-shares/{share['id']}/content" in shared_url
+    assert client.get(shared_url).content == payload
+    assert client.get(f"/api/v1/conversations/{source['id']}/artifact-shares/{share['id']}/content").status_code == 404
+    assert client.get(f"/api/v1/conversations/{target['id']}").json()["messages"] == []
+    assert client.post(f"/api/v1/conversations/{source['id']}/artifact-shares", json=body,
+                       headers={"Idempotency-Key": "share-to-source"}).status_code == 409
+
+    revoke_url = f"/api/v1/conversations/{target['id']}/artifact-shares/{share['id']}"
+    revoke_headers = {"Idempotency-Key": "revoke-report-share"}
+    revoked = client.delete(revoke_url, headers=revoke_headers)
+    assert revoked.status_code == 200 and revoked.json()["revoked_at"]
+    revoke_changes = [item for item in store.list_resource_changes(changes_before_share)["changes"]
+                      if item["resource"] == "conversations" and item["resource_id"] == target["id"]]
+    assert sum(item["operation"] == "updated" for item in revoke_changes) == 1
+    assert client.get(target_url).json()["artifacts"] == []
+    revoke_replay = client.delete(revoke_url, headers=revoke_headers)
+    assert revoke_replay.status_code == 200 and revoke_replay.json()["id"] == share["id"]
+    assert client.get(shared_url).status_code == 404, "revocation must stop later downloads through the grant"
+    assert client.get(f"/api/v1/tasks/runs/{run.id}/artifacts/{filename}").content == payload
+
+    renewed = client.post(share_url, json=body, headers={"Idempotency-Key": "share-again"})
+    assert renewed.status_code == 201 and renewed.json()["id"] != share["id"]
+    assert len(client.get(target_url).json()["artifacts"]) == 1
+    rows = store._db.execute("SELECT id, revoked_at FROM conversation_artifact_shares ORDER BY created_at, id").fetchall()
+    assert len(rows) == 2 and rows[0]["id"] == share["id"] and rows[0]["revoked_at"]
+
+
+def test_only_verified_artifacts_can_be_shared_and_share_history_is_immutable(client):
+    bot = make_bot(client, name="share-verification", paused=True)
+    store = client.app.state.store
+    source, _ = store.create_conversation(bot["id"], "Source", idem_key="unverified-source",
+                                          request_hash="unverified-source-request")
+    target, _ = store.create_conversation(bot["id"], "Target", idem_key="unverified-target",
+                                          request_hash="unverified-target-request")
+    run = Run(bot_id=bot["id"], prompt="old output", conversation_id=source["id"], status=RunStatus.succeeded)
+    store.create_run(run)
+    store.append_event(Event(run_id=run.id, type=EventType.tool_result, data={
+        "tool": "read_file", "output": "old", "artifact": "artifacts/001-old.txt", "chars": 100,
+    }))
+    url = f"/api/v1/conversations/{target['id']}/artifact-shares"
+    response = client.post(url, json={"source_run_id": run.id, "source_version": 1, "kind": "tool_output"},
+                           headers={"Idempotency-Key": "reject-unverified"})
+    assert response.status_code == 409 and "verified" in response.text
+    assert store._db.execute("SELECT COUNT(*) FROM conversation_artifact_shares").fetchone()[0] == 0
+
+
+def test_artifact_bytes_are_checked_again_when_sharing_and_downloading(client, tmp_path):
+    bot = make_bot(client, name="share-integrity", paused=True)
+    store, config = client.app.state.store, client.app.state.config
+    source, _ = store.create_conversation(bot["id"], "Integrity source", idem_key="integrity-source",
+                                          request_hash="integrity-source-request")
+    target, _ = store.create_conversation(bot["id"], "Integrity target", idem_key="integrity-target",
+                                          request_hash="integrity-target-request")
+    run = Run(bot_id=bot["id"], prompt="save verified output", conversation_id=source["id"],
+              status=RunStatus.succeeded)
+    store.create_run(run)
+    with store._tx() as db:
+        db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
+                   (source["id"], run.id, run.created_at))
+    payload = b"verified bytes"
+    filename = "001-report.txt"
+    artifact_dir = config.run_dir(bot["name"], run.id) / "artifacts"
+    artifact_dir.mkdir(parents=True)
+    path = artifact_dir / filename
+    path.write_bytes(payload)
+    store.append_event(Event(run_id=run.id, type=EventType.tool_result, data={
+        "tool": "read_file", "output": "saved", "chars": len(payload),
+        "artifact": f"artifacts/{filename}", "artifact_sha256": hashlib.sha256(payload).hexdigest(),
+        "artifact_bytes": len(payload),
+    }))
+    body = {"source_run_id": run.id, "source_version": 1, "kind": "tool_output"}
+    url = f"/api/v1/conversations/{target['id']}/artifact-shares"
+    headers = {"Idempotency-Key": "integrity-share"}
+    path.write_bytes(b"changed bytes")
+    failed = client.post(url, json=body, headers=headers)
+    assert failed.status_code == 409 and "do not match" in failed.text
+    assert store._db.execute("SELECT COUNT(*) FROM conversation_artifact_shares").fetchone()[0] == 0
+
+    path.write_bytes(payload)
+    created = client.post(url, json=body, headers=headers)
+    assert created.status_code == 201, created.text
+    shared = client.get(f"/api/v1/conversations/{target['id']}/artifacts").json()["artifacts"][0]
+    assert client.get(shared["download_url"]).content == payload
+    path.write_bytes(b"tampered bytes")
+    replay = client.post(url, json=body, headers=headers)
+    assert replay.status_code == 200 and replay.json()["id"] == created.json()["id"]
+    checked = client.get(shared["download_url"])
+    assert checked.status_code == 409 and "SHA-256" in checked.text
 
 
 def test_bot_crud_and_validation(client):

@@ -120,27 +120,140 @@ function conversationArtifactHtml(item) {
     ? conversationArtifactSize(item.size_bytes) : item.size_bytes ? conversationArtifactSize(item.size_bytes)
     : item.chars ? `${Number(item.chars).toLocaleString("en-US")} characters` : "";
   const safeUrl = item.state === "available" && typeof item.download_url === "string"
-    && /^\/api\/v1\/tasks\/runs\/[a-zA-Z0-9_-]{4,80}\/artifacts\/[0-9]{3,6}-[a-z0-9_-]{1,40}\.txt$/.test(item.download_url)
+    && (/^\/api\/v1\/tasks\/runs\/[a-zA-Z0-9_-]{4,80}\/artifacts\/[0-9]{3,6}-[a-z0-9_-]{1,40}\.txt$/.test(item.download_url)
+      || /^\/api\/v1\/conversations\/[a-zA-Z0-9_-]{4,80}\/artifact-shares\/ash_[a-f0-9]{24}\/content$/.test(item.download_url))
     ? item.download_url : "";
   return `<article class="conversation-file">
-    ${icon(item.kind === "workspace_file" ? "fileText" : "layers")}
-    <div class="conversation-file-copy">
-      <strong title="${esc(filename)}">${esc(filename)}</strong>
-      <span>${esc(kind)}${size ? ` · ${esc(size)}` : ""} · ${esc(timeAgo(item.created_at))}</span>
-      <span class="conversation-file-state">${esc(state)}</span>
+    <div class="conversation-file-main">
+      ${icon(item.kind === "workspace_file" ? "fileText" : "layers")}
+      <div class="conversation-file-copy">
+        <strong title="${esc(filename)}">${esc(filename)}</strong>
+        <span>${esc(kind)}${size ? ` · ${esc(size)}` : ""} · ${esc(timeAgo(item.created_at))}</span>
+        <span class="conversation-file-state">${esc(state)}</span>
+        ${item.share_id ? `<span>Shared from ${esc(item.shared_from || "another chat")}</span>` : ""}
+      </div>
+      <div class="conversation-file-actions">
+        ${safeUrl ? `<a class="btn ghost small" href="${esc(safeUrl)}" aria-label="Download ${esc(filename)}">Download</a>` : ""}
+        ${item.share_id ? `<button class="btn ghost small" type="button" data-artifact-unshare="${esc(item.share_id)}" aria-label="Stop sharing ${esc(filename)}">Stop sharing</button>`
+          : safeUrl ? `<button class="btn ghost small" type="button" data-artifact-share data-run="${esc(item.run_id)}" data-version="${esc(item.version)}" data-kind="${esc(item.kind)}" aria-label="Share ${esc(filename)} with another chat">Share</button>` : ""}
+      </div>
     </div>
-    ${safeUrl ? `<a class="btn ghost small" href="${esc(safeUrl)}" aria-label="Download ${esc(filename)}">Download</a>` : ""}
+    <div class="conversation-file-share" hidden></div>
   </article>`;
+}
+
+async function showConversationArtifactShare(article, item, currentId) {
+  const region = $(".conversation-file-share", article);
+  if (!region) return;
+  if (!region.hidden) { region.hidden = true; region.innerHTML = ""; return; }
+  region.hidden = false;
+  region.innerHTML = `<label class="field">Share with another chat
+      <input class="artifact-share-search" type="search" placeholder="Find a chat" autocomplete="off">
+      <select class="artifact-share-target" aria-label="Destination chat" disabled><option value="">Choose a chat…</option></select>
+    </label>
+    <p class="hint artifact-share-note">This adds a verified file reference to that chat’s Files list. It does not copy the file into its workspace or add the contents to its model context.</p>
+    <div class="artifact-share-status hint" role="status" aria-live="polite">Loading available chats…</div>
+    <div class="artifact-share-actions">
+      <button type="button" class="btn ghost small artifact-share-more" hidden>Load more chats</button>
+      <button type="button" class="btn ghost small artifact-share-cancel">Cancel</button>
+      <button type="button" class="btn primary small artifact-share-submit" disabled>Share file</button>
+    </div>`;
+  const search = $(".artifact-share-search", region);
+  const select = $(".artifact-share-target", region);
+  const status = $(".artifact-share-status", region);
+  const more = $(".artifact-share-more", region);
+  const submit = $(".artifact-share-submit", region);
+  let offset = 0;
+  let hasMore = false;
+  let loading = false;
+  let botNames = new Map();
+
+  const filterOptions = () => {
+    const needle = search.value.trim().toLocaleLowerCase();
+    let shown = 0;
+    for (const option of [...select.options]) {
+      if (!option.value) continue;
+      option.hidden = Boolean(needle) && !option.textContent.toLocaleLowerCase().includes(needle);
+      if (!option.hidden) shown++;
+    }
+    if (select.value && select.selectedOptions[0]?.hidden) select.value = "";
+    submit.disabled = !select.value;
+    if (needle && !shown) status.textContent = "No loaded chat matches. Load more chats or change the search.";
+  };
+  const loadChats = async () => {
+    if (loading || !hasMore && offset > 0) return;
+    loading = true;
+    more.disabled = true;
+    status.textContent = "Loading available chats…";
+    try {
+      if (!botNames.size) {
+        const bots = await api("/bots");
+        botNames = new Map((bots || []).map(bot => [bot.id, bot.name]));
+      }
+      const page = await api(`/v1/conversations?limit=100&offset=${offset}`);
+      for (const conversation of page) {
+        if (conversation.id === currentId) continue;
+        const option = document.createElement("option");
+        option.value = conversation.id;
+        option.textContent = `${conversation.title || "New conversation"} · ${botNames.get(conversation.bot_id) || "Bot"}`;
+        select.appendChild(option);
+      }
+      offset += page.length;
+      hasMore = page.length === 100;
+      select.disabled = ![...select.options].some(option => option.value && !option.hidden);
+      more.hidden = !hasMore;
+      status.textContent = select.options.length
+        ? "Choose the chat that should see this file reference."
+        : "No other active chats yet. Create another chat before sharing.";
+      filterOptions();
+      if (offset === page.length) select.focus({ preventScroll: true });
+    } catch (error) {
+      status.textContent = `Could not load chats: ${error.message}`;
+      more.hidden = true;
+    } finally {
+      loading = false;
+      more.disabled = false;
+    }
+  };
+  search.addEventListener("input", filterOptions);
+  select.addEventListener("change", () => { submit.disabled = !select.value; });
+  more.addEventListener("click", () => { void loadChats(); });
+  $(".artifact-share-cancel", region).addEventListener("click", () => {
+    region.hidden = true;
+    region.innerHTML = "";
+    article.querySelector("[data-artifact-share]")?.focus({ preventScroll: true });
+  });
+  submit.addEventListener("click", async () => {
+    const targetId = select.value;
+    if (!targetId) return;
+    const targetLabel = select.selectedOptions[0]?.textContent || "the selected chat";
+    submit.disabled = true;
+    status.textContent = "Sharing verified file reference…";
+    try {
+      await api(`/v1/conversations/${encodeURIComponent(targetId)}/artifact-shares`, {
+        method: "POST", headers: { "Idempotency-Key": newIdempotencyKey() },
+        body: { source_run_id: item.run_id, source_version: Number(item.version), kind: item.kind },
+      });
+      status.textContent = `Shared with ${targetLabel}. The file appears in that chat’s Files list only.`;
+      submit.textContent = "Shared";
+      submit.disabled = true;
+      more.disabled = true;
+    } catch (error) {
+      status.textContent = `Could not share this file: ${error.message}`;
+      submit.disabled = false;
+    }
+  });
+  await loadChats();
 }
 
 async function openConversationFiles(conversationId, returnFocus) {
   openModal({
     title: "Files in this chat",
-    bodyHtml: `<p class="hint">Created files and saved tool output from this conversation. Downloads are checked against their recorded size and hash.</p>
+    bodyHtml: `<p class="hint">Created files and saved tool output from this conversation. Downloads are checked against their recorded size and hash. You can share a verified file reference with another chat; it will not be copied into that chat’s workspace or model context.</p>
       <div id="conversation-files-status" class="hint" role="status" aria-live="polite">Loading files…</div>
       <div id="conversation-files-list" class="conversation-files-list"></div>
       <div id="conversation-files-more"></div>`,
-    confirmText: "Done", showCancel: false, wide: true, returnFocus,
+    confirmText: "Done", showCancel: false, wide: true, tall: true, returnFocus,
   });
 
   const list = $("#conversation-files-list");
@@ -179,6 +292,34 @@ async function openConversationFiles(conversationId, returnFocus) {
       });
     }
   };
+  list.addEventListener("click", event => {
+    const share = event.target.closest("[data-artifact-share]");
+    if (share) {
+      const article = share.closest(".conversation-file");
+      void showConversationArtifactShare(article, {
+        run_id: share.dataset.run, version: Number(share.dataset.version), kind: share.dataset.kind,
+      }, conversationId);
+      return;
+    }
+    const unshare = event.target.closest("[data-artifact-unshare]");
+    if (unshare) {
+      const shareId = unshare.dataset.artifactUnshare;
+      const article = unshare.closest(".conversation-file");
+      unshare.disabled = true;
+      status.textContent = "Stopping the share…";
+      void api(`/v1/conversations/${encodeURIComponent(conversationId)}/artifact-shares/${encodeURIComponent(shareId)}`, {
+        method: "DELETE", headers: { "Idempotency-Key": newIdempotencyKey() },
+      }).then(async () => {
+        cursor = ""; count = 0; list.innerHTML = "";
+        await load();
+        status.textContent = "This chat no longer has access to the shared file. Its source file remains in the original chat.";
+        if (!article.isConnected) $("#modal-confirm")?.focus({ preventScroll: true });
+      }).catch(error => {
+        status.textContent = `Could not stop sharing: ${error.message}`;
+        unshare.disabled = false;
+      });
+    }
+  });
   await load();
 }
 
@@ -590,12 +731,12 @@ const store$ = {
 
 /* ---------------------------------------------------------------- modal */
 
-function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confirm", confirmClass = "primary", wide = false, returnFocus = null, showCancel = true }) {
+function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confirm", confirmClass = "primary", wide = false, tall = false, returnFocus = null, showCancel = true }) {
   const root = $("#modal-root");
   const modalReturnFocus = returnFocus || document.activeElement;
   root.innerHTML = `
     <div class="modal-backdrop" data-modal-backdrop>
-      <div class="modal-card${wide ? " modal-wide" : ""}" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-card${wide ? " modal-wide" : ""}${tall ? " modal-tall" : ""}" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div class="modal-header">
           <h3 id="modal-title">${esc(title)}</h3>
           <button class="icon-btn" id="modal-close" aria-label="Close dialog">${icon("x")}</button>

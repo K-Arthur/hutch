@@ -5,10 +5,12 @@ bounded FTS5 recall and retained review history. Memory disabled in bot settings
 runtime use while retaining human management. Facts are not automatically injected into system
 prompts. Clipped tool outputs and successful `write_file` snapshots now have run-scoped version
 records and SHA-256-verified downloads; generated-file links appear directly in Studio chat while
-tool details stay collapsed. Optional generic browser alerts work while the Hutch tab is open; they do
-not provide background push. Per-bot Hutch-managed workspaces now persist when explicitly selected; cross-run artifact sharing, standing tasks,
-webhook/push notifications, bounded delegation and permanent scoped deletion/export remain required
-realignment work.
+tool details stay collapsed. Owners can add a verified artifact reference to another selected chat;
+the target-bound download is revocable, and no bytes enter the target workspace or model context.
+Optional generic browser alerts work while the Hutch tab is open; they do not provide background push.
+Per-bot Hutch-managed workspaces now persist when explicitly selected. A general artifact library,
+delegated artifact transfer, multi-task standing work, webhook/push notifications, bounded delegation
+and permanent scoped deletion/export remain required realignment work.
 
 ## Phase 0 — MVP (shipped, Oct 2026)
 
@@ -75,8 +77,11 @@ realignment work.
   Create/message/archive, stop, and approval resolution use transactional idempotency. Cross-run ordered transcript SSE, bounded
   event pages and snapshot reconciliation are present. Schema v11 adds transactional resource invalidations,
   epoch/committed-ID replay, canonical approval summaries and targeted UI refresh. Schema v12 adds
-  recoverable bounded JSONL delivery, visible errors and FULL WAL synchronization. Automatic event retention,
-  cross-run artifact sharing, capability verification, and idempotent resume/bot-run commands remain open.
+  recoverable bounded JSONL delivery, visible errors and FULL WAL synchronization. Schema v17 adds
+  explicit, idempotent, revocable references to verified artifacts across chats; the receiving chat
+  gets provenance and a target-bound download, not a file copy or model-context injection. A general
+  artifact library, delegated artifact transfer, automatic event retention, capability verification,
+  and idempotent resume/bot-run commands remain open.
 - **Provider compatibility: route-level matrix implemented.** `GET /api/v1/compatibility` records supported,
   experimental, unavailable and blocked routes with dated sources, request fields Hutch sends/omits and fixture/live
   verification limits. Exact OpenAI host matching now selects its token-limit field. Per-connection/model capability

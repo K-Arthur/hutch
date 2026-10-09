@@ -38,7 +38,7 @@ from ..config import get_config
 from ..durable_changes import SnapshotRequired
 from ..engine import Engine, bot_prompt_for_schedule
 from ..lifecycle import LABELS
-from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, CommandRule, InferenceMode, Limits, MemoryItem, RiskTier, Run, RunStatus, Schedule, Task
+from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, CommandRule, Event, EventType, InferenceMode, Limits, MemoryItem, RiskTier, Run, RunStatus, Schedule, Task
 from ..store import IdempotencyConflict, Store
 from ..state_snapshot import ExecutionHeld
 from ..templates import TEMPLATE_INFO, TEMPLATES
@@ -247,6 +247,26 @@ class ArtifactResource(BaseModel):
     created_at: str
     state: Literal["available", "missing", "unverified"]
     download_url: Optional[str] = None
+    share_id: Optional[str] = None
+    shared_from: Optional[str] = None
+
+
+class ConversationArtifactShareRequest(BaseModel):
+    source_run_id: str = Field(min_length=4, max_length=80, pattern=r"^[a-zA-Z0-9_-]+$")
+    source_version: int = Field(gt=0)
+    kind: Literal["tool_output", "workspace_file"]
+
+
+class ConversationArtifactShareResource(BaseModel):
+    id: str
+    target_conversation_id: str
+    source_run_id: str
+    source_version: int
+    kind: Literal["tool_output", "workspace_file"]
+    actor: str
+    created_at: str
+    revoked_at: Optional[str] = None
+    revoked_by: str = ""
 
 
 class ArtifactPageResource(BaseModel):
@@ -1372,31 +1392,120 @@ def create_app() -> FastAPI:
             cursor=_decode_conversation_artifact_cursor(cursor))
         has_more = len(records) > limit
         items: list[ArtifactResource] = []
-        for event, kind in records[:limit]:
+        for event, kind, share in records[:limit]:
             run = store.get_run(event.run_id)
-            # Recheck ownership at the response boundary as well as in the query. In
-            # particular, a run attached to another bot must never leak across chats.
-            if run is None or run.bot_id != conversation["bot_id"] or run.conversation_id != conversation_id:
+            if run is None or event.run_id != run.id:
                 continue
-            items.append(artifact_resource(run, event, kind))
+            if share["share_id"]:
+                # The store query binds the active share to this exact target, source
+                # run, event and artifact kind. Its download URL is a target-bound
+                # capability so stopping the share also stops future downloads.
+                base_item = artifact_resource(run, event, kind)
+                item = base_item.model_copy(update={
+                    **share,
+                    "download_url": (f"/api/v1/conversations/{conversation_id}/artifact-shares/"
+                                     f"{share['share_id']}/content")
+                    if base_item.state == "available" else None,
+                })
+            else:
+                # Recheck original ownership at the response boundary as well as in
+                # the query; other chats stay private unless explicitly shared.
+                if run.bot_id != conversation["bot_id"] or run.conversation_id != conversation_id:
+                    continue
+                item = artifact_resource(run, event, kind)
+            items.append(item)
         next_cursor = None
         if has_more:
-            boundary_event, boundary_kind = records[limit - 1]
+            boundary_event, boundary_kind, _ = records[limit - 1]
             next_cursor = _encode_conversation_artifact_cursor(boundary_event.id, boundary_kind)
         return ConversationArtifactPageResource(artifacts=items, limit=limit, next_cursor=next_cursor)
 
-    @app.get("/api/v1/tasks/runs/{run_id}/artifacts/{filename}")
-    def download_run_artifact(run_id: str, filename: str) -> Response:
-        run = run_or_404(run_id)
-        if not _ARTIFACT_NAME_RE.fullmatch(filename):
-            raise HTTPException(404, "no such artifact")
-        artifact_ref = f"artifacts/{filename}"
-        event = store.artifact_event(run.id, artifact_ref)
-        if event is None:
+    def artifact_share_resource(row: dict[str, Any]) -> ConversationArtifactShareResource:
+        return ConversationArtifactShareResource(
+            id=row["id"], target_conversation_id=row["target_conversation_id"],
+            source_run_id=row["source_run_id"], source_version=row["source_version"],
+            kind=row["artifact_kind"], actor=row["actor"], created_at=row["created_at"],
+            revoked_at=row["revoked_at"], revoked_by=row["revoked_by"])
+
+    @app.post("/api/v1/conversations/{conversation_id}/artifact-shares",
+              response_model=ConversationArtifactShareResource)
+    def share_conversation_artifact(conversation_id: str, body: ConversationArtifactShareRequest,
+                                    request: Request, response: Response) -> ConversationArtifactShareResource:
+        key = idempotency_key(request)
+        digest = request_digest({"target_conversation_id": conversation_id, **body.model_dump()})
+        try:
+            replay = store.replay_conversation_artifact_share(conversation_id, idem_key=key, request_hash=digest)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        if replay is not None:
+            response.status_code = 200
+            return artifact_share_resource(replay)
+
+        run = run_or_404(body.source_run_id)
+        events = store.list_events(run.id, after_seq=body.source_version - 1, limit=1)
+        if not events or events[0].seq != body.source_version:
+            raise HTTPException(404, "source artifact version does not exist")
+        event = events[0]
+        item = artifact_resource(run, event, body.kind)
+        if item.state != "available" or not item.download_url:
+            raise HTTPException(409, "only available artifacts with a verified hash and size can be shared")
+        data = event.data
+        workspace_file = data.get("workspace_file") if isinstance(data.get("workspace_file"), dict) else {}
+        artifact_ref = workspace_file.get("artifact", "") if body.kind == "workspace_file" else data.get("artifact", "")
+        filename = PurePosixPath(artifact_ref).name if isinstance(artifact_ref, str) else ""
+        content = read_artifact_file(run, filename)
+        if content is None or len(content) != item.size_bytes or hashlib.sha256(content).hexdigest() != item.sha256:
+            raise HTTPException(409, "artifact bytes do not match their recorded hash and size")
+        token = request.cookies.get(DEVICE_COOKIE, "")
+        bearer = request.headers.get("authorization", "")
+        if bearer.startswith("Bearer "):
+            token = bearer[7:]
+        device = store.device_identity(token)
+        actor = f"device:{device}" if device else "operator"
+        try:
+            row, created = store.share_conversation_artifact(
+                conversation_id, run.id, body.source_version, body.kind, actor=actor,
+                idem_key=key, request_hash=digest)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except KeyError as exc:
+            raise HTTPException(404, str(exc.args[0])) from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        response.status_code = 201 if created else 200
+        return artifact_share_resource(row)
+
+    @app.delete("/api/v1/conversations/{conversation_id}/artifact-shares/{share_id}",
+                response_model=ConversationArtifactShareResource)
+    def revoke_conversation_artifact_share(conversation_id: str, share_id: str,
+                                           request: Request) -> ConversationArtifactShareResource:
+        key = idempotency_key(request)
+        digest = request_digest({"command": "revoke_artifact_share", "conversation_id": conversation_id,
+                                 "share_id": share_id})
+        token = request.cookies.get(DEVICE_COOKIE, "")
+        bearer = request.headers.get("authorization", "")
+        if bearer.startswith("Bearer "):
+            token = bearer[7:]
+        device = store.device_identity(token)
+        actor = f"device:{device}" if device else "operator"
+        try:
+            row, _changed = store.revoke_conversation_artifact_share(
+                conversation_id, share_id, actor=actor, idem_key=key, request_hash=digest)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except KeyError:
+            raise HTTPException(404, "no such shared artifact") from None
+        return artifact_share_resource(row)
+
+    def verified_artifact_response(run, event: Event, artifact_kind: str, filename: str) -> Response:
+        if not _ARTIFACT_NAME_RE.fullmatch(filename) or event.type is not EventType.tool_result:
             raise HTTPException(404, "no such artifact")
         data = event.data
         workspace_file = data.get("workspace_file") if isinstance(data.get("workspace_file"), dict) else {}
-        is_workspace_file = workspace_file.get("artifact") == artifact_ref
+        artifact_ref = workspace_file.get("artifact", "") if artifact_kind == "workspace_file" else data.get("artifact", "")
+        if artifact_ref != f"artifacts/{filename}":
+            raise HTTPException(404, "no such artifact")
+        is_workspace_file = artifact_kind == "workspace_file"
         expected_hash = workspace_file.get("sha256", "") if is_workspace_file else data.get("artifact_sha256", "")
         expected_bytes = workspace_file.get("bytes") if is_workspace_file else data.get("artifact_bytes")
         if (not isinstance(expected_hash, str) or not _ARTIFACT_SHA_RE.fullmatch(expected_hash)
@@ -1422,6 +1531,34 @@ def create_app() -> FastAPI:
             "Cache-Control": "no-store", "ETag": f'"{digest}"',
             "X-Content-Type-Options": "nosniff", "X-Hutch-Artifact-Verified": "sha256",
         })
+
+    @app.get("/api/v1/conversations/{conversation_id}/artifact-shares/{share_id}/content")
+    def download_shared_conversation_artifact(conversation_id: str, share_id: str) -> Response:
+        share = store.active_conversation_artifact_share(conversation_id, share_id)
+        if share is None:
+            raise HTTPException(404, "no active share for this chat")
+        run = run_or_404(share["source_run_id"])
+        events = store.list_events(run.id, after_seq=share["source_version"] - 1, limit=1)
+        if not events or events[0].seq != share["source_version"]:
+            raise HTTPException(404, "shared artifact history is unavailable")
+        return verified_artifact_response(run, events[0], share["artifact_kind"],
+                                          PurePosixPath((events[0].data.get("workspace_file", {}) or {}).get("artifact", "")
+                                                        if share["artifact_kind"] == "workspace_file"
+                                                        else events[0].data.get("artifact", "")).name)
+
+    @app.get("/api/v1/tasks/runs/{run_id}/artifacts/{filename}")
+    def download_run_artifact(run_id: str, filename: str) -> Response:
+        run = run_or_404(run_id)
+        if not _ARTIFACT_NAME_RE.fullmatch(filename):
+            raise HTTPException(404, "no such artifact")
+        artifact_ref = f"artifacts/{filename}"
+        event = store.artifact_event(run.id, artifact_ref)
+        if event is None:
+            raise HTTPException(404, "no such artifact")
+        data = event.data
+        workspace_file = data.get("workspace_file") if isinstance(data.get("workspace_file"), dict) else {}
+        is_workspace_file = workspace_file.get("artifact") == artifact_ref
+        return verified_artifact_response(run, event, "workspace_file" if is_workspace_file else "tool_output", filename)
 
     @app.get("/api/runs/{run_id}/events")
     @app.get("/api/v1/tasks/runs/{run_id}/events")

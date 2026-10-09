@@ -30,8 +30,10 @@ the site must not imply that files are automatically moved or copied when the se
 
 The site may say that files created through Hutch's `write_file` tool are downloadable from their originating run as verified
 snapshots (up to 4 MB per file and 16 MB per run). The Studio composer menu can browse saved text files and saved tool output
-from runs attached to that same conversation; this is not a shared cross-chat library. Shell-created files are not automatically
-attached to chat.
+from runs attached to that same conversation. An owner can also explicitly add one verified file reference to a selected other
+chat and revoke it later. The source bytes remain with the original run; Hutch does not copy them into the receiving workspace or
+add them to that chat's model context. This is a per-file grant, not a general shared library. Shell-created files are not
+automatically attached to chat.
 
 The product preview is a real first-run application capture with an empty state directory. It
 contains no seeded bots, conversations, runs, approvals, credentials, or provider output. Older

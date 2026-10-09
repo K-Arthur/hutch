@@ -41,6 +41,7 @@ def test_upgrade_preserves_bot_ids_schedules_memory_and_allows(v4):
     store = Store(v4)
     try:
         assert store.schema_version == SCHEMA_VERSION
+        assert store._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversation_artifact_shares'").fetchone()
         bots = {b.id: b for b in store.list_bots()}
         assert set(bots) == {BRIEFING, SWEEPER}                                  # ids unchanged
         briefing = bots[BRIEFING]

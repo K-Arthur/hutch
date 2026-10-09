@@ -338,9 +338,51 @@ def _migrate_16(db: sqlite3.Connection) -> None:
     db.execute("DROP TRIGGER IF EXISTS transcript_delivery_insert")
 
 
+def _migrate_17(db: sqlite3.Connection) -> None:
+    """Explicit, revocable references to verified run artifacts in another conversation."""
+    db.execute("""CREATE TABLE conversation_artifact_shares (
+        id TEXT PRIMARY KEY,
+        target_conversation_id TEXT NOT NULL REFERENCES conversations(id),
+        source_run_id TEXT NOT NULL REFERENCES runs(id),
+        source_event_id INTEGER NOT NULL REFERENCES events(id),
+        artifact_kind TEXT NOT NULL CHECK(artifact_kind IN ('tool_output','workspace_file')),
+        created_at TEXT NOT NULL,
+        actor TEXT NOT NULL,
+        revoked_at TEXT,
+        revoked_by TEXT NOT NULL DEFAULT '')""")
+    db.execute("""CREATE UNIQUE INDEX conversation_artifact_shares_active
+        ON conversation_artifact_shares(target_conversation_id, source_event_id, artifact_kind)
+        WHERE revoked_at IS NULL""")
+    db.execute("""CREATE INDEX conversation_artifact_shares_target
+        ON conversation_artifact_shares(target_conversation_id, revoked_at, source_event_id DESC)""")
+    db.execute("""CREATE TRIGGER conversation_artifact_shares_source_guard BEFORE INSERT ON conversation_artifact_shares
+        WHEN NOT EXISTS (
+            SELECT 1 FROM events e JOIN runs r ON r.id = e.run_id
+            WHERE e.id = NEW.source_event_id AND e.run_id = NEW.source_run_id AND e.type = 'tool_result'
+              AND r.conversation_id IS NOT NULL AND r.conversation_id != NEW.target_conversation_id
+              AND EXISTS (SELECT 1 FROM conversation_runs cr
+                          WHERE cr.conversation_id = r.conversation_id AND cr.run_id = r.id)
+              AND json_type(e.data, CASE NEW.artifact_kind
+                    WHEN 'tool_output' THEN '$.artifact' ELSE '$.workspace_file.artifact' END) = 'text'
+        )
+        BEGIN SELECT RAISE(ABORT, 'share source is not an artifact from a different conversation'); END""")
+    db.execute("""CREATE TRIGGER conversation_artifact_shares_immutable BEFORE UPDATE ON conversation_artifact_shares
+        WHEN NEW.id IS NOT OLD.id OR NEW.target_conversation_id IS NOT OLD.target_conversation_id
+          OR NEW.source_run_id IS NOT OLD.source_run_id OR NEW.source_event_id IS NOT OLD.source_event_id
+          OR NEW.artifact_kind IS NOT OLD.artifact_kind OR NEW.created_at IS NOT OLD.created_at
+          OR NEW.actor IS NOT OLD.actor OR OLD.revoked_at IS NOT NULL
+          OR NEW.revoked_at IS NULL OR NEW.revoked_by = ''
+        BEGIN SELECT RAISE(ABORT, 'artifact share history is immutable; revoke it once'); END""")
+    db.execute("""CREATE TRIGGER conversation_artifact_shares_no_delete BEFORE DELETE ON conversation_artifact_shares
+        BEGIN SELECT RAISE(ABORT, 'artifact share history is immutable; revoke it instead'); END""")
+    from .durable_changes import install_resources
+    install_resources(db, (("conversation_artifact_shares", "conversations", "target_conversation_id",
+                            ("revoked_at", "revoked_by"), ("source_run_id",)),))
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
-               _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16]
+               _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -1035,6 +1077,135 @@ class Store:
         self._mirror.wake.set()
         self.bus.notify("work", "runs", f"run:{run.id}", "conversations", f"conversation:{conversation_id}")
         return run.id, True
+
+    def share_conversation_artifact(self, target_conversation_id: str, source_run_id: str,
+                                    source_version: int, artifact_kind: str, *, actor: str,
+                                    idem_key: str, request_hash: str) -> tuple[dict[str, Any], bool]:
+        """Grant one chat a durable reference to an existing verified run artifact."""
+        if artifact_kind not in {"tool_output", "workspace_file"}:
+            raise ValueError("unsupported artifact kind")
+        if source_version < 1:
+            raise ValueError("artifact version must be positive")
+        scope = f"api:v1:conversation:{target_conversation_id}:artifact-shares"
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                row = db.execute("SELECT s.*, e.seq AS source_version FROM conversation_artifact_shares s "
+                                 "JOIN events e ON e.id = s.source_event_id WHERE s.id = ?",
+                                 (replay["share_id"],)).fetchone()
+                if row is None:
+                    raise RuntimeError("idempotent artifact share points to missing history")
+                return dict(row), False
+            target = db.execute("SELECT archived FROM conversations WHERE id = ?",
+                                (target_conversation_id,)).fetchone()
+            if target is None:
+                raise KeyError(target_conversation_id)
+            if target["archived"]:
+                raise ValueError("cannot share a file into an archived chat")
+            source = db.execute(
+                "SELECT e.id, e.run_id, e.seq, e.type, e.data, r.conversation_id "
+                "FROM events e JOIN runs r ON r.id = e.run_id WHERE e.run_id = ? AND e.seq = ?",
+                (source_run_id, source_version)).fetchone()
+            if source is None:
+                raise KeyError("source artifact does not exist")
+            if not source["conversation_id"]:
+                raise ValueError("only artifacts from a chat can be shared")
+            if source["conversation_id"] == target_conversation_id:
+                raise ValueError("choose a different chat; this file is already in its source chat")
+            linked = db.execute("SELECT 1 FROM conversation_runs WHERE conversation_id = ? AND run_id = ?",
+                                (source["conversation_id"], source_run_id)).fetchone()
+            if linked is None:
+                raise ValueError("only artifacts attached to their source chat can be shared")
+            data = json.loads(source["data"])
+            descriptor = data.get("workspace_file") if artifact_kind == "workspace_file" else data
+            if not isinstance(descriptor, dict):
+                raise ValueError("only verified artifacts can be shared")
+            artifact_path = descriptor.get("artifact")
+            digest = descriptor.get("sha256") if artifact_kind == "workspace_file" else data.get("artifact_sha256")
+            size = descriptor.get("bytes") if artifact_kind == "workspace_file" else data.get("artifact_bytes")
+            if (source["type"] != "tool_result" or not isinstance(artifact_path, str)
+                    or not re.fullmatch(r"artifacts/[0-9]{3,6}-[a-z0-9_-]{1,40}\.txt", artifact_path)
+                    or not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest)
+                    or not isinstance(size, int) or isinstance(size, bool) or not 0 <= size <= 4_000_000):
+                raise ValueError("only verified artifacts can be shared")
+            existing = db.execute(
+                "SELECT * FROM conversation_artifact_shares WHERE target_conversation_id = ? "
+                "AND source_event_id = ? AND artifact_kind = ? AND revoked_at IS NULL",
+                (target_conversation_id, source["id"], artifact_kind)).fetchone()
+            if existing is not None:
+                share_id, created = existing["id"], False
+            else:
+                share_id, created = "ash_" + uuid.uuid4().hex[:24], True
+                db.execute("INSERT INTO conversation_artifact_shares "
+                           "(id, target_conversation_id, source_run_id, source_event_id, artifact_kind, created_at, actor) "
+                           "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                           (share_id, target_conversation_id, source_run_id, source["id"], artifact_kind, now, actor))
+            db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash, _canonical({"share_id": share_id}), now))
+            row = db.execute("SELECT s.*, e.seq AS source_version FROM conversation_artifact_shares s "
+                             "JOIN events e ON e.id = s.source_event_id WHERE s.id = ?", (share_id,)).fetchone()
+        self.bus.notify("conversations", f"conversation:{target_conversation_id}")
+        return dict(row), created
+
+    def replay_conversation_artifact_share(self, target_conversation_id: str, *, idem_key: str,
+                                           request_hash: str) -> Optional[dict[str, Any]]:
+        """Return an exact prior result before rechecking a file that may have changed since commit."""
+        scope = f"api:v1:conversation:{target_conversation_id}:artifact-shares"
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is None:
+                return None
+            row = db.execute("SELECT s.*, e.seq AS source_version FROM conversation_artifact_shares s "
+                             "JOIN events e ON e.id = s.source_event_id WHERE s.id = ?",
+                             (replay["share_id"],)).fetchone()
+            if row is None:
+                raise RuntimeError("idempotent artifact share points to missing history")
+            return dict(row)
+
+    def active_conversation_artifact_share(self, target_conversation_id: str,
+                                           share_id: str) -> Optional[dict[str, Any]]:
+        """Resolve a live share only for the chat that received the grant."""
+        with self._lock:
+            row = self._db.execute(
+                "SELECT s.*, e.seq AS source_version FROM conversation_artifact_shares s "
+                "JOIN events e ON e.id = s.source_event_id AND e.run_id = s.source_run_id "
+                "WHERE s.id = ? AND s.target_conversation_id = ? AND s.revoked_at IS NULL",
+                (share_id, target_conversation_id)).fetchone()
+        return dict(row) if row is not None else None
+
+    def revoke_conversation_artifact_share(self, target_conversation_id: str, share_id: str, *, actor: str,
+                                           idem_key: str, request_hash: str) -> tuple[dict[str, Any], bool]:
+        """Revoke one shared reference without deleting its source file or audit record."""
+        scope = f"api:v1:conversation:{target_conversation_id}:artifact-share:{share_id}:revoke"
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                row = db.execute("SELECT s.*, e.seq AS source_version FROM conversation_artifact_shares s "
+                                 "JOIN events e ON e.id = s.source_event_id "
+                                 "WHERE s.id = ? AND s.target_conversation_id = ?",
+                                 (replay["share_id"], target_conversation_id)).fetchone()
+                if row is None:
+                    raise RuntimeError("idempotent artifact revoke points to missing history")
+                return dict(row), False
+            row = db.execute("SELECT * FROM conversation_artifact_shares WHERE id = ? AND target_conversation_id = ?",
+                             (share_id, target_conversation_id)).fetchone()
+            if row is None:
+                raise KeyError(share_id)
+            changed = row["revoked_at"] is None
+            if changed:
+                db.execute("UPDATE conversation_artifact_shares SET revoked_at = ?, revoked_by = ? WHERE id = ?",
+                           (now, actor, share_id))
+            db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash, _canonical({"share_id": share_id}), now))
+            result = db.execute("SELECT s.*, e.seq AS source_version FROM conversation_artifact_shares s "
+                                "JOIN events e ON e.id = s.source_event_id WHERE s.id = ?", (share_id,)).fetchone()
+        if changed:
+            self.bus.notify("conversations", f"conversation:{target_conversation_id}")
+        return dict(result), changed
 
     def submit_scheduled(self, run: Run, task: Task, *, occurrence: str, expected_marker: Optional[str], new_marker: str,
                          claimed_by: str, note: Optional[dict] = None) -> Optional[Run]:
@@ -2064,29 +2235,40 @@ class Store:
 
     def conversation_artifact_records(self, conversation_id: str, bot_id: str, *,
                                       limit: int = 51,
-                                      cursor: Optional[tuple[int, str]] = None) -> list[tuple[Event, str]]:
-        """Return artifacts from runs owned by this bot and attached to this conversation."""
+                                      cursor: Optional[tuple[int, str]] = None
+                                      ) -> list[tuple[Event, str, dict[str, str]]]:
+        """Return owned artifacts and active explicit shares in a stable newest-first page."""
         if not conversation_id or not bot_id:
             return []
         self.flush_events()
         query = (
             "SELECT * FROM ("
-            "SELECT e.id, e.run_id, e.seq, e.hash, e.ts, e.type, e.data, 'tool_output' AS artifact_kind "
+            "SELECT e.id, e.run_id, e.seq, e.hash, e.ts, e.type, e.data, 'tool_output' AS artifact_kind, "
+            "'' AS share_id, '' AS shared_from "
             "FROM events e JOIN runs r ON r.id = e.run_id "
             "JOIN conversation_runs cr ON cr.run_id = r.id AND cr.conversation_id = ? "
             "JOIN conversations c ON c.id = cr.conversation_id "
             "WHERE c.bot_id = ? AND r.bot_id = ? AND r.conversation_id = cr.conversation_id "
             "AND e.type = 'tool_result' AND json_type(e.data, '$.artifact') = 'text' "
             "UNION ALL "
-            "SELECT e.id, e.run_id, e.seq, e.hash, e.ts, e.type, e.data, 'workspace_file' AS artifact_kind "
+            "SELECT e.id, e.run_id, e.seq, e.hash, e.ts, e.type, e.data, 'workspace_file' AS artifact_kind, "
+            "'' AS share_id, '' AS shared_from "
             "FROM events e JOIN runs r ON r.id = e.run_id "
             "JOIN conversation_runs cr ON cr.run_id = r.id AND cr.conversation_id = ? "
             "JOIN conversations c ON c.id = cr.conversation_id "
             "WHERE c.bot_id = ? AND r.bot_id = ? AND r.conversation_id = cr.conversation_id "
-            "AND e.type = 'tool_result' AND json_type(e.data, '$.workspace_file.artifact') = 'text'"
+            "AND e.type = 'tool_result' AND json_type(e.data, '$.workspace_file.artifact') = 'text' "
+            "UNION ALL "
+            "SELECT e.id, e.run_id, e.seq, e.hash, e.ts, e.type, e.data, s.artifact_kind, s.id AS share_id, "
+            "CASE WHEN sc.id IS NULL THEN 'Scheduled run' ELSE COALESCE(NULLIF(sc.title, ''), 'Untitled chat') END AS shared_from "
+            "FROM conversation_artifact_shares s JOIN conversations target ON target.id = s.target_conversation_id "
+            "JOIN runs r ON r.id = s.source_run_id "
+            "JOIN events e ON e.id = s.source_event_id AND e.run_id = s.source_run_id "
+            "LEFT JOIN conversations sc ON sc.id = r.conversation_id "
+            "WHERE s.target_conversation_id = ? AND s.revoked_at IS NULL"
             ")"
         )
-        args: tuple = (conversation_id, bot_id, bot_id, conversation_id, bot_id, bot_id)
+        args: tuple = (conversation_id, bot_id, bot_id, conversation_id, bot_id, bot_id, conversation_id)
         if cursor is not None:
             query += " WHERE (id < ? OR (id = ? AND artifact_kind > ?))"
             args += (cursor[0], cursor[0], cursor[1])
@@ -2094,7 +2276,8 @@ class Store:
         args += (max(1, min(limit, 101)),)
         with self._lock:
             rows = self._db.execute(query, args).fetchall()
-        return [(self._event(row), row["artifact_kind"]) for row in rows]
+        return [(self._event(row), row["artifact_kind"],
+                 {"share_id": row["share_id"], "shared_from": row["shared_from"]}) for row in rows]
 
     def last_seq(self, run_id: str) -> int:
         self.flush_events()

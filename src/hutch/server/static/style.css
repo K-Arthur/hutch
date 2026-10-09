@@ -747,15 +747,24 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 
 .conversation-files-list { display: grid; gap: 8px; margin-top: var(--s-3); }
 .conversation-file {
-  display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px 12px;
+  min-width: 0; padding: 10px 12px;
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-ctl);
 }
-.conversation-file > .icon { flex: none; color: var(--text-3); }
+.conversation-file-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.conversation-file-main > .icon { flex: none; color: var(--text-3); }
 .conversation-file-copy { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
 .conversation-file-copy strong { overflow-wrap: anywhere; font: 500 var(--fs-sm)/1.4 var(--mono); color: var(--text); }
 .conversation-file-copy > span { color: var(--text-3); font-size: var(--fs-xs); line-height: 1.45; }
 .conversation-file-copy .conversation-file-state { color: var(--text-2); }
-.conversation-file > .btn { flex: none; }
+.conversation-file-actions { display: flex; flex: none; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+.conversation-file-share { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.conversation-file-share[hidden] { display: none; }
+.conversation-file-share .field { margin: 0; }
+.conversation-file-share .field input,
+.conversation-file-share .field select { width: 100%; }
+.artifact-share-note { margin: 8px 0; }
+.artifact-share-status { margin-top: 8px; }
+.artifact-share-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-top: 8px; }
 #conversation-files-more { display: flex; justify-content: center; margin-top: var(--s-3); }
 
 .quick-prompts { display: grid; gap: 1px; }
@@ -766,6 +775,12 @@ details.tool-stream[open] > summary .tool-caret { transform: rotate(90deg); }
 }
 .quick-prompts button:hover { color: var(--text); background: var(--raised); }
 .quick-prompts button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; background: var(--raised); }
+
+@media (max-width: 520px) {
+  .conversation-file-main { align-items: flex-start; }
+  .conversation-file-actions { max-width: 118px; }
+  .artifact-share-actions > button { flex: 1 1 auto; }
+}
 
 /* rehearsal banner: appears inside the box only when armed */
 .composer-strip {
@@ -1150,8 +1165,10 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
   /* phone modals arrive as bottom sheets — thumb-reachable, full width */
   .modal-backdrop { place-items: end stretch; padding: 0; }
   .modal-card { width: 100%; max-height: 93dvh; border-radius: var(--r-composer) var(--r-composer) 0 0; border-bottom: 0; }
+  .modal-card.modal-tall { max-height: 100dvh; }
   .modal-body { padding: var(--s-4); }
   .modal-footer { padding: var(--s-3) var(--s-4); }
+  .modal-card.modal-tall .modal-footer { padding-bottom: calc(var(--s-3) + env(safe-area-inset-bottom, 0px)); }
   .turn-meta { flex-wrap: wrap; }
 }
 

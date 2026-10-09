@@ -63,7 +63,7 @@ flowchart LR
 Everything lives under one directory (default `~/.local/state/hutch`, override `HUTCH_STATE_DIR`):
 
 ```
-hutch.db                      # SQLite (WAL): bots, tasks, runs, events, usage/reservations, conversations, approvals, memory, receipts
+hutch.db                      # SQLite (WAL): bots, tasks, runs, events, usage/reservations, conversations, approvals, memory, receipts, artifact-share grants
 bots/<bot>/runs/<run_id>/
   transcript.jsonl              # append-only run transcript (mirror of events)
   artifacts/<version>-<tool>.txt # immutable clipped outputs and write_file snapshots
@@ -80,8 +80,12 @@ per file and 16 MB per run. Studio shows write-file downloads outside the collap
 The composer menu also pages verified files and saved tool output across runs attached to the
 current conversation, so the operator can find an earlier result without leaving the chat. The
 query checks both conversation and bot ownership; downloads still resolve to the source run and
-verify its recorded size and hash. This is conversation-scoped discovery, not a cross-chat artifact
-library or a copy into the persistent workspace.
+verify its recorded size and hash. The owner may explicitly grant another selected conversation a
+reference to one verified artifact. That grant is stored in SQLite, appears with source-chat
+provenance, and has its own target-bound download URL so revocation blocks later downloads. The file
+bytes stay in the source run: the reference neither copies them into the other workspace nor adds
+them to that chat's model context. This is not a general artifact library or implicit bot-to-bot
+sharing.
 Arbitrary shell-created files are not attached automatically. Bots
 default to a fresh workspace per run; operators may select a private Hutch-managed directory
 shared only by that bot, or an existing validated user folder.

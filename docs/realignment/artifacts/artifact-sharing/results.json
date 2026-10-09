@@ -1,0 +1,78 @@
+{
+  "test": "tests/e2e/test_browser.py::test_verified_artifact_can_be_shared_with_another_chat_and_revoked",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_verified_artifact_can_be_shared_with_another_chat_and_revoked",
+  "captured_at": "2026-10-09T02:04:56.658862+00:00",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright": "1.63.0",
+  "source_sha256": {
+    "src/hutch/store.py": "5ad7f3ad6049301dfda084b970654fde29af1420636e830443b520046e0699da",
+    "src/hutch/server/app.py": "5a918c73ff9689e652d2af92b687c099c60ed82fa4e0d949ff6fec06933cb87f",
+    "src/hutch/server/static/app.js": "f5d5a210ff1a232a5d69d90e66419eb79d8f3ce322aefd5c114108090cddc56f",
+    "src/hutch/server/static/style.css": "3c74a884165e420e39c42c354383dd5510c20b8dfe85a0ee4f2af5ea8d10536f",
+    "tests/e2e/test_browser.py": "9332529b4c1b85161622f017fa2eefa8ef635c7fe5c60cfdc099ceaedc92b300"
+  },
+  "journey": "owner explicitly shares a verified reference to another bot chat; recipient downloads it, then owner revokes the grant",
+  "provider_calls": 0,
+  "phone_device_used": false,
+  "captures": [
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "screenshot": "recipient-desktop.png",
+      "share_chooser_screenshot": "desktop-share-chooser.png",
+      "download_sha256": "0045f4317c9ad605cf06cc4002ef96961f051a189e28d12b4610cb6b8690952e",
+      "horizontal_overflow_px": 0,
+      "dialog_overflow_px": 0,
+      "done_button_bounds": {
+        "x": 944.53125,
+        "y": 780.09375,
+        "width": 70.46875,
+        "height": 32
+      },
+      "page_errors": []
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        768,
+        1024
+      ],
+      "screenshot": "recipient-tablet.png",
+      "share_chooser_screenshot": "tablet-share-chooser.png",
+      "download_sha256": "0045f4317c9ad605cf06cc4002ef96961f051a189e28d12b4610cb6b8690952e",
+      "horizontal_overflow_px": 0,
+      "dialog_overflow_px": 0,
+      "done_button_bounds": {
+        "x": 608.53125,
+        "y": 812.09375,
+        "width": 70.46875,
+        "height": 32
+      },
+      "page_errors": []
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        390,
+        844
+      ],
+      "screenshot": "recipient-phone.png",
+      "share_chooser_screenshot": "phone-share-chooser.png",
+      "download_sha256": "0045f4317c9ad605cf06cc4002ef96961f051a189e28d12b4610cb6b8690952e",
+      "horizontal_overflow_px": 0,
+      "dialog_overflow_px": 0,
+      "done_button_bounds": {
+        "x": 302.53125,
+        "y": 788,
+        "width": 70.46875,
+        "height": 44
+      },
+      "page_errors": []
+    }
+  ],
+  "limitation": "Fixture state and local browser only; references do not copy files or add file bytes to target model context."
+}

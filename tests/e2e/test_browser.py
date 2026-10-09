@@ -534,6 +534,159 @@ def test_conversation_file_browser_explains_the_empty_state(browser, live):
         page.close()
 
 
+def test_verified_artifact_can_be_shared_with_another_chat_and_revoked(browser, live):
+    base, app = live
+    store, config = app.state.store, app.state.config
+    source_bot = store.create_bot(Bot(name="share-source-ui", model="mock/demo", tools=["files"]))
+    target_bot = store.create_bot(Bot(name="share-target-ui", model="mock/demo", tools=["files"]))
+    source, _ = store.create_conversation(source_bot.id, "Source report", idem_key="share-ui-source",
+                                          request_hash="share-ui-source-request")
+    target, _ = store.create_conversation(target_bot.id, "Recipient chat", idem_key="share-ui-target",
+                                          request_hash="share-ui-target-request")
+    run = Run(bot_id=source_bot.id, prompt="create report", conversation_id=source["id"],
+              status=RunStatus.succeeded)
+    store.create_run(run)
+    with store._tx() as db:
+        db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
+                   (source["id"], run.id, run.created_at))
+    payload = b"A verified report for the selected recipient chat.\n"
+    filename = "001-report.txt"
+    artifact_dir = config.run_dir(source_bot.name, run.id) / "artifacts"
+    artifact_dir.mkdir(parents=True)
+    (artifact_dir / filename).write_bytes(payload)
+    digest = hashlib.sha256(payload).hexdigest()
+    store.append_event(Event(run_id=run.id, type=EventType.tool_result, data={
+        "tool": "write_file", "output": "saved report", "chars": len(payload),
+        "artifact": f"artifacts/{filename}", "artifact_sha256": digest, "artifact_bytes": len(payload),
+        "workspace_file": {"artifact": f"artifacts/{filename}", "sha256": digest,
+                           "bytes": len(payload), "name": "report.txt", "path": "report.txt"},
+    }))
+
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/artifact-sharing"
+    out.mkdir(parents=True, exist_ok=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page.context.tracing.start(screenshots=True, snapshots=True, sources=True)
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    captures = []
+    try:
+        for name, width, height in (("desktop", 1440, 960), ("tablet", 768, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.goto(f"{base}/#/chat/{source_bot.name}")
+            page.locator("#conversation-switcher").wait_for()
+            assert page.locator("#conversation-switcher").input_value() == source["id"]
+            page.locator("#composer-menu-btn").click()
+            page.get_by_role("button", name="Browse files in this chat").click()
+            files_dialog = page.get_by_role("dialog", name="Files in this chat")
+            files_dialog.wait_for()
+            share_button = files_dialog.get_by_role("button", name="Share report.txt with another chat")
+            share_button.wait_for(state="visible")
+            share_button.focus()
+            page.keyboard.press("Enter")
+            destination = files_dialog.get_by_role("combobox", name="Destination chat")
+            destination.wait_for(state="visible")
+            assert files_dialog.get_by_role("button", name="Share file").is_disabled(), (
+                "sharing must require a deliberate destination choice")
+            destination.select_option(target["id"])
+            assert files_dialog.get_by_text(
+                "This adds a verified file reference to that chat’s Files list. It does not copy the file into its workspace or add the contents to its model context.",
+                exact=True).is_visible()
+            share_actions = files_dialog.locator(".artifact-share-actions").bounding_box()
+            modal_footer = page.locator(".modal-footer").bounding_box()
+            done_button = files_dialog.get_by_role("button", name="Done")
+            done_box = done_button.bounding_box()
+            assert share_actions and modal_footer and share_actions["y"] + share_actions["height"] <= modal_footer["y"] + 1, (
+                name, share_actions, modal_footer)
+            assert 0 <= modal_footer["y"] and modal_footer["y"] + modal_footer["height"] <= height + 1, (
+                name, share_actions, modal_footer, page.locator(".modal-card").bounding_box())
+            assert done_button.is_visible() and done_box and 0 <= done_box["y"] \
+                and done_box["y"] + done_box["height"] <= height + 1, (
+                    name, done_box, modal_footer, page.locator(".modal-card").bounding_box())
+            chooser = out / f"{name}-share-chooser.png"
+            page.screenshot(path=str(chooser), animations="disabled")
+            if name == "desktop":
+                cancel_share = files_dialog.get_by_role("button", name="Cancel")
+                cancel_share.focus()
+                page.keyboard.press("Enter")
+                assert share_button.evaluate("el => document.activeElement === el")
+                share_button.focus()
+                page.keyboard.press("Enter")
+                destination = files_dialog.get_by_role("combobox", name="Destination chat")
+                destination.wait_for(state="visible")
+                destination.select_option(target["id"])
+            share = files_dialog.get_by_role("button", name="Share file")
+            share.focus()
+            page.keyboard.press("Enter")
+            share_status = files_dialog.locator(".artifact-share-status")
+            page.wait_for_function("el => el.textContent.includes('Shared with')", arg=share_status.element_handle())
+            assert "Recipient chat" in share_status.inner_text()
+            shared_page = page.request.get(f"{base}/api/v1/conversations/{target['id']}/artifacts")
+            shared_rows = shared_page.json().get("artifacts", [])
+            assert shared_page.status == 200 and any(
+                row.get("share_id") and row.get("state") == "available" and row.get("filename") == "report.txt"
+                for row in shared_rows), shared_page.text()
+            files_dialog.get_by_role("button", name="Done").click()
+
+            page.goto(f"{base}/#/chat/{target_bot.name}")
+            page.locator("#conversation-switcher").wait_for()
+            assert page.locator("#conversation-switcher").input_value() == target["id"]
+            page.locator("#composer-menu-btn").click()
+            page.get_by_role("button", name="Browse files in this chat").click()
+            recipient_files = page.get_by_role("dialog", name="Files in this chat")
+            recipient_files.wait_for()
+            download = recipient_files.get_by_role("link", name="Download report.txt")
+            try:
+                download.wait_for(state="visible", timeout=5000)
+            except Exception as exc:
+                raise AssertionError({"files_status": recipient_files.locator("#conversation-files-status").inner_text(),
+                                      "files_html": recipient_files.locator("#conversation-files-list").inner_html(),
+                                      "page_errors": errors}) from exc
+            assert recipient_files.get_by_text("Shared from Source report", exact=True).is_visible()
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            dialog_overflow = recipient_files.evaluate("el => el.scrollWidth - el.clientWidth")
+            assert overflow <= 1 and dialog_overflow <= 1, (name, overflow, dialog_overflow)
+            screenshot = out / f"recipient-{name}.png"
+            page.screenshot(path=str(screenshot), animations="disabled")
+            download.focus()
+            with page.expect_download() as download_info:
+                page.keyboard.press("Enter")
+            saved = Path(download_info.value.path()).read_bytes()
+            assert saved == payload and hashlib.sha256(saved).hexdigest() == digest
+            unshare = recipient_files.get_by_role("button", name="Stop sharing report.txt")
+            unshare.focus()
+            page.keyboard.press("Enter")
+            page.wait_for_function("() => document.querySelector('#conversation-files-status')?.textContent?.includes('no longer has access')")
+            assert recipient_files.locator(".conversation-file").count() == 0
+            client_artifact = page.request.get(f"{base}/api/v1/tasks/runs/{run.id}/artifacts/{filename}")
+            assert client_artifact.status == 200 and client_artifact.body() == payload
+            captures.append({"viewport": name, "size": [width, height], "screenshot": screenshot.name,
+                             "share_chooser_screenshot": chooser.name,
+                             "download_sha256": digest, "horizontal_overflow_px": overflow,
+                             "dialog_overflow_px": dialog_overflow,
+                             "done_button_bounds": done_box,
+                             "page_errors": errors.copy()})
+            recipient_files.get_by_role("button", name="Done").click()
+
+        assert not errors, errors
+        repo = Path(__file__).resolve().parents[2]
+        source_files = ("src/hutch/store.py", "src/hutch/server/app.py", "src/hutch/server/static/app.js",
+                        "src/hutch/server/static/style.css", "tests/e2e/test_browser.py")
+        (out / "results.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_verified_artifact_can_be_shared_with_another_chat_and_revoked",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_verified_artifact_can_be_shared_with_another_chat_and_revoked",
+            "captured_at": datetime.now(timezone.utc).isoformat(), "browser": browser.browser_type.name,
+            "browser_version": browser.version, "playwright": package_version("playwright"),
+            "source_sha256": {name: hashlib.sha256((repo / name).read_bytes()).hexdigest()
+                              for name in source_files},
+            "journey": "owner explicitly shares a verified reference to another bot chat; recipient downloads it, then owner revokes the grant",
+            "provider_calls": 0, "phone_device_used": False, "captures": captures,
+            "limitation": "Fixture state and local browser only; references do not copy files or add file bytes to target model context.",
+        }, indent=2) + "\n")
+    finally:
+        page.context.tracing.stop(path=str(out / "artifact-sharing-trace.zip"))
+        page.close()
+
+
 def test_conversation_file_browser_loads_the_next_cursor_page(browser, live):
     base, app = live
     store = app.state.store
