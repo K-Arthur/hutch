@@ -78,7 +78,9 @@ Roughly ten Bots is the owner's initial heuristic, not a measured threshold.
    clear retained facts. A child receives only task text and explicitly selected context. Sharing a
    fact or artifact across Bots is a visible, revocable, provenance-carrying grant; task context is
    not silently promoted into a specialist’s standing memory, and coordinator memory is never
-   inherited by a specialist.
+   inherited by a specialist. Schema v38 implements a one-fact/one-recipient memory grant with
+   immutable provenance and either-side revocation; broader memory-policy and multi-task sharing
+   remain follow-up work.
 8. Let users reply to a particular Bot message. The message action attaches its stable ID and a
    short author-labeled excerpt to the composer; the user can clear or replace it before sending.
    Persist the relationship with the user message and display it in the transcript so the reply

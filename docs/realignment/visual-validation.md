@@ -925,3 +925,31 @@ does not cover Fleet content, and neither view overflows. Captures and viewport 
 After the latest public-copy edit, the anonymous Plans & keys and expanded FAQ check passed **1 test in 2.76s**. I inspected the
 refreshed phone captures; the key-based OpenCode path and ChatGPT preview/consent limits remain readable without overflow or
 external requests. They are saved in [`artifacts/chatgpt-background-consent/marketing/`](artifacts/chatgpt-background-consent/marketing/).
+
+## Explicit Bot-to-Bot reference grants (schema v38)
+
+`tests/e2e/test_browser.py::test_explicit_cross_bot_fact_share_is_reviewable_revocable_and_responsive` exercised the real
+SQLite/API/Studio path with two local Bots and one synthetic reviewed fact. The owner saw the exact fact, chose a named recipient,
+and reviewed the disclosure before granting. The recipient saw source Bot, revision and the untrusted-reference boundary, then
+removed the grant; new runtime recall stopped. A fresh Store connection observed the persisted grant before revocation. This
+used no provider/model request, external request, generated credential or real personal fact.
+
+Chromium **153.0.8010.12** / Playwright **1.63.0** passed at desktop **1440×960**, tablet **900×1024**, and phone **390×844**.
+The share review, incoming reference, keyboard dismissal/focus return, and recipient revocation were exercised with no horizontal
+overflow or page errors. I inspected the six captures and trace in [`artifacts/fact-sharing/`](artifacts/fact-sharing/); I added
+spacing below the recipient selector after reviewing the initial phone capture. A separate backup/restore test verifies the grant
+remains available in a held restored database. These fixtures do not verify a live provider's treatment of a previously submitted
+snapshot, screen-reader behavior, or a physical phone.
+
+The corresponding anonymous marketing workflow was refreshed at desktop **1440×900**, tablet **900×1024**, and phone
+**390×844**. Inspection showed that the shared card style stretched each paragraph to fill the equal-height workflow cards, leaving
+large gaps between paragraphs. The workflow cards now keep paragraphs at their natural height; the refreshed three-size captures
+show a continuous reading flow with no horizontal overflow, external requests, or browser errors. The anonymous website test passed
+again (**1 test in 2.78s**) after the CSS change. Screenshots and validation metadata are in
+[`artifacts/bot-purpose-refinement/marketing/`](artifacts/bot-purpose-refinement/marketing/).
+
+The focused implementation batch, including migration, held restore, API idempotency, pagination, runtime recall, and browser
+review/revoke, passed **68 tests in 10.99s**. `node --check src/hutch/server/static/app.js`, Python compilation, and
+`git diff --check` passed. The provider-free Chromium flow covered desktop, tablet and phone for share review, owner view and
+recipient view; exact snapshots persisted across a fresh Store connection and revocation stopped subsequent recall. No live model,
+provider, account or external network request was used.

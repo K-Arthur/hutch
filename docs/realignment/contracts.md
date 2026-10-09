@@ -199,7 +199,7 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
 * **Safe task continuation (schema v34, experimental).** `GET /api/v1/workspace/tasks` includes `continuation_available`, `continuation_reason`, checkpoint kind/event sequence, and a bounded assistant-text preview. `POST /api/v1/workspace/tasks/{task_id}/continue` requires `Idempotency-Key`; it returns 201 for a new continuation, 200 for an exact retry, 409 when the same key has a different request or the checkpoint no longer qualifies, and 404 for missing history. The command has no request body; the idempotency digest binds the command to the source task. Only a terminal `failed` or `stopped` attempt can qualify. Hutch blocks `outcome_unknown`, any recorded tool action, child-run dispatch, another run in the specialist conversation, a pending question, archived coordinator chat, paused Bot, non-built-in runtime, changed/missing capability snapshot, or an assistant checkpoint over 12,000 characters. A task can be continued only once.
 
   The user must review the task card and confirm a modal that shows the exact reviewed brief, constraints and committed assistant checkpoint (preview bounded to 500 characters). The new linked task gets a fresh run and conversation. Its context contains only the original brief and constraints, plus the committed assistant response wrapped and labeled as untrusted progress; if no assistant response exists, it starts from the reviewed brief. Selected coordinator facts, prior tool results, old conversation history, credentials, approvals and action receipts do not cross. No action is replayed. A new model call may use additional quota. This is a narrow retry of no-effect built-in tasks, not worker/process restoration, and it does not resolve uncertain effects.
-* **Remaining cross-Bot contract.** A workspace has one owner-named coordinator Bot with its own direct conversation. Users may also continue to converse directly with every task Bot. Specialists cannot message sibling Bots. A selected child result can be explicitly returned as a source-bound, untrusted text snapshot; task-only selected facts are now available under the schema-v32 contract, but neither mechanism creates a reusable memory/artifact grant. Longer plans need explicit owner/target, selected context/artifact references, model route, capability snapshot, budget reservation, lineage and idempotency records. Coordinator and specialist routes remain separately saved per Bot; no task-level model override is offered by the current handoff. Prompt refinement cannot grant authority. Parent cancellation, richer questions and generalized fact/artifact grants scoped to multiple tasks remain open. This contract is informed by [Grok Bot's message and delegation documentation](../research/grok-bot-product-review-2026-10-09.md), while retaining Hutch's per-Bot workspace and browser isolation.
+* **Remaining cross-Bot contract.** A workspace has one owner-named coordinator Bot with its own direct conversation. Users may also continue to converse directly with every task Bot. Specialists cannot message sibling Bots. A selected child result can be explicitly returned as a source-bound, untrusted text snapshot. Task-only selected facts and reusable owner-granted fact snapshots are implemented separately; artifact grants remain independently scoped. Longer plans still need explicit owner/target, selected context/artifact references, model route, capability snapshot, budget reservation, lineage and idempotency records. Coordinator and specialist routes remain separately saved per Bot; no task-level model override is offered by the current handoff. Prompt refinement cannot grant authority. Parent cancellation, richer questions and generalized artifact grants scoped to multiple tasks remain open. This contract is informed by [Grok Bot's message and delegation documentation](../research/grok-bot-product-review-2026-10-09.md), while retaining Hutch's per-Bot workspace and browser isolation.
 
 * **Landed message-reply contract (schema v25).** Each visible Bot-authored reply in Studio has an accessible **Reply to this** control. The composer shows the Bot's user-facing display name (not its internal address) and a bounded excerpt with a remove action; the unsent reference and draft survive reload in that browser. The idempotent send includes `reply_to_message_id`, and the user message preserves the relationship in chat history and export. `GET /api/v1/conversations/{id}/messages/{message_id}` returns an assistant message only from that conversation, with a bounded response; missing and cross-chat IDs share the same 404. A database trigger and transactional admission require the target to be an assistant message in the same conversation. The run receives that explicitly referenced message, labelled as untrusted text, in addition to only the remaining portion of the normal bounded same-chat context. It cannot change the Bot's stored tools, connection, approval mode, account or budget. Hutch never loads another conversation implicitly. Exact retries preserve the relationship across restart; changing the target under the same key conflicts. The quoted-message context is capped at 4,000 characters, with truncation disclosed, and the composer excerpt at 240 characters. This does not claim that untrusted prompt text can never influence a model; executor authority remains enforced by Hutch.
 * `POST /api/v1/tasks/runs/{run_id}/resume` takes `{human_event_seq}` and requires `Idempotency-Key`. The run must still be
@@ -461,12 +461,37 @@ rather than overwriting it. Legacy facts have unknown chat scope and require exp
 a new scoped proposal. Archive retains content and review history.
 
 `GET /api/v1/bots/{ref}/facts/{id}/history` returns bounded revision pages and associated review
-records. A shared copy links its originating sharing decision. Bot settings and chat consume
-canonical records; content-free `memory` invalidations refresh chat without exposing fact values
-in global event streams. The typed resource enum also includes schema-v14 `state` changes.
+records. A same-Bot copy links its originating sharing decision. Bot settings and chat consume
+canonical records; content-free `memory` and `memory_shares` invalidations let clients refresh
+without exposing fact values in global event streams. The typed resource enum also includes
+schema-v14 `state` changes.
 `memory_enabled=false` denies runtime recall/proposals while keeping human inventory and review.
 Legacy key deletion is an explicitly labelled archive of all facts with that key for the bot;
 permanent deletion/export is not supplied by that compatibility route.
+
+Schema v38 adds a separate, reversible cross-Bot grant for an already approved current fact.
+`POST /api/v1/bots/{source_ref}/facts/{fact_id}/shares` takes
+`{"target_bot_id":"..."}` and requires `Idempotency-Key`; it returns 201 when created, 200 on an
+exact retry, 409 for changed-key reuse, an existing duplicate grant, or a stale/disabled fact,
+and 404 when either Bot is unavailable. Both Bots must have memory enabled. The source and
+recipient are resolved before the immutable snapshot is written. No prompt, tool permission,
+account, workspace or unrelated memory is copied.
+
+`GET /api/v1/bots/{ref}/fact-shares?limit=50&offset=0` gives a typed, bounded page of incoming and
+outgoing records to a participant Bot. `DELETE /api/v1/bots/{ref}/fact-shares/{share_id}` requires
+`Idempotency-Key`; either participant may revoke, while a nonparticipant receives 404. Revocation
+is one-way and retains the snapshot and actor/time for audit. The change feed adds
+`memory_shares`; its context contains only source and target Bot IDs, never the fact key or value.
+
+An active grant makes that exact reviewed snapshot available to the recipient Bot's chats through
+bounded FTS5 recall. Recall labels its source Bot and grant ID and treats the value as untrusted
+reference data. Revisions do not update an existing grant: archiving/revising the source fact or
+disabling either Bot's memory removes it from new recall, and a new revision needs a new review and
+grant. The chat/settings UI shows incoming and outgoing records and lets either side revoke. The
+snapshot lives in the local database and remains in backup history; revocation stops future recall
+but does not erase previously submitted provider context, transcript or backups. This grant is an
+owner-controlled persistent Bot scope and is distinct from the optional, task-only coordinator fact
+snapshot described above.
 The older `GET /api/bots/{ref}` has no conversation selector, so its `memory` field exposes
 reviewed bot-wide references only. Chat-scoped inventory belongs to the scoped v1 endpoint;
 the local CLI remains an operator-wide diagnostic inventory.

@@ -38,6 +38,20 @@ and shown as untrusted context to the specialist's run; they are not saved as sp
 specialist's provider may retain the submitted context. After dispatch, the provider copy cannot be recalled. See the
 [versioned handoff contract](contracts.md#3-versioned-resources-cursors-idempotency-pagination-partial-s8).
 
+## Reusable owner-granted Bot references
+
+An operator may also share one exact, current, human-reviewed fact from any Bot with one other Bot. This is a durable memory
+grant for that recipient's chats, not implicit coordinator access: a coordinator or specialist sees nothing from another Bot
+until the operator chooses **Share with a Bot** and names a recipient. The source and recipient must both have memory enabled.
+The selected snapshot includes its source Bot, scope, revision and content hash. It is read as untrusted reference data, never
+as instructions or permission. Neither credentials nor broader chat history, files, workspace, tools or account grants transfer.
+
+Incoming and outgoing grants appear in chat and Bot settings. Either participant can revoke; the grant is retained as an audit
+record while new recall stops immediately. Changing/archiving the source fact or disabling memory also removes that snapshot from
+recall. A revised fact requires a fresh review and grant. Revocation cannot erase provider context already sent, transcripts, or
+backups. These are local SQLite records; the implementation and typed API are described in the
+[reference-fact contract](contracts.md#reference-facts-schema-v15).
+
 The workspace coordinator receives extra drafting guidance only while selected as coordinator. It should preserve the request and
 use clearly labelled goal, expected result, known context, constraints and open questions where useful; it must ask about a missing
 detail that could change scope or correctness rather than inventing one. The review screen keeps the original request linked and

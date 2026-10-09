@@ -1,5 +1,13 @@
 # Changelog
 
+## Explicit Bot-to-Bot reference grants (schema v38)
+
+- A person can share one exact, current, reviewed memory fact with one named Bot. The grant is a durable, provenance-labelled reference snapshot available across that recipient Bot's chats; it does not transfer tools, accounts, credentials, files or other history.
+- Either Bot can revoke the grant. Source revision/archive or disabled memory blocks later retrieval, while the snapshot and its audit trail remain in local database backups.
+- Studio chat and Bot settings show incoming/outgoing references and provide reviewed create/revoke dialogs. Typed `/api/v1` endpoints are idempotent and the global change feed contains only participant IDs, not fact content.
+- Marketing workflow cards keep paragraph flow natural at desktop, tablet and phone widths; the public copy now describes explicit named-Bot memory grants accurately.
+- Offline store/API, restore and responsive Chromium fixtures passed. No live provider calls, screen reader or physical phone was used.
+
 ## Dashboard accent polish (2026-10-09)
 
 - Replaced one-sided accents on specialist checkpoint rows and quoted chat replies with subtle full outlines. Legacy Bot cards no longer use colored rails for running or paused state; the visible Fleet keeps its explicit text labels. Reply tests use the professional Bot display name exposed by the interface and assert the quote's balanced border.
@@ -11,7 +19,7 @@
 ## Scoped fact memory continuation (schema v15, local)
 
 - Replace automatic per-bot fact/system injection with explicitly retrieved, human-reviewed chat facts and bounded FTS5.
-- Fence proposals against expired/lost ownership, cancellation and terminal state. Preserve immutable revisions and reviews; sharing is explicit and never crosses bots.
+- Fence proposals against expired/lost ownership, cancellation and terminal state. Preserve immutable revisions and reviews; cross-Bot sharing requires a separate explicit grant.
 - Show review/revision/archive in chat and paginated management while memory is disabled. Archive retains history and backups; permanent scoped deletion remains pending.
 - Import legacy facts as unreviewed and unscoped, preserve pre-upgrade backups, and verify fact hashes during held restoration.
 - Correct the typed resource-change contract to accept restore-state invalidations introduced in schema v14.
