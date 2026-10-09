@@ -156,6 +156,7 @@ class RestorePageResource(BaseModel):
 
 class BotPatch(BaseModel):
     display_name: Optional[str] = Field(default=None, max_length=80)
+    pinned: Optional[bool] = None
     description: Optional[str] = None
     instructions: Optional[str] = None
     model: Optional[str] = None
@@ -2426,6 +2427,7 @@ def create_app() -> FastAPI:
             raise HTTPException(422, str(exc)) from None
         if body.description is not None: bot.description = body.description
         if body.display_name is not None: bot.display_name = body.display_name
+        if body.pinned is not None: bot.pinned = body.pinned
         if body.instructions is not None: bot.instructions = body.instructions
         if body.model is not None: bot.model = body.model
         if changing_runtime: bot.runtime = proposed_runtime

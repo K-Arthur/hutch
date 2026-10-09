@@ -226,6 +226,23 @@ def test_bot_display_name_is_durable_editable_and_keeps_legacy_address(client):
     assert client.app.state.store.get_bot("qa-review-bot").display_name == "QA Review Bot"
 
 
+def test_bot_pin_preference_persists_without_changing_execution_policy(client):
+    bot = make_bot(client, name="pinned-reviewer")
+    assert bot["pinned"] is False
+
+    pinned = client.patch("/api/bots/pinned-reviewer", json={"pinned": True})
+    assert pinned.status_code == 200, pinned.text
+    assert pinned.json()["pinned"] is True
+    saved = client.app.state.store.get_bot("pinned-reviewer")
+    assert saved is not None and saved.pinned is True
+    assert saved.tools == bot["tools"]
+    assert saved.approval_mode.value == bot["approval_mode"]
+
+    unpinned = client.patch("/api/bots/pinned-reviewer", json={"pinned": False})
+    assert unpinned.status_code == 200 and unpinned.json()["pinned"] is False
+    assert client.app.state.store.get_bot("pinned-reviewer").pinned is False
+
+
 def test_named_workspace_coordinator_is_recoverable_and_clears_when_bot_is_deleted(tmp_path, monkeypatch):
     state = tmp_path / "coordinator-state"
     monkeypatch.setenv("HUTCH_STATE_DIR", str(state))

@@ -14,7 +14,8 @@ public release remains unavailable pending Google's restricted-scope verificatio
 security assessment. No live Google account or consent was tested.
 Keep chat as the normal work surface and make Bot configuration, handoff review, and approvals appear in
 context. The roster should remain small by default; use a searchable Fleet surface as the setup grows.
-Roughly ten Bots is the owner's initial heuristic, not a measured threshold.
+Roughly ten Bots is the owner's initial heuristic, not a measured threshold. Frequent Bots can be
+pinned in the primary roster without hiding active work; pinning is a navigation preference only.
 
 1. **Typed choices, core implemented (schema v26):** conversational built-in runs can ask a bounded
    single-select or multi-select question. The question/options and one-use answer persist across

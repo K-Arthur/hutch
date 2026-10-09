@@ -34,10 +34,10 @@ conversation column: muted slate user bubbles right, plain agent text left,
 borderless tool lines under a collapsed "N steps" summary, composer pinned bottom.
 
 SIGNATURE: the thinking dots (shown only while the server reports a run active)
-plus the pointer-reactive 3D mascot on the first-run welcome (7×3 sprite set
-shared with the marketing site, static center frame on incapable devices), with
-per-bot sigils as the identity system: one shape set × eight brand-adjacent
-colours, twin glints for a face, deterministic per name and user-overridable.
+plus a simple flat 2D Bot character in the first-run welcome and roster. Each
+Bot keeps one editable, name-stable coloured silhouette with two white glints;
+status remains a separate, labeled indicator. Detailed original 3D character
+art is reserved for marketing pages and is not loaded into the working app.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
 review, the verdict, DESIGN.md, and every shipping raster carrying its provenance.

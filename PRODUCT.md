@@ -52,9 +52,13 @@ guaranteed external spending limit. The app must make that governance legible, n
 - Durable conversations/messages, archive and idempotent command receipts are implemented on
   the integrated realignment branch. Studio uses `/api/v1/conversations`; legacy runs remain
   separate imported threads. Connection JSON APIs support the shared settings surface.
-- Chat is the daily workspace: one roster, one settings destination, inline approvals and
-  an explicit Needs you drawer. Monitor holds Activity/history; Fleet appears at ten bots
-  with search/state filters. Ten is a product heuristic, not a research-proven threshold.
+- The workspace roster pin preference persists with each Bot and does not change its
+  runtime or authority. See the [roster and mascot review](docs/research/bot-roster-and-mascot-review-2026-10-09.md).
+- Chat is the daily workspace: one searchable roster, one settings destination, inline
+  approvals and an explicit Needs you drawer. The workspace coordinator stays first;
+  owners can pin frequent Bots in a separate group without hiding active work. Monitor
+  holds Activity/history; Fleet appears at ten Bots with search/state filters. Ten is a
+  product heuristic, not a research-proven threshold.
 - Frontend stack constraint: zero build step, zero external assets (fonts/CDNs),
   vanilla ES + hash-routed SPA at `/`; Jinja2+HTMX server pages for the remainder.
   Restructuring inside those files is allowed; introducing a framework or bundler is not.
@@ -71,8 +75,9 @@ User-pinned v2 contract (binding):
   100px pill chips; named 16px exceptions only for the composer and conversation rows.
 - Type: readable sans for UI/conversation, one monospace family for operational data
   (IDs, timestamps, tokens, code); tabular numerals.
-- Dark, architectural, developer-focused; calm recognizable agent identity (original
-  aurora-sphere character, never another product's mascot); no marketing theatrics,
+- Dark, architectural, developer-focused; simple flat 2D Bot identities in the operator
+  app, with detailed original 3D mascot art reserved for marketing pages; no borrowed
+  mascot and no marketing theatrics in the working app,
   no compulsory intro, no full-screen ambient animation in the working app.
 - Motion: short, functional, state-linked; honors `prefers-reduced-motion` plus an
   explicit Reduce-effects control; forced-colors fallbacks.

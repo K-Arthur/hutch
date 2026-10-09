@@ -227,7 +227,9 @@ a:hover { text-decoration: underline; }
 .ws-roster .roster-search { width: calc(100% - var(--s-3) - var(--s-3)); min-width: 0; }
 .roster-search:focus { border-color: var(--focus); outline: none; box-shadow: 0 0 0 1px var(--focus); }
 
-.roster-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 var(--s-2) var(--s-2); display: grid; gap: 1px; align-content: start; }
+.roster-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 var(--s-2) var(--s-2); display: grid; gap: var(--s-2); align-content: start; }
+.roster-section { display: grid; gap: 1px; min-width: 0; }
+.roster-section-title { margin: var(--s-2) var(--s-3) var(--s-1); color: var(--text-3); font-size: var(--fs-xs); font-weight: 600; line-height: 1.4; }
 .roster-row {
   all: unset; box-sizing: border-box; cursor: pointer;
   display: grid; grid-template-columns: 32px minmax(0, 1fr) auto;
@@ -287,6 +289,10 @@ a:hover { text-decoration: underline; }
   .app-shell.collapsed .roster-title,
   .app-shell.collapsed .roster-new { display: none; }
   .app-shell.collapsed .roster-row { grid-template-columns: 30px; justify-content: center; padding: 7px 0; }
+  .app-shell.collapsed .roster-entry { grid-template-columns: 1fr; justify-items: center; }
+  .app-shell.collapsed .roster-pin,
+  .app-shell.collapsed .roster-settings,
+  .app-shell.collapsed .roster-section-title { display: none; }
   .app-shell.collapsed .roster-id { display: none; }
   .app-shell.collapsed .roster-head { justify-content: center; padding: 0 0 var(--s-2); }
   .app-shell.collapsed .ws-foot-link { font-size: 0; gap: 0; justify-content: center; padding: 9px 0; }
@@ -462,9 +468,6 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
   user-select: none;
 }
 .avatar .sig { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.avatar .gl { transform: translate(calc(var(--gx, 0) * 1px), calc(var(--gy, 0) * 1px)); transition: transform 140ms linear; }
-:root.reduce-effects .avatar .gl { transition: none; transform: none; }
-@media (prefers-reduced-motion: reduce) { .avatar .gl { transform: none !important; } }
 .avatar .a-pip {
   position: absolute; right: -2px; bottom: -2px;
   width: 9px; height: 9px; border-radius: 50%;
@@ -1216,13 +1219,10 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .welcome-list .icon { color: var(--text-3); }
 @media (min-width: 641px) { .welcome-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-2); } }
 
-/* hero mascot: the site workstream's transparent sprite set (620x880 webp),
-   pointer-reactive on capable devices, static center frame otherwise */
-.hero-agent { width: 156px; height: 221px; animation: hero-float 7s ease-in-out infinite; }
-.hero-agent .hero-img { width: 100%; height: 100%; display: block; object-fit: contain; }
-@keyframes hero-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
-@media (prefers-reduced-motion: reduce) { .hero-agent { animation: none; } }
-:root.reduce-effects .hero-agent { animation: none; }
+/* The operator workspace uses a flat vector character that matches each Bot's
+   roster identity. The marketing site retains the separate detailed 3D art. */
+.hero-agent { display: grid; place-items: center; width: 160px; height: 160px; }
+.hero-agent .avatar { width: 100%; height: 100%; }
 
 /* explore-agents: template gallery on the first-run welcome */
 .tpl-gal { width: 100%; text-align: left; }
@@ -1360,7 +1360,7 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
     box-shadow: var(--sh-pop);
   }
   .workspace.open { transform: none; }
-  .ws-close { display: inline-grid; }
+  .icon-btn.ws-close { display: inline-grid; }
   .icon-btn.nav-toggle { display: inline-grid; }
   .app-top { grid-column: 1; padding: 6px var(--s-3); height: auto; min-height: 56px; flex-wrap: wrap; }
   main#view { grid-column: 1; }
@@ -1471,9 +1471,11 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .ws-nav summary { cursor: pointer; padding: 7px var(--s-3); color: var(--text-3); font-size: var(--fs-sm); }
 .ws-nav details a { padding-left: var(--s-6); font-size: var(--fs-base); }
 .ws-nav [hidden], .bot-card[hidden] { display: none; }
-.roster-entry { display: grid; grid-template-columns: minmax(0, 1fr) 36px; align-items: center; }
+.roster-entry { display: grid; grid-template-columns: minmax(0, 1fr) 32px 32px; align-items: center; }
 .roster-entry .roster-row { grid-template-columns: 30px minmax(0, 1fr); }
-.roster-settings { color: var(--text-3); }
+.roster-settings, .roster-pin { color: var(--text-3); }
+.roster-pin[aria-pressed="true"] { color: var(--brand); }
+.roster-pin[aria-busy="true"] { opacity: .6; cursor: progress; }
 .ctx-id h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .needs-you { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(580px, 100vw); height: 100dvh; max-width: 100vw; max-height: 100dvh; padding: var(--s-5); color: var(--text); background: var(--panel); border: 0; border-left: 1px solid var(--line-strong); overflow-y: auto; box-sizing: border-box; }
 .needs-you::backdrop { background: rgba(0,0,0,.55); }
@@ -1495,8 +1497,8 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
   .browser-alerts { align-items: flex-start; flex-direction: column; }
   .browser-alerts .btn { width: 100%; }
   .fleet-filters { grid-template-columns: 1fr; }
-  .roster-entry { grid-template-columns: minmax(0, 1fr) 44px; }
-  .roster-settings, .ws-nav button { min-height: 44px; }
+  .roster-entry { grid-template-columns: minmax(0, 1fr) 44px 44px; }
+  .roster-settings, .roster-pin, .ws-nav button { min-height: 44px; }
 }
 
 /* Visual review: preserve identity, decisions and composer at phone width. */

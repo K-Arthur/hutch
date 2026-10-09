@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-09T00:42:04Z",
+  "generatedAt": "2026-10-09T23:31:23Z",
   "title": "Design System: Hutch",
   "extensions": {
     "colorMeta": {
@@ -412,11 +412,6 @@
         "name": "typing-bounce",
         "value": "translateY loop, 1.3s, delays 0/0.16/0.32s",
         "purpose": "The one live animation: thinking indicator, shown only while the server reports a run active; static under reduced motion or Reduce effects."
-      },
-      {
-        "name": "hero-float",
-        "value": "translateY ±7px, 7s ease-in-out",
-        "purpose": "First-run mascot presence; static under reduced motion or Reduce effects."
       }
     ],
     "breakpoints": [
@@ -490,9 +485,9 @@
     {
       "name": "Bot Roster Row",
       "kind": "nav",
-      "description": "A compact bot identity row pairs the name and status with a restrained active surface.",
-      "html": "<button class=\"ds-roster\"><span class=\"ds-avatar\">R</span><span><b>release-notes</b><small>idle</small></span></button>",
-      "css": ".ds-roster { width: 100%; display: grid; grid-template-columns: 32px minmax(0,1fr); align-items: center; gap: 10px; padding: 7px 12px; color: #9daebf; background: transparent; border: 0; border-radius: 8px; text-align: left; cursor: pointer; } .ds-roster:hover, .ds-roster[aria-current=\"true\"] { background: rgba(52,211,153,.09); color: #f0f4f9; } .ds-roster:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; } .ds-roster > span:last-child { display: grid; min-width: 0; } .ds-roster b { overflow: hidden; text-overflow: ellipsis; font-size: 14px; } .ds-roster small { color: #7d8ea4; font: 400 11px/1.4 ui-monospace, monospace; } .ds-avatar { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: #34d399; color: #052e21; font: 700 12px/1 ui-monospace, monospace; }"
+      "description": "The coordinator stays first; pinned Bots have their own labeled group, with all Bots still searchable. Identity is a simple 2D shape and never encodes run status.",
+      "html": "<div class=\"ds-roster-entry\"><button class=\"ds-roster\"><svg class=\"ds-avatar\" viewBox=\"0 0 64 64\" aria-hidden=\"true\"><path d=\"M32 8C45 8 55 18 55 32S45 56 32 56 9 46 9 32 19 8 32 8Z\" fill=\"#ff6fa5\"/><path d=\"M25 27c-1.4-2.3-2.7-4.1-4.4-5.4M41.5 24c-1.2-2.1-2.4-3.6-4-4.8\" fill=\"none\" stroke=\"#fff\" stroke-width=\"5\" stroke-linecap=\"round\"/></svg><span><b>release-notes</b><small>Idle</small></span></button><button class=\"ds-pin\" aria-label=\"Pin release-notes\">Pin</button></div>",
+      "css": ".ds-roster-entry { display: grid; grid-template-columns: minmax(0,1fr) 32px 32px; align-items: center; } .ds-roster { width: 100%; display: grid; grid-template-columns: 32px minmax(0,1fr); align-items: center; gap: 10px; padding: 7px 12px; color: #9daebf; background: transparent; border: 0; border-radius: 8px; text-align: left; cursor: pointer; } .ds-roster:hover, .ds-roster[aria-current=\"true\"] { background: rgba(52,211,153,.09); color: #f0f4f9; } .ds-roster:focus-visible, .ds-pin:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; } .ds-roster > span:last-child { display: grid; min-width: 0; } .ds-roster b { overflow: hidden; text-overflow: ellipsis; font-size: 14px; } .ds-roster small { color: #7d8ea4; font: 400 11px/1.4 ui-monospace, monospace; } .ds-avatar { width: 30px; height: 30px; display: block; } .ds-pin { width: 32px; height: 32px; color: #9daebf; background: transparent; border: 0; border-radius: 8px; cursor: pointer; }"
     }
   ],
   "narrative": {
@@ -503,7 +498,7 @@
       "One conversation column (760px) carries the story; operational ledgers (runs, usage, approvals) support it as tables, not as the homepage.",
       "Colour does jobs: emerald is the brand and the primary action; azure is interaction only; amber means a human must act now; rose means failure. Everything else is neutral so those four stay legible.",
       "Mono type is reserved for measured values (ids, durations, counts, budgets) — it signals \"this number came from the machine\".",
-      "The 3D mascot (one sprite set shared with the marketing site) appears only in first-run/welcome moments; per-bot identity is the lightweight sigil."
+      "The operator workspace uses simple flat 2D Bot characters: one coloured silhouette and two white glints, stable by Bot name and editable by the owner. Detailed original 3D mascot artwork belongs to marketing pages; the product and marketing characters are related brand work, not a shared UI asset."
     ],
     "rules": [
       {

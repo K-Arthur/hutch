@@ -1,5 +1,43 @@
 # Visual validation record
 
+## Searchable pinned Bot roster and flat app mascots (2026-10-09)
+
+The Studio roster keeps the workspace coordinator first, then shows pinned Bots in a
+named group and the rest under “All bots”. Search matches both groups. Pinning is saved
+with the Bot and changes only its roster placement; there is no hide or pause behavior.
+The operator app uses a small family of flat, solid-colour 2D silhouettes with two
+white glints. The welcome view uses that Bot's same identity. The detailed original 3D
+mascot on the marketing site remains separate and unchanged.
+
+`.venv/bin/pytest -q tests/e2e/test_browser.py::test_bot_roster_pins_persist_and_simple_mascots_stay_distinct`
+passed on Chromium **153.0.8010.12** / Playwright **1.63.0** with local SQLite fixtures:
+pin/unpin, persistence after reload, coordinator order, search through a pinned Bot,
+keyboard focus restoration, 44px phone pin targets, drawer close visibility, no
+horizontal overflow, no page errors, and no request outside the local fixture host.
+I inspected the application at desktop **1440×960**, tablet **900×1024**, and phone
+**390×844**. The tablet/phone captures include both the open roster and the chat after
+the roster closes. They are in [`artifacts/pinned-roster/`](artifacts/pinned-roster/),
+along with source hashes, validation metadata, and a Playwright trace.
+
+The API checks (`tests/test_api.py`, **36 passed**) confirm pinning leaves the Bot's
+existing tools and approval mode unchanged. The anonymous marketing workflow test
+(`tests/e2e/test_website.py::test_public_workflow_describes_named_recurring_tasks`,
+**1 passed**) covers the new pinning statement; I inspected its updated desktop, tablet,
+and phone renders at **1440×900**, **900×1024**, and **390×844**. Captures are in
+[`artifacts/bot-purpose-refinement/marketing/`](artifacts/bot-purpose-refinement/marketing/).
+The actual marketing hero was also captured at all three sizes. Its `hutch-agent.webp`
+image loaded at its declared 560px width and retains the detailed 3D character; the
+operator app does not request that asset. The anonymous site checks made no external
+requests; the complete anonymous website suite passed **27 tests**. No live provider,
+screen reader, or physical mobile device was used.
+
+The scoped Impeccable detector found no primary issues in the changed JavaScript,
+stylesheet, or marketing page. It reported three advisory out-of-scale radii on existing
+workspace task/checkpoint/capability cards in `style.css`; those components were not
+changed in this slice and remain outside its scope. The app screenshots also exposed
+and verified a specificity fix that makes the mobile roster's visible close button
+actually appear.
+
 ## Native form submission approval (2026-10-09)
 
 The in-chat outward-approval card now gives native form submissions a human-readable destination, request method, submit control and

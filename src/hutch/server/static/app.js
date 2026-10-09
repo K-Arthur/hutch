@@ -552,6 +552,7 @@ const ICON_PATHS = {
   brain: '<path d="M12 4a4 4 0 0 0-4 4 3.5 3.5 0 0 0-1 6.5A3.5 3.5 0 0 0 12 19a3.5 3.5 0 0 0 5-4.5 3.5 3.5 0 0 0-1-6.5 4 4 0 0 0-4-4Z"/><path d="M12 4v15"/>',
   refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/>',
   trash: '<path d="M3 6h18M8 6V4h8v2m3 0-.9 14H5.9L5 6m4 4v6m6-6v6"/>',
+  pin: '<path d="M16 3 21 8l-4 1-4 4v4l-2 2-2-6-6-6 2-2 6 6 4-4z"/><path d="m2 22 7-7"/>',
 };
 
 function icon(name, cls = "") {
@@ -568,45 +569,21 @@ function summarizeOutput(output) {
 }
 
 /* ---------------------------------------------------------------- avatars
-   Unique agent sigils: a shape from a curated family wearing one of eight
-   brand-adjacent colours, with two glints that read as a face. The pair is
-   derived from the bot's name (stable with zero storage), and can be
-   overridden at creation or in settings — no two bots look alike, while the
-   family stays one visual language. Identity never encodes status: status
-   rides the pip, and the pip is always paired with a word (title/aria). */
-/* Identity palette — brighter, high-chroma, drawn from the mascot's mint
-   lineage (website/assets/hutch-agent.svg). Identity only: status never
-   rides here (the pip does that, always with a word). */
+   Each Bot gets one light 2D character: a distinctive, name-stable silhouette,
+   one brand-family colour and two bright glints. This simple family belongs to
+   the operator app; the marketing site keeps its detailed 3D artwork. Identity
+   never encodes status. Status remains a separate labeled indicator. */
 const ID_COLORS = ["#3DE8C5", "#35C3F0", "#5B9BFF", "#9B7CFF", "#C77DFF", "#FF6FA5", "#FFA83C", "#7BD85A"];
-/* Transcribed from the 3D mascot blueprint (website/assets/hutch-agent.svg,
-   rendered by the site-mascot workstream): gradient shell (light/base/deep
-   with a rim light), a dome cap with a bright band, a wide dark glass visor
-   with a top shine, glowing happy-arc eyes + smile, swept side fins, a
-   luminous chest core, and a soft ground glow. Shape picker varies the shell
-   silhouette; colour varies the shell. Detail is pruned at small sizes. */
-// Eight silhouettes that stay distinct at 30px: tall pill, circle, squircle,
-// wide bean, droplet, shield, triangle, hexagon. Per-shape face placement
-// (visor width/y, fin level) so the plate always sits inside the body.
-// Poly shapes round their corners via a {S}/{SW} stroke painted by bodySvg().
 const ID_HEADS = [
-  { key: "capsule",  top: 14,   h: 36,   vw: 20, vy: 7,    vh: 12,   hw: 13,   cap: true,  core: true,
-    body: '<rect x="19" y="14" width="26" height="36" rx="13"/>' },
-  { key: "round",    top: 15,   h: 32,   vw: 21, vy: 6,    vh: 12,   hw: 15.5, cap: true,  core: true,
-    body: '<circle cx="32" cy="31" r="16"/>' },
-  { key: "squircle", top: 15,   h: 31,   vw: 22, vy: 5.5,  vh: 12,   hw: 15.5, cap: true,  core: true,
-    body: '<rect x="16.5" y="15" width="31" height="31" rx="11"/>' },
-  { key: "bean",     top: 20,   h: 24,   vw: 24, vy: 5.5,  vh: 12,   hw: 18,   cap: false, core: false,
-    body: '<rect x="13" y="20" width="38" height="24" rx="12"/>' },
-  { key: "droplet",  top: 13,   h: 31.5, vw: 17, vy: 13,   vh: 11,   hw: 12,   cap: false, core: false,
-    body: '<path d="M32 13c6.6 7.9 12 13.2 12 19.5a12 12 0 0 1-24 0c0-6.3 5.4-11.6 12-19.5Z"/>' },
-  { key: "shield",   top: 13.5, h: 36,   vw: 19, vy: 7.5,  vh: 12,   hw: 14,   cap: false, core: true,
-    body: '<path d="M32 13.5c4.8 2.8 10.2 4.5 14.6 5 1 .1 1.8.9 1.8 1.9v10.3c0 9.3-6.5 15.9-16.4 19.2C22.1 46.5 15.6 40 15.6 30.7V20.4c0-1 .8-1.8 1.8-1.9 4.4-.5 9.8-2.2 14.6-5Z"/>' },
-  { key: "triangle", top: 14,   h: 30,   vw: 14, vy: 15,   vh: 10.5, hw: 9.5,  cap: false, core: false,
-    body: '<path d="M30.62 16.66a3 3 0 0 1 2.76 0L46.12 41.34a3 3 0 0 1-1.62 2.66H19.5a3 3 0 0 1-1.62-2.66L30.62 16.66Z" stroke="{S}" stroke-width="{SW}" stroke-linejoin="round"/>' },
-  { key: "hex",      top: 16.8, h: 29.4, vw: 20, vy: 6,    vh: 11.5, hw: 15,   cap: false, core: true,
-    body: '<path d="M23.5 16.8h17L49 31.5l-8.5 14.7h-17L15 31.5Z" stroke="{S}" stroke-width="{SW}" stroke-linejoin="round"/>' },
+  { key: "orb", d: "M32 8C45 8 55 18 55 32S45 56 32 56 9 46 9 32 19 8 32 8Z" },
+  { key: "capsule", d: "M32 7c12 0 19 8 19 19v12c0 11-7 19-19 19s-19-8-19-19V26C13 15 20 7 32 7Z" },
+  { key: "bean", d: "M13 28c0-12 11-19 23-17 11 1 19 10 18 21-1 12-9 21-21 22-12 1-21-9-20-26Z" },
+  { key: "drop", d: "M32 8c8 10 21 21 21 32a21 18 0 0 1-42 0C11 29 24 18 32 8Z" },
+  { key: "pebble", d: "M12 29c1-12 10-20 22-19 12 0 20 8 19 20 0 12-7 24-20 25-13 1-22-9-21-26Z" },
+  { key: "shield", d: "M32 9c7 4 15 6 21 7v17c0 12-8 19-21 23-13-4-21-11-21-23V16c6-1 14-3 21-7Z" },
+  { key: "triangle", d: "M27 12c2-4 8-4 10 0l19 32c2 4-1 8-5 8H13c-5 0-7-4-5-8l19-32Z" },
+  { key: "hex", d: "M22 9h20l13 23-13 23H22L9 32 22 9Z" },
 ];
-const bodySvg = (h, paint, rw) => h.body.replace(/\{S\}/g, paint).replace(/\{SW\}/g, rw);
 
 function hash32(s) {
   let h = 2166136261;
@@ -642,58 +619,18 @@ function sigilPair(name) {
 }
 function sigilSet(name, pair) { idStore.all[name] = pair; idStore.save(); }
 
-function sigilBody(pair, size = 30) {
-  /* Transcribed from the 3D mascot (website/assets/hutch-agent.svg): gradient
-     shell with rim light, dome cap + bright band, dark glass visor, glowing
-     happy-arc eyes (+ smile), side fins, luminous chest core, ground glow.
-     Detail prunes by size — visor+eyes at 30, rim+glow at 44, smile+core at
-     56 — and the core only on shapes with chest room below the visor. */
+function sigilBody(pair) {
   const [ci, si] = pair;
-  const base = ID_COLORS[ci], light = tint(base, 0.45), pale = tint(base, 0.82), deep = shade(base, 0.55);
-  const gid = `sg-${ci}`, vid = `vg-${ci}`, cid = `cg-${ci}`;
+  const base = ID_COLORS[ci];
   const h = ID_HEADS[si] || ID_HEADS[0];
-  const vy = h.top + h.vy, vh = h.vh, vw = h.vw;
-  const big = size >= 44, face = size >= 56;
-  const finY = (vy + vh * 0.75 + 1.5).toFixed(1);
-  const fxr = (32 + h.hw + 1.8).toFixed(1), fxl = (32 - h.hw - 1.8).toFixed(1);
-  const dome = h.cap ? `M25 ${h.top}c0-4.4 3-6.9 7-6.9s7 2.5 7 6.9Z` : "";
-  const vx = (32 - vw / 2).toFixed(1);
-  // Face sized to the visor: arcs keep 1.6–2.9u margins inside the plate, so
-  // the eyes never smear into the rim at roster size.
-  const gap = Math.max(1.4, vw * 0.1);
-  const ew = ((vw - 5.8) / 2 - gap);
-  const ey = (vy + (face ? vh * 0.42 : vh * 0.5 + 1.4)).toFixed(1);
-  const arcEye = x1 => `M${x1.toFixed(1)} ${ey}q${(ew / 2).toFixed(1)} ${(-ew * 0.95).toFixed(1)} ${ew.toFixed(1)} 0`;
-  const eyeL = arcEye(32 - gap - ew), eyeR = arcEye(32 + gap);
-  const mouth = `M29.6 ${(vy + vh - 2.6).toFixed(1)}q2.4 2.4 4.8 0`;
-  const coreCy = (vy + vh + 5.6).toFixed(1);
-  return `<defs>
-    <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${light}"/><stop offset=".55" stop-color="${base}"/><stop offset="1" stop-color="${deep}"/></linearGradient>
-    <linearGradient id="${vid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c252b"/><stop offset="1" stop-color="#050d12"/></linearGradient>
-    <radialGradient id="${cid}" cx=".5" cy=".45" r=".6"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".55" stop-color="${pale}" stop-opacity=".4"/><stop offset="1" stop-color="${pale}" stop-opacity="0"/></radialGradient>
-  </defs>
-  <ellipse cx="32" cy="${(h.top + h.h + 3).toFixed(1)}" rx="${Math.max(11, h.hw * 0.8).toFixed(1)}" ry="1.9" fill="${base}" opacity=".15"/>
-  <g fill="url(#${gid})">
-    <ellipse cx="${fxl}" cy="${finY}" rx="3.8" ry="6.2" transform="rotate(-15 ${fxl} ${finY})"/>
-    <ellipse cx="${fxr}" cy="${finY}" rx="3.8" ry="6.2" transform="rotate(15 ${fxr} ${finY})"/>
-    ${bodySvg(h, `url(#${gid})`, 5)}
-    ${dome ? `<path d="${dome}"/>` : ""}
-  </g>
-  ${big ? `<g fill="none" stroke="${pale}" stroke-opacity=".5" stroke-width="1.1">${bodySvg(h, pale, 1.1)}${dome ? `<path d="${dome}"/>` : ""}</g>` : ""}
-  ${h.cap ? `<rect x="23.8" y="${(h.top - 1.3).toFixed(1)}" width="16.4" height="2.3" rx="1.15" fill="#fff" opacity=".9"/>` : ""}
-  <rect x="${vx}" y="${vy.toFixed(1)}" width="${vw}" height="${vh}" rx="${(vh * 0.42).toFixed(1)}" fill="url(#${vid})"${big ? ` stroke="${pale}" stroke-opacity=".55" stroke-width="1"` : ""}/>
-  <rect x="${(32 - vw / 2 + 3).toFixed(1)}" y="${(vy + 1.7).toFixed(1)}" width="${(vw - 6).toFixed(1)}" height="1.5" rx=".75" fill="#fff" opacity=".14"/>
-  ${h.core && face ? `<circle cx="32" cy="${coreCy}" r="4.6" fill="url(#${cid})"/><circle cx="32" cy="${(vy + vh + 4.9).toFixed(1)}" r="1.7" fill="#fff" opacity=".9"/>` : ""}
-  <g class="gl" fill="none" stroke-linecap="round">
-    ${big ? `<path d="${eyeL}" stroke="${pale}" stroke-opacity=".38" stroke-width="4.6"/><path d="${eyeR}" stroke="${pale}" stroke-opacity=".38" stroke-width="4.6"/>` : ""}
-    <path d="${eyeL}" stroke="#fff" stroke-width="2.6"/>
-    <path d="${eyeR}" stroke="#fff" stroke-width="2.6"/>
-    ${face ? `<path d="${mouth}" stroke="#fff" stroke-width="1.8"/>` : ""}
+  return `<path d="${h.d}" fill="${base}"/>
+  <g fill="none" stroke-linecap="round" aria-hidden="true">
+    <path d="M25 27c-1.4-2.3-2.7-4.1-4.4-5.4M41.5 24c-1.2-2.1-2.4-3.6-4-4.8" stroke="#fff" stroke-width="5"/>
   </g>`;
 }
 
 function avatarFromPair(pair, size, state = "") {
-  return `<span class="avatar" style="--av:${size}px" ${size >= 36 ? 'data-gaze' : ""} aria-hidden="true"><svg class="sig" viewBox="0 0 64 64">${sigilBody(pair, size)}</svg>${state ? `<span class="a-pip ${esc(state)}"></span>` : ""}</span>`;
+  return `<span class="avatar" style="--av:${size}px" aria-hidden="true"><svg class="sig" viewBox="0 0 64 64">${sigilBody(pair)}</svg>${state ? `<span class="a-pip ${esc(state)}"></span>` : ""}</span>`;
 }
 
 function botAvatar(name, size = 32, state = "") {
@@ -709,86 +646,6 @@ function botStatusLabel(b) {
 function botNeedsYou(b) {
   return ["waiting_approval", "waiting_human"].includes(b.active_run_status) || attentionBots.includes(b.name);
 }
-// Glints follow the cursor on devices that can: a one-rAF pointer watcher that
-// shifts each large avatar's eye group a few px toward the pointer. Local to
-// the page — no position leaves the DOM, ever. Static for coarse pointers,
-// reduced motion, and the Reduce effects control.
-(function gazeTracking() {
-  if (!window.matchMedia || !matchMedia("(pointer: fine)").matches) return;
-  let raf = 0, mx = 0, my = 0;
-  const apply = () => {
-    raf = 0;
-    const off = document.documentElement.classList.contains("reduce-effects");
-    for (const el of document.querySelectorAll(".avatar[data-gaze]")) {
-      if (off) { el.style.removeProperty("--gx"); el.style.removeProperty("--gy"); continue; }
-      const r = el.getBoundingClientRect();
-      if (!r.width) continue;
-      const dx = mx - (r.left + r.width / 2), dy = my - (r.top + r.height / 2);
-      const d = Math.hypot(dx, dy);
-      const k = Math.min(1, d / 160) * r.width * 0.075;
-      el.style.setProperty("--gx", ((dx / (d || 1)) * k).toFixed(2));
-      el.style.setProperty("--gy", ((dy / (d || 1)) * k).toFixed(2));
-    }
-  };
-  document.addEventListener("pointermove", ev => {
-    mx = ev.clientX; my = ev.clientY;
-    if (!raf) raf = requestAnimationFrame(apply);
-  }, { passive: true });
-})();
-
-/* Hero mascot look-at-cursor: the site workstream's 7x3 sprite set (the same
-   character, transparent webp). Only on capable pointers with effects allowed;
-   the center frame is the static fallback and the only frame loaded up front —
-   the rest preload after the first pointer move over the hero. */
-(function heroGaze() {
-  if (!window.matchMedia || !matchMedia("(pointer: fine)").matches) return;
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  if (navigator.connection && navigator.connection.saveData) return;
-  if ((navigator.hardwareConcurrency || 4) < 4) return;
-  const COLS = 7, ROWS = 3, CC = 3, CR = 1;          // center frame = f3-p1
-  const srcFor = (c, r) => `/static/agent/f${c}-p${r}.webp`;
-  const loaded = new Set(["3-1"]);
-  let failed = false, prerested = false, raf = 0, cur = "3-1", tgt = { c: CC, r: CR };
-  const img = () => document.querySelector("#hero-agent .hero-img");
-  function show(c, r) {
-    const el = img(); if (!el || failed) return;
-    const k = `${c}-${r}`; if (k === cur) return;
-    if (!loaded.has(k)) {
-      const im = new Image();
-      im.onload = () => { loaded.add(k); if (`${tgt.c}-${tgt.r}` === k) { el.src = srcFor(c, r); cur = k; } };
-      im.onerror = () => { failed = true; };   // missing set: stay on the center frame
-      im.src = srcFor(c, r);
-      return;
-    }
-    el.src = srcFor(c, r); cur = k;
-  }
-  function preloadRest() {
-    if (prerested) return; prerested = true;
-    for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) {
-      const k = `${c}-${r}`; if (loaded.has(k)) continue;
-      const im = new Image();
-      im.onload = () => loaded.add(k);
-      im.onerror = () => { failed = true; };
-      im.src = srcFor(c, r);
-    }
-  }
-  document.addEventListener("pointermove", ev => {
-    if (document.hidden || failed) return;
-    const hero = document.getElementById("hero-agent");
-    if (!hero) return;
-    preloadRest();
-    const rect = hero.getBoundingClientRect();
-    const nx = (ev.clientX - (rect.left + rect.width / 2)) / (rect.width * 2.2);
-    const ny = (ev.clientY - (rect.top + rect.height / 2)) / (rect.height * 2.6);
-    const c = Math.round(CC + Math.max(-0.5, Math.min(0.5, nx)) * (COLS - 1));
-    const r = Math.round(CR + Math.max(-0.5, Math.min(0.5, ny)) * (ROWS - 1));
-    if (c !== tgt.c || r !== tgt.r) {
-      tgt = { c, r };
-      if (!raf) raf = requestAnimationFrame(() => { raf = 0; show(tgt.c, tgt.r); });
-    }
-  }, { passive: true });
-})();
-
 // shared identity picker (creation modal + bot settings)
 function identityPickerHtml() {
   return `
@@ -800,7 +657,7 @@ function identityPickerHtml() {
       <p class="idp-lbl">Shape</p>
       <div class="idp-row" data-idp-shapes>${ID_HEADS.map((hh, i) =>
         `<button type="button" class="shp" data-si="${i}" aria-label="Shape ${esc(hh.key)}" aria-pressed="false">
-          <svg viewBox="0 0 64 64" aria-hidden="true"><g fill="currentColor">${bodySvg(hh, "currentColor", 4)}${hh.cap ? `<path d="M25 ${hh.top}c0-4.4 3-6.9 7-6.9s7 2.5 7 6.9Z"/>` : ""}</g></svg>
+          <svg viewBox="0 0 64 64" aria-hidden="true"><path d="${hh.d}" fill="currentColor"/><path d="M25 27c-1.4-2.3-2.7-4.1-4.4-5.4M41.5 24c-1.2-2.1-2.4-3.6-4-4.8" fill="none" stroke="var(--panel)" stroke-width="5" stroke-linecap="round"/></svg>
         </button>`).join("")}</div>
       <button type="button" class="btn ghost small idp-shuffle" data-idp-shuffle>${icon("refresh")} Surprise me</button>
     </div>`;
@@ -1015,18 +872,23 @@ function renderRoster() {
   if (!list) return;
   const focus = document.activeElement;
   const focusedBot = list.contains(focus) ? focus.dataset.switchBot : null;
+  const focusedPin = list.contains(focus) ? focus.dataset.pinBot : null;
   const focusedSettings = list.contains(focus) ? focus.getAttribute("href") : null;
   $("#fleet-nav").hidden = botsCache.length < 10;
   const q = ($("#bot-search")?.value || "").trim().toLowerCase();
   const coordinator = botsCache.find(b => b.is_workspace_coordinator);
-  const orderedBots = coordinator
-    ? [coordinator, ...botsCache.filter(b => b.id !== coordinator.id)] : botsCache;
-  const bots = q ? orderedBots.filter(b => `${b.display_name || b.name} ${b.name} ${b.description || ""}`.toLowerCase().includes(q)) : orderedBots;
+  const matches = b => !q || `${b.display_name || b.name} ${b.name} ${b.description || ""}`.toLowerCase().includes(q);
+  const byDisplayName = (a, b) => (a.display_name || a.name).localeCompare(b.display_name || b.name, undefined, { sensitivity: "base" })
+    || a.name.localeCompare(b.name);
+  const coordinatorMatch = coordinator && matches(coordinator) ? coordinator : null;
+  const pinned = botsCache.filter(b => b.id !== coordinator?.id && b.pinned && matches(b)).sort(byDisplayName);
+  const remaining = botsCache.filter(b => b.id !== coordinator?.id && !b.pinned && matches(b)).sort(byDisplayName);
+  const bots = [...(coordinatorMatch ? [coordinatorMatch] : []), ...pinned, ...remaining];
   if (!bots.length) {
     list.innerHTML = `<div class="roster-empty">${botsCache.length ? "No bot matches." : "No bots yet — create one."}</div>`;
     return;
   }
-  list.innerHTML = bots.map(b => {
+  const rowHtml = b => {
     const state = botState(b);
     const pip = botNeedsYou(b) ? "waiting" : state === "running" ? "running" : state === "paused" ? "paused" : "";
     const word = botNeedsYou(b) ? "Needs you" : botStatusLabel(b);
@@ -1039,12 +901,41 @@ function renderRoster() {
           <span class="roster-name">${esc(b.display_name || b.name)}</span>
           <span class="roster-sub">${b.is_workspace_coordinator ? '<span class="roster-role">Coordinator</span> · ' : ""}${esc(truncate(b.model || "", 20))} · ${word}</span>
         </span>
-      </button><a class="roster-settings icon-btn" href="#/bot/${esc(b.name)}" aria-label="Settings for ${esc(b.display_name || b.name)}" title="Settings for ${esc(b.display_name || b.name)}">${icon("sliders")}</a></div>`;
-  }).join("");
+      </button>${b.is_workspace_coordinator ? "" : `<button class="icon-btn roster-pin" type="button" data-pin-bot="${esc(b.name)}"
+        aria-label="${b.pinned ? "Unpin" : "Pin"} ${esc(b.display_name || b.name)}" aria-pressed="${b.pinned ? "true" : "false"}"
+        title="${b.pinned ? "Unpin" : "Pin"} ${esc(b.display_name || b.name)}">${icon("pin")}</button>`}
+      <a class="roster-settings icon-btn" href="#/bot/${esc(b.name)}" aria-label="Settings for ${esc(b.display_name || b.name)}" title="Settings for ${esc(b.display_name || b.name)}">${icon("sliders")}</a></div>`;
+  };
+  const sections = [];
+  if (coordinatorMatch) sections.push(`<div class="roster-section roster-coordinator">${rowHtml(coordinatorMatch)}</div>`);
+  if (pinned.length) sections.push(`<section class="roster-section" aria-label="Pinned bots">
+    <h3 class="roster-section-title">Pinned</h3>${pinned.map(rowHtml).join("")}</section>`);
+  if (remaining.length) sections.push(`<section class="roster-section" aria-label="All bots">
+    ${pinned.length ? '<h3 class="roster-section-title">All bots</h3>' : ""}${remaining.map(rowHtml).join("")}</section>`);
+  list.innerHTML = sections.join("");
   $$("#roster-list [data-switch-bot]").forEach(row =>
     row.addEventListener("click", () => { location.hash = `#/chat/${encodeURIComponent(row.dataset.switchBot)}`; }));
+  $$("#roster-list [data-pin-bot]").forEach(button => button.addEventListener("click", async () => {
+    const name = button.dataset.pinBot;
+    if (button.dataset.saving === "true") return;
+    const pinnedValue = button.getAttribute("aria-pressed") !== "true";
+    button.dataset.saving = "true";
+    button.setAttribute("aria-busy", "true");
+    try {
+      const saved = await api(`/bots/${encodeURIComponent(name)}`, { method: "PATCH", body: { pinned: pinnedValue } });
+      botsCache = botsCache.map(bot => bot.id === saved.id ? { ...bot, ...saved } : bot);
+      renderRoster();
+      announce(`${saved.display_name || saved.name} ${saved.pinned ? "pinned" : "unpinned"}.`);
+    } catch (error) {
+      delete button.dataset.saving;
+      button.removeAttribute("aria-busy");
+      toast(`Could not update ${name}: ${error.message}`, true);
+    }
+  }));
   if (focus && !focus.isConnected) {
-    const replacement = focusedBot
+    const replacement = focusedPin
+      ? $("#roster-list [data-pin-bot]") && $$("#roster-list [data-pin-bot]").find(el => el.dataset.pinBot === focusedPin)
+      : focusedBot
       ? $$("[data-switch-bot]", list).find(el => el.dataset.switchBot === focusedBot)
       : focusedSettings && $$("a", list).find(el => el.getAttribute("href") === focusedSettings);
     (replacement || $("#bot-search"))?.focus({ preventScroll: true });
@@ -2388,7 +2279,7 @@ function welcomeHtml() {
     <div class="welcome">
       <div class="welcome-hero">
         <div class="hero-agent" id="hero-agent" aria-hidden="true">
-          <img class="hero-img" src="/static/agent/f3-p1.webp" alt="" width="160" height="227" decoding="async">
+          ${avatarFromPair(sigilPair(b.name), 160)}
         </div>
         <h2>${esc(botDisplayName(b))}</h2>
         <p class="hint">${esc(b.description || "No description yet.")}</p>

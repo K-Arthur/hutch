@@ -107,9 +107,13 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     context, page, errors = _page(browser)
     responses = []
     page.on("response", lambda response: responses.append((response.url, response.status)))
+    requests: list[str] = []
+    page.on("request", lambda request: requests.append(request.url))
     page.goto(site_url, wait_until="networkidle")
     assert page.title().startswith("hutch")
     assert "Your bots." in page.inner_text("h1.hero-title")
+    mascot = page.locator("img.weave-agent")
+    assert mascot.count() == 1 and "assets/hutch-agent.webp" in mascot.get_attribute("src")
     assert page.locator("#proof .proof-img").count() == 1
     assert "Real application" in page.inner_text("#proof .proof-chrome")
     assert "empty state directory" in page.inner_text("#proof")
@@ -120,6 +124,7 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     for image in page.locator("img").all():
         image.evaluate("img => { img.loading = 'eager'; return img.decode(); }")
     assert page.locator("img").evaluate_all("imgs => imgs.every(img => img.complete && img.naturalWidth > 0)")
+    assert mascot.evaluate("img => img.naturalWidth > 0")
     broken = [(url, status) for url, status in responses if status >= 400]
     assert not broken, broken
     # Include closed FAQ answers: their risk and billing qualifications are
@@ -138,6 +143,24 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert "chatgpt sign-in is not implemented" not in text
     assert "github.com/k-arthur/hutch" not in page.content().lower()
     assert not errors, errors
+    external_requests = [url for url in requests if urlsplit(url).netloc not in {urlsplit(site_url).netloc, ""}]
+    assert not external_requests, external_requests
+    out = ROOT / "docs/realignment/artifacts/bot-purpose-refinement/marketing"
+    out.mkdir(parents=True, exist_ok=True)
+    viewports = (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844))
+    for label, width, height in viewports:
+        page.set_viewport_size({"width": width, "height": height})
+        page.evaluate("scrollTo(0, 0)")
+        assert mascot.is_visible()
+        page.screenshot(path=str(out / f"site-mascot-{label}.png"), animations="disabled")
+    (out / "site-mascot-validation.json").write_text(json.dumps({
+        "test": "tests/e2e/test_website.py::test_home_loads_real_assets_and_truthful_availability",
+        "browser": browser.version, "playwright": package_version("playwright"),
+        "mascot_asset": mascot.get_attribute("src"), "natural_width": mascot.evaluate("img => img.naturalWidth"),
+        "provider_calls": 0, "external_requests": len(external_requests), "page_errors": errors,
+        "viewports": [{"name": label, "size": [width, height]} for label, width, height in viewports],
+        "source_sha256": hashlib.sha256((ROOT / "website/index.html").read_bytes()).hexdigest(),
+    }, indent=2) + "\n", encoding="utf-8")
     context.close()
 
 

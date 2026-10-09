@@ -20,9 +20,9 @@
   "scenario": "the selected workspace coordinator opens as the default direct chat, is labelled in the roster and composer, and can be reassigned from Bot settings",
   "page_errors": [],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "69327cc2719d7b13b24fdc05843b423d66098297ba524489dbfdf08de0534f14",
-    "src/hutch/server/static/style.css": "0631458f126711ddf5db0c4493e294903c7c805344712bf65d675712bbd1cde6",
-    "src/hutch/server/app.py": "a54c2f698fd68258c5fe935c611ef631fa665e91156d5af8e35b3afa8233fc51",
-    "tests/e2e/test_browser.py": "1811c16585f6c0e22afe523b40eadc678c02a38e35eaf3a08a8ab758d73e351f"
+    "src/hutch/server/static/app.js": "e490b1e2cc9c840df7727e65e9fb2bb88de1017256a06ab47e3d49ad3682d282",
+    "src/hutch/server/static/style.css": "1d61e67e0103ecd0670066c6bcc399789c1f0ab453f9b4ff3855adb05f1db55f",
+    "src/hutch/server/app.py": "927e49255b7539e7022ee2820c932540281aa45017d52c6e1860c1661ec2a7e5",
+    "tests/e2e/test_browser.py": "209c342efd1fc7206ef0415820cc03ecdba3f41dfd9bbc9f5ecccc0d4855ef30"
   }
 }

@@ -7,6 +7,12 @@ dashboard (`src/hutch/server/static/{style.css,app.js,index.html}`, served at
 token **values**; names differ per surface and are mapped in each file's
 `:root`.
 
+The operator app and marketing site use different mascot treatments. The app uses
+lightweight flat 2D Bot identities (one solid-colour silhouette and two white glints)
+so a roster remains easy to scan; a status pip never shares or replaces that identity.
+The marketing site keeps the more detailed original 3D character artwork. Neither
+character treatment communicates run state.
+
 Design goals, in priority order:
 
 1. **Governance you can see.** hutch is a safety product: approvals, spend,

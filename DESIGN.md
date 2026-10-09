@@ -122,8 +122,10 @@ understand what the machine is actually doing, or it is chrome that should shrin
   neutral so those four stay legible.
 - Mono type is reserved for measured values (ids, durations, counts, budgets) —
   it signals "this number came from the machine".
-- The 3D mascot (one sprite set shared with the marketing site) appears only in
-  first-run/welcome moments; per-bot identity is the lightweight sigil.
+- The operator workspace uses simple, flat 2D Bot characters: one coloured
+  silhouette and two white glints, stable by Bot name and editable by the owner.
+  Detailed original 3D mascot artwork belongs to marketing pages; the product
+  and marketing characters are related brand work, not a shared UI asset.
 
 **The Measure Rule.** Reading text caps at ~72ch; anything wider is layout debt.
 **The One-Ink Rule.** Emerald fills always carry near-black ink (#052e21); white on
@@ -205,9 +207,11 @@ language after explicit user direction ("right angles feel too off"):
   the composer: send/stop/+).
 - **Status chip** — pill, mono 11px, dot + word always together (`● working`,
   `● needs you`, `✕ failed`); colour never carries state alone.
-- **Avatar/sigil** — one shape from a curated set in one of eight brand-adjacent
-  colours with twin glints for a face; derived from the bot name, overridable at
-  creation and in settings; the state pip sits beside it with its word.
+- **App avatar/sigil** — one flat silhouette from a curated set in one of eight
+  identity colours with two white glints; derived from the Bot name and overridable
+  at creation and in settings. Identity colours are decorative only, never status;
+  the separate state pip sits beside it with its word. The marketing site's 3D art
+  is a separate, larger brand illustration.
 - **Composer** — 22px rounded box, 16–18px textarea, circular emerald send and
   rose stop, a "+" popover holding only real capabilities (suggestions, rehearsal,
   Enter-behaviour, live budget).

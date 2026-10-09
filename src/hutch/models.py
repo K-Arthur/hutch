@@ -256,6 +256,7 @@ class Bot(BaseModel):
     workdir: Optional[str] = None     # an existing user folder; overrides the managed workspace
     local_browser_handoff: bool = False  # show this bot's browser on the Linux desktop for same-session human control
     paused: bool = False
+    pinned: bool = False              # workspace roster preference; does not affect execution
     template: Optional[str] = None    # which starter template it came from
     creation_source: Optional[BotCreationSource] = None  # explicit request provenance; never grants authority
     creation_context_sources: list[BotCreationSource] = Field(default_factory=list)  # owner-selected same-chat user messages

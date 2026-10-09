@@ -3409,7 +3409,9 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
     page = context.new_page()
     page.set_default_timeout(8000)
     errors: list[str] = []
+    requests: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: requests.append(request.url))
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
         page.goto(f"{base}/#/chat")
@@ -3430,7 +3432,7 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
         page.get_by_role("heading", name="Release Notes Reviewer settings").wait_for()
         assert app.state.store.workspace_coordinator_id() == specialist.id
         page.get_by_role("link", name="Open Studio").click()
-        page.get_by_role("heading", name="Release Notes Reviewer").wait_for()
+        page.locator("#chat-stream").get_by_role("heading", name="Release Notes Reviewer").wait_for()
         assert page.locator("#workspace-coordinator-pill").inner_text() == "Workspace coordinator"
         assert page.locator("#roster-list [data-switch-bot]").first.get_attribute("data-switch-bot") == specialist.name
         page.get_by_role("button", name="Dismiss notification").click()
@@ -3444,6 +3446,8 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
             assert metrics["documentWidth"] - width <= 1 and metrics["bodyWidth"] - width <= 1, (label, metrics)
             assert page.locator("#workspace-coordinator-pill").inner_text() == ("Coordinator" if width <= 640 else "Workspace coordinator")
         assert not errors, errors
+        outside_requests = [url for url in requests if urlsplit(url).netloc not in {urlsplit(base).netloc, ""}]
+        assert not outside_requests, outside_requests
         (out / "validation.json").write_text(json.dumps({
             "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_sizes",
             "browser": browser.browser_type.name, "browser_version": browser.version,
@@ -3454,6 +3458,125 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
             "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
                               for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                                "src/hutch/server/app.py", "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace.zip"))
+        except Exception:
+            pass
+        context.close()
+
+
+def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live):
+    """Pin frequent Bots in the one roster; preserve direct access and lightweight identity."""
+    base, app = live
+    store = app.state.store
+    bots = [
+        Bot(name="workspace-coordinator", display_name="Workspace Coordinator", model="mock/demo", tools=[]),
+        Bot(name="agenda-assistant", display_name="Agenda Assistant", model="mock/demo", tools=[]),
+        Bot(name="operations-review", display_name="Operations Reviewer", model="mock/demo", tools=[]),
+        Bot(name="research-helper", display_name="Research Companion", model="mock/demo", tools=[]),
+        Bot(name="website-auditor", display_name="Website Auditor", model="mock/demo", tools=[]),
+    ]
+    for bot in bots:
+        store.create_bot(bot)
+    store.set_workspace_coordinator("workspace-coordinator")
+
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/pinned-roster"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(8000)
+    errors: list[str] = []
+    requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: requests.append(request.url))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    viewports = (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844))
+    try:
+        page.goto(f"{base}/#/chat")
+        page.get_by_role("heading", name="Workspace Coordinator").wait_for()
+        assert page.locator("#roster-list .avatar").count() == len(bots)
+
+        pin_research = page.get_by_role("button", name="Pin Research Companion")
+        pin_research.click()
+        page.get_by_role("button", name="Unpin Research Companion").wait_for()
+        page.get_by_role("button", name="Pin Website Auditor").click()
+        page.get_by_role("button", name="Unpin Website Auditor").wait_for()
+        assert page.locator("#roster-list [data-switch-bot]").evaluate_all(
+            "els => els.map(el => el.dataset.switchBot)") == [
+                "workspace-coordinator", "research-helper", "website-auditor", "agenda-assistant", "operations-review"]
+        assert page.get_by_role("button", name="Pin Workspace Coordinator").count() == 0
+
+        page.reload()
+        page.get_by_role("heading", name="Workspace Coordinator").wait_for()
+        assert store.get_bot("research-helper").pinned is True
+        assert store.get_bot("website-auditor").pinned is True
+        assert page.locator("#roster-list [data-switch-bot]").evaluate_all(
+            "els => els.map(el => el.dataset.switchBot)")[0] == "workspace-coordinator"
+
+        page.locator("#bot-search").fill("Website")
+        assert page.locator("#roster-list [data-switch-bot]").evaluate_all(
+            "els => els.map(el => el.dataset.switchBot)") == ["website-auditor"]
+        page.locator("#bot-search").fill("")
+
+        page.get_by_role("button", name="Unpin Research Companion").focus()
+        page.keyboard.press("Enter")
+        page.wait_for_function("document.activeElement?.dataset?.pinBot === 'research-helper'")
+        page.wait_for_function("!document.querySelector('[data-pin-bot=research-helper]')?.matches('[aria-pressed=true]')")
+        assert store.get_bot("research-helper").pinned is False
+
+        identity = page.locator("#roster-list .avatar svg").evaluate_all("""svgs => {
+          const ids = svgs.flatMap(svg => [...svg.querySelectorAll('[id]')].map(node => node.id));
+          return {count: ids.length, shapes: svgs.map(svg => svg.querySelector('path')?.getAttribute('d')),
+                  fills: svgs.map(svg => svg.querySelector('path')?.getAttribute('fill')),
+                  glints: svgs.map(svg => svg.querySelectorAll('g[aria-hidden=true] path[stroke="#fff"]').length)};
+        }""")
+        assert identity["count"] == 0, "flat app avatars need no shared SVG definition IDs"
+        assert len(set(identity["shapes"])) == 5, "name-derived avatars should remain distinguishable"
+        assert len(set(identity["fills"])) > 1 and set(identity["glints"]) == {1}
+
+        snapshots = []
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            mobile_roster_capture = None
+            if width <= 900:
+                if not page.locator("#workspace").evaluate("el => el.classList.contains('open')"):
+                    page.locator("#nav-toggle").click()
+                assert page.locator("#ws-close").is_visible(), "the open mobile roster needs a visible close control"
+                mobile_roster_capture = out / f"{label}-roster.png"
+                page.screenshot(path=str(mobile_roster_capture), animations="disabled")
+                page.locator("#ws-close").click()
+                assert not page.locator("#workspace").evaluate("el => el.classList.contains('open')")
+                if width <= 640:
+                    page.locator("#nav-toggle").click()
+                    assert page.locator("#roster-list [data-switch-bot]").count() == len(bots)
+                    page.locator("#ws-close").click()
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") == 0, label
+            if width <= 640:
+                target = page.locator("#roster-list [data-pin-bot]").first
+                assert target.bounding_box()["height"] >= 44
+            page.screenshot(path=str(out / f"{label}.png"), animations="disabled")
+            snapshots.append({"size": label, "viewport": [width, height], "horizontal_overflow": 0,
+                              "roster_capture": mobile_roster_capture.name if mobile_roster_capture else None})
+
+        assert not errors, errors
+        outside_requests = [url for url in requests if urlsplit(url).netloc not in {urlsplit(base).netloc, ""}]
+        assert not outside_requests, outside_requests
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_bot_roster_pins_persist_and_simple_mascots_stay_distinct",
+            "command": ".venv/bin/pytest -q tests/e2e/test_browser.py::test_bot_roster_pins_persist_and_simple_mascots_stay_distinct",
+            "browser": browser.version, "playwright": package_version("playwright"),
+            "fixture_only": True, "provider_calls": 0, "external_requests": len(outside_requests), "page_errors": errors,
+            "viewports": snapshots,
+            "verified": ["pin and unpin", "pin persists after reload", "coordinator stays first", "search includes pinned bots",
+                         "keyboard activation restores focus", "mobile roster has a visible close control",
+                         "phone roster reopens with all Bots visible", "phone pin target is at least 44px",
+                         "flat 2D identities use distinct solid fills and glints"],
+            "avatar_svg_ids": identity["count"], "source_sha256": {
+                relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
+                for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                 "src/hutch/server/app.py", "tests/e2e/test_browser.py")},
         }, indent=2) + "\n", encoding="utf-8")
     finally:
         try:
