@@ -17,7 +17,7 @@
       844
     ]
   },
-  "scenario": "purpose-derived names preserve follow-up compounds, trim secondary clauses, use an action-appropriate organizer role, and remain editable/reviewed; no run or model/provider request occurs",
+  "scenario": "purpose-derived names preserve follow-up compounds, trim secondary/time/status clauses, use action-appropriate monitor/reviewer/organizer/reminder roles, normalize reminder actions and receipt nouns, and remain editable/reviewed; no run or model/provider request occurs",
   "inspected_screenshots": [
     "automatic-name-desktop.png",
     "automatic-name-tablet.png",
@@ -37,9 +37,9 @@
   ],
   "page_errors": [],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "8fe9b8baf64da886f69c1b4c3017ea18482342e2e1840fef2561a2d1d5a21f8b",
-    "src/hutch/server/static/style.css": "9f3a7520670f789dadc20f0106c7eb96a23684722dbd923495f887a4a21d683c",
-    "src/hutch/server/app.py": "46269ce38bd1fc9c80060b48cc07e8410be8d585bcff00418f9ce4f135b7ef3c",
-    "tests/e2e/test_browser.py": "9b71d5d0141314df9b5417453cf60cb08ad3acd89ca54dadfb86baabcb17a6fb"
+    "src/hutch/server/static/app.js": "25d4d950efe2acc06221bc45b182e3250e50a42cc32bddad4d224f219f03ad5d",
+    "src/hutch/server/static/style.css": "cab7f95dffbbf7a1c15dfdc1b019ab56d8f56c9d90d111f865b8ce12832268f1",
+    "src/hutch/server/app.py": "232ffa882331a8082376d3ea9d84c6734131bfed7e6776fc936eb2a3ee0c17b6",
+    "tests/e2e/test_browser.py": "89d479c0a17b589870231396b8d79618a9ac756eca69d80099e7427e2cc95926"
   }
 }

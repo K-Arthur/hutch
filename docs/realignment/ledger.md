@@ -2338,3 +2338,41 @@ records that the cited lines are a neutral full-outline blockquote and text alig
 This advances but does not complete `owner-chat-bot-creation`: the owner can preserve selected existing context, but the wizard
 still requires review of its full configuration and does not infer safe settings or ask conversationally only for unresolved
 details. Implementation commit: `382670d`.
+
+## S9 Reviewed browser form submissions (2026-10-09)
+
+Implementation commit: `adbaaa6`.
+
+Native HTML submit controls receive a one-time outward approval that names the destination origin, method, submit label and visible
+field labels. A digest is computed in a Chromium isolated execution world over the current form state, including values,
+checked/selected state, submitter value and form overrides. The digest and sanitized target summary leave that world; the digest is
+process-keyed before persistence.
+The worker recomputes the digest after approval and refuses detected changes before clicking. Sensitive values never enter Hutch's
+approval, event or transcript records. Selected file uploads, oversized forms, and forms on pages without secure SubtleCrypto
+support fail closed. Generic clicks and typing still require outward review. This is not an atomic transaction with a remote site
+and does not recognize every JavaScript-specific submit action.
+
+The initial regression test failed against the old behavior because the approval contained no native-form identity. The Chromium
+fixture also replaces `crypto.subtle.digest` in the page's main world; the isolated review still detects a changed recipient. The
+focused profile and real-browser tests passed **14 tests in 5.21s**, covering stable-submit, changed-recipient,
+tampered-page-crypto, selected-file and insecure-page cases. The responsive approval UI test passed for desktop **1440×960**, tablet **900×1024** and phone **390×844** in Chromium
+**153.0.8010.12** / Playwright **1.63.0**. I inspected the expanded review at all sizes and the phone decision view after scrolling; all automated
+checks report zero page errors or horizontal overflow, and the phone's Allow button stays above the composer. Evidence and hashes
+are under `docs/realignment/artifacts/browser-form-review/`. Node syntax, Python compilation and diff checks passed. No real site,
+provider, account, human challenge, screen reader or physical device was used. This strengthens `SR-4`; it does not complete `UI-17`
+or `UI-18` because credential-field heuristics, live handoff and third-party challenges remain unverified.
+
+## Purpose-derived reminder and filing names (2026-10-09)
+
+The local naming rule now recognizes reminder/alert requests and file/archive/categorize requests. Reminder action and alert-condition
+phrasing is normalized into professional name nouns (for example, “renew my passport” becomes “Passport Renewal Reminder” and
+“alert me when an invoice is overdue” becomes “Invoice Reminder”); common time/status words are omitted, and “receipts” is normalized
+to “receipt” in a filing role (“Expense Receipt Organizer”). Names and local addresses
+remain suggestions that owners can edit; setup still makes no model/provider request and starts no run.
+
+The regression journey first failed on the reminder request because it fell back to “Workspace Assistant.” After the rule change,
+`tests/e2e/test_browser.py::test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes` passed (**1 test in
+5.94s**). Fresh Chromium captures at **1440×960**, **900×1024**, and **390×844** were inspected; the suggested names remain visible,
+the address stays readable, and the dialog fits without horizontal overflow. Node syntax and the exact-target Impeccable scan passed.
+No provider calls were made. This remains a small deterministic English-language naming vocabulary, not general semantic
+understanding.
