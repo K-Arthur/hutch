@@ -60,6 +60,23 @@ and the exact fact card at all three app widths. No page errors or horizontal ov
 requests. See `artifacts/workspace-task-dispatch/shared-facts-{desktop,tablet,phone}.png`, the review captures, validation JSON and
 Playwright trace. Local mock/SQLite fixtures only; no provider, account, screen-reader or physical-phone check.
 
+## Coordinator task-brief refinement (2026-10-09)
+
+The coordinator gets drafting guidance only while selected for that role. It preserves the request, organizes provided or selected
+context into a goal and expected result, and asks about material gaps rather than inventing details or authority. The review sheet
+keeps the original request linked, lets the operator edit the goal and constraints or add an optional expected deliverable, shows the
+specialist's saved capability settings, and requires explicit confirmation. The combined brief is bounded to 20,000 characters.
+
+`tests/test_runtime_builtin.py::test_workspace_coordinator_gets_scoped_task_brief_guidance` and the responsive
+`tests/e2e/test_browser.py::test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports` pass. The latter covers the
+reviewed dispatch, over-limit rejection, result return and bounded checkpoints at **1440×960**, **900×1024**, and **390×844**;
+the focused runtime/conversation group passes **56 tests**. The anonymous workflow-copy check passes at **1440×900**, **900×1024**,
+and **390×844**, with zero external requests, page errors or overflow. I inspected the source-and-settings view, task-edit view and
+phone lower-fields view at all app sizes, and the public workflow card at all site sizes. Captures and Playwright trace are in
+[`artifacts/workspace-task-dispatch/`](artifacts/workspace-task-dispatch/). Impeccable detection returned no findings for the
+changed app JavaScript and marketing HTML. These checks use a mock runtime and local SQLite; they do not assess live model draft
+quality, screen readers or physical devices.
+
 The initial scoped Impeccable detector run on Studio JavaScript, the stylesheet and marketing HTML identified side-tab styling on
 the coordinator request/quote blocks, plus advisory radius values; it returned no finding for the selected-fact UI or marketing
 page. This follow-up replaced both side stripes with uniform 1px neutral outlines. The responsive browser test verifies matching

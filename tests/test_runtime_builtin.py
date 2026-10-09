@@ -74,6 +74,24 @@ def build(store, config, tmp_path, *, model="ollama/fake:8b", tools=("files",), 
     return ctx, run, emitted, build_tools(bot.tools, ctx)
 
 
+def test_workspace_coordinator_gets_scoped_task_brief_guidance(store, config, tmp_path):
+    ctx, _, _, _ = build(store, config, tmp_path)
+    runtime = BuiltinRuntime()
+    store.set_workspace_coordinator(ctx.bot.id)
+
+    prompt = runtime._system_prompt(ctx)
+    assert "task editor" in prompt.lower()
+    assert "preserve the user's stated intent" in prompt.lower()
+    assert "expected result" in prompt.lower() and "known context" in prompt.lower()
+    assert "if a missing detail could change scope or correctness, ask the operator before presenting the brief as ready for dispatch" in prompt.lower()
+    assert "never imply or grant tools, accounts, destinations, permissions, budgets" in prompt.lower()
+    assert "operator must review the target and brief in hutch" in prompt.lower()
+
+    other = store.create_bot(Bot(name="other-coordinator", model="mock/demo", tools=[]))
+    store.set_workspace_coordinator(other.id)
+    assert "task editor" not in runtime._system_prompt(ctx).lower()
+
+
 def factory(ollama=None, oai=None, claude=None, lmstudio=None):
     def make(provider, base_url):
         if provider == "ollama":

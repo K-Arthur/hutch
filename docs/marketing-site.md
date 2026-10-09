@@ -45,8 +45,9 @@ For Outlook, Hutch requests delegated `Calendars.ReadBasic`, limits each Bot to 
 Microsoft's account-level consent itself. Do not imply support for Gmail, Outlook Mail, calendar writes, or provider-side verification.
 
 The coordinator workflow may say that a completed coordinator answer can be prepared as a task for one selected Bot. The user must
-choose the specialist, review its saved settings, edit the brief and assumptions, and explicitly confirm. Hutch records the relationship
-between source request, proposal, reviewed handoff and child result. Only the reviewed brief and assumptions cross into the new chat;
+choose the specialist, review its saved settings, edit the goal, optionally add an expected deliverable and constraints, and explicitly
+confirm. The original request stays linked to the proposed brief and reviewed handoff. Only the reviewed brief, constraints and facts
+selected for that task cross into the new chat;
 the specialist's own enabled memory/workspace may still apply. The coordinator can receive one exact specialist answer only when
 the user selects and attaches it to a follow-up; Hutch preserves its source and treats it as untrusted. Label this handoff
 experimental and do not imply automatic multi-step planning, resumable checkpoints, an owner-approved specialist roster, live

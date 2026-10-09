@@ -2613,23 +2613,34 @@ async function prepareWorkspaceTask(button) {
     </details>` : `<p class="hint">${factLoadError ? `Reviewed facts could not be loaded (${esc(factLoadError)}); the task can still be sent without them.` : "No reviewed coordinator facts are available to share with this task."}</p>`;
 
   openModal({
-    returnFocus, title: "Prepare a task for a Bot", confirmText: "Send reviewed task", wide: true, tall: true,
-    bodyHtml: `<p>Review the coordinator’s suggested brief, choose a specialist, and edit anything that should change before it starts.</p>
-      <blockquote class="workspace-task-source"><b>Your request</b><br>${esc(originalRequest)}</blockquote>
-      <label class="field">Specialist Bot<select id="workspace-task-target">${targets.map(bot =>
+    returnFocus, title: "Refine a task for a specialist", confirmText: "Send reviewed task", wide: true, tall: true,
+    bodyHtml: `<p>The coordinator’s reply is a starting draft. Check the original request, the task, expected result and limits. If something important is still unclear, ask the coordinator before sending.</p>
+      <blockquote class="workspace-task-source"><b>Original request</b><br>${esc(originalRequest)}</blockquote>
+      <label class="field">Assigned specialist Bot<select id="workspace-task-target">${targets.map(bot =>
         `<option value="${esc(bot.id)}">${esc(botDisplayName(bot))}</option>`).join("")}</select></label>
       <div id="workspace-task-capability" aria-live="polite"></div>
-      <label class="field">Reviewed task brief<textarea id="workspace-task-brief" rows="6" maxlength="20000">${esc(sourceAnswerMessage.content)}</textarea></label>
-      <label class="field">Additional constraints or assumptions (optional)<textarea id="workspace-task-assumptions" rows="3" maxlength="4000" placeholder="For example: public sources only; do not contact anyone."></textarea></label>
+      <label class="field">Goal and task<textarea id="workspace-task-brief" rows="6" maxlength="20000" aria-describedby="workspace-task-brief-help">${esc(sourceAnswerMessage.content)}</textarea>
+        <span class="hint" id="workspace-task-brief-help">Edit the coordinator’s draft so the specialist can act on what you meant. The original request stays linked for review.</span></label>
+      <label class="field">Expected deliverable (optional)<textarea id="workspace-task-deliverable" rows="2" maxlength="4000" placeholder="For example: a one-page comparison with a recommendation."></textarea></label>
+      <label class="field">Context, constraints, or unresolved assumptions (optional)<textarea id="workspace-task-assumptions" rows="3" maxlength="4000" placeholder="For example: use public sources only; do not contact anyone."></textarea>
+        <span class="hint">If an unanswered detail could change the result, go back and ask the coordinator rather than guessing.</span></label>
+      <p class="hint" id="workspace-task-boundary"><b>Execution boundary:</b> this task uses the selected specialist’s saved model, tools, account grants, workspace, limits and approval policy. The brief cannot add access. If the request needs broader access, review the Bot’s settings before dispatch.</p>
       ${factChoices}
-      <p class="hint">The specialist receives this reviewed brief and constraints in a new conversation. Other chat history, files, memory and permissions are not copied. The specialist uses its own saved model route and settings; its own enabled memory and workspace may still apply. Once a task starts, information already sent to a model cannot be recalled.</p>
+      <p class="hint">The specialist receives the reviewed goal, requested deliverable, constraints and only facts you selected above in a new conversation. Other chat history and files are not copied. Its own enabled memory and workspace may still apply. Once a task starts, information already sent to a model cannot be recalled.</p>
       <p id="workspace-task-error" role="alert" hidden></p>`,
     onConfirm: async () => {
       const target = targets.find(bot => bot.id === $("#workspace-task-target").value);
-      const taskBrief = $("#workspace-task-brief").value.trim();
+      const goal = $("#workspace-task-brief").value.trim();
+      const deliverable = $("#workspace-task-deliverable").value.trim();
+      const taskBrief = [goal, deliverable ? `Expected deliverable:\n${deliverable}` : ""].filter(Boolean).join("\n\n");
       const assumptions = $("#workspace-task-assumptions").value.trim();
       const error = $("#workspace-task-error"), confirm = $("#modal-confirm");
       if (!target || !taskBrief) { error.textContent = "Choose a Bot and review a non-empty task brief."; error.hidden = false; return false; }
+      if (taskBrief.length > 20000) {
+        error.textContent = "Shorten the goal or expected deliverable; the reviewed task brief is limited to 20,000 characters.";
+        error.hidden = false;
+        return false;
+      }
       const selectedFacts = selectedFactSnapshots();
       const serializedSize = Array.from(JSON.stringify(selectedFacts)
         .replace(/</g, "\\u003c").replace(/>/g, "\\u003e")).length;

@@ -38,6 +38,14 @@ and shown as untrusted context to the specialist's run; they are not saved as sp
 specialist's provider may retain the submitted context. After dispatch, the provider copy cannot be recalled. See the
 [versioned handoff contract](contracts.md#3-versioned-resources-cursors-idempotency-pagination-partial-s8).
 
+The workspace coordinator receives extra drafting guidance only while selected as coordinator. It should preserve the request and
+use clearly labelled goal, expected result, known context, constraints and open questions where useful; it must ask about a missing
+detail that could change scope or correctness rather than inventing one. The review screen keeps the original request linked and
+lets the operator edit the proposed goal, add an optional expected deliverable, and record constraints or unresolved assumptions.
+It shows the specialist's saved settings and makes clear that task wording cannot add tools, accounts, permissions, budget or access.
+Only the operator's explicit confirmation dispatches the reviewed brief. A needed clarification belongs in the coordinator chat
+before dispatch. Browser and prompt-boundary tests use local mocks; live model draft quality is not verified.
+
 ## Safe checkpoint continuation
 
 Schema v34 supports an owner-confirmed **fresh attempt** for a small safe subset of coordinator-to-specialist tasks. It does not

@@ -104,7 +104,7 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
         prepare = page.locator("[data-prepare-bot-task]")
         prepare.wait_for(timeout=15000)
         prepare.click()
-        dialog = page.get_by_role("dialog", name="Prepare a task for a Bot")
+        dialog = page.get_by_role("dialog", name="Refine a task for a specialist")
         try:
             dialog.wait_for(timeout=5000)
         except Exception as exc:
@@ -115,8 +115,15 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
         assert "mock/demo" in dialog.locator("#workspace-task-capability").inner_text()
         assert "memory" in dialog.locator("#workspace-task-capability").inner_text()
         assert "not copied" in dialog.inner_text()
+        assert dialog.locator("#workspace-task-boundary").is_visible()
+        assert dialog.get_by_label("Expected deliverable (optional)").is_visible()
+        dialog.locator("#workspace-task-brief").fill("x" * 20000)
+        dialog.get_by_label("Expected deliverable (optional)").fill("y")
+        dialog.get_by_role("button", name="Send reviewed task").click()
+        assert "limited to 20,000 characters" in dialog.get_by_role("alert").inner_text()
         dialog.locator("#workspace-task-brief").fill(
             "Compare two launch approaches and return a short recommendation with trade-offs.")
+        dialog.get_by_label("Expected deliverable (optional)").fill("A one-page comparison table and recommendation.")
         dialog.locator("#workspace-task-assumptions").fill("Use public information only; do not contact anyone.")
         fact_selector = dialog.locator(".workspace-task-fact-selector")
         fact_selector.locator("summary").click()
@@ -217,7 +224,10 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
         parent_conversation_id = app.state.store.list_conversations(coordinator.id)[0]["id"]
         task = app.state.store.list_workspace_tasks(parent_conversation_id)[0]
         assert task["target_bot_id"] == specialist.id
+        assert task["original_request"] == "Compare launch plan options. Keep the work in Hutch."
         assert task["task_brief"].startswith("Compare two launch approaches")
+        assert "Expected deliverable:\nA one-page comparison table and recommendation." in task["task_brief"]
+        assert "User-reviewed assumptions and constraints:\nUse public information only; do not contact anyone." in app.state.store.get_run(task["child_run_id"]).prompt
         assert task["result_message_id"]
         share_button = page.locator("[data-discuss-specialist-result]")
         share_button.wait_for()
