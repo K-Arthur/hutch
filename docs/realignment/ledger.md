@@ -2085,3 +2085,20 @@ and phone **390×844**, plus the marketing workflow at desktop/tablet/phone size
 Playwright trace are in `artifacts/bot-naming/`; updated public workflow captures and source hashes
 are in `artifacts/scheduled-tasks/`. Browser fixtures made no provider calls; no live provider,
 physical phone or screen-reader check was performed.
+
+## Named workspace coordinator direct chat (2026-10-09)
+
+Commit `22fdf6b` turns the persisted coordinator selection into an accessible product role. Bot
+Settings can make one Bot the workspace coordinator, replace the existing selection or clear it;
+Studio orders that Bot first in the roster, marks the role, and selects it as the initial chat on a
+fresh visit. The coordinator remains an ordinary Bot with its own canonical conversation and saved
+model/policy. Other Bots remain available for direct chat. Replacing the role changes no Bot
+permissions or account grants. Cross-Bot dispatch and coordinator task-brief refinement remain open.
+
+The API selection/restart/deletion check and responsive Chromium journey passed; the browser test
+passed **1 test in 6.08s** on Chromium **153.0.8010.12** / Playwright **1.63.0**. It confirmed initial
+default-chat selection, role replacement through Settings, specialist direct chat, and no horizontal
+overflow at desktop **1440×960**, tablet **900×1024**, and phone **390×844**. I inspected all three
+captures; the role label compacts on phone. `node --check` and `git diff --check` passed. Captures,
+trace and source hashes are under `artifacts/workspace-coordinator/`. No provider/model call,
+physical-device or screen-reader check was used.
