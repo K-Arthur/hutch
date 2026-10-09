@@ -1161,8 +1161,10 @@ def test_outlook_mail_grant_and_consent_boundary_fit_all_viewports(browser, live
         grant_notice = page.locator(".toast-msg").last.inner_text()
         assert "in Work" in grant_notice
         assert "msmail_0123456789abcdef01234567" not in grant_notice
-        card.locator("details > summary").click()
-        page.get_by_text("Can search message previews", exact=False).wait_for()
+        mail_details = card.locator("details")
+        if not mail_details.evaluate("element => element.open"):
+            mail_details.locator("summary").click()
+        card.get_by_text("Can search message previews", exact=False).wait_for(state="visible")
         page.get_by_text("Matching previews are sent to that Bot's selected model", exact=False).wait_for()
         while page.locator(".toast").count():
             page.locator(".toast-close").first.click()
