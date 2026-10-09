@@ -17,7 +17,7 @@
       844
     ]
   },
-  "scenario": "purpose-derived names preserve follow-up compounds, trim secondary/time/status clauses, use action-appropriate monitor/reviewer/organizer/reminder roles, normalize reminder actions and receipt nouns, and remain editable/reviewed; no run or model/provider request occurs",
+  "scenario": "purpose-derived names preserve follow-up compounds, trim secondary/time/status clauses, use action-appropriate monitor/reviewer/organizer/reminder roles, normalize reminder actions and receipt nouns, name Bot-team coordination as Workspace Coordinator, and remain editable/reviewed; no run or model/provider request occurs",
   "inspected_screenshots": [
     "automatic-name-desktop.png",
     "automatic-name-tablet.png",
@@ -37,9 +37,9 @@
   ],
   "page_errors": [],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "25d4d950efe2acc06221bc45b182e3250e50a42cc32bddad4d224f219f03ad5d",
+    "src/hutch/server/static/app.js": "21a0b0aefc5e555b6ea2f732814b0bbdc37760403969bda85c78c288fbac3764",
     "src/hutch/server/static/style.css": "cab7f95dffbbf7a1c15dfdc1b019ab56d8f56c9d90d111f865b8ce12832268f1",
     "src/hutch/server/app.py": "232ffa882331a8082376d3ea9d84c6734131bfed7e6776fc936eb2a3ee0c17b6",
-    "tests/e2e/test_browser.py": "89d479c0a17b589870231396b8d79618a9ac756eca69d80099e7427e2cc95926"
+    "tests/e2e/test_browser.py": "e9ef7c5d8c8699894dc271dbb529ec97f53b67864470a38f7cb51bedefa0a709"
   }
 }

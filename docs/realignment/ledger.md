@@ -2362,19 +2362,21 @@ are under `docs/realignment/artifacts/browser-form-review/`. Node syntax, Python
 provider, account, human challenge, screen reader or physical device was used. This strengthens `SR-4`; it does not complete `UI-17`
 or `UI-18` because credential-field heuristics, live handoff and third-party challenges remain unverified.
 
-## Purpose-derived reminder and filing names (2026-10-09)
+## Purpose-derived reminder, filing, and coordinator names (2026-10-09)
 
 Implementation commit: `a43c4fa`.
 
-The local naming rule now recognizes reminder/alert requests and file/archive/categorize requests. Reminder action and alert-condition
-phrasing is normalized into professional name nouns (for example, “renew my passport” becomes “Passport Renewal Reminder” and
-“alert me when an invoice is overdue” becomes “Invoice Reminder”); common time/status words are omitted, and “receipts” is normalized
-to “receipt” in a filing role (“Expense Receipt Organizer”). Names and local addresses
-remain suggestions that owners can edit; setup still makes no model/provider request and starts no run.
+The local naming rule now recognizes reminder/alert requests, file/archive/categorize requests, and coordinator requests that refer to
+Bots, agents or specialists. Reminder action and alert-condition phrasing is normalized into professional name nouns (for example,
+“renew my passport” becomes “Passport Renewal Reminder” and “alert me when an invoice is overdue” becomes “Invoice Reminder”);
+common time/status words are omitted, “receipts” becomes “receipt” in a filing role (“Expense Receipt Organizer”), and a Bot-team
+request becomes “Workspace Coordinator.” Names and local addresses remain suggestions that owners can edit; setup still makes no
+model/provider request and starts no run.
 
-The regression journey first failed on the reminder request because it fell back to “Workspace Assistant.” After the rule change,
+The regression journey first failed on the reminder request because it fell back to “Workspace Assistant,” on the alert condition
+with “Workspace Reminder,” and on Bot coordination with the awkward “Across Bots Coordinator.” After the rule change,
 `tests/e2e/test_browser.py::test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes` passed (**1 test in
-5.94s**). Fresh Chromium captures at **1440×960**, **900×1024**, and **390×844** were inspected; the suggested names remain visible,
+6.56s**). Fresh Chromium captures at **1440×960**, **900×1024**, and **390×844** were inspected; the suggested names remain visible,
 the address stays readable, and the dialog fits without horizontal overflow. Node syntax and the exact-target Impeccable scan passed.
 No provider calls were made. This remains a small deterministic English-language naming vocabulary, not general semantic
 understanding.

@@ -4882,6 +4882,9 @@ function suggestBotDisplayName(purpose) {
     if (match && (!selected || match.index < selected.match.index)) selected = { ...item, match };
   }
   if (!selected) return "Workspace Assistant";
+  if (selected.role === "Coordinator" && /\b(?:bots?|agents?|specialists?)\b/i.test(text)) {
+    return "Workspace Coordinator";
+  }
   let subjectSource = text.slice(selected.match.index + selected.match[0].length);
   if (selected.role === "Reminder") subjectSource = subjectSource.replace(/^\s*(?:when|whenever|if|that)\s+/i, "");
   let subject = subjectSource

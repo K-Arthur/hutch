@@ -2509,6 +2509,9 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
         purpose.fill("File my monthly expense receipts into folders every Friday.")
         assert display_name.input_value() == "Expense Receipt Organizer"
         assert address.input_value() == "expense-receipt-organizer"
+        purpose.fill("Coordinate work across my bots and keep me updated.")
+        assert display_name.input_value() == "Workspace Coordinator"
+        assert address.input_value() == "workspace-coordinator"
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.screenshot(path=str(out / f"automatic-name-{label}.png"), animations="disabled")
@@ -2587,7 +2590,7 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright_version": package_version("playwright"),
             "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
-            "scenario": "purpose-derived names preserve follow-up compounds, trim secondary/time/status clauses, use action-appropriate monitor/reviewer/organizer/reminder roles, normalize reminder actions and receipt nouns, and remain editable/reviewed; no run or model/provider request occurs",
+            "scenario": "purpose-derived names preserve follow-up compounds, trim secondary/time/status clauses, use action-appropriate monitor/reviewer/organizer/reminder roles, normalize reminder actions and receipt nouns, name Bot-team coordination as Workspace Coordinator, and remain editable/reviewed; no run or model/provider request occurs",
             "inspected_screenshots": [f"automatic-name-{size}.png" for size in ("desktop", "tablet", "phone")]
                                      + [f"identity-{size}.png" for size in ("desktop", "tablet", "phone")]
                                      + [f"review-{size}.png" for size in ("desktop", "tablet", "phone")]

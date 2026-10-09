@@ -668,13 +668,14 @@ compound “Follow-up Task Monitor” and “Receipts Organizer.” It saved and
 **1440×960**, tablet **900×1024** and phone **390×844**; the reviewed name and stable address remain legible with no horizontal
 overflow. The matching `automatic-name-*.png` captures and refreshed source hashes are included in `artifacts/bot-naming/`.
 
-The naming rules now also cover reminder, alert and filing requests without a model call. “Remind me to renew my passport next
-month” becomes “Passport Renewal Reminder”; “Alert me when an invoice is overdue” becomes “Invoice Reminder”; “File my monthly
-expense receipts into folders every Friday” becomes “Expense Receipt Organizer.” The naming journey confirms these names and
-generated addresses, then captures the suggested name card at desktop, tablet and phone sizes. I inspected each capture; the name
-remains readable and the responsive dialog remains within the viewport. The phone and tablet captures keep the suggestion visible
-above the fixed action footer. The test first failed on the reminder example with the generic “Workspace Assistant” and then on the
-alert condition with “Workspace Reminder,” then passed (**1 test in 5.94s**) after the local rules were extended.
+The naming rules now also cover reminder, alert, filing, and Bot-team coordination requests without a model call. “Remind me to
+renew my passport next month” becomes “Passport Renewal Reminder”; “Alert me when an invoice is overdue” becomes “Invoice Reminder”;
+“File my monthly expense receipts into folders every Friday” becomes “Expense Receipt Organizer”; and “Coordinate work across my
+bots and keep me updated” becomes “Workspace Coordinator.” The naming journey confirms these names and generated addresses, then
+captures the coordinator suggestion at desktop, tablet and phone sizes. I inspected each capture; the title and stable address remain
+readable and the dialog remains within the viewport. The phone and tablet captures keep the suggestion visible above the fixed
+action footer. The test first failed for the reminder (“Workspace Assistant”), alert (“Workspace Reminder”), and coordinator
+(“Across Bots Coordinator”) prompts, then passed after the local rules were extended (**1 test in 6.56s**).
 
 The anonymous marketing workflow copy was checked by `tests/e2e/test_website.py::test_public_workflow_describes_named_recurring_tasks`
 after adding the naming claim guard (**1 passed in 3.04s**). Its captures at **1440×900**, **900×1024**, and **390×844** all
