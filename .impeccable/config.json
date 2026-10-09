@@ -56,6 +56,15 @@
         ],
         "createdAt": "2026-10-09T08:26:28.944Z",
         "reason": "The template links hutch.css, where html/body compute to 14px with 1.6 line-height. The template-only detector cannot resolve the linked stylesheet; the responsive browser check records the computed values at desktop, tablet, and phone."
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/hutch/server/static/style.css"
+        ],
+        "createdAt": "2026-10-09T15:21:46.653Z",
+        "reason": "Agent: both referenced selectors use uniform 1px neutral outlines, and a fresh exact-file scan reports 0 side-tab anti-patterns; this is a stale hook false positive for the current stylesheet."
       }
     ]
   }

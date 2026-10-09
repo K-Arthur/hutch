@@ -112,6 +112,7 @@ fast-forwarded only after implementation and verification for this checkpoint pa
 | `6fab391` | Merge main PF-2 with the realignment branch; preserve versioned APIs and safer artifact verification, add responsive source-card test/captures and update public/configuration contracts |
 | `b5227a9` | Record merged PF-2 verification boundary and final offline/browser suite results |
 | `657e9b8` | Record local `main` fast-forward completion without pushing |
+| `264f828` | Add experimental Outlook Calendar with local PKCE, Secret Service token storage, one-calendar-per-Bot grants, bounded read-only Graph access, truthful public availability copy, and inspected responsive app/site evidence; live Microsoft access remains unverified |
 
 ## Dashboard polish continuation (2026-10-09)
 
@@ -2211,6 +2212,10 @@ disk-backed temporary-directory rerun passed. `node --check` and `git diff --che
 `artifacts/workspace-task-dispatch/review-source-{desktop,tablet,phone}.png`, `validation.json` and the Playwright trace. No
 screen-reader or physical-device check was performed.
 
+The Impeccable hook later flagged the quote/source cards as side-tab accents. Inspection confirmed both use neutral, uniform 1px
+outlines, and a fresh exact-file scan found zero anti-patterns. A file-scoped false-positive exception records that evidence in
+`.impeccable/config.json`; the cards retain their full outline treatment.
+
 ## S6 four-screen chat-driven Bot creation
 
 Commit `7578d99` reduces the Studio Bot-creation flow from six screens to four. The exact latest user request remains editable and
@@ -2230,3 +2235,24 @@ Evidence is in `artifacts/bot-setup/` and `artifacts/bot-setup-context/site/`. `
 
 UI-15 remains partial: the user must review the whole draft and select a model when no route is configured. Hutch does not rewrite
 the request using a model or ask follow-up questions conversationally; it does not infer tools, accounts, or authority from context.
+
+## S5 Experimental Outlook Calendar (schema v33, 2026-10-09)
+
+Commit `264f828` adds local Microsoft public-client authorization-code + S256 PKCE for read-only Outlook Calendar. Hutch stores
+refresh tokens in Linux Secret Service, keeps credential-free account metadata outside the SQLite/transcript secret boundary,
+strips callback secrets from access-log scope, and uses a fixed Microsoft Graph host with redirects disabled and validated
+continuation links. The only delegated Graph scope is `Calendars.ReadBasic` plus `offline_access`; each Bot gets one owner-selected
+calendar grant, and the tool returns at most 25 titles, start/end times and locations for a range no longer than 366 days. Strict
+Offline removes this tool. The registration's supported account types must match the accounts an operator permits; `/common` does
+not widen that registration. Local disconnect clears Hutch's credential/grants and tells the owner to revoke provider consent
+separately. Mail and calendar writes remain unavailable.
+
+The HTTP/OAuth, API, migration, tool and offline regression group passed **83 tests in 7.10s**. The responsive Connections journey
+passed **1 test in 2.65s** with synthetic account/calendar data and zero provider calls. The complete anonymous website suite passed
+**26 tests**; the availability table and public naming claim were checked at desktop **1440×900**, tablet **900×1024** and phone
+**390×844**. Phone layout hides the duplicate status column and no viewport requires horizontal scrolling. I inspected app overview/
+granted captures and full desktop/tablet/phone support-table captures. No page errors or external requests occurred; website source
+and style hashes and app viewport metadata are recorded under `artifacts/outlook-calendar/`. Python compilation, JavaScript syntax,
+`git diff --check`, and Impeccable exact-target scans passed; the app stylesheet scan found **0 anti-patterns** and three advisory
+radius-token notes, not side-tab findings. Fresh offline fixtures do not verify an Entra registration, Microsoft account, consent
+screen, live Graph behavior, physical device or screen reader. Implementation commit: `264f828`.
