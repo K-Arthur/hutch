@@ -1,0 +1,132 @@
+{
+  "test": "tests/e2e/test_browser.py::test_multiple_scheduled_tasks_can_be_managed_from_bot_settings",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_multiple_scheduled_tasks_can_be_managed_from_bot_settings",
+  "captured_at": "2026-10-09T03:33:20.981689+00:00",
+  "python": "3.13.15",
+  "hutch_version": "0.1.0",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "document": [
+        1440,
+        960
+      ],
+      "taskCards": 2,
+      "taskEditorsVisible": true,
+      "addButtonHeight": 44,
+      "task_entries": [
+        {
+          "index": 0,
+          "height": 510.984375,
+          "width": 714
+        },
+        {
+          "index": 1,
+          "height": 510.984375,
+          "width": 714
+        }
+      ]
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "document": [
+        900,
+        1024
+      ],
+      "taskCards": 2,
+      "taskEditorsVisible": true,
+      "addButtonHeight": 44,
+      "task_entries": [
+        {
+          "index": 0,
+          "height": 510.984375,
+          "width": 834
+        },
+        {
+          "index": 1,
+          "height": 510.984375,
+          "width": 834
+        }
+      ]
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "document": [
+        390,
+        844
+      ],
+      "taskCards": 2,
+      "taskEditorsVisible": true,
+      "addButtonHeight": 44,
+      "task_entries": [
+        {
+          "index": 0,
+          "height": 747.546875,
+          "width": 324
+        },
+        {
+          "index": 1,
+          "height": 747.546875,
+          "width": 324
+        }
+      ]
+    }
+  ],
+  "creation_modal_captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "document": [
+        1440,
+        960
+      ],
+      "dialogVisible": true
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "document": [
+        390,
+        844
+      ],
+      "dialogVisible": true
+    },
+    {
+      "size": "phone-task-prompt",
+      "top": 556.0625,
+      "bottom": 636.453125,
+      "footerTop": 775,
+      "visibleAboveFooter": true,
+      "titleVisible": true,
+      "confirmVisible": true
+    }
+  ],
+  "scenario": "create, edit, retain, remove, and promote independent task streams through the dashboard; fixture only, no model/provider call",
+  "page_errors": [],
+  "source_sha256": {
+    "app.js": "686ded3fc4fc53886b4aed5e0908a62d6b2a7c56382eb16f5a95682eb3e56818",
+    "style.css": "ce11615835fd1fa5fc61bad5ce5f268bf73a38bca7ca0e2d82b2fcd061f346ee",
+    "app.py": "a2865355c1f9ee2c08874afe4eda0ce877f3d80c153270d2d03f7f1a14629d82"
+  }
+}

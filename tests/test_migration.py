@@ -53,6 +53,16 @@ def test_upgrade_preserves_bot_ids_schedules_memory_and_allows(v4):
         briefing = bots[BRIEFING]
         assert briefing.name == "briefing" and briefing.schedule.cron == "0 9 * * 1"
         assert briefing.schedule.timezone == "Europe/London"
+        assert briefing.schedules[0].id == f"schedule:{BRIEFING}"
+        assert briefing.schedules[0] == briefing.schedule
+        assert store._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                                 "AND name='schedule_occurrences_v20'").fetchone()
+        identity = store._db.execute("SELECT bot_id, removed_at FROM schedule_identities WHERE schedule_id = ?",
+                                     (f"schedule:{BRIEFING}",)).fetchone()
+        assert identity["bot_id"] == BRIEFING and identity["removed_at"] == ""
+        reserved_legacy_id = store._db.execute("SELECT 1 FROM schedule_identities WHERE schedule_id = ?",
+                                               (f"schedule:{SWEEPER}",)).fetchone()
+        assert reserved_legacy_id is not None
         assert {m.key: (m.value, m.source) for m in store.recall_all(BRIEFING)} == {
             "style": ("concise", "user"), "last-run": ("research briefing for: summarise this week", "bot")}
         assert store.list_sticky_allows(BRIEFING) == ["files:write"]

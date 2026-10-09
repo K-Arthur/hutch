@@ -117,6 +117,7 @@ def _canonical(data: dict[str, Any]) -> str:
 
 
 GENESIS = "0" * 64
+_SCHEDULE_UNCHANGED = object()
 
 
 def chain_hash(prev: str, run_id: str, seq: int, ts: str, type_: str, data_json: str) -> str:
@@ -416,10 +417,71 @@ def _migrate_19(db: sqlite3.Connection) -> None:
         created_at TEXT NOT NULL, PRIMARY KEY(run_id, human_event_seq))""")
 
 
+def _migrate_20(db: sqlite3.Connection) -> None:
+    """Give recurring tasks independent identities and occurrence claims without changing legacy schedules."""
+    # The document normalization below only adds canonical fields for the new
+    # representation. It is not a user edit and must not fill a fresh outbox
+    # with synthetic changes during upgrade.
+    for verb in ("insert", "update", "delete"):
+        db.execute(f"DROP TRIGGER IF EXISTS resource_outbox_bots_{verb}")
+    db.execute("""CREATE TABLE schedule_occurrences_v20 (
+        schedule_id TEXT NOT NULL, occurrence TEXT NOT NULL, bot_id TEXT NOT NULL, run_id TEXT NOT NULL,
+        claimed_at TEXT NOT NULL, claimed_by TEXT NOT NULL DEFAULT '', PRIMARY KEY(schedule_id, occurrence))""")
+    db.execute("""INSERT OR IGNORE INTO schedule_occurrences_v20
+        (schedule_id, occurrence, bot_id, run_id, claimed_at, claimed_by)
+        SELECT 'schedule:' || bot_id, occurrence, bot_id, run_id, claimed_at, claimed_by
+        FROM schedule_occurrences""")
+    for row in db.execute("SELECT id, doc FROM bots").fetchall():
+        document = json.loads(row["doc"])
+        schedules = document.get("schedules") or []
+        legacy = document.get("schedule")
+        if not schedules and legacy:
+            schedules = [legacy]
+        normalized = []
+        for index, schedule in enumerate(schedules):
+            schedule = dict(schedule)
+            schedule.setdefault("id", f"schedule:{row['id']}" if index == 0 else f"schedule:{row['id']}:{index}")
+            schedule.setdefault("name", "Scheduled task")
+            schedule.setdefault("created_at", document.get("created_at") or iso(utcnow()))
+            normalized.append(schedule)
+        document["schedules"] = normalized
+        document["schedule"] = normalized[0] if normalized else None
+        db.execute("UPDATE bots SET doc = ? WHERE id = ?", (json.dumps(document, ensure_ascii=False), row["id"]))
+    from .durable_changes import install_resources
+    install_resources(db, (("bots", "bots", "id", ("doc",), ()),))
+
+
+def _migrate_21(db: sqlite3.Connection) -> None:
+    """Keep schedule IDs reserved after removal so runs and occurrence history stay unambiguous."""
+    db.execute("""CREATE TABLE schedule_identities (
+        schedule_id TEXT PRIMARY KEY, bot_id TEXT NOT NULL, created_at TEXT NOT NULL,
+        removed_at TEXT NOT NULL DEFAULT '')""")
+    for row in db.execute("SELECT id, doc FROM bots").fetchall():
+        document = json.loads(row["doc"])
+        schedules = document.get("schedules") or []
+        legacy = document.get("schedule")
+        if not schedules and legacy:
+            schedules = [legacy]
+        for schedule in schedules:
+            schedule_id = str(schedule.get("id") or f"schedule:{row['id']}")
+            created_at = str(schedule.get("created_at") or document.get("created_at") or iso(utcnow()))
+            db.execute("INSERT OR IGNORE INTO schedule_identities (schedule_id, bot_id, created_at) VALUES (?, ?, ?)",
+                       (schedule_id, row["id"], created_at))
+        # Reserve the legacy deterministic ID even when an older client removed an
+        # unused schedule before schema v20 and no occurrence was left to identify it.
+        db.execute("INSERT OR IGNORE INTO schedule_identities (schedule_id, bot_id, created_at) VALUES (?, ?, ?)",
+                   (f"schedule:{row['id']}", row["id"], str(document.get("created_at") or iso(utcnow()))))
+    # Runs may outlive their bot. Keep identities recoverable from occurrence history too.
+    for row in db.execute("""SELECT schedule_id, bot_id, MIN(claimed_at) AS created_at
+                             FROM schedule_occurrences_v20 GROUP BY schedule_id, bot_id""").fetchall():
+        db.execute("INSERT OR IGNORE INTO schedule_identities (schedule_id, bot_id, created_at) VALUES (?, ?, ?)",
+                   (row["schedule_id"], row["bot_id"], row["created_at"]))
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
-               _migrate_19]
+               _migrate_19, _migrate_20, _migrate_21]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -756,23 +818,100 @@ class Store:
     # ------------------------------------------------------------- bots
 
     def create_bot(self, bot: Bot) -> Bot:
-        with self._lock:
-            self._db.execute(
-                "INSERT INTO bots (id, name, doc) VALUES (?, ?, ?)",
-                (bot.id, bot.name, bot.model_dump_json()),
-            )
-            self._db.commit()
+        # Template schedules are deep-copied from process-wide template objects;
+        # resolve any cross-bot identity collision and start clocks at creation.
+        schedules = bot.schedules or ([bot.schedule] if bot.schedule else [])
+        ids = [schedule.id for schedule in schedules]
+        if len(ids) != len(set(ids)):
+            raise ValueError("scheduled task IDs must be unique within a bot")
+        with self._tx() as db:
+            identity_table = db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'schedule_identities'"
+            ).fetchone()
+            # Some migration fixtures deliberately open an older schema with the
+            # current Store class. Active databases at schema v21 always have this
+            # table; older simulated versions still need to exercise bot creation.
+            if not identity_table and db.execute("PRAGMA user_version").fetchone()[0] >= 21:
+                raise RuntimeError("schedule identity registry is missing from schema v21")
+            existing_ids: set[str] = set()
+            for row in db.execute("SELECT doc FROM bots").fetchall():
+                other = Bot.model_validate_json(row["doc"])
+                existing_ids.update(schedule.id for schedule in other.schedules)
+            if identity_table:
+                existing_ids.update(row["schedule_id"] for row in
+                                    db.execute("SELECT schedule_id FROM schedule_identities").fetchall())
+            refreshed = []
+            for schedule in schedules:
+                if schedule.id in existing_ids:
+                    replacement = Schedule(name=schedule.name, cron=schedule.cron, timezone=schedule.timezone,
+                                           catch_up=schedule.catch_up, prompt=schedule.prompt)
+                else:
+                    replacement = schedule.model_copy(update={"created_at": iso(utcnow())})
+                existing_ids.add(replacement.id)
+                refreshed.append(replacement)
+            bot.set_schedules(refreshed)
+            db.execute("INSERT INTO bots (id, name, doc) VALUES (?, ?, ?)",
+                       (bot.id, bot.name, bot.model_dump_json()))
+            if identity_table:
+                db.executemany("INSERT INTO schedule_identities (schedule_id, bot_id, created_at) VALUES (?, ?, ?)",
+                               [(schedule.id, bot.id, schedule.created_at) for schedule in refreshed])
         self.bus.notify("work", "bots")
         return bot
 
-    def upsert_bot(self, bot: Bot) -> Bot:
-        with self._lock:
-            self._db.execute(
+    def upsert_bot(self, bot: Bot, *, preserve_schedules: bool = False,
+                   primary_schedule_update: Schedule | None | object = _SCHEDULE_UNCHANGED) -> Bot:
+        with self._tx() as db:
+            row = db.execute("SELECT id, doc FROM bots WHERE id = ? OR name = ? LIMIT 1",
+                             (bot.id, bot.name)).fetchone()
+            previous = Bot.model_validate_json(row["doc"]) if row else None
+            identity_changed = previous is not None and previous.id != bot.id
+            if identity_changed and (preserve_schedules or primary_schedule_update is not _SCHEDULE_UNCHANGED):
+                raise ValueError("cannot change a bot identity while preserving or editing its schedules")
+            if preserve_schedules and primary_schedule_update is not _SCHEDULE_UNCHANGED:
+                raise ValueError("choose either preserved schedules or a primary task update")
+            if previous and preserve_schedules:
+                bot.set_schedules(previous.schedules)
+            elif previous and primary_schedule_update is not _SCHEDULE_UNCHANGED:
+                schedules = list(previous.schedules)
+                if schedules and primary_schedule_update is not None:
+                    first = schedules[0]
+                    primary_schedule_update = primary_schedule_update.model_copy(
+                        update={"id": first.id, "name": first.name, "created_at": first.created_at})
+                    bot.set_schedules([primary_schedule_update, *schedules[1:]])
+                elif schedules:
+                    bot.set_schedules(schedules[1:])
+                elif primary_schedule_update is not None:
+                    bot.set_schedules([primary_schedule_update])
+                else:
+                    bot.set_schedules([])
+            old_ids = {schedule.id for schedule in previous.schedules} if previous else set()
+            new_schedules = bot.schedules or ([bot.schedule] if bot.schedule else [])
+            new_ids = {schedule.id for schedule in new_schedules}
+            identities = {identity["schedule_id"]: identity for identity in db.execute(
+                "SELECT schedule_id, bot_id, removed_at FROM schedule_identities").fetchall()}
+            for schedule in new_schedules:
+                identity = identities.get(schedule.id)
+                if identity and (identity["bot_id"] != bot.id or
+                                 (schedule.id not in old_ids and identity["removed_at"])):
+                    raise ValueError("a removed or previously used scheduled task ID cannot be reused")
+                if identity and schedule.id not in old_ids:
+                    raise ValueError("scheduled task ID is already in use")
+                if not identity:
+                    db.execute("INSERT INTO schedule_identities (schedule_id, bot_id, created_at) VALUES (?, ?, ?)",
+                               (schedule.id, bot.id, schedule.created_at))
+            if old_ids - new_ids:
+                removed_at = iso(utcnow())
+                db.executemany("UPDATE schedule_identities SET removed_at = ? WHERE schedule_id = ? AND bot_id = ?",
+                               [(removed_at, schedule_id, previous.id if previous else bot.id)
+                                for schedule_id in old_ids - new_ids])
+            if identity_changed:
+                db.execute("UPDATE schedule_identities SET removed_at = COALESCE(NULLIF(removed_at, ''), ?) WHERE bot_id = ?",
+                           (iso(utcnow()), previous.id))
+            db.execute(
                 "INSERT INTO bots (id, name, doc) VALUES (?, ?, ?) "
                 "ON CONFLICT(name) DO UPDATE SET id=excluded.id, doc=excluded.doc",
                 (bot.id, bot.name, bot.model_dump_json()),
             )
-            self._db.commit()
         self.bus.notify("work", "bots")
         return bot
 
@@ -789,11 +928,65 @@ class Store:
             ).fetchone()
         return Bot.model_validate_json(row["doc"]) if row else None
 
+    def put_schedule(self, bot_id: str, schedule: Schedule) -> Bot | None:
+        """Create or replace one recurring task atomically without overwriting sibling streams."""
+        with self._tx() as db:
+            row = db.execute("SELECT doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
+            if row is None:
+                return None
+            bot = Bot.model_validate_json(row["doc"])
+            schedules = list(bot.schedules or ([bot.schedule] if bot.schedule else []))
+            index = next((i for i, current in enumerate(schedules) if current.id == schedule.id), None)
+            if index is None:
+                identity = db.execute("SELECT bot_id, removed_at FROM schedule_identities WHERE schedule_id = ?",
+                                      (schedule.id,)).fetchone()
+                if identity:
+                    raise ValueError("a removed or previously used scheduled task ID cannot be reused")
+                db.execute("INSERT INTO schedule_identities (schedule_id, bot_id, created_at) VALUES (?, ?, ?)",
+                           (schedule.id, bot_id, schedule.created_at))
+                schedules.append(schedule)
+            else:
+                schedule = schedule.model_copy(update={"created_at": schedules[index].created_at})
+                schedules[index] = schedule
+                identity = db.execute("SELECT bot_id, removed_at FROM schedule_identities WHERE schedule_id = ?",
+                                      (schedule.id,)).fetchone()
+                if identity and (identity["bot_id"] != bot_id or identity["removed_at"]):
+                    raise ValueError("scheduled task identity does not belong to this active bot task")
+                if not identity:
+                    db.execute("INSERT INTO schedule_identities (schedule_id, bot_id, created_at) VALUES (?, ?, ?)",
+                               (schedule.id, bot_id, schedule.created_at))
+            bot.set_schedules(schedules)
+            db.execute("UPDATE bots SET name = ?, doc = ? WHERE id = ?",
+                       (bot.name, bot.model_dump_json(), bot_id))
+        self.bus.notify("work", "bots")
+        return bot
+
+    def delete_schedule(self, bot_id: str, schedule_id: str) -> Bot | None:
+        """Remove exactly one recurring task; leaving no schedules is the on-demand state."""
+        with self._tx() as db:
+            row = db.execute("SELECT doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
+            if row is None:
+                return None
+            bot = Bot.model_validate_json(row["doc"])
+            schedules = list(bot.schedules or ([bot.schedule] if bot.schedule else []))
+            updated = [schedule for schedule in schedules if schedule.id != schedule_id]
+            if len(updated) == len(schedules):
+                raise KeyError(schedule_id)
+            bot.set_schedules(updated)
+            db.execute("UPDATE schedule_identities SET removed_at = ? WHERE schedule_id = ? AND bot_id = ?",
+                       (iso(utcnow()), schedule_id, bot_id))
+            db.execute("UPDATE bots SET name = ?, doc = ? WHERE id = ?",
+                       (bot.name, bot.model_dump_json(), bot_id))
+        self.bus.notify("work", "bots")
+        return bot
+
     def delete_bot(self, ref: str) -> bool:
         bot = self.get_bot(ref)
         if not bot:
             return False
         with self._tx() as db:
+            db.execute("UPDATE schedule_identities SET removed_at = COALESCE(NULLIF(removed_at, ''), ?) WHERE bot_id = ?",
+                       (iso(utcnow()), bot.id))
             db.execute("DELETE FROM bots WHERE id = ?", (bot.id,))
             db.execute("DELETE FROM tool_allows WHERE bot_id = ?", (bot.id,))
             db.execute("DELETE FROM memory WHERE bot_id = ?", (bot.id,))
@@ -1315,14 +1508,17 @@ class Store:
         return dict(result), changed
 
     def submit_scheduled(self, run: Run, task: Task, *, occurrence: str, expected_marker: Optional[str], new_marker: str,
-                         claimed_by: str, note: Optional[dict] = None) -> Optional[Run]:
+                         claimed_by: str, note: Optional[dict] = None, schedule_id: str = "") -> Optional[Run]:
         """Claim one schedule occurrence and create its run, atomically. None means somebody else already did.
 
         Two schedulers (``serve`` plus ``daemon``), or a crash between "dispatch" and "mark dispatched", used to produce two runs
         for one window. Now the last-fire marker is compared and advanced, the occurrence row is inserted (unique per bot and
         window) and the run is created in a single write transaction: exactly one caller can win.
         """
-        marker_key = f"schedule:{run.bot_id}:last_fire"
+        schedule_id = schedule_id or f"schedule:{run.bot_id}"
+        marker_key = f"{schedule_id}:last_fire"
+        dispatch_key = f"{schedule_id}:last_dispatch"
+        run.schedule_id = schedule_id
         run.task_id = task.id
         with self._tx() as db:
             self._assert_execution_ready(db)
@@ -1330,8 +1526,10 @@ class Store:
             if (row["value"] if row else None) != expected_marker:
                 return None
             try:
-                db.execute("INSERT INTO schedule_occurrences (bot_id, occurrence, run_id, claimed_at, claimed_by) "
-                           "VALUES (?, ?, ?, ?, ?)", (run.bot_id, occurrence, run.id, iso(utcnow()), claimed_by))
+                db.execute("INSERT INTO schedule_occurrences_v20 "
+                           "(schedule_id, occurrence, bot_id, run_id, claimed_at, claimed_by) "
+                           "VALUES (?, ?, ?, ?, ?, ?)",
+                           (schedule_id, occurrence, run.bot_id, run.id, iso(utcnow()), claimed_by))
             except sqlite3.IntegrityError:
                 return None
             db.execute("INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done, state, run_id) "
@@ -1345,7 +1543,7 @@ class Store:
                        (marker_key, new_marker))
             if note is not None:
                 db.execute("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                           (f"schedule:{run.bot_id}:last_dispatch", json.dumps(note)))
+                           (dispatch_key, json.dumps(note)))
         self.bus.notify("work", "runs", f"run:{run.id}")
         return run
 

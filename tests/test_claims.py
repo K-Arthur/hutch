@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 from hutch.lifecycle import IllegalTransition, LeaseLost
-from hutch.models import Bot, Run, RunStatus, Task, iso, utcnow
+from hutch.models import Bot, Run, RunStatus, Schedule, Task, iso, utcnow
 from hutch.store import Store
 
 SRC = str(Path(__file__).resolve().parents[1] / "src")
@@ -162,8 +162,52 @@ def test_one_scheduled_occurrence_creates_one_run_across_processes(store, config
     assert sum(int(o) for o in outs) == 1
     assert len(store.list_runs(bot.id)) == 1
     with store._lock:
-        rows = store._db.execute("SELECT COUNT(*) AS n FROM schedule_occurrences WHERE bot_id = ?", (bot.id,)).fetchone()
+        rows = store._db.execute("SELECT COUNT(*) AS n FROM schedule_occurrences_v20 WHERE bot_id = ?", (bot.id,)).fetchone()
     assert rows["n"] == 1
+
+
+def test_one_bot_can_claim_same_occurrence_for_two_independent_schedules(store, config):
+    bot = store.create_bot(Bot(
+        name="two-streams", model="mock/demo", tools=[], created_at="2026-01-01T00:00:00+00:00",
+        schedules=[
+            Schedule(id="morning", name="Morning brief", cron="* * * * *", prompt="Check headlines"),
+            Schedule(id="evening", name="Evening review", cron="* * * * *", prompt="Review changes"),
+        ],
+    ))
+    from hutch.engine import Engine
+    created = Engine(config, store).scheduler_claims()
+    assert {run.schedule_id for run in created} == {"morning", "evening"}
+    assert {run.prompt.split(": ", 1)[1] for run in created} == {"Check headlines", "Review changes"}
+    with store._lock:
+        rows = store._db.execute(
+            "SELECT schedule_id, COUNT(*) AS n FROM schedule_occurrences_v20 WHERE bot_id = ? GROUP BY schedule_id",
+            (bot.id,),
+        ).fetchall()
+    assert {row["schedule_id"]: row["n"] for row in rows} == {"morning": 1, "evening": 1}
+    assert Engine(config, store).scheduler_claims() == []  # both streams advanced independently
+
+
+def test_template_schedule_ids_are_reminted_per_created_bot(store):
+    first = store.create_bot(Bot(name="template-a", schedules=[
+        Schedule(id="shared-template-id", cron="0 9 * * *"),
+    ]))
+    second = store.create_bot(Bot(name="template-b", schedules=[
+        Schedule(id="shared-template-id", cron="0 9 * * *"),
+    ]))
+    assert first.schedule.id == "shared-template-id"
+    assert second.schedule.id != first.schedule.id and second.schedule.id.startswith("schedule_")
+
+
+def test_removed_schedule_ids_remain_reserved_even_before_the_first_fire(store):
+    first = store.create_bot(Bot(name="schedule-tombstone-a"))
+    second = store.create_bot(Bot(name="schedule-tombstone-b"))
+    schedule = Schedule(id="never-fired", name="One time plan", cron="0 9 * * *")
+    store.put_schedule(first.id, schedule)
+    store.delete_schedule(first.id, schedule.id)
+    with pytest.raises(ValueError, match="cannot be reused"):
+        store.put_schedule(second.id, schedule)
+    with pytest.raises(ValueError, match="cannot be reused"):
+        store.put_schedule(first.id, schedule)
 
 
 def test_the_marker_and_the_run_commit_together_so_a_crash_cannot_double_dispatch(store):

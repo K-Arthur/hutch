@@ -278,7 +278,7 @@ def register_pages(app: FastAPI) -> None:
         cron = form.get("cron").strip()
         if cron:
             try:
-                bot.schedule = Schedule(cron=cron, timezone=form.get("timezone") or "UTC")
+                bot.replace_primary_schedule(Schedule(cron=cron, timezone=form.get("timezone") or "UTC"))
                 scheduler.next_fire(bot)
             except Exception:
                 return go("/bots/new", error="That cron expression is not valid (5 fields, e.g. 0 9 * * 1).")
@@ -317,7 +317,7 @@ def register_pages(app: FastAPI) -> None:
         nxt = safe_next(form.get("next"), f"/bots/{name}")
         if action in ("pause", "resume"):
             bot.paused = action == "pause"
-            store.upsert_bot(bot)
+            store.upsert_bot(bot, preserve_schedules=True)
             return go(nxt, notice=f"{'Paused' if bot.paused else 'Resumed'} {name}.")
         if action == "update":
             bot.description = form.get("description")
@@ -352,15 +352,20 @@ def register_pages(app: FastAPI) -> None:
                 try:
                     sched = Schedule(cron=cron, timezone=form.get("timezone") or "UTC",
                                      catch_up=bot.schedule.catch_up if bot.schedule else CatchUpPolicy.coalesce)
-                    probe = bot.model_copy(update={"schedule": sched})
+                    probe = bot.model_copy(update={"schedule": sched, "schedules": [sched, *bot.schedules[1:]]})
                     if scheduler.next_fire(probe) is None:
                         raise ValueError("bad cron")
-                    bot.schedule = sched
+                    previous = bot.schedule
+                    if previous:
+                        sched = Schedule(id=previous.id, name=previous.name, created_at=previous.created_at,
+                                         cron=sched.cron, timezone=sched.timezone, catch_up=sched.catch_up,
+                                         prompt=sched.prompt)
+                    bot.replace_primary_schedule(sched)
                 except Exception:
                     return go(nxt, error="That cron expression or time zone is not valid.")
             else:
-                bot.schedule = None
-            store.upsert_bot(bot)
+                bot.replace_primary_schedule(None)
+            store.upsert_bot(bot, primary_schedule_update=bot.schedule if cron else None)
             return go(nxt, notice="Saved.")
         if action == "delete":
             store.delete_bot(name)

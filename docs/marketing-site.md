@@ -10,7 +10,7 @@ analytics request. Motion follows the operating system's reduced-motion setting;
 
 | State shown publicly | Evidence and limit |
 |---|---|
-| Supported | Linux execution, local SQLite state and fixture-tested lifecycle/control paths. Actual runs require a configured model route and a running local service or provider connection. |
+| Supported | Linux execution, local SQLite state, up to 100 named recurring tasks per bot with independent timing/prompts, and fixture-tested lifecycle/control paths. A running local supervisor is needed for schedules; tasks on one bot queue under its single-run rule. Actual runs require a configured model route and a running local service or provider connection. |
 | Experimental | Configured hosted-provider and local-inference routes; OpenCode Go's user-supplied API-key connection; opt-in Sign in with ChatGPT local token-sharing preview (eligibility for Hutch is unconfirmed, no live account verification, and no provider-enforced output limit); one Hutch local caller and up to eight waiters per state directory; host-gated Offline isolation; HTTPS-paired dashboard sessions with revocation; local same-session browser handoff on a Linux desktop; HTTP(S)/WebSocket browser egress pinned by a local proxy. Provider/model calls, backend provenance, the visible desktop flow, public browser destinations, non-HTTP browser traffic and physical-device/network access were not verified live for this release. |
 | Unavailable | macOS/Windows executor, public source/package, authenticated PTY/physical desktop control, phone browser handoff and OpenCode/Pi harness execution. |
 

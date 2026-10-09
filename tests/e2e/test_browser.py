@@ -1077,6 +1077,7 @@ def test_studio_resumes_only_the_active_human_wait_with_v1_command(browser, live
         page.locator("#conversation-switcher").wait_for()
         assert page.locator("#conversation-switcher").input_value() == conversation["id"]
         run_card = page.locator(f'#chat-stream [data-run-id="{run.id}"]')
+        run_card.locator(".run-cause").nth(1).wait_for(state="visible")
         assert run_card.locator(".run-cause").count() == 2
         card = run_card.locator(".run-cause").last
         assert run_card.locator("[data-human-resume]").count() == 1
@@ -1302,14 +1303,15 @@ def test_bot_limits_can_be_saved_from_the_phone_settings(browser, live):
     ctx.close()
 
 
-def test_scheduled_task_prompt_can_be_created_edited_and_reloaded(browser, live):
+def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live):
     base, app = live
     page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     errors: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/scheduled-task"
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/scheduled-tasks"
     out.mkdir(parents=True, exist_ok=True)
     page.context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    trace_stopped = False
     try:
         page.goto(base + "/#/chat")
         page.locator("#topbar-new-bot").click()
@@ -1363,49 +1365,131 @@ def test_scheduled_task_prompt_can_be_created_edited_and_reloaded(browser, live)
         page.locator("#form-schedule").wait_for()
         prompt = page.locator('#form-schedule [name="schedule_prompt"]')
         assert prompt.input_value() == "Review release notes and report important changes."
-        assert page.get_by_text("Leave blank to run the bot’s standing instructions.", exact=False).is_visible()
+        assert page.get_by_text("Leave blank to use this bot’s standing instructions.", exact=False).is_visible()
+
+        bot = app.state.store.get_bot("scheduled-research")
+        primary_id = bot.schedule.id
+        page.locator("#btn-add-schedule").click()
+        page.get_by_role("heading", name="Add a recurring task").wait_for()
+        add_form = page.locator("#modal-schedule-form")
+        add_form.locator('[name="name"]').fill("Month start review")
+        add_form.locator('[name="cron"]').fill("0 9 1 1 *")
+        add_form.locator('[name="timezone"]').fill("UTC")
+        add_form.locator('[name="prompt"]').fill("Review the monthly release notes.")
+        with page.expect_response(lambda response: "/api/v1/bots/" + bot.id + "/schedules/" in response.url
+                                 and response.request.method == "PUT") as added:
+            page.locator("#modal-confirm").click()
+        assert added.value.status == 200, added.value.text()
+        wait_for(lambda: len(app.state.store.get_bot("scheduled-research").schedules) == 2)
+        bot = app.state.store.get_bot("scheduled-research")
+        secondary = next(item for item in bot.schedules if item.id != primary_id)
+        assert secondary.name == "Month start review"
+
+        secondary_card = page.locator("details.schedule-entry").filter(has_text="Month start review")
+        secondary_card.locator("summary").click()
+        secondary_form = secondary_card.locator("form")
+        secondary_form.locator('[name="name"]').fill("Monthly release review")
+        secondary_form.locator('[name="schedule_prompt"]').fill("Review releases and identify breaking changes.")
+        stale_secondary_form = secondary_form.element_handle()
+        with page.expect_response(lambda response: response.url.endswith("/schedules/" + secondary.id)
+                                 and response.request.method == "PUT") as edited_secondary:
+            secondary_form.locator('button[type="submit"]').click()
+        assert edited_secondary.value.status == 200, edited_secondary.value.text()
+        wait_for(lambda: next((item.name for item in app.state.store.get_bot("scheduled-research").schedules
+                              if item.id == secondary.id), None) == "Monthly release review")
+        page.wait_for_function("form => !form.isConnected", arg=stale_secondary_form)
+        page.wait_for_function("() => [...document.querySelectorAll('[data-schedule-form] [name=name]')].some(input => input.value === 'Monthly release review')")
 
         page.set_viewport_size({"width": 390, "height": 844})
-        prompt = page.locator('#form-schedule [name="schedule_prompt"]')
-        prompt.fill("Check the weekly security feed and list actionable changes.")
-        page.locator('#form-schedule [name="cron"]').fill("0 8 * * 1")
-        old_form = page.locator("#form-schedule").element_handle()
-        with page.expect_response(lambda response: response.url.endswith("/api/bots/scheduled-research")
-                                  and response.request.method == "PATCH") as saved:
-            page.locator('#form-schedule button[type="submit"]').click()
+        primary_form = page.locator("#form-schedule")
+        primary_form.locator('[name="schedule_prompt"]').fill("Check the weekly security feed and list actionable changes.")
+        primary_form.locator('[name="cron"]').fill("0 8 * * 1")
+        stale_primary_form = primary_form.element_handle()
+        with page.expect_response(lambda response: response.url.endswith("/schedules/" + primary_id)
+                                 and response.request.method == "PUT") as saved:
+            primary_form.locator('button[type="submit"]').click()
         assert saved.value.status == 200, saved.value.text()
-        wait_for(lambda: app.state.store.get_bot("scheduled-research").schedule.prompt
+        assert saved.value.json()["prompt"] == "Check the weekly security feed and list actionable changes."
+        wait_for(lambda: next((item.prompt for item in app.state.store.get_bot("scheduled-research").schedules
+                              if item.id == primary_id), None)
                  == "Check the weekly security feed and list actionable changes.")
-        page.wait_for_function("form => !form.isConnected", arg=old_form)
+        page.wait_for_function("form => !form.isConnected", arg=stale_primary_form)
         page.locator("#form-schedule").wait_for(state="visible")
         assert page.locator('#form-schedule [name="schedule_prompt"]').input_value() \
             == "Check the weekly security feed and list actionable changes."
         page.reload()
         page.locator("#form-schedule").wait_for()
-        assert page.locator('#form-schedule [name="schedule_prompt"]').input_value() \
-            == "Check the weekly security feed and list actionable changes."
+        assert page.locator("[data-schedule-form]").count() == 2
+        assert next(item.name for item in app.state.store.get_bot("scheduled-research").schedules
+                    if item.id == secondary.id) == "Monthly release review"
 
         captures = []
         sizes = {"desktop": (1440, 960), "tablet": (900, 1024), "phone": (390, 844)}
         for label, (width, height) in sizes.items():
             page.set_viewport_size({"width": width, "height": height})
-            prompt = page.locator('#form-schedule [name="schedule_prompt"]')
-            prompt.scroll_into_view_if_needed()
-            page.screenshot(path=str(out / f"settings-{label}.png"), full_page=True, animations="disabled")
+            page.evaluate("document.querySelectorAll('details.schedule-entry').forEach(item => item.open = true)")
+            page.locator(".page-scroll").evaluate("el => el.scrollTop = 0")
+            entry_metrics = []
+            for index, entry in enumerate(page.locator("details.schedule-entry").all()):
+                entry.scroll_into_view_if_needed()
+                box = entry.bounding_box()
+                assert box and box["height"] < height, (label, index, box)
+                entry.screenshot(path=str(out / f"settings-{label}-task-{index + 1}.png"), animations="disabled")
+                entry_metrics.append({"index": index, "height": box["height"], "width": box["width"]})
             metrics = page.evaluate("""() => ({
                 viewport: [innerWidth, innerHeight],
                 document: [document.documentElement.scrollWidth, document.documentElement.scrollHeight],
-                promptVisible: (() => { const r = document.querySelector('#form-schedule [name=schedule_prompt]').getBoundingClientRect();
-                  return r.width > 0 && r.height > 0 && r.right <= innerWidth + 1; })()
+                taskCards: document.querySelectorAll('details.schedule-entry').length,
+                taskEditorsVisible: [...document.querySelectorAll('details.schedule-entry')].every(item => item.open),
+                addButtonHeight: document.querySelector('#btn-add-schedule').getBoundingClientRect().height
             })""")
             assert metrics["document"][0] - metrics["viewport"][0] <= 1, (label, metrics)
-            assert metrics["promptVisible"], (label, metrics)
-            captures.append({"size": label, **metrics})
-        page.context.tracing.stop(path=str(out / "scheduled-task-trace.zip"))
+            assert metrics["taskCards"] == 2 and metrics["taskEditorsVisible"], (label, metrics)
+            assert metrics["addButtonHeight"] >= 44, (label, metrics)
+            captures.append({"size": label, **metrics, "task_entries": entry_metrics})
+
+        # Removing a non-primary stream leaves the primary stream intact.
+        secondary_remove = page.locator(f'[data-remove-schedule="{secondary.id}"]')
+        secondary_remove.scroll_into_view_if_needed()
+        secondary_remove.click()
+        page.get_by_role("heading", name="Remove scheduled task").wait_for()
+        page.locator("#modal-confirm").click()
+        wait_for(lambda: len(app.state.store.get_bot("scheduled-research").schedules) == 1)
+        assert app.state.store.get_bot("scheduled-research").schedule.id == primary_id
+        wait_for(lambda: page.locator("[data-schedule-form]").count() == 1)
+        assert page.locator("[data-schedule-form]").count() == 1
+
+        # Removing the primary promotes the remaining stream and updates the legacy alias.
+        page.locator("#btn-add-schedule").click()
+        add_form = page.locator("#modal-schedule-form")
+        add_form.locator('[name="name"]').fill("Promotion target")
+        add_form.locator('[name="cron"]').fill("0 9 1 1 *")
+        with page.expect_response(lambda response: "/api/v1/bots/" + bot.id + "/schedules/" in response.url
+                                 and response.request.method == "PUT") as promoted_added:
+            page.locator("#modal-confirm").click()
+        assert promoted_added.value.status == 200, promoted_added.value.text()
+        wait_for(lambda: len(app.state.store.get_bot("scheduled-research").schedules) == 2)
+        wait_for(lambda: page.locator("details.schedule-entry").filter(has_text="Promotion target").count() == 1)
+        assert page.locator("[data-schedule-form]").count() == 2
+        primary_remove = page.locator(f'[data-remove-schedule="{primary_id}"]')
+        primary_remove.wait_for(state="attached")
+        primary_remove.scroll_into_view_if_needed()
+        primary_remove.click()
+        page.get_by_role("heading", name="Remove scheduled task").wait_for()
+        page.locator("#modal-confirm").click()
+        wait_for(lambda: len(app.state.store.get_bot("scheduled-research").schedules) == 1)
+        promoted = app.state.store.get_bot("scheduled-research")
+        assert promoted.schedule.name == "Promotion target"
+        assert promoted.schedules[0].id == promoted.schedule.id
+        wait_for(lambda: page.locator("[data-schedule-form]").count() == 1)
+        assert page.locator("#form-schedule").get_attribute("data-schedule-id") == promoted.schedule.id
+
+        page.context.tracing.stop(path=str(out / "scheduled-tasks-trace.zip"))
+        trace_stopped = True
         assert not errors, errors
         (out / "validation.json").write_text(json.dumps({
-            "test": "tests/e2e/test_browser.py::test_scheduled_task_prompt_can_be_created_edited_and_reloaded",
-            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_scheduled_task_prompt_can_be_created_edited_and_reloaded",
+            "test": "tests/e2e/test_browser.py::test_multiple_scheduled_tasks_can_be_managed_from_bot_settings",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_multiple_scheduled_tasks_can_be_managed_from_bot_settings",
             "captured_at": datetime.now(timezone.utc).isoformat(),
             "python": platform.python_version(),
             "hutch_version": package_version("hutch"),
@@ -1414,7 +1498,7 @@ def test_scheduled_task_prompt_can_be_created_edited_and_reloaded(browser, live)
             "playwright_version": package_version("playwright"),
             "captures": captures,
             "creation_modal_captures": modal_captures,
-            "scenario": "fixture bot creation and schedule settings persistence; no model/provider call",
+            "scenario": "create, edit, retain, remove, and promote independent task streams through the dashboard; fixture only, no model/provider call",
             "page_errors": errors,
             "source_sha256": {
                 "app.js": hashlib.sha256((Path(__file__).resolve().parents[2]
@@ -1426,6 +1510,11 @@ def test_scheduled_task_prompt_can_be_created_edited_and_reloaded(browser, live)
             },
         }, indent=2) + "\n", encoding="utf-8")
     finally:
+        if not trace_stopped:
+            try:
+                page.context.tracing.stop(path=str(out / "scheduled-tasks-trace.zip"))
+            except Exception:
+                pass
         page.close()
 
 

@@ -23,7 +23,8 @@ dashboard, or the REST API, and live in `hutch.db`.
 | `base_url` | str? | null | override endpoint for OpenAI-compatible providers |
 | `runtime` | enum | `builtin` | `builtin`; legacy values `mock`, `pi` and `opencode` are retained for migration but fail closed as unsupported |
 | `tools` | list | `["shell","files","memory"]` | allowlist; groups expand (see below) |
-| `schedule` | obj? | null | `{cron, timezone, catch_up, prompt}` — omit for on-demand; `prompt` is the recurring task, separate from standing `instructions` |
+| `schedules` | list | `[]` | Up to 100 named recurring tasks, each `{id, name, cron, timezone, catch_up, prompt, created_at}`. Each task has its own timing and prompt; tasks share the bot's tools, workspace, limits and permissions. |
+| `schedule` | obj? | null | Compatibility alias for the first item in `schedules`; older `cron`/`schedule_prompt` settings update this task. Omit `schedules` for on-demand bots. |
 | `limits` | obj | see below | runtime limits and usage admission budgets |
 | `approval_mode` | enum | `ask` | `ask` · `auto` |
 | `memory_enabled` | bool | true | allow runtime fact proposal/retrieval tools; facts are never automatically injected |
@@ -33,6 +34,13 @@ dashboard, or the REST API, and live in `hutch.db`.
 | `command_rules` | list | `[]` | `{match, verdict}` per-command `allow`/`ask`/`deny` globs ([safety.md](safety.md)) |
 | `sandbox` | enum | `strict` for new bots | `strict` uses Linux bubblewrap for shell commands and fails closed if unavailable; `off` runs shell commands without OS containment |
 | `paused` | bool | false | schedules skipped while paused |
+
+Manage task streams independently with `hutch bot schedules list <bot>`, `add`, `update`, and
+`remove`, or the per-task versioned API routes. Each stream's ID is globally unique and remains
+reserved after removal, including when it was removed before its first run. Existing schedule IDs,
+occurrence claims, runs and next-fire markers survive the schema v21 upgrade; the normal migration
+path makes a SQLite backup before applying the upgrade. A bot still has at most one active run at a
+time, so simultaneous tasks on that bot queue independently instead of overlapping.
 
 Database restoration sets every saved bot to `paused` and revokes standing tool grants. A separate
 installation-wide restore hold blocks new submissions and claims until local review is recorded.
@@ -112,16 +120,32 @@ individually. Everything runs through the policy engine (`docs/safety.md`).
 
 ## Schedules
 
-- `cron`: standard 5-field expression, evaluated **in the bot's timezone**
+- A bot can have up to 100 independent named tasks. Each has a stable ID and `created_at`, a
+  `name`, `cron`, `timezone`, `catch_up`, and an optional `prompt`.
+- `cron`: standard 5-field expression, evaluated **in that task's timezone**
 - `timezone`: IANA name (`Europe/Berlin`, `America/New_York`, `UTC`)
 - `prompt`: optional task to perform at each occurrence, up to 4,000 characters. Blank keeps
   compatibility with existing bots by using their standing `instructions` (or the generic report
-  task when instructions are empty). This is one recurring schedule per bot; separate independent
-  schedules/task streams per bot are not supported yet.
+  task when instructions are empty).
 - `catch_up`:
   - `coalesce` *(default)* — if windows were missed (asleep machine, daemon down), run once and
     tag the run `missed_windows=N`
-  - `skip` — only run if the newest window is < 30 min old; otherwise record a visible skip
+- `skip` — only run if the newest window is < 30 min old; otherwise record a visible skip
+
+Manage streams without replacing their siblings:
+
+```bash
+hutch bot schedules list weekly-research
+hutch bot schedules add weekly-research --name "Security feed" --cron "0 8 * * 1" \
+  --timezone Europe/Berlin --prompt "Check the security feed and summarize relevant changes."
+hutch bot schedules update weekly-research schedule_abc123 --catch-up skip
+hutch bot schedules remove weekly-research schedule_abc123
+```
+
+The legacy `schedule` config field, creation `--cron`/`--schedule-prompt` options, and
+`hutch bot update` schedule flags address the first task. `--clear-cron` removes that first task;
+any remaining task is promoted to the first position. All tasks on a bot share resources and the
+one-live-run limit. A removed task ID stays reserved for run-history identity and cannot be reused.
 
 A bot never has two live runs (single-instance lock). All storage is UTC-with-offset.
 
@@ -181,7 +205,8 @@ hutch bot update weekly-research \
 ```
 
 Clear `--schedule-prompt` with an empty value to return to the standing-instructions fallback.
-Use `--clear-cron` to remove the bot's only schedule.
+Use `--clear-cron` to remove the first task. Use `hutch bot schedules remove` to remove any
+specific task stream.
 
 Trusted cleanup bot, auto-approve within policy:
 

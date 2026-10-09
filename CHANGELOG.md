@@ -14,6 +14,12 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Added
 
+- Bots can own up to 100 independently timed recurring tasks, each with its own name, timezone,
+  catch-up policy and prompt. Settings, per-task v1 CRUD and `hutch bot schedules` manage them;
+  older schedule fields remain aliases for the first task. Schema v20 separates occurrence claims
+  by task, and schema v21 keeps removed task IDs reserved so occurrence history cannot be reused.
+- The marketing workflow now describes named recurring tasks, and the settings journey has
+  inspected desktop, tablet and phone captures for add, edit, remove and primary promotion.
 - Versioned standalone run submission at `POST /api/v1/tasks/runs` now requires an idempotency key and stores the run, task and replay result atomically. Exact retries return the original run, changed requests conflict, and the legacy run route remains available as a compatibility alias.
 - Versioned human resume now requires the current `human_needed` event sequence, a live owner lease and an idempotency key. Each wait episode can be resumed once; stale requests and a second device cannot replay an old click to resume a later challenge.
 - Studio chat now places Resume beside the current human-needed event and submits its sequence through the versioned API. Earlier challenges stay visible without an active Resume action; accepted requests show a clear pending state and retries reuse the same per-wait key.

@@ -22,7 +22,7 @@ from zoneinfo import ZoneInfo
 
 from croniter import croniter
 
-from .models import Bot, CatchUpPolicy, iso, utcnow
+from .models import Bot, CatchUpPolicy, Schedule, iso, utcnow
 from .store import Store
 
 MAX_CATCHUP_WINDOWS = 50
@@ -34,6 +34,7 @@ class DueClaim:
     computed against (the claim only succeeds if nobody advanced the marker since: optimistic concurrency)."""
 
     bot: Bot
+    schedule: Schedule
     missed: int
     occurrence: datetime
     marker: Optional[str]
@@ -46,9 +47,10 @@ class Scheduler:
     # ------------------------------------------------------------- helpers
 
     @staticmethod
-    def _zone(bot: Bot) -> ZoneInfo:
+    def _zone(scheduled: Bot | Schedule) -> ZoneInfo:
+        schedule = scheduled.schedule if isinstance(scheduled, Bot) else scheduled
         try:
-            return ZoneInfo(bot.schedule.timezone if bot.schedule else "UTC")
+            return ZoneInfo(schedule.timezone if schedule else "UTC")
         except Exception:
             return ZoneInfo("UTC")
 
@@ -69,20 +71,23 @@ class Scheduler:
             return None
         return aware.astimezone(timezone.utc)
 
-    def _last_fire_key(self, bot: Bot) -> str:
-        return f"schedule:{bot.id}:last_fire"
+    @staticmethod
+    def _last_fire_key(schedule: Schedule) -> str:
+        return f"{schedule.id}:last_fire"
 
     # ------------------------------------------------------------ next fire
 
-    def next_fire(self, bot: Bot, now: datetime | None = None) -> datetime | None:
-        """Next fire time (UTC-aware) for a scheduled bot, or None."""
-        if not bot.schedule:
+    def next_fire(self, bot: Bot, now: datetime | None = None,
+                  schedule: Schedule | None = None) -> datetime | None:
+        """Next fire time for one recurring task (UTC-aware), or None."""
+        schedule = schedule or bot.schedule
+        if not schedule:
             return None
         now = now or utcnow()
-        zone = self._zone(bot)
+        zone = self._zone(schedule)
         local = self._to_local(now, zone)
         try:
-            itr = croniter(bot.schedule.cron, local)
+            itr = croniter(schedule.cron, local)
             for _ in range(3):  # skip at most a couple of DST-gap times
                 nxt = itr.get_next(datetime)
                 utc = self._to_utc(nxt, zone)
@@ -108,31 +113,37 @@ class Scheduler:
         now = now or utcnow()
         due: list[DueClaim] = []
         for bot in self.store.list_bots():
-            if bot.paused or not bot.schedule:
+            if bot.paused:
                 continue
-            zone = self._zone(bot)
-            marker = self.store.kv_get(self._last_fire_key(bot))
-            last_utc = self._parse_marker(marker, bot)
-            windows = self._windows_between(bot, last_utc, now, zone)
-            if not windows:
-                continue
-            newest = windows[-1]
-            missed = min(len(windows) - 1, MAX_CATCHUP_WINDOWS)
-            if bot.schedule.catch_up is CatchUpPolicy.skip:
-                # Only run if the newest window is recent; otherwise note & skip.
-                if (now - newest).total_seconds() > 1800:
-                    self.store.kv_set(self._last_fire_key(bot), iso(newest))
-                    self._note_skipped(bot, len(windows))
+            for schedule in bot.schedules or ([bot.schedule] if bot.schedule else []):
+                zone = self._zone(schedule)
+                marker = self.store.kv_get(self._last_fire_key(schedule))
+                last_utc = self._parse_marker(marker, schedule, fallback_created_at=bot.created_at)
+                windows = self._windows_between(schedule, last_utc, now, zone)
+                if not windows:
                     continue
-            due.append(DueClaim(bot=bot, missed=missed, occurrence=newest, marker=marker))
+                newest = windows[-1]
+                missed = min(len(windows) - 1, MAX_CATCHUP_WINDOWS)
+                if schedule.catch_up is CatchUpPolicy.skip:
+                    # Only run if the newest window is recent; otherwise note & skip.
+                    if (now - newest).total_seconds() > 1800:
+                        self.store.kv_set(self._last_fire_key(schedule), iso(newest))
+                        self._note_skipped(bot, len(windows), schedule)
+                        continue
+                due.append(DueClaim(bot=bot, schedule=schedule, missed=missed, occurrence=newest, marker=marker))
         return due
 
-    def _windows_between(self, bot: Bot, last_utc: datetime, now: datetime, zone: ZoneInfo) -> list[datetime]:
+    def _windows_between(self, scheduled: Bot | Schedule, last_utc: datetime, now: datetime,
+                         zone: ZoneInfo | None = None) -> list[datetime]:
         """All fire times in (last, now], computed in the bot's zone."""
+        schedule = scheduled.schedule if isinstance(scheduled, Bot) else scheduled
+        if schedule is None:
+            return []
+        zone = zone or self._zone(schedule)
         local_last = self._to_local(last_utc, zone)
         local_now = self._to_local(now, zone)
         try:
-            itr = croniter(bot.schedule.cron, local_last)  # type: ignore[union-attr]
+            itr = croniter(schedule.cron, local_last)
         except (croniter.CroniterBadCronError, ValueError):
             return []
         out: list[datetime] = []
@@ -145,34 +156,42 @@ class Scheduler:
                 out.append(utc)
         return out
 
-    def _last_dispatched(self, bot: Bot) -> datetime:
-        return self._parse_marker(self.store.kv_get(self._last_fire_key(bot)), bot)
+    def _last_dispatched(self, bot: Bot, schedule: Schedule | None = None) -> datetime:
+        schedule = schedule or bot.schedule
+        return self._parse_marker(self.store.kv_get(self._last_fire_key(schedule)), schedule)
 
     @staticmethod
-    def _parse_marker(raw: Optional[str], bot: Bot) -> datetime:
+    def _parse_marker(raw: Optional[str], scheduled: Bot | Schedule,
+                      fallback_created_at: str | None = None) -> datetime:
         if raw:
             try:
                 return datetime.fromisoformat(raw)
             except ValueError:
                 pass
         try:
-            return datetime.fromisoformat(bot.created_at)
+            return datetime.fromisoformat(fallback_created_at or scheduled.created_at)
         except ValueError:
             return utcnow()
 
-    def mark_dispatched(self, bot: Bot, now: datetime | None = None) -> None:
-        self.store.kv_set(self._last_fire_key(bot), iso(now or utcnow()))
+    def mark_dispatched(self, bot: Bot, now: datetime | None = None, schedule: Schedule | None = None) -> None:
+        schedule = schedule or bot.schedule
+        self.store.kv_set(self._last_fire_key(schedule), iso(now or utcnow()))
 
-    def _note_skipped(self, bot: Bot, n_windows: int) -> None:
+    def _note_skipped(self, bot: Bot, n_windows: int, schedule: Schedule | None = None) -> None:
         """Silent non-runs are the #1 scheduler complaint — record skips visibly."""
         import json
+        schedule = schedule or bot.schedule
         self.store.kv_set(
-            f"schedule:{bot.id}:last_skip",
+            f"{schedule.id}:last_skip",
             json.dumps({"at": iso(utcnow()), "windows": n_windows}),
         )
 
-    def last_skip(self, bot: Bot) -> dict | None:
-        raw = self.store.kv_get(f"schedule:{bot.id}:last_skip")
+    def last_skip(self, bot: Bot, schedule: Schedule | None = None) -> dict | None:
+        import json
+        schedule = schedule or bot.schedule
+        if schedule is None:
+            return None
+        raw = self.store.kv_get(f"{schedule.id}:last_skip")
         if not raw:
             return None
         try:

@@ -2928,9 +2928,62 @@ async function refreshApprovals() {
 
 /* -------------------------------------------------------- bot settings */
 
+let botDetailRenderGeneration = 0;
+
+function scheduleEditorHtml(schedule, index, status = null) {
+  const id = String(schedule.id || "");
+  let nextFire = "Not calculated";
+  if (status?.next_fire) {
+    try { nextFire = new Intl.DateTimeFormat(undefined, {dateStyle:"medium", timeStyle:"short", timeZone:schedule.timezone || "UTC"})
+      .format(new Date(status.next_fire)); } catch { nextFire = "Next run available"; }
+  }
+  const formId = index === 0 ? "form-schedule" : `form-schedule-${index}`;
+  return `<details class="schedule-entry" data-schedule-entry ${index === 0 ? "open" : ""}>
+    <summary class="schedule-summary">
+      <strong>${esc(schedule.name || "Scheduled task")}</strong>
+      <span class="schedule-summary-cron mono">${esc(schedule.cron)} · ${esc(schedule.timezone || "UTC")}</span>
+      <span class="tag">${index === 0 ? "Primary" : `Task ${index + 1}`}</span>
+    </summary>
+    <form id="${formId}" class="form-grid schedule-editor" data-schedule-form data-schedule-id="${esc(id)}">
+      <div class="form-grid row2">
+        <label class="field">Task name
+          <input type="text" name="name" maxlength="80" value="${esc(schedule.name || "Scheduled task")}" required>
+        </label>
+        <label class="field">Cron expression
+          <input type="text" name="cron" value="${esc(schedule.cron || "")}" placeholder="0 9 * * 1" required>
+        </label>
+        <label class="field">Timezone
+          <input type="text" name="timezone" value="${esc(schedule.timezone || "UTC")}" required>
+        </label>
+        <label class="field">Missed run policy
+          <select name="catch_up">
+            <option value="coalesce" ${schedule.catch_up === "coalesce" ? "selected" : ""}>Run once and report missed windows</option>
+            <option value="skip" ${schedule.catch_up === "skip" ? "selected" : ""}>Skip if the last window was missed</option>
+          </select>
+        </label>
+      </div>
+      <label class="field">Task prompt
+        <textarea name="schedule_prompt" rows="3" maxlength="4000" aria-describedby="schedule-prompt-help-${index}">${esc(schedule.prompt || "")}</textarea>
+        <span class="hint" id="schedule-prompt-help-${index}">Leave blank to use this bot’s standing instructions. Each scheduled task runs as a separate attempt.</span>
+      </label>
+      <div class="meta-row"><span>Next run</span><span class="mono">${esc(nextFire)}</span></div>
+      ${status?.last_skip ? `<p class="hint schedule-skip" role="status">Last skipped ${esc(status.last_skip.windows)} missed windows.</p>` : ""}
+      <div class="btn-row schedule-actions">
+        <button class="btn primary small" type="submit">Save task</button>
+        <button class="btn ghost small" type="button" data-remove-schedule="${esc(id)}">Remove task</button>
+      </div>
+    </form>
+  </details>`;
+}
+
 async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) {
+  const generation = ++botDetailRenderGeneration;
   const b = await api(`/bots/${encodeURIComponent(name)}`);
   const factsPage = await api(`/v1/bots/${encodeURIComponent(name)}/facts?all_scopes=true&limit=20&offset=${factOffset}&include_archived=${showArchivedFacts}`);
+  const schedules = Array.isArray(b.schedules) ? b.schedules : (b.schedule ? [b.schedule] : []);
+  let scheduleRows = [];
+  try { scheduleRows = await api(`/v1/schedules?bot=${encodeURIComponent(b.id)}&limit=100&offset=0`); } catch {}
+  const scheduleStatus = new Map(scheduleRows.map(item => [item.id, item]));
   let offlineCapability = { status: "unavailable", reason: "Host isolation could not be verified." };
   let browserHandoffCapability = { status: "unavailable", reason: "The server could not verify this host's display and browser support." };
   try {
@@ -2949,6 +3002,10 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   const handoffReason = ["supported", "experimental"].includes(browserHandoffCapability.status)
     ? "Local browser handoff is experimental on this host. A login wait keeps the same browser window open and pauses automation. Only one Hutch handoff can run at a time. This does not enable phone control."
     : `Local browser handoff is unavailable on this host: ${browserHandoffCapability.reason}. It will fail closed until its display and browser prerequisites are available. This does not enable phone control.`;
+  // A save can trigger another render before these independent resource reads
+  // finish. Only the newest request for the still-active bot route may replace
+  // the settings DOM; slower old responses otherwise discard newer task state.
+  if (generation !== botDetailRenderGeneration || location.hash !== `#/bot/${encodeURIComponent(name)}`) return;
   setTopContext(`
     <div class="ctx-id">
       ${botAvatar(b.name, 30)}
@@ -2959,7 +3016,6 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
       <button class="btn danger small" id="btn-delete-bot">Delete bot</button>
     </div>`);
 
-  const sched = b.schedule || {};
   const limits = b.limits || {};
   const rules = b.command_rules || [];
   view.innerHTML = `
@@ -3006,28 +3062,20 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             <div class="btn-row"><button class="btn primary small" type="submit">Save model settings</button></div>
           </form>
 
-          <form class="panel form-grid" id="form-schedule">
-            <div class="panel-title">Schedule</div>
-            <div class="form-grid row2">
-              <label class="field">Cron expression
-                <input type="text" name="cron" value="${esc(sched.cron || "")}" placeholder="0 9 * * 1">
-                <span class="hint">Use “Make it on-demand” below to remove the schedule.</span>
-              </label>
-              <label class="field">Timezone
-                <input type="text" name="timezone" value="${esc(sched.timezone || "UTC")}">
-              </label>
+          <section class="panel schedule-manager" id="schedule-manager" aria-labelledby="schedule-manager-title">
+            <div class="schedule-manager-head">
+              <div>
+                <div class="panel-title" id="schedule-manager-title">Recurring tasks</div>
+                <p class="hint">Each task has its own timing and prompt. Runs share this bot’s tools, workspace, limits, and permissions.</p>
+              </div>
+              <button class="btn primary small" type="button" id="btn-add-schedule">Add task</button>
             </div>
-            <label class="field">Scheduled task prompt
-              <textarea name="schedule_prompt" rows="3" maxlength="4000" aria-describedby="schedule-prompt-help">${esc(sched.prompt || "")}</textarea>
-              <span class="hint" id="schedule-prompt-help">Leave blank to run the bot’s standing instructions. This schedule has one task prompt.</span>
-            </label>
-            <div class="meta-row"><span>Next run</span><span class="mono">${esc(b.next_run_local || "—")}</span></div>
-            <div class="meta-row"><span>Missed windows</span><span class="mono">${esc(sched.catch_up || "coalesce")} · changed with <code class="mono">hutch bot update</code></span></div>
-            <div class="btn-row">
-              <button class="btn primary small" type="submit">Save schedule</button>
-              <button class="btn ghost small" type="button" id="btn-clear-schedule">Make it on-demand</button>
+            <div class="schedule-list" id="schedule-list">
+              ${schedules.length ? schedules.map((scheduled, index) =>
+                scheduleEditorHtml(scheduled, index, scheduleStatus.get(scheduled.id))).join("")
+                : `<div class="empty-state schedule-empty"><p>No recurring tasks yet.</p><p class="hint">Add one when this bot should work on a regular schedule.</p></div>`}
             </div>
-          </form>
+          </section>
 
           <form class="panel form-grid" id="form-risk">
             <div class="panel-title">Risk policy</div>
@@ -3171,18 +3219,58 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     const fd = new FormData(ev.target);
     patch({ model: fd.get("model").trim(), inference_mode: fd.get("inference_mode") }, "Model settings saved.");
   });
-  $("#form-schedule").addEventListener("submit", ev => {
-    ev.preventDefault();
-    const fd = new FormData(ev.target);
-    const cron = fd.get("cron").trim();
-    const schedulePrompt = fd.get("schedule_prompt").trim();
-    if (schedulePrompt && !cron) {
-      toast("Add a cron schedule before setting its task prompt.", true);
-      return;
-    }
-    patch({ cron, timezone: fd.get("timezone").trim(), schedule_prompt: schedulePrompt }, "Schedule saved.");
+  $("#btn-add-schedule").addEventListener("click", () => {
+    const form = `<form id="modal-schedule-form" class="form-grid">
+      <label class="field">Task name<input name="name" maxlength="80" value="Scheduled task" required></label>
+      <div class="form-grid row2">
+        <label class="field">Cron expression<input name="cron" placeholder="0 9 * * 1" required></label>
+        <label class="field">Timezone<input name="timezone" value="UTC" required></label>
+      </div>
+      <label class="field">Missed run policy<select name="catch_up"><option value="coalesce">Run once and report missed windows</option><option value="skip">Skip if the last window was missed</option></select></label>
+      <label class="field">Task prompt<textarea name="prompt" rows="3" maxlength="4000"></textarea>
+        <span class="hint">Leave blank to use this bot’s standing instructions.</span>
+      </label>
+    </form>`;
+    openModal({ title: "Add a recurring task", bodyHtml: form, confirmText: "Add task", returnFocus: $("#btn-add-schedule"),
+      onConfirm: async () => {
+        const fd = new FormData($("#modal-schedule-form"));
+        const scheduleId = `schedule_${newIdempotencyKey().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+        try {
+          await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(scheduleId)}`, {
+            method: "PUT", body: { name: fd.get("name").trim(), cron: fd.get("cron").trim(),
+              timezone: fd.get("timezone").trim(), catch_up: fd.get("catch_up"), prompt: fd.get("prompt").trim() },
+          });
+          toast("Recurring task added.");
+          renderBotDetail(b.name); refreshRoster();
+          return true;
+        } catch (err) { toast(`Task not added: ${err.message}`, true); return false; }
+      },
+    });
   });
-  $("#btn-clear-schedule").addEventListener("click", () => patch({ clear_cron: true }, "Now on demand."));
+  $$('[data-schedule-form]').forEach(form => form.addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const fd = new FormData(form);
+    const scheduleId = form.dataset.scheduleId;
+    try {
+      await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(scheduleId)}`, {
+        method: "PUT", body: { name: fd.get("name").trim(), cron: fd.get("cron").trim(),
+          timezone: fd.get("timezone").trim(), catch_up: fd.get("catch_up"), prompt: fd.get("schedule_prompt").trim() },
+      });
+      toast("Scheduled task saved.");
+      renderBotDetail(b.name); refreshRoster();
+    } catch (err) { toast(`Task not saved: ${err.message}`, true); }
+  }));
+  $$('[data-remove-schedule]').forEach(button => button.addEventListener("click", async () => {
+    const schedule = schedules.find(item => item.id === button.dataset.removeSchedule);
+    if (!schedule) return;
+    if (!(await confirmDialog({ title: "Remove scheduled task", body: `Remove <b>${esc(schedule.name)}</b> from ${esc(b.name)}? Existing runs and their history remain.`,
+                               confirmText: "Remove task", danger: true }))) return;
+    try {
+      await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(schedule.id)}`, { method: "DELETE" });
+      toast("Scheduled task removed.");
+      renderBotDetail(b.name); refreshRoster();
+    } catch (err) { toast(`Task not removed: ${err.message}`, true); }
+  }));
   $("#form-risk").addEventListener("submit", ev => {
     ev.preventDefault();
     const fd = new FormData(ev.target);

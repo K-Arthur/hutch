@@ -55,7 +55,7 @@ approval expiry without the dashboard.
 
 ## Feature highlights
 
-- **Multiple named bots** — own model, tools, schedule, memory, workspace; pause/resume; templates
+- **Multiple named bots** — own model, tools, recurring tasks, memory, workspace; pause/resume; templates
 - **Model choice, local first** — native Ollama (context size always set), Anthropic, OpenAI, and OpenAI-compatible endpoints. There is no user-facing mock model or simulated run; live provider and local-model checks depend on your setup
 - **Per-bot model routing** — Hybrid allows local and hosted routes; Local keeps model calls on recognized local routes while tools may still use the network. Experimental Offline is offered only after Linux bubblewrap network/PID-namespace and Unix-socket broker checks pass. It removes browser/web tools and requires contained shell; the separate model service may still use the network.
 - **Switch models from the chat** — a composer menu shows what fits this machine, what it costs and what is missing; per message, never a silent edit of the bot
@@ -64,7 +64,8 @@ approval expiry without the dashboard.
   rechecks native Ollama memory headroom, and shows queue reasons. Fit remains estimated; real models are unverified.
   `hutch doctor` reports configuration problems with suggested fixes.
 - **Scheduling that survives sleep and DST** — IANA-timezone cron, DST-correct, catch-up after sleep; each occurrence and each run is
-  claimed in the database; one elected supervisor handles schedules and recovery, and one bot never overlaps itself
+  claimed in the database; each bot can have up to 100 named tasks with independent prompts and timezones. One elected supervisor
+  handles schedules and recovery, and one bot never overlaps itself. Manage them in Settings or with `hutch bot schedules`.
 - **Approvals that don't nag** — ask-once with sticky always-allows; unanswered = denied
 - **Local browser handoff** — opt in per bot to a visible same-session browser on a Linux desktop; Hutch pauses for a login challenge and rechecks after Resume. Run `hutch bot update <name> --local-browser-handoff`; phone handoff is unavailable.
 - **Optional browser alerts** — get a generic reminder when a new approval or uncertain action needs you while Hutch is open in a background tab. Alerts never include chat or action text. They are not push notifications and stop when the tab closes.

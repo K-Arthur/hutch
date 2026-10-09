@@ -64,7 +64,7 @@ managed infrastructure until trusted-proxy handling is documented and validated.
 ## Database migration and restore
 
 Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. This
-realignment branch uses schema v19; `hutch doctor` displays the current version. Keep the matching
+realignment branch uses schema v21; `hutch doctor` displays the current version. Keep the matching
 release and pre-upgrade backups. A normal snapshot captures committed database history, including
 WAL pages; event buffers that have not committed yet are outside its scope:
 
@@ -164,6 +164,10 @@ Schema v19 records one versioned Resume per `human_needed` event sequence. The r
 the run is still waiting under a live owner lease and that the submitted sequence is the current
 wait; exact retries return the stored response without setting the resume flag again. Existing
 unversioned resume routes remain for compatibility and do not carry this stale-event guarantee.
+Schema v20 assigns each recurring task its own occurrence claim stream while retaining the first
+task through the legacy `schedule` alias. Schema v21 creates a durable identity registry; removed
+schedule IDs stay reserved even if the task never fired, and deleting a bot does not erase that
+task identity. The migration backup can be restored with the standard held restore procedure above.
 Hutch does not infer that adjacent runs share a
 private context. New conversations and message submissions are written transactionally with their idempotency records. The
 `conversation_fts` index contains message text only; it excludes tool output, credentials, workspaces and bot memory.

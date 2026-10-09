@@ -52,12 +52,21 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   Held values include all unresolved reservations, regardless of their age. Only measured ledger
   usage is windowed; a stale worker cannot settle/release a hold after losing ownership, and
   uncertain usage requires explicit reconciliation against the provider record.
-* `GET /api/v1/schedules` includes each bot's `cron`, `timezone`, `catch_up`, `paused`, and `prompt`.
-  Bot creation accepts `schedule_prompt` with `cron`; bot updates accept it for an existing or
-  simultaneously updated schedule. Prompts are trimmed and limited to 4,000 characters. A nonempty
-  task prompt without a schedule is rejected. Empty prompts preserve compatibility by executing the
-  bot's standing `instructions`, then the generic workspace-report task if those are empty. This is
-  one schedule per bot, not a multi-task scheduler.
+* `GET /api/v1/schedules?bot=&limit=&offset=` returns a bounded page of each bot's named recurring
+  tasks, including stable `id`, `name`, `cron`, `timezone`, `catch_up`, `paused`, optional `prompt`,
+  `created_at`, `next_fire`, `last_dispatched`, and `last_skip`. A bot can have at most 100 tasks.
+  `PUT /api/v1/bots/{ref}/schedules/{schedule_id}` creates or updates that exact task; cron and IANA
+  timezone are validated, prompts are trimmed and limited to 4,000 characters, and an ID already
+  assigned or previously removed returns 409. `DELETE` removes one stream and returns 204; its runs,
+  occurrence claims, and reserved ID remain as history. Per-task timing, missed-window policy and
+  task prompt are independent. All tasks on a bot share its tools, workspace, limits and permissions,
+  and remain subject to the one-active-run-per-bot rule.
+* Legacy bot creation's `cron`/`schedule_prompt` fields and bot-update schedule fields remain
+  compatibility aliases for the first task. Empty task prompts use the bot's standing `instructions`,
+  then the generic workspace-report task if those are empty. CLI task management is available through
+  `hutch bot schedules list|add|update|remove`; the older `hutch bot update` options edit the first
+  task. Schema v21 adds a persistent schedule-identity registry and reserves each removed ID so
+  retries and historical run provenance cannot attach to a newly created schedule.
 * `GET /api/v1/compatibility` returns a versioned provider/runtime route matrix. Each route has an implementation state,
   Hutch's request fields, documented omissions, verification boundary, and dated policy/API sources. `supported` means
   Hutch's common request/response contract has recorded tests; it does not certify every provider version, model, tool

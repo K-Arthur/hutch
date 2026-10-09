@@ -9,7 +9,7 @@ import pytest
 
 from hutch.config import hutchConfig
 from hutch.models import Bot, Event, EventType, Run
-from hutch.store import SCHEMA_VERSION, Store
+from hutch.store import Store
 from hutch.transcript_mirror import TranscriptMirror
 
 
@@ -66,7 +66,7 @@ def test_intent_rolls_back_with_event_and_retains_bot_directory_after_deletion(p
     assert path.stat().st_mode & 0o777 == 0o600
 
 
-def test_v16_replaces_legacy_event_trigger_and_preserves_delivery_intents(paused, config):
+def test_v16_replaces_legacy_event_trigger_and_preserves_delivery_intents(paused, config, monkeypatch):
     bot, run, _ = history(paused, name="migrated-mirror", count=2)
     pending = paused._db.execute("SELECT target_seq, delivered_seq FROM transcript_delivery WHERE run_id = ?",
                                  (run.id,)).fetchone()
@@ -86,9 +86,14 @@ def test_v16_replaces_legacy_event_trigger_and_preserves_delivery_intents(paused
             END;""")
         db.execute("PRAGMA user_version = 15")
 
+    # Keep this migration test scoped to v15 -> v16 as later migrations are
+    # covered independently. The fixture database already has newer tables.
+    from hutch import store as store_module
+    monkeypatch.setattr(store_module, "SCHEMA_VERSION", 16)
+    monkeypatch.setattr(store_module, "_MIGRATIONS", store_module._MIGRATIONS[:15])
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == SCHEMA_VERSION == 16
+        assert upgraded.schema_version == 16
         assert not upgraded._db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name=?",
                                         ("transcript_delivery_insert",)).fetchone()
         assert tuple(upgraded._db.execute("SELECT target_seq, delivered_seq FROM transcript_delivery WHERE run_id = ?",

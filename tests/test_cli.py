@@ -109,6 +109,50 @@ def test_schedule_task_prompt_create_update_and_clear(state_env):
     assert too_long.exit_code != 0 and "4000 characters or fewer" in too_long.output
 
 
+def test_named_schedule_streams_can_be_created_updated_and_removed_from_cli(state_env):
+    from hutch.config import get_config
+    from hutch.store import Store
+
+    assert runner.invoke(app, ["init"]).exit_code == 0
+    created = runner.invoke(app, ["bot", "create", "streams", "--model", "mock/demo",
+                                 "--cron", "0 9 * * 1"])
+    assert created.exit_code == 0, created.output
+    added = runner.invoke(app, ["bot", "schedules", "add", "streams", "--name", "Evening review",
+                                "--cron", "0 18 * * 1-5", "--timezone", "UTC", "--catch-up", "skip",
+                                "--prompt", "Review the day's open items."])
+    assert added.exit_code == 0, added.output
+    listing = runner.invoke(app, ["bot", "schedules", "list", "streams"])
+    assert listing.exit_code == 0 and "Evening review" in listing.output and "schedule_" in listing.output
+
+    store = Store(get_config())
+    try:
+        bot = store.get_bot("streams")
+        primary_id = bot.schedules[0].id
+        evening = next(schedule for schedule in bot.schedules if schedule.name == "Evening review")
+    finally:
+        store.close()
+    updated = runner.invoke(app, ["bot", "schedules", "update", "streams", evening.id,
+                                  "--prompt", "Review only unresolved items."])
+    assert updated.exit_code == 0, updated.output
+    removed = runner.invoke(app, ["bot", "schedules", "remove", "streams", primary_id])
+    assert removed.exit_code == 0, removed.output
+    store = Store(get_config())
+    try:
+        bot = store.get_bot("streams")
+        assert len(bot.schedules) == 1 and bot.schedule.id == evening.id
+        assert bot.schedule.prompt == "Review only unresolved items."
+    finally:
+        store.close()
+    removed = runner.invoke(app, ["bot", "schedules", "remove", "streams", evening.id])
+    assert removed.exit_code == 0, removed.output
+    store = Store(get_config())
+    try:
+        bot = store.get_bot("streams")
+        assert bot.schedules == [] and bot.schedule is None
+    finally:
+        store.close()
+
+
 def test_run_command_test_scenario_fixture_succeeds(state_env):
     runner.invoke(app, ["init"])
     result = runner.invoke(app, ["bot", "create", "quick", "--model", "mock/demo",

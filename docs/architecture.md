@@ -118,25 +118,30 @@ provider reservations and protocol tests are complete.
 
 ### D2 — Bots are configs, runs are executions
 
-A **Bot** is a stored config (model, tools, one optional schedule, limits). A **Run** is one execution with its
+A **Bot** is a stored config (model, tools, up to 100 optional recurring tasks, limits). A **Run** is one execution with its
 own workspace directory, transcript, step/token accounting, and terminal status. Tasks are the
 queue between scheduler and engine. One active run per bot at a time (single-instance lock);
 global concurrency default 2.
 
-Each bot's single cron schedule has an optional task prompt separate from standing bot
-instructions. A blank task prompt preserves legacy behavior by using the bot instructions, then a
-generic workspace-report task if the instructions are empty. The prompt is limited to 4,000
-characters and can be changed in bot settings, through the API, or with `hutch bot update`.
-Multiple independent recurring tasks per bot are not supported yet.
+Each recurring task has a stable, globally reserved ID, name, cron expression, IANA timezone,
+catch-up policy, and optional prompt separate from standing bot instructions. Its due window,
+last-fire marker and visible skip record are independent from the bot's other tasks. A blank task
+prompt preserves legacy behavior by using the bot instructions, then a generic workspace-report
+task if the instructions are empty. Prompts are limited to 4,000 characters. Settings, the typed
+schedule API and `hutch bot schedules` manage individual tasks. Older `schedule` fields and
+`hutch bot update` schedule options remain aliases for the first task. Tasks on one bot share its
+tools, workspace, limits and permissions, and that bot still never runs two attempts at once.
 
 ### D3 — Scheduling correctness is a feature, not a detail
 
 All timestamps are ISO-8601 UTC-with-offset. Cron math happens in the bot's IANA zone via croniter,
 with a round-trip check that drops DST-gap times (spring-forward) and de-duplicates ambiguous times
-(fall-back) — Vixie-cron semantics. Each bot records its last dispatched window; on wake the
-scheduler counts missed windows and (policy `coalesce`, the default) dispatches one catch-up run
-tagged `missed_windows=N`, or (policy `skip`) records a visible skip marker. Both paths are visible
-in the dashboard so a silent non-run can never look like success.
+(fall-back) — Vixie-cron semantics. Each task records its own last dispatched window; on wake the
+scheduler counts that task's missed windows and (policy `coalesce`, the default) dispatches one
+catch-up run tagged `missed_windows=N`, or (policy `skip`) records a visible skip marker. Both
+paths are visible in task settings and the schedule API so a silent non-run can never look like
+success. Schema v21 retains schedule identities after removal, preventing an unused or deleted
+task ID from being assigned to a different stream later.
 
 ### D4 — Policy before execution, transcripts regardless of outcome
 

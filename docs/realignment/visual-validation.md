@@ -13,6 +13,24 @@ the Connections phone capture with its heading and controls fitting the viewport
 The base-template static detector does not resolve its linked `hutch.css` heading rule and still estimates the browser default line
 height. The existing path-scoped ignore remains, with its reason updated to the new computed measurements; no new ignore was added.
 
+## Independent recurring tasks (2026-10-09)
+
+The settings panel manages one to 100 named tasks on a bot. Each task has separate cron, timezone,
+catch-up policy and prompt; all tasks share that bot's tools, workspace, permissions and single-run
+limit. The real-browser fixture added a task, edited both tasks, reloaded the page, removed the
+secondary task, then removed the primary and verified promotion of the remaining stream. Its task
+prompt and timing were kept safely in the future; no model/provider request ran. The create dialog
+also kept its title and create action visible while the phone prompt field was in view.
+
+Chromium **153.0.8010.12** / Playwright **1.63.0** passed at 1440×960, 900×1024 and 390×844 with
+no page errors or horizontal overflow. Both expanded task cards were inspected at every width; the
+Add task target measured 44 px. The six per-task captures, trace, source hashes and viewport data
+are in [`artifacts/scheduled-tasks/`](artifacts/scheduled-tasks/), with the journey in
+`tests/e2e/test_browser.py::test_multiple_scheduled_tasks_can_be_managed_from_bot_settings`.
+The anonymous marketing workflow test passed at the same widths, made no external requests and
+reported no overflow or page errors. Its three workflow-section captures and source hash are in the
+same artifact folder; I inspected each, including the stacked phone cards.
+
 ## Baseline visual validation
 
 Captured 2026-10-07 from the `realign/platform` worktree after the shared-budget UI and marketing copy changes. The marketing site was
@@ -246,13 +264,16 @@ the public feature-section captures and validation metadata are in [`artifacts/p
 per-conversation discovery and is not a cross-chat artifact library, live-provider test, physical-device check or screen-reader
 certification.
 
-## Recurring-task prompt settings (2026-10-09)
+## Recurring-task prompt settings (original slice, 2026-10-09)
 
 Bot creation and bot settings expose one optional task prompt for the bot's single cron schedule.
 The create dialog rejects a nonempty task without cron; settings preserve the prompt after a save and
 reload. The text explains that a blank prompt uses the standing bot instructions, and the schedule
 removal action is labeled explicitly. At phone size, the prompt field, dialog title and fixed create
 action remain visible together after scrolling the dialog body.
+
+The earlier one-task settings form was replaced by the independently managed recurring-task list
+documented below; its browser evidence remains historical for the original prompt-only slice.
 
 ## Cross-chat artifact sharing (2026-10-09)
 
@@ -278,8 +299,8 @@ tablet (900×1024) and phone (390×844). All checks reported no page errors or h
 the screenshots were inspected. The browser journey passed **1 test in 3.14s**. API, CLI and engine
 regressions passed **34 tests in 23.04s**. Captures, trace, viewport measurements, source hashes and
 fixture provenance are in [`artifacts/scheduled-task/`](artifacts/scheduled-task/). No provider or
-model call was made. This verifies one recurring schedule per bot; it does not add multiple
-independent task streams or delegation.
+model call was made. This was evidence for the original one-task slice; see the later independent
+task-stream capture above for the current settings behavior. Bounded delegation remains separate work.
 
 ## Inline human-resume action (2026-10-09)
 

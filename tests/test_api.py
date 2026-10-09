@@ -835,12 +835,47 @@ def test_versioned_connections_schedules_and_capabilities_are_typed_and_secret_f
     schedule = next(row for row in schedules if row["bot_id"] == bot["id"])
     assert schedule["cron"] == "0 9 * * 1" and schedule["timezone"] == "America/Vancouver"
     assert schedule["prompt"] == "Review new release notes and write a concise report."
+    assert schedule["name"] == "Scheduled task"
     assert schedule["next_fire"] and schedule["last_dispatched"]
     assert client.get("/api/bots/scheduled-v1").json()["schedule"]["prompt"] == schedule["prompt"]
     updated = client.patch("/api/bots/scheduled-v1", json={"schedule_prompt": "Check the weekly security feed."})
     assert updated.status_code == 200 and updated.json()["schedule"]["prompt"] == "Check the weekly security feed."
     reset = client.patch("/api/bots/scheduled-v1", json={"schedule_prompt": ""})
     assert reset.status_code == 200 and reset.json()["schedule"]["prompt"] == ""
+    multi = client.app.state.store.get_bot("scheduled-v1")
+    from hutch.models import Schedule
+    multi.set_schedules([multi.schedule, Schedule(id="quarterly", name="Quarterly review",
+                                                   cron="0 9 1 1,4,7,10 *", prompt="Review the quarter")])
+    client.app.state.store.upsert_bot(multi)
+    listed = [row for row in client.get("/api/v1/schedules").json() if row["bot_id"] == multi.id]
+    assert {row["id"] for row in listed} == {multi.schedule.id, "quarterly"}
+    assert next(row for row in listed if row["id"] == "quarterly")["name"] == "Quarterly review"
+    legacy_edit = client.patch("/api/bots/scheduled-v1", json={"schedule_prompt": "First task changed"})
+    assert legacy_edit.status_code == 200 and legacy_edit.json()["schedule"]["prompt"] == "First task changed"
+    assert {item["id"] for item in legacy_edit.json()["schedules"]} == {multi.schedule.id, "quarterly"}
+    non_schedule_edit = client.patch("/api/bots/scheduled-v1", json={"description": "keep the sibling"})
+    assert non_schedule_edit.status_code == 200
+    assert {item["id"] for item in non_schedule_edit.json()["schedules"]} == {multi.schedule.id, "quarterly"}
+    body = {"name": "Morning brief", "cron": "0 8 * * 1-5", "timezone": "UTC",
+            "catch_up": "coalesce", "prompt": "Summarize priority messages."}
+    created = client.put(f"/api/v1/bots/{multi.id}/schedules/morning", json=body)
+    assert created.status_code == 200 and created.json()["next_fire"]
+    assert client.put(f"/api/v1/bots/{multi.id}/schedules/morning", json=body).json() == created.json()
+    listed = [row for row in client.get("/api/v1/schedules").json() if row["bot_id"] == multi.id]
+    assert {row["id"] for row in listed} == {multi.schedule.id, "quarterly", "morning"}
+    first_page = client.get("/api/v1/schedules", params={"bot": multi.id, "limit": 1, "offset": 0}).json()
+    second_page = client.get("/api/v1/schedules", params={"bot": multi.id, "limit": 1, "offset": 1}).json()
+    assert len(first_page) == len(second_page) == 1 and first_page[0]["id"] != second_page[0]["id"]
+    other = client.app.state.store.create_bot(Bot(name="other-scheduled-bot"))
+    assert client.put(f"/api/v1/bots/{other.id}/schedules/morning", json=body).status_code == 409
+    invalid = client.put(f"/api/v1/bots/{multi.id}/schedules/invalid", json={**body, "timezone": "Mars/Olympus"})
+    assert invalid.status_code == 422
+    removed_id = multi.schedule.id
+    assert client.delete(f"/api/v1/bots/{multi.id}/schedules/{removed_id}").status_code == 204
+    after_delete = client.app.state.store.get_bot("scheduled-v1")
+    assert after_delete.schedule.id == "quarterly" and len(after_delete.schedules) == 2
+    assert client.put(f"/api/v1/bots/{multi.id}/schedules/{removed_id}", json=body).status_code == 409
+    assert client.delete(f"/api/v1/bots/{multi.id}/schedules/missing").status_code == 404
     assert client.patch("/api/bots/scheduled-v1", json={"clear_cron": True,
                       "schedule_prompt": "Prompt without a schedule"}).status_code == 422
     no_cron_prompt = client.post("/api/bots", json={"name": "prompt-needs-cron", "model": "mock/demo",

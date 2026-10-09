@@ -787,12 +787,15 @@ class Engine:
         by exactly one (``Store.submit_scheduled``), and the run is created in the same transaction as the claim."""
         created: list[Run] = []
         for due in self.scheduler.due_claims():
-            run = Run(bot_id=due.bot.id, prompt=bot_prompt_for_schedule(due.bot), missed_windows=due.missed, origin="schedule")
+            run = Run(bot_id=due.bot.id, prompt=bot_prompt_for_schedule(due.bot, due.schedule),
+                      missed_windows=due.missed, origin="schedule", schedule_id=due.schedule.id)
             task = Task(bot_id=due.bot.id, kind="scheduled", prompt=run.prompt)
             now = utcnow()
             won = self.store.submit_scheduled(
                 run, task, occurrence=iso(due.occurrence), expected_marker=due.marker, new_marker=iso(now),
-                claimed_by=self.owner_id, note={"scheduled_run": run.id, "missed_windows": due.missed})
+                claimed_by=self.owner_id, schedule_id=due.schedule.id,
+                note={"scheduled_run": run.id, "schedule_id": due.schedule.id,
+                      "missed_windows": due.missed})
             if won is not None:
                 created.append(won)
         return created
@@ -813,11 +816,12 @@ class Engine:
         now = now or utcnow()
         best = MAX_SLEEP_SECONDS
         for bot in self.store.list_bots():
-            if bot.paused or not bot.schedule:
+            if bot.paused:
                 continue
-            nxt = self.scheduler.next_fire(bot, now)
-            if nxt is not None:
-                best = min(best, (nxt - now).total_seconds())
+            for schedule in bot.schedules or ([bot.schedule] if bot.schedule else []):
+                nxt = self.scheduler.next_fire(bot, now, schedule)
+                if nxt is not None:
+                    best = min(best, (nxt - now).total_seconds())
         for req in self.store.pending_approvals():
             try:
                 exp = (datetime.fromisoformat(req.expires_at) if req.expires_at
@@ -899,10 +903,11 @@ def _ollama_loaded() -> set[str]:
     return {f"ollama/{m.get('name') or m.get('model')}" for m in prov.ps(timeout=1.0)}
 
 
-def bot_prompt_for_schedule(bot: Bot) -> str:
+def bot_prompt_for_schedule(bot: Bot, schedule=None) -> str:
     """Prompt used for scheduled runs — stable and self-describing."""
     when = utcnow().strftime("%Y-%m-%d %H:%M UTC")
-    task = bot.schedule.prompt.strip() if bot.schedule else ""
+    schedule = schedule or bot.schedule
+    task = schedule.prompt.strip() if schedule else ""
     task = task or bot.instructions or "execute your standing task and write a report to the workspace."
     return (
         f"[scheduled run — {when}]\n{bot.description or bot.name}: "

@@ -23,6 +23,7 @@ from pathlib import Path
 from pathlib import PurePosixPath
 from typing import Any, Literal, Optional
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -395,14 +396,24 @@ class ScheduleResource(BaseModel):
     id: str
     bot_id: str
     bot_name: str
+    name: str
     cron: str
     timezone: str
     catch_up: str
     prompt: str = ""
+    created_at: str
     paused: bool
     next_fire: Optional[str] = None
     last_dispatched: Optional[str] = None
     last_skip: Optional[dict] = None
+
+
+class SchedulePut(BaseModel):
+    name: str = Field(default="Scheduled task", min_length=1, max_length=80)
+    cron: str = Field(min_length=1, max_length=100)
+    timezone: str = Field(default="UTC", min_length=1, max_length=80)
+    catch_up: CatchUpPolicy = CatchUpPolicy.coalesce
+    prompt: str = Field(default="", max_length=4000)
 
 
 class EventPageResource(BaseModel):
@@ -968,20 +979,64 @@ def create_app() -> FastAPI:
         return rows
 
     @app.get("/api/v1/schedules", response_model=list[ScheduleResource])
-    def list_schedules() -> list[dict]:
+    def list_schedules(bot: Optional[str] = None, limit: int = 100, offset: int = 0) -> list[dict]:
+        bot_id = bot_or_404(bot).id if bot else None
         rows = []
         for bot in store.list_bots():
-            if not bot.schedule:
+            if bot_id and bot.id != bot_id:
                 continue
-            nxt = scheduler.next_fire(bot)
-            rows.append({"id": f"schedule:{bot.id}", "bot_id": bot.id, "bot_name": bot.name,
-                         "cron": bot.schedule.cron, "timezone": bot.schedule.timezone,
-                         "catch_up": bot.schedule.catch_up.value, "prompt": bot.schedule.prompt,
-                         "paused": bot.paused,
-                         "next_fire": nxt.isoformat() if nxt else None,
-                         "last_dispatched": scheduler._last_dispatched(bot).isoformat(),
-                         "last_skip": scheduler.last_skip(bot)})
-        return rows
+            for scheduled in bot.schedules or ([bot.schedule] if bot.schedule else []):
+                nxt = scheduler.next_fire(bot, schedule=scheduled)
+                rows.append({"id": scheduled.id, "bot_id": bot.id, "bot_name": bot.name,
+                             "name": scheduled.name, "cron": scheduled.cron, "timezone": scheduled.timezone,
+                             "catch_up": scheduled.catch_up.value, "prompt": scheduled.prompt,
+                             "created_at": scheduled.created_at, "paused": bot.paused,
+                             "next_fire": nxt.isoformat() if nxt else None,
+                             "last_dispatched": scheduler._last_dispatched(bot, scheduled).isoformat(),
+                             "last_skip": scheduler.last_skip(bot, scheduled)})
+        start = max(0, offset)
+        return rows[start:start + max(1, min(limit, 100))]
+
+    @app.put("/api/v1/bots/{ref}/schedules/{schedule_id}", response_model=ScheduleResource)
+    def put_schedule(ref: str, schedule_id: str, body: SchedulePut) -> dict:
+        bot = bot_or_404(ref)
+        from croniter import croniter
+        if len(body.cron.split()) != 5 or not croniter.is_valid(body.cron):
+            raise HTTPException(422, "cron must be a valid five-field schedule")
+        try:
+            ZoneInfo(body.timezone)
+        except Exception:
+            raise HTTPException(422, "timezone must be a valid IANA time zone") from None
+        try:
+            schedule = Schedule(id=schedule_id, name=body.name, cron=body.cron, timezone=body.timezone,
+                                catch_up=body.catch_up, prompt=body.prompt)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        try:
+            updated = store.put_schedule(bot.id, schedule)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        if updated is None:
+            raise HTTPException(404, f"no such bot: {ref}")
+        saved = next(item for item in updated.schedules if item.id == schedule_id)
+        nxt = scheduler.next_fire(updated, schedule=saved)
+        return {"id": saved.id, "bot_id": updated.id, "bot_name": updated.name, "name": saved.name,
+                "cron": saved.cron, "timezone": saved.timezone, "catch_up": saved.catch_up.value,
+                "prompt": saved.prompt, "created_at": saved.created_at, "paused": updated.paused,
+                "next_fire": nxt.isoformat() if nxt else None,
+                "last_dispatched": scheduler._last_dispatched(updated, saved).isoformat(),
+                "last_skip": scheduler.last_skip(updated, saved)}
+
+    @app.delete("/api/v1/bots/{ref}/schedules/{schedule_id}", status_code=204)
+    def remove_schedule(ref: str, schedule_id: str) -> Response:
+        bot = bot_or_404(ref)
+        try:
+            updated = store.delete_schedule(bot.id, schedule_id)
+        except KeyError:
+            raise HTTPException(404, f"no such scheduled task: {schedule_id}") from None
+        if updated is None:
+            raise HTTPException(404, f"no such bot: {ref}")
+        return Response(status_code=204)
 
     # ------------------------------------------------------ conversations
 
@@ -1170,8 +1225,8 @@ def create_app() -> FastAPI:
             raise HTTPException(422, "a scheduled task prompt requires a cron schedule")
         if body.cron:
             try:
-                bot.schedule = Schedule(cron=body.cron, timezone=body.timezone,
-                                        catch_up=body.catch_up, prompt=body.schedule_prompt)
+                bot.replace_primary_schedule(Schedule(cron=body.cron, timezone=body.timezone,
+                                                      catch_up=body.catch_up, prompt=body.schedule_prompt))
             except Exception:
                 raise HTTPException(422, "invalid schedule")
         try:
@@ -1195,6 +1250,8 @@ def create_app() -> FastAPI:
     @app.patch("/api/bots/{ref}")
     def patch_bot(ref: str, body: BotPatch) -> dict:
         bot = bot_or_404(ref)
+        schedule_update_requested = body.clear_cron or body.cron is not None or body.timezone is not None \
+            or body.schedule_prompt is not None
         from ..providers.registry import validate_inference_mode, validate_offline_bot
         proposed_mode = body.inference_mode if body.inference_mode is not None else bot.inference_mode
         proposed_model = body.model if body.model is not None else bot.model
@@ -1233,7 +1290,7 @@ def create_app() -> FastAPI:
         if body.clear_cron:
             if body.schedule_prompt and body.schedule_prompt.strip():
                 raise HTTPException(422, "a scheduled task prompt requires a cron schedule")
-            bot.schedule = None
+            bot.replace_primary_schedule(None)
         else:
             cron = body.cron or (bot.schedule.cron if bot.schedule else None)
             tz = body.timezone or (bot.schedule.timezone if bot.schedule else "UTC")
@@ -1241,9 +1298,15 @@ def create_app() -> FastAPI:
             if body.schedule_prompt is not None:
                 task_prompt = body.schedule_prompt.strip()
             if cron:
-                bot.schedule = Schedule(cron=cron, timezone=tz,
-                                        catch_up=bot.schedule.catch_up if bot.schedule else CatchUpPolicy.coalesce,
-                                        prompt=task_prompt)
+                previous = bot.schedule
+                replacement = Schedule(cron=cron, timezone=tz,
+                                       catch_up=previous.catch_up if previous else CatchUpPolicy.coalesce,
+                                       prompt=task_prompt)
+                if previous:
+                    replacement = Schedule(id=previous.id, name=previous.name, created_at=previous.created_at,
+                                           cron=replacement.cron, timezone=replacement.timezone,
+                                           catch_up=replacement.catch_up, prompt=replacement.prompt)
+                bot.replace_primary_schedule(replacement)
             elif task_prompt:
                 raise HTTPException(422, "a scheduled task prompt requires a cron schedule")
         try:
@@ -1251,7 +1314,10 @@ def create_app() -> FastAPI:
                                  refresh_host=proposed_mode is InferenceMode.offline)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
-        store.upsert_bot(bot)
+        if schedule_update_requested:
+            bot = store.upsert_bot(bot, primary_schedule_update=None if body.clear_cron else bot.schedule)
+        else:
+            bot = store.upsert_bot(bot, preserve_schedules=True)
         return bot_view(bot)
 
     @app.delete("/api/bots/{ref}")

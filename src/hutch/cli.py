@@ -39,9 +39,11 @@ from .tools import ALL_TOOL_NAMES, expand_tools
 app = typer.Typer(no_args_is_help=True, add_completion=False,
                   help="hutch — local-first multi-bot agent platform.")
 bot_app = typer.Typer(no_args_is_help=True, help="Manage bots.")
+schedule_app = typer.Typer(no_args_is_help=True, help="Manage a bot's recurring tasks.")
 run_app = typer.Typer(no_args_is_help=True, help="Inspect runs.")
 apr_app = typer.Typer(no_args_is_help=True, help="Resolve pending approvals.")
 app.add_typer(bot_app, name="bot")
+bot_app.add_typer(schedule_app, name="schedules")
 app.add_typer(run_app, name="runs")
 app.add_typer(apr_app, name="approvals")
 conn_app = typer.Typer(no_args_is_help=True, help="Hosted endpoints and subscription plans, each with its own key.")
@@ -189,6 +191,116 @@ def state_activate(restore_id: str, evidence: str = typer.Option(..., '--evidenc
 
 
 # --------------------------------------------------------------------- bots
+
+def _validate_schedule(cron: str, timezone_name: str) -> None:
+    from croniter import croniter
+    from zoneinfo import ZoneInfo
+    if len(cron.split()) != 5 or not croniter.is_valid(cron):
+        raise typer.BadParameter("cron must be a valid five-field expression")
+    try:
+        ZoneInfo(timezone_name)
+    except Exception:
+        raise typer.BadParameter("timezone must be a valid IANA time zone") from None
+
+
+@schedule_app.command("list")
+def schedule_list(bot_name: str = typer.Argument(..., help="Bot name or ID")) -> None:
+    from .scheduler import Scheduler
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+    store = _store()
+    bot = store.get_bot(bot_name)
+    if not bot:
+        err.print(f"[red]No bot named '{bot_name}'.[/red]")
+        raise typer.Exit(code=1)
+    schedules = bot.schedules or ([bot.schedule] if bot.schedule else [])
+    if not schedules:
+        console.print(f"{bot.name} has no recurring tasks.")
+        return
+    scheduler = Scheduler(store)
+    table = Table(title=f"{bot.name} recurring tasks")
+    for column in ("name", "id", "cron", "timezone", "next run", "catch-up"):
+        table.add_column(column)
+    for schedule in schedules:
+        nxt = scheduler.next_fire(bot, schedule=schedule)
+        try:
+            task_zone = ZoneInfo(schedule.timezone)
+            next_run = nxt.astimezone(task_zone).strftime("%a %d %b %H:%M %Z") if nxt else "—"
+        except ZoneInfoNotFoundError:
+            next_run = "invalid timezone"
+        table.add_row(schedule.name, schedule.id, schedule.cron, schedule.timezone, next_run, schedule.catch_up.value)
+    console.print(table)
+
+
+@schedule_app.command("add")
+def schedule_add(bot_name: str = typer.Argument(..., help="Bot name or ID"),
+                 cron: str = typer.Option(..., "--cron", help="Five-field cron expression"),
+                 name: str = typer.Option("Scheduled task", "--name"),
+                 timezone_name: str = typer.Option("UTC", "--timezone"),
+                 catch_up: CatchUpPolicy = typer.Option(CatchUpPolicy.coalesce, "--catch-up"),
+                 prompt: str = typer.Option("", "--prompt", help="Task instruction; blank uses bot instructions")) -> None:
+    store = _store()
+    bot = store.get_bot(bot_name)
+    if not bot:
+        err.print(f"[red]No bot named '{bot_name}'.[/red]")
+        raise typer.Exit(code=1)
+    if len(prompt) > 4000:
+        raise typer.BadParameter("prompt must be 4000 characters or fewer")
+    _validate_schedule(cron, timezone_name)
+    try:
+        schedule = Schedule(name=name, cron=cron, timezone=timezone_name, catch_up=catch_up, prompt=prompt)
+        store.put_schedule(bot.id, schedule)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from None
+    console.print(f"[green]added[/green] {schedule.name} ({schedule.id}) to {bot.name}")
+
+
+@schedule_app.command("update")
+def schedule_update(bot_name: str = typer.Argument(..., help="Bot name or ID"),
+                    schedule_id: str = typer.Argument(..., help="Stable schedule ID from `hutch bot schedules list`"),
+                    name: Optional[str] = typer.Option(None, "--name"),
+                    cron: Optional[str] = typer.Option(None, "--cron"),
+                    timezone_name: Optional[str] = typer.Option(None, "--timezone"),
+                    catch_up: Optional[CatchUpPolicy] = typer.Option(None, "--catch-up"),
+                    prompt: Optional[str] = typer.Option(None, "--prompt")) -> None:
+    store = _store()
+    bot = store.get_bot(bot_name)
+    if not bot:
+        err.print(f"[red]No bot named '{bot_name}'.[/red]")
+        raise typer.Exit(code=1)
+    existing = next((item for item in bot.schedules if item.id == schedule_id), None)
+    if not existing:
+        err.print(f"[red]No scheduled task '{schedule_id}' on {bot.name}.[/red]")
+        raise typer.Exit(code=1)
+    new_cron = cron if cron is not None else existing.cron
+    new_timezone = timezone_name if timezone_name is not None else existing.timezone
+    new_prompt = prompt if prompt is not None else existing.prompt
+    if len(new_prompt) > 4000:
+        raise typer.BadParameter("prompt must be 4000 characters or fewer")
+    _validate_schedule(new_cron, new_timezone)
+    schedule = Schedule(id=existing.id, name=name if name is not None else existing.name,
+                        created_at=existing.created_at, cron=new_cron, timezone=new_timezone,
+                        catch_up=catch_up or existing.catch_up, prompt=new_prompt)
+    try:
+        store.put_schedule(bot.id, schedule)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from None
+    console.print(f"[green]updated[/green] {schedule.name} ({schedule.id})")
+
+
+@schedule_app.command("remove")
+def schedule_remove(bot_name: str = typer.Argument(..., help="Bot name or ID"),
+                    schedule_id: str = typer.Argument(..., help="Stable schedule ID from `hutch bot schedules list`")) -> None:
+    store = _store()
+    bot = store.get_bot(bot_name)
+    if not bot:
+        err.print(f"[red]No bot named '{bot_name}'.[/red]")
+        raise typer.Exit(code=1)
+    try:
+        updated = store.delete_schedule(bot.id, schedule_id)
+    except KeyError:
+        err.print(f"[red]No scheduled task '{schedule_id}' on {bot.name}.[/red]")
+        raise typer.Exit(code=1) from None
+    console.print(f"[green]removed[/green] scheduled task {schedule_id} from {updated.name}")
 
 @bot_app.command("list")
 def bot_list() -> None:
@@ -338,7 +450,7 @@ def bot_create(
         err.print("[red]--schedule-prompt requires --cron[/red]")
         raise typer.Exit(code=1)
     if cron:
-        bot.schedule = Schedule(cron=cron, timezone=tz, catch_up=catch_up, prompt=schedule_prompt)
+        bot.replace_primary_schedule(Schedule(cron=cron, timezone=tz, catch_up=catch_up, prompt=schedule_prompt))
     from .providers.registry import validate_offline_bot
     try:
         validate_offline_bot(bot, check_host=inference_mode is InferenceMode.offline,
@@ -447,6 +559,7 @@ def bot_update(
     """Update bot settings."""
     store = _store()
     bot = _require_bot(store, name)
+    schedule_update_requested = clear_cron or cron is not None or tz is not None or schedule_prompt is not None
     proposed_model = model if model is not None else bot.model
     proposed_mode = inference_mode if inference_mode is not None else bot.inference_mode
     from .providers.registry import validate_inference_mode
@@ -510,7 +623,7 @@ def bot_update(
         if schedule_prompt and schedule_prompt.strip():
             err.print("[red]--schedule-prompt requires a cron schedule[/red]")
             raise typer.Exit(code=1)
-        bot.schedule = None
+        bot.replace_primary_schedule(None)
     elif cron or tz or schedule_prompt is not None:
         if schedule_prompt is not None and len(schedule_prompt) > 4000:
             err.print("[red]--schedule-prompt must be 4000 characters or fewer[/red]")
@@ -521,12 +634,15 @@ def bot_update(
                 raise typer.Exit(code=1)
         else:
             sched = bot.schedule or Schedule(cron=cron or "0 9 * * *", timezone=tz or "UTC")
-            bot.schedule = Schedule(
+            bot.replace_primary_schedule(Schedule(
+                id=sched.id,
+                name=sched.name,
+                created_at=sched.created_at,
                 cron=cron or sched.cron,
                 timezone=tz or sched.timezone,
                 catch_up=sched.catch_up,
                 prompt=schedule_prompt if schedule_prompt is not None else sched.prompt,
-            )
+            ))
     from .providers.registry import validate_offline_bot
     try:
         validate_offline_bot(bot, check_host=inference_mode is InferenceMode.offline,
@@ -534,7 +650,10 @@ def bot_update(
     except ValueError as exc:
         err.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from None
-    store.upsert_bot(bot)
+    if schedule_update_requested:
+        store.upsert_bot(bot, primary_schedule_update=None if clear_cron else bot.schedule)
+    else:
+        store.upsert_bot(bot, preserve_schedules=True)
     console.print(f"[green]updated[/green] {bot.name}")
 
 
@@ -553,14 +672,14 @@ def bot_delete(name: str = typer.Argument(...),
 @bot_app.command("pause")
 def bot_pause(name: str = typer.Argument(...)) -> None:
     store = _store(); bot = _require_bot(store, name)
-    bot.paused = True; store.upsert_bot(bot)
+    bot.paused = True; store.upsert_bot(bot, preserve_schedules=True)
     console.print(f"paused {name} (schedules disabled)")
 
 
 @bot_app.command("resume")
 def bot_resume(name: str = typer.Argument(...)) -> None:
     store = _store(); bot = _require_bot(store, name)
-    bot.paused = False; store.upsert_bot(bot)
+    bot.paused = False; store.upsert_bot(bot, preserve_schedules=True)
     console.print(f"resumed {name}")
 
 

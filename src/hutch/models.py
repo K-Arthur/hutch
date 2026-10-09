@@ -92,10 +92,21 @@ class CatchUpPolicy(str, Enum):
 
 
 class Schedule(BaseModel):
+    id: str = Field(default_factory=lambda: new_id("schedule"))
+    name: str = Field(default="Scheduled task", max_length=80)
     cron: str                          # 5-field cron expression
     timezone: str = "UTC"              # IANA name; schedule fires in this zone
     catch_up: CatchUpPolicy = CatchUpPolicy.coalesce
     prompt: str = Field(default="", max_length=4000)  # task to perform; empty preserves legacy instruction fallback
+    created_at: str = Field(default_factory=lambda: iso(utcnow()))
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("a scheduled task name is required")
+        return value
 
     @field_validator("prompt")
     @classmethod
@@ -200,6 +211,7 @@ class Bot(BaseModel):
     inference_mode: InferenceMode = InferenceMode.hybrid
     tools: list[str] = Field(default_factory=lambda: ["shell", "files", "memory"])
     schedule: Optional[Schedule] = None
+    schedules: list[Schedule] = Field(default_factory=list)
     limits: Limits = Field(default_factory=Limits)
     approval_mode: ApprovalMode = ApprovalMode.ask
     memory_enabled: bool = True
@@ -231,7 +243,26 @@ class Bot(BaseModel):
             raise ValueError("workdir can only be used with folder workspace mode")
         if self.workspace_mode == "folder" and not self.workdir:
             raise ValueError("folder workspace mode requires an existing workdir")
+        if self.schedules:
+            self.schedule = self.schedules[0]
+        elif self.schedule:
+            self.schedules = [self.schedule]
         return self
+
+    def set_schedules(self, schedules: list[Schedule]) -> None:
+        """Update the multi-task list and its first-schedule compatibility alias together."""
+        if len(schedules) > 100:
+            raise ValueError("a bot can have at most 100 scheduled tasks")
+        ids = [schedule.id for schedule in schedules]
+        if len(ids) != len(set(ids)):
+            raise ValueError("scheduled task IDs must be unique within a bot")
+        self.schedules = list(schedules)
+        self.schedule = self.schedules[0] if self.schedules else None
+
+    def replace_primary_schedule(self, schedule: Schedule | None) -> None:
+        """Replace or remove the legacy-visible first task while retaining the other streams."""
+        remaining = self.schedules[1:] if self.schedules else []
+        self.set_schedules(([schedule] if schedule else []) + remaining)
 
     @field_validator("sandbox")
     @classmethod
@@ -285,6 +316,7 @@ class Run(BaseModel):
     model_used: str = ""              # may differ from bot.model after escalation/fallback
     # --- lineage (SR-7)
     origin: str = "manual"            # manual:dashboard | manual:cli | manual:api | schedule | plan
+    schedule_id: str = ""              # source schedule for recurring work; empty for other origins
     plan_id: Optional[str] = None
     plan_task_id: Optional[str] = None
     rehearsal: bool = False           # dry run: mutating actions are simulated

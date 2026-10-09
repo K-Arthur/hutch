@@ -48,6 +48,41 @@ def test_bot_name_conflicts_use_upsert(store):
     assert bots[0].instructions == "v2"
 
 
+def test_stale_settings_updates_preserve_concurrent_schedule_streams(store):
+    bot = store.create_bot(make_bot("schedule-settings-race", schedules=[
+        Schedule(id="primary-stable", name="Primary", cron="0 9 * * *"),
+    ]))
+    stale_settings = store.get_bot(bot.id)
+    store.put_schedule(bot.id, Schedule(id="added-while-editing", name="Parallel task", cron="0 10 * * *"))
+    stale_settings.instructions = "new standing instructions"
+    store.upsert_bot(stale_settings, preserve_schedules=True)
+    saved = store.get_bot(bot.id)
+    assert saved.instructions == "new standing instructions"
+    assert [schedule.id for schedule in saved.schedules] == ["primary-stable", "added-while-editing"]
+
+    stale_primary = store.get_bot(bot.id)
+    stale_primary.replace_primary_schedule(Schedule(id="stale-generated-id", name="Ignored name",
+                                                     cron="0 11 * * *", prompt="updated prompt"))
+    store.put_schedule(bot.id, Schedule(id="third-task", name="Third task", cron="0 12 * * *"))
+    store.upsert_bot(stale_primary, primary_schedule_update=stale_primary.schedule)
+    saved = store.get_bot(bot.id)
+    assert saved.schedule.id == "primary-stable" and saved.schedule.name == "Primary"
+    assert saved.schedule.cron == "0 11 * * *" and saved.schedule.prompt == "updated prompt"
+    assert [schedule.id for schedule in saved.schedules] == [
+        "primary-stable", "added-while-editing", "third-task",
+    ]
+
+    stale_primary = store.get_bot(bot.id)
+    stale_primary.replace_primary_schedule(None)
+    store.put_schedule(bot.id, Schedule(id="fourth-task", name="Fourth task", cron="0 13 * * *"))
+    store.upsert_bot(stale_primary, primary_schedule_update=None)
+    saved = store.get_bot(bot.id)
+    assert saved.schedule.id == "added-while-editing"
+    assert [schedule.id for schedule in saved.schedules] == [
+        "added-while-editing", "third-task", "fourth-task",
+    ]
+
+
 def test_task_queue_fifo_per_bot(store):
     bot = store.create_bot(make_bot())
     t1 = store.enqueue_task(Task(bot_id=bot.id, prompt="first"))

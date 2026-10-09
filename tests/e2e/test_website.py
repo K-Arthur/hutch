@@ -125,6 +125,43 @@ def test_static_site_makes_no_external_requests(browser, site_url):
     context.close()
 
 
+def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
+    context, page, errors = _page(browser, reduced_motion="reduce")
+    out = ROOT / "docs/realignment/artifacts/scheduled-tasks"
+    out.mkdir(parents=True, exist_ok=True)
+    index = (SITE_DIR / "index.html").read_bytes()
+    external = []
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(site_url) and not request.url.startswith("data:") else None)
+    captures = []
+    try:
+        page.goto(site_url, wait_until="networkidle")
+        workflow = page.locator("#workflow")
+        assert "named recurring tasks" in workflow.inner_text().lower()
+        assert "local supervisor" in workflow.inner_text().lower()
+        for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            workflow.get_by_role("heading", name="Delegate. Supervise. Verify.").scroll_into_view_if_needed()
+            workflow.screenshot(
+                path=str(out / f"site-workflow-{label}.png"), animations="disabled",
+                style="body > header { display: none !important; } .skip-link { display: none !important; }")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            captures.append({"size": label, "viewport": [width, height], "overflow": overflow})
+        assert not external, external
+        assert not errors, errors
+        (out / "site-validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_website.py::test_public_workflow_describes_named_recurring_tasks",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_website.py::test_public_workflow_describes_named_recurring_tasks",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(), "browser": browser.version,
+            "index_sha256": hashlib.sha256(index).hexdigest(), "captures": captures,
+            "anonymous": True, "external_requests": len(external), "page_errors": errors,
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        context.close()
+
+
 def test_provider_availability_is_readable_without_horizontal_page_scroll(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
     page.goto(site_url, wait_until="networkidle")
