@@ -73,6 +73,7 @@ fast-forwarded only after implementation and verification for this checkpoint pa
 | `e5b9452` | Per-bot fresh/managed/folder workspace modes, isolated retained workspace directories, API/CLI/settings controls, refreshed truthful marketing copy and visual captures; 45 focused tests, five app-browser checks and eleven website checks passed |
 | `0b98ebb` | Defer Studio chat-feed replacement while review dialogs are open; preserve focus across a background refresh, with refreshed file-download and fact-review captures |
 | `a292608` | Correct the Stop all browser test to match the standalone login page |
+| `32f98e2` | Offer the active chat Bot's configured non-mock model route as an editable default suggestion when creating a Bot from chat; document and capture desktop/tablet/phone behavior |
 | `1367516` | Schema v16 replaces per-event transcript mirror triggers with transactionally batched intent writes; adds legacy-trigger migration/backup tests, matched performance diagnosis, refreshed captures, and corrected ADR/operations/safety guidance |
 | `e711e7d` | Add explicitly trusted HTTPS reverse-proxy forwarding, host/Origin validation, source-IP propagation, capability reporting, docs and local security regressions; no real network path claimed |
 | `6ee3e29` | Opt-in per-bot local Linux browser handoff, cross-process profile/desktop leases, fail-closed headless behavior, host-aware settings, setup cleanup regression, updated support claims and inspected viewport evidence |
@@ -1930,3 +1931,24 @@ marketing HTML.
 This is a narrow UI-15 increment, not completion: the wizard still asks for the name, template, model/mode, workspace, tools, limits
 and schedule, and it does not infer safe configuration or ask only unresolved questions. No new permissions, accounts, tools,
 budgets, runs or conversation history are authorized by the source message. Implementation commit: `8445134`.
+
+## S6 chat-sourced Bot model suggestion (2026-10-09)
+
+Commit `32f98e2` carries the active chat Bot's configured non-mock route into the New Bot wizard as an explicitly named, editable
+suggestion. The user can replace it; review makes clear that the confirmed route becomes the new Bot's saved default and that
+creating the Bot starts no run. This is a per-Bot suggestion, not a workspace-wide default or a provider/account switch. The
+inference-mode choices are shortened so they remain readable in the phone-sized modal.
+
+The app/API/marketing focused verification passed **3 tests in 7.24s** with background-thread and syntax warnings treated as
+errors: `test_bot_creation_reuses_only_the_selected_chat_request_and_keeps_provenance`,
+`test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation`, and
+`test_bot_creation_records_only_an_explicit_user_message_source`. The Chromium flow checked the inherited suggestion, editable
+route, compact inference labels, saved route and no-run behavior at 1440×960, 900×1024 and 390×844. I inspected the model-step
+screenshots and the anonymous marketing card at each size; the route, description and footer remain in view without page overflow.
+The anonymous site had no page errors or external requests. `node --check`, JSON artifact validation, and `git diff --check`
+passed. The Impeccable detector returned no findings for the changed app and marketing files. No model/provider call or live
+account was used.
+
+CO-14 remains partial: this does not add a workspace-wide default, coordinator/specialist configuration, explicit per-run versus
+save-as-default control, or actual-route identity on future cross-Bot runs. CO-15 safe progress checkpoints and CO-16 separately
+controlled Bot memory grants also remain open.
