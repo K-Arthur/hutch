@@ -38,6 +38,21 @@ and shown as untrusted context to the specialist's run; they are not saved as sp
 specialist's provider may retain the submitted context. After dispatch, the provider copy cannot be recalled. See the
 [versioned handoff contract](contracts.md#3-versioned-resources-cursors-idempotency-pagination-partial-s8).
 
+## Safe checkpoint continuation
+
+Schema v34 supports an owner-confirmed **fresh attempt** for a small safe subset of coordinator-to-specialist tasks. It does not
+resume a prior process. A failed or stopped attempt is eligible only if it recorded no tool action, created no child run, has no
+newer specialist-chat run or pending question, belongs to an active coordinator conversation, and the specialist remains unpaused
+with the exact built-in runtime/model/permission snapshot captured at admission. `outcome_unknown`, external runtimes, changed
+permissions and checkpoints longer than 12,000 characters are not eligible. One source task can create at most one continuation.
+
+Before admission, the person reviews the task brief, constraints and the committed assistant checkpoint, then explicitly confirms.
+The new linked conversation gets the reviewed brief and constraints; the last assistant message is included only as bounded,
+explicitly untrusted progress context. A task with no assistant response starts again from the reviewed brief. Previously selected
+coordinator facts, tool results, old messages, credentials, approvals and receipts are excluded. Hutch never replays an action. The
+new call may incur more quota. This does not restore arbitrary execution state; unknown external outcomes still require manual
+reconciliation.
+
 ## Bounds and stopping
 
 Persisted admission limits a lineage to depth two and three lifetime direct children per parent; no more than two direct children

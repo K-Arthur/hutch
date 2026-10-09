@@ -28,12 +28,12 @@ Roughly ten Bots is the owner's initial heuristic, not a measured threshold.
    editable brief for one selected existing Bot after explicit review; provenance, assumptions, target
    settings, child chat/run, status and latest reply are linked in the coordinator timeline. Only the
    reviewed brief and assumptions cross into the specialist chat. A user may explicitly attach the exact
-   successful specialist response to a coordinator follow-up as untrusted text. Extend with a reusable owner-approved
-   specialist list, selected artifact/context references, safe restart continuation, parent cancellation,
-   cost display, bounded prompt questions, and delivery reconciliation. Schema v31 now records content-free
-   committed-event markers and exposes a bounded timeline, but tasks cannot resume after restart yet. Prompt refinement
-   cannot grant capabilities or change standing instructions. Creating a reusable specialist or changing
-   its role needs separate review and confirmation.
+   successful specialist response to a coordinator follow-up as untrusted text. Schema v34 adds one narrow,
+   owner-confirmed fresh attempt from an eligible failed/stopped built-in task; it cannot restore a process,
+   carry old tools/actions, or continue an unknown effect. Extend with reusable owner-approved specialist
+   lists, selected artifact/context references, parent cancellation, cost display, bounded prompt questions,
+   and delivery reconciliation. Prompt refinement cannot grant capabilities or change standing instructions.
+   Creating a reusable specialist or changing its role needs separate review and confirmation.
 4. **Google and Outlook Calendar reads are experimental local paths (IG-5 and IG-7 partial).**
    Each operator must configure its Google Desktop or Microsoft public-client OAuth registration and
    Linux Secret Service; no live account or consent-screen verification has been completed. Both providers authorize read-only access
@@ -50,13 +50,13 @@ Roughly ten Bots is the owner's initial heuristic, not a measured threshold.
    an actionable reason if a selected route is unavailable. Never silently switch to a hosted
    provider, another billing account, or a different inference mode. Coordinator dispatch uses the
    target Bot’s saved default unless the user explicitly selects an allowed per-task override.
-6. Continue the checkpoint work for coordinator and specialist tasks. The current schema-v31 journal
-   records ordered markers for committed messages/status/decisions/human waits and artifact references,
-   linked to the child run's immutable route/permission snapshot. It excludes event content, model
-   reasoning and action payloads. Add continuation only after persisting a versioned, validated execution
-   state and proving safe boundaries across restart. If an external effect may have happened without a
-   verified receipt, keep `outcome_unknown` for reconciliation instead of replaying it. Keep the owning
-   child's wait visible while recovery is unavailable.
+6. Extend the narrow schema-v34 checkpoint continuation only after proving each new boundary. The current
+   journal records committed event markers; eligible failed/stopped built-in attempts can create one
+   owner-confirmed fresh run only when no tool action or child work was recorded, the specialist chat has
+   no later work or pending question, and the exact saved capability snapshot still matches. The fresh
+   attempt receives only the reviewed brief, constraints and bounded untrusted assistant checkpoint.
+   External runtimes, process restoration and uncertain effects are not continued. Keep `outcome_unknown`
+   for reconciliation instead of replaying it.
 7. Keep long-term memory Bot-scoped and separate from chats, task briefs, artifacts, receipts and
    credentials. Users can choose the memory policy for each Bot and inspect, revise, disable or
    clear retained facts. A child receives only task text and explicitly selected context. Sharing a

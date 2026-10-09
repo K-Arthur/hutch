@@ -35,6 +35,146 @@ def _child(store, parent, prompt="inspect one bounded area", key="delegate", par
     )
 
 
+def _failed_workspace_task(store, *, effect: str = "", checkpoint: str | None = "Partial written analysis",
+                           terminal_status: RunStatus = RunStatus.failed):
+    coordinator = store.create_bot(Bot(name="continuation-coordinator", model="mock/demo", tools=[]))
+    specialist = store.create_bot(Bot(name="continuation-specialist", model="mock/demo", tools=[]))
+    store.set_workspace_coordinator(coordinator.id)
+    parent, _ = store.create_conversation(coordinator.id, "Coordinator", idem_key="continuation-parent",
+                                          request_hash="continuation-parent")
+    source_prompt = "Research a bounded public topic and return a short report."
+    source_run = Run(bot_id=coordinator.id, prompt=source_prompt, conversation_id=parent["id"])
+    source_task = Task(bot_id=coordinator.id, prompt=source_prompt)
+    source_run_id, _ = store.submit_conversation_message(
+        parent["id"], source_prompt, source_run, source_task,
+        idem_key="continuation-source", request_hash="continuation-source")
+    owned_source = store.claim_run(source_run_id, "continuation-source-owner", 60)
+    assert owned_source is not None
+    store.transition_run(source_run_id, RunStatus.running, fence=owned_source.fence)
+    store.append_event(Event(run_id=source_run_id, type=EventType.message,
+        data={"role": "assistant", "content": "I prepared a public-information research brief.",
+              "message_id": "continuation-source-answer"}, owner_fence=owned_source.fence))
+    store.flush_events()
+    store.transition_run(source_run_id, RunStatus.succeeded, fence=owned_source.fence)
+    source_messages = store.list_conversation_messages(parent["id"])
+    source_user = next(message for message in source_messages if message["role"] == "user")
+    source_assistant = next(message for message in source_messages if message["role"] == "assistant")
+
+    brief = "Compare two public launch approaches and report their trade-offs."
+    assumptions = "Use public information only."
+    effective_prompt = brief + "\n\nUser-reviewed assumptions and constraints:\n" + assumptions
+    specialist_run = Run(bot_id=specialist.id, prompt=effective_prompt, origin="workspace_task")
+    specialist_task = Task(bot_id=specialist.id, prompt=effective_prompt)
+    child_run_id, _ = store.submit_workspace_task(
+        parent_conversation_id=parent["id"], source_run_id=source_run_id,
+        source_user_message_id=source_user["id"], source_assistant_message_id=source_assistant["id"],
+        target_bot_id=specialist.id, task_brief=brief, assumptions=assumptions,
+        run=specialist_run, task=specialist_task, capability_snapshot=Engine.capability_snapshot(specialist),
+        idem_key="continuation-task", request_hash="continuation-task")
+    owned_child = store.claim_run(child_run_id, "continuation-child-owner", 60)
+    assert owned_child is not None
+    store.transition_run(child_run_id, RunStatus.running, fence=owned_child.fence)
+    if effect:
+        action_id = store.begin_action(child_run_id, "browser", "continuation-effect", effect,
+            "opened or changed a public page", fence=owned_child.fence,
+            arguments={"url": "https://example.test/"}, authority={}, scope={})
+        store.finish_action(action_id, "done", expected_fence=owned_child.fence)
+    if checkpoint is not None:
+        store.append_event(Event(run_id=child_run_id, type=EventType.message,
+            data={"role": "assistant", "content": checkpoint, "message_id": "continuation-checkpoint"},
+            owner_fence=owned_child.fence))
+    store.flush_events()
+    store.transition_run(child_run_id, terminal_status, fence=owned_child.fence,
+                         exit_reason="interrupted", error="test interruption")
+    task = store.list_workspace_tasks(parent["id"])[0]
+    return parent["id"], task, specialist
+
+
+def test_failed_workspace_task_exposes_only_a_no_effect_committed_continuation(store):
+    parent_id, task, _ = _failed_workspace_task(store)
+    assert task["status"] == "failed"
+    assert task["continuation_available"] is True
+    assert task["continuation_checkpoint_kind"] == "assistant_message"
+    assert task["continuation_checkpoint_preview"] == "Partial written analysis"
+
+
+def test_failed_workspace_task_with_any_effect_receipt_cannot_continue(store):
+    parent_id, task, _ = _failed_workspace_task(store, effect="web")
+    assert task["status"] == "failed"
+    assert task["continuation_available"] is False
+    assert "effect" in task["continuation_reason"].lower()
+
+
+def test_outcome_unknown_workspace_task_cannot_continue_without_reconciling_effect(store):
+    _, task, _ = _failed_workspace_task(store, terminal_status=RunStatus.outcome_unknown)
+    assert task["status"] == "outcome_unknown"
+    assert task["continuation_available"] is False
+    assert "may have happened" in task["continuation_reason"].lower()
+
+
+def test_workspace_task_without_assistant_checkpoint_continues_only_from_reviewed_brief(store):
+    parent_id, previous, specialist = _failed_workspace_task(store, checkpoint=None)
+    assert previous["continuation_available"] is True
+    assert previous["continuation_checkpoint_kind"] == "task_submitted"
+    new_id, created = store.continue_workspace_task(
+        previous["id"], run=Run(bot_id=specialist.id, prompt="", origin="workspace_task"),
+        task=Task(bot_id=specialist.id, kind="on_demand", prompt=""),
+        capability_snapshot=Engine.capability_snapshot(specialist),
+        idem_key="continue-no-assistant-checkpoint", request_hash="continue-no-assistant-checkpoint-v1")
+    assert created is True
+    continued = next(item for item in store.list_workspace_tasks(parent_id) if item["id"] == new_id)
+    run = store.get_run(continued["child_run_id"])
+    assert run is not None and run.conversation_context == [{
+        "role": "user", "content": "Original reviewed task brief:\nCompare two public launch approaches and report their trade-offs.\n\n"
+        "User-reviewed constraints:\nUse public information only."}]
+
+
+def test_safe_workspace_task_continuation_is_a_new_linked_idempotent_attempt(store):
+    parent_id, previous, specialist = _failed_workspace_task(store)
+    run = Run(bot_id=specialist.id, prompt="", origin="workspace_task")
+    task = Task(bot_id=specialist.id, kind="on_demand", prompt="")
+    new_id, created = store.continue_workspace_task(
+        previous["id"], run=run, task=task, capability_snapshot=Engine.capability_snapshot(specialist),
+        idem_key="continue-workspace-task", request_hash="continue-workspace-task-v1")
+
+    assert created is True
+    items = store.list_workspace_tasks(parent_id)
+    continued = next(item for item in items if item["id"] == new_id)
+    assert continued["continuation_of_task_id"] == previous["id"]
+    assert continued["continuation_checkpoint_event_id"] is not None
+    assert continued["status"] == "pending"
+    assert continued["shared_facts"] == []
+    continued_run = store.get_run(continued["child_run_id"])
+    assert continued_run is not None and continued_run.status is RunStatus.pending
+    assert "Original reviewed task brief:" in continued_run.conversation_context[0]["content"]
+    assert "Use public information only." in continued_run.conversation_context[0]["content"]
+    assert "untrusted progress" in continued_run.conversation_context[1]["content"]
+    assert "Partial written analysis" in continued_run.conversation_context[1]["content"]
+    assert "Continue this owner-reviewed task" in continued_run.prompt
+
+    replay, inserted = store.continue_workspace_task(
+        previous["id"], run=Run(bot_id=specialist.id, prompt="", origin="workspace_task"),
+        task=Task(bot_id=specialist.id, kind="on_demand", prompt=""),
+        capability_snapshot=Engine.capability_snapshot(specialist),
+        idem_key="continue-workspace-task", request_hash="continue-workspace-task-v1")
+    assert inserted is False and replay == new_id
+    with pytest.raises(IdempotencyConflict):
+        store.continue_workspace_task(
+            previous["id"], run=Run(bot_id=specialist.id, prompt="", origin="workspace_task"),
+            task=Task(bot_id=specialist.id, kind="on_demand", prompt=""),
+            capability_snapshot=Engine.capability_snapshot(specialist),
+            idem_key="continue-workspace-task", request_hash="changed-continuation-v2")
+
+
+def test_workspace_task_with_changed_bot_policy_cannot_continue(store):
+    parent_id, previous, specialist = _failed_workspace_task(store)
+    changed_bot = specialist.model_copy(update={"tools": ["web_fetch"]})
+    store.upsert_bot(changed_bot)
+    candidate = store.workspace_task_continuation_candidate(previous["id"])
+    assert candidate["available"] is False
+    assert "permissions changed" in candidate["reason"].lower()
+
+
 def _remove_later_conversation_schema(db):
     """Remove post-v24 conversation/task schema before lowering user_version."""
     for trigger in (
@@ -43,11 +183,13 @@ def _remove_later_conversation_schema(db):
         "messages_choice_question_update", "conversation_question_definition_immutable",
         "conversation_question_resolve_once", "messages_reply_target_insert", "messages_reply_target_update",
         "workspace_task_fact_share_source_guard", "workspace_task_fact_share_immutable",
-        "workspace_task_fact_share_no_delete",
+        "workspace_task_fact_share_no_delete", "workspace_task_continuation_source_guard",
+        "workspace_task_continuation_immutable", "workspace_task_continuation_no_delete",
     ):
         db.execute(f"DROP TRIGGER IF EXISTS {trigger}")
     db.execute("DROP INDEX IF EXISTS idx_messages_workspace_task_result")
-    for table in ("workspace_task_fact_shares", "workspace_task_checkpoints", "workspace_tasks", "workspace_settings",
+    for table in ("workspace_task_continuations", "workspace_task_fact_shares", "workspace_task_checkpoints",
+                  "workspace_tasks", "workspace_settings",
                   "conversation_questions", "google_calendar_grants"):
         db.execute(f"DROP TABLE IF EXISTS {table}")
     columns = {row[1] for row in db.execute("PRAGMA table_info(messages)")}

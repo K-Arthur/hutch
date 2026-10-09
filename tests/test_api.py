@@ -53,6 +53,13 @@ def test_health_and_stats(client):
     assert stats["bots"] == 0 and stats["pending_approvals"] == 0
 
 
+def test_workspace_task_continuation_route_returns_not_found_for_missing_history(client):
+    response = client.post("/api/v1/workspace/tasks/wst_missing/continue",
+                           headers={"Idempotency-Key": "continue-missing-task"})
+    assert response.status_code == 404
+    assert response.json()["detail"] == "This task is no longer available."
+
+
 def test_bot_creation_records_only_an_explicit_user_message_source(client):
     source = make_bot(client, name="source-conversation-bot", paused=True)
     store = client.app.state.store

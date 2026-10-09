@@ -4,7 +4,8 @@
 
 hutch is a **local-first, MIT-licensed multi-bot platform in private preview** (early software, Linux first). Run named AI bots on
 your own machine, each with its own model, tools, schedule, memory and workspace, with human approval gates,
-step/time/token caps and run transcripts.
+step/time/token caps and run transcripts. For eligible failed or stopped built-in specialist tasks, an owner can review a safe
+checkpoint and request a fresh run; Hutch does not resume an old worker or replay actions.
 
 Hosted agent products (OpenAI dots, Grok Bot) give each agent a computer in the vendor's cloud. hutch runs on your
 machine instead: the orchestrator, memory, logs and bots live in one directory on your disk, with models you choose, local

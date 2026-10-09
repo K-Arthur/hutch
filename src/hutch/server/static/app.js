@@ -31,6 +31,7 @@ const DEFAULT_STATUS_INFO = {
 let statusInfo = { ...DEFAULT_STATUS_INFO };
 let currentConversationId = null;
 let currentConversations = [];
+let currentWorkspaceTasks = [];
 let studioGeneration = 0;
 let activeReplySelectionHandler = null;
 let activeWorkspaceResultSelectionHandler = null;
@@ -1995,6 +1996,7 @@ async function renderChatFeed() {
     if (!stillCurrent()) return;
     workspaceTasks = await api(`/v1/workspace/tasks?conversation_id=${encodeURIComponent(conversationId)}&limit=100`)
       .catch(() => []);
+    currentWorkspaceTasks = workspaceTasks;
     if (!stillCurrent()) return;
   } catch { return; }
   if ($("#modal-root .modal-card")) { feedRefreshPending = true; return; }
@@ -2426,9 +2428,12 @@ function workspaceTaskCardHtml(task) {
   const checkpointSummary = task.checkpoint_count > checkpoints.length
     ? `Showing the ${checkpoints.length} most recent of ${task.checkpoint_count} committed checkpoints.`
     : `${task.checkpoint_count || checkpoints.length} committed checkpoints.`;
+  const checkpointRecovery = task.continuation_available
+    ? "A safe continuation starts a new run from this checkpoint; it does not resume or replay the old worker."
+    : task.continuation_reason || "Continuation is offered only for a stopped or interrupted run with no recorded effects and unchanged permissions.";
   const checkpointHtml = checkpoints.length ? `<details class="workspace-task-checkpoints">
       <summary>Progress checkpoints (${Number(task.checkpoint_count || checkpoints.length).toLocaleString()})</summary>
-      <p class="hint">${esc(checkpointSummary)} These record committed events only; they do not store reasoning or action text. Restart continuation is not available yet.</p>
+      <p class="hint">${esc(checkpointSummary)} These record committed events, not a snapshot of execution state. ${esc(checkpointRecovery)}</p>
       <ol>${checkpoints.map(checkpoint => {
         const date = new Date(checkpoint.created_at);
         const when = Number.isNaN(date.valueOf()) ? "Time unavailable" : date.toLocaleString();
@@ -2456,9 +2461,17 @@ function workspaceTaskCardHtml(task) {
       <ul>${sharedFacts.map(fact => `<li><strong>${esc(fact.key)}</strong><span>${esc(fact.value)}</span>
         <small>From ${esc(fact.source_display_name)} · ${fact.source_scope_kind === "conversation" ? "this coordinator chat" : "coordinator-wide reference"} · revision ${Number(fact.revision) || 0}</small></li>`).join("")}</ul>
     </details>` : "";
+  const continuationLineage = task.continuation_of_task_id
+    ? `<p class="hint">Continued from a prior no-effect attempt. Reviewed task facts and action receipts were not carried forward.</p>` : "";
+  const continuationPreview = task.continuation_checkpoint_preview
+    ? `<blockquote class="workspace-task-continuation-preview">${esc(task.continuation_checkpoint_preview)}</blockquote>`
+    : `<p class="hint">No assistant response was committed yet. Hutch will start a fresh run from the reviewed brief.</p>`;
+  const continueButton = task.continuation_available
+    ? `<button class="btn ghost small" type="button" data-continue-workspace-task="${esc(task.id)}">Continue from checkpoint</button>` : "";
   return `<section class="workspace-task-card" data-workspace-task="${esc(task.id)}" aria-label="Task for ${esc(task.target_display_name)}">
     <div class="workspace-task-heading"><strong>Assigned to ${esc(task.target_display_name)}</strong>${statusChip(task.status, statusLabel)}</div>
     <p class="workspace-task-brief">${esc(task.task_brief)}</p>
+    ${continuationLineage}
     ${task.assumptions ? `<p class="workspace-task-assumptions"><b>Reviewed constraints:</b> ${esc(task.assumptions)}</p>` : ""}
     <p class="hint">Specialist settings: ${esc(capability)}</p>
     ${sharedFactsHtml}
@@ -2471,12 +2484,53 @@ function workspaceTaskCardHtml(task) {
     </details>
     <div class="btn-row">
       <button class="btn ghost small" type="button" data-open-workspace-task="${esc(task.child_conversation_id)}">Open specialist chat</button>
+      ${continueButton}
       ${coordinator && task.status === "succeeded" && task.result && task.result_message_id
         ? `<button class="btn ghost small" type="button" data-discuss-specialist-result="${esc(task.id)}"
             data-result-message-id="${esc(task.result_message_id)}">Discuss with ${esc(botDisplayName(coordinator))}</button>` : ""}
       ${active ? `<button class="btn ghost small" type="button" data-stop-run="${esc(task.child_run_id)}">Stop specialist</button>` : ""}
     </div>
   </section>`;
+}
+
+function continueWorkspaceTask(button) {
+  const taskId = button.dataset.continueWorkspaceTask;
+  const task = currentWorkspaceTasks.find(item => item.id === taskId);
+  if (!task?.continuation_available) { toast(task?.continuation_reason || "This checkpoint cannot be continued.", true); return; }
+  const keyStorage = `hutch-pending-workspace-continuation:${taskId}`;
+  const checkpoint = task.continuation_checkpoint_preview
+    ? `<blockquote class="workspace-task-continuation-preview">${esc(task.continuation_checkpoint_preview)}</blockquote>`
+      : `<p class="hint">No assistant response was committed yet. Hutch will start a fresh run from the reviewed brief.</p>`;
+  openModal({
+    title: "Continue from a safe checkpoint",
+    confirmText: "Start a new run",
+    returnFocus: button,
+    bodyHtml: `<p>This creates a fresh run for <b>${esc(task.target_display_name)}</b>. It does not resume the old process or repeat any recorded action.</p>
+      <h4>Reviewed task</h4><p>${esc(task.task_brief)}</p>
+      ${task.assumptions ? `<h4>Reviewed constraints</h4><p>${esc(task.assumptions)}</p>` : ""}
+      <h4>Checkpoint</h4>${checkpoint}
+      <p class="hint">The previous action list is empty and the specialist's saved model and permissions are unchanged. This new model call may use additional quota. Only the reviewed brief, constraints, and committed assistant response are passed forward; selected facts, old tool results, credentials, and action receipts are not.</p>
+      <p id="workspace-continuation-error" role="alert" hidden></p>`,
+    onConfirm: async () => {
+      const confirm = $("#modal-confirm"), error = $("#workspace-continuation-error");
+      let key = storageGet(keyStorage);
+      if (!key) { key = newIdempotencyKey(); storageSet(keyStorage, key); }
+      confirm.disabled = true;
+      try {
+        await api(`/v1/workspace/tasks/${encodeURIComponent(taskId)}/continue`, {
+          method: "POST", headers: { "Idempotency-Key": key },
+        });
+        storageRemove(keyStorage);
+        toast(`A new ${task.target_display_name} run has started from the committed checkpoint.`);
+        scheduleFeedRender();
+        return true;
+      } catch (err) {
+        error.textContent = `Continuation was not confirmed: ${err.message}. You can safely retry this same request.`;
+        error.hidden = false;
+        return false;
+      } finally { if (confirm.isConnected) confirm.disabled = false; }
+    },
+  });
 }
 
 function workspaceTaskCapabilityHtml(bot) {
@@ -2910,6 +2964,8 @@ function wireFeedInteractions() {
     if (assignTask) { void prepareWorkspaceTask(assignTask); return; }
     const openWorkspaceTask = ev.target.closest("[data-open-workspace-task]");
     if (openWorkspaceTask) { void openConversation(openWorkspaceTask.dataset.openWorkspaceTask); return; }
+    const continueTask = ev.target.closest("[data-continue-workspace-task]");
+    if (continueTask) { continueWorkspaceTask(continueTask); return; }
     const reply = ev.target.closest("[data-reply-message]");
     if (reply) { void activeReplySelectionHandler?.(reply.dataset.replyMessage); return; }
     const receipt = ev.target.closest('[data-receipt-review]');

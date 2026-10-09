@@ -1,5 +1,18 @@
 # Visual validation record
 
+## Safe checkpoint continuation (schema v34)
+
+Chromium **153.0.8010.12** / Playwright **1.63.0** passed
+`tests/e2e/test_browser.py::test_safe_checkpoint_continuation_is_reviewed_and_starts_a_new_attempt` using local SQLite and a mock runtime.
+The owner-visible review names the specialist, shows the exact brief and constraints, previews the committed assistant checkpoint,
+warns that the fresh model call may use more quota, and spells out excluded facts, prior results, credentials and receipts. Confirming
+creates a new linked pending attempt; no provider call or action receipt is produced. I inspected the confirmation at desktop
+**1440×960**, tablet **900×1024**, and phone **390×844**. The phone's decision footer remains visible at the bottom and the long
+disclosure wraps without horizontal overflow. Captures and trace are in [`artifacts/safe-task-continuation/`](artifacts/safe-task-continuation/).
+`tests/e2e/test_website.py::test_public_workflow_describes_named_recurring_tasks` checks the updated anonymous marketing claim at
+desktop/tablet/phone with zero external requests. These fixtures do not verify live provider recovery, screen readers or a physical
+phone.
+
 ## Reduced Bot-creation setup (2026-10-09)
 
 Studio Bot creation now uses four reviewable screens. The first uses the selected latest chat request when present and shows a

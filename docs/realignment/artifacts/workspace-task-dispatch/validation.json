@@ -39,7 +39,8 @@
     "selected result can be removed before the explicit follow-up is sent",
     "shared result is linked to its exact source and marked as untrusted context",
     "checkpoint timeline is bounded and contains only committed event markers",
-    "checkpoint UI explicitly says restart continuation is not available",
+    "only a terminal no-effect attempt with unchanged built-in permissions can continue",
+    "continuation starts a fresh run and never replays the previous worker or its actions",
     "final phone checkpoint remains above the sticky composer",
     "no horizontal overflow",
     "task appears in main chat"

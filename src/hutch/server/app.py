@@ -254,6 +254,8 @@ class WorkspaceTaskResource(BaseModel):
     assumptions: str
     child_conversation_id: str
     child_run_id: str
+    continuation_of_task_id: Optional[str] = None
+    continuation_checkpoint_event_id: Optional[int] = None
     status: str
     reason: str
     result: str
@@ -268,6 +270,11 @@ class WorkspaceTaskResource(BaseModel):
     checkpoint_count: int = 0
     checkpoints: list[WorkspaceTaskCheckpointResource] = Field(default_factory=list)
     shared_facts: list[WorkspaceTaskSharedFactResource] = Field(default_factory=list)
+    continuation_available: bool = False
+    continuation_reason: str = ""
+    continuation_checkpoint_kind: str = ""
+    continuation_checkpoint_event_seq: int = 0
+    continuation_checkpoint_preview: str = ""
 
 
 class RunRequest(BaseModel):
@@ -1690,6 +1697,52 @@ def create_app() -> FastAPI:
         result = store.replay_workspace_task(idem_key=key, request_hash=digest)
         if result is None:
             raise HTTPException(500, "The task was admitted but its durable task record could not be read")
+        return result
+
+    @app.post("/api/v1/workspace/tasks/{task_id}/continue", response_model=WorkspaceTaskResource)
+    def continue_workspace_task(task_id: str, request: Request, response: Response) -> dict:
+        """Start a fresh attempt from a no-effect committed checkpoint; never resume an old worker."""
+        key = idempotency_key(request)
+        digest = request_digest({"command": "continue-safe-workspace-task", "task_id": task_id})
+        try:
+            replay = store.replay_workspace_task_continuation(idem_key=key, request_hash=digest)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        if replay is not None:
+            response.status_code = 200
+            return replay
+        candidate = store.workspace_task_continuation_candidate(task_id)
+        if not candidate["available"]:
+            if candidate["reason"] == "This task is no longer available.":
+                raise HTTPException(404, candidate["reason"])
+            raise HTTPException(409, candidate["reason"])
+        target = store.get_bot(candidate["target_bot_id"])
+        if target is None:
+            raise HTTPException(404, "The specialist Bot is no longer available")
+        store.assert_execution_ready()
+        from ..modelchoices import ModelNotUsable, validate_override
+        try:
+            model = validate_override(config, store, target, target.model)
+        except ModelNotUsable as exc:
+            raise HTTPException(exc.status, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
+        if model != target.model:
+            raise HTTPException(409, "The specialist's configured model changed; review its settings and try again")
+        run = Run(bot_id=target.id, prompt="", origin="workspace_task")
+        task = Task(bot_id=target.id, kind="on_demand", prompt="")
+        try:
+            continued_id, created = store.continue_workspace_task(
+                task_id, run=run, task=task, capability_snapshot=Engine.capability_snapshot(target),
+                idem_key=key, request_hash=digest)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except KeyError:
+            raise HTTPException(404, "The specialist task is no longer available") from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        response.status_code = 201 if created else 200
+        result = store.replay_workspace_task_continuation(idem_key=key, request_hash=digest)
+        if result is None:
+            raise HTTPException(500, "The continuation was admitted but its durable task record could not be read")
         return result
 
     def _checked_workdir(raw: str) -> str:

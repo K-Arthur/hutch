@@ -182,7 +182,7 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
         checkpoint_copy = task_card.locator(".workspace-task-checkpoints").inner_text()
         assert "Reviewed task accepted" in checkpoint_copy
         assert "Specialist response committed" in checkpoint_copy
-        assert "Restart continuation is not available yet" in checkpoint_copy
+        assert "This task already completed; continue the specialist chat directly." in checkpoint_copy
         assert checkpoint_list.locator("li").count() <= 16
         checkpoint_style = checkpoint_list.locator("li").first.evaluate("""element => {
           const style = getComputedStyle(element);
@@ -279,7 +279,8 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
                            "selected result can be removed before the explicit follow-up is sent",
                            "shared result is linked to its exact source and marked as untrusted context",
                            "checkpoint timeline is bounded and contains only committed event markers",
-                           "checkpoint UI explicitly says restart continuation is not available",
+                           "only a terminal no-effect attempt with unchanged built-in permissions can continue",
+                           "continuation starts a fresh run and never replays the previous worker or its actions",
                            "final phone checkpoint remains above the sticky composer",
                            "no horizontal overflow", "task appears in main chat"],
             "fixtures": "Local mock model and local SQLite only; no provider or paid call.",
@@ -401,6 +402,137 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
     finally:
         if not trace_stopped:
             # Trace is stopped explicitly on success; on assertion failure retain diagnostic state too.
+            try:
+                context.tracing.stop(path=str(out / "trace-failed.zip"))
+            except Exception:
+                pass
+        context.close()
+
+
+def test_safe_checkpoint_continuation_is_reviewed_and_starts_a_new_attempt(browser, live, monkeypatch):
+    """A no-effect task resumes only as a new, reviewable run with its checkpoint provenance intact."""
+    from hutch.engine import Engine
+
+    base, app = live
+    # Keep the fixture deterministic; this journey tests admission and presentation, not execution.
+    monkeypatch.setattr(app.state.engine, "dispatch_pending", lambda: 0)
+    store = app.state.store
+    coordinator = store.create_bot(Bot(name="resume-coordinator", display_name="Mara", model="mock/demo", tools=[]))
+    specialist = store.create_bot(Bot(name="resume-specialist", display_name="Research Partner", model="mock/demo", tools=[]))
+    store.set_workspace_coordinator(coordinator.id)
+    parent, _ = store.create_conversation(coordinator.id, "Coordinator", idem_key="resume-parent",
+                                          request_hash="resume-parent")
+
+    source_prompt = "Compare two launch approaches and keep the task within Hutch."
+    source_run = Run(bot_id=coordinator.id, prompt=source_prompt, conversation_id=parent["id"])
+    source_run_id, _ = store.submit_conversation_message(parent["id"], source_prompt, source_run,
+        Task(bot_id=coordinator.id, prompt=source_prompt), idem_key="resume-source", request_hash="resume-source")
+    owner = store.claim_run(source_run_id, "resume-source-owner", 60)
+    assert owner is not None
+    store.transition_run(source_run_id, RunStatus.running, fence=owner.fence)
+    store.append_event(Event(run_id=source_run_id, type=EventType.message,
+        data={"role": "assistant", "content": "I prepared a public-information research brief.",
+              "message_id": "resume-source-answer"}, owner_fence=owner.fence))
+    store.flush_events()
+    store.transition_run(source_run_id, RunStatus.succeeded, fence=owner.fence)
+    source_messages = store.list_conversation_messages(parent["id"])
+    source_user = next(message for message in source_messages if message["role"] == "user")
+    source_answer = next(message for message in source_messages if message["role"] == "assistant")
+
+    brief = "Compare two public launch approaches and report the main trade-offs."
+    assumptions = "Use public sources only; do not contact anyone."
+    effective = brief + "\n\nUser-reviewed assumptions and constraints:\n" + assumptions
+    pending_run = Run(bot_id=specialist.id, prompt=effective, origin="workspace_task")
+    pending_task = Task(bot_id=specialist.id, prompt=effective)
+    child_run_id, _ = store.submit_workspace_task(parent_conversation_id=parent["id"],
+        source_run_id=source_run_id, source_user_message_id=source_user["id"],
+        source_assistant_message_id=source_answer["id"], target_bot_id=specialist.id,
+        task_brief=brief, assumptions=assumptions, run=pending_run, task=pending_task,
+        capability_snapshot=Engine.capability_snapshot(specialist), idem_key="resume-task", request_hash="resume-task")
+    child_owner = store.claim_run(child_run_id, "resume-child-owner", 60)
+    assert child_owner is not None
+    store.transition_run(child_run_id, RunStatus.running, fence=child_owner.fence)
+    checkpoint = "The market outline is incomplete; compare price, setup effort, and support coverage."
+    store.append_event(Event(run_id=child_run_id, type=EventType.message,
+        data={"role": "assistant", "content": checkpoint, "message_id": "resume-checkpoint"},
+        owner_fence=child_owner.fence))
+    store.flush_events()
+    store.transition_run(child_run_id, RunStatus.failed, fence=child_owner.fence,
+                         exit_reason="interrupted", error="fixture interruption")
+
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/safe-task-continuation"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors, origins = [], set()
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: origins.add(urlsplit(request.url).netloc))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    trace_stopped = False
+    try:
+        page.goto(f"{base}/#/chat/{coordinator.name}")
+        button = page.get_by_role("button", name="Continue from checkpoint")
+        button.wait_for(timeout=10000)
+        card = page.locator("[data-workspace-task]").filter(has=button)
+        assert "Failed" in card.inner_text()
+        assert "Research Partner" in card.inner_text()
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+        button.click()
+        dialog = page.get_by_role("dialog", name="Continue from a safe checkpoint")
+        dialog.wait_for()
+        assert brief in dialog.inner_text()
+        assert assumptions in dialog.inner_text()
+        assert checkpoint in dialog.inner_text()
+        assert "additional quota" in dialog.inner_text()
+        assert "selected facts" in dialog.inner_text()
+        viewports = {"desktop": (1440, 960), "tablet": (900, 1024), "phone": (390, 844)}
+        captures = []
+        for label, (width, height) in viewports.items():
+            page.set_viewport_size({"width": width, "height": height})
+            page.evaluate("document.fonts.ready")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            assert dialog.is_visible()
+            capture = out / f"confirm-{label}.png"
+            page.screenshot(path=str(capture), full_page=True, animations="disabled")
+            captures.append(capture.name)
+            if label == "phone":
+                body = dialog.locator(".modal-body")
+                body.evaluate("element => element.scrollTop = element.scrollHeight")
+                footer = dialog.locator(".modal-footer").bounding_box()
+                confirm = dialog.get_by_role("button", name="Start a new run").bounding_box()
+                assert footer and confirm and confirm["y"] >= footer["y"]
+                page.screenshot(path=str(out / "confirm-phone-bottom.png"), full_page=True, animations="disabled")
+
+        dialog.get_by_role("button", name="Start a new run").click()
+        continued_card = page.locator("[data-workspace-task]").filter(has_text="Continued from a prior no-effect attempt")
+        continued_card.wait_for(timeout=10000)
+        assert "Queued" in continued_card.inner_text()
+        items = store.list_workspace_tasks(parent["id"])
+        continued = next(item for item in items if item["continuation_of_task_id"])
+        continued_run = store.get_run(continued["child_run_id"])
+        assert continued_run is not None and continued_run.status is RunStatus.pending
+        assert checkpoint in continued_run.conversation_context[-1]["content"]
+        assert "untrusted progress context" in continued_run.conversation_context[-1]["content"]
+        assert continued["shared_facts"] == []
+        assert not store.actions_in_doubt(continued["child_run_id"])
+        assert store._db.execute("SELECT COUNT(*) FROM tool_actions WHERE run_id = ?", (child_run_id,)).fetchone()[0] == 0
+        assert origins <= {urlsplit(base).netloc}
+        assert not errors, errors
+        context.tracing.stop(path=str(out / "trace.zip"))
+        trace_stopped = True
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_safe_checkpoint_continuation_is_reviewed_and_starts_a_new_attempt",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_safe_checkpoint_continuation_is_reviewed_and_starts_a_new_attempt",
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "playwright": package_version("playwright"), "viewports": viewports,
+            "screenshots": captures + ["confirm-phone-bottom.png"],
+            "provider_calls": 0, "external_requests": 0, "page_errors": errors,
+            "status": "new pending run, linked to exact previous checkpoint event",
+            "authority": "No effects, action receipts, child runs, or task-only fact snapshots were carried forward.",
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        if not trace_stopped:
             try:
                 context.tracing.stop(path=str(out / "trace-failed.zip"))
             except Exception:

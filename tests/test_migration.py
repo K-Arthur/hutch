@@ -19,7 +19,7 @@ from hutch.engine import Engine
 from hutch.lifecycle import IllegalTransition
 from hutch.models import RunStatus
 from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28,
-                         _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33)
+                         _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
@@ -27,7 +27,7 @@ FINISHED_1, FINISHED_2, ORPHAN, QUEUED = "run_582f4cc75ea4", "run_fa7f70664c38",
 
 
 def test_reply_reference_migration_preserves_old_rows_and_guards_scope():
-    assert SCHEMA_VERSION == 33
+    assert SCHEMA_VERSION == 34
     db = sqlite3.connect(":memory:")
     try:
         db.execute("CREATE TABLE bots (id TEXT PRIMARY KEY)")
@@ -106,6 +106,36 @@ def test_v32_outlook_calendar_grant_migration_is_empty_and_idempotent():
         columns = [row[1] for row in db.execute("PRAGMA table_info(outlook_calendar_grants)")]
         assert columns == ["bot_id", "account_id", "calendar_id", "calendar_name", "granted_at"]
         assert db.execute("SELECT COUNT(*) FROM outlook_calendar_grants").fetchone()[0] == 0
+    finally:
+        db.close()
+
+
+def test_v34_continuation_lineage_guard_requires_a_committed_task_checkpoint():
+    db = sqlite3.connect(":memory:")
+    try:
+        db.executescript("""
+            CREATE TABLE workspace_tasks (
+                id TEXT PRIMARY KEY, parent_conversation_id TEXT NOT NULL,
+                target_bot_id TEXT NOT NULL, child_run_id TEXT NOT NULL);
+            CREATE TABLE events (id INTEGER PRIMARY KEY, run_id TEXT NOT NULL, type TEXT NOT NULL, data TEXT NOT NULL);
+            CREATE TABLE workspace_task_checkpoints (
+                workspace_task_id TEXT NOT NULL, child_run_id TEXT NOT NULL,
+                event_id INTEGER NOT NULL, kind TEXT NOT NULL);
+            CREATE TABLE runs (id TEXT PRIMARY KEY, status TEXT NOT NULL);
+            INSERT INTO workspace_tasks VALUES ('prior', 'parent', 'specialist', 'run-prior');
+            INSERT INTO workspace_tasks VALUES ('continued', 'parent', 'specialist', 'run-new');
+            INSERT INTO events VALUES (100, 'run-prior', 'message', '{"role":"assistant","content":"checkpoint"}');
+            INSERT INTO runs VALUES ('run-prior', 'failed');
+        """)
+        _migrate_34(db)
+        with pytest.raises(sqlite3.IntegrityError, match="committed task/assistant checkpoint"):
+            db.execute("INSERT INTO workspace_task_continuations VALUES ('continued', 'prior', 100, 'now')")
+        db.execute("INSERT INTO workspace_task_checkpoints VALUES ('prior', 'run-prior', 100, 'assistant_message')")
+        db.execute("INSERT INTO workspace_task_continuations VALUES ('continued', 'prior', 100, 'now')")
+        with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+            db.execute("UPDATE workspace_task_continuations SET created_at='later' WHERE task_id='continued'")
+        with pytest.raises(sqlite3.IntegrityError, match="removed only with its task"):
+            db.execute("DELETE FROM workspace_task_continuations WHERE task_id='continued'")
     finally:
         db.close()
 

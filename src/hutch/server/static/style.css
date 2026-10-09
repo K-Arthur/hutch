@@ -555,6 +555,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .workspace-task-card .btn-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .workspace-task-result { margin: var(--s-3) 0; padding-top: var(--s-3); border-top: 1px solid var(--line); }
 .workspace-task-result p { margin-bottom: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.workspace-task-continuation-preview { min-width: 0; margin: var(--s-3) 0; padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-control); background: var(--sunken); color: var(--text-2); white-space: pre-wrap; overflow-wrap: anywhere; }
 .workspace-task-checkpoints { min-width: 0; padding: var(--s-3); border: 1px solid var(--line); border-radius: 10px; background: var(--bg-subtle); }
 .workspace-task-checkpoints > summary { width: fit-content; max-width: 100%; font-weight: 650; overflow-wrap: anywhere; }
 .workspace-task-checkpoints > p { margin: var(--s-2) 0; }
