@@ -32,6 +32,7 @@ let statusInfo = { ...DEFAULT_STATUS_INFO };
 let currentConversationId = null;
 let currentConversations = [];
 let currentWorkspaceTasks = [];
+let currentCodeHandoffs = [];
 let studioGeneration = 0;
 let activeReplySelectionHandler = null;
 let activeWorkspaceResultSelectionHandler = null;
@@ -2016,7 +2017,7 @@ async function renderChatFeed() {
 
   const conversationId = currentConversationId, generation = studioGeneration;
   const stillCurrent = () => generation === studioGeneration && conversationId === currentConversationId && stream.isConnected;
-  let messages, authority, factPage, factShares, workspaceTasks = [];
+  let messages, authority, factPage, factShares, workspaceTasks = [], codeHandoffs = [];
   try {
     if (!currentConversationId) return;
     const summary = await api(`/v1/conversations/${encodeURIComponent(conversationId)}?after=0&limit=1`);
@@ -2036,6 +2037,10 @@ async function renderChatFeed() {
     workspaceTasks = await api(`/v1/workspace/tasks?conversation_id=${encodeURIComponent(conversationId)}&limit=100`)
       .catch(() => []);
     currentWorkspaceTasks = workspaceTasks;
+    if (!stillCurrent()) return;
+    codeHandoffs = await api(`/v1/code-handoffs?conversation_id=${encodeURIComponent(conversationId)}&limit=100`)
+      .catch(() => []);
+    currentCodeHandoffs = codeHandoffs;
     if (!stillCurrent()) return;
   } catch { return; }
   if ($("#modal-root .modal-card")) { feedRefreshPending = true; return; }
@@ -2066,9 +2071,10 @@ async function renderChatFeed() {
     try {
       const hasVisibleBotReply = messages.some(m => m.role === "assistant" && m.run_id === runId);
       const hasWorkspaceTask = workspaceTasks.some(task => task.source_run_id === runId);
-      if (runId === currentRunId || hasWorkspaceTask || !terminalRunCache.has(runId)
+      const hasCodeHandoff = codeHandoffs.some(task => task.source_run_id === runId);
+      if (runId === currentRunId || hasWorkspaceTask || hasCodeHandoff || !terminalRunCache.has(runId)
           || hasVisibleBotReply && !terminalRunReplyCache.has(runId)) {
-        html = await runBlockHtml(runId, messages, workspaceTasks);
+        html = await runBlockHtml(runId, messages, workspaceTasks, codeHandoffs);
       } else html = terminalRunCache.get(runId);
     } catch {
       html = $$("[data-run-id]", stream).find(e => e.dataset.runId === runId)?.outerHTML || "";
@@ -2427,7 +2433,7 @@ async function wireWelcome() {
 /* One attempt in a conversation: the prompt bubble, the visible work,
    the answer. Tool activity is a quiet collapsed strip — approvals are never
    hidden inside it. */
-async function runBlockHtml(runId, messages = null, workspaceTasks = []) {
+async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHandoffs = []) {
   const run = await api(`/runs/${runId}`);
   const events = run.events || [];
   const resolvedMap = new Map();
@@ -2476,6 +2482,14 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = []) {
         data-source-run="${esc(runId)}" data-source-user="${esc(userMessage.id)}"
         data-source-answer="${esc(botMessage.id)}" data-source-request="${esc(run.prompt)}">Prepare for a Bot</button>` : "";
   const relatedTasks = workspaceTasks.filter(task => task.source_run_id === runId).map(workspaceTaskCardHtml).join("");
+  const sourceBot = botsCache.find(bot => bot.id === run.bot_id);
+  const prepareCodeTaskAction = sourceBot?.workspace_mode === "folder" && sourceBot?.workdir
+    && run.status === "succeeded" && userMessage && botMessage && !waitingForChoice
+    ? `<button class="btn ghost small" type="button" data-prepare-code-task
+        data-source-run="${esc(runId)}" data-source-user="${esc(userMessage.id)}"
+        data-source-answer="${esc(botMessage.id)}" data-source-request="${esc(run.prompt)}">Prepare coding task</button>` : "";
+  const relatedCodeTasks = codeHandoffs.filter(task => task.source_run_id === runId)
+    .map(codeHandoffCardHtml).join("");
   const workspaceResultPreview = userMessage?.workspace_task_result_id
     ? `<details class="reply-reference-quote workspace-task-result-reference">
         <summary>Specialist response from ${esc(userMessage.workspace_task_result_display_name || "another Bot")}</summary>
@@ -2511,8 +2525,9 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = []) {
           <summary>${icon("gear")}${running ? esc(activityLabel) : `${stepCount} step${stepCount === 1 ? "" : "s"}`}${stepCount && !running ? ` · ${dur}` : ""} ${icon("caret", "tool-caret")}</summary>
           ${steps.join("")}
         </details>` : ""}
-        ${message && message.data?.content ? `<div class="answer">${esc(message.data.content)}</div>${replyAction}${prepareTaskAction}` : ""}
+        ${message && message.data?.content ? `<div class="answer">${esc(message.data.content)}</div>${replyAction}${prepareTaskAction}${prepareCodeTaskAction}` : ""}
         ${relatedTasks}
+        ${relatedCodeTasks}
         ${choiceCards.join("")}
         ${run.transcript_mirror?.error || run.transcript_mirror?.worker_error
           ? `<p class="run-notice" role="status">Transcript file needs attention: ${esc(run.transcript_mirror.error || run.transcript_mirror.worker_error)}. Database history remains available.</p>`
@@ -2611,6 +2626,113 @@ function workspaceTaskCardHtml(task) {
       ${active ? `<button class="btn ghost small" type="button" data-stop-run="${esc(task.child_run_id)}">Stop specialist</button>` : ""}
     </div>
   </section>`;
+}
+
+function codeHandoffCardHtml(task) {
+  const statusLabels = {
+    prepared: "Ready to launch locally", launching: "Preparing OpenCode",
+    running: "OpenCode is running locally", changes_ready: "Changes ready for review",
+    stopping: "Stopping · checking process cleanup", cleanup_incomplete: "Cleanup could not be verified",
+    complete_no_changes: "Finished without file changes", stopped: "Stopped · worktree retained",
+    interrupted: "Interrupted · worktree retained", failed: "Failed · worktree retained",
+  };
+  const statusLabel = task.status_label || statusLabels[task.status] || "Status unavailable";
+  const prepared = task.status === "prepared";
+  const active = ["launching", "running", "stopping", "cleanup_incomplete"].includes(task.status);
+  const completed = ["changes_ready", "complete_no_changes", "stopped", "interrupted", "failed"].includes(task.status);
+  const statusDetail = prepared
+    ? `<p class="hint">Open a terminal on the Linux Hutch host, paste this command, then review OpenCode’s own permission prompts.</p>
+       <div class="code-handoff-command"><code>${esc(task.launch_command)}</code>
+         <button class="btn ghost small" type="button" data-copy-code-command="${esc(task.id)}">Copy command</button></div>`
+    : task.status === "cleanup_incomplete"
+      ? '<p class="run-notice" role="status">Hutch has not marked this task stopped. Check the Linux host and process group; then run <code>' + esc(task.reconcile_command) + '</code> to recheck identity. The worktree stays untouched.</p>'
+    : active
+      ? `<p class="hint">This handoff is owned by its local OpenCode process. If the terminal or host stopped, run <code>${esc(task.reconcile_command)}</code> on the Linux Hutch host to check its recorded process identity.</p>`
+      : `<p class="code-handoff-summary">${esc(task.summary || "No completion details were recorded.")}</p>
+         ${task.branch_name ? `<p class="hint">Review branch <code>${esc(task.branch_name)}</code>${task.changed_files ? ` · ${Number(task.changed_files).toLocaleString()} changed files` : ""}. Changes remain in the isolated worktree; they were not applied to the configured project.</p>` : ""}
+         ${task.branch_name ? `<p class="hint">The CLI printed the local worktree path at exit.</p>` : ""}`;
+  return `<section class="code-handoff-card" data-code-handoff="${esc(task.id)}" aria-label="OpenCode task for ${esc(task.project_name)}">
+    <div class="code-handoff-heading"><strong>OpenCode coding task · ${esc(task.project_name)}</strong>${statusChip(task.status, statusLabel)}</div>
+    <p class="workspace-task-brief">${esc(task.task_brief)}</p>
+    ${task.error ? `<p class="run-notice" role="status">${esc(task.error)}</p>` : ""}
+    ${statusDetail}
+    <details><summary>Review source and execution boundary</summary>
+      <p><b>Your original request</b><br>${esc(task.original_request)}</p>
+      <p><b>Bot’s suggested brief</b><br>${esc(task.proposed_brief)}</p>
+      <p class="hint">Pinned base: <code>${esc(String(task.base_commit || "").slice(0, 12))}</code> · OpenCode ${esc(task.opencode_version || "version checked at launch")}. The OpenCode CLI uses its own sign-in, model selection and usage pool; Hutch’s provider budgets do not cover this work. Hutch asks you to review the handoff before launch. Once launched, OpenCode shell commands run with your Linux user’s authority and each command must be reviewed there. Hutch does not inspect or approve that CLI’s commands.</p>
+    </details>
+  </section>`;
+}
+
+async function codeHandoffKey(conversationId, sourceAnswerId, body) {
+  const storageKey = `hutch-pending-code-handoff:${conversationId}:${sourceAnswerId}`;
+  const fingerprint = await payloadFingerprint(body);
+  try {
+    const previous = JSON.parse(localStorage.getItem(storageKey) || "null");
+    if (previous?.fingerprint === fingerprint && previous?.key) return {storageKey, key: previous.key};
+  } catch { /* replace a damaged retry marker */ }
+  const key = newIdempotencyKey();
+  storageSet(storageKey, JSON.stringify({fingerprint, key}));
+  return {storageKey, key};
+}
+
+async function prepareCodeTask(button) {
+  const {sourceRun, sourceUser, sourceAnswer} = button.dataset;
+  const originalRequest = button.dataset.sourceRequest || "";
+  const conversationId = currentConversationId;
+  let answer;
+  try {
+    answer = await api(`/v1/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(sourceAnswer)}`);
+  } catch (error) { toast(`Could not prepare this coding task: ${error.message}`, true); return; }
+  const bot = botsCache.find(item => item.name === currentStudioBot);
+  if (!bot || answer.role !== "assistant" || answer.run_id !== sourceRun || !originalRequest) {
+    toast("The source request and Bot reply no longer match this completed attempt.", true); return;
+  }
+  const projectName = bot.workdir.split(/[\\/]/).filter(Boolean).pop() || "Configured project folder";
+  openModal({
+    returnFocus: button, title: "Prepare a coding task for OpenCode", confirmText: "Prepare reviewed task", wide: true, tall: true,
+    bodyHtml: `<p>Turn this chat request into a separate coding task. Edit the suggested brief so OpenCode knows what to change and how you will judge the result.</p>
+      <blockquote class="workspace-task-source"><b>Your original request</b><br>${esc(originalRequest)}</blockquote>
+      <label class="field">Reviewed coding task<textarea id="code-task-brief" rows="7" maxlength="20000" aria-describedby="code-task-brief-help">${esc(answer.content)}</textarea>
+        <span class="hint" id="code-task-brief-help">This is a draft from ${esc(botDisplayName(bot))}. Review or rewrite it; it does not grant extra access.</span></label>
+      <p class="hint"><b>Project:</b> ${esc(projectName)} · the task starts from its saved Git commit in a new isolated worktree. Uncommitted and untracked files from the source folder are not copied.</p>
+      <p class="hint"><b>How launch works:</b> Hutch prepares and saves the handoff. You launch it from a terminal on the Linux computer running Hutch; the browser cannot start a local terminal for you.</p>
+      <p class="hint"><b>Account and permissions:</b> OpenCode uses its own sign-in, chosen model and usage limits, separate from Hutch’s budgets. Its interactive permission prompts are owned by OpenCode. Approved shell commands run with your Linux user’s filesystem, process and network access. Review each one; Hutch does not broker these approvals.</p>
+      <p class="hint">Do not include passwords, access tokens, or other secrets in the coding task. The reviewed brief is sent to OpenCode’s selected model provider under that account’s terms.</p>
+      <p class="hint">Hutch will not copy the resulting branch into your configured folder or publish it. Review the changes in the worktree before applying them yourself.</p>
+      <p id="code-task-error" role="alert" hidden></p>`,
+    onConfirm: async () => {
+      const brief = $("#code-task-brief").value.trim();
+      const error = $("#code-task-error"), confirm = $("#modal-confirm");
+      if (!brief) { error.textContent = "Write a non-empty coding task before preparing the handoff."; error.hidden = false; return false; }
+      const body = {conversation_id: conversationId, source_run_id: sourceRun,
+        source_user_message_id: sourceUser, source_assistant_message_id: sourceAnswer, task_brief: brief};
+      const retry = await codeHandoffKey(conversationId, sourceAnswer, body);
+      confirm.disabled = true;
+      try {
+        const result = await api("/v1/code-handoffs", {method: "POST", body, headers: {"Idempotency-Key": retry.key}});
+        storageRemove(retry.storageKey);
+        toast("Reviewed coding task prepared. Open the command in the chat card on the Linux Hutch host.");
+        scheduleFeedRender();
+        return true;
+      } catch (err) {
+        error.textContent = `The handoff was not confirmed: ${err.message}. The reviewed text is kept here; retrying uses the same request key.`;
+        error.hidden = false;
+        return false;
+      } finally { if (confirm.isConnected) confirm.disabled = false; }
+    },
+  });
+}
+
+async function copyCodeHandoffCommand(button) {
+  const task = currentCodeHandoffs.find(item => item.id === button.dataset.copyCodeCommand);
+  if (!task?.launch_command) { toast("This coding task is no longer available.", true); return; }
+  try {
+    await navigator.clipboard.writeText(task.launch_command);
+    toast("Launch command copied. Paste it into a terminal on the Linux Hutch host.");
+  } catch {
+    toast(`Copy unavailable. Enter this in a terminal on the Linux Hutch host: ${task.launch_command}`, true);
+  }
 }
 
 function continueWorkspaceTask(button) {
@@ -3093,6 +3215,10 @@ function wireFeedInteractions() {
     }
     const assignTask = ev.target.closest("[data-prepare-bot-task]");
     if (assignTask) { void prepareWorkspaceTask(assignTask); return; }
+    const prepareCode = ev.target.closest("[data-prepare-code-task]");
+    if (prepareCode) { void prepareCodeTask(prepareCode); return; }
+    const copyCode = ev.target.closest("[data-copy-code-command]");
+    if (copyCode) { void copyCodeHandoffCommand(copyCode); return; }
     const openWorkspaceTask = ev.target.closest("[data-open-workspace-task]");
     if (openWorkspaceTask) { void openConversation(openWorkspaceTask.dataset.openWorkspaceTask); return; }
     const continueTask = ev.target.closest("[data-continue-workspace-task]");
@@ -6026,7 +6152,7 @@ function refreshChangedResources(resources) {
       if (needsYouDialog.open) void refreshApprovals();
     }
     if (changed.has("state")) void pollHealth();
-    if (["messages", "conversations", "runs", "approvals", "actions", "transcript_mirrors", "memory", "workspace_tasks"].some(r => changed.has(r))) {
+    if (["messages", "conversations", "runs", "approvals", "actions", "transcript_mirrors", "memory", "workspace_tasks", "code_handoffs"].some(r => changed.has(r))) {
       const visibleHash = location.hash || "#/chat";
       if (/^#\/chat(?:\/|$)/.test(visibleHash) || /^#\/run\/[\w-]+$/.test(visibleHash)) scheduleFeedRender();
     }

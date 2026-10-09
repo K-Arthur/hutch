@@ -19,9 +19,15 @@
   },
   "external_requests": [],
   "page_errors": [],
+  "coding_handoff_screenshots": [
+    "marketing-coding-handoff-faq-desktop.png",
+    "marketing-coding-handoff-faq-tablet.png",
+    "marketing-coding-handoff-faq-phone.png"
+  ],
   "verified": [
     "clear per-Bot express consent disclosure",
     "revoke and route-change disclosure",
+    "OpenCode CLI handoff boundaries",
     "responsive FAQ and copy",
     "no horizontal overflow"
   ]

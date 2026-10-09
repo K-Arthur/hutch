@@ -11,6 +11,7 @@ import hashlib
 import json
 import platform
 import re
+import subprocess
 import threading
 import time
 from datetime import datetime, timezone
@@ -512,6 +513,121 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
     finally:
         if not locals().get("trace_stopped", False):
             context.tracing.stop(path=str(output / "workspace-task-trace.zip"))
+        context.close()
+
+
+def test_opencode_coding_handoff_is_reviewed_and_responsive(browser, live, tmp_path, monkeypatch):
+    """Review a code task in chat; this fixture never starts OpenCode or calls a model provider."""
+    from hutch import code_handoff
+
+    base, app = live
+    project = tmp_path / "code-project"
+    project.mkdir()
+    subprocess.run(["git", "-C", str(project), "init", "-q"], check=True)
+    subprocess.run(["git", "-C", str(project), "config", "user.email", "hutch-test@example.invalid"], check=True)
+    subprocess.run(["git", "-C", str(project), "config", "user.name", "Hutch Test"], check=True)
+    (project / "README.md").write_text("A small project for a local coding handoff fixture.\n")
+    subprocess.run(["git", "-C", str(project), "add", "README.md"], check=True)
+    subprocess.run(["git", "-C", str(project), "commit", "-qm", "base"], check=True)
+    bot = app.state.store.create_bot(Bot(
+        name="docs-coding-helper", display_name="Documentation Partner", model="mock/demo", tools=[],
+        workspace_mode="folder", workdir=str(project)))
+    contract = {"available": False}
+
+    def check_cli():
+        if not contract["available"]:
+            raise code_handoff.CodeHandoffError("Fixture: install OpenCode CLI v2.0.24 or newer.")
+        return "/fixture/opencode", "2.0.24"
+
+    monkeypatch.setattr(code_handoff, "inspect_opencode", check_cli)
+    output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/opencode-handoff"
+    output.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    context.grant_permissions(["clipboard-read", "clipboard-write"], origin=base)
+    page = context.new_page()
+    errors: list[str] = []
+    external: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url) if not request.url.startswith(base) else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    viewports = (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844),
+                 ("compact", 320, 844))
+    try:
+        page.goto(f"{base}/#/chat/{bot.name}")
+        page.locator("#chat-prompt").wait_for()
+        page.locator("#chat-prompt").fill("Help me make this project README easier for new contributors.")
+        page.locator("#chat-send").click()
+        prepare = page.get_by_role("button", name="Prepare coding task")
+        prepare.wait_for(timeout=15000)
+        page.locator("#toast-root .toast-close").first.click()
+        prepare.click()
+        dialog = page.get_by_role("dialog", name="Prepare a coding task for OpenCode")
+        dialog.wait_for()
+        brief = dialog.locator("#code-task-brief")
+        assert "new contributors" in brief.input_value()
+        assert "not copied" in dialog.inner_text()
+        assert "OpenCode uses its own sign-in" in dialog.inner_text()
+        assert "Hutch does not broker these approvals" in dialog.inner_text()
+        assert "passwords, access tokens, or other secrets" in dialog.inner_text()
+        assert str(project) not in dialog.inner_text()
+        assert page.evaluate("document.activeElement.id") == "code-task-brief"
+        page.keyboard.press("Shift+Tab")
+        assert page.evaluate("document.activeElement.id") == "modal-close"
+        page.keyboard.press("Shift+Tab")
+        assert page.evaluate("document.activeElement.id") == "modal-confirm"
+        page.keyboard.press("Tab")
+        assert page.evaluate("document.activeElement.id") == "modal-close"
+        brief.focus()
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+            dialog.locator(".modal-body").evaluate("element => element.scrollTop = 0")
+            page.screenshot(path=str(output / f"review-{label}.png"), animations="disabled")
+            assert dialog.evaluate("el => el.scrollWidth <= el.clientWidth + 1"), label
+
+        confirm = dialog.get_by_role("button", name="Prepare reviewed task")
+        confirm.click()
+        assert "Fixture: install OpenCode CLI" in dialog.get_by_role("alert").inner_text()
+        contract["available"] = True
+        confirm.click()
+        card = page.locator("[data-code-handoff]")
+        card.wait_for(timeout=10000)
+        assert "Ready to launch locally" in card.inner_text()
+        assert "OpenCode coding task" in card.inner_text()
+        disclosure = card.locator("details")
+        disclosure.locator("summary").click()
+        assert "OpenCode" in disclosure.inner_text() and "Hutch’s provider budgets do not cover this work" in disclosure.inner_text()
+        disclosure.locator("summary").click()
+        command = card.locator("[data-copy-code-command]")
+        command.click()
+        assert page.evaluate("navigator.clipboard.readText()") == command.locator("xpath=../code").inner_text()
+        assert "terminal on the Linux Hutch host" in page.locator(".toast").filter(has_text="Launch command copied").inner_text()
+        page.locator("#toast-root .toast-close").evaluate_all("buttons => buttons.forEach(button => button.click())")
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+            assert card.evaluate("el => el.scrollWidth <= el.clientWidth + 1"), label
+            card.scroll_into_view_if_needed()
+            page.screenshot(path=str(output / f"prepared-{label}.png"), animations="disabled")
+
+        assert not errors, errors
+        assert not external, external
+        validation = {
+            "test": "tests/e2e/test_browser.py::test_opencode_coding_handoff_is_reviewed_and_responsive",
+            "command": "uv run pytest -q tests/e2e/test_browser.py::test_opencode_coding_handoff_is_reviewed_and_responsive --no-header",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(), "hutch_version": package_version("hutch"),
+            "browser": browser.version,
+            "viewports": [{"name": name, "width": width, "height": height}
+                          for name, width, height in viewports],
+            "states": ["review", "unavailable_cli_error", "prepared", "copied_command"],
+            "external_requests": external, "provider_credentials_used": False,
+            "opencode_process_started": False, "provider_request_made": False,
+            "source_bot_id": bot.id,
+        }
+        (output / "validation.json").write_text(json.dumps(validation, indent=2) + "\n", encoding="utf-8")
+    finally:
+        context.tracing.stop(path=str(output / "trace.zip"))
         context.close()
 
 

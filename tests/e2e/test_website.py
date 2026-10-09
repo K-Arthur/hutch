@@ -167,6 +167,19 @@ def test_chatgpt_background_consent_marketing_copy_at_responsive_sizes(browser, 
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, overflow)
             page.screenshot(path=str(out / f"marketing-consent-faq-{label}.png"), animations="disabled")
+        faq.locator("summary").click()
+        coding_faq = page.locator("details.faq-item").filter(has_text="Can I hand coding work to OpenCode?")
+        coding_faq.locator("summary").click()
+        coding_text = coding_faq.inner_text().lower()
+        assert "reviewed coding task from a completed hutch chat answer" in coding_text
+        assert "separate worktree from the reviewed git commit" in coding_text
+        assert "its shell approvals are not brokered or sandboxed by hutch" in coding_text
+        for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            coding_faq.scroll_into_view_if_needed()
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            page.screenshot(path=str(out / f"marketing-coding-handoff-faq-{label}.png"), animations="disabled")
         assert not errors, errors
         assert not external, external
         (out / "validation.json").write_text(json.dumps({
@@ -177,8 +190,10 @@ def test_chatgpt_background_consent_marketing_copy_at_responsive_sizes(browser, 
             "viewports": {"desktop": [1440, 900], "tablet": [900, 1024], "phone": [390, 844]},
             "external_requests": external,
             "page_errors": errors,
+            "coding_handoff_screenshots": [f"marketing-coding-handoff-faq-{name}.png"
+                                            for name in ("desktop", "tablet", "phone")],
             "verified": ["clear per-Bot express consent disclosure", "revoke and route-change disclosure",
-                         "responsive FAQ and copy", "no horizontal overflow"],
+                         "OpenCode CLI handoff boundaries", "responsive FAQ and copy", "no horizontal overflow"],
         }, indent=2) + "\n", encoding="utf-8")
         context.tracing.stop(path=str(out / "trace.zip"))
     finally:

@@ -1,10 +1,10 @@
 {
   "test": "tests/e2e/test_website.py::test_public_workflow_describes_named_recurring_tasks",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_website.py::test_public_workflow_describes_named_recurring_tasks",
-  "captured_at": "2026-10-09T22:09:48.443975+00:00",
+  "captured_at": "2026-10-09T23:02:41.501703+00:00",
   "python": "3.13.15",
   "browser": "153.0.8010.12",
-  "index_sha256": "9ae1ae526fb1fac06ccd8cbfc6e8dade2e2787457d1e45005ec34b49b558b146",
+  "index_sha256": "2422995767b497871bd01e9427a5572cb0f7068ad497d37cfae9089f6850467c",
   "captures": [
     {
       "size": "desktop",

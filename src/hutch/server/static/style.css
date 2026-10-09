@@ -551,6 +551,18 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .answer blockquote { margin: var(--s-2) 0; padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-control); background: var(--sunken); color: var(--text-2); }
 .answer-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: 0 0 var(--s-4); }
 .workspace-task-card { min-width: 0; margin: var(--s-3) 0 var(--s-5); padding: var(--s-4); border: 1px solid var(--line-strong); border-radius: 14px; background: var(--surface); }
+.code-handoff-card { min-width: 0; margin: var(--s-3) 0 var(--s-5); padding: var(--s-4); border: 1px solid var(--line-strong); border-radius: var(--r-panel); background: var(--surface); }
+.code-handoff-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
+.code-handoff-command { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-width: 0; padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-control); background: var(--sunken); }
+.code-handoff-command code { min-width: 0; overflow-wrap: anywhere; }
+.code-handoff-summary { margin: var(--s-3) 0; overflow-wrap: anywhere; }
+.code-handoff-card details { margin: var(--s-3) 0; }
+.code-handoff-card details p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.code-handoff-card .run-notice { overflow-wrap: anywhere; }
+@media (max-width: 520px) {
+  .code-handoff-command { align-items: stretch; flex-direction: column; }
+  .code-handoff-command .btn { align-self: flex-start; }
+}
 .workspace-task-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
 .workspace-task-brief { margin: var(--s-3) 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .workspace-task-assumptions { margin: 0 0 var(--s-2); color: var(--text-2); white-space: pre-wrap; overflow-wrap: anywhere; }
