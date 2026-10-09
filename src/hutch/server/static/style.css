@@ -1542,6 +1542,11 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .fact-panel { margin: var(--s-5) 0; }
 .fact-panel > h2 { font-size: var(--fs-md); }
 .fact-card { border-left: 1px solid var(--line-strong); padding: var(--s-3); margin: var(--s-3) 0; background: var(--panel); }
+.fact-share-list { margin: var(--s-4) 0; padding-top: var(--s-3); border-top: 1px solid var(--line); }
+.fact-share-list > summary { min-height: 44px; cursor: pointer; display: flex; align-items: center; }
+.fact-share-card .fact-heading .tag { text-transform: capitalize; }
+.fact-share-card .btn-row { margin-top: var(--s-3); }
+.fact-share-disclosure { margin-top: var(--s-4); line-height: 1.55; }
 .fact-heading { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; overflow-wrap: anywhere; }
 .fact-value { white-space: pre-wrap; overflow-wrap: anywhere; margin: var(--s-2) 0; }
 .fact-share { display: flex; gap: var(--s-2); align-items: center; margin: var(--s-3) 0; min-height: 44px; }

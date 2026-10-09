@@ -649,7 +649,8 @@ class EventPageResource(BaseModel):
 class ResourceChange(BaseModel):
     id: int
     resource: Literal["bots", "conversations", "messages", "runs", "tasks", "approvals", "actions", "usage",
-                      "usage_reservations", "memory", "permissions", "devices", "transcript_mirrors", "state"]
+                      "usage_reservations", "memory", "memory_shares", "permissions", "devices",
+                      "transcript_mirrors", "state"]
     resource_id: str
     operation: Literal["created", "updated", "deleted"]
     ts: str
@@ -702,6 +703,46 @@ class FactDecisionResource(BaseModel):
 
 class FactHistoryResource(FactPageResource):
     reviews: list[FactDecisionResource]
+
+
+class FactShareCreateRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+    target_bot_id: str = Field(min_length=1, max_length=100)
+
+
+class FactShareResource(BaseModel):
+    id: str
+    source_fact_id: str
+    source_bot_id: str
+    source_display_name: str
+    source_scope_kind: Literal["conversation", "bot"]
+    source_scope_id: str
+    target_bot_id: str
+    target_display_name: str
+    fact_key: str
+    fact_value: str
+    fact_revision: int
+    content_hash: str
+    created_at: str
+    revoked_at: Optional[str] = None
+    revoked_by: str = ""
+    state: Literal["active", "revoked", "source_missing", "source_archived", "source_revised",
+                   "source_bot_removed", "source_memory_disabled", "recipient_bot_removed",
+                   "recipient_memory_disabled"]
+
+
+class FactSharePageResource(BaseModel):
+    incoming: list[FactShareResource]
+    outgoing: list[FactShareResource]
+    limit: int
+    offset: int
+    next_offset: Optional[int]
+
+
+class FactShareRevocationResource(BaseModel):
+    id: str
+    revoked: bool
+    revoked_at: str
 
 
 class ActionReconciliationRequest(BaseModel):
@@ -2383,6 +2424,53 @@ def create_app() -> FastAPI:
                                      request_hash=request_digest({'bot_id': bot.id, 'fact_id': fact_id,
                                                                   'actor': actor, **body.model_dump()}))
         except (FactConflict, IdempotencyConflict) as exc:
+            raise HTTPException(409, str(exc)) from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+
+    @app.get('/api/v1/bots/{ref}/fact-shares', response_model=FactSharePageResource)
+    def list_fact_shares(ref: str, limit: int = 50, offset: int = 0) -> dict:
+        bot = bot_or_404(ref)
+        if not 1 <= limit <= 100 or offset < 0:
+            raise HTTPException(422, 'limit must be 1–100 and offset cannot be negative')
+        return store.fact_shares(bot.id, limit=limit, offset=offset)
+
+    @app.post('/api/v1/bots/{ref}/facts/{fact_id}/shares', response_model=FactShareResource)
+    def create_fact_share(ref: str, fact_id: str, body: FactShareCreateRequest,
+                          request: Request, response: Response) -> dict:
+        source = bot_or_404(ref)
+        target = bot_or_404(body.target_bot_id)
+        key = idempotency_key(request)
+        payload = {'source_bot_id': source.id, 'fact_id': fact_id, 'target_bot_id': target.id}
+        try:
+            share, created = store.create_fact_share_command(
+                source.id, fact_id, target.id, idem_key=key, request_hash=request_digest(payload))
+        except KeyError as exc:
+            raise HTTPException(404, str(exc)) from None
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        response.status_code = 201 if created else 200
+        return share
+
+    @app.delete('/api/v1/bots/{ref}/fact-shares/{share_id}', response_model=FactShareRevocationResource)
+    def revoke_fact_share(ref: str, share_id: str, request: Request) -> dict:
+        bot = bot_or_404(ref)
+        key = idempotency_key(request)
+        token = request.cookies.get(DEVICE_COOKIE, '')
+        bearer = request.headers.get('authorization', '')
+        if bearer.startswith('Bearer '):
+            token = bearer[7:]
+        device = store.device_identity(token)
+        actor = f'device:{device}' if device else 'operator'
+        payload = {'bot_id': bot.id, 'share_id': share_id}
+        try:
+            return store.revoke_fact_share_command(bot.id, share_id, idem_key=key,
+                                                   request_hash=request_digest(payload), actor=actor)
+        except KeyError:
+            raise HTTPException(404, 'no active fact share for this bot') from None
+        except IdempotencyConflict as exc:
             raise HTTPException(409, str(exc)) from None
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None

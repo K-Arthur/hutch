@@ -48,6 +48,7 @@ from .models import (
     Task,
     iso,
     local_day_bounds,
+    bot_slug_display_name,
     utcnow,
 )
 from .wake import Bus, WakeHub
@@ -1000,12 +1001,75 @@ def _migrate_37(db: sqlite3.Connection) -> None:
         BEGIN SELECT RAISE(ABORT, 'model capability observations are immutable'); END""")
 
 
+def _migrate_38(db: sqlite3.Connection) -> None:
+    """Add explicit, revocable snapshots of reviewed facts shared between Bots."""
+    db.execute("""CREATE TABLE memory_fact_shares (
+        id TEXT PRIMARY KEY,
+        source_fact_id TEXT NOT NULL REFERENCES memory_facts(id) ON DELETE RESTRICT,
+        source_bot_id TEXT NOT NULL,
+        source_display_name TEXT NOT NULL CHECK(length(source_display_name) BETWEEN 1 AND 80),
+        source_scope_kind TEXT NOT NULL CHECK(source_scope_kind IN ('conversation','bot')),
+        source_scope_id TEXT NOT NULL,
+        target_bot_id TEXT NOT NULL,
+        target_display_name TEXT NOT NULL CHECK(length(target_display_name) BETWEEN 1 AND 80),
+        fact_key TEXT NOT NULL CHECK(length(fact_key) BETWEEN 1 AND 120),
+        fact_value TEXT NOT NULL CHECK(length(fact_value) BETWEEN 1 AND 2000),
+        fact_revision INTEGER NOT NULL CHECK(fact_revision > 0),
+        content_hash TEXT NOT NULL CHECK(length(content_hash) = 64),
+        created_at TEXT NOT NULL,
+        revoked_at TEXT,
+        revoked_by TEXT NOT NULL DEFAULT '',
+        CHECK(source_bot_id != target_bot_id)
+    )""")
+    db.execute("CREATE INDEX idx_memory_fact_shares_source ON memory_fact_shares(source_bot_id, created_at DESC)")
+    db.execute("CREATE INDEX idx_memory_fact_shares_target ON memory_fact_shares(target_bot_id, created_at DESC)")
+    db.execute("CREATE UNIQUE INDEX idx_memory_fact_shares_active ON memory_fact_shares(source_fact_id, target_bot_id) "
+               "WHERE revoked_at IS NULL")
+    db.execute("""CREATE TRIGGER memory_fact_share_source_guard
+        BEFORE INSERT ON memory_fact_shares
+        WHEN NEW.revoked_at IS NOT NULL OR NEW.revoked_by != '' OR NOT EXISTS (
+            SELECT 1 FROM memory_facts f
+            JOIN bots source_bot ON source_bot.id = NEW.source_bot_id
+            JOIN bots target_bot ON target_bot.id = NEW.target_bot_id
+            WHERE f.id = NEW.source_fact_id AND f.bot_id = NEW.source_bot_id
+              AND f.status = 'approved' AND f.scope_kind = NEW.source_scope_kind
+              AND f.scope_id = NEW.source_scope_id AND f.key = NEW.fact_key
+              AND f.value = NEW.fact_value AND f.revision = NEW.fact_revision
+              AND f.content_hash = NEW.content_hash
+              AND length(f.key) BETWEEN 1 AND 120 AND length(f.value) BETWEEN 1 AND 2000
+              AND COALESCE(json_extract(source_bot.doc, '$.memory_enabled'), 1) = 1
+              AND COALESCE(json_extract(target_bot.doc, '$.memory_enabled'), 1) = 1
+              AND ((f.scope_kind = 'bot' AND f.scope_id = f.bot_id)
+                OR (f.scope_kind = 'conversation' AND EXISTS (
+                    SELECT 1 FROM conversations c WHERE c.id = f.scope_id AND c.bot_id = f.bot_id)))
+              AND NOT EXISTS (SELECT 1 FROM memory_facts newer
+                  WHERE newer.bot_id = f.bot_id AND newer.scope_kind = f.scope_kind
+                    AND newer.scope_id = f.scope_id AND newer.key = f.key AND newer.revision > f.revision)
+        )
+        BEGIN SELECT RAISE(ABORT, 'a fact share must snapshot a current reviewed fact between enabled Bots'); END""")
+    db.execute("""CREATE TRIGGER memory_fact_share_snapshot_immutable
+        BEFORE UPDATE ON memory_fact_shares
+        WHEN NEW.id IS NOT OLD.id OR NEW.source_fact_id IS NOT OLD.source_fact_id
+          OR NEW.source_bot_id IS NOT OLD.source_bot_id OR NEW.source_display_name IS NOT OLD.source_display_name
+          OR NEW.source_scope_kind IS NOT OLD.source_scope_kind OR NEW.source_scope_id IS NOT OLD.source_scope_id
+          OR NEW.target_bot_id IS NOT OLD.target_bot_id OR NEW.target_display_name IS NOT OLD.target_display_name
+          OR NEW.fact_key IS NOT OLD.fact_key OR NEW.fact_value IS NOT OLD.fact_value
+          OR NEW.fact_revision IS NOT OLD.fact_revision OR NEW.content_hash IS NOT OLD.content_hash
+          OR NEW.created_at IS NOT OLD.created_at OR OLD.revoked_at IS NOT NULL
+          OR NEW.revoked_at IS NULL OR NEW.revoked_by = ''
+        BEGIN SELECT RAISE(ABORT, 'fact share snapshots are immutable; revoke a share once'); END""")
+    db.execute("""CREATE TRIGGER memory_fact_share_no_delete BEFORE DELETE ON memory_fact_shares
+        BEGIN SELECT RAISE(ABORT, 'fact shares are retained as revocation history'); END""")
+    durable_changes.install_resources(db, (("memory_fact_shares", "memory_shares", "id",
+                                             ("revoked_at",), ("source_bot_id", "target_bot_id")),))
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
                _migrate_19, _migrate_20, _migrate_21, _migrate_22, _migrate_23, _migrate_24, _migrate_25, _migrate_26,
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
-               _migrate_34, _migrate_35, _migrate_36, _migrate_37]
+               _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -4933,6 +4997,166 @@ class Store:
         from .fact_memory import page
         with self._lock:
             return page(self._db, bot_id, **options)
+
+    def recall_fact_page(self, bot_id: str, *, conversation_id: str | None = None, run_id: str | None = None,
+                         query: str = '', limit: int = 20) -> list[dict]:
+        """Recall this Bot's reviewed facts plus only active owner-granted inbound snapshots."""
+        from .fact_memory import incoming_page, page
+        if not 1 <= limit <= 100:
+            raise ValueError('fact recall limit must be 1–100')
+        with self._lock:
+            own = page(self._db, bot_id, conversation_id=conversation_id, run_id=run_id,
+                       approved_only=True, query=query, limit=limit)
+            incoming = incoming_page(self._db, bot_id, query=query, limit=limit)
+        return sorted((*own, *incoming), key=lambda fact: (fact['updated_at'], fact['id']), reverse=True)[:limit]
+
+    @staticmethod
+    def _fact_share_record(db: sqlite3.Connection, row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
+        row = dict(row)
+        if 'source_fact_status' in row:
+            fact_status = row['source_fact_status']
+            fact_current = row['source_fact_current']
+            source_doc = row['source_bot_doc']
+            target_doc = row['target_bot_doc']
+        else:
+            from .fact_memory import CURRENT
+            fact = db.execute('SELECT f.status, CASE WHEN ' + CURRENT +
+                              ' THEN 1 ELSE 0 END AS current FROM memory_facts f WHERE f.id = ?',
+                              (row['source_fact_id'],)).fetchone()
+            source = db.execute('SELECT doc FROM bots WHERE id = ?', (row['source_bot_id'],)).fetchone()
+            target = db.execute('SELECT doc FROM bots WHERE id = ?', (row['target_bot_id'],)).fetchone()
+            fact_status = fact['status'] if fact else None
+            fact_current = fact['current'] if fact else None
+            source_doc = source['doc'] if source else None
+            target_doc = target['doc'] if target else None
+        if row['revoked_at']:
+            state = 'revoked'
+        elif fact_status is None:
+            state = 'source_missing'
+        elif fact_status == 'archived':
+            state = 'source_archived'
+        elif not fact_current:
+            state = 'source_revised'
+        elif source_doc is None:
+            state = 'source_bot_removed'
+        elif not Bot.model_validate_json(source_doc).memory_enabled:
+            state = 'source_memory_disabled'
+        elif target_doc is None:
+            state = 'recipient_bot_removed'
+        elif not Bot.model_validate_json(target_doc).memory_enabled:
+            state = 'recipient_memory_disabled'
+        else:
+            state = 'active'
+        row['state'] = state
+        return row
+
+    def create_fact_share_command(self, source_bot_id: str, fact_id: str, target_bot_id: str, *,
+                                  idem_key: str, request_hash: str) -> tuple[dict[str, Any], bool]:
+        """Share one currently reviewed fact with every chat for one other Bot."""
+        if not idem_key or not request_hash:
+            raise ValueError('fact sharing requires an idempotency key and request hash')
+        from .fact_memory import CONTENT_FIELDS, CURRENT, digest as fact_digest
+        scope = f'api:v1:fact-shares:create:{source_bot_id}'
+        share_id = 'factshare_' + uuid.uuid4().hex[:20]
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                return replay, False
+            source = db.execute('SELECT name, doc FROM bots WHERE id = ?', (source_bot_id,)).fetchone()
+            target = db.execute('SELECT name, doc FROM bots WHERE id = ?', (target_bot_id,)).fetchone()
+            if source is None or target is None:
+                raise KeyError('source or recipient Bot is unavailable')
+            if source_bot_id == target_bot_id:
+                raise ValueError('choose different Bots for a shared fact')
+            source_bot = Bot.model_validate_json(source['doc'])
+            target_bot = Bot.model_validate_json(target['doc'])
+            if not source_bot.memory_enabled or not target_bot.memory_enabled:
+                raise ValueError('enable memory on both Bots before sharing a fact')
+            fact = db.execute('SELECT f.* FROM memory_facts f WHERE f.id = ? AND f.bot_id = ? AND ' + CURRENT,
+                              (fact_id, source_bot_id)).fetchone()
+            if fact is None:
+                raise ValueError('fact is not current; refresh the reference facts before sharing')
+            if fact['status'] != 'approved':
+                raise ValueError('only a human-reviewed fact can be shared')
+            if fact['scope_kind'] not in {'bot', 'conversation'}:
+                raise ValueError('only Bot or conversation facts can be shared')
+            if ((fact['scope_kind'] == 'bot' and fact['scope_id'] != source_bot_id)
+                    or (fact['scope_kind'] == 'conversation' and db.execute(
+                        'SELECT 1 FROM conversations WHERE id = ? AND bot_id = ?',
+                        (fact['scope_id'], source_bot_id)).fetchone() is None)):
+                raise ValueError('fact provenance does not match its Bot scope')
+            if (len(fact['key']) > 120 or len(fact['value']) > 2000
+                    or fact_digest({key: fact[key] for key in CONTENT_FIELDS}) != fact['content_hash']):
+                raise ValueError('fact content is oversized or failed its integrity check')
+            if db.execute('SELECT 1 FROM memory_fact_shares WHERE source_fact_id = ? AND target_bot_id = ? '
+                          'AND revoked_at IS NULL', (fact_id, target_bot_id)).fetchone():
+                raise ValueError('this exact fact is already shared with that Bot')
+            source_name = source_bot.display_name.strip() or bot_slug_display_name(source_bot.name)
+            target_name = target_bot.display_name.strip() or bot_slug_display_name(target_bot.name)
+            db.execute('INSERT INTO memory_fact_shares '
+                       '(id, source_fact_id, source_bot_id, source_display_name, source_scope_kind, source_scope_id, '
+                       'target_bot_id, target_display_name, fact_key, fact_value, fact_revision, content_hash, created_at) '
+                       'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                       (share_id, fact_id, source_bot_id, source_name, fact['scope_kind'], fact['scope_id'],
+                        target_bot_id, target_name, fact['key'], fact['value'], fact['revision'],
+                        fact['content_hash'], now))
+            row = db.execute('SELECT * FROM memory_fact_shares WHERE id = ?', (share_id,)).fetchone()
+            result = self._fact_share_record(db, row)
+            db.execute('INSERT INTO idempotency_keys VALUES (?, ?, ?, ?, ?)',
+                       (scope, idem_key, request_hash, json.dumps(result, sort_keys=True), now))
+        self.bus.notify('memory', 'bots')
+        return result, True
+
+    def fact_shares(self, bot_id: str, *, limit: int = 50, offset: int = 0) -> dict[str, Any]:
+        if not 1 <= limit <= 100 or offset < 0:
+            raise ValueError('share page limit must be 1–100 and offset nonnegative')
+        from .fact_memory import CURRENT
+
+        def rows_for(participant_column: str) -> list[dict[str, Any]]:
+            if participant_column not in {'source_bot_id', 'target_bot_id'}:
+                raise ValueError('invalid fact-share direction')
+            rows = self._db.execute(
+                'SELECT s.*, f.status AS source_fact_status, CASE WHEN ' + CURRENT +
+                ' THEN 1 ELSE 0 END AS source_fact_current, source_bot.doc AS source_bot_doc, '
+                'target_bot.doc AS target_bot_doc FROM memory_fact_shares s '
+                'LEFT JOIN memory_facts f ON f.id = s.source_fact_id '
+                'LEFT JOIN bots source_bot ON source_bot.id = s.source_bot_id '
+                'LEFT JOIN bots target_bot ON target_bot.id = s.target_bot_id '
+                f'WHERE s.{participant_column} = ? ORDER BY s.created_at DESC, s.id LIMIT ? OFFSET ?',
+                (bot_id, limit + 1, offset)).fetchall()
+            return [self._fact_share_record(self._db, row) for row in rows]
+        with self._lock:
+            incoming = rows_for('target_bot_id')
+            outgoing = rows_for('source_bot_id')
+        has_more = len(incoming) > limit or len(outgoing) > limit
+        return {'incoming': incoming[:limit], 'outgoing': outgoing[:limit], 'limit': limit, 'offset': offset,
+                'next_offset': offset + limit if has_more else None}
+
+    def revoke_fact_share_command(self, bot_id: str, share_id: str, *, idem_key: str,
+                                  request_hash: str, actor: str) -> dict[str, Any]:
+        if not idem_key or not request_hash or not actor:
+            raise ValueError('fact-share revocation requires an idempotency key and actor')
+        scope = f'api:v1:fact-shares:revoke:{share_id}'
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                return replay
+            row = db.execute('SELECT * FROM memory_fact_shares WHERE id = ? AND '
+                             '(source_bot_id = ? OR target_bot_id = ?)', (share_id, bot_id, bot_id)).fetchone()
+            if row is None:
+                raise KeyError(share_id)
+            if row['revoked_at'] is None:
+                db.execute('UPDATE memory_fact_shares SET revoked_at = ?, revoked_by = ? '
+                           'WHERE id = ? AND revoked_at IS NULL', (now, actor, share_id))
+            result = {'id': share_id, 'revoked': True,
+                      'revoked_at': db.execute('SELECT revoked_at FROM memory_fact_shares WHERE id = ?',
+                                               (share_id,)).fetchone()[0]}
+            db.execute('INSERT INTO idempotency_keys VALUES (?, ?, ?, ?, ?)',
+                       (scope, idem_key, request_hash, json.dumps(result, sort_keys=True), now))
+        self.bus.notify('memory', 'bots')
+        return result
 
     def fact_history(self, bot_id: str, fact_id: str, **options) -> dict:
         from .fact_memory import history

@@ -5737,6 +5737,133 @@ def test_scoped_fact_review_revision_conflict_and_memory_off(browser, live, widt
         context.close()
 
 
+def test_explicit_cross_bot_fact_share_is_reviewable_revocable_and_responsive(browser, live):
+    from pathlib import Path
+    from hutch.store import Store
+    base, application = live
+    store = application.state.store
+    source = store.create_bot(Bot(name='research-partner', display_name='Research Partner', tools=['memory']))
+    target = store.create_bot(Bot(name='brief-writer', display_name='Brief Writer', tools=['memory']))
+    source_conversation, _ = store.create_conversation(source.id, 'Research notes', idem_key='share-source-chat',
+                                                        request_hash='source')
+    target_conversation, _ = store.create_conversation(target.id, 'Draft brief', idem_key='share-target-chat',
+                                                        request_hash='target')
+    run = store.create_run(Run(bot_id=source.id, conversation_id=source_conversation['id'],
+                               prompt='synthetic reviewed fact', status=RunStatus.running))
+    fact = store.remember(source.id, 'Preferred reference', 'Use the vendor security guide.',
+                          run_id=run.id, expected_fence=0)
+    store.transition_run(run.id, RunStatus.succeeded, fence=0)
+    store.review_fact(source.id, fact.id, content_hash=fact.content_hash, action='approve', actor='fixture')
+    out = Path(__file__).resolve().parents[2] / 'docs/realignment/artifacts/fact-sharing'
+    out.mkdir(parents=True, exist_ok=True)
+    sizes = {'desktop': (1440, 960), 'tablet': (900, 1024), 'phone': (390, 844)}
+    context = browser.new_context(viewport={'width': 1440, 'height': 960}, reduced_motion='reduce')
+    page = context.new_page()
+    errors, external, trace = [], [], []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    page.on('request', lambda request: external.append(request.url) if not request.url.startswith(base) else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    trace_stopped = False
+    try:
+        page.goto(f'{base}/#/chat/{source.name}')
+        page.locator('#conversation-switcher').select_option(source_conversation['id'])
+        page.locator('.fact-panel details summary').first.click()
+        trigger = page.locator(f'[data-fact-share-create="{fact.id}"]')
+        trigger.wait_for()
+        trigger.focus(); page.keyboard.press('Enter')
+        dialog = page.get_by_role('dialog', name='Share this reference with a Bot')
+        dialog.wait_for()
+        assert 'Use the vendor security guide.' in dialog.inner_text()
+        assert 'untrusted reference data' in dialog.inner_text()
+        assert 'grants no tool permission' in dialog.inner_text()
+        assert dialog.locator('#fact-share-target').locator('option').all_inner_texts() == ['Brief Writer']
+        for label, (width, height) in sizes.items():
+            page.set_viewport_size({'width': width, 'height': height})
+            assert page.evaluate('document.documentElement.scrollWidth - innerWidth') <= 1, label
+            page.screenshot(path=str(out / f'share-review-{label}.png'), full_page=True, animations='disabled')
+            trace.append({'viewport': label, 'size': [width, height], 'state': 'share_review',
+                          'horizontal_overflow': page.evaluate('document.documentElement.scrollWidth - innerWidth')})
+        page.keyboard.press('Escape')
+        page.wait_for_function('document.activeElement?.dataset.factShareCreate !== undefined')
+        trigger = page.locator(f'[data-fact-share-create="{fact.id}"]')
+        trigger.click()
+        page.get_by_role('dialog', name='Share this reference with a Bot').locator('#fact-share-target').select_option(label='Brief Writer')
+        with page.expect_response(lambda response: response.request.method == 'POST' and response.url.endswith('/shares')) as created:
+            page.locator('#modal-confirm').click()
+        assert created.value.status == 201, created.value.text()
+        share = created.value.json()
+        assert share['state'] == 'active' and share['fact_revision'] == fact.revision
+        page.locator('.fact-share-list summary').wait_for()
+        page.locator('.fact-share-list summary').click()
+        outgoing = page.locator(f'[data-fact-share-card="{share["id"]}"]')
+        outgoing.wait_for()
+        assert 'Shared with Brief Writer' in outgoing.inner_text()
+        for label, (width, height) in sizes.items():
+            page.set_viewport_size({'width': width, 'height': height})
+            outgoing.scroll_into_view_if_needed()
+            overflow = page.evaluate('document.documentElement.scrollWidth - innerWidth')
+            assert overflow <= 1, label
+            page.screenshot(path=str(out / f'source-{label}.png'), full_page=True, animations='disabled')
+            trace.append({'viewport': label, 'size': [width, height], 'state': 'outgoing_share',
+                          'horizontal_overflow': overflow})
+
+        persisted = Store(application.state.config)
+        try:
+            target_recall = persisted.recall_fact_page(target.id, conversation_id=target_conversation['id'],
+                                                       query='vendor', limit=20)
+            assert target_recall[0]['share_id'] == share['id']
+            assert target_recall[0]['shared_from'] == 'Research Partner'
+        finally:
+            persisted.close()
+
+        page.goto(f'{base}/#/chat/{target.name}')
+        page.locator('#conversation-switcher').select_option(target_conversation['id'])
+        page.locator('.fact-share-list summary').wait_for()
+        page.locator('.fact-share-list summary').click()
+        incoming = page.locator(f'[data-fact-share-card="{share["id"]}"]')
+        incoming.wait_for()
+        assert 'Shared by Research Partner' in incoming.inner_text()
+        assert 'untrusted data' in incoming.inner_text()
+        recall = store.recall_fact_page(target.id, conversation_id=target_conversation['id'], query='vendor', limit=20)
+        assert recall[0]['share_id'] == share['id']
+        for label, (width, height) in sizes.items():
+            page.set_viewport_size({'width': width, 'height': height})
+            incoming.scroll_into_view_if_needed()
+            overflow = page.evaluate('document.documentElement.scrollWidth - innerWidth')
+            assert overflow <= 1, label
+            page.screenshot(path=str(out / f'recipient-{label}.png'), full_page=True, animations='disabled')
+            trace.append({'viewport': label, 'size': [width, height], 'state': 'incoming_share',
+                          'horizontal_overflow': overflow})
+        incoming.get_by_role('button', name='Remove shared fact').click()
+        page.get_by_role('dialog', name='Remove shared reference?').wait_for()
+        with page.expect_response(lambda response: response.request.method == 'DELETE' and '/fact-shares/' in response.url) as revoked:
+            page.locator('#modal-confirm').click()
+        assert revoked.value.status == 200, revoked.value.text()
+        assert store.recall_fact_page(target.id, conversation_id=target_conversation['id'], query='vendor', limit=20) == []
+        assert not errors and not external
+        context.tracing.stop(path=str(out / 'trace.zip'))
+        trace_stopped = True
+        (out / 'results.json').write_text(json.dumps({
+            'test': 'tests/e2e/test_browser.py::test_explicit_cross_bot_fact_share_is_reviewable_revocable_and_responsive',
+            'command': 'uv run pytest -q tests/e2e/test_browser.py::test_explicit_cross_bot_fact_share_is_reviewable_revocable_and_responsive',
+            'browser': browser.browser_type.name, 'browser_version': browser.version,
+            'playwright_version': package_version('playwright'), 'viewports': trace,
+            'page_errors': errors, 'external_requests': external, 'provider_calls': 0,
+            'scenario': 'Locally seeded reviewed fact is explicitly granted to a named Bot; exact snapshot and provenance survive a fresh Store connection; recipient can revoke; retrieval stops immediately.',
+            'captures': [f'{screen}-{size}.png' for screen in ('share-review', 'source', 'recipient') for size in sizes],
+            'source_sha256': {name: hashlib.sha256((out.parents[3] / name).read_bytes()).hexdigest() for name in (
+                'src/hutch/store.py', 'src/hutch/fact_memory.py', 'src/hutch/tools/memory.py',
+                'src/hutch/server/app.py', 'src/hutch/server/static/app.js', 'src/hutch/server/static/style.css')},
+        }, indent=2) + '\n', encoding='utf-8')
+    finally:
+        if not trace_stopped:
+            try:
+                context.tracing.stop(path=str(out / 'trace.zip'))
+            except Exception:
+                pass
+        context.close()
+
+
 def test_needs_you_receipt_queue_pages_old_actions_and_stays_keyboard_reachable(browser, live, monkeypatch):
     from hutch.models import Run
     base, app = live; store = app.state.store

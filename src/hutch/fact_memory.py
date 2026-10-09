@@ -159,6 +159,44 @@ def page(db, bot_id, *, conversation_id=None, run_id=None, approved_only=False, 
     return [dict(row) for row in rows]
 
 
+def incoming_page(db, target_bot_id, *, query='', limit=20):
+    """Return active, provenance-labelled snapshots explicitly shared with this Bot."""
+    if len(query) > 256:
+        raise ValueError('fact search is limited to 256 characters')
+    clauses = [
+        's.target_bot_id = ?', 's.revoked_at IS NULL', "f.status = 'approved'", CURRENT,
+        'f.id = s.source_fact_id', 'f.bot_id = s.source_bot_id',
+        'f.scope_kind = s.source_scope_kind', 'f.scope_id = s.source_scope_id',
+        'f.key = s.fact_key', 'f.value = s.fact_value', 'f.revision = s.fact_revision',
+        'f.content_hash = s.content_hash', "f.scope_kind IN ('bot','conversation')",
+        "COALESCE(json_extract(source_bot.doc, '$.memory_enabled'), 1) = 1",
+        "COALESCE(json_extract(target_bot.doc, '$.memory_enabled'), 1) = 1",
+    ]
+    args = [target_bot_id]
+    join = ''
+    if query.strip():
+        tokens = re.findall(r'\w+', query, flags=re.UNICODE)[:10]
+        if not tokens:
+            return []
+        args.append(' AND '.join('"' + term.replace('"', '""') + '"' for term in tokens))
+        join = ' JOIN memory_facts_fts ON memory_facts_fts.rowid = f.rowid '
+        clauses.append('memory_facts_fts MATCH ?')
+    rows = db.execute(
+        'SELECT s.id AS id, s.id AS share_id, s.source_fact_id AS source_fact_id, '
+        's.source_bot_id AS bot_id, s.source_display_name AS shared_from, '
+        "'shared' AS scope_kind, s.source_scope_id AS scope_id, s.fact_key AS key, "
+        's.fact_value AS value, s.fact_revision AS revision, s.content_hash AS content_hash, '
+        "f.run_id AS run_id, 'shared' AS source, s.created_at AS updated_at, 'approved' AS status, "
+        "0 AS truncated, COALESCE((SELECT title FROM conversations WHERE id=s.source_scope_id "
+        'AND bot_id=s.source_bot_id), \'\') AS conversation_title '
+        'FROM memory_fact_shares s JOIN memory_facts f ON f.id = s.source_fact_id '
+        'JOIN bots source_bot ON source_bot.id = s.source_bot_id '
+        'JOIN bots target_bot ON target_bot.id = s.target_bot_id ' + join +
+        ' WHERE ' + ' AND '.join(clauses) + ' ORDER BY s.created_at DESC, s.id LIMIT ?',
+        (*args, max(1, min(MAX_RESULTS, limit)))).fetchall()
+    return [dict(row) for row in rows]
+
+
 def history(db, bot_id, fact_id, *, limit=50, offset=0):
     fact = db.execute('SELECT scope_kind, scope_id, key FROM memory_facts WHERE id = ? AND bot_id = ?', (fact_id, bot_id)).fetchone()
     if fact is None:
@@ -234,3 +272,16 @@ def validate(db):
     for row in db.execute('SELECT * FROM memory_facts'):
         if digest({key: row[key] for key in CONTENT_FIELDS}) != row['content_hash']:
             raise ValueError('snapshot fact content hash is invalid')
+    for row in db.execute('SELECT s.*, f.bot_id AS fact_bot_id, f.scope_kind AS fact_scope_kind, '
+                          'f.scope_id AS fact_scope_id, f.key AS source_key, f.value AS source_value, '
+                          'f.revision AS source_revision, f.content_hash AS source_hash, f.run_id AS source_run_id, '
+                          'f.source AS fact_source FROM memory_fact_shares s '
+                          'JOIN memory_facts f ON f.id = s.source_fact_id'):
+        content = dict(bot_id=row['source_bot_id'], scope_kind=row['source_scope_kind'],
+                       scope_id=row['source_scope_id'], key=row['fact_key'], value=row['fact_value'],
+                       revision=row['fact_revision'], run_id=row['source_run_id'], source=row['fact_source'])
+        if (row['fact_bot_id'] != row['source_bot_id'] or row['fact_scope_kind'] != row['source_scope_kind']
+                or row['fact_scope_id'] != row['source_scope_id'] or row['source_key'] != row['fact_key']
+                or row['source_value'] != row['fact_value'] or row['source_revision'] != row['fact_revision']
+                or row['source_hash'] != row['content_hash'] or digest(content) != row['content_hash']):
+            raise ValueError('snapshot shared-fact content or provenance is invalid')

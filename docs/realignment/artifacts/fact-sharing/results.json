@@ -1,0 +1,113 @@
+{
+  "test": "tests/e2e/test_browser.py::test_explicit_cross_bot_fact_share_is_reviewable_revocable_and_responsive",
+  "command": "uv run pytest -q tests/e2e/test_browser.py::test_explicit_cross_bot_fact_share_is_reviewable_revocable_and_responsive",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewports": [
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "state": "share_review",
+      "horizontal_overflow": 0
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        900,
+        1024
+      ],
+      "state": "share_review",
+      "horizontal_overflow": 0
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        390,
+        844
+      ],
+      "state": "share_review",
+      "horizontal_overflow": 0
+    },
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "state": "outgoing_share",
+      "horizontal_overflow": 0
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        900,
+        1024
+      ],
+      "state": "outgoing_share",
+      "horizontal_overflow": 0
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        390,
+        844
+      ],
+      "state": "outgoing_share",
+      "horizontal_overflow": 0
+    },
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "state": "incoming_share",
+      "horizontal_overflow": 0
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        900,
+        1024
+      ],
+      "state": "incoming_share",
+      "horizontal_overflow": 0
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        390,
+        844
+      ],
+      "state": "incoming_share",
+      "horizontal_overflow": 0
+    }
+  ],
+  "page_errors": [],
+  "external_requests": [],
+  "provider_calls": 0,
+  "scenario": "Locally seeded reviewed fact is explicitly granted to a named Bot; exact snapshot and provenance survive a fresh Store connection; recipient can revoke; retrieval stops immediately.",
+  "captures": [
+    "share-review-desktop.png",
+    "share-review-tablet.png",
+    "share-review-phone.png",
+    "source-desktop.png",
+    "source-tablet.png",
+    "source-phone.png",
+    "recipient-desktop.png",
+    "recipient-tablet.png",
+    "recipient-phone.png"
+  ],
+  "source_sha256": {
+    "src/hutch/store.py": "0ec5b2f4ab650193da1c42eb6025a200e531dc3ac7deed7ee2419be49e4ae2da",
+    "src/hutch/fact_memory.py": "5411f8369a842f3c9bfcbaf09e700f97ebb48aab96b6c5e46015fe97a71b1e59",
+    "src/hutch/tools/memory.py": "00247eed030470320648e6c82e9eb548c7a89b847577f5418b20a672a7099310",
+    "src/hutch/server/app.py": "96c331e207a06bbe1d10831dd96022ccb6a537fb35b2e7540b5fbdfdb9c0662c",
+    "src/hutch/server/static/app.js": "9543ba4df19ef5e131776995b2aba99f00f4b6f4c5ae01365c9a0b57bbd4b62e",
+    "src/hutch/server/static/style.css": "46443c8886c8a1b8b6b66b65519c884fb2f547197cf04eb860dde45d64463e75"
+  }
+}

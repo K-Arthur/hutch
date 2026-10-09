@@ -113,6 +113,36 @@ def test_live_wal_backup_then_restore_cannot_signal_or_replay_source(store, conf
         source.wait(timeout=5)
 
 
+def test_restore_preserves_explicit_cross_bot_fact_grants(store, config, tmp_path):
+    source = store.create_bot(Bot(name='restore-share-source', display_name='Research Partner'))
+    target = store.create_bot(Bot(name='restore-share-target', display_name='Brief Writer'))
+    source_chat, _ = store.create_conversation(source.id, 'Reviewed sources', idem_key='restore-share-source-chat',
+                                                request_hash='source')
+    target_chat, _ = store.create_conversation(target.id, 'Draft', idem_key='restore-share-target-chat',
+                                                request_hash='target')
+    fact = store.remember(source.id, 'preferred-reference', 'Use the reviewed vendor guide.',
+                          conversation_id=source_chat['id'])
+    store.review_fact(source.id, fact.id, content_hash=fact.content_hash, action='approve', actor='fixture')
+    grant, created = store.create_fact_share_command(source.id, fact.id, target.id,
+                                                      idem_key='restore-share-create', request_hash='same')
+    assert created
+
+    snapshot, destination = tmp_path / 'fact-share-snapshot', tmp_path / 'fact-share-restored'
+    backup(config, snapshot)
+    report = restore(snapshot, destination)
+    restored = Store(hutchConfig(destination))
+    try:
+        assert report['execution_held']
+        shares = restored.fact_shares(target.id)
+        assert shares['incoming'][0]['id'] == grant['id'] and shares['incoming'][0]['state'] == 'active'
+        recalled = restored.recall_fact_page(target.id, conversation_id=target_chat['id'],
+                                             query='vendor', limit=20)
+        assert recalled[0]['share_id'] == grant['id'] and recalled[0]['shared_from'] == 'Research Partner'
+        assert restored.restoration_status()['execution_held']
+    finally:
+        restored.close()
+
+
 def test_legacy_restore_preserves_history_and_separately_quarantines_unfinished(tmp_path):
     original = hutchConfig(tmp_path / 'legacy')
     original.ensure()

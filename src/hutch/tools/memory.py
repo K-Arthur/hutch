@@ -53,13 +53,15 @@ class MemoryRecallTool(Tool):
         if not _enabled(ctx):
             return ToolResult(ok=False, output='error: fact memory is disabled')
         try:
-            rows = ctx.store.fact_page(ctx.bot.id, conversation_id=ctx.run.conversation_id or None,
-                                       run_id=ctx.run.id, approved_only=True, query=args.get('query') or '', limit=20)
+            rows = ctx.store.recall_fact_page(ctx.bot.id, conversation_id=ctx.run.conversation_id or None,
+                                              run_id=ctx.run.id, query=args.get('query') or '', limit=20)
         except (ValueError, KeyError) as error:
             return ToolResult(ok=False, output=f'error: {error}')
         items, used = [], 0
         for row in rows:
             item = {key: row[key] for key in ('key', 'value', 'scope_kind', 'revision', 'updated_at', 'run_id')}
+            if row.get('shared_from'):
+                item.update(shared_from=row['shared_from'], share_id=row['share_id'])
             size = len(json.dumps(item, ensure_ascii=False))
             if used + size > MAX_MEMORY_CHARS:
                 break

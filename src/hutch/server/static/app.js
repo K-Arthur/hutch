@@ -2016,7 +2016,7 @@ async function renderChatFeed() {
 
   const conversationId = currentConversationId, generation = studioGeneration;
   const stillCurrent = () => generation === studioGeneration && conversationId === currentConversationId && stream.isConnected;
-  let messages, authority, factPage, workspaceTasks = [];
+  let messages, authority, factPage, factShares, workspaceTasks = [];
   try {
     if (!currentConversationId) return;
     const summary = await api(`/v1/conversations/${encodeURIComponent(conversationId)}?after=0&limit=1`);
@@ -2030,6 +2030,9 @@ async function renderChatFeed() {
     factPage = await api(`/v1/bots/${encodeURIComponent(currentStudioBot)}/facts?conversation_id=${encodeURIComponent(conversationId)}&limit=20`)
       .catch(error => ({facts:[], error:error.message}));
     if (!stillCurrent()) return;
+    factShares = await api(`/v1/bots/${encodeURIComponent(currentStudioBot)}/fact-shares?limit=20`)
+      .catch(error => ({incoming:[], outgoing:[], error:error.message}));
+    if (!stillCurrent()) return;
     workspaceTasks = await api(`/v1/workspace/tasks?conversation_id=${encodeURIComponent(conversationId)}&limit=100`)
       .catch(() => []);
     currentWorkspaceTasks = workspaceTasks;
@@ -2040,9 +2043,9 @@ async function renderChatFeed() {
   if (authority.active_run_id && !runIds.includes(authority.active_run_id)) runIds.unshift(authority.active_run_id);
   if (!runIds.length) {
     const factUi = captureFactUi(stream);
-    stream.innerHTML = welcomeHtml() + factPanelHtml(factPage.facts || [], factPage.error);
+    stream.innerHTML = welcomeHtml() + factPanelHtml(factPage.facts || [], factPage.error, factShares);
     wireWelcome();
-    wireFactControls(factPage.facts || [], currentStudioBot);
+    wireFactControls(factPage.facts || [], currentStudioBot, factShares);
     $('[data-retry-facts]', stream)?.addEventListener('click', () => scheduleFeedRender());
     restoreFactUi(stream, factUi);
     return;
@@ -2084,7 +2087,7 @@ async function renderChatFeed() {
   const focusedReceipt = focused?.dataset.receiptReview;
   const focusedFact = focused?.dataset.factReview;
   const factUi = captureFactUi(stream);
-  stream.innerHTML = parts.join("") + factPanelHtml(factPage.facts || [], factPage.error);
+  stream.innerHTML = parts.join("") + factPanelHtml(factPage.facts || [], factPage.error, factShares);
   $$("[data-approval-card] details", stream).forEach(d => {
     const id = d.closest("[data-approval-card]").dataset.approvalCard;
     if (reviewState.has(id)) d.open = reviewState.get(id);
@@ -2149,7 +2152,7 @@ async function renderChatFeed() {
 
   wireApprovals();
   wireFeedInteractions();
-  wireFactControls(factPage.facts || [], currentStudioBot);
+  wireFactControls(factPage.facts || [], currentStudioBot, factShares);
   $('[data-retry-facts]', stream)?.addEventListener('click', () => scheduleFeedRender());
   $$("[data-retry-feed]", stream).forEach(button => button.onclick = () => scheduleFeedRender());
   updateTtls();
@@ -2162,7 +2165,8 @@ function factScopeLabel(fact) {
 }
 
 const FACT_BUTTONS = [['factReview','[data-fact-review]'], ['factEdit','[data-fact-edit]'],
-  ['factArchive','[data-fact-archive]'], ['factHistory','[data-fact-history]']];
+  ['factArchive','[data-fact-archive]'], ['factHistory','[data-fact-history]'],
+  ['factShare','[data-fact-share-create]'], ['factShareRevoke','[data-fact-share-revoke]']];
 function captureFactUi(stream) {
   const focused = document.activeElement;
   const match = stream.contains(focused) && FACT_BUTTONS.find(([field]) => focused.dataset[field]);
@@ -2186,18 +2190,44 @@ function factCardHtml(fact) {
     <div class="btn-row">${fact.status === 'proposed' ? `<button type="button" class="btn primary small" data-fact-review="${esc(fact.id)}">Review fact</button>` : ''}
       ${fact.status !== 'archived' ? `<button type="button" class="btn ghost small" data-fact-edit="${esc(fact.id)}">Revise</button>
       <button type="button" class="btn ghost small" data-fact-archive="${esc(fact.id)}">Archive fact</button>` : ''}
+      ${fact.status === 'approved' ? `<button type="button" class="btn ghost small" data-fact-share-create="${esc(fact.id)}">Share with a Bot</button>` : ''}
       <button type="button" class="btn ghost small" data-fact-history="${esc(fact.id)}">Fact history</button></div>
   </article>`;
 }
 
-function factPanelHtml(facts, error = '') {
-  if (error) return `<p class="hint" role="status">Could not refresh reference facts: ${esc(error)}. <button class="btn ghost small" type="button" data-retry-facts>Retry facts</button></p>`;
-  if (!facts.length) return '';
+function factShareCardHtml(share, direction) {
+  const incoming = direction === 'incoming';
+  const owner = incoming ? share.source_display_name : share.target_display_name;
+  const state = share.state === 'active' ? 'Active' : share.state.replaceAll('_', ' ');
+  return `<article class="fact-card fact-share-card" data-fact-share-card="${esc(share.id)}">
+    <div class="fact-heading"><strong>${esc(share.fact_key)}</strong><span class="tag">${esc(state)}</span></div>
+    <p class="fact-value">${esc(share.fact_value)}</p>
+    <p class="hint">${incoming ? `Shared by ${esc(owner)}` : `Shared with ${esc(owner)}`} · revision ${esc(share.fact_revision)} · reviewed snapshot</p>
+    <p class="hint">${incoming ? 'This reference is untrusted data for this Bot’s chats. It does not grant tool access.' : 'The recipient can read this reference in all of its chats; revoke it here.'}</p>
+    ${share.state !== 'revoked' ? `<div class="btn-row"><button type="button" class="btn ghost small" data-fact-share-revoke="${esc(share.id)}">${incoming ? 'Remove shared fact' : 'Revoke share'}</button></div>` : ''}
+  </article>`;
+}
+
+function factShareRecordsHtml(sharePage = {}) {
+  if (sharePage.error) return `<p class="hint" role="status">Could not refresh Bot-to-Bot shares: ${esc(sharePage.error)}. <button class="btn ghost small" type="button" data-retry-facts>Retry</button></p>`;
+  const incoming = sharePage.incoming || [], outgoing = sharePage.outgoing || [];
+  if (!incoming.length && !outgoing.length) return '';
+  return `<details class="fact-share-list"><summary>Bot-to-Bot references · ${incoming.length} received · ${outgoing.length} shared</summary>
+    <p class="hint">Only exact, reviewed snapshots appear here. Either Bot can revoke a grant; revisions do not silently update the snapshot.</p>
+    ${incoming.map(item => factShareCardHtml(item, 'incoming')).join('')}
+    ${outgoing.map(item => factShareCardHtml(item, 'outgoing')).join('')}
+    ${(incoming.length === 20 || outgoing.length === 20) ? '<p class="hint">Showing the latest 20 grants for each direction.</p>' : ''}</details>`;
+}
+
+function factPanelHtml(facts, error = '', sharePage = {}) {
+  if (error) return `<p class="hint" role="status">Could not refresh reference facts: ${esc(error)}. <button class="btn ghost small" type="button" data-retry-facts>Retry facts</button></p>${factShareRecordsHtml(sharePage)}`;
+  if (!facts.length && !(sharePage.incoming || []).length && !(sharePage.outgoing || []).length && !sharePage.error) return '';
   const proposed = facts.filter(f => f.status === 'proposed'), reviewed = facts.filter(f => f.status === 'approved');
   return `<section class="fact-panel" aria-label="Reference facts">
     <h2>Reference facts</h2><p class="hint">Proposals need review before recall. Reviewed facts may be stale; they grant no tool permission. Memory can be disabled in bot settings.</p>
     ${proposed.map(factCardHtml).join('')}
     ${reviewed.length ? `<details><summary>${reviewed.length} reviewed ${reviewed.length === 1 ? 'fact' : 'facts'} in this window</summary>${reviewed.map(factCardHtml).join('')}</details>` : ''}
+    ${factShareRecordsHtml(sharePage)}
     ${facts.length === 20 ? '<p class="hint">Showing 20 facts. Bot settings provide the full paginated inventory.</p>' : ''}</section>`;
 }
 
@@ -2206,8 +2236,59 @@ function refreshFactsAfterChange(botName) {
   else scheduleFeedRender();
 }
 
-function wireFactControls(facts, botName) {
+function wireFactControls(facts, botName, sharePage = {incoming:[], outgoing:[]}) {
   const byId = new Map(facts.map(f => [f.id, f]));
+  $$('[data-fact-share-create]').forEach(button => button.onclick = async () => {
+    const fact = byId.get(button.dataset.factShareCreate); if (!fact) return;
+    button.disabled = true;
+    let choices = [];
+    try {
+      const freshBots = await api('/bots');
+      botsCache = freshBots;
+      choices = freshBots.filter(bot => bot.id !== fact.bot_id && bot.name !== botName && bot.memory_enabled !== false);
+    } catch (error) {
+      button.disabled = false;
+      toast(`Could not load Bots to share with: ${error.message}`, true);
+      return;
+    }
+    button.disabled = false;
+    if (!choices.length) { toast('Create another Bot with memory enabled before sharing this fact.', true); return; }
+    const key = newIdempotencyKey();
+    openModal({ title: 'Share this reference with a Bot', confirmText: 'Share reviewed fact', returnFocus: button,
+      bodyHtml: `<p><strong>${esc(fact.key)}</strong></p><p class="fact-value">${esc(fact.value)}</p>
+        <label class="field">Recipient Bot<select id="fact-share-target" required>
+          ${choices.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}${bot.is_workspace_coordinator ? ' · Coordinator' : ''}</option>`).join('')}
+        </select></label>
+        <p class="fact-share-disclosure">This sends this exact reviewed snapshot to the selected Bot’s chats. That Bot can read it as untrusted reference data; it grants no tool permission. Either Bot can revoke it, and a newer revision requires a new review and share.</p>
+        <p id="fact-share-create-error" role="status" class="hint"></p>`,
+      onConfirm: async () => {
+        const target = $('#fact-share-target').value;
+        try {
+          await api(`/v1/bots/${encodeURIComponent(botName)}/facts/${encodeURIComponent(fact.id)}/shares`, {
+            method: 'POST', headers: {'Idempotency-Key': key}, body: {target_bot_id: target},
+          });
+          refreshFactsAfterChange(botName); return true;
+        } catch (error) { $('#fact-share-create-error').textContent = `Share was not confirmed: ${error.message}`; return false; }
+      } });
+  });
+  $$('[data-fact-share-revoke]').forEach(button => button.onclick = () => {
+    const share = [...(sharePage.incoming || []), ...(sharePage.outgoing || [])]
+      .find(item => item.id === button.dataset.factShareRevoke);
+    if (!share) return;
+    const key = newIdempotencyKey();
+    openModal({ title: 'Remove shared reference?', confirmText: 'Revoke share', confirmClass: 'danger', returnFocus: button,
+      bodyHtml: `<p>Stop <strong>${esc(share.fact_key)}</strong> from being recalled in ${esc(share.target_display_name)}’s chats?</p>
+        <p>The retained snapshot and review history stay in Hutch’s audit record. New recalls stop after revocation.</p>
+        <p id="fact-share-revoke-error" role="status" class="hint"></p>`,
+      onConfirm: async () => {
+        try {
+          await api(`/v1/bots/${encodeURIComponent(botName)}/fact-shares/${encodeURIComponent(share.id)}`, {
+            method: 'DELETE', headers: {'Idempotency-Key': key},
+          });
+          refreshFactsAfterChange(botName); return true;
+        } catch (error) { $('#fact-share-revoke-error').textContent = `Revocation was not confirmed: ${error.message}`; return false; }
+      } });
+  });
   $$('[data-fact-review]').forEach(button => button.onclick = () => {
     const fact = byId.get(button.dataset.factReview); if (!fact) return;
     const key = newIdempotencyKey();
@@ -3818,6 +3899,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     : !b.model || b.model.startsWith("mock/") ? "Save a real Hutch model route above before switching."
       : "";
   const factsPage = await api(`/v1/bots/${encodeURIComponent(name)}/facts?all_scopes=true&limit=20&offset=${factOffset}&include_archived=${showArchivedFacts}`);
+  const factSharesPage = await api(`/v1/bots/${encodeURIComponent(name)}/fact-shares?limit=20`)
+    .catch(error => ({incoming:[], outgoing:[], error:error.message}));
   const schedules = Array.isArray(b.schedules) ? b.schedules : (b.schedule ? [b.schedule] : []);
   let scheduleRows = [];
   try { scheduleRows = await api(`/v1/schedules?bot=${encodeURIComponent(b.id)}&limit=100&offset=0`); } catch {}
@@ -4068,6 +4151,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             <button class="btn ghost small" id="memory-toggle" type="button">${b.memory_enabled ? 'Disable' : 'Enable'} memory</button>
             <button class="btn ghost small" id="memory-archives" type="button">${showArchivedFacts ? 'Hide' : 'Show'} archived facts</button>
             ${factsPage.facts.map(factCardHtml).join('') || `<p class="empty-inline">No active facts in this window.</p>`}
+            ${factShareRecordsHtml(factSharesPage)}
             <div class="btn-row"><button class="btn ghost small" id="facts-previous" type="button" ${factOffset ? '' : 'disabled'}>Previous facts</button>
               <span class="hint">${factsPage.facts.length ? `${factOffset + 1}–${factOffset + factsPage.facts.length}` : 'No facts in this window'}</span>
               <button class="btn ghost small" id="facts-next" type="button" ${factsPage.next_offset === null ? 'disabled' : ''}>Next facts</button></div>
@@ -4260,7 +4344,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     if (!rule.match) return;
     patch({ command_rules: [...rules, rule] }, "Rule added.");
   });
-  wireFactControls(factsPage.facts, b.name);
+  wireFactControls(factsPage.facts, b.name, factSharesPage);
   $('#memory-toggle').onclick = () => patch({memory_enabled: !b.memory_enabled}, `Memory ${b.memory_enabled ? 'disabled' : 'enabled'}.`);
   $('#memory-archives').onclick = () => renderBotDetail(name, 0, !showArchivedFacts);
   $('#facts-previous').onclick = () => renderBotDetail(name, Math.max(0, factOffset - 20), showArchivedFacts);

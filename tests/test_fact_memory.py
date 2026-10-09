@@ -15,7 +15,7 @@ from hutch.lifecycle import LeaseLost
 from hutch.models import Bot, Run, RunStatus, iso, utcnow
 from hutch.runtime.builtin import BuiltinRuntime
 from hutch.server.app import create_app
-from hutch.store import SCHEMA_VERSION, Store
+from hutch.store import IdempotencyConflict, SCHEMA_VERSION, Store
 from hutch.tools import build_tools
 from hutch.tools.base import ToolContext
 from hutch.approvals import ApprovalGate
@@ -71,6 +71,148 @@ def test_explicit_share_changes_scope_without_sharing_other_bot_context(store):
     with pytest.raises(FactConflict):
         store.review_fact(other.id, fact.id, content_hash=fact.content_hash, action='share', actor='fixture', note='explicit shared reference')
     assert store._db.execute('SELECT COUNT(*) FROM memory_facts').fetchone()[0] == 2
+
+
+def test_cross_bot_fact_share_is_explicit_current_revocable_and_survives_restart(store, config):
+    source = store.create_bot(Bot(name='memory-owner', display_name='Research Partner'))
+    recipient = store.create_bot(Bot(name='memory-recipient', display_name='Brief Writer'))
+    source_ctx = context(store, source, 'source-chat')
+    recipient_ctx = context(store, recipient, 'recipient-chat')
+    fact = approved(store, source, source_ctx, key='preferred-source', value='Use the vendor security guide.')
+
+    assert store.recall_fact_page(recipient.id, conversation_id=recipient_ctx.run.conversation_id,
+                                  query='vendor', limit=20) == []
+    share, created = store.create_fact_share_command(source.id, fact.id, recipient.id,
+                                                       idem_key='fact-share-1', request_hash='same-request')
+    assert created is True
+    replay, created = store.create_fact_share_command(source.id, fact.id, recipient.id,
+                                                        idem_key='fact-share-1', request_hash='same-request')
+    assert created is False and replay['id'] == share['id']
+    with pytest.raises(IdempotencyConflict):
+        store.create_fact_share_command(source.id, fact.id, recipient.id,
+                                        idem_key='fact-share-1', request_hash='changed-request')
+
+    visible = store.recall_fact_page(recipient.id, conversation_id=recipient_ctx.run.conversation_id,
+                                     query='vendor', limit=20)
+    assert len(visible) == 1
+    assert visible[0]['value'] == fact.value
+    assert visible[0]['shared_from'] == 'Research Partner'
+    assert visible[0]['share_id'] == share['id']
+    recalled = build_tools(['memory'], recipient_ctx)['recall'].run({'query': 'vendor'}, recipient_ctx)
+    recalled_data = json.loads(recalled.output.split('\n', 1)[1])
+    assert recalled.ok and recalled_data[0]['shared_from'] == 'Research Partner'
+    assert recalled_data[0]['share_id'] == share['id']
+    assert store.recall_fact_page(source.id, conversation_id=source_ctx.run.conversation_id,
+                                  query='vendor', limit=20)[0]['value'] == fact.value
+
+    peer = Store(config)
+    try:
+        assert peer.recall_fact_page(recipient.id, conversation_id=recipient_ctx.run.conversation_id,
+                                     query='vendor', limit=20)[0]['share_id'] == share['id']
+        revoked = peer.revoke_fact_share_command(recipient.id, share['id'], idem_key='fact-revoke-1',
+                                                  request_hash='revoke', actor='fixture')
+        assert revoked['revoked'] is True
+    finally:
+        peer.close()
+    assert store.recall_fact_page(recipient.id, conversation_id=recipient_ctx.run.conversation_id,
+                                  query='vendor', limit=20) == []
+    assert build_tools(['memory'], recipient_ctx)['recall'].run(
+        {'query': 'vendor'}, recipient_ctx).data['count'] == 0
+
+
+def test_cross_bot_fact_share_rejects_unreviewed_or_superseded_memory(store):
+    source = store.create_bot(Bot(name='memory-share-source'))
+    recipient = store.create_bot(Bot(name='memory-share-target'))
+    ctx = context(store, source, 'memory-share-chat')
+    proposed = store.remember(source.id, 'pending', 'Not reviewed', run_id=ctx.run.id,
+                              expected_fence=ctx.run.fence)
+    with pytest.raises(ValueError, match='reviewed'):
+        store.create_fact_share_command(source.id, proposed.id, recipient.id,
+                                        idem_key='pending-share', request_hash='pending')
+
+    approved_fact = approved(store, source, ctx, key='changing', value='old')
+    store.remember(source.id, approved_fact.key, 'new', run_id=ctx.run.id, expected_fence=ctx.run.fence)
+    with pytest.raises(ValueError, match='current'):
+        store.create_fact_share_command(source.id, approved_fact.id, recipient.id,
+                                        idem_key='stale-share', request_hash='stale')
+    with pytest.raises(ValueError, match='different Bots'):
+        store.create_fact_share_command(source.id, approved_fact.id, source.id,
+                                        idem_key='self-share', request_hash='self')
+
+
+def test_fact_share_pages_are_bounded_and_report_only_real_next_pages(store):
+    source = store.create_bot(Bot(name='share-page-source'))
+    target = store.create_bot(Bot(name='share-page-target'))
+    ctx = context(store, source, 'share-page-chat')
+
+    def add_share(key, idem_key):
+        fact = approved(store, source, ctx, key=key, value=f'Reference for {key}')
+        return store.create_fact_share_command(source.id, fact.id, target.id,
+                                               idem_key=idem_key, request_hash=idem_key)[0]
+
+    first = add_share('first', 'share-page-1')
+    page = store.fact_shares(target.id, limit=1)
+    assert len(page['incoming']) == 1 and page['next_offset'] is None
+
+    second = add_share('second', 'share-page-2')
+    page = store.fact_shares(target.id, limit=1)
+    assert len(page['incoming']) == 1 and page['next_offset'] == 1
+    next_page = store.fact_shares(target.id, limit=1, offset=page['next_offset'])
+    assert len(next_page['incoming']) == 1 and next_page['next_offset'] is None
+    assert {page['incoming'][0]['id'], next_page['incoming'][0]['id']} == {first['id'], second['id']}
+
+
+def test_fact_sharing_api_is_typed_idempotent_participant_scoped_and_content_free(config):
+    app = create_app()
+    with TestClient(app) as client:
+        api_store = app.state.store
+        source = api_store.create_bot(Bot(name='share-api-source', display_name='Research Partner'))
+        target = api_store.create_bot(Bot(name='share-api-target', display_name='Brief Writer'))
+        outsider = api_store.create_bot(Bot(name='share-api-outsider'))
+        source_ctx = context(api_store, source, 'share-api-source-chat')
+        target_ctx = context(api_store, target, 'share-api-target-chat')
+        fact = approved(api_store, source, source_ctx, key='preferred-source', value='API PRIVATE SENTINEL')
+
+        path = f'/api/v1/bots/{source.id}/facts/{fact.id}/shares'
+        body = {'target_bot_id': target.id}
+        assert client.post(path, json=body).status_code == 428
+        assert client.post(path, headers={'Idempotency-Key':'share-api-1'},
+                           json={**body, 'extra':'rejected'}).status_code == 422
+        response = client.post(path, headers={'Idempotency-Key':'share-api-1'}, json=body)
+        assert response.status_code == 201
+        share = response.json()
+        assert share['state'] == 'active' and share['fact_value'] == 'API PRIVATE SENTINEL'
+        replay = client.post(path, headers={'Idempotency-Key':'share-api-1'}, json=body)
+        assert replay.status_code == 200 and replay.json()['id'] == share['id']
+        changed = client.post(path, headers={'Idempotency-Key':'share-api-1'},
+                              json={'target_bot_id': outsider.id})
+        assert changed.status_code == 409
+
+        incoming = client.get(f'/api/v1/bots/{target.id}/fact-shares?limit=10').json()
+        outgoing = client.get(f'/api/v1/bots/{source.id}/fact-shares?limit=10').json()
+        assert incoming['incoming'][0]['id'] == share['id']
+        assert incoming['outgoing'] == []
+        assert outgoing['outgoing'][0]['target_display_name'] == 'Brief Writer'
+        assert api_store.recall_fact_page(target.id, conversation_id=target_ctx.run.conversation_id,
+                                          query='PRIVATE', limit=20)[0]['share_id'] == share['id']
+
+        changes = client.get('/api/v1/changes').json()['changes']
+        share_changes = [change for change in changes if change['resource'] == 'memory_shares']
+        assert share_changes and share_changes[-1]['context'] == {
+            'source_bot_id': source.id, 'target_bot_id': target.id}
+        assert 'API PRIVATE SENTINEL' not in json.dumps(share_changes)
+
+        revoke_path = f'/api/v1/bots/{target.id}/fact-shares/{share["id"]}'
+        assert client.delete(revoke_path).status_code == 428
+        revoked = client.delete(revoke_path, headers={'Idempotency-Key':'revoke-api-1'})
+        assert revoked.status_code == 200 and revoked.json()['revoked'] is True
+        retry = client.delete(revoke_path, headers={'Idempotency-Key':'revoke-api-1'})
+        assert retry.status_code == 200 and retry.json() == revoked.json()
+        assert client.get(f'/api/v1/bots/{source.id}/fact-shares').json()['outgoing'][0]['state'] == 'revoked'
+        assert api_store.recall_fact_page(target.id, conversation_id=target_ctx.run.conversation_id,
+                                          query='PRIVATE', limit=20) == []
+        assert client.delete(f'/api/v1/bots/{outsider.id}/fact-shares/{share["id"]}',
+                             headers={'Idempotency-Key':'outsider-revoke'}).status_code == 404
 
 
 def test_legacy_unscoped_bot_views_never_expose_private_chat_facts(store):
