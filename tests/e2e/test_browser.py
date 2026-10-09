@@ -1157,7 +1157,7 @@ def test_outlook_mail_grant_and_consent_boundary_fit_all_viewports(browser, live
         grant = card.get_by_role("button", name="Grant read access")
         assert grant.is_enabled()
         grant.click()
-        page.locator(".toast-msg").wait_for()
+        page.locator(".toast-msg").last.wait_for()
         grant_notice = page.locator(".toast-msg").last.inner_text()
         assert "in Work" in grant_notice
         assert "msmail_0123456789abcdef01234567" not in grant_notice
