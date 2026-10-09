@@ -7,7 +7,7 @@ from threading import Barrier
 import pytest
 
 from hutch.engine import Engine
-from hutch.models import Bot, Run, RunStatus, Task, iso, utcnow
+from hutch.models import Bot, Event, EventType, InferenceMode, Limits, Run, RunStatus, Task, iso, utcnow
 from hutch.store import IdempotencyConflict, Store
 
 
@@ -104,7 +104,8 @@ def test_delegated_child_keeps_parent_conversation_attachment_and_context(store)
     child, _ = _child(store, parent, key="conversation-child")
 
     assert child.conversation_id == conversation["id"]
-    assert child.conversation_context == parent.conversation_context
+    assert child.conversation_context == []
+    assert store.get_run(child.id).conversation_context == []
     assert store._db.execute(
         "SELECT 1 FROM conversation_runs WHERE conversation_id = ? AND run_id = ?",
         (conversation["id"], child.id),
@@ -221,6 +222,243 @@ def test_delegated_children_inherit_immutable_parent_capabilities_after_bot_edit
                        ('{"tools":["shell"]}', child.id))
 
 
+def test_delegated_bot_reconstructs_start_policy_and_narrows_shared_state(store):
+    from hutch.models import InferenceMode
+
+    original = store.create_bot(Bot(
+        name="snapshot-worker", model="ollama/qwen3:8b", instructions="Inspect only the supplied task.",
+        description="offline analysis", inference_mode=InferenceMode.offline,
+        tools=["shell", "files", "memory", "browser", "web_fetch"],
+        base_url="http://127.0.0.1:11434/api?local-token-not-for-snapshot",
+    ))
+    snapshot = Engine.capability_snapshot(original)
+    assert snapshot["snapshot_version"] == 1
+    assert "local-token-not-for-snapshot" not in str(snapshot)
+    changed = original.model_copy(update={
+        "model": "openai/gpt-current", "tools": ["shell", "browser"], "sandbox": "off",
+        "shell_network": True,
+    })
+
+    delegated = Engine._delegated_bot(changed, snapshot)
+
+    assert delegated.model == "ollama/qwen3:8b"
+    assert delegated.instructions == original.instructions
+    assert delegated.sandbox == original.sandbox
+    assert delegated.shell_network is False
+    assert delegated.inference_mode is InferenceMode.offline
+    assert "browser" not in delegated.tools and "web_fetch" not in delegated.tools
+    assert "remember" not in delegated.tools and "recall" not in delegated.tools
+    assert delegated.workspace_mode == "fresh" and delegated.workdir is None
+    assert delegated.local_browser_handoff is False
+    assert delegated.limits.max_steps == 8
+    assert delegated.limits.timeout_seconds == 600
+    assert delegated.base_url == original.base_url
+
+
+def test_delegated_bot_refuses_changed_prompt_identity_or_custom_route(store):
+    original = store.create_bot(Bot(name="snapshot-identity", model="ollama/qwen3:8b",
+                                    description="analysis", instructions="Use local data only."))
+    snapshot = Engine.capability_snapshot(original)
+    changed_instructions = original.model_copy(update={"instructions": "Use a hosted tool instead."})
+    changed_endpoint = original.model_copy(update={"base_url": "http://127.0.0.1:11435"})
+    changed_identity = original.model_copy(update={"description": "new task"})
+    for changed in (changed_instructions, changed_endpoint, changed_identity):
+        with pytest.raises(ValueError, match="changed after the parent started"):
+            Engine._delegated_bot(changed, snapshot)
+
+    with pytest.raises(ValueError, match="Strict Offline"):
+        Engine._delegated_bot(original, {**snapshot, "inference_mode": "hybrid"})
+
+
+def test_delegated_child_claim_can_share_only_its_parent_capacity(store):
+    bot, parent = _running_parent(store)
+    child, _ = _child(store, parent, key="claim-child")
+
+    claimed = store.claim_run(child.id, "child-owner", 60, max_live=3)
+
+    assert claimed is not None
+    assert claimed.parent_run_id == parent.id
+    unrelated = store.submit_run(Run(bot_id=bot.id, prompt="unrelated work"),
+                                 Task(bot_id=bot.id, prompt="unrelated work"))
+    assert store.claim_run(unrelated.id, "unrelated-owner", 60, max_live=3) is None
+
+    sibling, _ = _child(store, parent, key="claim-sibling")
+    sibling_claim = store.claim_run(sibling.id, "sibling-owner", 60, max_live=3)
+    assert sibling_claim is not None
+
+    other_bot = store.create_bot(Bot(name="claim-other-bot", model="mock/demo", tools=[]))
+    other = store.submit_run(Run(bot_id=other_bot.id, prompt="use another global slot"),
+                             Task(bot_id=other_bot.id, prompt="use another global slot"))
+    assert store.claim_run(other.id, "other-bot-owner", 60, max_live=3) is None
+
+
+def test_supervised_delegation_admits_private_child_and_returns_verified_result(store, config):
+    bot = store.create_bot(Bot(name="offline-supervisor", model="ollama/qwen3:8b",
+                               base_url="http://127.0.0.1:11434", inference_mode=InferenceMode.offline,
+                               tools=["delegate_task"], limits=Limits(max_cost_usd=1.0)))
+    root = store.submit_run(Run(bot_id=bot.id, prompt="coordinate privately"), Task(bot_id=bot.id,
+                                                                                      prompt="coordinate privately"))
+    claimed = store.claim_run(root.id, "delegation-parent", 60, max_live=2)
+    assert claimed is not None
+    parent = store.transition_run(root.id, RunStatus.running, fence=claimed.fence,
+                                  capability_snapshot=Engine.capability_snapshot(bot))
+    from hutch.approvals import ApprovalGate
+    from hutch.safety import PolicyEngine
+    from hutch.tools.base import ToolContext
+    ctx = ToolContext(bot=bot, run=parent, store=store, policy=PolicyEngine(),
+                      gate=ApprovalGate(store, bot, parent, PolicyEngine(), lambda _event: None),
+                      config=config, workspace=config.run_dir(bot.name, root.id) / "workspace")
+    engine = Engine(config, store, max_concurrent=2, executor="process", owner_id="delegation-supervisor", light=True)
+
+    def finish_child():
+        import time
+        child = None
+        until = time.monotonic() + 4
+        while time.monotonic() < until:
+            child = next((run for run in store.active_runs() if run.parent_run_id == root.id), None)
+            if child:
+                break
+            time.sleep(0.01)
+        assert child is not None
+        child = store.claim_run(child.id, "delegation-fixture", 60, max_live=2)
+        assert child is not None
+        child = store.transition_run(child.id, RunStatus.running, fence=child.fence)
+        assert child.conversation_context == []
+        store.append_event(Event(run_id=child.id, owner_fence=child.fence, type=EventType.message,
+                                 data={"role": "assistant", "content": "Reviewed result from isolated child."}))
+        store.transition_run(child.id, RunStatus.succeeded, fence=child.fence, exit_reason="completed")
+
+    import threading
+    import time
+    fixture = threading.Thread(target=finish_child)
+    fixture.start()
+    result = engine._run_delegated_task(ctx, "Inspect the supplied file and summarize its risks.",
+                                        "step-1-test", "sha256:task", time.monotonic() + 5)
+    fixture.join(5)
+    assert result.ok and "Reviewed result from isolated child." in result.output
+    child = next(run for run in store.list_runs() if run.parent_run_id == root.id)
+    assert child.delegation_budget_cost_usd == 1.0
+    assert child.conversation_context == []
+
+
+def test_strict_offline_delegation_runs_as_child_after_explicit_approval(store, config):
+    """Exercise approval, child process, private context and result return with a local HTTP fixture."""
+    import threading
+    import time
+
+    from hutch import sandbox
+    from hutch.approvals import resolve_approval
+    from hutch.models import ApprovalMode
+    from tests.fakes import FakeOllama, agent_script
+
+    if not sandbox.status().ok or not sandbox.offline_egress_status(refresh=True).ok:
+        pytest.skip("host lacks a verified resource-limited offline worker")
+
+    fake = FakeOllama({"fake:1b": {"params": "1B", "size": 200_000_000}})
+    fake.script = agent_script([
+        {"content": "", "tool_calls": [{"name": "delegate_task", "arguments": {
+            "task": "Return a short independent summary of the supplied task."}}]},
+        {"content": "Child result: the requested summary is verified."},
+        {"content": "Parent result includes the verified child summary."},
+    ])
+    bot = store.create_bot(Bot(
+        name="offline-delegation-e2e", model="ollama/fake:1b", base_url=fake.url,
+        inference_mode=InferenceMode.offline, sandbox="strict", tools=["delegate_task"],
+        approval_mode=ApprovalMode.auto, selfcheck=False,
+        limits=Limits(max_steps=8, timeout_seconds=60, max_cost_usd=1.0),
+    ))
+    root = Run(bot_id=bot.id, prompt="Coordinate the task.",
+               conversation_context=[{"role": "user", "content": "PRIVATE ROOT HISTORY"}])
+    root = store.submit_run(root, Task(bot_id=bot.id, prompt=root.prompt))
+    engine = Engine(config, store, max_concurrent=2, executor="process", light=True,
+                    owner_id="delegation-process-e2e")
+    stop_dispatch = threading.Event()
+
+    def dispatch_children():
+        while not stop_dispatch.is_set():
+            engine.dispatch_pending()
+            stop_dispatch.wait(0.02)
+
+    dispatcher = threading.Thread(target=dispatch_children, name="delegation-test-dispatcher")
+    dispatcher.start()
+    try:
+        deadline = time.monotonic() + 45
+        pending = []
+        while time.monotonic() < deadline:
+            pending = store.pending_approvals(bot_id=bot.id)
+            if pending:
+                break
+            current = store.get_run(root.id)
+            if current is None or current.terminal:
+                events = [event.data for event in store.tail_events(root.id, limit=40)]
+                raise AssertionError((current.status if current else None, current.error if current else None,
+                                      current.exit_reason if current else None, events, fake.of("/api/chat")))
+            time.sleep(0.05)
+
+        assert pending, "root did not request human approval for delegation"
+        request = pending[0]
+        assert request.run_id == root.id and request.tool == "delegate_task"
+        assert request.outward and request.detail["task"] == "Return a short independent summary of the supplied task."
+        resolved = resolve_approval(store, request.id, True, by="fixture-reviewer")
+        assert resolved.status.value == "approved"
+
+        deadline = time.monotonic() + 45
+        while time.monotonic() < deadline:
+            current = store.get_run(root.id)
+            if current is not None and current.terminal:
+                break
+            time.sleep(0.05)
+
+        final = store.get_run(root.id)
+        assert final is not None and final.status is RunStatus.succeeded, (
+            final.status if final else None, final.error if final else None,
+            final.exit_reason if final else None,
+        )
+        children = [run for run in store.list_runs() if run.parent_run_id == root.id]
+        assert len(children) == 1
+        child = children[0]
+        assert child.status is RunStatus.succeeded, (child.status, child.error, child.exit_reason)
+        assert child.conversation_context == []
+        assert "Child result: the requested summary is verified." in "\n".join(
+            str(event.data.get("content") or "") for event in store.tail_events(child.id, limit=100)
+        )
+
+        calls = fake.of("/api/chat")
+        assert len(calls) == 3, "root approval, child completion, then parent completion should each use one call"
+        root_request = calls[0]["body"]
+        child_request = calls[1]["body"]
+        assert "PRIVATE ROOT HISTORY" in str(root_request["messages"])
+        assert "PRIVATE ROOT HISTORY" not in str(child_request["messages"])
+        assert "Return a short independent summary of the supplied task." in str(child_request["messages"])
+        assert "Child result: the requested summary is verified." in str(calls[2]["body"]["messages"])
+    finally:
+        stop_dispatch.set()
+        dispatcher.join(timeout=5)
+        if dispatcher.is_alive():
+            raise RuntimeError("delegation test dispatcher did not stop")
+        engine.stop_all()
+        engine.shutdown(timeout=10)
+        fake.close()
+
+
+def test_nested_delegation_requires_a_slot_for_each_live_ancestor(store, config):
+    bot = store.create_bot(Bot(name="nested-offline", model="ollama/qwen3:8b",
+                               base_url="http://127.0.0.1:11434", inference_mode=InferenceMode.offline,
+                               tools=["delegate_task"]))
+    root_run = store.submit_run(Run(bot_id=bot.id, prompt="root"), Task(bot_id=bot.id, prompt="root"))
+    root_claim = store.claim_run(root_run.id, "root-owner", 60, max_live=3)
+    root = store.transition_run(root_run.id, RunStatus.running, fence=root_claim.fence,
+                                capability_snapshot=Engine.capability_snapshot(bot))
+    child, _ = _child(store, root, key="nested-parent")
+    child_claim = store.claim_run(child.id, "child-owner", 60, max_live=3)
+    parent = store.transition_run(child.id, RunStatus.running, fence=child_claim.fence)
+    engine = Engine(config, store, max_concurrent=2, executor="process", owner_id="two-slots", light=True)
+    ctx = type("Context", (), {"bot": bot, "run": parent, "store": store})()
+    result = engine._run_delegated_task(ctx, "a bounded task", "step-1", "sha256:task", 10**9)
+    assert not result.ok and "needs at least 3 global run slots" in result.output
+    assert not any(run.parent_run_id == parent.id for run in store.list_runs())
+
+
 def test_direct_child_worker_fails_before_runtime_or_tools_start(store, config, monkeypatch):
     import hutch.engine as engine_module
 
@@ -242,7 +480,7 @@ def test_direct_child_worker_fails_before_runtime_or_tools_start(store, config, 
     failed = store.get_run(child.id)
     assert failed.status is RunStatus.failed
     assert failed.exit_reason == "delegation_unavailable"
-    assert "capability-enforcing executor" in failed.error
+    assert "capability snapshot is missing or unsupported" in failed.error
     assert store.list_events(child.id)[-1].data["reason"] == "delegation_unavailable"
 
 
@@ -390,15 +628,17 @@ def test_engine_stop_signals_owned_processes_for_descendants(store, config):
     assert store.get_run(grandchild.id).status is RunStatus.stopped
 
 
-def test_ordinary_dispatcher_keeps_delegated_runs_pending_until_child_executor_exists(store, config):
+def test_dispatcher_fails_closed_for_children_with_unenforceable_snapshots(store, config):
     _, root = _running_parent(store)
     child, _ = _child(store, root, key="not-yet-executable")
     store.transition_run(root.id, RunStatus.succeeded, fence=root.fence, exit_reason="completed")
 
     engine = Engine(config, store, light=True, executor="thread")
     assert engine.dispatch_pending() == 0
-    pending = store.get_run(child.id)
-    assert pending is not None and pending.status is RunStatus.pending and not pending.lease_owner
+    failed = store.get_run(child.id)
+    assert failed is not None and failed.status is RunStatus.failed
+    assert failed.exit_reason == "delegation_unavailable"
+    assert "snapshot" in failed.error
 
 
 def test_delegated_run_uses_private_workspace_instead_of_bot_folder(store, config, tmp_path):

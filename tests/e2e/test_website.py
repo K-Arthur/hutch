@@ -141,7 +141,7 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
         assert "local supervisor" in workflow.inner_text().lower()
         for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
-            workflow.get_by_role("heading", name="Delegate. Supervise. Verify.").scroll_into_view_if_needed()
+            workflow.get_by_role("heading", name="Keep each task reviewable from request to result.").scroll_into_view_if_needed()
             workflow.screenshot(
                 path=str(out / f"site-workflow-{label}.png"), animations="disabled",
                 style="body > header { display: none !important; } .skip-link { display: none !important; }")

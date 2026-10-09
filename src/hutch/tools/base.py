@@ -203,6 +203,7 @@ class ToolContext:
     dry_run: bool = False             # Rehearse mode: mutating actions are simulated, reads still run
     closed: bool = False              # the run is over: a worker that outlived it must not start another action
     receipt: Optional[Callable[[], Optional[str]]] = None   # set per call by the runtime: records the intent (see begin_effect)
+    delegation_submit: Optional[Callable[[str, str, str], ToolResult]] = None  # supervised, strict-offline child admission
 
     def begin_effect(self) -> Optional[str]:
         """Call right BEFORE performing a lasting effect, after policy and approval have said yes. Records the intent

@@ -11,7 +11,7 @@ analytics request. Motion follows the operating system's reduced-motion setting;
 | State shown publicly | Evidence and limit |
 |---|---|
 | Supported | Linux execution, local SQLite state, up to 100 named recurring tasks per bot with independent timing/prompts, and fixture-tested lifecycle/control paths. A running local supervisor is needed for schedules; tasks on one bot queue under its single-run rule. Actual runs require a configured model route and a running local service or provider connection. |
-| Experimental | Configured hosted-provider and local-inference routes; OpenCode Go's user-supplied API-key connection; opt-in Sign in with ChatGPT local token-sharing preview (eligibility for Hutch is unconfirmed, no live account verification, and no provider-enforced output limit); one Hutch local caller and up to eight waiters per state directory; host-gated Offline isolation; HTTPS-paired dashboard sessions with revocation; local same-session browser handoff on a Linux desktop; HTTP(S)/WebSocket browser egress pinned by a local proxy. Provider/model calls, backend provenance, the visible desktop flow, public browser destinations, non-HTTP browser traffic and physical-device/network access were not verified live for this release. |
+| Experimental | Configured hosted-provider and local-inference routes; OpenCode Go's user-supplied API-key connection; opt-in Sign in with ChatGPT local token-sharing preview (eligibility for Hutch is unconfirmed, no live account verification, and no provider-enforced output limit); one Hutch local caller and up to eight waiters per state directory; host-gated Offline isolation; opt-in same-bot child tasks under Strict Offline with approval on every request; HTTPS-paired dashboard sessions with revocation; local same-session browser handoff on a Linux desktop; HTTP(S)/WebSocket browser egress pinned by a local proxy. Delegation is serial, task-text-only, private-workspace and subject to the two-run default; it does not transfer files. Provider/model calls, backend provenance, the visible desktop flow, public browser destinations, non-HTTP browser traffic and physical-device/network access were not verified live for this release. |
 | Unavailable | macOS/Windows executor, public source/package, authenticated PTY/physical desktop control, phone browser handoff and OpenCode/Pi harness execution. |
 
 The site distinguishes local control state from prompt traffic to a selected model and network
@@ -50,7 +50,9 @@ The site links to three public issues as acceptance scenarios, not prevalence ev
 - [Open WebUI issue 31656](https://github.com/open-webui/open-webui/issues/31656): one report that mobile menu focus opened a text field and keyboard unexpectedly. Hutch's menu has focus handling and restoration checks; this is not a screen-reader audit.
 
 The copy does not claim external spend guarantees, universal process containment, working
-external harnesses or public installation. It describes action decisions in chat and the
+external harnesses or public installation. Delegation claims apply only to the bounded built-in
+Strict Offline path and must disclose per-call approval, serial child execution and the absence of
+parent-workspace file transfer. It describes action decisions in chat and the
 cross-bot Needs you drawer; Activity and run history remain monitoring tools, while Fleet is
 progressive navigation at ten bots. Ten is an operator-selected product heuristic, not a
 measured user-research threshold.

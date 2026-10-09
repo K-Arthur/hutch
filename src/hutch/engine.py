@@ -17,6 +17,7 @@ approval waits, and kill every child process group the run started.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import signal
 import socket
@@ -50,7 +51,7 @@ from .safety import PolicyEngine
 from .workdir import check_workdir_at_run
 from .scheduler import Scheduler
 from .store import Store
-from .tools import ToolContext, build_tools
+from .tools import ToolContext, ToolResult, build_tools
 
 DEFAULT_MAX_CONCURRENT = 2
 
@@ -144,11 +145,9 @@ class Engine:
             self._reap_threads()
             self.store.release_expired_claims()
             active = self.store.active_runs()
-            # Delegation persistence is not an execution grant. Until the dedicated child
-            # executor enforces inherited capabilities and transfers artifacts, keep those
-            # internal queue rows visible but do not dispatch them as ordinary bot work.
-            pending = sorted((r for r in active if r.parent_run_id is None
-                              and r.status is RunStatus.pending and not r.lease_owner),
+            # Delegated rows enter the same global reservation pool. _start_worker reconstructs
+            # their immutable parent policy and rejects unsupported routes before any process starts.
+            pending = sorted((r for r in active if r.status is RunStatus.pending and not r.lease_owner),
                              key=lambda r: r.created_at)
             if self.slot_filter:
                 pending = self.slot_filter(pending, active)
@@ -174,16 +173,27 @@ class Engine:
 
     def _start_worker(self, bot: Bot, run: Run) -> bool:
         try:
-            target = bot.model_copy(update={"model": run.model_override}) if run.model_override else bot
+            if run.parent_run_id is not None:
+                snapshot = self.store.run_capability_snapshot(run.id)
+                if snapshot is None:
+                    raise ValueError("delegated run has no inherited capability snapshot")
+                target = self._delegated_bot(bot, snapshot)
+            else:
+                target = bot.model_copy(update={"model": run.model_override}) if run.model_override else bot
             get_runtime(target)
+        except ValueError as exc:
+            if run.parent_run_id is not None:
+                self._fail_unavailable_child_executor(run, str(exc))
+                return False
+            raise
         except RuntimeError as exc:
             self._fail_unavailable_runtime(run, str(exc))
             return False
-        offline = bot.inference_mode.value == "offline"
+        offline = target.inference_mode.value == "offline"
         if offline:
             from .providers.registry import validate_offline_bot
             try:
-                validate_offline_bot(bot, model_override=run.model_override, refresh_host=True)
+                validate_offline_bot(target, refresh_host=True)
                 if self.executor != "process":
                     raise ValueError("Strict offline runs require the supervised process executor")
             except ValueError as exc:
@@ -191,7 +201,7 @@ class Engine:
                 return False
         if self.executor == "process":
             try:
-                self._start_process(run, bot=bot)
+                self._start_process(run, bot=target)
             except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
                 broker = self._offline_brokers.pop(run.id, None)
                 if broker is not None:
@@ -201,8 +211,7 @@ class Engine:
                 self._fail_offline_start(run, f"could not start the isolated worker: {exc}")
                 return False
             return True
-        if run.model_override:
-            bot = bot.model_copy(update={"model": run.model_override})    # this run only; the stored bot is unchanged
+        bot = target
         cancel = threading.Event()
         self._cancels[run.id] = cancel
         self._ensure_heartbeat()
@@ -229,9 +238,9 @@ class Engine:
         except (IllegalTransition, LeaseLost, KeyError):
             pass
 
-    def _fail_unavailable_child_executor(self, run: Run) -> None:
-        """Keep even a directly invoked worker from treating lineage as ordinary bot work."""
-        reason = "Delegated execution is unavailable until its capability-enforcing executor is installed."
+    def _fail_unavailable_child_executor(self, run: Run, reason: Optional[str] = None) -> None:
+        """Keep a child visible and terminal when its inherited capability policy cannot be enforced."""
+        reason = reason or "Delegated execution has no capability-enforcing executor for this route."
         try:
             self.store.transition_run(
                 run.id, RunStatus.failed, fence=run.fence, exit_reason="delegation_unavailable", error=reason,
@@ -246,7 +255,8 @@ class Engine:
         stop that is ignored, and to recover the run at once if the worker dies without finishing it."""
         log_dir = self.config.run_dir(self._bot_name(run), run.id)
         log_dir.mkdir(parents=True, exist_ok=True)
-        env = dict(os.environ, HUTCH_STATE_DIR=str(self.config.state_dir), HUTCH_LEASE_SECONDS=str(self.lease_seconds))
+        env = dict(os.environ, HUTCH_STATE_DIR=str(self.config.state_dir), HUTCH_LEASE_SECONDS=str(self.lease_seconds),
+                   HUTCH_EXECUTOR=self.executor, HUTCH_MAX_CONCURRENT=str(self.max_concurrent))
         argv = [sys.executable, "-m", "hutch.worker", run.id, "--owner", self.owner_id, "--fence", str(run.fence)]
         if bot is not None and bot.inference_mode.value == "offline":
             from .offline import OfflineBrokerSet
@@ -459,12 +469,17 @@ class Engine:
         """The credential-free permission/routing policy active when a run starts."""
         from .tools import expand_tools
 
+        fingerprint = lambda value: hashlib.sha256((value or "").encode("utf-8")).hexdigest()
         offline = bot.inference_mode.value == "offline"
         tools = expand_tools(bot.tools)
         if offline:
             tools = [name for name in tools if name not in {"web_fetch", "browser"}]
         return {
+            "snapshot_version": 1,
             "bot_id": bot.id,
+            "description_sha256": fingerprint(bot.description),
+            "instructions_sha256": fingerprint(bot.instructions),
+            "base_url_sha256": fingerprint(bot.base_url),
             "runtime": bot.runtime.value,
             "model": bot.model,
             "tools": sorted(tools),
@@ -480,7 +495,127 @@ class Engine:
             "tool_limits": dict(bot.tool_limits),
             "fallbacks": list(bot.fallbacks),
             "escalation": bot.escalation.model_dump(mode="json") if bot.escalation else None,
+            "think": bot.think,
+            "selfcheck": bot.selfcheck,
+            "num_ctx": bot.num_ctx,
         }
+
+    @staticmethod
+    def _delegated_bot(bot: Bot, snapshot: dict[str, object]) -> Bot:
+        """Reconstruct a narrow child policy from the parent's immutable run snapshot.
+
+        Delegation is initially available only to the strict Offline built-in runtime. The
+        current bot document supplies text only after its fingerprints match the snapshot; all
+        authority-bearing execution fields come from the persisted snapshot. Children never
+        reuse a user folder, browser profile, or shared fact memory.
+        """
+        if snapshot.get("snapshot_version") != 1 or snapshot.get("bot_id") != bot.id:
+            raise ValueError("the parent's execution capability snapshot is missing or unsupported")
+        fingerprint = lambda value: hashlib.sha256((value or "").encode("utf-8")).hexdigest()
+        if (snapshot.get("description_sha256") != fingerprint(bot.description)
+                or snapshot.get("instructions_sha256") != fingerprint(bot.instructions)
+                or snapshot.get("base_url_sha256") != fingerprint(bot.base_url)):
+            raise ValueError("bot instructions, description or model endpoint changed after the parent started")
+        if snapshot.get("runtime") != "builtin":
+            raise ValueError("delegated execution currently requires the built-in runtime")
+        if snapshot.get("inference_mode") != "offline":
+            raise ValueError("delegated execution currently requires Strict Offline mode")
+        try:
+            from .models import Limits
+            limits = Limits.model_validate(snapshot["limits"])
+            limits = limits.model_copy(update={
+                "max_steps": min(limits.max_steps, 8),
+                "timeout_seconds": min(limits.timeout_seconds, 600),
+            })
+            tools = snapshot["tools"]
+            if not isinstance(tools, list) or any(not isinstance(name, str) for name in tools):
+                raise ValueError("the stored tool set is invalid")
+            tools = [name for name in tools if name not in {"browser", "remember", "recall"}]
+            update = {
+                "runtime": snapshot["runtime"], "model": snapshot["model"], "tools": tools,
+                "inference_mode": snapshot["inference_mode"], "risk_tier": snapshot["risk_tier"],
+                "command_rules": snapshot["command_rules"], "sandbox": snapshot["sandbox"],
+                "shell_network": snapshot["shell_network"], "approval_mode": snapshot["approval_mode"],
+                "limits": limits.model_dump(mode="json"), "tool_limits": snapshot["tool_limits"],
+                "fallbacks": snapshot["fallbacks"], "escalation": snapshot["escalation"],
+                "think": snapshot["think"], "selfcheck": snapshot["selfcheck"],
+                "num_ctx": snapshot["num_ctx"], "memory_enabled": False,
+                "workspace_mode": "fresh", "workdir": None, "local_browser_handoff": False,
+            }
+            return Bot.model_validate({**bot.model_dump(mode="json"), **update})
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(f"the parent's execution snapshot cannot be enforced: {exc}") from None
+
+    def _run_delegated_task(self, ctx: ToolContext, task_text: str, idem_key: str,
+                            request_hash: str, parent_deadline: float) -> ToolResult:
+        """Admit one child under the live parent's fence, then wait without model calls."""
+        from .models import ACTIVE_STATUSES
+
+        if (self.executor != "process" or ctx.bot.runtime.value != "builtin"
+                or ctx.bot.inference_mode.value != "offline"):
+            return ToolResult(ok=False, output="delegation requires the supervised Strict Offline executor")
+        depth = self.store.delegation_depth(ctx.run.id)
+        if depth >= 2:
+            return ToolResult(ok=False, output="delegation depth limit is two")
+        if self.max_concurrent < depth + 2:
+            return ToolResult(ok=False, output=(f"delegation at depth {depth + 1} needs at least "
+                                                f"{depth + 2} global run slots; current limit is {self.max_concurrent}"))
+
+        child_run = Run(bot_id=ctx.bot.id, prompt=task_text)
+        child_task = Task(bot_id=ctx.bot.id, kind="delegated", prompt=task_text)
+        try:
+            child, inserted = self.store.submit_delegated_run(
+                parent_run_id=ctx.run.id, parent_fence=ctx.run.fence, run=child_run, task=child_task,
+                idem_key=idem_key, request_hash=request_hash,
+                parent_budget_cost_usd=ctx.bot.limits.max_cost_usd or None)
+        except (KeyError, ValueError, RuntimeError) as exc:
+            return ToolResult(ok=False, output=f"child admission refused: {exc}")
+
+        def cancel_child() -> None:
+            try:
+                self.store.request_cancel_tree(child.id)
+                self.bus.notify("work")
+            except Exception:
+                # The child worker also monitors parent ownership and cancellation.
+                pass
+
+        if inserted:
+            ctx.cancel_hooks.append(cancel_child)
+            self.bus.notify("work")
+
+        deadline = min(parent_deadline, time.monotonic() + min(ctx.bot.limits.timeout_seconds, 600))
+        while True:
+            parent = self.store.get_run(ctx.run.id)
+            if (parent is None or parent.fence != ctx.run.fence or parent.cancel_requested
+                    or parent.status is not RunStatus.running or ctx.closed):
+                cancel_child()
+                return ToolResult(ok=False, output="parent ownership ended; child cancellation was requested")
+
+            current = self.store.get_run(child.id)
+            if current is None:
+                return ToolResult(ok=False, output="child run record disappeared; no result can be verified")
+            if current.status not in ACTIVE_STATUSES:
+                if current.status is RunStatus.succeeded:
+                    final = ""
+                    for event in reversed(self.store.tail_events(child.id, limit=100)):
+                        if event.type is EventType.message and event.data.get("role") == "assistant":
+                            final = str(event.data.get("content") or "")
+                            break
+                    if not final:
+                        final = "The child completed without a final text response."
+                    return ToolResult(ok=True, output=f"Child run {child.id} completed.\n\n{final}",
+                                      data={"child_run_id": child.id, "status": current.status.value})
+                return ToolResult(ok=False, output=(f"Child run {child.id} ended as {current.status_label}: "
+                                                   f"{current.error or current.exit_reason or 'no verified result'}"),
+                                  data={"child_run_id": child.id, "status": current.status.value})
+
+            if time.monotonic() >= deadline:
+                cancel_child()
+                return ToolResult(ok=False, output=(f"Child run {child.id} did not finish before the bounded wait expired; "
+                                                   "cancellation was requested."),
+                                  data={"child_run_id": child.id, "status": current.status.value,
+                                        "cancel_requested": True})
+            time.sleep(0.2)
 
     def _execute(self, bot: Bot, run: Run, cancel: threading.Event) -> None:
         # The ordinary dispatcher already excludes children; enforce the same rule at the
@@ -489,9 +624,16 @@ class Engine:
         if persisted is None:
             return
         if persisted.parent_run_id is not None:
-            if persisted.status is RunStatus.pending:
-                self._fail_unavailable_child_executor(persisted)
-            return
+            if persisted.status is not RunStatus.pending:
+                return
+            snapshot = self.store.run_capability_snapshot(run.id)
+            try:
+                if snapshot is None:
+                    raise ValueError("delegated run has no inherited capability snapshot")
+                bot = self._delegated_bot(bot, snapshot)
+            except ValueError as exc:
+                self._fail_unavailable_child_executor(persisted, str(exc))
+                return
         try:
             runtime = get_runtime(bot)
         except RuntimeError as exc:
@@ -529,14 +671,21 @@ class Engine:
         policy = PolicyEngine(bot.risk_tier, bot.command_rules)
         gate = ApprovalGate(self.store, bot, run, policy, emit)
         self._gates[run.id] = gate
+        deadline = time.monotonic() + bot.limits.timeout_seconds
         ctx = ToolContext(bot=bot, run=run, store=self.store, policy=policy, gate=gate,
                           config=self.config, workspace=workspace, emit=emit,
                           headless=not bot.local_browser_handoff, dry_run=run.rehearsal)
         self._ctxs[run.id] = ctx
+        if (self.executor == "process" and bot.runtime.value == "builtin"
+                and bot.inference_mode.value == "offline"):
+            ctx.delegation_submit = lambda task, idem, request_hash: self._run_delegated_task(
+                ctx, task, idem, request_hash, deadline)
         # remember every process this run starts, so a supervisor that did not spawn it can still end it after a crash
         ctx.procs.on_register = lambda pid, pgid, st, kind, boot: self.store.add_proc(run.id, pid, pgid, st, kind, boot)
         tools = build_tools(bot.tools, ctx)
-        deadline = time.monotonic() + bot.limits.timeout_seconds
+        if "delegate_task" in bot.tools and "delegate_task" not in tools:
+            emit(Event(run_id=run.id, type=EventType.log,
+                       data={"note": "delegate_task is unavailable: it requires a supervised Strict Offline built-in run"}))
         emit(Event(run_id=run.id, type=EventType.log,
                    data={"runtime": runtime.kind, "model": bot.model,
                          "inference_mode": bot.inference_mode.value,

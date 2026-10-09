@@ -37,6 +37,15 @@ class ModelSlots:
 
     def model_of(self, run: Run) -> Optional[str]:
         """The local model a run will use, or None for hosted and unavailable legacy routes."""
+        if run.parent_run_id is not None:
+            snapshot = self.store.run_capability_snapshot(run.id)
+            if snapshot is None:
+                return None
+            spec = str(snapshot.get("model", ""))
+            provider, _, model = spec.partition("/")
+            if provider in ("ollama", "lmstudio", "llamacpp", "llama.cpp", "vllm"):
+                return f"{provider}/{model}"
+            return None
         bot = self.store.get_bot(run.bot_id)
         if bot is None:
             return None

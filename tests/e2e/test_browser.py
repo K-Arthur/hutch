@@ -1391,6 +1391,112 @@ def test_bot_limits_can_be_saved_from_the_phone_settings(browser, live):
     ctx.close()
 
 
+def test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone(browser, live):
+    base, app = live
+    bot = app.state.store.create_bot(Bot(name="tool-settings", model="mock/demo", tools=["files", "memory"]))
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/tool-permissions"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce",
+                                  is_mobile=True, has_touch=True)
+    page = context.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    sizes = {"desktop": (1440, 960), "tablet": (900, 1024), "phone": (390, 844)}
+    captures = []
+
+    def position_panel(edge: str = "start") -> dict:
+        return page.evaluate("""edge => {
+          const scroller = document.querySelector('main#view > .page-scroll');
+          const panel = document.querySelector('section[aria-labelledby="tool-settings-title"]');
+          const bounds = panel.getBoundingClientRect();
+          const viewport = scroller.getBoundingClientRect();
+          const delta = edge === 'end' ? bounds.bottom - viewport.bottom + 12
+                                       : bounds.top - viewport.top - 12;
+          scroller.scrollTop = Math.max(0, scroller.scrollTop + delta);
+          return {scrollTop: Math.round(scroller.scrollTop), panelHeight: Math.round(bounds.height)};
+        }""", edge)
+
+    try:
+        page.goto(f"{base}/#/bot/{bot.name}")
+        page.locator("#form-tools").wait_for()
+        delegate = page.locator('#form-tools input[name="tools"][value="delegate_task"]')
+        assert not delegate.is_checked()
+        assert page.get_by_text("Each request asks for approval and uses another run slot", exact=False).is_visible()
+
+        for label, (width, height) in sizes.items():
+            page.set_viewport_size({"width": width, "height": height})
+            panel = page.locator('section[aria-labelledby="tool-settings-title"]')
+            position = position_panel("start")
+            page.wait_for_timeout(80)
+            delete_button = page.get_by_role("button", name="Delete bot")
+            assert delete_button.is_visible()
+            if label == "phone":
+                assert delete_button.locator("svg").is_visible()
+                box = delete_button.bounding_box()
+                assert box and box["width"] >= 44 and box["height"] >= 44, box
+            page.screenshot(path=str(out / f"{label}.png"), animations="disabled")
+            metrics = page.evaluate("""() => {
+              const panel = document.querySelector('#form-tools').getBoundingClientRect();
+              const input = document.querySelector('#form-tools input[value=delegate_task]').getBoundingClientRect();
+              const remove = document.querySelector('#btn-delete-bot').getBoundingClientRect();
+              return {viewport:[innerWidth,innerHeight], document:[document.documentElement.scrollWidth,document.documentElement.scrollHeight],
+                panel:[Math.round(panel.width),Math.round(panel.height)], delegate:[Math.round(input.width),Math.round(input.height)],
+                deleteAction:[Math.round(remove.width),Math.round(remove.height)],
+                visible:input.width>0 && input.height>0};
+            }""")
+            assert metrics["document"][0] - width <= 1, (label, metrics)
+            assert metrics["visible"] and metrics["delegate"][1] >= 20, (label, metrics)
+            captures.append({"size": label, **metrics})
+
+        page.set_viewport_size({"width": 390, "height": 844})
+        panel = page.locator('section[aria-labelledby="tool-settings-title"]')
+        position = position_panel("end")
+        page.wait_for_timeout(80)
+        page.screenshot(path=str(out / "phone-bottom.png"), animations="disabled")
+        assert page.get_by_role("button", name="Save tools").is_visible()
+        assert page.locator('#form-tools input[value="delegate_task"]').is_visible()
+
+        delegate = page.locator('#form-tools input[name="tools"][value="delegate_task"]')
+        delegate.focus()
+        page.keyboard.press("Space")
+        assert delegate.is_checked()
+        save = page.locator('#form-tools button[type="submit"]')
+        save.focus()
+        page.keyboard.press("Enter")
+        wait_for(lambda: "delegate_task" in app.state.store.get_bot(bot.name).tools)
+        page.reload()
+        page.locator('#form-tools input[name="tools"][value="delegate_task"]:checked').wait_for()
+        panel = page.locator('section[aria-labelledby="tool-settings-title"]')
+        position_panel("end")
+        page.wait_for_timeout(80)
+        assert page.locator('#form-tools input[name="tools"][value="delegate_task"]').is_checked()
+        page.screenshot(path=str(out / "phone-saved.png"), animations="disabled")
+        captures.append({"size": "phone-saved", "viewport": [390, 844], "saveVisible": True,
+                         "delegateEnabled": True, "scrollTop": position["scrollTop"]})
+        assert not errors, errors
+        (out / "validation.json").write_text(json.dumps({
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone",
+            "browser": browser.browser_type.name,
+            "browser_version": browser.version,
+            "playwright_version": package_version("playwright"),
+            "captures": captures,
+            "scenario": "synthetic Settings form; enable the delegated task tool and persist the explicit opt-in",
+            "page_errors": errors,
+            "source_sha256": {
+                "app.js": hashlib.sha256((Path(__file__).resolve().parents[2] / "src/hutch/server/static/app.js").read_bytes()).hexdigest(),
+                "style.css": hashlib.sha256((Path(__file__).resolve().parents[2] / "src/hutch/server/static/style.css").read_bytes()).hexdigest(),
+                "app.py": hashlib.sha256((Path(__file__).resolve().parents[2] / "src/hutch/server/app.py").read_bytes()).hexdigest(),
+            },
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace.zip"))
+        except Exception:
+            pass
+        context.close()
+
+
 def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live):
     base, app = live
     page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")

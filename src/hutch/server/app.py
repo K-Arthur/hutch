@@ -142,6 +142,7 @@ class BotPatch(BaseModel):
     instructions: Optional[str] = None
     model: Optional[str] = None
     inference_mode: Optional[InferenceMode] = None
+    tools: Optional[list[str]] = None
     memory_enabled: Optional[bool] = None
     approval_mode: Optional[ApprovalMode] = None
     risk_tier: Optional[RiskTier] = None
@@ -1315,6 +1316,12 @@ def create_app() -> FastAPI:
     @app.patch("/api/bots/{ref}")
     def patch_bot(ref: str, body: BotPatch) -> dict:
         bot = bot_or_404(ref)
+        proposed_tools = None
+        if body.tools is not None:
+            proposed_tools = expand_tools(body.tools)
+            unknown = [tool for tool in proposed_tools if tool not in ALL_TOOL_NAMES]
+            if unknown:
+                raise HTTPException(422, f"unknown tools: {unknown}")
         schedule_update_requested = body.clear_cron or body.cron is not None or body.timezone is not None \
             or body.schedule_prompt is not None
         from ..providers.registry import validate_inference_mode, validate_offline_bot
@@ -1335,6 +1342,7 @@ def create_app() -> FastAPI:
         if body.instructions is not None: bot.instructions = body.instructions
         if body.model is not None: bot.model = body.model
         if body.inference_mode is not None: bot.inference_mode = body.inference_mode
+        if proposed_tools is not None: bot.tools = proposed_tools
         if body.memory_enabled is not None: bot.memory_enabled = body.memory_enabled
         if body.approval_mode is not None: bot.approval_mode = body.approval_mode
         if body.risk_tier is not None: bot.risk_tier = body.risk_tier

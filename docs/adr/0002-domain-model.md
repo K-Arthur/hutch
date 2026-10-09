@@ -57,7 +57,8 @@ Running work is cancelled first; deleting a bot with a live run is refused until
   snapshot. Pi and OpenCode stay disabled, so external-session translation is not active.
 * SQLite FTS5 indexes canonical message text for explicit search. It does not index tool output, credentials, workspaces, or memory,
   and search results are not automatically injected into prompts.
-* Durable facts, approval/edit workflows for bot-written memory, workspace artifacts, delegation, notification outbox, deletion,
-  and export remain future work. Current archive hides a thread; it does not delete its records.
+* Reviewed scoped facts, immutable workspace artifacts, explicit artifact references, a bounded same-bot delegation preview,
+  notification outbox and scoped conversation export are implemented. Permanent conversation/bot deletion and general-purpose
+  delegation remain future work. Current archive hides a thread; it does not delete its records.
 * Cost: more tables; each is small and indexed on the foreign key.
 * Rollback: tables are additive; old code ignores them.

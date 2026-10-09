@@ -113,6 +113,7 @@ def test_offline_worker_command_uses_network_namespace_and_credential_free_envir
         "PATH": "/usr/bin", "PYTHONPATH": "/checkout/src", "OPENAI_API_KEY": "never-copy",
         "OLLAMA_HOST": "https://remote.example.test", "HTTPS_PROXY": "http://proxy.example.test",
         "DBUS_SESSION_BUS_ADDRESS": "unix:path=/run/user/1000/bus",
+        "HUTCH_EXECUTOR": "process", "HUTCH_MAX_CONCURRENT": "3",
     }
     argv = sandbox.offline_worker_argv(["/usr/bin/python3", "-m", "hutch.worker"], source, str(state_dir), 30,
                                       str(broker_dir))
@@ -126,6 +127,8 @@ def test_offline_worker_command_uses_network_namespace_and_credential_free_envir
     assert "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus" not in argv
     assert "HUTCH_STATE_DIR" in argv and str(state_dir) in argv
     assert "HUTCH_LEASE_SECONDS" in argv and "30" in argv
+    assert "HUTCH_EXECUTOR" in argv and "process" in argv
+    assert "HUTCH_MAX_CONCURRENT" in argv and "3" in argv
     assert "HUTCH_OFFLINE_BROKER_DIR" in argv and "/run/hutch-offline" in argv
     read_only_mounts = [(argv[index + 1], argv[index + 2])
                         for index, value in enumerate(argv[:-2]) if value == "--ro-bind"]

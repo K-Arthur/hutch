@@ -9,9 +9,11 @@ tool details stay collapsed. Owners can add a verified artifact reference to ano
 both chats show the active grant and can revoke it. The target-bound download is revocable, and no
 bytes enter the target workspace or model context.
 Optional generic browser alerts work while the Hutch tab is open; they do not provide background push.
-Per-bot Hutch-managed workspaces now persist when explicitly selected. A general artifact library,
-delegated artifact transfer, multi-task standing work, webhook/push notifications, bounded delegation
-and permanent scoped deletion/export remain required realignment work.
+Per-bot Hutch-managed workspaces and up to 100 independently scheduled tasks are implemented.
+Conversation export is scoped and explains what it excludes. A general artifact library, delegated
+artifact transfer, webhook/push notifications, permanent scoped deletion, and a general multi-bot
+planner remain open. A narrow same-bot `delegate_task` preview is available only for supervised
+Strict Offline Linux runs; it does not complete the broader S6 collaboration plan.
 
 ## Phase 0 — MVP (shipped, Oct 2026)
 
@@ -50,6 +52,7 @@ and permanent scoped deletion/export remain required realignment work.
 - [ ] Webhook/event triggers (file-watch, HTTP inbox) alongside cron
 - [ ] Multi-step workflow templates (chained runs, hand-off artifacts)
 - [ ] Pi/OpenCode adapters: match published RPC/CLI contracts; broker approvals and provider budgets; strict process containment
+- [~] Bounded same-bot `delegate_task` preview: Strict Offline and process-executor only, always human-approved, private child workspaces, task-text-only context, bounded depth/steps/time and inherited usage reservations. Parallel children, specialist selection, artifact transfer, cross-bot delegation and a plan UI are not implemented; see `realignment/delegation.md`.
 - [~] Browser tool: same-session human handoff is experimental on a local Linux desktop; HTTP(S)/WebSocket DNS-pinned egress has local Chromium fixture coverage. Live headed challenges, non-HTTP traffic, remote phone handoff and per-bot download directories remain
 
 ## Phase 3 — scale-out (deliberately far)
@@ -68,7 +71,8 @@ and permanent scoped deletion/export remain required realignment work.
   certification remain separate verification gaps; this is not rollback of external effects.
 - **Conversation persistence: partial.** Schema v8 stores canonical messages and maps runs to conversations. Historical runs are
   imported separately. The local v1 API snapshots at most 12 prior messages / 16,000 characters for builtin runs and supports
-  FTS5 search. The Studio selects threads, displays restart-persistent history and archives without deleting it.
+  FTS5 search. The Studio selects threads, displays restart-persistent history and archives without deleting it. Bounded JSON export
+  is opt-in and includes an explicit disclosure; permanent scoped deletion remains unavailable.
 - **Studio navigation and approvals: consolidated.** Studio has one bot roster and one settings destination; the same exact-action
   approval card appears in the originating chat and in the cross-chat Needs you drawer. Monitor holds activity and run history. Fleet
   appears as a filtered view at ten bots; ten is a reversible operator heuristic, not a measured user threshold. This avoids a
@@ -83,8 +87,8 @@ and permanent scoped deletion/export remain required realignment work.
   gets provenance and a target-bound download, not a file copy or model-context injection. The source
   Files list shows active recipient chats and can revoke their grants. Schema v18 adds durable
   invalidations to both chats when access changes. A general
-  artifact library, delegated artifact transfer, automatic event retention, capability verification,
-  and idempotent resume/bot-run commands remain open.
+  artifact library, delegated artifact transfer, automatic event retention and complete capability verification remain open.
+  Resume and standalone run creation now use versioned idempotent commands; their legacy routes remain compatibility aliases.
 - **Provider compatibility: route-level matrix implemented.** `GET /api/v1/compatibility` records supported,
   experimental, unavailable and blocked routes with dated sources, request fields Hutch sends/omits and fixture/live
   verification limits. Exact OpenAI host matching now selects its token-limit field. Per-connection/model capability

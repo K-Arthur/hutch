@@ -433,6 +433,12 @@ def test_bot_crud_and_validation(client):
 
     patched = client.patch("/api/bots/api-bot", json={"paused": True, "cron": "0 9 * * 1"}).json()
     assert patched["paused"] is True and patched["schedule"]["cron"] == "0 9 * * 1"
+    tools = client.patch("/api/bots/api-bot", json={"tools": ["files", "memory", "delegate_task", "delegate_task"]})
+    assert tools.status_code == 200, tools.text
+    assert tools.json()["tools"] == ["read_file", "list_files", "write_file", "remember", "recall", "delegate_task"]
+    unknown_patch = client.patch("/api/bots/api-bot", json={"tools": ["laser"]})
+    assert unknown_patch.status_code == 422
+    assert "delegate_task" in client.get("/api/bots/api-bot").json()["tools"]
     local = client.patch("/api/bots/api-bot", json={"local_browser_handoff": True}).json()
     assert local["local_browser_handoff"] is True
     disabled = client.patch("/api/bots/api-bot", json={"local_browser_handoff": False}).json()

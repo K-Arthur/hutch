@@ -171,13 +171,18 @@ task identity. The migration backup can be restored with the standard held resto
 Schema v22 records immutable same-bot run lineage; v23 stores the delegated subtree currency ceiling;
 v24 captures an immutable, credential-free capability snapshot when a root run starts and copies it
 to internal children. Existing runs receive no invented delegation budget or capability snapshot, so
-they cannot admit delegated work. These internal primitives do not expose child execution; the ordinary
-scheduler leaves delegated rows queued until their dedicated executor enforces the child permission and
-artifact boundary. Direct invocation of a queued child also fails before runtime or tool setup with
-`delegation_unavailable`. Workspace preparation for internal lineage keeps it private to the run,
-regardless of the bot's configured shared folder. Stopping a run now persists cancellation for
-its descendants before cleanup starts;
-each process-owning run remains Cancelling until its own process group has been verified gone.
+they cannot admit delegated work. New child work is available only through the explicitly enabled
+`delegate_task` tool on a supervised built-in Strict Offline run; every request asks for approval,
+even when the bot is configured for auto approvals. Child instructions and execution permissions
+come from the root snapshot, but prior conversation messages and parent workspace contents are not
+copied. The child gets its own private 0700 run workspace and its run/artifacts stay visibly
+attributed to that child in the shared conversation. No automatic workspace transfer occurs.
+Lineage admission is idempotent and bounded; an exact retry from the same tool step reuses the child.
+Stopping a run persists cancellation for its descendants before cleanup starts; each
+process-owning run remains Cancelling until its own process group has been verified gone. This
+preview requires the process executor and verified Linux Strict Offline prerequisites; it does not
+enable Pi/OpenCode child runs or parallel child tool calls. See
+[`realignment/delegation.md`](realignment/delegation.md) before enabling it.
 Hutch does not infer that adjacent runs share a
 private context. New conversations and message submissions are written transactionally with their idempotency records. The
 `conversation_fts` index contains message text only; it excludes tool output, credentials, workspaces and bot memory.

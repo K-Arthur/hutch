@@ -314,7 +314,7 @@ the screenshots were inspected. The browser journey passed **1 test in 3.14s**. 
 regressions passed **34 tests in 23.04s**. Captures, trace, viewport measurements, source hashes and
 fixture provenance are in [`artifacts/scheduled-task/`](artifacts/scheduled-task/). No provider or
 model call was made. This was evidence for the original one-task slice; see the later independent
-task-stream capture above for the current settings behavior. Bounded delegation remains separate work.
+task-stream capture above for the current settings behavior. At this capture checkpoint bounded delegation was separate work; the current preview's responsive settings evidence is recorded in `artifacts/tool-permissions/` below.
 
 ## Inline human-resume action (2026-10-09)
 
@@ -332,3 +332,24 @@ were visually inspected. Focused API/migration tests passed **34 tests in 5.01s*
 external browser call was made. The fixture verified command acceptance and persistence, but kept
 the scheduler idle, so a live worker consuming the request and continuing after a real person clears
 a challenge remains unverified. No screen-reader or physical-phone check was performed.
+
+## Bounded delegation settings and public workflow copy (2026-10-08)
+
+The bot Settings permission list exposes the explicit `delegate_task` opt-in and its Strict Offline,
+extra-slot and task-text-only constraints. Visual inspection also caught a phone-header defect: the
+mobile header hides action text, leaving a text-only Delete control blank. It now has a labeled trash
+icon and a 44×44 touch target. The browser journey enables the permission with Space, saves with
+Enter, reloads, and checks persistence. The regenerated desktop (1440×960), tablet (900×1024),
+phone (390×844) and scrolled phone captures were opened and inspected; all have zero horizontal
+overflow and no page errors. Viewport metrics, source hashes, trace and screenshots are in
+[`artifacts/tool-permissions/`](artifacts/tool-permissions/).
+
+The anonymous marketing workflow uses the direct heading “Keep each task reviewable from request to
+result.” Desktop (1440×900), tablet (900×1024) and phone (390×844) screenshots were inspected. The
+full anonymous website suite passed **23 tests in 30.41s**, including anchor/CTA resolution and a
+check for external requests; this workflow made zero external requests and had no page errors.
+Captures and metadata are in [`artifacts/scheduled-tasks/`](artifacts/scheduled-tasks/). The settings
+journey passed **1 browser test in 3.37s** using Chromium **153.0.8010.12** and Playwright **1.63.0**.
+
+These are local fixture and emulated-phone captures only. No live model, provider sign-in, physical
+phone or screen reader was used.

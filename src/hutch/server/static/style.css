@@ -1114,6 +1114,16 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 
 .detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--s-4); align-items: start; }
 .form-grid { display: grid; gap: var(--s-4); }
+.tool-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s-3); }
+.tool-option { display: flex; align-items: flex-start; gap: var(--s-3); min-height: 70px; padding: var(--s-3) var(--s-2);
+  border-bottom: 1px solid var(--line); color: var(--text); cursor: pointer; }
+.tool-option:hover { background: color-mix(in oklab, var(--raised), transparent 48%); }
+.tool-option input { flex: 0 0 22px; width: 22px; height: 22px; margin: 1px 0 0; accent-color: var(--brand); }
+.tool-option input:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.tool-option-copy { display: flex; min-width: 0; flex-direction: column; gap: var(--s-1); }
+.tool-option-copy b { font-size: var(--fs-sm); line-height: 1.4; }
+.tool-option-copy small { color: var(--text-2); font-size: var(--fs-xs); font-weight: 400; line-height: 1.45; }
+.tool-options-actions { margin-top: var(--s-3); }
 .workspace-mode-field select, .workspace-folder-field input, .browser-handoff-field select { min-height: 44px; }
 .workspace-folder-field[hidden] { display: none !important; }
 .form-grid .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
@@ -1177,6 +1187,7 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 
 @media (max-width: 640px) {
   .bot-grid { grid-template-columns: 1fr; }
+  .tool-options { grid-template-columns: minmax(0, 1fr); }
   .form-grid .row2 { grid-template-columns: 1fr; }
   .schedule-manager-head { align-items: stretch; flex-direction: column; }
   .schedule-manager-head > .btn { align-self: flex-start; min-height: 44px; }
@@ -1214,6 +1225,10 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
   .app-top-status .workflow { display: none; }
   .app-top-context .ctx-actions .btn { font-size: 0; gap: 0; padding: 0 8px; }
   .app-top-context .ctx-actions .btn .icon { width: 16px; height: 16px; }
+}
+
+@media (max-width: 640px) and (pointer: coarse) {
+  .app-top-context .ctx-actions .btn { min-width: 44px; min-height: 44px; justify-content: center; }
 }
 
 /* touch comfort (Hutch standard 44x44; exceeds WCAG 2.5.8's 24px) */

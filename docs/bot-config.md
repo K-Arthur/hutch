@@ -116,7 +116,19 @@ and execution both refuse Offline; changing the bot back to Local or Hybrid rema
 
 Group names expand: `files` → `read_file, list_files, write_file`; `memory` → `remember, recall`;
 `browser` → `browser` (needs `pip install "hutch[browser]"`). Concrete names may be listed
-individually. Everything runs through the policy engine (`docs/safety.md`).
+individually. `delegate_task` is an experimental, per-bot opt-in and works only through the
+supervised builtin process executor in Strict Offline mode on a host whose Linux bubblewrap
+network/PID checks pass. Every request requires fresh human approval, regardless of `approval_mode`.
+The child receives only its task text, runs in a private workspace, and cannot use browser or memory
+tools. It returns text to the parent; files stay attributed to the child. See
+[bounded delegation](realignment/delegation.md) for limits and unsupported cases. Everything runs
+through the policy engine (`docs/safety.md`).
+
+Enable or remove the tool explicitly with `hutch bot update <name> --tools ...`; for example:
+
+```bash
+hutch bot update local-worker --inference-mode offline --sandbox strict --tools files,delegate_task
+```
 
 ## Schedules
 

@@ -66,6 +66,11 @@ approval expiry without the dashboard.
 - **Scheduling that survives sleep and DST** — IANA-timezone cron, DST-correct, catch-up after sleep; each occurrence and each run is
   claimed in the database; each bot can have up to 100 named tasks with independent prompts and timezones. One elected supervisor
   handles schedules and recovery, and one bot never overlaps itself. Manage them in Settings or with `hutch bot schedules`.
+- **Bounded task delegation (experimental)** — an explicit `delegate_task` opt-in for the built-in Strict Offline Linux worker.
+  Every request asks for approval, receives only the task text, and runs in a private workspace under the parent's captured
+  permissions and budget. Each lineage is depth-limited and time/step-bounded; parent Stop reaches children. The default two-run
+  global limit permits one child at a time. This is not general multi-bot collaboration or automatic file transfer; see
+  [delegation limits](docs/realignment/delegation.md).
 - **Approvals that don't nag** — ask-once with sticky always-allows; unanswered = denied
 - **Local browser handoff** — opt in per bot to a visible same-session browser on a Linux desktop; Hutch pauses for a login challenge and rechecks after Resume. Run `hutch bot update <name> --local-browser-handoff`; phone handoff is unavailable.
 - **Optional browser alerts** — get a generic reminder when a new approval or uncertain action needs you while Hutch is open in a background tab. Alerts never include chat or action text. They are not push notifications and stop when the tab closes.
@@ -94,6 +99,10 @@ approval expiry without the dashboard.
 - **External runtimes** — Pi and OpenCode are recognized in old bot configs but disabled before starting a process. Their
   permission broker, process containment and provider budget path are not ready. Supported production execution uses Hutch's builtin runtime with a configured local or hosted model.
 
+To opt a local Linux bot into the bounded child-task tool, use a supported numeric-loopback model route and verified Strict Offline
+host support, then run `hutch bot update <name> --inference-mode offline --sandbox strict --tools files,delegate_task`. Review the
+delegation approval in chat or Needs you each time; configuration does not grant standing approval.
+
 ## Documentation
 
 | Doc | Contents |
@@ -108,6 +117,7 @@ approval expiry without the dashboard.
 | [Provider compatibility](docs/realignment/provider-compatibility.md) | route status, request fields, evidence dates, and live-verification limits |
 | [Design system](docs/design-system.md) | shared UI tokens, components, icon/emoji policy, a11y rules |
 | [Roadmap](docs/roadmap.md) | phases: hardening → capability → scale-out |
+| [Bounded delegation](docs/realignment/delegation.md) | Strict Offline opt-in, approval, context boundary and current limits |
 | [Realignment](docs/realignment/baseline.md) | measured baseline, evidence ledger, [architecture decisions](docs/adr/), continuation ledger |
 | [API and conversation contract](docs/realignment/contracts.md) | versioned local resources, idempotency, cursors and remaining remote-access gaps |
 | [Research](docs/research/) | orchestrator/runtime comparison; incident-based requirements |

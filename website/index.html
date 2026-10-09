@@ -223,7 +223,7 @@
   <section class="band" id="workflow">
     <div class="wrap">
       <div class="section-head">
-        <h2 class="section-heading">Delegate. Supervise. Verify.</h2>
+        <h2 class="section-heading">Keep each task reviewable from request to result.</h2>
         <p class="section-desc">A bot keeps its instructions and limits. Chat and named recurring tasks start real runs; proposed actions stay reviewable, and the run record remains available after completion.</p>
       </div>
       <ol class="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -447,6 +447,10 @@
               <b>Phone supervision is not remote access.</b>
               <span>The phone dashboard supports experimental paired control. Browser handoff is experimental on the local Linux desktop and unavailable from a phone.</span>
             </li>
+            <li>
+              <b>Delegation has a narrow boundary.</b>
+              <span>The optional child-task tool requires a supervised Strict Offline Linux run and a fresh approval for every request. Children receive only the task text, run one at a time under the default two-run limit, and do not copy files into the parent workspace.</span>
+            </li>
           </ul>
         </div>
       </div>
@@ -513,7 +517,7 @@
             <tbody>
               <tr><td class="av-k">Public access</td><td class="av-v">Private source; no anonymous download or public release</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
               <tr><td class="av-k">Supported</td><td class="av-v">Linux executor, local SQLite state and fixture-tested lifecycle/control flows; actual runs need a configured model route</td><td><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></td></tr>
-              <tr><td class="av-k">Experimental</td><td class="av-v">Hosted-provider and local-inference routes, OpenCode Go API-key handoff, opt-in local Sign in with ChatGPT preview (eligibility unconfirmed; no hard output-token limit), host-gated Offline isolation, HTTPS-paired dashboard access, local Linux browser handoff, and fixture-tested DNS-pinned HTTP(S)/WebSocket egress; public destinations and other browser traffic are unverified</td><td><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></td></tr>
+              <tr><td class="av-k">Experimental</td><td class="av-v">Hosted-provider and local-inference routes, OpenCode Go API-key handoff, opt-in local Sign in with ChatGPT preview (eligibility unconfirmed; no hard output-token limit), host-gated Offline isolation, bounded same-bot child tasks with approval on every request, HTTPS-paired dashboard access, local Linux browser handoff, and fixture-tested DNS-pinned HTTP(S)/WebSocket egress; public destinations and other browser traffic are unverified</td><td><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></td></tr>
               <tr><td class="av-k">Unavailable</td><td class="av-v">macOS/Windows executor, phone browser handoff, authenticated PTY/desktop control and OpenCode/Pi harnesses</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
               <tr><td class="av-k">Data movement</td><td class="av-v">Prompts go to the selected hosted endpoint; network tools also contact their configured destinations</td><td><span class="ev">Per configuration</span></td></tr>
             </tbody>

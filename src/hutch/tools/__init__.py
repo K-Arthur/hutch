@@ -7,6 +7,7 @@ from .files import FilesListTool, FilesReadTool, FilesWriteTool
 from .memory import MemoryRecallTool, MemorySaveTool
 from .shell import ShellTool
 from .webfetch import WebFetchTool
+from .delegation import DelegateTaskTool
 
 #: name -> factory (browser is imported lazily so the dependency stays optional)
 _CATALOG: dict[str, type[Tool]] = {
@@ -17,6 +18,7 @@ _CATALOG: dict[str, type[Tool]] = {
     "remember": MemorySaveTool,
     "recall": MemoryRecallTool,
     "web_fetch": WebFetchTool,
+    "delegate_task": DelegateTaskTool,
 }
 
 #: bot-level tool groups that expand to concrete tool names
@@ -57,6 +59,8 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
         # cannot create additional host-network requests from this worker.
         expanded = [name for name in expanded if name not in {"web_fetch", "browser"}]
     for name in expanded:
+        if name == "delegate_task" and (ctx is None or ctx.delegation_submit is None):
+            continue
         if name in {'remember', 'recall'} and not enabled:
             continue
         if name == "browser":

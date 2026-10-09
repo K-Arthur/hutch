@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import threading
+import time
+
 import pytest
 
 from hutch.approvals import ApprovalGate, DeniedError
-from hutch.models import ApprovalMode, ApprovalRequest, Bot, Event, EventType, Run, RunStatus
+from hutch.models import ApprovalMode, ApprovalRequest, Bot, Event, EventType, InferenceMode, Run, RunStatus
 from hutch.safety import PolicyEngine
 from hutch.tools import build_tools, expand_tools
-from hutch.tools.base import ToolContext
+from hutch.tools.base import ToolContext, ToolResult
 
 
 def make_ctx(store, config, tmp_path, bot: Bot | None = None, approval_mode=ApprovalMode.ask):
@@ -37,6 +40,63 @@ def test_expand_tool_groups():
         "read_file", "list_files", "write_file", "remember", "recall", "shell",
     ]
     assert expand_tools(["shell", "shell"]) == ["shell"]
+
+
+def test_delegate_tool_requires_supervisor_and_approval_even_in_auto_mode(store, config, tmp_path):
+    bot = Bot(name="offline-delegator", model="ollama/qwen3:8b", base_url="http://127.0.0.1:11434",
+              inference_mode=InferenceMode.offline, tools=["delegate_task"], approval_mode=ApprovalMode.auto)
+    ctx = make_ctx(store, config, tmp_path, bot=bot)
+    assert "delegate_task" not in build_tools(bot.tools, ctx)
+
+    calls = []
+    ctx.delegation_submit = lambda task, key, request_hash: (
+        calls.append((task, key, request_hash)) or ToolResult(ok=True, output="bounded result", data={"child_run_id": "run_child"}))
+    tools = build_tools(bot.tools, ctx)
+    from hutch.runtime.steps import call_tool
+    result = {}
+
+    def invoke():
+        result["value"] = call_tool(ctx.run, ctx, tools, "delegate_task", {"task": "Inspect this one file."})
+
+    worker = threading.Thread(target=invoke)
+    worker.start()
+    deadline = time.time() + 5
+    while time.time() < deadline and not store.pending_approvals():
+        time.sleep(0.01)
+    [approval] = store.pending_approvals()
+    assert approval.outward is True
+    assert approval.detail["task"] == "Inspect this one file."
+    assert "no parent conversation history" in approval.detail["context"]
+    assert calls == []
+    from hutch.approvals import resolve_approval
+    resolve_approval(store, approval.id, approve=True, by="test")
+    worker.join(5)
+
+    assert result["value"].ok and "bounded result" in result["value"].output
+    assert len(calls) == 1 and calls[0][0] == "Inspect this one file."
+    [receipt] = store.list_actions(ctx.run.id)
+    assert receipt["tool"] == "delegate_task" and receipt["status"] == "done"
+
+
+def test_delegate_tool_denial_does_not_start_child(store, config, tmp_path):
+    bot = Bot(name="denied-delegator", model="ollama/qwen3:8b", base_url="http://127.0.0.1:11434",
+              inference_mode=InferenceMode.offline, tools=["delegate_task"])
+    ctx = make_ctx(store, config, tmp_path, bot=bot)
+    calls = []
+    ctx.delegation_submit = lambda *args: calls.append(args) or ToolResult(ok=True, output="must not run")
+    from hutch.runtime.steps import call_tool
+    result = {}
+    worker = threading.Thread(target=lambda: result.setdefault("value", call_tool(
+        ctx.run, ctx, build_tools(bot.tools, ctx), "delegate_task", {"task": "Do bounded work."})))
+    worker.start()
+    deadline = time.time() + 5
+    while time.time() < deadline and not store.pending_approvals():
+        time.sleep(0.01)
+    from hutch.approvals import resolve_approval
+    resolve_approval(store, store.pending_approvals()[0].id, approve=False, by="test")
+    worker.join(5)
+    assert not result["value"].ok and calls == []
+    assert store.list_actions(ctx.run.id) == []
 
 
 def test_shell_readonly_runs_without_asking(store, config, tmp_path):

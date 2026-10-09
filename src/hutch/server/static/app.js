@@ -487,6 +487,7 @@ const ICON_PATHS = {
   key: '<path d="m21 2-2 2m-7.6 7.6a5.5 5.5 0 1 1-7.8 7.8 5.5 5.5 0 0 1 7.8-7.8Zm0 0L15.5 7.5m0 0 3 3L22 4l-3-3z"/>',
   brain: '<path d="M12 4a4 4 0 0 0-4 4 3.5 3.5 0 0 0-1 6.5A3.5 3.5 0 0 0 12 19a3.5 3.5 0 0 0 5-4.5 3.5 3.5 0 0 0-1-6.5 4 4 0 0 0-4-4Z"/><path d="M12 4v15"/>',
   refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/>',
+  trash: '<path d="M3 6h18M8 6V4h8v2m3 0-.9 14H5.9L5 6m4 4v6m6-6v6"/>',
 };
 
 function icon(name, cls = "") {
@@ -2970,6 +2971,18 @@ async function refreshApprovals() {
 
 let botDetailRenderGeneration = 0;
 
+const TOOL_SETTINGS = [
+  ["read_file", "Read workspace files", "Open text files inside this run’s workspace."],
+  ["list_files", "List workspace files", "See file names under this run’s workspace."],
+  ["write_file", "Write workspace files", "Create or replace files; approval policy still applies."],
+  ["shell", "Run shell commands", "Run commands inside the configured shell boundary."],
+  ["web_fetch", "Fetch public pages", "Read public HTTP(S) pages through Hutch’s checked request path."],
+  ["browser", "Use a browser", "Control this bot’s isolated browser profile."],
+  ["remember", "Propose reference facts", "Suggest facts for human review before they can be recalled."],
+  ["recall", "Recall reviewed facts", "Search reviewed facts available to this bot and chat."],
+  ["delegate_task", "Delegate a bounded task", "Strict Offline only. Each request asks for approval and uses another run slot; the child receives only its task text."],
+];
+
 function scheduleEditorHtml(schedule, index, status = null) {
   const id = String(schedule.id || "");
   let nextFire = "Not calculated";
@@ -3053,7 +3066,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     </div>
     <div class="ctx-actions">
       <a class="btn ghost small" href="#/chat/${esc(b.name)}">${icon("chat")} Open Studio</a>
-      <button class="btn danger small" id="btn-delete-bot">Delete bot</button>
+      <button class="btn danger small" id="btn-delete-bot">${icon("trash")}Delete bot</button>
     </div>`);
 
   const limits = b.limits || {};
@@ -3101,6 +3114,21 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             </label>
             <div class="btn-row"><button class="btn primary small" type="submit">Save model settings</button></div>
           </form>
+
+          <section class="panel" aria-labelledby="tool-settings-title">
+            <div class="panel-title" id="tool-settings-title">Tools</div>
+            <p class="hint" id="tool-settings-help">Choose what this bot may call. Every action still passes Hutch’s policy and approval checks. Strict Offline removes browser and public-page tools.</p>
+            <form id="form-tools">
+              <div class="tool-options" role="group" aria-labelledby="tool-settings-title" aria-describedby="tool-settings-help">
+                ${TOOL_SETTINGS.map(([value, label, help]) => `
+                  <label class="tool-option">
+                    <input type="checkbox" name="tools" value="${esc(value)}" ${(b.tools || []).includes(value) ? "checked" : ""}>
+                    <span class="tool-option-copy"><b>${esc(label)}</b><small>${esc(help)}</small></span>
+                  </label>`).join("")}
+              </div>
+              <div class="btn-row tool-options-actions"><button class="btn primary small" type="submit">Save tools</button></div>
+            </form>
+          </section>
 
           <section class="panel schedule-manager" id="schedule-manager" aria-labelledby="schedule-manager-title">
             <div class="schedule-manager-head">
@@ -3258,6 +3286,11 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     ev.preventDefault();
     const fd = new FormData(ev.target);
     patch({ model: fd.get("model").trim(), inference_mode: fd.get("inference_mode") }, "Model settings saved.");
+  });
+  $("#form-tools").addEventListener("submit", ev => {
+    ev.preventDefault();
+    const tools = [...ev.target.querySelectorAll('input[name="tools"]:checked')].map(input => input.value);
+    patch({ tools }, "Tool permissions saved.");
   });
   $("#btn-add-schedule").addEventListener("click", () => {
     const form = `<form id="modal-schedule-form" class="form-grid">

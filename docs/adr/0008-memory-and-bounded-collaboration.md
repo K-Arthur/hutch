@@ -1,6 +1,6 @@
 # ADR-0008: Memory layers and bounded delegation
 
-Status: facts/conversations implemented locally; collaboration partial (2026-10-08). Slice: S6. Evidence: baseline "continue a conversation", A2, historical reports C8–C10; verification in the continuation ledger.
+Status: facts/conversations implemented locally; bounded task delegation is experimental and partial. Slice: S6. Evidence: baseline "continue a conversation", A2, historical reports C8–C10; verification in the continuation ledger and [`delegation.md`](../realignment/delegation.md).
 
 ## Decision
 
@@ -20,16 +20,19 @@ Status: facts/conversations implemented locally; collaboration partial (2026-10-
 * **Memory off disables runtime use.** New tool lists omit memory tools; already-created tool objects recheck the persisted setting before recall/proposal. Human management remains available. Disabling cannot retract data already sent to a provider or remove prior conversation/tool outputs. Provider credential files, workspace files and receipts are not indexed as facts; text pasted by users/models can still contain private material. This is not a secret vault or a guarantee of recognizing arbitrary credentials.
 * **Prompt prefix stability**: the system prompt and tool list are frozen for an attempt, rather than claimed stable across all chat configuration changes. Facts never enter that prefix. No data-format marker can guarantee that a model ignores malicious text; tool policy and containment remain independently necessary.
 
-**Delegation** is a typed request/result between bots, recorded as a `delegations` row with `parent_run`, `child_run`, `depth`, `budget`. Limits (configurable, defaults): depth 2, fan-out 3, 8 turns, 10 min, a token budget carved from the parent's, 2 concurrent children per parent. A child inherits the parent's tightest constraints (risk tier, sandbox, network grant) and can never widen them. Cycle detection by lineage; the same `(from, to, intent-hash)` within a window is refused. An artifact has one writer at a time (`artifact_locks`); sharing is by explicit attach. Human messages preempt background work in the admission queue (priority classes) without starving scheduled work (aging).
+**Delegation is a narrow same-bot task tool**, not a general planner or bot-to-bot chat. An operator explicitly adds `delegate_task` to a bot's tools. The tool is available only to the supervised built-in Strict Offline runtime on a verified Linux host. Each call is an outward action and always asks a person, even when the bot's approval mode is `auto`; no sticky grant covers it. The immutable root capability snapshot is copied into the child row. The child gets its own private per-run workspace and only the task string supplied by the model; prior conversation, parent tool output and parent files are not copied. Browser and reference-memory tools are removed. The child's run and artifact records attach to the same conversation for human inspection, but the parent model receives only the child's final text and no file is copied into the parent workspace or prompt.
+
+Admission persists parent lineage and exact-retry idempotency. Limits are depth two, three lifetime direct children per parent, at most two active direct children in storage, at most eight child model steps and ten minutes, additionally capped by the parent deadline. The exposed tool waits for one child at a time per parent; with the default two global run slots, only one delegation level can run. A nested child needs a third global slot. Measured and unresolved provider usage reserves against the inherited root currency ceiling when one is configured; token limits and external billing retain their existing per-bot/provider semantics. Stop records cancellation for descendants atomically, and each process remains nonterminal until cleanup is verified. Legacy rows with empty capability/budget snapshots cannot start children. See `delegation.md` for setup and evidence.
 
 Schema v8 now stores canonical user/assistant messages and maps runs to conversations. Legacy runs each receive their own imported
 conversation, preserving isolation. A new run snapshots at most 12 previous messages and 16,000 characters; the builtin runtime
 prepends that context to its request. This is a role/content translation, not provider-session resumption. The Studio uses the
 canonical API to select, create, archive and resume threads. Schema v15 adds versioned scoped reference facts, bounded FTS5,
 human review and inline chat controls plus a paginated settings inventory/history. The old memory table is retained for migration
-provenance, not consulted by runtime recall. Delegation, artifact locks, a
-notifications outbox, user-facing delete/export, and a multi-user security model do not exist yet. Hutch remains a single local
-operator service.
+provenance, not consulted by runtime recall. Scoped conversation export is implemented with a disclosure of excluded data;
+permanent scoped deletion, artifact locks, a durable push-notification outbox, and a multi-user security model remain unavailable.
+Hutch remains a single local operator service. Delegation is experimental and does not implement specialist discovery,
+cross-bot permission transfer, parallel child execution, parent-workspace artifact transfer, plan UI, or arbitrary runtime handoff.
 
 ## Consequences
 

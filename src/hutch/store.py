@@ -1287,7 +1287,9 @@ class Store:
             run.origin = "delegated"
             run.task_id = task.id
             run.conversation_id = parent["conversation_id"] or ""
-            run.conversation_context = json.loads(parent["conversation_context"] or "[]")
+            # Delegation shares only its explicit task. Prior user/assistant turns may contain
+            # unrelated private context and must not be copied into a child prompt.
+            run.conversation_context = []
             if run.conversation_id:
                 conversation = db.execute("SELECT bot_id FROM conversations WHERE id = ?",
                                           (run.conversation_id,)).fetchone()
@@ -1316,6 +1318,18 @@ class Store:
             changed.extend(["conversations", f"conversation:{run.conversation_id}"])
         self.bus.notify(*changed)
         return run, True
+
+    def delegation_depth(self, run_id: str) -> int:
+        """Return a run's persisted lineage depth (roots are zero)."""
+        with self._lock:
+            row = self._db.execute("""WITH RECURSIVE ancestors(id, parent_run_id, depth, path) AS (
+                                        SELECT id, parent_run_id, 0, ',' || id || ',' FROM runs WHERE id = ?
+                                        UNION ALL
+                                        SELECT p.id, p.parent_run_id, a.depth + 1, a.path || p.id || ','
+                                        FROM runs p JOIN ancestors a ON p.id = a.parent_run_id
+                                        WHERE instr(a.path, ',' || p.id || ',') = 0
+                                    ) SELECT COALESCE(MAX(depth), 0) FROM ancestors""", (run_id,)).fetchone()
+        return int(row[0]) if row else 0
 
     @staticmethod
     def _idempotency_replay(db: sqlite3.Connection, scope: str, key: str, request_hash: str) -> Optional[dict[str, Any]]:
@@ -1783,6 +1797,8 @@ class Store:
         One statement decides: the run is still pending and unclaimed (or its claimant's lease lapsed), no stop was requested,
         no other run of the SAME bot is live or freshly claimed (the per-bot single-instance rule, now enforced across
         processes), and - if ``max_live`` is given - fewer than that many runs are live overall.
+        A child may share its bot's slot with its parent and siblings in the same delegation branch;
+        unrelated work for that bot remains mutually exclusive.
         """
         now = now or utcnow()
         stamp, expires = iso(now), iso(now + timedelta(seconds=lease_seconds))
@@ -1797,7 +1813,10 @@ class Store:
             "WHERE id = ? AND status = 'pending' AND cancel_requested = 0 "
             "AND (lease_owner = '' OR lease_expires_at IS NULL OR lease_expires_at < ?) "
             "AND NOT EXISTS (SELECT 1 FROM runs o WHERE o.bot_id = runs.bot_id AND o.id != runs.id AND "
-            "(o.status IN (" + marks + ") OR (o.status = 'pending' AND o.lease_owner != '' AND o.lease_expires_at >= ?)))"
+            "(o.status IN (" + marks + ") OR (o.status = 'pending' AND o.lease_owner != '' AND o.lease_expires_at >= ?)) "
+            "AND NOT (runs.parent_run_id IS NOT NULL AND (o.id IN (runs.parent_run_id, "
+            "(SELECT parent_run_id FROM runs p WHERE p.id = runs.parent_run_id)) "
+            "OR o.parent_run_id = runs.parent_run_id)))"
             + cap)
         args: list[Any] = [owner, expires, stamp, run_id, stamp, *_LIVE_VALUES, stamp]
         if max_live:

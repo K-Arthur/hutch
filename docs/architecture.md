@@ -98,9 +98,18 @@ bot deletion. A run with persisted parent lineage always gets its own private 07
 regardless of the bot's managed or host-folder setting; an unexpected workspace symlink fails closed.
 Schema v24 captures a credential-free capability snapshot in the same transition that starts each new
 root run. Internal child admission copies the parent's immutable snapshot, so editing the bot cannot
-silently widen a future child. This snapshot is not yet used to construct or enforce a child runtime.
-The ordinary dispatcher leaves delegated rows pending until a dedicated executor enforces that
-snapshot and artifact contract. Run-output artifacts stay with their source run and conversation context.
+silently widen a future child. An opt-in `delegate_task` tool now admits a same-bot child only for a
+supervised built-in Strict Offline run. The worker reconstructs execution authority from the saved
+snapshot, removes browser and memory tools, and uses a private per-run workspace. The child receives
+only its explicit task string, not the parent conversation or workspace contents. Its run remains
+attached to the same conversation for operator visibility, while the parent model receives only the
+child's final text. Artifacts remain attributed to the child run; no workspace copy or automatic file
+transfer occurs. Every child request asks for human approval, even in `auto` mode. Depth, fan-out,
+child duration and steps are bounded, usage reserves against the inherited root limit, and Stop
+persists cancellation across the lineage. With the default global limit of two, only one child can
+run beneath a root at a time; deeper work requires additional configured global slots. See
+[`delegation.md`](realignment/delegation.md). External runtimes and parallel public child execution
+remain unavailable.
 
 ## Key decisions
 

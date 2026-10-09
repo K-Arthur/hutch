@@ -1,0 +1,97 @@
+{
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "document": [
+        1440,
+        960
+      ],
+      "panel": [
+        714,
+        441
+      ],
+      "delegate": [
+        22,
+        22
+      ],
+      "deleteAction": [
+        118,
+        26
+      ],
+      "visible": true
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "document": [
+        900,
+        1024
+      ],
+      "panel": [
+        834,
+        412
+      ],
+      "delegate": [
+        22,
+        22
+      ],
+      "deleteAction": [
+        118,
+        26
+      ],
+      "visible": true
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "document": [
+        390,
+        844
+      ],
+      "panel": [
+        324,
+        757
+      ],
+      "delegate": [
+        22,
+        22
+      ],
+      "deleteAction": [
+        44,
+        44
+      ],
+      "visible": true
+    },
+    {
+      "size": "phone-saved",
+      "viewport": [
+        390,
+        844
+      ],
+      "saveVisible": true,
+      "delegateEnabled": true,
+      "scrollTop": 1652
+    }
+  ],
+  "scenario": "synthetic Settings form; enable the delegated task tool and persist the explicit opt-in",
+  "page_errors": [],
+  "source_sha256": {
+    "app.js": "b08561837fd79265edbc586e79580d51a4b320038dc7f2bdb3ace1e4d2a40d4d",
+    "style.css": "4597d48f74822541d88b709e4576c44149e4f160fd52b073b9060db35558d381",
+    "app.py": "f1ebc9de8fd1fe32ce196573b31ea38d3772a88e4b5b759201117a9ef2881d60"
+  }
+}

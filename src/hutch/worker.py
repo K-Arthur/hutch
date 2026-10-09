@@ -40,6 +40,7 @@ def main(argv: list[str] | None = None) -> int:
     stop_requested = threading.Event()
     signal_finished = threading.Event()
     signal_worker: threading.Thread | None = None
+    parent_watch: threading.Thread | None = None
     try:
         run = store.get_run(args.run_id)
         if run is None:
@@ -50,26 +51,29 @@ def main(argv: list[str] | None = None) -> int:
             print(f"hutch.worker: {args.run_id} is not claimed by {args.owner} at fence {args.fence} "
                   f"(status {run.status.value}, owner {run.lease_owner!r}, fence {run.fence})", file=sys.stderr)
             return EXIT_NOT_OURS
-        if run.parent_run_id is not None:
-            # This must run before recording our process group or starting signal handling:
-            # delegated rows stay visible, but have no worker until the child executor can
-            # enforce the inherited capability snapshot and artifact boundary.
-            engine = Engine(config, store, owner_id=args.owner, light=True)
-            engine._fail_unavailable_child_executor(run)
-            latest = store.get_run(run.id)
-            if latest is None or latest.status not in LIVE:
-                return EXIT_OK
-            print(f"hutch.worker: {args.run_id} has no capability-enforcing delegated executor", file=sys.stderr)
-            return EXIT_NOT_OURS
         bot = store.get_bot(run.bot_id)
         if bot is None:
             engine = Engine(config, store, owner_id=args.owner, light=True)
             engine._finish_unstarted(run)
             return EXIT_MISSING
-        if run.model_override:
+        if run.parent_run_id is not None:
+            engine = Engine(config, store, owner_id=args.owner, light=True)
+            snapshot = store.run_capability_snapshot(run.id)
+            try:
+                if snapshot is None:
+                    raise ValueError("delegated run has no inherited capability snapshot")
+                bot = Engine._delegated_bot(bot, snapshot)
+            except ValueError as exc:
+                engine._fail_unavailable_child_executor(run, str(exc))
+                latest = store.get_run(run.id)
+                if latest is None or latest.status not in LIVE:
+                    return EXIT_OK
+                print(f"hutch.worker: {args.run_id} could not enforce delegated capabilities: {exc}", file=sys.stderr)
+                return EXIT_NOT_OURS
+        elif run.model_override:
             bot = bot.model_copy(update={"model": run.model_override})
 
-        engine = Engine(config, store, owner_id=args.owner, light=True)
+        engine = engine if run.parent_run_id is not None else Engine(config, store, owner_id=args.owner, light=True)
         try:
             store.set_pgid(run.id, run.fence, os.getpgrp())
         except LeaseLost:
@@ -88,6 +92,18 @@ def main(argv: list[str] | None = None) -> int:
 
         signal_worker = threading.Thread(target=watch_signal, name="hutch-worker-signal", daemon=False)
         signal_worker.start()
+        if run.parent_run_id is not None:
+            def watch_parent() -> None:
+                # A child must not outlive the parent worker that is awaiting it. This
+                # also covers a hard parent crash, where no in-process cancel hook runs.
+                while not signal_finished.wait(0.25):
+                    parent = store.get_run(run.parent_run_id)
+                    if (parent is None or parent.status is not RunStatus.running or parent.cancel_requested):
+                        engine.stop_run(run.id)
+                        return
+
+            parent_watch = threading.Thread(target=watch_parent, name="hutch-child-parent-watch", daemon=False)
+            parent_watch.start()
         engine._ensure_heartbeat()
         engine._execute(bot, run, threading.Event())
         engine._hb_stop.set()
@@ -102,6 +118,8 @@ def main(argv: list[str] | None = None) -> int:
         stop_requested.set()
         if signal_worker is not None:
             signal_worker.join()
+        if parent_watch is not None:
+            parent_watch.join()
         store.close()
 
 

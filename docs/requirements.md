@@ -59,15 +59,15 @@ commits can cite them. Evidence for the *why* is in
 | ID | Requirement | Phase | Status | Where |
 |---|---|---|---|---|
 | CO-1 | One planner and a fixed list of allowed specialists | v0.1 | planned | |
-| CO-2 | Structured messages: task, result, question — no free chat | v0.1 | planned | |
-| CO-3 | Specialists cannot message each other; only the planner wakes a bot | v0.1 | planned | |
-| CO-4 | Own workspace per specialist; explicit, logged file copy; per-bot memory | v0.1 | planned | |
-| CO-5 | Planner sees results and artifact refs, not transcripts | v0.1 | planned | |
-| CO-6 | Engine enforces max hops, tasks, parallel specialists, wall-clock | v0.1 | planned | |
-| CO-7 | Plan budget split into per-task slices | v0.1 | planned | |
-| CO-8 | Same task posted twice pauses the plan | v0.1 | planned | |
-| CO-9 | Stop plan kills every child run | v0.1 | planned | |
-| CO-10 | Child approvals in the one inbox tagged with plan; bounded plan-level approval | v0.1 | planned | |
+| CO-2 | Structured messages: task, result, question — no free chat | v0.1 | partial | `delegate_task` accepts a bounded task string and returns final text; question/typed-result schemas are not implemented (`docs/realignment/delegation.md`) |
+| CO-3 | Specialists cannot message each other; only the planner wakes a bot | v0.1 | partial | Same-bot child lineage has no sibling messaging, but generic specialist selection/planner orchestration is unavailable |
+| CO-4 | Own workspace per specialist; explicit, logged file copy; per-bot memory | v0.1 | partial | Child runs get private workspaces and no runtime memory; explicit artifact transfer is unavailable |
+| CO-5 | Planner sees results and artifact refs, not transcripts | v0.1 | partial | Parent model receives final child text; artifact references are not returned to model context |
+| CO-6 | Engine enforces max hops, tasks, parallel specialists, wall-clock | v0.1 | partial | Depth/fan-out, child step/time limits and lineage cancellation are enforced; exposed child calls are serial and no plans exist |
+| CO-7 | Plan budget split into per-task slices | v0.1 | partial | Child usage reserves against the inherited lineage ceiling; per-task slices and token allotments are absent |
+| CO-8 | Same task posted twice pauses the plan | v0.1 | partial | Exact retries of the same tool step replay its child; semantic duplicate detection across later steps is absent |
+| CO-9 | Stop plan kills every child run | v0.1 | partial | Run Stop cascades to persisted descendants; there is no plan resource or plan Stop command |
+| CO-10 | Child approvals in the one inbox tagged with plan; bounded plan-level approval | v0.1 | partial | Child approvals appear in the shared conversation/Needs you flow and always ask; no plan grouping or plan-level grant exists |
 | CO-11 | Plan page: board + handoff timeline with cost | v0.1 | planned | |
 
 ## Safety and reliability

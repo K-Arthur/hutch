@@ -45,6 +45,18 @@ def test_bot_create_and_validation(state_env, monkeypatch):
     assert fake_model.exit_code != 0 and "test-only" in fake_model.output
 
 
+def test_bot_tools_can_be_updated_with_known_capabilities(state_env):
+    assert runner.invoke(app, ["init"]).exit_code == 0
+    created = runner.invoke(app, ["bot", "create", "delegator", "--model", "mock/demo", "--tools", "files"])
+    assert created.exit_code == 0, created.output
+    updated = runner.invoke(app, ["bot", "update", "delegator", "--tools", "files,delegate_task"])
+    assert updated.exit_code == 0, updated.output
+    saved = runner.invoke(app, ["bot", "show", "delegator"])
+    assert '"delegate_task"' in saved.output and '"write_file"' in saved.output
+    invalid = runner.invoke(app, ["bot", "update", "delegator", "--tools", "laser"])
+    assert invalid.exit_code != 0 and "unknown tools" in invalid.output
+
+
 def test_local_model_route_mode_is_persisted_and_blocks_hosted_cli_updates(state_env):
     assert runner.invoke(app, ["init"]).exit_code == 0
     created = runner.invoke(app, ["bot", "create", "modebot", "--model", "ollama/fake:8b",

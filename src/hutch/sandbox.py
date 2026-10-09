@@ -139,7 +139,17 @@ def offline_worker_environment(source: dict[str, str], state_dir: str, lease_sec
     Saved connection definitions and key files are also masked by read-only
     mounts in the worker's filesystem namespace.
     """
-    del source  # no ambient variable is safe to import into the network-isolated worker
+    # All ambient values remain excluded except two supervisor-owned coordinates
+    # that the parent Engine sets explicitly before constructing the sandbox.
+    # Nested delegation needs the same global admission limit inside workers.
+    if source.get("HUTCH_EXECUTOR", "process") != "process":
+        raise ValueError("Strict Offline workers require the supervised process executor")
+    try:
+        max_concurrent = int(source.get("HUTCH_MAX_CONCURRENT", "2"))
+    except (TypeError, ValueError):
+        raise ValueError("invalid supervised global concurrency limit") from None
+    if not 1 <= max_concurrent <= 128:
+        raise ValueError("supervised global concurrency limit must be between 1 and 128")
     source_root = str(Path(__file__).resolve().parents[1])
     # Run the real interpreter binary rather than the venv's symlink: the
     # latter can point through a uv-managed alias outside the mounted tree.
@@ -153,6 +163,7 @@ def offline_worker_environment(source: dict[str, str], state_dir: str, lease_sec
         "PATH": DEFAULT_PATH, "HOME": "/tmp/hutch-home", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8",
         "PYTHONPATH": os.pathsep.join(python_path), "PYTHONUNBUFFERED": "1", "VIRTUAL_ENV": sys.prefix,
         "HUTCH_STATE_DIR": state_dir, "HUTCH_LEASE_SECONDS": str(lease_seconds),
+        "HUTCH_EXECUTOR": "process", "HUTCH_MAX_CONCURRENT": str(max_concurrent),
         "HUTCH_OFFLINE_BROKER_DIR": "/run/hutch-offline", "HUTCH_OFFLINE_RUN": "1",
         "TMPDIR": "/tmp", "TERM": "dumb",
     }
