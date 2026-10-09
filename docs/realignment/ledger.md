@@ -2759,16 +2759,17 @@ The manual target scan found no side-tab pattern. No new ignore was added. See `
 
 The last public-copy revision also retained route/fallback boundaries and the exact safe-checkpoint eligibility conditions; its two
 anonymous-site tests passed again (**2 tests in 4.27s**) and the refreshed desktop/tablet/phone captures were inspected.
+Dashboard/site polish and responsive evidence were committed as `9084d71`.
 
 ## Remove unreserved chat requests from connection diagnostics (2026-10-09)
 
 The legacy `hutch connections test --chat <model>` option issued a paid model request directly from the connection helper, outside
 the normal shared-account token/currency reservation and uncertain-charge receipt path. A test-first fake-endpoint reproduction
 confirmed the command returned success; source inspection showed it went straight to `provider.chat` without a reservation. The CLI now keeps a hidden compatibility argument only to
-return a clear refusal before network access. The check helper no longer accepts a model-chat parameter or reports untracked
+  return a clear refusal before network access. The check helper no longer accepts a model-chat parameter or reports untracked
 `spent_tokens`; model-list authentication stays token-free, and endpoints without a model list clearly remain unverified. The docs
-and ADR-0005 direct model behavior checks through a normal Bot run, and reserve future persisted capability probes for the governed
-request and reconciliation path.
+and ADR-0005 now direct model behavior checks through a normal Bot run and reserve future persisted capability probes for the
+governed request and reconciliation path. The code, docs and regression coverage were committed as `653c20e`.
 
 `uv run pytest -q tests/test_connections.py tests/test_compat.py tests/test_provider_authority.py tests/test_reservations.py --no-header`
 passed **84 tests in 18.36s**. The additional focused CLI/diagnostic check passed **3 tests in 1.52s**. All requests used local
@@ -2783,6 +2784,7 @@ remains unavailable. Official Pi CLI documentation confirms `--no-tools` can dis
 but Pi would still own the direct model request and credentials. Its security guidance says project trust is not a sandbox, and
 headless RPC cannot show interactive trust prompts. There is no Pi binary installed here. These checks do not authorize enabling
 either executor; both still need Hutch-owned provider routing/usage reservations and governed recovery.
+This research, compatibility update and fail-closed test are committed as `4ddcef0`.
 
 Added a regression guard proving that both executor entry points fail as `unsupported` before `subprocess.Popen` can run and return
 the permission/capability and provider-budget limitation. `uv run pytest -q tests/test_runtime.py::test_external_executor_refuses_before_creating_a_process tests/test_runtime_opencode.py tests/test_runtime_pi.py --no-header`
