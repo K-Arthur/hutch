@@ -216,6 +216,8 @@ language after explicit user direction ("right angles feel too off"):
   it flattens to a single ledger row — history is text, not another box.
 - **Tool lines** — borderless monospace rows under a collapsed "N steps" summary;
   every command and result is visible, expansion adds raw input/output in place.
+  When output was truncated, the row carries a `source` flag and a rounded source
+  card linking the saved artifact — the full output the model was not shown.
 - **KPI strip** — one bordered row of four measurements, mono, compact.
 - **Workflow header status** — counts real activity (working/queued/needs-you)
   from `/api/stats`; hidden when idle, spoken loudly only when the executor is

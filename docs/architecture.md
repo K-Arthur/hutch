@@ -77,6 +77,9 @@ event by run and event sequence. The event stores the byte size and SHA-256; the
 these bounded run-scoped artifacts, and a download verifies the bytes again before sending them as
 plain text. The chat offers file downloads beside the write result; snapshots are capped at 4 MB
 per file and 16 MB per run. Studio shows write-file downloads outside the collapsed tool details.
+Each tool can also set a model-visible character limit (12,000 by default). Clipped output stays
+as a verified run artifact; the expanded tool row places its download and readable source card
+outside the scroll-bounded preview so the full result remains easy to reach on a phone.
 The composer menu also pages verified files and saved tool output across runs attached to the
 current conversation, so the operator can find an earlier result without leaving the chat. The
 query checks both conversation and bot ownership; downloads still resolve to the source run and

@@ -24,6 +24,16 @@ the Connections phone capture with its heading and controls fitting the viewport
 The base-template static detector does not resolve its linked `hutch.css` heading rule and still estimates the browser default line
 height. The existing path-scoped ignore remains, with its reason updated to the new computed measurements; no new ignore was added.
 
+## Verified source card for clipped tool output (2026-10-08)
+
+When tool details expand, the verified full-output download and the “Open” source card now sit outside the height-limited preview,
+so the action is visible without scrolling the preview. On phones the filename occupies its own line, with size and open action
+below it. Chromium **153.0.8010.12** / Playwright **1.63.0** verified the card and download at 1440×960, 768×1024 and 390×844;
+the captured phone filename is one line and the card stays inside the viewport. The route rechecks the recorded SHA-256 and size,
+opens content as inert `text/plain` (the fixture includes a script tag), and has no page errors or horizontal overflow. Screenshots,
+source hashes and measurements are in [`artifacts/tool-source-card/`](artifacts/tool-source-card/). This is a local fixture, not a
+provider or physical-phone check.
+
 ## Independent recurring tasks (2026-10-09)
 
 The settings panel manages one to 100 named tasks on a bot. Each task has separate cron, timezone,

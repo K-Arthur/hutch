@@ -705,6 +705,43 @@ def test_v1_resume_rejects_a_wait_without_a_live_owner(client):
     assert store.kv_get(f"resume:{run.id}") is None
     assert store._db.execute("SELECT COUNT(*) FROM human_wait_resumes WHERE run_id = ?",
                              (run.id,)).fetchone()[0] == 0
+def test_tool_limits_patch_and_artifact_serving(client):
+    """PF-2: per-tool caps are configurable, truncation keeps the full output,
+    and the artifact endpoint serves only files inside this run's directory."""
+    bot = make_bot(client)
+
+    res = client.patch(f"/api/bots/{bot['name']}", json={"tool_limits": {"list_files": 1}})
+    assert res.status_code == 200 and res.json()["tool_limits"] == {"list_files": 1}
+    assert client.patch(f"/api/bots/{bot['name']}", json={"tool_limits": {"nope": 5}}).status_code == 422
+    assert client.patch(f"/api/bots/{bot['name']}", json={"tool_limits": {"list_files": -3}}).status_code == 422
+
+    res = client.post("/api/bots/api-bot/run", json={"prompt": "research the news"})
+    assert res.status_code == 201
+    run_id = res.json()["id"]
+    deadline = time.time() + 20
+    while time.time() < deadline:
+        run = client.get(f"/api/runs/{run_id}").json()
+        if run["status"] not in ("pending", "running", "waiting_approval"):
+            break
+        time.sleep(0.2)
+    assert run["status"] == "succeeded"
+
+    art_ev = next(e for e in run["events"] if e["type"] == "tool_result" and e["data"].get("artifact"))
+    rel = art_ev["data"]["artifact"]
+    assert rel.startswith("artifacts/")
+    assert "omitted" in art_ev["data"]["output"]       # the display carries the truncation note
+
+    got = client.get(f"/api/runs/{run_id}/{rel}")
+    assert got.status_code == 200
+    assert got.headers["content-type"].startswith("text/plain")
+    assert len(got.text) == art_ev["data"]["chars"]    # served file is the FULL output
+    assert "omitted" not in got.text                   # ... and not the cut view
+
+    # traversal, absolute, unknown-file and unknown-run are all refused
+    assert client.get(f"/api/runs/{run_id}/artifacts/..%2F..%2F..%2Fetc%2Fpasswd").status_code == 404
+    assert client.get(f"/api/runs/{run_id}/artifacts/%2Fetc%2Fpasswd").status_code == 404
+    assert client.get(f"/api/runs/{run_id}/artifacts/nope.txt").status_code == 404
+    assert client.get("/api/runs/run_nope/artifacts/x.txt").status_code == 404
 
 
 def test_approval_flow_via_api(client):

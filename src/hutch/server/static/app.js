@@ -2213,11 +2213,11 @@ function toolLineHtml(item, anchorEvent, runId, includeFileAttachments = true) {
 
   return `<div class="tool-line-wrap">
     <div class="tool-line ${cls}" data-tool-line="${esc(String(idx))}">
-      <button class="tool-line-head" type="button" aria-expanded="${open}" aria-controls="tlb-${esc(String(idx))}" data-tool-toggle="${esc(String(idx))}">
+      <button class="tool-line-head" type="button" aria-expanded="${open}" aria-controls="tlb-${esc(String(idx))}${res?.d.artifact ? ` tla-${esc(String(idx))}` : ""}" data-tool-toggle="${esc(String(idx))}">
         <span class="tool-grid" title="${t}">
           <span class="tool-verdict">${verdict}</span>
           <span class="tool-name">${esc(tool)}</span>
-          <span class="tool-args">${esc(truncate(summary, 90))}</span>
+          <span class="tool-args"><span class="tool-args-text">${esc(truncate(summary, 90))}</span>${res?.d.artifact ? `<span class="tool-src-flag" title="Full output saved as an artifact">source</span>` : ""}</span>
         </span>
       </button>
       <div class="tool-line-body" id="tlb-${esc(String(idx))}" ${open ? "" : "hidden"}>
@@ -2225,12 +2225,24 @@ function toolLineHtml(item, anchorEvent, runId, includeFileAttachments = true) {
           <span class="tool-line-label">Input</span>
           ${esc(JSON.stringify(call?.d.args ?? {}, null, 2))}
         </div>
-        ${res ? artifactDownloadHtml(runId, res.d) : ""}
         ${res ? toolOutputHtml(res.d.output) : '<div class="tool-line-section"><span class="tool-line-label">Output</span>pending…</div>'}
       </div>
+      ${res?.d.artifact ? `<div class="tool-artifact-actions" id="tla-${esc(String(idx))}" ${open ? "" : "hidden"}>${artifactDownloadHtml(runId, res.d)}${sourceCardHtml(res.d, runId)}</div>` : ""}
     </div>
     ${includeFileAttachments ? createdFilesHtml(runId, [{ result: res }]) : ""}
   </div>`;
+}
+
+/* PF-2 kept the untruncated output on disk; this row is the only door to it. */
+function sourceCardHtml(d, runId) {
+  const file = String(d.artifact).replace(/^artifacts\//, "");
+  return `
+    <a class="tool-source" href="/api/runs/${esc(runId)}/artifacts/${esc(file)}" target="_blank" rel="noopener noreferrer">
+      ${icon("folder")}
+      <span class="tool-source-name" title="${esc(file)}">${esc(file)}</span>
+      <span class="tool-source-meta">full output · ${(d.chars || 0).toLocaleString("en-US")} chars</span>
+      <span class="tool-source-go">Open ${icon("arrow")}</span>
+    </a>`;
 }
 
 const OUTPUT_CLIP = 600;
@@ -2356,6 +2368,8 @@ function wireFeedInteractions() {
       lineBtn.setAttribute("aria-expanded", String(open));
       line.classList.toggle("open", open);
       if (body) body.hidden = !open;
+      const artifacts = line.querySelector(".tool-artifact-actions");
+      if (artifacts) artifacts.hidden = !open;
       const blockRun = line.closest("[data-run-id]")?.dataset.runId || currentRunId;
       const ids = [...stream.querySelectorAll(`[data-run-id="${blockRun}"] [data-tool-toggle][aria-expanded='true']`)].map(b => b.dataset.toolToggle);
       try { localStorage.setItem(`hutch-expanded:${blockRun}`, JSON.stringify(ids)); } catch {}

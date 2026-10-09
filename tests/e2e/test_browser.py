@@ -488,6 +488,113 @@ def test_saved_tool_output_is_downloadable_and_verified_at_all_viewports(browser
     }, indent=2) + "\n")
 
 
+def test_truncated_tool_source_card_opens_verified_plain_text_at_all_viewports(browser, live):
+    """The PF-2 source card exposes the full artifact through the hash-checked compatibility route."""
+    base, app = live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="source-card", model="mock/demo", runtime=RuntimeKind.mock, tools=["files"]))
+    conversation, _ = store.create_conversation(
+        bot.id, "Source card", idem_key="source-card-conversation", request_hash="source-card-request")
+    prompt = "read the large output"
+    run = Run(bot_id=bot.id, prompt=prompt)
+    task = Task(bot_id=bot.id, kind="on_demand", prompt=prompt)
+    run_id, _ = store.submit_conversation_message(
+        conversation["id"], prompt, run, task, idem_key="source-card-message", request_hash="source-card-message-request")
+    claimed = store.claim_run(run_id, "source-card-fixture", 60)
+    assert claimed is not None
+    store.transition_run(run_id, RunStatus.running, fence=claimed.fence, event={"fixture": "artifact-card"})
+
+    filename = "001-read_file.txt"
+    payload = b"<script>window.artifactScriptRan=true</script>\ncomplete verified output\n"
+    artifact_dir = app.state.config.run_dir(bot.name, run_id) / "artifacts"
+    artifact_dir.mkdir(parents=True)
+    artifact = artifact_dir / filename
+    artifact.write_bytes(payload)
+    artifact.chmod(0o400)
+    digest = hashlib.sha256(payload).hexdigest()
+    store.append_event(Event(run_id=run_id, type=EventType.tool_call,
+                             data={"tool": "read_file", "args": {"path": "large.txt"}}))
+    store.append_event(Event(run_id=run_id, type=EventType.tool_result, data={
+        "tool": "read_file", "ok": True, "output": "<script>window.artifactScriptRan=true</script>\n… [full output saved]",
+        "chars": len(payload.decode()), "artifact": f"artifacts/{filename}",
+        "artifact_sha256": digest, "artifact_bytes": len(payload),
+    }))
+    store.append_event(Event(run_id=run_id, type=EventType.message,
+                             data={"role": "assistant", "content": "I saved the full output."}))
+    store.transition_run(run_id, RunStatus.succeeded, fence=claimed.fence, event={"verified": True})
+
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/tool-source-card"
+    out.mkdir(parents=True, exist_ok=True)
+    records = []
+    for name, width, height in (("desktop", 1440, 960), ("tablet", 768, 1024), ("phone", 390, 844)):
+        context = browser.new_context(viewport={"width": width, "height": height}, reduced_motion="reduce",
+                                      is_mobile=(name == "phone"), has_touch=(name == "phone"))
+        page = context.new_page()
+        errors: list[str] = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        try:
+            page.goto(f"{base}/#/chat/{bot.name}")
+            page.locator("#conversation-switcher").wait_for()
+            page.locator(".tool-src-flag").wait_for()
+            row = page.locator(".tool-line[data-tool-line]").first
+            assert row.locator(".tool-src-flag").inner_text() == "source"
+            row.locator(".tool-line-head").click()
+            card = row.locator(".tool-source")
+            card.wait_for(state="visible")
+            assert card.locator("xpath=..").get_attribute("class") == "tool-artifact-actions"
+            href = card.get_attribute("href")
+            assert href == f"/api/runs/{run_id}/artifacts/{filename}"
+            response = page.request.get(base + href)
+            assert response.status == 200
+            assert response.headers.get("x-hutch-artifact-verified") == "sha256"
+            assert response.headers.get("content-disposition") == "inline"
+            assert response.body() == payload
+            card_box = card.bounding_box()
+            assert card_box and card_box["height"] >= 40, card_box
+            assert card_box["y"] >= 0 and card_box["y"] + card_box["height"] <= height, card_box
+            assert "full output" in card.inner_text() and filename in card.inner_text()
+            filename_box = None
+            if name == "phone":
+                filename_box = card.locator(".tool-source-name").bounding_box()
+                meta_box = card.locator(".tool-source-meta").bounding_box()
+                open_box = card.locator(".tool-source-go").bounding_box()
+                assert filename_box and filename_box["height"] < 24, filename_box
+                assert meta_box and open_box and abs(meta_box["y"] - open_box["y"]) < 2
+                assert meta_box["y"] > filename_box["y"]
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+            screenshot = out / f"{name}.png"
+            page.screenshot(path=str(screenshot), animations="disabled")
+            card.focus()
+            with context.expect_page() as opened_info:
+                page.keyboard.press("Enter")
+            opened = opened_info.value
+            opened.wait_for_load_state("domcontentloaded")
+            assert "<script>window.artifactScriptRan=true</script>" in opened.locator("body").inner_text()
+            assert opened.evaluate("window.artifactScriptRan") is None
+            assert not errors, errors
+            records.append({"size": name, "viewport": [width, height], "screenshot": screenshot.name,
+                            "source_card_bounds": {key: round(value) for key, value in card_box.items()},
+                            "phone_filename_single_line": name != "phone" or filename_box["height"] < 24,
+                            "overflow_px": 0, "verified_hash": digest, "script_inert": True,
+                            "page_errors": errors})
+            opened.close()
+        finally:
+            context.close()
+
+    repo = Path(__file__).resolve().parents[2]
+    source_files = ("src/hutch/server/app.py", "src/hutch/server/static/app.js",
+                    "src/hutch/server/static/style.css")
+    (out / "validation.json").write_text(json.dumps({
+        "captured_at": datetime.now(timezone.utc).isoformat(), "browser": browser.browser_type.name,
+        "browser_version": browser.version, "playwright_version": package_version("playwright"),
+        "source_sha256": {path: hashlib.sha256((repo / path).read_bytes()).hexdigest()
+                          for path in source_files},
+        "scenario": "synthetic truncated tool output; open source card and verify run-local file integrity and plain-text rendering",
+        "provider_calls": 0, "captures": records,
+        "limitation": "Fixture browser test; no provider/model or physical phone was used.",
+    }, indent=2) + "\n")
+
+
 def test_generated_workspace_file_is_downloadable_from_its_chat(browser, live, monkeypatch):
     """Studio exposes a verified file download without requiring tool details to be expanded."""
     base, app = live

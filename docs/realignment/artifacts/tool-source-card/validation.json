@@ -1,0 +1,73 @@
+{
+  "captured_at": "2026-10-09T06:12:20.106008+00:00",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "source_sha256": {
+    "src/hutch/server/app.py": "6cffd9a2ff1a0bfc18f52c27c43b39c3e0191fa37bae2fe274245a58337923a8",
+    "src/hutch/server/static/app.js": "73b2da2d5da9813b44cf98dcfb3566f86ce84d1061db60b8060a78d874e207f8",
+    "src/hutch/server/static/style.css": "4c8170e188364dff1cfd01f3b2a6dfd53618a5a19ab8061afcb433c4062ee5f7"
+  },
+  "scenario": "synthetic truncated tool output; open source card and verify run-local file integrity and plain-text rendering",
+  "provider_calls": 0,
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "screenshot": "desktop.png",
+      "source_card_bounds": {
+        "x": 500,
+        "y": 276,
+        "width": 712,
+        "height": 44
+      },
+      "phone_filename_single_line": true,
+      "overflow_px": 0,
+      "verified_hash": "6cefb159026d601c9afec3feefba83af6c57afd77b6d95f4f3ca06ce3646a40c",
+      "script_inert": true,
+      "page_errors": []
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        768,
+        1024
+      ],
+      "screenshot": "tablet.png",
+      "source_card_bounds": {
+        "x": 16,
+        "y": 305,
+        "width": 736,
+        "height": 44
+      },
+      "phone_filename_single_line": true,
+      "overflow_px": 0,
+      "verified_hash": "6cefb159026d601c9afec3feefba83af6c57afd77b6d95f4f3ca06ce3646a40c",
+      "script_inert": true,
+      "page_errors": []
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "screenshot": "phone.png",
+      "source_card_bounds": {
+        "x": 12,
+        "y": 360,
+        "width": 366,
+        "height": 62
+      },
+      "phone_filename_single_line": true,
+      "overflow_px": 0,
+      "verified_hash": "6cefb159026d601c9afec3feefba83af6c57afd77b6d95f4f3ca06ce3646a40c",
+      "script_inert": true,
+      "page_errors": []
+    }
+  ],
+  "limitation": "Fixture browser test; no provider/model or physical phone was used."
+}

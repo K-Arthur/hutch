@@ -151,6 +151,7 @@ class BotPatch(BaseModel):
     local_browser_handoff: Optional[bool] = None
     workdir: Optional[str] = None          # "" clears it
     limits: Optional[Limits] = None
+    tool_limits: Optional[dict[str, int]] = None   # per-tool output caps in chars (PF-2); "" clears a tool
     paused: Optional[bool] = None
     cron: Optional[str] = None
     clear_cron: bool = False
@@ -1229,6 +1230,17 @@ def create_app() -> FastAPI:
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
 
+    def _checked_tool_limits(limits: dict[str, int]) -> dict[str, int]:
+        """PF-2 per-tool output caps: known tools only, 0 (unlimited) to 10M chars."""
+        out: dict[str, int] = {}
+        for tool, val in limits.items():
+            if tool not in ALL_TOOL_NAMES:
+                raise HTTPException(422, f"unknown tool: {tool}")
+            if not 0 <= int(val) <= 10_000_000:
+                raise HTTPException(422, f"limit for {tool} must be 0..10000000 chars")
+            out[tool] = int(val)
+        return out
+
     def _checked_rules(rules: list[CommandRule]) -> list[CommandRule]:
         from ..safety import MAX_RULES
         if len(rules) > MAX_RULES:
@@ -1348,6 +1360,7 @@ def create_app() -> FastAPI:
         if body.risk_tier is not None: bot.risk_tier = body.risk_tier
         if body.local_browser_handoff is not None: bot.local_browser_handoff = body.local_browser_handoff
         if body.limits is not None: bot.limits = body.limits
+        if body.tool_limits is not None: bot.tool_limits = _checked_tool_limits(body.tool_limits)
         if body.command_rules is not None: bot.command_rules = _checked_rules(body.command_rules)
         if body.workdir is not None: bot.workdir = _checked_workdir(body.workdir) if body.workdir else None
         if body.workspace_mode is not None:
@@ -1786,6 +1799,27 @@ def create_app() -> FastAPI:
         """SR-11: recompute the run's hash chain; ok=false means history was edited."""
         run_or_404(run_id)
         return store.verify_chain(run_id)
+
+    @app.get("/api/runs/{run_id}/artifacts/{rel_path:path}")
+    def run_artifact(run_id: str, rel_path: str) -> Response:
+        """Compatibility alias for the verified run-artifact endpoint."""
+        run = run_or_404(run_id)
+        relative = PurePosixPath("artifacts") / PurePosixPath(rel_path)
+        if (str(relative) != f"artifacts/{rel_path}" or len(relative.parts) != 2
+                or not _ARTIFACT_NAME_RE.fullmatch(relative.name)):
+            raise HTTPException(404, "no such artifact")
+        artifact_ref = str(relative)
+        event = store.artifact_event(run_id, artifact_ref)
+        if event is None:
+            raise HTTPException(404, "no such artifact")
+        workspace_file = event.data.get("workspace_file")
+        kind = ("workspace_file" if isinstance(workspace_file, dict)
+                and workspace_file.get("artifact") == artifact_ref else "tool_output")
+        response = verified_artifact_response(run, event, kind, relative.name)
+        # The compatibility source card opens readable plain text in a tab. The
+        # versioned API retains attachment semantics for explicit downloads.
+        response.headers["Content-Disposition"] = "inline"
+        return response
 
     @app.post("/api/runs/{run_id}/stop")
     @app.post("/api/v1/tasks/runs/{run_id}/stop")

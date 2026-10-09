@@ -23,6 +23,7 @@ dashboard, or the REST API, and live in `hutch.db`.
 | `base_url` | str? | null | override endpoint for OpenAI-compatible providers |
 | `runtime` | enum | `builtin` | `builtin`; legacy values `mock`, `pi` and `opencode` are retained for migration but fail closed as unsupported |
 | `tools` | list | `["shell","files","memory"]` | allowlist; groups expand (see below) |
+| `tool_limits` | map | `{}` | Per-tool maximum characters shown to the model; omitted tools default to 12,000, `0` disables clipping, and positive values are capped at 10,000,000. Clipped full output is retained as a verified run artifact, up to 4 MB per artifact and 16 MB per run. |
 | `schedules` | list | `[]` | Up to 100 named recurring tasks, each `{id, name, cron, timezone, catch_up, prompt, created_at}`. Each task has its own timing and prompt; tasks share the bot's tools, workspace, limits and permissions. |
 | `schedule` | obj? | null | Compatibility alias for the first item in `schedules`; older `cron`/`schedule_prompt` settings update this task. Omit `schedules` for on-demand bots. |
 | `limits` | obj | see below | runtime limits and usage admission budgets |

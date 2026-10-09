@@ -108,6 +108,10 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   The keyset is ordered by event ID descending, then artifact kind ascending, so a page boundary remains stable if newer artifacts
   arrive while browsing and can split two artifact kinds recorded by one event without repeating either. Available downloads use
   the existing run-scoped endpoint, which rechecks the recorded size and SHA-256 through no-follow file access.
+  Bot `tool_limits` set the maximum model-visible characters by tool (12,000 by default, zero for no clipping,
+  maximum 10,000,000). When a full result is stored, Studio places its download and an inline plain-text source card
+  outside the scroll-bounded preview. The legacy `/api/runs/{run_id}/artifacts/{filename}` source-card route applies
+  the same recorded size/hash verification and safe file access; versioned artifact downloads retain attachment behavior.
   Missing and legacy-unverified files remain visible without a download link. Active explicit shares also appear in the target
   conversation with the source chat title and a target-bound download URL. Owned artifact entries include a typed `shared_with`
   list of active grants, with target chat titles, so the source chat can manage and revoke each grant. Schema v18 records source
