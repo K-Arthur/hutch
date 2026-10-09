@@ -319,6 +319,17 @@ def test_engine_stop_signals_owned_processes_for_descendants(store, config):
     assert store.get_run(grandchild.id).status is RunStatus.stopped
 
 
+def test_ordinary_dispatcher_keeps_delegated_runs_pending_until_child_executor_exists(store, config):
+    _, root = _running_parent(store)
+    child, _ = _child(store, root, key="not-yet-executable")
+    store.transition_run(root.id, RunStatus.succeeded, fence=root.fence, exit_reason="completed")
+
+    engine = Engine(config, store, light=True, executor="thread")
+    assert engine.dispatch_pending() == 0
+    pending = store.get_run(child.id)
+    assert pending is not None and pending.status is RunStatus.pending and not pending.lease_owner
+
+
 def test_delegation_admission_is_atomic_across_independent_sqlite_connections(store, config):
     _, parent = _running_parent(store)
     count = 8

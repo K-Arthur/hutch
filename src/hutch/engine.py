@@ -144,7 +144,11 @@ class Engine:
             self._reap_threads()
             self.store.release_expired_claims()
             active = self.store.active_runs()
-            pending = sorted((r for r in active if r.status is RunStatus.pending and not r.lease_owner),
+            # Delegation persistence is not an execution grant. Until the dedicated child
+            # executor snapshots capabilities and isolates its workspace, keep those
+            # internal queue rows visible but do not dispatch them as ordinary bot work.
+            pending = sorted((r for r in active if r.parent_run_id is None
+                              and r.status is RunStatus.pending and not r.lease_owner),
                              key=lambda r: r.created_at)
             if self.slot_filter:
                 pending = self.slot_filter(pending, active)

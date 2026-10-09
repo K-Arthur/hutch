@@ -170,7 +170,9 @@ schedule IDs stay reserved even if the task never fired, and deleting a bot does
 task identity. The migration backup can be restored with the standard held restore procedure above.
 Schema v22 records immutable same-bot run lineage; v23 stores the delegated subtree currency ceiling.
 Existing rows receive no invented delegation budget, and these internal primitives do not expose
-child execution. Stopping a run now persists cancellation for its descendants before cleanup starts;
+child execution; the ordinary scheduler leaves delegated rows queued until their dedicated executor
+enforces the child permission and workspace boundary. Stopping a run now persists cancellation for
+its descendants before cleanup starts;
 each process-owning run remains Cancelling until its own process group has been verified gone.
 Hutch does not infer that adjacent runs share a
 private context. New conversations and message submissions are written transactionally with their idempotency records. The

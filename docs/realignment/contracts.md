@@ -88,7 +88,8 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   delegation ceiling. Stopping any run also persists cancellation intent for its descendants before cleanup, and a racing child
   submission either appears in that tree or observes its cancelled parent and is refused. This is still a persistence/admission
   primitive only: no chat tool or public child-run endpoint exists yet. Capability snapshotting, independent child workspaces, and
-  delegated artifact transfer remain open.
+  delegated artifact transfer remain open. The ordinary dispatcher deliberately leaves delegated queue rows pending until a
+  dedicated, permission-bounded and workspace-isolated child executor exists.
 * `POST /api/v1/tasks/runs/{run_id}/resume` takes `{human_event_seq}` and requires `Idempotency-Key`. The run must still be
   `waiting_human` under a live owner lease, and the sequence must match its latest `human_needed` event. Schema v19 accepts one command per wait episode;
   another key for the same event and any stale event sequence conflict. Exact retries replay the recorded result without setting the
