@@ -1712,3 +1712,39 @@ run; it passed alone, and its navigation was made explicit so the browser test d
 pending UI updates. The final complete offline suite then passed **1,449 tests, 2 skipped in 518.16s**, again treating unhandled
 thread exceptions and `SyntaxWarning`s as failures. The final wheel build and isolated `HUTCH_TESTING=1` import passed. No live
 provider, paid call, or publication was used.
+
+## S5 legacy external-runtime recovery (2026-10-09)
+
+Idle legacy bots saved with Pi or OpenCode can now be moved to Hutch's built-in runtime from Bot Settings. The patch API accepts only
+`runtime=builtin`; it validates the bot's existing model through Hutch's built-in route before changing the record. A bot with no
+usable Hutch model route remains unchanged. Any pending or active run blocks the migration: the handler checks first for a clear
+message, then `Store.upsert_bot` repeats the check inside its write transaction so a concurrently admitted run cannot race the
+runtime change. The Settings view identifies the saved executor as unavailable, explains that Hutch will not launch it or import
+another app's private sign-in/credentials, and exposes the switch only when its preconditions hold.
+
+`tests/test_api.py::test_unavailable_external_runtime_can_be_migrated_to_builtin_only` covers OpenCode and Pi migration, rejects a
+request to migrate to another external runtime, rejects a missing model route, and blocks a bot with an active run. It also checks
+the transaction guard directly. `tests/e2e/test_browser.py::test_legacy_external_runtime_can_move_to_hutch_and_run_a_real_local_route`
+changes an OpenCode record through the visible Settings action, then completes a conversation with the Hutch built-in runtime using
+the local FakeOllama fixture. This makes **22 fixture requests and no external provider requests**. Chromium **153.0.8010.12** /
+Playwright **1.63.0** passed at desktop 1440×960, tablet 900×1024 and phone 390×844; the recovery explanation and action were visible,
+with zero horizontal overflow and no page errors. Opened screenshots and the exact source hashes are in
+[`artifacts/runtime-recovery/`](artifacts/runtime-recovery/). No external executor, credential, sign-in state, or live model was
+used. This repairs saved-bot reachability; it does not implement OpenCode or Pi process adapters.
+
+The compatibility guide now points to current OpenCode Go and Sign in with ChatGPT documentation. OpenCode Go is an API-key
+handoff: the user signs in to OpenCode Go, copies its provider-issued key, and adds it to Hutch. Hutch does not read OpenCode's
+private `auth.json`. ChatGPT uses the official, opt-in local token-sharing preview and remains eligibility-gated; its route and
+limits remain experimental. A browser fixture intercepts the official authorization destination; no live account sign-in or
+provider request was made.
+
+Focused migration/API and real-browser tests passed **2 tests in 10.54s**. A clean full suite passed **1,451 tests, 2 skipped in
+520.36s**, with unhandled-thread exceptions and `SyntaxWarning`s treated as errors. Afterward, responsive marketing review found
+that the site's `styles.css` link still used `?v=b614bd35` although the current stylesheet hash began `2c79db7e`; browsers could
+reuse the previous CSS and make the updated site appear stale. The existing asset-stamping script corrected the URL, and the new
+`test_local_asset_urls_use_current_content_hashes` checks all local references against current file bytes. The copy and cache-key
+updates were verified by the full anonymous-site suite: **24 tests passed in 30.28s**, including internal-link/CTA, external-request,
+and overflow checks. The desktop/tablet/phone screenshots now match the final source hashes. Chromium **153.0.8010.12** /
+Playwright **1.63.0**. A single Impeccable scan returned no website HTML finding. It reported advisory type/radius/color differences
+in the unchanged server-rendered stylesheet; those are outside this slice and no ignore was added. Visual evidence is recorded in
+`visual-validation.md`. No live provider, paid call, external executor, or public site was used.

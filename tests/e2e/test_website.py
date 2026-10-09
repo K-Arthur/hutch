@@ -9,7 +9,9 @@ import platform
 import socketserver
 import threading
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import parse_qs, unquote, urlsplit
 
 import pytest
 
@@ -17,6 +19,44 @@ pw = pytest.importorskip("playwright.sync_api")
 
 ROOT = Path(__file__).resolve().parents[2]
 SITE_DIR = ROOT / "website"
+
+
+class _LocalAssetReferences(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.urls: list[str] = []
+
+    def handle_starttag(self, _tag, attrs):
+        attributes = dict(attrs)
+        self.urls.extend(attributes[key] for key in ("href", "src") if attributes.get(key))
+        for candidate in attributes.get("srcset", "").split(","):
+            parts = candidate.strip().split()
+            if parts:
+                self.urls.append(parts[0])
+
+
+def test_local_asset_urls_use_current_content_hashes():
+    parser = _LocalAssetReferences()
+    parser.feed((SITE_DIR / "index.html").read_text(encoding="utf-8"))
+    site_root = SITE_DIR.resolve()
+    checked = 0
+    for url in parser.urls:
+        parsed = urlsplit(url)
+        if parsed.scheme or parsed.netloc or not parsed.path or parsed.path.startswith("/"):
+            continue
+        path = (site_root / unquote(parsed.path)).resolve()
+        try:
+            path.relative_to(site_root)
+        except ValueError:
+            continue
+        if not path.is_file():
+            continue
+        expected = hashlib.sha256(path.read_bytes()).hexdigest()[:8]
+        assert parse_qs(parsed.query).get("v") == [expected], (
+            f"stale local asset cache key for {url}: expected v={expected}"
+        )
+        checked += 1
+    assert checked >= 7
 
 
 @pytest.fixture(scope="module")

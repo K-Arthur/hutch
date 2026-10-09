@@ -39,8 +39,8 @@ from ..config import get_config
 from ..durable_changes import SnapshotRequired
 from ..engine import Engine, bot_prompt_for_schedule
 from ..lifecycle import LABELS
-from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, CommandRule, Event, EventType, InferenceMode, Limits, MemoryItem, RiskTier, Run, RunStatus, Schedule, Task
-from ..store import IdempotencyConflict, Store
+from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, CatchUpPolicy, CommandRule, Event, EventType, InferenceMode, Limits, MemoryItem, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task
+from ..store import ActiveRunConflict, IdempotencyConflict, Store
 from ..state_snapshot import ExecutionHeld
 from ..templates import TEMPLATE_INFO, TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
@@ -141,6 +141,7 @@ class BotPatch(BaseModel):
     description: Optional[str] = None
     instructions: Optional[str] = None
     model: Optional[str] = None
+    runtime: Optional[Literal["builtin"]] = None
     inference_mode: Optional[InferenceMode] = None
     tools: Optional[list[str]] = None
     memory_enabled: Optional[bool] = None
@@ -1328,6 +1329,11 @@ def create_app() -> FastAPI:
     @app.patch("/api/bots/{ref}")
     def patch_bot(ref: str, body: BotPatch) -> dict:
         bot = bot_or_404(ref)
+        changing_runtime = body.runtime is not None and bot.runtime.value != body.runtime
+        if changing_runtime:
+            active = store.active_run_for_bot(bot.id)
+            if active is not None:
+                raise HTTPException(409, f"Stop or finish active run {active.id} before changing this bot's runtime")
         proposed_tools = None
         if body.tools is not None:
             proposed_tools = expand_tools(body.tools)
@@ -1339,11 +1345,13 @@ def create_app() -> FastAPI:
         from ..providers.registry import validate_inference_mode, validate_offline_bot
         proposed_mode = body.inference_mode if body.inference_mode is not None else bot.inference_mode
         proposed_model = body.model if body.model is not None else bot.model
-        if body.model is not None:
+        proposed_runtime = RuntimeKind(body.runtime) if body.runtime is not None else bot.runtime
+        if body.model is not None or changing_runtime:
             from ..modelchoices import ModelNotUsable, validate_override
-            policy_bot = bot.model_copy(update={"inference_mode": proposed_mode})
+            policy_bot = bot.model_copy(update={"inference_mode": proposed_mode, "runtime": proposed_runtime})
             try:
-                proposed_model = validate_override(config, store, policy_bot, body.model)
+                proposed_model = validate_override(config, store, policy_bot,
+                                                   body.model if body.model is not None else proposed_model)
             except ModelNotUsable as exc:
                 raise HTTPException(422, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
         try:
@@ -1353,6 +1361,7 @@ def create_app() -> FastAPI:
         if body.description is not None: bot.description = body.description
         if body.instructions is not None: bot.instructions = body.instructions
         if body.model is not None: bot.model = body.model
+        if changing_runtime: bot.runtime = proposed_runtime
         if body.inference_mode is not None: bot.inference_mode = body.inference_mode
         if proposed_tools is not None: bot.tools = proposed_tools
         if body.memory_enabled is not None: bot.memory_enabled = body.memory_enabled
@@ -1400,10 +1409,15 @@ def create_app() -> FastAPI:
                                  refresh_host=proposed_mode is InferenceMode.offline)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
-        if schedule_update_requested:
-            bot = store.upsert_bot(bot, primary_schedule_update=None if body.clear_cron else bot.schedule)
-        else:
-            bot = store.upsert_bot(bot, preserve_schedules=True)
+        try:
+            if schedule_update_requested:
+                bot = store.upsert_bot(bot, primary_schedule_update=None if body.clear_cron else bot.schedule,
+                                       require_no_active_runs=changing_runtime)
+            else:
+                bot = store.upsert_bot(bot, preserve_schedules=True,
+                                       require_no_active_runs=changing_runtime)
+        except ActiveRunConflict as exc:
+            raise HTTPException(409, f"Stop or finish active run {exc.run_id} before changing this bot's runtime") from None
         return bot_view(bot)
 
     @app.delete("/api/bots/{ref}")

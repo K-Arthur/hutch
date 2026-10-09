@@ -1,0 +1,50 @@
+{
+  "command": "uv run pytest -q tests/e2e/test_browser.py::test_legacy_external_runtime_can_move_to_hutch_and_run_a_real_local_route",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "legacy_runtime": "opencode",
+  "run_runtime": "builtin",
+  "model": "ollama/tiny:1b",
+  "run_status": "succeeded",
+  "provider_requests": 22,
+  "provider_fixture": "FakeOllama; no external requests",
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "panelVisible": true,
+      "actionVisible": true
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "panelVisible": true,
+      "actionVisible": true
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "panelVisible": true,
+      "actionVisible": true
+    }
+  ],
+  "page_errors": [],
+  "source_sha256": {
+    "app.js": "2d2fe7e799d1a387453d4fdadb6a51ed5263baea04f3ae6aa260a0d68a5d4666",
+    "app.py": "e201a9bbd84a2000585fb178cef843815042a3f766ccae0bcbc5ea04cd109e35",
+    "style.css": "4c8170e188364dff1cfd01f3b2a6dfd53618a5a19ab8061afcb433c4062ee5f7"
+  }
+}

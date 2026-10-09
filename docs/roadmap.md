@@ -19,6 +19,7 @@ Strict Offline Linux runs; it does not complete the broader S6 collaboration pla
 
 - [x] Bot CRUD + starter templates (CLI, dashboard, REST)
 - [x] Built-in agent loop (OpenAI-compatible: OpenAI / Ollama / llama.cpp / LM Studio / custom base URL)
+- [x] Recover legacy Pi/OpenCode bot records by explicitly moving an idle bot to Hutch's built-in executor after its saved Hutch model route validates. This does not enable either external runtime or copy its credentials.
 - [x] Per-bot Hybrid and Local model routing; known hosted route/fallback switching is blocked in Local mode. Local tools may still use the network.
 - [x] Test-only deterministic scenario fixture — exercises policy and tool plumbing without a model; not packaged or selectable in production
 - [ ] External runtime adapters (Pi, OpenCode): currently fail closed. Offline bounded protocol helpers exist; process I/O drainers, loss-recoverable OpenCode events, permission brokering, sandboxed process ownership, shared budget reservations and route/session mapping are required before re-enabling.

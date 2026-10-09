@@ -2033,6 +2033,92 @@ def test_retired_mock_route_is_visibly_unavailable_in_the_model_picker(browser, 
         page.close()
 
 
+def test_legacy_external_runtime_can_move_to_hutch_and_run_a_real_local_route(browser, switcher_env):
+    """A legacy external executor stays blocked until the user moves it to Hutch's governed path."""
+    from tests.fakes import agent_script
+
+    base, app, fake = switcher_env
+    bot = app.state.store.create_bot(Bot(name="legacy-runner", model="ollama/tiny:1b",
+                                         runtime=RuntimeKind.opencode, tools=[], selfcheck=False))
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/runtime-recovery"
+    out.mkdir(parents=True, exist_ok=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    captures = []
+    try:
+        page.goto(f"{base}/#/bot/{bot.name}")
+        page.locator("#runtime-recovery").wait_for()
+        assert page.get_by_text("OpenCode execution is unavailable in Hutch.").is_visible()
+        assert "Hutch never imports private sign-in files or credentials" in page.locator("#runtime-recovery").inner_text()
+        isolation_help = page.locator("#inference-mode-help").inner_text()
+        assert "hutch doctor" in isolation_help
+        assert "/home/" not in isolation_help, "host diagnostic paths belong in the CLI, not a narrow settings panel"
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.locator("#form-model").scroll_into_view_if_needed()
+            page.wait_for_timeout(80)
+            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
+                panelVisible:(() => { const r=document.querySelector('#runtime-recovery').getBoundingClientRect();
+                  return r.top >= 0 && r.bottom <= innerHeight; })(),
+                actionVisible:(() => { const r=document.querySelector('#btn-runtime-to-builtin').getBoundingClientRect();
+                  return r.top >= 0 && r.bottom <= innerHeight; })()})""")
+            assert metrics["documentWidth"] - width <= 1, (label, metrics)
+            assert metrics["panelVisible"] and metrics["actionVisible"], (label, metrics)
+            page.screenshot(path=str(out / f"{label}.png"), animations="disabled")
+            captures.append({"size": label, **metrics})
+
+        with page.expect_response(lambda response: response.url.endswith(f"/api/bots/{bot.name}")
+                                  and response.request.method == "PATCH") as switched:
+            page.locator("#btn-runtime-to-builtin").click()
+        assert switched.value.status == 200, switched.value.text()
+        assert switched.value.json()["runtime"] == "builtin"
+        page.locator("#runtime-recovery").wait_for(state="detached")
+        assert page.locator('#form-model input[disabled]').input_value() == "Hutch built-in"
+        assert app.state.store.get_bot(bot.id).runtime is RuntimeKind.builtin
+
+        fake.script = agent_script([{"content": "The Hutch built-in runtime completed the local turn."}])
+        page.goto(f"{base}/#/chat/{bot.name}")
+        page.locator("#chat-prompt").fill("Reply with a short status.")
+        with page.expect_response(lambda response: "/api/v1/conversations/" in response.url
+                                 and response.url.endswith("/messages")
+                                 and response.request.method == "POST") as submitted:
+            page.locator("#chat-send").click()
+        run = submitted.value.json()
+        assert run["status"] == "pending"
+        wait_for(lambda: app.state.store.get_run(run["id"]).status in {
+            RunStatus.succeeded, RunStatus.failed, RunStatus.stopped, RunStatus.outcome_unknown,
+        })
+        result = app.state.store.get_run(run["id"])
+        assert result.status is RunStatus.succeeded, result.error
+        assert result.model_used == "ollama/tiny:1b"
+        assert any(event.type is EventType.message and event.data.get("content", "").startswith(
+            "The Hutch built-in runtime completed") for event in app.state.store.list_events(run["id"]))
+        assert not errors, errors
+        capability_snapshot = app.state.store.run_capability_snapshot(run["id"])
+        (out / "validation.json").write_text(json.dumps({
+            "command": "uv run pytest -q tests/e2e/test_browser.py::test_legacy_external_runtime_can_move_to_hutch_and_run_a_real_local_route",
+            "browser": browser.browser_type.name,
+            "browser_version": browser.version,
+            "playwright_version": package_version("playwright"),
+            "legacy_runtime": "opencode",
+            "run_runtime": capability_snapshot.get("runtime") if capability_snapshot else None,
+            "model": result.model_used,
+            "run_status": result.status.value,
+            "provider_requests": len(fake.requests),
+            "provider_fixture": "FakeOllama; no external requests",
+            "captures": captures,
+            "page_errors": errors,
+            "source_sha256": {
+                "app.js": hashlib.sha256((Path(__file__).resolve().parents[2] / "src/hutch/server/static/app.js").read_bytes()).hexdigest(),
+                "app.py": hashlib.sha256((Path(__file__).resolve().parents[2] / "src/hutch/server/app.py").read_bytes()).hexdigest(),
+                "style.css": hashlib.sha256((Path(__file__).resolve().parents[2] / "src/hutch/server/static/style.css").read_bytes()).hexdigest(),
+            },
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        page.close()
+
+
 def test_small_workspace_has_one_roster_and_legacy_routes_do_not_trap_back(browser, live):
     base, app = live
     app.state.store.create_bot(Bot(name="one-bot", model="mock/demo", tools=[]))

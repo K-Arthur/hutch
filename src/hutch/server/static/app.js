@@ -3046,6 +3046,12 @@ function scheduleEditorHtml(schedule, index, status = null) {
 async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) {
   const generation = ++botDetailRenderGeneration;
   const b = await api(`/bots/${encodeURIComponent(name)}`);
+  const runtimeNames = { builtin: "Hutch built-in", opencode: "OpenCode", pi: "Pi", mock: "Retired mock" };
+  const runtimeName = runtimeNames[b.runtime] || b.runtime || "Unknown";
+  const runtimeUnavailable = b.runtime !== "builtin";
+  const runtimeSwitchBlocked = b.active_run_id ? "Stop or wait for the active run before switching runtimes."
+    : !b.model || b.model.startsWith("mock/") ? "Save a real Hutch model route above before switching."
+      : "";
   const factsPage = await api(`/v1/bots/${encodeURIComponent(name)}/facts?all_scopes=true&limit=20&offset=${factOffset}&include_archived=${showArchivedFacts}`);
   const schedules = Array.isArray(b.schedules) ? b.schedules : (b.schedule ? [b.schedule] : []);
   let scheduleRows = [];
@@ -3065,7 +3071,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   const offlineDisabled = !offlineReady ? "disabled" : "";
   const offlineReason = offlineReady
     ? "Hutch verified that the isolated worker cannot reach tested host TCP listeners and sees only its own processes; configured model traffic uses a private per-run Unix-socket broker. Browser and web tools are removed, and shell requires the strict sandbox. The separate model service itself may still use the network."
-    : `Hutch could not verify worker network isolation (${offlineCapability.reason}). Local model routes alone do not make a run offline; the separate model service may still use the network.`;
+    : "Hutch could not verify worker network isolation on this host. Strict Offline stays unavailable; run hutch doctor for exact diagnostics. Local model routes alone do not make a run offline; the separate model service may still use the network.";
   const handoffReason = ["supported", "experimental"].includes(browserHandoffCapability.status)
     ? "Local browser handoff is experimental on this host. A login wait keeps the same browser window open and pauses automation. Only one Hutch handoff can run at a time. This does not enable phone control."
     : `Local browser handoff is unavailable on this host: ${browserHandoffCapability.reason}. It will fail closed until its display and browser prerequisites are available. This does not enable phone control.`;
@@ -3114,10 +3120,18 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
                 <input type="text" name="model" value="${esc(b.model || "")}">
                 <span class="hint">Hybrid allows local and hosted routes; Local blocks hosted models but keeps tools online. Offline requires a host that verifies worker network isolation.</span>
               </label>
-              <label class="field">Runtime
-                <input type="text" disabled value="${esc(b.runtime || "builtin")}">
+              <label class="field">Execution runtime
+                <input type="text" disabled value="${esc(runtimeUnavailable ? `${runtimeName} (unavailable)` : runtimeName)}">
               </label>
             </div>
+            ${runtimeUnavailable ? `<div class="runtime-recovery" id="runtime-recovery" role="status">
+              <p><strong>${esc(runtimeName)} execution is unavailable in Hutch.</strong> Hutch will not launch this external runtime.</p>
+              <p class="hint">Switching uses this bot’s Hutch model route, tools, approvals and budget controls. Hutch never imports private sign-in files or credentials from another application.</p>
+              <div class="btn-row">
+                <button class="btn primary small" type="button" id="btn-runtime-to-builtin" ${runtimeSwitchBlocked ? "disabled" : ""}>Use Hutch’s built-in runtime</button>
+                ${runtimeSwitchBlocked ? `<span class="hint">${esc(runtimeSwitchBlocked)}</span>` : ""}
+              </div>
+            </div>` : ""}
             <label class="field">Model routing
               <select name="inference_mode" aria-describedby="inference-mode-help">
                 <option value="hybrid" ${(b.inference_mode || "hybrid") === "hybrid" ? "selected" : ""}>Hybrid · local and hosted routes</option>
@@ -3301,6 +3315,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     const fd = new FormData(ev.target);
     patch({ model: fd.get("model").trim(), inference_mode: fd.get("inference_mode") }, "Model settings saved.");
   });
+  $("#btn-runtime-to-builtin")?.addEventListener("click", () =>
+    patch({ runtime: "builtin" }, "Switched to Hutch’s built-in runtime."));
   $("#form-tools").addEventListener("submit", ev => {
     ev.preventDefault();
     const tools = [...ev.target.querySelectorAll('input[name="tools"]:checked')].map(input => input.value);

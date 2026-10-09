@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-10-08T23:18:07.988823+00:00",
+  "captured_at": "2026-10-09T07:54:39.894623+00:00",
   "browser": "chromium",
   "version": "153.0.8010.12",
   "viewport": [
@@ -10,8 +10,8 @@
   "page_errors": [],
   "horizontal_overflow": 0,
   "source_sha256": {
-    "website/index.html": "a27bfb47a9cafd294bcbc2bd6c69c09e3ac51aed24ed3eed0993d0f62e986e2f",
-    "website/styles.css": "b614bd35cb7c62d4212c9cba6c28d04987342fb2c4826a56cb04dceacf717cd2",
+    "website/index.html": "1abda34c5daa2fad89fa873704777fa1515d81c55b294f70a27feb024d497e00",
+    "website/styles.css": "2c79db7ec2dcdd800d40236f570a4e117ad3058b96e7a92080ea119d9ed0aabb",
     "website/site.js": "9a446ad76a657e55e2021bbf5aa033e7ef80593218ca02a4caf89e4ca8cc2e1b",
     "website/app.css": "ed64d5aa000b207e26730bd72b3a93ef216b9370f50bcb54de4a82c059e27352",
     "website/tokens.css": "dbd3a7db8613f71c70ed9bf8e0655232ef19705a607b71ce51140067f9e778e8",

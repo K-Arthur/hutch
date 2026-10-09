@@ -9,9 +9,9 @@ from threading import Barrier
 import pytest
 from fastapi.testclient import TestClient
 
-from hutch.models import Bot, Event, EventType, Run, RunStatus, Task
+from hutch.models import Bot, Event, EventType, Run, RunStatus, RuntimeKind, Task
 from hutch.server.app import create_app
-from hutch.store import Store
+from hutch.store import ActiveRunConflict, Store
 
 
 @pytest.fixture()
@@ -51,6 +51,42 @@ def test_health_and_stats(client):
     assert client.get("/api/health").json()["status"] == "ok"
     stats = client.get("/api/stats").json()
     assert stats["bots"] == 0 and stats["pending_approvals"] == 0
+
+
+def test_unavailable_external_runtime_can_be_migrated_to_builtin_only(client):
+    store = client.app.state.store
+    bot = store.create_bot(Bot(name="legacy-opencode", model="ollama/qwen3:4b",
+                               runtime=RuntimeKind.opencode, tools=[]))
+
+    migrated = client.patch(f"/api/bots/{bot.id}", json={"runtime": "builtin"})
+    assert migrated.status_code == 200, migrated.text
+    assert migrated.json()["runtime"] == "builtin"
+    assert store.get_bot(bot.id).runtime is RuntimeKind.builtin
+
+    legacy_pi = store.create_bot(Bot(name="legacy-pi", model="ollama/qwen3:4b",
+                                     runtime=RuntimeKind.pi, tools=[]))
+    pi_migrated = client.patch(f"/api/bots/{legacy_pi.id}", json={"runtime": "builtin"})
+    assert pi_migrated.status_code == 200 and pi_migrated.json()["runtime"] == "builtin"
+    assert store.get_bot(legacy_pi.id).runtime is RuntimeKind.builtin
+
+    unsupported = client.patch(f"/api/bots/{bot.id}", json={"runtime": "pi"})
+    assert unsupported.status_code == 422
+    assert store.get_bot(bot.id).runtime is RuntimeKind.builtin
+
+    no_route = store.create_bot(Bot(name="legacy-pi-no-route", runtime=RuntimeKind.pi,
+                                    model="", tools=[]))
+    rejected = client.patch(f"/api/bots/{no_route.id}", json={"runtime": "builtin"})
+    assert rejected.status_code == 422 and "No model route is configured" in rejected.text
+    assert store.get_bot(no_route.id).runtime is RuntimeKind.pi
+
+    waiting = store.create_bot(Bot(name="legacy-opencode-waiting", model="ollama/qwen3:4b",
+                                   runtime=RuntimeKind.opencode, tools=[]))
+    create_owned_human_wait(store, waiting.id)
+    blocked = client.patch(f"/api/bots/{waiting.id}", json={"runtime": "builtin"})
+    assert blocked.status_code == 409 and "active run" in blocked.text
+    assert store.get_bot(waiting.id).runtime is RuntimeKind.opencode
+    with pytest.raises(ActiveRunConflict):
+        store.upsert_bot(waiting.model_copy(update={"runtime": RuntimeKind.builtin}), require_no_active_runs=True)
 
 
 def test_run_output_artifacts_are_paged_scoped_and_hash_checked(client, tmp_path):

@@ -534,6 +534,15 @@ class IdempotencyConflict(ValueError):
     """A command key was previously used for a different canonical request."""
 
 
+class ActiveRunConflict(RuntimeError):
+    """A bot configuration change was rejected because one of its runs is still active."""
+
+    def __init__(self, run_id: str, status: str):
+        super().__init__(f"run {run_id} is still {status}")
+        self.run_id = run_id
+        self.status = status
+
+
 class UsageBudgetRefusal(ValueError):
     """The requested model call cannot be reserved under a configured token or currency cap."""
 
@@ -891,8 +900,16 @@ class Store:
         return bot
 
     def upsert_bot(self, bot: Bot, *, preserve_schedules: bool = False,
-                   primary_schedule_update: Schedule | None | object = _SCHEDULE_UNCHANGED) -> Bot:
+                   primary_schedule_update: Schedule | None | object = _SCHEDULE_UNCHANGED,
+                   require_no_active_runs: bool = False) -> Bot:
         with self._tx() as db:
+            if require_no_active_runs:
+                live_values = tuple(status.value for status in ACTIVE_STATUSES)
+                active = db.execute(
+                    f"SELECT id, status FROM runs WHERE bot_id = ? AND status IN ({','.join('?' for _ in live_values)}) "
+                    "ORDER BY created_at LIMIT 1", (bot.id, *live_values)).fetchone()
+                if active:
+                    raise ActiveRunConflict(active["id"], active["status"])
             row = db.execute("SELECT id, doc FROM bots WHERE id = ? OR name = ? LIMIT 1",
                              (bot.id, bot.name)).fetchone()
             previous = Bot.model_validate_json(row["doc"]) if row else None

@@ -24,6 +24,24 @@ the Connections phone capture with its heading and controls fitting the viewport
 The base-template static detector does not resolve its linked `hutch.css` heading rule and still estimates the browser default line
 height. The existing path-scoped ignore remains, with its reason updated to the new computed measurements; no new ignore was added.
 
+## Marketing screenshot source alignment (2026-10-09)
+
+The earlier captures named older `website/index.html` and `website/styles.css` hashes, and the stylesheet link still used the old
+cache key `b614bd35` while the current CSS hash began `2c79db7e`. A browser with the old URL cached could therefore keep showing the
+previous styling. I ran the site's existing asset-stamping step to update local URLs from their file hashes and added
+`test_local_asset_urls_use_current_content_hashes` to prevent this mismatch. The anonymous-site browser capture was rerun against the
+corrected page; its three JSON records now carry the final source hashes, no page errors, zero horizontal overflow, and no requests
+to another origin. I opened the current full-page desktop (1440×1000),
+tablet (900×1024), and phone (390×844) screenshots. The viewport images were also recaptured; their bytes remain unchanged because
+the first fold is visually the same. Full-page screenshots and matching source records are in
+[`artifacts/no-mock-setup/site/`](artifacts/no-mock-setup/site/). The hero keeps one short three-part brand line; the remaining
+sections explain the workflow and limits in regular sentences. Repeated slogan-like headings about model choice, approval and stop
+cleanup have been replaced with direct descriptions. The anonymous website suite passed **24 tests in 30.28s**; internal links and
+CTAs work anonymously, the page requests no external origin, and the captures show no overflow or page errors. One Impeccable scan
+returned no website HTML finding; it did list pre-existing advisory type, radius and color differences in the shared
+server-rendered stylesheet, which was not changed in this copy update. No new detector ignore was added. The existing website padding
+exception remains scoped to this file: the visible bands contain inset content, as confirmed in the opened responsive captures.
+
 ## Verified source card for clipped tool output (2026-10-08)
 
 When tool details expand, the verified full-output download and the “Open” source card now sit outside the height-limited preview,

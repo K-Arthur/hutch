@@ -92,6 +92,12 @@ There is no production mock model route. Existing records that contain `mock/*` 
 for migration and audit, but attempts fail before starting an action with `model_unavailable`.
 The deterministic test scenario runtime lives under `tests/` and is not included in built wheels.
 
+Pi and OpenCode executor records also remain readable, but those external executors are unavailable
+until Hutch can own their processes, broker permissions and reserve provider budgets. Settings can
+move an idle legacy bot to Hutch's built-in runtime after its saved model route is usable. This
+switch uses Hutch's model connection, tools and approval policy; credentials or sign-in state saved
+by Pi or OpenCode are never imported. An active run or missing Hutch route blocks the switch.
+
 Set the route policy with `hutch bot create helper --model ollama/llama3.2 --inference-mode local`
 or update it with `hutch bot update helper --inference-mode local`. The model must also be an
 allowed local route; change the model and mode together when moving a bot. Local-route mode

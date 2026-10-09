@@ -43,6 +43,12 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
   filters hosted models and blocks hosted message overrides/fallbacks, including recognized
   Ollama cloud-tagged names. This setting does not promise strict offline behavior; local services
   and network-capable tools can still use the network.
+- Legacy bots on the unavailable Pi or OpenCode executor can be moved to Hutch's built-in runtime
+  from Settings after a valid Hutch model route is saved. The API accepts only `builtin`, refuses
+  the switch while any run is active, and does not import credentials or sessions from either CLI.
+- Marketing headings now describe model choice, approvals and stop cleanup directly; refreshed
+  desktop, tablet and phone captures record hashes for the final website source. Fixed a stale
+  stylesheet cache tag and added a regression check for local asset hashes.
 - A versioned provider compatibility matrix is available at `/api/v1/compatibility`; it separates
   route-level fixture support from unverified endpoint/model capabilities and lists dated sources.
 - OpenAI's `max_completion_tokens` is selected only for the exact official HTTPS API host; other

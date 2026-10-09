@@ -1,6 +1,6 @@
 # Provider compatibility matrix
 
-Reviewed 2026-10-08. The versioned, typed source of truth is
+Reviewed 2026-10-09. The versioned, typed source of truth is
 [`src/hutch/data/compat.json`](../../src/hutch/data/compat.json), also returned by
 `GET /api/v1/compatibility`. Each record includes the route state, Hutch request mapping,
 verification boundary, and dated policy/API evidence.
@@ -16,10 +16,16 @@ Hutch currently sends. Live providers, models, and paid connections were not use
 | Anthropic Messages | Supported | Sends `max_tokens`, messages, tools and streaming; sends `output_config.effort` only for Hutch's current model-name allowlist. Thinking and temperature controls are omitted so provider model defaults apply. |
 | Ollama native `/api/chat` | Supported | Requires an explicit `num_ctx`; sends tool calls, output cap and keep-alive. `think` is sent only when the model advertises thinking capability. Recognized cloud-tagged model names are treated as hosted. |
 | Named OpenAI-compatible connection | Supported | Uses the common Chat Completions shape and `max_tokens`. Unknown dialect-specific fields are omitted. Tool-call behavior, usage, and context settings still depend on the configured server and model. |
-| OpenCode Go connection | Experimental | Open Go's account/key page, sign in, and copy its issued provider API key into Hutch or a named environment variable. This is the documented key-based integration, not OAuth session sharing. Hutch does not import `auth.json` or reuse another app's session. The provider docs describe coding-agent traffic; general assistant and unattended-workload eligibility remains unestablished. |
-| Sign in with ChatGPT token sharing | Experimental; locally fixture-tested, disabled by default | A local opt-in PKCE/OIDC sign-in creates a fixed Responses route. Returning sign-in reuses the saved client and host IDs and supplies the ID token only as `id_token_hint`; verified email alone may be used as `login_hint`. Hutch uses preview-supported `additional_tools` input items for local functions. Hutch does not claim eligibility or live account verification. Preview-unsupported request fields are omitted; no provider-enforced output-token limit exists, so local allowances are estimates rather than a hard cap. |
+| OpenCode Go connection | Experimental | Hutch links to OpenCode Go's account/key page; sign in there, subscribe if needed, and copy the issued provider API key into Hutch. This is the documented key-based integration, not OAuth session sharing. OpenCode CLI credentials in `auth.json` are not imported or reused. The provider docs describe coding-agent traffic; general assistant and unattended-workload eligibility remains unestablished. [OpenCode Go](https://docs.opencode.ai/docs/go/) · [OpenCode providers](https://opencode.ai/docs/providers/) |
+| Sign in with ChatGPT token sharing | Experimental; locally fixture-tested, disabled by default | A local opt-in PKCE/OIDC sign-in creates a fixed Responses route. Returning sign-in reuses the saved client and host IDs and supplies the ID token only as `id_token_hint`; verified email alone may be used as `login_hint`. Hutch uses preview-supported `additional_tools` input items for local functions. Hutch does not claim eligibility or live account verification. Preview-unsupported request fields are omitted; no provider-enforced output-token limit exists, so local allowances are estimates rather than a hard cap. [Sign-in overview](https://developers.openai.com/siwc/token-sharing-open-source/) · [Preview limits](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations) |
 | OpenCode and Pi executors | Unavailable | Both fail before process creation. Pi's `--no-tools` can disable its built-in, extension, custom and MCP tools, but direct model traffic still bypasses Hutch's connection and budget reservation path. OpenCode permissions and message/session endpoints need a tested once-only approval bridge and durable recovery around its volatile event stream. |
 | Consumer-plan OAuth/session reuse | Blocked | Hutch does not read or forward consumer-app cookies or session tokens. Use a supported API-key connection. |
+
+Bots already saved with the disabled Pi or OpenCode executor can be moved from Settings to Hutch's
+built-in runtime, or through `PATCH /api/bots/{bot}` with `{"runtime":"builtin"}`. Hutch accepts
+only that recovery target; the request requires a usable Hutch model route and no active run. This
+does not start either external executor, copy its session or credentials, or change the status of
+the Pi/OpenCode executor row above.
 
 `hutch connections test` can authenticate against a model-list endpoint without spending tokens. For ChatGPT, model
 selection uses the account's non-billable list-visible model catalog only after an explicit selection request.
