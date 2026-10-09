@@ -2422,3 +2422,20 @@ fallback assertion, then passed **1 test in 6.68s** after the change. Chromium *
 scrolled above the sticky footer. The journey confirmed no model/provider request and no run on creation. `node --check` and
 `git diff --check` passed. Evidence and source hashes are in `artifacts/bot-naming-quality/`. This does not provide general semantic
 understanding or non-English naming.
+
+
+## S5 Gmail unavailable-state disclosure (2026-10-09)
+
+Hutch's Connections page now explicitly states that Gmail is unavailable and that there is no Gmail OAuth route or requested scope.
+The notice explains why: message search would need `gmail.readonly`, which Google classifies as restricted; public apps require the
+applicable scope verification, and restricted data accessed from or through a third-party server triggers Google's security-assessment
+requirement. It clarifies that Google Calendar consent does not grant Gmail access, links to Google's scope table, and offers no inert
+Connect button. The marketing site continues to label Gmail unavailable pending scope verification. This is a truthful support boundary,
+not Gmail integration implementation.
+
+Test-first: `tests/e2e/test_browser.py::test_gmail_unavailability_is_explicit_and_has_no_dead_connect_control` first failed because the
+Connections page had no Gmail status. After adding the informational card, the fixture-only test passed at desktop **1440×960**, tablet
+**900×1024** and phone **390×844**, with no external requests, page errors or horizontal overflow. Captures and source hashes are in
+`artifacts/gmail-availability/`; no client ID, Google account, scope request, or live provider call was used. Research checked Google's
+[Gmail scope table](https://developers.google.com/workspace/gmail/api/auth/scopes) and
+[restricted-scope verification rules](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification).

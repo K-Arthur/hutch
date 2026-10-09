@@ -32,11 +32,14 @@ revocation. If Google does not confirm revocation, Hutch reports that explicitly
 owner to review connected apps in their Google Account. Never import consumer-app browser cookies,
 CLI auth files, or another product's private sign-in state.
 
-Gmail remains planned, not connected. Outlook Calendar and Outlook Mail use separate experimental
-local flows; calendar consent does not grant mailbox access. Gmail message-body access has separate
-Google consent and verification requirements; do not present either Calendar flow as Gmail support.
-Calendar writes, Gmail reads/sends, Outlook Mail sends, arbitrary API URLs, deletion and mailbox
-settings are unavailable. See the Outlook Mail section below.
+Gmail is not connected in Hutch. Outlook Calendar and Outlook Mail use separate experimental
+local flows; calendar consent does not grant mailbox access. A future message-search flow would
+need Google's restricted `gmail.readonly` scope. Google's current rules require restricted-scope
+verification for public apps, and a security assessment when restricted data is accessed from or
+through a third-party server. Hutch has no Gmail sign-in route and requests no Gmail scope; the
+Connections page explains this without presenting a dead connect control. Calendar writes, Gmail
+reads/sends, Outlook Mail sends, arbitrary API URLs, deletion and mailbox settings are unavailable.
+See the Outlook Mail section below.
 See the current provider
 references: [Google Calendar scopes](https://developers.google.com/workspace/calendar/api/auth),
 [Google installed-app OAuth](https://developers.google.com/identity/protocols/oauth2/native-app),

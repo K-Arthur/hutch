@@ -777,3 +777,12 @@ then passed after the local naming rule was extended. The same Chromium journey 
 **900×1024**, and phone **390×844**. The phone address field was scrolled fully above the fixed footer and checked for visibility; I
 inspected that capture with the automatic suggestions at all three sizes. Evidence and source hashes are in
 [`artifacts/bot-naming-quality/`](artifacts/bot-naming-quality/). No model/provider request, screen reader or physical phone was used.
+
+
+The Connections page now names Gmail as unavailable and explains the `gmail.readonly` restricted-scope boundary, the conditional
+verification/security-assessment requirements, and the fact that Google Calendar consent does not grant Gmail access. It requests no
+Gmail permission and has no dead Connect button. The new fixture-only Chromium test
+`tests/e2e/test_browser.py::test_gmail_unavailability_is_explicit_and_has_no_dead_connect_control` checks that notice at desktop
+**1440×960**, tablet **900×1024** and phone **390×844**, with no external requests, page errors or horizontal overflow. I inspected each
+responsive capture; evidence and hashes are under [`artifacts/gmail-availability/`](artifacts/gmail-availability/). No OAuth client,
+Gmail account, live provider request, screen reader or physical phone was used.

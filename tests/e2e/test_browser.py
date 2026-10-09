@@ -716,6 +716,55 @@ def test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone(browser
         page.close()
 
 
+def test_gmail_unavailability_is_explicit_and_has_no_dead_connect_control(browser, live):
+    from pathlib import Path
+
+    base, _ = live
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/gmail-availability"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors, external = [], []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(base) else None)
+    try:
+        page.goto(base + "/#/connections")
+        page.get_by_role("heading", name="Connections").wait_for()
+        card = page.locator("#gmail-unavailable")
+        card.wait_for()
+        text = card.inner_text().lower()
+        assert "not available" in text
+        assert "gmail.readonly" in text and "restricted" in text
+        assert "verification" in text and "security assessment" in text
+        assert "requests no gmail scope" in text
+        assert "google calendar access is separate" in text
+        assert card.get_by_role("button").count() == 0
+        assert card.get_by_role("link", name="Google Gmail scope and verification requirements").count() == 1
+        captures = []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            card.scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"gmail-unavailable-{label}.png"), animations="disabled")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            captures.append({"size": label, "viewport": [width, height], "horizontal_overflow": overflow})
+        assert not errors, errors
+        assert not external, external
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_gmail_unavailability_is_explicit_and_has_no_dead_connect_control",
+            "browser": browser.version, "playwright_version": package_version("playwright"),
+            "provider_credentials_used": False, "provider_calls": 0,
+            "scenario": "Connections identifies Gmail as unavailable, explains the restricted gmail.readonly scope and verification boundary, separates Calendar consent, and offers no dead connect control",
+            "external_requests": external, "page_errors": errors, "captures": captures,
+            "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
+                              for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                           "src/hutch/server/app.py", "docs/connections.md", "docs/requirements.md")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        context.close()
+
+
 def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewports(browser, live, monkeypatch):
     from pathlib import Path
 

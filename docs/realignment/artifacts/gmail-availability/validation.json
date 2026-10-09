@@ -1,0 +1,43 @@
+{
+  "test": "tests/e2e/test_browser.py::test_gmail_unavailability_is_explicit_and_has_no_dead_connect_control",
+  "browser": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "provider_credentials_used": false,
+  "provider_calls": 0,
+  "scenario": "Connections identifies Gmail as unavailable, explains the restricted gmail.readonly scope and verification boundary, separates Calendar consent, and offers no dead connect control",
+  "external_requests": [],
+  "page_errors": [],
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "horizontal_overflow": 0
+    }
+  ],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "deacc51d4f2c9826082b795fb068525e2ff6c67e8b0d8877df5c8a98994a420e",
+    "src/hutch/server/static/style.css": "cab7f95dffbbf7a1c15dfdc1b019ab56d8f56c9d90d111f865b8ce12832268f1",
+    "src/hutch/server/app.py": "31c7a1f1a801c595518269121277f179c768b69f44bae3a37d6297525c73026c",
+    "docs/connections.md": "bd898df81590c295850e79a28249f78b6dbca14046c8933b7e880abd218a30e1",
+    "docs/requirements.md": "6b83572e867f52ef7f3353fa22f491b6c51ba61495dddb9e751f525866f4918a"
+  }
+}

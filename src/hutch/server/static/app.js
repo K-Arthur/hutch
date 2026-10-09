@@ -4421,6 +4421,13 @@ async function renderConnections() {
         ${googleCalendarAccountsHtml || '<p class="hint">No Google Calendar accounts connected.</p>'}
         ${orphanCalendarGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanCalendarGrants.map(grant => `<div class="device-row"><div><strong>${esc(grant.bot_name)}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-google-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
       </section>
+      <section class="panel conn-card" id="gmail-unavailable" aria-labelledby="gmail-unavailable-title">
+        <div class="bot-head"><span class="bot-name" id="gmail-unavailable-title">Gmail</span>
+          <span class="tag">not available</span></div>
+        <p class="hint">Gmail is not connected in Hutch. Google Calendar access is separate and does not grant access to Gmail.</p>
+        <p class="hint">Message search would require Google's restricted <code>gmail.readonly</code> scope. Public apps need Google's restricted-scope verification; apps that access restricted data from or through a third-party server also need a security assessment. Hutch has no Gmail sign-in flow and requests no Gmail scope.</p>
+        <p class="hint"><a href="https://developers.google.com/workspace/gmail/api/auth/scopes" target="_blank" rel="noopener noreferrer" aria-label="Google Gmail scope and verification requirements">Review Google's Gmail scope and verification requirements</a>.</p>
+      </section>
       <section class="panel conn-card outlook-calendar-card" aria-labelledby="outlook-calendar-title">
         <div class="bot-head"><span class="bot-name" id="outlook-calendar-title">Outlook Calendar</span>
           <span class="tag">experimental</span><span class="tag">read only</span></div>
