@@ -215,8 +215,14 @@ Direct non-loopback binding requires `--allow-remote --tls-cert CERT --tls-key K
 The code exchange is intentionally the only unauthenticated remote write; it is source-IP rate limited and subject to Origin checks.
 Connections provides a device-session disclosure with current-device status and revocation; self-revocation returns to `/pair`. The
 responsive Studio is reachable to paired browsers, but remote operation is experimental and has only local browser-fixture coverage.
-Do not expose the listener to the public internet. Remote browser handoff, authenticated PTY/desktop control and trusted tunnel support remain unavailable; the marketing site
-cannot reach localhost.
+An operator-managed HTTPS reverse proxy is also experimental. Set `HUTCH_TRUSTED_PROXIES` to exact source addresses/CIDRs and
+`HUTCH_ALLOWED_HOSTS` to the public hostname; `hutch serve --allow-remote` still requires a TLS certificate and key for the Hutch
+origin. Hutch accepts one `X-Forwarded-Host` and one `X-Forwarded-Proto: https` only from a configured peer, validates the public host,
+uses a validated `X-Forwarded-For` chain for source limits, and strips forwarding metadata from untrusted peers. The proxy must verify
+origin TLS and overwrite forwarding headers. HTTP and WebSocket Origin scheme/host must match the normalized HTTPS request. Hutch does
+not create the tunnel. These rules have local ASGI fixtures only; no real
+private-network or public-tunnel path has been validated. Do not expose the listener to the public internet. Remote browser handoff,
+authenticated PTY/desktop control and physical-device validation remain unavailable; the marketing site cannot reach localhost.
 
 ## Navigation and approval review
 

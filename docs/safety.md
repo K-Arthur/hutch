@@ -235,12 +235,14 @@ closed tab, sleeping host or disconnected device.
 
 ### Remote dashboard access is experimental
 
-Hutch stays on loopback unless an operator enables direct remote binding with trusted TLS certificates. A host-issued pairing code can
-open the responsive dashboard in a browser; each browser receives its own HttpOnly, revocable session. Keep the listener on a private
-network and do not expose it to the public internet. Connections or the CLI can revoke a lost session. The pairing and session UI has
-local browser-fixture coverage, but no physical-device or private-network validation; the host must remain awake and connected.
-Authenticated PTY/physical desktop controls and remote phone browser handoff are not implemented. Local browser handoff is
-experimental and needs a Linux display plus the optional Playwright browser. The marketing site cannot reach Hutch on localhost.
+Hutch stays on loopback unless an operator enables remote access with trusted TLS certificates. A host-issued pairing code can open the
+responsive dashboard in a browser; each browser receives its own HttpOnly, revocable session. An operator-managed HTTPS reverse proxy
+is experimental: Hutch trusts forwarding metadata only from configured proxy addresses and only for a hostname in
+`HUTCH_ALLOWED_HOSTS`. The proxy must use TLS to the Hutch origin and overwrite forwarding headers. Keep access private and do not
+expose it to the public internet. Connections or the CLI can revoke a lost session. The pairing and session UI has local
+browser-fixture coverage, but no physical-device or private-network validation; the host must remain awake and connected.
+Authenticated PTY/physical desktop controls and remote phone browser handoff are not implemented. Local browser handoff is experimental
+and needs a Linux display plus the optional Playwright browser. The marketing site cannot reach Hutch on localhost.
 
 ## Honest limits (read this)
 

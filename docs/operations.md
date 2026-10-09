@@ -55,16 +55,32 @@ HttpOnly cookie; the raw session secret is never returned in the response or wri
 invalid attempts from one source IP in ten minutes.
 
 The pairing form and responsive dashboard are implemented, but remote operation remains experimental: no physical-device or private
-network test has been performed. Local same-session browser handoff is experimental and opt-in per bot; it needs a Linux display and
-the optional Playwright browser. It keeps Hutch's owned browser visible on the host while a person completes a login challenge; it does
-not provide phone control or physical desktop input. Authenticated PTY/physical desktop control and trusted tunnel/reverse-proxy support
-are not implemented. Tunnel/reverse-proxy deployments are not supported by this command; keep it loopback-only behind externally
-managed infrastructure until trusted-proxy handling is documented and validated.
+network test has been performed. For an operator-managed HTTPS reverse proxy, configure the proxy's exact source address or CIDR and
+the public hostname before starting Hutch:
+
+```bash
+export HUTCH_TRUSTED_PROXIES=127.0.0.1/32
+export HUTCH_ALLOWED_HOSTS=hutch.example.net
+hutch serve --host 127.0.0.1 --port 8787 --allow-remote \
+  --tls-cert /path/to/origin-cert.pem --tls-key /path/to/origin-key.pem
+```
+
+The proxy must connect to Hutch over TLS and verify the origin certificate. It must overwrite `X-Forwarded-Host`,
+`X-Forwarded-Proto` (`https`) and `X-Forwarded-For` with values derived from the incoming request; do not pass through
+client-supplied forwarding headers. Hutch honors these headers only when the network peer matches `HUTCH_TRUSTED_PROXIES`, requires
+the forwarded hostname to match `HUTCH_ALLOWED_HOSTS`, and removes forwarding metadata from untrusted requests. Use the smallest
+possible proxy CIDR. `--allow-remote` is required even when Hutch binds to loopback. The proxy must still enforce its own TLS, host,
+rate and network controls. Hutch does not start or configure a tunnel, and this path has local fixture coverage only; it is not a
+production remote-support certification.
+
+Local same-session browser handoff is experimental and opt-in per bot; it needs a Linux display and the optional Playwright browser.
+It keeps Hutch's owned browser visible on the host while a person completes a login challenge; it does not provide phone control or
+physical desktop input. Authenticated PTY/physical desktop control and remote browser handoff are not implemented.
 
 ## Database migration and restore
 
 Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. This
-realignment branch uses schema v21; `hutch doctor` displays the current version. Keep the matching
+The current schema version is shown by `hutch doctor`. Keep the matching
 release and pre-upgrade backups. A normal snapshot captures committed database history, including
 WAL pages; event buffers that have not committed yet are outside its scope:
 

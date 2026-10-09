@@ -25,8 +25,10 @@ Status: partially implemented (2026-10-07). Slice: S8. Evidence: baseline "recon
   HTTPS creates an HttpOnly per-device session whose hash is stored, whose sliding expiry is 30 days, and which can be listed/revoked
   from the CLI or Connections. `/pair` exchanges the code without placing it in a URL; Connections labels the active browser and can
   revoke any session. Pairing attempts are limited per source IP. Host/Origin checks and HTTP/WebSocket device-token checks run before
-  remote access. No token appears in a URL or log. The responsive dashboard is experimental for remote use; physical-device/network
-  checks, browser/PTY/desktop controls and tunnel handling are not complete.
+  remote access. No token appears in a URL or log. An operator-managed HTTPS reverse proxy is also experimental: Hutch trusts a proxy
+  only by configured source address/CIDR, requires an exact `HUTCH_ALLOWED_HOSTS` public host and HTTPS forwarded scheme, and strips
+  forwarding headers from untrusted peers. The proxy must verify TLS to Hutch and overwrite forwarding metadata. Hutch does not
+  provision tunnels. Physical-device/network checks, browser/PTY/desktop controls and live proxy validation remain incomplete.
 * **Terminal**: governed command execution first (exists). An interactive PTY (sandboxed, bounded scrollback 1 MiB, resize, cancel, text transcript)
   is built only after the WebSocket auth above lands; **control ownership is a lease** (`agent` | `human`) so input never races; stale or replayed
   frames carry a sequence number and are dropped after reconnect.
@@ -39,6 +41,6 @@ Status: partially implemented (2026-10-07). Slice: S8. Evidence: baseline "recon
 Current boundary: the local `/api/v1` surface and Studio conversation flow are partial. Some
 screens use compatibility routes; approval decisions and Stop use idempotent v1 commands.
 Pairing UX and revocable device sessions plus explicit direct HTTPS binding are implemented and browser-fixture-tested. Cross-run
-transcript/resource replay and bounded reconciliation are implemented, but no PTY or browser-control WebSocket route, configured tunnel
-support, physical-device test, event-retention policy, or production remote-support claim exists. Keep direct access private and
-operator-controlled.
+transcript/resource replay and bounded reconciliation are implemented. Trusted HTTPS proxy metadata is guarded by local fixtures and
+an explicit capability record, but the tunnel itself and real network path have not been tested. No PTY or browser-control WebSocket
+route, physical-device test, event-retention policy, or production remote-support claim exists. Keep access private and operator-controlled.

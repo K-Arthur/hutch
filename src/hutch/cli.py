@@ -1309,7 +1309,7 @@ def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8787),
           allow_remote: bool = typer.Option(False, "--allow-remote"),
           tls_cert: Optional[str] = typer.Option(None, "--tls-cert"),
           tls_key: Optional[str] = typer.Option(None, "--tls-key")) -> None:
-    """Serve locally, or allow explicitly paired devices over direct HTTPS."""
+    """Serve locally, or allow explicitly paired devices over direct HTTPS or a trusted HTTPS proxy."""
     import uvicorn
     loopback = _loopback_bind(host)
     if not loopback and not allow_remote:
@@ -1320,8 +1320,11 @@ def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8787),
             err.print("[red]--allow-remote requires readable --tls-cert and --tls-key files[/red]")
             raise typer.Exit(code=2)
         os.environ["HUTCH_REMOTE_ENABLED"] = "1"
+        proxy_configured = bool(os.environ.get("HUTCH_TRUSTED_PROXIES"))
         console.print("Remote HTTPS is enabled. Pair each device with `hutch pairing create`; revoke with "
-                      "`hutch pairing list` / `hutch pairing revoke <id>`. Do not forward this listener publicly.")
+                      "`hutch pairing list` / `hutch pairing revoke <id>`. " +
+                      ("Trusted-proxy mode is configured; the proxy must use TLS to this origin and overwrite forwarding headers. "
+                       if proxy_configured else "Keep this listener on a private network."))
     elif tls_cert or tls_key:
         if not tls_cert or not tls_key or not Path(tls_cert).is_file() or not Path(tls_key).is_file():
             err.print("[red]both --tls-cert and --tls-key must name readable files[/red]")

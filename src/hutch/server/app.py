@@ -44,7 +44,7 @@ from ..store import ActiveRunConflict, IdempotencyConflict, Store
 from ..state_snapshot import ExecutionHeld
 from ..templates import TEMPLATE_INFO, TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
-from .security import DEVICE_COOKIE, SecurityMiddleware
+from .security import DEVICE_COOKIE, SecurityMiddleware, allowed_hosts_from_env
 from .sse import global_event_stream, resource_change_stream, resume_cursor, run_event_stream
 
 _STATIC = Path(__file__).parent / "static"
@@ -952,6 +952,9 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/capabilities", response_model=list[CapabilityResource])
     def capabilities() -> list[dict]:
         linux = platform.system() == "Linux"
+        trusted_proxy_configured = (os.environ.get("HUTCH_REMOTE_ENABLED") == "1" and
+                                    bool(SecurityMiddleware._trusted_proxy_networks()) and
+                                    bool(allowed_hosts_from_env()))
         from ..sandbox import offline_egress_status
         from ..tools.browser import local_handoff_status
         offline = offline_egress_status()
@@ -974,6 +977,11 @@ def create_app() -> FastAPI:
             {"id": "remote_pairing", "status": "experimental",
              "reason": "Direct HTTPS pairing is fixture-tested; no live network or phone validation",
              "verification": "offline_fixtures"},
+            {"id": "trusted_https_proxy", "status": "experimental" if trusted_proxy_configured else "unavailable",
+             "reason": ("An operator-configured trusted proxy and public-host allowlist are set; only local forwarding fixtures "
+                        "have been checked, with no real tunnel or network validation" if trusted_proxy_configured else
+                        "Requires --allow-remote, HUTCH_TRUSTED_PROXIES and HUTCH_ALLOWED_HOSTS"),
+             "verification": "local_forwarded_scope_fixtures" if trusted_proxy_configured else "configuration_required"},
             {"id": "phone_control", "status": "unavailable",
              "reason": "No phone control surface or authenticated interactive control route is implemented",
              "verification": "not_tested"},

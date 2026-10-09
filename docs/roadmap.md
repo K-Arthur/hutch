@@ -103,8 +103,9 @@ Strict Offline Linux runs; it does not complete the broader S6 collaboration pla
   Same-conversation repeat guards and bounded current builtin context notes are implemented.
   Browser/external-runtime authority gaps and live effect verification remain open.
 - **Remote pairing: experimental.** Direct off-loopback access requires explicit TLS binding. `/pair` exchanges single-use codes and
-  Connections lists and revokes device sessions; browser/PTY/desktop controls and trusted-tunnel support remain open. Physical-device
-  and private-network verification have not been performed. Linux loopback remains the supported service boundary.
+  Connections lists and revokes device sessions. An operator-managed HTTPS reverse proxy can be explicitly trusted by source network
+  and public hostname; Hutch does not provision a tunnel. Browser/PTY/desktop controls and physical-device/private-network verification
+  remain open. No real proxy path has been validated.
 - **Release posture.** Source is private and unpublished. A paired device cannot keep a sleeping host running or reach a service after
   disconnection.
 

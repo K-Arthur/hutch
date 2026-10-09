@@ -89,8 +89,9 @@ approval expiry without the dashboard.
   `/api/v1/tasks/runs` submissions and human-resume commands use restart-safe idempotency; resume is
   bound to the active human-needed event so an old action cannot skip a later challenge.
 - **Remote pairing (experimental)** — a one-time code opens the responsive dashboard on a paired browser, and Connections can list and
-  revoke device sessions. Direct access requires explicit HTTPS binding; live network and physical-device checks are still open. Remote
-  browser/PTY handoff and a trusted tunnel are unavailable, and loopback remains the supported service boundary. See [remote operations](docs/operations.md#remote-pairing-experimental).
+  revoke device sessions. Direct access requires explicit HTTPS binding. An operator-managed HTTPS reverse proxy can be configured with
+  an exact trusted-proxy network and public-host allowlist; Hutch does not provision tunnels. Live network and physical-device checks
+  remain open, and remote browser/PTY handoff is unavailable. See [remote operations](docs/operations.md#remote-pairing-experimental).
 - **Browser (experimental)** — optional Playwright extra and a persistent profile per bot. Opt in to Local browser handoff to open
   the same session in a visible Linux desktop window; Hutch pauses while you complete a detected login challenge and verifies the
   challenge is gone after Resume. Only one Hutch desktop handoff can be active at a time. Headless runs fail clearly at a challenge;

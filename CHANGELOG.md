@@ -14,6 +14,10 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Added
 
+- Experimental reverse-proxy HTTPS support now requires an explicit trusted proxy address/CIDR, exact public-host allowlist and HTTPS
+  forwarding. Untrusted forwarding metadata is stripped, malformed public hosts are rejected, and the capability API exposes the
+  configured-but-fixture-tested status. HTTP and WebSocket Origin schemes must match normalized HTTPS. Hutch still does not provision
+  a tunnel or claim live remote validation.
 - Studio can download a bounded conversation JSON export after showing its scope. It contains whitelisted metadata and ordered message text/provenance; the manifest explicitly excludes credentials, receipts, workspace content, artifact bytes and memory, and warns that message text is copied verbatim.
 - Bots can own up to 100 independently timed recurring tasks, each with its own name, timezone,
   catch-up policy and prompt. Settings, per-task v1 CRUD and `hutch bot schedules` manage them;

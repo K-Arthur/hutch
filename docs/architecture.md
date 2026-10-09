@@ -237,9 +237,10 @@ clients of the same model server. `HUTCH_MODEL_SLOTS` no longer widens inference
 
 Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, a cross-run artifact library, remote
 browser handoff, authenticated PTY/physical desktop controls and Windows/macOS support — tracked in `docs/roadmap.md`.
-Experimental direct HTTPS pairing has a one-time-code UI and revocable device inventory; no physical-device/network test or production
-remote-support claim exists. The Linux shell has optional, fail-closed bubblewrap containment; it is not a VM and does not contain every
-tool or the browser.
+Experimental direct HTTPS pairing has a one-time-code UI and revocable device inventory. An operator-managed HTTPS reverse proxy can
+forward through an explicitly trusted source network and public-host allowlist; its metadata boundary has local fixture coverage only,
+not real tunnel, private-network or physical-device validation. No production remote-support claim exists. The Linux shell has optional,
+fail-closed bubblewrap containment; it is not a VM and does not contain every tool or the browser.
 
 The conversation-first shell keeps the bot roster and configuration ownership in one place.
 Approvals appear in their transcript and in an explicit cross-bot drawer, using the same card and

@@ -70,17 +70,130 @@ class SecurityMiddleware:
                  device_auth=None):
         self.app = app
         self.extra_hosts = {h.lower() for h in extra_hosts} | allowed_hosts_from_env()
+        self.forwarded_hosts = allowed_hosts_from_env()
         self.auth_token = auth_token
         self._digest = auth_digest(auth_token) if auth_token else None
         self.device_auth = device_auth
         self.remote_enabled = os.environ.get("HUTCH_REMOTE_ENABLED") == "1"
+        self.trusted_proxies = self._trusted_proxy_networks()
+
+    @staticmethod
+    def _trusted_proxy_networks() -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
+        raw = os.environ.get("HUTCH_TRUSTED_PROXIES", "")
+        networks = []
+        for entry in raw.split(","):
+            value = entry.strip()
+            if not value:
+                continue
+            try:
+                networks.append(ipaddress.ip_network(value, strict=False))
+            except ValueError as exc:
+                raise ValueError("HUTCH_TRUSTED_PROXIES must contain valid IP addresses or CIDR ranges") from exc
+        return tuple(networks)
+
+    @staticmethod
+    def _header_values(scope: Scope, name: bytes) -> list[bytes]:
+        return [value for key, value in scope.get("headers", []) if key.lower() == name]
+
+    @staticmethod
+    def _strip_forwarded_headers(scope: Scope) -> Scope:
+        def is_forwarding_header(key: bytes) -> bool:
+            name = key.lower()
+            return (name == b"forwarded" or name.startswith(b"x-forwarded-") or
+                    name in {b"x-real-ip", b"x-original-host", b"x-original-proto", b"x-scheme",
+                             b"x-url-scheme"})
+
+        headers = scope.get("headers", [])
+        if not any(is_forwarding_header(key) for key, _ in headers):
+            return scope
+        normalized = dict(scope)
+        normalized["headers"] = [(key, value) for key, value in headers if not is_forwarding_header(key)]
+        return normalized
+
+    def _trusted_forwarded_scope(self, scope: Scope) -> tuple[Scope, bool, tuple[int, str] | None]:
+        """Honor HTTPS forwarding only from an explicitly trusted proxy and allow-listed public host."""
+        stripped_scope = self._strip_forwarded_headers(scope)
+        present = stripped_scope is not scope
+        client = scope.get("client")
+        try:
+            peer = ipaddress.ip_address(client[0]) if client else None
+        except ValueError:
+            peer = None
+        trusted = peer is not None and any(peer in network for network in self.trusted_proxies)
+        if not trusted:
+            return stripped_scope, False, None
+        if not present:
+            return scope, False, None
+
+        forwarded_host_values = self._header_values(scope, b"x-forwarded-host")
+        forwarded_proto_values = self._header_values(scope, b"x-forwarded-proto")
+        forwarded_for_values = self._header_values(scope, b"x-forwarded-for")
+        if len(forwarded_host_values) != 1 or len(forwarded_proto_values) != 1 or len(forwarded_for_values) > 1:
+            return scope, False, (400, "hutch: trusted proxy must send one X-Forwarded-Host and X-Forwarded-Proto.")
+        try:
+            external_host = forwarded_host_values[0].decode("ascii").strip()
+            forwarded_proto = forwarded_proto_values[0].decode("ascii").strip().lower()
+        except UnicodeDecodeError:
+            return scope, False, (400, "hutch: trusted proxy sent invalid forwarding metadata.")
+        if (not external_host or len(external_host) > 255 or
+                any(char in external_host for char in "/\\?#@,;\r\n\t ")):
+            return scope, False, (400, "hutch: trusted proxy sent an invalid public host.")
+        try:
+            parsed_host = urlsplit(f"//{external_host}")
+            host = parsed_host.hostname or ""
+            _ = parsed_host.port  # Access validates numeric range and syntax.
+        except ValueError:
+            return scope, False, (400, "hutch: trusted proxy sent an invalid public host.")
+        if (not host or parsed_host.username is not None or parsed_host.password is not None or
+                parsed_host.path or parsed_host.query or parsed_host.fragment):
+            return scope, False, (400, "hutch: trusted proxy sent an invalid public host.")
+        host = host.lower()
+        if host not in self.forwarded_hosts:
+            return scope, False, (421, "hutch: trusted proxy public host is not in HUTCH_ALLOWED_HOSTS.")
+        if forwarded_proto != "https":
+            return scope, False, (426, "hutch: trusted proxy must report HTTPS using X-Forwarded-Proto.")
+        if not self.remote_enabled:
+            return scope, False, (403, "hutch: trusted proxy access requires --allow-remote.")
+
+        forwarded_client = None
+        if forwarded_for_values:
+            try:
+                chain = [ipaddress.ip_address(part.strip()) for part in
+                         forwarded_for_values[0].decode("ascii").split(",")]
+            except (UnicodeDecodeError, ValueError):
+                return scope, False, (400, "hutch: trusted proxy sent an invalid X-Forwarded-For chain.")
+            if not chain or len(chain) > 16:
+                return scope, False, (400, "hutch: trusted proxy X-Forwarded-For chain is invalid or too long.")
+            chain.append(peer)
+            forwarded_client = next((address for address in reversed(chain)
+                                     if not any(address in network for network in self.trusted_proxies)), chain[0])
+
+        normalized = dict(stripped_scope)
+        normalized["scheme"] = "wss" if scope["type"] == "websocket" else "https"
+        normalized_headers = [(key, value) for key, value in stripped_scope.get("headers", [])
+                              if key.lower() != b"host"]
+        normalized_headers.append((b"host", external_host.encode("ascii")))
+        normalized["headers"] = normalized_headers
+        if forwarded_client is not None and client is not None:
+            normalized["client"] = (str(forwarded_client), client[1])
+        normalized.setdefault("state", {})["hutch_trusted_proxy"] = True
+        return normalized, True, None
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "websocket":
-            await self._websocket(scope, receive, send)
+            scope, trusted_proxy, error = self._trusted_forwarded_scope(scope)
+            if error:
+                await send({"type": "websocket.close", "code": 4403, "reason": error[1]})
+                return
+            await self._websocket(scope, receive, send, trusted_proxy=trusted_proxy)
             return
         if scope["type"] != "http":
             await self.app(scope, receive, send)
+            return
+        scope, trusted_proxy, forwarding_error = self._trusted_forwarded_scope(scope)
+        if forwarding_error:
+            status_code, detail = forwarding_error
+            await PlainTextResponse(detail, status_code=status_code)(scope, receive, send)
             return
         request = Request(scope, receive)
         host_header = request.headers.get("host", "")
@@ -99,7 +212,7 @@ class SecurityMiddleware:
                 "HUTCH_ALLOWED_HOSTS to allow this name.", status_code=421)(scope, receive, send)
             return
 
-        remote_request = not peer_is_local or (not is_loopback_host(host) and host not in self.extra_hosts)
+        remote_request = trusted_proxy or not peer_is_local or (not is_loopback_host(host) and host not in self.extra_hosts)
         if remote_request and scope.get("scheme") != "https":
             await PlainTextResponse("hutch: remote access requires HTTPS.", status_code=426)(scope, receive, send)
             return
@@ -130,8 +243,9 @@ class SecurityMiddleware:
         async def send_with_cookie(message):
             if fresh and message["type"] == "http.response.start":
                 headers = list(message.get("headers", []))
+                secure = "; Secure" if scope.get("scheme") == "https" else ""
                 headers.append((b"set-cookie", (
-                    f"{CSRF_COOKIE}={token}; Path=/; SameSite=Strict; HttpOnly").encode()))
+                    f"{CSRF_COOKIE}={token}; Path=/; SameSite=Strict; HttpOnly{secure}").encode()))
                 message["headers"] = headers
             await send(message)
 
@@ -141,13 +255,25 @@ class SecurityMiddleware:
     def _same_origin(request: Request, host_header: str) -> bool:
         origin = request.headers.get("origin")
         if origin is not None:
-            if origin == "null":
-                return False
-            return urlsplit(origin).netloc.lower() == host_header.strip().lower()
+            return SecurityMiddleware._origin_matches(origin, host_header, request.url.scheme)
         site = request.headers.get("sec-fetch-site")
         if site is not None:
             return site in ("same-origin", "none")
         return True  # not a browser: no ambient credentials to abuse
+
+    @staticmethod
+    def _origin_matches(origin: str, host_header: str, expected_scheme: str) -> bool:
+        if origin == "null":
+            return False
+        try:
+            parts = urlsplit(origin)
+            _ = parts.port
+        except ValueError:
+            return False
+        return (parts.scheme.lower() == expected_scheme.lower() and
+                parts.netloc.lower() == host_header.strip().lower() and
+                parts.username is None and parts.password is None and
+                not parts.path and not parts.query and not parts.fragment)
 
     def _authed(self, request: Request) -> bool:
         cookie = request.cookies.get(AUTH_COOKIE, "")
@@ -169,7 +295,7 @@ class SecurityMiddleware:
         except ValueError:  # Starlette's in-process TestClient uses "testclient".
             return True
 
-    async def _websocket(self, scope: Scope, receive: Receive, send: Send) -> None:
+    async def _websocket(self, scope: Scope, receive: Receive, send: Send, *, trusted_proxy: bool = False) -> None:
         headers = {k.lower(): v for k, v in scope.get("headers", [])}
         host_header = headers.get(b"host", b"").decode("latin-1")
         host = _host_only(host_header)
@@ -181,13 +307,11 @@ class SecurityMiddleware:
         if not (is_loopback_host(host) or host in self.extra_hosts or self.auth_token or self.remote_enabled):
             await send({"type": "websocket.close", "code": 4403, "reason": "unexpected Host"})
             return
-        if origin:
-            from urllib.parse import urlsplit
-            parts = urlsplit(origin)
-            if origin == "null" or parts.netloc.lower() != host_header.strip().lower():
-                await send({"type": "websocket.close", "code": 4403, "reason": "cross-origin WebSocket refused"})
-                return
-        remote_request = not peer_is_local or (not is_loopback_host(host) and host not in self.extra_hosts)
+        expected_origin_scheme = "https" if scope.get("scheme") == "wss" else "http"
+        if origin and not self._origin_matches(origin, host_header, expected_origin_scheme):
+            await send({"type": "websocket.close", "code": 4403, "reason": "cross-origin WebSocket refused"})
+            return
+        remote_request = trusted_proxy or not peer_is_local or (not is_loopback_host(host) and host not in self.extra_hosts)
         if remote_request and scope.get("scheme") != "wss":
             await send({"type": "websocket.close", "code": 4403, "reason": "remote WebSocket requires TLS"})
             return

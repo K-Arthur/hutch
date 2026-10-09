@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 
+from fastapi import FastAPI, Request, WebSocket
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
@@ -108,3 +109,183 @@ def test_remote_bind_requires_explicit_flag_and_tls_files(tmp_path, monkeypatch)
     pairing = runner.invoke(cli_app, ["pairing", "create"])
     assert pairing.exit_code == 0 and "expires in 60 seconds" in pairing.output
     assert runner.invoke(cli_app, ["pairing", "list"]).exit_code == 0
+
+
+def test_trusted_https_proxy_keeps_pairing_origin_and_secure_cookie(tmp_path, monkeypatch):
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("HUTCH_REMOTE_ENABLED", "1")
+    monkeypatch.setenv("HUTCH_TRUSTED_PROXIES", "127.0.0.1/32")
+    monkeypatch.setenv("HUTCH_ALLOWED_HOSTS", "hutch.example")
+    app = create_app()
+    code = app.state.store.create_pairing_code()
+    proxy = TestClient(app, base_url="http://hutch-origin.internal", client=("127.0.0.1", 43120))
+    forwarded = {"X-Forwarded-Proto": "https", "X-Forwarded-Host": "hutch.example",
+                 "X-Forwarded-For": "198.51.100.42"}
+
+    page = proxy.get("/pair", headers=forwarded)
+    assert page.status_code == 200, page.text
+    assert "secure" in page.headers["set-cookie"].lower()
+    csrf = proxy.cookies.get("hutch_csrf")
+    downgraded_origin = proxy.post(
+        "/api/v1/pairing/exchange", json={"code": code, "label": "Phone"},
+        headers={**forwarded, "Origin": "http://hutch.example", "Cookie": f"hutch_csrf={csrf}"})
+    assert downgraded_origin.status_code == 403
+    paired = proxy.post("/api/v1/pairing/exchange", json={"code": code, "label": "Phone"},
+                        headers={**forwarded, "Origin": "https://hutch.example", "Cookie": f"hutch_csrf={csrf}"})
+    assert paired.status_code == 200, paired.text
+    assert "secure" in paired.headers["set-cookie"].lower()
+    device = paired.cookies.get("hutch_device")
+    assert device
+    assert proxy.get("/api/bots", headers={**forwarded, "Cookie": f"hutch_device={device}"}).status_code == 200
+
+
+def test_trusted_proxy_requires_an_explicit_public_host_allowlist(tmp_path, monkeypatch):
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("HUTCH_REMOTE_ENABLED", "1")
+    monkeypatch.setenv("HUTCH_AUTH_TOKEN", "operator-token")
+    monkeypatch.setenv("HUTCH_TRUSTED_PROXIES", "127.0.0.1")
+    monkeypatch.setenv("HUTCH_ALLOWED_HOSTS", "hutch.example")
+    client = TestClient(create_app(), base_url="http://origin.internal", client=("127.0.0.1", 43120))
+    response = client.get("/api/bots", headers={"Host": "origin.internal", "X-Forwarded-Proto": "https",
+                                                 "X-Forwarded-Host": "attacker.example",
+                                                 "Authorization": "Bearer operator-token"})
+    assert response.status_code == 421
+    assert "not in HUTCH_ALLOWED_HOSTS" in response.text
+
+
+def test_untrusted_peer_cannot_spoof_https_forwarding(tmp_path, monkeypatch):
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("HUTCH_REMOTE_ENABLED", "1")
+    monkeypatch.setenv("HUTCH_TRUSTED_PROXIES", "127.0.0.1/32")
+    monkeypatch.setenv("HUTCH_ALLOWED_HOSTS", "hutch.example")
+    client = TestClient(create_app(), base_url="http://origin.internal", client=("198.51.100.77", 43120))
+    response = client.get("/api/bots", headers={"Host": "origin.internal", "X-Forwarded-Proto": "https",
+                                                 "X-Forwarded-Host": "hutch.example"})
+    assert response.status_code == 426
+    assert "requires HTTPS" in response.text
+
+
+def test_untrusted_forwarding_headers_are_not_passed_to_the_application(monkeypatch):
+    from hutch.server.security import SecurityMiddleware
+
+    app = FastAPI()
+
+    @app.get("/forwarded")
+    async def forwarded(request: Request):
+        return {"host": request.headers.get("x-forwarded-host"),
+                "proto": request.headers.get("x-forwarded-proto"),
+                "for": request.headers.get("x-forwarded-for"),
+                "standard": request.headers.get("forwarded"),
+                "real_ip": request.headers.get("x-real-ip")}
+
+    client = TestClient(SecurityMiddleware(app), base_url="http://localhost",
+                        client=("127.0.0.1", 43120))
+    response = client.get("/forwarded", headers={
+        "X-Forwarded-Host": "hutch.example", "X-Forwarded-Proto": "https",
+        "X-Forwarded-For": "198.51.100.42", "Forwarded": "for=198.51.100.42;proto=https;host=hutch.example",
+        "X-Real-IP": "198.51.100.42"})
+    assert response.status_code == 200
+    assert response.json() == {"host": None, "proto": None, "for": None, "standard": None, "real_ip": None}
+
+
+def test_trusted_proxy_rejects_malformed_public_host_port(tmp_path, monkeypatch):
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("HUTCH_REMOTE_ENABLED", "1")
+    monkeypatch.setenv("HUTCH_TRUSTED_PROXIES", "127.0.0.1/32")
+    monkeypatch.setenv("HUTCH_ALLOWED_HOSTS", "hutch.example")
+    client = TestClient(create_app(), base_url="http://origin.internal", client=("127.0.0.1", 43120))
+    response = client.get("/api/bots", headers={"X-Forwarded-Proto": "https",
+                                                 "X-Forwarded-Host": "hutch.example:99999"})
+    assert response.status_code == 400
+    assert "invalid public host" in response.text
+
+
+def test_trusted_proxy_rejects_duplicate_required_headers(tmp_path, monkeypatch):
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("HUTCH_REMOTE_ENABLED", "1")
+    monkeypatch.setenv("HUTCH_TRUSTED_PROXIES", "127.0.0.1/32")
+    monkeypatch.setenv("HUTCH_ALLOWED_HOSTS", "hutch.example")
+    client = TestClient(create_app(), base_url="http://origin.internal", client=("127.0.0.1", 43120))
+    response = client.get("/api/bots", headers=[
+        ("X-Forwarded-Proto", "https"), ("X-Forwarded-Host", "hutch.example"),
+        ("X-Forwarded-Host", "attacker.example")])
+    assert response.status_code == 400
+    assert "one X-Forwarded-Host" in response.text
+
+
+def test_trusted_proxy_uses_validated_forwarded_client_for_source_limits(monkeypatch):
+    from hutch.server.security import SecurityMiddleware
+
+    monkeypatch.setenv("HUTCH_REMOTE_ENABLED", "1")
+    monkeypatch.setenv("HUTCH_AUTH_TOKEN", "operator-token")
+    monkeypatch.setenv("HUTCH_TRUSTED_PROXIES", "127.0.0.1/32")
+    monkeypatch.setenv("HUTCH_ALLOWED_HOSTS", "hutch.example")
+    app = FastAPI()
+
+    @app.get("/client")
+    async def client_address(request: Request):
+        return {"client": request.client.host}
+
+    secured = SecurityMiddleware(app, auth_token="operator-token")
+    client = TestClient(secured, base_url="http://origin.internal", client=("127.0.0.1", 43120))
+    response = client.get("/client", headers={
+        "X-Forwarded-Proto": "https", "X-Forwarded-Host": "hutch.example",
+        "X-Forwarded-For": "198.51.100.42", "Authorization": "Bearer operator-token"})
+    assert response.status_code == 200
+    assert response.json() == {"client": "198.51.100.42"}
+
+
+def test_trusted_proxy_capability_requires_explicit_remote_and_host_configuration(tmp_path, monkeypatch):
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("HUTCH_REMOTE_ENABLED", "1")
+    monkeypatch.setenv("HUTCH_AUTH_TOKEN", "operator-token")
+    monkeypatch.setenv("HUTCH_TRUSTED_PROXIES", "127.0.0.1/32")
+    monkeypatch.setenv("HUTCH_ALLOWED_HOSTS", "hutch.example")
+    headers = {"X-Forwarded-Proto": "https", "X-Forwarded-Host": "hutch.example",
+               "Authorization": "Bearer operator-token"}
+    with TestClient(create_app(), base_url="http://localhost", client=("127.0.0.1", 43120)) as client:
+        capabilities = {row["id"]: row for row in client.get("/api/v1/capabilities", headers=headers).json()}
+    assert capabilities["trusted_https_proxy"]["status"] == "experimental"
+    assert capabilities["trusted_https_proxy"]["verification"] == "local_forwarded_scope_fixtures"
+
+    monkeypatch.delenv("HUTCH_TRUSTED_PROXIES")
+    with TestClient(create_app(), base_url="http://localhost", client=("127.0.0.1", 43120)) as client:
+        capabilities = {row["id"]: row for row in client.get("/api/v1/capabilities", headers=headers).json()}
+    assert capabilities["trusted_https_proxy"]["status"] == "unavailable"
+
+
+def test_trusted_proxy_websocket_uses_forwarded_https_host_and_device_auth(monkeypatch):
+    from starlette.websockets import WebSocketDisconnect
+    from hutch.server.security import SecurityMiddleware
+
+    monkeypatch.setenv("HUTCH_REMOTE_ENABLED", "1")
+    monkeypatch.setenv("HUTCH_TRUSTED_PROXIES", "127.0.0.1/32")
+    monkeypatch.setenv("HUTCH_ALLOWED_HOSTS", "hutch.example")
+    app = FastAPI()
+
+    @app.websocket("/ws")
+    async def socket(ws: WebSocket):
+        await ws.accept()
+        await ws.send_json({"scheme": ws.scope["scheme"], "host": ws.headers["host"]})
+        await ws.close()
+
+    secured = SecurityMiddleware(app, device_auth=lambda token: token == "device-secret")
+    client = TestClient(secured, base_url="http://origin.internal", client=("127.0.0.1", 43120))
+    headers = {"Host": "origin.internal", "Origin": "https://hutch.example",
+               "X-Forwarded-Proto": "https", "X-Forwarded-Host": "hutch.example",
+               "Cookie": "hutch_device=device-secret"}
+    with client.websocket_connect("/ws", headers=headers) as ws:
+        assert ws.receive_json() == {"scheme": "wss", "host": "hutch.example"}
+
+    try:
+        with client.websocket_connect("/ws", headers={k: v for k, v in headers.items() if k != "Cookie"}):
+            raise AssertionError("unauthenticated proxied socket was accepted")
+    except WebSocketDisconnect as exc:
+        assert exc.code == 4401
+
+    downgraded = {**headers, "Origin": "http://hutch.example"}
+    try:
+        with client.websocket_connect("/ws", headers=downgraded):
+            raise AssertionError("proxied socket accepted an HTTP Origin for an HTTPS page")
+    except WebSocketDisconnect as exc:
+        assert exc.code == 4403
