@@ -17,11 +17,37 @@ from hutch.config import get_config, hutchConfig
 from hutch.engine import Engine
 from hutch.lifecycle import IllegalTransition
 from hutch.models import RunStatus
-from hutch.store import SCHEMA_VERSION, Store
+from hutch.store import SCHEMA_VERSION, Store, _migrate_25
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
 FINISHED_1, FINISHED_2, ORPHAN, QUEUED = "run_582f4cc75ea4", "run_fa7f70664c38", "run_3cefb894fd73", "run_e169d5380ff5"
+
+
+def test_v24_reply_reference_migration_preserves_old_rows_and_guards_scope():
+    assert SCHEMA_VERSION == 25
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("CREATE TABLE messages (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, seq INTEGER NOT NULL, "
+                   "run_id TEXT NOT NULL DEFAULT '', role TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL, "
+                   "UNIQUE(conversation_id, seq))")
+        db.execute("INSERT INTO messages VALUES ('old-assistant', 'chat-a', 1, '', 'assistant', 'prior answer', 'now')")
+        db.execute("INSERT INTO messages VALUES ('old-user', 'chat-a', 2, '', 'user', 'legacy question', 'now')")
+        db.execute("INSERT INTO messages VALUES ('other-assistant', 'chat-b', 1, '', 'assistant', 'private', 'now')")
+        _migrate_25(db)
+        assert db.execute("SELECT reply_to_message_id FROM messages WHERE id = 'old-user'").fetchone()[0] is None
+        db.execute("INSERT INTO messages (id, conversation_id, seq, role, content, created_at, reply_to_message_id) "
+                   "VALUES ('new-user', 'chat-a', 3, 'user', 'what?', 'now', 'old-assistant')")
+        with pytest.raises(sqlite3.IntegrityError, match="reply target"):
+            db.execute("INSERT INTO messages (id, conversation_id, seq, role, content, created_at, reply_to_message_id) "
+                       "VALUES ('cross-chat', 'chat-a', 4, 'user', 'what?', 'now', 'other-assistant')")
+        with pytest.raises(sqlite3.IntegrityError, match="reply target"):
+            db.execute("INSERT INTO messages (id, conversation_id, seq, role, content, created_at, reply_to_message_id) "
+                       "VALUES ('reply-to-user', 'chat-a', 4, 'user', 'what?', 'now', 'old-user')")
+        with pytest.raises(sqlite3.IntegrityError, match="reply target"):
+            db.execute("UPDATE messages SET reply_to_message_id = 'other-assistant' WHERE id = 'new-user'")
+    finally:
+        db.close()
 
 
 @pytest.fixture()

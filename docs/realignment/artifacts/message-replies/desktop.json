@@ -1,0 +1,23 @@
+{
+  "test": "tests/e2e/test_browser.py::test_bot_message_reply_is_keyboard_accessible_editable_and_persisted",
+  "captured_at": "2026-10-09T10:02:28.882852+00:00",
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "playwright": "1.63.0",
+  "viewport": [
+    1440,
+    1000
+  ],
+  "scenario": "Synthetic same-chat assistant reply; keyboard select/remove, composer preview, and persisted anchored send; no model/provider call",
+  "page_errors": [],
+  "horizontal_overflow": 0,
+  "keyboard_focus_restored": true,
+  "draft_reference_restored_after_reload": true,
+  "reply_target": "reply-fixture-answer",
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "6e51c7d9eeaf59c44bbd86ae04b088b8f69d95da52a96b4a3c2a5370c7d2c5e9",
+    "src/hutch/server/static/style.css": "4a13e5b4b7a53c061b103d2f58035767c3fe47c73190a2f14d489536bbad2653",
+    "src/hutch/server/app.py": "8ef342f792443dc37178933c8521e4203e2116cae4e4ebf75e3208605fe47050",
+    "src/hutch/store.py": "5900d4271069090c66f5c51bd3b22766472771be59b619c9e81b3e48ff9f9d86"
+  }
+}

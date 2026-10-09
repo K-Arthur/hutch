@@ -32,6 +32,7 @@ let statusInfo = { ...DEFAULT_STATUS_INFO };
 let currentConversationId = null;
 let currentConversations = [];
 let studioGeneration = 0;
+let activeReplySelectionHandler = null;
 const requestedHumanResumes = new Set();
 
 /* ------------------------------------------------------------------ utils */
@@ -1348,6 +1349,10 @@ async function renderChatStudio(preferredBot = null) {
       <footer class="composer">
         <form id="chat-form" autocomplete="off">
           <div class="composer-box" id="composer-box">
+            <div class="reply-composer" id="reply-composer" hidden>
+              <div class="reply-composer-preview" id="reply-composer-preview" role="status" aria-live="polite"></div>
+              <button class="btn ghost small" id="reply-composer-clear" type="button" aria-label="Remove reply reference">Remove</button>
+            </div>
             <div class="composer-row">
               <div class="cmenu-wrap">
                 <button class="composer-util" type="button" id="composer-menu-btn" aria-label="Message options" aria-haspopup="dialog" aria-expanded="false" aria-controls="composer-menu">${icon("plus")}</button>
@@ -1434,6 +1439,64 @@ async function renderChatStudio(preferredBot = null) {
 
   const composerConversationId = selectedConversation.id;
   const composerDraftId = `${bot.name}:${composerConversationId}`;
+  const replyStorageKey = `hutch-reply:${composerDraftId}`;
+  let selectedReply = null;
+  let replySelectionGeneration = 0;
+  const replyComposer = $("#reply-composer");
+  const setReply = (message, persist = true) => {
+    selectedReply = message;
+    if (message) {
+      if (persist) storageSet(replyStorageKey, message.id);
+      const excerpt = String(message.content || "").slice(0, 240);
+      $("#reply-composer-preview").innerHTML = `<span class="reply-composer-by">Replying to ${esc(bot.name)}</span><span class="reply-composer-text">${esc(excerpt)}${message.content?.length > 240 ? "…" : ""}</span>`;
+      replyComposer.hidden = false;
+    } else {
+      if (persist) storageRemove(replyStorageKey);
+      replyComposer.hidden = true;
+      $("#reply-composer-preview").textContent = "";
+    }
+  };
+  activeReplySelectionHandler = async messageId => {
+    if (generation !== studioGeneration || composerConversationId !== currentConversationId) return;
+    const selectionRequest = ++replySelectionGeneration;
+    try {
+      const message = await api(`/v1/conversations/${encodeURIComponent(composerConversationId)}/messages/${encodeURIComponent(messageId)}`);
+      if (generation !== studioGeneration || composerConversationId !== currentConversationId
+          || selectionRequest !== replySelectionGeneration) return;
+      if (message.role !== "assistant" || message.conversation_id !== composerConversationId) {
+        throw new Error("That Bot message is no longer available in this conversation.");
+      }
+      setReply(message);
+      txt.focus({ preventScroll: true });
+    } catch (err) {
+      if (generation !== studioGeneration || composerConversationId !== currentConversationId
+          || selectionRequest !== replySelectionGeneration) return;
+      toast(`Could not reference that message: ${err.message}`, true);
+    }
+  };
+  $("#reply-composer-clear").addEventListener("click", () => {
+    replySelectionGeneration++;
+    setReply(null);
+    txt.focus({ preventScroll: true });
+  });
+  const rememberedReply = storageGet(replyStorageKey);
+  if (rememberedReply) {
+    const restoreGeneration = replySelectionGeneration;
+    void api(`/v1/conversations/${encodeURIComponent(composerConversationId)}/messages/${encodeURIComponent(rememberedReply)}`)
+      .then(message => {
+        if (generation === studioGeneration && composerConversationId === currentConversationId && !selectedReply
+            && restoreGeneration === replySelectionGeneration && storageGet(replyStorageKey) === rememberedReply) {
+          setReply(message, false);
+        }
+      })
+      .catch(() => {
+        if (generation === studioGeneration && composerConversationId === currentConversationId
+            && !selectedReply && storageGet(replyStorageKey) === rememberedReply) {
+          storageRemove(replyStorageKey);
+          toast("The saved reply reference is no longer available. Choose the Bot message again.", true);
+        }
+      });
+  }
   txt.value = loadDraft(composerDraftId);
   const autogrow = () => { txt.style.height = "auto"; txt.style.height = Math.min(txt.scrollHeight, 220) + "px"; };
   autogrow();
@@ -1460,14 +1523,17 @@ async function renderChatStudio(preferredBot = null) {
     sendBtn.innerHTML = '<span class="spinner"></span>';
     sendBtn.setAttribute("aria-label", "Sending…");
     const snapshot = txt.value;
+    const replySnapshot = selectedReply?.id || null;
     lastPrompt = text;
     try {
       const body = { prompt: text, rehearse: !!rehearseOpt?.checked, model: switcher?.selected() || null };
+      if (replySnapshot) body.reply_to_message_id = replySnapshot;
       const key = await messageIdempotencyKey(composerConversationId, body);
       const r = await api(`/v1/conversations/${encodeURIComponent(composerConversationId)}/messages`, {
         method: "POST", headers: { "Idempotency-Key": key }, body,
       });
       clearMessageIdempotencyKey(composerConversationId, key);
+      if (replySnapshot && selectedReply?.id === replySnapshot) setReply(null);
       const titleOption = conversationSwitcher?.selectedOptions?.[0];
       if (titleOption && titleOption.textContent.trim().endsWith("New conversation")) {
         titleOption.textContent = text.slice(0, 72);
@@ -1664,6 +1730,7 @@ function scheduleFeedRender() {
 // Messages belong to the selected conversation. Terminal runs are cached;
 // the active one re-renders as events arrive.
 const terminalRunCache = new Map();
+const terminalRunReplyCache = new Set();
 
 async function renderChatFeed() {
   if (feedMode !== "studio") return;
@@ -1714,9 +1781,11 @@ async function renderChatFeed() {
   for (const runId of shown) {
     let html;
     try {
-      if (runId === currentRunId) html = await runBlockHtml(runId);
-      else if (terminalRunCache.has(runId)) html = terminalRunCache.get(runId);
-      else html = await runBlockHtml(runId);
+      const hasVisibleBotReply = messages.some(m => m.role === "assistant" && m.run_id === runId);
+      if (runId === currentRunId || !terminalRunCache.has(runId)
+          || hasVisibleBotReply && !terminalRunReplyCache.has(runId)) {
+        html = await runBlockHtml(runId, messages);
+      } else html = terminalRunCache.get(runId);
     } catch {
       html = $$("[data-run-id]", stream).find(e => e.dataset.runId === runId)?.outerHTML || "";
       html += `<p class="feed-refresh-error hint" role="status">Could not refresh this attempt. Retained details may be outdated.
@@ -1996,7 +2065,7 @@ async function wireWelcome() {
 /* One attempt in a conversation: the prompt bubble, the visible work,
    the answer. Tool activity is a quiet collapsed strip — approvals are never
    hidden inside it. */
-async function runBlockHtml(runId) {
+async function runBlockHtml(runId, messages = null) {
   const run = await api(`/runs/${runId}`);
   const events = run.events || [];
   const resolvedMap = new Map();
@@ -2023,18 +2092,26 @@ async function runBlockHtml(runId) {
   });
 
   const message = events.filter(e => e.type === "message" && e.data?.role !== "user").pop();
+  const userMessage = messages?.find(m => m.role === "user" && m.run_id === runId);
+  const botMessage = messages?.filter(m => m.role === "assistant" && m.run_id === runId).at(-1);
+  const botName = run.bot_name || currentStudioBot;
+  const replyExcerpt = userMessage?.reply_to_excerpt || "Referenced Bot message";
+  const replyPreview = userMessage?.reply_to_message_id ? `<aside class="reply-reference-quote">
+    <span>Reply to ${esc(botName)}’s message</span><blockquote>${esc(replyExcerpt.slice(0, 240))}${replyExcerpt.length > 240 ? "…" : ""}</blockquote>
+  </aside>` : "";
+  const replyAction = botMessage ? `<div class="answer-actions"><button class="btn ghost small" type="button" data-reply-message="${esc(botMessage.id)}" aria-label="Reply to ${esc(botName)} message">Reply to this</button></div>` : "";
   const stepCount = events.filter(e => e.type === "tool_call").length;
 
   const html = `
     <article class="thread${anim}" data-run-id="${esc(runId)}">
       <div class="msg you">
-        <div class="bubble">${esc(run.prompt)}</div>
+        <div class="bubble">${replyPreview}${esc(run.prompt)}</div>
         <span class="stamp">${timeAgo(run.created_at)}${run.origin === "schedule" ? " · scheduled" : ""}</span>
       </div>
       <div class="msg agent">
         <div class="mhead">
-          ${botAvatar(run.bot_name || currentStudioBot, 26, run.status === "running" ? "running" : "")}
-          <b>${esc(run.bot_name || currentStudioBot)}</b>
+          ${botAvatar(botName, 26, run.status === "running" ? "running" : "")}
+          <b>${esc(botName)}</b>
           ${statusChip(run.status, run.status_label)}
           ${running ? `<button class="btn ghost small" data-stop-run="${esc(runId)}" ${run.status === "cancelling" ? "disabled" : ""}>${run.status === "cancelling" ? "Stopping" : "Stop"}</button>` : ""}
           <a class="mrun mono" href="#/run/${esc(runId)}" title="${esc(runId)} · ${esc(run.origin || "manual")} · ${dur}">#${esc(runId.slice(4, 12))}</a>
@@ -2049,7 +2126,7 @@ async function runBlockHtml(runId) {
           <summary>${icon("gear")}${running ? esc(activityLabel) : `${stepCount} step${stepCount === 1 ? "" : "s"}`}${stepCount && !running ? ` · ${dur}` : ""} ${icon("caret", "tool-caret")}</summary>
           ${steps.join("")}
         </details>` : ""}
-        ${message && message.data?.content ? `<div class="answer">${esc(message.data.content)}</div>` : ""}
+        ${message && message.data?.content ? `<div class="answer">${esc(message.data.content)}</div>${replyAction}` : ""}
         ${run.transcript_mirror?.error || run.transcript_mirror?.worker_error
           ? `<p class="run-notice" role="status">Transcript file needs attention: ${esc(run.transcript_mirror.error || run.transcript_mirror.worker_error)}. Database history remains available.</p>`
           : run.transcript_mirror?.pending ? '<p class="hint" role="status">Transcript file is catching up. History shown here is committed in the database.</p>' : ""}
@@ -2058,7 +2135,12 @@ async function runBlockHtml(runId) {
           : `<div class="run-error ${run.status === "stopped" || run.status === "skipped" ? "run-notice" : run.status === "outcome_unknown" ? "run-review" : ""}">${icon("alert")}<span><b>${esc(run.status_label || activityLabel)}:</b> ${esc(run.error)}</span></div>` : ""}
       </div>
     </article>`;
-  if (!running) terminalRunCache.set(runId, html.replace('class="thread enter"', 'class="thread"'));
+  if (!running) {
+    if (messages) terminalRunReplyCache.add(runId);
+    if (messages || !terminalRunCache.has(runId)) {
+      terminalRunCache.set(runId, html.replace('class="thread enter"', 'class="thread"'));
+    }
+  }
   return html;
 }
 
@@ -2123,6 +2205,7 @@ async function reviewReceipt(id, trigger) {
           method: 'POST', body, headers: { 'Idempotency-Key': submission.key },
         });
         terminalRunCache.delete(action.run_id);
+        terminalRunReplyCache.delete(action.run_id);
         refreshChangedResources(['actions']);
         toast('Your checked outcome was recorded. The original execution history is preserved.');
         return true;
@@ -2333,6 +2416,8 @@ function wireFeedInteractions() {
   stream.dataset.wired = "1";
   const runId = currentRunId;
   stream.addEventListener("click", ev => {
+    const reply = ev.target.closest("[data-reply-message]");
+    if (reply) { void activeReplySelectionHandler?.(reply.dataset.replyMessage); return; }
     const receipt = ev.target.closest('[data-receipt-review]');
     if (receipt) { void reviewReceipt(receipt.dataset.receiptReview, receipt); return; }
     if (ev.target.closest('[data-receipt-queue]')) { void openNeedsYou(); return; }
@@ -4064,8 +4149,14 @@ async function startResourceStream() {
       try {
         const page = JSON.parse(event.data);
         for (const change of page.changes) {
-          if (change.context.run_id) terminalRunCache.delete(change.context.run_id);
-          if (change.resource === "runs") terminalRunCache.delete(change.resource_id);
+          if (change.context.run_id) {
+            terminalRunCache.delete(change.context.run_id);
+            terminalRunReplyCache.delete(change.context.run_id);
+          }
+          if (change.resource === "runs") {
+            terminalRunCache.delete(change.resource_id);
+            terminalRunReplyCache.delete(change.resource_id);
+          }
         }
         refreshChangedResources(page.changes.map(change => change.resource));
       } catch { reconcileResourceStream(source); }
@@ -4083,6 +4174,7 @@ function reconcileResourceStream(source) {
   source.close();
   resourceStream = null;
   terminalRunCache.clear();
+  terminalRunReplyCache.clear();
   resourceRetry = setTimeout(startResourceStream, 1500);
 }
 

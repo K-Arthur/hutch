@@ -14,6 +14,7 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Added
 
+- Studio conversations can reply to a specific Bot message. The composer shows a removable, bounded reference; same-chat scope, untrusted quote labelling, stable idempotent retries and transcript/export provenance are enforced by schema v25.
 - Experimental local Linux browser handoff now blocks agent typing into detected credential, OTP, payment-secret and token fields before input or durable action creation, redacts browser type values from events/receipts, and prevents screenshots while a conventional sensitive field is visible. People can enter credentials and complete CAPTCHA/2FA directly in the same live browser profile, then resume the current wait without a page reload; Hutch never types secrets or solves challenges. The field detector and live third-party path are not exhaustive or verified.
 - Document the Grok Bot message-first named-Bot and coordinator workflow as a product reference. Record Hutch's context-aware task-brief requirements, explicit authority boundaries, durable cross-Bot result delivery, user-reported organization complaints, and the decision to retain per-Bot workspace/browser isolation. No Grok Bot account or live integration was tested.
 - Experimental reverse-proxy HTTPS support now requires an explicit trusted proxy address/CIDR, exact public-host allowlist and HTTPS

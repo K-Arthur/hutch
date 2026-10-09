@@ -3412,3 +3412,92 @@ def test_restored_state_is_visible_without_losing_chat_draft(browser, restored_l
     finally:
         context.tracing.stop(path=str(out / f'{size}-trace.zip'))
         context.close()
+
+
+@pytest.mark.parametrize("width,height,size", [(1440, 1000, "desktop"), (900, 1024, "tablet"), (390, 844, "phone")])
+def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser, live, monkeypatch, width, height, size):
+    import hashlib
+    import json
+    from pathlib import Path
+
+    base, app = live
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    store = app.state.store
+    bot = store.create_bot(Bot(name="reply-fixture", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(bot.id, "Reply reference", idem_key="reply-conversation",
+                                                request_hash="reply-conversation")
+    answer = "The migration finished successfully. Check the rollout metrics before expanding it."
+    run = store.create_run(Run(bot_id=bot.id, prompt="Summarize the rollout", status=RunStatus.succeeded))
+    with store._tx() as db:
+        store._insert_conversation_message(db, message_id="reply-fixture-user", conversation_id=conversation["id"],
+            seq=1, run_id=run.id, role="user", content=run.prompt, created_at=run.created_at)
+        store._insert_conversation_message(db, message_id="reply-fixture-answer", conversation_id=conversation["id"],
+            seq=2, run_id=run.id, role="assistant", content=answer, created_at=run.created_at)
+        db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
+                   (conversation["id"], run.id, run.created_at))
+    store.append_event(Event(run_id=run.id, type=EventType.message, data={"role": "assistant", "content": answer}))
+    store.flush_events()
+
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/message-replies"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": width, "height": height}, reduced_motion="reduce",
+                                  has_touch=(size == "phone"))
+    page = context.new_page()
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(f"{base}/#/chat/{bot.name}")
+    reply = page.get_by_role("button", name=f"Reply to {bot.name} message")
+    reply.wait_for(state="visible")
+    reply.focus()
+    page.keyboard.press("Enter")
+    preview = page.locator("#reply-composer")
+    preview.wait_for(state="visible")
+    assert "migration finished successfully" in page.locator("#reply-composer-preview").inner_text()
+    assert page.locator("#chat-prompt").evaluate("el => el === document.activeElement")
+    page.locator("#chat-prompt").fill("Can you explain that result?")
+    if size == "phone":
+        assert page.get_by_role("button", name=f"Reply to {bot.name} message").bounding_box()["height"] >= 44
+        assert page.locator("#reply-composer-clear").bounding_box()["height"] >= 44
+    page.screenshot(path=str(out / f"preview-{size}.png"), full_page=True, animations="disabled")
+    page.reload(wait_until="domcontentloaded")
+    preview = page.locator("#reply-composer")
+    preview.wait_for(state="visible")
+    assert page.locator("#chat-prompt").input_value() == "Can you explain that result?"
+    page.locator("#reply-composer-clear").focus()
+    page.keyboard.press("Enter")
+    assert preview.is_hidden()
+    assert page.locator("#chat-prompt").evaluate("el => el === document.activeElement")
+    reply.click()
+    preview.wait_for(state="visible")
+    with page.expect_response(lambda response: response.request.method == "POST" and response.url.endswith("/messages")) as sent:
+        page.locator("#chat-send").click()
+    assert sent.value.status == 201, sent.value.text()
+    page.wait_for_function("""async ({conversationId, sourceId}) => {
+      const r = await fetch(`/api/v1/conversations/${conversationId}?after=0&limit=100`);
+      if (!r.ok) return false;
+      const page = await r.json();
+      return page.messages.some(message => message.role === 'user'
+        && message.content === 'Can you explain that result?'
+        && message.reply_to_message_id === sourceId);
+    }""", arg={"conversationId": conversation["id"], "sourceId": "reply-fixture-answer"})
+    assert preview.is_hidden()
+    anchored = page.locator(".reply-reference-quote")
+    anchored.wait_for(state="visible")
+    assert "The migration finished successfully" in anchored.inner_text()
+    assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+    assert not errors
+    page.screenshot(path=str(out / f"sent-{size}.png"), full_page=True, animations="disabled")
+    (out / f"{size}.json").write_text(json.dumps({
+        "test": "tests/e2e/test_browser.py::test_bot_message_reply_is_keyboard_accessible_editable_and_persisted",
+        "captured_at": datetime.now(timezone.utc).isoformat(), "browser": browser.browser_type.name,
+        "version": browser.version, "playwright": package_version("playwright"), "viewport": [width, height],
+        "scenario": "Synthetic same-chat assistant reply; keyboard select/remove, composer preview, and persisted anchored send; no model/provider call",
+        "page_errors": errors, "horizontal_overflow": page.evaluate("document.documentElement.scrollWidth - innerWidth"),
+        "keyboard_focus_restored": True, "draft_reference_restored_after_reload": True,
+        "reply_target": "reply-fixture-answer",
+        "source_sha256": {p: hashlib.sha256((out.parents[3] / p).read_bytes()).hexdigest() for p in (
+            "src/hutch/server/static/app.js", "src/hutch/server/static/style.css", "src/hutch/server/app.py", "src/hutch/store.py")},
+    }, indent=2) + "\n")
+    context.tracing.stop(path=str(out / f"{size}-trace.zip"))
+    context.close()

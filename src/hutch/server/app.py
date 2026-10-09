@@ -186,6 +186,7 @@ class ConversationMessageRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=20_000)
     rehearse: bool = False
     model: Optional[str] = None
+    reply_to_message_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
 
 
 class ConversationArchiveRequest(BaseModel):
@@ -242,6 +243,10 @@ class ConversationMessageResource(BaseModel):
     role: str
     content: str
     created_at: str
+    reply_to_message_id: Optional[str] = None
+    reply_to_role: Optional[str] = None
+    reply_to_excerpt: Optional[str] = None
+    content_truncated: bool = False
 
 
 class ConversationDetail(ConversationResource):
@@ -274,6 +279,7 @@ class ConversationExportMessage(BaseModel):
     role: str
     content: str
     created_at: str
+    reply_to_message_id: Optional[str] = None
 
 
 class ConversationExportResource(BaseModel):
@@ -1148,6 +1154,15 @@ def create_app() -> FastAPI:
         return {**conversation, "messages": messages, "last_seq": store.conversation_last_seq(conversation_id),
                 "has_more": has_more}
 
+    @app.get("/api/v1/conversations/{conversation_id}/messages/{message_id}",
+             response_model=ConversationMessageResource)
+    def get_conversation_message(conversation_id: str, message_id: str) -> dict:
+        message = store.get_conversation_message(conversation_id, message_id)
+        if message is None:
+            # Keep absent and cross-conversation message IDs indistinguishable.
+            raise HTTPException(404, "no such Bot message in this conversation")
+        return message
+
     @app.get("/api/v1/search/messages", response_model=list[ConversationSearchResult])
     def search_messages(q: str, bot: Optional[str] = None, limit: int = 20) -> list[dict]:
         if not q.strip() or len(q) > 256:
@@ -1174,13 +1189,17 @@ def create_app() -> FastAPI:
         except ModelNotUsable as exc:
             raise HTTPException(exc.status, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
         key = idempotency_key(request)
-        digest = request_digest({"conversation_id": conversation_id, **body.model_dump()})
+        request_body = body.model_dump(exclude={"reply_to_message_id"})
+        if body.reply_to_message_id is not None:
+            request_body["reply_to_message_id"] = body.reply_to_message_id
+        digest = request_digest({"conversation_id": conversation_id, **request_body})
         run = Run(bot_id=bot.id, prompt=body.prompt, origin="manual:api", rehearsal=body.rehearse,
                   model_override="" if model == bot.model else model)
         task = Task(bot_id=bot.id, kind="on_demand", prompt=body.prompt)
         try:
             run_id, created = store.submit_conversation_message(
-                conversation_id, body.prompt, run, task, idem_key=key, request_hash=digest)
+                conversation_id, body.prompt, run, task, idem_key=key, request_hash=digest,
+                reply_to_message_id=body.reply_to_message_id)
         except IdempotencyConflict as exc:
             raise HTTPException(409, str(exc)) from None
         except KeyError:

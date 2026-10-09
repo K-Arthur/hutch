@@ -1,5 +1,16 @@
 # Visual validation record
 
+## Message-anchored replies (2026-10-09)
+
+Chromium **153.0.8010.12** with Playwright **1.63.0** exercised selecting a specific Bot response by keyboard, checking focus moves
+to the composer, retaining the unsent draft and reference across reload, removing the reference by keyboard, and sending a reply whose
+message record points to the selected assistant message. The same journey passed at desktop 1440×1000, tablet 900×1024 and touch
+phone 390×844; there were no page errors or horizontal overflow. On the touch phone, both the “Reply to this” and “Remove” controls
+measure at least 44px high. I inspected the preview and sent-reply captures on all three sizes; the quoted source remains visually
+distinct inside the user's message and the composer reference fits the narrow viewport. Screens, traces, source hashes and run records
+are in [`artifacts/message-replies/`](artifacts/message-replies/). This is a synthetic local conversation with no provider call, and
+does not constitute screen-reader or physical-device validation.
+
 ## Scoped conversation export (2026-10-08)
 
 The Studio composer menu opens an export-scope dialog before downloading the JSON. The dialog explains included message provenance,
