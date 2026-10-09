@@ -2527,3 +2527,31 @@ then passed **1 test in 2.35s**; `node --check src/hutch/server/static/app.js` a
 The full browser suite was not repeated after this targeted fix; the prior run had 101 passes and this final focused rerun covers its
 sole failing journey. The journey uses local account/calendar fixtures and intercepted sign-in, with no Microsoft account, consent,
 or live Graph request.
+
+
+## Final browser-file pass after naming and provider UI alignment (2026-10-09)
+
+Follow-up commits: `47e5f38` (human-facing display-name selectors), `f8c71f0` (preserve expanded Outlook Calendar/Mail access panels),
+`2675934` (Mail grant visibility), and `4b0dc81` (wait for the new grant toast among stacked notices).
+
+The 102-case `tests/e2e/test_browser.py` suite now passes cleanly: **102 passed in 263.26s**, with no failures or teardown errors.
+It exercises the professional purpose-derived Bot naming flow, all directly affected responsive settings and replay cases, the full
+Outlook Calendar/Mail account grant journeys, dynamic sensitive-field handoffs, and other local-fixture browser acceptance journeys.
+The final run refreshed the tracked responsive screenshots, traces and JSON/source-hash records under `artifacts/`; the naming,
+calendar and mail captures were inspected at desktop, tablet and phone sizes. `node --check src/hutch/server/static/app.js`,
+`python -m compileall -q src/hutch` and `git diff --check` passed in the associated focused slices. No live provider credentials,
+account consent, paid call, or external request was used. This is not the entire Python test suite, the anonymous marketing site suite,
+or the final performance gate.
+
+## Use Bot display names throughout provider access (2026-10-09)
+
+The Connections page now resolves each provider grant's stable Bot ID against the current Bot list and displays the editable human-facing
+name in Google Calendar, Outlook Calendar and Outlook Mail selectors, grant rows, orphan-grant rows, and replace/revoke/disconnect
+confirmations. Internal addresses remain unchanged for API targeting. The provider browser journeys assert that a display name is shown
+where access is selected and summarized, and that its machine address is absent from the saved grant summary; the Outlook Mail journey
+also checks the disconnect confirmation. The focused command
+`uv run pytest -q tests/e2e/test_browser.py -k 'google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone or outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewports or outlook_mail_grant_and_consent_boundary_fit_all_viewports' --no-header`
+passed **3 tests, 99 deselected, in 6.15s** on Chromium **153.0.8010.12**. `node --check src/hutch/server/static/app.js` and
+`git diff --check` passed. No provider credentials, consent, or external requests were used. Updated responsive captures and source hashes
+are under [`artifacts/google-calendar/`](artifacts/google-calendar/), [`artifacts/outlook-calendar/`](artifacts/outlook-calendar/), and
+[`artifacts/outlook-mail/`](artifacts/outlook-mail/).

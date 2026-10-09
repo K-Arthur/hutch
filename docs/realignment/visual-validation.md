@@ -786,3 +786,30 @@ Gmail permission and has no dead Connect button. The new fixture-only Chromium t
 **1440×960**, tablet **900×1024** and phone **390×844**, with no external requests, page errors or horizontal overflow. I inspected each
 responsive capture; evidence and hashes are under [`artifacts/gmail-availability/`](artifacts/gmail-availability/). No OAuth client,
 Gmail account, live provider request, screen reader or physical phone was used.
+
+## Final browser journeys and naming review (2026-10-09)
+
+The complete `tests/e2e/test_browser.py` file passed **102 tests in 263.26s** on Chromium **153.0.8010.12** / Playwright
+**1.63.0**. This includes responsive bot setup, purpose-derived names and stable editable addresses; workspace conversations and
+coordinator handoff; sensitive fields revealed by clicks, typing and waits; human checkpoints; provider grants; and approval, artifact,
+memory, reply, and replay journeys. The entire browser suite reported no failures or fixture teardown errors. The tests use local
+SQLite, synthetic pages, and provider fixtures; no hosted model, paid provider, Microsoft account or live external request was used.
+
+I inspected the fresh naming screenshots at desktop **1440×960**, tablet **900×1024**, and phone **390×844**, including the editable
+name/address and final review. I also inspected the granted Outlook Calendar and Mail panels at each viewport after Connections began
+preserving their open state across refreshes. The Bot suggestion reads as a human-facing role, the stable address remains editable,
+and both permission summaries remain visible after a grant. Updated screenshots, traces and per-journey source hashes are in
+[`artifacts/bot-naming-quality/`](artifacts/bot-naming-quality/), [`artifacts/outlook-calendar/`](artifacts/outlook-calendar/), and
+[`artifacts/outlook-mail/`](artifacts/outlook-mail/). These are fixture-based visual checks, not live provider, screen-reader or
+physical-device validation.
+
+## Human-facing Bot names in provider access (2026-10-09)
+
+The three fixture journeys for Google Calendar, Outlook Calendar, and Outlook Mail passed after Connections was updated to resolve
+grant records to the current Bot display name. The tests check the chosen name in both the Bot selector and saved grant summary, and
+the Outlook Mail disconnect dialog keeps the same name. The internal Bot address remains stable for routing. I inspected the refreshed
+granted screenshots at desktop **1440×960**, tablet **900×1024**, and phone **390×844**; all three journeys reported zero horizontal
+overflow, and their provider summaries show the readable Bot name without the internal slug. Evidence and current app source hashes are
+under [`artifacts/google-calendar/`](artifacts/google-calendar/), [`artifacts/outlook-calendar/`](artifacts/outlook-calendar/), and
+[`artifacts/outlook-mail/`](artifacts/outlook-mail/). These are fixture-only flows; no provider credentials or live provider requests
+were used.

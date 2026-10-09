@@ -637,7 +637,7 @@ def test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone(browser
             return f"http://127.0.0.1:{port}/api/v1/connections/google-calendar/callback"
 
     monkeypatch.setattr("hutch.google_calendar.GoogleCalendarBook", FixtureGoogleCalendarBook)
-    bot = Bot(name="calendar-assistant", model="mock/demo", tools=[])
+    bot = Bot(name="calendar-assistant", display_name="Calendar Assistant", model="mock/demo", tools=[])
     app.state.store.create_bot(bot)
     page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page.add_init_script("""
@@ -670,6 +670,12 @@ def test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone(browser
         assert grant_button.is_enabled()
         grant_button.click()
         page.get_by_text("Can read Personal Calendar", exact=False).wait_for()
+        account_card = page.locator('[data-google-calendar-account="gcal_0123456789abcdef01234567"]')
+        bot_selector = account_card.locator("[data-google-calendar-bot]")
+        assert bot_selector.locator("option:checked").inner_text() == "Calendar Assistant"
+        grant_summary = account_card.locator(".google-calendar-grants .device-row")
+        assert "Calendar Assistant" in grant_summary.inner_text()
+        assert "calendar-assistant" not in grant_summary.inner_text()
         assert page.get_by_text("retained in this Bot's run history", exact=False).is_visible()
         assert page.get_by_text("read-only at the account level", exact=False).is_visible()
         page.get_by_role("button", name="Dismiss notification").click()
@@ -1035,6 +1041,12 @@ def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewport
         if not calendar_details.evaluate("element => element.open"):
             calendar_details.locator("summary").click()
         card.get_by_text("Can read Work Calendar", exact=False).wait_for(state="visible")
+        account_card = page.locator('[data-outlook-calendar-account="mscal_0123456789abcdef01234567"]')
+        bot_selector = account_card.locator("[data-outlook-calendar-bot]")
+        assert bot_selector.locator("option:checked").inner_text() == "Meeting Planner"
+        grant_summary = account_card.locator(".google-calendar-grants .device-row")
+        assert "Meeting Planner" in grant_summary.inner_text()
+        assert "calendar-planner" not in grant_summary.inner_text()
         assert page.get_by_text("Calendars.ReadBasic account consent", exact=False).is_visible()
         while page.locator(".toast").count():
             page.locator(".toast-close").first.click()
@@ -1165,6 +1177,17 @@ def test_outlook_mail_grant_and_consent_boundary_fit_all_viewports(browser, live
         if not mail_details.evaluate("element => element.open"):
             mail_details.locator("summary").click()
         card.get_by_text("Can search message previews", exact=False).wait_for(state="visible")
+        account_card = page.locator('[data-outlook-mail-account="msmail_0123456789abcdef01234567"]')
+        bot_selector = account_card.locator("[data-outlook-mail-bot]")
+        assert bot_selector.locator("option:checked").inner_text() == "Mail Assistant"
+        grant_summary = account_card.locator(".google-calendar-grants .device-row")
+        assert "Mail Assistant" in grant_summary.inner_text()
+        assert "mail-assistant" not in grant_summary.inner_text()
+        account_card.locator("[data-outlook-mail-disconnect]").click()
+        disconnect_dialog = page.get_by_role("dialog", name="Disconnect Outlook Mail")
+        assert "Mail Assistant" in disconnect_dialog.inner_text()
+        assert "mail-assistant" not in disconnect_dialog.inner_text()
+        disconnect_dialog.get_by_role("button", name="Cancel").click()
         page.get_by_text("Matching previews are sent to that Bot's selected model", exact=False).wait_for()
         while page.locator(".toast").count():
             page.locator(".toast-close").first.click()

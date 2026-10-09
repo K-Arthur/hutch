@@ -1,6 +1,6 @@
 {
   "test": "tests/e2e/test_browser.py::test_outlook_mail_grant_and_consent_boundary_fit_all_viewports",
-  "captured_at": "2026-10-09T17:18:15.927343+00:00",
+  "captured_at": "2026-10-09T18:30:34.051173+00:00",
   "browser": "153.0.8010.12",
   "playwright_version": "1.63.0",
   "provider_credentials_used": false,
@@ -47,7 +47,7 @@
     }
   ],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "89c56bd9edf9e8db4d29f583c09f3332a5b2fdf50c713197efe9e6695d488dba",
+    "src/hutch/server/static/app.js": "c1ce5aca051aa139d8719c9010b3ab3f9202d45844fe73a39ede37f54cafe93f",
     "src/hutch/server/static/style.css": "cab7f95dffbbf7a1c15dfdc1b019ab56d8f56c9d90d111f865b8ce12832268f1",
     "src/hutch/server/app.py": "31c7a1f1a801c595518269121277f179c768b69f44bae3a37d6297525c73026c",
     "src/hutch/server/security.py": "ed5082c5978a21cc9d3cabad394fe034ef89859ebe1ede2d3e70852415749ff5",

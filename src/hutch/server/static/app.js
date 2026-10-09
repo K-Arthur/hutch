@@ -4286,6 +4286,10 @@ async function renderConnections() {
   let bots = [];
   try { bots = await api("/bots"); }
   catch { /* Provider and device controls remain usable if the Bot list is unavailable. */ }
+  const botLabels = new Map(bots.map(bot => [bot.id, bot.display_name || bot.name]));
+  const grantedBotLabel = grant => grant
+    ? (botLabels.get(grant.bot_id) || grant.bot_display_name || grant.bot_name || "this Bot")
+    : "this Bot";
   let devices = [];
   let devicesError = "";
   try { devices = await api("/v1/devices"); }
@@ -4303,7 +4307,7 @@ async function renderConnections() {
   const googleCalendarAccountsHtml = (googleCalendar.accounts || []).map(account => {
     const grants = (googleCalendar.grants || []).filter(grant => grant.account_id === account.id);
     const grantRows = grants.length ? grants.map(grant => `
-      <div class="device-row"><div><strong>${esc(grant.bot_name)}</strong><p class="hint">Can read ${esc(grant.calendar_name)} · ${esc(account.label)}</p></div>
+      <div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Can read ${esc(grant.calendar_name)} · ${esc(account.label)}</p></div>
         <button class="btn ghost small" type="button" data-google-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")
       : '<p class="hint">No Bot has access to this account.</p>';
     return `<article class="google-calendar-account" data-google-calendar-account="${esc(account.id)}">
@@ -4315,7 +4319,7 @@ async function renderConnections() {
       <div class="google-calendar-grant-form" data-google-calendar-grant-form="${esc(account.id)}">
         <label class="field">Grant one calendar to a Bot
           <select data-google-calendar-bot ${bots.length ? "" : "disabled"} aria-label="Bot for Google Calendar access">
-            ${bots.length ? bots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.name)}</option>`).join("") : '<option value="">Create a Bot first</option>'}
+            ${bots.length ? bots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("") : '<option value="">Create a Bot first</option>'}
           </select>
         </label>
         <button class="btn ghost small" type="button" data-google-calendar-load-calendars="${esc(account.id)}" ${bots.length ? "" : "disabled"}>Load calendars</button>
@@ -4332,7 +4336,7 @@ async function renderConnections() {
   const outlookCalendarAccountsHtml = (outlookCalendar.accounts || []).map(account => {
     const grants = (outlookCalendar.grants || []).filter(grant => grant.account_id === account.id);
     const grantRows = grants.length ? grants.map(grant => `
-      <div class="device-row"><div><strong>${esc(grant.bot_name)}</strong><p class="hint">Can read ${esc(grant.calendar_name)} · ${esc(account.label)}</p></div>
+      <div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Can read ${esc(grant.calendar_name)} · ${esc(account.label)}</p></div>
         <button class="btn ghost small" type="button" data-outlook-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")
       : '<p class="hint">No Bot has access to this account.</p>';
     return `<article class="google-calendar-account" data-outlook-calendar-account="${esc(account.id)}">
@@ -4361,7 +4365,7 @@ async function renderConnections() {
   const outlookMailAccountsHtml = (outlookMail.accounts || []).map(account => {
     const grants = (outlookMail.grants || []).filter(grant => grant.account_id === account.id);
     const grantRows = grants.length ? grants.map(grant => `
-      <div class="device-row"><div><strong>${esc(grant.bot_name)}</strong><p class="hint">Can search message previews · ${esc(account.label)}</p></div>
+      <div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Can search message previews · ${esc(account.label)}</p></div>
         <button class="btn ghost small" type="button" data-outlook-mail-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")
       : '<p class="hint">No Bot has access to this account.</p>';
     return `<article class="google-calendar-account" data-outlook-mail-account="${esc(account.id)}">
@@ -4421,7 +4425,7 @@ async function renderConnections() {
           <p class="hint" id="google-calendar-label-help">This label stays on this Hutch. Sign-in must start on the Hutch host at <code>127.0.0.1</code>; pair the phone after connecting here.</p>
         </div>
         ${googleCalendarAccountsHtml || '<p class="hint">No Google Calendar accounts connected.</p>'}
-        ${orphanCalendarGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanCalendarGrants.map(grant => `<div class="device-row"><div><strong>${esc(grant.bot_name)}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-google-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
+        ${orphanCalendarGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanCalendarGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-google-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
       </section>
       <section class="panel conn-card" id="gmail-unavailable" aria-labelledby="gmail-unavailable-title">
         <div class="bot-head"><span class="bot-name" id="gmail-unavailable-title">Gmail</span>
@@ -4447,7 +4451,7 @@ async function renderConnections() {
             <p class="hint" id="outlook-calendar-label-help">Choose supported account types in the Microsoft registration for the accounts you want (organization, personal, or both); the <code>common</code> authority cannot expand that choice. Add <code>http://localhost/api/v1/connections/outlook-calendar/callback</code> under Mobile and desktop application redirects. Sign in from this Hutch host.</p>
           </div>
           ${outlookCalendarAccountsHtml || '<p class="hint">No Outlook Calendar accounts connected.</p>'}
-          ${orphanOutlookGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookGrants.map(grant => `<div class="device-row"><div><strong>${esc(grant.bot_name)}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-outlook-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
+          ${orphanOutlookGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-outlook-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
         </details>
       </section>
       <section class="panel conn-card outlook-calendar-card outlook-mail-card" aria-labelledby="outlook-mail-title">
@@ -4467,7 +4471,7 @@ async function renderConnections() {
             <p class="hint" id="outlook-mail-label-help">Use a Microsoft registration that supports the accounts you want. Add <code>http://localhost/api/v1/connections/outlook-mail/callback</code> under Mobile and desktop application redirects. Mail consent is separate from calendar consent.</p>
           </div>
           ${outlookMailAccountsHtml || '<p class="hint">No Outlook Mail accounts connected.</p>'}
-          ${orphanOutlookMailGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookMailGrants.map(grant => `<div class="device-row"><div><strong>${esc(grant.bot_name)}</strong><p class="hint">Outlook Mail access</p></div><button class="btn ghost small" data-outlook-mail-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
+          ${orphanOutlookMailGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookMailGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Outlook Mail access</p></div><button class="btn ghost small" data-outlook-mail-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
         </details>
       </section>
       <details class="device-manager">
@@ -4635,7 +4639,7 @@ async function renderConnections() {
       const calendar = $("[data-google-calendar-calendar]", form).value;
       const status = $("[data-google-calendar-status]", form);
       const existing = (googleCalendar.grants || []).find(grant => grant.bot_id === bot);
-      if (existing && !(await confirmDialog({ title: "Replace calendar access", body: `<b>${esc(existing.bot_name)}</b> already has access to <b>${esc(existing.calendar_name)}</b>. Replace that grant with the selected calendar?`, confirmText: "Replace grant" }))) return;
+      if (existing && !(await confirmDialog({ title: "Replace calendar access", body: `<b>${esc(grantedBotLabel(existing))}</b> already has access to <b>${esc(existing.calendar_name)}</b>. Replace that grant with the selected calendar?`, confirmText: "Replace grant" }))) return;
       button.disabled = true;
       status.textContent = "Verifying the selected calendar with Google…";
       try {
@@ -4649,7 +4653,7 @@ async function renderConnections() {
   $$('[data-google-calendar-ungrant]').forEach(button => {
     button.addEventListener("click", async () => {
       const grant = (googleCalendar.grants || []).find(row => row.bot_id === button.dataset.googleCalendarUngrant);
-      if (!(await confirmDialog({ title: "Revoke Bot calendar access", body: `Stop <b>${esc(grant?.bot_name || "this Bot")}</b> from reading the granted Google Calendar?`, confirmText: "Revoke access" }))) return;
+      if (!(await confirmDialog({ title: "Revoke Bot calendar access", body: `Stop <b>${esc(grantedBotLabel(grant))}</b> from reading the granted Google Calendar?`, confirmText: "Revoke access" }))) return;
       button.disabled = true;
       try {
         await api(`/v1/connections/google-calendar/grants/${encodeURIComponent(button.dataset.googleCalendarUngrant)}`, { method: "DELETE" });
@@ -4661,7 +4665,7 @@ async function renderConnections() {
   $$('[data-google-calendar-disconnect]').forEach(button => {
     button.addEventListener("click", async () => {
       const account = (googleCalendar.accounts || []).find(row => row.id === button.dataset.googleCalendarDisconnect);
-      const botNames = (googleCalendar.grants || []).filter(row => row.account_id === account?.id).map(row => row.bot_name);
+      const botNames = (googleCalendar.grants || []).filter(row => row.account_id === account?.id).map(grantedBotLabel);
       const detail = botNames.length ? `<p>This also revokes access for ${botNames.map(esc).join(", ")}.</p>` : "";
       if (!(await confirmDialog({ title: "Disconnect Google Calendar", body: `Clear the local refresh credential and request Google revocation?${detail}`, confirmText: "Disconnect", danger: true }))) return;
       button.disabled = true;
@@ -4743,7 +4747,7 @@ async function renderConnections() {
       const existing = (outlookCalendar.grants || []).find(grant => grant.bot_id === bot);
       if (existing && !(await confirmDialog({
         title: "Replace calendar access",
-        body: `<b>${esc(existing.bot_name)}</b> already has access to <b>${esc(existing.calendar_name)}</b>. Replace that grant with the selected Outlook calendar?`,
+        body: `<b>${esc(grantedBotLabel(existing))}</b> already has access to <b>${esc(existing.calendar_name)}</b>. Replace that grant with the selected Outlook calendar?`,
         confirmText: "Replace grant",
       }))) return;
       button.disabled = true;
@@ -4760,7 +4764,7 @@ async function renderConnections() {
     button.addEventListener("click", async () => {
       const grant = (outlookCalendar.grants || []).find(row => row.bot_id === button.dataset.outlookCalendarUngrant);
       if (!(await confirmDialog({ title: "Revoke Bot calendar access",
-        body: `Stop <b>${esc(grant?.bot_name || "this Bot")}</b> from reading the granted Outlook Calendar?`,
+        body: `Stop <b>${esc(grantedBotLabel(grant))}</b> from reading the granted Outlook Calendar?`,
         confirmText: "Revoke access" }))) return;
       button.disabled = true;
       try {
@@ -4773,7 +4777,7 @@ async function renderConnections() {
   $$('[data-outlook-calendar-disconnect]').forEach(button => {
     button.addEventListener("click", async () => {
       const account = (outlookCalendar.accounts || []).find(row => row.id === button.dataset.outlookCalendarDisconnect);
-      const botNames = (outlookCalendar.grants || []).filter(row => row.account_id === account?.id).map(row => row.bot_name);
+      const botNames = (outlookCalendar.grants || []).filter(row => row.account_id === account?.id).map(grantedBotLabel);
       const grants = botNames.length ? `<p>This also removes Hutch calendar access for ${botNames.map(esc).join(", ")}.</p>` : "";
       if (!(await confirmDialog({ title: "Disconnect Outlook Calendar",
         body: `Clear Hutch's local refresh credential for <b>${esc(account?.label || "this account")}</b>? Microsoft consent is not revoked by Hutch; you must revoke it separately in your Microsoft account or organisation settings.${grants}`,
@@ -4827,7 +4831,7 @@ async function renderConnections() {
       const existing = (outlookMail.grants || []).find(grant => grant.bot_id === bot);
       if (existing && existing.account_id !== button.dataset.outlookMailGrant && !(await confirmDialog({
         title: "Replace Outlook Mail access",
-        body: `<b>${esc(existing.bot_name)}</b> already has access to another mailbox. Replace that grant with this Outlook account?`,
+        body: `<b>${esc(grantedBotLabel(existing))}</b> already has access to another mailbox. Replace that grant with this Outlook account?`,
         confirmText: "Replace grant",
       }))) return;
       button.disabled = true;
@@ -4844,7 +4848,7 @@ async function renderConnections() {
     button.addEventListener("click", async () => {
       const grant = (outlookMail.grants || []).find(row => row.bot_id === button.dataset.outlookMailUngrant);
       if (!(await confirmDialog({ title: "Revoke Bot Outlook Mail access",
-        body: `Stop <b>${esc(grant?.bot_name || "this Bot")}</b> from searching the granted Outlook mailbox?`,
+        body: `Stop <b>${esc(grantedBotLabel(grant))}</b> from searching the granted Outlook mailbox?`,
         confirmText: "Revoke access" }))) return;
       button.disabled = true;
       try {
@@ -4857,7 +4861,7 @@ async function renderConnections() {
   $$('[data-outlook-mail-disconnect]').forEach(button => {
     button.addEventListener("click", async () => {
       const account = (outlookMail.accounts || []).find(row => row.id === button.dataset.outlookMailDisconnect);
-      const botNames = (outlookMail.grants || []).filter(row => row.account_id === account?.id).map(row => row.bot_name);
+      const botNames = (outlookMail.grants || []).filter(row => row.account_id === account?.id).map(grantedBotLabel);
       const grants = botNames.length ? `<p>This also removes Hutch mail access for ${botNames.map(esc).join(", ")}.</p>` : "";
       if (!(await confirmDialog({ title: "Disconnect Outlook Mail",
         body: `Clear Hutch's local refresh credential for <b>${esc(account?.label || "this account")}</b>? Microsoft consent is not revoked by Hutch; revoke it separately in your Microsoft account or organisation settings.${grants}`,
