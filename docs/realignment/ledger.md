@@ -2481,6 +2481,21 @@ model or provider account. The separate OpenCode/Pi execution adapters remain de
 budget and recovery guarantees are enforced.
 
 
+## Bot display-name browser journey selectors (2026-10-09)
+
+Test-alignment commit: `47e5f38`.
+
+A full `tests/e2e/test_browser.py` run after purpose-derived display names were introduced completed with **89 passed, 13 failed,
+5 errors**. The failing UI journeys had not followed the product's human-facing identity contract: they expected slug text such as
+`workspace-helper settings`, `draft-a`, and `local-handoff settings`, even though the UI correctly presents “Workspace Helper,”
+“Draft A,” and “Local Handoff.” The Outlook Calendar test also selected both the Calendar and Mail card because those surfaces share
+a styling class. Test selectors now use the human-facing names and Outlook Calendar's explicit accessible region.
+
+Reran the previously affected Outlook Calendar, small-workspace navigation, four workspace-mode sizes, three browser-handoff setting
+sizes, Bot/conversation draft switching, and three resource-replay sizes: **13 passed in 80.36s**. No account/provider call was made.
+This focused recovery confirms the affected cases; the full browser file still needs a rerun before the browser-suite gate can pass.
+
+
 ## S7 Sensitive browser fields revealed during a run (2026-10-09)
 
 Implementation commit: `7b5f42e`.
