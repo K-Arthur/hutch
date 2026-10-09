@@ -1244,3 +1244,17 @@ post-merge source boundary passed **83 tests in 206.27s**, and the final anonymo
 their capture and source details remain in the preceding visual checkpoint. These are distinct invocations, not one combined suite.
 No Pi process, live model, paid provider, physical device, or remote deployment was used. This closes the latest integrated offline
 regression pass, not the remaining S5-S9 capability and live-verification gates.
+
+## Dashboard style and design-sidecar follow-up (2026-10-09)
+
+Commit `49e6976` removes the 2px transcript tool-row rail and stops animating progress-meter width. Labels, indentation and status
+text remain intact. `.impeccable/design.json` now reflects the current `DESIGN.md` tokens and narrative; the human-authored guide was
+left unchanged. The hook's website and active-run-dot findings were already covered by narrow, evidence-backed ignores in the
+worktree config. They resurfaced because the root stop hook scanned nested `.worktrees/realign/...` files without loading that
+worktree's config; no broader ignore was added.
+
+The focused dashboard/view tests passed **39 tests**. Firefox 155.0 fixture captures at desktop, tablet and phone widths showed the
+actual stylesheet with a 0px tool-row rail, retained 10px inset, no meter transition, exact 72% fill and no horizontal overflow or
+page errors. Captures and trace are in `artifacts/ui-style-review/`; reproduction details are in `visual-validation.md`. The fixture
+is synthetic and does not represent a live run. JSON/sidecar consistency, Python compilation, the targeted Impeccable scan and
+`git diff --check` passed.
