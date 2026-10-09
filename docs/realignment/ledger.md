@@ -89,6 +89,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `85cdf83` | Record the S6 descendant-cancellation checkpoint in the continuation ledger |
 | `690d3ca` | Keep persisted delegated runs pending until a dedicated executor can enforce their permissions and workspace boundary |
 | `6db26ff` | Record the S6 fail-closed dispatcher checkpoint in the continuation ledger |
+| `b21ec5d` | Force internal lineage runs into a private per-run workspace and fail closed on symlinks |
 
 ## Dashboard polish continuation (2026-10-09)
 
