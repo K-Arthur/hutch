@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import socket
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
 from urllib.parse import urlsplit
@@ -14,6 +15,7 @@ from urllib.parse import urlsplit
 import pytest
 
 pytest.importorskip("playwright.sync_api")
+from playwright.sync_api import Error as PlaywrightError, sync_playwright  # noqa: E402
 
 from hutch.models import Bot  # noqa: E402
 from hutch.tools.browser import BrowserTool  # noqa: E402
@@ -135,6 +137,105 @@ def test_chromium_does_not_implicitly_bypass_proxy_for_a_loopback_url(config):
         origin.server_close()
         thread.join(timeout=2)
         assert not thread.is_alive()
+
+
+def test_chromium_webrtc_does_not_send_unproxied_udp(config):
+    """A local STUN fixture proves the configured Chromium policy has no UDP bypass."""
+    received = []
+    stop = threading.Event()
+    stun = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    stun.bind(("127.0.0.1", 0))
+    stun.settimeout(0.1)
+    port = stun.getsockname()[1]
+
+    def receive():
+        while not stop.is_set():
+            try:
+                packet, peer = stun.recvfrom(4096)
+            except socket.timeout:
+                continue
+            except OSError:
+                return
+            received.append((packet, peer))
+
+    thread = threading.Thread(target=receive, name="hutch-local-stun-fixture", daemon=True)
+    thread.start()
+    events = []
+    tool = None
+    try:
+        # Negative control: without Hutch's policy, Chromium sends a STUN request directly to the fixture.
+        with sync_playwright() as playwright:
+            baseline = playwright.chromium.launch(headless=True)
+            try:
+                baseline_page = baseline.new_page()
+                _gather_ice_candidates(baseline_page, port)
+                deadline = time.monotonic() + 2
+                while not received and time.monotonic() < deadline:
+                    time.sleep(0.01)
+            finally:
+                baseline.close()
+        assert received, "the local STUN fixture did not observe the direct-browser negative control"
+        received.clear()
+
+        tool, browser, _ctx = _launch_tool(config, "pinned-browser-webrtc", None, None, events)
+        page = browser.pages[0]
+        result = _gather_ice_candidates(page, port)
+        assert result == "complete"
+        assert not received, f"Chromium sent {len(received)} direct UDP datagram(s) to the local STUN fixture"
+    finally:
+        if tool is not None:
+            tool._teardown()
+        stop.set()
+        stun.close()
+        thread.join(timeout=2)
+        assert not thread.is_alive()
+
+
+def test_chromium_does_not_expose_a_local_file_after_an_http_redirect(config, tmp_path):
+    marker = "hutch-local-file-redirect-must-not-be-readable"
+    local_file = tmp_path / "private-fixture.txt"
+    local_file.write_text(marker, encoding="utf-8")
+    origin = _OriginServer()
+    origin.redirect_target = local_file.as_uri()
+    thread = threading.Thread(target=origin.serve_forever, name="hutch-browser-file-redirect", daemon=True)
+    thread.start()
+    events = []
+    resolver = _public_resolver(lambda _host, _port: ["93.184.216.34"], [])
+    connector = lambda _address, _port, timeout: socket.create_connection(origin.server_address, timeout=timeout)
+    tool = None
+    try:
+        tool, browser, _ctx = _launch_tool(config, "pinned-browser-file-redirect", resolver, connector, events)
+        page = browser.pages[0]
+        try:
+            page.goto(f"http://safe.example:{origin.server_address[1]}/redirect",
+                      wait_until="domcontentloaded", timeout=15_000)
+        except PlaywrightError as exc:
+            assert "net::ERR_" in str(exc), str(exc)
+        assert origin.requests == [("/redirect", f"safe.example:{origin.server_address[1]}")]
+        page.wait_for_url("chrome-error://chromewebdata/", timeout=5_000)
+        assert not page.url.startswith("file:")
+        assert marker not in page.content()
+    finally:
+        if tool is not None:
+            tool._teardown()
+        origin.shutdown()
+        origin.server_close()
+        thread.join(timeout=2)
+        assert not thread.is_alive()
+
+
+def _gather_ice_candidates(page, port):
+    return page.evaluate("""async (port) => {
+        const peer = new RTCPeerConnection({iceServers: [{urls: `stun:127.0.0.1:${port}`}]});
+        peer.createDataChannel('egress-check');
+        await peer.setLocalDescription(await peer.createOffer());
+        const deadline = Date.now() + 6000;
+        while (peer.iceGatheringState !== 'complete' && Date.now() < deadline)
+            await new Promise(resolve => setTimeout(resolve, 50));
+        const state = peer.iceGatheringState;
+        peer.close();
+        return state;
+    }""", port)
 
 
 def test_chromium_proxy_rechecks_dns_on_redirect_after_the_early_route_allows_it(config):
