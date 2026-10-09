@@ -27,11 +27,12 @@ only that recovery target; the request requires a usable Hutch model route and n
 does not start either external executor, copy its session or credentials, or change the status of
 the Pi/OpenCode executor row above.
 
-`hutch connections test` can authenticate against a model-list endpoint without spending tokens. For ChatGPT, model
-selection uses the account's non-billable list-visible model catalog only after an explicit selection request.
-It does not confirm tool calling. The opt-in one-token chat probe and persisted per-connection/model
-capability record in ADR-0005 remain unimplemented; model-level tool support stays unknown. Until
-that work lands, a fixture-tested route must not be described as a live model verification.
+`hutch connections test` can authenticate against a model-list endpoint without making a model request. For ChatGPT, model
+selection uses the account's list-visible model catalog only after an explicit selection request. It does not confirm tool
+calling. A standalone chat probe is refused because it bypasses shared usage reservations and durable reconciliation; use a
+normal bot run to test model behavior through Hutch's governed path. The explicit opt-in capability probe and persisted
+per-connection/model record in ADR-0005 remain unimplemented, so model-level tool support stays unknown. A fixture-tested route
+must not be described as a live model verification.
 
 ## Request-field regression
 

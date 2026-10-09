@@ -996,11 +996,14 @@ def conn_ack(name: str = typer.Argument(...), yes: bool = typer.Option(False, "-
 
 @conn_app.command("test")
 def conn_test(name: str = typer.Argument(...),
-              chat: Optional[str] = typer.Option(None, "--chat", help="also send ONE tiny chat to this model "
-                                                                      "(spends a few tokens)")) -> None:
-    """Check the key and endpoint. Spends no tokens unless --chat is given."""
+              chat: Optional[str] = typer.Option(None, "--chat", hidden=True)) -> None:
+    """Check credentials/discovery without making a billable model request."""
+    if chat:
+        err.print("[red]Standalone chat probes are disabled because they bypass shared usage reservations. "
+                  "Use a normal bot run to test model behavior through Hutch's budget and approval controls.[/red]")
+        raise typer.Exit(code=2)
     from .providers.connection import check_connection
-    res = check_connection(_book(), name, chat or "")
+    res = check_connection(_book(), name)
     console.print(("[green]ok[/green] " if res.ok else "[red]failed[/red] ") + res.detail)
     for m in res.models[:40]:
         console.print(f"  {name}/{m}")

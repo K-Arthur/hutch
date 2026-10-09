@@ -238,9 +238,10 @@ OpenAI, Anthropic, Ollama, LM Studio and llama.cpp keep their built-in provider 
 - **Terms** (`CN-6`). Each template carries a notice. A bot cannot use the connection until it is acknowledged,
   and a changed notice requires acknowledging again. A run that hits an unacknowledged connection fails fast
   and tells you the command, or falls back to the next model if the bot has one.
-- **Test** (`CN-8`). `hutch connections test` authenticates against the model list (one `GET`, no tokens).
-  Anthropic-protocol endpoints have no standard list, so the test says "not verified" rather than pretending;
-  `--chat <model>` opts into one real 8-token call.
+- **Test** (`CN-8`). `hutch connections test` authenticates against the model list (one `GET`, no model request).
+  Anthropic-protocol endpoints have no standard list, so the test says "not verified" rather than pretending.
+  A standalone `--chat <model>` probe is refused because it bypasses shared usage reservations and uncertain-charge
+  reconciliation. Run a normal bot request to test model behavior through Hutch's budget and approval controls.
 
 ## Terms: read this before scheduling bots on a plan
 
@@ -314,8 +315,8 @@ CLI harnesses (`pi`, `opencode`) are currently disabled; Hutch does not launch t
   when a rejection identifies a stream/SSE incompatibility. If auth or quota failure leads to a different hosted
   account or destination, Hutch pauses for outward approval before constructing that provider; unresolved usage stays
   reserved until reconciliation.
-- Not tested against live accounts. If a plan's real behaviour differs from its docs, `hutch connections test
-  --chat <model>` is the first diagnostic.
+- Not tested against live accounts. If a plan's real behaviour differs from its docs, use a normal bot run with that
+  connection so the request goes through Hutch's shared usage reservations, approval path and durable receipt handling.
 - Model discovery is the vendor's `GET /models`; context windows are not read from it (the list does not carry
   them), so no window is assumed for hosted models.
 - A connection is **hosted**. A fallback from a local or hosted primary to another account,

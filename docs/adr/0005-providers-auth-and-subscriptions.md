@@ -35,8 +35,10 @@ sends `OPENAI_API_KEY` to whatever URL it is given (baseline lead 5).
 4. **Capabilities are validated, not assumed.** The route matrix is implemented and records protocol-level evidence, but it
    does not validate capabilities for a (connection, model) pair. The current model-list check only authenticates/discovers
    ids; tool-use capability probing, a persisted verification record, and refusal of unknown tool capability are pending.
-   Until those land, model-level tool support must be described as unknown without an opt-in live probe; passing request
-   fixtures are not live model evidence.
+   Until those land, model-level tool support must be described as unknown; passing request fixtures are not live model
+   evidence. Any future live probe must be explicitly opted into, reserve usage through ADR-0011 before the request, bind its
+   result to the exact connection/account/model revision, and reconcile uncertain outcomes. The legacy standalone `--chat`
+   connection test is refused because it bypassed those controls; normal bot runs remain the governed way to test model behavior.
    The ChatGPT plan route is opt-in with `HUTCH_ENABLE_CHATGPT_PLAN=1`; this flag does not establish eligibility.
    Its issuer, audience, nonce and signature are verified; credentials stay under the Hutch state directory with
    owner-only permissions, and an access token is sent only to `https://api.openai.com/v1/responses` or the official

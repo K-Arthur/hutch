@@ -2760,6 +2760,20 @@ The manual target scan found no side-tab pattern. No new ignore was added. See `
 The last public-copy revision also retained route/fallback boundaries and the exact safe-checkpoint eligibility conditions; its two
 anonymous-site tests passed again (**2 tests in 4.27s**) and the refreshed desktop/tablet/phone captures were inspected.
 
+## Remove unreserved chat requests from connection diagnostics (2026-10-09)
+
+The legacy `hutch connections test --chat <model>` option issued a paid model request directly from the connection helper, outside
+the normal shared-account token/currency reservation and uncertain-charge receipt path. A test-first fake-endpoint reproduction
+confirmed the command returned success; source inspection showed it went straight to `provider.chat` without a reservation. The CLI now keeps a hidden compatibility argument only to
+return a clear refusal before network access. The check helper no longer accepts a model-chat parameter or reports untracked
+`spent_tokens`; model-list authentication stays token-free, and endpoints without a model list clearly remain unverified. The docs
+and ADR-0005 direct model behavior checks through a normal Bot run, and reserve future persisted capability probes for the governed
+request and reconciliation path.
+
+`uv run pytest -q tests/test_connections.py tests/test_compat.py tests/test_provider_authority.py tests/test_reservations.py --no-header`
+passed **84 tests in 18.36s**. The additional focused CLI/diagnostic check passed **3 tests in 1.52s**. All requests used local
+fixtures; no provider credential, live model or paid request was used. No visual change was made.
+
 ## External executor gate rechecked (2026-10-09)
 
 Reviewed the installed OpenCode CLI (`v2.0.24`) and current official OpenCode/Pi protocol and security documentation before

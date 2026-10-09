@@ -4,6 +4,10 @@
 
 - Replaced one-sided accents on specialist checkpoint rows and quoted chat replies with subtle full outlines. Legacy Bot cards no longer use colored rails for running or paused state; the visible Fleet keeps its explicit text labels. Reply tests use the professional Bot display name exposed by the interface and assert the quote's balanced border.
 
+## Provider diagnostic budget safety (2026-10-09)
+
+- Standalone `hutch connections test --chat` requests are refused because they bypass shared usage reservations and uncertain-charge reconciliation. Credentials/model-list checks remain token-free; use a normal Bot run for model behavior checks.
+
 ## Scoped fact memory continuation (schema v15, local)
 
 - Replace automatic per-bot fact/system injection with explicitly retrieved, human-reviewed chat facts and bounded FTS5.

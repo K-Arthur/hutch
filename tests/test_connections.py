@@ -421,7 +421,7 @@ def test_testing_a_connection_authenticates_against_the_model_list_and_spends_no
     add_go(book, oai, monkeypatch, key="good-key")
     oai.require_key = "good-key"
     res = check_connection(book, "opencode-go")
-    assert res.ok and res.models == ["fake-model"] and not res.spent_tokens
+    assert res.ok and res.models == ["fake-model"]
     assert [r["path"] for r in oai.requests] == ["/v1/models"], "no chat call may be made by a plain test"
     assert oai.requests[0]["headers"]["authorization"] == "Bearer good-key"
 
@@ -433,11 +433,19 @@ def test_testing_with_a_wrong_key_reports_it(book, oai, monkeypatch):
     assert not res.ok and "key was rejected" in res.detail
 
 
-def test_chat_test_is_opt_in_and_says_it_spent_tokens(book, oai, monkeypatch):
+def test_unreserved_chat_connection_probe_is_refused_without_provider_request(book, oai, monkeypatch):
     add_go(book, oai, monkeypatch)
-    oai.script = lambda b: {"content": "ok", "prompt_tokens": 9, "completion_tokens": 1}
-    res = check_connection(book, "opencode-go", chat_model="glm-5.3")
-    assert res.ok and res.spent_tokens and "10 tokens" in res.detail
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(book.state_dir))
+    help_result = runner.invoke(cli_app, ["connections", "test", "--help"])
+    assert "--chat" not in help_result.output
+
+    result = runner.invoke(cli_app, ["connections", "test", "opencode-go", "--chat", "glm-5.3"])
+
+    message = " ".join(result.output.split())
+    assert result.exit_code == 2
+    assert "shared usage reservations" in message
+    assert "normal bot run" in message
+    assert oai.requests == []
 
 
 def test_anthropic_protocol_connections_are_not_pretend_verified(book, monkeypatch):

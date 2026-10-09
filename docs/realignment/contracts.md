@@ -121,7 +121,9 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   Hutch's request fields, documented omissions, verification boundary, and dated policy/API sources. `supported` means
   Hutch's common request/response contract has recorded tests; it does not certify every provider version, model, tool
   capability, retention policy, quota, or live connection. Per-model tool-use capability records and the opt-in probe are
-  still pending; unknown remains unverified and is called out in the route description.
+  still pending; unknown remains unverified and is called out in the route description. `hutch connections test` only checks
+  authentication/model discovery. Its legacy standalone `--chat` option is refused because that path bypassed the normal
+  shared usage reservation and reconciliation contract; model behavior should be checked through a normal bot run.
 * Conversation create, message submit, and archive require `Idempotency-Key`. Exact retries return the same resource/run; reusing the
   key with different request content returns 409. An absent key returns 428.
 * Studio's composer model picker scopes a pending alternate route to the current conversation. The override is sent as the message's
