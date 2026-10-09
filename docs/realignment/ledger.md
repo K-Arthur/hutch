@@ -113,6 +113,7 @@ fast-forwarded only after implementation and verification for this checkpoint pa
 | `b5227a9` | Record merged PF-2 verification boundary and final offline/browser suite results |
 | `657e9b8` | Record local `main` fast-forward completion without pushing |
 | `264f828` | Add experimental Outlook Calendar with local PKCE, Secret Service token storage, one-calendar-per-Bot grants, bounded read-only Graph access, truthful public availability copy, and inspected responsive app/site evidence; live Microsoft access remains unverified |
+| `63b29bc` | Add schema-v34 safe checkpoint continuation, review/confirmation UI, truthful public copy, regression coverage and inspected desktop/tablet/phone evidence; live model recovery remains unverified |
 
 ## Dashboard polish continuation (2026-10-09)
 
@@ -2256,3 +2257,25 @@ and style hashes and app viewport metadata are recorded under `artifacts/outlook
 `git diff --check`, and Impeccable exact-target scans passed; the app stylesheet scan found **0 anti-patterns** and three advisory
 radius-token notes, not side-tab findings. Fresh offline fixtures do not verify an Entra registration, Microsoft account, consent
 screen, live Graph behavior, physical device or screen reader. Implementation commit: `264f828`.
+
+## S6 Safe checkpoint continuation (schema v34, 2026-10-09)
+
+Commit `63b29bc` adds an immutable link from a new specialist task to the exact prior no-effect attempt and committed checkpoint.
+One failed/stopped built-in task can create at most one fresh linked run, after the owner reviews the brief, constraints and bounded
+assistant checkpoint and confirms. The store rechecks under its write transaction: no tool action or child run exists, there is no
+newer run in that specialist chat or pending typed question, the coordinator chat is active, the Bot is unpaused, and its complete
+model/instruction/tool/limit/runtime capability snapshot is unchanged. External runtimes, missing or oversized checkpoints, and
+`outcome_unknown` remain blocked. The new conversation receives only the reviewed task brief/constraints and the committed
+assistant response as explicitly untrusted progress. It carries no selected facts, previous tool results, old chat history,
+credentials, approvals or receipts. The old worker is not resumed and no prior action is repeated. Idempotency returns the same new
+task on exact retries; changed keys/payloads conflict. Additional model quota may be used.
+
+The Store/API/schema-migration group passed **81 tests in 41.19s**. The responsive continuation, coordinator handoff and anonymous
+workflow browser group passed **3 tests in 22.21s**; after shortening the public workflow copy, its focused anonymous-site rerun
+passed **1 test in 2.74s**. Chromium **153.0.8010.12** / Playwright **1.63.0** covered app desktop **1440×960**, tablet
+**900×1024**, phone **390×844**, and site desktop **1440×900**, tablet **900×1024**, phone **390×844**. I inspected the fresh-run
+confirmation on phone and desktop, completed-task checkpoint status on phone, and shortened public workflow copy on phone and
+desktop. All browser checks reported zero horizontal overflow and page errors; the anonymous site made no external requests.
+Screenshots and traces are in `artifacts/safe-task-continuation/` and the refreshed `artifacts/workspace-task-dispatch/` captures.
+`node --check`, Python compilation and `git diff --check` passed. Fixtures used local SQLite and a mock runtime only; no provider
+call, physical phone or screen-reader check was made. This is no-effect retry support, not process restoration or general recovery.
