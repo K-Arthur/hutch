@@ -42,13 +42,14 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 }
 
 .skip-link {
-  position: fixed; top: -64px; left: var(--space-4); z-index: 300;
+  position: fixed; top: 12px; left: var(--space-4); z-index: 300;
   padding: var(--space-3) var(--space-4);
   background: var(--color-semantic-panel); color: var(--color-semantic-brand);
   border: 1px solid var(--color-semantic-brand); font-weight: 650; font-size: var(--text-size-sm);
-  transition: top var(--motion-dur-fast) var(--motion-ease-standard);
+  transform: translateY(calc(-100% - var(--space-4)));
+  transition: transform var(--motion-dur-fast) var(--motion-ease-standard);
 }
-.skip-link:focus { top: 12px; color: var(--color-semantic-brand-strong); }
+.skip-link:focus { transform: translateY(0); color: var(--color-semantic-brand-strong); }
 
 /* status dots used inside badges */
 .badge { white-space: nowrap; }

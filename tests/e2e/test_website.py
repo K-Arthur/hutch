@@ -239,11 +239,14 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
         assert "earlier user messages you select" in workflow.inner_text().lower()
         assert "hosted providers may retain the text" in workflow.inner_text().lower()
         assert "drafting creates no bot or permission changes" in workflow.inner_text().lower()
+        assert "normal route and fallback limits still apply" in workflow.inner_text().lower()
         assert "live quality is unverified" in workflow.inner_text().lower()
         assert "experimental coordinator handoff" in workflow.inner_text().lower()
         assert "content-free progress timeline" in workflow.inner_text().lower()
         assert "continue only from a safe checkpoint" in workflow.inner_text().lower()
+        assert "no recorded action or child work" in workflow.inner_text().lower()
         assert "starts a fresh run" in workflow.inner_text().lower()
+        assert "reviewed brief, constraints and committed response" in workflow.inner_text().lower()
         assert "attach only the exact specialist reply you choose" in workflow.inner_text().lower()
         assert "as untrusted text" in workflow.inner_text().lower()
         assert "up to eight current, approved coordinator facts for that task alone" in workflow.inner_text().lower()
@@ -290,11 +293,11 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
         assert "make a bot under the request you want to reuse" in text
         assert "latest request" in text
         assert "later messages, assistant replies and other chats stay excluded" in text
-        assert "optional earlier user messages become saved background" in text
+        assert "earlier user messages you select become saved background" in text
         assert "assistant replies and other chats stay excluded" in text
-        assert "professional display name and stable address" in text
+        assert "editable teammate name, clear work role and stable local address" in text
         assert "without an extra model request" in text
-        assert "model route from that bot or your workspace" in text
+        assert "bot or workspace model route" in text
         assert "no tools" in text and "no schedule" in text
         assert "recurring work" in text
         assert "does not start a run" in text
@@ -488,6 +491,16 @@ def test_reveal_watchdog_shows_everything(browser, site_url):
 def test_mobile_drawer_focus_and_ctas(browser, site_url):
     context, page, errors = _page(browser, width=390, height=844)
     page.goto(site_url, wait_until="networkidle")
+    skip_link = page.locator(".skip-link")
+    assert skip_link.evaluate("el => getComputedStyle(el).transitionProperty") == "transform"
+    hidden_skip_box = skip_link.bounding_box()
+    assert hidden_skip_box and hidden_skip_box["y"] + hidden_skip_box["height"] < 0, hidden_skip_box
+    skip_link.focus()
+    page.wait_for_function("document.activeElement?.matches('.skip-link') && document.querySelector('.skip-link').getBoundingClientRect().top >= 0")
+    visible_skip_box = skip_link.bounding_box()
+    assert visible_skip_box and 0 <= visible_skip_box["y"] <= 16, visible_skip_box
+    page.keyboard.press("Enter")
+    assert page.evaluate("location.hash") == "#main"
     assert page.get_attribute("#menu-btn", "aria-expanded") == "false"
     assert page.locator("#menu-btn").is_visible()
     assert not page.locator("#menu-drawer").is_visible()

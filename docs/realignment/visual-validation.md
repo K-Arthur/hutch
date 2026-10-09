@@ -232,6 +232,17 @@ on desktop/tablet and 24/33.6 px on phone. Screens, trace, source hashes and mea
 [`artifacts/dashboard-polish/`](artifacts/dashboard-polish/). I inspected the Studio and Connections captures at all three widths;
 the phone layouts fit, and the status labels remain legible without an animated dot.
 
+The same responsive dashboard pass now injects visual-only success and error banners into the real server-rendered Connections
+page. Both use the same 1px neutral border; the check/alert icon carries the state color, while the text remains readable and the
+existing `status`/`alert` roles remain intact. The refreshed three-size captures show no clipped content or overflow. The anonymous
+marketing workflow was also shortened without removing request provenance, no-run-on-create, approval separation, checkpoint,
+provider-retention or delegated-context boundaries. Its skip link now moves with `transform`; the phone keyboard check focuses it,
+reveals it, and activates the `#main` target.
+
+`uv run pytest -q tests/e2e/test_browser.py::test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable tests/e2e/test_website.py::test_public_workflow_describes_named_recurring_tasks tests/e2e/test_website.py::test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation tests/e2e/test_website.py::test_mobile_drawer_focus_and_ctas --no-header` passed **4 tests in 8.75s**; the final refreshed dashboard-only capture pass also passed **1 test in 4.25s** on Chromium **153.0.8010.12** / Playwright **1.63.0**. I inspected the banner and workflow captures at desktop, tablet and phone sizes; all reported zero page errors and horizontal overflow. The site test made no external requests. Fixtures only; no live provider or physical-device check.
+
+After a final copy pass restored the visible route/fallback and safe-checkpoint conditions, both anonymous public-site journeys passed again (**2 tests in 4.27s**), and I inspected the refreshed workflow captures at all three sizes.
+
 The base-template static detector does not resolve its linked `hutch.css` heading rule and still estimates the browser default line
 height. The existing path-scoped ignore remains, with its reason updated to the new computed measurements; no new ignore was added.
 

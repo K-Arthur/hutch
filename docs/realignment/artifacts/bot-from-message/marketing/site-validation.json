@@ -1,11 +1,11 @@
 {
   "test": "tests/e2e/test_website.py::test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_website.py::test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation",
-  "captured_at": "2026-10-09T19:27:54.509555+00:00",
+  "captured_at": "2026-10-09T21:05:42.822955+00:00",
   "python": "3.13.15",
   "browser": "153.0.8010.12",
   "playwright_version": "1.63.0",
-  "index_sha256": "6ee9570a1e297a904563a0d3c8ad49b06668570f77664496f9f1e91b33ad5206",
+  "index_sha256": "ce5607fd4003fd8817301f220899c305b854aa5320d06e2c8571a96291ace858",
   "captures": [
     {
       "size": "desktop",
@@ -15,9 +15,9 @@
       ],
       "card": {
         "x": 164,
-        "y": 80.90625,
+        "y": 69.90625,
         "width": 354.65625,
-        "height": 739.109375
+        "height": 759.90625
       },
       "overflow": 0
     },
@@ -29,7 +29,7 @@
       ],
       "model_card": {
         "x": 164,
-        "y": 271.6875,
+        "y": 271.484375,
         "width": 354.65625,
         "height": 357.5
       },
@@ -43,9 +43,9 @@
       ],
       "card": {
         "x": 24,
-        "y": 393.25,
+        "y": 358.25,
         "width": 852,
-        "height": 236.78125
+        "height": 307.171875
       },
       "overflow": 0
     },
@@ -57,7 +57,7 @@
       ],
       "model_card": {
         "x": 24,
-        "y": 389.421875,
+        "y": 389.21875,
         "width": 414,
         "height": 245
       },
@@ -71,9 +71,9 @@
       ],
       "card": {
         "x": 16,
-        "y": 209.75,
+        "y": 122.75,
         "width": 358,
-        "height": 423.953125
+        "height": 598.328125
       },
       "overflow": 0
     },
@@ -85,7 +85,7 @@
       ],
       "model_card": {
         "x": 16,
-        "y": 288.140625,
+        "y": 288.515625,
         "width": 358,
         "height": 267.5
       },

@@ -2735,3 +2735,27 @@ service run. The supplied video still could not be played in the browser and was
 passed (**1 test in 5.56s**) after replacing its fixed 300 ms check with a condition-based wait for the wizard heading; the
 previous assertion ran before setup finished its local requests. The responsive coordinator direct-chat journey passed separately
 in the paired check (**1 test in 5.14s**). These are local browser/store fixtures and use no model inference.
+
+Naming implementation, documentation and inspected desktop/tablet/phone evidence were committed as `9a186ff`.
+
+## Dashboard notices and marketing workflow polish (2026-10-09)
+
+The owner-approved dashboard polish removes the success/error side rails from the legacy Connections banners. A neutral full border
+keeps the panel boundary quiet; the existing check and alert icons retain their semantic color, while their visible text and
+`role=status` / `role=alert` announcements remain unchanged. The responsive browser test injects visual-only banner fixtures and
+checks border widths/colors, icon distinction, semantics and overflow. In the marketing workflow, I shortened the setup and review
+copy without removing selected-message provenance, the review-before-create boundary, approval separation, checkpoint conditions,
+uncertain-effect handling, or provider-retention and cross-Bot context limits. The public skip link now animates with `transform`
+and has a keyboard path that reveals it before activating `#main`.
+
+The focused responsive browser/site run passed **4 tests in 8.75s**, followed by a final refreshed dashboard capture pass (**1 test
+in 4.25s**) on Chromium **153.0.8010.12** / Playwright **1.63.0**. Desktop, tablet and phone screenshots were inspected; there were
+no page errors or horizontal overflow, and the anonymous site made no external requests. Current Impeccable exceptions are narrow
+and already recorded in `.impeccable/config.json`: website padding/contrast/layout-transition checks are static-scanner false
+positives confirmed against rendered captures, the template line-height rule cannot follow its linked stylesheet (browser values
+show 1.6 body leading), and `side-tab` reports in `style.css` point to a code-block reset and a text-only checkpoint state label.
+The manual target scan found no side-tab pattern. No new ignore was added. See `visual-validation.md` and
+[`artifacts/dashboard-polish/`](artifacts/dashboard-polish/) / [`artifacts/bot-purpose-refinement/marketing/`](artifacts/bot-purpose-refinement/marketing/).
+
+The last public-copy revision also retained route/fallback boundaries and the exact safe-checkpoint eligibility conditions; its two
+anonymous-site tests passed again (**2 tests in 4.27s**) and the refreshed desktop/tablet/phone captures were inspected.

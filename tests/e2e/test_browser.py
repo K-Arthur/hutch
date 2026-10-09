@@ -594,6 +594,40 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
                 "element => getComputedStyle(element, '::before').animationName"
             )
             assert live_status_animation == "none", (label, live_status_animation)
+            page.evaluate("""() => {
+              const main = document.querySelector('#main');
+              main.insertAdjacentHTML('beforebegin', `
+                <div class="flash notice" id="visual-notice" role="status">
+                  <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 12 4 4L19 7"/></svg>
+                  <span>Settings saved. This is a visual review fixture.</span>
+                </div>
+                <div class="flash error" id="visual-error" role="alert">
+                  <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 4 22 20H2z"/><path d="M12 10v4"/></svg>
+                  <span>Connection failed. This is a visual review fixture.</span>
+                </div>`);
+            }""")
+            flash_styles = page.evaluate("""() => {
+              const read = selector => {
+                const node = document.querySelector(selector);
+                const style = getComputedStyle(node);
+                return {
+                  leftWidth: style.borderLeftWidth,
+                  topWidth: style.borderTopWidth,
+                  leftColor: style.borderLeftColor,
+                  topColor: style.borderTopColor,
+                  textColor: style.color,
+                  iconColor: getComputedStyle(node.querySelector('.ico')).color,
+                  role: node.getAttribute('role'),
+                };
+              };
+              return {notice: read('#visual-notice'), error: read('#visual-error')};
+            }""")
+            for kind, expected_role in (("notice", "status"), ("error", "alert")):
+                style = flash_styles[kind]
+                assert style["leftWidth"] == style["topWidth"] == "1px", (label, kind, style)
+                assert style["leftColor"] == style["topColor"], (label, kind, style)
+                assert style["textColor"] != style["iconColor"], (label, kind, style)
+                assert style["role"] == expected_role, (label, kind, style)
             template_overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert template_overflow <= 1, (label, template_overflow)
             connections_capture = out / f"connections-{label}.png"
@@ -605,6 +639,7 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
                              "studio_body": studio_body, "studio_body_line_height_ratio": round(studio_body_ratio, 3),
                              "heading": heading_metrics, "heading_line_height_ratio": round(ratio, 3),
                              "body": body_metrics, "body_line_height_ratio": round(body_ratio, 3),
+                             "flash_styles": flash_styles,
                              "horizontal_overflow": max(studio_overflow, template_overflow),
                              "screenshots": [studio_capture.name, connections_capture.name]})
         assert not errors, errors
@@ -616,7 +651,7 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
             "captured_at": datetime.now(timezone.utc).isoformat(),
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright_version": package_version("playwright"),
-            "scenario": "Synthetic visual-only working, workflow and running-status indicators; server-rendered Connections typography and live-status mark; no run or provider call",
+            "scenario": "Synthetic visual-only working, workflow, running-status and success/error banner states; server-rendered Connections typography and live-status mark; no run or provider call",
             "provider_calls": 0, "page_errors": errors, "captures": captures,
             "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
                               for path in ("app/src/input.css", "src/hutch/server/static/ui.css",
