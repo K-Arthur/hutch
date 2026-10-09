@@ -125,6 +125,8 @@ credentials. This is passive fixture-backed evidence, not a live provider guaran
 | `28bf0ac` | Record the no-mock/product-availability audit and verify OpenCode Go is a provider API-key flow rather than OAuth session sharing |
 | `2bba9c8` | Add schema-v37 passive model tool-call evidence, exact effective route identity, bounded `/api/v1/model-capabilities`, support docs and full offline validation (1,471 passed, 2 skipped) |
 | `236dd99` | Show newest route-specific tool-call observations in Connections with honest loading/unknown/error states, bidirectional keyset paging, updated Bot-name guidance and inspected responsive evidence; focused API/browser suite 4 passed |
+| `6b3d643` | Record the Connections capability-evidence implementation and verification boundary |
+| `e47b193` | Reconcile the current Google Calendar, Gmail, Outlook Calendar, and Outlook Mail support matrix; correct typed API documentation and record focused fixture verification |
 
 ## Dashboard polish continuation (2026-10-09)
 
