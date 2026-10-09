@@ -2479,3 +2479,20 @@ retired route is unavailable, the demo command is absent, the no-mock marketing 
 works in a fixture, and a built-in local model path completes through the fake provider harness. This does not verify a real local
 model or provider account. The separate OpenCode/Pi execution adapters remain deliberately unavailable until permission, sandbox,
 budget and recovery guarantees are enforced.
+
+
+## S7 Sensitive browser fields revealed during a run (2026-10-09)
+
+Implementation commit: `7b5f42e`.
+
+The browser tool previously checked sensitive fields at navigation and blocked agent typing into fields already present, but could
+continue after a page revealed a password field in response to a click or delayed transition. It now compares visible sensitive-field
+state around clicks, text entry, and waits. When one appears, Hutch pauses in that bot's live browser for the person to complete it;
+the action result records that the triggering action already happened and warns against blindly retrying. A text value used before a
+new field appeared is not echoed in the result. The tool still cannot recognize every custom-rendered credential widget.
+
+Before the fix, `uv run pytest -q tests/e2e/test_browser.py::test_browser_hands_off_when_a_click_reveals_a_sensitive_field --no-header`
+failed because no handoff occurred. The focused click, wait, text-entry, asynchronous human-challenge, and existing sensitive-input
+tests now pass: **5 passed in 3.72s** using local Chromium **153.0.8010.12** / Playwright **1.63.0**. `python -m compileall -q
+src/hutch` and `git diff --check` passed. No site, provider, account, or secret was used. This validates fixture behavior only; live
+third-party forms and nonstandard credential widgets remain unverified.
