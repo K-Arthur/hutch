@@ -78,6 +78,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `ec16d5c` | Add explicit, verified cross-chat artifact references with target-bound downloads, one-way revocation, Studio sharing controls, API regressions and desktop/tablet/phone captures |
 | `cf3f98d` | Show active artifact recipients in the source chat, allow revocation from either chat, and invalidate both source and target views durably; add responsive captures and API/migration/browser regressions |
 | `c4f2cf4` | Add `POST /api/v1/tasks/runs` with atomic run/task/idempotency persistence, exact replay, changed-request conflicts, restore-hold behavior and cross-connection race coverage |
+| `3a1951a` | Add a bounded, scoped conversation JSON export through API and Studio, including excluded-data disclosure, oversize refusal, focused browser download tests and inspected desktop/tablet/phone evidence |
 | `18b9b7b` | Add versioned human resume bound to the latest active human-needed event and owner lease; enforce one resume per wait sequence, idempotent replay and schema-v19 migration coverage |
 | `ee3f179` | Add event-bound, idempotent Resume directly to the active Studio chat; keep historical waits read-only and capture desktop/tablet/phone behavior |
 | `4a3e5c0` | Keep Studio work feedback steady and increase shared server-page heading line-height; inspect the computed design at desktop/tablet/phone widths |
@@ -1618,3 +1619,18 @@ Focused verification: `.venv/bin/python -m pytest -q -W error::pytest.PytestUnha
 in 25.30s**. This covers v21/v22/v23 upgrade backups, empty legacy snapshots, immutable parent-to-child copying after bot edits,
 credential-free Offline policy capture and a completed Engine run saving its start-time snapshot. No provider, account credential, or
 delegated runtime was contacted or started. `git diff --check` passed before commit.
+
+## S6 scoped conversation export (2026-10-08)
+
+The Studio composer menu offers a JSON export after showing its scope: whitelisted conversation metadata plus ordered message text and
+run provenance. Stored provider/connection credentials, tool/action receipts, workspace contents, artifact bytes and memory records
+are excluded. Message text is verbatim and may contain sensitive user-entered material; the dialog and manifest say to review it before
+sharing. A consistent SQLite read snapshot counts before loading messages, refuses histories above 10,000 messages or 2 MiB of source
+data, and the endpoint enforces a 16 MiB encoded response cap. Oversized exports point back to the paginated API.
+
+Focused verification: `.venv/bin/python -m pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning
+-W error::SyntaxWarning tests/test_conversations.py tests/test_api.py` passed **31 tests in 6.54s**; the export cases also pass in
+isolation (**3 tests**). `node --check src/hutch/server/static/app.js` and `git diff --check` passed. Chromium **153.0.8010.12** /
+Playwright **1.63.0** passed the download, scope, error, and overflow checks at 1440×960, 900×1024 and 390×844 (**3 browser cases in
+4.31s**). No provider calls were made and page errors/overflow were zero. Inspected screenshots, traces and source-hash records are in
+`docs/realignment/artifacts/conversation-export/`. This slice does not add permanent deletion; archiving remains the reversible default.
