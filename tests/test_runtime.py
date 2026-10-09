@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import threading
 import time
 
@@ -42,6 +43,27 @@ def test_get_runtime_dispatch():
     assert get_runtime(Bot(name="b", runtime="pi")).kind == "pi"
     assert get_runtime(Bot(name="c", runtime="opencode")).kind == "opencode"
     assert get_runtime(Bot(name="d", model="openai/gpt-4o-mini")).kind == "builtin"
+
+
+@pytest.mark.parametrize(
+    ("runtime", "message_fragment"),
+    [
+        (OpenCodeRuntime, "broker its tool permissions"),
+        (PiRuntime, "restricted capability set"),
+    ],
+)
+def test_external_executor_refuses_before_creating_a_process(monkeypatch, runtime, message_fragment):
+    def unexpected_process(*args, **kwargs):
+        raise AssertionError("an unavailable external executor must not start a child process")
+
+    monkeypatch.setattr(subprocess, "Popen", unexpected_process)
+
+    with pytest.raises(RunAborted) as exc:
+        runtime().execute(run=None, ctx=None, tools={}, stop=lambda: False)
+
+    assert exc.value.reason == "unsupported"
+    assert message_fragment in exc.value.detail
+    assert "provider budget" in exc.value.detail
 
 
 def test_mock_and_unconfigured_routes_are_not_available_outside_the_test_harness(monkeypatch):

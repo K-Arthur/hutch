@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "reviewed_on": "2026-10-08",
+  "reviewed_on": "2026-10-09",
   "routes": [
     {
       "id": "openai-chat-completions",
@@ -188,10 +188,12 @@
       "quota_reporting": "No provider quota integration.",
       "retention": "Not available through Hutch's executor.",
       "hutch_request_mapping": {"sent": [], "omitted": ["--auto", "unbrokered permission grants"]},
-      "verification": "Adapter-start refusal tests pass. Installed OpenCode 2.0.24 API inspection used only isolated loopback state; no model request was sent.",
-      "verified_on": "2026-10-08",
+      "verification": "Fail-closed process-start regression and protocol fixtures pass. The installed CLI is v2.0.24; isolated API inspection confirms an experimental, volatile event stream and a permission vocabulary that includes persistent `always`. No model request was sent.",
+      "verified_on": "2026-10-09",
       "policy_evidence": [
-        {"title": "OpenCode server documentation", "url": "https://opencode.ai/docs/server/", "observed_on": "2026-10-08"}
+        {"title": "OpenCode 2.0 permissions", "url": "https://opencode.ai/v2/docs/permissions", "observed_on": "2026-10-09"},
+        {"title": "OpenCode server documentation", "url": "https://opencode.ai/docs/server/", "observed_on": "2026-10-09"},
+        {"title": "OpenCode provider setup", "url": "https://opencode.ai/docs/providers/", "observed_on": "2026-10-09"}
       ]
     },
     {
@@ -199,23 +201,25 @@
       "title": "Pi RPC as an executor",
       "state": "unavailable",
       "harness": "Pi is never launched by Hutch",
-      "api_shape": "Documented JSONL RPC helpers only; process adapter unavailable",
+      "api_shape": "Documented JSONL RPC protocol; fail-closed process adapter unavailable",
       "auth_flow": "No independent runtime credential flow is accepted.",
       "models": "Not available through Hutch's executor.",
-      "streaming": "Offline framing and event-helper fixtures pass; no Pi binary was installed.",
-      "tool_calls": "Unavailable until permissions are brokered or tools are restricted and provider usage is reserved.",
+      "streaming": "Bounded protocol helpers are fixture-tested; no process adapter is enabled and no Pi binary is installed.",
+      "tool_calls": "Pi can disable built-in, extension, custom and MCP tools with --no-tools, but direct model/provider traffic bypasses Hutch usage reservations; project trust is not an OS sandbox.",
       "structured_output": "Not available through Hutch's executor.",
       "vision": "Not available through Hutch's executor.",
       "context_limits": "Not available through Hutch's executor.",
-      "cancellation": "The published abort command is fixture-tested; process cancellation is not implemented.",
+      "cancellation": "The documented abort command is fixture-tested; process cancellation is not implemented.",
       "usage_reporting": "No shared provider budget integration.",
       "quota_reporting": "No provider quota integration.",
       "retention": "Not available through Hutch's executor.",
       "hutch_request_mapping": {"sent": [], "omitted": ["unbrokered external tool calls"]},
-      "verification": "Protocol helpers only; no Pi binary, provider call or child process was used.",
-      "verified_on": "2026-10-08",
+      "verification": "Protocol fixtures and a fail-closed process-start regression pass. Official docs reviewed; no Pi binary, provider request or child process was used.",
+      "verified_on": "2026-10-09",
       "policy_evidence": [
-        {"title": "Pi RPC protocol", "url": "https://pi.dev/docs/latest/rpc", "observed_on": "2026-10-08"}
+        {"title": "Pi RPC protocol", "url": "https://pi.dev/docs/latest/rpc", "observed_on": "2026-10-09"},
+        {"title": "Pi command-line tool controls", "url": "https://pi.dev/docs/latest/cli", "observed_on": "2026-10-09"},
+        {"title": "Pi security guidance", "url": "https://pi.dev/docs/latest/security", "observed_on": "2026-10-09"}
       ]
     },
     {

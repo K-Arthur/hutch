@@ -14,7 +14,7 @@ from hutch.server.app import create_app
 def test_versioned_matrix_has_status_and_dated_policy_evidence_for_every_route():
     matrix = compatibility_matrix()
     assert matrix["version"] == 1
-    assert matrix["reviewed_on"] == "2026-10-08"
+    assert matrix["reviewed_on"] == "2026-10-09"
     routes = {route["id"]: route for route in matrix["routes"]}
     assert {
         "openai-chat-completions", "anthropic-messages", "ollama-native",

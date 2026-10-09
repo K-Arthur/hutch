@@ -2759,3 +2759,19 @@ The manual target scan found no side-tab pattern. No new ignore was added. See `
 
 The last public-copy revision also retained route/fallback boundaries and the exact safe-checkpoint eligibility conditions; its two
 anonymous-site tests passed again (**2 tests in 4.27s**) and the refreshed desktop/tablet/phone captures were inspected.
+
+## External executor gate rechecked (2026-10-09)
+
+Reviewed the installed OpenCode CLI (`v2.0.24`) and current official OpenCode/Pi protocol and security documentation before
+considering S5 adapter work. OpenCode's installed API fixture still marks the server event stream experimental and volatile; its
+permission schema includes persistent `always`, while Hutch maps only a single reviewed action to `once` or `reject`. The runtime
+remains unavailable. Official Pi CLI documentation confirms `--no-tools` can disable built-in, extension, custom and MCP tools,
+but Pi would still own the direct model request and credentials. Its security guidance says project trust is not a sandbox, and
+headless RPC cannot show interactive trust prompts. There is no Pi binary installed here. These checks do not authorize enabling
+either executor; both still need Hutch-owned provider routing/usage reservations and governed recovery.
+
+Added a regression guard proving that both executor entry points fail as `unsupported` before `subprocess.Popen` can run and return
+the permission/capability and provider-budget limitation. `uv run pytest -q tests/test_runtime.py::test_external_executor_refuses_before_creating_a_process tests/test_runtime_opencode.py tests/test_runtime_pi.py --no-header`
+passed **17 tests in 0.26s**. Protocol tests are offline fixtures; no provider request or model call occurred. See the updated
+[provider compatibility matrix](provider-compatibility.md) and [`tests.md`](tests.md). The expanded adapter/runtime/matrix batch
+also passed **33 tests in 0.89s**; this remains fixture coverage, not a live Pi or provider check.
