@@ -2458,3 +2458,23 @@ resumes, and then confirms that the cleared page can be read. The focused browse
 so this backend guard required no new screenshots. The challenge and human responses are fixture-controlled: no real account, live
 third-party challenge, headed desktop, physical phone, or screen reader was tested. UI-18 remains partial until those support limits
 are exercised and the wider handoff release gate passes.
+
+
+## S9 User-facing no-mock and provider sign-in audit (2026-10-09)
+
+The production path still has no `MockRuntime` or public demo seeder. Test-only `TestScenarioRuntime` remains under
+`tests/support/` and is excluded from packaged wheels. Retired `mock/*` routes fail before any tool starts, while the model picker
+labels old records for repair. Legacy Pi/OpenCode runtime records display an explicit unavailable state and an actionable switch to
+Hutch's governed runtime; Hutch does not import another application's private auth files. The anonymous marketing page has no fake
+approval controls and identifies OpenCode/Pi harnesses as unavailable.
+
+The official OpenCode account flow was rechecked: OpenCode Go requires the user to sign in on OpenCode, subscribe if needed, create
+an API key, and copy it into the application. That is not OAuth session sharing. Hutch's existing OpenCode Go connection is the
+provider-issued key route; the separate ChatGPT sign-in remains an opt-in preview with eligibility caveats. See the official
+[OpenCode Go setup](https://docs.opencode.ai/docs/go/) and [provider connection guide](https://opencode.ai/v2/docs/providers/).
+
+The focused runtime/CLI/mock-picker/legacy-runtime-recovery/anonymous-site check passed **13 tests in 12.93s**. It confirmed the
+retired route is unavailable, the demo command is absent, the no-mock marketing copy is intact, the old-runtime recovery action
+works in a fixture, and a built-in local model path completes through the fake provider harness. This does not verify a real local
+model or provider account. The separate OpenCode/Pi execution adapters remain deliberately unavailable until permission, sandbox,
+budget and recovery guarantees are enforced.
