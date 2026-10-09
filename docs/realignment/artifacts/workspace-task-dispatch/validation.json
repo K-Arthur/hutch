@@ -18,6 +18,17 @@
       "height": 844
     }
   ],
+  "source_card_border": {
+    "leftWidth": "1px",
+    "topWidth": "1px",
+    "leftColor": "rgba(255, 255, 255, 0.07)",
+    "topColor": "rgba(255, 255, 255, 0.07)"
+  },
+  "inspected_screenshots": [
+    "review-source-desktop.png",
+    "review-source-tablet.png",
+    "review-source-phone.png"
+  ],
   "page_errors": [],
   "validation": [
     "coordinator answer stays a draft until reviewed",

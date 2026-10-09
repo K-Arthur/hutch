@@ -82,6 +82,7 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ### Fixed
 
+- Coordinator task-review request and quoted-answer blocks use quiet full outlines instead of side-tab accent stripes, with responsive evidence at desktop/tablet/phone widths.
 - Stopping a delegated run now atomically marks its persisted descendants for cancellation before cleanup begins. The supervisor signals every owned descendant process; queued descendants stop immediately, while owned work remains visibly Cancelling until cleanup is verified. A racing child submission is either included in the cancellation tree or refused by the parent's stored cancel intent.
 - Delegated children run only after a fresh outward approval, in a private 0700 per-run workspace with the immutable root capability and budget snapshot. They receive task text only; no parent transcript, browser, host folder or automatic artifact transfer is inherited. Dispatch and parent cancellation remain supervised, and historical children without a capability snapshot fail closed.
 - Schema v14 restores database snapshots into a new private directory with old work quarantined,

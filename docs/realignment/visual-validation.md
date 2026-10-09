@@ -32,10 +32,16 @@ and the exact fact card at all three app widths. No page errors or horizontal ov
 requests. See `artifacts/workspace-task-dispatch/shared-facts-{desktop,tablet,phone}.png`, the review captures, validation JSON and
 Playwright trace. Local mock/SQLite fixtures only; no provider, account, screen-reader or physical-phone check.
 
-The one scoped Impeccable detector run on the Studio JavaScript, stylesheet and marketing HTML reported pre-existing side-rail
-styling on older quote/source cards and advisory radii in the same stylesheet; it returned no finding for the new task-fact UI or
-marketing page. The newly added task-fact row rail was removed during review, leaving a neutral outlined row. This slice did not
-alter the older quote/source treatments.
+The initial scoped Impeccable detector run on Studio JavaScript, the stylesheet and marketing HTML identified side-tab styling on
+the coordinator request/quote blocks, plus advisory radius values; it returned no finding for the selected-fact UI or marketing
+page. This follow-up replaced both side stripes with uniform 1px neutral outlines. The responsive browser test verifies matching
+top/left border widths and colors and saves source-card captures at all three sizes. A CSS-only detector run after the edit reports
+no side-tab findings; existing radius advisories remain outside this finding. The new task-fact option itself remains a neutral
+outlined row. Chromium **153.0.8010.12** / Playwright **1.63.0** passed the responsive handoff journey in **19.01s** with no
+page errors or horizontal overflow. I inspected the request card at desktop **1440×960**, tablet **900×1024** and phone **390×844**.
+The first attempt hit temporary-filesystem pressure (the `/tmp` tmpfs had 444 MiB available); rerunning with a disk-backed temporary
+directory passed. Captures are `artifacts/workspace-task-dispatch/review-source-{desktop,tablet,phone}.png`. Mock/SQLite fixtures
+only; no provider, screen-reader or physical-phone verification.
 
 ## Reviewed coordinator-to-specialist handoff (schema v29, 2026-10-09)
 

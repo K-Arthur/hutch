@@ -126,6 +126,14 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
         assert "not be added" in fact_selector.inner_text().lower()
         selected_fact.check()
         assert "1 of 8 selected" in dialog.locator("#workspace-task-facts-count").inner_text()
+        source_card = dialog.locator(".workspace-task-source")
+        source_style = source_card.evaluate("""element => {
+          const style = getComputedStyle(element);
+          return {leftWidth: style.borderLeftWidth, topWidth: style.borderTopWidth,
+            leftColor: style.borderLeftColor, topColor: style.borderTopColor};
+        }""")
+        assert source_style["leftWidth"] == source_style["topWidth"]
+        assert source_style["leftColor"] == source_style["topColor"]
         page.locator(".toast").wait_for(state="detached", timeout=6000)
         for label, (width, height) in sizes.items():
             page.set_viewport_size({"width": width, "height": height})
@@ -133,6 +141,9 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
             assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
             assert dialog.is_visible()
             assert dialog.locator("#workspace-task-target").is_visible()
+            source_card.scroll_into_view_if_needed()
+            page.screenshot(path=str(output / f"review-source-{label}.png"), animations="disabled")
+            selected_fact.scroll_into_view_if_needed()
             page.screenshot(path=str(output / f"review-{label}.png"), animations="disabled")
             if label == "phone":
                 dialog.locator(".modal-body").evaluate("element => element.scrollTop = element.scrollHeight")
@@ -252,6 +263,8 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
             "test": "tests/e2e/test_browser.py::test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports",
             "browser": f"{browser.browser_type.name.title()} {browser.version}",
             "viewports": [{"name": label, "width": size[0], "height": size[1]} for label, size in sizes.items()],
+            "source_card_border": source_style,
+            "inspected_screenshots": [f"review-source-{label}.png" for label in sizes],
             "page_errors": errors,
             "validation": ["coordinator answer stays a draft until reviewed", "target model/tools are visible",
                            "assumptions are sent with the brief", "specialist result is shared only after composer review",
