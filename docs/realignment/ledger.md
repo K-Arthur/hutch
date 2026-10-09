@@ -2020,4 +2020,4 @@ unimplemented handoff capability. The anonymous marketing workflow now says the 
 the response is not approval. `tests/e2e/test_website.py` passed **25 tests**; I inspected the workflow at **1440×900**,
 **900×1024** and **390×844**. Its browser made no external requests and reported no errors or page overflow; updated captures and
 the page hash are in [`artifacts/scheduled-tasks/site-validation.json`](artifacts/scheduled-tasks/site-validation.json) and the
-adjacent `site-workflow-*.png` files. Implementation commit: pending.
+adjacent `site-workflow-*.png` files. Implementation commit: `c0acf26`.
