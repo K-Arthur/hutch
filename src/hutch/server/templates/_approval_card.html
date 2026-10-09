@@ -31,11 +31,25 @@
     </div>
     {% endfor %}
   </div>
+  {% elif a.tool == 'browser' and a.detail and a.detail.target_kind == 'form_submit' %}
+  {% set form_target = a.detail.target %}
+  <div class="review-rows">
+    <div class="review-row"><span class="review-key">Destination</span><span>{{ form_target.destination or 'unknown destination' }}</span></div>
+    <div class="review-row"><span class="review-key">Request method</span><span>{{ form_target.method | upper }}</span></div>
+    <div class="review-row"><span class="review-key">Submit control</span><span>{{ form_target.label or 'Submit form' }}</span></div>
+    <div class="review-row"><span class="review-key">Form fields</span><span>
+      {% if form_target.fields %}<ul>{% for field in form_target.fields %}<li>{{ field.label or 'Form field' }}{% if field.sensitive %} · sensitive value hidden{% elif field.selected %} · file selected{% endif %}</li>{% endfor %}</ul>
+      {% else %}No visible fields detected{% endif %}
+    </span></div>
+    <p class="hint">Hutch keeps field values out of this review and checks the destination and filled fields again before submission.</p>
+  </div>
   {% elif a.detail and not compact %}
   <pre class="detail">{{ a.detail | jsonish }}</pre>
   {% endif %}
 
+  {% if not (a.tool == 'browser' and a.detail and a.detail.target_kind == 'form_submit') %}
   <p class="rule"><span class="muted">Why you are being asked:</span> {{ a.rule }}</p>
+  {% endif %}
 
   <form method="post" action="/approvals/{{ a.id }}/decide" class="decide"
         hx-post="/approvals/{{ a.id }}/decide" hx-target="closest .approval" hx-swap="outerHTML">

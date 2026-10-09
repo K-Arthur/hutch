@@ -3654,6 +3654,161 @@ def test_inline_chat_approval_is_one_click_and_preserves_conversation(browser, l
     page.close()
 
 
+@pytest.mark.parametrize("scenario", ["stable", "changed", "tampered_page_crypto", "selected_file", "insecure_page"])
+def test_browser_form_submit_rechecks_the_reviewed_payload_in_chromium(
+    browser, store, config, tmp_path, monkeypatch, scenario
+):
+    """A real DOM-backed form cannot submit a payload changed during approval wait."""
+    from hutch.approvals import ApprovalGate, resolve_approval_ex
+    from hutch.models import Bot
+    from hutch.safety import PolicyEngine
+    from hutch.tools.base import ToolContext
+    from hutch.tools.browser import BrowserTool
+
+    bot = store.create_bot(Bot(name=f"form-review-{scenario}", tools=["browser"]))
+    run = Run(bot_id=bot.id, prompt="Review this message", status=RunStatus.running)
+    store.create_run(run)
+    page = browser.new_page()
+    page_url = "http://example.test/form" if scenario == "insecure_page" else "https://example.test/form"
+    form_fields = "<input id='attachment' name='attachment' type='file'>" if scenario == "selected_file" else ""
+    page.route(page_url, lambda route: route.fulfill(status=200, content_type="text/html", body=f"""<!doctype html><form action='/messages/send' method='post'>
+      <label>Recipient <input id='recipient' name='recipient' type='email' value='person@example.test'></label>
+      <label>Password <input id='password' name='password' type='password' value='must-not-leak-this-secret'></label>
+      {form_fields}
+      <button type='submit'>Send message</button>
+      <output id='sent'></output></form>
+      <script>document.querySelector('form').addEventListener('submit', e => {{
+        e.preventDefault(); document.querySelector('#sent').textContent = 'submitted';
+      }});</script>"""))
+    page.goto(page_url)
+    assert page.evaluate("window.isSecureContext") is (scenario != "insecure_page")
+    if scenario == "tampered_page_crypto":
+        page.evaluate("crypto.subtle.digest = async () => new Uint8Array(32).buffer")
+        assert "new Uint8Array" in page.evaluate("crypto.subtle.digest.toString()")
+    if scenario == "selected_file":
+        attachment = tmp_path / "fixture-upload.txt"
+        attachment.write_text("fixture file data")
+        page.locator("#attachment").set_input_files(str(attachment))
+    gate = ApprovalGate(store, bot, run, PolicyEngine(), store.append_event, poll_seconds=0.01)
+    ctx = ToolContext(bot=bot, run=run, store=store, policy=gate.policy, gate=gate, config=config,
+                      workspace=tmp_path / "workspace")
+    ctx.workspace.mkdir()
+
+    def decide_in_test(req, _action, **_kwargs):
+        if scenario in {"changed", "tampered_page_crypto"}:
+            page.locator("#recipient").fill("attacker@example.test")
+        assert resolve_approval_ex(store, req.id, True, expected_hash=req.action_hash).won
+
+    monkeypatch.setattr(gate, "_wait", decide_in_test)
+    tool = BrowserTool()
+    monkeypatch.setattr(tool, "_ensure", lambda _ctx: type("Context", (), {"pages": [page]})())
+    result = tool.run({"action": "click", "selector": "button[type=submit]"}, ctx)
+    request = store.pending_approvals()
+    assert not request
+    submitted = page.locator("#sent").inner_text()
+    if scenario in {"changed", "tampered_page_crypto"}:
+        assert not result.ok and "changed after review" in result.output
+        assert submitted == ""
+    elif scenario in {"selected_file", "insecure_page"}:
+        assert not result.ok
+        assert "cannot submit an attached file" in result.output if scenario == "selected_file" else \
+               "secure browser form review is unavailable" in result.output
+        assert submitted == ""
+        assert not store.pending_approvals()
+        assert gate.last_authorization is None
+        page.close()
+        return
+    else:
+        assert result.ok and submitted == "submitted"
+    assert "must-not-leak-this-secret" not in repr(gate.last_authorization)
+    detail = gate.last_authorization["detail"]
+    assert detail["target_kind"] == "form_submit"
+    assert detail["target"]["fields"] == [
+        {"label": "Recipient", "type": "email"},
+        {"label": "Password", "type": "password", "sensitive": True, "present": True},
+    ]
+    assert "person@example.test" not in repr(detail)
+    assert "attacker@example.test" not in repr(detail)
+    assert "must-not-leak-this-secret" not in repr(detail)
+    page.close()
+
+
+def test_form_submission_approval_explains_destination_and_fields_at_all_viewports(browser, live, monkeypatch):
+    from hutch.approvals import ApprovalGate
+    from hutch.models import ApprovalMode
+    from hutch.safety import PolicyEngine
+
+    base, app = live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="form-approval-review", model="mock/demo", tools=[], approval_mode=ApprovalMode.ask))
+    conversation, _ = store.create_conversation(bot.id, "Form review", idem_key="form-review", request_hash="form-review")
+    run = Run(bot_id=bot.id, prompt="Send the reviewed message", status=RunStatus.pending,
+              conversation_id=conversation["id"])
+    store.submit_conversation_message(conversation["id"], run.prompt, run,
+        Task(bot_id=bot.id, prompt=run.prompt), idem_key="form-review-turn", request_hash="form-review-turn")
+    run = store.get_run(run.id)
+    assert run and store.set_status(run, RunStatus.running)
+    gate = ApprovalGate(store, bot, run, PolicyEngine(), store.append_event)
+    monkeypatch.setattr(gate, "_wait", lambda *_args, **_kwargs: None)
+    detail = {
+        "action": "click", "selector": "button[type=submit]", "label": "", "url": "https://mail.example.test/compose",
+        "profile_bot_id": bot.id, "target_kind": "form_submit",
+        "target": {"kind": "form_submit", "label": "Send message", "tag": "button", "type": "submit",
+                   "method": "post", "destination": "https://mail.example.test",
+                   "fields": [{"label": "Recipient", "type": "email"},
+                              {"label": "Password", "type": "password", "sensitive": True, "present": True}]},
+        "target_fingerprint": "a" * 64,
+    }
+    gate.decide("browser", "Submit form to https://mail.example.test (POST) with Send message", detail, outward=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(base + "/#/chat/form-approval-review")
+    card = page.locator("#chat-stream [data-approval-card]").first
+    card.wait_for()
+    card.locator("summary").click()
+    assert "Submit form to https://mail.example.test (POST)" in card.inner_text()
+    review = card.locator(".form-review-rows")
+    assert "Destination" in card.inner_text() and "Request method" in card.inner_text()
+    assert "Recipient" in review.inner_text() and "Password · sensitive value hidden" in review.inner_text()
+    assert "person@example.test" not in card.inner_text() and "must-not-leak-this-secret" not in card.inner_text()
+    assert not card.locator(".approval-detail").count(), "field values and internal fingerprints stay out of raw review JSON"
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/browser-form-review"
+    out.mkdir(parents=True, exist_ok=True)
+    captures = []
+    phone_decision = None
+    for name, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+        page.set_viewport_size({"width": width, "height": height})
+        page.screenshot(path=str(out / f"{name}.png"), full_page=True, animations="disabled")
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow <= 1
+        captures.append({"viewport": name, "size": [width, height], "horizontal_overflow_px": overflow,
+                         "screenshot_sha256": hashlib.sha256((out / f"{name}.png").read_bytes()).hexdigest()})
+        if name == "phone":
+            decision = card.locator('[data-approve="1"]')
+            decision.scroll_into_view_if_needed()
+            button_box = decision.bounding_box()
+            composer_box = page.locator("#composer-box").bounding_box()
+            chat_box = page.locator("#chat-scroll").bounding_box()
+            assert button_box and composer_box and chat_box
+            assert button_box["y"] >= chat_box["y"] - 1
+            assert button_box["y"] + button_box["height"] <= composer_box["y"] + 1
+            page.screenshot(path=str(out / "phone-decision.png"), animations="disabled")
+            phone_decision = {"decision_visible_above_composer": True,
+                              "screenshot_sha256": hashlib.sha256((out / "phone-decision.png").read_bytes()).hexdigest()}
+    assert not errors, errors
+    (out / "results.json").write_text(json.dumps({
+        "browser": browser.browser_type.name, "browser_version": browser.version,
+        "provider_calls": 0, "human_review_fixture": "local SQLite approval; no external page or provider",
+        "sensitive_values_in_review": False, "page_errors": errors, "captures": captures,
+        "phone_decision": phone_decision,
+        "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                          for name in ("src/hutch/tools/browser.py", "src/hutch/server/static/app.js",
+                                       "src/hutch/server/static/style.css")},
+    }, indent=2) + "\n")
+    page.close()
+
+
 def test_needs_you_pages_large_queues_without_hiding_requests(browser, live, monkeypatch):
     from datetime import timedelta
     from hutch.approvals import action_fingerprint

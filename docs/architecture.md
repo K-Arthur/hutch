@@ -227,8 +227,10 @@ the run's approval gate so `stop` unblocks an approval wait immediately. In-proc
 compatibility/test mode. The browser owns a distinct persistent profile per bot. A cross-process OS file lease prevents two workers
 from opening the same profile; an opted-in local handoff also reserves Hutch's visible-browser lease until that session closes.
 Agent typing into conventional sensitive fields is intercepted before input or durable action creation; browser type values are
-redacted from event/receipt records. A visible sensitive field blocks screenshots. Human password/CAPTCHA/MFA steps pause in the
-same live profile; Resume checks the page without reloading it. Field detection is heuristic, the Linux desktop handoff is
+redacted from event/receipt records. Native HTML form submissions show a bounded destination/method/field-label review and bind
+the approval to a page-side digest of current form state, including secret values that never leave the page. A changed form refuses
+to submit; selected file uploads and forms without secure digest support fail closed. A visible sensitive field blocks screenshots.
+Human password/CAPTCHA/MFA steps pause in the same live profile; Resume checks the page without reloading it. Field detection is heuristic, the Linux desktop handoff is
 experimental, and no real challenge or phone handoff is verified. Remote phone control and live/non-HTTP browser egress validation
 remain open. HTTP(S)/WebSocket browser connections use a locally tested DNS-pinning proxy. SQLite access is serialized by an RLock in `Store`, and migration startup is additionally serialized across
 processes. Schema v9 stores canonical conversations, user/assistant messages, run links and revocable device sessions; old runs are imported one per legacy

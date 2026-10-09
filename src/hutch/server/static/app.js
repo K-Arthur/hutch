@@ -3075,11 +3075,14 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
   const rule = a.rule || "";
   const risk = a.risk || "medium";
   const outward = !!a.outward;
+  const detailObject = a.detail && typeof a.detail === "object" ? a.detail : null;
+  const formTarget = tool === "browser" && detailObject?.target_kind === "form_submit"
+    && detailObject.target && typeof detailObject.target === "object" ? detailObject.target : null;
   const deadline = a.deadline
     || (a.expires_at ? new Date(a.expires_at).getTime()
       : (a.created_at ? new Date(a.created_at).getTime() + 10 * 60 * 1000 : 0));
   const expired = deadline && deadline <= Date.now();
-  const detail = a.detail && Object.keys(a.detail || {}).length ? JSON.stringify(a.detail, null, 2) : "";
+  const detail = !formTarget && a.detail && Object.keys(a.detail || {}).length ? JSON.stringify(a.detail, null, 2) : "";
   const segments = a.segments || [];
   const stickyKey = a.sticky_key || "";
   const canAlways = !!(stickyKey && !outward);
@@ -3088,10 +3091,13 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
 
   const rows = [
     ["Tool", tool],
+    formTarget ? ["Destination", formTarget.destination || "unknown destination"] : null,
+    formTarget ? ["Request method", String(formTarget.method || "get").toUpperCase()] : null,
+    formTarget ? ["Submit control", formTarget.label || "Submit form"] : null,
     a.account ? ["Account", a.account] : null,
     a.destination ? ["Destination", a.destination] : null,
     a.revision ? ["Revision", a.revision] : null,
-    rule ? ["Why you are asked", rule] : null,
+    rule && !formTarget ? ["Why you are asked", rule] : null,
     ["Effect", outward
       ? "Sends data out of this machine — Stop cannot recall it once it has gone"
       : "Check the exact arguments below. Changes may need manual undo."],
@@ -3121,6 +3127,14 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
             <span class="tag ${s.verdict === "deny" ? "danger" : s.verdict === "ask" ? "warn" : ""}">${esc(s.verdict)}</span>
             <span class="seg-why">${esc(s.reason || "")}</span>
           </div>`).join("")}</div>` : ""}
+        ${formTarget ? `<div class="review-rows form-review-rows">
+          <div class="review-row"><span class="review-key">Form fields</span><span>
+            ${(Array.isArray(formTarget.fields) ? formTarget.fields : []).length
+              ? `<ul>${formTarget.fields.map(field => `<li>${esc(field.label || "Form field")}${field.sensitive ? " · sensitive value hidden" : field.selected ? " · file selected" : ""}</li>`).join("")}</ul>`
+              : "No visible fields detected"}
+          </span></div>
+          <p class="hint">Hutch keeps field values out of this review and checks the destination and filled fields again before submission.</p>
+        </div>` : ""}
         ${detail ? `<span class="review-label">Raw request</span><pre class="approval-detail" tabindex="0" aria-label="Exact request arguments">${esc(detail)}</pre>` : ""}
       </details>
       ${canAlways

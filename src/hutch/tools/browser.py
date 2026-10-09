@@ -18,6 +18,7 @@ from __future__ import annotations
 import os
 import hashlib
 import hmac
+import json
 import re
 import secrets
 import stat
@@ -64,6 +65,67 @@ _SENSITIVE_FIELD_JS = r"""els => els.some(el => {
      'cc-exp-month','cc-exp-year'].includes(autocomplete) ||
     /(?:password|passcode|one[-_ ]?time[-_ ]?code|verification[-_ ]?code|security[-_ ]?code|recovery[-_ ]?code|authenticator|\botp\b|\btotp\b|\bpin\b|\bcvv\b|\bcvc\b|card[-_ ]?number|client[-_ ]?secret|api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token)/i.test(metadata);
 })"""
+_CLICK_SNAPSHOT_JS = r"""async function() {
+  const source = this && this.nodeType === 1 ? this : this && this.parentElement;
+  if (!source) return {error: 'browser target could not be resolved'};
+  const control = source.closest('button, input[type=submit], input[type=image], input[type=button], a') || source;
+  const form = control.form || control.closest('form');
+  const tag = String(control.tagName || '').toLowerCase();
+  const type = String(control.type || control.getAttribute('type') || '').toLowerCase();
+  const sensitive = /(?:password|passcode|one[-_ ]?time[-_ ]?code|verification[-_ ]?code|security[-_ ]?code|recovery[-_ ]?code|authenticator|\botp\b|\btotp\b|\bpin\b|\bcvv\b|\bcvc\b|card[-_ ]?number|client[-_ ]?secret|api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token)/i;
+  const visible = field => {
+    const rect = field.getBoundingClientRect();
+    const style = getComputedStyle(field);
+    return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+  };
+  const fields = form ? Array.from(form.elements).filter(field => {
+    const fieldType = String(field.type || '').toLowerCase();
+    return field.matches('input,textarea,select') && 'value' in field &&
+      !['submit','reset','button','image'].includes(fieldType);
+  }).slice(0, 129).map(field => {
+    const fieldType = String(field.type || '').toLowerCase();
+    const label = field.labels ? Array.from(field.labels).map(item => item.innerText || '').join(' ') : '';
+    const metadata = [fieldType, field.name, field.id, field.getAttribute('autocomplete'), field.getAttribute('placeholder'),
+      field.getAttribute('aria-label'), label].filter(Boolean).join(' ');
+    const name = String(field.name || field.id || '').slice(0, 120);
+    const displayLabel = String(label || field.getAttribute('aria-label') || field.getAttribute('placeholder') || name || fieldType)
+      .replace(/\s+/g, ' ').trim().slice(0, 120);
+    if (fieldType === 'file') return {name, label: displayLabel, type: fieldType, visible: visible(field), selected: Boolean(field.files && field.files.length)};
+    const value = field.matches('select[multiple]')
+      ? Array.from(field.selectedOptions).map(option => option.value)
+      : String(field.value || '');
+    return {name, label: displayLabel, type: fieldType, visible: visible(field), sensitive: sensitive.test(metadata), value,
+      checked: ['checkbox','radio'].includes(fieldType) ? Boolean(field.checked) : undefined};
+  }) : [];
+  const label = control.getAttribute('aria-label') || control.innerText || control.value || control.title || '';
+  const target = {
+    tag, type,
+    label: String(label).replace(/\s+/g, ' ').trim().slice(0, 200),
+    destination: control.href ? (() => { const url = new URL(control.href, location.href); return url.origin + url.pathname; })() : '',
+    form: form ? {action: control.formAction || form.action || location.href,
+      method: String(control.formMethod || form.method || 'get').toLowerCase(), enctype: control.formEnctype || form.enctype,
+      target: control.formTarget || form.target, noValidate: Boolean(control.formNoValidate || form.noValidate),
+      submitter: {name: String(control.name || ''), value: String(control.value || ''),
+        noValidate: Boolean(control.formNoValidate)}, fields} : null
+  };
+  if (fields.length > 128 || fields.some(field => field.type !== 'file' && JSON.stringify(field.value || '').length > 16384))
+    return {error: 'form fields exceed the safe review limit; action was not performed'};
+  const raw = JSON.stringify({target, fields});
+  if (raw.length > 65536) return {error: 'form fields exceed the safe review limit; action was not performed'};
+  let fingerprint = '';
+  if (window.crypto && window.crypto.subtle) {
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+    fingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+  } else if (form) {
+    return {error: 'secure browser form review is unavailable on this page'};
+  }
+  const safeFields = fields.filter(field => field.visible).map(field => ({label: field.label, type: field.type,
+    ...(field.sensitive ? {sensitive: true, present: String(field.value || '').length > 0} : {}),
+    ...(field.type === 'file' ? {selected: field.selected} : {})}));
+  return {target: {tag, type, label: target.label, destination: target.destination,
+    form: form ? {destination: new URL(target.form.action, location.href).origin,
+      method: target.form.method, fields: safeFields} : null}, fingerprint};
+}"""
 _VISIBLE_SENSITIVE_FIELD_JS = r"""() => {
   const visible = el => {
     const rect = el.getBoundingClientRect();
@@ -340,6 +402,86 @@ class BrowserTool(Tool):
             return True
 
     @staticmethod
+    def _click_review_snapshot(page, locator) -> tuple[dict[str, Any], str]:
+        """Return safe approval details plus a page-computed binding to live form state."""
+        session = None
+        try:
+            locator.scroll_into_view_if_needed(timeout=5_000)
+            box = locator.bounding_box()
+            if not box or box["width"] <= 0 or box["height"] <= 0:
+                raise BrowserUnavailable("browser target is not visible; action was not performed")
+            session = page.context.new_cdp_session(page)
+            session.send("DOM.enable")
+            session.send("Page.enable")
+            node = session.send("DOM.getNodeForLocation", {
+                "x": int(box["x"] + box["width"] / 2),
+                "y": int(box["y"] + box["height"] / 2),
+                "includeUserAgentShadowDOM": True,
+            })
+            frame_id = node.get("frameId") or session.send("Page.getFrameTree")["frameTree"]["frame"]["id"]
+            world = session.send("Page.createIsolatedWorld", {
+                "frameId": frame_id, "worldName": f"hutch-review-{secrets.token_hex(8)}",
+                "grantUniversalAccess": False,
+            })
+            resolved = session.send("DOM.resolveNode", {
+                "backendNodeId": node["backendNodeId"], "executionContextId": world["executionContextId"],
+            })
+            evaluated = session.send("Runtime.callFunctionOn", {
+                "objectId": resolved["object"]["objectId"], "functionDeclaration": _CLICK_SNAPSHOT_JS,
+                "awaitPromise": True, "returnByValue": True,
+            })
+            if evaluated.get("exceptionDetails"):
+                raise BrowserUnavailable("cannot safely inspect the browser target; action was not performed")
+            snapshot = evaluated.get("result", {}).get("value")
+        except Exception as exc:
+            if isinstance(exc, BrowserUnavailable):
+                raise
+            raise BrowserUnavailable("cannot safely inspect the browser target; action was not performed") from exc
+        finally:
+            if session is not None:
+                try:
+                    session.detach()
+                except Exception:
+                    pass
+        if not isinstance(snapshot, dict) or snapshot.get("error"):
+            message = snapshot.get("error") if isinstance(snapshot, dict) else ""
+            raise BrowserUnavailable(message or "browser target is too large to review safely; action was not performed")
+        target_snapshot = snapshot.get("target")
+        fingerprint = snapshot.get("fingerprint", "")
+        if not isinstance(target_snapshot, dict) or not isinstance(fingerprint, str):
+            raise BrowserUnavailable("browser target could not be bound to the approval; action was not performed")
+        form = target_snapshot.get("form") if isinstance(target_snapshot.get("form"), dict) else None
+        fields = form.get("fields", []) if form else []
+        if form and (not isinstance(fields, list) or len(fields) > 128):
+            raise BrowserUnavailable("form fields exceed the safe review limit; action was not performed")
+        if fingerprint and not re.fullmatch(r"[0-9a-f]{64}", fingerprint):
+            raise BrowserUnavailable("browser target could not be bound to the approval; action was not performed")
+        if form and not fingerprint:
+            raise BrowserUnavailable("secure browser form review is unavailable on this page")
+        target_kind = "form_submit" if form and (
+            target_snapshot.get("tag") == "button" and target_snapshot.get("type") in ("", "submit") or
+            target_snapshot.get("tag") == "input" and target_snapshot.get("type") in {"submit", "image"}
+        ) else "element"
+        target = {
+            "kind": target_kind,
+            "label": str(target_snapshot.get("label", ""))[:200],
+            "tag": str(target_snapshot.get("tag", ""))[:24],
+            "type": str(target_snapshot.get("type", ""))[:24],
+        }
+        if form:
+            target["method"] = str(form.get("method", "get"))[:12]
+            target["destination"] = str(form.get("destination", "")) or "unknown destination"
+            target["fields"] = fields
+        elif target_snapshot.get("destination"):
+            target["destination"] = str(target_snapshot["destination"])
+        # Form-value digests are computed in the page and wrapped before they
+        # can enter an approval record. Ordinary targets contain no field
+        # values, so their safe description can be fingerprinted here too.
+        binding = fingerprint or json.dumps(target_snapshot, sort_keys=True, separators=(",", ":"))
+        keyed = hmac.new(_APPROVAL_FINGERPRINT_KEY, binding.encode("utf-8"), hashlib.sha256).hexdigest()
+        return {"target_kind": target_kind, "target": target, "target_fingerprint": keyed}, keyed
+
+    @staticmethod
     def _human_challenge_markers(page, body_sample: str) -> list[str]:
         markers = [marker for marker in _LOGIN_WALL_RE if marker in body_sample]
         try:
@@ -454,16 +596,40 @@ class BrowserTool(Tool):
 
         if action == "click":
             target = args.get("selector") or args.get("label") or ""
+            locator = page.locator(args["selector"]) if args.get("selector") else page.get_by_text(args.get("label", ""), exact=False)
+            locator = locator.first
+            try:
+                reviewed_target, reviewed_fingerprint = self._click_review_snapshot(page, locator)
+            except BrowserUnavailable as exc:
+                return ToolResult(ok=False, output=f"error: {exc}")
+            if reviewed_target["target_kind"] == "form_submit" and any(
+                field.get("type") == "file" and field.get("selected") for field in reviewed_target["target"].get("fields", [])
+            ):
+                return ToolResult(ok=False, output=("error: Hutch cannot submit an attached file because its contents "
+                                                     "are not available for this approval review"))
             url = page.url
-            ctx.gate.decide("browser", f"click {target or '(current focus)'}", {
+            target_detail = reviewed_target["target"]
+            if reviewed_target["target_kind"] == "form_submit":
+                action_text = (f"submit form to {target_detail.get('destination', 'unknown destination')} "
+                               f"({target_detail.get('method', 'get').upper()}) with {target_detail.get('label') or target or 'submit control'}")
+            else:
+                action_text = f"click {target or '(current focus)'}"
+            ctx.gate.decide("browser", action_text, {
                 "action": action, "selector": args.get("selector", ""), "label": args.get("label", ""),
-                "url": url, "profile_bot_id": ctx.bot.id}, outward=True)
+                "url": _redact_sensitive_url(url), "profile_bot_id": ctx.bot.id,
+                "target_kind": reviewed_target["target_kind"], "target": target_detail,
+                "target_fingerprint": reviewed_fingerprint}, outward=True)
             if page.url != url:
                 return ToolResult(ok=False, output="error: browser navigated after review; request a new approval")
+            try:
+                _, current_fingerprint = self._click_review_snapshot(page, locator)
+            except BrowserUnavailable as exc:
+                return ToolResult(ok=False, output=f"error: {exc}")
+            if not hmac.compare_digest(reviewed_fingerprint, current_fingerprint):
+                return ToolResult(ok=False, output="error: browser target or form changed after review; request a new approval")
             if (refusal := ctx.begin_effect()):
                 return ToolResult(ok=False, output=f"error: {refusal}")
-            locator = page.locator(args["selector"]) if args.get("selector") else page.get_by_text(args.get("label", ""), exact=False)
-            locator.first.click(timeout=10_000)
+            locator.click(timeout=10_000)
             return ToolResult(ok=True, output=f"clicked {target}", data={"url": page.url})
 
         if action == "type":

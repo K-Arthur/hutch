@@ -1,5 +1,19 @@
 # Visual validation record
 
+## Native form submission approval (2026-10-09)
+
+The in-chat outward-approval card now gives native form submissions a human-readable destination, request method, submit control and
+visible field labels. It hides field contents and internal fingerprints. I inspected the expanded review at desktop **1440×960**,
+tablet **900×1024** and phone **390×844** in Chromium **153.0.8010.12** / Playwright **1.63.0**. The phone decision action was
+also scrolled above the fixed composer and inspected separately. All captures report no horizontal overflow or browser errors.
+
+`tests/e2e/test_browser.py::test_browser_form_submit_rechecks_the_reviewed_payload_in_chromium` uses a locally fulfilled HTTPS page:
+unchanged state submits after approval; a changed recipient does not, even after the page's main-world crypto function is replaced;
+selected files and an insecure page fail closed before an approval is created. The separate responsive card journey uses local
+SQLite approval data and no external requests. No real website, login, provider, CAPTCHA, screen reader or physical device was
+exercised. Screenshots, source hashes and metadata are in
+[`artifacts/browser-form-review/`](artifacts/browser-form-review/).
+
 ## Safe checkpoint continuation (schema v34)
 
 Chromium **153.0.8010.12** / Playwright **1.63.0** passed
