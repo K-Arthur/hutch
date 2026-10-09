@@ -70,6 +70,11 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   and 200, even if a restore hold or provider-route change happened after admission. A changed body or a key reused by another command
   returns 409. New submissions still respect the restore hold and model-route checks. The legacy `/api/bots/{ref}/run` alias remains
   available without versioned idempotency for compatibility.
+* `POST /api/v1/tasks/runs/{run_id}/resume` takes `{human_event_seq}` and requires `Idempotency-Key`. The run must still be
+  `waiting_human` under a live owner lease, and the sequence must match its latest `human_needed` event. Schema v19 accepts one command per wait episode;
+  another key for the same event and any stale event sequence conflict. Exact retries replay the recorded result without setting the
+  resume marker again, so an old action cannot resume a later login challenge. Legacy resume routes remain available without this
+  event-sequence guarantee until clients migrate.
 * Conversation artifact pages use `limit` 1–100 and an opaque `cursor`, include only verified or explicitly unverified
   artifacts from runs attached to that conversation and bot, newest first, and return `next_cursor` when another page exists.
   The keyset is ordered by event ID descending, then artifact kind ascending, so a page boundary remains stable if newer artifacts
@@ -94,8 +99,8 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   `Last-Event-ID`. Each page is bounded to 500 events. If a cursor is ahead of the restored database or falls behind retained
   history, page reads return 409 `snapshot_required`; the stream emits the same event without advancing its SSE ID. Fetch the
   bounded snapshot, continue every non-null `next` URL, then replay after `replay_after` to include changes made during paging.
-* Versioned stop, run-create and approval-resolve commands require `Idempotency-Key`. Approvals also require the reviewed `action_hash`; reuse
-  with different arguments conflicts. Resume and legacy bot-run commands do not yet accept keys. Global replay currently retains
+* Versioned stop, run-create, human-resume and approval-resolve commands require `Idempotency-Key`. Approvals also require the reviewed `action_hash`; reuse
+  with different arguments conflicts. Legacy resume and bot-run commands remain compatibility routes without versioned idempotency. Global replay currently retains
   all events; automatic retention/pruning policy remains unimplemented. A missing leading range or a restored database behind a
   client cursor is detected and requires snapshot reconciliation. This stream contains run transcript events.
 * Schema v11 publishes content-free resource invalidations through `/api/v1/changes?cursor=...&limit=200`

@@ -36,6 +36,17 @@ def make_bot(client, name="api-bot", **overrides):
     return res.json()
 
 
+def create_owned_human_wait(store, bot_id, prompt="finish a login"):
+    run = store.create_run(Run(bot_id=bot_id, prompt=prompt))
+    claimed = store.claim_run(run.id, "fixture-human-wait-owner", lease_seconds=30)
+    assert claimed is not None
+    store.transition_run(run.id, RunStatus.running, fence=claimed.fence)
+    store.transition_run(run.id, RunStatus.waiting_human, fence=claimed.fence)
+    store.append_event(Event(run_id=run.id, type=EventType.human_needed,
+                             data={"reason": "Sign in to continue"}))
+    return store.get_run(run.id), store.list_events(run.id)[-1].seq
+
+
 def test_health_and_stats(client):
     assert client.get("/api/health").json()["status"] == "ok"
     stats = client.get("/api/stats").json()
@@ -588,6 +599,106 @@ def test_v1_run_idempotency_is_atomic_across_store_connections(client):
         assert first_store._db.execute("SELECT COUNT(*) FROM tasks WHERE bot_id = ?", (bot["id"],)).fetchone()[0] == 1
     finally:
         second_store.close()
+
+
+def test_v1_resume_is_idempotent_and_bound_to_one_human_wait(client):
+    bot = make_bot(client, name="human-wait", paused=True)
+    store = client.app.state.store
+    run, first_wait_seq = create_owned_human_wait(store, bot["id"])
+    url = f"/api/v1/tasks/runs/{run.id}/resume"
+    body = {"human_event_seq": first_wait_seq}
+
+    assert client.post(url, json=body).status_code == 428
+    headers = {"Idempotency-Key": "resume-login-wait-once"}
+    resumed = client.post(url, json=body, headers=headers)
+    assert resumed.status_code == 200, resumed.text
+    assert resumed.json() == {"resumed": run.id, "human_event_seq": first_wait_seq, "replayed": False}
+    assert store.kv_get(f"resume:{run.id}") == "1"
+
+    replay = client.post(url, json=body, headers=headers)
+    assert replay.status_code == 200 and replay.json()["replayed"] is True
+    assert store.kv_get(f"resume:{run.id}") == "1"
+
+    duplicate_wait = client.post(url, json=body, headers={"Idempotency-Key": "resume-same-wait-again"})
+    assert duplicate_wait.status_code == 409
+    assert store.consume_resume(run.id)
+    assert not store.consume_resume(run.id)
+
+    store.append_event(Event(run_id=run.id, type=EventType.human_needed,
+                             data={"reason": "Confirm the second sign-in step"}))
+    second_wait_seq = store.list_events(run.id)[-1].seq
+    assert second_wait_seq > first_wait_seq
+    assert client.post(url, json=body, headers=headers).json()["replayed"] is True
+    assert store.kv_get(f"resume:{run.id}") == "0", "replaying an old wait must not resume a later challenge"
+    stale = client.post(url, json=body, headers={"Idempotency-Key": "resume-stale-wait"})
+    assert stale.status_code == 409
+
+    current = client.post(url, json={"human_event_seq": second_wait_seq},
+                          headers={"Idempotency-Key": "resume-second-wait"})
+    assert current.status_code == 200 and current.json()["human_event_seq"] == second_wait_seq
+    assert store.kv_get(f"resume:{run.id}") == "1"
+    assert store.consume_resume(run.id)
+    store.transition_run(run.id, RunStatus.running, event={"reason": "fixture completed the human wait"})
+    assert client.post(url, json={"human_event_seq": second_wait_seq},
+                       headers={"Idempotency-Key": "resume-second-wait"}).json()["replayed"] is True
+    rejected = client.post(url, json={"human_event_seq": second_wait_seq},
+                           headers={"Idempotency-Key": "resume-after-wait-ended"})
+    assert rejected.status_code == 409 and "not waiting" in rejected.text
+
+
+def test_v1_resume_accepts_only_one_concurrent_command_per_human_wait(client):
+    bot = make_bot(client, name="concurrent-human-wait", paused=True)
+    first_store = client.app.state.store
+    second_store = Store(client.app.state.config)
+    run, event_seq = create_owned_human_wait(first_store, bot["id"])
+    barrier = Barrier(2)
+
+    keys = ("human-wait-race-a", "human-wait-race-b")
+
+    def resume(store, key):
+        barrier.wait()
+        try:
+            return store.resume_run_idempotent(
+                run.id, event_seq, idem_key=key, request_hash=f"request-{key}")
+        except ValueError as exc:
+            return str(exc)
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda args: resume(*args), zip((first_store, second_store), keys)))
+        assert sum(isinstance(result, tuple) and result[1] for result in results) == 1
+        assert sum(isinstance(result, str) and "already has a resume command" in result
+                   for result in results) == 1
+        assert first_store.kv_get(f"resume:{run.id}") == "1"
+        assert first_store._db.execute("SELECT COUNT(*) FROM human_wait_resumes WHERE run_id = ?",
+                                       (run.id,)).fetchone()[0] == 1
+        winner_key = keys[next(index for index, result in enumerate(results)
+                               if isinstance(result, tuple) and result[1])]
+        replay_store = Store(client.app.state.config)
+        try:
+            replay, created = replay_store.resume_run_idempotent(
+                run.id, event_seq, idem_key=winner_key, request_hash=f"request-{winner_key}")
+            assert not created and replay["human_event_seq"] == event_seq
+            assert replay_store.kv_get(f"resume:{run.id}") == "1"
+        finally:
+            replay_store.close()
+    finally:
+        second_store.close()
+
+
+def test_v1_resume_rejects_a_wait_without_a_live_owner(client):
+    bot = make_bot(client, name="expired-human-wait", paused=True)
+    store = client.app.state.store
+    run, event_seq = create_owned_human_wait(store, bot["id"])
+    with store._tx() as db:
+        db.execute("UPDATE runs SET lease_expires_at = ? WHERE id = ?",
+                   ("2000-01-01T00:00:00+00:00", run.id))
+    response = client.post(f"/api/v1/tasks/runs/{run.id}/resume", json={"human_event_seq": event_seq},
+                           headers={"Idempotency-Key": "resume-expired-worker"})
+    assert response.status_code == 409 and "active owner" in response.text
+    assert store.kv_get(f"resume:{run.id}") is None
+    assert store._db.execute("SELECT COUNT(*) FROM human_wait_resumes WHERE run_id = ?",
+                             (run.id,)).fetchone()[0] == 0
 
 
 def test_approval_flow_via_api(client):

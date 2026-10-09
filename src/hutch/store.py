@@ -409,9 +409,17 @@ def _migrate_18(db: sqlite3.Connection) -> None:
         END""")
 
 
+def _migrate_19(db: sqlite3.Connection) -> None:
+    """Allow one versioned resume command for each human-needed event."""
+    db.execute("""CREATE TABLE human_wait_resumes (
+        run_id TEXT NOT NULL, human_event_seq INTEGER NOT NULL CHECK(human_event_seq > 0),
+        created_at TEXT NOT NULL, PRIMARY KEY(run_id, human_event_seq))""")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
-               _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18]
+               _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
+               _migrate_19]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -3275,6 +3283,51 @@ class Store:
         return out
 
     # ------------------------------------------------------- human pauses
+
+    def resume_run_idempotent(self, run_id: str, human_event_seq: int, *, idem_key: str,
+                              request_hash: str) -> tuple[dict[str, Any], bool]:
+        """Resume only the exact current human wait, once, with restart-safe replay."""
+        self.flush_events()
+        scope = "api:v1:human-resume"
+        now_dt = utcnow()
+        now = iso(now_dt)
+        notify = False
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                if replay.get("run_id") != run_id or replay.get("human_event_seq") != human_event_seq:
+                    raise IdempotencyConflict("Idempotency-Key was already used for a different human wait")
+                marker = db.execute("SELECT value FROM kv WHERE key = ?", (f"resume:{run_id}",)).fetchone()
+                notify = bool(marker and marker["value"] == "1")
+                result, created = replay, False
+            else:
+                run = db.execute("SELECT status, lease_owner, lease_expires_at FROM runs WHERE id = ?",
+                                 (run_id,)).fetchone()
+                if run is None:
+                    raise KeyError(run_id)
+                if run["status"] != RunStatus.waiting_human.value:
+                    raise ValueError("run is not waiting for a person")
+                if not run["lease_owner"] or not run["lease_expires_at"] or run["lease_expires_at"] < now:
+                    raise ValueError("the run no longer has an active owner to resume")
+                current = db.execute("SELECT seq FROM events WHERE run_id = ? AND type = 'human_needed' "
+                                     "ORDER BY seq DESC LIMIT 1", (run_id,)).fetchone()
+                if current is None or int(current["seq"]) != human_event_seq:
+                    raise ValueError("this Resume action is stale; refresh the run and inspect the current request")
+                if db.execute("SELECT 1 FROM human_wait_resumes WHERE run_id = ? AND human_event_seq = ?",
+                              (run_id, human_event_seq)).fetchone():
+                    raise ValueError("this human wait already has a resume command")
+                db.execute("INSERT INTO human_wait_resumes(run_id, human_event_seq, created_at) VALUES (?, ?, ?)",
+                           (run_id, human_event_seq, now))
+                db.execute("INSERT INTO kv(key, value) VALUES (?, '1') "
+                           "ON CONFLICT(key) DO UPDATE SET value = '1'", (f"resume:{run_id}",))
+                result = {"run_id": run_id, "human_event_seq": human_event_seq}
+                db.execute("INSERT INTO idempotency_keys(scope, key, request_hash, response_json, created_at) "
+                           "VALUES (?, ?, ?, ?, ?)",
+                           (scope, idem_key, request_hash, _canonical(result), now))
+                notify, created = True, True
+        if notify:
+            self.bus.notify(f"human:{run_id}", f"approval:wake:{run_id}", f"run:{run_id}", "work")
+        return result, created
 
     def resume_run(self, run_id: str) -> None:
         """A person finished the login/CAPTCHA wall: wake the run that is waiting on it."""

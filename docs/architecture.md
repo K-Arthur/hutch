@@ -88,6 +88,8 @@ chat can also stop its access. The file bytes stay in the source run: the refere
 them into the other workspace nor adds them to that chat's model context. This is not a general
 artifact library or implicit bot-to-bot sharing. Schema v18 adds durable invalidations for the source
 conversation when a grant is created or revoked, including changes made from another device.
+Schema v19 adds a one-use resume record bound to the active `human_needed` event sequence. An old
+resume retry returns its original result without setting a flag for a later challenge.
 Arbitrary shell-created files are not attached automatically. Bots
 default to a fresh workspace per run; operators may select a private Hutch-managed directory
 shared only by that bot, or an existing validated user folder.

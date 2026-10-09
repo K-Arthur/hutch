@@ -64,7 +64,7 @@ managed infrastructure until trusted-proxy handling is documented and validated.
 ## Database migration and restore
 
 Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. This
-realignment branch uses schema v18; `hutch doctor` displays the current version. Keep the matching
+realignment branch uses schema v19; `hutch doctor` displays the current version. Keep the matching
 release and pre-upgrade backups. A normal snapshot captures committed database history, including
 WAL pages; event buffers that have not committed yet are outside its scope:
 
@@ -160,6 +160,10 @@ chat lists active recipients and can revoke a grant; the receiving chat can also
 Schema v18 adds transactional source-chat invalidations when a share is granted or revoked, so open
 source Files views refresh after changes from another device. Keep the matching pre-upgrade backup
 until the upgraded application and shared-file list have been checked.
+Schema v19 records one versioned Resume per `human_needed` event sequence. The route checks that
+the run is still waiting under a live owner lease and that the submitted sequence is the current
+wait; exact retries return the stored response without setting the resume flag again. Existing
+unversioned resume routes remain for compatibility and do not carry this stale-event guarantee.
 Hutch does not infer that adjacent runs share a
 private context. New conversations and message submissions are written transactionally with their idempotency records. The
 `conversation_fts` index contains message text only; it excludes tool output, credentials, workspaces and bot memory.

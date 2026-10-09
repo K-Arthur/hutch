@@ -166,6 +166,10 @@ class VersionedRunCreateRequest(BaseModel):
     model: Optional[str] = Field(default=None, max_length=200)
 
 
+class ResumeRunRequest(BaseModel):
+    human_event_seq: int = Field(ge=1)
+
+
 class ConversationCreate(BaseModel):
     bot: str
     title: str = Field(default="", max_length=120)
@@ -1663,6 +1667,23 @@ def create_app() -> FastAPI:
         run_or_404(run_id)
         store.resume_run(run_id)
         return {"resumed": run_id}
+
+    @app.post("/api/v1/tasks/runs/{run_id}/resume", response_model=dict)
+    def resume_run_v1(run_id: str, body: ResumeRunRequest, request: Request) -> dict:
+        key = idempotency_key(request)
+        digest = request_digest({"command": "human-resume", "run_id": run_id,
+                                 "human_event_seq": body.human_event_seq})
+        try:
+            result, created = store.resume_run_idempotent(
+                run_id, body.human_event_seq, idem_key=key, request_hash=digest)
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except KeyError:
+            raise HTTPException(404, f"no such run: {run_id}") from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        return {"resumed": result["run_id"], "human_event_seq": result["human_event_seq"],
+                "replayed": not created}
 
     @app.post("/api/stop-all")
     def stop_all() -> dict:
