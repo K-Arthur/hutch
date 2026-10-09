@@ -81,6 +81,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `18b9b7b` | Add versioned human resume bound to the latest active human-needed event and owner lease; enforce one resume per wait sequence, idempotent replay and schema-v19 migration coverage |
 | `ee3f179` | Add event-bound, idempotent Resume directly to the active Studio chat; keep historical waits read-only and capture desktop/tablet/phone behavior |
 | `4a3e5c0` | Keep Studio work feedback steady and increase shared server-page heading line-height; inspect the computed design at desktop/tablet/phone widths |
+| `a167865` | Add up to 100 independently scheduled, named task streams per bot with migration-safe IDs, API/CLI/settings management, and responsive visual evidence |
 
 ## Dashboard polish continuation (2026-10-09)
 
