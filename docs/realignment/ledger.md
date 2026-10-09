@@ -1973,3 +1973,22 @@ detector passed. No live provider/model, physical device or screen reader was us
 CO-14 remains partial: this setting does not implement coordinator/specialist model controls or route identity for cross-Bot runs.
 CO-15 recovery-safe coordinator checkpoints and CO-16 explicit cross-Bot memory grants remain open. Implementation commit:
 `fd001c3`.
+
+## S6 one-message model choice and explicit Bot default (2026-10-09)
+
+Commit `3d36c3c` changes the Studio model picker from a sticky per-Bot selection to a one-message override scoped to the
+current conversation. The selected route survives reload for that conversation, does not bleed into a new conversation,
+and is consumed only after the message endpoint accepts the command; a rejected send retains the selection for retry.
+The resulting run stores `model_override` while the saved Bot model and scheduled route remain unchanged. **Save as Bot
+default** is a separate model-only Bot update through the existing server validation. It clears the pending override,
+creates no run, and applies to later chats and scheduled runs.
+
+Six focused Chromium/Playwright checks passed in **29.71s**, covering conversation isolation, one-message consumption,
+explicit saved-default persistence, no-run-on-save, the all-models dialog, phone fit, workspace-default Bot setup and
+anonymous marketing copy. The test used FakeOllama and made no provider/model call. I inspected the new model-menu and
+public inference-card captures at **1440px, 900px and 390px** widths; the menu/action stayed inside the viewport, the
+public card wrapped without horizontal overflow, and both browser runs recorded zero page errors. Source-hash metadata
+matches the tested picker files. `node --check`, `git diff --check`, artifact JSON validation and the Impeccable detector
+passed; the detector returned no findings. This verifies the ordinary-Bot picker only. CO-14 remains partial because
+workspace-coordinator/specialist model controls and actual model identity on cross-Bot runs are not implemented. No
+live provider, physical phone or screen-reader check was performed.
