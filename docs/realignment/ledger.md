@@ -85,6 +85,7 @@ is a local `main` fast-forward only after all implementation and verification ga
 | `652274d` | Persist bounded same-bot delegation lineage with atomic depth/fan-out admission and idempotent child creation |
 | `3a68422` | Add immutable inherited delegation-tree cost ceilings and atomic reservations across measured spend and unresolved holds; full suite 1,420 passed |
 | `53a3c24` | Record the v23 shared delegated-budget checkpoint in the continuation ledger |
+| `976138b` | Cascade Stop intent through persisted descendants atomically, signal owned descendant workers, and keep cleanup visible; full suite 1,423 passed |
 
 ## Dashboard polish continuation (2026-10-09)
 
