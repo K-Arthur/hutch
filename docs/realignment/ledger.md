@@ -2886,3 +2886,13 @@ paragraph stretching that left large gaps; the refreshed anonymous-site test the
 [`artifacts/fact-sharing/`](artifacts/fact-sharing/) and [`artifacts/bot-purpose-refinement/marketing/`](artifacts/bot-purpose-refinement/marketing/).
 No live provider, personal account or external request was used. The implementation checkpoint is `433981e`; this ledger entry
 documents its verification boundary and visual evidence.
+
+## Full offline regression checkpoint (2026-10-09)
+
+The first suite run after schema v38 found three failures in the v21-v23 migration tests. Their helper lowered `user_version`
+after opening a current database but did not remove the v38 `memory_fact_shares` table, so those cases did not model a database
+from the claimed historical schema. The helper now removes that later table before replaying migrations. All three legacy
+migration cases passed, and `tests/test_delegation.py` passed **29 tests, 1 skipped**. The complete non-browser suite with
+unhandled-thread and syntax warnings promoted to errors then passed **1,476 tests, 2 skipped, in 284.69s** using
+`uv run python -m pytest -vv --tb=short -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning --ignore=tests/e2e`.
+Browser/anonymous-site checks are separate; this run made no provider or model calls.

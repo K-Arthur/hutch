@@ -190,7 +190,7 @@ def _remove_later_conversation_schema(db):
     db.execute("DROP INDEX IF EXISTS idx_messages_workspace_task_result")
     for table in ("workspace_task_continuations", "workspace_task_fact_shares", "workspace_task_checkpoints",
                   "workspace_tasks", "workspace_settings",
-                  "conversation_questions", "google_calendar_grants"):
+                  "conversation_questions", "google_calendar_grants", "memory_fact_shares"):
         db.execute(f"DROP TABLE IF EXISTS {table}")
     columns = {row[1] for row in db.execute("PRAGMA table_info(messages)")}
     for column in ("workspace_task_result_id", "workspace_task_result_message_id",
