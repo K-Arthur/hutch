@@ -1252,6 +1252,60 @@ def test_versioned_connections_schedules_and_capabilities_are_typed_and_secret_f
     assert route["quota_reserved_tokens"] == 123 and route["account_daily_cost_reserved_usd"] == 0.45
     assert "never-return-this-key" not in connections.text
 
+    from hutch.lifecycle import LeaseLost
+
+    store = client.app.state.store
+    bot = store.create_bot(Bot(name="capability-evidence-api"))
+    run = store.create_run(Run(bot_id=bot.id, prompt="use a tool"))
+    claimed = store.claim_run(run.id, "capability-api-test", 30)
+    assert claimed is not None
+    run = store.transition_run(run.id, RunStatus.running, fence=claimed.fence)
+    first_reservation = store.reserve_usage(run_id=run.id, bot_id=bot.id, provider="private-route",
+                                            account_id="account-safe-id", model="fixture-model", reserved_tokens=10,
+                                            reserved_cost_usd=0, expected_fence=run.fence)
+    store.mark_usage_uncertain(first_reservation, "fixture response usage omitted", expected_fence=run.fence)
+    store.record_model_capability_observation(
+        run, provider="private-route", account_id="account-safe-id", model="fixture-model",
+        route_revision="a" * 64, capability="function_tool_calls", source_tool="list_files")
+    second_bot = store.create_bot(Bot(name="capability-evidence-api-2"))
+    second = store.create_run(Run(bot_id=second_bot.id, prompt="use another tool"))
+    second_claim = store.claim_run(second.id, "capability-api-test-2", 30)
+    assert second_claim is not None
+    second = store.transition_run(second.id, RunStatus.running, fence=second_claim.fence)
+    second_reservation = store.reserve_usage(run_id=second.id, bot_id=second_bot.id, provider="private-route",
+                                             account_id="account-safe-id", model="fixture-model-2",
+                                             reserved_tokens=10, reserved_cost_usd=0, expected_fence=second.fence)
+    store.mark_usage_uncertain(second_reservation, "fixture response usage omitted", expected_fence=second.fence)
+    store.record_model_capability_observation(
+        second, provider="private-route", account_id="account-safe-id", model="fixture-model-2",
+        route_revision="b" * 64, capability="function_tool_calls", source_tool="read_file")
+    store.transition_run(run.id, RunStatus.succeeded, fence=run.fence)
+    with pytest.raises(LeaseLost, match="lease expired|ownership lease expired"):
+        store.record_model_capability_observation(
+            run, provider="private-route", account_id="account-safe-id", model="fixture-model-3",
+            route_revision="c" * 64, capability="function_tool_calls", source_tool="list_files")
+    unreserved_bot = store.create_bot(Bot(name="capability-evidence-unreserved"))
+    unreserved = store.create_run(Run(bot_id=unreserved_bot.id, prompt="no usage reservation"))
+    unreserved_claim = store.claim_run(unreserved.id, "capability-unreserved-test", 30)
+    assert unreserved_claim is not None
+    unreserved = store.transition_run(unreserved.id, RunStatus.running, fence=unreserved_claim.fence)
+    with pytest.raises(ValueError, match="usage reservation"):
+        store.record_model_capability_observation(
+            unreserved, provider="private-route", account_id="account-safe-id", model="unreserved-model",
+            route_revision="d" * 64, capability="function_tool_calls", source_tool="list_files")
+
+    first_page = client.get("/api/v1/model-capabilities?limit=1")
+    assert first_page.status_code == 200
+    body = first_page.json()
+    assert len(body["items"]) == 1 and body["next_after_id"] is not None
+    assert body["items"][0]["status"] == "observed"
+    assert body["items"][0]["scope"] == "exact connection, account, model, and route revision"
+    assert "secret" not in first_page.text.lower()
+    next_page = client.get(f"/api/v1/model-capabilities?limit=1&after_id={body['next_after_id']}")
+    assert next_page.status_code == 200
+    assert len(next_page.json()["items"]) == 1
+    assert client.get("/api/v1/model-capabilities?limit=101").status_code == 422
+
     bot = make_bot(client, name="scheduled-v1", cron="0 9 * * 1", timezone="America/Vancouver",
                    schedule_prompt="Review new release notes and write a concise report.")
     schedules = client.get("/api/v1/schedules").json()

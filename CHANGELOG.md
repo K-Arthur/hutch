@@ -20,6 +20,8 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ## [Unreleased]
 
+- Schema v37 records one immutable, positive tool-call observation per exact provider connection/account/model/route revision when a normal, owned Bot run with settled or uncertain usage reservation receives a declared call with valid arguments. Added bounded, typed `GET /api/v1/model-capabilities`; no extra paid probe is made, invalid calls do not count, and absent evidence remains unknown.
+
 - Added an experimental private-preview Gmail search connection using an owner-configured Google Desktop OAuth client and Linux Secret Service. It requests restricted account-wide `gmail.readonly`, returns bounded headers/snippets only, and grants access only to built-in Bots whose complete model route set is loopback Local. Hybrid, hosted, remote model endpoints and hosted fallbacks are rejected. No Gmail send or mailbox-write operation exists; public release is unavailable pending Google scope verification and any applicable security assessment. Live account consent is unverified.
 - ChatGPT plan routes now require explicit per-Bot, per-account consent before scheduled or coordinator-assigned work. The grant is tied to the current provider routes, rechecked before each model request, removed on disconnect, and excluded from public Bot/snapshot resources. Revoke stops later requests after any in-flight request completes.
 

@@ -30,9 +30,12 @@ the Pi/OpenCode executor row above.
 `hutch connections test` can authenticate against a model-list endpoint without making a model request. For ChatGPT, model
 selection uses the account's list-visible model catalog only after an explicit selection request. It does not confirm tool
 calling. A standalone chat probe is refused because it bypasses shared usage reservations and durable reconciliation; use a
-normal bot run to test model behavior through Hutch's governed path. The explicit opt-in capability probe and persisted
-per-connection/model record in ADR-0005 remain unimplemented, so model-level tool support stays unknown. A fixture-tested route
-must not be described as a live model verification.
+normal Bot run to test model behavior through Hutch's governed path. Schema v37 records a positive, immutable observation when
+an owned run with settled or uncertain usage reservation receives a declared, argument-valid tool call, scoped to its exact connection, account, model and route
+revision. Read evidence from `GET /api/v1/model-capabilities` with bounded `after_id`/`limit` pagination. This is an observation
+of one response, not a model guarantee; no record means unknown, and route changes require new evidence. Invalid and undeclared
+tool calls and tool-free draft runs do not count. The observation is passive: it makes no extra model request. Fixture-tested
+provider contracts must not be described as live model verification.
 
 ## Request-field regression
 

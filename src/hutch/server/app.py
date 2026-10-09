@@ -25,7 +25,7 @@ from typing import Any, Literal, Optional
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -580,6 +580,25 @@ class CompatibilityMatrixResource(BaseModel):
     version: int
     reviewed_on: str
     routes: list[CompatibilityRouteResource]
+
+
+class ModelCapabilityObservationResource(BaseModel):
+    id: int
+    run_id: str
+    provider: str
+    account_id: str
+    model: str
+    route_revision: str
+    capability: Literal["function_tool_calls"]
+    source_tool: str
+    observed_at: str
+    status: Literal["observed"]
+    scope: str
+
+
+class ModelCapabilityPageResource(BaseModel):
+    items: list[ModelCapabilityObservationResource]
+    next_after_id: Optional[int]
 
 
 class ScheduleResource(BaseModel):
@@ -1402,6 +1421,16 @@ def create_app() -> FastAPI:
     def compatibility() -> dict:
         from ..compat import compatibility_matrix
         return compatibility_matrix()
+
+    @app.get("/api/v1/model-capabilities", response_model=ModelCapabilityPageResource)
+    def model_capability_observations(after_id: int = Query(default=0, ge=0),
+                                      limit: int = Query(default=50, ge=1, le=100)) -> dict:
+        rows = store.list_model_capability_observations(after_id=after_id, limit=limit)
+        has_more = len(rows) > limit
+        items = rows[:limit]
+        scope = "exact connection, account, model, and route revision"
+        return {"items": [{**row, "status": "observed", "scope": scope} for row in items],
+                "next_after_id": items[-1]["id"] if has_more and items else None}
 
     @app.get("/api/v1/connections", response_model=list[ConnectionResource])
     def list_connections() -> list[dict]:

@@ -1,6 +1,6 @@
 # ADR-0005: Provider routes, credentials, and the compatibility matrix
 
-Status: accepted; route-level compatibility records implemented, per-model capability probing pending (2026-10-08). Slice: S5. Evidence: baseline lead 5, B1-B4.
+Status: accepted; route-level compatibility and passive per-model tool-call evidence implemented (2026-10-09). No paid capability probe or live model verification is claimed. Slice: S5. Evidence: baseline lead 5, B1-B4.
 
 ## Context
 
@@ -32,13 +32,17 @@ sends `OPENAI_API_KEY` to whatever URL it is given (baseline lead 5).
    | Sign in with ChatGPT token sharing (local app) | experimental, opt-in and eligibility unconfirmed | Implemented as a separate PKCE/OIDC public-client route, owner-only local token store and fixed Responses API adapter (`store:false`, `stream:true`). Reauthorization retains the issued client and host IDs and uses OpenAI's `id_token_hint`; local functions use preview-supported `additional_tools` input items. Hutch omits preview-unsupported fields (B1, B2); the preview does not accept an output-token ceiling, so Hutch's usage admission is not a hard spend cap. No eligibility or live account use is claimed. |
    | Cookie scraping, spoofed client identity, credential laundering through a harness | blocked | never implemented |
 
-4. **Capabilities are validated, not assumed.** The route matrix is implemented and records protocol-level evidence, but it
-   does not validate capabilities for a (connection, model) pair. The current model-list check only authenticates/discovers
-   ids; tool-use capability probing, a persisted verification record, and refusal of unknown tool capability are pending.
-   Until those land, model-level tool support must be described as unknown; passing request fixtures are not live model
-   evidence. Any future live probe must be explicitly opted into, reserve usage through ADR-0011 before the request, bind its
-   result to the exact connection/account/model revision, and reconcile uncertain outcomes. The legacy standalone `--chat`
-   connection test is refused because it bypassed those controls; normal bot runs remain the governed way to test model behavior.
+4. **Capabilities are validated, not assumed.** The route matrix records protocol-level fixture evidence; it does not certify
+   a specific model. A model-list check authenticates or discovers ids only. Schema v37 passively records one immutable positive
+   `function_tool_calls` observation for the exact connection/account/model/route revision when an ordinary, budget-reserved
+   Bot run still owned by its live execution lease returns a declared tool call whose arguments pass Hutch's validation and
+   its shared-account reservation is settled or retained as uncertain. The record is written after usage accounting
+   and before the tool can execute; it contains no prompt, arguments, credential or response text. Invalid/unknown calls and
+   tool-free draft runs do not count. `GET /api/v1/model-capabilities` provides bounded keyset pagination. The record proves
+   only that this exact route revision returned one valid declared call at that time; it is not a guarantee of future behavior.
+   No record means unknown, and changing the route, account or model requires new evidence. Hutch does not infer unsupported
+   status from a missing call or issue a separate probe. The legacy standalone `--chat` connection test remains refused because
+   it bypasses shared reservations and uncertain-charge reconciliation; use a normal Bot run to exercise model behavior.
    The ChatGPT plan route is opt-in with `HUTCH_ENABLE_CHATGPT_PLAN=1`; this flag does not establish eligibility.
    Its issuer, audience, nonce and signature are verified; credentials stay under the Hutch state directory with
    owner-only permissions, and an access token is sent only to `https://api.openai.com/v1/responses` or the official

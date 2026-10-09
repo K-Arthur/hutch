@@ -120,6 +120,29 @@ def kinds(emitted, kind):
     return [e.data for e in emitted if e.type is EventType.log and e.data.get("kind") == kind]
 
 
+def test_valid_tool_response_records_passive_model_route_capability(store, config, tmp_path, ollama, monkeypatch):
+    monkeypatch.setenv("OLLAMA_HOST", ollama.url)
+    ollama.script = agent_script([{"tool_calls": [WRITE]},
+                                  {"tool_calls": [{"name": "read_file", "arguments": {"path": "out.md"}}]},
+                                  {"content": "done"}])
+    ctx, run, _, tools = build(store, config, tmp_path)
+    claimed = store.claim_run(run.id, "capability-evidence-test", 120)
+    assert claimed is not None
+    run = store.transition_run(run.id, RunStatus.running, fence=claimed.fence)
+    ctx.run = ctx.gate.run = run
+
+    assert run_it(runtime(), run, ctx, tools) == "done"
+    rows = store.list_model_capability_observations()
+    assert len(rows) == 1
+    assert rows[0]["provider"] == "ollama"
+    assert rows[0]["account_id"] == "ollama"
+    assert rows[0]["model"] == "fake:8b"
+    assert rows[0]["capability"] == "function_tool_calls"
+    assert rows[0]["source_tool"] == "write_file"
+    assert rows[0]["run_id"] == run.id
+    assert len(rows[0]["route_revision"]) == 64
+
+
 # ============================================================ LM-1: explicit context, always
 
 def test_local_run_end_to_end_with_exact_accounting_and_a_frozen_prefix(store, config, tmp_path, ollama):
@@ -166,6 +189,7 @@ def test_tool_free_bot_draft_run_cannot_call_tools_even_when_the_bot_has_them(st
     assert request.get("tools", []) == []
     assert "only propose the Bot's standing instructions" in request["messages"][0]["content"]
     assert not (ctx.workspace / "out.md").exists()
+    assert store.list_model_capability_observations() == []
 
 
 def test_structured_choice_is_conversation_only_and_pauses_the_model_loop(store, config, tmp_path, ollama):
@@ -301,6 +325,7 @@ def test_an_invented_tool_is_rejected_with_the_list_of_real_ones(store, config, 
     ctx, run, emitted, tools = build(store, config, tmp_path)
     run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
     assert "no tool named `teleport`" in ollama.of("/api/chat")[1]["body"]["messages"][-1]["content"]
+    assert store.list_model_capability_observations() == []
 
 
 def test_endless_malformed_calls_without_an_escalation_target_stop_the_run(store, config, tmp_path, ollama):

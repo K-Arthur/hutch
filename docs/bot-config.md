@@ -99,8 +99,10 @@ openai-compatible/<name>  any endpoint — set bot.base_url or HUTCH_BASE_URL. I
 The versioned [provider compatibility matrix](realignment/provider-compatibility.md) describes
 the request Hutch sends for each route and the evidence behind its status. A supported route is
 fixture-tested at the protocol level; it does not establish that a particular endpoint/model can
-use tools or report all usage. `hutch connections test` can check model-list access, but the
-per-connection/model capability probe is not implemented.
+use tools or report all usage. `hutch connections test` checks model-list access only. An owned,
+usage-reserved Bot run may add a positive tool-call observation for its exact connection, account,
+model and route revision; inspect these at `GET /api/v1/model-capabilities`. No observation means
+unknown, and an observed tool call does not guarantee future behavior or grant action permission.
 
 There is no production mock model route. Existing records that contain `mock/*` remain readable
 for migration and audit, but attempts fail before starting an action with `model_unavailable`.

@@ -353,7 +353,11 @@ class BuiltinRuntime:
             return (conn.name, conn.account_id, conn.billing, protocol, endpoint, revision)
         from ..providers.openai_compat import PRESET_URLS
         import os
-        endpoint = ladder.base_url_for(rung) or PRESET_URLS.get(rung.provider, "")
+        endpoint = ladder.base_url_for(rung)
+        if rung.provider == "ollama":
+            endpoint = endpoint or os.environ.get("OLLAMA_HOST") or PRESET_URLS.get(rung.provider, "")
+        else:
+            endpoint = endpoint or PRESET_URLS.get(rung.provider, "")
         if rung.provider == "anthropic":
             endpoint = endpoint or os.environ.get("ANTHROPIC_BASE_URL") or "https://api.anthropic.com"
         elif rung.provider == "openai-compatible":
@@ -588,6 +592,8 @@ class BuiltinRuntime:
             timer = StepTimer()
             try:
                 route = self._ask_first_hosted(ctx, ladder, session.rung, "the connection authority changed", est_prompt)
+                if route is None:
+                    route = self._route_identity(ctx, ladder, session.rung)
                 session.provider = self._provider_for(ctx, ladder, session.rung, expected_route=route)
             except DeniedError as exc:
                 raise RunAborted("error", f"provider route was not approved: {exc}") from exc
@@ -738,6 +744,12 @@ class BuiltinRuntime:
                     self._log(ctx, run, "repair", f"malformed call to {tc.name}: {'; '.join(problems)}")
                     messages.append({"role": "tool", "tool_call_id": tc.id, "name": tc.name, "content": msg})
                     continue
+                if run.fence and run.status is RunStatus.running:
+                    route_revision = hashlib.sha256(json.dumps(route, sort_keys=True, separators=(",", ":"),
+                                                          default=str).encode()).hexdigest()
+                    ctx.store.record_model_capability_observation(
+                        run, provider=str(route[0]), account_id=str(route[1]), model=session.rung.model,
+                        route_revision=route_revision, capability="function_tool_calls", source_tool=tc.name)
                 if loop.check(tc.name, args):
                     loop_hit = True
                     loop_strikes += 1

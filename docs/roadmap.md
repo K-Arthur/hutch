@@ -194,8 +194,9 @@ Strict Offline Linux runs; it does not complete the broader S6 collaboration pla
   Resume and standalone run creation now use versioned idempotent commands; their legacy routes remain compatibility aliases.
 - **Provider compatibility: route-level matrix implemented.** `GET /api/v1/compatibility` records supported,
   experimental, unavailable and blocked routes with dated sources, request fields Hutch sends/omits and fixture/live
-  verification limits. Exact OpenAI host matching now selects its token-limit field. Per-connection/model capability
-  records and opt-in per-model tool probes remain open. Offline tests cover unsupported host isolation,
+  verification limits. Exact OpenAI host matching now selects its token-limit field. Schema v37 adds passive, immutable
+  positive tool-call evidence from owned, usage-reserved Bot runs, bound to exact route revision and exposed through
+  bounded `GET /api/v1/model-capabilities`; absent evidence remains unknown and no paid probe is run. Offline tests cover unsupported host isolation,
   hosted routes and overrides, endpoint validation, tool omission, environment scrubbing, a local-only
   namespace probe, and a fake-provider request through the broker. Live model/backend provenance remains unverified.
   fields, auth/quota rejection, held uncertain usage and the outward approval required before switching paid routes;

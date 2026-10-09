@@ -318,9 +318,12 @@ and reserves another attempt before retrying, using the same transactional accou
 Provider protocol claims are published in the versioned `GET /api/v1/compatibility` matrix
 ([details](realignment/provider-compatibility.md)). Its `supported` state describes a common
 request/response contract with recorded fixtures. It is not a live connection or model capability
-check: endpoint variants and models can differ in tool use, context, usage and retention. Per-
-connection/model capability records and opt-in probes remain planned, and unknown capability
-must remain visibly unknown.
+check: endpoint variants and models can differ in tool use, context, usage and retention. Schema v37
+records positive function-tool-call observations only when an owned Bot run with settled or uncertain
+usage receives a declared call with valid arguments. `GET /api/v1/model-capabilities` returns that
+immutable evidence, bound to a hash of the exact connection/account/protocol/endpoint revision and
+model. It is a historical observation, not a future guarantee; no record means unknown. Hutch makes
+no extra model probe, and tool-call evidence does not grant action authority.
 
 Each bot stores an inference route mode. `local` filters hosted choices and refuses hosted
 per-message overrides, fallback and escalation calls; configured tools keep their own network

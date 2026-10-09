@@ -20,7 +20,7 @@ from hutch.lifecycle import IllegalTransition
 from hutch.models import RunStatus
 from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28,
                          _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34,
-                         _migrate_35)
+                         _migrate_35, _migrate_37)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
@@ -38,6 +38,25 @@ def test_outlook_mail_grant_migration_adds_account_scoped_bot_access():
         row = db.execute("SELECT bot_id, account_id, granted_at FROM outlook_mail_grants").fetchone()
         assert row == ("bot-1", "msmail_000000000000000000000001", "now")
         assert SCHEMA_VERSION >= 35
+    finally:
+        db.close()
+
+
+def test_model_capability_observation_migration_adds_immutable_route_evidence():
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("CREATE TABLE runs (id TEXT PRIMARY KEY)")
+        db.execute("INSERT INTO runs VALUES ('run-before-migration')")
+        _migrate_37(db)
+        db.execute("INSERT INTO model_capability_observations "
+                   "(run_id, provider, account_id, model, route_revision, capability, source_tool, observed_at) "
+                   "VALUES ('run-before-migration', 'local-route', 'account-a', 'model-a', '" + "a" * 64 + "', "
+                   "'function_tool_calls', 'list_files', '2026-10-09T00:00:00+00:00')")
+        with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+            db.execute("UPDATE model_capability_observations SET model = 'model-b'")
+        with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+            db.execute("DELETE FROM model_capability_observations")
+        assert SCHEMA_VERSION >= 37
     finally:
         db.close()
 

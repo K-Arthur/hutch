@@ -976,12 +976,36 @@ def _migrate_36(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX IF NOT EXISTS idx_google_mail_grants_account ON google_mail_grants(account_id)")
 
 
+def _migrate_37(db: sqlite3.Connection) -> None:
+    """Keep one immutable positive model capability observation per exact route revision."""
+    db.execute("""CREATE TABLE IF NOT EXISTS model_capability_observations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        run_id TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        model TEXT NOT NULL,
+        route_revision TEXT NOT NULL CHECK(length(route_revision) = 64),
+        capability TEXT NOT NULL CHECK(capability = 'function_tool_calls'),
+        source_tool TEXT NOT NULL,
+        observed_at TEXT NOT NULL,
+        UNIQUE(provider, account_id, model, route_revision, capability)
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_model_capability_observations_route "
+               "ON model_capability_observations(provider, account_id, model, id)")
+    db.execute("""CREATE TRIGGER IF NOT EXISTS model_capability_observations_immutable_update
+        BEFORE UPDATE ON model_capability_observations
+        BEGIN SELECT RAISE(ABORT, 'model capability observations are immutable'); END""")
+    db.execute("""CREATE TRIGGER IF NOT EXISTS model_capability_observations_immutable_delete
+        BEFORE DELETE ON model_capability_observations
+        BEGIN SELECT RAISE(ABORT, 'model capability observations are immutable'); END""")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
                _migrate_19, _migrate_20, _migrate_21, _migrate_22, _migrate_23, _migrate_24, _migrate_25, _migrate_26,
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
-               _migrate_34, _migrate_35, _migrate_36]
+               _migrate_34, _migrate_35, _migrate_36, _migrate_37]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -3543,6 +3567,47 @@ class Store:
                 if cur.rowcount != 1:
                     raise LeaseLost(run.id, "ownership changed while saving progress")
         self._notify_run(run)
+
+    def record_model_capability_observation(self, run: Run, *, provider: str, account_id: str, model: str,
+                                            route_revision: str, capability: str, source_tool: str) -> None:
+        """Record a positive capability only while this run still owns active execution.
+
+        The caller must pass the exact route identity captured before the provider request. No prompt, tool arguments,
+        credentials, or response content are persisted. The uniqueness key keeps one first observation for each route.
+        """
+        values = (provider, account_id, model, source_tool)
+        if any(not isinstance(value, str) or not value or len(value) > 256 for value in values):
+            raise ValueError("model capability observation identity is invalid")
+        if capability != "function_tool_calls":
+            raise ValueError("unsupported model capability observation")
+        if (not isinstance(route_revision, str) or len(route_revision) != 64
+                or any(char not in "0123456789abcdef" for char in route_revision)):
+            raise ValueError("route revision must be a lowercase SHA-256 digest")
+        with self._tx() as db:
+            row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run.id,)).fetchone()
+            if row is None:
+                raise LeaseLost(run.id, "run no longer exists")
+            self._check_lease(row, run.id, run.fence)
+            if RunStatus(row["status"]) is not RunStatus.running:
+                raise LeaseLost(run.id, "capability evidence requires an actively running owner")
+            reserved = db.execute("""SELECT 1 FROM usage_reservations WHERE run_id = ? AND provider = ?
+                AND account_id = ? AND model = ? AND status IN ('settled', 'uncertain') LIMIT 1""",
+                (run.id, provider, account_id, model)).fetchone()
+            if reserved is None:
+                raise ValueError("model capability evidence requires a settled or uncertain Hutch usage reservation")
+            db.execute("""INSERT INTO model_capability_observations
+                (run_id, provider, account_id, model, route_revision, capability, source_tool, observed_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING""",
+                (run.id, provider, account_id, model, route_revision, capability, source_tool, iso(utcnow())))
+
+    def list_model_capability_observations(self, *, after_id: int = 0, limit: int = 50) -> list[dict[str, Any]]:
+        if after_id < 0 or not 1 <= limit <= 100:
+            raise ValueError("model capability pagination is out of range")
+        with self._lock:
+            rows = self._db.execute("""SELECT id, run_id, provider, account_id, model, route_revision,
+                capability, source_tool, observed_at FROM model_capability_observations
+                WHERE id > ? ORDER BY id LIMIT ?""", (after_id, limit + 1)).fetchall()
+        return [dict(row) for row in rows]
 
     def _notify_run(self, run: Run) -> None:
         # `work` wakes the scheduler loop; only a status transition changes what it should do,

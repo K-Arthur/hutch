@@ -17,6 +17,13 @@ fast-forwarded only after implementation and verification for this checkpoint pa
 
 ## Current slices
 
+S5 continuation, 2026-10-09: schema v37 now stores one immutable positive `function_tool_calls` observation per exact
+connection/account/model/route revision. The record is made only after an owned run's shared-account usage reservation is
+settled or retained as uncertain and Hutch validates a declared tool call's arguments. Invalid calls and draft-only runs do not
+count; no record remains unknown. `GET /api/v1/model-capabilities` exposes bounded keyset pages without prompts, arguments or
+credentials. This is passive fixture-backed evidence, not a live provider guarantee or an extra paid probe. The effective
+`OLLAMA_HOST` is included in built-in route identity, correcting the local endpoint mismatch exposed by pinning this route.
+
 | Slice | State | Evidence boundary |
 |---|---|---|
 | S0 research, baseline and claims audit | Landed before integration | The evidence ledger distinguishes direct observations, individual reports, fixed historical defects and unverified claims. Reported failures are design scenarios, not prevalence data. |
@@ -2791,3 +2798,23 @@ the permission/capability and provider-budget limitation. `uv run pytest -q test
 passed **17 tests in 0.26s**. Protocol tests are offline fixtures; no provider request or model call occurred. See the updated
 [provider compatibility matrix](provider-compatibility.md) and [`tests.md`](tests.md). The expanded adapter/runtime/matrix batch
 also passed **33 tests in 0.89s**; this remains fixture coverage, not a live Pi or provider check.
+
+## Passive per-model tool-call evidence (schema v37, 2026-10-09)
+
+The provider matrix previously knew whether a route spoke the expected protocol, but not whether one configured model could
+return a usable function call. Rather than send an additional capability probe outside the normal budget path, Hutch now
+records the first positive, declared, argument-valid tool call observed during a live fenced Bot run. The write happens only
+after `finish_step` settles or retains Hutch's shared-account reservation as uncertain and before the tool can execute. The
+immutable row stores the run, provider route/account, model, route identity hash, safe tool name and timestamp, never prompt text,
+tool arguments, credentials or response content. Duplicate observations for the same exact route revision are ignored. Invalid,
+unknown, tool-free draft and unreserved calls do not create evidence. A route change produces a different revision and no
+capability is inferred for it. The record is still only a past response, not a future guarantee; absent evidence is unknown.
+`GET /api/v1/model-capabilities` provides typed keyset pagination capped at 100 rows. No UI or marketing change was needed for
+this API/persistence slice, so the earlier responsive screenshots remain valid; provider/model evidence is fixture-only.
+
+The first full-suite run exposed that built-in route identity omitted the effective `OLLAMA_HOST` override. That made production
+route pinning reject local Ollama connections despite their configured host. `_route_identity` now includes that effective
+endpoint; focused model-switcher, rehearsal, risk-policy and workspace tests pass. Final checks: the focused migration/runtime/API
+suite passed **183 tests in 62.39s**; the complete non-browser suite with thread-exception and syntax warnings promoted to errors
+passed **1,471 tests, 2 skipped, in 276.71s**. Python compilation and `git diff --check` passed. No live provider, paid call or
+visual UI change occurred.
