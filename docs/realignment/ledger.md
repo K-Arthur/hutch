@@ -3661,3 +3661,30 @@ was used. Screenshots and a sanitized browser trace are in
 is committed on `main` as `e820ba5`. Public Google OAuth verification and the
 full Connections redesign remain open; this slice does not close the broader
 all-surface UI overhaul. No push or publication occurred.
+
+## App mascot face correction (2026-10-10)
+
+After another owner review, the eight in-app mascot silhouettes now use fitted
+dark face panels with two narrow, curved pale slits. The selected identity
+picker renders the same shape-specific face as the live assistant. The website
+keeps its detailed 3D mascot. This correction is committed on `main` as
+`cbe13bf` and is verified by
+`tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette`.
+The all-surface UI overhaul remains open.
+
+## Quick setup language and one-line assistant names (2026-10-10)
+
+Simple setup now describes the saved AI choice, the lack of connected apps or
+recurring work, and the approval check in everyday language. Internal route IDs
+and inference mode remain editable in **Fine-tune the details**. A fixture test
+confirms saving creates the assistant without starting a run. The roster test
+checks one-line names at responsive sizes, ellipsis and accessible full-name
+behavior for long names, one options control, and the full-width selection
+highlight. Desktop, tablet, and phone setup captures and desktop/tablet/phone
+roster captures were reviewed individually. The focused run passed **2 browser
+tests in 11.06s** with Chromium **153.0.8010.12** / Playwright **1.63.0**; no
+provider calls, external requests, or browser errors occurred. Screenshots and
+traces are in [`artifacts/quick-setup-language-2026-10-10/`](artifacts/quick-setup-language-2026-10-10/)
+and [`artifacts/pinned-roster/`](artifacts/pinned-roster/). This slice is
+committed on `main` as `1736d37`. No push or publication occurred; the broad
+all-surface app and website redesign is still in progress.
