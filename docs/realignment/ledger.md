@@ -3853,3 +3853,31 @@ individually. These fixtures use local data and a stubbed notification API; no
 OS prompt, provider, or real notification was used. The implementation is
 committed locally on `main` as `a1af316`; the broader UI overhaul remains open.
 No push or publication occurred.
+
+## Outlook Calendar event creation (2026-10-10)
+
+Added an experimental Microsoft Outlook Calendar event-creation connection,
+separate from the existing read-only calendar connection. Its per-Bot grant uses
+Microsoft delegated `Calendars.ReadWrite`; the consent screen explains that
+Microsoft grants account-wide event write access even though Hutch exposes only
+approved, guest-free event creation on a selected calendar. Each event requires
+a fresh exact-argument approval, is sent once, and is checked by reading back the
+created event. Ambiguous results are not retried. Strict Offline excludes the
+tool. No live Microsoft sign-in, provider credentials, or Graph calls were used.
+
+The local checkpoint is `a07de06` (`Add experimental Outlook Calendar event`).
+Focused coverage passed **76 unit/API/migration tests** and **4 responsive
+browser cases** for the separate read-only/write scopes, consent, event approval,
+the existing one-line/ellipsized assistant roster, and anonymous marketing
+availability. JavaScript syntax, Python compilation, and whitespace checks
+passed. Independently reviewed app and marketing captures for desktop, tablet,
+and phone are in
+[`artifacts/outlook-calendar-write/`](artifacts/outlook-calendar-write/); the
+fixtures made no external provider calls and reported no horizontal overflow or
+browser errors.
+
+This is an experimental feature checkpoint, not confirmation of live Microsoft
+account behavior. The all-surface UI overhaul remains active; this integration's
+focused responsive review does not replace the independent page-by-page visual
+review still required for Studio, Connections, settings, supervision, and the
+marketing site. No push or publication occurred.
