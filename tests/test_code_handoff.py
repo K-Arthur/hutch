@@ -185,6 +185,49 @@ def client(tmp_path, monkeypatch):
         yield test_client
 
 
+def _prepare_cli_handoff(client, tmp_path, *, key_prefix):
+    project = tmp_path / "project"
+    project.mkdir()
+    _git(project, "init", "-q")
+    _git(project, "config", "user.email", "hutch-test@example.invalid")
+    _git(project, "config", "user.name", "Hutch Test")
+    source_readme = project / "README.md"
+    source_readme.write_text("A tiny coding fixture.\n")
+    _git(project, "add", "README.md")
+    _git(project, "commit", "-qm", "base")
+
+    bot = client.post("/api/bots", json={
+        "name": "code-helper", "model": "mock/demo", "tools": [],
+        "workspace_mode": "folder", "workdir": str(project),
+    })
+    assert bot.status_code == 201, bot.text
+    conversation = client.post("/api/v1/conversations", json={"bot": bot.json()["id"]},
+                               headers={"Idempotency-Key": f"{key_prefix}-conversation"}).json()
+    sent = client.post(f"/api/v1/conversations/{conversation['id']}/messages",
+                       json={"prompt": "Improve this README for new contributors."},
+                       headers={"Idempotency-Key": f"{key_prefix}-source"})
+    assert sent.status_code == 201, sent.text
+    run_id = sent.json()["id"]
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        run = client.get(f"/api/v1/tasks/runs/{run_id}").json()
+        if run["terminal"]:
+            break
+        time.sleep(0.05)
+    assert run["status"] == "succeeded"
+    messages = client.get(f"/api/v1/conversations/{conversation['id']}").json()["messages"]
+    user_message = next(row for row in messages if row["run_id"] == run_id and row["role"] == "user")
+    assistant_message = next(row for row in messages if row["run_id"] == run_id and row["role"] == "assistant")
+    handoff_response = client.post("/api/v1/code-handoffs", json={
+        "conversation_id": conversation["id"], "source_run_id": run_id,
+        "source_user_message_id": user_message["id"],
+        "source_assistant_message_id": assistant_message["id"],
+        "task_brief": "Add one concise contributor setup note to README.md.",
+    }, headers={"Idempotency-Key": f"{key_prefix}-reviewed-handoff"})
+    assert handoff_response.status_code == 201, handoff_response.text
+    return project, source_readme, conversation["id"], handoff_response.json()["id"]
+
+
 def test_chat_code_handoff_is_reviewed_idempotent_and_does_not_expose_host_paths(client, tmp_path, monkeypatch):
     project = tmp_path / "project"
     project.mkdir()
@@ -252,46 +295,8 @@ def test_chat_code_handoff_is_reviewed_idempotent_and_does_not_expose_host_paths
 @pytest.mark.skipif(not hasattr(os, "tcsetpgrp") or sys.platform != "linux", reason="Linux controlling TTY required")
 def test_hutch_code_run_interrupts_fake_opencode_and_retains_verified_changes(client, tmp_path, monkeypatch):
     """Exercise the real CLI, process group, persisted status, and retained worktree without a model call."""
-    project = tmp_path / "project"
-    project.mkdir()
-    _git(project, "init", "-q")
-    _git(project, "config", "user.email", "hutch-test@example.invalid")
-    _git(project, "config", "user.name", "Hutch Test")
-    source_readme = project / "README.md"
-    source_readme.write_text("A tiny coding fixture.\n")
-    _git(project, "add", "README.md")
-    _git(project, "commit", "-qm", "base")
-
-    bot = client.post("/api/bots", json={
-        "name": "code-helper", "model": "mock/demo", "tools": [],
-        "workspace_mode": "folder", "workdir": str(project),
-    })
-    assert bot.status_code == 201, bot.text
-    conversation = client.post("/api/v1/conversations", json={"bot": bot.json()["id"]},
-                               headers={"Idempotency-Key": "code-run-conversation"}).json()
-    sent = client.post(f"/api/v1/conversations/{conversation['id']}/messages",
-                       json={"prompt": "Improve this README for new contributors."},
-                       headers={"Idempotency-Key": "code-run-source"})
-    assert sent.status_code == 201, sent.text
-    run_id = sent.json()["id"]
-    deadline = time.monotonic() + 15
-    while time.monotonic() < deadline:
-        run = client.get(f"/api/v1/tasks/runs/{run_id}").json()
-        if run["terminal"]:
-            break
-        time.sleep(0.05)
-    assert run["status"] == "succeeded"
-    messages = client.get(f"/api/v1/conversations/{conversation['id']}").json()["messages"]
-    user_message = next(row for row in messages if row["run_id"] == run_id and row["role"] == "user")
-    assistant_message = next(row for row in messages if row["run_id"] == run_id and row["role"] == "assistant")
-    handoff_response = client.post("/api/v1/code-handoffs", json={
-        "conversation_id": conversation["id"], "source_run_id": run_id,
-        "source_user_message_id": user_message["id"],
-        "source_assistant_message_id": assistant_message["id"],
-        "task_brief": "Add one concise contributor setup note to README.md.",
-    }, headers={"Idempotency-Key": "code-run-reviewed-handoff"})
-    assert handoff_response.status_code == 201, handoff_response.text
-    handoff_id = handoff_response.json()["id"]
+    project, source_readme, conversation_id, handoff_id = _prepare_cli_handoff(
+        client, tmp_path, key_prefix="code-run")
 
     fake_bin = tmp_path / "fake-bin"
     fake_bin.mkdir()
@@ -396,7 +401,7 @@ raise SystemExit(0)
     assert "FAKE_EDITED" in transcript, transcript
     assert "Worktree retained at:" in transcript, transcript
 
-    handoffs = client.get(f"/api/v1/code-handoffs?conversation_id={conversation['id']}").json()
+    handoffs = client.get(f"/api/v1/code-handoffs?conversation_id={conversation_id}").json()
     record = next(row for row in handoffs if row["id"] == handoff_id)
     assert record["status"] == "stopped"
     assert record["exit_code"] == 130 or record["exit_code"] == -2
@@ -407,3 +412,57 @@ raise SystemExit(0)
     assert worktree.is_dir()
     assert "Contributor setup:" in (worktree / "README.md").read_text()
     assert source_readme.read_text() == "A tiny coding fixture.\n"
+
+
+def test_code_reconcile_keeps_live_runner_then_marks_gone_runner_interrupted(client, tmp_path):
+    """Reconciliation must neither signal a live recorded group nor leave a dead owner stuck."""
+    from hutch import procguard
+
+    if not procguard.pidfd_available():
+        pytest.skip("verified Linux pidfd signaling is required")
+    _project, _source_readme, conversation_id, handoff_id = _prepare_cli_handoff(
+        client, tmp_path, key_prefix="code-reconcile")
+    worker = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"], start_new_session=True)
+    saved_identity = None
+    try:
+        identity = procguard.identity(worker.pid)
+        assert identity is not None and identity.pgrp == worker.pid
+        saved_identity = {
+            "pid": worker.pid, "pgid": worker.pid, "starttime": identity.starttime,
+            "boot_id": procguard.boot_id(), "session": identity.session,
+        }
+        store = client.app.state.store
+        store.claim_code_handoff(handoff_id)
+        store.start_code_handoff(handoff_id, worktree_path="fixture-worktree", branch_name="hutch/code/fixture",
+                                 opencode_version="2.0.24", runner_pid=identity.pid,
+                                 runner_starttime=identity.starttime, runner_boot_id=saved_identity["boot_id"],
+                                 runner_session=identity.session)
+
+        reconcile = r'''import sys
+from hutch.cli import main
+sys.argv = ["hutch", "code", "reconcile", sys.argv[1]]
+main()
+'''
+        live = subprocess.run([sys.executable, "-c", reconcile, handoff_id], capture_output=True, text=True,
+                              timeout=8, check=False, env=os.environ.copy())
+        assert live.returncode == 0, live.stdout + live.stderr
+        assert "process group is still present" in live.stdout
+        assert store.code_handoff(handoff_id)["status"] == "running"
+        assert worker.poll() is None
+
+        assert procguard.end_recorded([saved_identity], term_grace=0.5, kill_grace=1) == []
+        worker.wait(timeout=3)
+        gone = subprocess.run([sys.executable, "-c", reconcile, handoff_id], capture_output=True, text=True,
+                              timeout=8, check=False, env=os.environ.copy())
+        assert gone.returncode == 0, gone.stdout + gone.stderr
+        assert "Marked interrupted after verifying" in gone.stdout
+        assert store.code_handoff(handoff_id)["status"] == "interrupted"
+        with pytest.raises(ValueError, match="interrupted and cannot be launched again"):
+            store.claim_code_handoff(handoff_id)
+    finally:
+        if worker.poll() is None:
+            if saved_identity is not None:
+                procguard.end_recorded([saved_identity], term_grace=0.5, kill_grace=1)
+            if worker.poll() is None:
+                worker.terminate()
+            worker.wait(timeout=3)

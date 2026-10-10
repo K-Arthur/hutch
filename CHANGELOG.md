@@ -11,6 +11,9 @@
   return the atomically claimed task record, and preserve the intended exit code for
   cancellation. A Linux pseudo-terminal test now drives a fake OpenCode CLI through
   reviewed launch, isolated edit, Ctrl+C, verified cleanup, and retained status.
+- Exercise `hutch code reconcile` with an exact live process identity and after that
+  process exits; it refuses to signal a live group and only marks the task interrupted
+  after verified disappearance, without making the task launchable again.
 
 ## Separate Outlook Mail send setup and provider artwork
 
