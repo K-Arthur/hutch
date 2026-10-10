@@ -12,8 +12,9 @@ the shared `/home/kevina/CodingProjects/hutch` checkout; the schedule-control sl
 tool-output source-card change (`c0ebc21`) was integrated through merge `6fab391`; its direct file route was adapted to Hutch's
 recorded size/hash verifier instead of retaining an unchecked path-only `FileResponse`. No push or publication is authorized.
 
-The main checkout may contain unrelated local tooling artifacts; preserve them during final integration. Local `main` is
-fast-forwarded only after implementation and verification for this checkpoint pass; do not push or publish as part of this work.
+Continue in the requested shared local `main` checkout. Preserve unrelated tooling paths and inspect/stage only reviewed task
+files. The shared design-system slice is now committed as `462a374`; remaining slices will be committed directly to local `main`
+after their tests and visual review. Do not push or publish.
 
 ## Current slices
 
