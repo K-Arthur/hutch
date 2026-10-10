@@ -3370,6 +3370,94 @@ def test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone(browser
         context.close()
 
 
+def test_quick_bot_creation_uses_the_workspace_default_without_starting_work(browser, live, monkeypatch):
+    base, app = live
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(8000)
+    errors: list[str] = []
+    outside_requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: outside_requests.append(request.url)
+            if urlsplit(request.url).netloc not in {urlsplit(base).netloc, ""} else None)
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/simple-bot-setup"
+    out.mkdir(parents=True, exist_ok=True)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        configured = page.request.put(f"{base}/api/v1/preferences/model-defaults", data={
+            "model": "openai/gpt-4o-mini", "inference_mode": "hybrid",
+        })
+        assert configured.status == 200, configured.text()
+        page.goto(f"{base}/#/chat")
+        page.locator("#topbar-new-bot").click()
+        page.get_by_role("heading", name="Describe the work").wait_for()
+        purpose = "Prepare a weekly project update from notes I share."
+        page.get_by_label("What would you like this bot to handle?").fill(purpose)
+        name_input = page.get_by_label("Bot name")
+        assert name_input.is_visible() and name_input.is_enabled()
+        assert name_input.input_value().endswith(" · Project Reporter")
+        name_style = name_input.evaluate("""el => {
+          const style = getComputedStyle(el);
+          return {height: el.getBoundingClientRect().height, borderStyle: style.borderStyle,
+                  borderWidth: style.borderTopWidth, background: style.backgroundColor};
+        }""")
+        assert name_style["height"] >= 44, name_style
+        assert name_style["borderStyle"] == "solid" and name_style["borderWidth"] == "1px", name_style
+        assert name_style["background"] != "rgba(0, 0, 0, 0)", name_style
+        assert page.locator(".setup-quick-summary").is_visible()
+        assert "openai/gpt-4o-mini" in page.locator(".setup-quick-summary").inner_text()
+        assert "no tools or schedule" in page.locator(".setup-quick-summary").inner_text()
+        assert page.locator("#modal-confirm").inner_text() == "Create bot"
+        assert page.locator("#setup-customize").is_visible()
+        assert app.state.store.list_bots() == [] and app.state.store.list_runs() == []
+        captures = []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            metrics = page.evaluate("""() => ({width:document.documentElement.scrollWidth-innerWidth,
+              dialog:document.querySelector('[role=dialog]').getBoundingClientRect().toJSON(),
+              footer:document.querySelector('.modal-footer').getBoundingClientRect(),
+              summary:document.querySelector('.setup-quick-summary').getBoundingClientRect(),
+              name:document.querySelector('#setup-display_name').getBoundingClientRect()})""")
+            assert metrics["width"] <= 1, (label, metrics)
+            assert metrics["footer"]["bottom"] <= height + 1, (label, metrics)
+            assert metrics["summary"]["bottom"] <= metrics["footer"]["top"] + 1, (label, metrics)
+            assert metrics["name"]["bottom"] <= metrics["footer"]["top"] + 1, (label, metrics)
+            assert metrics["dialog"]["left"] >= -1 and metrics["dialog"]["right"] <= width + 1, (label, metrics)
+            page.screenshot(path=str(out / f"quick-{label}.png"), animations="disabled")
+            captures.append({"viewport": [width, height], "horizontal_overflow": metrics["width"],
+                             "footer_visible": True, "summary_visible_above_footer": True,
+                             "name_visible_above_footer": True})
+        with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
+                                 and response.request.method == "POST") as created:
+            page.locator("#modal-confirm").click()
+        assert created.value.status == 201, created.value.text()
+        bot = app.state.store.list_bots()[0]
+        assert bot is not None and bot.instructions == purpose
+        assert bot.model == "openai/gpt-4o-mini" and bot.inference_mode.value == "hybrid"
+        assert bot.tools == [] and bot.schedule is None and bot.approval_mode is ApprovalMode.ask
+        assert bot.workspace_mode == "managed"
+        assert app.state.store.list_runs() == [], "quick creation must save a Bot without starting work"
+        assert not errors and not outside_requests, (errors, outside_requests)
+        (out / "validation.json").write_text(json.dumps({
+            "command": "uv run pytest -q tests/e2e/test_browser.py::test_quick_bot_creation_uses_the_workspace_default_without_starting_work",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"), "provider_calls": 0,
+            "external_requests": outside_requests, "page_errors": errors, "captures": captures,
+            "verified": ["purpose-first one-screen setup", "editable suggested name visible", "workspace model default reused", "advanced controls remain available",
+                         "no tools or recurring task enabled", "approval remains ask-first", "creation starts no run"],
+            "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
+                              for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                               "src/hutch/server/app.py", "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace.zip"))
+        except Exception:
+            pass
+        context.close()
+
+
 def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(browser, live, monkeypatch):
     base, app = live
     monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
@@ -3387,7 +3475,7 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         page.get_by_role("heading", name="Describe the work").wait_for()
         page.get_by_label("What would you like this bot to handle?").fill(
             "Review release notes and prepare a short summary of changes that affect our project.")
-        suggested_name = page.locator("#setup-name-preview").inner_text()
+        suggested_name = page.get_by_label("Bot name").input_value()
         assert suggested_name.endswith(" · Release Notes Reviewer")
         assert len(suggested_name.split(" · ", 1)[0].split()) == 2
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
@@ -3404,8 +3492,8 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
             assert metrics["dialog"]["left"] >= -1 and metrics["dialog"]["right"] <= width + 1, (label, metrics)
             assert metrics["footerVisible"], (label, metrics)
         page.set_viewport_size({"width": 390, "height": 844})
-        page.locator(".setup-identity summary").click()
         page.locator("#setup-display_name").fill("Release Notes Reviewer")
+        page.locator(".setup-identity summary").click()
         page.locator("#setup-name").fill("guided-release-reviewer")
         page.get_by_label("Short description").fill("Summarize project release notes")
         page.locator("#modal-confirm").click()
@@ -3629,6 +3717,9 @@ spec:
         page.goto(base + "/#/chat")
         page.locator("#topbar-new-bot").click()
         page.get_by_role("heading", name="Describe the work").wait_for()
+        page.locator("#setup-customize").click()
+        page.get_by_role("heading", name="Set model and workspace").wait_for()
+        page.locator("#setup-back").click()
         page.locator("#setup-yaml-import-details > summary").click()
         choose = page.get_by_role("button", name="Choose YAML file")
         with page.expect_file_chooser() as chooser:
@@ -3651,7 +3742,7 @@ spec:
                                 "buffer": yaml_text.encode("utf-8")})
         page.get_by_role("status").filter(has_text="YAML validated and copied into this unsaved draft").wait_for()
         assert page.get_by_label("What would you like this bot to handle?").input_value().startswith("Review release notes")
-        assert page.locator("#setup-name-preview").inner_text() == "Jordan Reed · Release Notes Reviewer"
+        assert page.locator("#setup-display_name").input_value() == "Jordan Reed · Release Notes Reviewer"
         assert app.state.store.get_bot("imported-release-reviewer") is None
         assert app.state.store.list_runs() == []
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
@@ -3807,7 +3898,7 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
         Bot(name="workspace-coordinator", display_name="Workspace Coordinator", model="mock/demo", tools=[]),
         Bot(name="agenda-assistant", display_name="Agenda Assistant", model="mock/demo", tools=[]),
         Bot(name="operations-review", display_name="Operations Reviewer", model="mock/demo", tools=[]),
-        Bot(name="research-helper", display_name="Research Companion", model="mock/demo", tools=[]),
+        Bot(name="research-helper", display_name="Research Companion for Long-Term Vendor Strategy and Operations", model="mock/demo", tools=[]),
         Bot(name="website-auditor", display_name="Website Auditor", model="mock/demo", tools=[]),
     ]
     for bot in bots:
@@ -3827,21 +3918,47 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
     viewports = (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844))
     try:
         page.goto(f"{base}/#/chat")
-        page.get_by_role("heading", name="Workspace Coordinator").wait_for()
+        page.locator(".ctx-id h1").wait_for()
         assert page.locator("#roster-list .avatar").count() == len(bots)
+        assert page.locator("#roster-list .roster-entry").evaluate_all(
+            "rows => rows.every(row => row.querySelectorAll('[data-bot-options]').length === 1 && !row.querySelector('[data-pin-bot], .roster-pin, .roster-settings'))")
+        long_name = "Research Companion for Long-Term Vendor Strategy and Operations"
+        name_metrics = page.locator("[data-switch-bot='research-helper'] .roster-name").evaluate(
+            "el => ({text:el.textContent.trim(), height:el.clientHeight, lineHeight:parseFloat(getComputedStyle(el).lineHeight), fullName:el.closest('[data-switch-bot]').title})")
+        assert name_metrics["text"] == long_name
+        assert name_metrics["fullName"].startswith(long_name)
+        assert name_metrics["height"] <= name_metrics["lineHeight"] * 2 + 1
+        short_name_height = page.locator("[data-switch-bot='agenda-assistant'] .roster-name").evaluate("el => el.clientHeight")
+        assert short_name_height <= name_metrics["lineHeight"] + 1
 
-        pin_research = page.get_by_role("button", name="Pin Research Companion")
-        pin_research.click()
-        page.get_by_role("button", name="Unpin Research Companion").wait_for()
-        page.get_by_role("button", name="Pin Website Auditor").click()
-        page.get_by_role("button", name="Unpin Website Auditor").wait_for()
+        page.locator("[data-switch-bot='research-helper']").hover()
+        page.get_by_role("button", name=f"Options for {long_name}").click()
+        menu = page.get_by_role("menu")
+        assert menu.get_by_role("menuitem", name="Bot settings").is_visible()
+        menu.get_by_role("menuitem", name="Pin to sidebar").click()
+        assert store.get_bot("research-helper").pinned is True
+        page.locator("[data-switch-bot='website-auditor']").hover()
+        page.locator("[data-bot-options='website-auditor']").click()
+        page.get_by_role("menuitem", name="Pin to sidebar").click()
+        page.wait_for_function("""() => {
+          const names = [...document.querySelectorAll('#roster-list [data-switch-bot]')].map(el => el.dataset.switchBot);
+          return names.indexOf('website-auditor') < names.indexOf('agenda-assistant');
+        }""")
         assert page.locator("#roster-list [data-switch-bot]").evaluate_all(
             "els => els.map(el => el.dataset.switchBot)") == [
                 "workspace-coordinator", "research-helper", "website-auditor", "agenda-assistant", "operations-review"]
-        assert page.get_by_role("button", name="Pin Workspace Coordinator").count() == 0
+        page.locator("[data-switch-bot='workspace-coordinator']").hover()
+        page.locator("[data-bot-options='workspace-coordinator']").click()
+        coordinator_menu = page.get_by_role("menu")
+        assert coordinator_menu.get_by_role("menuitem", name="Bot settings").is_visible()
+        assert coordinator_menu.get_by_role("menuitem", name="Pin to sidebar").count() == 0
+        page.evaluate("renderRoster()")
+        assert page.get_by_role("menu").get_by_role("menuitem", name="Bot settings").is_visible()
+        page.keyboard.press("Escape")
+        assert page.locator("[data-bot-options='workspace-coordinator']").evaluate("el => el === document.activeElement")
 
         page.reload()
-        page.get_by_role("heading", name="Workspace Coordinator").wait_for()
+        page.locator(".ctx-id h1").wait_for()
         assert store.get_bot("research-helper").pinned is True
         assert store.get_bot("website-auditor").pinned is True
         assert page.locator("#roster-list [data-switch-bot]").evaluate_all(
@@ -3852,45 +3969,59 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
             "els => els.map(el => el.dataset.switchBot)") == ["website-auditor"]
         page.locator("#bot-search").fill("")
 
-        page.get_by_role("button", name="Unpin Research Companion").focus()
+        page.locator("[data-switch-bot='research-helper']").hover()
+        page.locator("[data-bot-options='research-helper']").click()
+        page.get_by_role("menuitem", name="Remove from pinned").focus()
         page.keyboard.press("Enter")
-        page.wait_for_function("document.activeElement?.dataset?.pinBot === 'research-helper'")
-        page.wait_for_function("!document.querySelector('[data-pin-bot=research-helper]')?.matches('[aria-pressed=true]')")
+        page.wait_for_function("document.activeElement?.dataset?.botOptions === 'research-helper'")
         assert store.get_bot("research-helper").pinned is False
 
         identity = page.locator("#roster-list .avatar svg").evaluate_all("""svgs => {
           const ids = svgs.flatMap(svg => [...svg.querySelectorAll('[id]')].map(node => node.id));
           return {count: ids.length, shapes: svgs.map(svg => svg.querySelector('path')?.getAttribute('d')),
                   fills: svgs.map(svg => svg.querySelector('path')?.getAttribute('fill')),
-                  glints: svgs.map(svg => svg.querySelectorAll('g[aria-hidden=true] path[stroke="#fff"]').length)};
+                  eyes: svgs.map(svg => [...svg.querySelectorAll('[data-sigil-eye]')].map(eye => ({
+                    shape:eye.getAttribute('data-sigil-eye'),path:eye.getAttribute('d'),
+                    fill:eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill')})))};
         }""")
         assert identity["count"] == 0, "flat app avatars need no shared SVG definition IDs"
         assert len(set(identity["shapes"])) == 5, "name-derived avatars should remain distinguishable"
-        assert len(set(identity["fills"])) > 1 and set(identity["glints"]) == {1}
+        assert len(set(identity["fills"])) > 1 and all(len(eyes) == 2 for eyes in identity["eyes"])
+        assert all(eye["fill"] == "#fff" for eyes in identity["eyes"] for eye in eyes)
+        assert {eye["shape"] for eyes in identity["eyes"] for eye in eyes} == {"lead", "companion"}
+        assert all(len({eye["path"] for eye in eyes}) == 2 for eyes in identity["eyes"])
 
         snapshots = []
         for label, width, height in viewports:
             page.set_viewport_size({"width": width, "height": height})
             mobile_roster_capture = None
+            menu_capture = None
             if width <= 900:
                 if not page.locator("#workspace").evaluate("el => el.classList.contains('open')"):
                     page.locator("#nav-toggle").click()
                 assert page.locator("#ws-close").is_visible(), "the open mobile roster needs a visible close control"
                 mobile_roster_capture = out / f"{label}-roster.png"
                 page.screenshot(path=str(mobile_roster_capture), animations="disabled")
-                page.locator("#ws-close").click()
-                assert not page.locator("#workspace").evaluate("el => el.classList.contains('open')")
                 if width <= 640:
-                    page.locator("#nav-toggle").click()
                     assert page.locator("#roster-list [data-switch-bot]").count() == len(bots)
-                    page.locator("#ws-close").click()
+            page.locator("[data-switch-bot='research-helper']").hover()
+            page.locator("[data-bot-options='research-helper']").click()
+            assert page.get_by_role("menu").get_by_role("menuitem", name="Bot settings").is_visible()
+            menu_capture = out / f"{label}-menu.png"
+            page.screenshot(path=str(menu_capture), animations="disabled")
+            page.keyboard.press("Escape")
+            if width <= 900 and page.locator("#workspace").evaluate("el => el.classList.contains('open')"):
+                page.locator("#ws-close").click()
+            if width <= 900:
+                assert not page.locator("#workspace").evaluate("el => el.classList.contains('open')")
             assert page.evaluate("document.documentElement.scrollWidth - innerWidth") == 0, label
             if width <= 640:
-                target = page.locator("#roster-list [data-pin-bot]").first
+                target = page.locator("#roster-list [data-bot-options]").first
                 assert target.bounding_box()["height"] >= 44
             page.screenshot(path=str(out / f"{label}.png"), animations="disabled")
             snapshots.append({"size": label, "viewport": [width, height], "horizontal_overflow": 0,
-                              "roster_capture": mobile_roster_capture.name if mobile_roster_capture else None})
+                              "roster_capture": mobile_roster_capture.name if mobile_roster_capture else None,
+                              "options_menu_capture": menu_capture.name})
 
         assert not errors, errors
         outside_requests = [url for url in requests if urlsplit(url).netloc not in {urlsplit(base).netloc, ""}]
@@ -3901,14 +4032,98 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
             "browser": browser.version, "playwright": package_version("playwright"),
             "fixture_only": True, "provider_calls": 0, "external_requests": len(outside_requests), "page_errors": errors,
             "viewports": snapshots,
-            "verified": ["pin and unpin", "pin persists after reload", "coordinator stays first", "search includes pinned bots",
-                         "keyboard activation restores focus", "mobile roster has a visible close control",
-                         "phone roster reopens with all Bots visible", "phone pin target is at least 44px",
+            "verified": ["one options button per Bot; pin and settings actions share its menu", "pin persists after reload", "coordinator stays first and cannot be pinned",
+                         "search includes pinned bots", "keyboard activation and Escape restore focus", "long Bot name wraps without clipping",
+                         "mobile roster has a visible close control", "phone roster reopens with all Bots visible", "phone menu target is at least 44px",
                          "flat 2D identities use distinct solid fills and glints"],
             "avatar_svg_ids": identity["count"], "source_sha256": {
                 relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
                 for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                  "src/hutch/server/app.py", "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace.zip"))
+        except Exception:
+            pass
+        context.close()
+
+
+def test_large_idle_roster_stays_compact_and_remains_searchable_and_keyboard_accessible(browser, live):
+    base, app = live
+    store = app.state.store
+    bots = [Bot(name="workspace-coordinator", display_name="Workspace Coordinator", model="mock/demo", tools=[])]
+    bots.extend(Bot(name=f"release-helper-{index}", display_name=f"Release Helper {index}", model="mock/demo", tools=[])
+                for index in range(9))
+    for bot in bots:
+        store.create_bot(bot)
+    store.set_workspace_coordinator("workspace-coordinator")
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/compact-roster"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(8000)
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(f"{base}/#/chat/workspace-coordinator")
+        page.locator(".ctx-id h1").wait_for()
+        detail = page.locator("#roster-idle-details")
+        summary = detail.locator(":scope > summary")
+        assert not detail.evaluate("el => el.open")
+        assert "9" in summary.inner_text()
+        assert page.locator("#roster-list [data-switch-bot]:visible").count() == 1
+        page.screenshot(path=str(out / "collapsed-desktop.png"), animations="disabled")
+
+        summary.focus()
+        page.keyboard.press("Enter")
+        page.wait_for_function("document.querySelector('#roster-idle-details')?.open === true")
+        assert page.locator("#roster-list [data-switch-bot]:visible").count() == 10
+        page.keyboard.press("Enter")
+        page.wait_for_function("document.querySelector('#roster-idle-details')?.open === false")
+        page.locator("#bot-search").fill("Release Helper 7")
+        assert page.locator("#roster-list [data-switch-bot]").evaluate_all("els => els.map(el => el.dataset.switchBot)") == ["release-helper-7"]
+        page.locator("#bot-search").fill("")
+        assert not detail.evaluate("el => el.open"), "search should not silently expand the saved roster"
+
+        screenshots = []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            if width <= 900:
+                page.locator("#nav-toggle").click()
+                assert page.locator("#workspace").evaluate("el => el.classList.contains('open')")
+            assert page.locator("#roster-idle-details").is_visible()
+            assert not detail.evaluate("el => el.open")
+            assert page.evaluate("document.documentElement.scrollWidth-innerWidth") <= 1
+            page.screenshot(path=str(out / f"collapsed-{label}.png"), animations="disabled")
+            screenshots.append({"size": label, "viewport": [width, height], "idle_list_collapsed": True,
+                                "horizontal_overflow": 0})
+            if width <= 900:
+                page.locator("#ws-close").click()
+
+        if browser.browser_type.name == "chromium":
+            page.set_viewport_size({"width": 1440, "height": 960})
+            page.locator("#workspace").evaluate("el => el.classList.remove('open')")
+            page.reload()
+            page.locator("#conversation-switcher").wait_for()
+            page.locator("#roster-idle-details").evaluate("el => el.open = true")
+            action = page.locator("[data-bot-options='release-helper-0']")
+            assert page.evaluate("matchMedia('(hover:hover) and (pointer:fine)').matches")
+            assert action.evaluate("el => getComputedStyle(el).opacity") == "0.62"
+            assert action.evaluate("el => getComputedStyle(el).pointerEvents") == "auto"
+            page.locator("[data-switch-bot='release-helper-0']").hover()
+            assert action.evaluate("el => getComputedStyle(el).opacity") == "1"
+
+        assert not errors, errors
+        (out / "validation.json").write_text(json.dumps({
+            "command": "uv run pytest -q tests/e2e/test_browser.py::test_large_idle_roster_stays_compact_and_remains_searchable_and_keyboard_accessible",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"), "viewports": screenshots,
+            "bots": 10, "initial_visible_bots": 1, "all_bots_keyboard_expansion": True,
+            "search_keeps_full_roster_reachable": True,
+            "desktop_options_control_visible_at_rest_and_emphasized_on_hover": browser.browser_type.name == "chromium",
+            "page_errors": errors, "provider_calls": 0,
         }, indent=2) + "\n", encoding="utf-8")
     finally:
         try:
@@ -3947,13 +4162,16 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
             page.screenshot(path=str(out / f"chat-identity-{label}.png"), animations="disabled")
         page.set_viewport_size({"width": 1440, "height": 960})
         page.locator("#topbar-new-bot").click()
-        page.get_by_text("Suggested Bot name:", exact=False).wait_for(state="visible")
-        page.get_by_text("Hutch suggests a friendly, professional name", exact=False).wait_for(state="attached")
-        purpose = page.get_by_label("What would you like this bot to handle?")
-        purpose.fill(first_request)
-        page.locator(".setup-identity summary").click()
         display_name = page.locator("#setup-display_name")
+        display_name.wait_for(state="visible")
+        assert page.get_by_text("Suggested from the work you described", exact=False).is_visible()
+        purpose = page.locator("#setup-purpose")
+        if not purpose.is_visible():
+            page.locator("#setup-use-source").uncheck()
+        assert purpose.is_visible()
+        purpose.fill(first_request)
         address = page.locator("#setup-name")
+        page.locator(".setup-identity summary").click()
 
         def assert_identity(role: str, local_address: str) -> str:
             identity, actual_role = display_name.input_value().split(" · ", 1)
@@ -4120,17 +4338,45 @@ def test_bot_creation_reuses_only_the_selected_chat_messages_and_keeps_provenanc
         page.goto(f"{base}/#/chat/{source_bot.name}")
         page.locator("#conversation-switcher").wait_for()
         page.locator("#topbar-new-bot").click()
-        page.get_by_role("heading", name="Describe the work").wait_for()
-        source_toggle = page.get_by_label("Use your latest request from this chat")
+        page.get_by_role("heading", name="Create from this request").wait_for()
+        source_toggle = page.locator("#setup-use-source")
         assert source_toggle.is_checked()
-        purpose = page.get_by_label("What would you like this bot to handle?")
+        purpose = page.locator("#setup-purpose")
         assert purpose.input_value() == source_request
+        assert not purpose.is_visible()
+        page.locator("#setup-purpose-editor > summary").click()
+        assert purpose.is_visible()
         assert "private payroll" not in purpose.input_value().lower()
         source_toggle.uncheck()
         assert purpose.input_value() == ""
         source_toggle.check()
+        assert not purpose.is_visible()
+        page.locator("#setup-purpose-editor > summary").click()
         purpose.fill("Track the launch checklist; notify me when a blocker needs attention.")
-        assert page.locator("#setup-name-preview").inner_text() == "Launch Checklist Monitor"
+        assert page.locator("#setup-display_name").input_value() == "Avery Shah · Launch Checklist Monitor"
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.locator("#setup-display_name").fill("Launch Checklist Monitor")
+        page.locator(".setup-identity summary").click()
+        page.locator("#setup-name").fill("launch-checklist")
+        page.locator("#setup-customize").click()
+        model_route = page.get_by_label("Model route")
+        assert model_route.input_value() == "openai/gpt-4o-mini"
+        assert "Suggested from chat-context-source’s current route" in page.locator(".setup-conversation").inner_text()
+        inference_options = page.locator("#setup-inference_mode option").all_text_contents()
+        assert inference_options == ["Hybrid — local or hosted", "Local — this machine", "Strict offline"]
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            metrics = page.evaluate("""() => ({
+              viewport:[innerWidth, innerHeight], documentWidth:document.documentElement.scrollWidth,
+              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
+              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight
+            })""")
+            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
+            assert metrics["footerVisible"], (label, metrics)
+            page.screenshot(path=str(out / f"chat-source-model-{label}.png"), animations="disabled")
+
+        page.locator("#setup-back").click()
+        page.get_by_role("heading", name="Describe the work").wait_for()
         context_picker = page.locator("#setup-context-picker")
         assert context_picker.is_visible()
         context_picker.locator(":scope > summary").click()
@@ -4158,26 +4404,8 @@ def test_bot_creation_reuses_only_the_selected_chat_messages_and_keeps_provenanc
             page.screenshot(path=str(out / f"chat-source-purpose-{label}.png"), animations="disabled")
             page.screenshot(path=str(out / f"chat-source-context-{label}.png"), animations="disabled")
 
-        page.set_viewport_size({"width": 390, "height": 844})
-        page.locator(".setup-identity summary").click()
-        page.locator("#setup-display_name").fill("Launch Checklist Monitor")
-        page.locator("#setup-name").fill("launch-checklist")
         page.locator("#modal-confirm").click()
-        model_route = page.get_by_label("Model route")
-        assert model_route.input_value() == "openai/gpt-4o-mini"
-        assert "Suggested from chat-context-source’s current route" in page.locator(".setup-conversation").inner_text()
-        inference_options = page.locator("#setup-inference_mode option").all_text_contents()
-        assert inference_options == ["Hybrid — local or hosted", "Local — this machine", "Strict offline"]
-        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
-            page.set_viewport_size({"width": width, "height": height})
-            metrics = page.evaluate("""() => ({
-              viewport:[innerWidth, innerHeight], documentWidth:document.documentElement.scrollWidth,
-              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
-              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom <= innerHeight
-            })""")
-            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
-            assert metrics["footerVisible"], (label, metrics)
-            page.screenshot(path=str(out / f"chat-source-model-{label}.png"), animations="disabled")
+        page.get_by_role("heading", name="Set model and workspace").wait_for()
         page.set_viewport_size({"width": 390, "height": 844})
         page.locator("#modal-confirm").click()
         page.get_by_role("heading", name="Choose tools and schedule").wait_for()
@@ -4247,12 +4475,13 @@ def test_bot_creation_reuses_only_the_selected_chat_messages_and_keeps_provenanc
 
 
 def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, monkeypatch):
-    """A message-level action carries the selected request into reviewed setup without retyping it."""
+    """A selected request becomes Bot instructions; the user creates it without retyping or starting a run."""
     import hashlib
     from pathlib import Path
 
     base, app = live
     monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
     store = app.state.store
     bot = store.create_bot(Bot(name="request-source", display_name="Project Partner", model="mock/demo", tools=[]))
     conversation, _ = store.create_conversation(bot.id, "Project planning", idem_key="request-source-conversation",
@@ -4281,6 +4510,8 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
     store.flush_events()
     bot_count_before = len(store.list_bots())
     run_count_before = len(store.list_runs(limit=100))
+    configured = store.kv_get("workspace:model-defaults")
+    assert configured is None
 
     out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-from-message"
     out.mkdir(parents=True, exist_ok=True)
@@ -4293,16 +4524,25 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     touch_context = None
     try:
+        response = page.request.put(f"{base}/api/v1/preferences/model-defaults", data={
+            "model": "openai/gpt-4o-mini", "inference_mode": "hybrid",
+        })
+        assert response.status == 200, response.text()
         page.goto(f"{base}/#/chat/{bot.name}")
         action = page.locator('[data-create-bot-from-request="selected-request-message"]')
         action.wait_for(state="visible")
         assert action.get_attribute("aria-label") == "Create a bot from this request"
         action.focus()
         page.keyboard.press("Enter")
-        page.get_by_role("heading", name="Describe the work").wait_for(state="visible")
-        assert page.get_by_label("What would you like this bot to handle?").input_value() == selected_request
-        assert "Use this request from this chat" in page.locator(".setup-context-source").inner_text()
-        assert "Only this request and earlier user messages you select" in page.locator(".bot-setup").inner_text()
+        page.get_by_role("heading", name="Create from this request").wait_for(state="visible")
+        assert page.locator("#setup-use-source").is_checked()
+        assert page.locator("#setup-purpose").input_value() == selected_request
+        assert not page.locator("#setup-purpose").is_visible(), "the selected request is already the instruction; editing stays optional"
+        assert "Use this request as the Bot’s instructions" in page.locator(".setup-context-source").inner_text()
+        assert "No need to enter it again" in page.locator(".setup-source-note").inner_text()
+        assert page.locator("#setup-display_name").input_value()
+        assert page.locator(".setup-quick-summary").is_visible()
+        assert page.locator("#modal-confirm").inner_text() == "Create bot"
         assert page.locator('[data-setup-context-message="later-request-message"]').count() == 0
         assert later_request not in page.locator(".bot-setup").inner_text()
         assert "message 1" in page.locator(".bot-setup").inner_text()
@@ -4313,13 +4553,34 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
             page.set_viewport_size({"width": width, "height": height})
             metrics = page.evaluate("""() => ({width:document.documentElement.scrollWidth, viewport:innerWidth,
               dialog:document.querySelector('[role=dialog]').getBoundingClientRect().toJSON(),
-              footer:document.querySelector('.modal-footer').getBoundingClientRect().toJSON()})""")
+              footer:document.querySelector('.modal-footer').getBoundingClientRect().toJSON(),
+              name:document.querySelector('#setup-display_name').getBoundingClientRect().toJSON(),
+              summary:document.querySelector('.setup-quick-summary').getBoundingClientRect().toJSON()})""")
             assert metrics["width"] - width <= 1, (label, metrics)
             assert metrics["dialog"]["left"] >= -1 and metrics["dialog"]["right"] <= width + 1, (label, metrics)
             assert metrics["footer"]["bottom"] <= height + 1, (label, metrics)
+            assert metrics["name"]["bottom"] <= metrics["footer"]["top"] + 1, (label, metrics)
+            assert metrics["summary"]["bottom"] <= metrics["footer"]["top"] + 1, (label, metrics)
             page.screenshot(path=str(out / f"selected-request-{label}.png"), animations="disabled")
             captures.append({"size": label, "viewport": [width, height], "horizontal_overflow": metrics["width"] - width,
-                             "selected_message": "selected-request-message"})
+                             "name_visible": True, "defaults_visible": True, "selected_message": "selected-request-message"})
+        assert len(store.list_bots()) == bot_count_before and len(store.list_runs(limit=100)) == run_count_before
+        suggested_name = page.locator("#setup-display_name").input_value()
+        assert suggested_name, "the selected request should produce an initial professional Bot name"
+        custom_name = "Taylor Reed · Rollout Reviewer"
+        page.locator("#setup-display_name").fill(custom_name)
+        with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
+                                 and response.request.method == "POST") as created:
+            page.locator("#modal-confirm").click()
+        assert created.value.status == 201, created.value.text()
+        created_bot = next(item for item in store.list_bots() if item.id != bot.id)
+        assert created_bot.instructions == selected_request
+        assert created_bot.display_name == custom_name, "the owner must be able to replace the suggested name"
+        assert created_bot.creation_source and created_bot.creation_source.message_id == "selected-request-message"
+        assert created_bot.creation_source.original_request == selected_request
+        assert created_bot.model == "openai/gpt-4o-mini"
+        assert len(store.list_runs(limit=100)) == run_count_before, "creating from a message must not run the task"
+        page.locator("#modal-root").wait_for(state="hidden")
         touch_context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True,
                                             has_touch=True, reduced_motion="reduce")
         touch_page = touch_context.new_page()
@@ -4333,7 +4594,8 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
         touch_box = touch_action.bounding_box()
         assert touch_box and touch_box["height"] >= 44, touch_box
         touch_action.tap()
-        touch_page.get_by_role("heading", name="Describe the work").wait_for(state="visible")
+        touch_page.get_by_role("heading", name="Create from this request").wait_for(state="visible")
+        assert not touch_page.locator("#setup-purpose").is_visible()
         touch_metrics = touch_page.evaluate("""() => ({width:document.documentElement.scrollWidth, viewport:innerWidth,
           dialog:document.querySelector('[role=dialog]').getBoundingClientRect().toJSON(),
           footer:document.querySelector('.modal-footer').getBoundingClientRect().toJSON()})""")
@@ -4347,14 +4609,14 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
                          "selected_message": "selected-request-message"})
         assert not errors, errors
         assert not external, external
-        assert len(store.list_bots()) == bot_count_before
+        assert len(store.list_bots()) == bot_count_before + 1
         assert len(store.list_runs(limit=100)) == run_count_before
         (out / "validation.json").write_text(json.dumps({
             "test": "tests/e2e/test_browser.py::test_user_can_start_bot_setup_from_the_exact_chat_request",
             "command": ".venv/bin/pytest -q tests/e2e/test_browser.py::test_user_can_start_bot_setup_from_the_exact_chat_request --no-header",
             "browser": browser.version, "playwright_version": package_version("playwright"),
             "provider_calls": 0, "external_requests": external, "page_errors": errors,
-            "scenario": "Keyboard-activate a message action in a multi-request conversation; exact source is carried into reviewed Bot setup; later unrelated user text is excluded; creation is not confirmed and no Bot/run is added",
+            "scenario": "Keyboard-activate a message action in a multi-request conversation; exact request is used without retyping; only the chosen message is saved as Bot instructions; unrelated later text is excluded; create starts no run; phone path keeps the same no-retype default",
             "captures": captures,
             "source_sha256": {name: hashlib.sha256((out.parents[3] / name).read_bytes()).hexdigest()
                               for name in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
@@ -4419,12 +4681,19 @@ def test_coordinator_can_refine_a_bot_purpose_without_changing_its_source_or_aut
         page.locator("#conversation-switcher").wait_for()
         page.locator('[data-create-bot-from-request="purpose-source-message"]').click()
         original = "Prepare a weekly project status report for leadership."
-        purpose = page.get_by_label("What would you like this bot to handle?")
+        purpose = page.locator("#setup-purpose")
         assert purpose.input_value() == original
+        assert not purpose.is_visible()
         assert "Make a bot" in page.locator("[data-create-bot-from-request='purpose-source-message']").inner_text()
+        page.locator("#setup-purpose-editor > summary").click()
+        assert purpose.is_visible()
+        page.locator("#setup-customize").click()
+        page.get_by_role("heading", name="Set model and workspace").wait_for()
+        page.locator("#setup-back").click()
         page.locator("#setup-context-picker > summary").click()
         selected_context = page.locator('[data-setup-context-message="purpose-context-earlier"]')
         selected_context.check()
+        page.locator("#setup-refine-details > summary").click()
         refine = page.get_by_role("button", name="Draft clearer instructions with Mara")
         assert refine.evaluate("el => el.getBoundingClientRect().height") >= 44
         refine.click()
@@ -4458,7 +4727,7 @@ def test_coordinator_can_refine_a_bot_purpose_without_changing_its_source_or_aut
             page.screenshot(path=str(out / f"review-draft-{label}.png"), animations="disabled")
         page.get_by_role("button", name="Use this draft").click()
         assert purpose.input_value() == suggestion_text
-        assert page.locator("#setup-name-preview").inner_text(), "the professional name suggestion remains visible for review"
+        assert page.locator("#setup-display_name").input_value(), "the professional name suggestion remains visible for review"
         purpose.evaluate("el => el.scrollIntoView({block:'center',inline:'nearest'})")
         assert "Draft applied to the purpose field" in page.locator("#setup-purpose-draft-status").inner_text()
         page.screenshot(path=str(out / "purpose-applied-phone.png"), animations="disabled")
@@ -4522,10 +4791,10 @@ def test_workspace_model_default_is_editable_persistent_and_seeds_new_bot_setup(
         page.locator("#topbar-new-bot").click()
         page.get_by_role("heading", name="Describe the work").wait_for()
         page.locator("#setup-purpose").fill("Prepare a weekly project summary.")
-        page.locator(".setup-identity summary").click()
         page.locator("#setup-display_name").fill("Project Summary Assistant")
+        page.locator(".setup-identity summary").click()
         page.locator("#setup-name").fill("workspace-default-child")
-        page.locator("#modal-confirm").click()
+        page.locator("#setup-customize").click()
         page.get_by_role("heading", name="Set model and workspace").wait_for()
         assert page.get_by_label("Model route").input_value() == "openai/gpt-4o-mini"
         assert "Workspace default for new Bots" in page.locator(".setup-conversation").inner_text()
@@ -5127,17 +5396,19 @@ def test_legacy_external_runtime_can_move_to_hutch_and_run_a_real_local_route(br
         page.close()
 
 
-def test_small_workspace_has_one_roster_and_legacy_routes_do_not_trap_back(browser, live):
+def test_small_workspace_has_one_roster_and_legacy_routes_do_not_trap_back(browser, live, request):
     base, app = live
     app.state.store.create_bot(Bot(name="one-bot", model="mock/demo", tools=[]))
     page = browser.new_page(viewport={"width": 1200, "height": 800})
+    request.addfinalizer(page.close)
     page.goto(base + "/#/chat/one-bot")
     page.locator("#conversation-switcher").wait_for()
     assert not page.locator("#fleet-nav").is_visible()
     assert not page.locator("#monitor-nav").get_attribute("open")
     assert page.get_by_text("Manage all bots", exact=True).count() == 0
     assert page.get_by_role("button", name="Context", exact=True).count() == 0
-    page.get_by_role("link", name="Settings for One Bot").click()
+    page.locator("[data-bot-options='one-bot']").click()
+    page.get_by_role("menuitem", name="Bot settings").click()
     page.get_by_role("heading", name="One Bot settings", exact=True).wait_for()
     assert page.get_by_text("Recent runs", exact=True).count() == 0
     page.goto(base + "/#/overview")

@@ -1084,3 +1084,23 @@ The final affected API/store/browser batch passed **61 tests in 15.99s**, includ
 syntax, Python compilation and `git diff --check` passed. This uses synthetic SQLite facts and no provider/model call. It verifies browser
 download handling and server scope/size behavior, not the contents of a user's real memory, password-manager protection,
 screen-reader behavior or physical-phone behavior.
+
+## Quick Bot creation and compact roster controls (2026-10-09)
+
+The default Bot setup starts with the request the user already selected in chat, makes editing its standing instructions optional,
+suggests an editable role-based display name, and keeps identity details and advanced controls available on demand. Creation
+saves the Bot only; it does not start a run, grant tools or schedule work. The roster keeps one options control per Bot; pinning
+and settings live in that menu. For ten or more Bots, idle entries collapse under a searchable, keyboard-operable **All bots**
+group, while the coordinator, attention-needed Bots and active Bots remain visible. Display names wrap to two lines before the
+clamp, preserving more of a long role name without letting one Bot row dominate the sidebar.
+
+The focused browser batch passed **5 tests in 17.08s**: quick setup with workspace defaults and no run, role-based name editing,
+creation from the exact selected request without retyping, persistent pinning with the combined options menu, and a ten-Bot compact
+roster with search and keyboard expansion. A separate small-workspace browser regression exercised Bot settings through the
+options menu (**1 passed in 5.17s**). I inspected the quick-setup captures at desktop **1440×960**, tablet **900×1024**, and phone
+**390×844**, plus desktop/tablet/phone captures of the Bot menu and collapsed large roster. The suggested Bot name has a clear
+editable field border; the phone footer and fields stay visible; menu targets fit the phone drawer; and no inspected viewport has
+horizontal overflow. Chromium **153.0.8010.12** / Playwright **1.63.0** made no external requests or provider calls. Captures,
+visual-review notes, source hashes and traces are in [`artifacts/simple-bot-setup/`](artifacts/simple-bot-setup/),
+[`artifacts/pinned-roster/`](artifacts/pinned-roster/), and [`artifacts/compact-roster/`](artifacts/compact-roster/). These
+fixture checks do not replace screen-reader or physical-device validation.

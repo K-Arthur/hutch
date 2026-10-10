@@ -526,6 +526,7 @@ const ICON_PATHS = {
   zap: '<path d="M13 2 3 14h7l-1 8 11-12h-7l1-8z"/>',
   stop: '<rect x="6" y="6" width="12" height="12" rx="1"/>',
   sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+  moreHorizontal: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
   folder: '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.2 3.9A2 2 0 0 0 7.5 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
   fileText: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
@@ -619,14 +620,20 @@ function sigilPair(name) {
 }
 function sigilSet(name, pair) { idStore.all[name] = pair; idStore.save(); }
 
+function sigilEyes(fill = "#fff") {
+  const lead = "M22.4 14.3c-1.4.5-1.9 2-.9 3.9l3.5 6.7c.9 1.7 2.6 2.3 4 1.5 1.3-.7 1.7-2.1.8-3.8L26.2 16c-.9-1.7-2.4-2.4-3.8-1.7Z";
+  const companion = "M39.5 10.4c-1.1.4-1.5 1.6-.7 3.1l2.6 4.7c.7 1.3 1.9 1.9 3 1.3 1-.5 1.3-1.6.6-2.9l-2.7-4.8c-.7-1.3-1.8-1.8-2.8-1.4Z";
+  return `<g fill="${fill}" aria-hidden="true">
+    <path data-sigil-eye="lead" d="${lead}"/>
+    <path data-sigil-eye="companion" d="${companion}"/>
+  </g>`;
+}
+
 function sigilBody(pair) {
   const [ci, si] = pair;
   const base = ID_COLORS[ci];
   const h = ID_HEADS[si] || ID_HEADS[0];
-  return `<path d="${h.d}" fill="${base}"/>
-  <g fill="none" stroke-linecap="round" aria-hidden="true">
-    <path d="M25 27c-1.4-2.3-2.7-4.1-4.4-5.4M41.5 24c-1.2-2.1-2.4-3.6-4-4.8" stroke="#fff" stroke-width="5"/>
-  </g>`;
+  return `<path d="${h.d}" fill="${base}"/>${sigilEyes()}`;
 }
 
 function avatarFromPair(pair, size, state = "") {
@@ -657,7 +664,7 @@ function identityPickerHtml() {
       <p class="idp-lbl">Shape</p>
       <div class="idp-row" data-idp-shapes>${ID_HEADS.map((hh, i) =>
         `<button type="button" class="shp" data-si="${i}" aria-label="Shape ${esc(hh.key)}" aria-pressed="false">
-          <svg viewBox="0 0 64 64" aria-hidden="true"><path d="${hh.d}" fill="currentColor"/><path d="M25 27c-1.4-2.3-2.7-4.1-4.4-5.4M41.5 24c-1.2-2.1-2.4-3.6-4-4.8" fill="none" stroke="var(--panel)" stroke-width="5" stroke-linecap="round"/></svg>
+          <svg viewBox="0 0 64 64" aria-hidden="true"><path d="${hh.d}" fill="currentColor"/>${sigilEyes("var(--panel)")}</svg>
         </button>`).join("")}</div>
       <button type="button" class="btn ghost small idp-shuffle" data-idp-shuffle>${icon("refresh")} Surprise me</button>
     </div>`;
@@ -790,6 +797,91 @@ function confirmDialog({ title, body, confirmText = "Confirm", danger = false })
 /* --------------------------------------------------------------- router */
 
 let botsCache = [];
+let rosterMenuCleanup = null;
+
+function closeRosterActionMenu(restoreFocus = false) {
+  const menu = document.getElementById("roster-action-menu");
+  const name = menu?.dataset.botName;
+  rosterMenuCleanup?.();
+  rosterMenuCleanup = null;
+  menu?.remove();
+  const trigger = name ? $$("#roster-list [data-bot-options]").find(button => button.dataset.botOptions === name) : null;
+  trigger?.setAttribute("aria-expanded", "false");
+  if (restoreFocus) trigger?.focus({ preventScroll: true });
+}
+
+function openRosterActionMenu(trigger) {
+  const name = trigger.dataset.botOptions;
+  const bot = botsCache.find(item => item.name === name);
+  if (!bot) return;
+  closeRosterActionMenu(false);
+  const menu = document.createElement("div");
+  menu.id = "roster-action-menu";
+  menu.className = "roster-action-menu";
+  menu.dataset.botName = name;
+  menu.setAttribute("role", "menu");
+  menu.setAttribute("aria-label", `Options for ${bot.display_name || bot.name}`);
+  menu.innerHTML = `${bot.is_workspace_coordinator ? "" : `<button type="button" role="menuitem" tabindex="-1" data-menu-pin>${icon("pin")} ${bot.pinned ? "Remove from pinned" : "Pin to sidebar"}</button>`}
+    <a role="menuitem" tabindex="-1" data-menu-settings href="#/bot/${encodeURIComponent(bot.name)}">${icon("sliders")} Bot settings</a>`;
+  document.body.append(menu);
+  trigger.setAttribute("aria-expanded", "true");
+  const triggerRect = trigger.getBoundingClientRect();
+  const menuRect = menu.getBoundingClientRect();
+  const left = Math.max(8, Math.min(triggerRect.right - menuRect.width, window.innerWidth - menuRect.width - 8));
+  const below = triggerRect.bottom + 4;
+  const top = below + menuRect.height <= window.innerHeight - 8
+    ? below : Math.max(8, triggerRect.top - menuRect.height - 4);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+  const items = () => $$('[role="menuitem"]', menu);
+  const onPointerDown = event => {
+    if (!menu.contains(event.target) && !trigger.contains(event.target)) closeRosterActionMenu(false);
+  };
+  const onKeyDown = event => {
+    const options = items();
+    const index = options.indexOf(document.activeElement);
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeRosterActionMenu(true);
+    } else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key) && options.length) {
+      event.preventDefault();
+      const next = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1
+        : (index + (event.key === "ArrowDown" ? 1 : options.length - 1)) % options.length;
+      options[next].focus();
+    }
+  };
+  const onScroll = () => closeRosterActionMenu(false);
+  document.addEventListener("pointerdown", onPointerDown, true);
+  document.addEventListener("keydown", onKeyDown);
+  window.addEventListener("resize", onScroll);
+  document.addEventListener("scroll", onScroll, true);
+  rosterMenuCleanup = () => {
+    document.removeEventListener("pointerdown", onPointerDown, true);
+    document.removeEventListener("keydown", onKeyDown);
+    window.removeEventListener("resize", onScroll);
+    document.removeEventListener("scroll", onScroll, true);
+  };
+  menu.querySelector('[data-menu-settings]')?.addEventListener("click", () => closeRosterActionMenu(false));
+  menu.querySelector("[data-menu-pin]")?.addEventListener("click", async event => {
+    const action = event.currentTarget;
+    action.disabled = true;
+    action.setAttribute("aria-busy", "true");
+    try {
+      const saved = await api(`/bots/${encodeURIComponent(name)}`, { method: "PATCH", body: { pinned: !bot.pinned } });
+      botsCache = botsCache.map(item => item.id === saved.id ? { ...item, ...saved } : item);
+      closeRosterActionMenu(false);
+      renderRoster();
+      $$("#roster-list [data-bot-options]").find(button => button.dataset.botOptions === name)?.focus({ preventScroll: true });
+      announce(`${saved.display_name || saved.name} ${saved.pinned ? "pinned" : "unpinned"}.`);
+    } catch (error) {
+      action.disabled = false;
+      action.removeAttribute("aria-busy");
+      toast(`Could not update ${name}: ${error.message}`, true);
+      action.focus();
+    }
+  });
+  menu.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
+}
 
 function botDisplayName(ref) {
   if (ref && typeof ref === "object") return ref.display_name || ref.bot_display_name || ref.name || "Bot";
@@ -871,10 +963,13 @@ async function refreshRoster() {
 function renderRoster() {
   const list = $("#roster-list");
   if (!list) return;
+  const menuBot = document.getElementById("roster-action-menu")?.dataset.botName || null;
   const focus = document.activeElement;
+  const focusedMenuAction = focus?.matches?.("#roster-action-menu [data-menu-settings]") ? "settings"
+    : focus?.matches?.("#roster-action-menu [data-menu-pin]") ? "pin" : null;
   const focusedBot = list.contains(focus) ? focus.dataset.switchBot : null;
-  const focusedPin = list.contains(focus) ? focus.dataset.pinBot : null;
-  const focusedSettings = list.contains(focus) ? focus.getAttribute("href") : null;
+  const focusedOptions = list.contains(focus) ? focus.dataset.botOptions : menuBot;
+  closeRosterActionMenu(false);
   $("#fleet-nav").hidden = botsCache.length < 10;
   const q = ($("#bot-search")?.value || "").trim().toLowerCase();
   const coordinator = botsCache.find(b => b.is_workspace_coordinator);
@@ -884,6 +979,12 @@ function renderRoster() {
   const coordinatorMatch = coordinator && matches(coordinator) ? coordinator : null;
   const pinned = botsCache.filter(b => b.id !== coordinator?.id && b.pinned && matches(b)).sort(byDisplayName);
   const remaining = botsCache.filter(b => b.id !== coordinator?.id && !b.pinned && matches(b)).sort(byDisplayName);
+  const currentChatBot = /^#\/chat(?:\/|$)/.test(location.hash || "#/chat") ? currentStudioBot : null;
+  const needsYou = remaining.filter(b => botNeedsYou(b));
+  const inProgress = remaining.filter(b => !botNeedsYou(b) && botState(b) !== "idle" && b.name !== currentChatBot);
+  const current = remaining.filter(b => b.name === currentChatBot && !needsYou.includes(b) && !inProgress.includes(b));
+  const spotlight = new Set([...needsYou, ...inProgress, ...current]);
+  const idle = remaining.filter(b => !spotlight.has(b));
   const bots = [...(coordinatorMatch ? [coordinatorMatch] : []), ...pinned, ...remaining];
   if (!bots.length) {
     list.innerHTML = `<div class="roster-empty">${botsCache.length ? "No bot matches." : "No bots yet — create one."}</div>`;
@@ -893,6 +994,7 @@ function renderRoster() {
     const state = botState(b);
     const pip = botNeedsYou(b) ? "waiting" : state === "running" ? "running" : state === "paused" ? "paused" : "";
     const word = botNeedsYou(b) ? "Needs you" : botStatusLabel(b);
+    const subtitle = b.is_workspace_coordinator ? `Coordinator · ${word}` : word;
     return `
       <div class="roster-entry"><button class="roster-row" type="button" data-switch-bot="${esc(b.name)}"
         ${b.name === currentStudioBot && location.hash.startsWith("#/chat") ? 'aria-current="true"' : ""}
@@ -900,45 +1002,61 @@ function renderRoster() {
         ${botAvatar(b.name, 30, pip)}
         <span class="roster-id">
           <span class="roster-name">${esc(b.display_name || b.name)}</span>
-          <span class="roster-sub">${b.is_workspace_coordinator ? '<span class="roster-role">Coordinator</span> · ' : ""}${esc(truncate(b.model || "", 20))} · ${word}</span>
+          <span class="roster-sub">${esc(subtitle)}</span>
         </span>
-      </button>${b.is_workspace_coordinator ? "" : `<button class="icon-btn roster-pin" type="button" data-pin-bot="${esc(b.name)}"
-        aria-label="${b.pinned ? "Unpin" : "Pin"} ${esc(b.display_name || b.name)}" aria-pressed="${b.pinned ? "true" : "false"}"
-        title="${b.pinned ? "Unpin" : "Pin"} ${esc(b.display_name || b.name)}">${icon("pin")}</button>`}
-      <a class="roster-settings icon-btn" href="#/bot/${esc(b.name)}" aria-label="Settings for ${esc(b.display_name || b.name)}" title="Settings for ${esc(b.display_name || b.name)}">${icon("sliders")}</a></div>`;
+      </button><button class="icon-btn roster-options" type="button" data-bot-options="${esc(b.name)}"
+        aria-label="Options for ${esc(b.display_name || b.name)}" aria-haspopup="menu" aria-expanded="false"
+        title="Bot options">${icon("moreHorizontal")}</button></div>`;
   };
   const sections = [];
   if (coordinatorMatch) sections.push(`<div class="roster-section roster-coordinator">${rowHtml(coordinatorMatch)}</div>`);
+  if (needsYou.length) sections.push(`<section class="roster-section" aria-label="Bots that need you">
+    <h3 class="roster-section-title">Needs you</h3>${needsYou.map(rowHtml).join("")}</section>`);
   if (pinned.length) sections.push(`<section class="roster-section" aria-label="Pinned bots">
     <h3 class="roster-section-title">Pinned</h3>${pinned.map(rowHtml).join("")}</section>`);
-  if (remaining.length) sections.push(`<section class="roster-section" aria-label="All bots">
-    ${pinned.length ? '<h3 class="roster-section-title">All bots</h3>' : ""}${remaining.map(rowHtml).join("")}</section>`);
+  if (inProgress.length) sections.push(`<section class="roster-section" aria-label="Bots in progress">
+    <h3 class="roster-section-title">In progress</h3>${inProgress.map(rowHtml).join("")}</section>`);
+  if (current.length) sections.push(`<section class="roster-section" aria-label="Current chat bot">${current.map(rowHtml).join("")}</section>`);
+  if (idle.length) {
+    const largeFleet = botsCache.length >= 10 && !q;
+    if (largeFleet) {
+      const allOpen = !!store$.get("hutch:roster-idle-open", false);
+      sections.push(`<details class="roster-section roster-idle-details" id="roster-idle-details" ${allOpen ? "open" : ""}>
+        <summary aria-controls="roster-idle-bots">All bots <span class="roster-count">${idle.length}</span></summary>
+        <div class="roster-section roster-idle-list" id="roster-idle-bots">${idle.map(rowHtml).join("")}</div>
+      </details>`);
+    } else {
+      sections.push(`<section class="roster-section" aria-label="All bots">
+        ${pinned.length || needsYou.length || inProgress.length ? '<h3 class="roster-section-title">All bots</h3>' : ""}${idle.map(rowHtml).join("")}</section>`);
+    }
+  }
   list.innerHTML = sections.join("");
+  const idleDetails = $("#roster-idle-details");
+  if (idleDetails) {
+    if (q) idleDetails.open = true;
+    idleDetails.addEventListener("toggle", () => store$.set("hutch:roster-idle-open", idleDetails.open));
+  }
   $$("#roster-list [data-switch-bot]").forEach(row =>
     row.addEventListener("click", () => { location.hash = `#/chat/${encodeURIComponent(row.dataset.switchBot)}`; }));
-  $$("#roster-list [data-pin-bot]").forEach(button => button.addEventListener("click", async () => {
-    const name = button.dataset.pinBot;
-    if (button.dataset.saving === "true") return;
-    const pinnedValue = button.getAttribute("aria-pressed") !== "true";
-    button.dataset.saving = "true";
-    button.setAttribute("aria-busy", "true");
-    try {
-      const saved = await api(`/bots/${encodeURIComponent(name)}`, { method: "PATCH", body: { pinned: pinnedValue } });
-      botsCache = botsCache.map(bot => bot.id === saved.id ? { ...bot, ...saved } : bot);
-      renderRoster();
-      announce(`${saved.display_name || saved.name} ${saved.pinned ? "pinned" : "unpinned"}.`);
-    } catch (error) {
-      delete button.dataset.saving;
-      button.removeAttribute("aria-busy");
-      toast(`Could not update ${name}: ${error.message}`, true);
-    }
+  $$("#roster-list [data-bot-options]").forEach(button => button.addEventListener("click", () => {
+    openRosterActionMenu(button);
   }));
-  if (focus && !focus.isConnected) {
-    const replacement = focusedPin
-      ? $("#roster-list [data-pin-bot]") && $$("#roster-list [data-pin-bot]").find(el => el.dataset.pinBot === focusedPin)
+  if (menuBot) {
+    const trigger = $$("#roster-list [data-bot-options]").find(button => button.dataset.botOptions === menuBot);
+    if (trigger) {
+      openRosterActionMenu(trigger);
+      const menu = document.getElementById("roster-action-menu");
+      const restore = focusedMenuAction === "settings" ? menu?.querySelector("[data-menu-settings]")
+        : focusedMenuAction === "pin" ? menu?.querySelector("[data-menu-pin]") : menu?.querySelector('[role="menuitem"]');
+      restore?.focus({ preventScroll: true });
+    }
+  }
+  if (focus && !focus.isConnected && !document.getElementById("roster-action-menu")) {
+    const replacement = focusedOptions
+      ? $$("#roster-list [data-bot-options]").find(el => el.dataset.botOptions === focusedOptions)
       : focusedBot
       ? $$("[data-switch-bot]", list).find(el => el.dataset.switchBot === focusedBot)
-      : focusedSettings && $$("a", list).find(el => el.getAttribute("href") === focusedSettings);
+      : null;
     (replacement || $("#bot-search"))?.focus({ preventScroll: true });
   }
 }
@@ -5716,7 +5834,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
   let modelSuggestion = conversationSource?.model_suggestion || workspaceDefaults.model || "";
   let modelSuggestionSource = conversationSource?.model_suggestion ? "chat" : workspaceDefaults.model ? "workspace" : "";
   const draft = {
-    step: 0, purpose: conversationSource?.original_request || "", useConversationSource: !!conversationSource,
+    step: 0, forceAdvanced: !!chosenTemplate, purpose: conversationSource?.original_request || "", useConversationSource: !!conversationSource,
     selectedContextMessageIds: new Set(),
     template: chosenTemplate?.name || "", name: "", display_name: "", description: "", model: modelSuggestion,
     purposeRefinement: null, purposeRefinementStatus: "",
@@ -5747,8 +5865,6 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
   };
   refreshSuggestedIdentity();
   const refreshNamePreview = () => {
-    const preview = $("#setup-name-preview");
-    if (preview) preview.textContent = draft.display_name;
     const displayName = $("#setup-display_name");
     if (displayName && !displayNameEdited) displayName.value = draft.display_name;
     const address = $("#setup-name");
@@ -5798,6 +5914,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
     schedule_prompt: draft.schedule_prompt.trim(),
   });
   const applyImportedConfiguration = config => {
+    draft.forceAdvanced = true;
     draft.purpose = config.instructions || "";
     draft.useConversationSource = false;
     draft.selectedContextMessageIds = new Set();
@@ -5915,19 +6032,19 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
     const step = draft.step;
     const back = step ? `<button type="button" class="btn ghost small setup-back" id="setup-back">${icon("arrow-left")} Back</button>` : "";
     let content = "";
-    if (step === 0) content = `<div class="setup-conversation">
+    if (step === 0) content = `<div class="setup-conversation${draft.forceAdvanced ? "" : " setup-quick"}">
       ${conversationSource ? `<label class="setup-context-source"><input id="setup-use-source" type="checkbox" ${draft.useConversationSource ? "checked" : ""}>
-        <span><b>${conversationSource.is_latest_request ? "Use your latest request from this chat" : "Use this request from this chat"}</b><small>From ${esc(conversationSource.source_bot_name)} · ${esc(conversationSource.conversation_title)} · message ${conversationSource.sequence}.</small></span></label>
-        <p class="setup-assistant">Only ${conversationSource.is_latest_request ? "the latest request" : "this request"} and earlier user messages you select are included in this Bot draft. Assistant replies and other chats stay private; selected text cannot change tools, accounts or permissions.</p>`
-        : `<p class="setup-assistant">Start with what you already asked for. Hutch suggests a name and uses safe defaults; review everything before creating the Bot.</p>`}
-      <details class="setup-schedule setup-yaml-import" id="setup-yaml-import-details" ${draft.yamlImportExpanded ? "open" : ""}>
+        <span><b>Use this request as the Bot’s instructions</b><small>From ${esc(conversationSource.source_bot_name)} · ${esc(conversationSource.conversation_title)} · message ${conversationSource.sequence}.</small><small class="setup-request-preview">${esc(truncate(conversationSource.original_request.replace(/\s+/g, " ").trim(), 220))}</small></span></label>
+        ${!draft.forceAdvanced ? `<p class="hint setup-source-note">The request you already gave becomes the starting instructions. No need to enter it again.</p>` : `<p class="setup-assistant">Only this request and earlier user messages you select are included in this Bot draft. Assistant replies and other chats stay private; selected text cannot change tools, accounts or permissions.</p>`}`
+        : ""}
+      ${draft.forceAdvanced ? `<details class="setup-schedule setup-yaml-import" id="setup-yaml-import-details" ${draft.yamlImportExpanded ? "open" : ""}>
         <summary>Load a saved YAML setup</summary>
         <p class="hint">A validated file fills this unsaved draft. Review the name, model, tools, schedule, limits and permissions across all steps; only the separate <b>Create bot</b> action saves it.</p>
         <button type="button" class="btn small" id="setup-yaml-import-button">Choose YAML file</button>
         <input id="setup-yaml-file" type="file" accept=".yaml,.yml,application/yaml,text/yaml" hidden>
         <p class="hint" id="setup-yaml-import-status" role="status" aria-live="polite">${esc(draft.yamlImportStatus || "")}</p>
-      </details>
-      ${(conversationSource?.context_candidates || []).length ? `<details class="setup-schedule" id="setup-context-picker" ${draft.selectedContextMessageIds.size ? "open" : ""}>
+      </details>` : ""}
+      ${(draft.forceAdvanced && conversationSource?.context_candidates || []).length ? `<details class="setup-schedule" id="setup-context-picker" ${draft.selectedContextMessageIds.size ? "open" : ""}>
         <summary>Add earlier user messages (optional)</summary>
         <p class="hint">Choose only messages that should become background in this Bot’s saved instructions. No assistant replies or other chats are included. Avoid passwords, codes and unrelated private details.</p>
         <p class="hint" id="setup-context-count" role="status" aria-live="polite"></p>
@@ -5940,27 +6057,37 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
           </article>`;
         }).join("")}</div>
       </details>` : ""}
-      <label class="field" for="setup-purpose">What would you like this bot to handle?</label>
-      <textarea id="setup-purpose" rows="5" maxlength="20000" placeholder="For example: review release notes and prepare a short summary of changes that affect our project." required>${esc(draft.purpose)}</textarea>
-        <p class="hint">This becomes the Bot’s standing instructions. Selected earlier messages are included as background; Hutch does not infer extra permissions or access.</p>
-        ${conversationSource?.source_bot_is_coordinator && conversationSource.source_bot_runtime === "builtin" && conversationSource.source_bot_model ? `<div class="setup-refine-action">
-          <button type="button" class="btn small" id="setup-refine-purpose">Draft clearer instructions with ${esc(conversationSource.source_bot_display_name)}</button>
-          <p class="hint">Each draft request returns one response using ${esc(conversationSource.source_bot_display_name)}’s saved route (${esc(conversationSource.source_bot_model)}) and configured fallback. It receives this request, your purpose, and only earlier messages you selected. No tools are available. Normal usage limits apply; hosted providers may retain the text under their terms. Review before applying.</p>
-          <p class="hint">Stop a running draft from the coordinator chat. No Bot settings change until you apply it.</p>
-          <p class="hint" role="status" aria-live="polite" id="setup-purpose-draft-status">${esc(draft.purposeRefinementStatus)}</p>
-        </div>` : ""}
-        ${purposeRefinementHtml()}
-        <p class="hint setup-name-preview">Suggested Bot name: <strong id="setup-name-preview">${esc(draft.display_name)}</strong> · review or change it below.</p>
+      ${conversationSource && draft.useConversationSource && !draft.forceAdvanced ? `<details class="setup-schedule setup-purpose-editor" id="setup-purpose-editor">
+        <summary>Edit these instructions (optional)</summary>
+        <label class="field" for="setup-purpose">Bot instructions<textarea id="setup-purpose" rows="4" maxlength="20000" required>${esc(draft.purpose)}</textarea>
+          <span class="hint">By default, Hutch uses your selected request. Editing it is optional; no tools or account access are inferred.</span></label>
+      </details>` : `<label class="field" for="setup-purpose">${conversationSource ? "What should this bot keep doing?" : "What would you like this bot to handle?"}<textarea id="setup-purpose" rows="${draft.forceAdvanced ? 5 : 3}" maxlength="20000" placeholder="For example: review release notes and prepare a short summary of changes that affect our project." required>${esc(draft.purpose)}</textarea>
+        <span class="hint">This becomes the Bot’s standing instructions. Hutch does not add tools or account access.</span></label>`}
+        ${draft.forceAdvanced && conversationSource?.source_bot_is_coordinator && conversationSource.source_bot_runtime === "builtin" && conversationSource.source_bot_model ? `<details class="setup-schedule setup-refine-details" id="setup-refine-details" ${draft.purposeRefinement || draft.purposeRefinementStatus ? "open" : ""}>
+          <summary>Improve these instructions (optional)</summary>
+          <div class="setup-refine-action">
+            <button type="button" class="btn small" id="setup-refine-purpose">Draft clearer instructions with ${esc(conversationSource.source_bot_display_name)}</button>
+            <p class="hint">This sends one request, purpose and only earlier messages you selected to ${esc(conversationSource.source_bot_display_name)}’s saved route (${esc(conversationSource.source_bot_model)}). No tools are available; normal usage limits apply. Review the draft before using it.</p>
+            <p class="hint">Stop a running draft from the coordinator chat. No Bot settings change until you apply it.</p>
+            <p class="hint" role="status" aria-live="polite" id="setup-purpose-draft-status">${esc(draft.purposeRefinementStatus)}</p>
+            ${purposeRefinementHtml()}
+          </div>
+        </details>` : ""}
+      <label class="field" for="setup-display_name">Bot name<input id="setup-display_name" maxlength="80" autocomplete="off" placeholder="Avery Morgan · Project Status Reporter" value="${esc(draft.display_name)}" required>
+        <span class="hint">Suggested from the work you described. You can change it now or later.</span></label>
       <details class="setup-schedule setup-identity">
-        <summary>Review or change the suggested name</summary>
+        <summary>More name options</summary>
         <div class="form-grid">
-          <label class="field" for="setup-display_name">Display name<input id="setup-display_name" maxlength="80" autocomplete="off" placeholder="Avery Morgan · Project Status Reporter" value="${esc(draft.display_name)}" required>
-            <span class="hint">Hutch suggests a friendly, professional name with the Bot’s work role. Both are editable, and chats and lists keep the AI Bot label visible.</span></label>
           <label class="field" for="setup-name">Bot address<input id="setup-name" maxlength="41" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="release-notes-reviewer" value="${esc(draft.name)}" required>
             <span class="hint">Stable local address; it follows the display name until you edit it.</span></label>
           <label class="field" for="setup-description">Short description<input id="setup-description" maxlength="240" placeholder="What people can ask this Bot to do" value="${esc(draft.description)}"></label>
         </div>
       </details>
+      ${!draft.forceAdvanced ? `<section class="setup-quick-summary" aria-label="Starting settings">
+        <p>${draft.model ? `Uses ${esc(draft.model)} · ${esc(draft.inference_mode)} route` : "Choose a model route to continue"} · managed workspace · no tools or schedule · actions ask first.</p>
+        <p class="hint">Creates the Bot only; no run starts.</p>
+      </section>
+      <button type="button" class="btn ghost small setup-customize" id="setup-customize">Customize advanced settings</button>` : ""}
     </div>`;
     if (step === 1) {
       let routeOptions = [];
@@ -6045,10 +6172,16 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
     const root = $("#modal-root");
     const body = $(".modal-body", root), title = $("#modal-title"), confirm = $("#modal-confirm");
     if (!body || !title || !confirm) return;
-    title.textContent = stepTitles[step];
-    body.innerHTML = `<div class="bot-setup" aria-live="polite"><div class="setup-progress">Step ${step + 1} of ${stepTitles.length}</div>${back}${content}<p class="setup-error" id="bot-setup-error" role="alert" hidden></p></div>`;
+    const sourceQuick = step === 0 && !draft.forceAdvanced && !!conversationSource && draft.useConversationSource;
+    title.textContent = sourceQuick ? "Create from this request" : stepTitles[step];
+    const progress = step === 0 && !draft.forceAdvanced
+      ? sourceQuick ? "Your request is already selected · review the name and starting settings"
+        : "Quick setup · safe defaults; customize anything before creating"
+      : `Step ${step + 1} of ${stepTitles.length}`;
+    body.innerHTML = `<div class="bot-setup" aria-live="polite"><div class="setup-progress">${progress}</div>${back}${content}<p class="setup-error" id="bot-setup-error" role="alert" hidden></p></div>`;
     body.scrollTop = 0;
-    confirm.textContent = step === 3 ? "Create bot" : "Continue";
+    confirm.textContent = step === 3 || (step === 0 && !draft.forceAdvanced && !!draft.model.trim())
+      ? "Create bot" : step === 0 && !draft.forceAdvanced ? "Choose a model" : "Continue";
     confirm.disabled = false;
     let configurationYaml = "";
     $("#setup-yaml-build")?.addEventListener("click", async event => {
@@ -6115,9 +6248,15 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
       }
     });
     $("#setup-back")?.addEventListener("click", () => { snapshotFields(); draft.step = Math.max(0, draft.step - 1); void renderStep(); });
+    $("#setup-customize")?.addEventListener("click", () => {
+      snapshotFields(); draft.forceAdvanced = true; draft.step = 1;
+      void renderStep().then(() => $("#setup-model")?.focus());
+    });
     $("#setup-use-source")?.addEventListener("change", event => {
       draft.useConversationSource = event.currentTarget.checked;
       draft.purpose = draft.useConversationSource ? conversationSource.original_request : "";
+      const purposeEditor = $("#setup-purpose-editor");
+      if (purposeEditor) purposeEditor.open = !draft.useConversationSource;
       refreshSuggestedIdentity();
       refreshNamePreview();
       const purpose = $("#setup-purpose");
@@ -6247,7 +6386,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
     $("#setup-inference_mode")?.addEventListener("change", async () => {
       snapshotFields(); draft.inference_mode = $("#setup-inference_mode").value; await renderStep();
     });
-    (step === 0 ? $("#setup-purpose") : step === 1 ? $("#setup-model") : $("input, textarea, select", body))?.focus();
+    (step === 0 ? (conversationSource && draft.useConversationSource && !draft.forceAdvanced
+      ? $("#setup-display_name") : $("#setup-purpose")) : step === 1 ? $("#setup-model") : $("input, textarea, select", body))?.focus();
   };
   const creationKey = async body => {
     const fingerprint = await payloadFingerprint(body), keyName = "hutch-pending-bot-create";
@@ -6260,7 +6400,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
     return key;
   };
   openModal({
-    title: stepTitles[0], bodyHtml: `<div class="bot-setup"></div>`, confirmText: "Continue", wide: true, tall: true,
+    title: stepTitles[0], bodyHtml: `<div class="bot-setup"></div>`,
+    confirmText: draft.model ? "Create bot" : "Choose a model", wide: true, tall: true,
     returnFocus: document.activeElement,
     onConfirm: async () => {
       snapshotFields();
@@ -6280,7 +6421,11 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
         const invalidLimit = $$(".bot-setup input[type=number]").find(field => !field.checkValidity());
         if (invalidLimit) { setError("Check the execution and usage limit values."); invalidLimit.focus(); return false; }
       }
-      if (draft.step < 3) { draft.step += 1; await renderStep(); return false; }
+      if (draft.step === 0 && !draft.forceAdvanced && !draft.model.trim()) {
+        draft.forceAdvanced = true; draft.step = 1; await renderStep(); return false;
+      }
+      if (draft.step === 0 && draft.forceAdvanced) { draft.step = 1; await renderStep(); return false; }
+      if (draft.step > 0 && draft.step < 3) { draft.step += 1; await renderStep(); return false; }
       const body = {
         ...setupConfiguration(),
         source_conversation_id: draft.useConversationSource || selectedCreationContext().length ? conversationSource?.conversation_id || null : null,

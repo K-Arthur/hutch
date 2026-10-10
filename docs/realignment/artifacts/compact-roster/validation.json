@@ -1,0 +1,54 @@
+{
+  "command": "uv run pytest -q tests/e2e/test_browser.py::test_large_idle_roster_stays_compact_and_remains_searchable_and_keyboard_accessible",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewports": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "idle_list_collapsed": true,
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "idle_list_collapsed": true,
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "idle_list_collapsed": true,
+      "horizontal_overflow": 0
+    }
+  ],
+  "bots": 10,
+  "initial_visible_bots": 1,
+  "all_bots_keyboard_expansion": true,
+  "search_keeps_full_roster_reachable": true,
+  "desktop_options_control_visible_at_rest_and_emphasized_on_hover": true,
+  "page_errors": [],
+  "provider_calls": 0,
+  "visual_review": {
+    "inspected": [
+      "collapsed-desktop.png",
+      "collapsed-tablet.png",
+      "collapsed-phone.png"
+    ],
+    "notes": [
+      "Coordinator remains visible while the nine idle Bots are reachable through the count and Show control.",
+      "The phone drawer retains a visible close control and fixed bottom navigation.",
+      "The 10-Bot example has no horizontal overflow at any inspected size."
+    ]
+  }
+}

@@ -214,6 +214,10 @@ language after explicit user direction ("right angles feel too off"):
   at creation and in settings. Identity colours are decorative only, never status;
   the separate state pip sits beside it with its word. The marketing site's 3D art
   is a separate, larger brand illustration.
+- **Bot roster controls** — one always-visible, low-emphasis options button per
+  Bot contains pin/unpin and settings. Hover and focus add contrast; display
+  names wrap to two lines before the clamp; idle Bots collapse into a searchable
+  group in workspaces with ten or more Bots.
 - **Composer** — 22px rounded box, 16–18px textarea, circular emerald send and
   rose stop, a "+" popover holding only real capabilities (suggestions, rehearsal,
   Enter-behaviour, live budget).

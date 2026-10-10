@@ -15,7 +15,8 @@
         960
       ],
       "horizontal_overflow": 0,
-      "roster_capture": null
+      "roster_capture": null,
+      "options_menu_capture": "desktop-menu.png"
     },
     {
       "size": "tablet",
@@ -24,7 +25,8 @@
         1024
       ],
       "horizontal_overflow": 0,
-      "roster_capture": "tablet-roster.png"
+      "roster_capture": "tablet-roster.png",
+      "options_menu_capture": "tablet-menu.png"
     },
     {
       "size": "phone",
@@ -33,25 +35,39 @@
         844
       ],
       "horizontal_overflow": 0,
-      "roster_capture": "phone-roster.png"
+      "roster_capture": "phone-roster.png",
+      "options_menu_capture": "phone-menu.png"
     }
   ],
   "verified": [
-    "pin and unpin",
+    "one options button per Bot; pin and settings actions share its menu",
     "pin persists after reload",
-    "coordinator stays first",
+    "coordinator stays first and cannot be pinned",
     "search includes pinned bots",
-    "keyboard activation restores focus",
+    "keyboard activation and Escape restore focus",
+    "long Bot name wraps without clipping",
     "mobile roster has a visible close control",
     "phone roster reopens with all Bots visible",
-    "phone pin target is at least 44px",
+    "phone menu target is at least 44px",
     "flat 2D identities use distinct solid fills and glints"
   ],
   "avatar_svg_ids": 0,
   "source_sha256": {
-    "src/hutch/server/static/app.js": "e490b1e2cc9c840df7727e65e9fb2bb88de1017256a06ab47e3d49ad3682d282",
-    "src/hutch/server/static/style.css": "1d61e67e0103ecd0670066c6bcc399789c1f0ab453f9b4ff3855adb05f1db55f",
-    "src/hutch/server/app.py": "927e49255b7539e7022ee2820c932540281aa45017d52c6e1860c1661ec2a7e5",
-    "tests/e2e/test_browser.py": "209c342efd1fc7206ef0415820cc03ecdba3f41dfd9bbc9f5ecccc0d4855ef30"
+    "src/hutch/server/static/app.js": "a98ecb651bec0f0391393aff700ac13a0b11f1854cb770a182a6b5f6b22e63fe",
+    "src/hutch/server/static/style.css": "b238c83ea8b6eb403bc420b4c8038e70e83fe9791cf875496549ff6bb7069703",
+    "src/hutch/server/app.py": "d73f7fb23beb07ba85fe4edb06922e3173170886f744d37c7d3e3285fe99bb05",
+    "tests/e2e/test_browser.py": "f81cd9f875bc734f16bb922fb9f0e45e469fd13b90baaa5a2b576c5e3f717e59"
+  },
+  "visual_review": {
+    "inspected": [
+      "desktop-menu.png",
+      "tablet-menu.png",
+      "phone-menu.png"
+    ],
+    "notes": [
+      "Pin and settings actions share one menu attached to each Bot row.",
+      "The phone menu targets fit inside the open roster drawer.",
+      "The long Bot name wraps to two lines before the clamp."
+    ]
   }
 }
