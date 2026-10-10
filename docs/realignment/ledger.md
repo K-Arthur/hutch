@@ -3688,3 +3688,24 @@ traces are in [`artifacts/quick-setup-language-2026-10-10/`](artifacts/quick-set
 and [`artifacts/pinned-roster/`](artifacts/pinned-roster/). This slice is
 committed on `main` as `1736d37`. No push or publication occurred; the broad
 all-surface app and website redesign is still in progress.
+
+## Cleaner chat work-details entry (2026-10-10)
+
+Assistant replies no longer print a shortened internal run ID in the ordinary
+chat transcript. A keyboard-accessible **View work details** icon link still
+opens that run's existing detail page; phone layout gives it a 44px target.
+The browser test asserts the route, absence of the ID from visible thread text,
+and phone target dimensions while preserving reply selection, draft restoration,
+focus return, and persisted reply anchoring.
+
+Verification: `.venv/bin/pytest -q
+tests/e2e/test_browser.py::test_bot_message_reply_is_keyboard_accessible_editable_and_persisted`
+passed **3 responsive cases** in **8.95s** with Chromium **153.0.8010.12** and
+Playwright **1.63.0**. `node --check src/hutch/server/static/app.js` and
+`git diff --check` passed. I inspected the desktop, tablet, and phone screenshots
+individually; overflow was zero and there were no page errors. Screenshots, JSON,
+and traces are under
+[`artifacts/message-replies-clean-chat-2026-10-10/`](artifacts/message-replies-clean-chat-2026-10-10/).
+Implementation and UI documentation are committed on `main` as `9b02c01`.
+This narrow cleanup does not close the populated chat design review or the
+broader app-and-marketing UI overhaul; no push or publication occurred.
