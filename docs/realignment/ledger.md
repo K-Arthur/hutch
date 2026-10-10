@@ -3993,6 +3993,8 @@ No push or publication occurred.
 
 ## Populated chat reply reference and send feedback (2026-10-10)
 
+Commit: `92ad3a37e31786b8cdbb76e3d1c51b261917c4fa` on local `main`.
+
 The reply reference previously inherited `white-space: pre-wrap` from the user
 message bubble. Newlines and indentation in the HTML template were therefore
 rendered as a large blank area around a short quote. The quote now collapses
