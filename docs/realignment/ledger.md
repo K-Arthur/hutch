@@ -3639,3 +3639,25 @@ Implementation and docs from the preceding launch slice are `0a15635`; this test
 evidence-boundary update are committed on `main` as `d217c51`. Live OpenCode config,
 account/model behavior, hard usage accounting, and the broader all-surface UI overhaul
 remain open. No push or publication occurred.
+
+## Gmail send-only integration (2026-10-10)
+
+Added a separate experimental Gmail send-only OAuth account, credential namespace,
+and per-assistant grant. OAuth requests only `gmail.send` and rejects a returned
+grant that includes any broader Gmail scope. A send requires an exact fresh
+owner decision on sender, recipients, subject, and plain-text body, then submits
+one request with no automatic retry. A timeout, gateway timeout, redirect,
+server error, or unverifiable receipt remains `outcome_unknown`; Google
+acceptance is not reported as delivery. Search credentials and send credentials
+remain separate.
+
+The focused provider, migration, and API regressions passed **104 tests in
+6.56s**; the fixture browser journey passed at desktop, tablet, phone, and
+compact-phone sizes (**1 test in 9.05s**). `node --check` and
+`git diff --check` passed. I inspected desktop, phone, and compact-phone
+screenshots individually. No live Google account, consent, or provider request
+was used. Screenshots and a sanitized browser trace are in
+[`artifacts/google-mail-send/`](artifacts/google-mail-send/). The implementation
+is committed on `main` as `e820ba5`. Public Google OAuth verification and the
+full Connections redesign remain open; this slice does not close the broader
+all-surface UI overhaul. No push or publication occurred.
