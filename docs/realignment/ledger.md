@@ -3400,6 +3400,29 @@ scenario runtime confined to `tests/support`; a clean wheel-content check is sti
 environment has no Hatchling build backend. The broader user-facing functionality inventory remains open in `docs/requirements.md`.
 No push or publication occurred.
 
+## OpenCode provider sign-in and FAQ mobile layout (2026-10-10)
+
+`hutch code login` now invokes OpenCode's supported interactive sign-in flow
+inside a dedicated private profile under Hutch state. Before claiming a saved
+coding handoff, `hutch code run` checks that profile and uses its persistent
+database rather than a new empty database per task. It does not import the
+owner's regular OpenCode profile. Provider usage remains outside Hutch's
+budgets, and shell approvals remain outside Hutch's sandbox. No real account
+login, provider request, or model call was made.
+
+The focused OpenCode unit, CLI, Studio and anonymous marketing tests passed
+**15 tests in 11.88s**. The FAQ browser test first reproduced a wrapped mobile
+title colliding with its disclosure arrow; the fix reserves the shared
+48-pixel spacing token, and the final phone capture verifies the visible gap.
+I reviewed the wrapped FAQ and coding-task copy screenshots individually.
+Chromium **153.0.8010.12** / Playwright **1.63.0** reported no external requests,
+page errors or horizontal overflow. Screenshots, traces and source hashes are
+in [`artifacts/opencode-handoff/`](artifacts/opencode-handoff/) and
+[`artifacts/chatgpt-background-consent/marketing/`](artifacts/chatgpt-background-consent/marketing/).
+Implementation, docs and visual evidence are committed locally on `main` as
+`000a725`. OpenCode live sign-in/model behavior and the broader all-surface UI
+overhaul remain open. No push or publication occurred.
+
 ## Empty Studio helper gallery hierarchy (2026-10-10)
 
 Committed locally on `main` as `bced7ae`. The empty chat keeps direct messaging
