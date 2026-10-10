@@ -239,11 +239,15 @@ The optional New Bot refinement action is available only from a built-in workspa
 user request, the owner's editable current purpose and only earlier user messages explicitly selected from that same conversation.
 The request uses a normal run and budget reservation, but the run has no tools and cannot execute actions even if the coordinator
 Bot ordinarily has capabilities. The runtime does not receive the Bot's recent chat history beyond this explicit context. A model
-tool call is refused without execution; truncation fails closed rather than escalating or dropping context. The coordinator can
-suggest wording and list material unanswered questions, but cannot create the Bot or change any permissions. The source remains
-unchanged until the owner applies the editable suggestion; full configuration review and a separate create confirmation still
-follow. Each request returns one response; the owner may edit the purpose and submit another, but there is no interactive
-clarification loop. Model behavior is fixture-tested, not live-provider verified.
+tool call is refused without execution; truncation fails closed rather than escalating or dropping context. The coordinator may
+ask one concise, choice-based question for a material missing work detail, then return an editable draft. The flow permits at most five answers. The prompt forbids questions about passwords, credentials, sign-in details, verification
+codes, account access, permissions or authority. The client also rejects questions and options containing a denylisted set of these
+terms; this guardrail is not a complete detector. The exact source, selected context and prior answers are untrusted data in each
+bounded request. Malformed output, flagged questions, truncation or provider tool calls are not applied; tools remain unavailable
+even if the coordinator normally has them. The answer text and draft stay in the same browser for up to seven days and are not
+synced across devices. Setup warns owners not to enter passwords, codes or account credentials; local storage is not a credential
+vault. The owner can edit the proposal; it cannot create the Bot or change its route, tools, accounts, workspace or permissions. A
+separate setup review and create confirmation still follow. Model quality is fixture-tested, not live-provider verified.
 
 ## Coordinator handoffs
 

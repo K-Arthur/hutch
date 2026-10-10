@@ -1297,3 +1297,29 @@ editorial layout and detailed 3D character. The eight 2D app silhouettes retain 
 Mobbin's screen catalog was blocked by its plan/sign-in gate. Figma's file preview was available as a broad reference, but node-level
 inspection hit the Starter-plan tool limit; those limits are recorded in the machine-readable validation file. This review therefore
 does not claim detailed Mobbin screen comparisons. It is local fixture validation, not screen-reader or physical-device testing.
+
+
+## Intent-preserving chat-led Bot setup (2026-10-10)
+
+The optional missing-detail check starts from the exact user message selected in chat. It asks one work question at a time, offers
+2–5 choices plus free text, and carries the original request and selected earlier context forward without asking the owner to repeat
+the task. The same browser can restore an unsent choice/free-text answer and the editable proposal for up to seven days; setup warns
+owners not to enter passwords, codes or account credentials. The proposal remains review-only and cannot change Bot settings or
+create a Bot before the explicit setup confirmation.
+
+I opened the individual question screen at desktop **1440×960** and the restored question at phone **390×844**, then inspected the
+editable draft separately at desktop **1440×960**, tablet **900×1024**, and phone **390×844**. The mobile sheet keeps its action footer
+visible; the restored choice and typed text remain available after reload. Each capture is in
+[`artifacts/bot-setup-clarification/`](artifacts/bot-setup-clarification/), with Chromium **153.0.8010.12** / Playwright **1.63.0**
+metadata and trace. The browser journey verifies exact request/context scope, the submitted answer history, no Bot/run before creation,
+no page errors, and no external/provider calls. This is same-browser fixture evidence; it does not verify live model question quality,
+screen readers, or a physical phone.
+
+The focused clarification/refinement/API command passed **3 tests in 6.66s**; the full conversation module passed **19 tests in 6.30s**;
+the tool-free runtime guard passed **1 test in 1.17s**. `node --check`, Python compilation, and `git diff --check` passed. The Mobbin
+connector returned its paid-plan requirement, so this slice does not claim any Mobbin screen comparison. The eight distinct 2D app
+mascot silhouettes and their per-shape face geometry remain covered separately in
+[`artifacts/mascot-eye-review/`](artifacts/mascot-eye-review/).
+
+The implementation and focused screenshots are committed locally on `main` as `160af58`. No provider call, external request, push,
+or publication occurred.

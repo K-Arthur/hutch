@@ -357,16 +357,26 @@ The local saved-request library has at most 250 entries and is stored in Hutch's
 
 The Studio **Saved requests** dialog searches, edits and deletes these owner-local entries. Choosing **Use request** only fills the active conversation draft and requires the user to press Send separately; it starts no run or provider call. **Save reusable request** reviews the first user-authored message before adding it. The separate **Download task template** action and version-1 JSON importer remain available for explicit file portability; import also fills only the draft. The saved library has no public/team sharing, slash-command aliases or typed-placeholder substitution. Paired-phone routes do not grant access to the library.
 
-`POST /api/v1/conversations/{id}/bot-purpose-drafts` takes `{source_message_id, purpose, context_message_ids}` and requires
+`POST /api/v1/conversations/{id}/bot-purpose-drafts` takes
+`{source_message_id, purpose, context_message_ids, clarification_history}` and requires
 `Idempotency-Key`. It is available only from an unpaused built-in workspace coordinator conversation. The source must be a user
 message in that conversation; each selected context ID must name a unique earlier user message from the same conversation, with
-at most eight IDs. Source, purpose and selected context are limited to 20,000 combined characters and the safely encoded model
-context to 24,000 characters. Later messages, assistant replies and other chats are excluded. Hutch admits an ordinary
+at most eight IDs. `clarification_history` defaults to an empty list and is bounded to five `{question, answer}` turns; each
+question is limited to 1,000 characters and each answer to 4,000. Source, purpose, selected context and clarification history are
+limited to 20,000 combined characters and the safely encoded model context to 24,000 characters. Later messages, assistant replies
+and other chats are excluded. Hutch admits an ordinary
 conversation run that uses the coordinator's saved route/fallback and usage reservation, but persists `tool_access=none` for that
 run; provider tool calls cannot execute, and prompt truncation does not silently drop context or trigger escalation. This endpoint
 returns the normal run resource (201 when created, 200 on an exact replay); reusing a key with changed input returns 409. The model
-response is a review-only suggestion. It does not create a Bot or change authority; the owner applies any revised purpose in the
-client and completes the separate Bot setup review.
+is instructed to return exactly one of `{"kind":"question","question":"…","options":["…","…"]}` or
+`{"kind":"draft","instructions":"…","assumptions":["…"]}`. The browser checks required fields, size limits and option count,
+and rejects questions/options containing a denylisted set of credential or authority terms. This is not a complete detector; owners
+must not enter credentials in free text. A question supports 2–5 options and optional free text. After five answers the
+coordinator is required to draft instead of asking another question. Responses remain review-only: they do not create a Bot or
+change authority; the owner applies revised purpose in the client and completes the separate Bot setup review. The same browser
+keeps the exact source draft, choices, user-provided answers and proposal in local storage for at most seven days and validates
+it when restoring. The UI warns owners never to enter credentials; this is not a credential vault. State is not synchronized to
+the server or another device.
 
 Schema v8 imports each historical run into its own legacy conversation. It does not infer continuity or combine contexts. The
 Studio lets the operator select these imported threads; the builtin runtime receives up to 12 prior messages and 16,000 characters.

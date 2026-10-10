@@ -305,10 +305,14 @@ New Bot setup may submit one optional refinement to the workspace coordinator. H
 the owner's current purpose draft and only earlier user messages the owner selected from that conversation. The request is bounded
 and labelled as untrusted data. It runs as a normal conversation attempt, so existing admission, model routing and budget
 reservation apply; it is restricted at the run level to the built-in runtime with an empty tool registry. A provider tool call,
-prompt truncation or second response ends the attempt without invoking a tool or silently escalating. The result is a proposal
-only: the user edits it and explicitly applies it to the purpose field. Bot creation remains a separate confirmation, and this
-flow cannot alter the proposed Bot's model, account, memory, workspace or permissions. Each request makes one draft; the owner
-can edit the purpose and submit another request, but an interactive clarification loop is not implemented.
+prompt truncation or second response ends the attempt without invoking a tool or silently escalating. The coordinator may ask one
+concise choice question for a material missing work detail, then return an editable instruction draft. The owner can answer at most
+five questions, one at a time; after that the prompt requires a draft. Choice options and free text are supported. The same browser
+can restore the unsent answer, bounded history, or review draft for seven days; this is local browser storage, not server-side or
+cross-device synchronization. Expired state is discarded. The source, prior answers and selected context are untrusted data, the run
+has no tools. The prompt forbids credential or authority questions, and the client rejects a denylisted set of terms; this is not a
+complete detector. The result remains a proposal: the owner edits and explicitly applies it. Bot creation remains a separate confirmation, and this flow cannot alter the proposed Bot's model, account,
+memory, workspace or permissions. Required response fields and limits are validated, and malformed output stays unapplied.
 
 ## What is deliberately NOT here (yet)
 

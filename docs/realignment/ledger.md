@@ -18,6 +18,19 @@ after their tests and visual review. Do not push or publish.
 
 ## Current slices
 
+S6 continuation, 2026-10-10: the optional Bot-setup clarification begins from the selected chat request and asks at most five
+work-related questions, one at a time, with choice cards and free text. It reuses only the exact request, owner-selected earlier
+messages and previous answers. The same browser can restore user-provided answer text and the review draft for seven days; it is not
+cross-device synced, and setup warns owners not to enter credentials. The coordinator run has no tools. Its response is reviewed and
+editable; no Bot or authority changes before separate owner confirmation. This is a locally fixture-tested flow, not live model
+quality evidence.
+
+Verification boundary: the focused clarification/refinement/API command passed **3 tests**, `tests/test_conversations.py` passed
+**19 tests**, and the tool-free runtime guard passed **1 test**. Chromium **153.0.8010.12** / Playwright **1.63.0** captures were
+opened individually for the question and draft at desktop, tablet, and phone sizes. No provider/external call, screen-reader check or
+physical-device check occurred. The Mobbin connector is unavailable on the current plan; no Mobbin reference is claimed. Source and
+fixture evidence are in `artifacts/bot-setup-clarification/`.
+
 S5 continuation, 2026-10-09: schema v37 now stores one immutable positive `function_tool_calls` observation per exact
 connection/account/model/route revision. The record is made only after an owned run's shared-account usage reservation is
 settled or retained as uncertain and Hutch validates a declared tool call's arguments. Invalid calls and draft-only runs do not
@@ -154,6 +167,7 @@ grant for held operator review. Desktop, tablet and phone share/revoke flows are
 | `0b2875a` | Record the conversation-search checkpoint in the continuation ledger |
 | `32d5e69` | Refine all eight app-mascot faces with shape-specific diagonal eyes; verify conversation-search empty, error and escaped-text states with updated responsive evidence; offline suite 1,532 passed |
 | `fcefc5c` | Refresh the scoped UI audit to distinguish the historical failure run from the verified offline suite and separately passed browser journeys |
+| `160af58` | Add optional multi-round, intent-preserving Bot setup clarification with bounded answers, same-browser resume, regression coverage and inspected responsive captures |
 
 ## Dashboard polish continuation (2026-10-09)
 

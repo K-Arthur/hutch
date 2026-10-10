@@ -1,5 +1,11 @@
 # Changelog
 
+## Intent-preserving chat-led Bot setup
+
+- Simple Bot setup can optionally ask the workspace coordinator to clarify only a missing work detail. It asks one bounded question at a time, offers choice cards plus free text, and asks at most five questions before producing an editable proposal.
+- The coordinator receives the exact selected user request, only earlier user context chosen by the owner, and the prior question/answer turns. The run stays tool-free; the proposal cannot create the Bot or change its tools, integrations, model, or permissions. The user still reviews and confirms creation.
+- Unsent answers and proposals can resume in the same browser for up to seven days; they are not synced across devices, and setup warns owners not to enter credentials. Fixture-backed review and responsive captures are recorded in `docs/realignment/visual-validation.md`.
+
 ## Shape-aware 2D Bot faces
 
 - Replaced the small diagonal eye marks with softer upright ink ovals. Eye placement, scale, spacing and subtle tilt now follow each mascot silhouette, and the identity picker previews the exact avatar face. Detailed 3D characters remain a marketing-site treatment.
