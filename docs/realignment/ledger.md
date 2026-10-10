@@ -3333,3 +3333,33 @@ reader and physical-device validation remain open.
 
 The implementation, test, changelog, visual record and screenshots are committed on local `main` as
 `419862c`; this ledger update follows in a separate documentation commit. No push or publication occurred.
+
+## Per-Bot task focus profiles (2026-10-10)
+
+The task-profile resolver and local runtime already existed, but Bot creation exposed a profile only as a side effect of choosing a
+starter template. Added a typed `GET /api/v1/task-presets` list and validated `preset` on Bot create/update. New Bot's advanced
+setup now offers the configured Router, Research, Extraction, Coding, Planner, and Vision profiles, and existing Bots can change
+or clear their profile under **Model & connection**. The review/YAML export carries the exact selection. Templates keep their
+own profile unless the owner explicitly overrides it; old clients that omit the optional field keep their original idempotency
+request identity.
+
+The selected profile affects only the built-in local runtime's context target and residency policy. It does not select/install a
+provider route, verify that a model supports the task, enable tools, or start a run. These boundaries are stated in the UI and
+configuration docs. Machine-specific model candidate resolution remains on `/models` and `hutch models presets`; real-model
+profiling and automatic candidate application remain open under LM-7.
+
+Verification: `tests/test_api.py` passed **44 tests in 12.73s**; the two responsive Chromium journeys for guided Bot setup and
+Bot model settings passed **2 tests in 7.75s**; the production-mode fake-route rejection passed **1 test**. The setup journey
+checks that the focus is reviewed, included in YAML, and persisted without starting a run. The settings journey changes the local
+profile and inference mode together and confirms persistence. `node --check src/hutch/server/static/app.js`, Python compilation,
+and `git diff --check` passed. Captures were made with Chromium **153.0.8010.12** / Playwright **1.63.0** at desktop **1440×960**,
+tablet **900×1024**, and phone **390×844**; I opened the setup-options screenshots and the phone settings/review screenshots and
+checked that the focus choice, explanation, review row, and controls fit. Traces, captures and JSON metadata are in
+[`artifacts/bot-setup/`](artifacts/bot-setup/) and [`artifacts/strict-offline/`](artifacts/strict-offline/). No model/provider
+call or external request was made.
+
+Implementation and focused visual evidence are committed on local `main` as
+`4fcf2d5f93ba013e84d8aa6063271058ff330d23`. The no-mock audit found the retired route rejected in production mode and the
+scenario runtime confined to `tests/support`; a clean wheel-content check is still unverified because this host's available Python
+environment has no Hatchling build backend. The broader user-facing functionality inventory remains open in `docs/requirements.md`.
+No push or publication occurred.
