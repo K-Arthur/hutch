@@ -114,6 +114,7 @@ def test_reviewed_cross_bot_task_fails_before_worker_if_specialist_policy_change
     coordinator = store.create_bot(mock_bot(name="reviewed-coordinator", tools=[]))
     bot = store.create_bot(mock_bot(name="reviewed-specialist", tools=[]))
     store.set_workspace_coordinator(coordinator.id)
+    store.set_workspace_specialists([bot.id])
     parent, _ = store.create_conversation(coordinator.id, "", idem_key="policy-parent", request_hash="policy-parent")
     parent_run = store.create_run(Run(bot_id=coordinator.id, prompt="Original", status=RunStatus.succeeded))
     with store._tx() as db:

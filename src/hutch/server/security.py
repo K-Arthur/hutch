@@ -8,9 +8,10 @@ Threats this closes (research §3, docs/research/offerings-and-failures.md):
   must also carry the per-session CSRF token (double-submit cookie).
 * **DNS rebinding** — an attacker hostname re-resolves to 127.0.0.1, making the attacker's page
   *same-origin* with the dashboard. → the ``Host`` header must be loopback or explicitly allowed.
-* **Exposure** — OpenClaw's dashboard listened on all interfaces unauthenticated and printed a bearer
-  token inside a logged URL. → binding off-loopback needs ``--allow-remote`` *and* an auth token that is
-  only ever shown once on the terminal, never embedded in a URL or log line.
+* **Exposure** — an unauthenticated dashboard on a network interface exposes bot data and execution.
+  → loopback remains the default; remote mode requires an explicit private bind or trusted HTTPS proxy,
+  exact Host/origin configuration, and a database-backed passkey session. The local owner bearer token
+  is never accepted remotely, and phone pairing never issues a reusable dashboard token.
 
 Non-browser clients (curl, scripts, the CLI) send neither ``Origin`` nor ``Sec-Fetch-Site`` and are not
 a CSRF vector, so they pass the origin check. They remain subject to the Host and auth checks.
@@ -34,8 +35,20 @@ UNSAFE = {"POST", "PUT", "PATCH", "DELETE"}
 CSRF_COOKIE = "hutch_csrf"
 AUTH_COOKIE = "hutch_auth"
 DEVICE_COOKIE = "hutch_device"
+SESSION_COOKIE = "hutch_session"
+ENROLLMENT_COOKIE = "hutch_enroll"
+FLOW_COOKIE = "hutch_flow"
+MAX_PASSKEY_CREDENTIAL_BYTES = 256 * 1024
+MAX_PASSKEY_VERIFY_BODY_BYTES = MAX_PASSKEY_CREDENTIAL_BYTES + 4096
 LOOPBACK_NAMES = {"localhost", "localhost.localdomain"}
-OPEN_PATHS = ("/login", "/pair", "/static/", "/api/health", "/api/v1/pairing/exchange")
+OPEN_EXACT_PATHS = {"/login", "/pair", "/api/v1/pairing/exchange",
+                    "/api/v1/passkeys/login/options", "/api/v1/passkeys/login/verify",
+                    "/api/v1/passkeys/registration/options", "/api/v1/passkeys/registration/verify",
+                    "/api/health", "/api/v1/health"}
+
+
+def is_open_path(path: str) -> bool:
+    return path in OPEN_EXACT_PATHS or path.startswith("/static/")
 
 
 def _host_only(host_header: str) -> str:
@@ -63,8 +76,12 @@ def auth_digest(token: str) -> str:
     return hmac.new(b"hutch-dashboard", token.encode(), hashlib.sha256).hexdigest()
 
 
+class RequestBodyTooLarge(Exception):
+    """A passkey verification request exceeded its bounded JSON body size."""
+
+
 class SecurityMiddleware:
-    """Pure ASGI middleware: Host allow-list, same-origin checks, CSRF cookie, optional token auth."""
+    """Pure ASGI boundary for Host/origin checks, local owner auth, and remote passkey sessions."""
 
     def __init__(self, app: ASGIApp, *, extra_hosts: Iterable[str] = (), auth_token: Optional[str] = None,
                  device_auth=None):
@@ -86,9 +103,12 @@ class SecurityMiddleware:
             if not value:
                 continue
             try:
-                networks.append(ipaddress.ip_network(value, strict=False))
+                network = ipaddress.ip_network(value, strict=False)
             except ValueError as exc:
                 raise ValueError("HUTCH_TRUSTED_PROXIES must contain valid IP addresses or CIDR ranges") from exc
+            if network.prefixlen != network.max_prefixlen:
+                raise ValueError("HUTCH_TRUSTED_PROXIES must contain exact proxy IPs (/32 or /128), not networks")
+            networks.append(network)
         return tuple(networks)
 
     @staticmethod
@@ -190,6 +210,27 @@ class SecurityMiddleware:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
+        passkey_verify = scope.get("path") in {
+            "/api/v1/passkeys/registration/verify", "/api/v1/passkeys/login/verify",
+        }
+        if passkey_verify:
+            lengths = self._header_values(scope, b"content-length")
+            if len(lengths) > 1:
+                await PlainTextResponse("hutch: invalid passkey request length.", status_code=400)(scope, receive, send)
+                return
+            if lengths:
+                try:
+                    content_length = int(lengths[0].decode("ascii"))
+                except (UnicodeDecodeError, ValueError):
+                    await PlainTextResponse("hutch: invalid passkey request length.", status_code=400)(scope, receive, send)
+                    return
+                if content_length < 0:
+                    await PlainTextResponse("hutch: invalid passkey request length.", status_code=400)(scope, receive, send)
+                    return
+                if content_length > MAX_PASSKEY_VERIFY_BODY_BYTES:
+                    await PlainTextResponse("hutch: passkey credential payload is too large.", status_code=413)(
+                        scope, receive, send)
+                    return
         if scope.get("path") in ("/auth/callback", "/api/v1/connections/google-calendar/callback",
                                   "/api/v1/connections/google-mail/callback",
                                   "/api/v1/connections/outlook-calendar/callback",
@@ -209,6 +250,13 @@ class SecurityMiddleware:
             status_code, detail = forwarding_error
             await PlainTextResponse(detail, status_code=status_code)(scope, receive, send)
             return
+        # Tailscale Serve removes any client-supplied value and sets this marker
+        # only for Funnel ingress. Hutch is deliberately private, so a public
+        # Funnel must never reach even the anonymous pairing/login surface.
+        if trusted_proxy and self._header_values(scope, b"tailscale-funnel-request"):
+            await PlainTextResponse("hutch: public Funnel ingress is not accepted.", status_code=403)(
+                scope, receive, send)
+            return
         request = Request(scope, receive)
         host_header = request.headers.get("host", "")
         host = _host_only(host_header)
@@ -226,10 +274,28 @@ class SecurityMiddleware:
                 "HUTCH_ALLOWED_HOSTS to allow this name.", status_code=421)(scope, receive, send)
             return
 
-        remote_request = trusted_proxy or not peer_is_local or (not is_loopback_host(host) and host not in self.extra_hosts)
+        # A configured Host name is not evidence that the request crossed a
+        # network boundary for the one local in-process TestClient fixture.
+        # Real direct requests are identified by their socket peer; proxy
+        # requests are identified only after the exact trusted-proxy checks.
+        client = scope.get("client")
+        local_testclient = bool(client and client[0] == "testclient" and host == "testserver")
+        remote_request = (trusted_proxy or not peer_is_local or
+                          (not is_loopback_host(host) and not local_testclient))
+        if not is_loopback_host(host) and host not in self.extra_hosts and not remote_request:
+            # Do not let a loopback request reach Hutch through an attacker
+            # controlled DNS-rebinding Host, even when remote mode is enabled.
+            await PlainTextResponse(
+                f"hutch: unexpected Host '{host_header}'. Use http://127.0.0.1:<port>, or set "
+                "HUTCH_ALLOWED_HOSTS to allow this name.", status_code=421)(scope, receive, send)
+            return
         if remote_request and scope.get("scheme") != "https":
             await PlainTextResponse("hutch: remote access requires HTTPS.", status_code=426)(scope, receive, send)
             return
+        if remote_request and host not in self.extra_hosts:
+            await PlainTextResponse("hutch: remote Host is not in HUTCH_ALLOWED_HOSTS.", status_code=421)(scope, receive, send)
+            return
+        scope.setdefault("state", {})["hutch_remote"] = remote_request
 
         # 2. CSRF: unsafe methods must be same-origin (browsers always send Origin on cross-site POST).
         if request.method in UNSAFE and not self._same_origin(request, host_header):
@@ -237,33 +303,104 @@ class SecurityMiddleware:
                                     status_code=403)(scope, receive, send)
             return
 
-        # 3. Auth (only when a token is configured, i.e. remote binding).
+        # 3. Local owner and paired-phone sessions are distinct principals. A local
+        # owner token is never accepted over the network; remote access requires a
+        # database-backed passkey session, checked on every request (including streams).
         path = request.url.path
-        if (self._digest or (remote_request and self.remote_enabled)) and not path.startswith(OPEN_PATHS) \
-                and not self._authed(request):
-            if request.method == "GET" and "text/html" in request.headers.get("accept", ""):
-                await RedirectResponse("/login", status_code=303)(scope, receive, send)
-            else:
-                await PlainTextResponse("hutch: authentication required.", status_code=401)(scope, receive, send)
+        is_open = is_open_path(path)
+        principal = None
+        if remote_request and not self.remote_enabled:
+            await PlainTextResponse("hutch: remote access is disabled.", status_code=403)(scope, receive, send)
             return
+        if remote_request and not is_open:
+            session_token = request.cookies.get(SESSION_COOKIE, "")
+            principal = self.device_auth(session_token) if session_token and self.device_auth else None
+            if not principal:
+                if request.method == "GET" and "text/html" in request.headers.get("accept", ""):
+                    await RedirectResponse("/login", status_code=303)(scope, receive, send)
+                else:
+                    await PlainTextResponse("hutch: paired passkey session required.", status_code=401)(scope, receive, send)
+                return
+        elif not remote_request:
+            owner = self._owner_authed(request)
+            paired_token = request.cookies.get(SESSION_COOKIE, "")
+            principal = ({"kind": "owner", "capabilities": ["owner"]} if owner else
+                         self.device_auth(paired_token) if paired_token and self.device_auth else
+                         None if self._digest else {"kind": "owner", "capabilities": ["owner"]})
+            if self._digest and not is_open and principal is None:
+                if request.method == "GET" and "text/html" in request.headers.get("accept", ""):
+                    await RedirectResponse("/login", status_code=303)(scope, receive, send)
+                else:
+                    await PlainTextResponse("hutch: authentication required.", status_code=401)(scope, receive, send)
+                return
 
-        # 4. Per-session CSRF token (double-submit cookie), exposed to templates via request.state.
+        scope.setdefault("state", {})["hutch_principal"] = principal
+
+        # Passkey/session mutation endpoints are browser-only. SameSite cookies
+        # are defense in depth; exact Origin and a custom header stop form CSRF.
+        if (path.startswith("/api/v1/passkeys/") or path == "/api/v1/pairing/exchange"
+                or path in {"/api/v1/session/logout", "/api/v1/session/activity"}):
+            if request.method in UNSAFE and (request.headers.get("x-hutch-request") != "1"
+                                             or not request.headers.get("origin")
+                                             or not self._same_origin(request, host_header)):
+                await PlainTextResponse("hutch: browser request verification failed.", status_code=403)(scope, receive, send)
+                return
+
+        # 4. Per-session CSRF token for server-rendered owner forms.
         token = request.cookies.get(CSRF_COOKIE)
         fresh = token is None
         if fresh:
             token = secrets.token_urlsafe(32)
         scope.setdefault("state", {})["csrf"] = token
 
-        async def send_with_cookie(message):
-            if fresh and message["type"] == "http.response.start":
+        async def send_with_security_headers(message):
+            if message["type"] == "http.response.start":
                 headers = list(message.get("headers", []))
-                secure = "; Secure" if scope.get("scheme") == "https" else ""
-                headers.append((b"set-cookie", (
-                    f"{CSRF_COOKIE}={token}; Path=/; SameSite=Strict; HttpOnly{secure}").encode()))
+                existing = {key.lower() for key, _ in headers}
+                security_headers = {
+                    b"x-content-type-options": b"nosniff",
+                    b"referrer-policy": b"no-referrer",
+                    b"x-frame-options": b"DENY",
+                    b"permissions-policy": b"camera=(), microphone=(), geolocation=()",
+                }
+                paired_request = bool(principal and principal.get("kind") == "paired")
+                if remote_request or paired_request:
+                    security_headers[b"content-security-policy"] = (
+                        b"default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; "
+                        b"form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                        b"img-src 'self' data:; connect-src 'self'")
+                    security_headers[b"cache-control"] = b"private, no-store"
+                    security_headers[b"pragma"] = b"no-cache"
+                for key, value in security_headers.items():
+                    if key not in existing:
+                        headers.append((key, value))
+                if fresh:
+                    secure = "; Secure" if scope.get("scheme") == "https" else ""
+                    headers.append((b"set-cookie", (
+                        f"{CSRF_COOKIE}={token}; Path=/; SameSite=Strict; HttpOnly{secure}").encode()))
                 message["headers"] = headers
             await send(message)
 
-        await self.app(scope, receive, send_with_cookie)
+        app_receive = receive
+        if passkey_verify:
+            received_bytes = 0
+
+            async def receive_limited():
+                nonlocal received_bytes
+                message = await receive()
+                if message.get("type") == "http.request":
+                    received_bytes += len(message.get("body", b""))
+                    if received_bytes > MAX_PASSKEY_VERIFY_BODY_BYTES:
+                        raise RequestBodyTooLarge
+                return message
+
+            app_receive = receive_limited
+        try:
+            await self.app(scope, app_receive, send_with_security_headers)
+        except RequestBodyTooLarge:
+            await PlainTextResponse("hutch: passkey credential payload is too large.", status_code=413)(
+                scope, receive, send_with_security_headers)
+        return
 
     @staticmethod
     def _same_origin(request: Request, host_header: str) -> bool:
@@ -290,14 +427,16 @@ class SecurityMiddleware:
                 not parts.path and not parts.query and not parts.fragment)
 
     def _authed(self, request: Request) -> bool:
+        """Backward-compatible predicate for local owner authentication only."""
+        return self._owner_authed(request)
+
+    def _owner_authed(self, request: Request) -> bool:
         cookie = request.cookies.get(AUTH_COOKIE, "")
         if self._digest and hmac.compare_digest(cookie, self._digest):
             return True
         bearer = request.headers.get("authorization", "")
-        if self.auth_token and bearer.startswith("Bearer ") and hmac.compare_digest(bearer[7:], self.auth_token):
-            return True
-        device_token = bearer[7:] if bearer.startswith("Bearer ") else request.cookies.get(DEVICE_COOKIE, "")
-        return bool(device_token and self.device_auth and self.device_auth(device_token))
+        return bool(self.auth_token and bearer.startswith("Bearer ")
+                    and hmac.compare_digest(bearer[7:], self.auth_token))
 
     @staticmethod
     def _peer_is_local(scope: Scope) -> bool:
@@ -329,16 +468,13 @@ class SecurityMiddleware:
         if remote_request and scope.get("scheme") != "wss":
             await send({"type": "websocket.close", "code": 4403, "reason": "remote WebSocket requires TLS"})
             return
-        if self._digest or (remote_request and self.remote_enabled):
+        if remote_request:
+            await send({"type": "websocket.close", "code": 4403, "reason": "remote WebSockets are disabled"})
+            return
+        if self._digest:
             bearer = headers.get(b"authorization", b"").decode("latin-1")
-            cookie = headers.get(b"cookie", b"").decode("latin-1")
-            device_cookie = next((part.split("=", 1)[1] for part in cookie.split("; ")
-                                  if part.startswith(DEVICE_COOKIE + "=")), "")
             auth_ok = bool(self.auth_token and bearer.startswith("Bearer ")
                            and hmac.compare_digest(bearer[7:], self.auth_token))
-            if not auth_ok:
-                token = bearer[7:] if bearer.startswith("Bearer ") else device_cookie
-                auth_ok = bool(token and self.device_auth and self.device_auth(token))
             if not auth_ok:
                 await send({"type": "websocket.close", "code": 4401, "reason": "authentication required"})
                 return

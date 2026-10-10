@@ -105,7 +105,8 @@ def test_live_wal_backup_then_restore_cannot_signal_or_replay_source(store, conf
         assert store.get_run(original.id).status is RunStatus.running
         assert store.get_run(queued.id).status is RunStatus.pending
         assert store.get_action(action)['status'] == 'started'
-        assert store.validate_device_token(device['token'])
+        # Legacy bearer credentials are revoked by the passkey migration.
+        assert not store.validate_device_token(device['token'])
         assert not store.get_bot(bot.id).paused and store.list_sticky_allows(bot.id) == ['files:write']
         assert source.poll() is None
     finally:

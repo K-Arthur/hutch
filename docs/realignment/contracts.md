@@ -49,7 +49,7 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   conversation-scoped `/api/v1/conversations/{id}/artifacts`, run-scoped `/api/v1/tasks/runs/{id}/artifacts` and verified downloads,
   `/api/v1/search/messages`, `/api/v1/tasks/runs`, `/api/v1/actions/approvals`, `/api/v1/usage`, `/api/v1/connections`,
   `/api/v1/schedules`, `/api/v1/capabilities`, `/api/v1/compatibility`, `/api/v1/model-capabilities`,
-  `/api/v1/preferences/model-defaults`, `/api/v1/workspace/tasks`, cross-run transcript pages and stream at `/api/v1/events` and `/api/v1/events/stream`,
+  `/api/v1/preferences/model-defaults`, `/api/v1/workspace/specialists`, `/api/v1/workspace/tasks`, cross-run transcript pages and stream at `/api/v1/events` and `/api/v1/events/stream`,
   reviewed local coding-task records at `/api/v1/code-handoffs`,
   resource change pages and stream at `/api/v1/changes` and `/api/v1/changes/stream`,
   bounded reconciliation at `/api/v1/snapshot`, and partial remote device resources at `/api/v1/pairing/exchange` and
@@ -216,7 +216,8 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   external runtimes, cross-bot work, parallel tool calls, artifact transfer, and recovery continuation after a parent process dies
   between approval and child admission remain unavailable. Legacy runs have no retroactive snapshot and cannot admit delegated work.
 * **Coordinator selection and direct chat landed (schema v28).** `GET/PUT /api/v1/workspace/coordinator` reads or selects one existing Bot by ID/address; deleting the selected Bot clears the setting. Bot resources expose `is_workspace_coordinator`. Bot Settings can set or clear the role, Studio opens the selected Bot by default and labels it in the roster and chat header, and every Bot remains directly addressable in its own conversation. Role selection changes no tool grants or account access.
-* **Reviewed coordinator handoff landed (schema v29–v32, experimental).** The user may select one existing Bot from a completed coordinator answer and send an explicitly reviewed brief/assumptions to a new specialist conversation. See the typed `GET/POST /api/v1/workspace/tasks` contract above. The task card in the coordinator chat retains source provenance, target settings, current run status, latest reply and an ordered content-free checkpoint timeline. Schema v32 adds an optional, unchecked-by-default selection of current reviewed coordinator facts; exact values and provenance stay attached to that task and enter only its specialist run as untrusted context. They are not added to the specialist's saved memory, and provider retention applies after dispatch. Schema v34 adds a narrowly gated, owner-confirmed fresh attempt from a safe checkpoint; it does not resume an old worker or claim general recovery. The specialist's own enabled memory/workspace may apply. The user can explicitly attach that exact successful specialist response to a coordinator follow-up. This does not implement an owner-approved specialist roster, automatic multi-step planning, cost display, parent-plan cancellation, or external-runtime continuation; no live provider execution is verified.
+* **Specialist roster (schema v41).** `GET /api/v1/workspace/specialists` returns the selected coordinator, eligible Bot metadata, and `specialist_bot_ids`. `PUT` replaces the roster with `{ "bot_ids": ["..."] }`; the list is capped at 100 unique existing Bot IDs and starts empty after migration. The coordinator cannot be on its own specialist list. Promoting a Bot to coordinator removes that Bot from the list in the same transaction; the prior coordinator is never auto-approved. Deleting a Bot removes its roster entry. New task admission rechecks roster membership in the same transaction that persists the task/run/idempotency receipt, so UI filtering is not an authority boundary. Removing approval blocks future assignments only and preserves existing tasks, runs and conversations. Duplicate/invalid lists return 422, unknown IDs return 404, coordinator overlap returns 409.
+* **Reviewed coordinator handoff landed (schema v29–v32, experimental).** The user may select one existing Bot from a completed coordinator answer and send an explicitly reviewed brief/assumptions to a new specialist conversation, provided the Bot is on the approved roster. See the typed `GET/POST /api/v1/workspace/tasks` contract above. The task card in the coordinator chat retains source provenance, target settings, current run status, latest reply and an ordered content-free checkpoint timeline. Schema v32 adds an optional, unchecked-by-default selection of current reviewed coordinator facts; exact values and provenance stay attached to that task and enter only its specialist run as untrusted context. They are not added to the specialist's saved memory, and provider retention applies after dispatch. Schema v34 adds a narrowly gated, owner-confirmed fresh attempt from a safe checkpoint; it does not resume an old worker or claim general recovery. The specialist's own enabled memory/workspace may apply. The user can explicitly attach that exact successful specialist response to a coordinator follow-up. Automatic multi-step planning, cost display, parent-plan cancellation, and external-runtime continuation remain unavailable; no live provider execution is verified.
 * **Safe task continuation (schema v34, experimental).** `GET /api/v1/workspace/tasks` includes `continuation_available`, `continuation_reason`, checkpoint kind/event sequence, and a bounded assistant-text preview. `POST /api/v1/workspace/tasks/{task_id}/continue` requires `Idempotency-Key`; it returns 201 for a new continuation, 200 for an exact retry, 409 when the same key has a different request or the checkpoint no longer qualifies, and 404 for missing history. The command has no request body; the idempotency digest binds the command to the source task. Only a terminal `failed` or `stopped` attempt can qualify. Hutch blocks `outcome_unknown`, any recorded tool action, child-run dispatch, another run in the specialist conversation, a pending question, archived coordinator chat, paused Bot, non-built-in runtime, changed/missing capability snapshot, or an assistant checkpoint over 12,000 characters. A task can be continued only once.
 
   The user must review the task card and confirm a modal that shows the exact reviewed brief, constraints and committed assistant checkpoint (preview bounded to 500 characters). The new linked task gets a fresh run and conversation. Its context contains only the original brief and constraints, plus the committed assistant response wrapped and labeled as untrusted progress; if no assistant response exists, it starts from the reviewed brief. Selected coordinator facts, prior tool results, old conversation history, credentials, approvals and action receipts do not cross. No action is replayed. A new model call may use additional quota. This is a narrow retry of no-effect built-in tasks, not worker/process restoration, and it does not resolve uncertain effects.
@@ -287,12 +288,12 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   one delivery intent per committed batch in the same transaction. While delivery is pending,
   readers derive the latest target from committed events and the acknowledger rechecks the tail
   before clearing pending state.
-* Pairing codes expire after 60 seconds and are single use. They issue HttpOnly device sessions, hash-only at rest, with a sliding
-  30-day expiry. Operators can list/revoke sessions using `hutch pairing list` and `hutch pairing revoke <device-id>`; pairing is
-  limited to five failed attempts per source IP per ten minutes. Off-loopback binding requires `hutch serve --allow-remote` and direct
-TLS certificate/key files. The `/pair` page exchanges a code without exposing the token to JavaScript-readable storage. The Connections
-disclosure lists sessions, identifies the current device, and lets an operator revoke any active session. This has fixture/browser
-coverage, but no live network or physical-device validation.
+* Schema v42 replaces the experimental bearer-device session with passkey credentials and short-lived database-backed sessions.
+  Pairing codes remain single-use and expire after 60 seconds. The code exchange issues only a five-minute enrollment cookie, which
+  can mint at most 16 registration challenges; a verified WebAuthn registration creates a revocable credential. Authenticated
+  sessions expire after 30 minutes idle or eight hours absolute. Local operators use `hutch pairing list` and
+  `hutch pairing revoke <credential-id>` to inspect/revoke credentials and all
+  associated sessions. Synced passkeys are supported, so these credentials do not establish a physical-device identity.
 Workspace task records and workspace model defaults are available through `/api/v1/workspace/tasks` and
 `/api/v1/preferences/model-defaults`; these are not general workspace filesystem-management endpoints. Positive, passive tool-call
 observations are available through `/api/v1/model-capabilities`, scoped to the exact connection, account, model and route revision.
@@ -331,9 +332,30 @@ Conversation artifact discovery and explicit artifact-share grants are implement
 `POST /api/v1/conversations` takes `{bot, title}`. `POST /api/v1/conversations/{id}/messages` takes `{prompt, model?, rehearse?}`.
 Both require an `Idempotency-Key`. The server atomically appends the user message, stores a bounded history snapshot on the run, and
 admits the run. `GET /api/v1/conversations/{id}?after=0&limit=100` returns ordered messages, `last_seq`, and `has_more`; default and
-maximum page size is 100. `POST /api/v1/conversations/{id}/archive` hides/restores a conversation and retains its messages and run
-receipts. `GET /api/v1/search/messages?q=...` performs explicit FTS5 search over non-legacy conversations only; retrieved text is
-not automatically added to a model prompt.
+maximum page size is 100. `GET /api/v1/conversations` accepts bounded pagination and `include_archived=true`; the default omits
+archived chats. `POST /api/v1/conversations/{id}/archive` hides/restores a conversation and retains its messages and run receipts.
+`PATCH /api/v1/conversations/{id}/preferences` requires `Idempotency-Key` and accepts one or more of `pinned`, `unread`, and
+`section` (up to 40 normalized characters; null clears it). Opening a chat clears unread through its read sequence; an assistant
+message arriving after that sequence marks it unread again. These preferences are persisted and emit content-free conversation
+invalidations. `PATCH /api/v1/conversations/{id}/title` also requires `Idempotency-Key`, accepts a nonblank normalized title up to
+120 characters, and preserves the transcript and other preferences. Reusing an idempotency key with a different payload returns
+409. `GET /api/v1/search/messages?q=...` performs explicit FTS5 search over non-legacy conversations only; retrieved text is not
+automatically added to a model prompt.
+
+Studio places chat switching and infrequent conversation organization in one accessible options menu: new, rename, pin/unpin,
+mark unread/read, move to a named section, and a nested More disclosure for task-template download, reviewed local export, and
+archive/restore. The task-template JSON v1 contains only an editable name (up to 80 characters) and the conversation's first user
+request (up to 12,000 characters); later messages, assistant/tool output, files, account grants, and conversation identifiers are
+omitted. Import checks the format and bounds, then fills the open chat's draft only. It never sends the prompt or starts a run.
+Both template download and conversation export stay on the device; Hutch creates no public link. The selector groups pinned,
+named-section, recent and archived chats so archived work remains recoverable. Bot-level pin, section, hide/show, local template
+download, safe duplication and settings stay in that Bot's separate overflow menu. Bot duplication seeds an unsaved setup review
+from instructions, model route, inference mode, workspace type and limits only; it excludes tools, account grants, schedules,
+memory values, provider URLs, local folders, browser handoff and conversation history. Neither menu action starts work by itself.
+
+The local saved-request library has at most 250 entries and is stored in Hutch's SQLite state, so it is included in database backups. `GET /api/v1/task-templates?limit=50&offset=0` returns bounded pages (maximum 100). `POST /api/v1/task-templates` requires `Idempotency-Key` and accepts a normalized name (1–80 characters) and request (1–12,000 characters); it returns 201 for a new item, 200 with the original response snapshot for an exact retry (even if the item was later edited or deleted), and 409 when a key is reused with different content or the library is full. `PUT /api/v1/task-templates/{id}` requires `Idempotency-Key`, both fields and `expected_revision`; a successful retry returns its original response snapshot and stale edits return 409. `DELETE /api/v1/task-templates/{id}?expected_revision=N` requires an idempotency key and the current revision; stale or missing items are rejected. Migrations create the table through SQLite's backup-before-upgrade path.
+
+The Studio **Saved requests** dialog searches, edits and deletes these owner-local entries. Choosing **Use request** only fills the active conversation draft and requires the user to press Send separately; it starts no run or provider call. **Save reusable request** reviews the first user-authored message before adding it. The separate **Download task template** action and version-1 JSON importer remain available for explicit file portability; import also fills only the draft. The saved library has no public/team sharing, slash-command aliases or typed-placeholder substitution. Paired-phone routes do not grant access to the library.
 
 `POST /api/v1/conversations/{id}/bot-purpose-drafts` takes `{source_message_id, purpose, context_message_ids}` and requires
 `Idempotency-Key`. It is available only from an unpaused built-in workspace coordinator conversation. The source must be a user
@@ -366,25 +388,51 @@ automatically redacted. The consistent snapshot is capped at 10,000 messages, 2 
 and 16 MiB encoded JSON. Larger histories receive HTTP 413 and should be retrieved through the
 paginated conversation API. Studio's composer menu presents this scope before starting the download.
 
-## 6. Remote pairing (partial, experimental)
+## 6. Phone supervision (partial, experimental)
 
-On the Hutch host, run `hutch pairing create`; the 14-character code is shown once and expires in 60 seconds. Exchange it over HTTPS
-by opening `/pair` on the device and submitting `{ "code": "…", "label": "Phone" }` to `POST /api/v1/pairing/exchange`. The response sets an HttpOnly, SameSite=Strict device
-cookie and returns only the device id and expiry. Authenticated `GET /api/v1/devices` returns typed active-session records with a
-server-derived `current` flag; it marks only the cookie belonging to the requesting device, not an operator token or another session.
-`POST /api/v1/devices/{id}/revoke` revokes one session, including the current one. The UI returns a self-revoked browser to `/pair`.
-Direct non-loopback binding requires `--allow-remote --tls-cert CERT --tls-key KEY`.
-The code exchange is intentionally the only unauthenticated remote write; it is source-IP rate limited and subject to Origin checks.
-Connections provides a device-session disclosure with current-device status and revocation; self-revocation returns to `/pair`. The
-responsive Studio is reachable to paired browsers, but remote operation is experimental and has only local browser-fixture coverage.
-An operator-managed HTTPS reverse proxy is also experimental. Set `HUTCH_TRUSTED_PROXIES` to exact source addresses/CIDRs and
-`HUTCH_ALLOWED_HOSTS` to the public hostname; `hutch serve --allow-remote` still requires a TLS certificate and key for the Hutch
-origin. Hutch accepts one `X-Forwarded-Host` and one `X-Forwarded-Proto: https` only from a configured peer, validates the public host,
-uses a validated `X-Forwarded-For` chain for source limits, and strips forwarding metadata from untrusted peers. The proxy must verify
-origin TLS and overwrite forwarding headers. HTTP and WebSocket Origin scheme/host must match the normalized HTTPS request. Hutch does
-not create the tunnel. These rules have local ASGI fixtures only; no real
-private-network or public-tunnel path has been validated. Do not expose the listener to the public internet. Remote browser handoff,
-authenticated PTY/desktop control and physical-device validation remain unavailable; the marketing site cannot reach localhost.
+Remote access is off unless the operator starts `hutch serve --allow-remote`. Configure a single canonical HTTPS hostname in
+`HUTCH_WEBAUTHN_RP_ID`, its exact HTTPS origin in `HUTCH_WEBAUTHN_ORIGIN` (no path or trailing slash; include any non-default port),
+and the same hostname without a port in `HUTCH_ALLOWED_HOSTS`. Direct access binds only to a private LAN or Tailscale address with a trusted certificate; wildcard
+and public binds are refused. The recommended Tailscale setup forwards `tailscale serve --bg 8787` to Hutch on loopback with
+`HUTCH_TRUSTED_PROXIES=127.0.0.1/32`. Verify `tailscale serve status` and `tailscale funnel status` separately; the Hutch port must
+appear only under Serve. Funnel is public when configured, and the same port cannot be served by both. Current Tailscale [Serve](https://tailscale.com/docs/features/tailscale-serve)
+and [Funnel](https://tailscale.com/docs/features/tailscale-funnel) pages disagree about whether Funnel is enabled by default; inspect
+the node's actual status and effective policy instead of assuming a default. New tailnets start with an allow-all policy, so restrict
+the host and port to operator devices. Enabling Tailscale HTTPS publishes the
+machine and tailnet DNS names in public certificate transparency logs. For LAN access, firewall the one private interface and use a
+certificate trusted by the phone.
+
+The local host runs `hutch pairing create` to display a 60-second one-use code. `hutch pairing create --allow-start` includes Start
+capability in the enrollment. `POST /api/v1/pairing/exchange` accepts `{ "code": "…", "label": "Phone" }` over exact same-origin
+HTTPS and returns an HttpOnly, SameSite=Strict five-minute enrollment cookie; the response contains no bearer session token. The
+browser uses `POST /api/v1/passkeys/registration/options` and `/verify` to create a user-verified passkey. Login uses the corresponding
+`/api/v1/passkeys/login/options` and `/verify` endpoints. Registration/login challenges are single-use, short-lived, bound to the
+cookie flow, RP ID, and exact origin; one enrollment flow can mint at most 16 registration challenges. The endpoint returns 429 at
+that limit, and the owner must issue a fresh pairing code. Authenticated sessions use a separate HttpOnly cookie, expire after 30 minutes idle or eight
+hours absolute, and can be explicitly logged out with `POST /api/v1/session/logout`. `GET /api/v1/session` reads status without
+renewal; only deliberate activity renews idle time. Background polling and SSE do not renew it. Passkey credentials may sync across
+authenticators and are not treated as individual phone identity. Local operators list/revoke with `hutch pairing list` and
+`hutch pairing revoke <credential-id>`; revocation invalidates all associated sessions and unclaimed runs.
+
+Paired phones receive a deny-by-default exact route-template inventory: Monitor bot/run/approval status and transcript, Review
+approvals, and optionally Start. Approval decisions expose only Allow once or Deny; Allow requires the current `action_hash`, and
+versioned commands require an idempotency key. Stop and Resume retain current server event checks. Start requires both pairing
+capability and local per-Bot `remote_start_enabled`, set with `hutch bot update NAME --remote-start`; the phone cannot choose a model,
+tool, workspace, approval policy or other execution override. The server checks current authority before replay/admission and again
+before queued work is claimed. Credential revocation or disabling remote start cancels unclaimed remote work; claimed work remains
+visible and requires explicit Stop. Device management, Bot configuration, provider connections, schedules, secrets, artifact/export
+routes, and computer interaction are unavailable to paired phones.
+
+The transport boundary requires HTTPS, exact Host and Origin checks, SameSite cookies, a session-bound CSRF token and a custom
+browser-request header. Owner bearer tokens are rejected remotely. Hutch disables Uvicorn proxy-header rewriting; only an exact
+`HUTCH_TRUSTED_PROXIES` host IP can supply one `X-Forwarded-Host`, `X-Forwarded-Proto: https`, and bounded `X-Forwarded-For` chain.
+Untrusted forwarding headers are stripped. Remote responses are `private, no-store` and receive a restrictive CSP. SSE rechecks
+revocation/expiry while idle at one-second intervals and emits `auth_expired`; the client closes streams and clears private content.
+An uncertain command keeps its original idempotency key and is not silently resubmitted.
+
+Automated ASGI, route-inventory, database, browser-fixture, and real-Uvicorn HTTPS tests cover these boundaries. Physical iOS Safari
+and Android Chrome, live Tailscale Serve, LAN certificate renewal, and network isolation have not been validated; this remains
+experimental and is not a production remote-support claim. Remote WebSockets, computer input, and browser handoff remain unavailable.
 
 ## Navigation and approval review
 

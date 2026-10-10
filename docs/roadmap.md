@@ -6,12 +6,16 @@ The product owner identified chat-led bot setup, structured choice prompts, Goog
 Gmail and Outlook integrations, a named coordinator Bot, and human completion of credentials/CAPTCHA as
 key product requirements. Studio has purpose-derived editable Bot naming, a user-reviewed chat-seeded
 setup draft, typed built-in-runtime choices, inline approvals, and an experimental read-only Calendar
-path. The named coordinator now has one user-confirmed, durable cross-Bot handoff to a selected specialist;
+path. The named coordinator now has one user-confirmed, durable cross-Bot handoff to an explicitly approved specialist;
 multi-step team planning and restart-safe checkpoints remain open. Outlook Calendar and Outlook Mail
 have separate experimental read-only local integrations; neither has live provider verification. Gmail
 has an owner-configured private-preview search limited to built-in Bots on loopback Local model routes;
 public release remains unavailable pending Google's restricted-scope verification and any required
-security assessment. No live Google account or consent was tested.
+security assessment. No live Google account or consent was tested. Bot creation now offers a one-screen purpose-first
+path when a workspace or chat model route is already configured, with a separate Customize path for the full advanced
+editor. Missing routes require an explicit choice. The large-roster sidebar collapses idle unpinned Bots after ten total
+Bots while keeping active work directly reachable. Research and anecdotal edge cases are recorded in
+[`bot-setup-patterns-2026-10-09.md`](research/bot-setup-patterns-2026-10-09.md).
 Keep chat as the normal work surface and make Bot configuration, handoff review, and approvals appear in
 context. The roster should remain small by default; use a searchable Fleet surface as the setup grows.
 Roughly ten Bots is the owner's initial heuristic, not a measured threshold. Frequent Bots can be
@@ -36,13 +40,15 @@ pinned in the primary roster without hiding active work; pinning is a navigation
    open; current deterministic, local naming suggestions still require user review.
 3. **Coordinator foundation landed; multi-step orchestration remains open.** One Bot can be named the
    workspace coordinator, with its own direct conversation. A completed answer can be turned into an
-   editable brief for one selected existing Bot after explicit review; provenance, assumptions, target
+   editable brief for one owner-approved existing Bot after explicit review; schema v41 adds a durable,
+   initially empty specialist roster in coordinator settings and admission rechecks it atomically. Promoting
+   a specialist to coordinator removes it from the roster without adding the former coordinator. Provenance, assumptions, target
    settings, child chat/run, status and latest reply are linked in the coordinator timeline. Only the
    reviewed brief and assumptions cross into the specialist chat. A user may explicitly attach the exact
    successful specialist response to a coordinator follow-up as untrusted text. Schema v34 adds one narrow,
    owner-confirmed fresh attempt from an eligible failed/stopped built-in task; it cannot restore a process,
-   carry old tools/actions, or continue an unknown effect. Extend with reusable owner-approved specialist
-   lists, selected artifact/context references, parent cancellation, cost display, bounded prompt questions,
+   carry old tools/actions, or continue an unknown effect. Extend with selected artifact/context references,
+   parent cancellation, cost display, bounded prompt questions,
    and delivery reconciliation. Prompt refinement cannot grant capabilities or change standing instructions.
    Creating a reusable specialist or changing its role needs separate review and confirmation.
 4. **Google/Outlook Calendar and Outlook Mail reads are experimental local paths (IG-5–IG-8 partial).**
@@ -122,8 +128,8 @@ bytes enter the target workspace or model context.
 Optional generic browser alerts work while the Hutch tab is open; they do not provide background push.
 Per-bot Hutch-managed workspaces and up to 100 independently scheduled tasks are implemented.
 Conversation export is scoped and explains what it excludes. A general artifact library, delegated
-artifact transfer, webhook/push notifications, permanent scoped deletion, and the named workspace
-coordinator with cross-Bot handoff remain open. A narrow same-bot `delegate_task` preview is available only for supervised
+artifact transfer, webhook/push notifications, permanent scoped deletion, and multi-step workspace
+coordination remain open. A narrow same-bot `delegate_task` preview is available only for supervised
 Strict Offline Linux runs; it does not complete the broader S6 collaboration plan.
 
 ## Phase 0 — MVP (shipped, Oct 2026)
@@ -172,7 +178,7 @@ Strict Offline Linux runs; it does not complete the broader S6 collaboration pla
 
 - [ ] Cross-OS support (macOS, Windows) — GUI automation paths differ per OS
 - [ ] Multi-user access to one hutch instance (auth + roles)
-- [ ] Optional remote access (tailscale/SSH guidance, or relay) — stays opt-in, never a cloud default
+- [~] Optional private phone supervision (passkeys over Tailscale Serve or trusted LAN HTTPS) — opt-in, remote remains disabled by default; live mobile/network validation and any broader relay access remain open
 - [ ] A2A collaboration between bots (scoped, auditable)
 
 ## Current realignment progress
@@ -215,10 +221,10 @@ Strict Offline Linux runs; it does not complete the broader S6 collaboration pla
   reconciliation. Uncertain receipt sealing is transactional; chat and Needs you surface review.
   Same-conversation repeat guards and bounded current builtin context notes are implemented.
   Browser/external-runtime authority gaps and live effect verification remain open.
-- **Remote pairing: experimental.** Direct off-loopback access requires explicit TLS binding. `/pair` exchanges single-use codes and
-  Connections lists and revokes device sessions. An operator-managed HTTPS reverse proxy can be explicitly trusted by source network
-  and public hostname; Hutch does not provision a tunnel. Browser/PTY/desktop controls and physical-device/private-network verification
-  remain open. No real proxy path has been validated.
+- **Phone supervision: experimental.** A one-use host code enrolls a user-verified passkey, then a paired phone can monitor runs,
+  review approvals, Stop/Resume, and optionally start locally enabled Bots. Remote access requires explicit private HTTPS configuration;
+  Tailscale Serve or trusted LAN TLS are documented. Session/route/CSRF/queue boundaries have automated coverage, including a real
+  Uvicorn HTTPS test. iOS/Android and live-network validation remain open; computer interaction and public gateway access are not here.
 - **Release posture.** Source is private and unpublished. A paired device cannot keep a sleeping host running or reach a service after
   disconnection.
 

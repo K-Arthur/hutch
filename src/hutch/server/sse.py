@@ -38,6 +38,17 @@ def sse_message(event: str, payload: dict[str, Any], id_: int | str | None = Non
     return f"{head}event: {event}\ndata: {json.dumps(payload, separators=(',', ':'))}\n\n".encode()
 
 
+def phone_change_page(page: dict[str, Any]) -> dict[str, Any]:
+    """Collapse broad resource invalidations to one content-free phone refresh hint."""
+    changes = page.get("changes") or []
+    safe_changes = []
+    if changes:
+        latest = changes[-1]
+        safe_changes.append({"id": latest["id"], "resource": "state", "resource_id": "state",
+                             "operation": "updated", "ts": latest["ts"], "context": {}})
+    return {**page, "changes": safe_changes}
+
+
 def resume_cursor(request: Request, after: int = 0) -> int:
     """``Last-Event-ID`` (set by the browser on reconnect) wins over the page's initial ``?after=``."""
     header = request.headers.get("last-event-id", "").strip()
@@ -47,7 +58,8 @@ def resume_cursor(request: Request, after: int = 0) -> int:
 
 
 async def run_event_stream(request: Request, store, run_id: str, cursor: int,
-                           render: Callable[[list[Event], Any], dict[str, Any]]):
+                           render: Callable[[list[Event], Any], dict[str, Any]],
+                           auth_check: Callable[[], bool] | None = None):
     bus = store.bus
     loop = asyncio.get_running_loop()
     wake = asyncio.Event()
@@ -55,6 +67,9 @@ async def run_event_stream(request: Request, store, run_id: str, cursor: int,
     try:
         yield b"retry: 1500\n\n"
         while True:
+            if auth_check is not None and not await asyncio.to_thread(auth_check):
+                yield sse_message("auth_expired", {"reason": "session_expired_or_revoked"})
+                return
             wake.clear()
             events = await asyncio.to_thread(store.list_events, run_id, cursor, BATCH)
             if events:
@@ -67,6 +82,9 @@ async def run_event_stream(request: Request, store, run_id: str, cursor: int,
                 payload.update(first=events[0].seq, last=events[-1].seq,
                                status=run.status.value if run else "unknown")
                 cursor = events[-1].seq
+                if auth_check is not None and not await asyncio.to_thread(auth_check):
+                    yield sse_message("auth_expired", {"reason": "session_expired_or_revoked"})
+                    return
                 yield sse_message("batch", payload, cursor)
                 continue
             run = await asyncio.to_thread(store.get_run, run_id)
@@ -81,14 +99,20 @@ async def run_event_stream(request: Request, store, run_id: str, cursor: int,
                     return
                 continue
             try:
-                await asyncio.wait_for(wake.wait(), timeout=KEEPALIVE_SECONDS)
+                await asyncio.wait_for(wake.wait(), timeout=min(1.0, KEEPALIVE_SECONDS)
+                                       if auth_check is not None else KEEPALIVE_SECONDS)
             except asyncio.TimeoutError:
-                yield b": keepalive\n\n"
+                if auth_check is not None and not await asyncio.to_thread(auth_check):
+                    yield sse_message("auth_expired", {"reason": "session_expired_or_revoked"})
+                    return
+                if auth_check is None or KEEPALIVE_SECONDS <= 1:
+                    yield b": keepalive\n\n"
     finally:
         unsubscribe()
 
 
-async def global_event_stream(request: Request, store, cursor: int):
+async def global_event_stream(request: Request, store, cursor: int,
+                              auth_check: Callable[[], bool] | None = None):
     """Durable cross-run transcript replay ordered by SQLite's global event ID.
 
     A restored database can be behind a device's Last-Event-ID, and future retention may remove old rows. In either case
@@ -102,6 +126,9 @@ async def global_event_stream(request: Request, store, cursor: int):
     try:
         yield b"retry: 1500\n\n"
         while True:
+            if auth_check is not None and not await asyncio.to_thread(auth_check):
+                yield sse_message("auth_expired", {"reason": "session_expired_or_revoked"})
+                return
             wake.clear()
             oldest, high = await asyncio.to_thread(store.global_event_bounds)
             if cursor > high or (oldest and cursor < oldest - 1):
@@ -117,6 +144,9 @@ async def global_event_stream(request: Request, store, cursor: int):
                     await asyncio.sleep(COALESCE_SECONDS)
                     events += await asyncio.to_thread(store.list_global_events, events[-1].id, BATCH - len(events))
                 cursor = events[-1].id
+                if auth_check is not None and not await asyncio.to_thread(auth_check):
+                    yield sse_message("auth_expired", {"reason": "session_expired_or_revoked"})
+                    return
                 yield sse_message("events", {"events": [event.model_dump() for event in events], "cursor": cursor}, cursor)
                 continue
             if await request.is_disconnected():
@@ -125,6 +155,9 @@ async def global_event_stream(request: Request, store, cursor: int):
             try:
                 await asyncio.wait_for(wake.wait(), timeout=timeout)
             except asyncio.TimeoutError:
+                if auth_check is not None and not await asyncio.to_thread(auth_check):
+                    yield sse_message("auth_expired", {"reason": "session_expired_or_revoked"})
+                    return
                 if loop.time() - last_keepalive >= KEEPALIVE_SECONDS:
                     yield b": keepalive\n\n"
                     last_keepalive = loop.time()
@@ -132,7 +165,9 @@ async def global_event_stream(request: Request, store, cursor: int):
         unsubscribe()
 
 
-async def resource_change_stream(request: Request, store, cursor: str | None):
+async def resource_change_stream(request: Request, store, cursor: str | None,
+                                 auth_check: Callable[[], bool] | None = None,
+                                 redact: bool = False):
     """Replay transactional resource invalidations; missed wakeups only delay polling.
 
     A gap ends this stream without an SSE ID so a client cannot silently skip it.
@@ -146,6 +181,9 @@ async def resource_change_stream(request: Request, store, cursor: str | None):
     try:
         yield b"retry: 1500\n\n"
         while True:
+            if auth_check is not None and not await asyncio.to_thread(auth_check):
+                yield sse_message("auth_expired", {"reason": "session_expired_or_revoked"})
+                return
             wake.clear()
             try:
                 page = await asyncio.to_thread(store.list_resource_changes, cursor, BATCH)
@@ -157,13 +195,19 @@ async def resource_change_stream(request: Request, store, cursor: str | None):
                 return
             if page["changes"]:
                 cursor = page["cursor"]
-                yield sse_message("changes", page, cursor)
+                if auth_check is not None and not await asyncio.to_thread(auth_check):
+                    yield sse_message("auth_expired", {"reason": "session_expired_or_revoked"})
+                    return
+                yield sse_message("changes", phone_change_page(page) if redact else page, cursor)
                 continue
             if await request.is_disconnected():
                 return
             try:
                 await asyncio.wait_for(wake.wait(), timeout=GLOBAL_POLL_SECONDS)
             except asyncio.TimeoutError:
+                if auth_check is not None and not await asyncio.to_thread(auth_check):
+                    yield sse_message("auth_expired", {"reason": "session_expired_or_revoked"})
+                    return
                 if loop.time() - last_keepalive >= KEEPALIVE_SECONDS:
                     yield b": keepalive\n\n"
                     last_keepalive = loop.time()

@@ -17,6 +17,7 @@ from __future__ import annotations
 import atexit
 import fcntl
 import hashlib
+import hmac
 import json
 import re
 import secrets
@@ -1134,12 +1135,122 @@ def _migrate_40(db: sqlite3.Connection) -> None:
                                               "updated_at"), ()),))
 
 
+def _migrate_41(db: sqlite3.Connection) -> None:
+    """Persist the owner's explicit roster for cross-Bot workspace assignments."""
+    db.execute("""CREATE TABLE workspace_specialists (
+        bot_id TEXT PRIMARY KEY REFERENCES bots(id) ON DELETE CASCADE,
+        added_at TEXT NOT NULL
+    )""")
+    db.execute("""CREATE TRIGGER workspace_specialists_reject_coordinator_insert
+        BEFORE INSERT ON workspace_specialists
+        WHEN EXISTS (SELECT 1 FROM workspace_settings WHERE id = 1 AND coordinator_bot_id = NEW.bot_id)
+        BEGIN SELECT RAISE(ABORT, 'workspace coordinator cannot be an approved specialist'); END""")
+    db.execute("""CREATE TRIGGER workspace_specialists_reject_coordinator_update
+        BEFORE UPDATE OF bot_id ON workspace_specialists
+        WHEN EXISTS (SELECT 1 FROM workspace_settings WHERE id = 1 AND coordinator_bot_id = NEW.bot_id)
+        BEGIN SELECT RAISE(ABORT, 'workspace coordinator cannot be an approved specialist'); END""")
+    db.execute("""CREATE TRIGGER workspace_settings_remove_promoted_specialist
+        AFTER UPDATE OF coordinator_bot_id ON workspace_settings
+        WHEN NEW.coordinator_bot_id IS NOT NULL
+        BEGIN DELETE FROM workspace_specialists WHERE bot_id = NEW.coordinator_bot_id; END""")
+    from .durable_changes import install_resources
+    install_resources(db, (("workspace_specialists", "workspace", "bot_id", ("added_at",), ()),))
+
+
+def _migrate_42(db: sqlite3.Connection) -> None:
+    """Replace broad bearer device sessions with passkey credentials and short sessions."""
+    # Migrations normally run atomically, but maintenance tools and older preview
+    # builds can leave a database whose user_version trails its physical schema.
+    # Check the physical boundary as well as the version so an already-present
+    # passkey column/table is preserved instead of making a valid DB unopenable.
+    pairing_columns = {row[1] for row in db.execute("PRAGMA table_info(pairing_codes)")}
+    if "capabilities_json" not in pairing_columns:
+        db.execute("ALTER TABLE pairing_codes ADD COLUMN capabilities_json TEXT NOT NULL DEFAULT '[\"monitor\",\"review\"]'")
+    db.execute("""CREATE TABLE IF NOT EXISTS paired_credentials (
+        id TEXT PRIMARY KEY, label TEXT NOT NULL, credential_id BLOB NOT NULL UNIQUE,
+        public_key BLOB NOT NULL, sign_count INTEGER NOT NULL DEFAULT 0,
+        backup_eligible INTEGER NOT NULL DEFAULT 0 CHECK(backup_eligible IN (0, 1)),
+        backed_up INTEGER NOT NULL DEFAULT 0 CHECK(backed_up IN (0, 1)),
+        capabilities_json TEXT NOT NULL DEFAULT '[\"monitor\",\"review\"]',
+        created_at TEXT NOT NULL, last_used_at TEXT, revoked_at TEXT
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_paired_credentials_active ON paired_credentials(revoked_at, created_at)")
+    db.execute("""CREATE TABLE IF NOT EXISTS auth_sessions (
+        id TEXT PRIMARY KEY, secret_hash TEXT NOT NULL UNIQUE,
+        purpose TEXT NOT NULL CHECK(purpose IN ('enrollment', 'login', 'authenticated')),
+        credential_id TEXT REFERENCES paired_credentials(id), pairing_label TEXT NOT NULL DEFAULT '',
+        capabilities_json TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL,
+        last_activity_at TEXT NOT NULL, expires_at TEXT NOT NULL, absolute_expires_at TEXT NOT NULL,
+        revoked_at TEXT
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_auth_sessions_active ON auth_sessions(purpose, revoked_at, expires_at)")
+    db.execute("""CREATE TABLE IF NOT EXISTS auth_challenges (
+        id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES auth_sessions(id) ON DELETE CASCADE,
+        purpose TEXT NOT NULL CHECK(purpose IN ('registration', 'authentication')),
+        challenge BLOB NOT NULL, credential_id BLOB,
+        created_at TEXT NOT NULL, expires_at TEXT NOT NULL, consumed_at TEXT
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_auth_challenges_session ON auth_challenges(session_id, purpose, expires_at)")
+    db.execute("""CREATE TABLE IF NOT EXISTS passkey_attempts (
+        remote_key TEXT PRIMARY KEY, window_started_at TEXT NOT NULL,
+        failures INTEGER NOT NULL DEFAULT 0 CHECK(failures >= 0)
+    )""")
+    db.execute("""CREATE TABLE IF NOT EXISTS webauthn_owner (
+        singleton INTEGER PRIMARY KEY CHECK(singleton = 1), user_handle BLOB NOT NULL UNIQUE
+    )""")
+    # A database copied from an older release may contain active bearer tokens.
+    # Do not silently upgrade those credentials into passkey sessions.
+    db.execute("UPDATE device_sessions SET revoked_at = COALESCE(revoked_at, strftime('%Y-%m-%dT%H:%M:%f+00:00','now'))")
+
+
+def _migrate_43(db: sqlite3.Connection) -> None:
+    """Persist conversation roster actions and read state without changing transcript history."""
+    db.execute("ALTER TABLE conversations ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0 CHECK(pinned IN (0, 1))")
+    db.execute("ALTER TABLE conversations ADD COLUMN unread INTEGER NOT NULL DEFAULT 0 CHECK(unread IN (0, 1))")
+    db.execute("ALTER TABLE conversations ADD COLUMN read_seq INTEGER NOT NULL DEFAULT 0 CHECK(read_seq >= 0)")
+    db.execute("ALTER TABLE conversations ADD COLUMN section TEXT")
+    db.execute("CREATE INDEX idx_conversations_bot_pin_update "
+               "ON conversations(bot_id, archived, pinned DESC, updated_at DESC)")
+    db.execute("""CREATE TRIGGER conversations_assistant_message_unread
+        AFTER INSERT ON messages WHEN NEW.role = 'assistant'
+        BEGIN
+            UPDATE conversations SET unread = 1
+            WHERE id = NEW.conversation_id AND NEW.seq > read_seq;
+        END""")
+    db.execute("""CREATE TRIGGER conversations_user_message_read
+        AFTER INSERT ON messages WHEN NEW.role = 'user'
+        BEGIN
+            UPDATE conversations SET read_seq = MAX(read_seq, NEW.seq), unread = 0
+            WHERE id = NEW.conversation_id;
+        END""")
+    # Replace the older invalidation trigger so preference-only mutations reach connected clients.
+    for verb in ("insert", "update", "delete"):
+        db.execute(f"DROP TRIGGER IF EXISTS resource_outbox_conversations_{verb}")
+    from .durable_changes import install_resources
+    install_resources(db, (("conversations", "conversations", "id",
+                            ("title", "archived", "updated_at", "pinned", "unread", "section"), ("bot_id",)),))
+
+
+def _migrate_44(db: sqlite3.Connection) -> None:
+    """Keep owner-authored reusable task prompts in the same protected local database as chat history."""
+    db.execute("""CREATE TABLE task_templates (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL CHECK(length(trim(name)) BETWEEN 1 AND 80),
+        prompt TEXT NOT NULL CHECK(length(trim(prompt)) BETWEEN 1 AND 12000),
+        revision INTEGER NOT NULL DEFAULT 1 CHECK(revision > 0),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX idx_task_templates_updated ON task_templates(updated_at DESC, id)")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
                _migrate_19, _migrate_20, _migrate_21, _migrate_22, _migrate_23, _migrate_24, _migrate_25, _migrate_26,
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
-               _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40]
+               _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
+               _migrate_41, _migrate_42, _migrate_43, _migrate_44]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -1157,10 +1268,19 @@ _PROGRESS_FIELDS = {"steps", "tokens", "workspace", "started_at", "prompt_tokens
 EVENT_BATCH_MAX = 256
 MAX_WORKSPACE_TASK_FACTS = 8
 MAX_WORKSPACE_TASK_FACT_CHARS = 6_000
+MAX_AUTH_CHALLENGES_PER_FLOW = 16
+
+
+class AuthChallengeLimitExceeded(RuntimeError):
+    """An authentication flow exceeded its bounded WebAuthn challenge budget."""
 
 
 class IdempotencyConflict(ValueError):
     """A command key was previously used for a different canonical request."""
+
+
+class RevisionConflict(ValueError):
+    """An edit was based on an older resource revision."""
 
 
 class ActiveRunConflict(RuntimeError):
@@ -1363,30 +1483,128 @@ class Store:
     # ---------------------------------------------------------- remote pairing
 
     @staticmethod
+    def _remote_run_allowed(db: sqlite3.Connection, run: Run) -> bool:
+        """Remote starts need both live credential authority and the current bot opt-in."""
+        origin = run.origin or ""
+        if not origin.startswith("remote"):
+            return True
+        match = re.fullmatch(r"remote:([A-Za-z0-9_-]{4,80})", origin)
+        if not match:
+            return False
+        credential_id = match.group(1)
+        credential = db.execute("SELECT capabilities_json FROM paired_credentials WHERE id=? AND revoked_at IS NULL",
+                                (credential_id,)).fetchone()
+        bot = db.execute("SELECT doc FROM bots WHERE id=?", (run.bot_id,)).fetchone()
+        if not credential or not bot:
+            return False
+        try:
+            capabilities = json.loads(credential["capabilities_json"])
+            remote_start_enabled = bool(json.loads(bot["doc"]).get("remote_start_enabled", False))
+        except (TypeError, ValueError):
+            return False
+        return "start" in capabilities and remote_start_enabled
+
+    def _cancel_pending_remote_runs(self, db: sqlite3.Connection, *, credential_id: str = "",
+                                    bot_id: str = "", reason: str) -> list[str]:
+        # A live claim has already crossed the dispatch boundary. It remains
+        # visible and obeys the normal explicit Stop path; only unclaimed queue
+        # entries are cancelled here.
+        query = "SELECT id, doc FROM runs WHERE status='pending' AND lease_owner=''"
+        args: list[Any] = []
+        if bot_id:
+            query += " AND bot_id=?"
+            args.append(bot_id)
+        cancelled = []
+        for row in db.execute(query, args).fetchall():
+            origin = str(json.loads(row["doc"]).get("origin", ""))
+            if credential_id and origin != f"remote:{credential_id}":
+                continue
+            if not origin.startswith("remote:"):
+                continue
+            self._apply_transition(
+                db, row["id"], RunStatus.stopped, None, "remote_authority_revoked", reason,
+                {"reason": "remote_authority_revoked"}, True, {"owner": "", "pgid": 0})
+            cancelled.append(row["id"])
+        return cancelled
+
+    @staticmethod
     def _secret_hash(value: str) -> str:
         return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
-    def create_pairing_code(self, ttl_seconds: int = 60) -> str:
-        """Create a one-use, short-lived pairing code. Only the hash reaches SQLite."""
+    def _passkey_attempt_key(self, remote_ip: str, purpose: str) -> str:
+        if purpose not in {"verification", "login_options"}:
+            raise ValueError("unsupported passkey attempt bucket")
+        return self._secret_hash(f"{purpose}:{remote_ip or 'unknown'}")
+
+    def begin_passkey_attempt(self, remote_ip: str, *, limit: int = 10,
+                              purpose: str = "verification") -> bool:
+        """Atomically reserve a bounded authentication attempt for this client and flow."""
+        key = self._passkey_attempt_key(remote_ip, purpose)
+        now = utcnow()
+        now_text = iso(now)
+        with self._tx() as db:
+            row = db.execute("SELECT window_started_at, failures FROM passkey_attempts WHERE remote_key=?",
+                             (key,)).fetchone()
+            if row is None:
+                db.execute("INSERT INTO passkey_attempts(remote_key, window_started_at, failures) VALUES (?, ?, 1)",
+                           (key, now_text))
+                return True
+            if datetime.fromisoformat(row["window_started_at"]) + timedelta(minutes=10) <= now:
+                db.execute("UPDATE passkey_attempts SET window_started_at=?, failures=1 WHERE remote_key=?",
+                           (now_text, key))
+                return True
+            if int(row["failures"]) >= limit:
+                return False
+            db.execute("UPDATE passkey_attempts SET failures=failures+1 WHERE remote_key=?", (key,))
+            return True
+
+    def record_passkey_attempt(self, remote_ip: str, *, succeeded: bool,
+                               purpose: str = "verification") -> None:
+        key = self._passkey_attempt_key(remote_ip, purpose)
+        now = utcnow()
+        now_text = iso(now)
+        with self._tx() as db:
+            if succeeded:
+                db.execute("DELETE FROM passkey_attempts WHERE remote_key=?", (key,))
+                return
+            row = db.execute("SELECT window_started_at FROM passkey_attempts WHERE remote_key=?", (key,)).fetchone()
+            if row is None:
+                db.execute("INSERT INTO passkey_attempts(remote_key, window_started_at, failures) VALUES (?, ?, 1)",
+                           (key, now_text))
+            elif datetime.fromisoformat(row["window_started_at"]) + timedelta(minutes=10) <= now:
+                db.execute("UPDATE passkey_attempts SET window_started_at=?, failures=1 WHERE remote_key=?",
+                           (now_text, key))
+            else:
+                db.execute("UPDATE passkey_attempts SET failures=failures+1 WHERE remote_key=?", (key,))
+
+    def create_pairing_code(self, ttl_seconds: int = 60, *, allow_start: bool = False) -> str:
+        """Create a one-use code for enrolling a passkey, never a dashboard bearer token."""
         alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         raw = "".join(secrets.choice(alphabet) for _ in range(14))
         code = "-".join((raw[:4], raw[4:8], raw[8:12], raw[12:]))
         now = utcnow()
+        capabilities = ["monitor", "review"] + (["start"] if allow_start else [])
         with self._tx() as db:
             db.execute("DELETE FROM pairing_codes WHERE expires_at <= ? OR consumed_at IS NOT NULL", (iso(now),))
-            db.execute("INSERT INTO pairing_codes(code_hash, created_at, expires_at) VALUES (?, ?, ?)",
-                       (self._secret_hash(raw), iso(now), iso(now + timedelta(seconds=ttl_seconds))))
+            db.execute("INSERT INTO pairing_codes(code_hash, created_at, expires_at, capabilities_json) VALUES (?, ?, ?, ?)",
+                       (self._secret_hash(raw), iso(now), iso(now + timedelta(seconds=ttl_seconds)),
+                        json.dumps(capabilities)))
         return code
 
     def exchange_pairing_code(self, code: str, label: str, remote_ip: str) -> tuple[dict[str, Any] | None, str]:
-        """Consume a pairing code once and mint one sliding 30-day revocable device session."""
+        """Consume a pairing code and mint a five-minute enrollment-only secret."""
         normalized = "".join(ch for ch in code.upper() if ch.isalnum())
         code_hash = self._secret_hash(normalized)
         now = utcnow()
         now_text = iso(now)
         token = secrets.token_urlsafe(32)
-        device_id = f"dev_{uuid.uuid4().hex[:16]}"
+        session_id = f"enroll_{uuid.uuid4().hex[:16]}"
         with self._tx() as db:
+            db.execute("DELETE FROM pairing_attempts WHERE window_started_at < ?", (iso(now - timedelta(days=2)),))
+            db.execute("DELETE FROM auth_challenges WHERE expires_at < ? OR consumed_at IS NOT NULL",
+                       (iso(now - timedelta(days=1)),))
+            db.execute("DELETE FROM auth_sessions WHERE expires_at < ? OR revoked_at IS NOT NULL",
+                       (iso(now - timedelta(days=1)),))
             attempt = db.execute("SELECT window_started_at, failures FROM pairing_attempts WHERE remote_ip = ?",
                                  (remote_ip,)).fetchone()
             if attempt:
@@ -1395,7 +1613,7 @@ class Store:
                     return None, "rate_limited"
                 if (now - started).total_seconds() >= 600:
                     db.execute("DELETE FROM pairing_attempts WHERE remote_ip = ?", (remote_ip,))
-            row = db.execute("SELECT expires_at, consumed_at FROM pairing_codes WHERE code_hash = ?",
+            row = db.execute("SELECT expires_at, consumed_at, capabilities_json FROM pairing_codes WHERE code_hash = ?",
                              (code_hash,)).fetchone()
             if row is None or row["consumed_at"] is not None or row["expires_at"] <= now_text:
                 db.execute("INSERT INTO pairing_attempts(remote_ip, window_started_at, failures) VALUES (?, ?, 1) "
@@ -1404,47 +1622,259 @@ class Store:
                 return None, "invalid"
             db.execute("UPDATE pairing_codes SET consumed_at = ? WHERE code_hash = ? AND consumed_at IS NULL",
                        (now_text, code_hash))
-            db.execute("INSERT INTO device_sessions(id, label, token_hash, created_at, expires_at, last_used_at) "
-                       "VALUES (?, ?, ?, ?, ?, ?)",
-                       (device_id, label.strip()[:80] or "Phone", self._secret_hash(token), now_text,
-                        iso(now + timedelta(days=30)), now_text))
+            expiry = iso(now + timedelta(minutes=5))
+            db.execute("INSERT INTO auth_sessions(id, secret_hash, purpose, pairing_label, capabilities_json, "
+                       "created_at, last_activity_at, expires_at, absolute_expires_at) "
+                       "VALUES (?, ?, 'enrollment', ?, ?, ?, ?, ?, ?)",
+                       (session_id, self._secret_hash(token), label.strip()[:80] or "Phone",
+                        row["capabilities_json"], now_text, now_text, expiry, expiry))
             db.execute("DELETE FROM pairing_attempts WHERE remote_ip = ?", (remote_ip,))
-        return {"id": device_id, "label": label.strip()[:80] or "Phone", "token": token}, "ok"
+        return {"id": session_id, "label": label.strip()[:80] or "Phone", "token": token,
+                "expires_at": expiry}, "ok"
 
-    def validate_device_token(self, token: str) -> bool:
-        if not token or len(token) > 256:
-            return False
+    def create_auth_flow(self, purpose: str) -> dict[str, str]:
+        """Create an anonymous login ceremony handle; it has no protected-route authority."""
+        if purpose != "login":
+            raise ValueError("unsupported authentication flow")
         now = utcnow()
+        flow_id = f"login_{uuid.uuid4().hex[:16]}"
+        token = secrets.token_urlsafe(32)
+        expiry = iso(now + timedelta(minutes=2))
         with self._tx() as db:
-            row = db.execute("SELECT id, expires_at, revoked_at FROM device_sessions WHERE token_hash = ?",
-                             (self._secret_hash(token),)).fetchone()
-            if row is None or row["revoked_at"] is not None or row["expires_at"] <= iso(now):
-                return False
-            # Sliding expiry is limited to the session's existing 30-day lifetime per active use.
-            db.execute("UPDATE device_sessions SET last_used_at = ?, expires_at = ? WHERE id = ?",
-                       (iso(now), iso(now + timedelta(days=30)), row["id"]))
-            return True
+            if not db.execute("SELECT 1 FROM paired_credentials WHERE revoked_at IS NULL LIMIT 1").fetchone():
+                raise ValueError("no passkey is enrolled")
+            db.execute("DELETE FROM auth_sessions WHERE (purpose = 'login' AND expires_at < ?) "
+                       "OR expires_at < ? OR revoked_at IS NOT NULL",
+                       (iso(now), iso(now - timedelta(days=1))))
+            db.execute("INSERT INTO auth_sessions(id, secret_hash, purpose, created_at, last_activity_at, "
+                       "expires_at, absolute_expires_at) VALUES (?, ?, 'login', ?, ?, ?, ?)",
+                       (flow_id, self._secret_hash(token), iso(now), iso(now), expiry, expiry))
+        return {"id": flow_id, "token": token, "expires_at": expiry}
 
-    def device_identity(self, token: str) -> Optional[str]:
+    def auth_flow(self, token: str, purposes: tuple[str, ...]) -> Optional[dict[str, Any]]:
         if not token or len(token) > 256:
             return None
-        with self._lock:
-            row = self._db.execute("SELECT id FROM device_sessions WHERE token_hash = ? AND revoked_at IS NULL "
-                                   "AND expires_at > ?", (self._secret_hash(token), iso(utcnow()))).fetchone()
-        return row[0] if row else None
-
-    def list_device_sessions(self) -> list[dict[str, Any]]:
         now = iso(utcnow())
         with self._lock:
-            rows = self._db.execute("SELECT id, label, created_at, expires_at, last_used_at, revoked_at "
-                                    "FROM device_sessions WHERE revoked_at IS NULL AND expires_at > ? "
-                                    "ORDER BY created_at DESC", (now,)).fetchall()
-        return [dict(row) for row in rows]
+            row = self._db.execute("SELECT * FROM auth_sessions WHERE secret_hash = ? AND purpose IN (%s) "
+                                   "AND revoked_at IS NULL AND expires_at > ? AND absolute_expires_at > ?" %
+                                   ",".join("?" for _ in purposes),
+                                   (self._secret_hash(token), *purposes, now, now)).fetchone()
+        return dict(row) if row else None
+
+    def create_auth_challenge(self, token: str, purpose: str, credential_id: bytes | None = None) -> dict[str, Any]:
+        session_purpose = "enrollment" if purpose == "registration" else "login"
+        flow = self.auth_flow(token, (session_purpose,))
+        if flow is None:
+            raise PermissionError("authentication flow expired; restart pairing or unlock")
+        now = utcnow()
+        challenge_id, challenge = uuid.uuid4().hex, secrets.token_bytes(32)
+        expires = iso(now + timedelta(seconds=120))
+        with self._tx() as db:
+            current = db.execute("SELECT purpose, expires_at, absolute_expires_at, revoked_at FROM auth_sessions "
+                                 "WHERE id = ? AND secret_hash = ?", (flow["id"], self._secret_hash(token))).fetchone()
+            if (current is None or current["purpose"] != session_purpose or current["revoked_at"] is not None
+                    or current["expires_at"] <= iso(now) or current["absolute_expires_at"] <= iso(now)):
+                raise PermissionError("authentication flow expired; restart pairing or unlock")
+            count = db.execute("SELECT COUNT(*) FROM auth_challenges WHERE session_id = ?",
+                               (flow["id"],)).fetchone()[0]
+            if count >= MAX_AUTH_CHALLENGES_PER_FLOW:
+                raise AuthChallengeLimitExceeded("authentication flow exceeded its WebAuthn challenge limit")
+            db.execute("INSERT INTO auth_challenges(id, session_id, purpose, challenge, credential_id, created_at, expires_at) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                       (challenge_id, flow["id"], purpose, challenge, credential_id, iso(now), expires))
+        return {"id": challenge_id, "challenge": challenge, "expires_at": expires, "flow": flow}
+
+    def consume_auth_challenge(self, token: str, challenge_id: str, purpose: str) -> Optional[dict[str, Any]]:
+        if not token or len(token) > 256:
+            return None
+        now = iso(utcnow())
+        with self._tx() as db:
+            row = db.execute("SELECT c.*, s.purpose AS session_purpose, s.revoked_at AS session_revoked, "
+                             "s.expires_at AS session_expires, s.absolute_expires_at, s.pairing_label, "
+                             "s.capabilities_json FROM auth_challenges c JOIN auth_sessions s ON s.id=c.session_id "
+                             "WHERE c.id = ? AND s.secret_hash = ?", (challenge_id, self._secret_hash(token))).fetchone()
+            expected_flow = "enrollment" if purpose == "registration" else "login"
+            if (row is None or row["purpose"] != purpose or row["session_purpose"] != expected_flow
+                    or row["consumed_at"] is not None or row["expires_at"] <= now
+                    or row["session_revoked"] is not None or row["session_expires"] <= now
+                    or row["absolute_expires_at"] <= now):
+                return None
+            db.execute("UPDATE auth_challenges SET consumed_at = ? WHERE id = ? AND consumed_at IS NULL",
+                       (now, challenge_id))
+            return {**dict(row), "challenge": bytes(row["challenge"])}
+
+    def webauthn_user_handle(self) -> bytes:
+        with self._tx() as db:
+            row = db.execute("SELECT user_handle FROM webauthn_owner WHERE singleton = 1").fetchone()
+            if row is None:
+                handle = secrets.token_bytes(32)
+                db.execute("INSERT INTO webauthn_owner(singleton, user_handle) VALUES (1, ?)", (handle,))
+                return handle
+            return bytes(row["user_handle"])
+
+    def active_credential_descriptors(self) -> list[bytes]:
+        with self._lock:
+            return [bytes(row[0]) for row in self._db.execute(
+                "SELECT credential_id FROM paired_credentials WHERE revoked_at IS NULL ORDER BY created_at").fetchall()]
+
+    def credential_for_login(self, credential_id: bytes) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute("SELECT c.*, o.user_handle FROM paired_credentials c "
+                                   "JOIN webauthn_owner o ON o.singleton=1 "
+                                   "WHERE c.credential_id=? AND c.revoked_at IS NULL", (credential_id,)).fetchone()
+        return dict(row) if row else None
+
+    def finish_passkey_enrollment(self, token: str, verified: dict[str, Any]) -> dict[str, Any]:
+        now = utcnow()
+        now_text = iso(now)
+        session_token = secrets.token_urlsafe(32)
+        credential_id = f"dev_{uuid.uuid4().hex[:16]}"
+        with self._tx() as db:
+            flow = db.execute("SELECT * FROM auth_sessions WHERE secret_hash=? AND purpose='enrollment' "
+                              "AND revoked_at IS NULL AND expires_at>? AND absolute_expires_at>?",
+                              (self._secret_hash(token), now_text, now_text)).fetchone()
+            if flow is None:
+                raise PermissionError("pairing enrollment expired; request a new code")
+            count = db.execute("SELECT COUNT(*) FROM paired_credentials WHERE revoked_at IS NULL").fetchone()[0]
+            if count >= 16:
+                raise ValueError("the maximum of 16 active paired credentials has been reached")
+            handle = db.execute("SELECT user_handle FROM webauthn_owner WHERE singleton=1").fetchone()
+            if handle is None or bytes(handle[0]) != verified["user_handle"]:
+                raise PermissionError("passkey registration belongs to a different Hutch operator")
+            db.execute("INSERT INTO paired_credentials(id, label, credential_id, public_key, sign_count, "
+                       "backup_eligible, backed_up, capabilities_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       (credential_id, flow["pairing_label"], verified["credential_id"], verified["public_key"],
+                        int(verified["sign_count"]), int(verified["backup_eligible"]), int(verified["backed_up"]),
+                        flow["capabilities_json"], now_text))
+            session_id = f"auth_{uuid.uuid4().hex[:16]}"
+            db.execute("INSERT INTO auth_sessions(id, secret_hash, purpose, credential_id, capabilities_json, "
+                       "created_at, last_activity_at, expires_at, absolute_expires_at) "
+                       "VALUES (?, ?, 'authenticated', ?, ?, ?, ?, ?, ?)",
+                       (session_id, self._secret_hash(session_token), credential_id, flow["capabilities_json"],
+                        now_text, now_text, iso(now + timedelta(hours=8)), iso(now + timedelta(hours=8))))
+            db.execute("UPDATE auth_sessions SET revoked_at=? WHERE id=? AND revoked_at IS NULL",
+                       (now_text, flow["id"]))
+            return {"id": credential_id, "session_id": session_id, "session_token": session_token,
+                    "label": flow["pairing_label"], "capabilities": json.loads(flow["capabilities_json"]),
+                    "user_handle": bytes(handle[0])}
+
+    def finish_passkey_login(self, token: str, flow_id: str, verified: dict[str, Any]) -> dict[str, Any]:
+        now = utcnow()
+        now_text = iso(now)
+        session_token = secrets.token_urlsafe(32)
+        session_id = f"auth_{uuid.uuid4().hex[:16]}"
+        with self._tx() as db:
+            flow = db.execute("SELECT id FROM auth_sessions WHERE id=? AND secret_hash=? AND purpose='login' "
+                              "AND revoked_at IS NULL AND expires_at>? AND absolute_expires_at>?",
+                              (flow_id, self._secret_hash(token), now_text, now_text)).fetchone()
+            if flow is None:
+                raise PermissionError("passkey login expired; try again")
+            row = db.execute("SELECT * FROM paired_credentials WHERE id=? AND credential_id=? AND revoked_at IS NULL",
+                             (verified["credential_row_id"], verified["credential_id"])).fetchone()
+            if row is None:
+                raise PermissionError("passkey is no longer paired")
+            new_count = int(verified["sign_count"])
+            previous_count = int(row["sign_count"])
+            if not row["backup_eligible"] and (new_count > 0 or previous_count > 0) and new_count <= previous_count:
+                raise PermissionError("passkey counter was not increasing; retry unlock or revoke this credential locally")
+            if row["backup_eligible"]:
+                new_count = max(previous_count, new_count)
+            if row["backup_eligible"]:
+                updated = db.execute("UPDATE paired_credentials SET sign_count=MAX(sign_count, ?), backed_up=?, last_used_at=? "
+                                     "WHERE id=? AND revoked_at IS NULL AND backup_eligible=1",
+                                     (new_count, int(verified["backed_up"]), now_text, row["id"]))
+            else:
+                updated = db.execute("UPDATE paired_credentials SET sign_count=?, backed_up=?, last_used_at=? "
+                                     "WHERE id=? AND revoked_at IS NULL AND sign_count=? AND backup_eligible=0",
+                                     (new_count, int(verified["backed_up"]), now_text, row["id"], previous_count))
+            if updated.rowcount != 1:
+                raise PermissionError("passkey state changed during login; retry unlock")
+            db.execute("UPDATE auth_sessions SET revoked_at=? WHERE id=?", (now_text, flow_id))
+            expiry = iso(now + timedelta(hours=8))
+            db.execute("INSERT INTO auth_sessions(id, secret_hash, purpose, credential_id, capabilities_json, "
+                       "created_at, last_activity_at, expires_at, absolute_expires_at) "
+                       "VALUES (?, ?, 'authenticated', ?, ?, ?, ?, ?, ?)",
+                       (session_id, self._secret_hash(session_token), row["id"], row["capabilities_json"],
+                        now_text, now_text, expiry, expiry))
+            return {"id": row["id"], "session_id": session_id, "session_token": session_token,
+                    "label": row["label"], "capabilities": json.loads(row["capabilities_json"]),
+                    "user_handle": verified["user_handle"]}
+
+    def authenticate_session(self, token: str) -> Optional[dict[str, Any]]:
+        if not token or len(token) > 256:
+            return None
+        now = utcnow()
+        now_text = iso(now)
+        with self._lock:
+            row = self._db.execute("SELECT s.id AS session_id, s.credential_id, s.last_activity_at, "
+                                   "s.expires_at, s.absolute_expires_at, s.revoked_at, c.label, c.capabilities_json, "
+                                   "c.revoked_at AS credential_revoked "
+                                   "FROM auth_sessions s JOIN paired_credentials c ON c.id=s.credential_id "
+                                   "WHERE s.secret_hash=? AND s.purpose='authenticated'",
+                                   (self._secret_hash(token),)).fetchone()
+        if (row is None or row["revoked_at"] is not None or row["credential_revoked"] is not None
+                or row["expires_at"] <= now_text or row["absolute_expires_at"] <= now_text
+                or datetime.fromisoformat(row["last_activity_at"]) + timedelta(minutes=30) <= now):
+            return None
+        idle_expires = datetime.fromisoformat(row["last_activity_at"]) + timedelta(minutes=30)
+        return {"kind": "paired", "session_id": row["session_id"], "credential_id": row["credential_id"],
+                "label": row["label"], "capabilities": json.loads(row["capabilities_json"]),
+                "idle_expires_at": iso(idle_expires), "absolute_expires_at": row["absolute_expires_at"]}
+
+    def auth_csrf_token(self, token: str, session_id: str) -> str:
+        return hmac.new(token.encode("utf-8"), f"hutch-csrf:{session_id}".encode(), hashlib.sha256).hexdigest()
+
+    def touch_auth_session(self, token: str) -> bool:
+        now = iso(utcnow())
+        with self._tx() as db:
+            row = db.execute("SELECT s.id, s.credential_id FROM auth_sessions s JOIN paired_credentials c "
+                             "ON c.id=s.credential_id WHERE s.secret_hash=? AND s.purpose='authenticated' "
+                             "AND s.revoked_at IS NULL AND c.revoked_at IS NULL AND s.expires_at>? "
+                             "AND s.absolute_expires_at>?", (self._secret_hash(token), now, now)).fetchone()
+            if row is None or datetime.fromisoformat(db.execute(
+                    "SELECT last_activity_at FROM auth_sessions WHERE id=?", (row["id"],)).fetchone()[0]) + timedelta(minutes=30) <= utcnow():
+                return False
+            db.execute("UPDATE auth_sessions SET last_activity_at=? WHERE id=?", (now, row["id"]))
+            db.execute("UPDATE paired_credentials SET last_used_at=? WHERE id=?", (now, row["credential_id"]))
+            return True
+
+    def revoke_auth_session(self, token: str) -> bool:
+        if not token or len(token) > 256:
+            return False
+        with self._tx() as db:
+            cur = db.execute("UPDATE auth_sessions SET revoked_at=? WHERE secret_hash=? AND purpose='authenticated' "
+                             "AND revoked_at IS NULL", (iso(utcnow()), self._secret_hash(token)))
+        return cur.rowcount == 1
+
+    def validate_device_token(self, token: str) -> bool:
+        """Old schema-v9 bearer tokens are never accepted after schema v42."""
+        return False
+
+    def device_identity(self, token: str) -> Optional[str]:
+        return None
+
+    def list_device_sessions(self) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._db.execute("SELECT id, label, created_at, NULL AS expires_at, last_used_at, revoked_at, "
+                                    "capabilities_json FROM paired_credentials WHERE revoked_at IS NULL "
+                                    "ORDER BY created_at DESC").fetchall()
+        return [{**dict(row), "capabilities": json.loads(row["capabilities_json"])} for row in rows]
 
     def revoke_device_session(self, device_id: str) -> bool:
         with self._tx() as db:
-            cur = db.execute("UPDATE device_sessions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL",
-                             (iso(utcnow()), device_id))
+            now = iso(utcnow())
+            cur = db.execute("UPDATE paired_credentials SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL",
+                             (now, device_id))
+            if cur.rowcount:
+                db.execute("UPDATE auth_sessions SET revoked_at=? WHERE credential_id=? AND revoked_at IS NULL",
+                           (now, device_id))
+                cancelled = self._cancel_pending_remote_runs(
+                    db, credential_id=device_id, reason="Paired credential was revoked before dispatch.")
+            else:
+                cancelled = []
+        if cur.rowcount or cancelled:
+            self.bus.notify("work", "runs", "events", "approvals")
         return cur.rowcount == 1
 
     # ----------------------------------------------------------- lifecycle
@@ -1574,6 +2004,7 @@ class Store:
     def upsert_bot(self, bot: Bot, *, preserve_schedules: bool = False,
                    primary_schedule_update: Schedule | None | object = _SCHEDULE_UNCHANGED,
                    require_no_active_runs: bool = False) -> Bot:
+        cancelled_remote: list[str] = []
         with self._tx() as db:
             if require_no_active_runs:
                 live_values = tuple(status.value for status in ACTIVE_STATUSES)
@@ -1633,7 +2064,11 @@ class Store:
                 "ON CONFLICT(name) DO UPDATE SET id=excluded.id, doc=excluded.doc",
                 (bot.id, bot.name, bot.model_dump_json()),
             )
-        self.bus.notify("work", "bots")
+            if previous and previous.remote_start_enabled and not bot.remote_start_enabled:
+                cancelled_remote = self._cancel_pending_remote_runs(
+                    db, bot_id=bot.id, reason="Local owner disabled remote starts before dispatch.")
+        self.bus.notify("work", "bots", *(f"run:{run_id}" for run_id in cancelled_remote),
+                        *("events", "approvals") if cancelled_remote else ())
         return bot
 
     def list_bots(self) -> list[Bot]:
@@ -1655,6 +2090,73 @@ class Store:
         coordinator = self.workspace_coordinator()
         return coordinator["id"] if coordinator else None
 
+    def workspace_specialists(self) -> dict[str, Any]:
+        """Return eligible Bots and the owner's explicit cross-Bot assignment roster."""
+        with self._lock:
+            settings = self._db.execute(
+                "SELECT coordinator_bot_id FROM workspace_settings WHERE id = 1").fetchone()
+            coordinator_bot_id = str(settings["coordinator_bot_id"]) if settings and settings["coordinator_bot_id"] else None
+            rows = self._db.execute(
+                "SELECT b.id, b.name, b.doc FROM bots b "
+                "WHERE (? IS NULL OR b.id != ?) ORDER BY b.name, b.id",
+                (coordinator_bot_id, coordinator_bot_id),
+            ).fetchall()
+            selected = {str(row["bot_id"]) for row in self._db.execute(
+                "SELECT bot_id FROM workspace_specialists").fetchall()}
+        bots = []
+        for row in rows:
+            bot = Bot.model_validate_json(row["doc"])
+            bots.append({"id": str(row["id"]), "name": str(row["name"]),
+                         "display_name": bot.display_name})
+        eligible_ids = {bot["id"] for bot in bots}
+        return {"coordinator_bot_id": coordinator_bot_id,
+                "specialist_bot_ids": [bot["id"] for bot in bots if bot["id"] in selected.intersection(eligible_ids)],
+                "bots": bots}
+
+    def set_workspace_specialists(self, bot_ids: list[str]) -> dict[str, Any]:
+        """Replace the owner-approved specialist roster; existing assignments are unaffected."""
+        if isinstance(bot_ids, (str, bytes)):
+            raise ValueError("specialist Bot IDs must be a list")
+        ids = list(bot_ids)
+        if len(ids) > 100:
+            raise ValueError("the approved specialist roster can contain at most 100 Bots")
+        if any(not isinstance(bot_id, str) or not bot_id or len(bot_id) > 100 for bot_id in ids):
+            raise ValueError("specialist Bot IDs must be non-empty strings of at most 100 characters")
+        if len(ids) != len(set(ids)):
+            raise ValueError("a Bot can appear only once in the specialist roster")
+
+        changed = False
+        with self._tx() as db:
+            settings = db.execute("SELECT coordinator_bot_id FROM workspace_settings WHERE id = 1").fetchone()
+            if settings is None:
+                raise RuntimeError("workspace settings are missing")
+            coordinator_bot_id = settings["coordinator_bot_id"]
+            if coordinator_bot_id and coordinator_bot_id in ids:
+                raise PermissionError("the workspace coordinator cannot also be on the specialist roster")
+            if ids:
+                marks = ",".join("?" for _ in ids)
+                present = {str(row["id"]) for row in db.execute(
+                    f"SELECT id FROM bots WHERE id IN ({marks})", tuple(ids)).fetchall()}
+                missing = set(ids) - present
+                if missing:
+                    raise KeyError(sorted(missing)[0])
+            previous = {str(row["bot_id"]) for row in db.execute(
+                "SELECT bot_id FROM workspace_specialists").fetchall()}
+            requested = set(ids)
+            removed = previous - requested
+            added = requested - previous
+            if removed:
+                marks = ",".join("?" for _ in removed)
+                db.execute(f"DELETE FROM workspace_specialists WHERE bot_id IN ({marks})", tuple(sorted(removed)))
+            if added:
+                stamp = iso(utcnow())
+                db.executemany("INSERT INTO workspace_specialists (bot_id, added_at) VALUES (?, ?)",
+                               [(bot_id, stamp) for bot_id in sorted(added)])
+            changed = bool(removed or added)
+        if changed:
+            self.bus.notify("workspace", "bots", "workspace:specialists")
+        return self.workspace_specialists()
+
     def set_workspace_coordinator(self, bot_ref: Optional[str]) -> Optional[dict[str, str]]:
         """Select or clear the one workspace coordinator without changing Bot authority."""
         with self._tx() as db:
@@ -1664,6 +2166,9 @@ class Store:
                 if row is None:
                     raise KeyError(bot_ref)
                 bot_id = row["id"]
+                # A Bot cannot hold both roles. Do not silently add the previous
+                # coordinator to the specialist roster when roles change.
+                db.execute("DELETE FROM workspace_specialists WHERE bot_id = ?", (bot_id,))
             db.execute("UPDATE workspace_settings SET coordinator_bot_id = ?, updated_at = ? WHERE id = 1",
                        (bot_id, iso(utcnow())))
             row = db.execute("SELECT b.id, b.name, b.doc FROM workspace_settings w "
@@ -2138,15 +2643,16 @@ class Store:
     def create_run(self, run: Run) -> Run:
         if run.parent_run_id is not None or run.delegation_budget_cost_usd is not None:
             raise ValueError("delegated runs must use submit_delegated_run")
-        with self._lock:
-            self._assert_execution_ready(self._db)
-            self._db.execute(
+        with self._tx() as db:
+            self._assert_execution_ready(db)
+            if not self._remote_run_allowed(db, run):
+                raise PermissionError("remote start authority is missing, revoked, or disabled")
+            db.execute(
                 "INSERT INTO runs (id, bot_id, task_id, doc, status, created_at, conversation_id, conversation_context) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (run.id, run.bot_id, run.task_id, self._run_json(run), run.status.value, run.created_at,
                  run.conversation_id, json.dumps(run.conversation_context, ensure_ascii=False)),
             )
-            self._db.commit()
         self.bus.notify("work", "runs", f"run:{run.id}")
         return run
 
@@ -2159,6 +2665,8 @@ class Store:
         run.task_id = task.id
         with self._tx() as db:
             self._assert_execution_ready(db)
+            if not self._remote_run_allowed(db, run):
+                raise PermissionError("remote start authority is missing, revoked, or disabled")
             db.execute("INSERT INTO tasks (id, bot_id, kind, prompt, created_at, done, state, run_id) "
                        "VALUES (?, ?, ?, ?, ?, 0, 'queued', ?)",
                        (task.id, task.bot_id, task.kind, task.prompt, task.created_at, run.id))
@@ -2195,6 +2703,8 @@ class Store:
         scope = "api:v1:tasks:runs"
         run.task_id = task.id
         with self._tx() as db:
+            if not self._remote_run_allowed(db, run):
+                raise PermissionError("remote start authority was revoked or disabled before admission")
             replay = self._idempotency_replay(db, scope, idem_key, request_hash)
             if replay is not None:
                 row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?",
@@ -2520,20 +3030,183 @@ class Store:
         self.bus.notify("conversations", f"conversation:{conversation_id}")
         return dict(result), True
 
+    def update_conversation_preferences(self, conversation_id: str, changes: dict[str, Any], *,
+                                        idem_key: str, request_hash: str) -> tuple[dict[str, Any], bool]:
+        """Atomically persist owner-facing chat organization and read-state changes."""
+        allowed = {"pinned", "unread", "section"}
+        if not changes or not set(changes) <= allowed:
+            raise ValueError("conversation preferences must include pinned, unread, or section")
+        scope = f"api:v1:conversation:{conversation_id}:preferences"
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                row = db.execute("SELECT * FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
+                if row is None:
+                    raise RuntimeError("idempotent preference response points to missing state")
+                return dict(row), False
+            current = db.execute("SELECT id FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
+            if current is None:
+                raise KeyError(conversation_id)
+            assignments: list[str] = []
+            values: list[Any] = []
+            for key in ("pinned", "section"):
+                if key in changes:
+                    assignments.append(f"{key} = ?")
+                    value = changes[key]
+                    values.append(int(value) if key == "pinned" else value)
+            if "unread" in changes:
+                if changes["unread"]:
+                    assignments.append("unread = 1")
+                else:
+                    assignments.extend(("unread = 0", "read_seq = MAX(read_seq, "
+                                        "(SELECT COALESCE(MAX(seq), 0) FROM messages WHERE conversation_id = ?))"))
+                    values.append(conversation_id)
+            assignments.extend(("updated_at = ?",))
+            values.extend((now, conversation_id))
+            db.execute(f"UPDATE conversations SET {', '.join(assignments)} WHERE id = ?", values)
+            db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash, _canonical({"conversation_id": conversation_id,
+                                                                  "changes": changes}), now))
+            result = db.execute("SELECT * FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
+        self.bus.notify("conversations", f"conversation:{conversation_id}")
+        return dict(result), True
+
+    def rename_conversation(self, conversation_id: str, title: str, *,
+                            idem_key: str, request_hash: str) -> tuple[dict[str, Any], bool]:
+        """Rename one chat without changing its transcript, read marker, or Bot settings."""
+        normalized = " ".join(title.split())
+        if not normalized or len(normalized) > 120:
+            raise ValueError("conversation title must contain 1–120 characters")
+        scope = f"api:v1:conversation:{conversation_id}:title"
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                row = db.execute("SELECT * FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
+                if row is None:
+                    raise RuntimeError("idempotent rename response points to missing state")
+                return dict(row), False
+            if db.execute("SELECT 1 FROM conversations WHERE id = ?", (conversation_id,)).fetchone() is None:
+                raise KeyError(conversation_id)
+            db.execute("UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?",
+                       (normalized, now, conversation_id))
+            db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash,
+                        _canonical({"conversation_id": conversation_id, "title": normalized}), now))
+            row = db.execute("SELECT * FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
+        self.bus.notify("conversations", f"conversation:{conversation_id}")
+        return dict(row), True
+
+    # ----------------------------------------------------- saved requests
+
+    @staticmethod
+    def _normalize_task_template(name: str, prompt: str) -> tuple[str, str]:
+        normalized_name = " ".join(name.split())
+        normalized_prompt = prompt.strip()
+        if not normalized_name or len(normalized_name) > 80:
+            raise ValueError("template name must contain 1–80 characters")
+        if not normalized_prompt or len(normalized_prompt) > 12_000:
+            raise ValueError("template request must contain 1–12,000 characters")
+        return normalized_name, normalized_prompt
+
+    def list_task_templates(self, *, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT id, name, prompt, revision, created_at, updated_at FROM task_templates "
+                "ORDER BY updated_at DESC, id LIMIT ? OFFSET ?",
+                (max(1, min(limit, 100)), max(0, offset)),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def create_task_template(self, name: str, prompt: str, *, idem_key: str,
+                             request_hash: str) -> tuple[dict[str, Any], bool]:
+        normalized_name, normalized_prompt = self._normalize_task_template(name, prompt)
+        scope = "api:v1:task-templates:create"
+        now = iso(utcnow())
+        template_id = f"tpl_{uuid.uuid4().hex[:16]}"
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                return replay, False
+            if int(db.execute("SELECT COUNT(*) FROM task_templates").fetchone()[0]) >= 250:
+                raise ValueError("the saved request library is full; remove an unused template first")
+            db.execute("INSERT INTO task_templates(id, name, prompt, revision, created_at, updated_at) "
+                       "VALUES (?, ?, ?, 1, ?, ?)",
+                       (template_id, normalized_name, normalized_prompt, now, now))
+            row = db.execute("SELECT * FROM task_templates WHERE id = ?", (template_id,)).fetchone()
+            response = dict(row)
+            db.execute("INSERT INTO idempotency_keys(scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash, _canonical(response), now))
+        return response, True
+
+    def update_task_template(self, template_id: str, name: str, prompt: str, expected_revision: int, *,
+                             idem_key: str, request_hash: str) -> tuple[dict[str, Any], bool]:
+        normalized_name, normalized_prompt = self._normalize_task_template(name, prompt)
+        if expected_revision < 1:
+            raise ValueError("expected revision must be positive")
+        scope = f"api:v1:task-template:{template_id}:update"
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                return replay, False
+            current = db.execute("SELECT revision FROM task_templates WHERE id = ?", (template_id,)).fetchone()
+            if current is None:
+                raise KeyError(template_id)
+            if int(current["revision"]) != expected_revision:
+                raise RevisionConflict("this saved request changed elsewhere; reload it before editing")
+            db.execute("UPDATE task_templates SET name = ?, prompt = ?, revision = revision + 1, updated_at = ? "
+                       "WHERE id = ? AND revision = ?",
+                       (normalized_name, normalized_prompt, now, template_id, expected_revision))
+            row = db.execute("SELECT * FROM task_templates WHERE id = ?", (template_id,)).fetchone()
+            response = dict(row)
+            db.execute("INSERT INTO idempotency_keys(scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash, _canonical(response), now))
+        return response, True
+
+    def delete_task_template(self, template_id: str, expected_revision: int, *, idem_key: str,
+                             request_hash: str) -> bool:
+        if expected_revision < 1:
+            raise ValueError("expected revision must be positive")
+        scope = f"api:v1:task-template:{template_id}:delete"
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                return False
+            current = db.execute("SELECT revision FROM task_templates WHERE id = ?", (template_id,)).fetchone()
+            if current is None:
+                raise KeyError(template_id)
+            if int(current["revision"]) != expected_revision:
+                raise RevisionConflict("this saved request changed elsewhere; reload it before deleting")
+            db.execute("DELETE FROM task_templates WHERE id = ? AND revision = ?", (template_id, expected_revision))
+            db.execute("INSERT INTO idempotency_keys(scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash, _canonical({"id": template_id, "deleted": True}), now))
+        return True
+
     def list_conversations(self, bot_id: Optional[str] = None, *, include_legacy: bool = False,
-                           limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
+                           include_archived: bool = False, limit: int = 50,
+                           offset: int = 0) -> list[dict[str, Any]]:
         query = ("SELECT c.*, (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) AS message_count, "
                  "(SELECT COALESCE(MAX(m.seq), 0) FROM messages m WHERE m.conversation_id = c.id) AS last_seq, "
                  "(SELECT r.run_id FROM conversation_runs r WHERE r.conversation_id = c.id "
                  "ORDER BY r.attached_at DESC LIMIT 1) AS latest_run_id "
-                 "FROM conversations c WHERE c.archived = 0")
+                 "FROM conversations c WHERE 1 = 1")
         args: list[Any] = []
+        if not include_archived:
+            query += " AND c.archived = 0"
         if bot_id:
             query += " AND c.bot_id = ?"
             args.append(bot_id)
         if not include_legacy:
             query += " AND c.is_legacy = 0"
-        query += " ORDER BY c.updated_at DESC, c.id LIMIT ? OFFSET ?"
+        query += " ORDER BY c.archived, c.pinned DESC, c.updated_at DESC, c.id LIMIT ? OFFSET ?"
         args.extend((limit, offset))
         with self._lock:
             rows = self._db.execute(query, args).fetchall()
@@ -2663,6 +3336,8 @@ class Store:
         scope = f"api:v1:conversation:{conversation_id}:messages"
         now = iso(utcnow())
         with self._tx() as db:
+            if not self._remote_run_allowed(db, run):
+                raise PermissionError("remote start authority was revoked or disabled before admission")
             replay = self._idempotency_replay(db, scope, idem_key, request_hash)
             if replay is not None:
                 return str(replay["run_id"]), False
@@ -3076,6 +3751,8 @@ class Store:
                 raise ValueError("choose a different Bot; the coordinator can continue directly in this chat")
             if db.execute("SELECT 1 FROM bots WHERE id = ?", (target_bot_id,)).fetchone() is None:
                 raise KeyError(target_bot_id)
+            if db.execute("SELECT 1 FROM workspace_specialists WHERE bot_id = ?", (target_bot_id,)).fetchone() is None:
+                raise PermissionError("select this Bot in the owner-approved specialist roster before assigning a task")
             parent_bot_row = db.execute("SELECT doc FROM bots WHERE id = ?", (parent["bot_id"],)).fetchone()
             parent_bot = Bot.model_validate(json.loads(parent_bot_row["doc"]))
             selected_facts: list[dict[str, Any]] = []
@@ -3755,10 +4432,25 @@ class Store:
         with self._tx() as db:
             if self._execution_hold(db):
                 return None
-            if db.execute(sql, args).rowcount != 1:
+            queued = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id=? AND status='pending'", (run_id,)).fetchone()
+            if queued is not None and not self._remote_run_allowed(db, self._run(queued)):
+                self._apply_transition(
+                    db, run_id, RunStatus.stopped, None, "remote_authority_revoked",
+                    "Phone authorization or the bot's remote-start setting changed before dispatch.",
+                    {"reason": "remote_authority_revoked"}, True, {"owner": "", "pgid": 0})
+                cancelled = True
+            else:
+                cancelled = False
+            if cancelled:
+                row = None
+            elif db.execute(sql, args).rowcount != 1:
                 return None
-            db.execute("UPDATE tasks SET state = 'claimed' WHERE run_id = ? AND done = 0", (run_id,))
-            row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
+            else:
+                db.execute("UPDATE tasks SET state = 'claimed' WHERE run_id = ? AND done = 0", (run_id,))
+                row = db.execute(f"SELECT {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
+        if cancelled:
+            self.bus.notify("work", "runs", "events", "approvals")
+            return None
         return self._run(row)
 
     def renew_leases(self, owner: str, lease_seconds: float, now: Optional[datetime] = None) -> list[str]:

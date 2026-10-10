@@ -16,5 +16,7 @@ Approval CAS and reconciliation are live on both path families. The versioned ap
 also requires the `action_hash` returned with the approval so a revised action cannot reuse the decision. Exact retries return the
 same result and changed request arguments conflict. Legacy routes remain available for the local Studio. Per-run and cross-run transcript SSE
 support durable `Last-Event-ID` replay; a missing global cursor returns `snapshot_required` so the client can fetch `/api/v1/snapshot`
-and resume from its event watermark. Interactive remote-control routes remain unavailable. Device pairing is experimental; see
-[the API contract](realignment/contracts.md#6-remote-pairing-partial-experimental).
+and resume from its event watermark. Paired phones can inspect the exact pending action and choose **Allow once** or **Deny**; they
+cannot create standing permissions or change approval policy. Phone approval uses the same action hash, current-state checks,
+idempotency, and compare-and-set resolution as the local API. Remote access is disabled unless explicitly enabled by the operator.
+See [the phone supervision contract](realignment/contracts.md#6-phone-supervision-partial-experimental).

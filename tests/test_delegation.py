@@ -40,6 +40,7 @@ def _failed_workspace_task(store, *, effect: str = "", checkpoint: str | None = 
     coordinator = store.create_bot(Bot(name="continuation-coordinator", model="mock/demo", tools=[]))
     specialist = store.create_bot(Bot(name="continuation-specialist", model="mock/demo", tools=[]))
     store.set_workspace_coordinator(coordinator.id)
+    store.set_workspace_specialists([specialist.id])
     parent, _ = store.create_conversation(coordinator.id, "Coordinator", idem_key="continuation-parent",
                                           request_hash="continuation-parent")
     source_prompt = "Research a bounded public topic and return a short report."
@@ -176,7 +177,7 @@ def test_workspace_task_with_changed_bot_policy_cannot_continue(store):
 
 
 def _remove_later_conversation_schema(db):
-    """Remove post-v24 conversation/task schema before lowering user_version."""
+    """Remove schema added after the simulated legacy version before lowering user_version."""
     for trigger in (
         "workspace_task_checkpoint_event_insert", "messages_workspace_task_result_insert",
         "messages_workspace_task_result_update", "messages_choice_question_insert",
@@ -185,12 +186,19 @@ def _remove_later_conversation_schema(db):
         "workspace_task_fact_share_source_guard", "workspace_task_fact_share_immutable",
         "workspace_task_fact_share_no_delete", "workspace_task_continuation_source_guard",
         "workspace_task_continuation_immutable", "workspace_task_continuation_no_delete",
+        "workspace_specialists_reject_coordinator_insert", "workspace_specialists_reject_coordinator_update",
+        "workspace_settings_remove_promoted_specialist",
+        "conversations_assistant_message_unread", "conversations_user_message_read",
+        "resource_outbox_conversations_insert", "resource_outbox_conversations_update",
+        "resource_outbox_conversations_delete",
     ):
         db.execute(f"DROP TRIGGER IF EXISTS {trigger}")
     db.execute("DROP INDEX IF EXISTS idx_messages_workspace_task_result")
+    db.execute("DROP INDEX IF EXISTS idx_conversations_bot_pin_update")
     for table in ("workspace_task_continuations", "workspace_task_fact_shares", "workspace_task_checkpoints",
-                  "workspace_tasks", "workspace_settings",
-                  "conversation_questions", "google_calendar_grants", "memory_fact_shares", "code_handoffs"):
+                  "workspace_tasks", "workspace_specialists", "workspace_settings",
+                  "conversation_questions", "google_calendar_grants", "memory_fact_shares", "code_handoffs",
+                  "task_templates"):
         db.execute(f"DROP TABLE IF EXISTS {table}")
     columns = {row[1] for row in db.execute("PRAGMA table_info(messages)")}
     for column in ("workspace_task_result_id", "workspace_task_result_message_id",
@@ -198,6 +206,10 @@ def _remove_later_conversation_schema(db):
                    "workspace_task_result_truncated", "choice_question_id", "reply_to_message_id"):
         if column in columns:
             db.execute(f"ALTER TABLE messages DROP COLUMN {column}")
+    conversation_columns = {row[1] for row in db.execute("PRAGMA table_info(conversations)")}
+    for column in ("section", "read_seq", "unread", "pinned"):
+        if column in conversation_columns:
+            db.execute(f"ALTER TABLE conversations DROP COLUMN {column}")
 
 
 def test_delegated_run_creation_persists_parent_and_replays_exact_command(store):

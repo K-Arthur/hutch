@@ -14,10 +14,12 @@ import base64
 import binascii
 import contextlib
 import hashlib
+import hmac
 import json
 import os
 import platform
 import re
+import sqlite3
 import stat
 from pathlib import Path
 from pathlib import PurePosixPath
@@ -25,9 +27,10 @@ from typing import Any, Literal, Optional
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
-from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
@@ -44,12 +47,15 @@ from ..models import (
     InferenceMode, Limits, MemoryItem, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task, bot_slug_display_name, iso,
     utcnow,
 )
-from ..store import ActiveRunConflict, BotConflict, IdempotencyConflict, Store
+from ..store import (ActiveRunConflict, AuthChallengeLimitExceeded, BotConflict, IdempotencyConflict,
+                     RevisionConflict, Store)
 from ..state_snapshot import ExecutionHeld
 from ..templates import TEMPLATE_INFO, TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
-from .security import DEVICE_COOKIE, SecurityMiddleware, allowed_hosts_from_env
-from .sse import global_event_stream, resource_change_stream, resume_cursor, run_event_stream
+from .security import (DEVICE_COOKIE, ENROLLMENT_COOKIE, FLOW_COOKIE, SESSION_COOKIE,
+                       MAX_PASSKEY_CREDENTIAL_BYTES, SecurityMiddleware, allowed_hosts_from_env)
+from .sse import (global_event_stream, phone_change_page, resource_change_stream,
+                  resume_cursor, run_event_stream)
 
 _STATIC = Path(__file__).parent / "static"
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,40}$")
@@ -71,6 +77,72 @@ MAX_BOT_CONFIG_YAML_BYTES = 65_536
 
 #: transcript window returned by default (PF-9): the run page stays usable at 10,000+ events
 DEFAULT_EVENT_WINDOW = 200
+
+# Paired phones start with no authority. This exact route-template inventory is
+# the only remote API surface; every other route remains local-owner-only.
+REMOTE_ROUTE_CAPABILITIES: dict[tuple[str, str], Optional[str]] = {
+    ("GET", "/"): "monitor",
+    ("GET", "/api/v1/session"): "monitor", ("POST", "/api/v1/session/activity"): "monitor",
+    ("POST", "/api/v1/session/logout"): "monitor",
+    ("GET", "/api/health"): "monitor", ("GET", "/api/v1/health"): "monitor",
+    ("GET", "/api/bots"): "monitor",
+    ("GET", "/api/v1/tasks/runs"): "monitor",
+    ("GET", "/api/v1/tasks/runs/{run_id}"): "monitor",
+    ("GET", "/api/v1/tasks/runs/{run_id}/events"): "monitor",
+    ("GET", "/api/v1/tasks/runs/{run_id}/stream"): "monitor",
+    ("GET", "/api/v1/actions/approvals"): "review",
+    ("GET", "/api/v1/actions/approvals/{approval_id}"): "review",
+    ("GET", "/api/v1/snapshot"): "monitor",
+    ("GET", "/api/v1/changes"): "monitor", ("GET", "/api/v1/changes/stream"): "monitor",
+    ("POST", "/api/v1/tasks/runs/{run_id}/stop"): "review",
+    ("POST", "/api/v1/tasks/runs/{run_id}/resume"): "review",
+    ("POST", "/api/v1/actions/approvals/{approval_id}/approve"): "review",
+    ("POST", "/api/v1/actions/approvals/{approval_id}/deny"): "review",
+    ("POST", "/api/v1/tasks/runs"): "start",
+}
+
+PUBLIC_REMOTE_ROUTES = {("GET", "/login"), ("POST", "/login"), ("GET", "/pair"),
+                        ("POST", "/api/v1/pairing/exchange"),
+                        ("POST", "/api/v1/passkeys/login/options"),
+                        ("POST", "/api/v1/passkeys/login/verify"),
+                        ("POST", "/api/v1/passkeys/registration/options"),
+                        ("POST", "/api/v1/passkeys/registration/verify"),
+                        ("GET", "/api/health"), ("GET", "/api/v1/health")}
+
+
+def authorize_remote_route(request: Request) -> None:
+    """Enforce the paired-phone capability inventory after FastAPI resolves its route."""
+    principal = getattr(request.state, "hutch_principal", None)
+    route = request.scope.get("route")
+    route_path = getattr(route, "path", request.url.path)
+    route_key = (request.method.upper(), route_path)
+    if principal is None:
+        if route_key in PUBLIC_REMOTE_ROUTES:
+            return
+        raise HTTPException(401, "passkey session required")
+    if principal.get("kind") != "paired":
+        return
+    required = REMOTE_ROUTE_CAPABILITIES.get(route_key)
+    if required is None or required not in principal.get("capabilities", []):
+        raise HTTPException(403, "this route is not available to paired phones")
+    if request.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}:
+        token = request.cookies.get(SESSION_COOKIE, "")
+        submitted = request.headers.get("x-hutch-csrf", "")
+        expected = request.app.state.store.auth_csrf_token(token, principal["session_id"])
+        if not token or not hmac.compare_digest(submitted, expected):
+            raise HTTPException(403, "missing or invalid Hutch CSRF token")
+        if request.url.path not in {"/api/v1/session/activity", "/api/v1/session/logout"}:
+            if not request.app.state.store.touch_auth_session(token):
+                raise HTTPException(401, "passkey session expired or revoked")
+
+
+def _phone_session_check(request: Request, store):
+    """Return a read-only validator for long-lived phone streams; never renew idle time."""
+    principal = getattr(request.state, "hutch_principal", None)
+    if not principal or principal.get("kind") != "paired":
+        return None
+    token = request.cookies.get(SESSION_COOKIE, "")
+    return lambda: bool(token and store.authenticate_session(token))
 
 
 def _encode_conversation_artifact_cursor(event_id: int, kind: str) -> str:
@@ -265,6 +337,9 @@ class RestorePageResource(BaseModel):
 class BotPatch(BaseModel):
     display_name: Optional[str] = Field(default=None, max_length=80)
     pinned: Optional[bool] = None
+    sidebar_hidden: Optional[bool] = None
+    roster_section: Optional[str] = Field(default=None, max_length=40)
+    remote_start_enabled: Optional[bool] = None
     description: Optional[str] = None
     instructions: Optional[str] = None
     model: Optional[str] = None
@@ -285,6 +360,13 @@ class BotPatch(BaseModel):
     clear_cron: bool = False
     timezone: Optional[str] = None
     schedule_prompt: Optional[str] = Field(default=None, max_length=4000)
+
+    @field_validator("roster_section")
+    @classmethod
+    def normalize_roster_section(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        return " ".join(value.split()) or None
 
     @field_validator("display_name")
     @classmethod
@@ -314,6 +396,16 @@ class WorkspaceCoordinatorBotResource(BaseModel):
 
 class WorkspaceCoordinatorResource(BaseModel):
     coordinator: Optional[WorkspaceCoordinatorBotResource]
+
+
+class WorkspaceSpecialistsUpdate(BaseModel):
+    bot_ids: list[str] = Field(default_factory=list, max_length=100)
+
+
+class WorkspaceSpecialistsResource(BaseModel):
+    coordinator_bot_id: Optional[str]
+    specialist_bot_ids: list[str]
+    bots: list[WorkspaceCoordinatorBotResource]
 
 
 class WorkspaceTaskCreate(BaseModel):
@@ -488,6 +580,18 @@ class ConversationCreate(BaseModel):
     title: str = Field(default="", max_length=120)
 
 
+class ConversationTitleRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+
+    @field_validator("title")
+    @classmethod
+    def normalize_title(cls, value: str) -> str:
+        normalized = " ".join(value.split())
+        if not normalized:
+            raise ValueError("conversation title cannot be blank")
+        return normalized
+
+
 class ConversationMessageRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=20_000)
     rehearse: bool = False
@@ -512,6 +616,57 @@ class ConversationArchiveRequest(BaseModel):
     archived: bool = True
 
 
+class ConversationPreferencesRequest(BaseModel):
+    pinned: Optional[bool] = None
+    unread: Optional[bool] = None
+    section: Optional[str] = Field(default=None, max_length=40)
+
+    @field_validator("section")
+    @classmethod
+    def normalize_section(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        return " ".join(value.split()) or None
+
+
+class TaskTemplateFields(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    prompt: str = Field(min_length=1, max_length=12_000)
+
+    @field_validator("name")
+    @classmethod
+    def normalize_template_name(cls, value: str) -> str:
+        normalized = " ".join(value.split())
+        if not normalized:
+            raise ValueError("template name cannot be blank")
+        return normalized
+
+    @field_validator("prompt")
+    @classmethod
+    def normalize_template_prompt(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("template request cannot be blank")
+        return normalized
+
+
+class TaskTemplateCreateRequest(TaskTemplateFields):
+    pass
+
+
+class TaskTemplateUpdateRequest(TaskTemplateFields):
+    expected_revision: int = Field(ge=1)
+
+
+class TaskTemplateResource(BaseModel):
+    id: str
+    name: str
+    prompt: str
+    revision: int
+    created_at: str
+    updated_at: str
+
+
 class PairingExchangeRequest(BaseModel):
     code: str = Field(min_length=14, max_length=24)
     label: str = Field(default="Phone", max_length=80)
@@ -520,18 +675,35 @@ class PairingExchangeRequest(BaseModel):
 class PairingExchangeResource(BaseModel):
     id: str
     label: str
-    paired: bool
+    enrollment: bool
     expires_in_seconds: int
+
+
+class PasskeyVerifyRequest(BaseModel):
+    challenge_id: str = Field(min_length=1, max_length=64)
+    credential: dict[str, Any]
+
+    @field_validator("credential")
+    @classmethod
+    def credential_payload_is_bounded(cls, value: dict[str, Any]) -> dict[str, Any]:
+        try:
+            encoded = json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        except (TypeError, ValueError, RecursionError) as exc:
+            raise ValueError("passkey credential payload is invalid") from exc
+        if len(encoded) > MAX_PASSKEY_CREDENTIAL_BYTES:
+            raise ValueError("passkey credential payload is too large")
+        return value
 
 
 class DeviceResource(BaseModel):
     id: str
     label: str
     created_at: str
-    expires_at: str
+    expires_at: Optional[str] = None
     last_used_at: Optional[str] = None
     revoked_at: Optional[str] = None
     current: bool
+    capabilities: list[str] = Field(default_factory=list)
 
 
 class DeviceRevocationResource(BaseModel):
@@ -546,6 +718,10 @@ class ConversationResource(BaseModel):
     updated_at: str
     archived: bool
     is_legacy: bool
+    pinned: bool = False
+    unread: bool = False
+    read_seq: int = 0
+    section: Optional[str] = None
     message_count: int = 0
     last_seq: int = 0
     latest_run_id: Optional[str] = None
@@ -1279,10 +1455,11 @@ def create_app() -> FastAPI:
             engine.shutdown()          # let in-flight runs record their outcome before the DB closes
             store.close()
 
-    app = FastAPI(title="hutch", version=__version__, docs_url="/api/openapi.json", lifespan=lifespan)
+    app = FastAPI(title="hutch", version=__version__, docs_url="/api/openapi.json", lifespan=lifespan,
+                  dependencies=[Depends(authorize_remote_route)])
     app.state.config, app.state.store, app.state.engine, app.state.scheduler = config, store, engine, scheduler
     app.add_middleware(SecurityMiddleware, auth_token=os.environ.get("HUTCH_AUTH_TOKEN") or None,
-                       device_auth=store.validate_device_token)
+                       device_auth=store.authenticate_session)
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(_request: Request, exc: RequestValidationError):
@@ -1307,6 +1484,23 @@ def create_app() -> FastAPI:
         if bot is None:
             raise HTTPException(404, f"no such bot: {ref}")
         return bot
+
+    def is_paired_phone(request: Request) -> bool:
+        principal = getattr(request.state, "hutch_principal", None)
+        return bool(principal and principal.get("kind") == "paired")
+
+    def phone_start_capability(request: Request) -> bool:
+        principal = getattr(request.state, "hutch_principal", None)
+        return bool(principal and principal.get("kind") == "paired"
+                    and "start" in principal.get("capabilities", []))
+
+    def require_remote_start(bot: Bot, request: Request) -> None:
+        principal = getattr(request.state, "hutch_principal", None)
+        if principal and principal.get("kind") == "paired":
+            if "start" not in principal.get("capabilities", []):
+                raise HTTPException(403, "this passkey was paired for monitoring and review only")
+            if not bot.remote_start_enabled:
+                raise HTTPException(403, "this Bot has not been enabled for phone starts by the local owner")
 
     def bot_view(bot: Bot, connections=None) -> dict:
         from ..chatgpt_consent import chatgpt_background_view
@@ -1348,6 +1542,39 @@ def create_app() -> FastAPI:
             "chatgpt_background": chatgpt_background_view(
                 bot, connections if connections is not None else ConnectionBook(config.state_dir)),
         }
+
+    def phone_bot_view(bot: Bot, *, can_start: bool) -> dict:
+        """Project the small, useful phone roster without local paths or bot instructions."""
+        active = store.active_run_for_bot(bot.id)
+        last = store.last_successful_run(bot.id)
+        stats = store.bot_stats().get(bot.id, {}).get("counts", {})
+        return {
+            "id": bot.id, "name": bot.name, "display_name": bot.display_name,
+            "description": bot.description, "model": bot.model, "paused": bot.paused,
+            "remote_start_enabled": can_start and bot.remote_start_enabled,
+            "approval_mode": bot.approval_mode.value,
+            "active_run_id": active.id if active else None,
+            "active_run_status": active.status.value if active else None,
+            "active_run_status_label": LABELS[active.status] if active else None,
+            "last_success": (last.finished_at or last.created_at) if last else None,
+            "run_counts": stats,
+        }
+
+    def phone_run_view(run) -> dict:
+        fields = {
+            "id", "bot_id", "prompt", "status", "started_at", "finished_at", "exit_reason", "error",
+            "steps", "tokens", "created_at", "prompt_tokens", "completion_tokens", "cached_tokens", "cost_usd",
+            "model_ms", "queue_ms", "tool_ms", "overhead_ms", "context_used", "context_limit", "model_used",
+            "verified", "reason", "status_label", "terminal", "needs_person",
+        }
+        view = {key: value for key, value in run.model_dump().items() if key in fields}
+        bot = store.get_bot(run.bot_id)
+        unresolved = store.count_unresolved_actions(run.id)
+        view.update({"bot_name": bot.name if bot else "?",
+                     "bot_display_name": bot.display_name if bot else "?",
+                     "receipt_review_required": bool(unresolved),
+                     "unresolved_action_count": unresolved})
+        return view
 
     def run_view(run) -> dict:
         bot = store.get_bot(run.bot_id)
@@ -1479,6 +1706,11 @@ def create_app() -> FastAPI:
             raise HTTPException(428, "Idempotency-Key is required for this command")
         if len(key) > 128 or any(ord(c) < 33 or ord(c) > 126 for c in key):
             raise HTTPException(422, "Idempotency-Key must be 1–128 printable ASCII characters")
+        principal = getattr(request.state, "hutch_principal", None)
+        if principal and principal.get("kind") == "paired":
+            # Idempotency receipts are isolated by the paired credential, even
+            # when two phones accidentally reuse the same browser key.
+            return hashlib.sha256(f"{principal['credential_id']}:{key}".encode()).hexdigest()
         return key
 
     def request_digest(payload: dict) -> str:
@@ -1522,14 +1754,16 @@ def create_app() -> FastAPI:
     async def global_events_stream(request: Request, after: int = 0) -> StreamingResponse:
         """Global durable SSE. Reconnect using Last-Event-ID; fetch `/api/v1/snapshot` on `snapshot_required`."""
         cursor = resume_cursor(request, after)
-        return StreamingResponse(global_event_stream(request, store, cursor), media_type="text/event-stream",
+        return StreamingResponse(global_event_stream(
+            request, store, cursor, auth_check=_phone_session_check(request, store)), media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
     @app.get("/api/v1/changes", response_model=ChangePageResource)
-    def resource_changes(cursor: Optional[str] = None, limit: int = 200) -> dict:
+    def resource_changes(request: Request, cursor: Optional[str] = None, limit: int = 200) -> dict:
         """Ordered, content-free resource invalidations. Fetch each changed resource's authoritative state."""
         try:
-            return store.list_resource_changes(cursor, limit)
+            page = store.list_resource_changes(cursor, limit)
+            return phone_change_page(page) if is_paired_phone(request) else page
         except SnapshotRequired as exc:
             raise HTTPException(409, detail={"code": "snapshot_required", "reason": "change_cursor_unavailable",
                                              "message": str(exc), "snapshot_url": "/api/v1/snapshot"}) from exc
@@ -1538,11 +1772,13 @@ def create_app() -> FastAPI:
     async def resource_changes_stream(request: Request, cursor: Optional[str] = None) -> StreamingResponse:
         """Last-Event-ID overrides the initial cursor, including malformed IDs requiring reconciliation."""
         cursor = request.headers.get("last-event-id", cursor)
-        return StreamingResponse(resource_change_stream(request, store, cursor), media_type="text/event-stream",
+        return StreamingResponse(resource_change_stream(
+            request, store, cursor, auth_check=_phone_session_check(request, store),
+            redact=is_paired_phone(request)), media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
     @app.get("/api/v1/snapshot", response_model=SnapshotResource)
-    def api_snapshot(limit: int = 100) -> dict:
+    def api_snapshot(request: Request, limit: int = 100) -> dict:
         """Bounded consistent state for resynchronizing after an expired event cursor.
 
         Continue with each non-null `next` URL. Replay events after `replay_after` to include changes made during paging.
@@ -1551,8 +1787,11 @@ def create_app() -> FastAPI:
         snap = store.reconciliation_snapshot(limit)
         # Background grants contain local account identifiers. The public
         # snapshot uses the same safe Bot shape as the ordinary list route.
-        bots = [bot.model_dump(mode="json", exclude={"background_provider_consents"})
-                for bot in snap["items"]["bots"]]
+        phone = is_paired_phone(request)
+        bots = ([phone_bot_view(bot, can_start=phone_start_capability(request))
+                 for bot in snap["items"]["bots"]] if phone else
+                [bot.model_dump(mode="json", exclude={"background_provider_consents"})
+                 for bot in snap["items"]["bots"]])
         bot_names = {bot["id"]: bot["name"] for bot in bots}
         bot_display_names = {bot["id"]: bot["display_name"] for bot in bots}
         def bot_name(bot_id: str) -> str:
@@ -1562,8 +1801,11 @@ def create_app() -> FastAPI:
                 bot_display_names[bot_id] = bot.display_name if bot else "?"
             return bot_names[bot_id]
 
-        runs = [{**run.model_dump(mode="json"), "bot_name": bot_name(run.bot_id)}
-                for run in snap["items"]["runs"]]
+        runs = []
+        for run in snap["items"]["runs"]:
+            row = phone_run_view(run) if phone else run.model_dump(mode="json")
+            row["bot_name"] = bot_name(run.bot_id)
+            runs.append(row)
         for row in runs:
             row["bot_display_name"] = bot_display_names.get(row["bot_id"], "?")
         approvals = [{**req.model_dump(mode="json"), "bot_name": bot_name(req.bot_id)}
@@ -1571,9 +1813,16 @@ def create_app() -> FastAPI:
         for row in approvals:
             row["bot_display_name"] = bot_display_names.get(row["bot_id"], "?")
         conversations = []
-        for row in snap["items"]["conversations"]:
-            conversations.append({**row, "archived": bool(row["archived"]), "is_legacy": bool(row["is_legacy"])})
+        if not phone:
+            for row in snap["items"]["conversations"]:
+                conversations.append({**row, "archived": bool(row["archived"]), "is_legacy": bool(row["is_legacy"]),
+                                     "pinned": bool(row["pinned"]), "unread": bool(row["unread"])})
         items = {"bots": bots, "runs": runs, "approvals": approvals, "conversations": conversations}
+        totals = dict(snap["totals"])
+        truncated = dict(snap["truncated"])
+        if phone:
+            totals["conversations"] = 0
+            truncated["conversations"] = False
         paths = {
             "bots": "/api/v1/bots",
             "runs": "/api/v1/tasks/runs",
@@ -1589,28 +1838,181 @@ def create_app() -> FastAPI:
                 next_urls[name] = None
             elif "?" in paths[name]:
                 next_urls[name] = f"{paths[name]}&limit={limit}&offset={limit}"
+        if phone:
+            next_urls["conversations"] = None
         return {"event_cursor": snap["event_cursor"], "replay_after": snap["event_cursor"],
                 "change_cursor": snap["change_cursor"], "limit": limit,
-                "items": items, "totals": snap["totals"], "truncated": snap["truncated"], "next": next_urls}
+                "items": items, "totals": totals, "truncated": truncated, "next": next_urls}
 
     @app.post("/api/v1/pairing/exchange", response_model=PairingExchangeResource)
     def exchange_pairing(body: PairingExchangeRequest, request: Request, response: Response) -> dict:
-        """Exchange a short-lived host-issued code for an HttpOnly, revocable device session."""
+        """Exchange a host-issued code for a narrowly scoped enrollment-only cookie."""
         remote = request.client.host if request.client else "unknown"
         session, outcome = store.exchange_pairing_code(body.code, body.label, remote)
         if outcome == "rate_limited":
             raise HTTPException(429, "pairing attempts are temporarily limited; try again in ten minutes")
         if session is None:
             raise HTTPException(401, "pairing code is invalid, expired, or already used")
-        response.set_cookie(DEVICE_COOKIE, session["token"], httponly=True, secure=request.url.scheme == "https",
-                            samesite="strict", max_age=30 * 24 * 3600, path="/")
-        return {"id": session["id"], "label": session["label"], "paired": True,
-                "expires_in_seconds": 30 * 24 * 3600}
+        response.set_cookie(ENROLLMENT_COOKIE, session["token"], httponly=True,
+                            secure=request.url.scheme == "https", samesite="strict",
+                            max_age=5 * 60, path="/")
+        return {"id": session["id"], "label": session["label"], "enrollment": True,
+                "expires_in_seconds": 5 * 60}
+
+    @app.post("/api/v1/passkeys/registration/options")
+    def passkey_registration_options(request: Request, response: Response) -> dict:
+        from . import passkeys
+        try:
+            rp_id, _origin = passkeys.relying_party()
+        except passkeys.PasskeyConfigError as exc:
+            raise HTTPException(503, str(exc)) from None
+        token = request.cookies.get(ENROLLMENT_COOKIE, "")
+        flow = store.auth_flow(token, ("enrollment",))
+        if flow is None:
+            raise HTTPException(401, "pairing enrollment expired; request a new code")
+        try:
+            challenge = store.create_auth_challenge(token, "registration")
+        except AuthChallengeLimitExceeded:
+            raise HTTPException(429, "too many passkey registration attempts; request a new pairing code") from None
+        except PermissionError:
+            raise HTTPException(401, "pairing enrollment expired; request a new code") from None
+        options = json.loads(passkeys.registration_options(
+            rp_id, store.webauthn_user_handle(), store.active_credential_descriptors(), challenge["challenge"]))
+        options["challenge_id"] = challenge["id"]
+        response.headers["Cache-Control"] = "private, no-store"
+        return options
+
+    @app.post("/api/v1/passkeys/registration/verify")
+    def passkey_registration_verify(body: PasskeyVerifyRequest, request: Request, response: Response) -> dict:
+        from . import passkeys
+        try:
+            rp_id, origin = passkeys.relying_party()
+        except passkeys.PasskeyConfigError as exc:
+            raise HTTPException(503, str(exc)) from None
+        token = request.cookies.get(ENROLLMENT_COOKIE, "")
+        ceremony = store.consume_auth_challenge(token, body.challenge_id, "registration")
+        if ceremony is None:
+            raise HTTPException(401, "registration challenge expired or already used; restart pairing")
+        try:
+            verified = passkeys.verify_registration(
+                body.credential, ceremony["challenge"], rp_id, origin, store.webauthn_user_handle())
+            session = store.finish_passkey_enrollment(token, verified)
+        except (ValueError, PermissionError, sqlite3.IntegrityError) as exc:
+            raise HTTPException(400, "passkey registration could not be verified; restart pairing") from exc
+        response.set_cookie(SESSION_COOKIE, session["session_token"], httponly=True,
+                            secure=request.url.scheme == "https", samesite="strict",
+                            max_age=8 * 60 * 60, path="/")
+        response.delete_cookie(ENROLLMENT_COOKIE, path="/", secure=request.url.scheme == "https",
+                               httponly=True, samesite="strict")
+        response.headers["Cache-Control"] = "private, no-store"
+        return {"authenticated": True, "credential_id": session["id"], "label": session["label"],
+                "capabilities": session["capabilities"]}
+
+    @app.post("/api/v1/passkeys/login/options")
+    def passkey_login_options(request: Request, response: Response) -> dict:
+        from . import passkeys
+        remote_ip = request.client.host if request.client else "unknown"
+        if not store.begin_passkey_attempt(remote_ip, limit=30, purpose="login_options"):
+            raise HTTPException(429, "too many passkey attempts; wait ten minutes before trying again")
+        try:
+            rp_id, _origin = passkeys.relying_party()
+            flow = store.create_auth_flow("login")
+            challenge = store.create_auth_challenge(flow["token"], "authentication")
+        except passkeys.PasskeyConfigError as exc:
+            raise HTTPException(503, str(exc)) from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        options = json.loads(passkeys.authentication_options(rp_id, challenge["challenge"]))
+        options["challenge_id"] = challenge["id"]
+        response.set_cookie(FLOW_COOKIE, flow["token"], httponly=True,
+                            secure=request.url.scheme == "https", samesite="strict", max_age=120, path="/")
+        response.headers["Cache-Control"] = "private, no-store"
+        return options
+
+    @app.post("/api/v1/passkeys/login/verify")
+    def passkey_login_verify(body: PasskeyVerifyRequest, request: Request, response: Response) -> dict:
+        from . import passkeys
+        try:
+            rp_id, origin = passkeys.relying_party()
+        except passkeys.PasskeyConfigError as exc:
+            raise HTTPException(503, str(exc)) from None
+        remote_ip = request.client.host if request.client else "unknown"
+        if not store.begin_passkey_attempt(remote_ip):
+            raise HTTPException(429, "too many passkey attempts; wait ten minutes before trying again")
+        token = request.cookies.get(FLOW_COOKIE, "")
+        ceremony = store.consume_auth_challenge(token, body.challenge_id, "authentication")
+        if ceremony is None:
+            raise HTTPException(401, "passkey login expired or already used; try again")
+        try:
+            credential_id, user_handle = passkeys.authentication_credential_id(body.credential)
+            expected_handle = store.webauthn_user_handle()
+            if user_handle is None or not hmac.compare_digest(user_handle, expected_handle):
+                raise PermissionError("passkey belongs to a different Hutch operator")
+            stored = store.credential_for_login(credential_id)
+            if stored is None:
+                raise PermissionError("passkey is not paired or has been revoked")
+            verified = passkeys.verify_authentication(body.credential, ceremony["challenge"], rp_id, origin, stored)
+            session = store.finish_passkey_login(token, ceremony["session_id"], verified)
+        except Exception as exc:
+            # Avoid returning parser/signature details that could expose credential state.
+            if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+                raise
+            raise HTTPException(401, "passkey could not unlock Hutch; try again or pair the device locally") from None
+        store.record_passkey_attempt(remote_ip, succeeded=True)
+        store.record_passkey_attempt(remote_ip, succeeded=True, purpose="login_options")
+        response.set_cookie(SESSION_COOKIE, session["session_token"], httponly=True,
+                            secure=request.url.scheme == "https", samesite="strict",
+                            max_age=8 * 60 * 60, path="/")
+        response.delete_cookie(FLOW_COOKIE, path="/", secure=request.url.scheme == "https",
+                               httponly=True, samesite="strict")
+        response.headers["Cache-Control"] = "private, no-store"
+        return {"authenticated": True, "credential_id": session["id"], "label": session["label"],
+                "capabilities": session["capabilities"]}
+
+    @app.get("/api/v1/session")
+    def session_status(request: Request) -> dict:
+        principal = getattr(request.state, "hutch_principal", None)
+        if principal and principal.get("kind") == "paired":
+            token = request.cookies.get(SESSION_COOKIE, "")
+            return {"authenticated": True, "principal": "paired", "label": principal["label"],
+                    "credential_id": principal["credential_id"],
+                    "capabilities": principal["capabilities"],
+                    "idle_expires_at": principal["idle_expires_at"],
+                    "absolute_expires_at": principal["absolute_expires_at"],
+                    "csrf_token": store.auth_csrf_token(token, principal["session_id"])}
+        if principal and principal.get("kind") == "owner":
+            return {"authenticated": True, "principal": "owner", "capabilities": ["owner"],
+                    "csrf_token": getattr(request.state, "csrf", "")}
+        raise HTTPException(401, "no active Hutch session")
+
+    @app.post("/api/v1/session/activity")
+    def session_activity(request: Request) -> dict:
+        token = request.cookies.get(SESSION_COOKIE, "")
+        if not store.touch_auth_session(token):
+            raise HTTPException(401, "passkey session expired or revoked")
+        session = store.authenticate_session(token)
+        if not session:
+            raise HTTPException(401, "passkey session expired or revoked")
+        return {"active": True, "idle_expires_at": session["idle_expires_at"],
+                "absolute_expires_at": session["absolute_expires_at"]}
+
+    @app.post("/api/v1/session/logout")
+    def session_logout(request: Request, response: Response) -> dict:
+        token = request.cookies.get(SESSION_COOKIE, "")
+        store.revoke_auth_session(token)
+        response.delete_cookie(SESSION_COOKIE, path="/", secure=request.url.scheme == "https",
+                               httponly=True, samesite="strict")
+        response.delete_cookie(ENROLLMENT_COOKIE, path="/", secure=request.url.scheme == "https",
+                               httponly=True, samesite="strict")
+        response.delete_cookie(FLOW_COOKIE, path="/", secure=request.url.scheme == "https",
+                               httponly=True, samesite="strict")
+        response.headers["Cache-Control"] = "private, no-store"
+        return {"logged_out": True}
 
     @app.get("/api/v1/devices", response_model=list[DeviceResource])
     def list_devices(request: Request) -> list[dict]:
-        token = request.cookies.get(DEVICE_COOKIE, "")
-        current = store.device_identity(token) if token else None
+        principal = getattr(request.state, "hutch_principal", None)
+        current = principal.get("credential_id") if principal and principal.get("kind") == "paired" else None
         return [{**device, "current": device["id"] == current}
                 for device in store.list_device_sessions()]
 
@@ -1659,12 +2061,15 @@ def create_app() -> FastAPI:
                         "have been checked, with no real tunnel or network validation" if trusted_proxy_configured else
                         "Requires --allow-remote, HUTCH_TRUSTED_PROXIES and HUTCH_ALLOWED_HOSTS"),
              "verification": "local_forwarded_scope_fixtures" if trusted_proxy_configured else "configuration_required"},
-            {"id": "phone_control", "status": "unavailable",
-             "reason": "No phone control surface or authenticated interactive control route is implemented",
-             "verification": "not_tested"},
+            {"id": "phone_control", "status": "experimental",
+             "reason": ("Passkey-protected phone supervision supports Bot/run status, transcripts, one-time approval decisions, "
+                        "Stop, Resume through current human-wait checks, and locally opted-in Start. "
+                        "Remote browser/computer interaction is unavailable; "
+                        "physical-phone and live private-network validation remain outstanding."),
+             "verification": "paired_phone_api_and_browser_fixtures"},
             {"id": "browser_handoff", "status": "experimental" if handoff_ok else "unavailable",
              "reason": handoff_reason if not handoff_ok else
-                      "Local Linux desktop only: Hutch pauses the owned browser process while a person completes a challenge; no phone control",
+                      "Local Linux desktop only: Hutch pauses the owned browser process while a person completes a challenge; phone supervision does not provide remote browser control",
              "verification": "host_display_and_playwright_check" if handoff_ok else "host_prerequisite_check"},
             {"id": "external_runtimes", "status": "unavailable",
              "reason": "Pi and OpenCode lack governed permission, sandbox and budget integration",
@@ -1827,16 +2232,70 @@ def create_app() -> FastAPI:
 
     # ------------------------------------------------------ conversations
 
+    @app.get("/api/v1/task-templates", response_model=list[TaskTemplateResource])
+    def list_task_templates(limit: int = 50, offset: int = 0) -> list[dict]:
+        return store.list_task_templates(limit=max(1, min(limit, 100)), offset=max(0, offset))
+
+    @app.post("/api/v1/task-templates", response_model=TaskTemplateResource)
+    def create_task_template(body: TaskTemplateCreateRequest, request: Request, response: Response) -> dict:
+        key = idempotency_key(request)
+        payload = body.model_dump()
+        try:
+            template, created = store.create_task_template(
+                body.name, body.prompt, idem_key=key, request_hash=request_digest(payload))
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        response.status_code = 201 if created else 200
+        return template
+
+    @app.put("/api/v1/task-templates/{template_id}", response_model=TaskTemplateResource)
+    def update_task_template(template_id: str, body: TaskTemplateUpdateRequest,
+                             request: Request) -> dict:
+        key = idempotency_key(request)
+        payload = {"id": template_id, **body.model_dump()}
+        try:
+            template, _created = store.update_task_template(
+                template_id, body.name, body.prompt, body.expected_revision, idem_key=key,
+                request_hash=request_digest(payload))
+        except (IdempotencyConflict, RevisionConflict) as exc:
+            raise HTTPException(409, str(exc)) from None
+        except KeyError:
+            raise HTTPException(404, f"no saved request: {template_id}") from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return template
+
+    @app.delete("/api/v1/task-templates/{template_id}", status_code=204)
+    def delete_task_template(template_id: str, request: Request,
+                             expected_revision: int = Query(ge=1)) -> Response:
+        key = idempotency_key(request)
+        try:
+            store.delete_task_template(
+                template_id, expected_revision, idem_key=key,
+                request_hash=request_digest({"id": template_id, "expected_revision": expected_revision}))
+        except (IdempotencyConflict, RevisionConflict) as exc:
+            raise HTTPException(409, str(exc)) from None
+        except KeyError:
+            raise HTTPException(404, f"no saved request: {template_id}") from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return Response(status_code=204)
+
     @app.get("/api/v1/conversations", response_model=list[ConversationResource])
     def list_conversations(bot: Optional[str] = None, include_legacy: bool = False,
-                           limit: int = 50, offset: int = 0) -> list[dict]:
+                          include_archived: bool = False, limit: int = 50,
+                          offset: int = 0) -> list[dict]:
         bot_id = bot_or_404(bot).id if bot else None
         return store.list_conversations(bot_id, include_legacy=include_legacy,
+                                        include_archived=include_archived,
                                         limit=max(1, min(limit, 100)), offset=max(0, offset))
 
     @app.post("/api/v1/conversations", response_model=ConversationResource)
     def create_conversation(body: ConversationCreate, request: Request, response: Response) -> dict:
         bot = bot_or_404(body.bot)
+        require_remote_start(bot, request)
         key = idempotency_key(request)
         try:
             row, created = store.create_conversation(
@@ -1913,6 +2372,9 @@ def create_app() -> FastAPI:
         bot = store.get_bot(conversation["bot_id"])
         if bot is None:
             raise HTTPException(404, "conversation bot no longer exists")
+        require_remote_start(bot, request)
+        if is_paired_phone(request) and (body.model or body.rehearse):
+            raise HTTPException(403, "phone starts use the Bot's locally configured model and policy")
         # A restore hold governs the whole executor. Report it before model
         # setup or request-specific checks so a stale/unavailable route cannot
         # obscure the operator review that is currently required.
@@ -1932,7 +2394,9 @@ def create_app() -> FastAPI:
         if body.workspace_task_result_message_id is not None:
             request_body["workspace_task_result_message_id"] = body.workspace_task_result_message_id
         digest = request_digest({"conversation_id": conversation_id, **request_body})
-        run = Run(bot_id=bot.id, prompt=body.prompt, origin="manual:api", rehearsal=body.rehearse,
+        principal = getattr(request.state, "hutch_principal", None)
+        origin = f"remote:{principal['credential_id']}" if principal and principal.get("kind") == "paired" else "manual:api"
+        run = Run(bot_id=bot.id, prompt=body.prompt, origin=origin, rehearsal=body.rehearse,
                   model_override="" if model == bot.model else model)
         task = Task(bot_id=bot.id, kind="on_demand", prompt=body.prompt)
         try:
@@ -1943,14 +2407,15 @@ def create_app() -> FastAPI:
                 workspace_task_result_message_id=body.workspace_task_result_message_id)
         except IdempotencyConflict as exc:
             raise HTTPException(409, str(exc)) from None
+        except PermissionError as exc:
+            raise HTTPException(403, str(exc)) from None
         except KeyError:
-            raise HTTPException(404, f"no such conversation: {conversation_id}") from None
-        except PermissionError:
             raise HTTPException(404, f"no such conversation: {conversation_id}") from None
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from None
         response.status_code = 201 if created else 200
-        result = run_view(run_or_404(run_id))
+        saved_run = run_or_404(run_id)
+        result = phone_run_view(saved_run) if is_paired_phone(request) else run_view(saved_run)
         result["replayed"] = not created
         return result
 
@@ -2038,6 +2503,9 @@ def create_app() -> FastAPI:
         bot = store.get_bot(conversation["bot_id"])
         if bot is None:
             raise HTTPException(404, "conversation bot no longer exists")
+        require_remote_start(bot, request)
+        if is_paired_phone(request) and body.model:
+            raise HTTPException(403, "phone starts use the Bot's locally configured model")
         store.assert_execution_ready()
         from ..modelchoices import ModelNotUsable, validate_override
         try:
@@ -2047,7 +2515,9 @@ def create_app() -> FastAPI:
         key = idempotency_key(request)
         digest = request_digest({"conversation_id": conversation_id, "question_id": question_id,
                                  "option_ids": body.option_ids, "model": body.model})
-        run = Run(bot_id=bot.id, prompt="", origin="manual:api",
+        principal = getattr(request.state, "hutch_principal", None)
+        origin = f"remote:{principal['credential_id']}" if principal and principal.get("kind") == "paired" else "manual:api"
+        run = Run(bot_id=bot.id, prompt="", origin=origin,
                   model_override="" if model == bot.model else model)
         task = Task(bot_id=bot.id, kind="on_demand", prompt="")
         try:
@@ -2056,14 +2526,15 @@ def create_app() -> FastAPI:
                 choice_question_id=question_id, choice_option_ids=body.option_ids)
         except IdempotencyConflict as exc:
             raise HTTPException(409, str(exc)) from None
+        except PermissionError as exc:
+            raise HTTPException(403, str(exc)) from None
         except KeyError:
-            raise HTTPException(404, f"no such conversation: {conversation_id}") from None
-        except PermissionError:
             raise HTTPException(404, f"no such conversation: {conversation_id}") from None
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from None
         response.status_code = 201 if created else 200
-        result = run_view(run_or_404(run_id))
+        saved_run = run_or_404(run_id)
+        result = phone_run_view(saved_run) if is_paired_phone(request) else run_view(saved_run)
         result["replayed"] = not created
         return result
 
@@ -2082,17 +2553,63 @@ def create_app() -> FastAPI:
         response.status_code = 200
         return store.get_conversation(conversation_id)
 
+    @app.patch("/api/v1/conversations/{conversation_id}/preferences", response_model=ConversationResource)
+    def update_conversation_preferences(conversation_id: str, body: ConversationPreferencesRequest,
+                                        request: Request) -> dict:
+        changes = body.model_dump(exclude_unset=True)
+        if not changes:
+            raise HTTPException(422, "include at least one conversation preference")
+        key = idempotency_key(request)
+        try:
+            store.update_conversation_preferences(
+                conversation_id, changes, idem_key=key,
+                request_hash=request_digest({"conversation_id": conversation_id, **changes}),
+            )
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except KeyError:
+            raise HTTPException(404, f"no such conversation: {conversation_id}") from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return store.get_conversation(conversation_id)
+
+    @app.patch("/api/v1/conversations/{conversation_id}/title", response_model=ConversationResource)
+    def rename_conversation(conversation_id: str, body: ConversationTitleRequest,
+                            request: Request) -> dict:
+        key = idempotency_key(request)
+        try:
+            store.rename_conversation(
+                conversation_id, body.title, idem_key=key,
+                request_hash=request_digest({"conversation_id": conversation_id, "title": body.title}),
+            )
+        except IdempotencyConflict as exc:
+            raise HTTPException(409, str(exc)) from None
+        except KeyError:
+            raise HTTPException(404, f"no such conversation: {conversation_id}") from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return store.get_conversation(conversation_id)
+
     # --------------------------------------------------------------- bots
 
     @app.get("/api/bots")
-    def list_bots() -> list[dict]:
+    def list_bots(request: Request) -> list[dict]:
+        bots = store.list_bots()
+        if is_paired_phone(request):
+            can_start = phone_start_capability(request)
+            return [phone_bot_view(bot, can_start=can_start) for bot in bots]
         from ..connections import ConnectionBook
         connections = ConnectionBook(config.state_dir)
-        return [bot_view(b, connections) for b in store.list_bots()]
+        return [bot_view(b, connections) for b in bots]
 
     @app.get("/api/v1/bots")
-    def list_bots_v1(limit: int = 100, offset: int = 0) -> list[dict]:
+    def list_bots_v1(request: Request, limit: int = 100, offset: int = 0) -> list[dict]:
         bots = store.list_bots()
+        if is_paired_phone(request):
+            start = max(0, offset)
+            can_start = phone_start_capability(request)
+            return [phone_bot_view(bot, can_start=can_start)
+                    for bot in bots[start:start + max(1, min(limit, 500))]]
         from ..connections import ConnectionBook
         connections = ConnectionBook(config.state_dir)
         start = max(0, offset)
@@ -2170,6 +2687,23 @@ def create_app() -> FastAPI:
             return {"coordinator": store.set_workspace_coordinator(body.bot_id)}
         except KeyError:
             raise HTTPException(404, "No Bot with that ID or name exists") from None
+
+    @app.get("/api/v1/workspace/specialists", response_model=WorkspaceSpecialistsResource)
+    def read_workspace_specialists() -> dict:
+        """Return every eligible Bot and the explicit owner-approved specialist roster."""
+        return store.workspace_specialists()
+
+    @app.put("/api/v1/workspace/specialists", response_model=WorkspaceSpecialistsResource)
+    def write_workspace_specialists(body: WorkspaceSpecialistsUpdate) -> dict:
+        """Replace the roster used for new coordinator-to-specialist assignments."""
+        try:
+            return store.set_workspace_specialists(body.bot_ids)
+        except KeyError:
+            raise HTTPException(404, "No Bot with one of those IDs exists") from None
+        except PermissionError as exc:
+            raise HTTPException(409, str(exc)) from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
 
     @app.get("/api/v1/workspace/tasks", response_model=list[WorkspaceTaskResource])
     def list_workspace_tasks(conversation_id: str, limit: int = 100) -> list[dict]:
@@ -2587,6 +3121,11 @@ def create_app() -> FastAPI:
     @app.patch("/api/bots/{ref}")
     def patch_bot(ref: str, body: BotPatch) -> dict:
         bot = bot_or_404(ref)
+        if store.workspace_coordinator_id() == bot.id and (
+            body.sidebar_hidden is True
+            or ("roster_section" in body.model_fields_set and bool(body.roster_section))
+        ):
+            raise HTTPException(409, "the workspace coordinator stays visible and outside specialist sections")
         changing_runtime = body.runtime is not None and bot.runtime.value != body.runtime
         if changing_runtime:
             active = store.active_run_for_bot(bot.id)
@@ -2619,6 +3158,11 @@ def create_app() -> FastAPI:
         if body.description is not None: bot.description = body.description
         if body.display_name is not None: bot.display_name = body.display_name
         if body.pinned is not None: bot.pinned = body.pinned
+        if body.sidebar_hidden is not None: bot.sidebar_hidden = body.sidebar_hidden
+        if "roster_section" in body.model_fields_set:
+            bot.roster_section = body.roster_section
+        if body.pinned is True: bot.sidebar_hidden = False
+        if body.remote_start_enabled is not None: bot.remote_start_enabled = body.remote_start_enabled
         if body.instructions is not None: bot.instructions = body.instructions
         if body.model is not None: bot.model = body.model
         if changing_runtime: bot.runtime = proposed_runtime
@@ -2877,6 +3421,12 @@ def create_app() -> FastAPI:
 
     @app.post("/api/v1/tasks/runs", response_model=dict)
     def create_run_v1(body: VersionedRunCreateRequest, request: Request, response: Response) -> dict:
+        phone = is_paired_phone(request)
+        bot = bot_or_404(body.bot) if phone else None
+        if phone:
+            require_remote_start(bot, request)
+            if body.model or body.rehearse:
+                raise HTTPException(403, "phone starts use the Bot's locally configured model and policy")
         key = idempotency_key(request)
         digest = request_digest(body.model_dump())
         try:
@@ -2885,48 +3435,56 @@ def create_app() -> FastAPI:
             raise HTTPException(409, str(exc)) from None
         if replay is not None:
             response.status_code = 200
-            return {**run_view(replay), "replayed": True}
+            view = phone_run_view(replay) if phone else run_view(replay)
+            return {**view, "replayed": True}
 
         # A restore hold is reported before route validation for new commands.
         # Exact retries above return the already admitted run without authorizing
         # another dispatch or hiding its result behind mutable host configuration.
-        bot = bot_or_404(body.bot)
+        bot = bot or bot_or_404(body.bot)
         store.assert_execution_ready()
         from ..modelchoices import ModelNotUsable, validate_override
         try:
             model = validate_override(config, store, bot, body.model or "")
         except ModelNotUsable as exc:
             raise HTTPException(exc.status, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
+        principal = getattr(request.state, "hutch_principal", None)
+        origin = f"remote:{principal['credential_id']}" if principal and principal.get("kind") == "paired" else "manual:api:v1"
         try:
             run, created = engine.submit_idempotent(
                 bot, body.prompt, idem_key=key, request_hash=digest, rehearsal=body.rehearse,
-                model="" if model == bot.model else model)
+                model="" if model == bot.model else model, origin=origin)
         except IdempotencyConflict as exc:
             raise HTTPException(409, str(exc)) from None
+        except PermissionError as exc:
+            raise HTTPException(403, str(exc)) from None
         response.status_code = 201 if created else 200
-        return {**run_view(run), "replayed": not created}
+        view = phone_run_view(run) if phone else run_view(run)
+        return {**view, "replayed": not created}
 
     @app.get("/api/runs")
     @app.get("/api/v1/tasks/runs")
-    def list_runs(bot: Optional[str] = None, status: Optional[str] = None, limit: int = 30,
+    def list_runs(request: Request, bot: Optional[str] = None, status: Optional[str] = None, limit: int = 30,
                   offset: int = 0) -> list[dict]:
         bot_id = bot_or_404(bot).id if bot else None
-        return [run_view(r) for r in store.list_runs_page(bot_id, status, max(1, min(limit, 200)), max(0, offset))]
+        view = phone_run_view if is_paired_phone(request) else run_view
+        return [view(r) for r in store.list_runs_page(bot_id, status, max(1, min(limit, 200)), max(0, offset))]
 
     @app.get("/api/runs/{run_id}")
     @app.get("/api/v1/tasks/runs/{run_id}")
-    def get_run(run_id: str, events: int = DEFAULT_EVENT_WINDOW) -> dict:
+    def get_run(run_id: str, request: Request, events: int = DEFAULT_EVENT_WINDOW) -> dict:
         """Run + the newest ``events`` transcript entries (0 = all). Page further with /events?before=."""
         run = run_or_404(run_id)
-        view = run_view(run)
+        view = phone_run_view(run) if is_paired_phone(request) else run_view(run)
         total = store.count_events(run_id)
         window = store.tail_events(run_id, events) if events else store.list_events(run_id)
         view["events"] = [e.model_dump() for e in window]
         view["approval_states"] = store.approval_states_for_events(run_id, window)
         view["choice_states"] = store.choice_states_for_events(run_id, window)
-        view["transcript_mirror"] = store._mirror.status(run_id)
-        view["unknown_actions"] = store.list_actions(run_id, unresolved=True, limit=5)
-        view["reviewed_actions"] = store.list_actions(run_id, reviewed=True, limit=5)
+        if not is_paired_phone(request):
+            view["transcript_mirror"] = store._mirror.status(run_id)
+            view["unknown_actions"] = store.list_actions(run_id, unresolved=True, limit=5)
+            view["reviewed_actions"] = store.list_actions(run_id, reviewed=True, limit=5)
         view["event_count"] = total
         view["events_truncated"] = bool(window) and window[0].seq > 1
         return view
@@ -3151,7 +3709,8 @@ def create_app() -> FastAPI:
         def render(events, run):
             return {"events": [e.model_dump(exclude={"id"}) for e in events]}
 
-        return StreamingResponse(run_event_stream(request, store, run_id, cursor, render),
+        return StreamingResponse(run_event_stream(
+            request, store, run_id, cursor, render, auth_check=_phone_session_check(request, store)),
                                  media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
@@ -3279,6 +3838,9 @@ def create_app() -> FastAPI:
         existing = store.get_approval(approval_id)
         if existing is None:
             raise HTTPException(404, "no such approval")
+        principal = getattr(request.state, "hutch_principal", None)
+        if principal and principal.get("kind") == "paired" and body.always:
+            raise HTTPException(403, "paired phones can allow this action once or deny it; standing permissions stay local")
         idem_key = request_hash = None
         if request.url.path.startswith("/api/v1/"):
             idem_key = idempotency_key(request)
@@ -3289,7 +3851,8 @@ def create_app() -> FastAPI:
         if existing.status is not ApprovalStatus.pending and idem_key is None:
             raise HTTPException(409, f"approval already {existing.status.value}")
         try:
-            res = resolve_approval_ex(store, approval_id, approve=True, by="api", sticky=body.always,
+            actor = f"phone:{principal['credential_id']}" if principal and principal.get("kind") == "paired" else "api"
+            res = resolve_approval_ex(store, approval_id, approve=True, by=actor, sticky=body.always,
                                       expected_hash=body.action_hash, idem_key=idem_key, request_hash=request_hash)
         except IdempotencyConflict as exc:
             raise HTTPException(409, str(exc)) from None
@@ -3313,7 +3876,9 @@ def create_app() -> FastAPI:
         if existing.status is not ApprovalStatus.pending and idem_key is None:
             raise HTTPException(409, f"approval already {existing.status.value}")
         try:
-            res = resolve_approval_ex(store, approval_id, approve=False, by="api", idem_key=idem_key,
+            principal = getattr(request.state, "hutch_principal", None)
+            actor = f"phone:{principal['credential_id']}" if principal and principal.get("kind") == "paired" else "api"
+            res = resolve_approval_ex(store, approval_id, approve=False, by=actor, idem_key=idem_key,
                                       request_hash=request_hash)
         except IdempotencyConflict as exc:
             raise HTTPException(409, str(exc)) from None
@@ -3969,6 +4534,10 @@ def create_app() -> FastAPI:
     from .pages import register_pages
     register_pages(app)
     app.mount("/static", StaticFiles(directory=_STATIC), name="static")
+    for route in app.routes:
+        if isinstance(route, APIRoute):
+            for method in route.methods or ():
+                REMOTE_ROUTE_CAPABILITIES.setdefault((method.upper(), route.path), None)
     return app
 
 

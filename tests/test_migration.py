@@ -20,7 +20,7 @@ from hutch.lifecycle import IllegalTransition
 from hutch.models import RunStatus
 from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28,
                          _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34,
-                         _migrate_35, _migrate_37, _migrate_40)
+                         _migrate_35, _migrate_37, _migrate_40, _migrate_41)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
@@ -87,6 +87,38 @@ def test_v39_workspace_settings_gain_durable_schedule_pause_and_outbox():
         change = db.execute("SELECT resource, resource_id, operation, context FROM resource_outbox").fetchone()
         assert tuple(change) == ("workspace", "1", "updated", "{}")
         assert SCHEMA_VERSION >= 40
+    finally:
+        db.close()
+
+
+def test_v41_workspace_specialist_roster_is_empty_and_durably_invalidated():
+    db = sqlite3.connect(":memory:")
+    db.row_factory = sqlite3.Row
+    db.execute("PRAGMA foreign_keys=ON")
+    try:
+        db.execute("CREATE TABLE bots (id TEXT PRIMARY KEY)")
+        db.execute("INSERT INTO bots VALUES ('specialist-a')")
+        db.execute("INSERT INTO bots VALUES ('coordinator-a')")
+        db.execute("CREATE TABLE workspace_settings (id INTEGER PRIMARY KEY, coordinator_bot_id TEXT)")
+        db.execute("INSERT INTO workspace_settings VALUES (1, 'coordinator-a')")
+        db.execute("""CREATE TABLE resource_outbox (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, previous_id INTEGER NOT NULL,
+            resource TEXT NOT NULL, resource_id TEXT NOT NULL,
+            operation TEXT NOT NULL, ts TEXT NOT NULL, context TEXT NOT NULL)""")
+        db.execute("CREATE TABLE resource_outbox_meta (singleton INTEGER PRIMARY KEY, epoch TEXT NOT NULL, tail_id INTEGER NOT NULL DEFAULT 0)")
+        db.execute("INSERT INTO resource_outbox_meta VALUES (1, 'fixture-epoch', 0)")
+
+        _migrate_41(db)
+        assert db.execute("SELECT COUNT(*) FROM workspace_specialists").fetchone()[0] == 0
+        with pytest.raises(sqlite3.IntegrityError, match="cannot be an approved specialist"):
+            db.execute("INSERT INTO workspace_specialists VALUES ('coordinator-a', '2026-10-09T00:00:00+00:00')")
+        db.execute("INSERT INTO workspace_specialists VALUES ('specialist-a', '2026-10-09T00:00:00+00:00')")
+        assert tuple(db.execute("SELECT resource, operation FROM resource_outbox").fetchone()) == ("workspace", "created")
+        db.execute("UPDATE workspace_settings SET coordinator_bot_id='specialist-a' WHERE id=1")
+        db.execute("DELETE FROM bots WHERE id='specialist-a'")
+        assert db.execute("SELECT COUNT(*) FROM workspace_specialists").fetchone()[0] == 0
+        assert db.execute("SELECT COUNT(*) FROM resource_outbox WHERE resource='workspace'").fetchone()[0] == 2
+        assert SCHEMA_VERSION >= 41
     finally:
         db.close()
 
@@ -331,6 +363,7 @@ def test_upgrade_preserves_bot_ids_schedules_memory_and_allows(v4):
         assert store.schema_version == SCHEMA_VERSION
         assert store._db.execute("SELECT coordinator_bot_id FROM workspace_settings WHERE id=1").fetchone()[0] is None
         assert store._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='workspace_tasks'").fetchone()
+        assert store._db.execute("SELECT COUNT(*) FROM workspace_specialists").fetchone()[0] == 0
         assert store._db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' "
                                  "AND name='messages_workspace_task_result_insert'").fetchone()
         assert store._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversation_artifact_shares'").fetchone()

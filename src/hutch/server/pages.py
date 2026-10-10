@@ -694,6 +694,8 @@ def register_pages(app: FastAPI) -> None:
 
     @app.post("/login", include_in_schema=False)
     async def login(request: Request):
+        if getattr(request.state, "hutch_remote", False):
+            raise HTTPException(403, "owner-token sign-in is available only on the Hutch host")
         import os
         form = await read_form(request)
         token = os.environ.get("HUTCH_AUTH_TOKEN", "")

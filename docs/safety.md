@@ -264,7 +264,9 @@ the submitted context under its terms. Once the run is sent, Hutch cannot recall
 a specific successful specialist response only after the user selects that result and attaches it in the composer. Hutch checks
 its task, parent chat, source message and successful-run status, then snapshots the exact bounded response and source Bot name.
 The coordinator receives that snapshot as untrusted input; hostile markup cannot escape the wrapper. This explicit text share
-transfers no files, credentials or permissions and does not happen automatically. The child receives only the reviewed brief,
+transfers no files, credentials or permissions and does not happen automatically. Only Bots in the durable owner-approved specialist
+roster can receive new coordinator tasks; the roster starts empty, coordinator/specialist role overlap is blocked by storage, and
+removing a Bot affects future dispatch only. The child receives only the reviewed brief,
 assumptions and exact optional fact snapshots; it has no other inherited conversation context and uses its own saved route. A
 missing or changed route, instructions, permissions or workspace causes a
 visible pre-execution failure; the task is not silently re-run under new authority. Exact retries return the same task, while the same
@@ -276,8 +278,8 @@ the owning task removes its timeline with it. The API exposes only the latest 16
 This is audit visibility, not a continuation mechanism: no
 resume action exists after a process or application restart. The child run and its captured capability snapshot remain the
 authority for execution history. If an external effect has an uncertain receipt, the status remains `outcome_unknown` and
-requires reconciliation rather than replay. The handoff still lacks an owner-approved specialist allowlist, automatic
-sequential planning, parent-plan cancellation, or generalized task clarification. Provider execution has not been validated live.
+requires reconciliation rather than replay. The handoff still lacks automatic sequential planning, parent-plan cancellation, or
+generalized task clarification. Provider execution has not been validated live.
 
 ## Approval flow
 
@@ -301,14 +303,26 @@ closed tab, sleeping host or disconnected device.
 
 ### Remote dashboard access is experimental
 
-Hutch stays on loopback unless an operator enables remote access with trusted TLS certificates. A host-issued pairing code can open the
-responsive dashboard in a browser; each browser receives its own HttpOnly, revocable session. An operator-managed HTTPS reverse proxy
-is experimental: Hutch trusts forwarding metadata only from configured proxy addresses and only for a hostname in
-`HUTCH_ALLOWED_HOSTS`. The proxy must use TLS to the Hutch origin and overwrite forwarding headers. Keep access private and do not
-expose it to the public internet. Connections or the CLI can revoke a lost session. The pairing and session UI has local
-browser-fixture coverage, but no physical-device or private-network validation; the host must remain awake and connected.
-Authenticated PTY/physical desktop controls and remote phone browser handoff are not implemented. Local browser handoff is experimental
-and needs a Linux display plus the optional Playwright browser. The marketing site cannot reach Hutch on localhost.
+Hutch stays on loopback and remote access is disabled unless the operator explicitly launches `hutch serve --allow-remote` with an
+exact HTTPS RP hostname/origin and allowed Host. Use Tailscale Serve with tailnet access restricted to trusted devices, or a private
+LAN interface protected by a trusted certificate and firewall. Do not use a wildcard bind, Tailscale Funnel, public port forward, or
+untrusted proxy. Hutch disables Uvicorn proxy rewriting and trusts forwarded HTTPS/Host/client-address metadata only from configured
+exact proxy IPs.
+
+A one-use host pairing code creates only a short enrollment cookie and permits at most 16 registration challenges. Passkey
+registration/login requires user verification, then grants a separate HttpOnly, revocable session with a 30-minute idle and
+eight-hour absolute limit. Synced passkeys are supported, so a
+credential is not proof of one physical phone. Paired phones can monitor status/transcripts, review exact approval requests, allow
+once or deny, stop/resume through current server checks, and start only when both the pairing and local Bot settings grant Start.
+Owner tokens, credentials, schedules, Bot settings, device management, and computer interaction remain local. Route authorization is
+deny-by-default; unsafe requests require same-origin checks and a session-bound CSRF token. Private responses are not cacheable, and
+streams check session validity while idle. An uncertain command is reconciled with its original idempotency key before retry.
+
+The local route, passkey/session store boundaries, and actual Uvicorn HTTPS listener have automated coverage. iOS Safari, Android
+Chrome, live Tailscale Serve, LAN certificate renewal, and live network isolation remain unverified; remote operation is experimental
+and not production-certified. Hutch can only execute while its host is awake and connected. Remote browser handoff, authenticated
+PTY/desktop controls, and remote computer input are unavailable. Local browser handoff is experimental and needs a Linux display plus
+the optional Playwright browser. The marketing site cannot reach Hutch on localhost.
 
 ## Honest limits (read this)
 

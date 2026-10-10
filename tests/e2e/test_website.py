@@ -121,6 +121,13 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert page.locator("#get").get_by_text("Public access", exact=True).count() == 1
     assert page.locator("#get .ev").filter(has_text="Experimental").count() >= 1
     assert page.locator("#get .ev").filter(has_text="Unavailable").count() >= 1
+    coordinator_card = page.locator(".step-card").filter(has_text="Experimental coordinator handoff")
+    assert "only Bots on the owner-approved roster can receive a new task" in coordinator_card.inner_text()
+    assert "changing the roster never stops existing work" in coordinator_card.inner_text()
+    saved_requests_card = page.locator(".step-card").filter(has_text="Check the run evidence")
+    saved_requests_copy = saved_requests_card.inner_text().lower()
+    assert "save a reviewed request in hutch’s local library" in saved_requests_copy
+    assert "choosing one fills a draft only; you still review and send it yourself" in saved_requests_copy
     for image in page.locator("img").all():
         image.evaluate("img => { img.loading = 'eager'; return img.decode(); }")
     assert page.locator("img").evaluate_all("imgs => imgs.every(img => img.complete && img.naturalWidth > 0)")
@@ -159,6 +166,44 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
         "mascot_asset": mascot.get_attribute("src"), "natural_width": mascot.evaluate("img => img.naturalWidth"),
         "provider_calls": 0, "external_requests": len(external_requests), "page_errors": errors,
         "viewports": [{"name": label, "size": [width, height]} for label, width, height in viewports],
+        "source_sha256": hashlib.sha256((ROOT / "website/index.html").read_bytes()).hexdigest(),
+    }, indent=2) + "\n", encoding="utf-8")
+    saved_out = ROOT / "docs/realignment/artifacts/saved-requests/marketing"
+    saved_out.mkdir(parents=True, exist_ok=True)
+    saved_viewports = []
+    for label, width, height in viewports:
+        page.set_viewport_size({"width": width, "height": height})
+        saved_requests_card.evaluate("element => element.scrollIntoView({block: 'center', inline: 'nearest', behavior: 'instant'})")
+        card_box = saved_requests_card.bounding_box()
+        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert card_box and card_box["y"] >= -1 and card_box["y"] + card_box["height"] <= height + 1, (label, card_box)
+        assert overflow <= 1, (label, overflow)
+        page.screenshot(path=str(saved_out / f"marketing-repeat-work-{label}.png"), animations="disabled")
+        saved_viewports.append({"name": label, "size": [width, height], "card": card_box, "overflow": overflow})
+    (saved_out / "validation.json").write_text(json.dumps({
+        "test": "tests/e2e/test_website.py::test_home_loads_real_assets_and_truthful_availability",
+        "browser": browser.browser_type.name, "browser_version": browser.version,
+        "playwright_version": package_version("playwright"), "external_requests": external_requests,
+        "page_errors": errors, "provider_calls": 0, "viewports": saved_viewports,
+        "source_sha256": hashlib.sha256((ROOT / "website/index.html").read_bytes()).hexdigest(),
+        "verified": ["local saved-request library is described", "reuse fills a draft without sending",
+                     "responsive marketing card has no horizontal overflow"],
+    }, indent=2) + "\n", encoding="utf-8")
+    handoff_out = ROOT / "docs/realignment/artifacts/workspace-specialists/marketing"
+    handoff_out.mkdir(parents=True, exist_ok=True)
+    for label, width, height in viewports:
+        page.set_viewport_size({"width": width, "height": height})
+        coordinator_card.evaluate("element => element.scrollIntoView({block: 'center', inline: 'nearest', behavior: 'instant'})")
+        card_box = coordinator_card.bounding_box()
+        assert card_box and card_box["y"] >= -1 and card_box["y"] + card_box["height"] <= height + 1, (label, card_box)
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+        page.screenshot(path=str(handoff_out / f"marketing-roster-{label}.png"), animations="disabled")
+    (handoff_out / "validation.json").write_text(json.dumps({
+        "test": "tests/e2e/test_website.py::test_home_loads_real_assets_and_truthful_availability",
+        "browser": browser.browser_type.name, "browser_version": browser.version,
+        "playwright_version": package_version("playwright"), "external_requests": len(external_requests),
+        "page_errors": errors, "provider_calls": 0,
+        "viewports": {label: [width, height] for label, width, height in viewports},
         "source_sha256": hashlib.sha256((ROOT / "website/index.html").read_bytes()).hexdigest(),
     }, indent=2) + "\n", encoding="utf-8")
     context.close()
@@ -273,13 +318,13 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
         assert "queued or running work continues" in scheduling.inner_text().lower()
         assert "when resumed, missed windows are coalesced or skipped" in scheduling.inner_text().lower()
         assert "teammate name" in workflow.inner_text().lower()
-        assert "ai bot label visible" in workflow.inner_text().lower()
+        assert "clear work role" in workflow.inner_text().lower()
         assert "built-in chat can ask you to choose among options" in workflow.inner_text().lower()
         assert "your answer continues the conversation and never approves an action" in workflow.inner_text().lower()
         assert "experimental (built-in coordinator only)" in workflow.inner_text().lower()
         assert "tool-free purpose rewrite from the exact source" in workflow.inner_text().lower()
         assert "each request returns one response" in workflow.inner_text().lower()
-        assert "earlier user messages you select" in workflow.inner_text().lower()
+        assert "select earlier user messages if useful" in workflow.inner_text().lower()
         assert "hosted providers may retain the text" in workflow.inner_text().lower()
         assert "drafting creates no bot or permission changes" in workflow.inner_text().lower()
         assert "normal route and fallback limits still apply" in workflow.inner_text().lower()
@@ -298,9 +343,10 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
         assert "share the reviewed snapshot with that named bot" in workflow.inner_text().lower()
         assert "either side can revoke" in workflow.inner_text().lower()
         assert "the share adds no tools, account access or workspace context" in workflow.inner_text().lower()
-        assert "locally suggests an editable teammate name, clear work role and stable local address" in workflow.inner_text().lower()
+        assert "without describing the work again" in workflow.inner_text().lower()
+        assert "editable teammate name, clear work role and stable local address" in workflow.inner_text().lower()
         assert "without an extra model request" in workflow.inner_text().lower()
-        assert "the display name and address stay editable" in workflow.inner_text().lower()
+        assert "suggests an editable teammate name" in workflow.inner_text().lower()
         for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             workflow.get_by_role("heading", name="Keep each task reviewable from request to result.").scroll_into_view_if_needed()
@@ -342,17 +388,17 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
         page.goto(site_url, wait_until="networkidle")
         card = page.locator("#workflow .step-card").first
         text = card.inner_text().lower()
-        assert "make a bot under the request you want to reuse" in text
+        assert "make a bot under the request you already gave the agent" in text
+        assert "without describing the work again" in text
         assert "latest request" in text
         assert "later messages, assistant replies and other chats stay excluded" in text
-        assert "earlier user messages you select become saved background" in text
+        assert "earlier user messages you choose become saved background" in text
         assert "assistant replies and other chats stay excluded" in text
         assert "editable teammate name, clear work role and stable local address" in text
         assert "without an extra model request" in text
-        assert "bot or workspace model route" in text
-        assert "no tools" in text and "no schedule" in text
-        assert "recurring work" in text
-        assert "does not start a run" in text
+        assert "workspace or source-chat model route" in text
+        assert "no tools" in text and "schedule" in text
+        assert "starts no run" in text
         assert "experimental (built-in coordinator only)" in page.locator("#workflow").inner_text().lower()
         model_card = page.locator("#runs .feature").filter(has_text="Hutch supports configured OpenAI").first
         model_text = model_card.inner_text().lower()

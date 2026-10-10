@@ -1,6 +1,6 @@
 # ADR-0010: API contracts, event transport, and phone supervision
 
-Status: partially implemented (2026-10-07). Slice: S8. Evidence: baseline "reconnect", `security.py` WebSocket gap, A1/A3, C2.
+Status: partial implementation (2026-10-09). Slice: S8. Automated boundary tests pass; physical-device and live-network validation remain open.
 
 ## Decision
 
@@ -20,15 +20,27 @@ Status: partially implemented (2026-10-07). Slice: S8. Evidence: baseline "recon
   is implemented yet; those controls must use their own authenticated, sequenced contract.
 * **Server owns** status, approval resolution, receipts, permissions and usage. The browser owns drafts, focus and view state. Optimistic UI
   may show "sending", never "done".
-* **Remote supervision**: loopback by default. An operator can explicitly enable a direct remote listener with `--allow-remote`, a TLS
-  certificate and key, and configured network reachability. `hutch pairing create` prints a one-time code (60 s); exchanging it over
-  HTTPS creates an HttpOnly per-device session whose hash is stored, whose sliding expiry is 30 days, and which can be listed/revoked
-  from the CLI or Connections. `/pair` exchanges the code without placing it in a URL; Connections labels the active browser and can
-  revoke any session. Pairing attempts are limited per source IP. Host/Origin checks and HTTP/WebSocket device-token checks run before
-  remote access. No token appears in a URL or log. An operator-managed HTTPS reverse proxy is also experimental: Hutch trusts a proxy
-  only by configured source address/CIDR, requires an exact `HUTCH_ALLOWED_HOSTS` public host and HTTPS forwarded scheme, and strips
-  forwarding headers from untrusted peers. The proxy must verify TLS to Hutch and overwrite forwarding metadata. Hutch does not
-  provision tunnels. Physical-device/network checks, browser/PTY/desktop controls and live proxy validation remain incomplete.
+* **Remote phone supervision**: loopback remains the default. Remote mode requires the explicit `hutch serve --allow-remote` launch,
+  one exact WebAuthn RP hostname/origin in `HUTCH_WEBAUTHN_RP_ID` and `HUTCH_WEBAUTHN_ORIGIN`, and a matching `HUTCH_ALLOWED_HOSTS`
+  entry. Direct listeners must bind a private LAN or Tailscale IP with a trusted TLS certificate; wildcard and public binds are
+  refused. A reverse proxy must be named in `HUTCH_TRUSTED_PROXIES` as exact IPs, and its HTTPS, Host, and client-address headers are
+  accepted only from that socket peer. Uvicorn proxy rewriting remains disabled. No unauthenticated forwarded headers, owner token,
+  or WebSocket is accepted as remote identity. The recommended initial remote path is Tailscale Serve forwarding to Hutch on
+  loopback, with tailnet access rules restricted to the operator; LAN access requires a trusted HTTPS certificate.
+* `hutch pairing create` issues a single-use 60-second code; `--allow-start` can add the Start capability. Code exchange creates only a
+  five-minute enrollment cookie with a 16-challenge registration ceiling. Passkey registration requires user verification and exact
+  RP/origin validation; successful registration creates a separately revocable credential and HttpOnly session cookie. Synced
+  passkeys are accepted, so a credential is not represented as proof of one physical phone. Authenticated sessions expire after
+  30 minutes idle or eight hours absolute;
+  background polls and SSE do not extend idle time. Local CLI pairing management revokes credentials and all their sessions.
+* The phone principal is deny-by-default. Its route inventory grants Monitor, Review, and optional Start; each Start also requires the
+  local owner to opt that Bot in with `hutch bot update NAME --remote-start`. Bot pause only disables scheduled work; an explicit
+  phone start remains an on-demand command when both Start gates are enabled. Paired phones cannot change bot settings, models, tools,
+  provider connections, schedules, secrets, device enrollment, or computer-control settings. They can inspect bot/run status and
+  transcript, decide an exact pending action once or deny, stop/resume within current event checks, and start work under the Bot's
+  existing policy. Permission checks precede replay/admission, and Store rechecks remote authority before a queued run is claimed.
+  Revoking a credential or disabling a Bot cancels its unclaimed remote starts; already claimed work stays visible and needs explicit
+  Stop. Remote WebSockets and computer interaction remain unavailable.
 * **Terminal**: governed command execution first (exists). An interactive PTY (sandboxed, bounded scrollback 1 MiB, resize, cancel, text transcript)
   is built only after the WebSocket auth above lands; **control ownership is a lease** (`agent` | `human`) so input never races; stale or replayed
   frames carry a sequence number and are dropped after reconnect.
@@ -38,9 +50,29 @@ Status: partially implemented (2026-10-07). Slice: S8. Evidence: baseline "recon
 
 ## Consequences
 
-Current boundary: the local `/api/v1` surface and Studio conversation flow are partial. Some
-screens use compatibility routes; approval decisions and Stop use idempotent v1 commands.
-Pairing UX and revocable device sessions plus explicit direct HTTPS binding are implemented and browser-fixture-tested. Cross-run
-transcript/resource replay and bounded reconciliation are implemented. Trusted HTTPS proxy metadata is guarded by local fixtures and
-an explicit capability record, but the tunnel itself and real network path have not been tested. No PTY or browser-control WebSocket
-route, physical-device test, event-retention policy, or production remote-support claim exists. Keep access private and operator-controlled.
+Current boundary: pairing, passkey ceremonies, database-backed sessions, route capabilities, phone supervision, and TLS/proxy checks
+have local regression coverage, including a real Uvicorn HTTPS socket test. The phone UI hides private content when its session expires
+or is revoked and requires explicit reconciliation before retrying an uncertain command. iOS Safari/Android Chrome, live Tailscale
+Serve, LAN certificate installation/renewal, and network isolation have not been manually validated. Remote access remains disabled
+unless explicitly launched and configured; keep it private. No PTY or browser-control WebSocket route, remote computer input,
+production remote-support claim, or transcript-retention policy exists.
+
+## Security references checked
+
+* [W3C Web Authentication Level 3](https://www.w3.org/TR/webauthn-3/) — exact origin validation, required user verification,
+  backup-eligibility state, and why signature counters require different handling for single-device and multi-device credentials.
+* OWASP [Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html),
+  [CSRF Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html), and
+  [Authorization](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html) cheat sheets — server-side idle/absolute
+  expiry, CSRF tokens with SameSite defense in depth, and deny-by-default capabilities.
+* Tailscale [Serve CLI](https://tailscale.com/docs/reference/tailscale-cli/serve), [Serve](https://tailscale.com/docs/features/tailscale-serve),
+  [Funnel CLI](https://tailscale.com/docs/reference/tailscale-cli/funnel), [Funnel](https://tailscale.com/docs/features/tailscale-funnel),
+  [Grants](https://tailscale.com/docs/features/access-control/grants), [ACL defaults](https://tailscale.com/docs/reference/examples/acls),
+  and [HTTPS certificates](https://tailscale.com/docs/how-to/set-up-https-certificates) — Serve is tailnet-only and subject to policy;
+  Funnel is public when configured and shares an exclusive port with Serve. At review time, Tailscale's Serve page says Funnel is
+  enabled by default while its Funnel feature and CLI pages say it is disabled by default. Inspect actual Serve/Funnel status and the
+  effective policy; do not infer exposure from defaults. New tailnets start with an allow-all ACL policy. Tailscale HTTPS hostnames
+  are published in certificate transparency logs even though Serve traffic remains tailnet-restricted. The current Tailscale
+  [Serve proxy source](https://github.com/tailscale/tailscale/blob/main/ipn/ipnlocal/serve.go#L1014-L1036) sets forwarded Host/For
+  headers and sets forwarded Proto when TLS terminates, and marks Funnel traffic; Hutch's trusted-proxy checks depend on these
+  behaviors, reject the Funnel marker, and still require its own passkey authentication.

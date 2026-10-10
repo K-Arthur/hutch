@@ -34,25 +34,44 @@ let currentConversations = [];
 let currentWorkspaceTasks = [];
 let currentCodeHandoffs = [];
 let studioGeneration = 0;
+let studioConversationMenuCleanup = null;
 let activeReplySelectionHandler = null;
 let activeWorkspaceResultSelectionHandler = null;
 let activeBotCreationFromMessageHandler = null;
 let activeChoiceSubmitHandler = null;
 const requestedHumanResumes = new Set();
 const runIntegrityStates = new Map();
+let hutchSession = null;
+let hutchCsrfToken = "";
 
 /* ------------------------------------------------------------------ utils */
 
 async function api(path, opts = {}) {
-  const res = await fetch(`/api${path}`, {
-    ...opts,
-    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
+  const method = (opts.method || "GET").toUpperCase();
+  const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+    if (hutchCsrfToken) headers["X-Hutch-CSRF"] = hutchCsrfToken;
+    if (hutchSession?.principal === "paired") headers["X-Hutch-Request"] = "1";
+  }
+  let res;
+  try {
+    res = await fetch(`/api${path}`, {
+      ...opts,
+      credentials: "same-origin",
+      headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+  } catch (error) {
+    error.status = 0;
+    throw error;
+  }
+  if (res.status === 401 && hutchSession?.principal === "paired") lockExpiredPhone();
   if (!res.ok) {
     let msg = `${res.status}`;
     try { msg = (await res.json()).detail || msg; } catch {}
-    throw new Error(msg);
+    const error = new Error(msg);
+    error.status = res.status;
+    throw error;
   }
   return res.status === 204 ? null : res.json();
 }
@@ -528,6 +547,9 @@ const ICON_PATHS = {
   sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
   moreHorizontal: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
   folder: '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.2 3.9A2 2 0 0 0 7.5 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff: '<path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.2A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a15 15 0 0 1-3.1 3.8M6.2 6.2C3.5 8 2 12 2 12s3.5 7 10 7c1 0 1.9-.2 2.8-.5"/>',
   fileText: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
   hourglass: '<path d="M5 22h14M5 2h14M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"/>',
@@ -810,6 +832,98 @@ function closeRosterActionMenu(restoreFocus = false) {
   if (restoreFocus) trigger?.focus({ preventScroll: true });
 }
 
+function editBotRosterSection(bot, trigger) {
+  const existing = bot.roster_section || "";
+  closeRosterActionMenu(false);
+  openModal({
+    title: existing ? "Move to a section" : "New section",
+    bodyHtml: `<p>Keep related Bots together in the sidebar. Reusing a section name groups them together.</p>
+      <label class="field" for="roster-section-name">Section name
+        <input id="roster-section-name" type="text" maxlength="40" autocomplete="off" value="${esc(existing)}" placeholder="For example, Client work">
+      </label>
+      <p class="hint">Leave the name empty to return this Bot to All bots. This changes organization only.</p>
+      <p id="roster-section-error" class="form-error" role="status" aria-live="polite"></p>`,
+    confirmText: "Save section",
+    returnFocus: trigger,
+    onConfirm: async () => {
+      const input = $("#roster-section-name");
+      const section = input.value.trim().replace(/\s+/g, " ");
+      if (section.length > 40) {
+        $("#roster-section-error").textContent = "Section names can be up to 40 characters.";
+        input.focus();
+        return false;
+      }
+      const confirm = $("#modal-confirm");
+      confirm.disabled = true;
+      try {
+        const saved = await api(`/bots/${encodeURIComponent(bot.name)}`, {
+          method: "PATCH", body: { roster_section: section },
+        });
+        botsCache = botsCache.map(item => item.id === saved.id ? { ...item, ...saved } : item);
+        renderRoster();
+        announce(section ? `${saved.display_name || saved.name} moved to ${section}.` : `${saved.display_name || saved.name} moved to All bots.`);
+        return true;
+      } catch (error) {
+        confirm.disabled = false;
+        $("#roster-section-error").textContent = `Could not save this section: ${error.message}`;
+        return false;
+      }
+    },
+  });
+}
+
+async function prepareBotTemplateDownload(bot, trigger) {
+  closeRosterActionMenu(false);
+  const configuration = {
+    name: bot.name,
+    display_name: bot.display_name || bot.name,
+    template: bot.template || null,
+    description: bot.description || "",
+    instructions: bot.instructions || "",
+    model: bot.model || "",
+    inference_mode: bot.inference_mode || "hybrid",
+    tools: Array.isArray(bot.tools) ? [...bot.tools] : [],
+    memory_enabled: !!bot.memory_enabled,
+    approval_mode: bot.approval_mode || "ask",
+    risk_tier: bot.risk_tier || "supervised",
+    command_rules: Array.isArray(bot.command_rules) ? bot.command_rules : [],
+    workspace_mode: bot.workspace_mode === "folder" ? "managed" : (bot.workspace_mode || "managed"),
+    local_browser_handoff: false,
+    limits: bot.limits || {},
+    // Schedules are intentionally omitted so importing a template never starts recurring work.
+    cron: null,
+    timezone: "UTC",
+    catch_up: "coalesce",
+    schedule_prompt: "",
+  };
+  try {
+    const preview = await api("/v1/bot-configs/preview", { method: "POST", body: configuration });
+    openModal({
+      title: "Share as template",
+      bodyHtml: `<p>Review this setup, then download a YAML file you can share yourself. <b>Nothing is uploaded.</b></p>
+        <p class="hint">Provider URLs, local folders, schedules, memory values, and chat history are excluded. A folder-based Bot becomes a managed workspace in the template. Instructions and enabled tools are included, so check them for private details before sharing.</p>
+        <pre class="setup-yaml-preview bot-template-preview" id="bot-template-preview" tabindex="0" aria-label="Reviewable Bot setup template">${esc(preview.yaml)}</pre>`,
+      confirmText: "Download template",
+      wide: true,
+      returnFocus: trigger,
+      onConfirm: async () => {
+        const blob = new Blob([preview.yaml], { type: "application/yaml;charset=utf-8" });
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = objectUrl;
+        anchor.download = `${(bot.display_name || bot.name).toLowerCase().replace(/[^a-z0-9-]+/g, "-")
+          .replace(/^-+|-+$/g, "").slice(0, 48) || "bot"}-template.yaml`;
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+        return true;
+      },
+    });
+  } catch (error) {
+    toast(`Could not prepare this template: ${error.message}`, true);
+    $$("#roster-list [data-bot-options]").find(button => button.dataset.botOptions === bot.name)?.focus({ preventScroll: true });
+  }
+}
+
 function openRosterActionMenu(trigger) {
   const name = trigger.dataset.botOptions;
   const bot = botsCache.find(item => item.name === name);
@@ -821,7 +935,11 @@ function openRosterActionMenu(trigger) {
   menu.dataset.botName = name;
   menu.setAttribute("role", "menu");
   menu.setAttribute("aria-label", `Options for ${bot.display_name || bot.name}`);
-  menu.innerHTML = `${bot.is_workspace_coordinator ? "" : `<button type="button" role="menuitem" tabindex="-1" data-menu-pin>${icon("pin")} ${bot.pinned ? "Remove from pinned" : "Pin to sidebar"}</button>`}
+  menu.innerHTML = `${bot.is_workspace_coordinator ? "" : `<button type="button" role="menuitem" tabindex="-1" data-menu-pin>${icon("pin")} ${bot.pinned ? "Remove from pinned" : "Pin to sidebar"}</button>
+    <button type="button" role="menuitem" tabindex="-1" data-menu-section>${icon("folder")} ${bot.roster_section ? "Move to a section" : "New section"}</button>
+    `}<button type="button" role="menuitem" tabindex="-1" data-menu-template>${icon("fileText")} Share as template</button>
+    <button type="button" role="menuitem" tabindex="-1" data-menu-duplicate>${icon("bot")} Duplicate bot</button>
+    ${bot.is_workspace_coordinator ? "" : `<button type="button" role="menuitem" tabindex="-1" data-menu-hide>${icon(bot.sidebar_hidden ? "eye" : "eyeOff")} ${bot.sidebar_hidden ? "Show in sidebar" : "Hide from sidebar"}</button>`}
     <a role="menuitem" tabindex="-1" data-menu-settings href="#/bot/${encodeURIComponent(bot.name)}">${icon("sliders")} Bot settings</a>`;
   document.body.append(menu);
   trigger.setAttribute("aria-expanded", "true");
@@ -862,12 +980,46 @@ function openRosterActionMenu(trigger) {
     document.removeEventListener("scroll", onScroll, true);
   };
   menu.querySelector('[data-menu-settings]')?.addEventListener("click", () => closeRosterActionMenu(false));
+  menu.querySelector("[data-menu-section]")?.addEventListener("click", () => editBotRosterSection(bot, trigger));
+  menu.querySelector("[data-menu-template]")?.addEventListener("click", () => prepareBotTemplateDownload(bot, trigger));
+  menu.querySelector("[data-menu-duplicate]")?.addEventListener("click", () => {
+    closeRosterActionMenu(false);
+    void promptNewBot("", "", bot);
+  });
+  menu.querySelector("[data-menu-hide]")?.addEventListener("click", async event => {
+    const action = event.currentTarget;
+    action.disabled = true;
+    action.setAttribute("aria-busy", "true");
+    try {
+      const saved = await api(`/bots/${encodeURIComponent(name)}`, {
+        method: "PATCH", body: { sidebar_hidden: !bot.sidebar_hidden, ...(bot.pinned ? { pinned: false } : {}) },
+      });
+      botsCache = botsCache.map(item => item.id === saved.id ? { ...item, ...saved } : item);
+      closeRosterActionMenu(false);
+      renderRoster();
+      if (saved.sidebar_hidden) {
+        $("#roster-hidden-details summary")?.focus({ preventScroll: true });
+        announce(`${saved.display_name || saved.name} hidden from the roster. Runs and schedules continue.`);
+        toast("Hidden from the roster. This does not pause the Bot or its schedules.");
+      } else {
+        $$("#roster-list [data-bot-options]").find(button => button.dataset.botOptions === name)?.focus({ preventScroll: true });
+        announce(`${saved.display_name || saved.name} shown in the roster.`);
+      }
+    } catch (error) {
+      action.disabled = false;
+      action.removeAttribute("aria-busy");
+      toast(`Could not update ${name}: ${error.message}`, true);
+      action.focus();
+    }
+  });
   menu.querySelector("[data-menu-pin]")?.addEventListener("click", async event => {
     const action = event.currentTarget;
     action.disabled = true;
     action.setAttribute("aria-busy", "true");
     try {
-      const saved = await api(`/bots/${encodeURIComponent(name)}`, { method: "PATCH", body: { pinned: !bot.pinned } });
+      const saved = await api(`/bots/${encodeURIComponent(name)}`, {
+        method: "PATCH", body: { pinned: !bot.pinned, ...(!bot.pinned && bot.sidebar_hidden ? { sidebar_hidden: false } : {}) },
+      });
       botsCache = botsCache.map(item => item.id === saved.id ? { ...item, ...saved } : item);
       closeRosterActionMenu(false);
       renderRoster();
@@ -966,7 +1118,9 @@ function renderRoster() {
   const menuBot = document.getElementById("roster-action-menu")?.dataset.botName || null;
   const focus = document.activeElement;
   const focusedMenuAction = focus?.matches?.("#roster-action-menu [data-menu-settings]") ? "settings"
-    : focus?.matches?.("#roster-action-menu [data-menu-pin]") ? "pin" : null;
+    : focus?.matches?.("#roster-action-menu [data-menu-pin]") ? "pin"
+      : focus?.matches?.("#roster-action-menu [data-menu-section]") ? "section"
+        : focus?.matches?.("#roster-action-menu [data-menu-hide]") ? "hide" : null;
   const focusedBot = list.contains(focus) ? focus.dataset.switchBot : null;
   const focusedOptions = list.contains(focus) ? focus.dataset.botOptions : menuBot;
   closeRosterActionMenu(false);
@@ -977,37 +1131,36 @@ function renderRoster() {
   const byDisplayName = (a, b) => (a.display_name || a.name).localeCompare(b.display_name || b.name, undefined, { sensitivity: "base" })
     || a.name.localeCompare(b.name);
   const coordinatorMatch = coordinator && matches(coordinator) ? coordinator : null;
-  const pinned = botsCache.filter(b => b.id !== coordinator?.id && b.pinned && matches(b)).sort(byDisplayName);
-  const remaining = botsCache.filter(b => b.id !== coordinator?.id && !b.pinned && matches(b)).sort(byDisplayName);
+  const allMatching = botsCache.filter(matches);
+  if (q) {
+    const rows = allMatching.filter(b => b.id !== coordinator?.id).sort(byDisplayName);
+    const rowHtml = b => rosterRowHtml(b, currentStudioBot);
+    list.innerHTML = `${coordinatorMatch ? `<div class="roster-section roster-coordinator">${rosterRowHtml(coordinatorMatch, currentStudioBot)}</div>` : ""}
+      ${rows.length ? `<section class="roster-section" aria-label="Bot search results"><h3 class="roster-section-title">Search results</h3>${rows.map(rowHtml).join("")}</section>`
+        : `<div class="roster-empty">No bot matches.</div>`}`;
+    wireRosterRows(list);
+    wireRosterMenuButtons(list, menuBot, focusedMenuAction);
+    return;
+  }
+  const hidden = botsCache.filter(b => b.id !== coordinator?.id && b.sidebar_hidden);
+  const hiddenSpotlight = hidden.filter(b => botNeedsYou(b) || botState(b) !== "idle");
+  const hiddenIdle = hidden.filter(b => !hiddenSpotlight.includes(b));
+  const inRoster = botsCache.filter(b => b.id !== coordinator?.id && !b.sidebar_hidden);
+  const visible = [...inRoster, ...hiddenSpotlight];
+  const pinned = visible.filter(b => b.pinned).sort(byDisplayName);
+  const remaining = visible.filter(b => !b.pinned).sort(byDisplayName);
   const currentChatBot = /^#\/chat(?:\/|$)/.test(location.hash || "#/chat") ? currentStudioBot : null;
   const needsYou = remaining.filter(b => botNeedsYou(b));
   const inProgress = remaining.filter(b => !botNeedsYou(b) && botState(b) !== "idle" && b.name !== currentChatBot);
   const current = remaining.filter(b => b.name === currentChatBot && !needsYou.includes(b) && !inProgress.includes(b));
   const spotlight = new Set([...needsYou, ...inProgress, ...current]);
   const idle = remaining.filter(b => !spotlight.has(b));
-  const bots = [...(coordinatorMatch ? [coordinatorMatch] : []), ...pinned, ...remaining];
+  const bots = [...(coordinatorMatch ? [coordinatorMatch] : []), ...pinned, ...remaining, ...hiddenIdle];
   if (!bots.length) {
     list.innerHTML = `<div class="roster-empty">${botsCache.length ? "No bot matches." : "No bots yet — create one."}</div>`;
     return;
   }
-  const rowHtml = b => {
-    const state = botState(b);
-    const pip = botNeedsYou(b) ? "waiting" : state === "running" ? "running" : state === "paused" ? "paused" : "";
-    const word = botNeedsYou(b) ? "Needs you" : botStatusLabel(b);
-    const subtitle = b.is_workspace_coordinator ? `Coordinator · ${word}` : word;
-    return `
-      <div class="roster-entry"><button class="roster-row" type="button" data-switch-bot="${esc(b.name)}"
-        ${b.name === currentStudioBot && location.hash.startsWith("#/chat") ? 'aria-current="true"' : ""}
-        title="${esc(b.display_name || b.name)} — ${word}">
-        ${botAvatar(b.name, 30, pip)}
-        <span class="roster-id">
-          <span class="roster-name">${esc(b.display_name || b.name)}</span>
-          <span class="roster-sub">${esc(subtitle)}</span>
-        </span>
-      </button><button class="icon-btn roster-options" type="button" data-bot-options="${esc(b.name)}"
-        aria-label="Options for ${esc(b.display_name || b.name)}" aria-haspopup="menu" aria-expanded="false"
-        title="Bot options">${icon("moreHorizontal")}</button></div>`;
-  };
+  const rowHtml = b => rosterRowHtml(b, currentStudioBot);
   const sections = [];
   if (coordinatorMatch) sections.push(`<div class="roster-section roster-coordinator">${rowHtml(coordinatorMatch)}</div>`);
   if (needsYou.length) sections.push(`<section class="roster-section" aria-label="Bots that need you">
@@ -1017,18 +1170,43 @@ function renderRoster() {
   if (inProgress.length) sections.push(`<section class="roster-section" aria-label="Bots in progress">
     <h3 class="roster-section-title">In progress</h3>${inProgress.map(rowHtml).join("")}</section>`);
   if (current.length) sections.push(`<section class="roster-section" aria-label="Current chat bot">${current.map(rowHtml).join("")}</section>`);
+  const bySection = new Map();
+  for (const bot of idle.filter(item => item.roster_section)) {
+    const label = bot.roster_section.trim();
+    const key = label.toLocaleLowerCase();
+    const group = bySection.get(key) || { label, bots: [] };
+    group.bots.push(bot);
+    bySection.set(key, group);
+  }
+  for (const [key, group] of [...bySection.entries()].sort((a, b) => a[1].label.localeCompare(b[1].label))) {
+    const open = !!store$.get(`hutch:roster-section:${key}`, false);
+    sections.push(`<details class="roster-section roster-idle-details roster-custom-details" data-roster-section="${esc(group.label)}" ${open ? "open" : ""}>
+      <summary aria-label="${esc(group.label)}, ${group.bots.length} Bots">${esc(group.label)} <span class="roster-count">${group.bots.length}</span></summary>
+      <div class="roster-section roster-idle-list">${group.bots.map(rowHtml).join("")}</div></details>`);
+  }
   if (idle.length) {
-    const largeFleet = botsCache.length >= 10 && !q;
-    if (largeFleet) {
+    const ungrouped = idle.filter(item => !item.roster_section);
+    const largeFleet = botsCache.length >= 10;
+    if (!ungrouped.length) {
+      // Every idle Bot is already reachable through a named section.
+    } else if (largeFleet) {
       const allOpen = !!store$.get("hutch:roster-idle-open", false);
       sections.push(`<details class="roster-section roster-idle-details" id="roster-idle-details" ${allOpen ? "open" : ""}>
-        <summary aria-controls="roster-idle-bots">All bots <span class="roster-count">${idle.length}</span></summary>
-        <div class="roster-section roster-idle-list" id="roster-idle-bots">${idle.map(rowHtml).join("")}</div>
+        <summary aria-controls="roster-idle-bots">All bots <span class="roster-count">${ungrouped.length}</span></summary>
+        <div class="roster-section roster-idle-list" id="roster-idle-bots">${ungrouped.map(rowHtml).join("")}</div>
       </details>`);
     } else {
       sections.push(`<section class="roster-section" aria-label="All bots">
-        ${pinned.length || needsYou.length || inProgress.length ? '<h3 class="roster-section-title">All bots</h3>' : ""}${idle.map(rowHtml).join("")}</section>`);
+        ${pinned.length || needsYou.length || inProgress.length ? '<h3 class="roster-section-title">All bots</h3>' : ""}${ungrouped.map(rowHtml).join("")}</section>`);
     }
+  }
+  if (hiddenIdle.length) {
+    const open = !!store$.get("hutch:roster-hidden-open", false);
+    sections.push(`<details class="roster-section roster-idle-details roster-hidden-details" id="roster-hidden-details" ${open ? "open" : ""}>
+      <summary aria-controls="roster-hidden-bots">Hidden bots <span class="roster-count">${hiddenIdle.length}</span></summary>
+      <p class="roster-hidden-note">Hiding changes the roster only. Bot runs and schedules continue.</p>
+      <div class="roster-section roster-idle-list" id="roster-hidden-bots">${hiddenIdle.map(rowHtml).join("")}</div>
+    </details>`);
   }
   list.innerHTML = sections.join("");
   const idleDetails = $("#roster-idle-details");
@@ -1036,21 +1214,12 @@ function renderRoster() {
     if (q) idleDetails.open = true;
     idleDetails.addEventListener("toggle", () => store$.set("hutch:roster-idle-open", idleDetails.open));
   }
-  $$("#roster-list [data-switch-bot]").forEach(row =>
-    row.addEventListener("click", () => { location.hash = `#/chat/${encodeURIComponent(row.dataset.switchBot)}`; }));
-  $$("#roster-list [data-bot-options]").forEach(button => button.addEventListener("click", () => {
-    openRosterActionMenu(button);
+  $$(".roster-custom-details").forEach(details => details.addEventListener("toggle", () => {
+    store$.set(`hutch:roster-section:${details.dataset.rosterSection.toLocaleLowerCase()}`, details.open);
   }));
-  if (menuBot) {
-    const trigger = $$("#roster-list [data-bot-options]").find(button => button.dataset.botOptions === menuBot);
-    if (trigger) {
-      openRosterActionMenu(trigger);
-      const menu = document.getElementById("roster-action-menu");
-      const restore = focusedMenuAction === "settings" ? menu?.querySelector("[data-menu-settings]")
-        : focusedMenuAction === "pin" ? menu?.querySelector("[data-menu-pin]") : menu?.querySelector('[role="menuitem"]');
-      restore?.focus({ preventScroll: true });
-    }
-  }
+  $("#roster-hidden-details")?.addEventListener("toggle", event => store$.set("hutch:roster-hidden-open", event.currentTarget.open));
+  wireRosterRows(list);
+  wireRosterMenuButtons(list, menuBot, focusedMenuAction);
   if (focus && !focus.isConnected && !document.getElementById("roster-action-menu")) {
     const replacement = focusedOptions
       ? $$("#roster-list [data-bot-options]").find(el => el.dataset.botOptions === focusedOptions)
@@ -1059,6 +1228,45 @@ function renderRoster() {
       : null;
     (replacement || $("#bot-search"))?.focus({ preventScroll: true });
   }
+}
+
+function rosterRowHtml(bot, currentStudioBot) {
+  const state = botState(bot);
+  const pip = botNeedsYou(bot) ? "waiting" : state === "running" ? "running" : state === "paused" ? "paused" : "";
+  const word = botNeedsYou(bot) ? "Needs you" : botStatusLabel(bot);
+  const subtitle = [bot.is_workspace_coordinator ? "Coordinator" : "", bot.sidebar_hidden ? "Hidden" : "", word]
+    .filter(Boolean).join(" · ");
+  return `
+    <div class="roster-entry"><button class="roster-row" type="button" data-switch-bot="${esc(bot.name)}"
+      ${bot.name === currentStudioBot && location.hash.startsWith("#/chat") ? 'aria-current="true"' : ""}
+      title="${esc(bot.display_name || bot.name)} — ${esc(subtitle)}">
+      ${botAvatar(bot.name, 30, pip)}
+      <span class="roster-id">
+        <span class="roster-name">${esc(bot.display_name || bot.name)}</span>
+        <span class="roster-sub">${esc(subtitle)}</span>
+      </span>
+    </button><button class="icon-btn roster-options" type="button" data-bot-options="${esc(bot.name)}"
+      aria-label="Options for ${esc(bot.display_name || bot.name)}" aria-haspopup="menu" aria-expanded="false"
+      title="Bot options">${icon("moreHorizontal")}</button></div>`;
+}
+
+function wireRosterRows(list) {
+  $$("[data-switch-bot]", list).forEach(row =>
+    row.addEventListener("click", () => { location.hash = `#/chat/${encodeURIComponent(row.dataset.switchBot)}`; }));
+}
+
+function wireRosterMenuButtons(list, menuBot, focusedMenuAction) {
+  $$("[data-bot-options]", list).forEach(button => button.addEventListener("click", () => openRosterActionMenu(button)));
+  if (!menuBot) return;
+  const trigger = $$("[data-bot-options]", list).find(button => button.dataset.botOptions === menuBot);
+  if (!trigger) return;
+  openRosterActionMenu(trigger);
+  const menu = document.getElementById("roster-action-menu");
+  const selector = focusedMenuAction === "settings" ? "[data-menu-settings]"
+    : focusedMenuAction === "pin" ? "[data-menu-pin]"
+      : focusedMenuAction === "section" ? "[data-menu-section]"
+        : focusedMenuAction === "hide" ? "[data-menu-hide]" : '[role="menuitem"]';
+  menu?.querySelector(selector)?.focus({ preventScroll: true });
 }
 
 /* ---------------------------------------------------------------- shell */
@@ -1421,6 +1629,343 @@ function renderAttention() {  const bar = $("#attention-bar");
 
 /* ------------------------------------------------------- CHAT STUDIO */
 
+function conversationOptionText(conversation) {
+  return `${conversation.unread ? "Unread · " : ""}${conversation.is_legacy ? "Imported · " : ""}${conversation.title || "New conversation"}`;
+}
+
+function conversationOptionGroup(label, conversations) {
+  if (!conversations.length) return "";
+  return `<optgroup label="${esc(label)}">${conversations.map(conversation =>
+    `<option value="${esc(conversation.id)}">${esc(conversationOptionText(conversation))}</option>`).join("")}</optgroup>`;
+}
+
+function conversationOptionsHtml(conversations, selectedId) {
+  const active = conversations.filter(item => !item.archived);
+  const pinned = active.filter(item => item.pinned);
+  const unpinned = active.filter(item => !item.pinned);
+  const sections = new Map();
+  for (const conversation of unpinned.filter(item => item.section)) {
+    const label = conversation.section.trim();
+    const key = label.toLocaleLowerCase();
+    if (!sections.has(key)) sections.set(key, { label, items: [] });
+    sections.get(key).items.push(conversation);
+  }
+  const groupedIds = new Set([...sections.values()].flatMap(group => group.items.map(item => item.id)));
+  const recent = unpinned.filter(item => !groupedIds.has(item.id));
+  const archived = conversations.filter(item => item.archived);
+  return [
+    conversationOptionGroup("Pinned chats", pinned),
+    ...[...sections.values()].sort((a, b) => a.label.localeCompare(b.label))
+      .map(group => conversationOptionGroup(group.label, group.items)),
+    conversationOptionGroup("Recent chats", recent),
+    conversationOptionGroup("Archived chats", archived),
+  ].join("").replace(`<option value="${esc(selectedId)}">`, `<option value="${esc(selectedId)}" selected>`);
+}
+
+function closeStudioConversationMenu(restoreFocus = false) {
+  const details = $("#studio-conversation-actions");
+  if (!details) return;
+  const moreActions = $("#studio-conversation-more");
+  if (moreActions) {
+    moreActions.open = false;
+    $("#studio-conversation-more > summary")?.setAttribute("aria-expanded", "false");
+  }
+  details.open = false;
+  if (restoreFocus) $("#studio-conversation-options")?.focus({ preventScroll: true });
+}
+
+function syncConversationMenuLabels(conversation) {
+  const pin = $("#studio-conversation-pin");
+  if (pin) pin.innerHTML = `${icon("pin")} ${conversation.pinned ? "Unpin conversation" : "Pin conversation"}`;
+  const unread = $("#studio-conversation-unread");
+  if (unread) unread.innerHTML = `${icon("mail")} ${conversation.unread ? "Mark read" : "Mark unread"}`;
+  const section = $("#studio-conversation-section");
+  if (section) section.innerHTML = `${icon("folder")} ${conversation.section ? "Move to a section" : "New section"}`;
+  const archive = $("#studio-archive-conversation");
+  if (archive) archive.innerHTML = `${icon("inbox")} ${conversation.archived ? "Restore conversation" : "Archive conversation"}`;
+}
+
+function editStudioConversationSection(conversation) {
+  closeStudioConversationMenu(false);
+  openModal({
+    title: conversation.section ? "Move chat to a section" : "New chat section",
+    bodyHtml: `<p>Group related conversations for this Bot. Reusing a name places chats together.</p>
+      <label class="field" for="conversation-section-name">Section name
+        <input id="conversation-section-name" type="text" maxlength="40" autocomplete="off" value="${esc(conversation.section || "")}" placeholder="For example, Client work">
+      </label>
+      <p class="hint">Leave this empty to move the chat to Recent chats.</p>
+      <p id="conversation-section-error" class="form-error" role="status" aria-live="polite"></p>`,
+    confirmText: "Save section",
+    returnFocus: $("#studio-conversation-options"),
+    onConfirm: async () => {
+      const input = $("#conversation-section-name");
+      const section = input.value.trim().replace(/\s+/g, " ");
+      if (section.length > 40) {
+        $("#conversation-section-error").textContent = "Section names can be up to 40 characters.";
+        input.focus();
+        return false;
+      }
+      const confirm = $("#modal-confirm");
+      confirm.disabled = true;
+      try {
+        const saved = await api(`/v1/conversations/${encodeURIComponent(conversation.id)}/preferences`, {
+          method: "PATCH", headers: { "Idempotency-Key": newIdempotencyKey() },
+          body: { section: section || null },
+        });
+        Object.assign(conversation, saved);
+        const select = $("#conversation-switcher");
+        if (select) select.innerHTML = conversationOptionsHtml(currentConversations, conversation.id);
+        syncConversationMenuLabels(conversation);
+        announce(section ? `Conversation moved to ${section}.` : "Conversation moved to Recent chats.");
+        return true;
+      } catch (error) {
+        confirm.disabled = false;
+        $("#conversation-section-error").textContent = `Could not save this section: ${error.message}`;
+        return false;
+      }
+    },
+  });
+}
+
+function renameStudioConversation(conversation) {
+  closeStudioConversationMenu(false);
+  openModal({
+    title: "Rename conversation",
+    bodyHtml: `<p>Give this chat a short name that helps you find it later.</p>
+      <label class="field" for="conversation-title-input">Conversation name
+        <input id="conversation-title-input" type="text" maxlength="120" autocomplete="off" value="${esc(conversation.title || "New conversation")}" required>
+      </label>
+      <p id="conversation-title-error" class="form-error" role="status" aria-live="polite"></p>`,
+    confirmText: "Save name",
+    returnFocus: $("#studio-conversation-options"),
+    onConfirm: async () => {
+      const input = $("#conversation-title-input");
+      const title = input.value.trim().replace(/\s+/g, " ");
+      if (!title || title.length > 120) {
+        $("#conversation-title-error").textContent = "Enter a name of up to 120 characters.";
+        input.focus();
+        return false;
+      }
+      const confirm = $("#modal-confirm");
+      confirm.disabled = true;
+      try {
+        const saved = await api(`/v1/conversations/${encodeURIComponent(conversation.id)}/title`, {
+          method: "PATCH", headers: { "Idempotency-Key": newIdempotencyKey() }, body: { title },
+        });
+        Object.assign(conversation, saved);
+        const listedConversation = currentConversations.find(item => item.id === conversation.id);
+        if (listedConversation && listedConversation !== conversation) Object.assign(listedConversation, saved);
+        const select = $("#conversation-switcher");
+        if (select) select.innerHTML = conversationOptionsHtml(currentConversations, conversation.id);
+        announce(`Conversation renamed to ${saved.title}.`);
+        toast(`Conversation renamed to ${saved.title}.`);
+        return true;
+      } catch (error) {
+        confirm.disabled = false;
+        $("#conversation-title-error").textContent = `Could not rename this conversation: ${error.message}`;
+        return false;
+      }
+    },
+  });
+}
+
+async function prepareConversationTaskTemplate(conversation, returnFocus, saveToLibrary = false) {
+  try {
+    const page = await api(`/v1/conversations/${encodeURIComponent(conversation.id)}?after=0&limit=100`);
+    const firstRequest = (page.messages || []).find(message => message.role === "user" && String(message.content || "").trim());
+    if (!firstRequest) {
+      toast("This conversation has no user request to save as a template yet.", true);
+      return;
+    }
+    const prompt = String(firstRequest.content || "");
+    openModal({
+      title: saveToLibrary ? "Save reusable request" : "Download task template",
+      bodyHtml: `<p>This uses the first request only. Later messages, assistant replies, tool activity, files, and account data are excluded.</p>
+        <label class="field" for="task-template-name">Template name
+          <input id="task-template-name" type="text" maxlength="80" autocomplete="off" value="${esc(conversation.title || "Task template")}" required>
+        </label>
+        <label class="field" for="task-template-prompt">Reusable request
+          <textarea id="task-template-prompt" rows="8" maxlength="12000" required>${esc(prompt)}</textarea>
+        </label>
+        <p class="hint">Review and edit both fields. ${saveToLibrary
+          ? "This stays in Hutch’s local database and is included in local state backups. It is not shared with a provider or another person."
+          : "This downloads a local JSON file; nothing is uploaded. Loading it later only fills a draft."}</p>
+        <p id="task-template-error" class="form-error" role="status" aria-live="polite"></p>`,
+      confirmText: saveToLibrary ? "Save request" : "Download template",
+      wide: true,
+      returnFocus,
+      onConfirm: async () => {
+        const nameInput = $("#task-template-name");
+        const promptInput = $("#task-template-prompt");
+        const name = nameInput.value.trim().replace(/\s+/g, " ");
+        const reusablePrompt = promptInput.value.trim();
+        const error = $("#task-template-error");
+        if (!name || name.length > 80) {
+          error.textContent = "Enter a template name of up to 80 characters.";
+          nameInput.focus();
+          return false;
+        }
+        if (!reusablePrompt || reusablePrompt.length > 12000) {
+          error.textContent = "Enter a request of up to 12,000 characters.";
+          promptInput.focus();
+          return false;
+        }
+        const taskTemplate = { kind: "hutch-task-template", version: 1, name, prompt: reusablePrompt };
+        if (saveToLibrary) {
+          const confirm = $("#modal-confirm");
+          confirm.disabled = true;
+          try {
+            await api("/v1/task-templates", {
+              method: "POST", headers: { "Idempotency-Key": newIdempotencyKey() },
+              body: { name, prompt: reusablePrompt },
+            });
+            toast(`“${name}” saved to your reusable requests.`);
+            announce(`Saved reusable request ${name}. It has not been sent.`);
+            return true;
+          } catch (error) {
+            confirm.disabled = false;
+            $("#task-template-error").textContent = `Could not save this request: ${error.message}`;
+            return false;
+          }
+        }
+        const blob = new Blob([JSON.stringify(taskTemplate, null, 2) + "\n"], { type: "application/json;charset=utf-8" });
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = objectUrl;
+        anchor.download = `${name.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "task"}-template.json`;
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+        return true;
+      },
+    });
+  } catch (error) {
+    toast(`Could not prepare this task template: ${error.message}`, true);
+  }
+}
+
+async function openSavedTaskTemplateLibrary({ returnFocus, onUse }) {
+  let templates;
+  try {
+    templates = await api("/v1/task-templates?limit=100");
+  } catch (error) {
+    toast(`Could not load saved requests: ${error.message}`, true);
+    return;
+  }
+  const renderItems = query => {
+    const normalized = query.trim().toLocaleLowerCase();
+    const matches = templates.filter(item => !normalized || `${item.name}\n${item.prompt}`.toLocaleLowerCase().includes(normalized));
+    const list = $("#saved-task-template-list");
+    if (!list) return;
+    list.innerHTML = matches.length ? matches.map(item => `
+      <article class="saved-request-card" role="listitem" data-saved-request="${esc(item.id)}">
+        <div class="saved-request-copy"><h4>${esc(item.name)}</h4><p>${esc(item.prompt.slice(0, 220))}${item.prompt.length > 220 ? "…" : ""}</p></div>
+        <div class="saved-request-actions">
+          <button class="btn primary small" type="button" data-saved-request-use="${esc(item.id)}">Use request</button>
+          <button class="btn ghost small" type="button" data-saved-request-edit="${esc(item.id)}">Edit</button>
+          <button class="btn ghost small" type="button" data-saved-request-delete="${esc(item.id)}">Delete</button>
+        </div>
+      </article>`).join("") : `<p class="hint saved-request-empty">${templates.length
+        ? "No saved requests match that search."
+        : "No saved requests yet. Open a chat’s More menu and save its first request, or import a task-template file."}</p>`;
+  };
+  openModal({
+    title: "Saved requests",
+    bodyHtml: `<p class="hint">Choose a request to place it in this chat’s draft. Nothing is sent until you review and send it.</p>
+      <label class="field" for="saved-task-template-search">Find a saved request
+        <input id="saved-task-template-search" type="search" autocomplete="off" placeholder="Search by name or request">
+      </label>
+      <div class="saved-request-list" id="saved-task-template-list" role="list" aria-label="Saved requests"></div>`,
+    confirmText: "Done", showCancel: false, wide: true, returnFocus,
+  });
+  const search = $("#saved-task-template-search");
+  search.addEventListener("input", () => renderItems(search.value));
+  renderItems("");
+  const scheduleLibraryRefresh = () => setTimeout(() => void openSavedTaskTemplateLibrary({ returnFocus, onUse }), 0);
+  $("#saved-task-template-list").addEventListener("click", async event => {
+    const use = event.target.closest("[data-saved-request-use]");
+    const edit = event.target.closest("[data-saved-request-edit]");
+    const remove = event.target.closest("[data-saved-request-delete]");
+    const id = use?.dataset.savedRequestUse || edit?.dataset.savedRequestEdit || remove?.dataset.savedRequestDelete;
+    const template = templates.find(item => item.id === id);
+    if (!template) return;
+    if (use) {
+      try {
+        onUse(template);
+        $("#modal-confirm")?.click();
+        requestAnimationFrame(() => $("#chat-prompt")?.focus({ preventScroll: true }));
+      } catch (error) {
+        toast(`Could not use this request: ${error.message}`, true);
+      }
+      return;
+    }
+    if (edit) {
+      openModal({
+        title: "Edit saved request",
+        bodyHtml: `<p class="hint">This changes only the local reusable request. It does not change any Bot or past message.</p>
+          <label class="field" for="saved-task-template-name">Request name
+            <input id="saved-task-template-name" maxlength="80" value="${esc(template.name)}" required>
+          </label>
+          <label class="field" for="saved-task-template-prompt">Request text
+            <textarea id="saved-task-template-prompt" rows="8" maxlength="12000" required>${esc(template.prompt)}</textarea>
+          </label>
+          <p id="saved-task-template-error" class="form-error" role="status" aria-live="polite"></p>`,
+        confirmText: "Save changes", wide: true, returnFocus,
+        onCancel: scheduleLibraryRefresh,
+        onConfirm: async () => {
+          const name = $("#saved-task-template-name").value.trim().replace(/\s+/g, " ");
+          const prompt = $("#saved-task-template-prompt").value.trim();
+          const error = $("#saved-task-template-error");
+          if (!name || name.length > 80 || !prompt || prompt.length > 12000) {
+            error.textContent = "Add a name up to 80 characters and request text up to 12,000 characters.";
+            return false;
+          }
+          const confirm = $("#modal-confirm");
+          confirm.disabled = true;
+          try {
+            await api(`/v1/task-templates/${encodeURIComponent(template.id)}`, {
+              method: "PUT", headers: { "Idempotency-Key": newIdempotencyKey() },
+              body: { name, prompt, expected_revision: template.revision },
+            });
+            toast(`Saved changes to “${name}”.`);
+            scheduleLibraryRefresh();
+            return true;
+          } catch (error) {
+            confirm.disabled = false;
+            $("#saved-task-template-error").textContent = `Could not update this request: ${error.message}`;
+            return false;
+          }
+        },
+      });
+      return;
+    }
+    if (remove) {
+      openModal({
+        title: "Delete saved request?",
+        bodyHtml: `<p>“${esc(template.name)}” will be removed from this local library. Existing drafts and chat history are unchanged.</p>`,
+        confirmText: "Delete request", confirmClass: "danger", returnFocus,
+        onCancel: scheduleLibraryRefresh,
+        onConfirm: async () => {
+          const confirm = $("#modal-confirm");
+          confirm.disabled = true;
+          try {
+            await api(`/v1/task-templates/${encodeURIComponent(template.id)}?expected_revision=${template.revision}`, {
+              method: "DELETE", headers: { "Idempotency-Key": newIdempotencyKey() },
+            });
+            templates = templates.filter(item => item.id !== template.id);
+            toast(`Deleted “${template.name}”.`);
+            scheduleLibraryRefresh();
+            return true;
+          } catch (error) {
+            confirm.disabled = false;
+            toast(`Could not delete this request: ${error.message}`, true);
+            return false;
+          }
+        },
+      });
+    }
+  });
+}
+
 async function renderChatStudio(preferredBot = null) {
   const generation = ++studioGeneration;
   const fetchedBots = await api("/bots");
@@ -1446,7 +1991,7 @@ async function renderChatStudio(preferredBot = null) {
   currentStudioBot = bot.name;
   const detail = await api(`/bots/${encodeURIComponent(bot.name)}`);
   if (generation !== studioGeneration) return;
-  currentConversations = await api(`/v1/conversations?bot=${encodeURIComponent(bot.id)}&include_legacy=true&limit=100`);
+  currentConversations = await api(`/v1/conversations?bot=${encodeURIComponent(bot.id)}&include_legacy=true&include_archived=true&limit=100`);
   if (generation !== studioGeneration) return;
   const rememberedConversation = storageGet(`hutch-conversation:${bot.id}`);
   let selectedConversation = currentConversations.find(c => c.id === rememberedConversation) || null;
@@ -1456,6 +2001,15 @@ async function renderChatStudio(preferredBot = null) {
     currentConversations.unshift(selectedConversation);
   }
   if (generation !== studioGeneration) return;
+  if (currentConversationId !== selectedConversation.id && selectedConversation.unread) {
+    try {
+      Object.assign(selectedConversation, await api(`/v1/conversations/${encodeURIComponent(selectedConversation.id)}/preferences`, {
+        method: "PATCH", headers: { "Idempotency-Key": newIdempotencyKey() }, body: { unread: false },
+      }));
+    } catch (error) {
+      toast(`This chat is still marked unread because its read state could not be updated: ${error.message}`, true);
+    }
+  }
   currentConversationId = selectedConversation.id;
   storageSet(`hutch-conversation:${bot.id}`, currentConversationId);
   const activeRun = selectedConversation.active_run_id ? {
@@ -1485,10 +2039,28 @@ async function renderChatStudio(preferredBot = null) {
     <div class="ctx-actions">
       <label class="visually-hidden" for="conversation-switcher">Conversation</label>
       <select class="conversation-select" id="conversation-switcher" aria-label="Conversation">
-        ${currentConversations.map(c => `<option value="${esc(c.id)}" ${c.id === currentConversationId ? "selected" : ""}>${c.is_legacy ? "Imported · " : ""}${c.archived ? "Archived · " : ""}${esc(c.title || "New conversation")}</option>`).join("")}
+        ${conversationOptionsHtml(currentConversations, currentConversationId)}
       </select>
-      <button class="btn ghost small" id="studio-new-conversation" type="button">${icon("plus")} New</button>
-      ${!selectedConversation.is_legacy ? `<button class="btn ghost small" id="studio-archive-conversation" type="button" ${activeRun ? "hidden" : ""}>${selectedConversation.archived ? "Restore" : "Archive"}</button>` : ""}
+      <details class="conversation-actions" id="studio-conversation-actions">
+        <summary class="icon-btn" id="studio-conversation-options" aria-label="Conversation options" title="Conversation options">${icon("moreHorizontal")}</summary>
+        <div class="conversation-actions-panel" aria-label="Conversation actions">
+          <button class="conversation-action-item" id="studio-new-conversation" data-conversation-action="new" type="button">${icon("plus")} New conversation</button>
+          <button class="conversation-action-item" id="studio-rename-conversation" data-conversation-action="rename" type="button">${icon("chat")} Rename conversation</button>
+          <button class="conversation-action-item" id="studio-conversation-pin" data-conversation-action="pin" type="button">${icon("pin")} ${selectedConversation.pinned ? "Unpin conversation" : "Pin conversation"}</button>
+          <button class="conversation-action-item" id="studio-conversation-unread" data-conversation-action="unread" type="button">${icon("mail")} ${selectedConversation.unread ? "Mark read" : "Mark unread"}</button>
+          <button class="conversation-action-item" id="studio-conversation-section" data-conversation-action="section" type="button">${icon("folder")} ${selectedConversation.section ? "Move to a section" : "New section"}</button>
+          <details class="conversation-action-more" id="studio-conversation-more">
+            <summary class="conversation-action-item" aria-label="More conversation actions" aria-expanded="false" aria-controls="studio-conversation-more-panel">${icon("moreHorizontal")} More</summary>
+            <div class="conversation-action-more-panel" id="studio-conversation-more-panel">
+              <button class="conversation-action-item" id="studio-conversation-template-save" data-conversation-action="template-save" type="button">${icon("fileText")} Save reusable request</button>
+              <button class="conversation-action-item" id="studio-conversation-template-download" data-conversation-action="template-download" type="button">${icon("fileText")} Download task template</button>
+              <button class="conversation-action-item" id="studio-conversation-export" data-conversation-action="export" type="button">${icon("fileText")} Export conversation</button>
+              ${!selectedConversation.is_legacy ? `<span class="conversation-action-divider" aria-hidden="true"></span>
+                <button class="conversation-action-item" id="studio-archive-conversation" data-conversation-action="archive" type="button" ${activeRun ? "hidden" : ""}>${icon("inbox")} ${selectedConversation.archived ? "Restore conversation" : "Archive conversation"}</button>` : ""}
+            </div>
+          </details>
+        </div>
+      </details>
       <button class="btn ghost small" id="studio-review-run" type="button" ${activeRun?.status === "waiting_approval" ? "" : "hidden"}>${icon("shield")} Review</button>
       <button class="btn danger small" id="studio-stop-run" type="button" data-stop-target="${esc(activeRun?.id || "")}" ${activeRun ? "" : "hidden"}>${icon("stop")} Stop</button>
       <a class="btn ghost small" href="#/bot/${esc(bot.name)}">${icon("sliders")} Settings</a>
@@ -1521,6 +2093,9 @@ async function renderChatStudio(preferredBot = null) {
                     <button type="button" data-quick="Inspect this repository for TODOs and report findings">${icon("search")} Repo sweep</button>
                   </div>
                   <div class="cmenu-sep"></div>
+                  <button class="cmenu-files" id="prompt-template-library-open" type="button">${icon("fileText")} Browse saved requests</button>
+                  <button class="cmenu-files" id="prompt-template-import" type="button" aria-controls="task-template-file">Import task-template file</button>
+                  <input class="visually-hidden" id="task-template-file" type="file" accept=".json,application/json">
                   <button class="cmenu-files" id="conversation-files-open" type="button">${icon("folder")} Browse files in this chat</button>
                   <button class="cmenu-files" id="conversation-export-open" type="button">Export conversation as JSON</button>
                   <div class="cmenu-sep"></div>
@@ -1549,38 +2124,153 @@ async function renderChatStudio(preferredBot = null) {
     </section>`;
 
   const conversationSwitcher = $("#conversation-switcher");
-  conversationSwitcher?.addEventListener("change", ev => {
-    storageSet(`hutch-conversation:${bot.id}`, ev.target.value);
-    renderChatStudio(bot.name);
-  });
-  $("#studio-new-conversation")?.addEventListener("click", async ev => {
-    const button = ev.currentTarget;
-    button.disabled = true;
-    try {
-      const conversation = await createStudioConversation(bot);
-      storageSet(`hutch-conversation:${bot.id}`, conversation.id);
-      await renderChatStudio(bot.name);
-    } catch (err) {
-      toast(`Could not create a conversation: ${err.message}`, true);
-      button.disabled = false;
+  conversationSwitcher?.addEventListener("change", async ev => {
+    const selectedId = ev.target.value;
+    storageSet(`hutch-conversation:${bot.id}`, selectedId);
+    const target = currentConversations.find(item => item.id === selectedId);
+    if (target?.unread) {
+      try {
+        Object.assign(target, await api(`/v1/conversations/${encodeURIComponent(selectedId)}/preferences`, {
+          method: "PATCH", headers: { "Idempotency-Key": newIdempotencyKey() }, body: { unread: false },
+        }));
+      } catch (error) {
+        toast(`This chat is still marked unread because its read state could not be updated: ${error.message}`, true);
+      }
     }
+    await renderChatStudio(bot.name);
   });
-  $("#studio-archive-conversation")?.addEventListener("click", async ev => {
-    const button = ev.currentTarget;
-    const archived = !selectedConversation.archived;
-    button.disabled = true;
+  studioConversationMenuCleanup?.();
+  const conversationActions = $("#studio-conversation-actions");
+  const conversationOptions = $("#studio-conversation-options");
+  conversationActions?.addEventListener("toggle", () =>
+    conversationOptions?.setAttribute("aria-expanded", String(conversationActions.open)));
+  const moreConversationActions = $("#studio-conversation-more");
+  const moreConversationActionsSummary = $("#studio-conversation-more > summary");
+  moreConversationActions?.addEventListener("toggle", () =>
+    moreConversationActionsSummary?.setAttribute("aria-expanded", String(moreConversationActions.open)));
+  const closeOnOutsidePress = event => {
+    if (conversationActions?.open && !conversationActions.contains(event.target)) closeStudioConversationMenu(false);
+  };
+  const closeOnEscape = event => {
+    if (event.key === "Escape" && conversationActions?.open) {
+      event.preventDefault();
+      if (moreConversationActions?.open) {
+        moreConversationActions.open = false;
+        moreConversationActionsSummary?.focus({ preventScroll: true });
+        return;
+      }
+      closeStudioConversationMenu(true);
+    }
+  };
+  document.addEventListener("pointerdown", closeOnOutsidePress, true);
+  document.addEventListener("keydown", closeOnEscape, true);
+  studioConversationMenuCleanup = () => {
+    document.removeEventListener("pointerdown", closeOnOutsidePress, true);
+    document.removeEventListener("keydown", closeOnEscape, true);
+  };
+  conversationActions?.addEventListener("click", async event => {
+    const action = event.target.closest("[data-conversation-action]");
+    if (!action || action.disabled) return;
+    const kind = action.dataset.conversationAction;
+    if (kind === "new") {
+      closeStudioConversationMenu(false);
+      action.disabled = true;
+      try {
+        const conversation = await createStudioConversation(bot);
+        storageSet(`hutch-conversation:${bot.id}`, conversation.id);
+        await renderChatStudio(bot.name);
+      } catch (error) {
+        toast(`Could not create a conversation: ${error.message}`, true);
+        action.disabled = false;
+      }
+      return;
+    }
+    if (kind === "section") {
+      editStudioConversationSection(selectedConversation);
+      return;
+    }
+    if (kind === "rename") {
+      renameStudioConversation(selectedConversation);
+      return;
+    }
+    if (kind === "template-save" || kind === "template-download") {
+      closeStudioConversationMenu(false);
+      void prepareConversationTaskTemplate(selectedConversation, conversationOptions, kind === "template-save");
+      return;
+    }
+    if (kind === "export") {
+      closeStudioConversationMenu(false);
+      action.disabled = true;
+      try {
+        const payload = await api(`/v1/conversations/${encodeURIComponent(currentConversationId)}/export`);
+        const excluded = payload.scope?.excluded || [];
+        openModal({
+          title: "Export conversation",
+          bodyHtml: `<p>${esc(payload.scope?.notice || "Review the file before sharing it.")}</p>
+            <p><b>Included:</b> ${esc((payload.scope?.included || []).join(", ") || "Conversation details")}</p>
+            <p><b>Excluded:</b> ${esc(excluded.join(", ") || "No excluded data listed")}</p>
+            <p class="hint">This downloads a local JSON file. Hutch will not send or publish it.</p>`,
+          confirmText: "Download JSON",
+          returnFocus: conversationOptions,
+          onConfirm: async () => {
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+            const objectUrl = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = objectUrl;
+            anchor.download = `${bot.name}-${(selectedConversation.title || "conversation").toLowerCase()
+              .replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "conversation"}.json`;
+            anchor.click();
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+            return true;
+          },
+        });
+      } catch (error) {
+        toast(`Could not prepare this export: ${error.message}`, true);
+      } finally {
+        action.disabled = false;
+      }
+      return;
+    }
+    if (kind === "archive") {
+      const archived = !selectedConversation.archived;
+      action.disabled = true;
+      closeStudioConversationMenu(false);
+      try {
+        await api(`/v1/conversations/${encodeURIComponent(currentConversationId)}/archive`, {
+          method: "POST", headers: { "Idempotency-Key": newIdempotencyKey() }, body: { archived },
+        });
+        if (archived) storageRemove(`hutch-conversation:${bot.id}`);
+        toast(archived ? "Conversation archived; restore it from Archived chats." : "Conversation restored.");
+        await renderChatStudio(bot.name);
+      } catch (error) {
+        toast(`Could not update this conversation: ${error.message}`, true);
+        action.disabled = false;
+      }
+      return;
+    }
+    const changes = kind === "pin" ? { pinned: !selectedConversation.pinned }
+      : kind === "unread" ? { unread: !selectedConversation.unread } : null;
+    if (!changes) return;
+    action.disabled = true;
     try {
-      await api(`/v1/conversations/${encodeURIComponent(currentConversationId)}/archive`, {
-        method: "POST",
-        headers: { "Idempotency-Key": newIdempotencyKey() },
-        body: { archived },
+      const saved = await api(`/v1/conversations/${encodeURIComponent(currentConversationId)}/preferences`, {
+        method: "PATCH", headers: { "Idempotency-Key": newIdempotencyKey() }, body: changes,
       });
-      if (archived) storageRemove(`hutch-conversation:${bot.id}`);
-      toast(archived ? "Conversation archived; its history is retained." : "Conversation restored.");
-      await renderChatStudio(bot.name);
-    } catch (err) {
-      toast(`Could not update this conversation: ${err.message}`, true);
-      button.disabled = false;
+      Object.assign(selectedConversation, saved);
+      action.disabled = false;
+      const select = $("#conversation-switcher");
+      if (select) select.innerHTML = conversationOptionsHtml(currentConversations, currentConversationId);
+      syncConversationMenuLabels(selectedConversation);
+      closeStudioConversationMenu(true);
+      const message = kind === "pin" ? `Conversation ${saved.pinned ? "pinned" : "unpinned"}.`
+        : saved.unread ? "Marked unread. It will be marked read when you open this chat again."
+          : "Conversation marked read.";
+      announce(message);
+      toast(message);
+    } catch (error) {
+      toast(`Could not update this conversation: ${error.message}`, true);
+      action.disabled = false;
+      action.focus();
     }
   });
 
@@ -1875,6 +2565,47 @@ async function renderChatStudio(preferredBot = null) {
     menuBtn.setAttribute("aria-expanded", String(open));
     if (open) $("input, button", menu)?.focus();
   };
+  const taskTemplateFile = $("#task-template-file");
+  $("#prompt-template-library-open")?.addEventListener("click", () => {
+    setMenu(false);
+    void openSavedTaskTemplateLibrary({
+      returnFocus: menuBtn,
+      onUse: template => {
+        if (txt.disabled) throw new Error("This conversation is archived. Start a new conversation to use a saved request.");
+        txt.value = template.prompt;
+        txt.dispatchEvent(new Event("input", { bubbles: true }));
+        setMenu(false);
+        announce(`Saved request “${template.name}” added to the draft. Nothing was sent.`);
+      },
+    });
+  });
+  $("#prompt-template-import")?.addEventListener("click", () => taskTemplateFile?.click());
+  taskTemplateFile?.addEventListener("change", async event => {
+    const file = event.currentTarget.files?.[0];
+    if (!file) return;
+    try {
+      if (file.size > 65536) throw new Error("Template files must be 64 KB or smaller.");
+      const taskTemplate = JSON.parse(await file.text());
+      if (!taskTemplate || Array.isArray(taskTemplate) || taskTemplate.kind !== "hutch-task-template"
+          || taskTemplate.version !== 1 || typeof taskTemplate.name !== "string"
+          || !taskTemplate.name.trim() || taskTemplate.name.length > 80
+          || typeof taskTemplate.prompt !== "string" || !taskTemplate.prompt.trim()
+          || taskTemplate.prompt.length > 12000) {
+        throw new Error("Choose a Hutch task template with a name and a request under 12,000 characters.");
+      }
+      if (txt.disabled) throw new Error("This conversation is archived. Start a new conversation to use a template.");
+      txt.value = taskTemplate.prompt;
+      saveDraft(composerDraftId, txt.value);
+      autogrow();
+      setMenu(false);
+      txt.focus();
+      announce(`Task template “${taskTemplate.name.trim()}” loaded into the draft. Nothing was sent.`);
+    } catch (error) {
+      toast(`Could not load this task template: ${error.message}`, true);
+    } finally {
+      taskTemplateFile.value = "";
+    }
+  });
   menuBtn.addEventListener("click", () => setMenu(menu.hidden));
   menu.parentElement.addEventListener("focusout", ev => {
     if (ev.relatedTarget && !menu.parentElement.contains(ev.relatedTarget)) setMenu(false);
@@ -2057,8 +2788,13 @@ async function renderChatFeed() {
   const runIds = [...new Set(messages.filter(m => m.role === "user" && m.run_id).map(m => m.run_id))];
   if (authority.active_run_id && !runIds.includes(authority.active_run_id)) runIds.unshift(authority.active_run_id);
   if (!runIds.length) {
+    const nextHtml = welcomeHtml() + factPanelHtml(factPage.facts || [], factPage.error, factShares);
+    // Polling can return the same snapshot many times. Avoid replacing the
+    // transcript DOM on a no-op refresh: doing so drops focus and invalidates
+    // element references while someone is reading or interacting with a card.
+    if (stream.innerHTML === nextHtml) return;
     const factUi = captureFactUi(stream);
-    stream.innerHTML = welcomeHtml() + factPanelHtml(factPage.facts || [], factPage.error, factShares);
+    stream.innerHTML = nextHtml;
     wireWelcome();
     wireFactControls(factPage.facts || [], currentStudioBot, factShares);
     $('[data-retry-facts]', stream)?.addEventListener('click', () => scheduleFeedRender());
@@ -2103,7 +2839,9 @@ async function renderChatFeed() {
   const focusedReceipt = focused?.dataset.receiptReview;
   const focusedFact = focused?.dataset.factReview;
   const factUi = captureFactUi(stream);
-  stream.innerHTML = parts.join("") + factPanelHtml(factPage.facts || [], factPage.error, factShares);
+  const nextHtml = parts.join("") + factPanelHtml(factPage.facts || [], factPage.error, factShares);
+  if (stream.innerHTML === nextHtml) return;
+  stream.innerHTML = nextHtml;
   $$("[data-approval-card] details", stream).forEach(d => {
     const id = d.closest("[data-approval-card]").dataset.approvalCard;
     if (reviewState.has(id)) d.open = reviewState.get(id);
@@ -2815,17 +3553,19 @@ async function prepareWorkspaceTask(button) {
   const originalRequest = button.dataset.sourceRequest || "";
   const parentConversationId = currentConversationId;
   const returnFocus = button;
-  let sourceAnswerMessage, bots;
+  let sourceAnswerMessage, bots, specialistRoster;
   try {
-    [sourceAnswerMessage, bots] = await Promise.all([
+    [sourceAnswerMessage, bots, specialistRoster] = await Promise.all([
       api(`/v1/conversations/${encodeURIComponent(parentConversationId)}/messages/${encodeURIComponent(sourceAnswer)}`),
       api("/bots"),
+      api("/v1/workspace/specialists"),
     ]);
   } catch (error) { toast(`Could not prepare this task: ${error.message}`, "error"); return; }
   const coordinator = bots.find(bot => bot.name === currentStudioBot);
-  const targets = bots.filter(bot => bot.id !== coordinator?.id);
+  const approvedIds = new Set(specialistRoster.specialist_bot_ids || []);
+  const targets = bots.filter(bot => approvedIds.has(bot.id));
   if (!coordinator?.is_workspace_coordinator) { toast("Select this Bot as the workspace coordinator before assigning tasks.", "error"); return; }
-  if (!targets.length) { toast("Create a specialist Bot before assigning a task.", "error"); return; }
+  if (!targets.length) { toast("No specialists are approved yet. Add a Bot to the roster in workspace coordinator settings.", "error"); return; }
   if (!originalRequest || sourceAnswerMessage.role !== "assistant" || sourceAnswerMessage.run_id !== sourceRun) {
     toast("The coordinator messages no longer match this completed attempt.", "error"); return;
   }
@@ -3643,6 +4383,7 @@ async function renderOverview() {
 
 const SCHEDULE_PAGE_SIZE = 100;
 let scheduleOverview = { rows: [], bots: [], control: null, hasMore: false, generation: 0 };
+let scheduleControlPending = false;
 
 function scheduleNextTime(row) {
   if (!row.next_fire) return "Next time unavailable";
@@ -3664,6 +4405,8 @@ function schedulePauseStatus(row) {
 }
 
 function paintSchedules() {
+  const restoreFocusId = document.activeElement?.id?.startsWith("schedule-")
+    ? document.activeElement.id : null;
   const { rows, bots, control, hasMore } = scheduleOverview;
   const paused = !!control?.paused;
   const empty = rows.length === 0;
@@ -3675,7 +4418,8 @@ function paintSchedules() {
     : `<a class="btn primary" href="#/chat">Create a Bot</a>`;
   setTopContext(`<div class="ctx-id"><h1>Schedules</h1></div>
     <div class="ctx-actions schedule-control-actions"><span class="schedule-control-state" role="status">Workspace schedules ${paused ? "paused" : "active"}</span>
-      <button class="btn ${paused ? "primary" : "ghost"} small" id="schedule-control-toggle" type="button">
+      <button class="btn ${paused ? "primary" : "ghost"} small" id="schedule-control-toggle" type="button"
+        ${scheduleControlPending ? 'aria-disabled="true" aria-busy="true"' : ""}>
         ${paused ? "Resume workspace schedules" : "Pause all schedules"}
       </button></div>`);
   view.innerHTML = `
@@ -3715,16 +4459,22 @@ function paintSchedules() {
 
   const toggle = $("#schedule-control-toggle");
   toggle?.addEventListener("click", async () => {
-    toggle.disabled = true;
+    if (scheduleControlPending) return;
+    scheduleControlPending = true;
+    toggle.setAttribute("aria-disabled", "true");
     toggle.setAttribute("aria-busy", "true");
     try {
       const result = await api("/v1/schedules/control", { method: "PUT", body: { paused: !paused } });
       toast(result.paused ? "Future scheduled starts paused. Existing runs continue." : "Workspace schedule pause removed. Bot-specific pauses remain.");
+      scheduleControlPending = false;
       await renderSchedules();
       $("#schedule-control-toggle")?.focus({ preventScroll: true });
     } catch (error) {
+      scheduleControlPending = false;
       toast(`Schedule control was not changed: ${error.message}`, true);
-      if (toggle.isConnected) { toggle.disabled = false; toggle.removeAttribute("aria-busy"); }
+      const currentToggle = $("#schedule-control-toggle");
+      currentToggle?.removeAttribute("aria-disabled");
+      currentToggle?.removeAttribute("aria-busy");
     }
   });
 
@@ -3745,6 +4495,11 @@ function paintSchedules() {
       if (more.isConnected) { more.disabled = false; more.removeAttribute("aria-busy"); }
     }
   });
+
+  // Resource-feed refreshes can repaint this page while a schedule command is
+  // resolving. Keep keyboard focus on the replacement control across either
+  // repaint so background updates do not strand the user on the document.
+  if (restoreFocusId) document.getElementById(restoreFocusId)?.focus({ preventScroll: true });
 }
 
 async function renderSchedules() {
@@ -4163,6 +4918,12 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   const factsPage = await api(`/v1/bots/${encodeURIComponent(name)}/facts?all_scopes=true&limit=20&offset=${factOffset}&include_archived=${showArchivedFacts}`);
   const factSharesPage = await api(`/v1/bots/${encodeURIComponent(name)}/fact-shares?limit=20`)
     .catch(error => ({incoming:[], outgoing:[], error:error.message}));
+  let specialistRoster = null;
+  let specialistRosterError = "";
+  if (b.is_workspace_coordinator) {
+    try { specialistRoster = await api("/v1/workspace/specialists"); }
+    catch (error) { specialistRosterError = error.message; }
+  }
   const schedules = Array.isArray(b.schedules) ? b.schedules : (b.schedule ? [b.schedule] : []);
   let scheduleRows = [];
   try { scheduleRows = await api(`/v1/schedules?bot=${encodeURIComponent(b.id)}&limit=100&offset=0`); } catch {}
@@ -4201,6 +4962,35 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
 
   const limits = b.limits || {};
   const rules = b.command_rules || [];
+  const specialistRosterHtml = b.is_workspace_coordinator ? `
+          <section class="panel" id="workspace-specialist-roster" aria-labelledby="workspace-specialist-roster-title">
+            <details class="workspace-specialist-settings" id="workspace-specialist-settings" ${specialistRosterError ? "open" : ""}>
+              <summary class="workspace-specialist-summary">
+                <span class="workspace-specialist-heading" id="workspace-specialist-roster-title">Approved specialist Bots</span>
+                <span class="workspace-specialist-count" id="workspace-specialist-roster-count">${specialistRosterError ? "Unavailable" : `${specialistRoster?.specialist_bot_ids.length || 0} approved`}</span>
+                <span class="workspace-specialist-action"><span class="when-closed">Manage</span><span class="when-open">Close</span></span>
+              </summary>
+              <div class="workspace-specialist-content">
+                <p class="hint">Only Bots you approve here can receive new tasks from the coordinator. This changes future assignments; it does not stop existing work or remove its history.</p>
+            ${specialistRosterError
+              ? `<p class="error" role="alert">The roster could not be loaded: ${esc(specialistRosterError)}. Reload this page before changing it.</p>`
+              : specialistRoster?.bots.length
+                ? `${specialistRoster.bots.length > 8 ? `<label class="field">Filter specialist Bots
+                      <input type="search" id="workspace-specialist-filter" aria-controls="workspace-specialist-options" placeholder="Name or address">
+                    </label><p id="workspace-specialist-filter-status" class="hint" role="status">${specialistRoster.bots.length} Bots available.</p>` : ""}
+                  <fieldset class="workspace-specialist-list" id="workspace-specialist-options">
+                    <legend class="sr-only">Bots the coordinator may assign new tasks to</legend>
+                    ${specialistRoster.bots.map(bot => `<label class="workspace-task-fact-choice" data-workspace-specialist-choice>
+                      <input type="checkbox" data-workspace-specialist="${esc(bot.id)}" ${specialistRoster.specialist_bot_ids.includes(bot.id) ? "checked" : ""}>
+                      <span><strong>${esc(bot.display_name || bot.name)}</strong><span>@${esc(bot.name)}</span></span>
+                    </label>`).join("")}
+                  </fieldset>`
+                : `<p class="hint">No other Bots are available yet. Create a Bot first, then add it here.</p>`}
+            <div class="btn-row"><button class="btn primary small" type="button" id="btn-save-workspace-specialists" ${specialistRosterError ? "disabled" : ""}>Save specialist roster</button></div>
+            <p class="hint" id="workspace-specialist-roster-status" aria-live="polite"></p>
+              </div>
+            </details>
+          </section>` : "";
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
       <p class="crumb"><a href="#/chat/${esc(b.name)}">Studio</a> / Settings</p>
@@ -4229,6 +5019,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
                   <button class="btn ghost small" type="button" id="btn-clear-workspace-coordinator">Clear role</button></div>`
               : `<button class="btn ghost small" type="button" id="btn-set-workspace-coordinator">Set as workspace coordinator</button>`}
           </section>
+
+          ${specialistRosterHtml}
 
           <div class="panel" id="idp-panel">
             <div class="panel-title">Identity</div>
@@ -4452,7 +5244,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     const replacement = current && current.id !== b.id
       ? `<p>This replaces <b>${esc(current.display_name || current.name)}</b> as the workspace coordinator. It does not change either Bot’s permissions or settings.</p>`
       : `<p>This makes <b>${esc(b.display_name || b.name)}</b> the main workspace conversation. It does not change the Bot’s permissions or settings.</p>`;
-    openModal({ title: "Set workspace coordinator?", bodyHtml: `${replacement}<p>You can still open a direct conversation with each Bot from the roster.</p>`,
+    openModal({ title: "Set workspace coordinator?", bodyHtml: `${replacement}<p>If this Bot is currently an approved specialist, it will be removed from that roster. The former coordinator will not be added automatically. You can still open a direct conversation with each Bot from the roster.</p>`,
       confirmText: "Set coordinator", returnFocus: $("#btn-set-workspace-coordinator"),
       onConfirm: async () => {
         try {
@@ -4464,6 +5256,35 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
         } catch (err) { toast(`Coordinator not changed: ${err.message}`, true); return false; }
       },
     });
+  });
+  $("#btn-save-workspace-specialists")?.addEventListener("click", async () => {
+    const button = $("#btn-save-workspace-specialists");
+    const ids = $$('[data-workspace-specialist]:checked').map(input => input.dataset.workspaceSpecialist);
+    button.disabled = true;
+    try {
+      const saved = await api("/v1/workspace/specialists", { method: "PUT", body: { bot_ids: ids } });
+      const status = $("#workspace-specialist-roster-status");
+      if (status) status.textContent = `Roster saved. ${saved.specialist_bot_ids.length} specialist ${saved.specialist_bot_ids.length === 1 ? "Bot" : "Bots"} approved for new assignments.`;
+      const count = $("#workspace-specialist-roster-count");
+      if (count) count.textContent = `${saved.specialist_bot_ids.length} approved`;
+      await refreshRoster();
+      button.disabled = false;
+    } catch (err) {
+      toast(`Roster not saved: ${err.message}`, true);
+      button.disabled = false;
+    }
+  });
+  $("#workspace-specialist-filter")?.addEventListener("input", event => {
+    const query = event.currentTarget.value.trim().toLocaleLowerCase();
+    const choices = $$('[data-workspace-specialist-choice]');
+    let shown = 0;
+    for (const choice of choices) {
+      const matches = choice.textContent.toLocaleLowerCase().includes(query);
+      choice.hidden = !matches;
+      shown += Number(matches);
+    }
+    const status = $("#workspace-specialist-filter-status");
+    if (status) status.textContent = `${shown} of ${choices.length} Bots shown.`;
   });
   $("#btn-clear-workspace-coordinator")?.addEventListener("click", () => {
     openModal({ title: "Clear workspace coordinator?", bodyHtml: `<p>${esc(b.display_name || b.name)} will remain a Bot and its direct conversations will stay available. The workspace will not have a selected main conversation.</p>`,
@@ -5775,7 +6596,7 @@ function templateTools(template) {
   return result;
 }
 
-async function promptNewBot(preselect = "", sourceMessageId = "") {
+async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot = null) {
   let templates;
   try { templates = await api("/bots/templates"); }
   catch (err) { toast(`Bot setup is unavailable: ${err.message}`, true); return; }
@@ -5783,7 +6604,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
   try { workspaceDefaults = await api("/v1/preferences/model-defaults"); }
   catch (err) { toast(`Workspace model defaults could not be loaded; choose a route manually. ${err.message}`, true); }
   let conversationSource = null;
-  if (currentConversationId && currentStudioBot && /^#\/chat(?:\/|$)/.test(location.hash || "#/chat")) {
+  if (!duplicateBot && currentConversationId && currentStudioBot && /^#\/chat(?:\/|$)/.test(location.hash || "#/chat")) {
     try {
       const conversationId = currentConversationId;
       const summary = await api(`/v1/conversations/${encodeURIComponent(conversationId)}?after=0&limit=1`);
@@ -5831,22 +6652,28 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
     ? "Experimental on this Linux desktop. A person enters passwords, passcodes and verification codes in the visible browser. Hutch never types them or accepts them in chat. This does not enable phone browser control."
     : `Unavailable on this host: ${browserHandoffCapability.reason} This does not enable phone browser control.`;
   const chosenTemplate = templates.find(item => item.name === preselect) || null;
-  let modelSuggestion = conversationSource?.model_suggestion || workspaceDefaults.model || "";
-  let modelSuggestionSource = conversationSource?.model_suggestion ? "chat" : workspaceDefaults.model ? "workspace" : "";
+  let modelSuggestion = duplicateBot?.model || conversationSource?.model_suggestion || workspaceDefaults.model || "";
+  let modelSuggestionSource = duplicateBot ? "duplicate" : conversationSource?.model_suggestion ? "chat" : workspaceDefaults.model ? "workspace" : "";
   const draft = {
-    step: 0, forceAdvanced: !!chosenTemplate, purpose: conversationSource?.original_request || "", useConversationSource: !!conversationSource,
+    step: 0, forceAdvanced: !!chosenTemplate || !!duplicateBot,
+    purpose: duplicateBot?.instructions || conversationSource?.original_request || "",
+    useConversationSource: !duplicateBot && !!conversationSource,
     selectedContextMessageIds: new Set(),
-    template: chosenTemplate?.name || "", name: "", display_name: "", description: "", model: modelSuggestion,
+    template: chosenTemplate?.name || "", name: "",
+    display_name: duplicateBot ? `${duplicateBot.display_name || duplicateBot.name} copy`.slice(0, 80) : "",
+    description: duplicateBot?.description || "", model: modelSuggestion,
     purposeRefinement: null, purposeRefinementStatus: "",
-    inference_mode: conversationSource?.inference_mode_suggestion || workspaceDefaults.inference_mode || "hybrid",
-    workspace_mode: "managed", tools: templateTools(chosenTemplate), memory_enabled: false,
+    inference_mode: duplicateBot?.inference_mode || conversationSource?.inference_mode_suggestion || workspaceDefaults.inference_mode || "hybrid",
+    workspace_mode: duplicateBot?.workspace_mode === "fresh" ? "fresh" : "managed",
+    // A duplicate is a safe configuration starting point, not a copy of authority.
+    tools: duplicateBot ? new Set() : templateTools(chosenTemplate), memory_enabled: false,
     local_browser_handoff: false,
     cron: "", timezone: "UTC", catch_up: "coalesce", schedule_prompt: "",
     limits: { max_steps: 24, timeout_seconds: 900, daily_token_cap: 200000,
-      max_turn_tokens: 0, max_cost_usd: 0, daily_cost_cap_usd: 0 },
+      max_turn_tokens: 0, max_cost_usd: 0, daily_cost_cap_usd: 0, ...(duplicateBot?.limits || {}) },
   };
   draft.memory_enabled = draft.tools.has("remember") || draft.tools.has("recall");
-  let displayNameEdited = false;
+  let displayNameEdited = !!duplicateBot;
   let addressEdited = false;
   const occupiedAddresses = new Set(botsCache.map(bot => bot.name));
   const uniqueAddress = value => {
@@ -6003,7 +6830,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
         <div><dt>Purpose</dt><dd>${esc(draft.purpose)}</dd></div>
         ${sourceReview}
         ${contextReview}
-        <div><dt>Starting point</dt><dd>${esc(template?.tagline || "Blank bot")}</dd></div>
+        <div><dt>Starting point</dt><dd>${duplicateBot ? `Setup based on ${esc(duplicateBot.display_name || duplicateBot.name)}` : esc(template?.tagline || "Blank bot")}</dd></div>
         <div><dt>Model route</dt><dd>${esc(draft.model)}</dd></div>
         <div><dt>Inference</dt><dd>${esc(draft.inference_mode)}</dd></div>
         <div><dt>Workspace</dt><dd>${esc(draft.workspace_mode)}</dd></div>
@@ -6033,6 +6860,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
     const back = step ? `<button type="button" class="btn ghost small setup-back" id="setup-back">${icon("arrow-left")} Back</button>` : "";
     let content = "";
     if (step === 0) content = `<div class="setup-conversation${draft.forceAdvanced ? "" : " setup-quick"}">
+      ${duplicateBot ? `<p class="hint setup-duplicate-note">Starting from <b>${esc(duplicateBot.display_name || duplicateBot.name)}</b>. Instructions, model route, inference mode, workspace type and limits are copied. Tools, connected accounts, schedules, memory values, custom provider URLs, local folders, browser handoff and chat history are not copied. Review the new setup before saving.</p>` : ""}
       ${conversationSource ? `<label class="setup-context-source"><input id="setup-use-source" type="checkbox" ${draft.useConversationSource ? "checked" : ""}>
         <span><b>Use this request as the Bot’s instructions</b><small>From ${esc(conversationSource.source_bot_name)} · ${esc(conversationSource.conversation_title)} · message ${conversationSource.sequence}.</small><small class="setup-request-preview">${esc(truncate(conversationSource.original_request.replace(/\s+/g, " ").trim(), 220))}</small></span></label>
         ${!draft.forceAdvanced ? `<p class="hint setup-source-note">The request you already gave becomes the starting instructions. No need to enter it again.</p>` : `<p class="setup-assistant">Only this request and earlier user messages you select are included in this Bot draft. Assistant replies and other chats stay private; selected text cannot change tools, accounts or permissions.</p>`}`
@@ -6100,7 +6928,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
         <p class="setup-assistant">${draft.model ? "Hutch found a configured route from this chat or your workspace. Review it below." : "Choose a configured model route. Safe defaults fill the other setup choices."} It becomes the Bot’s saved default; creating the Bot does not start a run.</p>
         <label class="field" for="setup-model">Model route<input id="setup-model" list="setup-model-routes" maxlength="240" autocomplete="off" placeholder="Choose or enter provider/model" value="${esc(draft.model)}" required>
           <datalist id="setup-model-routes">${options}</datalist>
-          <span class="hint">${modelSuggestionSource === "chat" ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route and routing mode: ${esc(conversationSource.model_suggestion)}.` : modelSuggestionSource === "workspace" ? `Workspace default for new Bots: ${esc(workspaceDefaults.model)}.` : modelSuggestionSource === "import" ? `Imported route: ${esc(modelSuggestion)}. Confirm it is configured in Connections.` : "No workspace or chat model route is configured yet."} ${readyRoutes.length ? `${readyRoutes.length} ready route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} Hosted routes send prompts to that provider; local routes use this machine. <a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.</span></label>
+          <span class="hint">${modelSuggestionSource === "chat" ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route and routing mode: ${esc(conversationSource.model_suggestion)}.` : modelSuggestionSource === "duplicate" ? `Copied from ${esc(duplicateBot?.display_name || duplicateBot?.name)}; confirm it is configured in Connections.` : modelSuggestionSource === "workspace" ? `Workspace default for new Bots: ${esc(workspaceDefaults.model)}.` : modelSuggestionSource === "import" ? `Imported route: ${esc(modelSuggestion)}. Confirm it is configured in Connections.` : "No workspace or chat model route is configured yet."} ${readyRoutes.length ? `${readyRoutes.length} ready route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} Hosted routes send prompts to that provider; local routes use this machine. <a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.</span></label>
         <label class="field" for="setup-inference_mode">Inference mode<select id="setup-inference_mode">
           <option value="hybrid" ${draft.inference_mode === "hybrid" ? "selected" : ""}>Hybrid — local or hosted</option>
           <option value="local" ${draft.inference_mode === "local" ? "selected" : ""}>Local — this machine</option>
@@ -6536,19 +7364,328 @@ function reconcileResourceStream(source) {
   resourceRetry = setTimeout(startResourceStream, 1500);
 }
 
+/* ------------------------------------------------------- paired-phone mode */
+
+let phoneRoot = null;
+let phoneModel = { bots: [], runs: [], approvals: [], selectedRun: null, tab: "status", notice: "", offline: false };
+let phonePoll = null;
+let phoneChangeStream = null;
+let phoneRunStream = null;
+let phoneRunStreamId = null;
+let phoneExpiryTimer = null;
+let phoneRefreshInFlight = false;
+let phoneLastActivityTouch = 0;
+let phonePendingCommand = null;
+let phoneUnresolvedCommand = null;
+
+function phoneStorageKey() { return "hutch-phone-pending-command"; }
+
+function phoneLoadPendingCommand() {
+  try {
+    const stored = JSON.parse(sessionStorage.getItem(phoneStorageKey()) || "null");
+    if (stored && stored.method === "POST" && stored.key && stored.path?.startsWith("/v1/")) {
+      if (stored.credential_id === hutchSession?.credential_id) phonePendingCommand = stored;
+      else phoneUnresolvedCommand = stored;
+    }
+  } catch { phonePendingCommand = null; }
+}
+
+function phoneSavePendingCommand() {
+  try {
+    if (phonePendingCommand) sessionStorage.setItem(phoneStorageKey(), JSON.stringify(phonePendingCommand));
+    else if (phoneUnresolvedCommand) sessionStorage.setItem(phoneStorageKey(), JSON.stringify(phoneUnresolvedCommand));
+    else sessionStorage.removeItem(phoneStorageKey());
+  } catch { /* an in-memory retry remains available for this page */ }
+}
+
+function lockExpiredPhone() {
+  if (phoneChangeStream) phoneChangeStream.close();
+  if (phoneRunStream) phoneRunStream.close();
+  clearInterval(phonePoll);
+  clearTimeout(phoneExpiryTimer);
+  phoneChangeStream = phoneRunStream = null;
+  phoneRunStreamId = null;
+  phoneExpiryTimer = null;
+  phoneRoot = null;
+  hutchSession = null;
+  hutchCsrfToken = "";
+  document.body.classList.remove("paired-phone");
+  document.body.replaceChildren();
+  const message = document.createElement("main");
+  message.className = "phone-locked";
+  message.innerHTML = `<h1>Hutch is locked</h1><p>Your paired session expired or was revoked. Private dashboard content has been cleared from this page.</p><a class="btn primary" href="/login">Sign in with your passkey</a>`;
+  document.body.append(message);
+}
+
+function phoneSetSessionExpiry(idleExpiresAt, absoluteExpiresAt) {
+  clearTimeout(phoneExpiryTimer);
+  const deadlines = [Date.parse(idleExpiresAt || ""), Date.parse(absoluteExpiresAt || "")].filter(Number.isFinite);
+  if (!deadlines.length) return;
+  const delay = Math.min(...deadlines) - Date.now();
+  if (delay <= 0) { lockExpiredPhone(); return; }
+  phoneExpiryTimer = setTimeout(lockExpiredPhone, delay);
+}
+
+async function phoneRefresh({ quiet = false } = {}) {
+  if (!phoneRoot || phoneRefreshInFlight || document.hidden) return;
+  phoneRefreshInFlight = true;
+  try {
+    const [bots, runs, approvals] = await Promise.all([
+      api("/bots"), api("/v1/tasks/runs?limit=40"),
+      api("/v1/actions/approvals?status=pending&limit=100"),
+    ]);
+    phoneModel.bots = bots;
+    phoneModel.runs = runs;
+    phoneModel.approvals = approvals;
+    if (phoneModel.selectedRun) {
+      try { phoneModel.selectedRun = await api(`/v1/tasks/runs/${encodeURIComponent(phoneModel.selectedRun.id)}`); }
+      catch (error) { if (error.status !== 404) throw error; phoneModel.selectedRun = null; }
+    }
+    phoneModel.offline = false;
+    if (!quiet) phoneModel.notice = "";
+    phoneRender();
+    phoneAttachRunStream();
+  } catch (error) {
+    if (!phoneRoot) return;
+    phoneModel.offline = true;
+    if (!quiet) phoneModel.notice = `Could not refresh Hutch: ${error.message}. Displayed status may be out of date.`;
+    phoneRender();
+  } finally { phoneRefreshInFlight = false; }
+}
+
+function phoneRender() {
+  if (!phoneRoot) return;
+  const pending = phonePendingCommand;
+  const bots = phoneModel.bots || [];
+  const runs = phoneModel.runs || [];
+  const approvals = phoneModel.approvals || [];
+  const active = new Set(["pending", "loading_model", "running", "waiting_approval", "waiting_human",
+    "waiting_resources", "recovering", "cancelling"]);
+  const selected = phoneModel.selectedRun;
+  const phoneTimestamp = (value) => {
+    if (!value) return "time unavailable";
+    const date = new Date(value);
+    return Number.isNaN(date.valueOf()) ? "time unavailable" : date.toLocaleString(undefined, {
+      month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
+    });
+  };
+  let body = "";
+
+  if (phoneModel.tab === "review") {
+    body = approvals.length ? `<section class="phone-list" aria-label="Pending approvals">${approvals.map(a => {
+      const id = a.approval_id || a.id;
+      const detail = JSON.stringify(a.detail || {}, null, 2);
+      return `<article class="phone-card approval-card"><div class="phone-card-head"><span class="phone-status needs">Needs review</span><span>${esc(a.bot_display_name || a.bot_name || "Bot")}</span></div>
+        <h2>${esc(a.action || "Requested action")}</h2><p class="phone-sub">${esc(a.tool || "Action")} · ${esc(a.risk || "risk unavailable")}${a.outward ? " · sends data outside this machine" : ""}</p>
+        <details><summary>Review exact request</summary><pre>${esc(detail)}</pre>${a.rule ? `<p>${esc(a.rule)}</p>` : ""}</details>
+        <div class="phone-actions"><button class="btn primary" type="button" data-phone-approve="${esc(id)}" data-action-hash="${esc(a.action_hash || "")}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Allow once</button><button class="btn danger" type="button" data-phone-deny="${esc(id)}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Deny</button></div>
+      </article>`;
+    }).join("")}</section>` : `<section class="phone-empty"><h2>Nothing needs review</h2><p>Pending action requests will appear here.</p></section>`;
+  } else if (phoneModel.tab === "runs" && selected) {
+    const events = selected.events || [];
+    body = `<section class="phone-run-detail"><button class="btn ghost" type="button" data-phone-back><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg> All runs</button>
+      <article class="phone-card"><div class="phone-card-head"><span class="phone-status">${esc(selected.status_label || selected.status)}</span><span>${esc(selected.bot_display_name || selected.bot_name || "Bot")}</span></div>
+      <h1>${esc(selected.prompt || "Run")}</h1><p class="phone-sub">Started ${esc(phoneTimestamp(selected.created_at))}</p>
+      ${active.has(selected.status) ? `<button class="btn danger" type="button" data-phone-stop="${esc(selected.id)}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Stop run</button>` : ""}
+      ${selected.status === "waiting_human" ? (() => { const wait = [...events].reverse().find(e => e.type === "human_needed"); return wait ? `<button class="btn primary" type="button" data-phone-resume="${esc(selected.id)}" data-human-seq="${Number(wait.seq) || 0}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Resume after completing the requested step</button>` : ""; })() : ""}
+      </article><h2 class="phone-section-title">Progress</h2>
+      ${events.length ? `<ol class="phone-transcript">${events.map(e => {
+        const d = e.data || {};
+        const content = d.content ?? d.text ?? d.command ?? d.message ?? JSON.stringify(d, null, 2);
+        return `<li><span>${esc(String(e.type || "event").replaceAll("_", " "))} · ${esc(phoneTimestamp(e.ts))}</span><pre>${esc(String(content).slice(0, 6000))}${String(content).length > 6000 ? "\\n… clipped for phone display" : ""}</pre></li>`;
+      }).join("")}</ol>` : `<p class="phone-empty">No transcript events have arrived yet.</p>`}
+      ${selected.events_truncated ? `<p class="phone-sub">Showing the latest transcript window. Open Hutch on its host to inspect older history.</p>` : ""}</section>`;
+  } else if (phoneModel.tab === "runs") {
+    body = runs.length ? `<section class="phone-list" aria-label="Runs">${runs.map(run => `<button class="phone-card phone-run-card" type="button" data-phone-run="${esc(run.id)}"><span class="phone-card-head"><span class="phone-status ${run.needs_person ? "needs" : ""}">${esc(run.status_label || run.status)}</span><span>${esc(run.bot_display_name || run.bot_name || "Bot")}</span></span><strong>${esc(run.prompt || "Run")}</strong><span class="phone-sub">${esc(phoneTimestamp(run.created_at))}</span></button>`).join("")}</section>` : `<section class="phone-empty"><h2>No runs yet</h2><p>Runs started locally or from a paired device will appear here.</p></section>`;
+  } else {
+    const running = runs.filter(run => active.has(run.status));
+    const candidates = bots.filter(bot => bot.remote_start_enabled);
+    body = `<section class="phone-summary"><div><strong>${running.length}</strong><span>in progress</span></div><div><strong>${approvals.length}</strong><span>need review</span></div><div><strong>${bots.length}</strong><span>Bots</span></div></section>
+      <section><h2 class="phone-section-title">Bots</h2>${bots.length ? `<div class="phone-list">${bots.map(bot => `<article class="phone-card"><div class="phone-card-head"><strong>${esc(bot.display_name || bot.name)}</strong><span class="phone-status ${bot.paused ? "needs" : ""}">${bot.paused ? "Paused" : esc(bot.active_run_status_label || "Ready")}</span></div><p class="phone-sub">${esc(bot.description || "")}</p>${bot.paused ? `<span class="phone-sub">Scheduled tasks are paused</span>` : ""}${bot.remote_start_enabled ? `<span class="phone-sub">Phone starts enabled by the local owner</span>` : `<span class="phone-sub">Monitor and review only</span>`}</article>`).join("")}</div>` : `<p class="phone-empty">No Bots are configured.</p>`}</section>
+      <section><h2 class="phone-section-title">Start work</h2>${candidates.length ? `<form class="phone-card phone-start-form" id="phone-start-form"><label>Bot<select name="bot" required>${candidates.map(bot => `<option value="${esc(bot.name)}">${esc(bot.display_name || bot.name)}${bot.paused ? " · scheduled tasks paused" : ""}</option>`).join("")}</select></label><label>What should this Bot do?<textarea name="prompt" rows="4" maxlength="20000" required placeholder="Describe the task"></textarea></label><p class="phone-sub">Uses the Bot’s locally configured model, tools, workspace and approval policy. Starting work here creates an on-demand run; pausing a Bot only pauses its scheduled tasks.</p><button class="btn primary" type="submit" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Start work</button></form>` : `<p class="phone-empty">No Bot is enabled for phone starts. A local owner can enable one with <code>hutch bot update NAME --remote-start</code>.</p>`}</section>
+      <section><h2 class="phone-section-title">Recent runs</h2>${runs.slice(0, 8).map(run => `<button class="phone-card phone-run-card" type="button" data-phone-run="${esc(run.id)}"><span class="phone-card-head"><span class="phone-status ${run.needs_person ? "needs" : ""}">${esc(run.status_label || run.status)}</span><span>${esc(run.bot_display_name || run.bot_name || "Bot")}</span></span><strong>${esc(run.prompt || "Run")}</strong></button>`).join("") || `<p class="phone-empty">No runs to show yet.</p>`}</section>`;
+  }
+
+  phoneRoot.innerHTML = `<header class="phone-header"><a href="/" class="phone-brand" aria-label="Hutch home">hutch <span>supervision</span></a><div class="phone-header-actions"><span class="phone-connection ${phoneModel.offline ? "offline" : ""}" role="status">${phoneModel.offline ? "Reconnect needed" : "Connected"}</span><button class="btn ghost small" type="button" data-phone-refresh>Refresh</button><button class="btn ghost small" type="button" data-phone-logout>Lock</button></div></header>
+    <nav class="phone-tabs" aria-label="Phone supervision"><button type="button" data-phone-tab="status" aria-current="${phoneModel.tab === "status" ? "page" : "false"}">Status</button><button type="button" data-phone-tab="review" aria-current="${phoneModel.tab === "review" ? "page" : "false"}">Review${approvals.length ? ` <span>${approvals.length}</span>` : ""}</button><button type="button" data-phone-tab="runs" aria-current="${phoneModel.tab === "runs" ? "page" : "false"}">Runs</button></nav>
+    <main class="phone-content">${pending ? `<aside class="phone-retry" role="alert"><strong>${esc(pending.label)} may not have been confirmed.</strong><p>Check the current run or approval state. Hutch will only resend if you choose Retry, using the same idempotency key.</p><div class="phone-actions"><button class="btn primary" type="button" data-phone-retry>Retry same request</button><button class="btn ghost" type="button" data-phone-clear-pending>Clear retry</button></div></aside>` : ""}${phoneUnresolvedCommand ? `<aside class="phone-retry" role="alert"><strong>A prior phone command is unresolved.</strong><p>${esc(phoneUnresolvedCommand.label)} used another paired credential. Check current runs and approvals on the host before issuing another command from this device.</p><button class="btn ghost" type="button" data-phone-clear-foreign>I've checked the current state</button></aside>` : ""}${phoneModel.notice ? `<p class="phone-notice" role="status">${esc(phoneModel.notice)}</p>` : ""}${body}</main>`;
+}
+
+function phoneAttachRunStream() {
+  const run = phoneModel.selectedRun;
+  if (!phoneRoot || !run || !["pending", "loading_model", "running", "waiting_approval", "waiting_human", "waiting_resources", "recovering", "cancelling"].includes(run.status)) {
+    if (phoneRunStream) phoneRunStream.close();
+    phoneRunStream = null;
+    phoneRunStreamId = null;
+    return;
+  }
+  if (phoneRunStreamId === run.id) return;
+  if (phoneRunStream) phoneRunStream.close();
+  const source = new EventSource(`/api/v1/tasks/runs/${encodeURIComponent(run.id)}/stream`);
+  phoneRunStream = source;
+  phoneRunStreamId = run.id;
+  source.addEventListener("batch", () => { if (phoneRunStream === source) void phoneRefresh({ quiet: true }); });
+  source.addEventListener("auth_expired", () => { source.close(); lockExpiredPhone(); });
+}
+
+async function phoneQueueCommand(label, path, body = null) {
+  if (phonePendingCommand || phoneUnresolvedCommand) return;
+  const request = { method: "POST", path, body, label, key: newIdempotencyKey(),
+    credential_id: hutchSession?.credential_id };
+  phonePendingCommand = request;
+  phoneSavePendingCommand();
+  await phoneAttemptPending();
+}
+
+async function phoneAttemptPending() {
+  const command = phonePendingCommand;
+  if (!command || !phoneRoot) return;
+  try {
+    const result = await api(command.path, { method: command.method, headers: { "Idempotency-Key": command.key }, body: command.body });
+    phonePendingCommand = null;
+    phoneSavePendingCommand();
+    phoneModel.notice = `${command.label} confirmed.`;
+    if (result?.id && command.path === "/v1/tasks/runs") {
+      try { phoneModel.selectedRun = await api(`/v1/tasks/runs/${encodeURIComponent(result.id)}`); phoneModel.tab = "runs"; }
+      catch { /* list reconciliation below remains authoritative */ }
+    }
+    await phoneRefresh({ quiet: true });
+  } catch (error) {
+    if (!phoneRoot) return;
+    if (error.status === 0 || error.status >= 500) {
+      phoneModel.notice = "The response was not confirmed. Check the visible run or approval state before choosing Retry.";
+    } else {
+      phonePendingCommand = null;
+      phoneSavePendingCommand();
+      phoneModel.notice = `${command.label} was not accepted: ${error.message}. Refresh and review the current state.`;
+    }
+    phoneRender();
+  }
+}
+
+function phoneHandleClick(event) {
+  const button = event.target.closest("button");
+  if (!button || !phoneRoot?.contains(button)) return;
+  if (button.hasAttribute("data-phone-refresh")) void phoneRefresh();
+  else if (button.hasAttribute("data-phone-logout")) {
+    void api("/v1/session/logout", { method: "POST", body: {} }).catch(() => {}).finally(lockExpiredPhone);
+  } else if (button.dataset.phoneTab) { phoneModel.tab = button.dataset.phoneTab; phoneModel.selectedRun = null; phoneRender(); }
+  else if (button.dataset.phoneRun) {
+    const id = button.dataset.phoneRun;
+    void api(`/v1/tasks/runs/${encodeURIComponent(id)}`).then(run => {
+      phoneModel.selectedRun = run; phoneModel.tab = "runs"; phoneRender(); phoneAttachRunStream();
+    }).catch(error => { if (phoneRoot) { phoneModel.notice = `Could not load run: ${error.message}`; phoneRender(); } });
+  } else if (button.hasAttribute("data-phone-back")) { phoneModel.selectedRun = null; phoneRender(); }
+  else if (button.dataset.phoneApprove) {
+    if (!button.dataset.actionHash) { phoneModel.notice = "This approval has no current action fingerprint. Refresh before deciding."; phoneRender(); return; }
+    void phoneQueueCommand("Allow once", `/v1/actions/approvals/${encodeURIComponent(button.dataset.phoneApprove)}/approve`,
+      { always: false, action_hash: button.dataset.actionHash });
+  } else if (button.dataset.phoneDeny) {
+    void phoneQueueCommand("Deny action", `/v1/actions/approvals/${encodeURIComponent(button.dataset.phoneDeny)}/deny`, {});
+  } else if (button.dataset.phoneStop) {
+    void phoneQueueCommand("Stop run", `/v1/tasks/runs/${encodeURIComponent(button.dataset.phoneStop)}/stop`, {});
+  } else if (button.dataset.phoneResume) {
+    const seq = Number(button.dataset.humanSeq);
+    if (seq > 0) void phoneQueueCommand("Resume run", `/v1/tasks/runs/${encodeURIComponent(button.dataset.phoneResume)}/resume`, { human_event_seq: seq });
+  } else if (button.hasAttribute("data-phone-retry")) void phoneAttemptPending();
+  else if (button.hasAttribute("data-phone-clear-pending")) {
+    phonePendingCommand = null; phoneSavePendingCommand(); phoneModel.notice = "Saved retry cleared. Refresh to reconcile current state."; void phoneRefresh({ quiet: true });
+  } else if (button.hasAttribute("data-phone-clear-foreign")) {
+    phoneUnresolvedCommand = null; phoneSavePendingCommand(); phoneModel.notice = "Prior command was cleared after checking current state."; phoneRender();
+  }
+}
+
+function phoneHandleSubmit(event) {
+  const form = event.target.closest("#phone-start-form");
+  if (!form || !phoneRoot?.contains(form)) return;
+  event.preventDefault();
+  if (phonePendingCommand || phoneUnresolvedCommand) return;
+  const data = new FormData(form);
+  const bot = phoneModel.bots.find(item => item.name === data.get("bot"));
+  const prompt = String(data.get("prompt") || "").trim();
+  if (!bot?.remote_start_enabled || !prompt) {
+    phoneModel.notice = "Choose an enabled Bot and enter a task. The local owner controls each Bot’s remote-start setting.";
+    phoneRender();
+    return;
+  }
+  void phoneQueueCommand("Start work", "/v1/tasks/runs", { bot: bot.name, prompt });
+}
+
+function phoneNoteActivity() {
+  if (hutchSession?.principal !== "paired" || !phoneRoot || document.hidden) return;
+  const now = Date.now();
+  if (now - phoneLastActivityTouch < 60_000) return;
+  phoneLastActivityTouch = now;
+  void api("/v1/session/activity", { method: "POST", body: {} }).then(result => {
+    if (phoneRoot) phoneSetSessionExpiry(result.idle_expires_at, result.absolute_expires_at);
+  }).catch(() => {});
+}
+
+function startPhoneApp() {
+  document.body.classList.add("paired-phone");
+  phoneRoot = document.createElement("div");
+  phoneRoot.id = "phone-root";
+  document.body.append(phoneRoot);
+  phoneLoadPendingCommand();
+  phoneSetSessionExpiry(hutchSession.idle_expires_at, hutchSession.absolute_expires_at);
+  phoneRoot.addEventListener("click", phoneHandleClick);
+  phoneRoot.addEventListener("submit", phoneHandleSubmit);
+  document.addEventListener("pointerdown", phoneNoteActivity, { passive: true });
+  document.addEventListener("keydown", phoneNoteActivity);
+  document.addEventListener("click", phoneNoteActivity, { passive: true });
+  phoneRender();
+  void phoneRefresh();
+  phonePoll = setInterval(() => { if (!document.hidden) void phoneRefresh({ quiet: true }); }, 12_000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) void phoneRefresh({ quiet: true }); });
+  window.addEventListener("online", () => { phoneModel.offline = false; void phoneRefresh(); });
+  window.addEventListener("offline", () => { phoneModel.offline = true; phoneRender(); });
+  void api("/v1/snapshot?limit=1").then(snapshot => {
+    if (!phoneRoot) return;
+    const source = new EventSource(`/api/v1/changes/stream?cursor=${encodeURIComponent(snapshot.change_cursor)}`);
+    phoneChangeStream = source;
+    source.addEventListener("changes", () => { if (phoneChangeStream === source) void phoneRefresh({ quiet: true }); });
+    source.addEventListener("snapshot_required", () => { source.close(); if (phoneChangeStream === source) phoneChangeStream = null; void phoneRefresh(); });
+    source.addEventListener("auth_expired", () => { source.close(); lockExpiredPhone(); });
+    source.onerror = () => { if (phoneRoot) { phoneModel.offline = true; phoneRender(); } };
+  }).catch(() => {});
+}
+
+function startOwnerApp() {
+  $("#topbar-new-bot")?.addEventListener("click", promptNewBot);
+  route();
+  void loadStatusInfo();
+  refreshRoster();
+  void startResourceStream();
+  setInterval(() => { refreshBadge(); }, 6000);
+  setInterval(refreshRoster, 20000);
+  pollHealth();
+  setInterval(pollHealth, HEARTBEAT_MS);
+}
+
+async function bootstrapHutchApp() {
+  try {
+    const response = await fetch("/api/v1/session", { credentials: "same-origin", cache: "no-store" });
+    if (response.status === 401) { window.location.replace("/login"); return; }
+    if (!response.ok) throw new Error(`session check failed (${response.status})`);
+    hutchSession = await response.json();
+    hutchCsrfToken = hutchSession.csrf_token || "";
+    if (hutchSession.principal === "paired") startPhoneApp();
+    else startOwnerApp();
+  } catch (error) {
+    document.body.replaceChildren();
+    const panel = document.createElement("main");
+    panel.className = "phone-locked";
+    panel.textContent = `Could not verify the Hutch session: ${error.message}. Reload when the Hutch host is available.`;
+    document.body.append(panel);
+  }
+}
+
 document.addEventListener("visibilitychange", () => {
+  if (hutchSession?.principal === "paired") return;
   if (!document.hidden) {
     refreshChangedResources(["bots", "runs", "approvals", "conversations"]);
     void startResourceStream();
   }
 });
 
-$("#topbar-new-bot")?.addEventListener("click", promptNewBot);
-route();
-void loadStatusInfo();
-refreshRoster();
-void startResourceStream();
-setInterval(() => { refreshBadge(); }, 6000);
-setInterval(refreshRoster, 20000);   // roster activity, gentle
-pollHealth();
-setInterval(pollHealth, HEARTBEAT_MS);
+void bootstrapHutchApp();

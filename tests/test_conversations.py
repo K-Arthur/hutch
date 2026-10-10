@@ -107,6 +107,7 @@ def test_versioned_conversations_are_persisted_and_idempotent(tmp_path, monkeypa
         assert client.post(messages_url, json={"prompt": "This must not run"},
                            headers={"Idempotency-Key": "send-3"}).status_code == 409
         assert client.get("/api/v1/conversations").json() == []
+        assert client.get("/api/v1/conversations?include_archived=true").json()[0]["id"] == conversation["id"]
 
     # The completed history and request de-duplication survive closing every Store connection.
     with TestClient(create_app()) as reopened:
@@ -118,6 +119,91 @@ def test_versioned_conversations_are_persisted_and_idempotent(tmp_path, monkeypa
                                json={"prompt": "Continue with mitigations"},
                                headers={"Idempotency-Key": "send-2"})
         assert replay.status_code == 200 and replay.json()["id"] == second_id
+
+
+def test_conversation_sidebar_preferences_are_durable_idempotent_and_track_unread(conversation_client):
+    client = conversation_client
+    bot = client.post("/api/bots", json={
+        "name": "chat-options", "model": "mock/demo", "tools": [],
+    }).json()
+    created = client.post("/api/v1/conversations", json={"bot": bot["id"], "title": "Research"},
+                          headers={"Idempotency-Key": "chat-options-create"})
+    assert created.status_code == 201, created.text
+    conversation_id = created.json()["id"]
+    url = f"/api/v1/conversations/{conversation_id}/preferences"
+
+    body = {"pinned": True, "unread": True, "section": "Client work"}
+    headers = {"Idempotency-Key": "chat-options-preferences"}
+    change_cursor = client.app.state.store.list_resource_changes()["cursor"]
+    updated = client.patch(url, json=body, headers=headers)
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["pinned"] is True
+    assert updated.json()["unread"] is True
+    assert updated.json()["section"] == "Client work"
+    invalidations = client.app.state.store.list_resource_changes(change_cursor)["changes"]
+    assert any(change["resource"] == "conversations" and change["resource_id"] == conversation_id
+               for change in invalidations)
+    replay = client.patch(url, json=body, headers=headers)
+    assert replay.status_code == 200 and replay.json()["pinned"] is True
+    conflict = client.patch(url, json={**body, "section": "Other"}, headers=headers)
+    assert conflict.status_code == 409
+
+    cleared = client.patch(url, json={"unread": False, "section": "  "},
+                           headers={"Idempotency-Key": "chat-options-read"})
+    assert cleared.status_code == 200 and cleared.json()["unread"] is False
+    assert cleared.json()["section"] is None
+
+    store = client.app.state.store
+    with store._tx() as db:
+        store._insert_conversation_message(
+            db, message_id="chat-options-answer", conversation_id=conversation_id, seq=1,
+            run_id="fixture-run", role="assistant", content="A new answer", created_at="2026-10-09T12:00:00+00:00",
+        )
+    assert client.get(f"/api/v1/conversations/{conversation_id}").json()["unread"] is True
+    assert client.get(f"/api/v1/conversations?bot={bot['id']}").json()[0]["unread"] is True
+
+    snapshot = client.get("/api/v1/snapshot").json()
+    assert next(row for row in snapshot["items"]["conversations"] if row["id"] == conversation_id)["unread"] is True
+
+
+def test_conversation_section_validation_is_bounded_and_can_be_cleared(conversation_client):
+    client = conversation_client
+    bot = client.post("/api/bots", json={"name": "section-bounds", "model": "mock/demo", "tools": []}).json()
+    row, _ = client.app.state.store.create_conversation(
+        bot["id"], "Notes", idem_key="section-bounds", request_hash="section-bounds")
+    url = f"/api/v1/conversations/{row['id']}/preferences"
+    too_long = client.patch(url, json={"section": "x" * 41}, headers={"Idempotency-Key": "too-long"})
+    assert too_long.status_code == 422
+    no_changes = client.patch(url, json={}, headers={"Idempotency-Key": "empty"})
+    assert no_changes.status_code == 422
+
+
+def test_conversation_title_can_be_renamed_with_bounded_idempotent_update(conversation_client):
+    client = conversation_client
+    bot = client.post("/api/bots", json={"name": "rename-chat", "model": "mock/demo", "tools": []}).json()
+    created = client.post("/api/v1/conversations", json={"bot": bot["id"], "title": "Original title"},
+                          headers={"Idempotency-Key": "rename-chat-create"})
+    assert created.status_code == 201, created.text
+    conversation_id = created.json()["id"]
+    url = f"/api/v1/conversations/{conversation_id}/title"
+    headers = {"Idempotency-Key": "rename-chat-title"}
+    change_cursor = client.app.state.store.list_resource_changes()["cursor"]
+
+    renamed = client.patch(url, json={"title": "  Weekly launch review  "}, headers=headers)
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json()["title"] == "Weekly launch review"
+    invalidations = client.app.state.store.list_resource_changes(change_cursor)["changes"]
+    assert any(change["resource"] == "conversations" and change["resource_id"] == conversation_id
+               for change in invalidations)
+    replay = client.patch(url, json={"title": "  Weekly launch review  "}, headers=headers)
+    assert replay.status_code == 200 and replay.json()["title"] == "Weekly launch review"
+    conflict = client.patch(url, json={"title": "Another title"}, headers=headers)
+    assert conflict.status_code == 409
+    assert client.get(f"/api/v1/conversations?bot={bot['id']}").json()[0]["title"] == "Weekly launch review"
+
+    for title, key in (("  ", "rename-chat-empty"), ("x" * 121, "rename-chat-long")):
+        invalid = client.patch(url, json={"title": title}, headers={"Idempotency-Key": key})
+        assert invalid.status_code == 422
 
 
 def test_message_reply_reference_is_scoped_persisted_and_added_as_untrusted_context(tmp_path, monkeypatch):
@@ -616,6 +702,13 @@ def test_coordinator_dispatch_is_reviewed_atomic_and_stays_in_specialist_context
         "memory_fact_ids": [shared_fact.id],
     }
     headers = {"Idempotency-Key": "reviewed-specialist-task"}
+    assert client.get("/api/v1/workspace/specialists").json()["specialist_bot_ids"] == []
+    unlisted = client.post("/api/v1/workspace/tasks", json={**payload, "memory_fact_ids": []},
+                           headers={"Idempotency-Key": "unlisted-specialist-task"})
+    assert unlisted.status_code == 409 and "approved specialist roster" in unlisted.json()["detail"]
+    assert client.app.state.store.list_workspace_tasks(conversation["id"]) == []
+    roster = client.put("/api/v1/workspace/specialists", json={"bot_ids": [specialist["id"]]})
+    assert roster.status_code == 200, roster.text
     dispatched = client.post("/api/v1/workspace/tasks", json=payload, headers=headers)
     assert dispatched.status_code == 201, dispatched.text
     record = dispatched.json()
@@ -808,6 +901,11 @@ def test_coordinator_dispatch_is_reviewed_atomic_and_stays_in_specialist_context
     assert replay.status_code == 200 and replay.json()["id"] == record["id"]
     changed = {**payload, "task_brief": "A different reviewed brief."}
     assert client.post("/api/v1/workspace/tasks", json=changed, headers=headers).status_code == 409
+    removed_from_roster = client.put("/api/v1/workspace/specialists", json={"bot_ids": []})
+    assert removed_from_roster.status_code == 200 and removed_from_roster.json()["specialist_bot_ids"] == []
+    retained = client.get(f"/api/v1/workspace/tasks?conversation_id={conversation['id']}").json()
+    assert [task["id"] for task in retained] == [record["id"]]
+    assert client.get(f"/api/v1/conversations/{record['child_conversation_id']}").status_code == 200
     rows = client.get(f"/api/v1/workspace/tasks?conversation_id={conversation['id']}").json()
     assert len(rows) == 1 and rows[0]["id"] == record["id"] and rows[0]["task_brief"] == reviewed_brief
 
@@ -826,5 +924,6 @@ def test_workspace_task_rejects_wrong_source_and_coordinator_authority(conversat
     assert client.post("/api/v1/workspace/tasks", json=payload,
                        headers={"Idempotency-Key": "dispatch-unselected-coordinator"}).status_code == 409
     assert client.put("/api/v1/workspace/coordinator", json={"bot_id": coordinator["id"]}).status_code == 200
+    assert client.put("/api/v1/workspace/specialists", json={"bot_ids": [specialist["id"]]}).status_code == 200
     assert client.post("/api/v1/workspace/tasks", json=payload,
                        headers={"Idempotency-Key": "dispatch-invalid-source"}).status_code == 409

@@ -130,9 +130,10 @@ class Engine:
         return self.store.submit_run(run, Task(bot_id=bot.id, kind=kind, prompt=prompt))
 
     def submit_idempotent(self, bot: Bot, prompt: str, *, idem_key: str, request_hash: str,
-                          rehearsal: bool = False, model: str = "") -> tuple[Run, bool]:
+                          rehearsal: bool = False, model: str = "",
+                          origin: str = "manual:api:v1") -> tuple[Run, bool]:
         """Submit one versioned manual request with durable retry semantics."""
-        run = Run(bot_id=bot.id, prompt=prompt, origin="manual:api:v1",
+        run = Run(bot_id=bot.id, prompt=prompt, origin=origin,
                   rehearsal=rehearsal, model_override=model)
         task = Task(bot_id=bot.id, kind="on_demand", prompt=prompt)
         return self.store.submit_run_idempotent(run, task, idem_key=idem_key, request_hash=request_hash)

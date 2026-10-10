@@ -40,7 +40,7 @@ grant for held operator review. Desktop, tablet and phone share/revoke flows are
 | S5 providers, budgets and external runtimes | Partial; shared usage reservations, provider compatibility matrix, and per-bot Hybrid/Local/host-gated Offline routing; adapters still fail closed | OpenCode Go uses the provider-issued API-key handoff; it does not import OpenCode's private sign-in state. Conversation-backed runs now reuse their Hutch conversation ID as OpenCode's session header; standalone scheduled runs use their run ID. ChatGPT's local SIWC route matches the current preview tool contract by sending Hutch functions through `additional_tools` input items. Reauthorization retains the selected client/host IDs and uses the saved ID token only as `id_token_hint`; `login_hint` and displayed account email require a verified claim. A browser fixture intercepts the authorization destination locally; eligibility and live account authorization remain unverified. OpenCode v2.0.24's authenticated loopback OpenAPI contract was inspected in isolated temporary state; a minimal schema fixture and bounded SSE parser now capture the installed API's experimental and volatile event-stream limits. Pi's published JSONL framing, response correlation, streamed deltas, `agent_settled` completion and `abort` command have bounded offline helper coverage. These remain protocol helpers, not process adapters: stdout/stderr drainers, brokered permission round-trips, model/instruction/session propagation and sandbox ownership remain. Local permits online tools; experimental Offline uses verified Linux bubblewrap network/PID namespaces and a per-run Unix-socket broker to reach only configured numeric loopback model endpoints, removes browser/web-fetch, scrubs provider/proxy environment, and requires process execution plus strict shell containment. This host's IPv4/IPv6/PID namespace checks and fixture Ollama request pass; no live model or backend provenance was verified. Historical systemd user-scope IP filtering failed and is recorded in D13; it is not used for network enforcement. Local Ollama/LM Studio/vLLM server provenance remains outside Hutch's worker boundary. Schema v10 reserves estimates atomically across Hutch runs and accounts, settles reported use once, and holds uncertain requests for terminal-only reconciliation. No paid/provider request or Pi invocation was made. Local calls now use one kernel-owned slot and eight FIFO waiters; human waits release the slot. Native Ollama checks current headroom before generation; other local backends lack validated memory admission. Experimental Outlook Mail search was added in commit `1e6b73b` with explicit per-Bot mailbox grants and read-only Graph search; fixture and responsive checks pass, but live Microsoft registration, consent and Graph access remain unverified. |
 | S6 conversations and bounded collaboration | Partial; conversation foundation, chat-sourced Bot creation, workspace model-default seeding, artifact discovery/sharing, scoped facts and schema-v38 reusable owner-granted Bot references, alerts, workspaces, recurring-task streams, same-bot delegation, reviewed coordinator handoff/result return, selected task-only coordinator facts, content-free task checkpoints and a narrow no-effect fresh-attempt path are implemented; general recovery and broader collaboration remain open | Schema v8 stores conversations/messages and imports each old run separately. Schema v15 adds immutable versioned reference facts, private chat/run scope, human review, bounded FTS5 recall and paginated history; schema v38 adds immutable one-fact/one-recipient cross-Bot grants, provenance-labelled recall, bilateral revocation, content-free invalidation and backup/restore coverage. Source revisions/archives and either Bot's disabled memory block new recall. Schema v17 adds owner-selected artifact references across chats, including across bots: references retain source provenance, have target-bound downloads and a one-way revocation audit. Both source and target Files lists show active grants and can revoke them. Schema v18 transactionally invalidates both conversations when a grant is created or revoked. Workspaces default to fresh per run; optional 0700 Hutch-managed directories persist across one bot's runs/chats, or an operator may choose a validated user folder. Successful `write_file` actions attach bounded immutable text snapshots; shell-created files are not attached. The composer menu pages run artifacts for its conversation. Schema v22–v24 add bounded same-bot lineage, tree-budget reservations and immutable root capability snapshots. `delegate_task` runs only through the supervised built-in Strict Offline Linux process executor, requires fresh human approval, receives task text only and uses a private child workspace. Child files stay attributed to child runs and are never auto-copied into parent context. Stop cascades through lineage. The exposed call is serial; the default global limit supports one child. Schema v29 adds one coordinator-to-existing-specialist handoff after user review, with separate child chat, capability snapshot, idempotent admission, linked source/brief/assumptions and parent status/latest-response card. Schema v30 exposes the exact successful specialist result message; the user can explicitly attach that source-bound, bounded text snapshot to a coordinator follow-up, where it is marked untrusted. Schema v31 backfills and records immutable, content-free event markers per task, with a bounded latest-16 timeline and materialized count in the coordinator card/API; it is an audit journal and does not resume a worker. Schema v32 lets an owner optionally select up to eight current coordinator facts during the handoff review; immutable 6,000-character-bounded snapshots with source/revision remain attached only to that task and enter as untrusted run context, never specialist saved memory. Provider copies cannot be recalled. The task card reports result message identity. Schema v34 permits one owner-confirmed fresh run from a failed/stopped built-in task only when no tool action or child run was recorded, the specialist chat has no newer run or pending question, the parent chat is active, and the exact capability snapshot is unchanged. The new attempt carries only the reviewed brief/constraints and bounded prior assistant text marked untrusted; actions, receipts, selected facts, credentials and prior tool results never cross. `outcome_unknown`, process restore and external-runtime continuation remain blocked. Open gaps include general recovery, specialist allowlists, multi-step/parallel plans, task cancellation and live model verification. See `delegation.md`. Optional browser alerts are generic and tab-open only; no push delivery. |
 | S7 browser ownership and handoff | Partial | Persistent profiles are per bot and protected by cross-process OS leases. A bot can opt into an experimental, same-session visible browser handoff on a Linux desktop; local fixtures cover configuration, persistence, challenge recheck, and setup cleanup. An owned loopback proxy resolves every HTTP(S)/WebSocket connection, rejects any non-public answer, connects to a checked numeric address, and overrides Chromium's implicit local-address proxy bypass. Service workers are blocked; denial events omit paths and query strings. Local Chromium covers ordinary HTTP, DNS rebinding on redirect, and suppression of unproxied WebRTC UDP against a loopback STUN fixture. HTTPS CONNECT tunnel forwarding and raw WebSocket upgrade are fixture-tested. Live public destinations, other non-HTTP traffic, a headed challenge, remote phone handoff, and dedicated browser descendant cleanup remain open. |
-| S8 versioned API and remote supervision | Partial; API replay improvements in `cd4f402` and `f5696ce`; remote remains experimental | `/api/v1` covers health/status labels, bounded bot/run/approval pages, conversations and conversation-scoped artifacts, search, cross-run transcript cursors, snapshot reconciliation, usage, connection metadata, schedules, capability records, and typed device/pairing resources. Conversation create/message/archive, standalone run creation, one-use human resume, stop, approval resolve and explicit artifact-share/revoke commands are idempotent; changed arguments conflict. Schema v9 adds one-use pairing codes, hash-only revocable device sessions and per-source rate limits. `/pair` exchanges the code; Connections lists sessions, identifies the current device, and revokes sessions. Direct remote binding requires explicit TLS. Schema v11 adds transactional resource invalidations, history cursors, snapshot reconciliation and targeted Studio refresh; the elected supervisor now bounds only this content-free outbox to 50,000 rows, with stale cursors receiving `snapshot_required`. Run transcripts and user records are not pruned. Schema v12 adds recoverable JSONL delivery and visible errors; v13 adds immutable action intents and separate outcome reconciliation; v14 adds a bounded authenticated restore report and execution-hold errors; v17 adds target-bound artifact-share downloads and revocation; v18 adds transactional invalidation of the source conversation when grants are created or revoked; v19 binds versioned Resume to one active human-needed event and owner lease. Studio chat now submits the latest wait sequence through v1; old server-rendered compatibility pages and legacy resume aliases remain. An operator-managed trusted HTTPS reverse proxy requires an exact source allowlist, public hostname allowlist, origin TLS and overwritten HTTPS forwarding headers; local fixtures cover the request boundary, but no tunnel/network/device path is verified. Delegation artifact transfer, authenticated PTY/physical desktop control and remote browser handoff remain open. |
+| S8 versioned API and remote supervision | Partial; schema-v42 passkey phone supervision is implemented in this checkout; live-network and physical-device gates remain open | The `/api/v1` contract includes bounded bot/run/approval resources, transcript streams, snapshot/change reconciliation, typed commands and idempotent admission/resolution. Schema v42 replaces legacy broad device bearer authentication with one-use enrollment, WebAuthn credentials, challenge-bound authentication, hash-only sessions, revocation and per-Bot remote-start opt-in. Paired phones have an exact Monitor/Review/optional Start route inventory; owner settings, connections, schedules, artifacts/exports and computer interaction remain local-only. Remote stays disabled by default. Tailscale Serve to a loopback listener or direct private-interface HTTPS is documented; no public ingress is supported. Focused verification is recorded in the 2026-10-09 checkpoint below. See ADR-0010 and the phone-supervision contract; physical iOS/Android, live Tailscale/LAN, and network-isolation checks remain open. |
 | S9 product integration, performance and visual validation | Partial; evidence captured in `896a774`, `ba1e297`, and later device/workspace/browser checkpoints; schema-v16 event-throughput gate passes | Screenshots and traces cover desktop/tablet/phone and compact phone, plus fixture-driven empty/loading/error/approval/cancelling/reconnecting, pairing, workspace defaults, local browser handoff, coordinator specialist dispatch/result return and its checkpoint timeline. Workspace model-default preferences, new-Bot setup and the reviewed handoff were inspected at 1440×960, 900×1024 and 390×844; the anonymous workflow card was inspected at 1440×900, 900×1024 and 390×844. Provider Connections also has an enabled-preview fixture capture at 1440×960 and 390×844; the official authorization URL is intercepted locally, not contacted. Internal site CTA targets, overflow, page errors, reduced motion, tablist arrows, menu focus, pairing focus, device revocation, workspace focus/validation, browser-setting focus/availability, coordinator handoff and safe-checkpoint review/status, checkpoint readability and result attachment/removal/provenance were checked. The no-mock slice removes seeded-run screenshots and scripted approval controls; the marketing proof is now the actual empty first-run screen. Executor health remains text-labeled and changes with health polling, without decorative pulsing between checks. Schema v16's matched event median is 1.3% above `f5696ce`, below the 20% gate. This is not screen-reader, real-device, live remote, or full workflow certification. See `visual-validation.md`, `device-pairing-visual-validation.md`, `no-mock-validation.md`, and `performance.md`. |
 
 ## Commits
@@ -1806,8 +1806,8 @@ passed. No real reverse proxy, tunnel, network, phone or browser session was use
 visual capture. Existing desktop/tablet/phone evidence remains in the prior S9 checkpoints and is not a live remote test.
 
 The implementation is not a managed tunnel and does not change the marketing support claim. Setup requirements and limitations are
-in [operations](../operations.md#remote-pairing-experimental), [safety](../safety.md#remote-dashboard-access-is-experimental), the
-[API contract](contracts.md#6-remote-pairing-partial-experimental), and [ADR-0010](../adr/0010-api-transport-and-remote-supervision.md).
+in [operations](../operations.md#phone-supervision-over-private-https), [safety](../safety.md#remote-dashboard-access-is-experimental), the
+[API contract](contracts.md#6-phone-supervision-partial-experimental), and [ADR-0010](../adr/0010-api-transport-and-remote-supervision.md).
 S8 still has open PTY, physical desktop, remote-browser-control, replay-retention and live-network gates.
 
 ## Dashboard motion and readable leading (2026-10-09)
@@ -3016,7 +3016,98 @@ The focused API + browser batch, `uv run pytest -q tests/test_api.py tests/e2e/t
 
 Commit `c551483` adds a bounded `POST /api/v1/bot-configs/import` route and a first-step file picker in the guided Bot wizard. The parser accepts only the `hutch.ai/v1` `BotConfig` shape, up to 64 KiB, and rejects YAML aliases, duplicate keys, unsafe tags, excessive nesting, unknown fields, endpoint URLs, local folder paths, chat sources, command rules and unsupported authority. It returns a sanitized unsaved draft with `Cache-Control: no-store`; import has no persistence, run or provider side effect. Credentials, terms acknowledgement and Strict Offline host readiness are deferred until normal Bot creation; route syntax, provider identity, inference-mode policy and the remaining Bot fields are checked during import. The setup then exposes the imported values through the same editable wizard and explicit final **Create bot** action.
 
-The browser also refuses a file over 64 KiB before posting it. API coverage checks exported-preview round-trip, strict parser failures, absence of writes/runs, and that an unavailable local OpenAI key does not prevent review but still prevents final creation. The affected API, model-route, offline-policy and responsive setup batch passed **104 tests with 1 skipped in 45.83s**. JavaScript syntax, Python compilation and `git diff --check` passed. Chromium **153.0.8010.12** / Playwright **1.63.0** coverage exercised desktop **1440×960**, tablet **900×1024**, and phone **390×844**. I inspected the imported setup and review captures; keyboard file selection, the announced status, scrollable review and visible phone actions were verified. The browser made no external request or model call. Screenshots, the reviewed sample, validation metadata and trace are in [`artifacts/bot-setup-import/`](artifacts/bot-setup-import/). No physical phone or screen reader was used.
+
+## S8 passkey phone supervision (schema v42, 2026-10-09)
+
+This checkout replaces the legacy remote device bearer path with one-use pairing enrollment, WebAuthn passkeys, separate revocable
+sessions, an exact phone route/capability inventory, and a local-owner opt-in for each Bot's remote Start capability. The supported
+CLI launch clears any inherited internal remote-enable environment value and sets it only after `--allow-remote` configuration passes.
+Passkey registration and assertions require the configured RP ID, exact HTTPS origin and challenge, a valid signature, and user verification;
+multi-device passkeys remain supported without claiming that one credential identifies one physical phone. Login ceremony creation
+is rate-limited per client. Session idle/absolute deadlines are enforced server-side and background polling does not renew idle time.
+Remote starts use the Bot's saved model and policy; the Store checks credential Start capability and current Bot opt-in at admission
+and claim, while revocation or owner opt-out cancels unclaimed phone work. Claimed work remains visible for an explicit Stop.
+
+Paired phones can read bot/run status and transcripts, review an exact action hash and choose Allow once or Deny, and Stop/Resume
+through existing server checks. Route aliases, exports/artifacts, device administration, Bot/provider/schedule settings and computer
+interaction remain owner-only. Private responses are no-store, browser mutations require same-origin/CSRF checks, and phone streams
+close after authorization expires or is revoked. Hutch remains loopback-only by default; the documented remote paths are Tailscale
+Serve to loopback or an explicitly selected private LAN interface with trusted HTTPS. This implementation did not configure public
+ingress or Funnel; the current Hutch socket is loopback-only, with `HUTCH_REMOTE_ENABLED` and `HUTCH_TRUSTED_PROXIES` unset in its
+process environment. The Tailscale CLI and interface are unavailable here, so pre-existing Serve/Funnel configuration is unverified.
+CLI regression coverage rejects wildcard and public-address binds even when TLS file paths
+are provided.
+
+The broader combined focused verification passed **178 tests in 59.55s** across passkey, pairing/authority, store, API, conversation,
+approval-CAS, SSE-resume, migration, state-snapshot, engine and six browser journeys. Trusted-proxy coverage includes rejecting
+Tailscale's Funnel marker before even the anonymous pairing surface. The paired-phone command journey covers Stop and
+Resume bound to the active human-wait event; another journey simulates a committed approval whose response is dropped and confirms
+the phone retries with the same idempotency key. Browser coverage includes status/transcript/revocation, exact-action
+approval, pair/unlock pages and a Chromium virtual-authenticator journey. The latter performs real WebAuthn enrollment,
+lock, unlock and an opt-in phone Start in Chromium over a real loopback Uvicorn HTTPS socket, including a Bot whose scheduled tasks
+are paused; the resulting on-demand run keeps the paired credential as its origin and the Bot's saved model. Local Ed25519/CBOR
+fixtures also exercise WebAuthn verification. The verifier caps each credential object at 256 KiB and rejects passkey verification
+request bodies above that cap plus 4 KiB at the ASGI boundary, before FastAPI parses JSON. A monitor-only passkey sees no Start
+control even when the Bot itself is enabled. Snapshot, change-feed and idempotent replay tests check that owner-only conversation and
+run metadata are withheld. These are synthetic local proofs and browser fixtures, not physical-phone or public-network validation.
+Live iOS Safari, Android Chrome, Tailscale Serve,
+LAN certificate renewal, and network-isolation checks remain release gates. Python compilation, JavaScript syntax and `git diff --check`
+were rerun at the final source state. Remote access remains disabled by default.
+
+The current official Tailscale pages disagree about Funnel's default state: the [Serve feature page](https://tailscale.com/docs/features/tailscale-serve)
+says enabled, while the [Funnel feature](https://tailscale.com/docs/features/tailscale-funnel) and [CLI pages](https://tailscale.com/docs/reference/tailscale-cli/funnel)
+say disabled. The operations guide therefore requires checking the actual Serve and Funnel status plus the
+effective tailnet policy instead of relying on a default. The Tailscale CLI is unavailable on this host, so those live statuses remain
+unverified; the Hutch listener observed during this audit is loopback-only at `127.0.0.1:8787`. Review of Tailscale's current
+[Serve proxy source](https://github.com/tailscale/tailscale/blob/main/ipn/ipnlocal/serve.go#L1014-L1036) confirms it forwards Host
+and client address, sets Proto for HTTPS, and adds a Funnel marker. Hutch now rejects that marker from its configured proxy. This
+source inspection and synthetic regression do not validate the unavailable installed client or a live Serve connection.
+
+Follow-up hardening on 2026-10-09 corrected `/api/v1/capabilities` to report phone supervision as experimental, describe its
+status/transcript, approval, Stop, current-human-wait Resume, and opt-in Start scope, and state that remote computer interaction is
+unavailable. The API regression failed on the stale capability value before the correction. The auth lifecycle audit also found
+that an enrollment cookie could mint unbounded registration challenges. The Store now caps each flow at 16 in the same transaction;
+the 17th options request returns 429 and does not create another row. A concurrent 32-request regression confirms exactly 16
+challenges are stored under contention. The focused phone/auth/approval/SSE/browser batch passed **180 tests in 64.52s** on this
+source state. Python compilation, dashboard JavaScript syntax, and `git diff --check` also passed.
+A Playwright WebKit launch could not run because the installed package expects the missing `webkit-2359` executable; no browser was
+installed. A fresh listener check found Hutch PID 1895954 bound only to `127.0.0.1:8787`, with `HUTCH_REMOTE_ENABLED` and
+`HUTCH_TRUSTED_PROXIES` unset. The Tailscale CLI is absent, so actual Serve/Funnel state and network policy remain unverified.
+
+Phone visual follow-up on 2026-10-09 inspected seeded approval and run-detail screens in Chromium 153 using 390×844 mobile
+emulation. The screens had no horizontal overflow; approval details and Allow once/Deny controls stayed visible, and status plus
+transcript content remained readable. The audit caught raw ISO timestamps in the phone run view; these now render in the browser's
+local date/time format. The paired-phone browser regression failed before the fix and passed after it. This emulation does not
+replace physical iOS Safari, Android Chrome, or private-network validation. The complete focused phone/auth/approval/SSE batch
+passed **180 tests in 63.08s** on the final source state.
+
+An integration audit found that WebAuthn-on-HTTPS and the phone controls had been tested separately. The
+`test_virtual_passkey_pairs_locks_and_unlocks_over_https` journey now enrolls and unlocks a virtual passkey over real Uvicorn TLS,
+approves an exact action with its hash, CSRF token and idempotency key, starts the opted-in Bot, Stops that run, and Resumes a
+separate run at its current human-wait event. The focused phone/auth/approval/SSE batch passed **180 tests in 75.81s** with this
+combined flow. The operations guide now has a pre-enable iOS/Android, recovery, revocation, and ingress checklist. This host has a
+private Wi-Fi address but no Tailscale CLI, Android device bridge, or Apple simulator; no listener or network exposure was changed.
+
+The private-certificate check was strengthened with `test_chromium_trusts_a_private_https_certificate_chain`: it imports a
+temporary CA into an isolated Chromium NSS profile and loads an exact-host HTTPS site with Playwright certificate-error bypass
+disabled. The full focused phone/auth/approval/SSE batch, now including this test, passed **181 tests in 67.75s**. This validates
+Chromium's private-CA path on this host; it does not prove iOS/Android trust-store setup or a live LAN/Tailscale route.
+
+## Shared design system across Studio, Connections, and marketing (2026-10-09)
+
+Commit `462a374` makes `website/tokens.json` the shared semantic source for the operator app, supporting server pages, and static
+marketing build. Studio and the in-app `/#/connections` surface use the same shell, controls, surface ramp, body type, focus color,
+and radius scale; marketing keeps its editorial layout and 3D mascot while sharing the core palette, body type, and component
+geometry. `DESIGN.md` on `main` remains authoritative. The earlier `/connections` capture was a legacy HTML route and was excluded
+from the product comparison.
+
+`npm run build:css`, `python scripts/build_site_tokens.py --check`, and
+`.venv/bin/python -m pytest -q tests/test_site_tokens.py tests/e2e/test_design_system.py --no-header` passed; the focused tests
+reported **8 passed**. The anonymous marketing browser suite reported **27 passed**. Twelve screenshots were inspected: Studio and
+Connections at desktop **1440×960**, tablet **900×1024**, and phone **390×844**, plus marketing viewport and full-page captures at
+each size. The 320×740 reflow check found no horizontal overflow. Chromium **153.0.8010.12** / Playwright **1.63.0** made no
+external requests and no provider calls. These are local fixture checks, not screen-reader or physical-device validation; the
+screenshots, trace, and validation JSON are in [`artifacts/design-system/`](artifacts/design-system/).
 
 ## Bot setup and roster usability (2026-10-09)
 
@@ -3040,3 +3131,72 @@ phone drawer; and the 10-Bot example kept idle Bots reachable by search and keyb
 provider calls. No physical phone or screen reader was used. Evidence and traces are in
 [`artifacts/simple-bot-setup/`](artifacts/simple-bot-setup/), [`artifacts/pinned-roster/`](artifacts/pinned-roster/), and
 [`artifacts/compact-roster/`](artifacts/compact-roster/).
+
+## Bot/chat options and UI regression follow-through (2026-10-09)
+
+The conversation overflow menu adds persistent rename, pin, unread/read, named sections,
+reviewed local export and recoverable archive/restore. The single Bot overflow menu keeps
+pin, section, hide/show, settings, safe template download and editable safe duplication.
+Duplicate setup carries the existing standing instructions, model route, inference mode,
+workspace type and limits; it leaves connected account/tool authority, schedules, memory
+values, history, external endpoints and local paths behind. The research note records
+current Grok Bot management documentation and Open WebUI organization patterns, while
+treating individual user reports as scenarios rather than prevalence claims. Mobbin remained
+plan-gated and the Figma preview remained too zoomed out for component-level inspection.
+
+The focused persistence/template/duplicate/roster/quick-create batch passed **42 tests in
+22.51s**. A broader diagnostic run was stopped after **516 passed and 6 failed in 582.18s**;
+the failures were schedule focus restoration, running-status animation/heading leading,
+roster-menu interaction verification, and three old-schema migration fixtures. The schedule
+control now stays focusable while busy and restores focus after overlapping refreshes;
+running status no longer pulses; server page headings use a 1.4 line-height; the roster
+browser check verifies the actual menu click, Escape close and focus return; and the v21–v23
+fixture helper removes the v43 columns and invalidation triggers before replaying migrations.
+After those repairs, the migration tests passed **3**, schedule/dashboard/roster browser tests
+passed **3**, and conversation/duplicate checks passed **4**. The full suite remains
+unverified after these changes.
+
+Final screenshots and traces are under [`artifacts/conversation-options/`](artifacts/conversation-options/)
+and [`artifacts/bot-chat-options/`](artifacts/bot-chat-options/). Menu screenshots cover
+1440×960 desktop, 900×1024 tablet, 390×844 phone, and 320×844 compact phone; safe-duplicate
+setup/review covers desktop, tablet and phone. The captures report no horizontal overflow,
+page errors or provider calls; the conversation and duplicate tests also recorded no external
+requests. Dashboard captures were inspected at all three viewports. These are local Chromium
+**153.0.8010.12** / Playwright **1.63.0** fixtures; there was no live provider, external
+account, physical-phone or screen-reader test.
+
+## Conversation templates and shared typography token check (2026-10-10)
+
+The conversation menu keeps the frequent actions visible and groups template, export and archive under a nested **More** disclosure.
+Saving a task template reviews an editable name and only the first user request; importing the versioned local JSON fills the composer
+draft and starts no run. The exported document excludes assistant replies, tools, files, account grants and conversation identifiers.
+The public docs now distinguish this local file workflow from Grok's link sharing and record Open WebUI's prompt-library pattern and
+its persistent typed-variable/slash-command capability as a future product option.
+
+The scoped browser batch passed **6 tests in 25.45s** after the final CSS and task-template changes: conversation options, Bot template,
+safe duplicate, recoverable roster hide/section, dashboard status/heading, and schedule focus restoration. The conversation-options test
+also captured review at desktop **1440×960**, tablet **900×1024**, phone **390×844** and More at compact phone **320×844**. Chromium
+**153.0.8010.12** / Playwright **1.63.0**; no provider calls or external requests. `scripts/build_site_tokens.py --check`, scoped design
+detection, JavaScript syntax, Python compilation and `git diff --check` passed. The Impeccable sidecar now agrees with the main-branch
+`DESIGN.md` heading, section, brand and steady-status roles. Token alignment and the sidecar refresh are committed as `0b6cbe8`.
+The full test suite has not been rerun after the previous interrupted
+diagnostic run and is not a release pass. Screen-reader, physical-phone, and performance-profile evidence remain open; see
+[`ui-audit-2026-10-10.md`](ui-audit-2026-10-10.md).
+
+## Saved request library and stable command replay (2026-10-10)
+
+The local saved-request feature is now reachable both from a conversation's **More** menu and the chat composer. Reuse fills only
+the draft. The marketing workflow card now explains that local behavior and is covered by an anonymous browser assertion plus
+responsive screenshots. The original saved-request API/UI checks remain in `tests/test_task_templates.py` and
+`tests/e2e/test_saved_requests.py`.
+
+A test-first regression exposed that create/update idempotency entries stored only a resource ID, so a lost-response retry after a
+later edit returned the newer version, and a retry after deletion raised an internal error. Create/update now persist and replay the
+original resource snapshot. The regression first failed on the changed revision and content, then passed after the fix. Latest
+verification for this slice: API/migration tests **23 passed** (including both saved-request API cases); saved-request browser journey
+**1 passed**; anonymous marketing suite **27 passed**; JS syntax, Python compilation, and `git diff --check` passed. The all-tests
+diagnostic completed with **1,689 passed, 4 failed, and 1 teardown error in 872.90s**. Three legacy migration fixtures retained the
+v44 saved-request table while simulating v21–v23; the remaining browser test clicked Archive before opening nested **More**. After
+fixing those test fixtures and ensuring browser-context cleanup, the affected cases passed targeted reruns (**3 migration, 1
+browser**). The full suite has not been rerun after these corrections. Visual evidence is under
+[`artifacts/saved-requests/`](artifacts/saved-requests/). No changes are pushed or published.

@@ -214,14 +214,14 @@ def quarantine(store, manifest: dict, manifest_hash: str) -> dict:
             ('tasks', "SELECT id, state FROM tasks WHERE done = 0"),
             ('processes', "SELECT CAST(id AS TEXT), kind FROM run_procs WHERE ended_at IS NULL AND detached_at IS NULL"),
             ('approvals', "SELECT id, status FROM approvals WHERE status = 'pending'"),
-            ('devices', "SELECT id, label FROM device_sessions WHERE revoked_at IS NULL"),
+            ('devices', "SELECT id, label FROM paired_credentials WHERE revoked_at IS NULL"),
             ('standing_permissions', "SELECT bot_id || ':' || sticky_key, 'granted' FROM tool_allows"),
             ('bots', "SELECT id, CASE WHEN json_extract(doc, '$.paused') THEN 'paused' ELSE 'enabled' END FROM bots"),
         )
         for kind, query in specifications:
             # Device labels, permission keys and prompts do not enter the public report.
             if kind == 'devices':
-                query = "SELECT id, 'active' FROM device_sessions WHERE revoked_at IS NULL"
+                query = "SELECT id, 'active' FROM paired_credentials WHERE revoked_at IS NULL"
             if kind == 'standing_permissions':
                 counts[kind] = db.execute('SELECT COUNT(*) FROM tool_allows').fetchone()[0]
                 continue
@@ -254,10 +254,14 @@ def quarantine(store, manifest: dict, manifest_hash: str) -> dict:
                    "'$.resolved_at', ?, '$.resolution', 'snapshot restored; permission is not transferable') "
                    "WHERE status = 'pending'", (now,))
         db.execute("UPDATE device_sessions SET revoked_at = ? WHERE revoked_at IS NULL", (now,))
+        db.execute("UPDATE paired_credentials SET revoked_at = ? WHERE revoked_at IS NULL", (now,))
+        db.execute("UPDATE auth_sessions SET revoked_at = ? WHERE revoked_at IS NULL", (now,))
+        db.execute("DELETE FROM auth_challenges")
+        db.execute("DELETE FROM passkey_attempts")
         db.execute("DELETE FROM pairing_codes")
         db.execute("DELETE FROM pairing_attempts")
         db.execute("DELETE FROM tool_allows")
-        db.execute("UPDATE bots SET doc = json_set(doc, '$.paused', json('true'))")
+        db.execute("UPDATE bots SET doc = json_set(doc, '$.paused', json('true'), '$.remote_start_enabled', json('false'))")
         db.execute("UPDATE supervisor_leases SET owner = '', expires_at = NULL, fence = fence + 1")
         db.execute("UPDATE runs SET pgid = 0 WHERE id IN "
                    "(SELECT resource_id FROM state_restore_items WHERE restore_id = ? AND kind = 'runs')", (restore_id,))

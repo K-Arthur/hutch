@@ -340,6 +340,22 @@ def test_named_workspace_coordinator_is_recoverable_and_clears_when_bot_is_delet
         assert bots[coordinator["id"]]["is_workspace_coordinator"] is True
         assert bots[specialist["id"]]["is_workspace_coordinator"] is False
 
+        roster = client.get("/api/v1/workspace/specialists")
+        assert roster.status_code == 200, roster.text
+        assert roster.json()["coordinator_bot_id"] == coordinator["id"]
+        assert roster.json()["specialist_bot_ids"] == []
+        assert roster.json()["bots"] == [{"id": specialist["id"], "name": specialist["name"],
+                                          "display_name": specialist["display_name"]}]
+        cursor = client.app.state.store.list_resource_changes()["cursor"]
+        saved_roster = client.put("/api/v1/workspace/specialists", json={"bot_ids": [specialist["id"]]})
+        assert saved_roster.status_code == 200, saved_roster.text
+        assert saved_roster.json()["specialist_bot_ids"] == [specialist["id"]]
+        changes = client.app.state.store.list_resource_changes(cursor)["changes"]
+        assert any(change["resource"] == "workspace" for change in changes)
+        assert client.put("/api/v1/workspace/specialists", json={"bot_ids": [specialist["id"], specialist["id"]]}).status_code == 422
+        assert client.put("/api/v1/workspace/specialists", json={"bot_ids": [coordinator["id"]]}).status_code == 409
+        assert client.put("/api/v1/workspace/specialists", json={"bot_ids": ["missing-bot"]}).status_code == 404
+
         missing = client.put("/api/v1/workspace/coordinator", json={"bot_id": "missing-bot"})
         assert missing.status_code == 404
         assert client.get("/api/v1/workspace/coordinator").json() == selected.json()
@@ -349,8 +365,13 @@ def test_named_workspace_coordinator_is_recoverable_and_clears_when_bot_is_delet
         assert reopened.get("/api/v1/workspace/coordinator").json() == {
             "coordinator": {"id": coordinator["id"], "name": "workspace-coordinator",
                             "display_name": "Workspace Coordinator"}}
-        assert reopened.delete("/api/bots/workspace-coordinator").status_code == 200
+        assert reopened.get("/api/v1/workspace/specialists").json()["specialist_bot_ids"] == [specialist["id"]]
+        promoted = reopened.put("/api/v1/workspace/coordinator", json={"bot_id": specialist["id"]})
+        assert promoted.status_code == 200, promoted.text
+        assert reopened.get("/api/v1/workspace/specialists").json()["specialist_bot_ids"] == []
+        assert reopened.delete("/api/bots/workspace-specialist").status_code == 200
         assert reopened.get("/api/v1/workspace/coordinator").json() == {"coordinator": None}
+        assert reopened.get("/api/v1/workspace/specialists").json()["specialist_bot_ids"] == []
 
 
 def test_unavailable_external_runtime_can_be_migrated_to_builtin_only(client):
@@ -1616,5 +1637,7 @@ def test_versioned_connections_schedules_and_capabilities_are_typed_and_secret_f
     assert capabilities["browser_handoff"]["status"] in {"experimental", "unavailable"}
     assert capabilities["browser_handoff"]["verification"] in {
         "host_display_and_playwright_check", "host_prerequisite_check"}
-    assert capabilities["phone_control"]["status"] == "unavailable"
+    assert capabilities["phone_control"]["status"] == "experimental"
+    assert capabilities["phone_control"]["verification"] == "paired_phone_api_and_browser_fixtures"
+    assert "computer interaction is unavailable" in capabilities["phone_control"]["reason"].lower()
     assert capabilities["external_runtimes"]["status"] == "unavailable"

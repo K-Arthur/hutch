@@ -2,19 +2,18 @@
 {% block title %}Pair this device{% endblock %}
 {% block content %}
 <section class="panel narrow pair-panel">
-  <p class="kicker">Hutch device access</p>
   <h1>Pair this device</h1>
-  <p id="pair-instructions" class="sub">On your Hutch host, run <code>hutch pairing create</code>. Enter the one-time code here within 60 seconds.</p>
+  <p id="pair-instructions" class="sub">On your Hutch host, run <code>hutch pairing create</code>. Enter its one-time code, then save a passkey on this device.</p>
   <form id="pair-form" class="stack" novalidate>
     <label class="field"><span>Device name</span><input name="label" type="text" maxlength="80" autocomplete="off" value="Phone" required></label>
     <label class="field"><span>One-time code</span><input name="code" type="text" minlength="14" maxlength="24" inputmode="text" autocapitalize="characters" autocomplete="one-time-code" spellcheck="false" required aria-describedby="pair-code-help"></label>
-    <p id="pair-code-help" class="hint">The code works once and expires after one minute. Pair over HTTPS and keep this device private; you can revoke it later from Connections.</p>
+    <p id="pair-code-help" class="hint">The code works once and expires after one minute. Pair over private HTTPS. You can revoke this passkey from Hutch on your host.</p>
     <button id="pair-submit" class="btn primary" type="submit">Pair device</button>
   </form>
   <p id="pair-error" class="pair-message bad" role="alert" hidden></p>
   <section id="pair-success" class="pair-success" role="status" hidden>
-    <h2>Device paired</h2>
-    <p>This browser now has its own revocable Hutch session.</p>
+    <h2>Passkey saved</h2>
+    <p>This browser is unlocked. Hutch will ask for the passkey again after the session expires.</p>
     <a class="btn primary" href="/">Open Hutch</a>
   </section>
 </section>

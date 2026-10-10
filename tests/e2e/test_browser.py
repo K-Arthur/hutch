@@ -11,6 +11,7 @@ import hashlib
 import json
 import platform
 import re
+import secrets
 import subprocess
 import threading
 import time
@@ -76,6 +77,221 @@ def test_executor_health_status_uses_a_steady_indicator(browser, live):
         assert page.locator(".daemon-dot").evaluate("el => getComputedStyle(el).animationName") == "none"
     finally:
         page.close()
+
+
+def test_paired_phone_uses_supervision_view_and_hides_data_after_revocation(browser, live):
+    base, app = live
+    store = app.state.store
+    bot = Bot(name="phone-private-bot", display_name="Private phone fixture", model="ollama/qwen3:4b", tools=[],
+              remote_start_enabled=True)
+    store.upsert_bot(bot)
+    run = store.create_run(Run(bot_id=bot.id, prompt="Review the progress safely", status=RunStatus.running))
+    store.append_event(Event(run_id=run.id, type=EventType.message,
+                             data={"role": "assistant", "content": "Phone transcript fixture marker."}))
+    store.flush_events()
+    code = store.create_pairing_code()
+    enrollment, outcome = store.exchange_pairing_code(code, "Phone fixture", "browser-test")
+    assert outcome == "ok" and enrollment
+    handle = store.webauthn_user_handle()
+    paired = store.finish_passkey_enrollment(enrollment["token"], {
+        "credential_id": secrets.token_bytes(24), "public_key": b"browser-test-key", "sign_count": 0,
+        "backup_eligible": True, "backed_up": True, "user_handle": handle,
+    })
+
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    try:
+        page.context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
+        page.goto(base + "/")
+        page.locator("#phone-root .phone-brand").wait_for()
+        page.get_by_text("Private phone fixture").first.wait_for()
+        assert page.locator("body").evaluate("el => el.classList.contains('paired-phone')")
+        assert page.locator(".app-shell").is_hidden()
+        assert page.locator(".phone-start-form").count() == 0
+        assert "Monitor and review only" in page.locator("#phone-root").inner_text()
+        page.get_by_role("button", name="Runs").click()
+        page.locator(f'[data-phone-run="{run.id}"]').click()
+        page.locator(".phone-run-detail").wait_for()
+        assert page.locator(".phone-run-detail").get_by_text("Phone transcript fixture marker.").is_visible()
+        started_at = page.locator(".phone-run-detail .phone-card .phone-sub").first.inner_text()
+        transcript_time = page.locator(".phone-transcript li > span").first.inner_text()
+        assert "Started " in started_at and not re.search(r"\d{4}-\d{2}-\d{2}T", started_at)
+        assert not re.search(r"\d{4}-\d{2}-\d{2}T", transcript_time)
+        store.revoke_device_session(paired["id"])
+        page.locator(".phone-locked").wait_for(timeout=4000)
+        assert "Private phone fixture" not in page.locator("body").inner_text()
+        assert "Phone transcript fixture marker." not in page.locator("body").inner_text()
+    finally:
+        page.close()
+
+
+def test_paired_phone_reviews_the_exact_approval_once(browser, live):
+    base, app = live
+    store, engine = app.state.store, app.state.engine
+    bot = store.create_bot(Bot(name="phone-approval", model="mock/demo", tools=["files"],
+                               approval_mode=ApprovalMode.ask))
+    run = engine.submit(bot, "write a report")
+    engine.dispatch_pending()
+    wait_for(lambda: store.get_run(run.id).status is RunStatus.waiting_approval)
+    approval = store.pending_approvals()[0]
+    enrollment, outcome = store.exchange_pairing_code(store.create_pairing_code(), "Approval phone", "browser-test")
+    assert outcome == "ok" and enrollment
+    paired = store.finish_passkey_enrollment(enrollment["token"], {
+        "credential_id": secrets.token_bytes(24), "public_key": b"browser-approval-key", "sign_count": 0,
+        "backup_eligible": True, "backed_up": True, "user_handle": store.webauthn_user_handle(),
+    })
+
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    page = context.new_page()
+    try:
+        context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
+        page.goto(base + "/")
+        page.locator("#phone-root .phone-brand").wait_for()
+        page.get_by_role("button", name="Review").click()
+        card = page.locator(f'.approval-card [data-phone-approve="{approval.id}"]').locator("..").locator("..")
+        card.wait_for()
+        assert card.get_by_role("heading", name=approval.action).is_visible()
+        card.locator("summary").click()
+        assert card.locator("pre").is_visible()
+        button = card.get_by_role("button", name="Allow once")
+        assert button.get_attribute("data-action-hash") == approval.action_hash
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/actions/approvals/{approval.id}/approve")) as response_info:
+            button.click()
+        response = response_info.value
+        assert response.status == 200, response.text()
+        assert response.request.headers.get("x-hutch-csrf")
+        assert response.request.headers.get("idempotency-key")
+        assert response.request.post_data_json == {"always": False, "action_hash": approval.action_hash}
+        wait_for(lambda: store.get_run(run.id).status is RunStatus.succeeded)
+        assert store.get_approval(approval.id).status.value == "approved"
+    finally:
+        context.close()
+
+
+def test_paired_phone_can_stop_a_run_and_resume_the_current_human_wait(browser, live, monkeypatch):
+    """Phone commands carry session CSRF/idempotency and target the exact live run state."""
+    base, app = live
+    store, engine = app.state.store, app.state.engine
+    monkeypatch.delenv("HUTCH_AUTH_TOKEN", raising=False)
+    monkeypatch.setattr(engine, "tick", lambda: None)
+    stop_bot = store.create_bot(Bot(name="phone-stop", model="mock/demo", tools=[]))
+    stop_run = engine.submit(stop_bot, "stop this pending task")
+
+    resume_bot = store.create_bot(Bot(name="phone-resume", model="mock/demo", tools=[]))
+    resume_run = store.create_run(Run(bot_id=resume_bot.id, prompt="resume after sign-in"))
+    claimed = store.claim_run(resume_run.id, "phone-resume-fixture-owner", lease_seconds=60)
+    assert claimed is not None
+    store.transition_run(resume_run.id, RunStatus.running, fence=claimed.fence)
+    store.transition_run(resume_run.id, RunStatus.waiting_human, fence=claimed.fence)
+    store.append_event(Event(run_id=resume_run.id, type=EventType.human_needed,
+                             data={"reason": "Complete the local sign-in step"}))
+    store.flush_events()
+    human_event_seq = store.last_seq(resume_run.id)
+
+    enrollment, outcome = store.exchange_pairing_code(store.create_pairing_code(), "Phone controls", "browser-test")
+    assert outcome == "ok" and enrollment
+    paired = store.finish_passkey_enrollment(enrollment["token"], {
+        "credential_id": secrets.token_bytes(24), "public_key": b"browser-phone-controls-key", "sign_count": 0,
+        "backup_eligible": True, "backed_up": True, "user_handle": store.webauthn_user_handle(),
+    })
+
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    page = context.new_page()
+    try:
+        context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
+        page.goto(base + "/")
+        page.locator("#phone-root .phone-brand").wait_for()
+        page.get_by_role("button", name="Runs").click()
+
+        page.locator(f'[data-phone-run="{stop_run.id}"]').click()
+        stop_button = page.get_by_role("button", name="Stop run")
+        stop_button.wait_for()
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/tasks/runs/{stop_run.id}/stop")) as stopped:
+            stop_button.click()
+        stop_response = stopped.value
+        assert stop_response.status == 200, stop_response.text()
+        assert stop_response.request.headers.get("x-hutch-csrf")
+        assert stop_response.request.headers.get("idempotency-key")
+        wait_for(lambda: store.get_run(stop_run.id).status is RunStatus.stopped)
+
+        page.get_by_role("button", name="All runs").click()
+        page.locator(f'[data-phone-run="{resume_run.id}"]').click()
+        resume_button = page.get_by_role("button", name="Resume after completing the requested step")
+        resume_button.wait_for()
+        assert resume_button.get_attribute("data-human-seq") == str(human_event_seq)
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/tasks/runs/{resume_run.id}/resume")) as resumed:
+            resume_button.click()
+        resume_response = resumed.value
+        assert resume_response.status == 200, resume_response.text()
+        assert resume_response.request.headers.get("x-hutch-csrf")
+        assert resume_response.request.headers.get("idempotency-key")
+        assert resume_response.request.post_data_json == {"human_event_seq": human_event_seq}
+        assert resume_response.json() == {"resumed": resume_run.id, "human_event_seq": human_event_seq,
+                                          "replayed": False}
+        assert store.kv_get(f"resume:{resume_run.id}") == "1"
+        assert store.get_run(resume_run.id).status is RunStatus.waiting_human
+    finally:
+        context.close()
+
+
+def test_paired_phone_recovers_approval_after_lost_response_with_same_key(browser, live):
+    """A committed decision with a dropped response is reconciled by the original idempotency key."""
+    base, app = live
+    store, engine = app.state.store, app.state.engine
+    bot = store.create_bot(Bot(name="phone-approval-retry", model="mock/demo", tools=["files"],
+                               approval_mode=ApprovalMode.ask))
+    run = engine.submit(bot, "write a report")
+    engine.dispatch_pending()
+    wait_for(lambda: store.get_run(run.id).status is RunStatus.waiting_approval)
+    approval = store.pending_approvals()[0]
+    enrollment, outcome = store.exchange_pairing_code(store.create_pairing_code(), "Recovery phone", "browser-test")
+    assert outcome == "ok" and enrollment
+    paired = store.finish_passkey_enrollment(enrollment["token"], {
+        "credential_id": secrets.token_bytes(24), "public_key": b"browser-phone-recovery-key", "sign_count": 0,
+        "backup_eligible": True, "backed_up": True, "user_handle": store.webauthn_user_handle(),
+    })
+
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    page = context.new_page()
+    target = f"**/api/v1/actions/approvals/{approval.id}/approve"
+    captured = []
+
+    def commit_then_drop_response(route):
+        response = route.fetch()
+        captured.append({"status": response.status, "key": route.request.headers.get("idempotency-key"),
+                         "body": route.request.post_data_json})
+        route.abort("connectionreset")
+
+    try:
+        context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
+        page.goto(base + "/")
+        page.locator("#phone-root .phone-brand").wait_for()
+        page.get_by_role("button", name="Review").click()
+        card = page.locator(f'.approval-card [data-phone-approve="{approval.id}"]').locator("..")
+        button = card.get_by_role("button", name="Allow once")
+        button.wait_for()
+        page.route(target, commit_then_drop_response)
+        button.click()
+        retry = page.get_by_role("button", name="Retry same request")
+        retry.wait_for()
+        assert len(captured) == 1 and captured[0]["status"] == 200
+        assert captured[0]["key"] and captured[0]["body"] == {"always": False, "action_hash": approval.action_hash}
+        assert store.get_approval(approval.id).status.value == "approved"
+
+        page.unroute(target, commit_then_drop_response)
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/actions/approvals/{approval.id}/approve")) as retried:
+            retry.click()
+        retry_response = retried.value
+        assert retry_response.status == 200, retry_response.text()
+        assert retry_response.request.headers.get("idempotency-key") == captured[0]["key"]
+        assert retry_response.request.post_data_json == captured[0]["body"]
+        assert store.get_approval(approval.id).status.value == "approved"
+        retry.wait_for(state="detached")
+    finally:
+        context.close()
 
 
 def test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences(browser, live):
@@ -447,6 +663,7 @@ def test_coordinator_specialist_dispatch_is_reviewable_at_all_viewports(browser,
     app.state.store.review_fact(coordinator.id, task_fact.id, content_hash=task_fact.content_hash,
                                 action="approve", actor="fixture")
     app.state.store.set_workspace_coordinator(coordinator.id)
+    app.state.store.set_workspace_specialists([specialist.id])
     output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workspace-task-dispatch"
     output.mkdir(parents=True, exist_ok=True)
     sizes = {"desktop": (1440, 960), "tablet": (900, 1024), "phone": (390, 844)}
@@ -939,6 +1156,7 @@ def test_safe_checkpoint_continuation_is_reviewed_and_starts_a_new_attempt(brows
     coordinator = store.create_bot(Bot(name="resume-coordinator", display_name="Mara", model="mock/demo", tools=[]))
     specialist = store.create_bot(Bot(name="resume-specialist", display_name="Research Partner", model="mock/demo", tools=[]))
     store.set_workspace_coordinator(coordinator.id)
+    store.set_workspace_specialists([specialist.id])
     parent, _ = store.create_conversation(coordinator.id, "Coordinator", idem_key="resume-parent",
                                           request_hash="resume-parent")
 
@@ -2755,41 +2973,305 @@ def test_studio_conversation_survives_reload_and_archive(browser, live):
     page = context.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    page.goto(base + "/#/chat/durable-chat")
+    try:
+        page.goto(base + "/#/chat/durable-chat")
+        page.locator("#conversation-switcher").wait_for()
+        conversation_id = page.locator("#conversation-switcher").input_value()
+
+        page.locator("#chat-prompt").fill("First durable conversation")
+        with page.expect_response(lambda r: "/api/v1/conversations/" in r.url and r.url.endswith("/messages")
+                                  and r.request.method == "POST") as first_response:
+            page.locator("#chat-send").click()
+        first_run = first_response.value.json()
+        assert first_run["conversation_id"] == conversation_id
+        wait_for(lambda: app.state.store.get_run(first_run["id"]).status.value == "succeeded")
+        page.locator("#chat-stream").get_by_text("First durable conversation", exact=True).wait_for()
+        page.locator(".msg.agent .answer").filter(has_text="First durable conversation").wait_for()
+
+        page.reload()
+        page.locator("#conversation-switcher").wait_for()
+        page.locator("#chat-stream").get_by_text("First durable conversation", exact=True).wait_for()
+        page.locator(".msg.agent .answer").filter(has_text="First durable conversation").wait_for()
+
+        page.locator("#chat-prompt").fill("Continue this conversation")
+        with page.expect_response(lambda r: "/api/v1/conversations/" in r.url and r.url.endswith("/messages")
+                                  and r.request.method == "POST") as second_response:
+            page.locator("#chat-send").click()
+        second_run = second_response.value.json()
+        stored = app.state.store.get_run(second_run["id"])
+        assert stored.conversation_context[0] == {"role": "user", "content": "First durable conversation"}
+        wait_for(lambda: app.state.store.get_run(second_run["id"]).status.value == "succeeded")
+
+        page.locator("#studio-conversation-options").click()
+        page.locator("#studio-conversation-more > summary").click()
+        page.locator("#studio-archive-conversation").click()
+        wait_for(lambda: page.locator("#conversation-switcher").input_value() != conversation_id)
+        archived = app.state.store.get_conversation(conversation_id)
+        assert archived["archived"] == 1
+        assert len(app.state.store.list_conversation_messages(conversation_id)) >= 4
+        assert not errors, errors
+    finally:
+        context.close()
+
+
+def test_conversation_options_are_compact_persistent_and_recoverable(browser, live, tmp_path, request):
+    base, app = live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="conversation-options", model="mock/demo", tools=[]))
+    first, _ = store.create_conversation(bot.id, "A research thread", idem_key="options-first",
+                                         request_hash="options-first")
+    second, _ = store.create_conversation(bot.id, "A follow-up", idem_key="options-second",
+                                          request_hash="options-second")
+    page = browser.new_page(viewport={"width": 1440, "height": 960})
+    request.addfinalizer(page.close)
+    page.set_default_timeout(8000)
+    errors = []
+    external_requests = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda req: external_requests.append(req.url)
+            if urlsplit(req.url).netloc not in {urlsplit(base).netloc, ""} else None)
+    page.context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    seeded = page.request.post(f"{base}/api/v1/conversations/{first['id']}/messages",
+        data={"prompt": "Help me prepare a launch review."}, headers={"Idempotency-Key": "options-seed-message"})
+    assert seeded.status == 201, seeded.text()
+    seeded_run = seeded.json()["id"]
+    wait_for(lambda: store.get_run(seeded_run).terminal)
+    assert store.get_conversation(first["id"])["unread"] == 1
+    page.goto(base + "/#/chat/conversation-options")
     page.locator("#conversation-switcher").wait_for()
-    conversation_id = page.locator("#conversation-switcher").input_value()
+    page.locator("#conversation-switcher").select_option(first["id"])
+    page.locator("#chat-stream").get_by_text("Help me prepare a launch review.", exact=True).wait_for()
 
-    page.locator("#chat-prompt").fill("First durable conversation")
-    with page.expect_response(lambda r: "/api/v1/conversations/" in r.url and r.url.endswith("/messages")
-                              and r.request.method == "POST") as first_response:
-        page.locator("#chat-send").click()
-    first_run = first_response.value.json()
-    assert first_run["conversation_id"] == conversation_id
-    wait_for(lambda: app.state.store.get_run(first_run["id"]).status.value == "succeeded")
-    page.locator("#chat-stream").get_by_text("First durable conversation", exact=True).wait_for()
-    page.locator(".msg.agent .answer").filter(has_text="First durable conversation").wait_for()
+    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/conversation-options"
+    artifacts.mkdir(parents=True, exist_ok=True)
+    viewports = [("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844),
+                 ("compact-phone", 320, 844)]
+    inspected = []
+    for label, width, height in viewports:
+        page.set_viewport_size({"width": width, "height": height})
+        page.locator("#studio-conversation-options").click()
+        menu = page.locator("#studio-conversation-actions[open]")
+        menu.wait_for()
+        page.get_by_role("button", name="Pin conversation").wait_for()
+        overflow = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
+        assert overflow == 0, f"{label} conversation header overflowed by {overflow}px"
+        menu_box = menu.bounding_box()
+        assert menu_box["x"] >= 0 and menu_box["x"] + menu_box["width"] <= width
+        page.locator("#studio-conversation-more > summary").wait_for()
+        page.screenshot(path=str(artifacts / f"menu-{label}.png"))
+        inspected.append({"name": label, "viewport": [width, height], "horizontal_overflow_px": overflow,
+                          "menu_bounds": {key: round(value, 2) for key, value in menu_box.items()}})
+        if label in {"phone", "compact-phone"}:
+            page.locator("#studio-conversation-more > summary").click()
+            assert page.get_by_role("button", name="Save reusable request").is_visible()
+            assert page.get_by_role("button", name="Download task template").is_visible()
+            more_bounds = page.locator("#studio-conversation-more-panel").bounding_box()
+            assert more_bounds["x"] >= 0 and more_bounds["x"] + more_bounds["width"] <= width
+            assert more_bounds["y"] + more_bounds["height"] <= height
+            page.screenshot(path=str(artifacts / f"more-{label}.png"))
+            page.keyboard.press("Escape")
+            assert page.locator("#studio-conversation-actions[open]").count() == 1
+        if label == "desktop":
+            page.keyboard.press("Escape")
+            assert menu.is_hidden()
+            assert page.locator("#studio-conversation-options").evaluate("el => el === document.activeElement")
+        else:
+            page.locator("#studio-conversation-options").click()
 
+    page.locator("#studio-conversation-options").click()
+    page.get_by_role("button", name="Pin conversation").click()
+    wait_for(lambda: store.get_conversation(first["id"])["pinned"] == 1)
+    page.locator("#studio-conversation-options").click()
+    page.get_by_role("button", name="Mark unread").click()
+    wait_for(lambda: store.get_conversation(first["id"])["unread"] == 1)
+    page.locator("#conversation-switcher").select_option(second["id"])
+    page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value === id", arg=second["id"])
+    assert store.get_conversation(first["id"])["unread"] == 1
+    page.locator("#conversation-switcher").select_option(first["id"])
+    page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value === id", arg=first["id"])
+    wait_for(lambda: store.get_conversation(first["id"])["unread"] == 0)
+
+    page.locator("#studio-conversation-options").click()
+    page.get_by_role("button", name="New section").click()
+    page.locator("#conversation-section-name").fill("Client work")
+    page.locator("#modal-confirm").click()
+    wait_for(lambda: store.get_conversation(first["id"])["section"] == "Client work")
+
+    page.locator("#studio-conversation-options").click()
+    more_actions = page.locator("#studio-conversation-more > summary")
+    more_actions.click()
+    assert more_actions.get_attribute("aria-expanded") == "true"
+    assert page.get_by_role("button", name="Save reusable request").is_visible()
+    assert page.get_by_role("button", name="Download task template").is_visible()
+    page.keyboard.press("Escape")
+    assert page.locator("#studio-conversation-actions").is_visible()
+    assert more_actions.get_attribute("aria-expanded") == "false"
+    assert more_actions.evaluate("el => el === document.activeElement")
+    page.keyboard.press("Escape")
+    assert page.locator("#studio-conversation-actions[open]").count() == 0
+    assert page.locator("#studio-conversation-options").evaluate("el => el === document.activeElement")
+
+    page.locator("#studio-conversation-options").click()
+    more_actions = page.locator("#studio-conversation-more > summary")
+    more_actions.click()
+    page.get_by_role("button", name="Download task template").click()
+    page.get_by_role("heading", name="Download task template").wait_for()
+    assert page.locator("#task-template-prompt").input_value() == "Help me prepare a launch review."
+    assert "first request only" in page.locator("#modal-root").inner_text().lower()
+    template_review_sizes = []
+    for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+        page.set_viewport_size({"width": width, "height": height})
+        dialog = page.locator("#modal-root .modal-card")
+        box = dialog.bounding_box()
+        overflow = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
+        confirm = page.locator("#modal-confirm").bounding_box()
+        assert overflow == 0, f"{label} task template review overflowed by {overflow}px"
+        assert box["x"] >= 0 and box["x"] + box["width"] <= width
+        assert confirm["y"] + confirm["height"] <= height
+        assert page.locator("#task-template-name").is_visible() and page.locator("#task-template-prompt").is_visible()
+        page.screenshot(path=str(artifacts / f"task-template-review-{label}.png"))
+        template_review_sizes.append({"name": label, "viewport": [width, height], "overflow_px": overflow,
+                                      "dialog_bounds": {key: round(value, 2) for key, value in box.items()}})
+    with page.expect_download() as template_download_info:
+        page.locator("#modal-confirm").click()
+    template_download = template_download_info.value
+    template_path = tmp_path / template_download.suggested_filename
+    template_download.save_as(template_path)
+    task_template = json.loads(template_path.read_text(encoding="utf-8"))
+    assert task_template == {
+        "kind": "hutch-task-template", "version": 1,
+        "name": "A research thread", "prompt": "Help me prepare a launch review.",
+    }
+    runs_before_template_import = [run.id for run in store.list_runs()]
+    page.locator("#composer-menu-btn").click()
+    page.get_by_role("button", name="Import task-template file").click()
+    page.locator("#task-template-file").set_input_files(template_path)
+    assert page.locator("#chat-prompt").input_value() == "Help me prepare a launch review."
+    assert [run.id for run in store.list_runs()] == runs_before_template_import
+    page.wait_for_function("document.querySelector('#live-status')?.textContent.includes('Nothing was sent')")
+
+    page.locator("#studio-conversation-options").click()
+    page.locator("#studio-conversation-more > summary").click()
+    page.get_by_role("button", name="Export conversation").click()
+    page.get_by_role("heading", name="Export conversation").wait_for()
+    with page.expect_download() as download_info:
+        page.locator("#modal-confirm").click()
+    download = download_info.value
+    assert download.suggested_filename.endswith(".json")
+    download_path = tmp_path / download.suggested_filename
+    download.save_as(download_path)
+    exported = json.loads(download_path.read_text(encoding="utf-8"))
+    assert exported["conversation"]["id"] == first["id"]
+    assert exported["scope"]["excluded"]
+
+    page.locator("#studio-conversation-options").click()
+    page.get_by_role("button", name="Rename conversation").click()
+    page.get_by_role("heading", name="Rename conversation").wait_for()
+    page.locator("#conversation-title-input").fill("Launch review notes")
+    page.get_by_role("button", name="Save name").click()
+    wait_for(lambda: store.get_conversation(first["id"])["title"] == "Launch review notes")
+    page.wait_for_function("document.querySelector('#conversation-switcher')?.innerText.includes('Launch review notes')")
+    assert "Launch review notes" in page.locator("#conversation-switcher").inner_text()
     page.reload()
     page.locator("#conversation-switcher").wait_for()
-    page.locator("#chat-stream").get_by_text("First durable conversation", exact=True).wait_for()
-    page.locator(".msg.agent .answer").filter(has_text="First durable conversation").wait_for()
+    assert "Launch review notes" in page.locator("#conversation-switcher").inner_text()
 
-    page.locator("#chat-prompt").fill("Continue this conversation")
-    with page.expect_response(lambda r: "/api/v1/conversations/" in r.url and r.url.endswith("/messages")
-                              and r.request.method == "POST") as second_response:
-        page.locator("#chat-send").click()
-    second_run = second_response.value.json()
-    stored = app.state.store.get_run(second_run["id"])
-    assert stored.conversation_context[0] == {"role": "user", "content": "First durable conversation"}
-    wait_for(lambda: app.state.store.get_run(second_run["id"]).status.value == "succeeded")
-
-    page.locator("#studio-archive-conversation").click()
-    wait_for(lambda: page.locator("#conversation-switcher").input_value() != conversation_id)
-    archived = app.state.store.get_conversation(conversation_id)
-    assert archived["archived"] == 1
-    assert len(app.state.store.list_conversation_messages(conversation_id)) >= 4
+    page.locator("#studio-conversation-options").click()
+    page.locator("#studio-conversation-more > summary").click()
+    page.get_by_role("button", name="Archive conversation").click()
+    wait_for(lambda: store.get_conversation(first["id"])["archived"] == 1)
+    assert page.locator(f"#conversation-switcher option[value='{first['id']}']").count() == 1
+    page.locator("#conversation-switcher").select_option(first["id"])
+    page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value === id", arg=first["id"])
+    page.locator("#studio-conversation-options").click()
+    page.locator("#studio-conversation-more > summary").click()
+    page.get_by_role("button", name="Restore conversation").click()
+    wait_for(lambda: store.get_conversation(first["id"])["archived"] == 0)
     assert not errors, errors
-    context.close()
+    assert not external_requests, external_requests
+    repo = Path(__file__).resolve().parents[2]
+    (artifacts / "validation.json").write_text(json.dumps({
+        "test": "tests/e2e/test_browser.py::test_conversation_options_are_compact_persistent_and_recoverable",
+        "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_conversation_options_are_compact_persistent_and_recoverable",
+        "browser": browser.browser_type.name, "browser_version": browser.version,
+        "playwright_version": package_version("playwright"), "viewports": inspected,
+        "task_template_review_viewports": template_review_sizes,
+        "fixture_only": True, "provider_calls": 0, "external_requests": external_requests,
+        "page_errors": errors,
+        "verified": ["pin and unread state survive client navigation", "reopening clears unread",
+                     "chat section persists", "rename persists after reload", "first user request can be reviewed and downloaded as a local task template",
+                     "task template import only fills the composer draft", "export reviewed before local download",
+                     "nested More menu groups less frequent actions and supports Escape focus return",
+                     "archived chat can be restored", "Escape returns focus", "all menu sizes fit their viewport"],
+        "source_sha256": {name: hashlib.sha256((repo / name).read_bytes()).hexdigest()
+                          for name in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                       "src/hutch/server/app.py", "src/hutch/store.py", "tests/e2e/test_browser.py")},
+        "trace": "trace.zip",
+    }, indent=2) + "\n", encoding="utf-8")
+    page.context.tracing.stop(path=str(artifacts / "trace.zip"))
+    page.close()
+
+
+def test_bot_menu_downloads_a_reviewable_local_setup_template(browser, live, tmp_path, request):
+    base, app = live
+    bot = Bot(name="template-export", model="mock/demo", tools=["memory", "files"],
+              description="A reusable project reviewer.", instructions="Review project risks and cite source files.",
+              base_url="https://private-provider.example/v1", workspace_mode="folder",
+              workdir=str(tmp_path / "private-project"))
+    app.state.store.create_bot(bot)
+    page = browser.new_page(viewport={"width": 1280, "height": 800})
+    request.addfinalizer(page.close)
+    page.set_default_timeout(8000)
+    page.context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    page.goto(base + "/#/chat/template-export")
+    page.locator("#conversation-switcher").wait_for()
+    page.locator('[data-bot-options="template-export"]').click()
+    page.get_by_role("menuitem", name="Share as template").click()
+    page.get_by_role("heading", name="Share as template").wait_for()
+    assert "Nothing is uploaded" in page.locator("#modal-root").inner_text()
+    yaml_text = page.locator("#bot-template-preview").inner_text()
+    assert "Review project risks" in yaml_text
+    assert "private-provider.example" not in yaml_text
+    assert str(tmp_path / "private-project") not in yaml_text
+    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/conversation-options"
+    artifacts.mkdir(parents=True, exist_ok=True)
+    inspected = []
+    for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+        page.set_viewport_size({"width": width, "height": height})
+        preview = page.locator("#bot-template-preview")
+        confirm = page.locator("#modal-confirm")
+        overflow = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
+        preview_box, confirm_box = preview.bounding_box(), confirm.bounding_box()
+        assert overflow == 0, f"{label} template review overflowed by {overflow}px"
+        assert preview.is_visible() and confirm.is_visible()
+        assert confirm_box["y"] + confirm_box["height"] <= height
+        page.screenshot(path=str(artifacts / f"template-review-{label}.png"))
+        inspected.append({"label": label, "viewport": [width, height], "overflow_px": overflow,
+                          "preview_visible": preview.is_visible(), "confirm_visible": confirm.is_visible()})
+    with page.expect_download() as download_info:
+        page.locator("#modal-confirm").click()
+    download = download_info.value
+    path = tmp_path / download.suggested_filename
+    download.save_as(path)
+    import yaml
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    assert document["kind"] == "BotConfig"
+    assert document["spec"]["instructions"] == "Review project risks and cite source files."
+    assert "base_url" not in document["spec"] and "workdir" not in document["spec"]
+    assert len(app.state.store.list_bots()) == 1, "creating a local template file must not add a Bot"
+    (artifacts / "template-review-validation.json").write_text(json.dumps({
+        "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_bot_menu_downloads_a_reviewable_local_setup_template",
+        "browser": browser.browser_type.name, "browser_version": browser.version,
+        "playwright_version": package_version("playwright"), "viewports": inspected,
+        "effect": "download-only local YAML; no public share, no Bot creation, no provider calls",
+        "trace": "template-review-trace.zip",
+        "excluded_fixture_values": ["provider endpoint URL", "local workspace path"],
+        "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                          for name in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                       "src/hutch/server/app.py", "src/hutch/store.py")},
+    }, indent=2) + "\n")
+    page.context.tracing.stop(path=str(artifacts / "template-review-trace.zip"))
+    page.close()
 
 
 @pytest.mark.parametrize("label,width,height", [("desktop", 1440, 960), ("tablet", 900, 1024),
@@ -3084,134 +3566,300 @@ def test_studio_resumes_only_the_active_human_wait_with_v1_command(browser, live
         page.close()
 
 
-def test_real_device_pairing_and_revocation_are_usable_at_all_viewports(browser, live):
-    """Exercise the one-time exchange, visible device inventory and both revoke paths."""
-    import hashlib
-    import json
-    from hutch.models import iso, utcnow
-
-    base, app = live
-    code = app.state.store.create_pairing_code()
-    other_code = app.state.store.create_pairing_code()
-    app.state.store.exchange_pairing_code(other_code, "Old tablet", "192.0.2.10")
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/device-pairing"
-    out.mkdir(parents=True, exist_ok=True)
-    errors = []
-    trace = []
-    context = browser.new_context(viewport={"width": 390, "height": 844}, reduced_motion="reduce")
-    page = context.new_page()
-    page.on("pageerror", lambda error: errors.append(str(error)))
+def test_passkey_pair_and_unlock_pages_explain_the_phone_flow(browser, live):
+    """The browser surface requests a passkey without exposing a bearer-token workflow."""
+    base, _app = live
+    page = browser.new_page(viewport={"width": 390, "height": 844})
     try:
-        for label, width, height in (("desktop", 1440, 1000), ("tablet", 900, 1024), ("phone", 390, 844),
-                                     ("compact-phone", 320, 740)):
-            page.set_viewport_size({"width": width, "height": height})
-            response = page.goto(f"{base}/pair")
-            assert response and response.status == 200
-            assert page.get_by_role("heading", name="Pair this device").is_visible()
-            assert page.locator("#primary-nav").count() == 0
-            if label == "phone":
-                for selector in ("[name=label]", "[name=code]", "#pair-submit"):
-                    assert page.locator(selector).bounding_box()["height"] >= 44
-            page.screenshot(path=str(out / f"{label}-pair-entry.png"), full_page=True, animations="disabled")
-            trace.append({"step": "open_pair_page", "viewport": label, "http_status": response.status})
-            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
-            assert overflow <= 1, (label, overflow)
-
-        page.locator("[name=label]").fill("Kevin phone")
-        page.locator("[name=code]").fill("AAAAAAAAAAAAAA")
-        page.get_by_role("button", name="Pair device").click()
-        page.locator("#pair-error").wait_for(state="visible")
-        assert "invalid" in page.locator("#pair-error").inner_text()
-        assert page.locator("[name=code]").input_value() == ""
-        assert page.locator("[name=code]").evaluate("e => e === document.activeElement")
-        trace.append({"step": "reject_invalid_code", "result": "rejected", "input": "[redacted]", "field_cleared": True})
-        page.screenshot(path=str(out / "phone-invalid-code.png"), full_page=True, animations="disabled")
-
-        page.locator("[name=code]").fill(code)
-        page.get_by_role("button", name="Pair device").click()
-        page.locator("#pair-success").wait_for(state="visible")
-        assert not page.locator("#pair-form").is_visible()
-        assert not page.locator("#pair-instructions").is_visible()
-        assert page.get_by_role("link", name="Open Hutch").evaluate("e => e === document.activeElement")
-        assert page.evaluate("document.cookie.includes('hutch_device')") is False
-        assert page.evaluate("pairingCode => Object.values(localStorage).every(value => !value.includes(pairingCode))", code)
-        trace.append({"step": "exchange_one_time_code", "result": "paired", "code": "[redacted]",
-                      "session_cookie_readable_to_script": False, "focus": "Open Hutch"})
-        page.screenshot(path=str(out / "phone-paired.png"), full_page=True, animations="disabled")
-        page.get_by_role("link", name="Open Hutch").click()
-        page.wait_for_selector("#view")
-        page.goto(f"{base}/#/connections")
-        page.get_by_role("heading", name="Connections").wait_for()
-        page.locator(".device-manager summary").click()
-        page.get_by_text("Kevin phone").wait_for()
-        page.get_by_text("Old tablet").wait_for()
-        current = page.locator(".device-row").filter(has_text="Kevin phone")
-        assert current.get_by_text("this device").is_visible()
-        assert page.locator(".device-row").filter(has_text="Old tablet").get_by_text("this device").count() == 0
-        trace.append({"step": "list_paired_devices", "active_count": 2, "current_device_label": "Kevin phone"})
-
-        for label, width, height in (("desktop", 1440, 1000), ("tablet", 900, 1024), ("phone", 390, 844),
-                                     ("compact-phone", 320, 740)):
-            page.set_viewport_size({"width": width, "height": height})
-            if label == "phone":
-                assert page.locator(".device-manager summary").bounding_box()["height"] >= 44
-                assert current.get_by_role("button", name="Revoke").bounding_box()["height"] >= 44
-            page.screenshot(path=str(out / f"{label}-device-manager.png"), full_page=True, animations="disabled")
-            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
-            assert overflow <= 1, (label, overflow)
-        old_tablet = page.locator(".device-row").filter(has_text="Old tablet")
-        old_revoke = old_tablet.get_by_role("button", name="Revoke")
-        old_revoke.focus()
-        page.keyboard.press("Enter")
-        page.locator("#modal-title").get_by_text("Revoke device", exact=True).wait_for()
-        assert page.locator("#modal-confirm").evaluate("e => e === document.activeElement")
-        page.keyboard.press("Escape")
-        assert old_revoke.evaluate("e => e === document.activeElement")
-        page.keyboard.press("Enter")
-        page.locator("#modal-confirm").wait_for(state="visible")
-        page.locator("#modal-confirm").click()
-        page.get_by_text("Revoked Old tablet").wait_for()
-        assert page.locator(".device-row").filter(has_text="Old tablet").count() == 0
-        assert app.state.store.list_device_sessions()[0]["label"] == "Kevin phone"
-        trace.append({"step": "revoke_other_device", "label": "Old tablet", "result": "revoked"})
-
-        current = page.locator(".device-row").filter(has_text="Kevin phone")
-        current.get_by_role("button", name="Revoke").click()
-        page.locator("#modal-confirm").click()
+        page.goto(f"{base}/pair")
         page.get_by_role("heading", name="Pair this device").wait_for()
-        assert app.state.store.list_device_sessions() == []
-        trace.append({"step": "revoke_current_device", "result": "revoked", "returned_to": "/pair"})
-        overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
-        assert overflow <= 1 and not errors, (overflow, errors)
-        (out / "trace.json").write_text(json.dumps({
-            "kind": "redacted_browser_interaction_trace",
-            "browser": browser.browser_type.name,
-            "browser_version": browser.version,
-            "playwright_version": package_version("playwright"),
-            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_real_device_pairing_and_revocation_are_usable_at_all_viewports",
-            "sensitive_values": "Pairing codes, cookies, request bodies, and session tokens are deliberately omitted.",
-            "steps": trace,
-        }, indent=2) + "\n")
-        (out / "results.json").write_text(json.dumps({
-            "captured_at": iso(utcnow()), "browser": browser.browser_type.name, "version": browser.version,
-            "playwright_version": package_version("playwright"),
-            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_real_device_pairing_and_revocation_are_usable_at_all_viewports",
-            "screenshots": sorted(path.name for path in out.glob("*.png")),
-            "viewport_sizes": {"desktop": [1440, 1000], "tablet": [900, 1024], "phone": [390, 844], "compact_phone": [320, 740]},
-            "page_errors": errors, "horizontal_overflow": 0,
-            "journey": "Invalid code, successful one-use pairing, current-device labeling, other-device revoke, self-revoke",
-            "device_token_in_document_cookie": False,
-            "live_remote_network_or_physical_device": False,
-            "source_sha256": {name: hashlib.sha256((out.parents[3] / name).read_bytes()).hexdigest() for name in (
-                "src/hutch/server/app.py", "src/hutch/server/pages.py", "src/hutch/server/security.py",
-                "src/hutch/server/templates/base.html", "src/hutch/server/templates/pair.html",
-                "src/hutch/server/templates/login.html",
-                "src/hutch/server/static/pair.js", "src/hutch/server/static/app.js",
-                "src/hutch/server/static/style.css", "src/hutch/server/static/hutch-pages.css",
-                "website/index.html")},
-        }, indent=2) + "\n")
+        assert "save a passkey on this device" in page.locator("#pair-instructions").inner_text()
+        assert page.locator("[autocomplete=one-time-code]").count() == 1
+        assert page.locator("script[src='/static/pair.js']").count() == 1
+        assert "bearer" not in page.locator("body").inner_text().lower()
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+
+        page.goto(f"{base}/login")
+        assert page.get_by_role("button", name="Unlock with passkey").is_visible()
+        assert page.locator("script[src='/static/passkey-login.js']").count() == 1
+        assert "local owner token" in page.locator("body").inner_text().lower()
+    finally:
+        page.close()
+
+
+def test_virtual_passkey_pairs_locks_and_unlocks_over_https(browser, tmp_path, monkeypatch):
+    """Exercise the browser's real WebAuthn ceremony against Hutch over local HTTPS."""
+    if browser.browser_type.name != "chromium":
+        pytest.skip("the WebAuthn virtual authenticator requires Chromium's DevTools protocol")
+
+    import socket
+    import ssl
+    import uvicorn
+    from datetime import timedelta
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.x509.oid import NameOID
+    from hutch.approvals import action_fingerprint
+    from hutch.models import ApprovalRequest, iso, utcnow
+
+    rp_id = "hutch.example"
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("HUTCH_REMOTE_ENABLED", "1")
+    monkeypatch.setenv("HUTCH_ALLOWED_HOSTS", rp_id)
+    monkeypatch.setenv("HUTCH_WEBAUTHN_RP_ID", rp_id)
+    monkeypatch.delenv("HUTCH_AUTH_TOKEN", raising=False)
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, rp_id)])
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    cert = (x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key())
+            .serial_number(x509.random_serial_number()).not_valid_before(now - timedelta(minutes=1))
+            .not_valid_after(now + timedelta(days=1))
+            .add_extension(x509.SubjectAlternativeName([x509.DNSName(rp_id)]), critical=False)
+            .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+            .sign(key, hashes.SHA256()))
+    cert_path, key_path = tmp_path / "hutch.test.crt", tmp_path / "hutch.test.key"
+    cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+    key_path.write_bytes(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.TraditionalOpenSSL,
+                                           serialization.NoEncryption()))
+    cert_path.chmod(0o600)
+    key_path.chmod(0o600)
+
+    probe = socket.socket()
+    probe.bind(("127.0.0.1", 0))
+    port = probe.getsockname()[1]
+    probe.close()
+    monkeypatch.setenv("HUTCH_WEBAUTHN_ORIGIN", f"https://{rp_id}:{port}")
+    app = create_app()
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    bot = app.state.store.create_bot(Bot(name="phone-start", model="mock/demo", tools=[], paused=True,
+                                         remote_start_enabled=True))
+    approval_run = app.state.store.create_run(Run(bot_id=bot.id, prompt="Review a file write over HTTPS",
+                                                  status=RunStatus.waiting_approval))
+    approval_detail = {"path": "status.txt", "content": "HTTPS approval fixture"}
+    approval = app.state.store.create_approval(ApprovalRequest(
+        run_id=approval_run.id, bot_id=bot.id, tool="files", action="Write status.txt", detail=approval_detail,
+        action_hash=action_fingerprint("files", approval_detail),
+        expires_at=iso(utcnow() + timedelta(minutes=10))))
+    resume_bot = app.state.store.create_bot(Bot(name="phone-resume", model="mock/demo", tools=[]))
+    human_run = app.state.store.create_run(Run(bot_id=resume_bot.id, prompt="Resume the local sign-in step"))
+    claimed = app.state.store.claim_run(human_run.id, "https-resume-fixture", lease_seconds=60)
+    assert claimed is not None
+    app.state.store.transition_run(human_run.id, RunStatus.running, fence=claimed.fence)
+    app.state.store.transition_run(human_run.id, RunStatus.waiting_human, fence=claimed.fence)
+    app.state.store.append_event(Event(run_id=human_run.id, type=EventType.human_needed,
+                                       data={"reason": "Complete the local sign-in step"}))
+    app.state.store.flush_events()
+    human_event_seq = app.state.store.last_seq(human_run.id)
+    code = app.state.store.create_pairing_code(allow_start=True)
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port,
+                                           ssl_certfile=str(cert_path), ssl_keyfile=str(key_path),
+                                           proxy_headers=False, access_log=False, log_level="error"))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    chromium = browser.browser_type.launch(args=["--host-resolver-rules=MAP hutch.example 127.0.0.1"])
+    context = chromium.new_context(viewport={"width": 390, "height": 844}, ignore_https_errors=True)
+    page = context.new_page()
+    page.set_default_timeout(10_000)
+    try:
+        deadline = time.monotonic() + 10
+        while not server.started and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert server.started
+
+        authenticator = context.new_cdp_session(page)
+        authenticator.send("WebAuthn.enable")
+        virtual_authenticator = authenticator.send("WebAuthn.addVirtualAuthenticator", {"options": {
+            "protocol": "ctap2", "transport": "internal", "hasResidentKey": True,
+            "hasUserVerification": True, "isUserVerified": True,
+            "automaticPresenceSimulation": True,
+        }})
+
+        base = f"https://{rp_id}:{port}"
+        page.goto(base + "/pair")
+        page.locator('[name="label"]').fill("Chromium virtual phone")
+        page.locator('[name="code"]').fill(code)
+        page.get_by_role("button", name="Pair device").click()
+        page.get_by_role("heading", name="Passkey saved").wait_for()
+        page.get_by_role("link", name="Open Hutch").click()
+        page.locator("#phone-root .phone-brand").wait_for()
+        assert page.get_by_text("Chromium virtual phone").count() == 0  # the phone surface does not expose device administration
+
+        page.get_by_role("button", name="Lock").click()
+        page.get_by_role("heading", name="Hutch is locked").wait_for()
+        page.get_by_role("link", name="Sign in with your passkey").click()
+        page.get_by_role("button", name="Unlock with passkey").click()
+        page.locator("#phone-root .phone-brand").wait_for()
+        status = page.evaluate("""async () => {
+          const response = await fetch('/api/v1/session', { cache: 'no-store' });
+          return { status: response.status, body: await response.json() };
+        }""")
+        assert status["status"] == 200 and status["body"]["principal"] == "paired"
+        assert "start" in status["body"]["capabilities"]
+
+        page.locator('[data-phone-tab="review"]').click()
+        card = page.locator(f'.approval-card [data-phone-approve="{approval.id}"]').locator("..").locator("..")
+        allow = card.get_by_role("button", name="Allow once")
+        allow.wait_for()
+        assert allow.get_attribute("data-action-hash") == approval.action_hash
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/actions/approvals/{approval.id}/approve")) as decision:
+            allow.click()
+        decision_response = decision.value
+        assert decision_response.status == 200, decision_response.text()
+        assert decision_response.request.headers.get("x-hutch-csrf")
+        assert decision_response.request.headers.get("idempotency-key")
+        assert decision_response.request.post_data_json == {"always": False, "action_hash": approval.action_hash}
+        assert app.state.store.get_approval(approval.id).status.value == "approved"
+
+        page.get_by_role("button", name="Status").click()
+        page.locator("#phone-start-form").wait_for()
+        assert "Scheduled tasks are paused" in page.locator("#phone-root").inner_text()
+        assert "scheduled tasks paused" in page.locator('#phone-start-form [name="bot"]').inner_text()
+        assert "pausing a Bot only pauses its scheduled tasks" in page.locator("#phone-start-form").inner_text()
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+        page.locator('#phone-start-form [name="prompt"]').fill("Check the local project status")
+        with page.expect_response(lambda response: response.request.method == "POST" and
+                                 response.url.endswith("/api/v1/tasks/runs")) as start_response:
+            page.get_by_role("button", name="Start work").click()
+        started = start_response.value
+        assert started.status == 201, started.text()
+        run_id = started.json()["id"]
+        page.locator(".phone-run-detail").wait_for()
+        assert page.locator(".phone-run-detail h1").inner_text() == "Check the local project status"
+        run = app.state.store.get_run(run_id)
+        assert run.bot_id == bot.id
+        assert run.origin == f"remote:{status['body']['credential_id']}"
+        assert run.model_override == ""
+
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/tasks/runs/{run_id}/stop")) as stopped:
+            page.get_by_role("button", name="Stop run").click()
+        stop_response = stopped.value
+        assert stop_response.status == 200, stop_response.text()
+        assert stop_response.request.headers.get("x-hutch-csrf")
+        assert stop_response.request.headers.get("idempotency-key")
+        assert stop_response.request.post_data_json == {}
+        assert app.state.store.get_run(run_id).status is RunStatus.stopped
+
+        page.get_by_role("button", name="All runs").click()
+        page.locator(f'[data-phone-run="{human_run.id}"]').click()
+        page.locator(".phone-run-detail").wait_for()
+        resume = page.get_by_role("button", name="Resume after completing the requested step")
+        assert resume.get_attribute("data-human-seq") == str(human_event_seq)
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/tasks/runs/{human_run.id}/resume")) as resumed:
+            resume.click()
+        resume_response = resumed.value
+        assert resume_response.status == 200, resume_response.text()
+        assert resume_response.request.headers.get("x-hutch-csrf")
+        assert resume_response.request.headers.get("idempotency-key")
+        assert resume_response.request.post_data_json == {"human_event_seq": human_event_seq}
+        assert resume_response.json() == {"resumed": human_run.id, "human_event_seq": human_event_seq,
+                                          "replayed": False}
+        assert app.state.store.kv_get(f"resume:{human_run.id}") == "1"
+        assert app.state.store.get_run(human_run.id).status is RunStatus.waiting_human
+        credentials = authenticator.send("WebAuthn.getCredentials", {
+            "authenticatorId": virtual_authenticator["authenticatorId"]})
+        assert len(credentials["credentials"]) == 1
     finally:
         context.close()
+        chromium.close()
+        server.should_exit = True
+        thread.join(timeout=10)
+    assert not thread.is_alive()
+
+
+def test_chromium_trusts_a_private_https_certificate_chain(browser, tmp_path):
+    """Verify a private CA and hostname without Playwright's certificate-error bypass."""
+    import os
+    import shutil
+    import ssl
+    import subprocess
+    from datetime import timedelta
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
+
+    certutil = shutil.which("certutil")
+    if not certutil:
+        pytest.skip("NSS certutil is required to add an isolated test CA to Chromium's temporary trust store")
+
+    rp_id = "hutch.example"
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    ca_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Hutch Local Test CA")])
+    ca = (x509.CertificateBuilder().subject_name(ca_name).issuer_name(ca_name).public_key(ca_key.public_key())
+          .serial_number(x509.random_serial_number()).not_valid_before(now - timedelta(minutes=1))
+          .not_valid_after(now + timedelta(days=2))
+          .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
+          .add_extension(x509.KeyUsage(digital_signature=False, content_commitment=False, key_encipherment=False,
+                                       data_encipherment=False, key_agreement=False, key_cert_sign=True,
+                                       crl_sign=True, encipher_only=None, decipher_only=None), critical=True)
+          .sign(ca_key, hashes.SHA256()))
+    server_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    server_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, rp_id)])
+    server_cert = (x509.CertificateBuilder().subject_name(server_name).issuer_name(ca_name)
+                   .public_key(server_key.public_key()).serial_number(x509.random_serial_number())
+                   .not_valid_before(now - timedelta(minutes=1)).not_valid_after(now + timedelta(days=1))
+                   .add_extension(x509.SubjectAlternativeName([x509.DNSName(rp_id)]), critical=False)
+                   .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+                   .add_extension(x509.KeyUsage(digital_signature=True, content_commitment=False,
+                                                key_encipherment=True, data_encipherment=False,
+                                                key_agreement=False, key_cert_sign=False, crl_sign=False,
+                                                encipher_only=None, decipher_only=None), critical=True)
+                   .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+                   .sign(ca_key, hashes.SHA256()))
+
+    ca_path, cert_path, key_path = tmp_path / "test-ca.pem", tmp_path / "server.pem", tmp_path / "server.key"
+    ca_path.write_bytes(ca.public_bytes(serialization.Encoding.PEM))
+    cert_path.write_bytes(server_cert.public_bytes(serialization.Encoding.PEM))
+    key_path.write_bytes(server_key.private_bytes(serialization.Encoding.PEM,
+                                                   serialization.PrivateFormat.TraditionalOpenSSL,
+                                                   serialization.NoEncryption()))
+    browser_home = tmp_path / "browser-home"
+    nss_db = browser_home / ".pki" / "nssdb"
+    nss_db.mkdir(parents=True)
+    subprocess.run([certutil, "-N", "--empty-password", "-d", f"sql:{nss_db}"],
+                   check=True, capture_output=True, text=True)
+    subprocess.run([certutil, "-A", "-d", f"sql:{nss_db}", "-n", "Hutch Local Test CA", "-t", "C,,",
+                    "-i", str(ca_path)], check=True, capture_output=True, text=True)
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(b"trusted private HTTPS")
+
+        def log_message(self, *_args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    tls.load_cert_chain(cert_path, key_path)
+    server.socket = tls.wrap_socket(server.socket, server_side=True)
+    chromium = browser.browser_type.launch(
+        env={**os.environ, "HOME": str(browser_home)},
+        args=["--host-resolver-rules=MAP hutch.example 127.0.0.1"],
+    )
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        page = chromium.new_page(viewport={"width": 390, "height": 844})
+        response = page.goto(f"https://{rp_id}:{server.server_port}/", wait_until="domcontentloaded")
+        assert response and response.status == 200
+        assert page.locator("body").inner_text() == "trusted private HTTPS"
+        assert page.evaluate("location.protocol + '//' + location.hostname") == "https://hutch.example"
+    finally:
+        server.shutdown()
+        thread.join(timeout=10)
+        server.server_close()
+        chromium.close()
+    assert not thread.is_alive()
 
 
 def test_a_stale_approval_click_shows_the_other_devices_decision(browser, live):
@@ -3824,10 +4472,16 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
                      model="mock/demo", tools=[])
     app.state.store.create_bot(coordinator)
     app.state.store.create_bot(specialist)
+    helper_names = [f"release-helper-{index}" for index in range(9)]
+    for index, helper_name in enumerate(helper_names):
+        app.state.store.create_bot(Bot(name=helper_name, display_name=f"Release Helper {index}",
+                                       model="mock/demo", tools=[]))
     app.state.store.set_workspace_coordinator(coordinator.id)
 
     out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workspace-coordinator"
     out.mkdir(parents=True, exist_ok=True)
+    roster_output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workspace-specialists"
+    roster_output.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
     page.set_default_timeout(8000)
@@ -3837,23 +4491,73 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
     page.on("request", lambda request: requests.append(request.url))
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
+        page.goto(f"{base}/#/bot/{coordinator.name}")
+        page.get_by_role("heading", name="Workspace Coordinator settings").wait_for()
+        roster_panel = page.locator("#workspace-specialist-roster")
+        roster_details = page.locator("#workspace-specialist-settings")
+        roster_summary = roster_details.locator("summary")
+        assert roster_panel.is_visible()
+        assert roster_details.get_attribute("open") is None
+        assert page.locator("#workspace-specialist-roster-count").inner_text() == "0 approved"
+        roster_summary.focus()
+        page.keyboard.press("Enter")
+        assert roster_details.get_attribute("open") is not None
+        roster_filter = page.get_by_label("Filter specialist Bots")
+        assert roster_filter.is_visible()
+        roster_filter.fill("Release Notes")
+        visible_choices = page.locator("[data-workspace-specialist-choice]:visible")
+        assert visible_choices.count() == 1
+        assert "Release Notes Reviewer" in visible_choices.inner_text()
+        allowed_specialist = page.locator(f'[data-workspace-specialist="{specialist.id}"]')
+        assert allowed_specialist.count() == 1 and not allowed_specialist.is_checked()
+        allowed_specialist.focus()
+        page.keyboard.press("Space")
+        assert allowed_specialist.is_checked()
+        page.get_by_role("button", name="Save specialist roster").click()
+        assert app.state.store.workspace_specialists()["specialist_bot_ids"] == [specialist.id]
+        assert page.locator("#workspace-specialist-roster-count").inner_text() == "1 approved"
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
+                                     ("phone", 390, 844), ("compact-phone", 320, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+            assert roster_panel.is_visible()
+            page.evaluate("document.activeElement?.blur()")
+            page.screenshot(path=str(roster_output / f"roster-expanded-{label}.png"), animations="disabled")
+            roster_summary.focus()
+            page.keyboard.press("Enter")
+            assert roster_details.get_attribute("open") is None
+            page.evaluate("document.activeElement?.blur()")
+            page.screenshot(path=str(roster_output / f"roster-collapsed-{label}.png"), animations="disabled")
+            roster_summary.focus()
+            page.keyboard.press("Enter")
+            assert roster_details.get_attribute("open") is not None
+        assert "does not stop existing work" in roster_panel.inner_text()
+
+        for helper_name in helper_names:
+            assert app.state.store.delete_bot(helper_name)
+        page.set_viewport_size({"width": 1440, "height": 960})
         page.goto(f"{base}/#/chat")
-        page.get_by_role("heading", name="Workspace Coordinator").wait_for()
+        page.locator(".ctx-id h1").wait_for()
         assert page.locator("#workspace-coordinator-pill").inner_text() == "Workspace coordinator"
         rows = page.locator("#roster-list [data-switch-bot]")
         assert rows.first.get_attribute("data-switch-bot") == coordinator.name
-        assert rows.first.locator(".roster-role").inner_text() == "Coordinator"
+        assert rows.first.locator(".roster-sub").inner_text().startswith("Coordinator · ")
 
         # A coordinator is an ordinary, directly addressable Bot conversation too.
         conversation_id = page.locator("#conversation-switcher").input_value()
         coordinator_chat = app.state.store.get_conversation(conversation_id)
         assert coordinator_chat["bot_id"] == coordinator.id
-        page.get_by_role("link", name="Settings for Release Notes Reviewer").click()
+        page.locator("#bot-search").fill("Release Notes")
+        specialist_options = page.locator("[data-bot-options='release-notes-reviewer']")
+        specialist_options.wait_for(state="visible")
+        specialist_options.click()
+        page.get_by_role("menuitem", name="Bot settings").click()
         page.get_by_role("button", name="Set as workspace coordinator").click()
         page.get_by_role("heading", name="Set workspace coordinator?").wait_for()
         page.locator("#modal-confirm").click()
         page.get_by_role("heading", name="Release Notes Reviewer settings").wait_for()
         assert app.state.store.workspace_coordinator_id() == specialist.id
+        assert app.state.store.workspace_specialists()["specialist_bot_ids"] == []
         page.get_by_role("link", name="Open Studio").click()
         page.locator("#chat-stream").get_by_role("heading", name="Release Notes Reviewer").wait_for()
         assert page.locator("#workspace-coordinator-pill").inner_text() == "Workspace coordinator"
@@ -3875,16 +4579,31 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
             "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_sizes",
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright_version": package_version("playwright"),
-            "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
-            "scenario": "the selected workspace coordinator opens as the default direct chat, is labelled in the roster and composer, and can be reassigned from Bot settings",
+            "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844],
+                          "compact_phone": [320, 844]},
+            "scenario": "the selected workspace coordinator opens as the default direct chat, is labelled in the roster and composer, the owner can maintain an explicit specialist allowlist from settings, and promoting a specialist removes it without adding the former coordinator",
             "page_errors": errors,
             "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
                               for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                                "src/hutch/server/app.py", "tests/e2e/test_browser.py")},
         }, indent=2) + "\n", encoding="utf-8")
+        (roster_output / "validation.json").write_text(json.dumps({
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_sizes",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"),
+            "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844],
+                          "compact_phone": [320, 844]},
+            "keyboard": "Enter expands/collapses the focused roster summary; Space toggles the focused specialist checkbox; Save persists the selection.",
+            "scenario": "the specialist roster stays compact by default, shows the approved count, expands on demand for search and editing, and remains usable at desktop, tablet, phone and compact-phone widths; promotion does not approve the former coordinator",
+            "trace": "trace.zip",
+            "page_errors": errors, "external_requests": len(outside_requests), "provider_calls": 0,
+            "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
+                              for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                               "src/hutch/server/app.py", "src/hutch/store.py", "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n", encoding="utf-8")
     finally:
         try:
-            context.tracing.stop(path=str(out / "trace.zip"))
+            context.tracing.stop(path=str(roster_output / "trace.zip"))
         except Exception:
             pass
         context.close()
@@ -3948,7 +4667,10 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
             "els => els.map(el => el.dataset.switchBot)") == [
                 "workspace-coordinator", "research-helper", "website-auditor", "agenda-assistant", "operations-review"]
         page.locator("[data-switch-bot='workspace-coordinator']").hover()
-        page.locator("[data-bot-options='workspace-coordinator']").click()
+        page.set_viewport_size({"width": 1440, "height": 960})
+        coordinator_options = page.locator("[data-bot-options='workspace-coordinator']")
+        coordinator_options.evaluate("el => el.scrollIntoView({block:'nearest'})")
+        coordinator_options.click()
         coordinator_menu = page.get_by_role("menu")
         assert coordinator_menu.get_by_role("menuitem", name="Bot settings").is_visible()
         assert coordinator_menu.get_by_role("menuitem", name="Pin to sidebar").count() == 0
@@ -4111,7 +4833,13 @@ def test_large_idle_roster_stays_compact_and_remains_searchable_and_keyboard_acc
             action = page.locator("[data-bot-options='release-helper-0']")
             assert page.evaluate("matchMedia('(hover:hover) and (pointer:fine)').matches")
             assert action.evaluate("el => getComputedStyle(el).opacity") == "0.62"
-            assert action.evaluate("el => getComputedStyle(el).pointerEvents") == "auto"
+            action.click()
+            menu = page.locator("#roster-action-menu")
+            assert menu.is_visible()
+            assert menu.get_by_role("menuitem", name="Pin to sidebar").is_visible()
+            page.keyboard.press("Escape")
+            assert not menu.is_visible()
+            assert action.evaluate("el => el === document.activeElement")
             page.locator("[data-switch-bot='release-helper-0']").hover()
             assert action.evaluate("el => getComputedStyle(el).opacity") == "1"
 
@@ -4128,6 +4856,218 @@ def test_large_idle_roster_stays_compact_and_remains_searchable_and_keyboard_acc
     finally:
         try:
             context.tracing.stop(path=str(out / "trace.zip"))
+        except Exception:
+            pass
+        context.close()
+
+
+def test_bot_sidebar_menu_supports_recoverable_hide_and_named_sections(browser, live):
+    """Rare roster organization stays in one menu, and hidden Bots remain findable and recoverable."""
+    base, app = live
+    store = app.state.store
+    bots = [
+        Bot(name="workspace-coordinator", display_name="Workspace Coordinator", model="mock/demo", tools=[]),
+        Bot(name="client-research", display_name="Client Research", model="mock/demo", tools=[]),
+        Bot(name="release-reviewer", display_name="Release Reviewer", model="mock/demo", tools=[]),
+    ]
+    for bot in bots:
+        store.create_bot(bot)
+    store.set_workspace_coordinator("workspace-coordinator")
+
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-chat-options"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(8000)
+    errors: list[str] = []
+    external: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url)
+            if urlsplit(request.url).netloc not in {urlsplit(base).netloc, ""} else None)
+    try:
+        page.goto(f"{base}/#/chat")
+        page.locator(".ctx-id h1").wait_for()
+        page.locator("[data-bot-options='client-research']").click()
+        menu = page.get_by_role("menu")
+        menu.get_by_role("menuitem", name="New section").click()
+        dialog = page.get_by_role("dialog", name="New section")
+        dialog.get_by_label("Section name").fill("Client work")
+        dialog.get_by_role("button", name="Save section").click()
+        page.locator("[data-roster-section='Client work'] summary").wait_for()
+        assert store.get_bot("client-research").roster_section == "Client work"
+        page.screenshot(path=str(out / "section-desktop.png"), animations="disabled")
+        page.locator("[data-roster-section='Client work'] summary").click()
+
+        page.locator("[data-bot-options='client-research']").click()
+        page.get_by_role("menuitem", name="Hide from sidebar").click()
+        page.locator("#roster-hidden-details summary").wait_for()
+        assert store.get_bot("client-research").sidebar_hidden is True
+        hidden = page.locator("#roster-list #roster-hidden-details")
+        hidden.locator("summary").click()
+        assert page.locator("#roster-list [data-switch-bot='client-research']").is_visible()
+        assert "schedules continue" in hidden.inner_text().lower()
+        page.screenshot(path=str(out / "hidden-desktop.png"), animations="disabled")
+
+        page.locator("[data-bot-options='client-research']").click()
+        page.get_by_role("menuitem", name="Show in sidebar").click()
+        page.locator("[data-roster-section='Client work'] summary").wait_for()
+        assert store.get_bot("client-research").sidebar_hidden is False
+        section = page.locator("[data-roster-section='Client work']")
+        if not section.evaluate("el => el.open"):
+            section.locator("summary").click()
+        assert section.locator("[data-switch-bot='client-research']").is_visible()
+        assert store.get_bot("client-research").roster_section == "Client work"
+
+        page.reload()
+        page.locator(".ctx-id h1").wait_for()
+        section = page.locator("[data-roster-section='Client work']")
+        if not section.evaluate("el => el.open"):
+            section.locator("summary").click()
+        assert page.locator("[data-roster-section='Client work'] [data-switch-bot='client-research']").is_visible()
+
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            if width <= 900 and page.locator("#ws-close").is_hidden():
+                page.locator("#nav-toggle").click()
+            page.locator("[data-bot-options='client-research']").click()
+            assert page.get_by_role("menu").get_by_role("menuitem", name="Hide from sidebar").is_visible()
+            page.screenshot(path=str(out / f"menu-{label}.png"), animations="disabled")
+            page.keyboard.press("Escape")
+            if width <= 900 and page.locator("#ws-close").is_visible():
+                page.locator("#ws-close").click()
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") == 0, label
+
+        page.set_viewport_size({"width": 1440, "height": 960})
+        coordinator_options = page.locator("[data-bot-options='workspace-coordinator']")
+        coordinator_options.evaluate("el => el.scrollIntoView({block:'nearest'})")
+        coordinator_options.click()
+        coordinator_menu = page.get_by_role("menu")
+        assert coordinator_menu.get_by_role("menuitem", name="Hide from sidebar").count() == 0
+        assert coordinator_menu.get_by_role("menuitem", name="New section").count() == 0
+        page.keyboard.press("Escape")
+        assert store.get_bot("workspace-coordinator").sidebar_hidden is False
+        assert not errors, errors
+        assert not external, external
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_bot_sidebar_menu_supports_recoverable_hide_and_named_sections",
+            "command": ".venv/bin/pytest -q tests/e2e/test_browser.py::test_bot_sidebar_menu_supports_recoverable_hide_and_named_sections",
+            "browser": browser.version, "playwright": package_version("playwright"),
+            "fixture_only": True, "provider_calls": 0, "external_requests": external, "page_errors": errors,
+            "viewports": [[1440, 960], [900, 1024], [390, 844]],
+            "verified": ["one Bot options menu includes pin/settings/organization actions", "section assignment persists across reload",
+                         "hidden Bots remain recoverable and section assignment is retained", "hiding does not pause execution or schedules",
+                         "workspace coordinator remains visible and cannot be grouped", "phone and tablet menus fit without horizontal overflow"],
+            "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
+                              for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                               "src/hutch/server/app.py", "src/hutch/models.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        context.close()
+
+
+def test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority(browser, live, monkeypatch):
+    """A Bot can seed a new setup draft without copying tools, schedules, memory, or its workspace."""
+    base, app = live
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
+    source = Bot(name="release-reviewer", display_name="Release Notes Reviewer", model="openai/gpt-4o-mini",
+                 tools=["read_file", "write_file", "remember"], memory_enabled=True,
+                 instructions="Review release notes and prepare a short project summary.",
+                 description="Review and summarize project releases.", workspace_mode="folder",
+                 workdir="/private/source/project", base_url="https://private-provider.example/v1",
+                 local_browser_handoff=True,
+                 schedule=Schedule(cron="0 9 * * 1", timezone="America/Vancouver",
+                                   prompt="Review the latest release notes."))
+    app.state.store.create_bot(source)
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-chat-options"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(8000)
+    errors: list[str] = []
+    requests: list[str] = []
+    create_payloads: list[dict] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: requests.append(request.url))
+    page.on("request", lambda request: create_payloads.append(request.post_data_json)
+            if request.url.endswith("/api/v1/bots") and request.method == "POST" else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(f"{base}/#/chat/{source.name}")
+        page.locator("[data-bot-options='release-reviewer']").click()
+        page.get_by_role("menuitem", name="Duplicate bot").click()
+        page.get_by_role("heading", name="Describe the work").wait_for()
+        assert page.get_by_label("Bot name").input_value() == "Release Notes Reviewer copy"
+        name_input = page.get_by_label("Bot name")
+        name_style = name_input.evaluate("el => ({borderStyle:getComputedStyle(el).borderStyle, borderWidth:getComputedStyle(el).borderWidth, background:getComputedStyle(el).backgroundColor})")
+        assert name_style["borderStyle"] == "solid" and name_style["borderWidth"] == "1px", name_style
+        assert name_style["background"] != "rgba(0, 0, 0, 0)", name_style
+        assert "Review release notes and prepare a short project summary." in page.locator("#setup-purpose").input_value()
+        note = page.locator(".setup-duplicate-note")
+        note.wait_for()
+        assert "not copied" in note.inner_text()
+        assert app.state.store.get_bot("release-reviewer-copy") is None
+
+        captures = []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.screenshot(path=str(out / f"duplicate-setup-{label}.png"), animations="disabled")
+            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight], overflow:document.documentElement.scrollWidth-innerWidth,
+                footer:document.querySelector('.modal-footer').getBoundingClientRect().bottom,
+                dialog:document.querySelector('[role=dialog]').getBoundingClientRect().toJSON()})""")
+            assert metrics["overflow"] <= 1 and metrics["footer"] <= height + 1, (label, metrics)
+            assert metrics["dialog"]["left"] >= -1 and metrics["dialog"]["right"] <= width + 1, (label, metrics)
+            captures.append({"viewport": [width, height], "overflow_px": metrics["overflow"], "footer_visible": True})
+
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.locator("#modal-confirm").click()
+        page.get_by_role("heading", name="Set model and workspace").wait_for()
+        assert page.get_by_label("Model route").input_value() == source.model
+        assert page.locator("#setup-workspace_mode").input_value() == "managed"
+        page.locator("#modal-confirm").click()
+        page.get_by_role("heading", name="Choose tools and schedule").wait_for()
+        assert page.locator("#setup-tools input:checked").count() == 0
+        page.locator("#modal-confirm").click()
+        page.get_by_role("heading", name="Review bot").wait_for()
+        review = page.locator(".setup-review").inner_text()
+        assert "managed" in review.lower() and "no tools enabled" in review.lower()
+        assert "Recurring task\nNone" in review and "Memory\nDisabled" in review
+        assert app.state.store.get_bot("release-reviewer-copy") is None
+        assert app.state.store.list_runs() == []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.locator(".setup-review-list").scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"duplicate-review-{label}.png"), animations="disabled")
+            metrics = page.evaluate("""() => ({overflow:document.documentElement.scrollWidth-innerWidth,
+                bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
+                footer:document.querySelector('.modal-footer').getBoundingClientRect().bottom})""")
+            assert metrics["overflow"] <= 1 and metrics["bodyOverflow"] <= 1 and metrics["footer"] <= height + 1, (label, metrics)
+        with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
+                                 and response.request.method == "POST") as created:
+            page.locator("#modal-confirm").click()
+        assert created.value.status == 201, created.value.text()
+        duplicate = app.state.store.get_bot(created.value.json()["name"])
+        assert duplicate is not None
+        assert duplicate.instructions == source.instructions and duplicate.model == source.model
+        assert duplicate.workspace_mode == "managed" and duplicate.workdir is None and duplicate.base_url is None
+        assert duplicate.tools == [] and not duplicate.memory_enabled and duplicate.schedule is None
+        assert not duplicate.local_browser_handoff and app.state.store.list_runs() == []
+        assert create_payloads and "base_url" not in create_payloads[-1] and "workdir" not in create_payloads[-1]
+        assert not errors and all(url.startswith(base) for url in requests), (errors, requests)
+        (out / "duplicate-validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority",
+            "command": ".venv/bin/pytest -q tests/e2e/test_browser.py::test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority",
+            "browser": browser.version, "playwright_version": package_version("playwright"),
+            "viewports": captures, "fixture_only": True, "provider_calls": 0, "external_requests": 0,
+            "copied": ["standing instructions", "model route", "inference mode", "execution limits", "editable name"],
+            "not_copied": ["enabled tools", "connected accounts", "custom provider URL", "local folder", "schedule", "memory values", "chat history", "browser handoff"],
+            "page_errors": errors,
+            "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                              for name in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                           "src/hutch/server/app.py", "src/hutch/store.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "duplicate-trace.zip"))
         except Exception:
             pass
         context.close()
@@ -5129,6 +6069,7 @@ def test_composer_switcher_menu_check_keyboard_and_per_message_override(browser,
     chosen = btn.inner_text().strip()
     assert chosen == "small:2b"
     assert "is-custom" in btn.get_attribute("class")
+    page.locator("#studio-conversation-options").click()
     page.locator("#studio-new-conversation").click()
     page.wait_for_function("old => document.querySelector('#conversation-switcher').value !== old", arg=first_conversation)
     assert "tiny:1b" in page.locator(".ms-btn").get_attribute("aria-label")
@@ -5329,7 +6270,13 @@ def test_legacy_external_runtime_can_move_to_hutch_and_run_a_real_local_route(br
         assert page.get_by_text("OpenCode execution is unavailable in Hutch.").is_visible()
         assert "Hutch never imports private sign-in files or credentials" in page.locator("#runtime-recovery").inner_text()
         isolation_help = page.locator("#inference-mode-help").inner_text()
-        assert "Hutch verified that the isolated worker" in isolation_help
+        offline_capability = next(item for item in page.request.get(f"{base}/api/v1/capabilities").json()
+                                  if item["id"] == "strict_offline")
+        if offline_capability["status"] == "unavailable":
+            assert "Hutch could not verify worker network isolation on this host" in isolation_help
+            assert "Strict Offline stays unavailable" in isolation_help
+        else:
+            assert "Hutch verified that the isolated worker" in isolation_help
         assert "/home/" not in isolation_help, "host diagnostic paths belong in the CLI, not a narrow settings panel"
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
@@ -5608,6 +6555,7 @@ def test_bot_and_conversation_switches_isolate_unsent_drafts(browser, live):
     page.locator('[data-switch-bot="draft-a"]').click()
     page.wait_for_function("document.querySelector('#chat-prompt')?.placeholder.includes('Draft A')")
     assert page.locator("#chat-prompt").input_value() == "Private draft for A"
+    page.locator("#studio-conversation-options").click()
     page.locator("#studio-new-conversation").click()
     page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value !== id", arg=first)
     assert page.locator("#chat-prompt").input_value() == ""
@@ -5642,7 +6590,7 @@ def test_inline_chat_approval_is_one_click_and_preserves_conversation(browser, l
     assert card.locator('[data-approve="1"]').evaluate("e => e === document.activeElement")
     assert page.locator("#studio-stop-run").is_visible()
     header = page.locator(".app-top").bounding_box()
-    for control in ("#conversation-switcher", "#studio-new-conversation", "#studio-stop-run"):
+    for control in ("#conversation-switcher", "#studio-conversation-options", "#studio-stop-run"):
         box = page.locator(control).bounding_box()
         assert box["y"] >= header["y"] and box["y"] + box["height"] <= header["y"] + header["height"] + 1
     stream = page.locator("#chat-scroll").bounding_box()

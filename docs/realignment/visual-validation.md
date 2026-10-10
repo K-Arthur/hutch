@@ -68,7 +68,9 @@ the downloaded YAML sample, validation metadata and trace are in
 
 The Studio roster keeps the workspace coordinator first, then shows pinned Bots in a
 named group and the rest under “All bots”. Search matches both groups. Pinning is saved
-with the Bot and changes only its roster placement; there is no hide or pause behavior.
+with the Bot and changes only its roster placement. Hiding is reversible from a disclosed
+Hidden bots group and does not pause work or schedules. One Bot overflow control contains
+pin, named section, hide/show, template download, safe duplicate and settings actions.
 The operator app uses a small family of flat, solid-colour 2D silhouettes with two
 white glints. The welcome view uses that Bot's same identity. The detailed original 3D
 mascot on the marketing site remains separate and unchanged.
@@ -1084,6 +1086,114 @@ The final affected API/store/browser batch passed **61 tests in 15.99s**, includ
 syntax, Python compilation and `git diff --check` passed. This uses synthetic SQLite facts and no provider/model call. It verifies browser
 download handling and server scope/size behavior, not the contents of a user's real memory, password-manager protection,
 screen-reader behavior or physical-phone behavior.
+
+## Owner-approved coordinator specialist roster (schema v41)
+
+`tests/e2e/test_browser.py::test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_sizes` exercises the real
+settings UI with ten eligible Bots. Search narrows the list to a single choice, Space toggles its focused checkbox, and Save
+persists the owner selection. Promoting that specialist to coordinator removes it from the roster and does not approve the prior
+coordinator. The API/store tests also remove a specialist after dispatch and confirm the existing task and child conversation stay
+available. The separate coordinator-task browser journey confirms the selector offers only approved Bots; an unlisted direct API
+submission is rejected before a task row is created.
+
+The settings card now stays compact by default and shows the current approved count; its search and roster open only after the owner
+chooses **Manage**. The owner can expand/collapse the native disclosure with Enter, then search a ten-Bot roster, toggle a checkbox
+with Space, and save. The count updates after save. Load failures open the details automatically and disable saving, so the error is
+not hidden behind the collapsed state. Promoting a specialist removes it from the roster without approving the former coordinator.
+
+I inspected both collapsed and expanded app captures at desktop **1440×960**, tablet **900×1024**, phone **390×844**, and compact
+phone **320×844**. Each captured viewport had no horizontal overflow; the compact summary preserves the full title over two lines when
+needed, while the count and **Manage**/**Close** control remain visible. Expanded search and selection controls fit all sizes. The
+anonymous marketing test inspected its coordinator-handoff copy at desktop **1440×900**, tablet **900×1024**, and phone **390×844**;
+the screenshots show the approved-roster rule and the existing-work boundary without clipping. Chromium **153.0.8010.12** and
+Playwright **1.63.0** were used. Both browser flows reported no page errors or external requests; they made no provider/model calls.
+The focused browser test passed **1 test in 6.30s** after a test-first failure on the previously absent disclosure. Screenshots, traces,
+source hashes, commands and validation JSON are in [`artifacts/workspace-specialists/`](artifacts/workspace-specialists/).
+Fixtures use isolated local state. No screen reader or physical phone was tested.
+
+## Bot and conversation overflow actions (2026-10-09)
+
+The Bot overflow menu now includes recoverable hide/show, pinning, named sections,
+review-before-download of a local sanitized template, a safe Duplicate bot setup, and
+settings. The conversation menu includes New, Rename, Pin, Mark unread, section,
+scope-reviewed local export, and Archive/Restore. Conversation lists group pinned,
+named-section, recent and archived chats; selecting a chat clears its unread marker,
+and a new reply can mark it unread again.
+
+`tests/e2e/test_browser.py::test_conversation_options_are_compact_persistent_and_recoverable`,
+`test_bot_menu_downloads_a_reviewable_local_setup_template`,
+`test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority`, and
+`test_bot_sidebar_menu_supports_recoverable_hide_and_named_sections` exercise these
+flows against local fixtures. The conversation and duplicate flows generate desktop
+**1440×960**, tablet **900×1024**, and phone **390×844** captures and Playwright traces
+under [`artifacts/conversation-options/`](artifacts/conversation-options/) and
+[`artifacts/bot-chat-options/`](artifacts/bot-chat-options/). Visual review checks menu
+placement, modal footers, keyboard Escape/focus return, persistent state, no horizontal
+overflow, and review before any export or creation. No provider, external site, paid call,
+screen reader, or physical phone is used by these tests.
+
+The chat options menu also has a **320×844** compact-phone capture. The focused
+conversation/template/duplicate/roster/quick-setup batch passed **42 tests**. Rename
+updates the open picker immediately and survives reload. Duplicate setup carries only
+standing instructions, model route, inference mode, workspace type and limits; its review
+excludes tools, connected accounts, provider URLs, local folders, schedules, memory values,
+browser handoff and history. All menu and duplicate setup/review captures were inspected
+after the final CSS changes.
+
+The chat menu now keeps New, Rename, Pin, Unread and Section visible, with template,
+export and archive actions grouped under **More**. Its task-template review copies only
+the first user request into an editable name/prompt pair; the local JSON download excludes
+assistant replies and all other conversation context. Import validates the version and
+bounds, fills the draft, and does not start a run. The conversation-options browser test
+passed **1** and checks the More disclosure's Escape/focus behavior, task-template download
+and import, and that run count stays unchanged. Phone review captures at desktop
+**1440×960**, tablet **900×1024**, and phone **390×844**; More is also inspected at compact
+phone **320×844**. The template dialog keeps both fields and its download action inside the
+phone viewport with no horizontal overflow. Updated artifacts include
+[`task-template-review-desktop.png`](artifacts/conversation-options/task-template-review-desktop.png),
+[`task-template-review-phone.png`](artifacts/conversation-options/task-template-review-phone.png),
+[`more-phone.png`](artifacts/conversation-options/more-phone.png), and
+[`more-compact-phone.png`](artifacts/conversation-options/more-compact-phone.png). This is a
+local Chromium fixture; no provider call or network share occurs. No physical-device or
+screen-reader validation was run.
+
+A later full diagnostic run completed with **1,689 passed, 4 failed, and 1 teardown error in
+872.90s**. It exposed three older-schema fixtures that retained the v44 task-template table,
+and one archive browser test that did not open the new **More** disclosure before clicking
+Archive. The fixtures now remove the table before lowering `user_version`; the browser test
+opens the disclosure and closes its context in `finally`. Those four failed cases passed in
+targeted reruns (**3 migration tests and 1 browser test**). The full suite has not been rerun
+after these test-fixture corrections and is not a release-suite pass. The earlier schedule
+focus, status indicator, heading-leading and roster-menu fixes remain covered by focused
+regressions.
+Chromium **153.0.8010.12** / Playwright **1.63.0**; all captured local fixtures had no page
+errors or horizontal overflow. No live provider, paid call, external account, screen reader,
+or physical phone was used.
+
+Mobbin searches for an iOS assistant inbox and web settings disclosure returned the plan-gate message and no screens. A screenshot
+of the user-provided Bobo Figma preview node rendered the full canvas at 1400×881 (natural canvas 32128×20200); it is too zoomed out
+to inspect individual components. The compact summary follows Hutch's committed design tokens and uses that preview only as
+high-level mobile-chat context. No external assets or token values were copied.
+
+## Local saved-request library (2026-10-10)
+
+The conversation's **More** menu can save the first user request to a local library after review. A searchable composer menu opens
+the library; **Use request** fills the draft and leaves sending as a separate user action. Owners can edit with revision checks or
+delete after confirmation. The local JSON import/export path remains available for portability and does not include replies, files,
+tool activity, credentials, or chat identifiers. Marketing copy describes the draft-only behavior and local storage without implying
+cloud sharing.
+
+The saved-request API tests passed **2 tests** (within a combined **23-test** template and migration run) for bounded fields,
+idempotent create/update/delete, conflict detection, and persistence.
+An added regression verifies retries return the original response snapshot after later edits and deletion; this prevents retries from
+turning into errors or silently returning newer content. The browser journey passed **1 test** across review, persistence, search,
+draft-only use, edit, confirmed delete, run-count invariance, and no external requests or provider calls. The anonymous marketing
+suite passed **27 tests** and separately asserts this feature's claims. Chromium **153.0.8010.12** / Playwright **1.63.0** captures
+were inspected at desktop **1440×960**, tablet **900×1024**, phone **390×844**, and compact phone **320×844**. Dialogs fit the tested
+viewport; library controls stack into full-width buttons on phone. Marketing screenshots show the repeat-work copy at desktop
+**1440×900**, tablet **900×1024**, and phone **390×844**. Evidence is under
+[`artifacts/saved-requests/`](artifacts/saved-requests/), including `validation.json` and the Playwright trace. No screen reader or
+physical device was tested.
 
 ## Quick Bot creation and compact roster controls (2026-10-09)
 

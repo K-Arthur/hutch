@@ -37,41 +37,106 @@ Inspect the latest run events and worker log (`hutch bot show <name>` and the bo
 prevents pidfd signalling or process visibility, resolve that host restriction and let the supervisor retry. Hutch will not signal
 a numeric PID or process-group ID whose recorded boot/start identity does not match.
 
-## Remote pairing (experimental)
+## Phone supervision over private HTTPS
 
-The dashboard binds to loopback unless `--allow-remote` is explicit. For a direct private-network listener, use a certificate and key
-trusted by the devices that will connect:
-
-```bash
-hutch serve --host 0.0.0.0 --port 8787 --allow-remote --tls-cert /path/to/fullchain.pem --tls-key /path/to/private-key.pem
-```
-
-Restrict reachability at the host/network firewall to your private network. Do not expose this port to the public internet. In another
-host terminal, `hutch pairing create` prints a single-use code valid for 60 seconds. Exchange it only with your own device at the
-HTTPS Hutch address by opening `/pair` and entering the code. The code can be used once. Connections lists paired browsers, marks the
-current device, and can revoke another session or itself; a self-revoked browser returns to `/pair`. `hutch pairing list` shows active
-device ids and use times; revoke a lost device from Connections or with `hutch pairing revoke <device-id>`. The browser holds an
-HttpOnly cookie; the raw session secret is never returned in the response or written to the database. Pairing throttles after five
-invalid attempts from one source IP in ten minutes.
-
-The pairing form and responsive dashboard are implemented, but remote operation remains experimental: no physical-device or private
-network test has been performed. For an operator-managed HTTPS reverse proxy, configure the proxy's exact source address or CIDR and
-the public hostname before starting Hutch:
+Remote access stays off by default. `hutch serve --allow-remote` enables only the paired-phone supervision surface; do not publish
+Hutch or use Tailscale Funnel. Keep host firewalls and network ACLs limited to devices you trust. Configure the canonical HTTPS name
+as the exact RP ID, origin, and allowed Host before starting Hutch:
 
 ```bash
+export HUTCH_ALLOWED_HOSTS=hutch-host.tailnet-name.ts.net
+export HUTCH_WEBAUTHN_RP_ID=hutch-host.tailnet-name.ts.net
+export HUTCH_WEBAUTHN_ORIGIN=https://hutch-host.tailnet-name.ts.net
 export HUTCH_TRUSTED_PROXIES=127.0.0.1/32
-export HUTCH_ALLOWED_HOSTS=hutch.example.net
-hutch serve --host 127.0.0.1 --port 8787 --allow-remote \
-  --tls-cert /path/to/origin-cert.pem --tls-key /path/to/origin-key.pem
+hutch serve --host 127.0.0.1 --port 8787 --allow-remote
 ```
 
-The proxy must connect to Hutch over TLS and verify the origin certificate. It must overwrite `X-Forwarded-Host`,
-`X-Forwarded-Proto` (`https`) and `X-Forwarded-For` with values derived from the incoming request; do not pass through
-client-supplied forwarding headers. Hutch honors these headers only when the network peer matches `HUTCH_TRUSTED_PROXIES`, requires
-the forwarded hostname to match `HUTCH_ALLOWED_HOSTS`, and removes forwarding metadata from untrusted requests. Use the smallest
-possible proxy CIDR. `--allow-remote` is required even when Hutch binds to loopback. The proxy must still enforce its own TLS, host,
-rate and network controls. Hutch does not start or configure a tunnel, and this path has local fixture coverage only; it is not a
-production remote-support certification.
+Before changing Tailscale configuration, inspect `tailscale serve status` and `tailscale funnel status`; review any existing endpoint
+before reconfiguring its port. After confirming the HTTPS listener is available and the effective tailnet policy is restricted, run
+`tailscale serve --bg 8787` on the host to proxy Hutch over HTTPS within the tailnet. Recheck both status commands and confirm the
+Hutch HTTPS endpoint targeting `127.0.0.1:8787` appears under Serve and not Funnel. Funnel is public when configured, and the same
+frontend port cannot be used by both Serve and Funnel. Tailscale's current [Serve](https://tailscale.com/docs/features/tailscale-serve)
+and [Funnel](https://tailscale.com/docs/features/tailscale-funnel) pages disagree about whether Funnel is enabled by default, so
+inspect the node's actual status and effective policy instead of relying on a default. Hutch also rejects trusted-proxy requests
+marked as Funnel ingress, but this guard is defense in depth; do not configure public Funnel access.
+New tailnets start with an allow-all policy, so inspect the effective policy and add a grant that limits this host and port to the
+operator's devices. Tailscale Serve requires tailnet HTTPS and manages its certificate lifecycle. Enabling tailnet HTTPS publishes
+the machine and tailnet DNS name in public certificate transparency logs even though Serve traffic remains tailnet-restricted; choose
+names that do not reveal sensitive information. The tailnet grant is a network boundary; Hutch still requires its own passkey login and limits each paired credential
+to its Hutch capabilities. Tailscale Serve's current reverse-proxy source sets `X-Forwarded-Host` and `X-Forwarded-For`, sets
+`X-Forwarded-Proto: https` when it terminates HTTPS, and marks Funnel traffic; Hutch accepts forwarded metadata only from the
+configured loopback proxy peer and rejects the Funnel marker. Hutch continues to require its own passkey session and does not use
+Tailscale identity headers as application credentials.
+
+For a local network instead, bind Hutch to one private interface address (never `0.0.0.0` or `::`) and provide a certificate trusted
+by the phone. Set `HUTCH_ALLOWED_HOSTS`, `HUTCH_WEBAUTHN_RP_ID`, and `HUTCH_WEBAUTHN_ORIGIN` to the exact DNS name in that
+certificate; include a non-default port in `HUTCH_WEBAUTHN_ORIGIN` (for example, `https://hutch.lan:8787`) but not in the RP ID or
+allowed Host. Restrict the port at the host and network firewalls. For example:
+
+```bash
+export HUTCH_ALLOWED_HOSTS=hutch.lan
+export HUTCH_WEBAUTHN_RP_ID=hutch.lan
+export HUTCH_WEBAUTHN_ORIGIN=https://hutch.lan:8787
+hutch serve --host 192.168.1.10 --port 8787 --allow-remote \
+  --tls-cert /path/to/hutch.lan-chain.pem --tls-key /path/to/hutch.lan-key.pem
+```
+
+Renew the certificate before expiry and verify the renewed certificate chain, hostname, and passkey origin from the phone before
+resuming access. Hutch refuses wildcard and public-address binds.
+
+On the host, `hutch pairing create` prints a single-use code valid for 60 seconds. Submit it only in `/pair` on your private HTTPS
+Hutch origin. The code creates a five-minute enrollment-only cookie with a 16-challenge registration limit; if that limit is reached,
+request a fresh pairing code. A successful WebAuthn registration creates a separate revocable
+passkey credential and eight-hour maximum session. Login requires user verification. Synced passkeys work, so the credential label
+is descriptive and does not prove which physical device is using it. Sessions expire after 30 minutes idle or eight hours absolute;
+background polling does not extend the idle timeout. The browser clears its private view after expiry or revocation. Logout revokes
+that session; `hutch pairing list` and `hutch pairing revoke <credential-id>` inspect/revoke credentials and all sessions for a lost
+passkey.
+
+Phone access can monitor Bots, runs, approvals and transcripts; Allow once or Deny a pending action; and Stop or Resume only through
+the existing current-event checks. A pairing made with `hutch pairing create --allow-start` adds Start capability, but a local owner
+must also enable each Bot with `hutch bot update NAME --remote-start`. Phone starts use the Bot's saved model, tools, workspace and
+approval policy. A Bot's pause controls scheduled tasks; an explicit on-demand phone start remains available when both Start gates
+are enabled. Revoking the credential or disabling remote starts cancels unclaimed phone work; already claimed runs remain visible and
+need an explicit Stop. Device pairing, per-Bot settings, schedules, credentials, provider connections, and all computer interaction
+remain local-owner tasks. Uncertain phone command responses require status reconciliation; Retry reuses the original idempotency key.
+
+### Pre-enable acceptance gate
+
+Complete this checklist from an authorized private connection on both iOS Safari and Android Chrome before using remote mode for
+real work:
+
+1. Pair with a fresh one-use code, enroll a passkey, lock the session, and unlock with user verification. Confirm private bot/run data
+   is absent before unlock and disappears after logout, expiry, and local credential revocation. Leave the page polling past the
+   30-minute idle limit once to confirm background activity does not keep the session alive; automated fake-clock tests cover the
+   eight-hour absolute limit.
+2. Open bot status and a run transcript, then suspend the browser and disconnect/reconnect Wi-Fi or the tailnet. Confirm the phone
+   reconciles a fresh snapshot and event cursor without duplicating content or showing stale state as current.
+3. Review the exact details for a pending action. Exercise **Allow once** and **Deny** on separate fixture actions, then make a
+   competing decision from another session and confirm the losing phone reports the committed decision rather than success.
+4. Stop a known run and resume only the current human-wait event. Confirm stale wait controls are rejected after the run advances.
+5. Verify a monitor-only credential cannot start work. On a fixture Bot, enable both credential Start and the local Bot setting;
+   start one task and confirm it uses the saved model and approval policy. Turn off the Bot setting and confirm another start is
+   refused.
+6. In a controlled test, interrupt the response after an approval or Start commits. Reconcile with the original request key; confirm
+   there is one decision/run and the UI never suggests a new-key resubmission. Do not use a live Bot or external side-effecting tool
+   for this check.
+7. On the host, inspect `ss -ltnp` and the firewall. For Tailscale, confirm the endpoint appears under `tailscale serve status`,
+   not `tailscale funnel status`, and that the effective policy admits only approved operator devices. Test that a non-member or
+   unauthorized device cannot connect. For direct LAN TLS, verify the trusted chain and hostname from both phones and confirm the
+   host/network firewall blocks every unapproved interface and subnet.
+
+Keep Hutch on loopback if any check fails. Revoke the test credentials and stop the remote-mode process before changing ingress or
+certificate settings. Do not use public Funnel, a wildcard bind, or a router port forward.
+
+An operator-managed reverse proxy may be used only when Hutch is configured with its exact proxy IP (`/32` or `/128`) and exact
+public host. The proxy must terminate HTTPS, overwrite `X-Forwarded-Host`, `X-Forwarded-Proto: https`, and `X-Forwarded-For`, and
+connect to Hutch on loopback. Uvicorn proxy rewriting is disabled; Hutch only accepts forwarding metadata from that configured peer.
+Do not configure a broad proxy range. Never trust a browser-supplied forwarding header.
+
+This feature has automated ASGI, route, database, browser-fixture and real-Uvicorn HTTPS coverage. iOS Safari, Android Chrome, live
+Tailscale Serve, LAN certificate renewal, and live network isolation have not been validated in this environment; remote access is
+not production-certified. The host must remain awake and connected. Remote browser handoff, PTY, and computer input are unavailable.
 
 Local same-session browser handoff is experimental and opt-in per bot; it needs a Linux display and the optional Playwright browser.
 Enable **Let me take over this bot’s browser** in the bot setup or settings. When Hutch pauses, read the shown origin and reason,

@@ -1,6 +1,6 @@
 # Architecture
 
-Schema v39 separates reference facts, durable typed chat questions, explicit specialist-result references, task-only selected-fact snapshots, content-free workspace task checkpoints, immutable safe-continuation lineage, and owner-reviewed local OpenCode coding handoffs from canonical chat messages, workspace files, execution receipts
+Schema v41 separates reference facts, durable typed chat questions, explicit specialist-result references, task-only selected-fact snapshots, content-free workspace task checkpoints, an owner-approved specialist roster, immutable safe-continuation lineage, and owner-reviewed local OpenCode coding handoffs from canonical chat messages, workspace files, execution receipts
 and provider credential stores. It also stores credential-free Google and Outlook Calendar/Mail account references and one selected-calendar or mailbox grant per Bot;
 refresh credentials remain in Linux Secret Service. Outlook Calendar and Mail use separate OAuth callbacks, token namespaces and scopes. Model proposals inherit persisted chat/run scope and execution fencing;
 human review binds immutable revision/scope hashes. Explicit sharing creates a bot-wide reference.
@@ -21,7 +21,7 @@ change permissions or start a run.
 When creating a Bot from Studio chat, the owner can also select up to eight earlier user messages from that same conversation.
 The exact selection is reviewed and saved as background in the Bot's instructions; assistant messages, other chats and
 permissions are not carried over. The saved context may be included in future model calls.
-Schema v28 stores the owner's selected workspace coordinator. Bot settings can assign the role, the selected Bot opens as the default Studio chat, and the roster labels it. Schema v29 records a reviewed handoff from a completed coordinator turn to one selected specialist: the original request, coordinator draft, user-edited brief and assumptions, specialist identity/settings snapshot, child conversation/run, current status and latest response remain linked in the parent chat. Schema v32 permits an unchecked-by-default, bounded selection of reviewed coordinator facts for that task's untrusted run context; the snapshot is not added to specialist memory. The specialist's own enabled memory and workspace still apply. A changed specialist route, instruction, permission or workspace fails before its worker starts. Schema v30 records a user-selected successful specialist message attached to a coordinator follow-up, bound to the task and source message in the same parent conversation. A 4,000-character immutable snapshot appears in the transcript/export and a JSON-escaped form enters only that run as explicitly untrusted context. Schema v31 adds an ordered journal of selected committed child-run event markers, bounded to the latest 16 per task in the API projection; it stores no event content, prompts, reasoning, action arguments or tool output. The linked child run remains the authority for its capability snapshot and decision records. Schema v34 permits one owner-confirmed fresh attempt from a failed/stopped built-in task only when no action or child run was recorded, the specialist chat has no later work or pending question, the coordinator chat remains active, and the exact capability snapshot is unchanged. The new attempt gets the reviewed brief/constraints and bounded committed assistant text as untrusted progress; it never replays actions, receipts, selected facts, prior tool results or credentials. `outcome_unknown`, external runtimes and process restoration remain unavailable. This remains one explicit handoff at a time, not an autonomous team planner; roster allowlists, parent cancellation and live external-provider verification remain incomplete.
+Schema v28 stores the owner's selected workspace coordinator. Bot settings can assign the role, the selected Bot opens as the default Studio chat, and the roster labels it. Schema v41 stores the owner's explicit specialist list, initially empty; promotion removes the new coordinator, and task admission checks membership atomically before writing the task/run. The prior coordinator is not auto-authorized. Schema v29 records a reviewed handoff from a completed coordinator turn to one approved specialist: the original request, coordinator draft, user-edited brief and assumptions, specialist identity/settings snapshot, child conversation/run, current status and latest response remain linked in the parent chat. Schema v32 permits an unchecked-by-default, bounded selection of reviewed coordinator facts for that task's untrusted run context; the snapshot is not added to specialist memory. The specialist's own enabled memory and workspace still apply. A changed specialist route, instruction, permission or workspace fails before its worker starts. Schema v30 records a user-selected successful specialist message attached to a coordinator follow-up, bound to the task and source message in the same parent conversation. A 4,000-character immutable snapshot appears in the transcript/export and a JSON-escaped form enters only that run as explicitly untrusted context. Schema v31 adds an ordered journal of selected committed child-run event markers, bounded to the latest 16 per task in the API projection; it stores no event content, prompts, reasoning, action arguments or tool output. The linked child run remains the authority for its capability snapshot and decision records. Schema v34 permits one owner-confirmed fresh attempt from a failed/stopped built-in task only when no action or child run was recorded, the specialist chat has no later work or pending question, the coordinator chat remains active, and the exact capability snapshot is unchanged. The new attempt gets the reviewed brief/constraints and bounded committed assistant text as untrusted progress; it never replays actions, receipts, selected facts, prior tool results or credentials. `outcome_unknown`, external runtimes and process restoration remain unavailable. This remains one explicit handoff at a time, not an autonomous team planner; parent cancellation and live external-provider verification remain incomplete.
 
 hutch is a local-first multi-bot agent platform: one Python process family that stores everything
 in one state directory, drives LLM agents through a policy-gated tool layer, and exposes both a CLI
@@ -249,8 +249,9 @@ redacted from event/receipt records. Native HTML form submissions show a bounded
 the approval to a page-side digest of current form state, including secret values that never leave the page. A changed form refuses
 to submit; selected file uploads and forms without secure digest support fail closed. A visible sensitive field blocks screenshots.
 Human password/CAPTCHA/MFA steps pause in the same live profile; Resume checks the page without reloading it. Field detection is heuristic, the Linux desktop handoff is
-experimental, and no real challenge or phone handoff is verified. Remote phone control and live/non-HTTP browser egress validation
-remain open. HTTP(S)/WebSocket browser connections use a locally tested DNS-pinning proxy. SQLite access is serialized by an RLock in `Store`, and migration startup is additionally serialized across
+  experimental, and no real challenge or computer-input handoff is verified. Paired-phone supervision now supports status/transcript
+  viewing, approval review, Stop/Resume, and locally enabled starts through passkeys and an explicit route capability inventory; live
+  mobile/network validation remains open. Remote computer input and live/non-HTTP browser egress validation remain open. HTTP(S)/WebSocket browser connections use a locally tested DNS-pinning proxy. SQLite access is serialized by an RLock in `Store`, and migration startup is additionally serialized across
 processes. Schema v9 stores canonical conversations, user/assistant messages, run links and revocable device sessions; old runs are imported one per legacy
 conversation to avoid guessing continuity. Versioned conversation writes and run admission are idempotent and transactional. The
 builtin runtime receives a capped snapshot of earlier messages; Studio uses the versioned conversation endpoints. Versioned stop and
@@ -274,6 +275,27 @@ checks current hardware headroom before generation; estimated fit and resident-a
 are qualified in `docs/models.md`. This is not strict-offline enforcement or control of other
 clients of the same model server. `HUTCH_MODEL_SLOTS` no longer widens inference concurrency.
 
+## Purpose-first Bot creation
+
+When the owner has a validated workspace model default or an eligible source-chat model
+route, New Bot presents a one-screen quick path. In an active chat, the latest user
+request is already the draft instruction; **Make a bot** binds the exact message the
+owner selected. The owner reviews the request and suggested Bot name without having
+to describe the same work again. Editing instructions stays optional. From an empty
+chat, the owner can describe a new responsibility. Browser-local naming suggests a
+professional name and stable address; it makes no model request. Quick creation stores
+managed workspace, no tools, no schedule and ask-first actions. Saving is idempotent
+and starts no run. If no route is configured, the owner must choose one before
+creation; Hutch has no implicit provider fallback.
+
+**Customize** enters the existing full editor for model/inference/workspace, tools,
+memory, schedules, usage limits, optional browser handoff, YAML and final review.
+Import still fills an unsaved draft and requires the explicit creation action. A
+source-chat request remains linked as provenance. Only earlier messages explicitly
+selected by the owner become saved context, and context content never changes Bot
+authority. This split shortens the common path without removing controls or silently
+granting a tool, connection, credential, schedule or background task.
+
 ## Review-only Bot-purpose drafting
 
 New Bot setup may submit one optional refinement to the workspace coordinator. Hutch supplies the exact source user message,
@@ -289,9 +311,12 @@ can edit the purpose and submit another request, but an interactive clarificatio
 
 Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, a cross-run artifact library, remote
 browser handoff, authenticated PTY/physical desktop controls and Windows/macOS support — tracked in `docs/roadmap.md`.
-Experimental direct HTTPS pairing has a one-time-code UI and revocable device inventory. An operator-managed HTTPS reverse proxy can
-forward through an explicitly trusted source network and public-host allowlist; its metadata boundary has local fixture coverage only,
-not real tunnel, private-network or physical-device validation. No production remote-support claim exists. The Linux shell has optional,
+Remote phone supervision is optional and remains disabled unless `hutch serve --allow-remote` is explicitly launched. It uses one-use
+enrollment, passkey credentials, bounded sessions, a deny-by-default route inventory and per-Bot local Start opt-in. Direct remote
+access requires a private interface and trusted HTTPS certificate; a proxy requires exact proxy IP and public-host allowlists. The
+recommended Tailscale path forwards Serve to a loopback Hutch listener and still requires Hutch passkey authentication. These boundaries
+have automated local and real-Uvicorn HTTPS coverage, but not live tunnel, private-network, iOS/Android, or certificate-renewal
+validation. No production remote-support claim exists. Remote computer control and phone browser handoff remain unavailable. The Linux shell has optional,
 fail-closed bubblewrap containment; it is not a VM and does not contain every tool or the browser.
 
 The conversation-first shell keeps the bot roster and configuration ownership in one place.

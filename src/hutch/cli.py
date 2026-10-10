@@ -743,6 +743,9 @@ def bot_update(
     local_browser_handoff: Optional[bool] = typer.Option(
         None, "--local-browser-handoff/--no-local-browser-handoff",
         help="show the browser on this Linux desktop while a person handles login challenges"),
+    remote_start: Optional[bool] = typer.Option(
+        None, "--remote-start/--no-remote-start",
+        help="allow paired phones to start this Bot, within its existing policy"),
     workdir: Optional[str] = typer.Option(None, "--workdir", help="a folder of yours the bot works in"),
     workspace_mode: Optional[Literal["fresh", "managed", "folder"]] = typer.Option(
         None, "--workspace-mode", help="fresh | managed | folder (folder mode needs --workdir)"),
@@ -796,6 +799,7 @@ def bot_update(
     if approval is not None: bot.approval_mode = approval
     if risk_tier is not None: bot.risk_tier = risk_tier
     if local_browser_handoff is not None: bot.local_browser_handoff = local_browser_handoff
+    if remote_start is not None: bot.remote_start_enabled = remote_start
     if sandbox_mode is not None:
         if sandbox_mode not in ("strict", "off"):
             err.print("[red]--sandbox must be 'strict' or 'off'[/red]")
@@ -1508,16 +1512,18 @@ def daemon() -> None:
 
 @app.command()
 def pairing(action: str = typer.Argument(..., help="create, list, or revoke"),
-            device_id: Optional[str] = typer.Argument(None)) -> None:
+            device_id: Optional[str] = typer.Argument(None),
+            allow_start: bool = typer.Option(False, "--allow-start", help="let this passkey request starts for locally enabled Bots")) -> None:
     """Create a one-use phone pairing code or inspect/revoke paired devices."""
     store = _store()
     try:
         if action == "create":
             if device_id:
                 raise typer.BadParameter("create does not accept a device id")
-            code = store.create_pairing_code()
+            code = store.create_pairing_code(allow_start=allow_start)
             console.print(f"Pairing code (expires in 60 seconds; show it only to your device): [bold]{code}[/bold]")
-            console.print("Open the Hutch address on the device and enter this code. It can be used once.")
+            console.print("Open Hutch over private HTTPS on the device and enter this code once to enroll a passkey.")
+            console.print("Phone starts also require this option and a local per-Bot remote-start setting.")
         elif action == "list":
             if device_id:
                 raise typer.BadParameter("list does not accept a device id")
@@ -1525,7 +1531,8 @@ def pairing(action: str = typer.Argument(..., help="create, list, or revoke"),
             if not rows:
                 console.print("No active paired devices.")
             for row in rows:
-                console.print(f"{row['id']}  {row['label']}  expires {row['expires_at']}  last used {row['last_used_at'] or 'never'}")
+                console.print(f"{row['id']}  {row['label']}  {', '.join(row['capabilities'])}  "
+                              f"last used {row['last_used_at'] or 'never'}")
         elif action == "revoke":
             if not device_id:
                 raise typer.BadParameter("revoke requires a device id")
@@ -1555,13 +1562,47 @@ def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8787),
           tls_key: Optional[str] = typer.Option(None, "--tls-key")) -> None:
     """Serve locally, or allow explicitly paired devices over direct HTTPS or a trusted HTTPS proxy."""
     import uvicorn
+    # This is an internal switch passed to the ASGI middleware, never a way to
+    # opt into remote access from the shell environment. Only the validated CLI
+    # flag below may set it for the server process.
+    os.environ.pop("HUTCH_REMOTE_ENABLED", None)
     loopback = _loopback_bind(host)
     if not loopback and not allow_remote:
         err.print("[red]refusing a non-loopback bind without --allow-remote[/red]")
         raise typer.Exit(code=2)
     if allow_remote:
-        if not tls_cert or not tls_key or not Path(tls_cert).is_file() or not Path(tls_key).is_file():
-            err.print("[red]--allow-remote requires readable --tls-cert and --tls-key files[/red]")
+        if not loopback and (not tls_cert or not tls_key or not Path(tls_cert).is_file() or not Path(tls_key).is_file()):
+            err.print("[red]direct private-network access requires readable --tls-cert and --tls-key files[/red]")
+            raise typer.Exit(code=2)
+        try:
+            bind_address = ipaddress.ip_address(host)
+        except ValueError:
+            bind_address = None
+        shared_tailnet = bool(bind_address and bind_address in ipaddress.ip_network("100.64.0.0/10"))
+        if not loopback and (bind_address is None or bind_address.is_unspecified
+                             or not (bind_address.is_private or shared_tailnet)):
+            err.print("[red]remote Hutch must bind to a private LAN or Tailscale address; wildcard and public binds are refused[/red]")
+            raise typer.Exit(code=2)
+        trusted_proxy = bool(os.environ.get("HUTCH_TRUSTED_PROXIES", "").strip())
+        if loopback and not trusted_proxy:
+            err.print("[red]a loopback remote setup requires an explicitly trusted HTTPS proxy[/red]")
+            raise typer.Exit(code=2)
+        if (not loopback or (tls_cert or tls_key)) and (
+                not tls_cert or not tls_key or not Path(tls_cert).is_file() or not Path(tls_key).is_file()):
+            err.print("[red]direct private-network access requires readable --tls-cert and --tls-key files[/red]")
+            raise typer.Exit(code=2)
+        if tls_cert and (not Path(tls_cert).is_file() or not Path(tls_key or "").is_file()):
+            err.print("[red]both --tls-cert and --tls-key must name readable files[/red]")
+            raise typer.Exit(code=2)
+        from .server.passkeys import PasskeyConfigError, relying_party
+        try:
+            rp_id, _origin = relying_party()
+        except PasskeyConfigError as exc:
+            err.print(f"[red]remote passkeys are not configured: {exc}[/red]")
+            raise typer.Exit(code=2) from None
+        allowed = {item.strip().lower() for item in os.environ.get("HUTCH_ALLOWED_HOSTS", "").split(",") if item.strip()}
+        if rp_id not in allowed:
+            err.print("[red]HUTCH_ALLOWED_HOSTS must include the exact HUTCH_WEBAUTHN_RP_ID hostname[/red]")
             raise typer.Exit(code=2)
         os.environ["HUTCH_REMOTE_ENABLED"] = "1"
         proxy_configured = bool(os.environ.get("HUTCH_TRUSTED_PROXIES"))
@@ -1577,7 +1618,7 @@ def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8787),
     scheme = "https" if tls_cert else "http"
     console.print(f"[bold]hutch[/bold] dashboard → {scheme}://{host}:{port}")
     uvicorn.run("hutch.server.app:create_app", factory=True, host=host, port=port, log_level="warning",
-                ssl_certfile=tls_cert, ssl_keyfile=tls_key)
+                ssl_certfile=tls_cert, ssl_keyfile=tls_key, proxy_headers=False)
 
 
 def main() -> None:  # console_scripts entry point

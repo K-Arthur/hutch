@@ -255,8 +255,11 @@ class Bot(BaseModel):
     workspace_mode: Literal["fresh", "managed", "folder"] = "fresh"
     workdir: Optional[str] = None     # an existing user folder; overrides the managed workspace
     local_browser_handoff: bool = False  # show this bot's browser on the Linux desktop for same-session human control
+    remote_start_enabled: bool = False   # local-owner opt-in for passkey-paired phone starts; never grants new tools
     paused: bool = False
     pinned: bool = False              # workspace roster preference; does not affect execution
+    sidebar_hidden: bool = False       # removes an idle Bot from the main roster; never pauses work
+    roster_section: Optional[str] = Field(default=None, max_length=40)
     template: Optional[str] = None    # which starter template it came from
     creation_source: Optional[BotCreationSource] = None  # explicit request provenance; never grants authority
     creation_context_sources: list[BotCreationSource] = Field(default_factory=list)  # owner-selected same-chat user messages
@@ -292,6 +295,14 @@ class Bot(BaseModel):
         elif self.schedule:
             self.schedules = [self.schedule]
         return self
+
+    @field_validator("roster_section")
+    @classmethod
+    def normalize_roster_section(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        value = " ".join(value.split())
+        return value or None
 
     def set_schedules(self, schedules: list[Schedule]) -> None:
         """Update the multi-task list and its first-schedule compatibility alias together."""

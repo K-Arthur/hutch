@@ -11,7 +11,7 @@ analytics request. Motion follows the operating system's reduced-motion setting;
 | State shown publicly | Evidence and limit |
 |---|---|
 | Supported | Linux execution, local SQLite state, up to 100 named recurring tasks per bot with independent timing/prompts, and fixture-tested lifecycle/control paths. A running local supervisor is needed for schedules; tasks on one bot queue under its single-run rule. Actual runs require a configured model route and a running local service or provider connection. |
-| Experimental | Configured hosted-provider and local-inference routes; OpenCode Go's user-supplied API-key connection; opt-in Sign in with ChatGPT local token-sharing preview (eligibility for Hutch is unconfirmed, no live account verification, and no provider-enforced output limit); reviewed owner-launched OpenCode coding tasks on Linux in pinned worktrees (OpenCode's own sign-in, usage and command permissions; no Hutch sandbox or automatic branch application); one Hutch local caller and up to eight waiters per state directory; host-gated Offline isolation; opt-in same-bot child tasks under Strict Offline with approval on every request; one explicit user-reviewed coordinator handoff to a selected specialist with a separate chat and durable parent status/result; an optional, user-selected exact specialist response can be attached as untrusted text to a coordinator follow-up; up to eight current reviewed coordinator facts may be selected for one task, with provider-retention limits disclosed; HTTPS-paired dashboard sessions with revocation; local same-session browser handoff on a Linux desktop; HTTP(S)/WebSocket browser egress pinned by a local proxy. Coordinator handoff does not automatically plan more work or transfer files/history/permissions; selected fact snapshots stay with that task and are not added to specialist memory. A specialist's own enabled memory and workspace may still apply. Same-Bot delegation is serial, task-text-only, private-workspace and subject to the two-run default. Provider/model calls, backend provenance, the visible desktop flow, public browser destinations, non-HTTP browser traffic and physical-device/network access were not verified live for this release. |
+| Experimental | Configured hosted-provider and local-inference routes; OpenCode Go's user-supplied API-key connection; opt-in Sign in with ChatGPT local token-sharing preview (eligibility for Hutch is unconfirmed, no live account verification, and no provider-enforced output limit); reviewed owner-launched OpenCode coding tasks on Linux in pinned worktrees (OpenCode's own sign-in, usage and command permissions; no Hutch sandbox or automatic branch application); one Hutch local caller and up to eight waiters per state directory; host-gated Offline isolation; opt-in same-bot child tasks under Strict Offline with approval on every request; one explicit user-reviewed coordinator handoff with a durable parent status/result and a durable owner-approved specialist roster that starts empty; an optional, user-selected exact specialist response can be attached as untrusted text to a coordinator follow-up; up to eight current reviewed coordinator facts may be selected for one task, with provider-retention limits disclosed; HTTPS-paired dashboard sessions with revocation; local same-session browser handoff on a Linux desktop; HTTP(S)/WebSocket browser egress pinned by a local proxy. Coordinator handoff does not automatically plan more work or transfer files/history/permissions; selected fact snapshots stay with that task and are not added to specialist memory. A specialist's own enabled memory and workspace may still apply. Same-Bot delegation is serial, task-text-only, private-workspace and subject to the two-run default. Provider/model calls, backend provenance, the visible desktop flow, public browser destinations, non-HTTP browser traffic and physical-device/network access were not verified live for this release. |
 | Unavailable | macOS/Windows executor, public source/package, authenticated PTY/physical desktop control, phone browser handoff and OpenCode/Pi as Hutch-managed Bot runtimes. |
 
 The site distinguishes local control state from prompt traffic to a selected model and network
@@ -46,7 +46,17 @@ workspace coordinator can also provide an optional, tool-free experimental rewri
 only explicitly selected earlier user context (one response per request). The owner must edit/apply the result; it cannot create a Bot or change its authority.
 The coordinator's configured route/fallback and normal usage limits apply, hosted providers may retain the submitted text, and live
 draft quality is unverified. Multi-round clarification and generative naming remain unimplemented. Do not describe this as an automatic
-configuration change or as verified model quality.
+configuration change or as verified model quality. When a validated workspace/source-chat route exists, the first New Bot screen
+creates a no-tool, ask-first Bot from the described purpose or selected request. **Customize** opens the full model, workspace,
+tool, memory, schedule, limit, browser-handoff and review controls. If no model route exists, the UI requires the user to select one;
+it must not imply or silently choose a hosted provider. In an active chat the latest user request is already the starting
+instruction; **Make a bot** binds the exact selected user message. The owner reviews the request and suggested name without
+restating the task and may edit the instructions if needed. Creation saves the Bot and starts no run.
+
+The site may describe saved requests as a searchable local library. Saving requires a review of the first user request; using an entry
+fills a chat draft and does not send or start work. The library is in local SQLite state and included in database backups. JSON
+template download/import remains an explicit local file workflow. Do not imply public links, team sharing, typed placeholders, or
+that saved prompt text is sent to a provider before the owner sends the chat message.
 
 The Connections support table may list Google Calendar, Outlook Calendar, and Outlook Mail as experimental, read-only local integrations that
 require operator OAuth configuration and Linux Secret Service. No provider account or consent verification has been performed.
@@ -64,8 +74,9 @@ confirm. The original request stays linked to the proposed brief and reviewed ha
 selected for that task cross into the new chat;
 the specialist's own enabled memory/workspace may still apply. The coordinator can receive one exact specialist answer only when
 the user selects and attaches it to a follow-up; Hutch preserves its source and treats it as untrusted. Label this handoff
-experimental and do not imply automatic multi-step planning, resumable checkpoints, an owner-approved specialist roster, live
-provider verification or file transfer.
+experimental and do not imply automatic multi-step planning, resumable checkpoints, live provider verification or file transfer.
+The owner-approved roster is a durable local control over who may receive new tasks; it starts empty and does not change an
+approved Bot's tools or access.
 
 The product preview is a real first-run application capture with an empty state directory. It
 contains no seeded bots, conversations, runs, approvals, credentials, or provider output. Older

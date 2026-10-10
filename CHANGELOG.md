@@ -1,5 +1,21 @@
 # Changelog
 
+## Conversation organization and local task templates
+
+- Chat options now keep frequent actions visible and group template, export and archive actions under **More**. Keyboard Escape closes the nested disclosure first and restores focus at each level.
+- Owners can review and save the first user request to a searchable local library, then edit, reuse or delete it from any chat. Using a saved request only fills the draft; Send remains a separate action. The library lives in SQLite and is included in local database backups.
+- Owners can also download a reviewed task-template JSON file and import it into a chat draft. Templates omit replies, tools, files, credentials and conversation identifiers; import never sends or starts work.
+- The token source now names shared section-title and wordmark sizes so Studio panels and server-rendered pages use the same roles. The design sidecar and generated CSS were refreshed from the main-branch `DESIGN.md` and shared token file.
+- Responsive Chromium fixtures verified the menu, local template review/import, unchanged run count, focus recovery, and desktop/tablet/phone layout. No screen-reader or physical-device validation was performed.
+
+## Quick Bot setup and a calmer large roster
+
+- New Bot now has a one-screen purpose-first path when the workspace or source-chat model route is configured. It reuses that route, suggests a professional name locally, and creates a managed Bot with no tools or schedule, ask-first actions and no initial run. If no route is configured, the user must select one; Hutch never chooses a paid fallback silently.
+- The explicit **Customize** path retains model, workspace, tools, memory, schedule, limits, browser handoff, YAML import and full review. A selected chat request remains the only included source unless the user chooses earlier context.
+- At ten or more Bots, idle unpinned Bots collapse behind an accessible **All bots** disclosure. The workspace coordinator, attention states, pinned Bots, active work and the current chat stay available. Search and keyboard opening reach the full roster; row actions are visually quieter on desktop and remain visible to touch users.
+- App mascot eyes now share a coherent tapered 2D shape and angle; the marketing site's more detailed 3D artwork remains separate. Product research and anecdotal failure cases are recorded in `docs/research/bot-setup-patterns-2026-10-09.md`.
+- Responsive Chromium evidence and validation traces are stored under `docs/realignment/artifacts/simple-bot-setup/` and `docs/realignment/artifacts/compact-roster/` after those checks pass.
+
 ## Reviewed Bot setup YAML import
 
 - The guided setup accepts bounded `hutch.ai/v1` YAML and fills an unsaved draft after strict safe parsing and Bot configuration validation. It rejects unsafe tags, aliases, duplicate keys, unknown fields and unsupported authority such as endpoint URLs, local folders, command rules, trusted risk or automatic approval. Missing local model credentials do not prevent review; final creation still checks route readiness.
@@ -48,6 +64,7 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ## [Unreleased]
 
+- Schema v41 adds an owner-managed, empty-by-default specialist roster for coordinator tasks. Settings save the roster, the dispatch review lists only approved Bots, and storage rechecks membership atomically. Promoting a specialist removes it from the list without automatically approving the former coordinator; removing approval leaves existing tasks and history intact. API, migration, direct-dispatch and responsive browser coverage were added.
 - Guided Bot setup now validates and previews a versioned YAML configuration and can download the unsaved draft for review. The
   preview uses the Bot-creation validator, creates no Bot or run, and excludes provider endpoint URLs, local folder paths, and
   conversation-source identifiers; its private text response is not cached. Desktop, tablet and phone browser checks cover the
