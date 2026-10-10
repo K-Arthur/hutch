@@ -184,6 +184,7 @@ grant for held operator review. Desktop, tablet and phone share/revoke flows are
 | `160af58` | Add optional multi-round, intent-preserving Bot setup clarification with bounded answers, same-browser resume, regression coverage and inspected responsive captures |
 | `437da02` | Refine the everyday-first assistant UI, request carryover, Apps & AI cards, grouped settings, simple app faces and matching marketing visuals |
 | `01a5f2a` | Save independently inspected desktop/tablet/phone captures with source hashes and update the visual-validation record |
+| `a1af316` | Put approval decisions first and collapse optional browser notifications into a state-labeled disclosure, with responsive captures and regression coverage |
 
 ## Dashboard polish continuation (2026-10-09)
 
@@ -3799,3 +3800,20 @@ trace and source hashes are in [`artifacts/pinned-roster/`](artifacts/pinned-ros
 Test, documentation and evidence are committed locally on `main` as `ba648dd`.
 The roster regression is covered; the full app and marketing redesign remains
 open. No push or publication occurred.
+
+## Approval queue hierarchy (2026-10-10)
+
+The **Needs you** drawer now shows pending decisions and uncertain action
+outcomes before notification preferences. Optional browser notifications live
+in one collapsed disclosure with a visible **On**, **Off**, **Blocked**, or
+**Unavailable** state. The chat approval path and notification privacy boundary
+remain unchanged.
+
+The focused approval and responsive-route batch passed **4 tests in 30.46s**.
+It verifies the notification states, queue click-through, preserved approval
+review focus, in-chat approval, and responsive route rendering. I inspected
+expanded desktop/phone notification settings and desktop/phone approval states
+individually. These fixtures use local data and a stubbed notification API; no
+OS prompt, provider, or real notification was used. The implementation is
+committed locally on `main` as `a1af316`; the broader UI overhaul remains open.
+No push or publication occurred.
