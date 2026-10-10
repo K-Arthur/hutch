@@ -27,17 +27,18 @@ without presenting original Hutch artwork as a Microsoft logo.
 
 I did not bundle Gmail or Google Calendar product icons. Google's official
 [product list](https://about.google/brand-resource-center/products-and-services/)
-links both services to general icon guidance. Its [brand guidance](https://about.google/brand-resource-center/guidance/)
-says product-icon use may require a request; Google's Partner Marketing Hub
-explains that an account is used to request permission. The detailed icon page
-could not be retrieved in this review, so I cannot claim that every in-app
-integration use requires approval. Hutch has no permission recorded and keeps
-clearly labeled, original category glyphs until the terms for this use are
-confirmed. OpenAI's [brand guide](https://openai.com/brand/) says not to add
-colors to the Blossom; the app uses its exact local white mark only beside the
-named ChatGPT service, not as Hutch's brand. The earlier Google SVG files came
-from an older icon generation and have been removed; the current refresh is
-documented by [Google Workspace Updates](https://workspaceupdates.googleblog.com/2026/05/introducing-fresh-visual-identity-for-Google-Workspace-app-icons.html).
+links both services to general icon guidance. The current
+[Partner Marketing Hub guidance](https://partnermarketinghub.withgoogle.com/brands/google/branding-guidelines/how-to-show-googles-brand/)
+says to request product-icon assets through its approval form, to use the
+newest versions, and to keep Google's role clear. No permission is recorded for
+Hutch, so the app keeps clearly labeled, original category glyphs. Google
+announced a new Workspace icon family in May 2026; older Google SVGs were
+removed rather than reused. OpenAI's [brand guide](https://openai.com/brand/)
+says not to add colors to the Blossom; the app uses its exact local white mark
+only beside the named ChatGPT service, not as Hutch's brand. Microsoft's
+[current trademark guidance](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks)
+explicitly says its logos, app icons, and designs require a license, so Hutch
+does not include Outlook's product icon without one.
 
 ## User-provided ChatGPT screen
 

@@ -157,17 +157,18 @@ can access or what the machine has actually confirmed.
   cost, timing, run references, and transcript checks remain available in a
   clearly labeled optional details layer.
 - A simple, shape-aware 2D character gives the app a recognizable face. Each
-  distinct silhouette has two soft upright oval eyes. Size, spacing, height, and
-  slight tilt follow the shape. Keep the face uncluttered, with no
-  pupils, highlights, or detached marks. Larger original 3D
+  distinct silhouette gets a small, individually fitted deep-green face panel
+  with two narrow, curved light slits. Their spacing, height, and shared tilt
+  follow the shape. Keep the face uncluttered, with no pupils, highlights, or
+  detached marks. Larger original 3D
   character art belongs to marketing; both use the same friendly palette and
   visual family.
 - Provider art follows the provider's current published rules. ChatGPT uses
   OpenAI's unaltered white Blossom beside its explicit name. Microsoft Outlook,
   Gmail, and Google Calendar use original service-category glyphs beside their
   full names unless Hutch confirms the relevant product-icon terms and receives
-  any required permission. Google's icon guidance routes product-icon use
-  through a request process; Microsoft requires an express license for Outlook
+  any required permission. Google routes product-icon use through an approval
+  request; Microsoft requires an express license for Outlook
   product icons.
   Every mark stays secondary to its exact service name and connection state;
   category artwork never imitates a provider logo.
@@ -279,10 +280,12 @@ language after explicit user direction ("right angles feel too off"):
 - **Status chip** — pill, mono 11px, dot + word always together (`● working`,
   `● needs you`, `✕ failed`); colour never carries state alone.
 - **App avatar/sigil** — one flat silhouette from a varied, curated set in one of
-  eight identity colours with two softly curved solid ink eyes. Their gentle
-  shared slant gives each face a fluid expression; every silhouette has a face-safe zone that
-  determines eye center, spacing, proportions, height, and tilt. Pointed heads
-  place them lower in the wider face. Keep the face free of detached marks. The identity
+  eight identity colours with a shape-fitted deep-green face panel and two
+  narrow, softly curved light slits. Their gentle shared slant gives each face
+  a fluid expression; every silhouette has a face-safe zone that determines
+  panel contour, eye center, spacing, proportions, height, and tilt. Pointed
+  heads place them lower in the wider face. Keep the face free of detached
+  marks. The identity
   picker uses the exact same face geometry as the
   selected avatar. Derived from the Bot name and overridable
   at creation and in settings. Identity colours are decorative only, never status;

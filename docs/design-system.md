@@ -58,10 +58,10 @@ The app and marketing site share locally bundled Archivo for display, page, and
 section headings, and system sans for interface and reading text. The app loads
 the same licensed font locally, without a remote request. The site keeps the
 locally bundled 3D Hutch mascot. The app uses compact flat 2D assistant characters. Each distinct head
-shape gets two soft upright oval eyes with no pupils or highlights. Eye size,
+shape gets a fitted deep-green face panel and two narrow, softly curved light
+slits, with no pupils, highlights, or detached marks. Panel contour and eye
 spacing, slight tilt, and height follow the usable face area; the picker previews
-the same geometry. Avoid detached marks. Status is
-shown separately.
+the same geometry. Status is shown separately.
 Brand art, assistant identity, and runtime state never substitute for one another.
 
 ## Surface roles
@@ -102,9 +102,8 @@ exact names. ChatGPT uses OpenAI's exact, unaltered white Blossom mark under its
 published brand terms. Microsoft Outlook, Gmail, and Google Calendar use
 original service-category marks until product-icon use is permitted. Microsoft
 guidance requires an express license for Outlook product artwork. Google's
-general guidance links Gmail and Calendar to product-icon rules and directs
-requests through Partner Marketing Hub; the exact guidance page could not be
-retrieved during this review, and Hutch has no permission recorded. See
+current Partner Marketing Hub guidance directs product-icon use through its
+approval form; Hutch has no permission recorded. See
 [Google's product-icon guidance](https://partnermarketinghub.withgoogle.com/brands/google/branding-guidelines/how-to-show-googles-brand/)
 and [Microsoft's trademark guidance](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks).
 Never present a category icon as a provider logo. Keep provider, model,

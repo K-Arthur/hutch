@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Refine the app's 2D mascots after review: each of the eight head shapes now has its own fitted dark face panel and two narrow, curved light slits. The identity picker uses the same paths as the final avatar. Individually inspected each face and responsive picker captures; the detailed 3D mascot remains exclusive to marketing.
 - Add a separate experimental Gmail send-only connection using Google's sensitive `gmail.send` scope. It has its own OAuth account, Secret Service entry, schema-v47 per-assistant grants, and Connections setup; it cannot read mailbox content. Each action shows the exact sender, recipients, subject and body for fresh approval, sends one plain-text request, and holds ambiguous results without retry. Fixture coverage includes OAuth scope, MIME payload, revocation races, migrations, and desktop/tablet/phone/compact-phone browser states. No Google account or provider request was used; public OAuth verification remains outstanding.
 - Give the chat title its available toolbar width and move assistant settings
   into the existing chat options menu. Keep approval details tappable above the

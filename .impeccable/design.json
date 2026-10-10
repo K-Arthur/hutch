@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-10T16:30:10+00:00",
+  "generatedAt": "2026-10-10T18:22:17+00:00",
   "title": "Design System: Hutch",
   "extensions": {
     "colorMeta": {
@@ -352,15 +352,15 @@
     },
     "typographyMeta": {
       "display": {
-        "displayName": "System Sans Display",
+        "displayName": "Archivo Display",
         "purpose": "Occasional welcome and feature emphasis; clamp(1.75rem, 3vw, 2.25rem), 700 weight, 1.12 leading."
       },
       "page-title": {
-        "displayName": "System Sans Page Title",
+        "displayName": "Archivo Page Title",
         "purpose": "App page titles; 1.5rem/1.25, 700 weight, tight tracking."
       },
       "section-title": {
-        "displayName": "System Sans Section",
+        "displayName": "Archivo Section",
         "purpose": "Panel and section titles; 1.125rem/1.25, 650 weight."
       },
       "body": {
@@ -551,10 +551,10 @@
     "keyCharacteristics": [
       "Familiar chat and app patterns carry everyday tasks; advanced controls appear in clear, optional layers instead of defining the first impression. Activity hides empty buckets and offers one clear state with links to chat and past work.",
       "Assistant settings lead with the editable name and short role; standing directions and advanced controls stay under one clearly labeled customization layer.",
-      "A simple, shape-aware 2D character gives the app a recognizable face. Each distinct silhouette has two softly curved solid ink eyes; size, spacing, height, and shared slant adapt to the shape. Keep the face free of pupils, highlights, or detached marks. Larger original 3D character art belongs to marketing.",
+      "A simple, shape-aware 2D character gives the app a recognizable face. Each distinct silhouette has a fitted dark-green face panel with two narrow, curved light slits; contour, spacing, height, and tilt adapt to the usable face area. Keep the face free of pupils, highlights, or detached marks. Larger original 3D character art belongs to marketing.",
       "Provider artwork follows current published rules by context. ChatGPT uses OpenAI’s exact, unaltered white Blossom beside its explicit name. Microsoft Outlook, Gmail, and Google Calendar use original category glyphs beside their full names unless Hutch receives permission for specific product marks. No provider mark is recolored or fetched remotely.",
       "Layered graphite surfaces keep long sessions comfortable. Emerald is the brand and primary action; azure is interaction; amber means a person needs to act; rose means failure. Text and familiar icons reinforce each color’s meaning.",
-      "Mono type is reserved for measured values such as IDs, durations, and budgets. Prose and instructions use the familiar system sans."
+      "Display, page, and section headings use locally bundled Archivo; interface prose and instructions use system sans, and mono is reserved for measured values such as IDs, durations, and budgets."
     ],
     "rules": [
       {

@@ -623,9 +623,9 @@ function summarizeOutput(output) {
 
 /* ---------------------------------------------------------------- avatars
    Each Bot gets one light 2D character: a distinctive, name-stable silhouette,
-   one brand-family colour and a pair of shape-fitted, softly curved eyes. This family
-   belongs to the operator app; the marketing site keeps its detailed 3D artwork.
-   Identity never encodes status. Status remains a separate labeled indicator. */
+   one brand-family colour and a shape-fitted face with two soft light slits.
+   This family belongs to the operator app; the marketing site keeps its
+   detailed 3D artwork. Identity never encodes status. */
 const ID_COLORS = ["#3DE8C5", "#35C3F0", "#5B9BFF", "#9B7CFF", "#C77DFF", "#FF6FA5", "#FFA83C", "#7BD85A"];
 const ID_HEADS = [
   { key: "orb", d: "M32 8C45 8 55 18 55 32S45 56 32 56 9 46 9 32 19 8 32 8Z" },
@@ -637,17 +637,30 @@ const ID_HEADS = [
   { key: "triangle", d: "M27 12c2-4 8-4 10 0l19 32c2 4-1 8-5 8H13c-5 0-7-4-5-8l19-32Z" },
   { key: "hex", d: "M22 9h20l13 23-13 23H22L9 32 22 9Z" },
 ];
-// Each silhouette gets a pair of softly rounded, upright ink eyes. Their
-// size, tilt, and placement follow the face rather than repeating a slash mark.
+// The small face panel follows each head instead of floating the eye marks on
+// top of the colour. Its custom contour gives round, tapered, and angular heads
+// a shared visual language without forcing them into one repeated face shape.
+const ID_MASKS = [
+  "M19 31C19 26.8 23.1 23 28.1 23H35.2C40.2 23 45 26.2 45 31S40.2 39 35.2 39H28.1C23.1 39 19 35.2 19 31Z", // orb
+  "M21 30.7C21 26.4 24.8 23.4 29.2 23.4H34.8C39.2 23.4 43 26.4 43 30.7V31.5C43 35.8 39.2 38.6 34.8 38.6H29.2C24.8 38.6 21 35.8 21 31.5Z", // capsule
+  "M18.8 31.4C19 27.2 23.4 24.1 28.3 24.5L35.8 25.2C40.9 25.7 44.4 28.5 44.1 32.2 43.8 36.4 39.7 38.9 34.6 38.4L27.2 37.7C22.2 37.2 18.6 35.1 18.8 31.4Z", // bean
+  "M20 37.3C20 33 24.5 30 32 30S44 33 44 37.3 38.6 43 32 43 20 41.6 20 37.3Z", // drop
+  "M19 31.2C19 26.9 23.2 23.7 28.4 24L35.4 24.4C40.7 24.7 45 27.7 45 31.7 45 35.7 40.7 38.7 35.4 39L28.4 39.4C23.2 39.7 19 35.5 19 31.2Z", // pebble
+  "M19 31.4C19 27.1 23.3 24.3 28.4 24.7L32 25.1 35.6 24.7C40.7 24.3 45 27.1 45 31.4S40.7 38.5 35.6 38.1L32 37.7 28.4 38.1C23.3 38.5 19 35.7 19 31.4Z", // shield
+  "M21 38.2C21 34.4 25.6 31.8 32 31.8S43 34.4 43 38.2 38.1 43.2 32 43.2 21 42 21 38.2Z", // triangle
+  "M18.5 32C18.5 27.7 22.8 24.5 28.3 24.5H35.7C41.2 24.5 45.5 27.7 45.5 32S41.2 39.5 35.7 39.5H28.3C22.8 39.5 18.5 36.3 18.5 32Z", // hex
+];
+// Lead eye is just a little larger and lower than its companion. Positions,
+// scale, and tilt are tuned to each silhouette's usable face area.
 const ID_FACES = [
-  [[25.5, 29, 3.9, 5.2, -18], [38.2, 28.4, 3.5, 4.9, -15]], // orb: calm, open pair
-  [[25.5, 28.4, 3.9, 5.35, -17], [38.2, 28, 3.45, 4.9, -15]], // capsule: balanced in the tall face
-  [[25.2, 30, 3.85, 5.2, -20], [38.2, 28.8, 3.45, 4.85, -18]], // bean: follows the lean
-  [[25.5, 35.4, 3.8, 5.1, -17], [38.2, 34.6, 3.4, 4.7, -15]], // drop: lower in its bowl
-  [[25, 30, 3.9, 5.1, -19], [38.2, 28.8, 3.5, 4.8, -17]], // pebble: follows its wide face
-  [[25.6, 31.5, 3.7, 5, -16], [38.2, 30.4, 3.35, 4.65, -14]], // shield: compact below its taper
-  [[28.5, 37.4, 3.65, 4.9, -17], [39.2, 36.5, 3.25, 4.55, -15]], // triangle: centered in the base
-  [[25.4, 33.3, 3.85, 5.15, -19], [38.2, 32.2, 3.5, 4.85, -17]], // hex: clear of the facets
+  [[26.3, 30.5, 2.95, 3.7, -19], [37.5, 29.8, 2.45, 3.25, -17]], // orb
+  [[27, 30.2, 2.9, 3.7, -18], [37.2, 29.7, 2.4, 3.2, -16]], // capsule
+  [[26.2, 31, 2.85, 3.6, -21], [37.1, 30.2, 2.4, 3.15, -19]], // bean
+  [[26.4, 37.4, 2.8, 3.55, -18], [37.2, 36.6, 2.35, 3.05, -16]], // drop
+  [[26, 31.1, 2.9, 3.65, -20], [37.6, 30.2, 2.45, 3.15, -18]], // pebble
+  [[26.5, 31.7, 2.75, 3.55, -17], [37.3, 30.9, 2.35, 3.05, -15]], // shield
+  [[28.4, 38.1, 2.6, 3.35, -18], [37.2, 37.3, 2.2, 2.95, -16]], // triangle
+  [[26.2, 32.2, 2.85, 3.6, -20], [37.5, 31.3, 2.4, 3.1, -18]], // hex
 ];
 
 function hash32(s) {
@@ -689,9 +702,11 @@ function sigilEyes(shapeIndex) {
   const eye = (name, [cx, cy, rx, ry, angle]) => {
     const transform = "rotate(" + angle + " " + cx + " " + cy + ")";
     const metadata = 'data-cx="' + cx + '" data-cy="' + cy + '" data-rx="' + rx + '" data-ry="' + ry + '" data-angle="' + angle + '"';
-    return '<ellipse data-sigil-eye="' + name + '" data-contrast-ink="#10251e" cx="' + cx + '" cy="' + cy + '" rx="' + rx + '" ry="' + ry + '" ' + metadata + ' transform="' + transform + '" fill="#10251e" aria-hidden="true"/>';
+    const d = `M${cx - rx * .28} ${cy - ry}C${cx - rx * .02} ${cy - ry * 1.18} ${cx + rx * .42} ${cy - ry * .94} ${cx + rx * .58} ${cy - ry * .43}C${cx + rx * .78} ${cy + ry * .14} ${cx + rx * .43} ${cy + ry * .86} ${cx + rx * .14} ${cy + ry}C${cx - rx * .17} ${cy + ry * 1.04} ${cx - rx * .49} ${cy + ry * .58} ${cx - rx * .5} ${cy + ry * .14}C${cx - rx * .5} ${cy - ry * .3} ${cx - rx * .46} ${cy - ry * .76} ${cx - rx * .28} ${cy - ry}Z`;
+    return '<path data-sigil-eye="' + name + '" data-contrast-ink="#f7fff9" d="' + d + '" ' + metadata + ' transform="' + transform + '" fill="#f7fff9" aria-hidden="true"/>';
   };
-  return '<g aria-hidden="true">' + eye("lead", lead) + eye("companion", companion) + '</g>';
+  const mask = '<path data-sigil-mask="true" d="' + ID_MASKS[shapeIndex] + '" fill="#10251e" aria-hidden="true"/>';
+  return mask + '<g aria-hidden="true">' + eye("lead", lead) + eye("companion", companion) + '</g>';
 }
 
 function sigilBody(pair) {

@@ -582,7 +582,7 @@ def test_assistant_settings_keep_everyday_edits_up_front(browser, app_server):
 
 
 def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
-    """Shape-fitted ink eyes stay clear and contained across the 2D mascot family."""
+    """Each flat mascot gets a shape-fitted visor and a pair of soft light slits."""
     app_url, app = app_server
     names = [f"mascot-{index}" for index in range(8)]
     for name in names:
@@ -608,26 +608,34 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
           const shape = new Path2D(body.getAttribute('d'));
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
+          const mask = svg.querySelector('[data-sigil-mask]');
+          const maskShape = mask && new Path2D(mask.getAttribute('d'));
+          const points = element => {
+            const length = element.getTotalLength();
+            const transform = element.transform.baseVal.consolidate()?.matrix;
+            return Array.from({length:48}, (_, index) => {
+              const point = element.getPointAtLength(length * index / 48);
+              const local = new DOMPoint(point.x, point.y);
+              return transform ? local.matrixTransform(transform) : local;
+            });
+          };
+          const maskContained = mask && points(mask).every(point => ctx.isPointInPath(shape, point.x, point.y));
           const eyes = [...svg.querySelectorAll('[data-sigil-eye]')];
           const glints = [...svg.querySelectorAll('[data-sigil-glint]')];
           const contained = eyes.map(eye => {
-            const x = Number(eye.dataset.cx);
-            const y = Number(eye.dataset.cy);
-            const length = eye.getTotalLength();
-            const transform = eye.transform.baseVal.consolidate()?.matrix;
-            const points = Array.from({length:48}, (_, index) => {
-              const distance = length * index / 48;
-              const point = eye.getPointAtLength(distance);
-              const project = value => new DOMPoint(x + (value.x - x) * .96, y + (value.y - y) * .96)
-                .matrixTransform(transform);
-              return project(point);
-            });
-            return {perimeter: points.every(point => ctx.isPointInPath(shape, point.x, point.y))};
+            const eyePoints = points(eye);
+            return {
+              inHead: eyePoints.every(point => ctx.isPointInPath(shape, point.x, point.y)),
+              inMask: eyePoints.every(point => maskShape && ctx.isPointInPath(maskShape, point.x, point.y)),
+            };
           });
           return {head: body.getAttribute('d'), color: body.getAttribute('fill'),
-                  eyes: eyes.map(eye => ({name:eye.dataset.sigilEye, tag: eye.tagName.toLowerCase(), rx: Number(eye.dataset.rx),
-                    ry: Number(eye.dataset.ry), cx: Number(eye.dataset.cx), cy: Number(eye.dataset.cy),
-                    angle:Number(eye.dataset.angle),
+                  mask: mask && {d:mask.getAttribute('d'), fill:mask.getAttribute('fill'),
+                    tag:mask.tagName.toLowerCase(), contained:maskContained},
+                      eyes: eyes.map(eye => ({name:eye.dataset.sigilEye, tag: eye.tagName.toLowerCase(), rx: Number(eye.dataset.rx),
+                        ry: Number(eye.dataset.ry), cx: Number(eye.dataset.cx), cy: Number(eye.dataset.cy),
+                        width: eye.getBBox().width, height: eye.getBBox().height,
+                        angle:Number(eye.dataset.angle),
                     transform: eye.getAttribute('transform'),
                     fill: eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill'),
                     stroke: eye.getAttribute('stroke'), strokeWidth: Number(eye.getAttribute('stroke-width')),
@@ -643,25 +651,29 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
         })""")
         assert len(identity) == 8, identity
         assert len({item["color"] for item in identity}) == 8, identity
+        assert all(item["mask"] and item["mask"]["tag"] == "path"
+                   and item["mask"]["fill"] == "#10251e" and item["mask"]["contained"]
+                   for item in identity), identity
+        assert len({item["mask"]["d"] for item in identity}) == 8, identity
         assert all(len(item["eyes"]) == 2 for item in identity), identity
         assert all(item["glints"] == [] for item in identity), "the simplified faces have no pupils or detached highlights"
-        assert all(eye["tag"] == "ellipse" and eye["fill"] == "#10251e"
+        assert all(eye["tag"] == "path" and eye["fill"] == "#f7fff9"
                    and eye["stroke"] is None
-                   and eye["contrastInk"] == "#10251e"
-                    and 1.28 <= eye["ry"] / eye["rx"] <= 1.43
+                   and eye["contrastInk"] == "#f7fff9"
+                    and 1.7 <= eye["height"] / eye["width"] <= 2.5
                    for item in identity for eye in item["eyes"]), identity
         assert all(not item["outlines"] for item in identity), identity
         assert all(item["eyes"][0]["rx"] > item["eyes"][1]["rx"] for item in identity), identity
         assert all(.3 <= item["eyes"][0]["cy"] - item["eyes"][1]["cy"] <= 1.3
                    for item in identity), identity
-        assert all(-20 <= eye["angle"] <= -12 for item in identity for eye in item["eyes"]), identity
+        assert all(-26 <= eye["angle"] <= -10 for item in identity for eye in item["eyes"]), identity
         assert all(abs(item["eyes"][0]["angle"] - item["eyes"][1]["angle"]) <= 3
                    for item in identity), "paired eyes should share one calm visual rhythm"
         assert len({tuple((eye["rx"], eye["ry"]) for eye in item["eyes"])
                     for item in identity}) == 8, identity
         face_rows = {round(sum(eye["cy"] for eye in item["eyes"]) / 2, 1) for item in identity}
         assert len(face_rows) >= 6, "eye height should follow each silhouette's usable face area"
-        assert all(part == {"perimeter": True}
+        assert all(part == {"inHead": True, "inMask": True}
                    for item in identity for part in item["contained"]), identity
 
         # The shape chooser must preview each head with that head's actual face.
@@ -673,7 +685,8 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
         details.locator(":scope > summary").click()
         page.locator("[data-idp-shapes] .shp svg").first.wait_for()
         picker_faces = page.locator("[data-idp-shapes] .shp svg").evaluate_all("""svgs => svgs.map(svg => ({
-          head: svg.querySelector('path')?.getAttribute('d'),
+          head: svg.querySelector(':scope > path')?.getAttribute('d'),
+          mask: svg.querySelector('[data-sigil-mask]')?.getAttribute('d'),
             eyes: [...svg.querySelectorAll('[data-sigil-eye]')].map(eye => ({
             cx:Number(eye.dataset.cx), cy:Number(eye.dataset.cy),
             rx:Number(eye.dataset.rx), ry:Number(eye.dataset.ry), tag:eye.tagName.toLowerCase(),
@@ -682,6 +695,7 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
         }))""")
         assert len(picker_faces) == len(identity) == 8, picker_faces
         assert [face["head"] for face in picker_faces] == [face["head"] for face in identity]
+        assert [face["mask"] for face in picker_faces] == [face["mask"]["d"] for face in identity]
         assert [face["eyes"] for face in picker_faces] == [
             [{key: eye[key] for key in ("cx", "cy", "rx", "ry", "tag", "transform")} for eye in face["eyes"]]
             for face in identity
@@ -703,7 +717,7 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
             assert shape_buttons.nth(index).get_attribute("aria-pressed") == "true"
             preview = page.locator("[data-idp-prev] .avatar svg")
             selected_shape = shape_buttons.nth(index).locator("svg > path").first.get_attribute("d")
-            preview_shape = preview.locator(":scope > path").get_attribute("d")
+            preview_shape = preview.locator(":scope > path").first.get_attribute("d")
             assert preview_shape == selected_shape
             selected_eyes = shape_buttons.nth(index).locator("svg [data-sigil-eye]").evaluate_all(
                 "eyes => eyes.map(eye => [eye.dataset.cx, eye.dataset.cy, eye.dataset.rx, eye.dataset.ry, eye.getAttribute('transform')])")
@@ -750,8 +764,8 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
 
         eye_ink = identity[0]["eyes"][0]["contrastInk"]
         eye_contrast = [
-            (max(relative_luminance(eye_ink), relative_luminance(item["color"])) + .05)
-            / (min(relative_luminance(eye_ink), relative_luminance(item["color"])) + .05)
+            (max(relative_luminance(eye_ink), relative_luminance(item["mask"]["fill"])) + .05)
+            / (min(relative_luminance(eye_ink), relative_luminance(item["mask"]["fill"])) + .05)
             for item in identity
         ]
         assert min(eye_contrast) >= 3, eye_contrast
@@ -776,7 +790,7 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
             "silhouettes": 8,
             "colors": 8,
             "minimum_eye_contrast": round(min(eye_contrast), 2),
-            "checks": ["simple curved ink eyes have no pupils or detached highlights", "eye contours stay inside every head with a visible margin", "shape-specific faces match every picker silhouette and live preview", "44px shape controls", "balanced two-row phone and compact-phone picker", "no phone overflow", "no browser errors"],
+            "checks": ["each shape has a fitted dark face panel and two narrow curved light slits", "panel and eye contours stay inside every head", "shape-specific faces match every picker silhouette and live preview", "eye contrast against the face panel", "44px shape controls", "balanced two-row phone and compact-phone picker", "no phone overflow", "no browser errors"],
             "page_errors": errors,
             "provider_calls": 0,
             "source_sha256": {

@@ -72,10 +72,14 @@ assets with its OFL license, and updated the app/server-page declarations and
 cross-surface browser assertions. `tests/e2e/test_design_system.py::test_shared_design_tokens_render_consistently_across_all_surfaces`
 passes, including checks for the rendered Archivo face and local font readiness.
 
-The app's 2D faces now use upright oval eyes fitted to each silhouette. The
-mascot containment, picker-parity, roster, and shared-token browser checks pass
-(3 focused tests total). The face previews were individually inspected. The
-marketing site's original 3D mascot remains separate.
+The app's 2D faces now use a small, shape-fitted deep-green panel with two
+narrow light slits. A dedicated browser check verifies the panel and eye paths
+stay inside all eight silhouettes, each head has distinct panel and eye
+geometry, and every selected identity-picker preview matches the final avatar.
+The eight enlarged faces were inspected individually at full size; roster-sized
+faces and the desktop/phone app captures were also reviewed. The marketing
+site's original 3D mascot remains separate. This improves the mascot family but
+does not close the still-open roster, settings, or all-surface design reviews.
 
 Studio's first-use copy now explains the approval promise without an extra panel,
 and common tasks use result-oriented names. Activity adds up to three recent
