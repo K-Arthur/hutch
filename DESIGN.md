@@ -26,29 +26,50 @@ colors:
   warning: "#fbbf24"
   error: "#f87171"
 typography:
-  body:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif, "Apple Color Emoji"'
-    fontSize: "14px"
-    fontWeight: 400
-    lineHeight: "1.55"
-    letterSpacing: "normal"
-  heading:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif'
-    fontSize: "22px"
+  display:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontSize: "clamp(1.75rem, 3vw, 2.25rem)"
     fontWeight: 700
-    lineHeight: "1.4"
+    lineHeight: 1.12
+    letterSpacing: "-0.035em"
+  page-title:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontSize: "1.5rem"
+    fontWeight: 700
+    lineHeight: 1.25
     letterSpacing: "-0.02em"
-  section:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif'
-    fontSize: "16px"
+  section-title:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontSize: "1.125rem"
     fontWeight: 650
-    lineHeight: "1.55"
-    letterSpacing: "-0.005em"
+    lineHeight: 1.25
+    letterSpacing: "-0.02em"
+  body:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontSize: "0.9375rem"
+    fontWeight: 400
+    lineHeight: 1.55
+    letterSpacing: "normal"
+  reading:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontSize: "1rem"
+    fontWeight: 400
+    lineHeight: 1.65
+  label:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontSize: "0.875rem"
+    fontWeight: 650
+    lineHeight: 1.4
+  caption:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontSize: "0.75rem"
+    fontWeight: 400
+    lineHeight: 1.45
   brand:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif'
-    fontSize: "16px"
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontSize: "1.25rem"
     fontWeight: 700
-    lineHeight: "1.55"
+    lineHeight: 1
   marketing-display:
     fontFamily: "Archivo, ui-sans-serif, system-ui, sans-serif"
     fontSize: "176px"
@@ -56,13 +77,14 @@ typography:
     lineHeight: "1"
   marketing-display-min:
     fontSize: "88px"
-  micro-label:
-    fontSize: "11px"
   metadata:
-    fontSize: "12px"
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontSize: "0.75rem"
+    fontWeight: 400
+    lineHeight: 1.45
   mono:
     fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace'
-    fontSize: "13px"
+    fontSize: "0.8125rem"
     fontWeight: 400
     lineHeight: "1.5"
     letterSpacing: "normal"
@@ -134,9 +156,10 @@ can access or what the machine has actually confirmed.
   minimal: no white eye dots, mouth, or decorative marks. Larger original 3D
   character art belongs to marketing; both use the same friendly palette and
   visual family.
-- Inline vector marks make email, calendar, model, and other service choices easy to
-  scan. Every mark sits beside the service name and an honest connection state; no
-  remote logo fetch or unfamiliar icon-only control is required.
+- Service tiles use original Hutch-colored category glyphs until provider
+  artwork has documented permission for both app and marketing use. Every glyph
+  stays secondary to its exact service name and connection state; no category
+  glyph is presented as a provider logo.
 - Layered graphite surfaces keep long sessions comfortable. Emerald is the brand
   and primary action; azure is interaction; amber means a person needs to act; rose
   means failure. Text and familiar icons reinforce each color's meaning.
@@ -169,18 +192,30 @@ prose, labels, or marketing.
 
 ## Typography
 
-- **Body:** system sans, 14px/1.55 default; conversation text 15px/1.65;
-  editor text (composer, instructions) 16px+.
-- **Headings:** 22px/1.4 weight 700, tracking −0.02em; section heads 16px/650/1.55;
-  the wordmark uses 16px/700;
-  micro-labels 11px mono uppercase, tracking +0.07em — used only as data labels,
-  never as decorative eyebrows.
+- **App family:** one native system-sans stack for interface and display text;
+  the hierarchy scales with browser text settings. The app does not fetch a
+  remote font.
+- **Display:** clamp(1.75rem, 3vw, 2.25rem), weight 700, 1.12 leading and
+  −0.035em tracking for occasional welcome or feature emphasis.
+- **Page title:** 1.5rem/1.25 weight 700, −0.02em tracking. **Section title:**
+  1.125rem/1.25 weight 650. Routine settings pages keep a restrained hierarchy.
+- **Body:** 0.9375rem/1.55 for interface prose; longer reading and conversation
+  passages use 1rem/1.65. Labels use 0.875rem/1.4; compact metadata uses
+  0.75rem/1.45. Composer text stays at 1rem or above.
+- **Labels:** system sans with medium/semibold weight and restrained uppercase
+  tracking only for compact group labels. Mono is reserved for measured data.
+- **Wordmark:** 1.25rem/1 weight 700, system sans.
 - **Mono:** ids, durations, tokens, budgets, code, timestamps — always with tabular
   numerals and ligatures disabled. Prose never uses mono (The Measured Rule).
 - **Marketing display:** the locally bundled Archivo variable font gives the site’s
   oversized hero and section headings their voice; body copy stays system sans.
 - **Marketing micro type:** 11px is limited to compact table labels and numbered
   proof captions; 12px is the smallest metadata size. Both remain secondary.
+- **Icons:** actions and categories use one local 24×24 outline-vector family,
+  with 16/20/24px size roles, a shared current-color stroke, and round joins and
+  caps. Apps & AI uses original Hutch-colored calendar, mail, inbox, sparkle,
+  cloud, and monitor category glyphs. Keep exact service names visible; do not
+  present a category glyph as a provider logo. No provider icon is fetched remotely.
 
 ## Layout
 
@@ -239,8 +274,9 @@ language after explicit user direction ("right angles feel too off"):
   remains a 26px swatch inside its larger button.
 - **Bot roster controls** — one always-visible, low-emphasis options button per
   Bot contains pin/unpin and settings. Hover and focus add contrast; display
-  names wrap to two lines before the clamp; idle Bots collapse into a searchable
-  group in workspaces with ten or more Bots.
+  names stay on one line and long names end with an ellipsis while the full name
+  remains available in the row title; idle Bots collapse into a searchable group
+  in workspaces with ten or more Bots.
 - **Fleet card** — lead with the assistant's name, readiness, plain-language role,
   run cadence and action expectation. Keep provider/model identifiers, exact
   schedule, run recency, estimated tokens and memory counts together under one

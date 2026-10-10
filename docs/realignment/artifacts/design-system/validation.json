@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_shared_design_tokens_render_consistently_across_all_surfaces",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py",
-  "captured_at": "2026-10-10T05:33:12.938088+00:00",
+  "captured_at": "2026-10-10T13:15:47.743336+00:00",
   "python": "3.13.15",
   "browser": "Chromium 153.0.8010.12",
   "playwright": "1.63.0",
@@ -30,6 +30,74 @@
             "--radius-chip": "100px"
           },
           "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "bodyFontSize": "15px",
+          "typography": {
+            "tokens": {
+              "--font-ui": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+              "--font-display": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+              "--mono": "ui-monospace, \"SF Mono\", \"Cascadia Code\", \"Fira Code\", Menlo, Consolas, monospace",
+              "--type-display-size": "clamp(1.75rem, 3vw, 2.25rem)",
+              "--type-page-size": "1.5rem",
+              "--type-section-size": "1.125rem",
+              "--type-body-size": "0.9375rem",
+              "--type-reading-size": "1rem",
+              "--type-label-size": "0.875rem",
+              "--type-caption-size": "0.75rem",
+              "--type-mono-size": "0.8125rem",
+              "--leading-display": "1.12",
+              "--leading-heading": "1.25",
+              "--leading-body": "1.55",
+              "--leading-reading": "1.65",
+              "--icon-sm": "16px",
+              "--icon-md": "20px",
+              "--icon-lg": "24px",
+              "--icon-stroke": "1.75px"
+            },
+            "roles": {
+              "display": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "36px",
+                "lineHeight": "40.32px",
+                "weight": "700"
+              },
+              "page-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "24px",
+                "lineHeight": "30px",
+                "weight": "700"
+              },
+              "section-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "18px",
+                "lineHeight": "22.5px",
+                "weight": "650"
+              },
+              "reading": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "26.4px",
+                "weight": "400"
+              },
+              "label": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "14px",
+                "lineHeight": "19.6px",
+                "weight": "650"
+              },
+              "caption": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "12px",
+                "lineHeight": "17.4px",
+                "weight": "400"
+              },
+              "mono": {
+                "family": "ui-monospace, \"SF Mono\", \"Cascadia Code\", \"Fira Code\", Menlo, Consolas, monospace",
+                "size": "13px",
+                "lineHeight": "20.15px",
+                "weight": "400"
+              }
+            }
+          },
           "button": {
             "background": "rgb(52, 211, 153)",
             "color": "rgb(5, 46, 33)",
@@ -43,8 +111,8 @@
           "operatorShell": {
             "workspace": true,
             "brand": "hutch",
-            "studioLink": "Studio",
-            "connectionsLink": "Connections",
+            "studioLink": "Chats",
+            "connectionsLink": "Apps & AI",
             "context": true,
             "view": true
           }
@@ -66,6 +134,74 @@
             "--radius-chip": "100px"
           },
           "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "bodyFontSize": "15px",
+          "typography": {
+            "tokens": {
+              "--font-ui": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+              "--font-display": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+              "--mono": "ui-monospace, \"SF Mono\", \"Cascadia Code\", \"Fira Code\", Menlo, Consolas, monospace",
+              "--type-display-size": "clamp(1.75rem, 3vw, 2.25rem)",
+              "--type-page-size": "1.5rem",
+              "--type-section-size": "1.125rem",
+              "--type-body-size": "0.9375rem",
+              "--type-reading-size": "1rem",
+              "--type-label-size": "0.875rem",
+              "--type-caption-size": "0.75rem",
+              "--type-mono-size": "0.8125rem",
+              "--leading-display": "1.12",
+              "--leading-heading": "1.25",
+              "--leading-body": "1.55",
+              "--leading-reading": "1.65",
+              "--icon-sm": "16px",
+              "--icon-md": "20px",
+              "--icon-lg": "24px",
+              "--icon-stroke": "1.75px"
+            },
+            "roles": {
+              "display": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "36px",
+                "lineHeight": "40.32px",
+                "weight": "700"
+              },
+              "page-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "24px",
+                "lineHeight": "30px",
+                "weight": "700"
+              },
+              "section-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "18px",
+                "lineHeight": "22.5px",
+                "weight": "650"
+              },
+              "reading": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "26.4px",
+                "weight": "400"
+              },
+              "label": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "14px",
+                "lineHeight": "19.6px",
+                "weight": "650"
+              },
+              "caption": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "12px",
+                "lineHeight": "17.4px",
+                "weight": "400"
+              },
+              "mono": {
+                "family": "ui-monospace, \"SF Mono\", \"Cascadia Code\", \"Fira Code\", Menlo, Consolas, monospace",
+                "size": "13px",
+                "lineHeight": "20.15px",
+                "weight": "400"
+              }
+            }
+          },
           "button": {
             "background": "rgb(52, 211, 153)",
             "color": "rgb(5, 46, 33)",
@@ -79,8 +215,8 @@
           "operatorShell": {
             "workspace": true,
             "brand": "hutch",
-            "studioLink": "Studio",
-            "connectionsLink": "Connections",
+            "studioLink": "Chats",
+            "connectionsLink": "Apps & AI",
             "context": true,
             "view": true
           }
@@ -102,6 +238,74 @@
             "--radius-chip": "100px"
           },
           "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "bodyFontSize": "16px",
+          "typography": {
+            "tokens": {
+              "--font-ui": "",
+              "--font-display": "\"Archivo\", ui-sans-serif, system-ui, \"Segoe UI\", sans-serif",
+              "--mono": "",
+              "--type-display-size": "",
+              "--type-page-size": "",
+              "--type-section-size": "",
+              "--type-body-size": "",
+              "--type-reading-size": "",
+              "--type-label-size": "",
+              "--type-caption-size": "",
+              "--type-mono-size": "",
+              "--leading-display": "",
+              "--leading-heading": "",
+              "--leading-body": "",
+              "--leading-reading": "",
+              "--icon-sm": "",
+              "--icon-md": "",
+              "--icon-lg": "",
+              "--icon-stroke": ""
+            },
+            "roles": {
+              "display": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "page-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "section-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "reading": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "label": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "caption": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "mono": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              }
+            }
+          },
           "button": {
             "background": "rgb(52, 211, 153)",
             "color": "rgb(5, 46, 33)",
@@ -140,6 +344,74 @@
             "--radius-chip": "100px"
           },
           "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "bodyFontSize": "15px",
+          "typography": {
+            "tokens": {
+              "--font-ui": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+              "--font-display": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+              "--mono": "ui-monospace, \"SF Mono\", \"Cascadia Code\", \"Fira Code\", Menlo, Consolas, monospace",
+              "--type-display-size": "clamp(1.75rem, 3vw, 2.25rem)",
+              "--type-page-size": "1.5rem",
+              "--type-section-size": "1.125rem",
+              "--type-body-size": "0.9375rem",
+              "--type-reading-size": "1rem",
+              "--type-label-size": "0.875rem",
+              "--type-caption-size": "0.75rem",
+              "--type-mono-size": "0.8125rem",
+              "--leading-display": "1.12",
+              "--leading-heading": "1.25",
+              "--leading-body": "1.55",
+              "--leading-reading": "1.65",
+              "--icon-sm": "16px",
+              "--icon-md": "20px",
+              "--icon-lg": "24px",
+              "--icon-stroke": "1.75px"
+            },
+            "roles": {
+              "display": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "28px",
+                "lineHeight": "31.36px",
+                "weight": "700"
+              },
+              "page-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "24px",
+                "lineHeight": "30px",
+                "weight": "700"
+              },
+              "section-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "18px",
+                "lineHeight": "22.5px",
+                "weight": "650"
+              },
+              "reading": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "26.4px",
+                "weight": "400"
+              },
+              "label": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "14px",
+                "lineHeight": "19.6px",
+                "weight": "650"
+              },
+              "caption": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "12px",
+                "lineHeight": "17.4px",
+                "weight": "400"
+              },
+              "mono": {
+                "family": "ui-monospace, \"SF Mono\", \"Cascadia Code\", \"Fira Code\", Menlo, Consolas, monospace",
+                "size": "13px",
+                "lineHeight": "20.15px",
+                "weight": "400"
+              }
+            }
+          },
           "button": {
             "background": "rgb(52, 211, 153)",
             "color": "rgb(5, 46, 33)",
@@ -153,8 +425,8 @@
           "operatorShell": {
             "workspace": true,
             "brand": "hutch",
-            "studioLink": "Studio",
-            "connectionsLink": "Connections",
+            "studioLink": "Chats",
+            "connectionsLink": "Apps & AI",
             "context": true,
             "view": true
           }
@@ -176,6 +448,74 @@
             "--radius-chip": "100px"
           },
           "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "bodyFontSize": "15px",
+          "typography": {
+            "tokens": {
+              "--font-ui": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+              "--font-display": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+              "--mono": "ui-monospace, \"SF Mono\", \"Cascadia Code\", \"Fira Code\", Menlo, Consolas, monospace",
+              "--type-display-size": "clamp(1.75rem, 3vw, 2.25rem)",
+              "--type-page-size": "1.5rem",
+              "--type-section-size": "1.125rem",
+              "--type-body-size": "0.9375rem",
+              "--type-reading-size": "1rem",
+              "--type-label-size": "0.875rem",
+              "--type-caption-size": "0.75rem",
+              "--type-mono-size": "0.8125rem",
+              "--leading-display": "1.12",
+              "--leading-heading": "1.25",
+              "--leading-body": "1.55",
+              "--leading-reading": "1.65",
+              "--icon-sm": "16px",
+              "--icon-md": "20px",
+              "--icon-lg": "24px",
+              "--icon-stroke": "1.75px"
+            },
+            "roles": {
+              "display": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "28px",
+                "lineHeight": "31.36px",
+                "weight": "700"
+              },
+              "page-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "24px",
+                "lineHeight": "30px",
+                "weight": "700"
+              },
+              "section-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "18px",
+                "lineHeight": "22.5px",
+                "weight": "650"
+              },
+              "reading": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "26.4px",
+                "weight": "400"
+              },
+              "label": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "14px",
+                "lineHeight": "19.6px",
+                "weight": "650"
+              },
+              "caption": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "12px",
+                "lineHeight": "17.4px",
+                "weight": "400"
+              },
+              "mono": {
+                "family": "ui-monospace, \"SF Mono\", \"Cascadia Code\", \"Fira Code\", Menlo, Consolas, monospace",
+                "size": "13px",
+                "lineHeight": "20.15px",
+                "weight": "400"
+              }
+            }
+          },
           "button": {
             "background": "rgb(52, 211, 153)",
             "color": "rgb(5, 46, 33)",
@@ -189,8 +529,8 @@
           "operatorShell": {
             "workspace": true,
             "brand": "hutch",
-            "studioLink": "Studio",
-            "connectionsLink": "Connections",
+            "studioLink": "Chats",
+            "connectionsLink": "Apps & AI",
             "context": true,
             "view": true
           }
@@ -212,6 +552,74 @@
             "--radius-chip": "100px"
           },
           "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "bodyFontSize": "16px",
+          "typography": {
+            "tokens": {
+              "--font-ui": "",
+              "--font-display": "\"Archivo\", ui-sans-serif, system-ui, \"Segoe UI\", sans-serif",
+              "--mono": "",
+              "--type-display-size": "",
+              "--type-page-size": "",
+              "--type-section-size": "",
+              "--type-body-size": "",
+              "--type-reading-size": "",
+              "--type-label-size": "",
+              "--type-caption-size": "",
+              "--type-mono-size": "",
+              "--leading-display": "",
+              "--leading-heading": "",
+              "--leading-body": "",
+              "--leading-reading": "",
+              "--icon-sm": "",
+              "--icon-md": "",
+              "--icon-lg": "",
+              "--icon-stroke": ""
+            },
+            "roles": {
+              "display": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "page-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "section-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "reading": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "label": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "caption": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "mono": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              }
+            }
+          },
           "button": {
             "background": "rgb(52, 211, 153)",
             "color": "rgb(5, 46, 33)",
@@ -250,6 +658,74 @@
             "--radius-chip": "100px"
           },
           "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "bodyFontSize": "15px",
+          "typography": {
+            "tokens": {
+              "--font-ui": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+              "--font-display": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+              "--mono": "ui-monospace, \"SF Mono\", \"Cascadia Code\", \"Fira Code\", Menlo, Consolas, monospace",
+              "--type-display-size": "clamp(1.75rem, 3vw, 2.25rem)",
+              "--type-page-size": "1.5rem",
+              "--type-section-size": "1.125rem",
+              "--type-body-size": "0.9375rem",
+              "--type-reading-size": "1rem",
+              "--type-label-size": "0.875rem",
+              "--type-caption-size": "0.75rem",
+              "--type-mono-size": "0.8125rem",
+              "--leading-display": "1.12",
+              "--leading-heading": "1.25",
+              "--leading-body": "1.55",
+              "--leading-reading": "1.65",
+              "--icon-sm": "16px",
+              "--icon-md": "20px",
+              "--icon-lg": "24px",
+              "--icon-stroke": "1.75px"
+            },
+            "roles": {
+              "display": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "28px",
+                "lineHeight": "31.36px",
+                "weight": "700"
+              },
+              "page-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "24px",
+                "lineHeight": "30px",
+                "weight": "700"
+              },
+              "section-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "18px",
+                "lineHeight": "22.5px",
+                "weight": "650"
+              },
+              "reading": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "26.4px",
+                "weight": "400"
+              },
+              "label": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "14px",
+                "lineHeight": "19.6px",
+                "weight": "650"
+              },
+              "caption": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "12px",
+                "lineHeight": "17.4px",
+                "weight": "400"
+              },
+              "mono": {
+                "family": "ui-monospace, \"SF Mono\", \"Cascadia Code\", \"Fira Code\", Menlo, Consolas, monospace",
+                "size": "13px",
+                "lineHeight": "20.15px",
+                "weight": "400"
+              }
+            }
+          },
           "button": {
             "background": "rgb(52, 211, 153)",
             "color": "rgb(5, 46, 33)",
@@ -263,8 +739,8 @@
           "operatorShell": {
             "workspace": true,
             "brand": "hutch",
-            "studioLink": "Studio",
-            "connectionsLink": "Connections",
+            "studioLink": "Chats",
+            "connectionsLink": "Apps & AI",
             "context": true,
             "view": true
           }
@@ -286,6 +762,74 @@
             "--radius-chip": "100px"
           },
           "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "bodyFontSize": "15px",
+          "typography": {
+            "tokens": {
+              "--font-ui": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+              "--font-display": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+              "--mono": "ui-monospace, \"SF Mono\", \"Cascadia Code\", \"Fira Code\", Menlo, Consolas, monospace",
+              "--type-display-size": "clamp(1.75rem, 3vw, 2.25rem)",
+              "--type-page-size": "1.5rem",
+              "--type-section-size": "1.125rem",
+              "--type-body-size": "0.9375rem",
+              "--type-reading-size": "1rem",
+              "--type-label-size": "0.875rem",
+              "--type-caption-size": "0.75rem",
+              "--type-mono-size": "0.8125rem",
+              "--leading-display": "1.12",
+              "--leading-heading": "1.25",
+              "--leading-body": "1.55",
+              "--leading-reading": "1.65",
+              "--icon-sm": "16px",
+              "--icon-md": "20px",
+              "--icon-lg": "24px",
+              "--icon-stroke": "1.75px"
+            },
+            "roles": {
+              "display": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "28px",
+                "lineHeight": "31.36px",
+                "weight": "700"
+              },
+              "page-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "24px",
+                "lineHeight": "30px",
+                "weight": "700"
+              },
+              "section-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "18px",
+                "lineHeight": "22.5px",
+                "weight": "650"
+              },
+              "reading": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "26.4px",
+                "weight": "400"
+              },
+              "label": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "14px",
+                "lineHeight": "19.6px",
+                "weight": "650"
+              },
+              "caption": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "12px",
+                "lineHeight": "17.4px",
+                "weight": "400"
+              },
+              "mono": {
+                "family": "ui-monospace, \"SF Mono\", \"Cascadia Code\", \"Fira Code\", Menlo, Consolas, monospace",
+                "size": "13px",
+                "lineHeight": "20.15px",
+                "weight": "400"
+              }
+            }
+          },
           "button": {
             "background": "rgb(52, 211, 153)",
             "color": "rgb(5, 46, 33)",
@@ -299,8 +843,8 @@
           "operatorShell": {
             "workspace": true,
             "brand": "hutch",
-            "studioLink": "Studio",
-            "connectionsLink": "Connections",
+            "studioLink": "Chats",
+            "connectionsLink": "Apps & AI",
             "context": true,
             "view": true
           }
@@ -322,6 +866,74 @@
             "--radius-chip": "100px"
           },
           "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "bodyFontSize": "16px",
+          "typography": {
+            "tokens": {
+              "--font-ui": "",
+              "--font-display": "\"Archivo\", ui-sans-serif, system-ui, \"Segoe UI\", sans-serif",
+              "--mono": "",
+              "--type-display-size": "",
+              "--type-page-size": "",
+              "--type-section-size": "",
+              "--type-body-size": "",
+              "--type-reading-size": "",
+              "--type-label-size": "",
+              "--type-caption-size": "",
+              "--type-mono-size": "",
+              "--leading-display": "",
+              "--leading-heading": "",
+              "--leading-body": "",
+              "--leading-reading": "",
+              "--icon-sm": "",
+              "--icon-md": "",
+              "--icon-lg": "",
+              "--icon-stroke": ""
+            },
+            "roles": {
+              "display": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "page-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "section-title": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "reading": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "label": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "caption": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              },
+              "mono": {
+                "family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+                "size": "16px",
+                "lineHeight": "24px",
+                "weight": "400"
+              }
+            }
+          },
           "button": {
             "background": "rgb(52, 211, 153)",
             "color": "rgb(5, 46, 33)",
@@ -351,5 +963,14 @@
     "Connections in the shared Studio shell",
     "marketing landing page"
   ],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "851b6ef151c4854ffa2b03ba1097c6dfd3a3c69e2ff541242f25cae2dbd5c53f",
+    "src/hutch/server/static/index.html": "575a9641e4be85f5ed3294571370073ed90656c728baa218cfe11bd0b6e6f932",
+    "src/hutch/server/static/style.css": "074e1effb1902de46fdfb3f267e7a7595473f6cfc71234a67c048e215f21188b",
+    "website/index.html": "e3f4122f6a72bc5c783c71e5f7fa09b08fe85c92818c4cb06b7c85ba80ae2db5",
+    "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
+    "website/styles.css": "7129a7ff4f9153d32743fe19f761caf119d4ceb2fb54e9205e83d8a89d5c1b75",
+    "tests/e2e/test_design_system.py": "13a8c23a485a6afd2b0375a1c2a34f80f6fd121436bf86e764d2a2caf85e8d5e"
+  },
   "visual_review_required": "Open and inspect all twelve desktop/tablet/phone screenshots before accepting this result."
 }

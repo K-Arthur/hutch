@@ -1336,16 +1336,17 @@ by the connected Starter plan.
 
 ## Personal-assistant entry, roster, app choices, and mascot faces (2026-10-10)
 
-The empty chat now leads with a real request field and locally drawn calendar, mail, and AI marks around the simple 2D Hutch face.
+The empty chat now leads with a real request field, Hutch's locally drawn calendar, mail, and AI-category glyphs, and the simple 2D Hutch face.
 Submitting carries the exact request into setup; the dialog calls it the person's starting request, suggests an editable assistant name,
 and says there is no need to repeat it. The quick summary describes the actual safe defaults without leading with workspace, tool, or
 schedule terminology. The next steps keep model choice and abilities explicit, with deeper controls available on request.
 
 The former Connections page is presented as **Apps & AI**. Its first layer uses concise cards with a service mark, plain-language
 description, honest state, and one next action. Account scopes, OAuth setup, and detailed integration controls sit under **More account
-settings**. The AI choice uses Hutch's generic sparkle mark; it does not imitate or recolor the OpenAI Blossom. The main app's faces use
-shape-specific, slightly asymmetric solid ink eyes with no highlights, keeping the 2D identity readable on each bright silhouette;
-the marketing site retains its richer 3D art.
+settings**. The service cards use original Hutch-colored category glyphs beside exact text labels. The marketing illustration uses the
+same icon family. The AI choice uses Hutch's generic sparkle mark; it does not imitate or recolor the OpenAI Blossom. The main app's
+faces use shape-specific, slightly asymmetric solid ink eyes with no highlights, keeping the 2D identity
+readable on each bright silhouette; the marketing site retains its richer 3D art.
 
 The larger Fleet view now shows a human role, truthful status, run cadence, and action expectation first. Exact model routes, schedules,
 activity, estimated tokens and saved-note counts stay together under **More details**; pause/resume and settings share one menu. The
@@ -1382,3 +1383,69 @@ focused settings/provider journeys**, with thread and syntax warnings treated as
 requests or provider calls. The supplied Figma screen was requested individually, but Figma's current Starter-plan tool-call limit
 prevented node-level retrieval; implementation follows the main-branch `DESIGN.md` and the user's supplied screens. Physical-device,
 live provider and screen-reader validation remain separate gaps.
+
+## App type roles, service glyphs, and full-row selection (2026-10-10)
+
+The app now has named system-sans roles for display, page and section titles,
+body, reading, labels, captions, and measured values. Rem-based app sizes follow
+browser text settings; the marketing site retains its locally bundled Archivo
+display face. Ordinary navigation, state, and action labels use the app family;
+mono stays on identifiers, timestamps, code, and numeric measurements. App
+icons share local 24×24 outline geometry, 16/20/24px size roles, and a 1.75px
+current-color stroke. Apps & AI uses functional calendar, mail, inbox, sparkle,
+and cloud glyphs with exact service names as text; these are not provider logos.
+
+The active assistant highlight now belongs to the full roster row and reaches
+the trailing options target. Selection remains available as `aria-current` on
+the assistant button, and the full display name remains available in its title
+while the visible label stays on one line with an ellipsis for long names. The phone first-run screen also
+keeps **Set up my assistant** fully in the initial 390×844 viewport.
+
+I inspected the individual Studio and Apps & AI desktop, tablet, and phone
+renders, the request-first setup at all three sizes, the service catalogue at
+desktop and phone, and the active-row capture at desktop, tablet, and phone.
+The selection row's right edge matches the options target at all sizes and the
+browser reports no horizontal overflow. At 200% root text sizing, a 0.9375rem
+body role renders at 30px and a 1.5rem page-title role at 48px. The page checks
+also exercise 320px reflow for Studio, Apps & AI, and the marketing site.
+
+The final command
+`.venv/bin/pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning tests/e2e/test_design_system.py tests/e2e/test_browser.py::test_bot_roster_pins_persist_and_simple_mascots_stay_distinct`
+passed **7 tests in 36.60s** on Chromium **153.0.8010.12** / Playwright
+**1.63.0**. No external requests or provider calls occurred. Impeccable's scoped
+type/layout scan returned no findings. Individual images and source fingerprints
+are in [`artifacts/assistant-first-ui/everyday-start/`](artifacts/assistant-first-ui/everyday-start/),
+[`artifacts/design-system/`](artifacts/design-system/), and
+[`artifacts/pinned-roster/`](artifacts/pinned-roster/); the detailed Figma and
+Lucide reference review is in
+[`docs/research/icon-and-chat-interface-references-2026-10-10.md`](../research/icon-and-chat-interface-references-2026-10-10.md).
+No screen reader or physical mobile device was used.
+
+
+## Provider icon review and supplied customization references (2026-10-10)
+
+The first visual pass bundled Google Calendar and Gmail SVGs locally. A later
+brand-permission review found that those files were from an older icon generation
+and that Hutch has no documented permission to ship Google, Microsoft, or OpenAI
+product marks in the app or marketing site. That trial was removed. Current
+surfaces use Hutch-colored category glyphs instead, with exact service names
+visible in Apps & AI; these glyphs are not provider logos. The ChatGPT mark was
+found, but not added without permission. Relevant primary guidance: [Google
+product-icon usage](https://partnermarketinghub.withgoogle.com/brands/google/branding-guidelines/how-to-show-googles-brand/),
+[Microsoft Trademark and Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks) and [Microsoft Copyright Permissions](https://www.microsoft.com/en-us/legal/intellectualproperty/copyright/permissions),
+and [OpenAI Brand Guidelines](https://openai.com/brand/).
+
+The current desktop, tablet, and phone visual checks capture the individual Studio, Apps & AI, and marketing surfaces at
+1440×960, 900×1024, and 390×844, plus compact-phone checks where recorded. The supplied assistant-customization reference was
+reviewed for its separate color and character choices, prominent editable name/preview, and single save action. The supplied
+device-access reference was reviewed for device state, recent activity, and outputs grouped separately. These are design inputs, not
+claims that device pairing or live activity is implemented in this UI slice. Mobbin retrieval was blocked by its paid-plan requirement;
+Figma node retrieval was blocked by the connected account's plan limit. No Mobbin screen was independently inspected in this pass.
+
+The corrected category glyphs were captured and inspected individually at desktop, tablet, and phone sizes. The assistant roster now
+keeps each name to one line, shows an ellipsis when the available width is not enough, and retains the complete name on the row for
+discovery. Final evidence is in [`artifacts/design-system/`](artifacts/design-system/) and [`artifacts/pinned-roster/`](artifacts/pinned-roster/).
+The focused checks passed: the design-system browser file (**6 tests, 44.79s**), anonymous website checks (**27 tests, 48.79s**), and
+the pinned-roster interaction (**1 test, 8.09s**), on Chromium **153.0.8010.12** / Playwright **1.63.0**. The pages report no
+unexpected external requests or provider calls. The first website rerun caught a stale stylesheet cache key; the key was corrected,
+then all 27 checks passed. These fixture checks do not establish live provider consent or brand permission.

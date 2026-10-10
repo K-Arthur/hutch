@@ -548,6 +548,10 @@ const ICON_PATHS = {
   moreHorizontal: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
   folder: '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.2 3.9A2 2 0 0 0 7.5 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>',
+  sparkles: '<path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2L12 3Z"/><path d="m19 14 1.1 3L23 18l-2.9 1.1L19 22l-1.1-2.9L15 18l2.9-1.1L19 14Z"/>',
+  cloud: '<path d="M20 16.2A4.5 4.5 0 0 0 18 7.5a6.5 6.5 0 0 0-12.4 2.2A4 4 0 0 0 6 17.5h12"/>',
+  monitor: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/>',
   eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
   eyeOff: '<path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.2A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a15 15 0 0 1-3.1 3.8M6.2 6.2C3.5 8 2 12 2 12s3.5 7 10 7c1 0 1.9-.2 2.8-.5"/>',
   fileText: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>',
@@ -579,21 +583,22 @@ const ICON_PATHS = {
 };
 
 function icon(name, cls = "") {
-  return `<svg class="icon ${cls}" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name] || ""}</svg>`;
+  return `<svg class="icon ${esc(cls)}" data-icon="${esc(name)}" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICON_PATHS[name] || ""}</svg>`;
 }
 
-// Small inline marks make familiar apps scannable without remote image requests.
-// The visible service name remains the primary label; the mark is never the only cue.
+// Provider names stay explicit; the adjacent symbols describe categories and
+// are Hutch artwork, not provider logos.
 function serviceMark(kind) {
-  const marks = {
-    calendar: `<svg viewBox="0 0 40 40"><rect x="5" y="6" width="30" height="29" rx="7" fill="#fff"/><path d="M5 13h30V9a3 3 0 0 0-3-3H8a3 3 0 0 0-3 3z" fill="#4285f4"/><path d="M11 6h6v8h-6z" fill="#ea4335"/><path d="M23 6h6v8h-6z" fill="#34a853"/><path d="M5 19h9v9H5z" fill="#fbbc04"/><text x="19.8" y="28" fill="#4285f4" font-size="12" font-weight="700" font-family="Arial,sans-serif">31</text></svg>`,
-    gmail: `<svg viewBox="0 0 40 40"><rect x="4" y="7" width="32" height="26" rx="6" fill="#fff"/><path d="M7 12v17M33 12v17" fill="none" stroke="#4285f4" stroke-width="4" stroke-linecap="round"/><path d="m7 12 13 10 13-10" fill="none" stroke="#ea4335" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 29h5M28 29h5" fill="none" stroke="#34a853" stroke-width="3" stroke-linecap="round"/></svg>`,
-    outlook: `<svg viewBox="0 0 40 40"><rect x="5" y="8" width="23" height="24" rx="5" fill="#0078d4"/><path d="M17 8h14a4 4 0 0 1 4 4v16a4 4 0 0 1-4 4H17z" fill="#28a8ea"/><path d="m19 15 9 7 9-7" fill="none" stroke="#eaf7ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><text x="9" y="25" fill="#fff" font-size="12" font-weight="700" font-family="Arial,sans-serif">O</text></svg>`,
-    chatgpt: `<svg viewBox="0 0 40 40"><path d="M20 5 23.1 16.9 35 20l-11.9 3.1L20 35l-3.1-11.9L5 20l11.9-3.1L20 5Z" fill="#34d399"/><path d="m31 5 1.6 5.4L38 12l-5.4 1.6L31 19l-1.6-5.4L24 12l5.4-1.6L31 5Z" fill="#9b7cff"/></svg>`,
-    hosted: `<svg viewBox="0 0 40 40"><path d="M8 30h24a6 6 0 0 0 .4-12A10.8 10.8 0 0 0 12 15.5 7.2 7.2 0 0 0 8 30Z" fill="none" stroke="#7c6be8" stroke-width="2.6" stroke-linejoin="round"/><path d="m16 25 3-4 3 4 3-4" fill="none" stroke="#7c6be8" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-    local: `<svg viewBox="0 0 40 40"><rect x="6" y="7" width="28" height="21" rx="4" fill="none" stroke="#36c6a4" stroke-width="2.5"/><path d="M15 34h10M20 28v6M13 17h3m4 0h3m4 0h1M13 22h2m4 0h7" fill="none" stroke="#36c6a4" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+  const serviceIcons = {
+    calendar: "calendar",
+    gmail: "mail",
+    outlook: "inbox",
+    chatgpt: "sparkles",
+    hosted: "cloud",
+    local: "monitor",
   };
-  return `<span class="service-mark service-mark-${esc(kind)}" aria-hidden="true">${marks[kind] || marks.hosted}</span>`;
+  const glyph = serviceIcons[kind] || "sparkles";
+  return `<span class="service-mark service-mark-${esc(kind)}" data-service-category="${esc(kind)}" aria-hidden="true">${icon(glyph, "service-glyph")}</span>`;
 }
 
 function truncate(s, n) {
@@ -1198,6 +1203,7 @@ function openConversationSearch(trigger) {
 
 async function route() {
   const hash = location.hash || "#/chat";
+  updateRosterCurrentItem();
   document.body.classList.toggle("has-composer", hash.startsWith("#/chat"));
   stopRunSubs();
   studioGeneration++;
@@ -1361,6 +1367,17 @@ function renderRoster() {
       : null;
     (replacement || $("#bot-search"))?.focus({ preventScroll: true });
   }
+  updateRosterCurrentItem();
+}
+
+function updateRosterCurrentItem() {
+  const inChat = /^#\/chat(?:\/|$)/.test(location.hash || "#/chat");
+  $$("#roster-list [data-switch-bot]").forEach(button => {
+    const current = inChat && button.dataset.switchBot === currentStudioBot;
+    if (current) button.setAttribute("aria-current", "true");
+    else button.removeAttribute("aria-current");
+    button.closest(".roster-entry")?.classList.toggle("is-current", current);
+  });
 }
 
 function rosterRowHtml(bot, currentStudioBot) {
@@ -1370,7 +1387,7 @@ function rosterRowHtml(bot, currentStudioBot) {
   const subtitle = [bot.is_workspace_coordinator ? "Coordinator" : "", bot.sidebar_hidden ? "Hidden" : "", word]
     .filter(Boolean).join(" · ");
   return `
-    <div class="roster-entry"><button class="roster-row" type="button" data-switch-bot="${esc(bot.name)}"
+    <div class="roster-entry${bot.name === currentStudioBot && location.hash.startsWith("#/chat") ? " is-current" : ""}"><button class="roster-row" type="button" data-switch-bot="${esc(bot.name)}"
       ${bot.name === currentStudioBot && location.hash.startsWith("#/chat") ? 'aria-current="true"' : ""}
       title="${esc(bot.display_name || bot.name)} — ${esc(subtitle)}">
       ${botAvatar(bot.name, 30, pip)}
@@ -2173,6 +2190,7 @@ async function renderChatStudio(preferredBot = null) {
             botsCache.find(b => b.is_workspace_coordinator) ||
             botsCache[0];
   currentStudioBot = bot.name;
+  updateRosterCurrentItem();
   const detail = await api(`/bots/${encodeURIComponent(bot.name)}`);
   if (generation !== studioGeneration) return;
   currentConversations = await api(`/v1/conversations?bot=${encodeURIComponent(bot.id)}&include_legacy=true&include_archived=true&limit=100`);

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-10T12:20:05Z",
+  "generatedAt": "2026-10-10T13:15:23Z",
   "title": "Design System: Hutch",
   "extensions": {
     "colorMeta": {
@@ -351,13 +351,37 @@
       }
     },
     "typographyMeta": {
+      "display": {
+        "displayName": "System Sans Display",
+        "purpose": "Occasional welcome and feature emphasis; clamp(1.75rem, 3vw, 2.25rem), 700 weight, 1.12 leading."
+      },
+      "page-title": {
+        "displayName": "System Sans Page Title",
+        "purpose": "App page titles; 1.5rem/1.25, 700 weight, tight tracking."
+      },
+      "section-title": {
+        "displayName": "System Sans Section",
+        "purpose": "Panel and section titles; 1.125rem/1.25, 650 weight."
+      },
       "body": {
         "displayName": "System Sans",
-        "purpose": "Conversational and interface language at 14px/1.55; conversation text is 15px/1.65."
+        "purpose": "Interface prose at 0.9375rem/1.55; no remote font dependency."
       },
-      "heading": {
-        "displayName": "System Sans Display",
-        "purpose": "Page titles; 22px/1.4 with tight tracking."
+      "reading": {
+        "displayName": "System Sans Reading",
+        "purpose": "Longer conversation and reading passages at 1rem/1.65."
+      },
+      "label": {
+        "displayName": "System Sans Label",
+        "purpose": "Interface labels at 0.875rem/1.4; prose labels never use mono."
+      },
+      "caption": {
+        "displayName": "System Sans Caption",
+        "purpose": "Compact supporting metadata at 0.75rem/1.45."
+      },
+      "brand": {
+        "displayName": "System Sans Wordmark",
+        "purpose": "Operator wordmark; 1.25rem/1, 700 weight."
       },
       "marketing-display": {
         "displayName": "Archivo Display",
@@ -367,25 +391,13 @@
         "displayName": "Archivo Display Compact",
         "purpose": "Responsive minimum size for the marketing wordmark."
       },
-      "micro-label": {
-        "displayName": "Micro Label",
-        "purpose": "Compact data labels, never decorative eyebrows."
-      },
       "metadata": {
         "displayName": "Metadata",
-        "purpose": "Secondary interface metadata; 12px is the smallest metadata size."
+        "purpose": "Secondary interface metadata at 0.75rem; remains readable and secondary."
       },
       "mono": {
         "displayName": "System Mono",
-        "purpose": "Measured values, code and timestamps only; prose never uses mono."
-      },
-      "section": {
-        "displayName": "System Sans Section",
-        "purpose": "Panel and section titles; 16px/1.55 with restrained tracking."
-      },
-      "brand": {
-        "displayName": "System Sans Wordmark",
-        "purpose": "Operator wordmark; 16px/700."
+        "purpose": "Measured values, code, and timestamps only; prose never uses mono."
       }
     },
     "shadows": [
@@ -434,7 +446,18 @@
         "name": "drawer-column",
         "value": "1100px"
       }
-    ]
+    ],
+    "iconSystemMeta": {
+      "displayName": "Local Outline Icons",
+      "viewBox": "24 × 24",
+      "sizeRoles": [
+        "16px",
+        "20px",
+        "24px"
+      ],
+      "stroke": "currentColor, 1.75px, round caps and joins",
+      "purpose": "Functional category and action symbols. Apps & AI uses original Hutch-colored calendar, mail, inbox, sparkle, cloud, and monitor glyphs until brand permissions for app and marketing use are documented. Exact service names remain visible; category glyphs are not provider logos."
+    }
   },
   "components": [
     {
@@ -465,9 +488,9 @@
       "name": "Status Chip",
       "kind": "chip",
       "refersTo": "status-chip",
-      "description": "State is shown as a small dot and a readable word; colour never carries meaning alone.",
+      "description": "A concise state word and optional semantic glyph; color never carries meaning alone. Chip language uses the interface font, not mono.",
       "html": "<span class=\"ds-chip\"><i></i>needs you</span>",
-      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border: 1px solid rgba(255,255,255,.14); border-radius: 100px; color: #9daebf; background: transparent; font: 600 11px/1.2 ui-monospace, monospace; } .ds-chip i { width: 6px; height: 6px; border-radius: 50%; background: #fbbf24; } .ds-chip:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }"
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border: 1px solid rgba(255,255,255,.14); border-radius: 100px; color: #9daebf; background: transparent; font: 600 .75rem/1.25 ui-sans-serif, system-ui, sans-serif; } .ds-chip i { width: 6px; height: 6px; border-radius: 50%; background: #fbbf24; } .ds-chip:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }"
     },
     {
       "name": "User Message",
@@ -475,7 +498,7 @@
       "refersTo": "chat-bubble-user",
       "description": "Right-aligned slate bubble with a small tail corner; agent replies remain plain text.",
       "html": "<div class=\"ds-bubble-user\">Sort this week’s downloads into folders.</div>",
-      "css": ".ds-bubble-user { max-width: min(560px, 88%); margin-left: auto; padding: 9px 14px; color: #f0f4f9; background: #1d2735; border: 1px solid rgba(255,255,255,.14); border-radius: 18px 18px 6px 18px; font: 400 15px/1.55 ui-sans-serif, system-ui, sans-serif; white-space: pre-wrap; overflow-wrap: anywhere; }"
+      "css": ".ds-bubble-user { max-width: min(560px, 88%); margin-left: auto; padding: 9px 14px; color: #f0f4f9; background: #1d2735; border: 1px solid rgba(255,255,255,.14); border-radius: 18px 18px 6px 18px; font: 400 1rem/1.65 ui-sans-serif, system-ui, sans-serif; white-space: pre-wrap; overflow-wrap: anywhere; }"
     },
     {
       "name": "Approval Card",
@@ -488,23 +511,23 @@
     {
       "name": "Assistant Roster Row",
       "kind": "nav",
-      "description": "A readable assistant name and status with one options button. The minimal face uses a slightly asymmetric pair of solid ink ovals without extra highlights; pinning and settings stay together in the row menu.",
+      "description": "The active background covers the full row through the single overflow target. The assistant button carries aria-current; long names remain available and truncate with an ellipsis on one line.",
       "html": "<div class=\"ds-roster-entry\"><button class=\"ds-roster\"><svg class=\"ds-avatar\" viewBox=\"0 0 64 64\" aria-hidden=\"true\"><path d=\"M32 8C45 8 55 18 55 32S45 56 32 56 9 46 9 32 19 8 32 8Z\" fill=\"#3de8c5\"/><ellipse cx=\"23.8\" cy=\"29\" rx=\"4.3\" ry=\"5.4\" transform=\"rotate(-18 23.8 29)\" fill=\"#10161f\"/><ellipse cx=\"40.1\" cy=\"28.4\" rx=\"3.8\" ry=\"4.9\" transform=\"rotate(13 40.1 28.4)\" fill=\"#10161f\"/></svg><span><b>Project Planner</b><small>Ready</small></span></button><button class=\"ds-options\" aria-label=\"Options for Project Planner\">•••</button></div>",
-      "css": ".ds-roster-entry { display:grid; grid-template-columns:minmax(0,1fr) 36px; align-items:center; gap:4px; } .ds-roster { min-width:0; width:100%; display:grid; grid-template-columns:32px minmax(0,1fr); align-items:center; gap:10px; padding:7px 10px; color:#9daebf; background:transparent; border:0; border-radius:8px; text-align:left; cursor:pointer; } .ds-roster:hover,.ds-roster[aria-current=\"true\"] { background:rgba(52,211,153,.09); color:#f0f4f9; } .ds-roster:focus-visible,.ds-options:focus-visible { outline:2px solid #60a5fa; outline-offset:2px; } .ds-roster > span:last-child { display:grid; min-width:0; } .ds-roster b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; } .ds-roster small { color:#9daebf; font-size:12px; } .ds-avatar { width:30px; height:30px; display:block; } .ds-options { width:36px; height:36px; color:#9daebf; background:transparent; border:0; border-radius:8px; cursor:pointer; }"
+      "css": ".ds-roster-entry{display:grid;grid-template-columns:minmax(0,1fr) 32px;align-items:stretch;min-width:0;border-radius:8px}.ds-roster-entry:hover,.ds-roster-entry.is-current{background:rgba(52,211,153,.09)}.ds-roster{min-width:0;width:100%;display:grid;grid-template-columns:30px minmax(0,1fr);align-items:center;gap:8px;padding:7px 6px 7px 10px;color:#9daebf;background:transparent;border:0;border-radius:8px;text-align:left;cursor:pointer}.ds-roster[aria-current=true]{color:#f0f4f9}.ds-roster:focus-visible,.ds-options:focus-visible{outline:2px solid #60a5fa;outline-offset:2px}.ds-roster>span:last-child{display:grid;min-width:0}.ds-roster b{display:block;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:.875rem;line-height:1.3}.ds-roster small{color:#9daebf;font-size:.75rem}.ds-avatar{width:30px;height:30px;display:block}.ds-options{justify-self:stretch;width:100%;height:100%;min-height:32px;color:#9daebf;background:transparent;border:0;border-radius:8px;cursor:pointer}"
     },
     {
       "name": "Assistant Welcome",
       "kind": "hero",
-      "description": "A welcoming first-run request composer with a simple, shape-aware 2D mascot, familiar service marks, and one-tap example requests. Examples fill the editable field; they never start work.",
-      "html": "<section class=\"ds-welcome\"><div class=\"ds-welcome-stage\" aria-hidden=\"true\"><span class=\"ds-service-mark ds-calendar-mark\"><svg viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"17\" rx=\"3\"/><path d=\"M8 2v4m8-4v4M3 9h18\"/></svg></span><span class=\"ds-service-mark ds-mail-mark\"><svg viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"2\"/><path d=\"m3 7 9 6 9-6\"/></svg></span><svg class=\"ds-mascot\" viewBox=\"0 0 64 64\"><path d=\"M32 8C45 8 55 18 55 32S45 56 32 56 9 46 9 32 19 8 32 8Z\" fill=\"#3de8c5\"/><ellipse cx=\"23.8\" cy=\"29\" rx=\"4.3\" ry=\"5.4\" transform=\"rotate(-18 23.8 29)\" fill=\"#10161f\"/><ellipse cx=\"40.1\" cy=\"28.4\" rx=\"3.8\" ry=\"4.9\" transform=\"rotate(13 40.1 28.4)\" fill=\"#10161f\"/></svg></div><p>Your personal assistant</p><h1>What would you like help with?</h1><label>Your first request<textarea placeholder=\"Help me plan my week\"></textarea></label><p>Or start with an idea</p><div class=\"ds-examples\"><button><svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/></svg>Plan my week</button><button><svg viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"2\"/><path d=\"m3 7 9 6 9-6\"/></svg>Catch up on email</button><button><svg viewBox=\"0 0 24 24\"><path d=\"M3 7h18v14H3zM3 7l2-4h5l2 4\"/></svg>Organize a project</button></div><button>Set up my assistant</button></section>",
-      "css": ".ds-welcome { max-width:680px; margin:auto; color:#f0f4f9; font-family:system-ui,sans-serif; } .ds-welcome-stage { position:relative; width:196px; height:150px; margin:0 auto 16px; display:grid; place-items:center; } .ds-mascot { width:116px; height:116px; } .ds-service-mark { position:absolute; display:grid; place-items:center; width:42px; height:42px; border:1px solid rgba(255,255,255,.14); border-radius:14px; color:#f0f4f9; background:#080c12; font-size:18px; } .ds-calendar-mark { left:0; top:14px; color:#4285f4; } .ds-mail-mark { right:0; top:16px; color:#ea4335; } .ds-welcome h1 { max-width:14ch; margin:12px 0; font-size:clamp(30px,4.5vw,42px); line-height:1.14; } .ds-welcome label { display:grid; gap:8px; padding:16px; border:1px solid rgba(255,255,255,.14); border-radius:12px; } .ds-welcome textarea { min-height:88px; padding:12px; border:1px solid rgba(255,255,255,.14); border-radius:8px; color:#f0f4f9; background:#020406; font:inherit; } .ds-examples { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; } .ds-examples button { display:flex; align-items:center; gap:8px; min-height:44px; padding:8px; color:#9daebf; background:#020406; border:1px solid rgba(255,255,255,.14); border-radius:8px; font:inherit; text-align:left; } .ds-examples svg { width:16px; height:16px; flex:none; fill:none; stroke:#34d399; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; } .ds-service-mark svg { width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }"
+      "description": "A welcoming first-run request composer with a simple, shape-aware 2D mascot, Hutch's own service-category glyphs, and one-tap example requests. Examples fill the editable field; they never start work.",
+      "html": "<section class=\"ds-welcome\"><div class=\"ds-welcome-stage\" aria-hidden=\"true\"><span class=\"ds-service-mark ds-calendar-mark\" data-service-category=\"calendar\"><svg data-icon=\"calendar\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M16 3v4M8 3v4M3 11h18\"/></svg></span><span class=\"ds-service-mark ds-mail-mark\" data-service-category=\"gmail\"><svg data-icon=\"mail\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"2\"/><path d=\"m3 7 9 6 9-6\"/></svg></span><svg class=\"ds-mascot\" viewBox=\"0 0 64 64\"><path d=\"M32 8C45 8 55 18 55 32S45 56 32 56 9 46 9 32 19 8 32 8Z\" fill=\"#3de8c5\"/><ellipse cx=\"23.8\" cy=\"29\" rx=\"4.3\" ry=\"5.4\" transform=\"rotate(-18 23.8 29)\" fill=\"#10161f\"/><ellipse cx=\"40.1\" cy=\"28.4\" rx=\"3.8\" ry=\"4.9\" transform=\"rotate(13 40.1 28.4)\" fill=\"#10161f\"/></svg></div><p>Your personal assistant</p><h1>What would you like help with?</h1><label>Your first request<textarea placeholder=\"Help me plan my week\"></textarea></label><p>Or start with an idea</p><div class=\"ds-examples\"><button><svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/></svg>Plan my week</button><button><svg viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"2\"/><path d=\"m3 7 9 6 9-6\"/></svg>Catch up on email</button><button><svg viewBox=\"0 0 24 24\"><path d=\"M3 7h18v14H3zM3 7l2-4h5l2 4\"/></svg>Organize a project</button></div><button>Set up my assistant</button></section>",
+      "css": ".ds-welcome { max-width:680px; margin:auto; color:#f0f4f9; font-family:system-ui,sans-serif; } .ds-welcome-stage { position:relative; width:196px; height:150px; margin:0 auto 16px; display:grid; place-items:center; } .ds-mascot { width:116px; height:116px; } .ds-service-mark { position:absolute; display:grid; place-items:center; width:42px; height:42px; border:1px solid rgba(255,255,255,.14); border-radius:14px; color:#f0f4f9; background:#080c12; font-size:24px; } .ds-calendar-mark { left:0; top:14px; color:#f0f4f9; } .ds-mail-mark { right:0; top:16px; color:#f0f4f9; } .ds-welcome h1 { max-width:14ch; margin:12px 0; font-size:clamp(30px,4.5vw,42px); line-height:1.14; } .ds-welcome label { display:grid; gap:8px; padding:16px; border:1px solid rgba(255,255,255,.14); border-radius:12px; } .ds-welcome textarea { min-height:88px; padding:12px; border:1px solid rgba(255,255,255,.14); border-radius:8px; color:#f0f4f9; background:#020406; font:inherit; } .ds-examples { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; } .ds-examples button { display:flex; align-items:center; gap:8px; min-height:44px; padding:8px; color:#9daebf; background:#020406; border:1px solid rgba(255,255,255,.14); border-radius:8px; font:inherit; text-align:left; } .ds-examples svg { width:16px; height:16px; flex:none; fill:none; stroke:#34d399; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; } .ds-service-mark img { width:40px; height:40px; object-fit:contain; } .ds-service-mark svg { width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; }"
     },
     {
       "name": "App & AI Service Card",
       "kind": "card",
-      "description": "An inline service mark, a plain-language name, a clear connection state, and one helpful next step. Permission scopes and account setup are disclosed in an optional advanced layer.",
-      "html": "<article class=\"ds-service\"><span class=\"ds-service-mark\" aria-hidden=\"true\">✦</span><span class=\"ds-state\">Needs setup</span><h3>Google Calendar</h3><p>An assistant can create an event only after you approve it.</p><button>Check setup →</button></article>",
-      "css": ".ds-service { min-height:220px; padding:18px; border:1px solid rgba(255,255,255,.07); border-radius:12px; color:#f0f4f9; background:#080c12; font-family:system-ui,sans-serif; } .ds-service-mark { display:grid; place-items:center; width:58px; height:58px; border:1px solid rgba(255,255,255,.14); border-radius:16px; color:#34d399; background:#020406; font-size:30px; } .ds-state { float:right; padding:6px 10px; border:1px solid rgba(255,255,255,.14); border-radius:100px; color:#9daebf; font-size:12px; } .ds-service p { max-width:38ch; color:#9daebf; line-height:1.55; } .ds-service button { padding:10px 0; border:0; color:#34d399; background:none; font:inherit; font-weight:650; }"
+      "description": "An exact service name, original Hutch category glyph, honest connection state, and one helpful next step. Provider artwork only appears after permissions are documented; never present a generic symbol as a provider logo.",
+      "html": "<article class=\"ds-service\"><span class=\"ds-service-mark\" data-service-category=\"calendar\" aria-hidden=\"true\"><svg data-icon=\"calendar\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M16 3v4M8 3v4M3 11h18\"/></svg></span><span class=\"ds-state\">Needs setup</span><h3>Google Calendar</h3><p>An assistant can create an event only after you approve it.</p><button>Check setup →</button></article>",
+      "css": ".ds-service { min-height:220px; padding:18px; border:1px solid rgba(255,255,255,.07); border-radius:12px; color:#f0f4f9; background:#080c12; font-family:system-ui,sans-serif; } .ds-service-mark { display:grid; place-items:center; width:58px; height:58px; border:1px solid rgba(255,255,255,.14); border-radius:16px; color:#34d399; background:#020406;  } .ds-state { float:right; padding:6px 10px; border:1px solid rgba(255,255,255,.14); border-radius:100px; color:#9daebf; font-size:.75rem; } .ds-service p { max-width:38ch; color:#9daebf; line-height:1.55; } .ds-service button { padding:10px 0; border:0; color:#34d399; background:none; font:inherit; font-weight:650; } .ds-service-mark svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}"
     },
     {
       "name": "Assistant Management Card",
@@ -529,7 +552,7 @@
       "Familiar chat and app patterns carry everyday tasks; advanced controls appear in clear, optional layers instead of defining the first impression.",
       "Assistant settings lead with the editable name and short role; standing directions and advanced controls stay under one clearly labeled customization layer.",
       "A simple, shape-aware 2D character gives the app a recognizable face. Slightly asymmetric dark oval eyes fit each distinct silhouette; the minimal face has no separate pupils or highlights. Larger original 3D character art belongs to marketing, using the same friendly palette and visual family.",
-      "Inline vector marks make calendar, mail, and AI choices easy to scan. Every mark sits beside a plain-language name and an honest connection state; no remote logo fetch or unfamiliar icon-only control is required.",
+      "Apps & AI uses original Hutch-colored category glyphs beside exact service names and honest connection states. Provider artwork stays out until app and marketing permissions are documented; category glyphs are not provider logos. No provider mark loads remotely or implies endorsement.",
       "Layered graphite surfaces keep long sessions comfortable. Emerald is the brand and primary action; azure is interaction; amber means a person needs to act; rose means failure. Text and familiar icons reinforce each color’s meaning.",
       "Mono type is reserved for measured values such as IDs, durations, and budgets. Prose and instructions use the familiar system sans."
     ],

@@ -125,6 +125,25 @@ def _measure_tokens(page, surface: str) -> dict:
           '--font-body', '--radius-control', '--radius-panel', '--radius-chip'
         ].map(name => [name, root.getPropertyValue(name).trim()])),
         bodyFont: body.fontFamily,
+        bodyFontSize: body.fontSize,
+        typography: {
+          tokens: Object.fromEntries([
+            '--font-ui', '--font-display', '--mono', '--type-display-size', '--type-page-size',
+            '--type-section-size', '--type-body-size', '--type-reading-size', '--type-label-size',
+            '--type-caption-size', '--type-mono-size', '--leading-display', '--leading-heading', '--leading-body', '--leading-reading',
+            '--icon-sm', '--icon-md', '--icon-lg', '--icon-stroke'
+          ].map(name => [name, root.getPropertyValue(name).trim()])),
+          roles: Object.fromEntries(['display', 'page-title', 'section-title', 'reading', 'label', 'caption', 'mono'].map(role => {
+            const sample = document.createElement('span');
+            sample.className = `type-${role}`;
+            sample.textContent = 'Readable sample';
+            document.body.append(sample);
+            const style = getComputedStyle(sample);
+            const measured = {family: style.fontFamily, size: style.fontSize, lineHeight: style.lineHeight, weight: style.fontWeight};
+            sample.remove();
+            return [role, measured];
+          }))
+        },
         button: {background: buttonStyle.backgroundColor, color: buttonStyle.color,
           radius: buttonStyle.borderRadius},
         panel: {background: boxStyle.backgroundColor, radius: boxStyle.borderRadius,
@@ -177,6 +196,21 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
             studio["operatorShell"] = studio_shell
             assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, (label, "Studio")
             page.screenshot(path=str(out / f"studio-{label}.png"), animations="disabled")
+            scale_result = page.evaluate("""() => {
+              const root = document.documentElement;
+              const original = root.style.fontSize;
+              root.style.fontSize = '200%';
+              const body = getComputedStyle(document.body).fontSize;
+              const title = document.createElement('span');
+              title.className = 'type-page-title';
+              document.body.append(title);
+              const pageTitle = getComputedStyle(title).fontSize;
+              title.remove();
+              root.style.fontSize = original;
+              return {body, pageTitle};
+            }""")
+            assert scale_result == {"body": "30px", "pageTitle": "48px"}, (label, scale_result)
+            assert studio["bodyFontSize"] == "15px", (label, studio["bodyFontSize"])
 
             # The user-facing Connections surface lives in the Studio shell.
             # `/connections` is a compatibility HTML page with a separate legacy
@@ -194,6 +228,18 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
             page.goto(site_server)
             page.locator(".hero-title").wait_for()
             page.evaluate("document.fonts.ready")
+            marketing_provider_marks = page.locator(".benefit-art-apps img[data-provider-mark]")
+            assert marketing_provider_marks.count() == 0, (label, "do not ship unlicensed provider artwork")
+            category_marks = page.locator(".benefit-art-apps .app-mark svg")
+            assert category_marks.evaluate_all(
+                "els => els.map(el => [el.closest('[data-service-category]').dataset.serviceCategory, el.dataset.icon])"
+            ) == [["calendar", "calendar"], ["gmail", "mail"], ["outlook", "inbox"]]
+            assert category_marks.evaluate_all(
+                "els => els.every(el => el.getAttribute('stroke') === 'currentColor' && !el.querySelector('text'))"
+            ), (label, "marketing service marks should use Hutch's local category icon family")
+            assert page.locator(".benefit-copy .example-prompt").filter(
+                has_text="Calendar · Gmail · Outlook · your AI"
+            ).is_visible()
             marketing = _measure_tokens(page, "marketing")
             marketing["displayFont"] = page.locator(".hero-title").evaluate(
                 "element => getComputedStyle(element).fontFamily"
@@ -201,6 +247,12 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
             assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, (label, "Marketing")
             page.screenshot(path=str(out / f"marketing-{label}-viewport.png"), animations="disabled")
             page.screenshot(path=str(out / f"marketing-{label}.png"), full_page=True, animations="disabled")
+            provider_art = page.locator(".benefit-art-apps")
+            provider_art.scroll_into_view_if_needed()
+            provider_art.locator("xpath=..").screenshot(
+                path=str(out / f"marketing-provider-card-{label}.png"), animations="disabled"
+            )
+            page.evaluate("window.scrollTo(0, 0)")
 
             views = {"studio": studio, "connections": connections, "marketing": marketing}
             for name, view in views.items():
@@ -218,6 +270,25 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
                 assert view["button"]["color"] == "rgb(5, 46, 33)", (label, name, view["button"])
                 assert view["button"]["radius"] == "8px", (label, name, view["button"])
                 assert view["panel"]["background"] == "rgb(8, 12, 18)", (label, name, view["panel"])
+                if name != "marketing":
+                    type_tokens = view["typography"]["tokens"]
+                    assert type_tokens["--type-body-size"] == "0.9375rem", (label, name, type_tokens)
+                    assert type_tokens["--type-reading-size"] == "1rem", (label, name, type_tokens)
+                    assert type_tokens["--type-label-size"] == "0.875rem", (label, name, type_tokens)
+                    assert type_tokens["--type-caption-size"] == "0.75rem", (label, name, type_tokens)
+                    assert type_tokens["--type-mono-size"] == "0.8125rem", (label, name, type_tokens)
+                    assert type_tokens["--font-display"] == type_tokens["--font-ui"], (label, name, type_tokens)
+                    assert [type_tokens["--icon-sm"], type_tokens["--icon-md"], type_tokens["--icon-lg"]] == ["16px", "20px", "24px"]
+                    assert type_tokens["--icon-stroke"] == "1.75px", (label, name, type_tokens)
+                    roles = view["typography"]["roles"]
+                    assert roles["display"]["size"] in {"28px", "36px"}, (label, name, roles)
+                    assert roles["page-title"]["size"] == "24px", (label, name, roles)
+                    assert roles["section-title"]["size"] == "18px", (label, name, roles)
+                    assert roles["reading"]["size"] == "16px", (label, name, roles)
+                    assert roles["label"]["size"] == "14px", (label, name, roles)
+                    assert roles["caption"]["size"] == "12px", (label, name, roles)
+                    assert roles["mono"]["size"] == "13px", (label, name, roles["mono"])
+                    assert "monospace" in roles["mono"]["family"], (label, name, roles["mono"])
                 assert view["panel"]["radius"] == "12px", (label, name, view["panel"])
             assert "Archivo" in marketing["displayFont"], marketing["displayFont"]
             assert max(page.evaluate("document.documentElement.scrollWidth - innerWidth"), 0) <= 1, label
@@ -277,8 +348,18 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
             page.get_by_role("heading", name="What would you like help with?").wait_for()
             request = page.get_by_label("Your first request")
             assert request.is_visible()
-            assert page.get_by_role("button", name="Set up my assistant").is_visible()
-            assert page.locator(".welcome-app-mark .service-mark svg").count() == 3
+            setup_button = page.get_by_role("button", name="Set up my assistant")
+            assert setup_button.is_visible()
+            if label == "phone":
+                button_box = setup_button.bounding_box()
+                assert button_box and 0 <= button_box["y"] and button_box["y"] + button_box["height"] <= height, button_box
+            welcome_marks = page.locator(".welcome-app-mark .service-mark")
+            assert welcome_marks.locator("svg").evaluate_all(
+                "els => els.map(el => el.dataset.icon)"
+            ) == ["calendar", "mail", "sparkles"]
+            assert welcome_marks.evaluate_all(
+                "els => els.map(el => el.dataset.serviceCategory)"
+            ) == ["calendar", "gmail", "chatgpt"]
             starter_buttons = page.locator("[data-first-run-example]")
             assert starter_buttons.count() == 3
             starter_requests = (
@@ -333,7 +414,16 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
             assert page.get_by_role("heading", name="How Hutch replies").is_visible()
             cards = page.locator(".service-tile")
             assert cards.count() == 5
+            assert page.locator(".service-tile .service-mark img").count() == 0
             assert page.locator(".service-tile .service-mark svg").count() == 5
+            service_icons = page.locator(".service-tile .service-mark svg")
+            assert service_icons.evaluate_all("els => els.map(el => el.dataset.icon)") == [
+                "calendar", "mail", "inbox", "sparkles", "cloud"
+            ]
+            assert service_icons.evaluate_all("els => els.every(el => !el.querySelector('text') && el.getAttribute('stroke') === 'currentColor')")
+            assert page.locator(".service-tile .service-mark").evaluate_all(
+                "els => els.map(el => el.dataset.serviceCategory)"
+            ) == ["calendar", "gmail", "outlook", "chatgpt", "hosted"]
             assert not page.locator("#connection-management").evaluate("el => el.open")
             assert not page.get_by_role("button", name="Add a custom service").is_visible()
             restricted_scope = page.get_by_text("gmail.readonly", exact=True).all()

@@ -51,6 +51,8 @@ generated token files and the declared WCAG text pairs.
 | Hairline / strong / emphasis border | `rgba(255,255,255,.07)` / `.14` / `.22` | Card boundaries, controls, and hovered edges |
 | Control / panel / chat / composer / pill radius | `8 / 12 / 18 / 22 / 100px` | Shared geometry scale |
 | UI body / measured data | system sans / system mono | Language versus machine values |
+| App type roles | `0.9375rem` body / `1rem` reading / `1.5rem` page title | Responsive hierarchy that respects browser text scaling |
+| App icon family | `16 / 20 / 24px`, `24px` view box | Local category vectors plus unmodified approved provider art where permitted; names stay visible |
 
 The marketing site keeps Archivo for display and section headings and uses the
 locally bundled 3D Hutch mascot. Product body text uses the same system sans as
@@ -70,8 +72,8 @@ The chat is the daily workspace. Keep the active conversation and current work
 prominent, with approvals and human waits visible in context. Use a searchable
 Bot roster with the coordinator and attention states first. Each Bot has one
 options menu for pinning and settings; idle, unpinned Bots collapse only when a
-workspace has ten or more Bots. Long custom names remain available to assistive
-technology and are clamped to two lines in the roster.
+workspace has ten or more Bots. Long custom names stay on one line and end with
+an ellipsis in the roster; the full name remains available on the assistant row.
 
 The large **Fleet** view keeps the default card human-readable: assistant name,
 readiness, description, schedule cadence, and the action-approval expectation.
@@ -89,9 +91,12 @@ present in the source conversation.
 The empty first-run screen offers a few illustrated starter requests, such as
 planning a week, catching up on email, or organizing a project. Selecting one
 fills the request field; it never starts work or creates an assistant by itself.
-Use recognizable local service marks and small line icons as helpful cues, with
-plain-language labels beside them. Keep provider, model, permission, and runtime
-terminology in the relevant optional detail layer.
+Use a consistent local outline-icon family for actions and categories, with
+plain-language labels beside them. Apps & AI uses original Hutch-colored
+calendar, mail, inbox, sparkle, cloud, and monitor category glyphs beside exact
+service names. These are not provider logos; branded artwork stays out until
+permission for app and marketing use is documented. Keep provider, model,
+permission, and runtime terminology in the relevant optional detail layer.
 
 Assistant settings lead with the editable name and what the assistant helps with.
 Standing directions and the rest of the controls sit behind one clearly named
@@ -116,11 +121,11 @@ Chats and the in-app Apps & AI, Models, Usage, and other views share one
 workspace sidebar, contextual header, system type, emerald actions, azure focus,
 solid graphite surfaces, and 8px/12px control-panel geometry. Sign-in, pairing,
 and remaining server-rendered pages load the same generated semantic tokens and
-map their components to that contract. Familiar local vector marks identify
-calendar, mail, and AI choices beside plain-language names and connection states.
-The AI tile uses Hutch's generic spark mark rather than a recolored imitation of
-the OpenAI Blossom; provider marks must remain accurate, secondary, and within
-their owner's brand rules ([OpenAI brand guidance](https://openai.com/brand/)).
+map their components to that contract. Service categories use the same locally
+drawn outline glyphs across the app and marketing site. Provider names and
+connection states remain explicit; provider artwork requires documented rights
+before it is bundled. The AI tile uses Hutch's generic sparkle rather than an
+imitation of the OpenAI Blossom ([OpenAI brand guidance](https://openai.com/brand/)).
 The first layer explains the useful choice; detailed scopes, OAuth setup, and
 account controls stay inside the optional **More account settings** disclosure.
 Never make a provider mark the only label. Avoid a separate brand palette, blue
@@ -137,8 +142,15 @@ local-host access, or fixture-only states in public flows.
 
 ## Typography, spacing, and behavior
 
-- Body text uses the shared system sans. Operator prose defaults to 14px with
-  1.55 leading; longer marketing copy can use its larger editorial scale.
+- The app uses a system-sans stack and named type roles: `0.9375rem` interface
+  body at `1.55` leading; `1rem` reading text at `1.65`; `1.5rem` page titles;
+  and `1.125rem` section titles. Use rem units so user text scaling remains
+  effective.
+- App captions start at `0.75rem/1.45`. Do not use mono for prose, labels, chips,
+  or decorative eyebrows. Use it for measured values, code, and identifiers.
+- The app icon family uses local `24px`-viewBox outline vectors, `16/20/24px`
+  roles, and one current-color stroke. Keep exact provider names beside generic
+  category glyphs; do not draw lookalike provider logos.
 - Display and section headings may use Archivo on the marketing site. IDs,
   timestamps, budgets, code, and measured values use the mono stack; prose does
   not.

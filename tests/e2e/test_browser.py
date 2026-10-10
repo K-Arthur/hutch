@@ -4963,15 +4963,27 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
     try:
         page.goto(f"{base}/#/chat")
         page.locator(".ctx-id h1").wait_for()
+        # This scenario validates readable names in the expanded sidebar,
+        # independent of a remembered user's compact-rail preference.
+        if page.locator(".app-shell").evaluate("el => el.classList.contains('collapsed')"):
+            page.get_by_role("button", name="Expand sidebar").click()
+            page.locator(".roster-name").first.wait_for(state="visible")
         assert page.locator("#roster-list .avatar").count() == len(bots)
         assert page.locator("#roster-list .roster-entry").evaluate_all(
             "rows => rows.every(row => row.querySelectorAll('[data-bot-options]').length === 1 && !row.querySelector('[data-pin-bot], .roster-pin, .roster-settings'))")
         long_name = "Research Companion for Long-Term Vendor Strategy and Operations"
         name_metrics = page.locator("[data-switch-bot='research-helper'] .roster-name").evaluate(
             "el => ({text:el.textContent.trim(), height:el.clientHeight, lineHeight:parseFloat(getComputedStyle(el).lineHeight), fullName:el.closest('[data-switch-bot]').title})")
+        assert "monospace" not in page.locator("[data-switch-bot='research-helper'] .roster-sub").evaluate(
+            "el => getComputedStyle(el).fontFamily")
         assert name_metrics["text"] == long_name
         assert name_metrics["fullName"].startswith(long_name)
-        assert name_metrics["height"] <= name_metrics["lineHeight"] * 2 + 1
+        assert name_metrics["height"] <= name_metrics["lineHeight"] + 1
+        name_label = page.locator("[data-switch-bot='research-helper'] .roster-name")
+        assert name_label.evaluate("el => getComputedStyle(el).textOverflow") == "ellipsis"
+        assert name_label.evaluate("el => el.scrollWidth > el.clientWidth"), (
+            "long sidebar names should visibly truncate on one line"
+        )
         short_name_height = page.locator("[data-switch-bot='agenda-assistant'] .roster-name").evaluate("el => el.clientHeight")
         assert short_name_height <= name_metrics["lineHeight"] + 1
 
@@ -5006,6 +5018,9 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
 
         page.reload()
         page.locator(".ctx-id h1").wait_for()
+        if page.locator(".app-shell").evaluate("el => el.classList.contains('collapsed')"):
+            page.get_by_role("button", name="Expand sidebar").click()
+            page.locator(".roster-name").first.wait_for(state="visible")
         assert store.get_bot("research-helper").pinned is True
         assert store.get_bot("website-auditor").pinned is True
         assert page.locator("#roster-list [data-switch-bot]").evaluate_all(
@@ -5045,14 +5060,50 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
             page.set_viewport_size({"width": width, "height": height})
             mobile_roster_capture = None
             menu_capture = None
+            if width > 900 and page.locator(".app-shell").evaluate("el => el.classList.contains('collapsed')"):
+                page.get_by_role("button", name="Expand sidebar").click()
+                page.locator(".roster-name").first.wait_for(state="visible")
             if width <= 900:
                 if not page.locator("#workspace").evaluate("el => el.classList.contains('open')"):
                     page.locator("#nav-toggle").click()
                 assert page.locator("#ws-close").is_visible(), "the open mobile roster needs a visible close control"
+                page.locator(".roster-name").first.wait_for(state="visible")
                 mobile_roster_capture = out / f"{label}-roster.png"
                 page.screenshot(path=str(mobile_roster_capture), animations="disabled")
                 if width <= 640:
                     assert page.locator("#roster-list [data-switch-bot]").count() == len(bots)
+            selected_row = page.locator("[data-switch-bot='research-helper']")
+            selected_row.wait_for(state="visible")
+            selected_row.click()
+            page.wait_for_function("document.querySelector('[data-switch-bot=\\\"research-helper\\\"]')?.getAttribute('aria-current') === 'true'")
+            selected_row = page.locator("[data-switch-bot='research-helper']")
+            name_label = selected_row.locator(".roster-name")
+            name_geometry = name_label.evaluate("el => ({height:el.clientHeight, lineHeight:parseFloat(getComputedStyle(el).lineHeight), overflow:getComputedStyle(el).textOverflow, clipped:el.scrollWidth > el.clientWidth})")
+            assert name_geometry["height"] <= name_geometry["lineHeight"] + 1, (label, name_geometry)
+            assert name_geometry["overflow"] == "ellipsis", (label, name_geometry)
+            assert name_geometry["clipped"], (label, name_geometry)
+            selection_geometry = selected_row.evaluate("""button => {
+              const entry = button.closest('.roster-entry');
+              const options = entry.querySelector('[data-bot-options]');
+              const row = button.getBoundingClientRect();
+              const option = options.getBoundingClientRect();
+              const wrapper = entry.getBoundingClientRect();
+              return { current: button.getAttribute('aria-current'),
+                background: getComputedStyle(entry).backgroundColor,
+                rowRight: row.right, optionsRight: option.right, wrapperRight: wrapper.right,
+                optionsVisible: getComputedStyle(options).display !== 'none' };
+            }""")
+            assert selection_geometry["current"] == "true", (label, selection_geometry)
+            assert selection_geometry["background"] != "rgba(0, 0, 0, 0)", (label, selection_geometry)
+            assert selection_geometry["optionsVisible"], (label, selection_geometry)
+            assert abs(selection_geometry["wrapperRight"] - selection_geometry["optionsRight"]) <= 3, (
+                label, selection_geometry
+            )
+            assert selection_geometry["rowRight"] < selection_geometry["optionsRight"], (
+                label, selection_geometry
+            )
+            selected_capture = out / f"{label}-selected-row.png"
+            page.screenshot(path=str(selected_capture), animations="disabled")
             page.locator("[data-switch-bot='research-helper']").hover()
             page.locator("[data-bot-options='research-helper']").click()
             assert page.get_by_role("menu").get_by_role("menuitem", name="Assistant settings").is_visible()
@@ -5069,6 +5120,9 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
                 assert target.bounding_box()["height"] >= 44
             page.screenshot(path=str(out / f"{label}.png"), animations="disabled")
             snapshots.append({"size": label, "viewport": [width, height], "horizontal_overflow": 0,
+                              "long_name": name_geometry,
+                              "selected_row_geometry": selection_geometry,
+                              "selected_row_capture": selected_capture.name,
                               "roster_capture": mobile_roster_capture.name if mobile_roster_capture else None,
                               "options_menu_capture": menu_capture.name})
 
@@ -5082,7 +5136,7 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
             "fixture_only": True, "provider_calls": 0, "external_requests": len(outside_requests), "page_errors": errors,
             "viewports": snapshots,
             "verified": ["one options button per Bot; pin and settings actions share its menu", "pin persists after reload", "coordinator stays first and cannot be pinned",
-                         "search includes pinned bots", "keyboard activation and Escape restore focus", "long Bot name wraps without clipping",
+                         "search includes pinned bots", "keyboard activation and Escape restore focus", "long names truncate with an ellipsis on one line while full names remain available in the title",
                          "mobile roster has a visible close control", "phone roster reopens with all Bots visible", "phone menu target is at least 44px",
                          "flat 2D identities use distinct solid fills and simple, shape-aware ink eyes"],
             "avatar_svg_ids": identity["count"], "source_sha256": {

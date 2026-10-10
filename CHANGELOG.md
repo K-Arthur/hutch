@@ -1,5 +1,13 @@
 # Changelog
 
+## App typography, icon language, and roster selection
+
+- Added named, rem-based app type roles for body, reading, labels, metadata, and headings while keeping Hutch's marketing display font separate.
+- Standardized local outline icon sizing and stroke treatment. Apps & AI and marketing use original Hutch-colored category glyphs beside exact provider names until brand artwork permissions are documented. Assistant names stay on one sidebar line; long names truncate with an ellipsis while the full name remains available in the row title.
+- The active assistant's selection background now covers its full roster row, including the single options target; keyboard semantics remain on the assistant button.
+- Tightened the phone first-run layout so its main setup action stays visible in the initial 390px screen.
+- Browser regression checks cover type scaling, service icons, setup visibility, and selection at desktop, tablet, and phone widths. Individual captures are recorded in `docs/realignment/artifacts/`.
+
 ## Personal-assistant first run and app choices
 
 - The empty chat now starts with a real request composer and carries that exact request into assistant setup. Its title and helper text make clear that the person is reviewing the request they just gave Hutch, not being asked to repeat it.

@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language",
-  "captured_at": "2026-10-10T12:32:36.797638+00:00",
+  "captured_at": "2026-10-10T13:15:52.863870+00:00",
   "python": "3.13.15",
   "browser": "Chromium 153.0.8010.12",
   "playwright": "1.63.0",
@@ -81,12 +81,12 @@
   "provider_calls": 0,
   "reduced_motion": "reduce",
   "source_sha256": {
-    "src/hutch/server/static/app.js": "f9ec5cedf21cf04db04f98d69c658a987bf026e6cf46ee97e354246ab7c1ce4d",
+    "src/hutch/server/static/app.js": "851b6ef151c4854ffa2b03ba1097c6dfd3a3c69e2ff541242f25cae2dbd5c53f",
     "src/hutch/server/static/index.html": "575a9641e4be85f5ed3294571370073ed90656c728baa218cfe11bd0b6e6f932",
-    "src/hutch/server/static/style.css": "580461addb6a236c7e6786b0ca81c68a80d8cd08f8cfefd7a95be565ad7a0ea9",
-    "website/index.html": "f46ce02b2cfea91b5ea23530818314bde41685307163b49196251a1f578f8f96",
+    "src/hutch/server/static/style.css": "074e1effb1902de46fdfb3f267e7a7595473f6cfc71234a67c048e215f21188b",
+    "website/index.html": "e3f4122f6a72bc5c783c71e5f7fa09b08fe85c92818c4cb06b7c85ba80ae2db5",
     "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
-    "website/styles.css": "f7299051af1380b1c170f0ab0930b896b070c3c197e42f19f90a466b64499581",
-    "tests/e2e/test_design_system.py": "b7d51e9ef5a4110ed06762bb2836edaa7a58a35ba898687d9fc8a9fd7e86ee11"
+    "website/styles.css": "7129a7ff4f9153d32743fe19f761caf119d4ceb2fb54e9205e83d8a89d5c1b75",
+    "tests/e2e/test_design_system.py": "13a8c23a485a6afd2b0375a1c2a34f80f6fd121436bf86e764d2a2caf85e8d5e"
   }
 }
