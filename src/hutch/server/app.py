@@ -67,6 +67,7 @@ MAX_BOT_MEMORY_EXPORT_FACTS = 10_000
 MAX_BOT_MEMORY_EXPORT_SHARES_PER_DIRECTION = 5_000
 MAX_BOT_MEMORY_EXPORT_SOURCE_BYTES = 2 * 1024 * 1024
 MAX_BOT_MEMORY_EXPORT_BYTES = 16 * 1024 * 1024
+MAX_BOT_CONFIG_YAML_BYTES = 65_536
 
 #: transcript window returned by default (PF-9): the run page stays usable at 10,000+ events
 DEFAULT_EVENT_WINDOW = 200
@@ -137,6 +138,99 @@ class BotConfigPreviewResource(BaseModel):
     yaml: str
     omitted_fields: list[str]
     saved: Literal[False] = False
+
+
+class BotConfigImportRequest(BaseModel):
+    yaml: str = Field(min_length=1, max_length=MAX_BOT_CONFIG_YAML_BYTES)
+
+
+class BotConfigImportResource(BaseModel):
+    configuration: dict[str, Any]
+    saved: Literal[False] = False
+
+
+def _parse_bot_config_yaml(source: str) -> BotCreate:
+    import yaml
+    from yaml.events import AliasEvent, MappingEndEvent, MappingStartEvent, SequenceEndEvent, SequenceStartEvent
+
+    if len(source.encode("utf-8")) > MAX_BOT_CONFIG_YAML_BYTES:
+        raise ValueError("Bot configuration YAML exceeds the 64 KiB limit")
+
+    depth = 0
+    try:
+        for index, event in enumerate(yaml.parse(source, Loader=yaml.SafeLoader)):
+            if index >= 10_000:
+                raise ValueError("Bot configuration YAML has too many nodes")
+            if isinstance(event, AliasEvent):
+                raise ValueError("YAML aliases are not supported")
+            if isinstance(event, (MappingStartEvent, SequenceStartEvent)):
+                depth += 1
+                if depth > 32:
+                    raise ValueError("Bot configuration YAML is nested too deeply")
+            elif isinstance(event, (MappingEndEvent, SequenceEndEvent)):
+                depth -= 1
+    except yaml.YAMLError as exc:
+        raise ValueError("Bot configuration is not valid safe YAML") from exc
+
+    class UniqueSafeLoader(yaml.SafeLoader):
+        def construct_mapping(self, node, deep=False):
+            self.flatten_mapping(node)
+            mapping = {}
+            for key_node, value_node in node.value:
+                key = self.construct_object(key_node, deep=deep)
+                try:
+                    duplicate = key in mapping
+                except TypeError:
+                    raise yaml.constructor.ConstructorError(
+                        "while constructing a mapping", node.start_mark, "mapping keys must be scalar", key_node.start_mark,
+                    ) from None
+                if duplicate:
+                    raise yaml.constructor.ConstructorError(
+                        "while constructing a mapping", node.start_mark, f"duplicate key {key!r}", key_node.start_mark,
+                    )
+                mapping[key] = self.construct_object(value_node, deep=deep)
+            return mapping
+
+    UniqueSafeLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, UniqueSafeLoader.construct_mapping)
+    try:
+        document = yaml.load(source, Loader=UniqueSafeLoader)
+    except yaml.YAMLError as exc:
+        raise ValueError("Bot configuration must use safe YAML with no duplicate keys") from exc
+    if not isinstance(document, dict) or set(document) != {"apiVersion", "kind", "spec"}:
+        raise ValueError("Bot configuration must contain only apiVersion, kind, and spec")
+    if document["apiVersion"] != "hutch.ai/v1" or document["kind"] != "BotConfig":
+        raise ValueError("unsupported Bot configuration version or kind")
+    spec = document["spec"]
+    if not isinstance(spec, dict):
+        raise ValueError("Bot configuration spec must be a mapping")
+
+    private_fields = {"base_url", "workdir", "source_conversation_id", "source_message_id", "source_context_message_ids"}
+    if private_fields & set(spec):
+        raise ValueError("YAML import does not accept endpoint URLs, local folder paths, or chat-source references")
+    supported_fields = set(BotCreate.model_fields) - private_fields
+    unknown_fields = set(spec) - supported_fields
+    if unknown_fields:
+        raise ValueError(f"unsupported Bot configuration fields: {', '.join(sorted(map(str, unknown_fields)))}")
+    required_fields = {
+        "name", "display_name", "description", "instructions", "model", "inference_mode", "tools",
+        "memory_enabled", "workspace_mode", "approval_mode", "risk_tier", "local_browser_handoff", "limits",
+    }
+    if missing := required_fields - set(spec):
+        raise ValueError(f"Bot configuration is missing required fields: {', '.join(sorted(missing))}")
+    if not isinstance(spec.get("limits"), dict) or set(spec["limits"]) - set(Limits.model_fields):
+        raise ValueError("Bot configuration limits contain unsupported fields")
+
+    try:
+        body = BotCreate.model_validate(spec)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"invalid Bot configuration: {exc}") from None
+    if body.approval_mode is not ApprovalMode.ask or body.risk_tier is not RiskTier.supervised:
+        raise ValueError("YAML import only accepts ask-first approval and supervised risk defaults")
+    if body.workspace_mode not in ("fresh", "managed"):
+        raise ValueError("YAML import does not accept local folder workspaces")
+    if body.command_rules:
+        raise ValueError("YAML import does not accept command rules that this setup wizard cannot review")
+    return body
 
 
 class RestoreReportResource(BaseModel):
@@ -2272,7 +2366,8 @@ def create_app() -> FastAPI:
         return rules
 
     def bot_from_create_request(body: BotCreate, *, creation_source: Optional[BotCreationSource] = None,
-                                creation_context_sources: Optional[list[BotCreationSource]] = None) -> Bot:
+                                creation_context_sources: Optional[list[BotCreationSource]] = None,
+                                allow_unconfigured_model: bool = False) -> Bot:
         if not _SLUG_RE.match(body.name):
             raise HTTPException(422, "name must be a lowercase slug (a-z, 0-9, -)")
         if body.template:
@@ -2305,7 +2400,8 @@ def create_app() -> FastAPI:
             raise HTTPException(422, str(exc)) from None
         from ..modelchoices import ModelNotUsable, validate_override
         try:
-            bot.model = validate_override(config, store, bot, bot.model)
+            override_kwargs = {"allow_unconfigured": True} if allow_unconfigured_model else {}
+            bot.model = validate_override(config, store, bot, bot.model, **override_kwargs)
         except ModelNotUsable as exc:
             raise HTTPException(422, f"{exc} - {exc.fix}" if exc.fix else str(exc)) from None
         bot.inference_mode = selected_mode
@@ -2341,8 +2437,8 @@ def create_app() -> FastAPI:
             except Exception:
                 raise HTTPException(422, "invalid schedule")
         try:
-            validate_offline_bot(bot, check_host=selected_mode is InferenceMode.offline,
-                                 refresh_host=selected_mode is InferenceMode.offline)
+            validate_offline_bot(bot, check_host=selected_mode is InferenceMode.offline and not allow_unconfigured_model,
+                                 refresh_host=selected_mode is InferenceMode.offline and not allow_unconfigured_model)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         return bot
@@ -2447,6 +2543,24 @@ def create_app() -> FastAPI:
             "omitted_fields": ["provider endpoint URL", "local folder path", "chat source references"],
             "saved": False,
         }
+
+    @app.post("/api/v1/bot-configs/import", response_model=BotConfigImportResource)
+    def import_bot_config(body: BotConfigImportRequest, response: Response) -> dict:
+        """Validate a bounded setup YAML file and return an unsaved configuration draft."""
+        try:
+            configuration = _parse_bot_config_yaml(body.yaml)
+            bot_from_create_request(configuration, allow_unconfigured_model=True)
+        except HTTPException:
+            raise
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        private_fields = {
+            "base_url", "workdir", "source_conversation_id", "source_message_id",
+            "source_context_message_ids",
+        }
+        return {"configuration": configuration.model_dump(mode="json", exclude=private_fields), "saved": False}
 
     @app.post("/api/bots", status_code=201)
     def create_bot(body: BotCreate) -> dict:

@@ -996,6 +996,101 @@ def test_bot_setup_yaml_preview_rejects_invalid_configuration_without_saving(cli
     assert client.get("/api/bots").json() == []
 
 
+def test_bot_setup_yaml_import_accepts_only_exported_safe_draft_and_never_persists(client):
+    body = {
+        "name": "yaml-round-trip-bot", "display_name": "Jordan Reed · Project Reporter",
+        "description": "Summarize updates", "instructions": "Prepare a short weekly summary.",
+        "model": "mock/demo", "tools": ["read_file"], "inference_mode": "hybrid",
+        "workspace_mode": "managed", "approval_mode": "ask", "risk_tier": "supervised",
+        "local_browser_handoff": False,
+        "limits": {"max_steps": 11, "timeout_seconds": 240, "daily_token_cap": 4000,
+                   "max_turn_tokens": 800, "max_cost_usd": 0.1, "daily_cost_cap_usd": 0.9},
+        "cron": "0 9 * * 1", "timezone": "America/Vancouver", "catch_up": "skip",
+        "schedule_prompt": "Prepare the Monday summary.",
+    }
+    preview = client.post("/api/v1/bot-configs/preview", json=body)
+    assert preview.status_code == 200, preview.text
+
+    imported = client.post("/api/v1/bot-configs/import", json={"yaml": preview.json()["yaml"]})
+
+    assert imported.status_code == 200, imported.text
+    assert imported.headers["cache-control"] == "no-store"
+    assert imported.json()["saved"] is False
+    config = imported.json()["configuration"]
+    assert config["name"] == body["name"]
+    assert config["display_name"] == body["display_name"]
+    assert config["instructions"] == body["instructions"]
+    assert config["model"] == body["model"]
+    assert config["tools"] == body["tools"]
+    assert config["workspace_mode"] == body["workspace_mode"]
+    assert config["timezone"] == body["timezone"] and config["catch_up"] == body["catch_up"]
+    assert config["limits"] == body["limits"]
+    assert "base_url" not in config and "workdir" not in config
+    assert "source_conversation_id" not in config
+    assert client.get("/api/bots").json() == []
+    assert client.app.state.store.list_runs(limit=10) == []
+
+
+def test_bot_setup_yaml_import_can_review_route_before_local_credentials_exist(client, monkeypatch):
+    import yaml
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    document = {
+        "apiVersion": "hutch.ai/v1", "kind": "BotConfig", "spec": {
+            "name": "portable-import-bot", "display_name": "Portable Import Bot",
+            "description": "Review a project update", "instructions": "Summarize the update.",
+            "model": "openai/gpt-4o-mini", "inference_mode": "hybrid", "tools": ["read_file"],
+            "memory_enabled": False, "workspace_mode": "managed", "approval_mode": "ask",
+            "risk_tier": "supervised", "local_browser_handoff": False,
+            "limits": {"max_steps": 10, "timeout_seconds": 120, "daily_token_cap": 3000,
+                       "max_turn_tokens": 500, "max_cost_usd": 0, "daily_cost_cap_usd": 0},
+        },
+    }
+
+    imported = client.post("/api/v1/bot-configs/import", json={"yaml": yaml.safe_dump(document)})
+
+    assert imported.status_code == 200, imported.text
+    assert imported.json()["configuration"]["model"] == "openai/gpt-4o-mini"
+    assert imported.json()["saved"] is False
+    create = client.post("/api/v1/bots", json=imported.json()["configuration"],
+                         headers={"Idempotency-Key": "import-unconfigured-route"})
+    assert create.status_code == 422 and "API key" in create.json()["detail"]
+    assert client.get("/api/bots").json() == []
+    assert client.app.state.store.list_runs(limit=10) == []
+
+
+def test_bot_setup_yaml_import_rejects_unsafe_or_unsupported_documents(client):
+    valid_spec = {
+        "name": "imported-safe-bot", "display_name": "Avery Lee · Project Reviewer",
+        "description": "Review project notes", "instructions": "Review the provided notes.",
+        "model": "mock/demo", "inference_mode": "hybrid", "tools": ["read_file"],
+        "memory_enabled": False, "workspace_mode": "managed", "approval_mode": "ask",
+        "risk_tier": "supervised", "local_browser_handoff": False,
+        "limits": {"max_steps": 10, "timeout_seconds": 120, "daily_token_cap": 3000,
+                   "max_turn_tokens": 500, "max_cost_usd": 0, "daily_cost_cap_usd": 0},
+    }
+    import yaml
+
+    document = {"apiVersion": "hutch.ai/v1", "kind": "BotConfig", "spec": valid_spec}
+    valid_yaml = yaml.safe_dump(document, sort_keys=False)
+    inputs = [
+        valid_yaml.replace("apiVersion: hutch.ai/v1", "apiVersion: hutch.ai/v2"),
+        yaml.safe_dump({**document, "spec": {**valid_spec, "workdir": "/home/user/Downloads"}}),
+        yaml.safe_dump({**document, "spec": {**valid_spec, "approval_mode": "auto"}}),
+        yaml.safe_dump({**document, "spec": {**valid_spec, "shell_network": True}}),
+        "!!python/object/apply:os.system ['touch /tmp/should-not-exist']",
+        "defaults: &defaults {name: imported-safe-bot}\napiVersion: hutch.ai/v1\nkind: BotConfig\nspec: *defaults\n",
+        "apiVersion: hutch.ai/v1\napiVersion: hutch.ai/v1\nkind: BotConfig\nspec: {}\n",
+        "x" * 65_537,
+    ]
+
+    for index, text in enumerate(inputs):
+        response = client.post("/api/v1/bot-configs/import", json={"yaml": text})
+        assert response.status_code == 422, (index, response.status_code, response.text)
+    assert client.get("/api/bots").json() == []
+    assert client.app.state.store.list_runs(limit=10) == []
+
+
 def test_templates_endpoint(client):
     templates = client.get("/api/bots/templates").json()
     names = {t["name"] for t in templates}

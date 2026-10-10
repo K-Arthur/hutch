@@ -5713,20 +5713,21 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
     ? "Experimental on this Linux desktop. A person enters passwords, passcodes and verification codes in the visible browser. Hutch never types them or accepts them in chat. This does not enable phone browser control."
     : `Unavailable on this host: ${browserHandoffCapability.reason} This does not enable phone browser control.`;
   const chosenTemplate = templates.find(item => item.name === preselect) || null;
-  const modelSuggestion = conversationSource?.model_suggestion || workspaceDefaults.model || "";
-  const modelSuggestionSource = conversationSource?.model_suggestion ? "chat" : workspaceDefaults.model ? "workspace" : "";
+  let modelSuggestion = conversationSource?.model_suggestion || workspaceDefaults.model || "";
+  let modelSuggestionSource = conversationSource?.model_suggestion ? "chat" : workspaceDefaults.model ? "workspace" : "";
   const draft = {
     step: 0, purpose: conversationSource?.original_request || "", useConversationSource: !!conversationSource,
     selectedContextMessageIds: new Set(),
     template: chosenTemplate?.name || "", name: "", display_name: "", description: "", model: modelSuggestion,
     purposeRefinement: null, purposeRefinementStatus: "",
     inference_mode: conversationSource?.inference_mode_suggestion || workspaceDefaults.inference_mode || "hybrid",
-    workspace_mode: "managed", tools: templateTools(chosenTemplate),
+    workspace_mode: "managed", tools: templateTools(chosenTemplate), memory_enabled: false,
     local_browser_handoff: false,
-    cron: "", schedule_prompt: "",
+    cron: "", timezone: "UTC", catch_up: "coalesce", schedule_prompt: "",
     limits: { max_steps: 24, timeout_seconds: 900, daily_token_cap: 200000,
       max_turn_tokens: 0, max_cost_usd: 0, daily_cost_cap_usd: 0 },
   };
+  draft.memory_enabled = draft.tools.has("remember") || draft.tools.has("recall");
   let displayNameEdited = false;
   let addressEdited = false;
   const occupiedAddresses = new Set(botsCache.map(bot => bot.name));
@@ -5791,10 +5792,42 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
     description: draft.description.trim() || draft.purpose.trim().split("\n")[0].slice(0, 240),
     instructions: instructionsForDraft(), model: draft.model.trim(), inference_mode: draft.inference_mode,
     workspace_mode: draft.workspace_mode, tools: [...draft.tools], approval_mode: "ask", risk_tier: "supervised",
-    limits: draft.limits, memory_enabled: draft.tools.has("remember") || draft.tools.has("recall"),
+    limits: draft.limits, memory_enabled: draft.memory_enabled,
     local_browser_handoff: draft.local_browser_handoff,
-    cron: draft.cron.trim() || null, schedule_prompt: draft.schedule_prompt.trim(),
+    cron: draft.cron.trim() || null, timezone: draft.timezone, catch_up: draft.catch_up,
+    schedule_prompt: draft.schedule_prompt.trim(),
   });
+  const applyImportedConfiguration = config => {
+    draft.purpose = config.instructions || "";
+    draft.useConversationSource = false;
+    draft.selectedContextMessageIds = new Set();
+    draft.name = config.name;
+    draft.display_name = config.display_name;
+    draft.description = config.description || "";
+    draft.template = config.template || "";
+    draft.model = config.model || "";
+    draft.inference_mode = config.inference_mode || "hybrid";
+    draft.workspace_mode = config.workspace_mode || "managed";
+    draft.tools = new Set(config.tools || []);
+    draft.memory_enabled = !!config.memory_enabled;
+    draft.limits = { ...draft.limits, ...(config.limits || {}) };
+    draft.local_browser_handoff = !!config.local_browser_handoff;
+    draft.cron = config.cron || "";
+    draft.timezone = config.timezone || "UTC";
+    draft.catch_up = config.catch_up || "coalesce";
+    draft.schedule_prompt = config.schedule_prompt || "";
+    draft.purposeRefinement = null;
+    draft.purposeRefinementStatus = "";
+    displayNameEdited = true;
+    addressEdited = true;
+    modelSuggestion = draft.model;
+    modelSuggestionSource = "import";
+    const addressInUse = occupiedAddresses.has(draft.name);
+    draft.yamlImportExpanded = true;
+    draft.yamlImportStatus = addressInUse
+      ? "YAML validated. This Bot address is already in use; change it in Review or change the address before creating. Nothing has been saved."
+      : "YAML validated and copied into this unsaved draft. Review each step; no Bot or run has been created.";
+  };
   const refreshContextCount = () => {
     const node = $("#setup-context-count");
     if (!node) return;
@@ -5816,10 +5849,10 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
       draft.selectedContextMessageIds = new Set(contextInputs.filter(input => input.checked)
         .map(input => input.dataset.setupContextMessage));
     }
-    for (const key of ["name", "display_name", "description", "model", "cron", "schedule_prompt"]) {
+    for (const key of ["name", "display_name", "description", "model", "cron", "timezone", "schedule_prompt"]) {
       const field = $(`#setup-${key}`); if (field) draft[key] = field.value;
     }
-    for (const key of ["inference_mode", "workspace_mode"]) {
+    for (const key of ["inference_mode", "workspace_mode", "catch_up"]) {
       const field = $(`#setup-${key}`); if (field) draft[key] = field.value;
     }
     const handoff = $("#setup-local-browser-handoff");
@@ -5862,7 +5895,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
         <div><dt>Browser handoff</dt><dd>${draft.local_browser_handoff ? "On · human can take over in the visible Linux browser" : "Off"}</dd></div>
         <div><dt>Execution limits</dt><dd>${draft.limits.max_steps} steps · ${draft.limits.timeout_seconds} seconds · ${draft.limits.daily_token_cap.toLocaleString()} estimated tokens per day</dd></div>
         <div><dt>Model limits</dt><dd>${draft.limits.max_turn_tokens ? `${draft.limits.max_turn_tokens.toLocaleString()} tokens per turn` : "Provider default tokens per turn"} · ${draft.limits.max_cost_usd ? `$${draft.limits.max_cost_usd.toFixed(2)} estimated per run` : "No per-run estimate limit"} · ${draft.limits.daily_cost_cap_usd ? `$${draft.limits.daily_cost_cap_usd.toFixed(2)} estimated per day` : "No daily estimate limit"}</dd></div>
-        <div><dt>Recurring task</dt><dd>${draft.cron.trim() ? `${esc(draft.cron.trim())}${draft.schedule_prompt.trim() ? ` · ${esc(draft.schedule_prompt.trim())}` : ""}` : "None"}</dd></div>
+        <div><dt>Recurring task</dt><dd>${draft.cron.trim() ? `${esc(draft.cron.trim())} · ${esc(draft.timezone)} · missed windows: ${draft.catch_up === "skip" ? "skip" : "run once"}${draft.schedule_prompt.trim() ? ` · ${esc(draft.schedule_prompt.trim())}` : ""}` : "None"}</dd></div>
+        <div><dt>Memory</dt><dd>${draft.memory_enabled ? "Enabled for allowed memory tools" : "Disabled"}</dd></div>
       </dl>
       <details class="setup-schedule setup-yaml" id="setup-yaml-details">
         <summary>View or download YAML</summary>
@@ -5886,6 +5920,13 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
         <span><b>${conversationSource.is_latest_request ? "Use your latest request from this chat" : "Use this request from this chat"}</b><small>From ${esc(conversationSource.source_bot_name)} · ${esc(conversationSource.conversation_title)} · message ${conversationSource.sequence}.</small></span></label>
         <p class="setup-assistant">Only ${conversationSource.is_latest_request ? "the latest request" : "this request"} and earlier user messages you select are included in this Bot draft. Assistant replies and other chats stay private; selected text cannot change tools, accounts or permissions.</p>`
         : `<p class="setup-assistant">Start with what you already asked for. Hutch suggests a name and uses safe defaults; review everything before creating the Bot.</p>`}
+      <details class="setup-schedule setup-yaml-import" id="setup-yaml-import-details" ${draft.yamlImportExpanded ? "open" : ""}>
+        <summary>Load a saved YAML setup</summary>
+        <p class="hint">A validated file fills this unsaved draft. Review the name, model, tools, schedule, limits and permissions across all steps; only the separate <b>Create bot</b> action saves it.</p>
+        <button type="button" class="btn small" id="setup-yaml-import-button">Choose YAML file</button>
+        <input id="setup-yaml-file" type="file" accept=".yaml,.yml,application/yaml,text/yaml" hidden>
+        <p class="hint" id="setup-yaml-import-status" role="status" aria-live="polite">${esc(draft.yamlImportStatus || "")}</p>
+      </details>
       ${(conversationSource?.context_candidates || []).length ? `<details class="setup-schedule" id="setup-context-picker" ${draft.selectedContextMessageIds.size ? "open" : ""}>
         <summary>Add earlier user messages (optional)</summary>
         <p class="hint">Choose only messages that should become background in this Bot’s saved instructions. No assistant replies or other chats are included. Avoid passwords, codes and unrelated private details.</p>
@@ -5932,7 +5973,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
         <p class="setup-assistant">${draft.model ? "Hutch found a configured route from this chat or your workspace. Review it below." : "Choose a configured model route. Safe defaults fill the other setup choices."} It becomes the Bot’s saved default; creating the Bot does not start a run.</p>
         <label class="field" for="setup-model">Model route<input id="setup-model" list="setup-model-routes" maxlength="240" autocomplete="off" placeholder="Choose or enter provider/model" value="${esc(draft.model)}" required>
           <datalist id="setup-model-routes">${options}</datalist>
-          <span class="hint">${modelSuggestionSource === "chat" ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route and routing mode: ${esc(conversationSource.model_suggestion)}.` : modelSuggestionSource === "workspace" ? `Workspace default for new Bots: ${esc(workspaceDefaults.model)}.` : "No workspace or chat model route is configured yet."} ${readyRoutes.length ? `${readyRoutes.length} ready route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} Hosted routes send prompts to that provider; local routes use this machine. <a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.</span></label>
+          <span class="hint">${modelSuggestionSource === "chat" ? `Suggested from ${esc(conversationSource.source_bot_name)}’s current route and routing mode: ${esc(conversationSource.model_suggestion)}.` : modelSuggestionSource === "workspace" ? `Workspace default for new Bots: ${esc(workspaceDefaults.model)}.` : modelSuggestionSource === "import" ? `Imported route: ${esc(modelSuggestion)}. Confirm it is configured in Connections.` : "No workspace or chat model route is configured yet."} ${readyRoutes.length ? `${readyRoutes.length} ready route${readyRoutes.length === 1 ? "" : "s"} shown as suggestions.` : "No ready routes were found. Configure a provider or local model in Connections."} Hosted routes send prompts to that provider; local routes use this machine. <a href="/#/connections" target="_blank" rel="noopener">Open Connections in another tab</a>.</span></label>
         <label class="field" for="setup-inference_mode">Inference mode<select id="setup-inference_mode">
           <option value="hybrid" ${draft.inference_mode === "hybrid" ? "selected" : ""}>Hybrid — local or hosted</option>
           <option value="local" ${draft.inference_mode === "local" ? "selected" : ""}>Local — this machine</option>
@@ -5966,6 +6007,11 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
         <summary>Add a recurring task (optional)</summary>
         <div class="form-grid">
           <label class="field" for="setup-cron">Cron schedule<input id="setup-cron" maxlength="100" placeholder="0 9 * * 1" value="${esc(draft.cron)}"></label>
+          <label class="field" for="setup-timezone">Time zone<input id="setup-timezone" maxlength="120" placeholder="America/Vancouver" value="${esc(draft.timezone)}"><span class="hint">Use an IANA time zone such as UTC or America/Vancouver.</span></label>
+          <label class="field" for="setup-catch_up">Missed schedule windows<select id="setup-catch_up">
+            <option value="coalesce" ${draft.catch_up === "coalesce" ? "selected" : ""}>Run once when Hutch is available</option>
+            <option value="skip" ${draft.catch_up === "skip" ? "selected" : ""}>Skip windows older than 30 minutes</option>
+          </select></label>
           <label class="field" for="setup-schedule_prompt">Scheduled task prompt<textarea id="setup-schedule_prompt" maxlength="4000" rows="3" placeholder="Leave blank to use the standing instructions">${esc(draft.schedule_prompt)}</textarea>
             <span class="hint">A scheduled task prompt needs a cron schedule.</span></label>
         </div>
@@ -6036,6 +6082,37 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
       link.download = `hutch-${slug}.yaml`;
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 0);
+    });
+    $("#setup-yaml-import-button")?.addEventListener("click", () => $("#setup-yaml-file")?.click());
+    $("#setup-yaml-file")?.addEventListener("change", async event => {
+      const input = event.currentTarget;
+      const file = input.files?.[0];
+      const status = $("#setup-yaml-import-status");
+      if (!file) return;
+      if (file.size > 65_536) {
+        if (status) status.textContent = "Choose a YAML file no larger than 64 KiB.";
+        input.value = "";
+        return;
+      }
+      const choose = $("#setup-yaml-import-button");
+      if (choose) choose.disabled = true;
+      if (status) status.textContent = "Checking the YAML file; nothing will be saved yet…";
+      try {
+        const result = await api("/v1/bot-configs/import", { method: "POST", body: { yaml: await file.text() } });
+        if (result.configuration.local_browser_handoff && !browserHandoffReady) {
+          throw new Error(`This file enables browser handoff, which is unavailable here: ${browserHandoffCapability.reason}`);
+        }
+        snapshotFields();
+        applyImportedConfiguration(result.configuration);
+        await renderStep();
+        $("#setup-purpose")?.focus();
+      } catch (error) {
+        if (status) status.textContent = `Could not load this YAML file: ${error.message}`;
+      } finally {
+        input.value = "";
+        const activeChoose = $("#setup-yaml-import-button");
+        if (activeChoose) activeChoose.disabled = false;
+      }
     });
     $("#setup-back")?.addEventListener("click", () => { snapshotFields(); draft.step = Math.max(0, draft.step - 1); void renderStep(); });
     $("#setup-use-source")?.addEventListener("change", event => {
@@ -6159,11 +6236,13 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
     $$('input[name="setup-template"]').forEach(input => input.addEventListener("change", () => {
       draft.template = input.value;
       draft.tools = templateTools(selectedTemplate());
+      draft.memory_enabled = draft.tools.has("remember") || draft.tools.has("recall");
       const toolsDetails = $("#setup-tools-details");
       if (toolsDetails && draft.tools.size) toolsDetails.open = true;
     }));
     $$('input[name="setup-tool"]').forEach(input => input.addEventListener("change", () => {
       if (input.checked) draft.tools.add(input.value); else draft.tools.delete(input.value);
+      draft.memory_enabled = draft.tools.has("remember") || draft.tools.has("recall");
     }));
     $("#setup-inference_mode")?.addEventListener("change", async () => {
       snapshotFields(); draft.inference_mode = $("#setup-inference_mode").value; await renderStep();

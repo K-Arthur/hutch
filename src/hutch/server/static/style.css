@@ -1318,6 +1318,9 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .setup-yaml .hint { margin: 0; line-height: 1.55; }
 .setup-yaml-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .setup-yaml-actions .btn { min-height: 44px; }
+.setup-yaml-import { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-3); min-width: 0; }
+.setup-yaml-import .hint { margin: 0; line-height: 1.55; }
+.setup-yaml-import .btn { justify-self: start; min-height: 44px; }
 .setup-yaml-preview { box-sizing: border-box; width: 100%; max-height: min(18rem, 32vh); min-width: 0; overflow: auto; margin: 0;
   padding: var(--s-4); border: 1px solid var(--line); border-radius: var(--r-control); background: var(--surface);
   color: var(--text); font: 400 var(--fs-xs)/1.55 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }

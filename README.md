@@ -126,7 +126,7 @@ delegation approval in chat or Needs you each time; configuration does not grant
 | [Safety model](docs/safety.md) | deny/ask/allow rules, approval flow, honest limits |
 | [Connections](docs/connections.md) | OpenCode Go API-key handoff, ChatGPT local sign-in preview, Google/Outlook Calendar and Outlook Mail reads, provider-specific limits |
 | [OpenCode coding handoff](docs/research/opencode-coding-handoff-2026-10-09.md) | Evidence, implementation boundary, public failure reports and live verification gaps |
-| [Bot configuration](docs/bot-config.md) | fields, model specs, schedules, limits, YAML preview and download |
+| [Bot configuration](docs/bot-config.md) | fields, model specs, schedules, limits, YAML preview, download and reviewed import |
 | [Operations](docs/operations.md) | Linux sandbox requirements, remote pairing, incomplete cleanup, migration backups and restore |
 | [Models](docs/models.md) | chat model switcher, fit, model slots, prices, `hutch doctor` |
 | [Connections](docs/connections.md) | subscription plans and custom endpoints, keys, allowances, what is unsupported and why |

@@ -3579,6 +3579,152 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         context.close()
 
 
+def test_bot_setup_yaml_import_fills_reviewed_draft_without_saving_until_confirmation(browser, live, monkeypatch):
+    import hashlib
+    from pathlib import Path
+
+    base, app = live
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only-key-never-sent-to-a-provider")
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(10_000)
+    errors: list[str] = []
+    requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: requests.append(request.url))
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-setup-import"
+    out.mkdir(parents=True, exist_ok=True)
+    yaml_text = """apiVersion: hutch.ai/v1
+kind: BotConfig
+spec:
+  name: imported-release-reviewer
+  display_name: Jordan Reed · Release Notes Reviewer
+  template: null
+  description: Summarize project release notes
+  instructions: Review release notes and prepare a short summary for the project team.
+  model: openai/gpt-4o-mini
+  inference_mode: hybrid
+  tools:
+  - read_file
+  memory_enabled: false
+  cron: 0 9 * * 1
+  timezone: America/Vancouver
+  catch_up: skip
+  schedule_prompt: Review release notes and report important changes.
+  approval_mode: ask
+  risk_tier: supervised
+  command_rules: []
+  workspace_mode: managed
+  local_browser_handoff: false
+  limits:
+    max_steps: 11
+    timeout_seconds: 240
+    daily_token_cap: 4000
+    max_turn_tokens: 800
+    max_cost_usd: 0.1
+    daily_cost_cap_usd: 0.9
+"""
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(base + "/#/chat")
+        page.locator("#topbar-new-bot").click()
+        page.get_by_role("heading", name="Describe the work").wait_for()
+        page.locator("#setup-yaml-import-details > summary").click()
+        choose = page.get_by_role("button", name="Choose YAML file")
+        with page.expect_file_chooser() as chooser:
+            choose.focus()
+            choose.press("Enter")
+        chooser.value.set_files({"name": "project-reviewer.yaml", "mimeType": "application/yaml",
+                                "buffer": yaml_text.encode("utf-8")})
+        page.get_by_role("status").filter(has_text="YAML validated and copied into this unsaved draft").wait_for()
+        import_requests = [url for url in requests if "/api/v1/bot-configs/import" in url]
+        assert len(import_requests) == 1
+        page.locator("#setup-yaml-import-button").click()
+        page.locator("#setup-yaml-file").set_input_files({"name": "too-large.yaml", "mimeType": "application/yaml",
+                                                            "buffer": b"x" * 65_537})
+        page.get_by_role("status").filter(has_text="no larger than 64 KiB").wait_for()
+        assert len([url for url in requests if "/api/v1/bot-configs/import" in url]) == 1
+        assert app.state.store.get_bot("imported-release-reviewer") is None
+        with page.expect_file_chooser() as chooser:
+            page.locator("#setup-yaml-import-button").press("Enter")
+        chooser.value.set_files({"name": "project-reviewer.yaml", "mimeType": "application/yaml",
+                                "buffer": yaml_text.encode("utf-8")})
+        page.get_by_role("status").filter(has_text="YAML validated and copied into this unsaved draft").wait_for()
+        assert page.get_by_label("What would you like this bot to handle?").input_value().startswith("Review release notes")
+        assert page.locator("#setup-name-preview").inner_text() == "Jordan Reed · Release Notes Reviewer"
+        assert app.state.store.get_bot("imported-release-reviewer") is None
+        assert app.state.store.list_runs() == []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
+              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
+              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom<=innerHeight,
+              chooseHeight:document.querySelector('#setup-yaml-import-button').getBoundingClientRect().height})""")
+            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
+            assert metrics["footerVisible"] and metrics["chooseHeight"] >= 44, (label, metrics)
+            page.screenshot(path=str(out / f"import-draft-{label}.png"), animations="disabled")
+
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.locator("#modal-confirm").click()
+        page.get_by_role("heading", name="Set model and workspace").wait_for()
+        assert page.get_by_label("Model route").input_value() == "openai/gpt-4o-mini"
+        assert page.get_by_label("Inference mode").input_value() == "hybrid"
+        page.locator("#modal-confirm").click()
+        page.get_by_role("heading", name="Choose tools and schedule").wait_for()
+        assert page.locator('input[name="setup-tool"][value="read_file"]').is_checked()
+        page.get_by_text("Add a recurring task (optional)").click()
+        assert page.get_by_label("Cron schedule", exact=True).input_value() == "0 9 * * 1"
+        assert page.get_by_label("Time zone").input_value() == "America/Vancouver"
+        assert page.get_by_label("Missed schedule windows").input_value() == "skip"
+        page.locator("#modal-confirm").click()
+        page.get_by_role("heading", name="Review bot").wait_for()
+        assert "America/Vancouver" in page.locator(".setup-review").inner_text()
+        assert "missed windows: skip" in page.locator(".setup-review").inner_text()
+        assert "Memory" in page.locator(".setup-review").inner_text()
+        assert app.state.store.get_bot("imported-release-reviewer") is None
+        assert app.state.store.list_runs() == []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.locator(".setup-review-list").scroll_into_view_if_needed()
+            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
+              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
+              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom<=innerHeight})""")
+            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
+            assert metrics["footerVisible"], (label, metrics)
+            page.screenshot(path=str(out / f"review-import-{label}.png"), animations="disabled")
+        with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
+                                 and response.request.method == "POST") as created:
+            page.locator("#modal-confirm").click()
+        assert created.value.status == 201, created.value.text()
+        bot = app.state.store.get_bot("imported-release-reviewer")
+        assert bot is not None and bot.display_name == "Jordan Reed · Release Notes Reviewer"
+        assert bot.instructions == "Review release notes and prepare a short summary for the project team."
+        assert bot.model == "openai/gpt-4o-mini" and bot.tools == ["read_file"]
+        assert bot.schedule and bot.schedule.timezone == "America/Vancouver" and bot.schedule.catch_up.value == "skip"
+        assert bot.limits.max_steps == 11 and bot.workspace_mode == "managed"
+        assert app.state.store.list_runs() == [], "import must not start a Bot run"
+        assert not errors, errors
+        assert all(url.startswith(base) for url in requests), requests
+        (out / "reviewed-import.yaml").write_text(yaml_text, encoding="utf-8")
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_bot_setup_yaml_import_fills_reviewed_draft_without_saving_until_confirmation",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_bot_setup_yaml_import_fills_reviewed_draft_without_saving_until_confirmation",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"),
+            "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
+            "scenario": "keyboard chooses a versioned YAML file, server validation copies it into a draft, every saved setting is reviewed, and only explicit final confirmation creates the Bot; no run or model call",
+            "page_errors": errors, "request_hosts": sorted({url.split('/')[2] for url in requests}),
+            "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
+                              for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                               "src/hutch/server/app.py", "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace.zip"))
+        finally:
+            context.close()
+
+
 def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_sizes(browser, live):
     base, app = live
     coordinator = Bot(name="workspace-coordinator", display_name="Workspace Coordinator",

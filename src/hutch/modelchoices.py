@@ -215,8 +215,14 @@ def model_choices(config: Any, store: Any, bot: Bot, hw: Optional[Hardware] = No
     return choices
 
 
-def validate_override(config: Any, store: Any, bot: Bot, spec: str, hw: Optional[Hardware] = None) -> str:
-    """Return the normalised spec, or raise ``ModelNotUsable`` saying exactly what is wrong and how to fix it."""
+def validate_override(config: Any, store: Any, bot: Bot, spec: str, hw: Optional[Hardware] = None, *,
+                      allow_unconfigured: bool = False) -> str:
+    """Return the normalized route, or raise ``ModelNotUsable`` with a fix.
+
+    ``allow_unconfigured`` is reserved for unsaved configuration import: it
+    still validates route syntax, provider identity, runtime and mode policy,
+    but defers local credentials and terms acknowledgement until creation.
+    """
     spec = (spec or bot.model or "").strip()
     if not spec:
         raise ModelNotUsable("No model route is configured for this bot",
@@ -249,6 +255,8 @@ def validate_override(config: Any, store: Any, bot: Bot, spec: str, hw: Optional
                              "switch models inside that runtime's own settings", 422)
     cbook = ConnectionBook(config.state_dir)
     if provider in cbook.names():
+        if allow_unconfigured:
+            return spec
         if not cbook.has_key(provider):
             c = cbook.get(provider)
             if c.auth_type == "chatgpt-siws":
@@ -263,6 +271,8 @@ def validate_override(config: Any, store: Any, bot: Bot, spec: str, hw: Optional
     if provider not in KNOWN_PROVIDERS:
         raise ModelNotUsable(f"'{provider}' is not a provider or connection Hutch knows",
                              "add it under Connections, or use ollama/, anthropic/, openai/, lmstudio/", 422)
+    if allow_unconfigured:
+        return spec
     if provider in HOSTED_KEYS and not os.environ.get(HOSTED_KEYS[provider]):
         raise ModelNotUsable(f"{provider} needs an API key", f"set {HOSTED_KEYS[provider]} where hutch starts")
     return spec

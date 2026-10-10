@@ -1,0 +1,29 @@
+apiVersion: hutch.ai/v1
+kind: BotConfig
+spec:
+  name: imported-release-reviewer
+  display_name: Jordan Reed · Release Notes Reviewer
+  template: null
+  description: Summarize project release notes
+  instructions: Review release notes and prepare a short summary for the project team.
+  model: openai/gpt-4o-mini
+  inference_mode: hybrid
+  tools:
+  - read_file
+  memory_enabled: false
+  cron: 0 9 * * 1
+  timezone: America/Vancouver
+  catch_up: skip
+  schedule_prompt: Review release notes and report important changes.
+  approval_mode: ask
+  risk_tier: supervised
+  command_rules: []
+  workspace_mode: managed
+  local_browser_handoff: false
+  limits:
+    max_steps: 11
+    timeout_seconds: 240
+    daily_token_cap: 4000
+    max_turn_tokens: 800
+    max_cost_usd: 0.1
+    daily_cost_cap_usd: 0.9

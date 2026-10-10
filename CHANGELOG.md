@@ -1,5 +1,11 @@
 # Changelog
 
+## Reviewed Bot setup YAML import
+
+- The guided setup accepts bounded `hutch.ai/v1` YAML and fills an unsaved draft after strict safe parsing and Bot configuration validation. It rejects unsafe tags, aliases, duplicate keys, unknown fields and unsupported authority such as endpoint URLs, local folders, command rules, trusted risk or automatic approval. Missing local model credentials do not prevent review; final creation still checks route readiness.
+- Every imported value remains editable in the existing setup steps, including tools, memory, schedule, model route and limits. Only the separate final **Create bot** action saves; importing does not create a Bot, start a run, or grant a connection.
+- API adversarial cases and desktop/tablet/phone Chromium flow were verified with local fixtures. Screenshots, trace and validation metadata are in `docs/realignment/artifacts/bot-setup-import/`.
+
 ## Bounded Bot memory export
 
 - Bot settings can download a consistent JSON snapshot of all fact scopes and revisions, human review/archive decisions, and incoming/outgoing Bot-share records. The endpoint applies explicit count and byte limits, refuses oversize exports instead of truncating, and sends `Cache-Control: no-store`.

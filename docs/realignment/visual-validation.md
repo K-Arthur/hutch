@@ -1,5 +1,23 @@
 # Visual validation record
 
+## Guided Bot setup YAML import (2026-10-09)
+
+I inspected the first-step import panel and final imported review at desktop **1440×960**, tablet
+**900×1024**, and phone **390×844**. The file chooser is keyboard-operable, the import status is
+announced, long review content scrolls inside the modal, and its action footer remains visible. The
+phone review intentionally scrolls through the full configuration while keeping Cancel/Create visible.
+All three sizes have no horizontal page overflow.
+
+Chromium **153.0.8010.12** / Playwright **1.63.0** passed
+`tests/e2e/test_browser.py::test_bot_setup_yaml_import_fills_reviewed_draft_without_saving_until_confirmation`.
+The fixture imports only into an unsaved draft, walks each step, and verifies no Bot or run exists until
+the user confirms **Create bot**. A file over 64 KiB is rejected in the browser before it sends an import request. API cases
+reject wrong versions, unknown/authority-bearing fields, unsafe Python tags, aliases, duplicate keys and oversized content;
+another API case confirms that a missing local provider key does not block draft review, while Bot creation still requires it.
+The local browser made no model or
+external request; the run used local fixtures. Screenshots, trace and metadata are in
+[`artifacts/bot-setup-import/`](artifacts/bot-setup-import/). No screen reader or physical phone was used.
+
 ## Bot setup YAML review and download (2026-10-09)
 
 The final guided setup review now has a keyboard-operable YAML preview and download action. The

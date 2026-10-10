@@ -33,12 +33,21 @@ route, fallback and budget controls, but the run has no tools and cannot create 
 the suggestion and then review the complete Bot setup before saving. Hosted providers may retain submitted text under their terms;
 the suggestion quality has not been verified against a live provider.
 
-### Review and download the setup as YAML
+### Review, download and import the setup as YAML
 
 The final setup review can build a YAML preview and download it as `hutch-<bot-address>.yaml`. The server runs the same
 configuration validation used by Bot creation, but previewing does not save a Bot, start a run, or grant a connection. The
 document uses `apiVersion: hutch.ai/v1`, `kind: BotConfig`, and a `spec` containing the reviewed instructions, route, tools,
-schedule and limits. A later setup importer is not part of this flow; creating a Bot still requires the normal final confirmation.
+schedule and limits. **Load a saved YAML setup** at the first setup step to validate a compatible file and copy it into the
+current unsaved draft. The wizard then presents those values across its ordinary review steps, with the normal final **Create bot**
+confirmation still required. Importing never creates a Bot or starts a run by itself.
+
+Import accepts at most 64 KiB of YAML, rejects aliases, duplicate keys, unsafe tags, unknown fields, and configurations with
+unsupported authority (including auto approval, trusted risk, local-folder workspaces, endpoint URLs, or command rules the wizard
+cannot review). It accepts only the `hutch.ai/v1` `BotConfig` document. Files are parsed on the server and returned as a sanitized
+unsaved configuration; the response is `Cache-Control: no-store`. A file is untrusted input: review its model route, identity,
+tools, limits, schedule, and permissions before choosing **Create bot**. Import checks route syntax and policy, but does not require
+credentials or acknowledged terms on this machine; final creation still requires the selected route to be usable in Connections.
 
 The YAML excludes provider endpoint URLs, local folder paths, and chat-source identifiers. Credentials, OAuth grants, messages,
 memory, artifacts and run history are not part of the document. Selected chat context becomes part of saved instructions, so that
