@@ -4779,7 +4779,7 @@ def test_quick_bot_creation_uses_the_workspace_default_without_starting_work(bro
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("request", lambda request: outside_requests.append(request.url)
             if urlsplit(request.url).netloc not in {urlsplit(base).netloc, ""} else None)
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/assistant-first-ui/quick-setup"
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/quick-setup-language-2026-10-10"
     out.mkdir(parents=True, exist_ok=True)
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
@@ -4804,8 +4804,12 @@ def test_quick_bot_creation_uses_the_workspace_default_without_starting_work(bro
         assert name_style["borderStyle"] == "solid" and name_style["borderWidth"] == "1px", name_style
         assert name_style["background"] != "rgba(0, 0, 0, 0)", name_style
         assert page.locator(".setup-quick-summary").is_visible()
-        assert "openai/gpt-4o-mini" in page.locator(".setup-quick-summary").inner_text()
-        assert "no connected apps or recurring tasks" in page.locator(".setup-quick-summary").inner_text()
+        quick_summary = page.locator(".setup-quick-summary").inner_text()
+        assert "Uses your saved AI choice" in quick_summary
+        assert "no apps connected or recurring work" in quick_summary
+        assert "checks with you before important actions" in quick_summary
+        assert "openai/gpt-4o-mini" not in quick_summary
+        assert "hybrid" not in quick_summary.lower()
         assert page.locator("#modal-confirm").inner_text() == "Create bot"
         assert page.locator("#setup-customize").is_visible()
         assert app.state.store.list_bots() == [] and app.state.store.list_runs() == []
@@ -4826,6 +4830,14 @@ def test_quick_bot_creation_uses_the_workspace_default_without_starting_work(bro
             captures.append({"viewport": [width, height], "horizontal_overflow": metrics["width"],
                              "footer_visible": True, "summary_visible_above_footer": True,
                              "name_visible_above_footer": True})
+        page.set_viewport_size({"width": 1440, "height": 960})
+        page.locator("#setup-customize").click()
+        page.get_by_role("heading", name="Choose what powers it").wait_for()
+        assert page.get_by_label("Model route").input_value() == "openai/gpt-4o-mini"
+        assert page.locator("#setup-inference_mode").input_value() == "hybrid"
+        page.locator("#modal-cancel").click()
+        page.locator("#topbar-new-bot").click()
+        page.get_by_label("What would you like this assistant to handle?").fill(purpose)
         with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
                                  and response.request.method == "POST") as created:
             page.locator("#modal-confirm").click()
@@ -4842,7 +4854,7 @@ def test_quick_bot_creation_uses_the_workspace_default_without_starting_work(bro
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright_version": package_version("playwright"), "provider_calls": 0,
             "external_requests": outside_requests, "page_errors": errors, "captures": captures,
-            "verified": ["purpose-first one-screen setup", "editable suggested name visible", "workspace model default reused", "advanced controls remain available",
+            "verified": ["purpose-first one-screen setup", "editable suggested name visible", "plain-language saved AI choice summary", "model route and inference mode remain in fine-tuning",
                          "no tools or recurring task enabled", "approval remains ask-first", "creation starts no run"],
             "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
                               for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
@@ -5518,15 +5530,21 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
                     shape:eye.getAttribute('data-sigil-eye'),tag:eye.tagName.toLowerCase(),
                     fill:eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill'),
                     stroke:eye.getAttribute('stroke'),
-                    cx:eye.dataset.cx,cy:eye.dataset.cy,rx:eye.dataset.rx,ry:eye.dataset.ry})))};
+                    cx:eye.dataset.cx,cy:eye.dataset.cy,rx:eye.dataset.rx,ry:eye.dataset.ry,
+                    width:eye.getBBox().width,height:eye.getBBox().height,
+                    angle:eye.dataset.angle})))};
         }""")
         assert identity["count"] == 0, "flat app avatars need no shared SVG definition IDs"
         assert len(set(identity["shapes"])) == 5, "name-derived avatars should remain distinguishable"
         assert len(set(identity["fills"])) > 1 and all(len(eyes) == 2 for eyes in identity["eyes"])
-        assert all(eye["fill"] == "#10251e" and eye["stroke"] is None and eye["tag"] == "ellipse"
+        assert all(eye["fill"] == "#f7fff9" and eye["stroke"] is None and eye["tag"] == "path"
                    for eyes in identity["eyes"] for eye in eyes)
         assert page.locator("#roster-list .avatar svg [data-sigil-glint]").count() == 0
-        assert all(float(eye["ry"]) > float(eye["rx"]) for eyes in identity["eyes"] for eye in eyes)
+        assert all(1.7 <= float(eye["height"]) / float(eye["width"]) <= 2.5
+                   and -26 <= float(eye.get("angle", 0)) <= -10
+                   for eyes in identity["eyes"] for eye in eyes)
+        assert all(abs(float(eyes[0].get("angle", 0)) - float(eyes[1].get("angle", 0))) <= 3
+                   for eyes in identity["eyes"])
         assert all(abs(float(eyes[0]["cx"]) - float(eyes[1]["cx"])) <= 16
                    for eyes in identity["eyes"]), "paired eyes should read as one compact face"
         assert page.locator("#roster-list .avatar svg [data-sigil-outline]").count() == 0

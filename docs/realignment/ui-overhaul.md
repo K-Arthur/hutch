@@ -121,6 +121,24 @@ The fixture journey was visually inspected at desktop, phone and compact-phone
 sizes and is recorded in `visual-validation.md`. This integration-specific
 check does not close the broader Apps & AI redesign or any other open surface.
 
+### Everyday setup copy and roster recheck — verified
+
+Quick assistant setup now says it uses the saved AI choice, has no apps or
+recurring work connected, and checks with the user before important actions.
+Internal model IDs and routing mode stay in **Fine-tune the details**, where the
+selected workspace model remains editable. A responsive browser check confirms
+that saving the assistant does not start work. Separately, the roster check
+verifies one-line names, ellipses for overlong names, a full accessible name,
+and one options control per assistant.
+
+Individually inspected current screenshots at desktop, tablet, and phone sizes
+in [`artifacts/quick-setup-language-2026-10-10/`](artifacts/quick-setup-language-2026-10-10/)
+and the sidebar at desktop and phone sizes in
+[`artifacts/pinned-roster/`](artifacts/pinned-roster/). The focused browser checks
+passed **2 tests** with no provider calls, external requests, or browser errors.
+This is a narrow improvement; the separate review and redesign of every app and
+marketing surface remains open.
+
 ### Next
 
 1. Finish Studio's initial and active-chat layouts, then separately review the

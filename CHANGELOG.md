@@ -3,6 +3,10 @@
 ## Unreleased
 
 - Refine the app's 2D mascots after review: each of the eight head shapes now has its own fitted dark face panel and two narrow, curved light slits. The identity picker uses the same paths as the final avatar. Individually inspected each face and responsive picker captures; the detailed 3D mascot remains exclusive to marketing.
+- Keep quick assistant setup in everyday language: it confirms the saved AI
+  choice, missing app access and recurring work, and approval checks without
+  displaying internal model IDs. Model and routing details remain in **Fine-tune
+  the details**.
 - Add a separate experimental Gmail send-only connection using Google's sensitive `gmail.send` scope. It has its own OAuth account, Secret Service entry, schema-v47 per-assistant grants, and Connections setup; it cannot read mailbox content. Each action shows the exact sender, recipients, subject and body for fresh approval, sends one plain-text request, and holds ambiguous results without retry. Fixture coverage includes OAuth scope, MIME payload, revocation races, migrations, and desktop/tablet/phone/compact-phone browser states. No Google account or provider request was used; public OAuth verification remains outstanding.
 - Give the chat title its available toolbar width and move assistant settings
   into the existing chat options menu. Keep approval details tappable above the
@@ -15,8 +19,9 @@
   also shows a short recent-work list when history exists.
 - Simplify Scheduled work: pause/resume uses plain language, the empty state fits its content, and
   cron syntax plus missed-time behavior sit under **Timing details**.
-- Refine the 2D assistant faces into shape-fitted, softly curved dark eyes without
-  pupils or detached marks; raise the app's default reading size to 16px.
+- Keep the app's simple 2D assistant faces consistent across all head shapes,
+  with fitted dark face panels and paired pale slits; keep the detailed 3D mascot
+  on the marketing site.
 - Keep ChatGPT's exact OpenAI Blossom beside its named service. Microsoft Outlook,
   Gmail, and Google Calendar use original category artwork until provider terms
   or required permission for product-icon use are confirmed. Outlook's inbox
@@ -37,7 +42,7 @@
 
 ## Assistant identity and app-card refinement
 
-- Refined the app mascot faces into a simple pair of solid, softly oval ink eyes. Their size, spacing, and tilt adapt to all eight head shapes; the separate marketing mascot is unchanged.
+- Refined the app mascot faces into fitted dark face panels with two soft pale slits. Their placement adapts to all eight head shapes; the separate marketing mascot is unchanged.
 - Apps & AI now pairs the unaltered OpenAI Blossom with the named ChatGPT service. Outlook keeps a neutral mail glyph; Microsoft's unmodified sign-in lockup appears only on account-authorization buttons. Gmail remains a category glyph.
 - Empty assistant welcomes no longer show “No description yet,” and the composer uses a short “Message…” prompt so a long assistant name cannot wrap it on phones. Background refreshes preserve the async template gallery instead of replacing its cards. Service glyphs have clearer size and color contrast while remaining distinct from provider logos.
 - Short desktop windows use a compact first-run welcome so the main setup action can remain in the first screen. Assistant names remain single-line in the roster, and the active selection continues through its one options button.

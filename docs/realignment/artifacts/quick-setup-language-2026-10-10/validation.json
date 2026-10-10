@@ -1,0 +1,56 @@
+{
+  "command": "uv run pytest -q tests/e2e/test_browser.py::test_quick_bot_creation_uses_the_workspace_default_without_starting_work",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "provider_calls": 0,
+  "external_requests": [],
+  "page_errors": [],
+  "captures": [
+    {
+      "viewport": [
+        1440,
+        960
+      ],
+      "horizontal_overflow": 0,
+      "footer_visible": true,
+      "summary_visible_above_footer": true,
+      "name_visible_above_footer": true
+    },
+    {
+      "viewport": [
+        900,
+        1024
+      ],
+      "horizontal_overflow": 0,
+      "footer_visible": true,
+      "summary_visible_above_footer": true,
+      "name_visible_above_footer": true
+    },
+    {
+      "viewport": [
+        390,
+        844
+      ],
+      "horizontal_overflow": 0,
+      "footer_visible": true,
+      "summary_visible_above_footer": true,
+      "name_visible_above_footer": true
+    }
+  ],
+  "verified": [
+    "purpose-first one-screen setup",
+    "editable suggested name visible",
+    "plain-language saved AI choice summary",
+    "model route and inference mode remain in fine-tuning",
+    "no tools or recurring task enabled",
+    "approval remains ask-first",
+    "creation starts no run"
+  ],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "18bc816aaf05423a06832262f9ea3e6a0393aa8be9f6ce97434b4f209f868837",
+    "src/hutch/server/static/style.css": "4ef9b9a4fbf491f781f1cce7d57467604f508d927267b0e3ced9ca7b8fed8f0f",
+    "src/hutch/server/app.py": "9d835a811f94ea5c0606c8ebfea0cbe3f18bc3e5431d47a6982b18c844160cf5",
+    "tests/e2e/test_browser.py": "5eff70143ded674556f633a56861b190390d712c1381c0a600edad47545f0288"
+  }
+}

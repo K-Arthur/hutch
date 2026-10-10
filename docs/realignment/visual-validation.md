@@ -1673,3 +1673,26 @@ captures, source hashes and trace are in
 [`artifacts/mascot-eye-review-2026-10-10/`](artifacts/mascot-eye-review-2026-10-10/).
 This mascot correction does not complete the broader app or marketing UI
 overhaul; the surface inventory above remains open for independent review.
+
+## Quick assistant setup and single-line roster (2026-10-10)
+
+The simple setup summary now hides internal model IDs and routing-mode names.
+It tells the user that Hutch will use the saved AI choice, has no apps or
+recurring work connected, and checks with them before important actions. The
+fine-tuning step still exposes the actual model route and inference mode, and
+the test verifies that those selections persist. Saving the assistant starts no
+run. This copy does not imply that any app permission was granted.
+
+`tests/e2e/test_browser.py::test_quick_bot_creation_uses_the_workspace_default_without_starting_work`
+and `tests/e2e/test_browser.py::test_bot_roster_pins_persist_and_simple_mascots_stay_distinct`
+passed **2 tests in 11.06s** with Chromium **153.0.8010.12** and Playwright
+**1.63.0**. I inspected the quick-setup desktop (1440×960), tablet (900×1024),
+and phone (390×844) captures individually. The desktop and phone roster captures
+were also reviewed individually: long assistant names remain on one line with
+an ellipsis, while the selected background reaches the single options control.
+All tested viewports had no horizontal overflow; the run made no provider calls
+or external requests and reported no page errors. Evidence is in
+[`artifacts/quick-setup-language-2026-10-10/`](artifacts/quick-setup-language-2026-10-10/)
+and [`artifacts/pinned-roster/`](artifacts/pinned-roster/). These are local
+browser fixtures, not a screen-reader or physical-phone test. The all-surface
+UI overhaul remains open.
