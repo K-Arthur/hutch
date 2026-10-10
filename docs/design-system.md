@@ -50,16 +50,17 @@ generated token files and the declared WCAG text pairs.
 | Warning / danger | `#fbbf24` / `#f87171` | Human attention and failure/destructive states |
 | Hairline / strong / emphasis border | `rgba(255,255,255,.07)` / `.14` / `.22` | Card boundaries, controls, and hovered edges |
 | Control / panel / chat / composer / pill radius | `8 / 12 / 18 / 22 / 100px` | Shared geometry scale |
-| UI body / measured data | system sans / system mono | Language versus machine values |
+| Display / UI body / measured data | local Archivo / system sans / system mono | Brand headings, readable language, and machine values |
 | App type roles | `1rem` body / `1.0625rem` reading / `1.5rem` page title | Responsive hierarchy that respects browser text scaling |
 | App icon family | `16 / 20 / 24px`, `24px` view box | Local category vectors in 48px service tiles; exact service names and states stay visible |
 
-The marketing site keeps Archivo for display and section headings and uses the
-locally bundled 3D Hutch mascot. Product body text uses the same system sans as
-Studio. The app uses compact flat 2D assistant characters. Each distinct head
-shape gets two softly curved solid ink eyes with no pupils or highlights. Eye
-size, spacing, shared slant, and height follow the face; the picker previews the
-same geometry. Avoid detached marks. Status is
+The app and marketing site share locally bundled Archivo for display, page, and
+section headings, and system sans for interface and reading text. The app loads
+the same licensed font locally, without a remote request. The site keeps the
+locally bundled 3D Hutch mascot. The app uses compact flat 2D assistant characters. Each distinct head
+shape gets two soft upright oval eyes with no pupils or highlights. Eye size,
+spacing, slight tilt, and height follow the usable face area; the picker previews
+the same geometry. Avoid detached marks. Status is
 shown separately.
 Brand art, assistant identity, and runtime state never substitute for one another.
 
@@ -72,7 +73,12 @@ prominent, with approvals and human waits visible in context. Use a searchable
 Bot roster with the coordinator and attention states first. Each Bot has one
 options menu for pinning and settings; idle, unpinned Bots collapse only when a
 workspace has ten or more Bots. Long custom names stay on one line and end with
-an ellipsis in the roster; the full name remains available on the assistant row.
+an ellipsis only when the available width requires it; familiar names such as
+**Workspace Coordinator** stay whole at the default sidebar width. The full name
+remains available on the assistant row.
+An open approval review remains readable and actionable through feed refresh; if
+the card has nested detail panels, preserve the open state of each panel
+independently.
 
 The large **Fleet** view keeps the default card human-readable: assistant name,
 readiness, description, schedule cadence, and the action-approval expectation.
@@ -94,9 +100,13 @@ Use a consistent local outline-icon family for actions and categories, with
 plain-language labels beside them. Apps & AI uses 48px service tiles beside
 exact names. ChatGPT uses OpenAI's exact, unaltered white Blossom mark under its
 published brand terms. Microsoft Outlook, Gmail, and Google Calendar use
-original service-category marks until product-icon use is permitted. The current
-guidance requires a Microsoft express license for Outlook product artwork and
-Google approval for its product icons; Hutch has neither recorded approval.
+original service-category marks until product-icon use is permitted. Microsoft
+guidance requires an express license for Outlook product artwork. Google's
+general guidance links Gmail and Calendar to product-icon rules and directs
+requests through Partner Marketing Hub; the exact guidance page could not be
+retrieved during this review, and Hutch has no permission recorded. See
+[Google's product-icon guidance](https://partnermarketinghub.withgoogle.com/brands/google/branding-guidelines/how-to-show-googles-brand/)
+and [Microsoft's trademark guidance](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks).
 Never present a category icon as a provider logo. Keep provider, model,
 permission, and runtime terminology in the relevant optional detail layer.
 
@@ -156,7 +166,8 @@ local-host access, or fixture-only states in public flows.
 
 ## Typography, spacing, and behavior
 
-- The app uses a system-sans stack and named type roles: `1rem` interface
+- The app uses system sans for interface text and locally bundled Archivo for
+  display and heading roles. Named roles include `1rem` interface
   body at `1.55` leading; `1.0625rem` reading text at `1.65`; `1.5rem` page titles;
   and `1.125rem` section titles. Use rem units so user text scaling remains
   effective.
@@ -166,7 +177,7 @@ local-host access, or fixture-only states in public flows.
   roles, and one current-color stroke. Provider art is a separate asset with
   provider-specific usage rules; do not draw lookalike logos or recolor official
   marks.
-- Display and section headings may use Archivo on the marketing site. IDs,
+- Display and section headings use Archivo in both app and marketing. IDs,
   timestamps, budgets, code, and measured values use the mono stack; prose does
   not.
 - Use the 4px spacing rhythm, preserving compact field groups and clear space

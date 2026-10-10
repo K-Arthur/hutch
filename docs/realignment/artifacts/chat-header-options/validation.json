@@ -1,0 +1,29 @@
+{
+  "test": "tests/e2e/test_browser.py::test_chat_header_uses_available_title_space_and_groups_assistant_settings",
+  "browser": "Chromium 153.0.8010.12",
+  "playwright": "1.63.0",
+  "viewports": {
+    "desktop": [
+      1440,
+      960
+    ],
+    "phone": [
+      390,
+      844
+    ]
+  },
+  "verified": [
+    "title uses available toolbar width",
+    "assistant settings are grouped in the chat options menu",
+    "phone toolbar has no horizontal overflow",
+    "primary chat controls stay within the toolbar"
+  ],
+  "page_errors": [],
+  "external_requests": [],
+  "provider_calls": 0,
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "2f27e83d4553cc1a2576cce619e59517bb6f5684e1eb3a53575e0343fd4b6b78",
+    "src/hutch/server/static/style.css": "4ef9b9a4fbf491f781f1cce7d57467604f508d927267b0e3ced9ca7b8fed8f0f",
+    "tests/e2e/test_browser.py": "93f343c2404b3ff90df0d38f8b6edf0ebb6cb9f1063d55c518a8a305dfda473f"
+  }
+}

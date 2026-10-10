@@ -25,16 +25,19 @@ bundle the Outlook icon. Microsoft Outlook appears by its full service name with
 Hutch's own blue-toned inbox category glyph. This identifies the service
 without presenting original Hutch artwork as a Microsoft logo.
 
-I did not bundle the Gmail or Google Calendar product icons. Google's current
-[product-icon guidance](https://partnermarketinghub.withgoogle.com/brands/google/branding-guidelines/how-to-show-googles-brand/)
-directs users to obtain current assets and request permission through Partner
-Marketing Hub; product icons should appear only when necessary and in context.
-The Google services keep clearly labeled, original category glyphs until that
-approval is available; their shapes and colors do not imitate Google's marks.
-OpenAI's [brand guide](https://openai.com/brand/) allows its unaltered logo when it
-directly relates to OpenAI services, with no implied endorsement. The earlier
-Google SVG files were from an older icon generation and have been removed; the
-icon refresh is documented by [Google Workspace Updates](https://workspaceupdates.googleblog.com/2026/05/introducing-fresh-visual-identity-for-Google-Workspace-app-icons.html).
+I did not bundle Gmail or Google Calendar product icons. Google's official
+[product list](https://about.google/brand-resource-center/products-and-services/)
+links both services to general icon guidance. Its [brand guidance](https://about.google/brand-resource-center/guidance/)
+says product-icon use may require a request; Google's Partner Marketing Hub
+explains that an account is used to request permission. The detailed icon page
+could not be retrieved in this review, so I cannot claim that every in-app
+integration use requires approval. Hutch has no permission recorded and keeps
+clearly labeled, original category glyphs until the terms for this use are
+confirmed. OpenAI's [brand guide](https://openai.com/brand/) says not to add
+colors to the Blossom; the app uses its exact local white mark only beside the
+named ChatGPT service, not as Hutch's brand. The earlier Google SVG files came
+from an older icon generation and have been removed; the current refresh is
+documented by [Google Workspace Updates](https://workspaceupdates.googleblog.com/2026/05/introducing-fresh-visual-identity-for-Google-Workspace-app-icons.html).
 
 ## User-provided ChatGPT screen
 
@@ -83,8 +86,9 @@ canvas remains available for visual reference.
 
 ## Decisions and validation limits
 
-- Keep the app's system-sans type family and marketing's locally bundled Archivo
-  display family as separate, coordinated roles.
+- Share locally bundled Archivo display typography, semantic colors, controls,
+  and icon treatment across the app and site; retain system sans for readable
+  prose in both.
 - Follow each provider's current published asset rules by context. ChatGPT's
   official mark is used beside its named service. Keep exact names visible and
   never imply a category glyph is a provider's logo; no Outlook product mark is

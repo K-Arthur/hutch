@@ -2,11 +2,23 @@
 
 ## Unreleased
 
+- Give the chat title its available toolbar width and move assistant settings
+  into the existing chat options menu. Keep approval details tappable above the
+  floating jump-to-latest control on phones, and preserve nested review
+  disclosures during transcript refresh.
+- Keep ordinary assistant names whole on one sidebar line; use an ellipsis only
+  when a custom name exceeds the available row width.
+- Bring Archivo display headings into the app and supporting pages, so headings now share the
+  locally bundled type voice used by marketing while interface copy stays system sans. Activity
+  also shows a short recent-work list when history exists.
+- Simplify Scheduled work: pause/resume uses plain language, the empty state fits its content, and
+  cron syntax plus missed-time behavior sit under **Timing details**.
 - Refine the 2D assistant faces into shape-fitted, softly curved dark eyes without
   pupils or detached marks; raise the app's default reading size to 16px.
 - Keep ChatGPT's exact OpenAI Blossom beside its named service. Microsoft Outlook,
   Gmail, and Google Calendar use original category artwork until provider terms
-  or written approval permit product-icon use.
+  or required permission for product-icon use are confirmed. Outlook's inbox
+  cue is distinct from Gmail's envelope cue.
 - Repair the reviewed OpenCode handoff launch path: verify the host's pidfd support,
   return the atomically claimed task record, and preserve the intended exit code for
   cancellation. A Linux pseudo-terminal test now drives a fake OpenCode CLI through

@@ -144,6 +144,8 @@ def _measure_tokens(page, surface: str) -> dict:
         ].map(name => [name, root.getPropertyValue(name).trim()])),
         bodyFont: body.fontFamily,
         bodyFontSize: body.fontSize,
+        headingFont: getComputedStyle(document.querySelector('h1, .hero-title, .section-heading') || document.body).fontFamily,
+        displayFontReady: document.fonts.check('700 32px Archivo'),
         typography: {
           tokens: Object.fromEntries([
             '--font-ui', '--font-display', '--mono', '--type-display-size', '--type-page-size',
@@ -205,6 +207,7 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
 
             page.goto(f"{app_url}/#/chat/design-system-review")
             page.locator("#conversation-switcher").wait_for()
+            page.evaluate("document.fonts.ready")
             studio_shell = _measure_operator_shell(page)
             assert studio_shell == {
                 "workspace": True, "brand": "hutch", "studioLink": "Chats",
@@ -284,6 +287,8 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
                 assert view["shared"]["--radius-control"] == "8px", (label, name, view)
                 assert view["shared"]["--radius-panel"] == "12px", (label, name, view)
                 assert "system-ui" in view["bodyFont"], (label, name, view["bodyFont"])
+                assert "Archivo" in view["headingFont"], (label, name, view["headingFont"])
+                assert view["displayFontReady"], (label, name, "local Archivo font did not load")
                 assert view["button"]["background"] == "rgb(52, 211, 153)", (label, name, view["button"])
                 assert view["button"]["color"] == "rgb(5, 46, 33)", (label, name, view["button"])
                 assert view["button"]["radius"] == "8px", (label, name, view["button"])
@@ -295,7 +300,7 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
                     assert type_tokens["--type-label-size"] == "0.875rem", (label, name, type_tokens)
                     assert type_tokens["--type-caption-size"] == "0.75rem", (label, name, type_tokens)
                     assert type_tokens["--type-mono-size"] == "0.8125rem", (label, name, type_tokens)
-                    assert type_tokens["--font-display"] == type_tokens["--font-ui"], (label, name, type_tokens)
+                    assert "Archivo" in type_tokens["--font-display"], (label, name, type_tokens)
                     assert [type_tokens["--icon-sm"], type_tokens["--icon-md"], type_tokens["--icon-lg"]] == ["16px", "20px", "24px"]
                     assert type_tokens["--icon-stroke"] == "1.75px", (label, name, type_tokens)
                     roles = view["typography"]["roles"]
@@ -623,7 +628,7 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
                   eyes: eyes.map(eye => ({name:eye.dataset.sigilEye, tag: eye.tagName.toLowerCase(), rx: Number(eye.dataset.rx),
                     ry: Number(eye.dataset.ry), cx: Number(eye.dataset.cx), cy: Number(eye.dataset.cy),
                     angle:Number(eye.dataset.angle),
-                    d: eye.getAttribute('d'), transform: eye.getAttribute('transform'),
+                    transform: eye.getAttribute('transform'),
                     fill: eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill'),
                     stroke: eye.getAttribute('stroke'), strokeWidth: Number(eye.getAttribute('stroke-width')),
                     contrastInk: eye.dataset.contrastInk})),
@@ -640,16 +645,16 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
         assert len({item["color"] for item in identity}) == 8, identity
         assert all(len(item["eyes"]) == 2 for item in identity), identity
         assert all(item["glints"] == [] for item in identity), "the simplified faces have no pupils or detached highlights"
-        assert all(eye["tag"] == "path" and eye["fill"] == "#10251e"
+        assert all(eye["tag"] == "ellipse" and eye["fill"] == "#10251e"
                    and eye["stroke"] is None
                    and eye["contrastInk"] == "#10251e"
-                   and .58 <= eye["ry"] / eye["rx"] <= .69
+                    and 1.28 <= eye["ry"] / eye["rx"] <= 1.43
                    for item in identity for eye in item["eyes"]), identity
         assert all(not item["outlines"] for item in identity), identity
         assert all(item["eyes"][0]["rx"] > item["eyes"][1]["rx"] for item in identity), identity
         assert all(.3 <= item["eyes"][0]["cy"] - item["eyes"][1]["cy"] <= 1.3
                    for item in identity), identity
-        assert all(-7 <= eye["angle"] <= -1 for item in identity for eye in item["eyes"]), identity
+        assert all(-20 <= eye["angle"] <= -12 for item in identity for eye in item["eyes"]), identity
         assert all(abs(item["eyes"][0]["angle"] - item["eyes"][1]["angle"]) <= 3
                    for item in identity), "paired eyes should share one calm visual rhythm"
         assert len({tuple((eye["rx"], eye["ry"]) for eye in item["eyes"])
@@ -669,16 +674,16 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
         page.locator("[data-idp-shapes] .shp svg").first.wait_for()
         picker_faces = page.locator("[data-idp-shapes] .shp svg").evaluate_all("""svgs => svgs.map(svg => ({
           head: svg.querySelector('path')?.getAttribute('d'),
-          eyes: [...svg.querySelectorAll('[data-sigil-eye]')].map(eye => ({
+            eyes: [...svg.querySelectorAll('[data-sigil-eye]')].map(eye => ({
             cx:Number(eye.dataset.cx), cy:Number(eye.dataset.cy),
-            rx:Number(eye.dataset.rx), ry:Number(eye.dataset.ry), d:eye.getAttribute('d'),
+            rx:Number(eye.dataset.rx), ry:Number(eye.dataset.ry), tag:eye.tagName.toLowerCase(),
             transform:eye.getAttribute('transform'),
           }))
         }))""")
         assert len(picker_faces) == len(identity) == 8, picker_faces
         assert [face["head"] for face in picker_faces] == [face["head"] for face in identity]
         assert [face["eyes"] for face in picker_faces] == [
-            [{key: eye[key] for key in ("cx", "cy", "rx", "ry", "d", "transform")} for eye in face["eyes"]]
+            [{key: eye[key] for key in ("cx", "cy", "rx", "ry", "tag", "transform")} for eye in face["eyes"]]
             for face in identity
         ], picker_faces
         shape_buttons = page.locator("[data-idp-shapes] .shp")
@@ -701,9 +706,9 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
             preview_shape = preview.locator(":scope > path").get_attribute("d")
             assert preview_shape == selected_shape
             selected_eyes = shape_buttons.nth(index).locator("svg [data-sigil-eye]").evaluate_all(
-                "eyes => eyes.map(eye => [eye.dataset.cx, eye.dataset.cy, eye.getAttribute('d'), eye.getAttribute('transform')])")
+                "eyes => eyes.map(eye => [eye.dataset.cx, eye.dataset.cy, eye.dataset.rx, eye.dataset.ry, eye.getAttribute('transform')])")
             preview_eyes = preview.locator("[data-sigil-eye]").evaluate_all(
-                "eyes => eyes.map(eye => [eye.dataset.cx, eye.dataset.cy, eye.getAttribute('d'), eye.getAttribute('transform')])")
+                "eyes => eyes.map(eye => [eye.dataset.cx, eye.dataset.cy, eye.dataset.rx, eye.dataset.ry, eye.getAttribute('transform')])")
             assert preview_eyes == selected_eyes
             selected_glints = shape_buttons.nth(index).locator("svg [data-sigil-glint]").evaluate_all(
                 "glints => glints.map(glint => [glint.dataset.sigilGlint, glint.getAttribute('cx'), glint.getAttribute('cy'), glint.getAttribute('transform')])")
@@ -1075,6 +1080,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                     assert page.locator(".ov-col").count() == 0
                     assert page.get_by_role("link", name="Start a chat").is_visible()
                     assert page.get_by_role("link", name="View past work").is_visible()
+                    assert page.locator(".ov-recent .ov-row-prompt").inner_text() == "Review the recent workspace activity."
                     usage_details.locator("summary").click()
                     usage_text = usage_details.inner_text().lower()
                     assert "reported model tokens today" in usage_text

@@ -7,6 +7,28 @@
   "provider_calls": 0,
   "external_requests": 0,
   "page_errors": [],
+  "typical_names": [
+    {
+      "name": "Workspace Coordinator",
+      "width": 169,
+      "textWidth": 169
+    },
+    {
+      "name": "Agenda Assistant",
+      "width": 169,
+      "textWidth": 169
+    },
+    {
+      "name": "Operations Reviewer",
+      "width": 169,
+      "textWidth": 169
+    },
+    {
+      "name": "Website Auditor",
+      "width": 169,
+      "textWidth": 169
+    }
+  ],
   "viewports": [
     {
       "size": "desktop",
@@ -16,8 +38,8 @@
       ],
       "horizontal_overflow": 0,
       "long_name": {
-        "height": 21,
-        "lineHeight": 20.8,
+        "height": 20,
+        "lineHeight": 19.6,
         "overflow": "ellipsis",
         "clipped": true
       },
@@ -41,8 +63,8 @@
       ],
       "horizontal_overflow": 0,
       "long_name": {
-        "height": 21,
-        "lineHeight": 20.8,
+        "height": 20,
+        "lineHeight": 19.6,
         "overflow": "ellipsis",
         "clipped": true
       },
@@ -66,8 +88,8 @@
       ],
       "horizontal_overflow": 0,
       "long_name": {
-        "height": 21,
-        "lineHeight": 20.8,
+        "height": 20,
+        "lineHeight": 19.6,
         "overflow": "ellipsis",
         "clipped": true
       },
@@ -98,9 +120,9 @@
   ],
   "avatar_svg_ids": 0,
   "source_sha256": {
-    "src/hutch/server/static/app.js": "d48f2053cf550b90dc955c5aff20fcbacc43dbb058f8be3325ee69ab4fd0ec10",
-    "src/hutch/server/static/style.css": "75639b6c30ab608a1aa586619a100a1cd2b7a2a8b41e258145678f9ceecff80d",
+    "src/hutch/server/static/app.js": "2f27e83d4553cc1a2576cce619e59517bb6f5684e1eb3a53575e0343fd4b6b78",
+    "src/hutch/server/static/style.css": "4ef9b9a4fbf491f781f1cce7d57467604f508d927267b0e3ced9ca7b8fed8f0f",
     "src/hutch/server/app.py": "436c20c0ba64bb6b31c754b7d2626879c6585450de86b0abb9884c929b0136cf",
-    "tests/e2e/test_browser.py": "dae8c0aa5743622b9e8b07da69af7dae8561c5e5c63a4a84cea01dbaa020dcb4"
+    "tests/e2e/test_browser.py": "93f343c2404b3ff90df0d38f8b6edf0ebb6cb9f1063d55c518a8a305dfda473f"
   }
 }

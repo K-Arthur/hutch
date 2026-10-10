@@ -1594,3 +1594,40 @@ Screenshots, source hashes, and traces are in
 [`artifacts/mascot-eye-review-2026-10-10/`](artifacts/mascot-eye-review-2026-10-10/),
 and [`artifacts/pinned-roster/`](artifacts/pinned-roster/). The all-surface
 redesign remains open.
+
+## Chat toolbar, approval access, and icon distinction (2026-10-10)
+
+Assistant settings now live in the conversation options menu, leaving the chat
+toolbar for the conversation selector, search, action menu, approval review,
+and stop. The desktop title receives available width. The phone approval card
+stays above the floating jump-to-latest control, so its details and decision
+buttons remain usable. Apps & AI uses different original category shapes for
+Gmail mail and Outlook inbox, with exact service names adjacent.
+
+I reviewed the tablet and phone approval captures and desktop and phone selected
+roster captures individually. Assistant names remain single-line; long names
+truncate with an ellipsis, and the selection treatment reaches the shared options
+control. The chat header test saves desktop, open-menu, and phone captures at
+[`artifacts/chat-header-options/`](artifacts/chat-header-options/).
+
+The final focused browser batch passed **7 tests in 46.98s**. It covers approval
+resolution and disclosure persistence through feed refresh, chat action grouping,
+a one-line long-name assistant row, distinct provider category artwork, the shared
+design tokens, and independent responsive route rendering. The chat-header fixture
+uses Chromium **153.0.8010.12** / Playwright **1.63.0**, with no page errors,
+external requests, or provider calls. Desktop, tablet, phone, and compact-phone
+route captures are in [`artifacts/ui-surface-review/`](artifacts/ui-surface-review/);
+the focused toolbar images and measurements are in
+[`artifacts/chat-header-options/`](artifacts/chat-header-options/). These are local
+fixtures; live integrations, screen-reader operation, and physical devices were
+not tested.
+
+**Provider-art guidance correction:** earlier notes described Google's product
+icons as requiring approval in all cases. Google's product list links Gmail and
+Calendar to general icon guidelines, and its brand guidance points product-icon
+requests to Partner Marketing Hub; the detailed icon rules did not load during
+this review. Hutch has no permission recorded, so it keeps original category
+art until the applicable terms are confirmed. This does not establish that every
+in-app usage requires approval. Microsoft's current guidance separately states
+that Outlook product icons require an express license. OpenAI's current guide
+says not to recolor Blossom, so its local exact white mark remains unmodified.

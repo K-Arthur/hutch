@@ -633,17 +633,17 @@ const ID_HEADS = [
   { key: "triangle", d: "M27 12c2-4 8-4 10 0l19 32c2 4-1 8-5 8H13c-5 0-7-4-5-8l19-32Z" },
   { key: "hex", d: "M22 9h20l13 23-13 23H22L9 32 22 9Z" },
 ];
-// Each silhouette gets a pair of broad, softly curved ink eyes. Shape-specific
-// size and placement keep the face expressive without pupils or extra marks.
+// Each silhouette gets a pair of softly rounded, upright ink eyes. Their
+// size, tilt, and placement follow the face rather than repeating a slash mark.
 const ID_FACES = [
-  [[25.5, 29, 4.4, 2.75, -4], [38.2, 28.4, 4, 2.6, -3]], // orb: open, gently lifted
-  [[25.5, 28.4, 4.3, 2.7, -3], [38.2, 28, 3.9, 2.55, -2]], // capsule: upright in the tall face
-  [[25.2, 30, 4.25, 2.75, -5], [38.2, 28.8, 3.95, 2.55, -4]], // bean: follows the lean
-  [[25.5, 36.4, 4.2, 2.7, -3], [38.2, 35.4, 3.9, 2.55, -2]], // drop: lower in its bowl
-  [[25, 30, 4.35, 2.65, -4], [38.2, 28.8, 3.95, 2.5, -3]], // pebble: follows its wide face
-  [[25.6, 31.5, 4.1, 2.65, -2], [38.2, 30.4, 3.8, 2.5, -1]], // shield: compact below its taper
-  [[28.5, 37.4, 4.1, 2.7, -3], [39.2, 36.5, 3.7, 2.45, -2]], // triangle: centered in the base
-  [[25.4, 33.3, 4.35, 2.75, -4], [38.2, 32.2, 4, 2.55, -3]], // hex: clear of the facets
+  [[25.5, 29, 3.9, 5.2, -18], [38.2, 28.4, 3.5, 4.9, -15]], // orb: calm, open pair
+  [[25.5, 28.4, 3.9, 5.35, -17], [38.2, 28, 3.45, 4.9, -15]], // capsule: balanced in the tall face
+  [[25.2, 30, 3.85, 5.2, -20], [38.2, 28.8, 3.45, 4.85, -18]], // bean: follows the lean
+  [[25.5, 35.4, 3.8, 5.1, -17], [38.2, 34.6, 3.4, 4.7, -15]], // drop: lower in its bowl
+  [[25, 30, 3.9, 5.1, -19], [38.2, 28.8, 3.5, 4.8, -17]], // pebble: follows its wide face
+  [[25.6, 31.5, 3.7, 5, -16], [38.2, 30.4, 3.35, 4.65, -14]], // shield: compact below its taper
+  [[28.5, 37.4, 3.65, 4.9, -17], [39.2, 36.5, 3.25, 4.55, -15]], // triangle: centered in the base
+  [[25.4, 33.3, 3.85, 5.15, -19], [38.2, 32.2, 3.5, 4.85, -17]], // hex: clear of the facets
 ];
 
 function hash32(s) {
@@ -683,15 +683,9 @@ function sigilSet(name, pair) { idStore.all[name] = pair; idStore.save(); }
 function sigilEyes(shapeIndex) {
   const [lead, companion] = ID_FACES[shapeIndex] || ID_FACES[0];
   const eye = (name, [cx, cy, rx, ry, angle]) => {
-    // A broad, curved silhouette avoids the round eye-ring and slash extremes.
-    const d = "M " + (cx - rx) + " " + cy +
-      " C " + (cx - rx * .7) + " " + (cy - ry * .78) + " " + (cx - rx * .36) + " " + (cy - ry) + " " + cx + " " + (cy - ry) +
-      " C " + (cx + rx * .43) + " " + (cy - ry) + " " + (cx + rx * .79) + " " + (cy - ry * .66) + " " + (cx + rx) + " " + cy +
-      " C " + (cx + rx * .73) + " " + (cy + ry * .72) + " " + (cx + rx * .36) + " " + (cy + ry) + " " + cx + " " + (cy + ry) +
-      " C " + (cx - rx * .45) + " " + (cy + ry) + " " + (cx - rx * .82) + " " + (cy + ry * .65) + " " + (cx - rx) + " " + cy + " Z";
     const transform = "rotate(" + angle + " " + cx + " " + cy + ")";
-    const metadata = 'data-cx="' + cx + '" data-cy="' + cy + '" data-rx="' + rx + '" data-ry="' + ry + '" data-angle="' + angle + '" d="' + d + '" transform="' + transform + '"';
-    return '<path data-sigil-eye="' + name + '" data-contrast-ink="#10251e" ' + metadata + ' fill="#10251e" aria-hidden="true"/>';
+    const metadata = 'data-cx="' + cx + '" data-cy="' + cy + '" data-rx="' + rx + '" data-ry="' + ry + '" data-angle="' + angle + '"';
+    return '<ellipse data-sigil-eye="' + name + '" data-contrast-ink="#10251e" cx="' + cx + '" cy="' + cy + '" rx="' + rx + '" ry="' + ry + '" ' + metadata + ' transform="' + transform + '" fill="#10251e" aria-hidden="true"/>';
   };
   return '<g aria-hidden="true">' + eye("lead", lead) + eye("companion", companion) + '</g>';
 }
@@ -2261,8 +2255,8 @@ async function renderChatStudio(preferredBot = null) {
       <button class="icon-btn studio-search-button" id="studio-search-messages" type="button"
         aria-label="Search chats" title="Search chats">${icon("search")}</button>
       <details class="conversation-actions" id="studio-conversation-actions">
-        <summary class="icon-btn" id="studio-conversation-options" aria-label="Conversation options" title="Conversation options">${icon("moreHorizontal")}</summary>
-        <div class="conversation-actions-panel" aria-label="Conversation actions">
+        <summary class="icon-btn" id="studio-conversation-options" aria-label="Chat and assistant options" title="Chat and assistant options">${icon("moreHorizontal")}</summary>
+        <div class="conversation-actions-panel" aria-label="Chat and assistant options">
           <button class="conversation-action-item" id="studio-new-conversation" data-conversation-action="new" type="button">${icon("plus")} New conversation</button>
           <button class="conversation-action-item" id="studio-rename-conversation" data-conversation-action="rename" type="button">${icon("chat")} Rename conversation</button>
           <button class="conversation-action-item" id="studio-conversation-pin" data-conversation-action="pin" type="button">${icon("pin")} ${selectedConversation.pinned ? "Unpin conversation" : "Pin conversation"}</button>
@@ -2278,11 +2272,12 @@ async function renderChatStudio(preferredBot = null) {
                 <button class="conversation-action-item" id="studio-archive-conversation" data-conversation-action="archive" type="button" ${activeRun ? "hidden" : ""}>${icon("inbox")} ${selectedConversation.archived ? "Restore conversation" : "Archive conversation"}</button>` : ""}
             </div>
           </details>
+          <span class="conversation-action-divider" aria-hidden="true"></span>
+          <a class="conversation-action-item" data-conversation-action="settings" href="#/bot/${esc(bot.name)}">${icon("sliders")} Assistant settings</a>
         </div>
       </details>
-      <button class="btn ghost small" id="studio-review-run" type="button" ${activeRun?.status === "waiting_approval" ? "" : "hidden"}>${icon("shield")} Review</button>
+      <button class="btn ghost small" id="studio-review-run" type="button" aria-label="Review approval in this conversation" title="Jump to approval in this conversation" ${activeRun?.status === "waiting_approval" ? "" : "hidden"}>${icon("shield")} Review</button>
       <button class="btn danger small" id="studio-stop-run" type="button" data-stop-target="${esc(activeRun?.id || "")}" ${activeRun ? "" : "hidden"}>${icon("stop")} Stop</button>
-      <a class="btn ghost small" href="#/bot/${esc(bot.name)}">${icon("sliders")} Settings</a>
     </div>`);
   $("#studio-search-messages")?.addEventListener("click", event => openConversationSearch(event.currentTarget));
 
@@ -3055,7 +3050,13 @@ async function renderChatFeed() {
   }
   if (!stillCurrent()) return;
   if ($("#modal-root .modal-card")) { feedRefreshPending = true; return; }
-  const reviewState = new Map($$("[data-approval-card] details", stream).map(d => [d.closest("[data-approval-card]").dataset.approvalCard, d.open]));
+  // A card can contain nested disclosures (for example, review summary and
+  // technical arguments). Store all open bits per card; keying each disclosure
+  // only by approval ID lets a nested closed state overwrite the outer open one.
+  const reviewState = new Map($$("[data-approval-card]", stream).map(card => [
+    card.dataset.approvalCard,
+    [...card.querySelectorAll("details")].map(details => details.open),
+  ]));
   const activityState = new Map($$("[data-run-id] .tool-stream", stream).map(d => [d.closest("[data-run-id]").dataset.runId, d.open]));
   const focused = document.activeElement;
   const focusedApproval = focused?.closest("[data-approval-card]")?.dataset.approvalCard;
@@ -3067,9 +3068,12 @@ async function renderChatFeed() {
   if (chatRenderSnapshots.get(stream) === nextHtml) return;
   stream.innerHTML = nextHtml;
   chatRenderSnapshots.set(stream, nextHtml);
-  $$("[data-approval-card] details", stream).forEach(d => {
-    const id = d.closest("[data-approval-card]").dataset.approvalCard;
-    if (reviewState.has(id)) d.open = reviewState.get(id);
+  $$("[data-approval-card]", stream).forEach(card => {
+    const states = reviewState.get(card.dataset.approvalCard);
+    if (!states) return;
+    [...card.querySelectorAll("details")].forEach((details, index) => {
+      if (index < states.length) details.open = states[index];
+    });
   });
   $$("[data-run-id] .tool-stream", stream).forEach(d => {
     const id = d.closest("[data-run-id]").dataset.runId;
@@ -3367,12 +3371,9 @@ function welcomeHtml() {
         <h2>${esc(botDisplayName(b))}</h2>
         ${description ? `<p class="hint">${esc(description)}</p>` : ""}
       </div>
-      <div class="welcome-steps">
-        <p><b>Start a conversation.</b> Send a task below, or choose an earlier conversation above. Actions that need a decision appear here.</p>
-
-      </div>
+      <p class="welcome-intro">Send me a message below. I’ll ask before anything that needs your okay.</p>
       <div class="tpl-gal" id="tpl-gal" hidden>
-        <h3 class="tpl-h">Start from a template</h3>
+        <h3 class="tpl-h">Try a common task</h3>
         <div class="tpl-grid" id="tpl-grid"></div>
       </div>
     </div>`;
@@ -4314,6 +4315,26 @@ setInterval(updateTtls, 1000);
 
 /* --------------------------------------------------------- approvals card */
 
+function approvalReasonText(rule, tool) {
+  const value = String(rule || "").trim().toLowerCase();
+  if (value.startsWith("rule:")) return "A rule you set asks you to review this action.";
+  if (["ask:file-write", "ask-file-write"].includes(value)) {
+    return "Changing a file needs your okay.";
+  }
+  if (["ask:rm", "shell:rm"].includes(value)) return "This command could remove files.";
+  if (value.startsWith("ask:git-push") || value === "shell:git-push") {
+    return "This command could send repository changes outside this computer.";
+  }
+  if (value.startsWith("ask:git-") || value === "shell:git") {
+    return "This command changes the Git repository.";
+  }
+  if (value === "delegation:always-review") return "Starting a separate assistant task always needs your okay.";
+  if (value.includes("hosted-model")) return "This sends the task to a hosted AI service.";
+  if (value.startsWith("ask:program:")) return "This command can change files or system settings.";
+  const service = { files: "file change", shell: "command", browser: "browser action", memory: "saved note" }[tool];
+  return service ? `This ${service} needs your review.` : "A safety check asks you to review this action.";
+}
+
 // One approval, rendered identically in the feed and the queue: plain-language
 // action first, exact detail behind a disclosure, honest expiry/scope notes.
 function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
@@ -4347,7 +4368,7 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
     a.account ? ["Account", a.account] : null,
     a.destination ? ["Destination", a.destination] : null,
     a.revision ? ["Revision", a.revision] : null,
-    rule && !formTarget ? ["Why you are asked", rule] : null,
+    rule && !formTarget ? ["Why you are asked", approvalReasonText(rule, tool)] : null,
     ["Effect", outward
       ? "Sends data out of this machine — Stop cannot recall it once it has gone"
       : "Check the exact arguments below. Changes may need manual undo."],
@@ -4385,7 +4406,9 @@ function approvalCardHtml(a, { botName = "", resolved = "" } = {}) {
           </span></div>
           <p class="hint">Hutch keeps field values out of this review and checks the destination and filled fields again before submission.</p>
         </div>` : ""}
-        ${detail ? `<span class="review-label">Raw request</span><pre class="approval-detail" tabindex="0" aria-label="Exact request arguments">${esc(detail)}</pre>` : ""}
+        ${detail ? `<details class="approval-raw"><summary>Technical details</summary>
+          <span class="review-label">Exact request data</span><pre class="approval-detail" tabindex="0" aria-label="Exact request arguments">${esc(detail)}</pre>
+        </details>` : ""}
       </details>
       ${canAlways
         ? `<p class="hint approval-scope">Always-allow remembers <code class="mono">${esc(stickyKey)}</code> for this bot. Revoke it any time in the bot's standing permissions.</p>`
@@ -4581,7 +4604,10 @@ function wireApprovals() {
 /* -------------------------------------------------------------- overview */
 
 async function renderOverview() {
-  const o = await api("/overview");
+  const [o, recentRuns] = await Promise.all([
+    api("/overview"),
+    api("/runs?limit=8").catch(() => []),
+  ]);
   const s = o.stats || {};
   const fmt = (n) => Number(n || 0).toLocaleString();
   setTopContext(`<div class="ctx-id"><h1>Activity</h1></div>`);
@@ -4643,6 +4669,7 @@ async function renderOverview() {
         <a class="btn ghost" href="#/runs">View past work</a>
       </div>
     </section>`;
+  const recent = recentRuns.filter(run => run.terminal).slice(0, 3);
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
       <div class="ov-stats ov-summary-stats">
@@ -4657,6 +4684,10 @@ async function renderOverview() {
         </div>
       </details>
       ${activity}
+      ${recent.length ? `<section class="ov-recent" aria-labelledby="ov-recent-title">
+        <h2 class="ov-h" id="ov-recent-title">${icon("clock")} Recent work</h2>
+        ${recent.map(row).join("")}
+      </section>` : ""}
     </div></div>`;
 }
 
@@ -4679,10 +4710,10 @@ function scheduleNextTime(row) {
 }
 
 function schedulePauseStatus(row) {
-  if (row.workspace_paused && row.paused) return "Paused in workspace and for this Bot";
-  if (row.workspace_paused) return "Paused across workspace";
-  if (row.paused) return "Paused for this Bot";
-  return "Scheduled";
+  if (row.workspace_paused && row.paused) return "Paused";
+  if (row.workspace_paused) return "Paused for now";
+  if (row.paused) return "Paused for this assistant";
+  return "On";
 }
 
 function paintSchedules() {
@@ -4701,18 +4732,18 @@ function paintSchedules() {
         </details>`
     : `<a class="btn primary" href="#/chat">Create an assistant</a>`;
   setTopContext(`<div class="ctx-id"><h1>Scheduled work</h1></div>
-    <div class="ctx-actions schedule-control-actions"><span class="schedule-control-state" role="status">Workspace schedules ${paused ? "paused" : "active"}</span>
+    <div class="ctx-actions schedule-control-actions"><span class="schedule-control-state" role="status">Scheduled work is ${paused ? "paused" : "on"}</span>
       <button class="btn ${paused ? "primary" : "ghost"} small" id="schedule-control-toggle" type="button"
         ${scheduleControlPending ? 'aria-disabled="true" aria-busy="true"' : ""}>
-        ${paused ? "Resume workspace schedules" : "Pause all schedules"}
+        ${paused ? "Resume scheduled work" : "Pause scheduled work"}
       </button></div>`);
   view.innerHTML = `
     <div class="page-scroll"><div class="container schedule-overview">
-      <p class="schedule-overview-note">See when each task will run. Pausing stops new scheduled work; anything already underway can finish. If a planned time passes while paused, each task keeps its own catch-up choice when you resume.</p>
-      ${paused ? `<p class="schedule-paused-note" role="status">Future scheduled admissions are paused. Missed windows follow each task’s catch-up policy after resume.</p>` : ""}
+      <p class="schedule-overview-note">See what’s coming up. Pausing prevents new scheduled starts; anything already in progress can finish.</p>
+      ${paused ? `<p class="schedule-paused-note" role="status">Scheduled starts are paused. When you resume, each task follows its saved choice for missed times.</p>` : ""}
       ${empty ? `<section class="empty-state schedule-empty" aria-labelledby="schedule-empty-title">
           ${icon("clock", "icon-lg")}<h2 id="schedule-empty-title">No recurring tasks yet</h2>
-          <p class="hint">Choose an assistant and add a task for it to repeat.</p>${emptyDetails}
+          <p class="hint">Choose an assistant and pick a task you’d like them to repeat.</p>${emptyDetails}
         </section>` : `
         <div class="schedule-overview-heading"><h2>Upcoming scheduled work</h2>
           <span class="hint" role="status">${rows.length}${hasMore ? "+" : ""} task${rows.length === 1 ? "" : "s"}${hasMore ? " loaded" : ""}</span>
@@ -4721,19 +4752,24 @@ function paintSchedules() {
           ${rows.map(row => {
             const botLabel = row.bot_display_name || row.bot_name;
             const scheduleStatus = schedulePauseStatus(row);
-            const catchUp = row.catch_up === "coalesce" ? "Missed windows combine into one run" : "Missed windows are skipped";
+            const missedTimeChoice = row.catch_up === "coalesce" ? "Run once for missed times" : "Skip missed times";
             return `<article class="schedule-overview-row" role="listitem">
               <div class="schedule-overview-task">
                 <div class="schedule-overview-bot"><a href="#/chat/${encodeURIComponent(row.bot_name)}">${esc(botLabel)}</a>
                   <span class="tag">${esc(scheduleStatus)}</span></div>
                 <h3>${esc(row.name)}</h3>
-                <p class="schedule-overview-pattern"><span>Cron</span> <code>${esc(row.cron)}</code><span aria-hidden="true">·</span>
-                  <span>${esc(catchUp)}</span></p>
+                <details class="schedule-overview-details"><summary>Timing details</summary>
+                  <dl class="schedule-overview-timing">
+                    <div><dt>Schedule</dt><dd><code>${esc(row.cron)}</code></dd></div>
+                    <div><dt>Time zone</dt><dd>${esc(row.timezone)}</dd></div>
+                    <div><dt>If a time is missed</dt><dd>${esc(missedTimeChoice)}</dd></div>
+                  </dl>
+                </details>
                 ${row.last_skip?.windows ? `<p class="schedule-skip" role="status">Last skipped ${Number(row.last_skip.windows).toLocaleString()} missed window${Number(row.last_skip.windows) === 1 ? "" : "s"}${row.last_skip.at ? ` · ${esc(timeAgo(row.last_skip.at))}` : ""}.</p>` : ""}
               </div>
               <div class="schedule-overview-next"><span>${row.effective_paused ? "Next scheduled time" : "Next run"}</span>
                 ${row.next_fire ? `<time datetime="${esc(row.next_fire)}">${esc(scheduleNextTime(row))}</time>` : `<strong>Unavailable</strong>`}
-                <small>${esc(row.timezone)}</small></div>
+              </div>
               <a class="btn ghost small schedule-overview-edit" href="#/bot/${encodeURIComponent(row.bot_name)}">Edit schedule</a>
             </article>`;
           }).join("")}
@@ -4749,7 +4785,7 @@ function paintSchedules() {
     toggle.setAttribute("aria-busy", "true");
     try {
       const result = await api("/v1/schedules/control", { method: "PUT", body: { paused: !paused } });
-      toast(result.paused ? "Future scheduled starts paused. Existing runs continue." : "Workspace schedule pause removed. Bot-specific pauses remain.");
+      toast(result.paused ? "New scheduled starts are paused. Work already in progress can finish." : "Scheduled work has resumed. Assistant-specific pauses remain.");
       scheduleControlPending = false;
       await renderSchedules();
       $("#schedule-control-toggle")?.focus({ preventScroll: true });

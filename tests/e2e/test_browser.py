@@ -326,25 +326,37 @@ def test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences(
     empty_captures = []
     try:
         page.goto(f"{base}/#/schedules")
-        page.get_by_role("heading", name="Schedules").wait_for()
+        page.get_by_role("heading", name="Scheduled work", exact=True).wait_for()
         page.get_by_role("heading", name="Upcoming scheduled work").wait_for()
         assert page.get_by_role("listitem").count() == 3
         assert page.get_by_text("America/Vancouver", exact=True).count() == 1
         assert page.get_by_text("Europe/London", exact=True).count() == 1
-        assert page.get_by_text("Paused for this Bot", exact=True).count() == 1
+        assert page.get_by_text("Paused for this assistant", exact=True).count() == 1
         assert page.get_by_role("link", name="Edit schedule").count() == 3
+        timing = page.locator(".schedule-overview-details").first
+        assert timing.locator("summary").inner_text() == "Timing details"
+        assert not timing.locator("code").is_visible()
+        timing.locator("summary").click()
+        timing.get_by_text("If a time is missed").wait_for()
+        assert timing.evaluate("element => element.open")
+        assert timing.locator("dd").nth(2).inner_text().strip() in {
+            "Run once for missed times", "Skip missed times"
+        }
+        assert timing.locator("code").is_visible()
+        page.screenshot(path=str(out / "timing-details-desktop.png"), animations="disabled")
+        timing.locator("summary").click()
 
         with page.expect_response(lambda response: response.url.endswith("/api/v1/schedules/control")
                                   and response.request.method == "PUT") as paused:
-            page.get_by_role("button", name="Pause all schedules").click()
+            page.get_by_role("button", name="Pause scheduled work").click()
         assert paused.value.status == 200 and paused.value.json()["paused"] is True
         wait_for(lambda: store.workspace_schedule_control()["paused"] is True)
-        page.get_by_role("button", name="Resume workspace schedules").wait_for()
+        page.get_by_role("button", name="Resume scheduled work").wait_for()
         assert page.evaluate("document.activeElement?.id") == "schedule-control-toggle"
         assert store.get_run(live_run.id).status is RunStatus.running
-        wait_for(lambda: page.get_by_text("Paused across workspace", exact=True).count() == 2)
-        page.get_by_text("Paused in workspace and for this Bot", exact=True).wait_for()
-        page.get_by_text("Missed windows follow each task’s catch-up policy after resume.", exact=False).wait_for()
+        wait_for(lambda: page.get_by_text("Paused for now", exact=True).count() == 2)
+        page.locator(".schedule-overview-list .tag").get_by_text("Paused", exact=True).wait_for()
+        page.get_by_text("each task follows its saved choice for missed times", exact=False).wait_for()
         while page.locator("#toast-root .toast").count():
             page.locator("#toast-root .toast-close").first.click()
 
@@ -381,17 +393,17 @@ def test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences(
                                  "screenshot": bottom_path.name})
 
         page.reload()
-        page.get_by_role("button", name="Resume workspace schedules").wait_for()
-        page.get_by_text("On resume, missed windows follow each task’s catch-up policy.", exact=False).wait_for()
+        page.get_by_role("button", name="Resume scheduled work").wait_for()
+        page.get_by_text("each task follows its saved choice for missed times", exact=False).wait_for()
         with page.expect_response(lambda response: response.url.endswith("/api/v1/schedules/control")
                                   and response.request.method == "PUT") as resumed:
-            page.get_by_role("button", name="Resume workspace schedules").click()
+            page.get_by_role("button", name="Resume scheduled work").click()
         assert resumed.value.status == 200 and resumed.value.json()["paused"] is False
         wait_for(lambda: store.workspace_schedule_control()["paused"] is False)
-        page.get_by_role("button", name="Pause all schedules").wait_for()
+        page.get_by_role("button", name="Pause scheduled work").wait_for()
         assert page.evaluate("document.activeElement?.id") == "schedule-control-toggle"
-        wait_for(lambda: page.get_by_text("Scheduled", exact=True).count() == 2)
-        assert page.get_by_text("Paused for this Bot", exact=True).count() == 1
+        wait_for(lambda: page.locator(".schedule-overview-list .tag").get_by_text("On", exact=True).count() == 2)
+        assert page.get_by_text("Paused for this assistant", exact=True).count() == 1
         assert store.get_run(live_run.id).status is RunStatus.running
 
         for bot in bots:
@@ -399,10 +411,10 @@ def test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences(
                 assert store.delete_schedule(bot.id, schedule.id) is not None
         page.reload()
         page.get_by_role("heading", name="No recurring tasks yet").wait_for()
-        assert page.get_by_role("link", name="West Coast Review settings").count() == 0
+        assert page.get_by_role("link", name="Set up West Coast Review").count() == 0
         page.locator(".schedule-empty-bots summary").click()
-        assert page.get_by_role("link", name="West Coast Review settings").count() == 1
-        assert page.get_by_role("link", name="London Digest settings").count() == 1
+        assert page.get_by_role("link", name="Set up West Coast Review").count() == 1
+        assert page.get_by_role("link", name="Set up London Digest").count() == 1
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
                                      ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
@@ -5296,6 +5308,11 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
         assert selected_row_metrics["background"] not in {"transparent", "rgba(0, 0, 0, 0)"}, selected_row_metrics
         short_name_height = page.locator("[data-switch-bot='agenda-assistant'] .roster-name").evaluate("el => el.clientHeight")
         assert short_name_height <= name_metrics["lineHeight"] + 1
+        typical_name_metrics = page.locator("#roster-list .roster-name").evaluate_all(
+            "els => els.filter(el => el.textContent.trim() !== 'Research Companion for Long-Term Vendor Strategy and Operations')"
+            ".map(el => ({name:el.textContent.trim(), width:el.clientWidth, textWidth:el.scrollWidth}))"
+        )
+        assert all(item["textWidth"] <= item["width"] + 1 for item in typical_name_metrics), typical_name_metrics
 
         page.locator("[data-switch-bot='research-helper']").hover()
         page.get_by_role("button", name=f"Options for {long_name}").click()
@@ -5356,15 +5373,15 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
                     shape:eye.getAttribute('data-sigil-eye'),tag:eye.tagName.toLowerCase(),
                     fill:eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill'),
                     stroke:eye.getAttribute('stroke'),
-                    cx:eye.dataset.cx,cy:eye.dataset.cy,d:eye.getAttribute('d')})))};
+                    cx:eye.dataset.cx,cy:eye.dataset.cy,rx:eye.dataset.rx,ry:eye.dataset.ry})))};
         }""")
         assert identity["count"] == 0, "flat app avatars need no shared SVG definition IDs"
         assert len(set(identity["shapes"])) == 5, "name-derived avatars should remain distinguishable"
         assert len(set(identity["fills"])) > 1 and all(len(eyes) == 2 for eyes in identity["eyes"])
-        assert all(eye["fill"] == "#10251e" and eye["stroke"] is None and eye["tag"] == "path"
+        assert all(eye["fill"] == "#10251e" and eye["stroke"] is None and eye["tag"] == "ellipse"
                    for eyes in identity["eyes"] for eye in eyes)
         assert page.locator("#roster-list .avatar svg [data-sigil-glint]").count() == 0
-        assert all(" C " in eye["d"] for eyes in identity["eyes"] for eye in eyes)
+        assert all(float(eye["ry"]) > float(eye["rx"]) for eyes in identity["eyes"] for eye in eyes)
         assert all(abs(float(eyes[0]["cx"]) - float(eyes[1]["cx"])) <= 16
                    for eyes in identity["eyes"]), "paired eyes should read as one compact face"
         assert page.locator("#roster-list .avatar svg [data-sigil-outline]").count() == 0
@@ -5474,6 +5491,7 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
             "command": ".venv/bin/pytest -q tests/e2e/test_browser.py::test_bot_roster_pins_persist_and_simple_mascots_stay_distinct",
             "browser": browser.version, "playwright": package_version("playwright"),
             "fixture_only": True, "provider_calls": 0, "external_requests": len(outside_requests), "page_errors": errors,
+            "typical_names": typical_name_metrics,
             "viewports": snapshots,
             "verified": ["one options button per Bot; pin and settings actions share its menu", "pin persists after reload", "coordinator stays first and cannot be pinned",
                          "search includes pinned bots", "keyboard activation and Escape restore focus", "long names truncate with an ellipsis on one line while full names remain available in the title",
@@ -7528,14 +7546,25 @@ def test_inline_chat_approval_is_one_click_and_preserves_conversation(browser, l
     assert thread.locator(".msg.you").bounding_box()["y"] < thread.locator(".msg.agent").bounding_box()["y"]
     assert not thread.locator(".answer").count(), "a waiting run must not echo the user's prompt as an assistant answer"
     card.get_by_text("Review details", exact=True).click()
+    assert "Changing a file needs your okay." in card.inner_text()
+    assert "ask:file-write" not in card.inner_text()
+    assert not card.locator(".approval-detail").is_visible()
+    card.locator(".approval-raw summary").click()
     assert card.locator(".approval-detail").is_visible()
     card.locator('[data-approve="1"]').focus()
     time.sleep(3.3)  # transcript poll keeps the review expanded and the decision focused
     assert card.locator(".approval-detail").is_visible()
     assert card.locator('[data-approve="1"]').evaluate("e => e === document.activeElement")
     assert page.locator("#studio-stop-run").is_visible()
+    assert page.locator("#studio-review-run").is_visible()
+    page.locator("#studio-conversation-options").click()
+    settings = page.locator('.conversation-actions-panel [data-conversation-action="settings"]')
+    assert settings.is_visible() and settings.inner_text().strip() == "Assistant settings"
+    assert settings.get_attribute("href") == "#/bot/chat-approval"
+    page.locator("#studio-conversation-options").click()
     header = page.locator(".app-top").bounding_box()
-    for control in ("#conversation-switcher", "#studio-conversation-options", "#studio-stop-run"):
+    for control in ("#conversation-switcher", "#studio-search-messages", "#studio-conversation-options",
+                    "#studio-review-run", "#studio-stop-run"):
         box = page.locator(control).bounding_box()
         assert box["y"] >= header["y"] and box["y"] + box["height"] <= header["y"] + header["height"] + 1
     stream = page.locator("#chat-scroll").bounding_box()
@@ -7546,6 +7575,55 @@ def test_inline_chat_approval_is_one_click_and_preserves_conversation(browser, l
     assert page.locator("#conversation-switcher").input_value() == conversation
     assert "#/chat/chat-approval" in page.url
     assert page.locator("#needs-you").get_attribute("open") is None
+    page.close()
+
+
+def test_chat_header_uses_available_title_space_and_groups_assistant_settings(browser, live):
+    base, app = live
+    app.state.store.create_bot(Bot(name="header-space", display_name="Design Partner", model="mock/demo", tools=[]))
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/chat-header-options"
+    out.mkdir(parents=True, exist_ok=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 960})
+    page_errors = []
+    external_requests = []
+    page.on("pageerror", lambda error: page_errors.append(str(error)))
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    page.goto(base + "/#/chat/header-space")
+    title = page.locator(".ctx-heading h1")
+    title.wait_for()
+    assert title.inner_text() == "Design Partner"
+    assert title.evaluate("e => e.scrollWidth <= e.clientWidth + 1"), "the title should use available header space"
+    assert page.locator(".ctx-actions > a").count() == 0, "assistant settings should not consume permanent toolbar space"
+    page.screenshot(path=str(out / "desktop.png"), full_page=True)
+    page.locator("#studio-conversation-options").click()
+    settings = page.locator('.conversation-actions-panel [data-conversation-action="settings"]')
+    assert settings.is_visible() and settings.inner_text().strip() == "Assistant settings"
+    assert settings.get_attribute("href") == "#/bot/header-space"
+    assert not page.locator("#studio-stop-run").is_visible()
+    page.screenshot(path=str(out / "desktop-options.png"), full_page=True)
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.wait_for_timeout(50)
+    assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+    header = page.locator(".app-top").bounding_box()
+    for control in ("#conversation-switcher", "#studio-search-messages", "#studio-conversation-options"):
+        box = page.locator(control).bounding_box()
+        assert box["y"] >= header["y"] and box["y"] + box["height"] <= header["y"] + header["height"] + 1
+    page.screenshot(path=str(out / "phone-options.png"), full_page=True)
+    (out / "validation.json").write_text(json.dumps({
+        "test": "tests/e2e/test_browser.py::test_chat_header_uses_available_title_space_and_groups_assistant_settings",
+        "browser": f"{browser.browser_type.name.title()} {browser.version}",
+        "playwright": package_version("playwright"),
+        "viewports": {"desktop": [1440, 960], "phone": [390, 844]},
+        "verified": ["title uses available toolbar width", "assistant settings are grouped in the chat options menu",
+                     "phone toolbar has no horizontal overflow", "primary chat controls stay within the toolbar"],
+        "page_errors": page_errors, "external_requests": external_requests, "provider_calls": 0,
+        "source_sha256": {source: hashlib.sha256((out.parents[3] / source).read_bytes()).hexdigest()
+                          for source in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                         "tests/e2e/test_browser.py")},
+    }, indent=2) + "\n", encoding="utf-8")
+    assert not page_errors
+    assert not external_requests
     page.close()
 
 

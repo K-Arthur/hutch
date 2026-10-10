@@ -27,19 +27,19 @@ colors:
   error: "#f87171"
 typography:
   display:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontFamily: 'Archivo, ui-sans-serif, system-ui, "Segoe UI", sans-serif'
     fontSize: "clamp(1.75rem, 3vw, 2.25rem)"
     fontWeight: 700
     lineHeight: 1.12
     letterSpacing: "-0.035em"
   page-title:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontFamily: 'Archivo, ui-sans-serif, system-ui, "Segoe UI", sans-serif'
     fontSize: "1.5rem"
     fontWeight: 700
     lineHeight: 1.25
     letterSpacing: "-0.02em"
   section-title:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+    fontFamily: 'Archivo, ui-sans-serif, system-ui, "Segoe UI", sans-serif'
     fontSize: "1.125rem"
     fontWeight: 650
     lineHeight: 1.25
@@ -157,15 +157,18 @@ can access or what the machine has actually confirmed.
   cost, timing, run references, and transcript checks remain available in a
   clearly labeled optional details layer.
 - A simple, shape-aware 2D character gives the app a recognizable face. Each
-  distinct silhouette has two softly curved, solid ink eyes. Size, spacing,
-  height, and shared slant follow the shape. Keep the face uncluttered, with no
+  distinct silhouette has two soft upright oval eyes. Size, spacing, height, and
+  slight tilt follow the shape. Keep the face uncluttered, with no
   pupils, highlights, or detached marks. Larger original 3D
   character art belongs to marketing; both use the same friendly palette and
   visual family.
 - Provider art follows the provider's current published rules. ChatGPT uses
   OpenAI's unaltered white Blossom beside its explicit name. Microsoft Outlook,
   Gmail, and Google Calendar use original service-category glyphs beside their
-  full names unless Hutch receives permission to use specific product icons.
+  full names unless Hutch confirms the relevant product-icon terms and receives
+  any required permission. Google's icon guidance routes product-icon use
+  through a request process; Microsoft requires an express license for Outlook
+  product icons.
   Every mark stays secondary to its exact service name and connection state;
   category artwork never imitates a provider logo.
 - Layered graphite surfaces keep long sessions comfortable. Emerald is the brand
@@ -200,9 +203,9 @@ prose, labels, or marketing.
 
 ## Typography
 
-- **App family:** one native system-sans stack for interface and display text;
-  the hierarchy scales with browser text settings. The app does not fetch a
-  remote font.
+- **App family:** system sans for interface text and locally bundled Archivo
+  for display, page, and section headings. The type hierarchy scales with browser
+  text settings; neither app nor site fetches a remote font.
 - **Display:** clamp(1.75rem, 3vw, 2.25rem), weight 700, 1.12 leading and
   −0.035em tracking for occasional welcome or feature emphasis.
 - **Page title:** 1.5rem/1.25 weight 700, −0.02em tracking. **Section title:**
@@ -215,8 +218,10 @@ prose, labels, or marketing.
 - **Wordmark:** 1.25rem/1 weight 700, system sans.
 - **Mono:** ids, durations, tokens, budgets, code, timestamps — always with tabular
   numerals and ligatures disabled. Prose never uses mono (The Measured Rule).
-- **Marketing display:** the locally bundled Archivo variable font gives the site’s
-  oversized hero and section headings their voice; body copy stays system sans.
+- **Shared voice:** locally bundled Archivo is used for display, page, and
+  section headings in the app, supporting pages, and marketing site. Body copy
+  remains system sans, so the product feels related without turning every screen
+  into a display face.
 - **Marketing micro type:** 11px is limited to compact table labels and numbered
   proof captions; 12px is the smallest metadata size. Both remain secondary.
 - **Icons:** actions and categories use one local 24×24 outline-vector family,

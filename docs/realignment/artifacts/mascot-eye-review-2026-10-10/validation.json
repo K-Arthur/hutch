@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette",
-  "captured_at": "2026-10-10T16:30:55.664787+00:00",
+  "captured_at": "2026-10-10T17:27:48.523151+00:00",
   "browser": "Chromium 153.0.8010.12",
   "viewports": {
     "desktop": [
@@ -55,9 +55,9 @@
   "page_errors": [],
   "provider_calls": 0,
   "source_sha256": {
-    "src/hutch/server/static/app.js": "d48f2053cf550b90dc955c5aff20fcbacc43dbb058f8be3325ee69ab4fd0ec10",
-    "src/hutch/server/static/style.css": "75639b6c30ab608a1aa586619a100a1cd2b7a2a8b41e258145678f9ceecff80d",
+    "src/hutch/server/static/app.js": "2f27e83d4553cc1a2576cce619e59517bb6f5684e1eb3a53575e0343fd4b6b78",
+    "src/hutch/server/static/style.css": "4ef9b9a4fbf491f781f1cce7d57467604f508d927267b0e3ced9ca7b8fed8f0f",
     "src/hutch/server/static/index.html": "575a9641e4be85f5ed3294571370073ed90656c728baa218cfe11bd0b6e6f932",
-    "tests/e2e/test_design_system.py": "91208c33c6672dd0ec6125a5041cb5c83cff1841f20d05b0b2bd5f7413557c70"
+    "tests/e2e/test_design_system.py": "d0b72c510f47884fd05e6934c240c879d21869cae7641298d7d3013fccf86ee0"
   }
 }
