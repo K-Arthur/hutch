@@ -3200,3 +3200,5 @@ v44 saved-request table while simulating v21–v23; the remaining browser test c
 fixing those test fixtures and ensuring browser-context cleanup, the affected cases passed targeted reruns (**3 migration, 1
 browser**). The full suite has not been rerun after these corrections. Visual evidence is under
 [`artifacts/saved-requests/`](artifacts/saved-requests/). No changes are pushed or published.
+The application, schema, documentation and tests are committed on local `main` as `257ef10`; the refreshed screenshot, validation JSON,
+and trace evidence is committed as `e1bd3b9`.
