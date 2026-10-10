@@ -10,11 +10,12 @@ for larger workspaces; ten Bots remains the owner's starting heuristic, not a pr
 usability threshold.
 
 Use simple flat 2D characters in the working app: a distinct coloured silhouette with
-two white glints. Keep the more detailed original 3D artwork on the marketing site.
-This follows the user-provided mobile references while keeping identity easy to scan
-beside conversation text and operational status. The mascot and its colour never
-indicate whether a Bot is running, waiting, paused, or failed; those states remain
-separately labeled.
+two inset ink eyes. Each eye pair follows its head's usable area, center, spacing,
+proportions and tilt; the shape chooser must show the same face geometry as the
+selected avatar. An earlier white-glint treatment was rejected after it looked
+detached on the pointed drop head. Keep the more detailed original 3D artwork on
+the marketing site. The mascot and its colour never indicate whether a Bot is
+running, waiting, paused, or failed; those states remain separately labeled.
 
 ## Evidence and limits
 
@@ -37,6 +38,12 @@ separately labeled.
 - The Grok Bot and Hutch product details are researched from public docs, not a live
   Grok Bot account trial. Community reports are anecdotes, not prevalence estimates.
   The supplied screenshots are not treated as proof about Grok Bot implementation.
+- The Figma Community [100+ Organic Shapes file](https://www.figma.com/community/file/1121566033735107642/100-organic-shapes-brix-templates)
+  groups varied forms as blobs, dots, lines and leaves. It was reviewed only as a
+  shape-variety reference; no Community artwork was copied into Hutch.
+- Mobbin's public Explore page surfaced an AI assistant collection, but opening
+  individual screens required signing in and its screen-search connector returned
+  an argument error. No screen-specific Mobbin pattern is claimed from this pass.
 
 ## Implementation and acceptance
 

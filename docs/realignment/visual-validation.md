@@ -1228,3 +1228,19 @@ error-state screenshots separately in [`artifacts/conversation-search/`](artifac
 the touch search control measures 44×44 CSS pixels. These checks used local Chromium **153.0.8010.12** fixtures and made no provider or
 external requests. The full offline non-E2E suite passed **1,532 tests** with thread and syntax warnings treated as errors. Physical phone,
 screen-reader, and live-provider checks remain outstanding.
+
+## Shape picker face fidelity (2026-10-10)
+
+Owner review called out that mascot design must account for the different head shapes. The shape picker exposed a real mismatch: its
+eight silhouettes all used the orb's eye coordinates because the renderer was given a color token where it expected a shape index. A
+browser regression failed on that exact mismatch before the selector began using each shape's own face geometry. Selecting any shape
+now updates the large preview with the same geometry used by the corresponding roster avatar.
+
+Both colour and shape choices now use 44×44px targets. Each eight-option row stays on one line on desktop and tablet and becomes a
+balanced four-by-two grid on 390px and 320px phones; the colour remains a 26px swatch inside its larger button. The final focused
+journey passed **1 test in 3.74s** on Chromium **153.0.8010.12** / Playwright **1.63.0**, checking every selector face against all eight
+rendered avatars, selected-state updates, target size, both phone layouts, no overflow, and no browser errors. I opened and inspected the
+desktop, tablet, phone, and compact-phone selector captures individually in [`artifacts/mascot-eye-review/`](artifacts/mascot-eye-review/).
+No provider calls or external requests occurred. Mobbin's screen catalog required sign-in and its search connector returned an
+argument error, so this refinement uses no claimed Mobbin screen evidence. The Figma Community shape library was reviewed for variety
+of base forms only; no artwork was reused. Physical-device and screen-reader checks remain open.

@@ -134,9 +134,11 @@ understand what the machine is actually doing, or it is chrome that should shrin
 - Mono type is reserved for measured values (ids, durations, counts, budgets) —
   it signals "this number came from the machine".
 - The operator workspace uses simple, flat 2D Bot characters: one coloured
-  silhouette and two inset ink oval eyes. Eye position follows the chosen head
-  shape, with lower placement on pointed silhouettes so the eyes stay inside the
-  face. Identity is stable by Bot name and editable by the owner.
+  silhouette and two inset ink oval eyes. Each head shape has its own face center,
+  spacing, proportions and tilt; pointed silhouettes place the eyes in the wider
+  lower face. The shape chooser previews the same geometry used by the avatar, and
+  every eye remains inside its silhouette. Identity is stable by Bot name and
+  editable by the owner.
   Detailed original 3D mascot artwork belongs to marketing pages; the product
   and marketing characters are related brand work, not a shared UI asset.
 
@@ -223,12 +225,16 @@ language after explicit user direction ("right angles feel too off"):
 - **Status chip** — pill, mono 11px, dot + word always together (`● working`,
   `● needs you`, `✕ failed`); colour never carries state alone.
 - **App avatar/sigil** — one flat silhouette from a curated set in one of eight
-  identity colours with a pair of soft ink oval eyes. Eye placement is tuned per
-  silhouette; pointed heads place the eyes lower so they remain integrated into
-  the face. Derived from the Bot name and overridable
+  identity colours with a pair of soft ink oval eyes. Each silhouette has its own
+  eye center, spacing, proportions and tilt; pointed heads place the eyes lower in
+  the wider face. The identity picker uses the exact same face geometry as the
+  selected avatar. Derived from the Bot name and overridable
   at creation and in settings. Identity colours are decorative only, never status;
   the separate state pip sits beside it with its word. The marketing site's 3D art
   is a separate, larger brand illustration.
+- **Identity picker** — colour and shape options use 44px touch targets. On phone
+  widths, each eight-option row becomes a balanced four-by-two grid; the colour
+  remains a 26px swatch inside its larger button.
 - **Bot roster controls** — one always-visible, low-emphasis options button per
   Bot contains pin/unpin and settings. Hover and focus add contrast; display
   names wrap to two lines before the clamp; idle Bots collapse into a searchable

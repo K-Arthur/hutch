@@ -1,30 +1,43 @@
 {
   "test": "tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette",
-  "captured_at": "2026-10-10T06:53:29.968222+00:00",
+  "captured_at": "2026-10-10T07:18:10.418918+00:00",
   "browser": "Chromium 153.0.8010.12",
   "viewports": {
     "desktop": [
       1440,
       960
     ],
+    "tablet": [
+      900,
+      1024
+    ],
     "phone": [
       390,
       844
+    ],
+    "compact_phone": [
+      320,
+      740
     ]
   },
   "screenshots": [
     "desktop.png",
     "phone-studio.png",
-    "phone-roster.png"
+    "phone-roster.png",
+    "shape-picker-desktop.png",
+    "shape-picker-tablet.png",
+    "shape-picker-phone.png",
+    "shape-picker-compact-phone.png"
   ],
   "silhouettes": 8,
   "colors": 8,
   "minimum_eye_contrast": 5.81,
   "checks": [
-    "paired diagonal oval eyes",
-    "shape-specific face proportions",
+    "shape-specific faces match every picker silhouette and live preview",
     "eyes inside each mascot silhouette",
+    "44px shape controls",
+    "balanced two-row phone and compact-phone picker",
     "no phone overflow",
     "no browser errors"
   ],

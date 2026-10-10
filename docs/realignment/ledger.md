@@ -3259,3 +3259,18 @@ errors, external requests or provider calls. Images, trace and machine-readable 
 message content checks; that focused journey passed **1 test**. The populated desktop, tablet, phone, and compact-phone captures, plus
 desktop empty/error states, were inspected individually. The full offline non-E2E suite passed **1,532 tests** using warnings-as-errors
 for unhandled thread and syntax warnings. These are local fixtures; there was no physical-phone, screen-reader, or live provider test.
+
+## Mascot identity picker follows its selected shape (2026-10-10)
+
+The owner requested that mascot design account for the full shape family. A new browser assertion first failed because all eight shape
+picker buttons showed the orb's eye layout: the picker passed a color token into the face renderer instead of the shape index. The
+selector now renders each silhouette with its own face geometry, and clicking a choice updates the large preview with the same eye
+positions as the matching app avatar. Colour and shape choices both use 44×44px targets; each eight-option row stays on one line on
+desktop/tablet and forms a balanced four-by-two grid on 390px and 320px phones. Colour dots remain 26px inside their larger targets.
+
+The corrected browser test passed **1 test in 3.74s** in Chromium **153.0.8010.12** / Playwright **1.63.0** after red regressions for
+shape-to-face mapping and color touch targets. It checks all eight shape-to-face mappings, live preview updates, target dimensions,
+phone wrapping, no page errors, and no horizontal overflow. Desktop, tablet, phone, and compact-phone selector captures were opened and reviewed separately; evidence is in
+[`artifacts/mascot-eye-review/`](artifacts/mascot-eye-review/). Figma Community organic shapes were consulted for shape variety only;
+Mobbin's individual screens remained behind a sign-in gate and its connector returned `INVALID_ARGUMENT`. No external artwork or
+provider calls were used. Screen-reader and physical-device checks remain open.

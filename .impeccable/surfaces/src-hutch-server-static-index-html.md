@@ -35,9 +35,11 @@ borderless tool lines under a collapsed "N steps" summary, composer pinned botto
 
 SIGNATURE: the thinking dots (shown only while the server reports a run active)
 plus a simple flat 2D Bot character in the first-run welcome and roster. Each
-Bot keeps one editable, name-stable coloured silhouette with two white glints;
-status remains a separate, labeled indicator. Detailed original 3D character
-art is reserved for marketing pages and is not loaded into the working app.
+Bot keeps one editable, name-stable coloured silhouette with two inset ink eyes;
+their center, spacing, proportions and tilt follow that silhouette, and the shape
+chooser previews the same face used by the avatar. Status remains a separate,
+labeled indicator. Detailed original 3D character art is reserved for marketing
+pages and is not loaded into the working app.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
 review, the verdict, DESIGN.md, and every shipping raster carrying its provenance.

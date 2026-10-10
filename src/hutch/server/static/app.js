@@ -696,11 +696,11 @@ function identityPickerHtml() {
       <div class="idp-prev" data-idp-prev></div>
       <p class="idp-lbl">Colour</p>
       <div class="idp-row" data-idp-colors>${ID_COLORS.map((c, i) =>
-        `<button type="button" class="sw" data-ci="${i}" style="background:${c}" aria-label="Colour ${i + 1}" aria-pressed="false"></button>`).join("")}</div>
+        `<button type="button" class="sw" data-ci="${i}" style="--swatch:${c}" aria-label="Colour ${i + 1}" aria-pressed="false"></button>`).join("")}</div>
       <p class="idp-lbl">Shape</p>
       <div class="idp-row" data-idp-shapes>${ID_HEADS.map((hh, i) =>
         `<button type="button" class="shp" data-si="${i}" aria-label="Shape ${esc(hh.key)}" aria-pressed="false">
-          <svg viewBox="0 0 64 64" aria-hidden="true"><path d="${hh.d}" fill="currentColor"/>${sigilEyes("var(--panel)")}</svg>
+          <svg viewBox="0 0 64 64" aria-hidden="true"><path d="${hh.d}" fill="currentColor"/>${sigilEyes(i)}</svg>
         </button>`).join("")}</div>
       <button type="button" class="btn ghost small idp-shuffle" data-idp-shuffle>${icon("refresh")} Surprise me</button>
     </div>`;

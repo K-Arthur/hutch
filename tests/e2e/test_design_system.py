@@ -277,9 +277,11 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
             return {center: ctx.isPointInPath(shape, center.x, center.y),
                     perimeter: points.every(point => ctx.isPointInPath(shape, point.x, point.y))};
           });
-          return {color: body.getAttribute('fill'),
+          return {head: body.getAttribute('d'), color: body.getAttribute('fill'),
                   eyes: eyes.map(eye => ({tag: eye.tagName.toLowerCase(), rx: Number(eye.getAttribute('rx')),
-                    ry: Number(eye.getAttribute('ry')), fill: eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill')})),
+                    ry: Number(eye.getAttribute('ry')), cx: Number(eye.getAttribute('cx')),
+                    cy: Number(eye.getAttribute('cy')), transform: eye.getAttribute('transform'),
+                    fill: eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill')})),
                   contained};
         })""")
         assert len(identity) == 8, identity
@@ -291,6 +293,71 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
                     for item in identity}) == 8, identity
         assert all(part == {"center": True, "perimeter": True}
                    for item in identity for part in item["contained"]), identity
+
+        # The shape chooser must preview each head with that head's actual face.
+        # This catches the old bug where every chooser button inherited the orb
+        # eye positions even though the silhouettes themselves were different.
+        page.goto(f"{app_url}/#/bot/mascot-0")
+        page.locator("[data-idp-shapes] .shp svg").first.wait_for()
+        picker_faces = page.locator("[data-idp-shapes] .shp svg").evaluate_all("""svgs => svgs.map(svg => ({
+          head: svg.querySelector('path')?.getAttribute('d'),
+          eyes: [...svg.querySelectorAll('[data-sigil-eye]')].map(eye => ({
+            cx:Number(eye.getAttribute('cx')), cy:Number(eye.getAttribute('cy')),
+            rx:Number(eye.getAttribute('rx')), ry:Number(eye.getAttribute('ry')),
+            transform:eye.getAttribute('transform'),
+          }))
+        }))""")
+        assert len(picker_faces) == len(identity) == 8, picker_faces
+        assert [face["head"] for face in picker_faces] == [face["head"] for face in identity]
+        assert [face["eyes"] for face in picker_faces] == [
+            [{key: eye[key] for key in ("cx", "cy", "rx", "ry", "transform")} for eye in face["eyes"]]
+            for face in identity
+        ], picker_faces
+        shape_buttons = page.locator("[data-idp-shapes] .shp")
+        assert shape_buttons.evaluate_all("""buttons => buttons.every(button => {
+          const box = button.getBoundingClientRect(); return box.width === 44 && box.height === 44;
+        })"""), "shape choices need 44px touch targets"
+        color_buttons = page.locator("[data-idp-colors] .sw")
+        assert color_buttons.evaluate_all("""buttons => buttons.every(button => {
+          const box = button.getBoundingClientRect(); return box.width === 44 && box.height === 44;
+        })"""), "color choices need 44px touch targets"
+        identity_panel = page.locator("#idp-panel")
+        identity_panel.screenshot(path=str(out / "shape-picker-desktop.png"), animations="disabled")
+
+        for index in range(8):
+            shape_buttons.nth(index).click()
+            assert shape_buttons.nth(index).get_attribute("aria-pressed") == "true"
+            preview = page.locator("[data-idp-prev] .avatar svg")
+            selected_shape = shape_buttons.nth(index).locator("svg path").get_attribute("d")
+            preview_shape = preview.locator(":scope > path").get_attribute("d")
+            assert preview_shape == selected_shape
+            selected_eyes = shape_buttons.nth(index).locator("svg [data-sigil-eye]").evaluate_all(
+                "eyes => eyes.map(eye => [eye.getAttribute('cx'), eye.getAttribute('cy'), eye.getAttribute('transform')])")
+            preview_eyes = preview.locator("[data-sigil-eye]").evaluate_all(
+                "eyes => eyes.map(eye => [eye.getAttribute('cx'), eye.getAttribute('cy'), eye.getAttribute('transform')])")
+            assert preview_eyes == selected_eyes
+        shape_buttons.first.click()
+        page.set_viewport_size({"width": 900, "height": 1024})
+        identity_panel.screenshot(path=str(out / "shape-picker-tablet.png"), animations="disabled")
+        page.set_viewport_size({"width": 390, "height": 844})
+        identity_panel.screenshot(path=str(out / "shape-picker-phone.png"), animations="disabled")
+        mobile_button_rows = page.locator("[data-idp-shapes] .shp").evaluate_all("""buttons => {
+          const rows = new Set(buttons.map(button => Math.round(button.getBoundingClientRect().top)));
+          return {rowCount:rows.size, overflow:document.documentElement.scrollWidth - innerWidth};
+        }""")
+        assert mobile_button_rows["rowCount"] == 2, mobile_button_rows
+        assert mobile_button_rows["overflow"] <= 1, mobile_button_rows
+        page.set_viewport_size({"width": 320, "height": 740})
+        identity_panel.screenshot(path=str(out / "shape-picker-compact-phone.png"), animations="disabled")
+        compact_button_rows = page.locator("[data-idp-shapes] .shp").evaluate_all("""buttons => ({
+          rowCount:new Set(buttons.map(button => Math.round(button.getBoundingClientRect().top))).size,
+          overflow:document.documentElement.scrollWidth - innerWidth,
+        })""")
+        assert compact_button_rows["rowCount"] == 2, compact_button_rows
+        assert compact_button_rows["overflow"] <= 1, compact_button_rows
+        compact_color_rows = page.locator("[data-idp-colors] .sw").evaluate_all("""buttons => new Set(
+          buttons.map(button => Math.round(button.getBoundingClientRect().top))).size""")
+        assert compact_color_rows == 2, compact_color_rows
 
         def relative_luminance(color: str) -> float:
             channels = [int(color[index:index + 2], 16) / 255 for index in (1, 3, 5)]
@@ -320,12 +387,12 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
             "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette",
             "captured_at": datetime.now(timezone.utc).isoformat(),
             "browser": f"{browser.browser_type.name.title()} {browser.version}",
-            "viewports": {"desktop": [1440, 960], "phone": [390, 844]},
-            "screenshots": ["desktop.png", "phone-studio.png", "phone-roster.png"],
+            "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844], "compact_phone": [320, 740]},
+            "screenshots": ["desktop.png", "phone-studio.png", "phone-roster.png", "shape-picker-desktop.png", "shape-picker-tablet.png", "shape-picker-phone.png", "shape-picker-compact-phone.png"],
             "silhouettes": 8,
             "colors": 8,
             "minimum_eye_contrast": round(min(eye_contrast), 2),
-            "checks": ["paired diagonal oval eyes", "shape-specific face proportions", "eyes inside each mascot silhouette", "no phone overflow", "no browser errors"],
+            "checks": ["shape-specific faces match every picker silhouette and live preview", "eyes inside each mascot silhouette", "44px shape controls", "balanced two-row phone and compact-phone picker", "no phone overflow", "no browser errors"],
             "page_errors": errors,
             "provider_calls": 0,
         }, indent=2) + "\n", encoding="utf-8")
