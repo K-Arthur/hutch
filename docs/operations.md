@@ -246,7 +246,8 @@ the task. The branch is retained for you to inspect; Hutch does not apply, commi
 
 OpenCode runs in a separate process group inside the current terminal session. Hutch temporarily gives that group foreground
 terminal input, waits for it to exit, verifies and ends any remaining processes in its group, then restores terminal input to
-Hutch. Pressing Ctrl+C sends an interrupt to OpenCode's foreground group; Hutch records a stopped outcome only after cleanup is
+Hutch. Before launch, Hutch checks for Linux pidfd-based process identity support and refuses hosts that cannot verify it.
+Pressing Ctrl+C sends an interrupt to OpenCode's foreground group; Hutch records a stopped outcome only after cleanup is
 verified. This preserves interactive terminal behavior while allowing bounded cleanup; it is not a sandbox for approved shell
 commands. If Hutch cannot restore terminal control or verify cleanup, leave the task card visible and inspect the terminal before
 trying again.

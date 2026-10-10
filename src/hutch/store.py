@@ -3707,6 +3707,7 @@ class Store:
                 raise ValueError(f"coding task is {row['status']} and cannot be launched again")
             row = db.execute("SELECT * FROM code_handoffs WHERE id = ?", (handoff_id,)).fetchone()
         self.bus.notify("work", "code_handoffs", f"conversation:{row['conversation_id']}")
+        return dict(row)
 
     def mark_code_handoff_stopping(self, handoff_id: str) -> bool:
         """Keep cancellation visible until the recorded OpenCode process group is verified gone."""
@@ -3718,7 +3719,6 @@ class Store:
         if changed and row:
             self.bus.notify("work", "code_handoffs", f"conversation:{row['conversation_id']}")
         return bool(changed)
-        return dict(row)
 
     def start_code_handoff(self, handoff_id: str, *, worktree_path: str, branch_name: str,
                            opencode_version: str, runner_pid: int, runner_starttime: int,

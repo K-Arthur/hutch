@@ -7,6 +7,10 @@
 - Keep ChatGPT's exact OpenAI Blossom beside its named service. Microsoft Outlook,
   Gmail, and Google Calendar use original category artwork until provider terms
   or written approval permit product-icon use.
+- Repair the reviewed OpenCode handoff launch path: verify the host's pidfd support,
+  return the atomically claimed task record, and preserve the intended exit code for
+  cancellation. A Linux pseudo-terminal test now drives a fake OpenCode CLI through
+  reviewed launch, isolated edit, Ctrl+C, verified cleanup, and retained status.
 
 ## Separate Outlook Mail send setup and provider artwork
 

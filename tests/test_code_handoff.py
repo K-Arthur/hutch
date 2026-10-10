@@ -6,6 +6,7 @@ import sqlite3
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import pytest
 
@@ -64,7 +65,7 @@ def test_opencode_environment_removes_inherited_credentials_and_config_overrides
 def test_interactive_process_keeps_terminal_and_owns_a_separate_group():
     """The coding runner must get foreground terminal input without leaving task children behind."""
     child_code = r'''
-import os, sys, time
+import os, signal, sys, time
 print(f"READY tty={int(os.isatty(0))} foreground={int(os.tcgetpgrp(0) == os.getpgrp())}", flush=True)
 print("REPLY " + input(), flush=True)
 while True:
@@ -246,3 +247,163 @@ def test_chat_code_handoff_is_reviewed_idempotent_and_does_not_expose_host_paths
     listed = client.get(f"/api/v1/code-handoffs?conversation_id={conversation['id']}").json()
     assert [row["id"] for row in listed] == [resource["id"]]
     assert str(project) not in json.dumps(listed)
+
+
+@pytest.mark.skipif(not hasattr(os, "tcsetpgrp") or sys.platform != "linux", reason="Linux controlling TTY required")
+def test_hutch_code_run_interrupts_fake_opencode_and_retains_verified_changes(client, tmp_path, monkeypatch):
+    """Exercise the real CLI, process group, persisted status, and retained worktree without a model call."""
+    project = tmp_path / "project"
+    project.mkdir()
+    _git(project, "init", "-q")
+    _git(project, "config", "user.email", "hutch-test@example.invalid")
+    _git(project, "config", "user.name", "Hutch Test")
+    source_readme = project / "README.md"
+    source_readme.write_text("A tiny coding fixture.\n")
+    _git(project, "add", "README.md")
+    _git(project, "commit", "-qm", "base")
+
+    bot = client.post("/api/bots", json={
+        "name": "code-helper", "model": "mock/demo", "tools": [],
+        "workspace_mode": "folder", "workdir": str(project),
+    })
+    assert bot.status_code == 201, bot.text
+    conversation = client.post("/api/v1/conversations", json={"bot": bot.json()["id"]},
+                               headers={"Idempotency-Key": "code-run-conversation"}).json()
+    sent = client.post(f"/api/v1/conversations/{conversation['id']}/messages",
+                       json={"prompt": "Improve this README for new contributors."},
+                       headers={"Idempotency-Key": "code-run-source"})
+    assert sent.status_code == 201, sent.text
+    run_id = sent.json()["id"]
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        run = client.get(f"/api/v1/tasks/runs/{run_id}").json()
+        if run["terminal"]:
+            break
+        time.sleep(0.05)
+    assert run["status"] == "succeeded"
+    messages = client.get(f"/api/v1/conversations/{conversation['id']}").json()["messages"]
+    user_message = next(row for row in messages if row["run_id"] == run_id and row["role"] == "user")
+    assistant_message = next(row for row in messages if row["run_id"] == run_id and row["role"] == "assistant")
+    handoff_response = client.post("/api/v1/code-handoffs", json={
+        "conversation_id": conversation["id"], "source_run_id": run_id,
+        "source_user_message_id": user_message["id"],
+        "source_assistant_message_id": assistant_message["id"],
+        "task_brief": "Add one concise contributor setup note to README.md.",
+    }, headers={"Idempotency-Key": "code-run-reviewed-handoff"})
+    assert handoff_response.status_code == 201, handoff_response.text
+    handoff_id = handoff_response.json()["id"]
+
+    fake_bin = tmp_path / "fake-bin"
+    fake_bin.mkdir()
+    fake_opencode = fake_bin / "opencode"
+    fake_opencode.write_text("""#!/usr/bin/env python3
+import os, signal, sys, time
+from pathlib import Path
+
+if sys.argv[1:] == ["--version"]:
+    print("opencode v2.0.24")
+    raise SystemExit(0)
+if sys.argv[1:] == ["mini", "--help"]:
+    print("mini --standalone --prompt")
+    raise SystemExit(0)
+if "--auto" in sys.argv:
+    raise SystemExit(90)
+signal.signal(signal.SIGINT, lambda *_: sys.exit(130))
+prompt = sys.argv[sys.argv.index("--prompt") + 1]
+print("FAKE_READY tty=%d foreground=%d reviewed=%d isolated=%d auto=%d" % (
+    os.isatty(0), os.tcgetpgrp(0) == os.getpgrp(),
+    "Add one concise contributor setup note" in prompt,
+    Path.cwd().name == os.environ.get("HANDOFF_SUFFIX"),
+    "--auto" in sys.argv), flush=True)
+input("Fixture is ready. Press Enter to apply its reviewed change. ")
+readme = Path("README.md")
+readme.write_text(readme.read_text() + "Contributor setup: install the project dependencies before running tests.\\n")
+print("FAKE_EDITED", flush=True)
+while True:
+    time.sleep(1)
+""", encoding="utf-8")
+    fake_opencode.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}")
+    # The worktree's private folder is deterministic, so the fixture can verify the real isolated cwd.
+    monkeypatch.setenv("HANDOFF_SUFFIX", handoff_id)
+
+    runner = r'''import sys
+from hutch.cli import main
+sys.argv = ["hutch", "code", "run", sys.argv[1]]
+main()
+'''
+    harness = r'''import os, pty, select, signal, sys, time
+runner, handoff_id = sys.argv[1:3]
+child_env = os.environ.copy()
+pid, master = pty.fork()
+if pid == 0:
+    os.execvpe(sys.executable, [sys.executable, "-c", runner, handoff_id], child_env)
+output = bytearray()
+sent_ready = False
+sent_interrupt = False
+deadline = time.monotonic() + 18
+waited = 0
+while time.monotonic() < deadline:
+    readable, _, _ = select.select([master], [], [], 0.05)
+    if readable:
+        try:
+            chunk = os.read(master, 8192)
+        except OSError:
+            chunk = b""
+        if chunk:
+            output.extend(chunk)
+            if b"FAKE_READY tty=1 foreground=1 reviewed=1 isolated=1 auto=0" in output and not sent_ready:
+                os.write(master, b"\n")
+                sent_ready = True
+            if b"FAKE_EDITED" in output and not sent_interrupt:
+                os.write(master, b"\x03")
+                sent_interrupt = True
+    waited, status = os.waitpid(pid, os.WNOHANG)
+    if waited:
+        break
+if not waited:
+    try:
+        foreground = os.tcgetpgrp(master)
+        os.killpg(foreground, signal.SIGKILL)
+    except (OSError, ProcessLookupError):
+        pass
+    try:
+        os.kill(pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    os.waitpid(pid, 0)
+    print(output.decode(errors="replace"))
+    raise SystemExit("hutch code run did not exit after the controlled interrupt")
+try:
+    while True:
+        chunk = os.read(master, 8192)
+        if not chunk:
+            break
+        output.extend(chunk)
+except OSError:
+    pass
+os.close(master)
+print(output.decode(errors="replace"), end="")
+print("CHILD_EXIT=%d" % os.waitstatus_to_exitcode(status))
+raise SystemExit(0)
+'''
+    process = subprocess.run([sys.executable, "-c", harness, runner, handoff_id],
+                              capture_output=True, text=True, timeout=22, check=False, env=os.environ.copy())
+    transcript = process.stdout + process.stderr
+    assert process.returncode == 0, transcript
+    assert "CHILD_EXIT=130" in transcript, transcript
+    assert "FAKE_READY tty=1 foreground=1 reviewed=1 isolated=1 auto=0" in transcript, transcript
+    assert "FAKE_EDITED" in transcript, transcript
+    assert "Worktree retained at:" in transcript, transcript
+
+    handoffs = client.get(f"/api/v1/code-handoffs?conversation_id={conversation['id']}").json()
+    record = next(row for row in handoffs if row["id"] == handoff_id)
+    assert record["status"] == "stopped"
+    assert record["exit_code"] == 130 or record["exit_code"] == -2
+    assert record["changed_files"] == 1
+    assert record["branch_name"].startswith("hutch/code/")
+    assert str(tmp_path) not in json.dumps(handoffs)  # The public status remains host-path-free.
+    worktree = Path(client.app.state.store.code_handoff(handoff_id)["worktree_path"])
+    assert worktree.is_dir()
+    assert "Contributor setup:" in (worktree / "README.md").read_text()
+    assert source_readme.read_text() == "A tiny coding fixture.\n"

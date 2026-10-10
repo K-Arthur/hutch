@@ -26,7 +26,7 @@ This is an experimental handoff, not an OpenCode runtime adapter, remote launche
 ## Follow-up gates
 
 - Verify OpenCode v2.0.24 actually resolves the custom agent's ordered rules and 20-step cap in a no-network/no-model contract environment; the local debug config command timed out during inspection, so config loading remains a verification gap.
-- The Linux PTY fixture verifies foreground terminal input, Ctrl+C delivery to the child group, and restoration to Hutch afterward; procguard tests cover verified group/descendant cleanup and session identity. An end-to-end `hutch code run` interruption/reconcile test with a controlled fake OpenCode executable remains a follow-up; no live OpenCode process was started.
+- The Linux end-to-end test now launches the real `hutch code run` command against a controlled fake OpenCode executable, verifies its reviewed prompt and isolated worktree, applies a fixture edit, sends Ctrl+C to the foreground group, and checks verified cleanup plus the persisted `stopped` result. The test uses no OpenCode account, network access or model call. A crash-recovery test of `hutch code reconcile` after an abruptly lost Hutch controller remains open; no live OpenCode process was started.
 - Recheck upstream plugin-loading issue against any supported OpenCode version before relaxing the plugin-directory refusal.
 - Treat live account sign-in, provider usage, model selection, command permission UX, and OpenCode's resulting code quality as separate live checks requiring user-owned accounts and budget.
 

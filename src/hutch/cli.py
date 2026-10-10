@@ -96,7 +96,7 @@ def code_run(handoff_id: str = typer.Argument(..., help="Reviewed code task ID f
                                worktree_change_summary, write_task_config, assert_no_project_plugins,
                                spawn_interactive, restore_terminal)
 
-    if not procguard.supported():
+    if not procguard.pidfd_available():
         err.print("This Linux host lacks verified process identity support; the OpenCode task cannot start.",
                   style="red", markup=False)
         raise typer.Exit(2)
@@ -218,6 +218,8 @@ def code_run(handoff_id: str = typer.Argument(..., help="Reviewed code task ID f
             raise typer.Exit(130)
         if exit_code:
             raise typer.Exit(exit_code)
+    except typer.Exit:
+        raise
     except (CodeHandoffError, ValueError, OSError, RuntimeError) as exc:
         err.print(str(exc), style="red", markup=False)
         if task is not None:
