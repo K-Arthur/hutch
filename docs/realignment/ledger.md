@@ -3570,3 +3570,31 @@ The independent all-surface redesign remains scheduled after the incomplete
 functional realignment work. The local implementation and screenshot evidence
 are committed on `main` as `9b02cf4d2405e56245d821c9d49e6fff46298598`. No push or
 publication occurred.
+
+## S5 OpenCode handoff launch and interruption (2026-10-10)
+
+A Linux pseudo-terminal test now drives the actual `hutch code run` entry point with a
+controlled fake OpenCode executable. It verifies the exact reviewed brief is passed,
+the child receives a foreground controlling terminal in its separate process group,
+the current directory is the task's private worktree, and no `--auto` flag appears.
+The fixture edits one tracked file, receives Ctrl+C, exits, and Hutch verifies cleanup,
+restores terminal input, reports exit 130, retains the changed branch, and saves
+`stopped` with one changed file. The public status remains free of host paths; the
+configured source folder is unchanged. No live OpenCode process, provider, network
+request, or model call was used.
+
+The journey exposed three launch defects: `code run` checked for a nonexistent
+`procguard.supported()` instead of the shared `pidfd_available()` guard; the atomic
+claim transitioned the row but failed to return it to the CLI; and `typer.Exit(130)`
+was caught as a generic runtime error and converted to exit 1. These are corrected,
+with explicit propagation for CLI exits and the claimed record returned after the
+transaction commits.
+
+Verification: `.venv/bin/pytest -q tests/test_code_handoff.py tests/test_cli.py
+tests/test_procguard.py tests/test_store.py` passed **42 tests in 13.70s**. This
+includes the fake-CLI terminal interruption, project isolation, process identity,
+CLI, and store regressions; the full repository suite was not rerun. The abrupt
+controller-loss/`hutch code reconcile` path, real OpenCode config loading and live
+account/provider behavior remain unverified. Local implementation and documentation
+are committed on `main` as `0a15635`. Broader S5–S9 work and the requested all-surface
+UI overhaul remain open. No push or publication occurred.
