@@ -3785,3 +3785,17 @@ external requests, provider calls or browser errors. Tests and the updated
 screenshots/visual record are committed locally on `main` as `50cd1e7`. This is
 fixture-only visual evidence, not an application behavior change; no provider,
 screen-reader, or physical-device check occurred.
+
+## Pinned sidebar and current face verification (2026-10-10)
+
+Updated a stale browser assertion from the earlier pale-slit mascot so the
+pinned-roster journey now checks the current paired dark eyes. The same run
+reconfirms that long assistant names are single-line and ellipsized, familiar
+names fit, the selected background reaches the single options button, and
+pin/settings stay grouped. It passed **1 test in 7.75s** with Chromium
+**153.0.8010.12** / Playwright **1.63.0**; desktop, tablet and phone captures
+were inspected individually, including each options menu. Refreshed captures,
+trace and source hashes are in [`artifacts/pinned-roster/`](artifacts/pinned-roster/).
+Test, documentation and evidence are committed locally on `main` as `ba648dd`.
+The roster regression is covered; the full app and marketing redesign remains
+open. No push or publication occurred.
