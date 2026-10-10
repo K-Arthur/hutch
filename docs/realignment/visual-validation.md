@@ -1712,12 +1712,18 @@ saved as `fleet-long-name-phone.png` and `fleet-long-name-compact-phone.png` in
 [`artifacts/ui-surface-review/`](artifacts/ui-surface-review/).
 
 `tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes`
-passed **1 test in 15.84s** with Chromium **153.0.8010.12** / Playwright
+passed **1 test in 16.65s** with Chromium **153.0.8010.12** / Playwright
 **1.63.0**. I inspected desktop, tablet, phone, and the two long-name crops
 individually. Every route and assistant card fit; the browser reported no
 external requests, provider calls, or page errors. Current source hashes,
 responsive captures, and the trace are in the same artifact directory. This is
 fixture evidence; no screen reader or physical phone was tested.
+
+The task-details capture now includes a saved assistant response beside the
+completed user request. I inspected the populated completion on desktop, tablet,
+and phone separately. This response is synthetic fixture content; the browser
+test reads it back from the saved event transcript, and no model or provider is
+called.
 
 The separate Fleet search, pause/resume, and attention-with-approval tests also
 passed **3 cases in 5.92s**. Desktop and phone screenshots show the open and

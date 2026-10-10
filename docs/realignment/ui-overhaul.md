@@ -193,7 +193,7 @@ The independent route capture exposed a real mobile sizing defect: an
 assistant card's minimum-content width reached 617px inside a 390px phone
 viewport while an outer scroller hid the overflow. A card-boundary regression
 now verifies every card fits the viewport at desktop, tablet, phone and
-compact-phone widths. The all-surface Chromium test passed **1 test in 15.84s**;
+compact-phone widths. The all-surface Chromium test passed **1 test in 16.65s**;
 I inspected the roster at desktop, tablet, phone, plus the long-name card on
 phone and compact phone individually. Updated route captures and source hashes
 are in [`artifacts/ui-surface-review/`](artifacts/ui-surface-review/). No
@@ -203,6 +203,12 @@ existing tests were updated to the current **Manage assistants** and **assistant
 labels. Desktop and phone attention captures are in
 [`artifacts/fleet-attention/`](artifacts/fleet-attention/). This improves Fleet
 but leaves the all-surface overhaul open.
+
+The task-details fixture now includes a committed assistant reply with its
+completed run, rather than showing a **Done** state without an answer. Desktop,
+tablet and phone captures were inspected separately; the browser test confirms
+the reply is read from the saved transcript. This is synthetic completion
+content and makes no model or provider call.
 
 ### Next
 

@@ -19,7 +19,7 @@ import pytest
 pw = pytest.importorskip("playwright.sync_api")
 import uvicorn  # noqa: E402
 
-from hutch.models import Bot, Run, RunStatus  # noqa: E402
+from hutch.models import Bot, Event, EventType, Run, RunStatus  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
 
 
@@ -971,6 +971,9 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
         exit_reason="completed",
         finished_at=datetime.now(timezone.utc).isoformat(),
     ))
+    completed_answer = "I reviewed the activity available in this workspace. Nothing needs your attention now."
+    store.append_event(Event(run_id=run.id, type=EventType.message,
+        data={"role": "assistant", "content": completed_answer}))
 
     out = ROOT / "docs/realignment/artifacts/ui-surface-review"
     out.mkdir(parents=True, exist_ok=True)
@@ -1131,12 +1134,14 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                     assert page.locator("#runs-count").inner_text() == "1 result"
                 if surface_name == "run-detail":
                     assert page.get_by_role("heading", name="Task details").is_visible()
+                    assert page.locator("#chat-stream .answer").inner_text() == completed_answer
                     technical_details = page.locator("#run-technical-details")
                     assert technical_details.is_visible() and technical_details.get_attribute("open") is None
                     assert not page.locator("[data-run-integrity-run]").is_visible()
                     assert page.locator("#chat-stream .mrun").count() == 1
                     assert not page.locator("#chat-stream .mrun").is_visible()
                     assert technical_details.locator("summary").inner_text().startswith("More details")
+                    metrics["completionReply"] = completed_answer
                 evidence.append({"surface": surface_name, "size": viewport_name, **metrics})
                 if viewport_name != "compact-phone":
                     page.screenshot(
