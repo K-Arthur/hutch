@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from hutch.google_calendar import OAuthStart
 from hutch.google_mail import GOOGLE_MAIL_SCOPE
 from hutch.models import Bot, InferenceMode
-from hutch.server.app import create_app
+from hutch.server.app import REMOTE_ROUTE_CAPABILITIES, create_app
 
 
 ACCOUNT_ID = "gmail_0123456789abcdef01234567"
@@ -15,6 +15,7 @@ ACCOUNT_ID = "gmail_0123456789abcdef01234567"
 
 class FixtureGoogleMailBook:
     callback_scopes = []
+    constructed_client_ids = []
     accounts_rows = [{"id": ACCOUNT_ID, "label": "Personal Gmail", "created_at": "2026-10-09T00:00:00+00:00",
                       "scopes": [GOOGLE_MAIL_SCOPE], "status": "connected"}]
 
@@ -26,6 +27,7 @@ class FixtureGoogleMailBook:
     def __init__(self, state_dir, client_id):
         self.secrets = self.Secrets()
         self.client_id = client_id
+        type(self).constructed_client_ids.append(client_id)
 
     def accounts(self):
         return list(self.accounts_rows)
@@ -108,6 +110,57 @@ def test_gmail_connection_and_grant_require_local_inference_and_are_revocable(tm
         assert disconnected.status_code == 200
         assert disconnected.json()["provider_revocation"] == "confirmed"
         assert client.app.state.store.list_google_mail_grants() == []
+
+
+def test_google_oauth_client_setup_is_local_persisted_and_environment_managed(tmp_path, monkeypatch):
+    assert REMOTE_ROUTE_CAPABILITIES.get(("GET", "/api/v1/connections/google-oauth-client")) is None
+    assert REMOTE_ROUTE_CAPABILITIES.get(("PUT", "/api/v1/connections/google-oauth-client")) is None
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.delenv("HUTCH_GOOGLE_OAUTH_CLIENT_ID", raising=False)
+    FixtureGoogleMailBook.constructed_client_ids = []
+    app = create_app()
+    with TestClient(app, base_url="http://127.0.0.1:18787") as client:
+        monkeypatch.setattr("hutch.google_mail.GoogleMailBook", FixtureGoogleMailBook)
+        initial = client.get("/api/v1/connections/google-oauth-client")
+        assert initial.status_code == 200
+        assert initial.json() == {
+            "client_id": "", "source": "unset", "editable": True, "configured": False,
+            "valid": False,
+            "detail": "Enter a Google Desktop OAuth client ID ending in .apps.googleusercontent.com.",
+        }
+        invalid = client.put("/api/v1/connections/google-oauth-client", json={"client_id": "not-a-client"})
+        assert invalid.status_code == 422
+
+        saved = client.put("/api/v1/connections/google-oauth-client", json={
+            "client_id": "local-preview.apps.googleusercontent.com"})
+        assert saved.status_code == 200, saved.text
+        assert saved.json()["source"] == "hutch" and saved.json()["editable"] and saved.json()["configured"]
+        assert client.get("/api/connections").json()["google_oauth_client"] == saved.json()
+
+        start = client.post("/api/v1/connections/google-mail/sign-in", json={"label": "Personal Gmail"})
+        assert start.status_code == 200, start.text
+        assert FixtureGoogleMailBook.constructed_client_ids
+        assert set(FixtureGoogleMailBook.constructed_client_ids) == {"local-preview.apps.googleusercontent.com"}
+
+        monkeypatch.setenv("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "invalid-operator-value")
+        malformed_override = client.get("/api/v1/connections/google-oauth-client").json()
+        assert malformed_override["source"] == "environment" and not malformed_override["valid"]
+        assert client.get("/api/v1/connections/google-calendar").json()["configured"] is False
+        assert client.get("/api/v1/connections/google-mail").json()["configured"] is False
+
+        monkeypatch.setenv("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "operator.apps.googleusercontent.com")
+        overridden = client.get("/api/v1/connections/google-oauth-client").json()
+        assert overridden["client_id"] == "operator.apps.googleusercontent.com"
+        assert overridden["source"] == "environment" and not overridden["editable"]
+        assert client.put("/api/v1/connections/google-oauth-client", json={
+            "client_id": "another.apps.googleusercontent.com"}).status_code == 409
+        assert client.delete("/api/v1/connections/google-oauth-client").status_code == 409
+
+    monkeypatch.delenv("HUTCH_GOOGLE_OAUTH_CLIENT_ID", raising=False)
+    reopened = create_app()
+    with TestClient(reopened, base_url="http://127.0.0.1:18787") as client:
+        assert client.get("/api/v1/connections/google-oauth-client").json()["client_id"] == \
+            "local-preview.apps.googleusercontent.com"
 
 
 def test_gmail_callback_strips_authorization_code_from_access_log_scope(tmp_path, monkeypatch):

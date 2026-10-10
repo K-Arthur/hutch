@@ -401,7 +401,8 @@ def test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences(
         page.get_by_role("heading", name="No recurring tasks yet").wait_for()
         assert page.get_by_role("link", name="West Coast Review settings").count() == 1
         assert page.get_by_role("link", name="London Digest settings").count() == 1
-        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
+                                     ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, overflow)
@@ -1574,28 +1575,107 @@ def test_gmail_preview_discloses_restricted_scope_and_requires_local_setup(brows
         assert "account-wide" in text and "cannot send" in text
         assert card.get_by_role("button").count() == 0
         page.locator("#google-mail-access summary").click()
-        assert "unavailable until the hutch operator configures" in card.inner_text().lower()
+        assert "add a valid google desktop oauth client id" in card.inner_text().lower()
+        setup = page.locator("#google-oauth-setup")
+        setup.wait_for()
+        assert setup.get_by_label("Google Desktop OAuth client ID").is_visible()
+        save_button = setup.get_by_role("button", name="Save client ID")
+        assert save_button.is_enabled()
+        assert "never paste a client secret" in setup.inner_text().lower()
+        assert "one client id is shared by calendar" in setup.inner_text().lower()
+        card.get_by_role("button", name="Open Google setup").click()
+        assert page.url.endswith("#/connections")
+        assert page.locator("#google-oauth-client-id").evaluate("element => document.activeElement === element")
         assert card.get_by_role("link", name="Review Google's Gmail scope requirements").count() == 1
         captures = []
-        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
+                                     ("phone", 390, 844), ("compact-phone", 320, 740)):
             page.set_viewport_size({"width": width, "height": height})
+            setup.scroll_into_view_if_needed()
+            if width <= 640:
+                save_box = save_button.bounding_box()
+                assert save_box["y"] >= 76 and save_box["y"] + save_box["height"] <= height
+                assert save_box["height"] >= 44
+                if width <= 360:
+                    assert save_box["height"] == 44
+            page.screenshot(path=str(out / f"client-setup-{label}.png"), animations="disabled")
             card.scroll_into_view_if_needed()
             page.screenshot(path=str(out / f"unconfigured-{label}.png"), animations="disabled")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            captures.append({"size": label, "viewport": [width, height],
+                             "scenes": ["Google client setup", "unconfigured Gmail"],
+                             "horizontal_overflow": overflow})
+        assert not errors, errors
+        assert not external, external
+        (out / "unconfigured-validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_gmail_preview_discloses_restricted_scope_and_requires_local_setup",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "command": ".venv/bin/pytest -q tests/e2e/test_browser.py::test_gmail_preview_discloses_restricted_scope_and_requires_local_setup",
+            "browser": browser.version, "playwright_version": package_version("playwright"),
+            "provider_credentials_used": False, "provider_calls": 0,
+            "scenario": "Private-preview Gmail is labelled experimental; Connections explains restricted gmail.readonly account consent, verification/security assessment and Local-inference-only boundaries; shared Google Desktop client setup is actionable and no Gmail connect control appears until configured",
+            "external_requests": external, "page_errors": errors, "captures": captures,
+            "inspected_screenshots": [f"{scene}-{size}.png" for size in ("desktop", "tablet", "phone", "compact-phone")
+                                      for scene in ("client-setup", "unconfigured")],
+            "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
+                              for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                           "src/hutch/server/app.py", "src/hutch/google_oauth_config.py",
+                                           "src/hutch/google_calendar.py", "docs/connections.md", "docs/requirements.md")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        context.close()
+
+
+def test_google_oauth_environment_override_is_readonly_in_connections(browser, live, monkeypatch):
+    from pathlib import Path
+
+    base, _ = live
+    monkeypatch.setenv("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "operator-preview.apps.googleusercontent.com")
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/google-mail"
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors, external = [], []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(base) else None)
+    try:
+        page.goto(base + "/#/connections")
+        page.get_by_role("heading", name="Connections").wait_for()
+        setup = page.locator("#google-oauth-setup")
+        setup.locator("summary").click()
+        field = setup.get_by_label("Google Desktop OAuth client ID")
+        assert field.input_value() == "operator-preview.apps.googleusercontent.com"
+        assert field.get_attribute("readonly") is not None
+        assert setup.get_by_role("button", name="Save client ID").is_disabled()
+        assert setup.get_by_role("button", name="Clear").is_disabled()
+        assert "managed by the hutch operator" in setup.inner_text().lower()
+        captures = []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
+                                     ("phone", 390, 844), ("compact-phone", 320, 740)):
+            page.set_viewport_size({"width": width, "height": height})
+            setup.scroll_into_view_if_needed()
+            if width <= 640:
+                assert field.bounding_box()["y"] >= 76
+            page.screenshot(path=str(out / f"operator-managed-{label}.png"), animations="disabled")
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, overflow)
             captures.append({"size": label, "viewport": [width, height], "horizontal_overflow": overflow})
         assert not errors, errors
         assert not external, external
-        (out / "unconfigured-validation.json").write_text(json.dumps({
-            "test": "tests/e2e/test_browser.py::test_gmail_preview_discloses_restricted_scope_and_requires_local_setup",
+        (out / "google-oauth-env-validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_google_oauth_environment_override_is_readonly_in_connections",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "command": ".venv/bin/pytest -q tests/e2e/test_browser.py::test_google_oauth_environment_override_is_readonly_in_connections",
             "browser": browser.version, "playwright_version": package_version("playwright"),
             "provider_credentials_used": False, "provider_calls": 0,
-            "scenario": "Private-preview Gmail is labelled experimental; Connections explains restricted gmail.readonly account consent, verification/security assessment and Local-inference-only boundaries; an unconfigured host receives actionable setup details and no dead Connect control",
+            "scenario": "Synthetic operator-managed public Google client ID; field is read-only and cannot be cleared in Hutch; no provider request",
             "external_requests": external, "page_errors": errors, "captures": captures,
-            "inspected_screenshots": [f"unconfigured-{size}.png" for size in ("desktop", "tablet", "phone")],
+            "inspected_screenshots": [f"operator-managed-{size}.png"
+                                      for size in ("desktop", "tablet", "phone", "compact-phone")],
             "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
                               for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
-                                           "src/hutch/server/app.py", "docs/connections.md", "docs/requirements.md")},
+                                           "src/hutch/server/app.py", "src/hutch/google_oauth_config.py")},
         }, indent=2) + "\n", encoding="utf-8")
     finally:
         context.close()
@@ -1609,8 +1689,8 @@ def test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone(browser, l
     from hutch.models import InferenceMode
 
     base, app = live
-    monkeypatch.setenv("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "fixture-client.apps.googleusercontent.com")
     account_id = "gmail_0123456789abcdef01234567"
+    constructed_client_ids = []
 
     class FixtureGoogleMailBook:
         accounts_rows = [{"id": account_id, "label": "Personal Gmail", "created_at": "2026-10-09T00:00:00+00:00",
@@ -1623,6 +1703,7 @@ def test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone(browser, l
 
         def __init__(self, state_dir, client_id):
             self.secrets = self.Secrets()
+            constructed_client_ids.append(client_id)
 
         def accounts(self):
             return list(self.accounts_rows)
@@ -1673,6 +1754,26 @@ def test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone(browser, l
         card = page.locator('[aria-labelledby="google-mail-title"]')
         card.wait_for()
         page.locator("#google-mail-access summary").click()
+        page.locator("#google-oauth-client-id").fill("fixture-client.apps.googleusercontent.com")
+        page.locator("#google-oauth-client-save").click()
+        client_change_review = page.locator(".modal-card[role='dialog']")
+        client_change_review.wait_for()
+        client_review_sizes = []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
+                                     ("phone", 390, 844), ("compact-phone", 320, 740)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.screenshot(path=str(out / f"client-change-review-{label}.png"), animations="disabled")
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+            if width <= 640:
+                assert page.get_by_role("button", name="Save new ID").bounding_box()["height"] >= 44
+            client_review_sizes.append({"size": label, "viewport": [width, height]})
+        page.set_viewport_size({"width": 1440, "height": 960})
+        page.get_by_role("button", name="Save new ID").click()
+        page.get_by_text("Ready for Google sign-in.", exact=True).wait_for()
+        page.locator("#google-mail-connect").wait_for(state="visible")
+        assert app.state.store.kv_get("connections:google_oauth_client_id") == \
+            "fixture-client.apps.googleusercontent.com"
+        page.get_by_role("button", name="Dismiss notification").first.click()
         page.get_by_role("button", name="Connect Gmail").wait_for()
         page.locator("#google-mail-label").fill("Work")
         page.get_by_role("button", name="Connect Gmail").click()
@@ -1682,6 +1783,7 @@ def test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone(browser, l
         destination = urlsplit(oauth["url"])
         assert destination.scheme == "https" and destination.hostname == "accounts.google.com"
         assert destination.path == "/o/oauth2/v2/auth" and parse_qs(destination.query)["state"] == ["fixture"]
+        assert "fixture-client.apps.googleusercontent.com" in constructed_client_ids
         page.get_by_role("button", name="Dismiss notification").click()
 
         account = page.locator(f'[data-google-mail-account="{account_id}"]')
@@ -1717,13 +1819,17 @@ def test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone(browser, l
             "provider_credentials_used": False, "provider_calls": 0,
             "scenario": "Synthetic connected Gmail account; local grant is persisted only for a loopback Local-inference Bot; hybrid Bot is absent; fixed Google OAuth destination is opened with no opener; no external network requests",
             "external_requests": external, "page_errors": errors, "captures": captures,
+            "client_change_review": client_review_sizes,
             "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
                               for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                            "src/hutch/server/app.py", "src/hutch/server/security.py", "src/hutch/store.py",
                                            "src/hutch/google_calendar.py", "src/hutch/google_mail.py",
+                                           "src/hutch/google_oauth_config.py", "src/hutch/tools/google_calendar.py",
                                            "src/hutch/tools/google_mail.py")},
             "inspected_screenshots": [f"gmail-overview-{size}.png" for size in ("desktop", "tablet", "phone")]
-                                      + [f"gmail-granted-{size}.png" for size in ("desktop", "tablet", "phone")],
+                                      + [f"gmail-granted-{size}.png" for size in ("desktop", "tablet", "phone")]
+                                      + [f"client-change-review-{size}.png" for size in
+                                         ("desktop", "tablet", "phone", "compact-phone")],
         }, indent=2) + "\n", encoding="utf-8")
     finally:
         try:

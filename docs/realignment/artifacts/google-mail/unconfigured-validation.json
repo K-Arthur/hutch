@@ -1,10 +1,12 @@
 {
   "test": "tests/e2e/test_browser.py::test_gmail_preview_discloses_restricted_scope_and_requires_local_setup",
+  "captured_at": "2026-10-10T07:44:46.359955+00:00",
+  "command": ".venv/bin/pytest -q tests/e2e/test_browser.py::test_gmail_preview_discloses_restricted_scope_and_requires_local_setup",
   "browser": "153.0.8010.12",
   "playwright_version": "1.63.0",
   "provider_credentials_used": false,
   "provider_calls": 0,
-  "scenario": "Private-preview Gmail is labelled experimental; Connections explains restricted gmail.readonly account consent, verification/security assessment and Local-inference-only boundaries; an unconfigured host receives actionable setup details and no dead Connect control",
+  "scenario": "Private-preview Gmail is labelled experimental; Connections explains restricted gmail.readonly account consent, verification/security assessment and Local-inference-only boundaries; shared Google Desktop client setup is actionable and no Gmail connect control appears until configured",
   "external_requests": [],
   "page_errors": [],
   "captures": [
@@ -14,6 +16,10 @@
         1440,
         960
       ],
+      "scenes": [
+        "Google client setup",
+        "unconfigured Gmail"
+      ],
       "horizontal_overflow": 0
     },
     {
@@ -21,6 +27,10 @@
       "viewport": [
         900,
         1024
+      ],
+      "scenes": [
+        "Google client setup",
+        "unconfigured Gmail"
       ],
       "horizontal_overflow": 0
     },
@@ -30,19 +40,42 @@
         390,
         844
       ],
+      "scenes": [
+        "Google client setup",
+        "unconfigured Gmail"
+      ],
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "scenes": [
+        "Google client setup",
+        "unconfigured Gmail"
+      ],
       "horizontal_overflow": 0
     }
   ],
   "inspected_screenshots": [
+    "client-setup-desktop.png",
     "unconfigured-desktop.png",
+    "client-setup-tablet.png",
     "unconfigured-tablet.png",
-    "unconfigured-phone.png"
+    "client-setup-phone.png",
+    "unconfigured-phone.png",
+    "client-setup-compact-phone.png",
+    "unconfigured-compact-phone.png"
   ],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
-    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
-    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
-    "docs/connections.md": "4b9ff04ea781221b8b484f75075690d3b3f026f0d6fe7392368a64ec104fbd58",
-    "docs/requirements.md": "057120fac2792ed364b18ddcd60d592205c6d85a58142a09a94245eac9f50a12"
+    "src/hutch/server/static/app.js": "55773656fcf1f943f0d18cf6d1898b2d35b2eece545c5725bc4d391fff713686",
+    "src/hutch/server/static/style.css": "f78e415560c31ecfdfa86cdb9af8589f9650ea5391353232441e762b461c2c47",
+    "src/hutch/server/app.py": "4905a2a1ca15fe174ddc60225634e75de50937c63b73cd9c464f8e9c5b94ddaa",
+    "src/hutch/google_oauth_config.py": "ef9e692f11939c27570ea97db0f0a4f64892bfbb7f5f3b41521b9dfaeed4c644",
+    "src/hutch/google_calendar.py": "cbeb8b8c0cbe74aa50e4733f4649be04571a6e345822a1fe514110cfe3727027",
+    "docs/connections.md": "79131e375ca9baf8a9fa8d7673f0b8e179724d123199781288be6bde501f9ad3",
+    "docs/requirements.md": "53556ec5e0748b09ceb89e7c2d8ec2253ebc5c0da231dfaecc9e0936f19cfddb"
   }
 }

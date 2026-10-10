@@ -2,13 +2,16 @@
 
 ## Google Calendar event lookup (experimental, local setup required)
 
-Hutch implements read-only Google Calendar lookup for the built-in runtime. It remains unavailable
-by default: the Hutch operator must configure a Google Desktop OAuth client, enable the Calendar
-API, and run a Linux desktop session with an unlocked Secret Service. A real Google account was
-not used in local verification; Google consent-screen verification and public eligibility are not
-claimed. See IG-5 in [requirements](requirements.md#connections-and-integrations-added-at-the-product-owners-request-2026-10-07).
+Hutch implements read-only Google Calendar lookup for the built-in runtime. In Connections, enter
+the public client ID for an OAuth client of type **Desktop app**, then enable the Calendar API in
+the Google Cloud project. The ID is shared with the separate Gmail preview; do not enter a client
+secret or token. Hutch stores this non-secret setting in its local SQLite configuration. Operators
+can instead set `HUTCH_GOOGLE_OAUTH_CLIENT_ID` before starting Hutch; that value takes precedence
+and the Connections field becomes read-only. A real Google account was not used in local
+verification; Google consent-screen verification and public eligibility are not claimed. See IG-5
+in [requirements](requirements.md#connections-and-integrations-added-at-the-product-owners-request-2026-10-07).
 
-Set `HUTCH_GOOGLE_OAUTH_CLIENT_ID` before starting Hutch. Sign in from the Hutch host at
+Sign in from the Hutch host at
 `http://127.0.0.1:<port>` on the Connections page; Hutch opens Google in a separate browser tab.
 Finish consent in that tab, then return to the original Hutch tab and reload Connections. The
 installed-app flow uses authorization code
@@ -36,10 +39,12 @@ CLI auth files, or another product's private sign-in state.
 
 Hutch has an owner-configured, read-only Gmail search path for private preview. This does not make
 Gmail available in a public release: `gmail.readonly` is a restricted, account-wide OAuth scope.
-Google's OAuth project must enable the Gmail API and use a Desktop OAuth client. Set
-`HUTCH_GOOGLE_OAUTH_CLIENT_ID`, then run Hutch in a Linux desktop session with an unlocked Secret
-Service. Start sign-in from the Hutch host at `http://127.0.0.1:<port>` on Connections. The local
-installed-app flow uses authorization code with PKCE; Linux Secret Service stores refresh tokens,
+In Google Cloud, enable the Gmail API and add the owner's account as a test user while the OAuth
+consent screen is in Testing. Enter the public Desktop OAuth client ID in the shared Google setup
+section in Connections, or let the operator set `HUTCH_GOOGLE_OAUTH_CLIENT_ID` before startup.
+Run Hutch in a Linux desktop session with an unlocked Secret Service. Start sign-in from the Hutch
+host at `http://127.0.0.1:<port>` on Connections. The local installed-app flow uses authorization
+code with PKCE; Linux Secret Service stores refresh tokens,
 access tokens stay in process memory, and SQLite/browser storage never receive the tokens. The
 callback is one-use, expires after ten minutes, and has authorization query fields removed before
 access logging.

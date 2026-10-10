@@ -38,6 +38,9 @@ from .. import __version__
 from ..approvals import resolve_approval, resolve_approval_ex
 from ..action_receipts import ActionConflict
 from ..fact_memory import FactConflict
+from ..google_oauth_config import (GOOGLE_OAUTH_CLIENT_ID_KEY, GOOGLE_OAUTH_CLIENT_ID_PATTERN,
+                                   google_oauth_client_settings, resolve_google_oauth_client_id,
+                                   valid_google_oauth_client_id)
 from ..config import get_config
 from ..durable_changes import SnapshotRequired
 from ..engine import Engine, bot_prompt_for_schedule
@@ -1279,6 +1282,27 @@ class GoogleCalendarResource(BaseModel):
     grants: list[GoogleCalendarGrantResource]
 
 
+class GoogleOAuthClientSettingsResource(BaseModel):
+    client_id: str
+    source: Literal["environment", "hutch", "unset"]
+    editable: bool
+    configured: bool
+    valid: bool
+    detail: str
+
+
+class GoogleOAuthClientUpdateRequest(BaseModel):
+    client_id: str = Field(min_length=1, max_length=512, pattern=GOOGLE_OAUTH_CLIENT_ID_PATTERN)
+
+    @field_validator("client_id")
+    @classmethod
+    def validate_client_id(cls, value: str) -> str:
+        normalized = value.strip()
+        if not valid_google_oauth_client_id(normalized):
+            raise ValueError("Enter a Google Desktop OAuth client ID ending in .apps.googleusercontent.com")
+        return normalized
+
+
 class GoogleCalendarCalendarResource(BaseModel):
     id: str
     name: str
@@ -1510,6 +1534,9 @@ def create_app() -> FastAPI:
         if bot is None:
             raise HTTPException(404, f"no such bot: {ref}")
         return bot
+
+    def effective_google_oauth_client_id() -> str:
+        return resolve_google_oauth_client_id(store)[0]
 
     def is_paired_phone(request: Request) -> bool:
         principal = getattr(request.state, "hutch_principal", None)
@@ -4014,20 +4041,22 @@ def create_app() -> FastAPI:
                      for k, v in book.templates().items()]
         accounts = ChatGPTAuthBook(config.state_dir).accounts()
         from ..google_calendar import GoogleCalendarBook
-        calendar_book = GoogleCalendarBook(config.state_dir, os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", ""))
+        calendar_book = GoogleCalendarBook(config.state_dir, effective_google_oauth_client_id())
         from ..google_mail import GoogleMailBook
-        google_mail_book = GoogleMailBook(config.state_dir, os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", ""))
+        google_mail_book = GoogleMailBook(config.state_dir, effective_google_oauth_client_id())
+        google_oauth = google_oauth_client_settings(store)
         from ..outlook_calendar import OutlookCalendarBook
         outlook_book = OutlookCalendarBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
         from ..outlook_mail import OutlookMailBook
         outlook_mail_book = OutlookMailBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
         return {"connections": out, "templates": templates, "errors": book.errors,
                 "chatgpt_enabled": chatgpt_plan_signin_enabled(), "chatgpt_accounts": accounts,
-                "google_calendar": {"configured": bool(os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "").strip()),
+                "google_oauth_client": google_oauth,
+                "google_calendar": {"configured": google_oauth["configured"],
                                     "secret_store_available": calendar_book.secrets.available(),
                                     "accounts": calendar_book.accounts(),
                                     "grants": store.list_google_calendar_grants()},
-                "google_mail": {"configured": bool(os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "").strip()),
+                "google_mail": {"configured": google_oauth["configured"],
                                 "secret_store_available": google_mail_book.secrets.available(),
                                 "accounts": google_mail_book.accounts(),
                                 "grants": store.list_google_mail_grants()},
@@ -4040,19 +4069,39 @@ def create_app() -> FastAPI:
                                  "accounts": outlook_mail_book.accounts(),
                                  "grants": store.list_outlook_mail_grants()}}
 
+    @app.get("/api/v1/connections/google-oauth-client", response_model=GoogleOAuthClientSettingsResource)
+    def google_oauth_client_settings_get() -> dict:
+        return google_oauth_client_settings(store)
+
+    @app.put("/api/v1/connections/google-oauth-client", response_model=GoogleOAuthClientSettingsResource)
+    def google_oauth_client_settings_update(body: GoogleOAuthClientUpdateRequest) -> dict:
+        _client_id, source = resolve_google_oauth_client_id(store)
+        if source == "environment":
+            raise HTTPException(409, "Google OAuth client ID is managed by the Hutch operator environment")
+        store.kv_set(GOOGLE_OAUTH_CLIENT_ID_KEY, body.client_id)
+        return google_oauth_client_settings(store)
+
+    @app.delete("/api/v1/connections/google-oauth-client", response_model=GoogleOAuthClientSettingsResource)
+    def google_oauth_client_settings_clear() -> dict:
+        _client_id, source = resolve_google_oauth_client_id(store)
+        if source == "environment":
+            raise HTTPException(409, "Google OAuth client ID is managed by the Hutch operator environment")
+        store.kv_set(GOOGLE_OAUTH_CLIENT_ID_KEY, "")
+        return google_oauth_client_settings(store)
+
     @app.get("/api/v1/connections/google-calendar", response_model=GoogleCalendarResource)
     def google_calendar_connections() -> dict:
         from ..google_calendar import GoogleCalendarBook
-        client_id = os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "")
+        client_id = effective_google_oauth_client_id()
         book = GoogleCalendarBook(config.state_dir, client_id)
-        return {"configured": bool(client_id.strip()), "secret_store_available": book.secrets.available(),
+        return {"configured": valid_google_oauth_client_id(client_id), "secret_store_available": book.secrets.available(),
                 "accounts": book.accounts(), "grants": store.list_google_calendar_grants()}
 
     @app.post("/api/v1/connections/google-calendar/sign-in", response_model=GoogleCalendarAuthorizationResource)
     def google_calendar_sign_in(request: Request, body: GoogleCalendarSignInRequest, response: Response) -> dict:
         from ..google_calendar import GoogleCalendarBook, GoogleCalendarError
         try:
-            book = GoogleCalendarBook(config.state_dir, os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", ""))
+            book = GoogleCalendarBook(config.state_dir, effective_google_oauth_client_id())
             callback = book.callback_uri(request)
             result = book.start(body.label, callback)
         except GoogleCalendarError as exc:
@@ -4065,7 +4114,7 @@ def create_app() -> FastAPI:
     def google_calendar_calendars(account_id: str) -> dict:
         from ..google_calendar import GoogleCalendarBook, GoogleCalendarError
         try:
-            book = GoogleCalendarBook(config.state_dir, os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", ""))
+            book = GoogleCalendarBook(config.state_dir, effective_google_oauth_client_id())
             return {"calendars": book.list_calendars(account_id)}
         except GoogleCalendarError as exc:
             raise HTTPException(422, str(exc)) from None
@@ -4077,7 +4126,7 @@ def create_app() -> FastAPI:
         if bot is None:
             raise HTTPException(404, "No Bot with that name or ID exists")
         try:
-            book = GoogleCalendarBook(config.state_dir, os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", ""))
+            book = GoogleCalendarBook(config.state_dir, effective_google_oauth_client_id())
             calendars = book.list_calendars(body.account_id)
         except GoogleCalendarError as exc:
             raise HTTPException(422, str(exc)) from None
@@ -4108,7 +4157,7 @@ def create_app() -> FastAPI:
         store.remove_google_calendar_account_grants(account_id)
         try:
             result = GoogleCalendarBook(config.state_dir,
-                os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "")).disconnect(account_id)
+                effective_google_oauth_client_id()).disconnect(account_id)
         except GoogleCalendarError as exc:
             raise HTTPException(422, str(exc)) from None
         if not result["removed"]:
@@ -4132,7 +4181,7 @@ def create_app() -> FastAPI:
                 values[key] = entries[0] if entries else ""
             if not values["state"]:
                 raise GoogleCalendarError("Google did not return sign-in state; start again")
-            book = GoogleCalendarBook(config.state_dir, os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", ""))
+            book = GoogleCalendarBook(config.state_dir, effective_google_oauth_client_id())
             if values["error"]:
                 book.cancel(values["state"])
                 raise GoogleCalendarError("Google Calendar access was not granted; no account was connected")
@@ -4149,9 +4198,9 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/connections/google-mail", response_model=GoogleMailResource)
     def google_mail_connections() -> dict:
         from ..google_mail import GoogleMailBook
-        client_id = os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "")
+        client_id = effective_google_oauth_client_id()
         book = GoogleMailBook(config.state_dir, client_id)
-        return {"configured": bool(client_id.strip()), "secret_store_available": book.secrets.available(),
+        return {"configured": valid_google_oauth_client_id(client_id), "secret_store_available": book.secrets.available(),
                 "accounts": book.accounts(), "grants": store.list_google_mail_grants()}
 
     @app.post("/api/v1/connections/google-mail/sign-in", response_model=GoogleMailAuthorizationResource)
@@ -4159,7 +4208,7 @@ def create_app() -> FastAPI:
         from ..google_mail import GoogleMailBook
         from ..google_calendar import GoogleCalendarError
         try:
-            book = GoogleMailBook(config.state_dir, os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", ""))
+            book = GoogleMailBook(config.state_dir, effective_google_oauth_client_id())
             result = book.start(body.label, book.callback_uri(request))
         except GoogleCalendarError as exc:
             raise HTTPException(409, str(exc)) from None
@@ -4180,7 +4229,7 @@ def create_app() -> FastAPI:
             raise HTTPException(409, str(exc)) from None
         try:
             account = GoogleMailBook(config.state_dir,
-                os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", ""))._account(body.account_id)
+                effective_google_oauth_client_id())._account(body.account_id)
         except GoogleCalendarError as exc:
             raise HTTPException(422, str(exc)) from None
         if GOOGLE_MAIL_SCOPE not in account.get("scopes", []):
@@ -4205,7 +4254,7 @@ def create_app() -> FastAPI:
         from ..google_calendar import GoogleCalendarError
         try:
             result = GoogleMailBook(config.state_dir,
-                os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "")).disconnect(account_id)
+                effective_google_oauth_client_id()).disconnect(account_id)
         except GoogleCalendarError as exc:
             raise HTTPException(422, str(exc)) from None
         if not result["removed"]:
@@ -4230,7 +4279,7 @@ def create_app() -> FastAPI:
                 values[key] = entries[0] if entries else ""
             if not values["state"]:
                 raise GoogleCalendarError("Google did not return sign-in state; start again")
-            book = GoogleMailBook(config.state_dir, os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", ""))
+            book = GoogleMailBook(config.state_dir, effective_google_oauth_client_id())
             if values["error"]:
                 book.cancel(values["state"])
                 raise GoogleCalendarError("Gmail access was not granted; no account was connected")

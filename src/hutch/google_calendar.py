@@ -29,6 +29,8 @@ from urllib.parse import quote, urlencode, urlsplit
 
 import httpx
 
+from .google_oauth_config import valid_google_oauth_client_id
+
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 REVOKE_URL = "https://oauth2.googleapis.com/revoke"
@@ -185,8 +187,6 @@ class GoogleCalendarBook:
         self.accounts_path = self.root / "accounts.json"
         self.lock_path = self.root / ".lock"
         self.client_id = str(client_id or "").strip()
-        if len(self.client_id) > 512 or any(ord(c) < 32 for c in self.client_id):
-            raise GoogleCalendarError("Set HUTCH_GOOGLE_OAUTH_CLIENT_ID to a Google Desktop OAuth client ID")
         self.secrets = secrets_store or self.secret_store_type()
         self.transport = transport
         self.clock = clock
@@ -240,8 +240,8 @@ class GoogleCalendarBook:
         return f"http://127.0.0.1:{port}{cls.callback_path}"
 
     def _require_client_id(self) -> None:
-        if not self.client_id:
-            raise GoogleCalendarError(f"{self.feature_name} is not configured; set {self.client_id_env} to a Google Desktop OAuth client ID and restart Hutch")
+        if not valid_google_oauth_client_id(self.client_id):
+            raise GoogleCalendarError(f"{self.feature_name} is not configured with a valid Google Desktop OAuth client ID; check Connections")
 
     def start(self, label: str, redirect_uri: str) -> OAuthStart:
         self._require_client_id()

@@ -5769,6 +5769,10 @@ async function renderConnections() {
   setTopContext(`<div class="ctx-id"><h1>Connections</h1></div>
     <div class="ctx-actions"><button class="btn primary small" id="btn-add-conn">${icon("plus")} Add connection</button></div>`);
   const conns = data.connections || [];
+  const googleOAuthClient = data.google_oauth_client || {
+    client_id: "", source: "unset", editable: true, configured: false, valid: false,
+    detail: "Enter a Google Desktop OAuth client ID ending in .apps.googleusercontent.com.",
+  };
   const googleCalendar = data.google_calendar || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const googleMail = data.google_mail || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const googleMailBots = bots.filter(bot => bot.inference_mode === "local");
@@ -5779,6 +5783,7 @@ async function renderConnections() {
   const outlookCalendarAccessOpen = $("#outlook-calendar-access")?.open || false;
   const outlookMailAccessOpen = $("#outlook-mail-access")?.open || false;
   const googleMailAccessOpen = $("#google-mail-access")?.open || false;
+  const googleOAuthSetupOpen = $("#google-oauth-setup")?.open ?? !googleOAuthClient.configured;
   const googleCalendarAccountsHtml = (googleCalendar.accounts || []).map(account => {
     const grants = (googleCalendar.grants || []).filter(grant => grant.account_id === account.id);
     const grantRows = grants.length ? grants.map(grant => `
@@ -5916,7 +5921,25 @@ async function renderConnections() {
           <span class="tag">read only</span><span class="tag">local desktop sign in</span></div>
         <p class="hint">Connect with Google's official installed-app flow. Hutch can list calendars and read events only. Grant one calendar to one Bot; matching event titles, times and locations go to that Bot's selected model and remain in its run history. Descriptions and attendee details are not included.</p>
         <p class="hint"><strong>Google permission:</strong> Google's OAuth grant is read-only at the account level; Hutch exposes only the calendar you select to each Bot. Calendar content is untrusted and cannot approve actions.</p>
-        ${!googleCalendar.configured ? '<p class="hint" role="status">Unavailable until the Hutch operator configures <code>HUTCH_GOOGLE_OAUTH_CLIENT_ID</code> with a Google Desktop OAuth client and enables the Calendar API.</p>' : ''}
+        <details class="google-oauth-setup" id="google-oauth-setup" ${googleOAuthSetupOpen ? "open" : ""}>
+          <summary>Google account setup <span class="chip ${googleOAuthClient.configured ? "ok" : "warn"}">${googleOAuthClient.configured ? "client ready" : "setup needed"}</span></summary>
+          <div class="google-oauth-setup-body">
+            <p class="hint">Use a Google Cloud OAuth client of type <strong>Desktop app</strong>. Enable the Calendar API or Gmail API for each service you plan to use, then enter its public client ID. Never paste a client secret or access token.</p>
+            <label class="field" for="google-oauth-client-id">Google Desktop OAuth client ID
+              <input id="google-oauth-client-id" type="text" maxlength="512" autocomplete="off" spellcheck="false"
+                value="${esc(googleOAuthClient.client_id || "")}" placeholder="your-client-id.apps.googleusercontent.com"
+                aria-describedby="google-oauth-client-help" ${googleOAuthClient.editable ? "" : "readonly"}>
+            </label>
+            <div class="google-oauth-setup-actions">
+              <button class="btn primary small" id="google-oauth-client-save" type="button" ${googleOAuthClient.editable ? "" : "disabled"}>Save client ID</button>
+              <button class="btn ghost small" id="google-oauth-client-clear" type="button" ${googleOAuthClient.editable && googleOAuthClient.source === "hutch" ? "" : "disabled"}>Clear</button>
+              <span class="hint">${googleOAuthClient.source === "environment" ? "Managed by the Hutch operator; change the environment setting and restart to update it." : googleOAuthClient.source === "hutch" ? "Saved on this Hutch only." : "Not saved yet."}</span>
+            </div>
+            <p class="hint" id="google-oauth-client-help">This one client ID is shared by Calendar and the separate Gmail preview. Gmail test-user and restricted-scope requirements are described below.</p>
+            <p class="hint" role="status" aria-live="polite" tabindex="-1" id="google-oauth-client-status">${esc(googleOAuthClient.detail || "")}</p>
+          </div>
+        </details>
+        ${!googleCalendar.configured ? '<p class="hint" role="status">Add a valid Google Desktop OAuth client ID above and enable the Calendar API in Google Cloud to connect a calendar.</p>' : ''}
         ${googleCalendar.configured && !googleCalendar.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting an account. Hutch never stores refresh tokens in SQLite or browser storage.</p>' : ''}
         <div class="google-calendar-connect">
           <label class="field" for="google-calendar-label">Account label
@@ -5936,14 +5959,14 @@ async function renderConnections() {
         <p class="hint"><a href="https://developers.google.com/workspace/gmail/api/auth/scopes" target="_blank" rel="noopener noreferrer">Review Google's Gmail scope requirements</a> · <a href="https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification" target="_blank" rel="noopener noreferrer">Review restricted-scope verification</a>.</p>
         <details class="outlook-calendar-details" id="google-mail-access" ${googleMailAccessOpen ? "open" : ""}>
           <summary>Manage Gmail access</summary>
-          ${!googleMail.configured ? '<p class="hint" role="status">Unavailable until the Hutch operator configures <code>HUTCH_GOOGLE_OAUTH_CLIENT_ID</code> with an eligible Google Desktop OAuth client. This requests restricted <code>gmail.readonly</code> consent, separately from Calendar.</p>' : ''}
+          ${!googleMail.configured ? '<p class="hint" role="status">Add a valid Google Desktop OAuth client ID in the shared setup above. <button class="inline-link" type="button" data-google-oauth-setup-link>Open Google setup</button> Gmail asks for restricted <code>gmail.readonly</code> consent, separately from Calendar.</p>' : ''}
           ${googleMail.configured && !googleMail.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting. Refresh tokens stay outside SQLite and browser storage.</p>' : ''}
           ${googleMail.configured && googleMail.secret_store_available ? `<div class="google-calendar-connect outlook-calendar-connect">
             <label class="field" for="google-mail-label">Account label
               <input id="google-mail-label" type="text" maxlength="80" autocomplete="off" placeholder="Personal or Work" aria-describedby="google-mail-label-help">
             </label>
             <button class="btn primary small" id="google-mail-connect" type="button">Connect Gmail</button>
-            <p class="hint" id="google-mail-label-help">Sign in from this Hutch host at <code>127.0.0.1</code>. Google's restricted-scope verification, test-user and token-expiry rules still apply to your OAuth project.</p>
+            <p class="hint" id="google-mail-label-help">Sign in from this Hutch host at <code>127.0.0.1</code>. A project in Testing is limited to 100 listed users, and test-user refresh tokens expire after seven days. Google's restricted-scope review rules still apply.</p>
           </div>` : ''}
           ${googleMailAccountsHtml || '<p class="hint">No Gmail accounts connected.</p>'}
           ${orphanGoogleMailGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A Bot grant refers to a disconnected Gmail account. Revoke it before reconnecting.</p>${orphanGoogleMailGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Gmail search access</p></div><button class="btn ghost small" data-google-mail-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ''}
@@ -6087,6 +6110,69 @@ async function renderConnections() {
         toast(err.message, true);
       }
     });
+  });
+
+  const saveGoogleOAuthClient = async () => {
+    const input = $("#google-oauth-client-id");
+    const status = $("#google-oauth-client-status");
+    const button = $("#google-oauth-client-save");
+    const clientId = input?.value.trim() || "";
+    if (!clientId) {
+      status.textContent = "Enter a Google Desktop OAuth client ID.";
+      input?.focus();
+      return;
+    }
+    const hasConnectedAccounts = (googleCalendar.accounts || []).length + (googleMail.accounts || []).length > 0;
+    if (hasConnectedAccounts && clientId !== googleOAuthClient.client_id && !(await confirmDialog({
+      title: "Change Google OAuth client",
+      body: "Existing Google accounts stay on this Hutch, but Google may require you to disconnect and sign in again with the new client ID.",
+      confirmText: "Save new ID",
+    }))) return;
+    button.disabled = true;
+    status.textContent = "Saving the Google client ID on this Hutch…";
+    try {
+      await api("/v1/connections/google-oauth-client", { method: "PUT", body: { client_id: clientId } });
+      toast("Google OAuth client ID saved on this Hutch.");
+      await renderConnections();
+      $("#google-oauth-client-status")?.focus({ preventScroll: true });
+    } catch (err) {
+      status.textContent = err.message;
+      button.disabled = false;
+    }
+  };
+  $("#google-oauth-client-save")?.addEventListener("click", saveGoogleOAuthClient);
+  $("#google-oauth-client-id")?.addEventListener("keydown", event => {
+    if (event.key === "Enter" && !$("#google-oauth-client-save")?.disabled) {
+      event.preventDefault();
+      saveGoogleOAuthClient();
+    }
+  });
+  $("#google-oauth-client-clear")?.addEventListener("click", async event => {
+    const button = event.currentTarget;
+    const status = $("#google-oauth-client-status");
+    const hasConnectedAccounts = (googleCalendar.accounts || []).length + (googleMail.accounts || []).length > 0;
+    const body = hasConnectedAccounts
+      ? "This clears Hutch's saved client ID. Connected account records remain, but sign-in and token refresh may stop until you save the same or a compatible client ID again. Disconnect accounts first if you want them removed."
+      : "This removes the Google client ID saved on this Hutch.";
+    if (!(await confirmDialog({ title: "Clear Google OAuth client", body, confirmText: "Clear client ID", danger: true }))) return;
+    button.disabled = true;
+    status.textContent = "Clearing the saved Google client ID…";
+    try {
+      await api("/v1/connections/google-oauth-client", { method: "DELETE" });
+      toast("Google OAuth client ID cleared.");
+      await renderConnections();
+      $("#google-oauth-client-status")?.focus({ preventScroll: true });
+    } catch (err) {
+      status.textContent = err.message;
+      button.disabled = false;
+    }
+  });
+  $("[data-google-oauth-setup-link]")?.addEventListener("click", () => {
+    const setup = $("#google-oauth-setup");
+    if (!setup) return;
+    setup.open = true;
+    setup.scrollIntoView({ behavior: "auto", block: "center" });
+    $("#google-oauth-client-id")?.focus({ preventScroll: true });
   });
 
   $("#google-calendar-connect")?.addEventListener("click", async event => {

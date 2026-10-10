@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import html
 import json
-import os
 
 from ..google_calendar import GoogleCalendarError
+from ..google_oauth_config import resolve_google_oauth_client_id
 from ..google_mail import GoogleMailBook, validate_local_gmail_bot
 from .base import Tool, ToolContext, ToolResult, _schema
 
@@ -39,8 +39,7 @@ class GoogleMailSearchTool(Tool):
         if not grant or grant.get("account_id") != self.grant.get("account_id"):
             return ToolResult(False, "Gmail access was removed or changed; review this Bot's Connections grant.")
         try:
-            book = GoogleMailBook(ctx.config.state_dir,
-                                  os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", ""))
+            book = GoogleMailBook(ctx.config.state_dir, resolve_google_oauth_client_id(ctx.store)[0])
             messages = book.list_messages(grant["account_id"], args["query"], limit=10)
         except GoogleCalendarError as exc:
             return ToolResult(False, str(exc))

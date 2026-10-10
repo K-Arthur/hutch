@@ -64,6 +64,7 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ## [Unreleased]
 
+- Connections can now save a public Google Desktop OAuth client ID locally for both Calendar and the Gmail private preview. The operator environment setting remains authoritative and read-only in the UI; credentials and OAuth tokens are never accepted by this setting. API persistence, environment precedence, fixture sign-in, and responsive setup screens are covered without a live Google account.
 - Schema v41 adds an owner-managed, empty-by-default specialist roster for coordinator tasks. Settings save the roster, the dispatch review lists only approved Bots, and storage rechecks membership atomically. Promoting a specialist removes it from the list without automatically approving the former coordinator; removing approval leaves existing tasks and history intact. API, migration, direct-dispatch and responsive browser coverage were added.
 - Guided Bot setup now validates and previews a versioned YAML configuration and can download the unsaved draft for review. The
   preview uses the Bot-creation validator, creates no Bot or run, and excludes provider endpoint URLs, local folder paths, and

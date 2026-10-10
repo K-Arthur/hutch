@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import html
 import json
-import os
 
 from ..google_calendar import GoogleCalendarBook, GoogleCalendarError
+from ..google_oauth_config import resolve_google_oauth_client_id
 from .base import Tool, ToolContext, ToolResult, _schema
 
 
@@ -40,8 +40,7 @@ class GoogleCalendarEventsTool(Tool):
                             for key in ("account_id", "calendar_id", "calendar_name")):
             return ToolResult(False, "Google Calendar access was removed or changed; ask the owner to review this Bot's Connections grant.")
         try:
-            book = GoogleCalendarBook(ctx.config.state_dir,
-                                      os.environ.get("HUTCH_GOOGLE_OAUTH_CLIENT_ID", ""))
+            book = GoogleCalendarBook(ctx.config.state_dir, resolve_google_oauth_client_id(ctx.store)[0])
             events = book.list_events(grant["account_id"], grant["calendar_id"], args["time_min"],
                                       args["time_max"], query=args.get("query", ""), limit=25)
         except GoogleCalendarError as exc:

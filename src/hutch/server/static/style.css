@@ -1148,6 +1148,15 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .conn-card button:disabled, .conn button:disabled {
   background: var(--raised); border-color: var(--line-strong); color: var(--text-3); cursor: not-allowed;
 }
+.google-oauth-setup { margin: var(--s-3) 0; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface); }
+.google-oauth-setup > summary { display: flex; align-items: center; gap: var(--s-2); min-height: 44px; padding: 6px var(--s-3); cursor: pointer; font-weight: 650; }
+.google-oauth-setup > summary .chip { margin-left: auto !important; }
+.google-oauth-setup-body { display: grid; gap: var(--s-2); padding: 0 var(--s-3) var(--s-3); }
+.google-oauth-setup-body > .hint { margin: 0; }
+.google-oauth-setup-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-2); }
+.google-oauth-setup-actions .hint { flex: 1 1 220px; margin: 0; }
+button.inline-link { appearance: none; border: 0; padding: 0; background: transparent; color: var(--focus); font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+button.inline-link:hover { color: var(--text); }
 .google-calendar-connect { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--s-3); padding: var(--s-3) 0; }
 .google-calendar-connect .hint { grid-column: 1 / -1; margin: 0; }
 .google-calendar-account { min-width: 0; margin-top: var(--s-3); padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-card); background: var(--panel); }
@@ -1161,6 +1170,13 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
   .google-calendar-connect, .google-calendar-grant-form { grid-template-columns: minmax(0, 1fr); }
   .google-calendar-connect .hint, .google-calendar-grant-form .hint { grid-column: 1; }
   .google-calendar-connect button, .google-calendar-grant-form button { min-height: 44px; width: 100%; }
+  .google-oauth-setup-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .google-oauth-setup-actions button { min-height: 44px; }
+  .google-oauth-setup-actions .hint { grid-column: 1 / -1; }
+}
+@media (max-width: 360px) {
+  .google-oauth-setup-actions { grid-template-columns: minmax(0, 1fr); }
+  .google-oauth-setup-actions .hint { grid-column: 1; }
 }
 
 /* ───────────────────────────── runs ───────────────────────────── */
