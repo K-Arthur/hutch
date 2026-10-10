@@ -125,6 +125,11 @@ Standing directions and the rest of the controls sit behind one clearly named
 disclosure with a meaningful icon, so people do not face a long technical form
 when they only want to rename an assistant. AI, app access, scheduling, safety,
 workspace, memory, and usage remain available when they choose to customize.
+A second-level **Usage and time limits** disclosure keeps token and cost fields
+out of the way until requested; its summary states work steps and task duration,
+and the UI expresses duration in minutes while preserving `timeout_seconds` in
+the stored configuration. Label estimates as estimates and do not imply they
+guarantee provider billing.
 A workspace with only one assistant does not show a coordinator choice.
 Keep the assistant name on one line in the settings header. Put secondary
 navigation and destructive actions in one labeled **Assistant options** menu;

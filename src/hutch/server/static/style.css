@@ -2342,6 +2342,28 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
 .assistant-more-settings .detail-grid { padding: 16px; background: var(--panel); border: 1px solid var(--line-strong); border-top: 0;
   border-radius: 0 0 var(--r-panel) var(--r-panel); }
 .assistant-settings-basics .field { max-width: 68ch; }
+.assistant-usage-panel { padding: 0; overflow: hidden; }
+.assistant-usage-details > summary {
+  box-sizing: border-box; display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center;
+  gap: 10px; min-height: 64px; padding: 11px 14px; list-style: none; cursor: pointer;
+}
+.assistant-usage-details > summary::-webkit-details-marker { display: none; }
+.assistant-usage-details > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; }
+.assistant-usage-details > summary:hover { background: color-mix(in srgb, var(--raised) 65%, transparent); }
+.assistant-usage-summary-copy { display: grid; min-width: 0; gap: 3px; }
+.assistant-usage-summary-copy strong { color: var(--text); font-size: var(--fs-sm); font-weight: 650; }
+.assistant-usage-summary-copy small { color: var(--text-2); font-size: var(--fs-xs); line-height: 1.4; }
+.assistant-usage-summary-action { display: inline-flex; align-items: center; gap: 6px; color: var(--brand-hi); font-size: var(--fs-xs); font-weight: 650; }
+.assistant-usage-summary-action .when-open { display: none; }
+.assistant-usage-details[open] .assistant-usage-summary-action .when-closed { display: none; }
+.assistant-usage-details[open] .assistant-usage-summary-action .when-open { display: inline; }
+.assistant-usage-summary-action .icon { width: 15px; height: 15px; transition: transform var(--dur-fast) var(--ease); }
+.assistant-usage-details[open] .assistant-usage-summary-action .icon { transform: rotate(180deg); }
+.assistant-usage-details[open] > summary { border-bottom: 1px solid var(--line); }
+.assistant-usage-form { padding: 14px; }
+.assistant-usage-today { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px 12px;
+  border-top: 1px solid var(--line); color: var(--text-2); font-size: var(--fs-xs); }
+.assistant-usage-today strong { color: var(--text); font-weight: 600; }
 .settings-panel-title { display: flex; align-items: center; gap: 10px; }
 .settings-panel-icon { display: grid; place-items: center; width: 30px; height: 30px; flex: none; color: var(--brand-hi);
   background: color-mix(in srgb, var(--brand) 9%, var(--sunken)); border-radius: var(--r-ctl); }
@@ -2349,6 +2371,10 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
 @media (max-width: 640px) {
   .assistant-settings-page { padding-top: 12px; }
   .assistant-settings-basics { margin-bottom: 12px; }
+  .assistant-usage-details > summary { grid-template-columns: 30px minmax(0, 1fr) auto; gap: 8px; padding: 10px; }
+  .assistant-usage-summary-action { gap: 3px; }
+  .assistant-usage-form { padding: 12px; }
+  .assistant-usage-today { padding: 9px 12px 11px; }
   .assistant-more-settings > summary { grid-template-columns: 38px minmax(0, 1fr); gap: 10px; min-height: 70px; padding: 11px; }
   .assistant-settings-summary-icon { width: 36px; height: 36px; }
   .assistant-settings-summary-action { grid-column: 2; min-height: 24px; }

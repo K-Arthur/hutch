@@ -5327,6 +5327,12 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     </div>`);
 
   const limits = b.limits || {};
+  const limitMaxSteps = Number(limits.max_steps ?? 24);
+  const limitTimeoutSeconds = Number(limits.timeout_seconds ?? 900);
+  const formatLimitDuration = seconds => seconds < 60
+    ? `${Number(seconds.toFixed(1))} sec`
+    : `${Number((seconds / 60).toFixed(1))} min`;
+  const limitDurationLabel = formatLimitDuration(limitTimeoutSeconds);
   const rules = b.command_rules || [];
   const specialistRosterHtml = b.is_workspace_coordinator ? `
           <section class="panel" id="workspace-specialist-roster" aria-labelledby="workspace-specialist-roster-title">
@@ -5560,33 +5566,41 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
         </div>
 
         <div>
-          <div class="panel">
-            <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("chart")}</span>Usage and time limits</div>
-            <form class="form-grid" id="form-limits">
-              <div class="form-grid row2">
-                <label class="field">Maximum steps
-                  <input type="number" name="max_steps" min="1" step="1" required value="${esc(limits.max_steps ?? 24)}">
-                </label>
-                <label class="field">Time limit (seconds)
-                  <input type="number" name="timeout_seconds" min="1" step="1" required value="${esc(limits.timeout_seconds ?? 900)}">
-                </label>
-                <label class="field">Daily token estimate
-                  <input type="number" name="daily_token_cap" min="0" step="1" required value="${esc(limits.daily_token_cap ?? 200000)}">
-                </label>
-                <label class="field">Tokens per model turn
-                  <input type="number" name="max_turn_tokens" min="0" step="1" required value="${esc(limits.max_turn_tokens ?? 0)}">
-                </label>
-                <label class="field">Estimated cost per run (USD)
-                  <input type="number" name="max_cost_usd" min="0" step="0.01" required value="${esc(limits.max_cost_usd ?? 0)}">
-                </label>
-                <label class="field">Estimated daily cost (USD)
-                  <input type="number" name="daily_cost_cap_usd" min="0" step="0.01" required value="${esc(limits.daily_cost_cap_usd ?? 0)}">
-                </label>
-              </div>
-              <p class="hint">Token and currency controls use estimates. Provider billing can differ; use provider-side controls for a guaranteed external spending limit. 0 means no estimate limit.</p>
-              <div class="btn-row"><button class="btn primary small" type="submit">Save limits</button></div>
-            </form>
-            <div class="meta-row" style="margin-top:12px;"><span>Tokens estimated today</span><span class="mono">${fmtTokens(b.tokens_today)}</span></div>
+          <div class="panel assistant-usage-panel">
+            <details class="assistant-usage-details" id="assistant-usage-limits">
+              <summary>
+                <span class="settings-panel-icon">${icon("chart")}</span>
+                <span class="assistant-usage-summary-copy"><strong>Usage and time limits</strong>
+                  <small>${limitMaxSteps} work steps · ${esc(limitDurationLabel)} per task</small>
+                </span>
+                <span class="assistant-usage-summary-action"><span class="when-closed">Change</span><span class="when-open">Hide</span>${icon("down")}</span>
+              </summary>
+              <form class="form-grid assistant-usage-form" id="form-limits">
+                <div class="form-grid row2">
+                  <label class="field">Maximum work steps
+                    <input type="number" name="max_steps" min="1" step="1" required value="${esc(limits.max_steps ?? 24)}">
+                  </label>
+                  <label class="field">Time per task (minutes)
+                    <input type="number" name="timeout_minutes" min="0.1" step="0.1" required value="${esc(Number((limitTimeoutSeconds / 60).toFixed(1)))}">
+                  </label>
+                  <label class="field">Approximate daily AI use (tokens)
+                    <input type="number" name="daily_token_cap" min="0" step="1" required value="${esc(limits.daily_token_cap ?? 200000)}">
+                  </label>
+                  <label class="field">Maximum reply length (tokens)
+                    <input type="number" name="max_turn_tokens" min="0" step="1" required value="${esc(limits.max_turn_tokens ?? 0)}">
+                  </label>
+                  <label class="field">Estimated cost per task (USD)
+                    <input type="number" name="max_cost_usd" min="0" step="0.01" required value="${esc(limits.max_cost_usd ?? 0)}">
+                  </label>
+                  <label class="field">Estimated daily cost (USD)
+                    <input type="number" name="daily_cost_cap_usd" min="0" step="0.01" required value="${esc(limits.daily_cost_cap_usd ?? 0)}">
+                  </label>
+                </div>
+                <p class="hint">Usage and cost figures are estimates, not guaranteed charges. Your AI provider controls final billing; set spending limits there for a hard cap. A value of 0 means no estimate limit.</p>
+                <div class="btn-row"><button class="btn primary small" type="submit">Save limits</button></div>
+              </form>
+            </details>
+            <div class="assistant-usage-today"><span>Estimated AI use today</span><strong>${fmtTokens(b.tokens_today)} tokens</strong></div>
           </div>
 
           <div class="panel">
@@ -5816,8 +5830,9 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   $("#form-limits").addEventListener("submit", ev => {
     ev.preventDefault();
     const fd = new FormData(ev.target);
-    const limits = Object.fromEntries([...fd.entries()].map(([key, value]) => [key,
+    const limits = Object.fromEntries([...fd.entries()].filter(([key]) => key !== "timeout_minutes").map(([key, value]) => [key,
       ["max_cost_usd", "daily_cost_cap_usd"].includes(key) ? Number(value) : Number.parseInt(value, 10)]));
+    limits.timeout_seconds = Math.round(Number(fd.get("timeout_minutes")) * 60);
     patch({ limits }, "Limits saved.");
   });
   $("#form-rule").addEventListener("submit", ev => {

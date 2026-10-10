@@ -269,6 +269,11 @@ Hosted currency limits reserve a local price-based estimate before the request. 
 unknown pricing is refused. Provider billing can differ from Hutch's prompt-size estimate. See [Connections](connections.md) for shared
 provider-account caps and reservation reconciliation.
 
+In the assistant settings page, task time is entered in minutes for easier
+reading; Hutch converts it to the same `timeout_seconds` field used by YAML,
+the API, and the CLI. Token and currency fields are estimates and do not replace
+provider-side billing limits.
+
 ## Examples
 
 Weekly research bot on a local model, approvals on:

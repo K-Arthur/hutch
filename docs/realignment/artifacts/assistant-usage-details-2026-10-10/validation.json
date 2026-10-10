@@ -1,0 +1,37 @@
+{
+  "test": "tests/e2e/test_browser.py::test_bot_usage_limits_are_optional_clear_and_use_everyday_time_units",
+  "viewports": {
+    "desktop": {
+      "width": 1440,
+      "height": 960
+    },
+    "tablet": {
+      "width": 900,
+      "height": 1024
+    },
+    "phone": {
+      "width": 390,
+      "height": 844
+    },
+    "compact_phone": {
+      "width": 320,
+      "height": 740
+    }
+  },
+  "verified": [
+    "settings stay collapsed until requested",
+    "summary reports existing work and time limits",
+    "keyboard opens the details on phone",
+    "900 seconds displays as 15 minutes",
+    "2.5 minutes saves as 150 seconds",
+    "no horizontal overflow at 320px or larger widths",
+    "no external requests"
+  ],
+  "browser": {
+    "name": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36"
+  },
+  "source_sha256": {
+    "app.js": "babf688692c8ab7078ea0b018d827ed7f7785f0f6fd92e8febc5b60650cf6ee7",
+    "style.css": "f2b6351171d443d679395aca7c2254970278ebed79c46710964a099665371439"
+  }
+}

@@ -38,7 +38,7 @@ assistant identities; the marketing site may use the detailed 3D character.
 | Assistant roster and one-action menu | One-line human names, task/status subtitle, full-row selection and one grouped options menu checked at responsive sizes | In progress |
 | Assistant management for larger rosters | Ten-assistant threshold and one-line ellipsis behavior checked on desktop/tablet/phone | In progress |
 | Assistant creation and identity | Carries the source request forward; suggests a short name and task note, both editable; advanced details stay optional | In progress |
-| Assistant settings / advanced controls | Individually reviewed at desktop and phone | Open |
+| Assistant settings / advanced controls | Individually reviewed at desktop and phone; usage estimates now stay behind a second disclosure with minute-based task time | In progress |
 | Needs you / approvals / human checkpoints | Approval-first queue; optional browser notifications collapsed by default and available from one disclosure | In progress |
 | Activity / schedules / history / task details | Each route independently reviewed at desktop and phone; responsive route coverage also checks tablet and compact phone | Redesign pass open |
 | Apps & AI / local and hosted model settings | Source-aligned desktop, tablet, phone, and compact-phone review; compact phone cards | Open |
@@ -95,6 +95,24 @@ or external requests. Evidence is in
 [`artifacts/reply-quote-polish-2026-10-10/`](artifacts/reply-quote-polish-2026-10-10/).
 This does not close the populated-chat review; attachments, longer histories,
 human waits, and remaining distinct surfaces still require review.
+
+### Assistant usage controls — verified partial pass
+
+After opening **Customize how it works**, usage limits now appear as a compact
+summary showing work steps and task duration. Token and currency estimates stay
+collapsed until **Change** is selected. The task time input uses minutes and is
+converted back to the existing seconds-based `timeout_seconds` field; cost
+copy states that provider billing can differ and that provider controls provide
+the hard cap.
+
+The browser test passed at desktop **1440×960**, tablet **900×1024**, phone
+**390×844**, and compact phone **320×740**. It checks the default-collapsed
+state, summary values, visible form, keyboard opening on phone, no horizontal
+overflow, and saving 2.5 minutes as 150 seconds. I opened the collapsed and
+expanded captures individually for all four sizes. The local fixture made no
+provider or external requests. Evidence
+is in [`artifacts/assistant-usage-details-2026-10-10/`](artifacts/assistant-usage-details-2026-10-10/).
+This refinement does not complete assistant settings or the all-surface redesign.
 
 ### Type-system foundation and first route refinements — verified
 

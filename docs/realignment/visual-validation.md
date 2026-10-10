@@ -30,6 +30,23 @@ made no external requests and no provider calls. This is local fixture evidence;
 no screen reader or physical mobile device was used. The anonymous marketing suite
 `tests/e2e/test_website.py` passed separately (**27 passed**).
 
+## Assistant usage settings disclosure (2026-10-10)
+
+The advanced assistant settings view summarizes the work-step and time limits
+without immediately exposing token and currency fields. I inspected the
+collapsed and expanded states separately at desktop **1440×960**, tablet
+**900×1024**, and phone **390×844**. The phone version stacks each setting in a
+single column and keeps keyboard focus visible while the disclosure is open.
+
+`tests/e2e/test_browser.py::test_bot_usage_limits_are_optional_clear_and_use_everyday_time_units`
+passed (**1 passed**) on Chromium **153.0.8010.12** / Playwright **1.63.0** at
+desktop **1440×960**, tablet **900×1024**, phone **390×844**, and compact phone
+**320×740**. It verifies the summary at all four sizes, keyboard operation on
+phone, no horizontal overflow, 15-minute display for the stored 900-second
+default, and conversion of 2.5 minutes back to 150 seconds. No provider or
+external requests were made. Captures, source hashes, `validation.json`, and a
+trace are in [`artifacts/assistant-usage-details-2026-10-10/`](artifacts/assistant-usage-details-2026-10-10/).
+
 ## Marketing icons and legibility refinement (2026-10-10)
 
 The website's choice and approval cards now align each illustration icon with

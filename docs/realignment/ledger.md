@@ -4014,3 +4014,22 @@ and traces are in
 I reviewed the desktop, tablet, and phone conversation screenshots separately.
 No model calls or external requests occurred. This is one populated-chat
 refinement; broader UI review remains open and nothing was pushed or published.
+
+## Assistant usage controls disclosure (2026-10-10)
+
+The expanded assistant settings page previously exposed token and cost limits as
+another full card of raw fields. They now sit behind a **Usage and time limits**
+disclosure whose summary shows work steps and time per task. The time field is
+entered in minutes, then converted back to the existing `timeout_seconds`
+contract. Labels describe approximate usage, and the helper text distinguishes
+Hutch estimates from the provider's actual bill and hard limit.
+
+`tests/e2e/test_browser.py::test_bot_usage_limits_are_optional_clear_and_use_everyday_time_units`
+passed on Chromium **153.0.8010.12** / Playwright **1.63.0** at desktop
+**1440×960**, tablet **900×1024**, phone **390×844**, and compact phone
+**320×740**. It checked the default-collapsed details, keyboard opening on
+phone, summary and form states at all sizes, no overflow, and that **2.5
+minutes** persists as **150 seconds**. The local fixture made no provider or
+external requests. Captures, metadata, source hashes, and the trace are in
+[`artifacts/assistant-usage-details-2026-10-10/`](artifacts/assistant-usage-details-2026-10-10/).
+The broader assistant settings and all-surface redesign remain open.

@@ -4813,27 +4813,95 @@ def test_a_stale_approval_click_shows_the_other_devices_decision(browser, live):
     ctx.close()
 
 
-def test_bot_limits_can_be_saved_from_the_phone_settings(browser, live):
+def test_bot_usage_limits_are_optional_clear_and_use_everyday_time_units(browser, live):
     base, app = live
     store = app.state.store
     store.create_bot(Bot(name="limit-bot", model="mock/demo", approval_mode=ApprovalMode.auto))
-    ctx = browser.new_context(viewport={"width": 390, "height": 844})
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/assistant-usage-details-2026-10-10"
+    out.mkdir(parents=True, exist_ok=True)
+    ctx = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = ctx.new_page()
     errors = []
+    external_requests = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    page.goto(f"{base}/#/bot/limit-bot")
-    open_assistant_customization(page)
-    page.locator("#form-limits").wait_for()
-    assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
-    page.locator('#form-limits [name="max_steps"]').fill("11")
-    page.locator('#form-limits [name="daily_token_cap"]').fill("7500")
-    page.locator('#form-limits [name="max_cost_usd"]').fill("0.65")
-    page.locator('#form-limits button[type="submit"]').click()
-    wait_for(lambda: store.get_bot("limit-bot").limits.max_steps == 11)
-    limits = store.get_bot("limit-bot").limits
-    assert limits.daily_token_cap == 7500 and limits.max_cost_usd == 0.65
-    assert not errors, errors
-    ctx.close()
+    page.on("request", lambda request: external_requests.append(request.url) if not request.url.startswith(base) else None)
+    ctx.tracing.start(screenshots=True, snapshots=True, sources=False)
+    viewports = {"desktop": (1440, 960), "tablet": (900, 1024), "phone": (390, 844), "compact_phone": (320, 740)}
+    try:
+        page.goto(f"{base}/#/bot/limit-bot")
+        disclosure = page.locator("#assistant-usage-limits")
+        disclosure.wait_for(state="attached")
+        initially_open = disclosure.evaluate("element => ({open: element.open, html: element.outerHTML.slice(0, 150)})")
+        assert not initially_open["open"], f"usage settings should start collapsed: {initially_open}"
+        open_assistant_customization(page)
+        expected_steps, expected_duration = "24 work steps", "15 min per task"
+        expected_timeout_minutes = "15"
+        for label, (width, height) in viewports.items():
+            page.set_viewport_size({"width": width, "height": height})
+            summary = disclosure.locator(":scope > summary")
+            assert not disclosure.evaluate("element => element.open"), f"usage details should be closed at {label}"
+            assert expected_steps in summary.inner_text()
+            assert expected_duration in summary.inner_text()
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+            disclosure.scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"{label}-limits-collapsed.png"))
+
+            if label == "phone":
+                summary.focus()
+                summary.press("Space")
+            else:
+                summary.click()
+            assert disclosure.evaluate("element => element.open")
+            form = page.locator("#form-limits")
+            form.wait_for(state="visible")
+            assert page.locator('label:has([name="max_steps"])').inner_text().startswith("Maximum work steps")
+            assert page.locator('label:has([name="timeout_minutes"])').inner_text().startswith("Time per task (minutes)")
+            assert page.locator('#form-limits [name="timeout_minutes"]').input_value() == expected_timeout_minutes
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+            disclosure.scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"{label}-limits-open.png"))
+
+            if label == "phone":
+                page.locator('#form-limits [name="max_steps"]').fill("11")
+                page.locator('#form-limits [name="timeout_minutes"]').fill("2.5")
+                page.locator('#form-limits [name="daily_token_cap"]').fill("7500")
+                page.locator('#form-limits [name="max_cost_usd"]').fill("0.65")
+                page.locator('#form-limits button[type="submit"]').click()
+                wait_for(lambda: store.get_bot("limit-bot").limits.timeout_seconds == 150)
+                page.locator("#toast-root .toast-msg").filter(has_text="Limits saved.").wait_for(state="visible")
+                limits = store.get_bot("limit-bot").limits
+                assert limits.max_steps == 11 and limits.timeout_seconds == 150
+                assert limits.daily_token_cap == 7500 and limits.max_cost_usd == 0.65
+                page.locator("#toast-root").evaluate("root => root.replaceChildren()")
+                expected_steps, expected_duration = "11 work steps", "2.5 min per task"
+                expected_timeout_minutes = "2.5"
+                page.wait_for_function("document.querySelector('#assistant-usage-limits small')?.textContent.includes('2.5 min per task')")
+                assert not disclosure.evaluate("element => element.open")
+                disclosure.locator(":scope > summary").focus()
+                disclosure.locator(":scope > summary").press("Space")
+                assert disclosure.evaluate("element => element.open")
+                disclosure.locator(":scope > summary").press("Space")
+                assert not disclosure.evaluate("element => element.open")
+            else:
+                summary.click()
+                assert not disclosure.evaluate("element => element.open")
+
+        assert not errors, errors
+        assert not external_requests, external_requests
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_bot_usage_limits_are_optional_clear_and_use_everyday_time_units",
+            "viewports": {name: {"width": size[0], "height": size[1]} for name, size in viewports.items()},
+            "verified": ["settings stay collapsed until requested", "summary reports existing work and time limits",
+                         "keyboard opens the details on phone", "900 seconds displays as 15 minutes",
+                         "2.5 minutes saves as 150 seconds", "no horizontal overflow at 320px or larger widths",
+                         "no external requests"],
+            "browser": {"name": page.evaluate("navigator.userAgent")},
+            "source_sha256": {"app.js": hashlib.sha256((Path(__file__).resolve().parents[2] / "src/hutch/server/static/app.js").read_bytes()).hexdigest(),
+                              "style.css": hashlib.sha256((Path(__file__).resolve().parents[2] / "src/hutch/server/static/style.css").read_bytes()).hexdigest()},
+        }, indent=2) + "\n")
+    finally:
+        ctx.tracing.stop(path=str(out / "trace.zip"))
+        ctx.close()
 
 
 def test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone(browser, live):
