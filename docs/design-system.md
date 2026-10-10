@@ -51,15 +51,16 @@ generated token files and the declared WCAG text pairs.
 | Hairline / strong / emphasis border | `rgba(255,255,255,.07)` / `.14` / `.22` | Card boundaries, controls, and hovered edges |
 | Control / panel / chat / composer / pill radius | `8 / 12 / 18 / 22 / 100px` | Shared geometry scale |
 | UI body / measured data | system sans / system mono | Language versus machine values |
-| App type roles | `0.9375rem` body / `1rem` reading / `1.5rem` page title | Responsive hierarchy that respects browser text scaling |
-| App icon family | `16 / 20 / 24px`, `24px` view box | Local category vectors in 48px service-tinted tiles; names and states stay visible |
+| App type roles | `1rem` body / `1.0625rem` reading / `1.5rem` page title | Responsive hierarchy that respects browser text scaling |
+| App icon family | `16 / 20 / 24px`, `24px` view box | Local category vectors in 48px service tiles; exact service names and states stay visible |
 
 The marketing site keeps Archivo for display and section headings and uses the
 locally bundled 3D Hutch mascot. Product body text uses the same system sans as
 Studio. The app uses compact flat 2D assistant characters. Each distinct head
-shape gets a calm pair of solid dark oval eyes, with size, spacing, tilt, and
-height tuned to its face-safe area. The picker previews the same face. Avoid
-detached highlights and extra marks. Status is shown separately.
+shape gets two softly curved solid ink eyes with no pupils or highlights. Eye
+size, spacing, shared slant, and height follow the face; the picker previews the
+same geometry. Avoid detached marks. Status is
+shown separately.
 Brand art, assistant identity, and runtime state never substitute for one another.
 
 ## Surface roles
@@ -92,13 +93,12 @@ fills the request field; it never starts work or creates an assistant by itself.
 Use a consistent local outline-icon family for actions and categories, with
 plain-language labels beside them. Apps & AI uses 48px service tiles beside
 exact names. ChatGPT uses OpenAI's exact, unaltered white Blossom mark under its
-published brand terms. Microsoft Outlook uses a neutral inbox category glyph;
-its product icon requires express permission, so the unaltered Microsoft
-"Sign in" artwork is limited to its official account-authorization control.
-Gmail and other services keep category marks unless current provider guidance
-permits a specific asset and use. Never present a category icon as a provider
-logo. Keep provider, model, permission, and runtime terminology in the relevant
-optional detail layer.
+published brand terms. Microsoft Outlook, Gmail, and Google Calendar use
+original service-category marks until product-icon use is permitted. The current
+guidance requires a Microsoft express license for Outlook product artwork and
+Google approval for its product icons; Hutch has neither recorded approval.
+Never present a category icon as a provider logo. Keep provider, model,
+permission, and runtime terminology in the relevant optional detail layer.
 
 Assistant settings lead with the editable name and what the assistant helps with.
 Standing directions and the rest of the controls sit behind one clearly named
@@ -126,10 +126,11 @@ and remaining server-rendered pages load the same generated semantic tokens and
 map their components to that contract. Service categories use the same locally
 drawn outline glyphs across the app and marketing site. Apps & AI shows the exact,
 unaltered OpenAI Blossom beside the named ChatGPT service under OpenAI's published
-brand terms. Outlook keeps a neutral inbox glyph until Hutch has permission for
-the product mark; the official Microsoft sign-in lockup is used unchanged only on
-account-authorization buttons. Gmail and other services retain category glyphs
-until their provider rules permit a specific asset in this use. Names and
+brand terms. Microsoft Outlook, Gmail, and Google Calendar use original
+service-category glyphs beside their full names: Microsoft requires an express
+license for its product icons, and Google directs product-icon requests through
+Partner Marketing Hub. Hutch has no recorded approval for those marks.
+Names and
 connection states stay visible beside every mark; a category glyph is never
 presented as a provider logo. The first layer explains the useful choice;
 detailed scopes, OAuth setup, and account controls stay inside the optional
@@ -155,8 +156,8 @@ local-host access, or fixture-only states in public flows.
 
 ## Typography, spacing, and behavior
 
-- The app uses a system-sans stack and named type roles: `0.9375rem` interface
-  body at `1.55` leading; `1rem` reading text at `1.65`; `1.5rem` page titles;
+- The app uses a system-sans stack and named type roles: `1rem` interface
+  body at `1.55` leading; `1.0625rem` reading text at `1.65`; `1.5rem` page titles;
   and `1.125rem` section titles. Use rem units so user text scaling remains
   effective.
 - App captions start at `0.75rem/1.45`. Do not use mono for prose, labels, chips,

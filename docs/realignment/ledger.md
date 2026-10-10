@@ -3527,3 +3527,45 @@ The first verification rerun exposed a Studio polling regression: comparison aga
 The responsive route, gallery-refresh, and long-name roster checks passed **3 tests in 23.02s** after adding explicit blank-description, concise-composer, exact-ChatGPT-asset, Outlook-category-glyph, and sidebar-name checks. The route test captured each app route at **1440×960**, **900×1024**, **390×844**, and **320×740**; updated Studio and Apps & AI images were opened separately at desktop, tablet, and phone sizes. Chromium **153.0.8010.12** / Playwright **1.63.0** made no external requests or provider calls. JavaScript syntax validation passed. Current focused captures and metadata are in [`artifacts/studio-service-refinement/`](artifacts/studio-service-refinement/); the broader route baseline remains in [`artifacts/ui-surface-review/`](artifacts/ui-surface-review/).
 
 This focused correction does not close the `surface-overhaul-polish` checkpoint. The cross-product design-system audit and independent page-by-page visual overhaul remain an explicit completion gate after the outstanding functionality slices.
+
+## Provider artwork correction, shape-aware faces, and one-line roster (2026-10-10)
+
+The official ChatGPT Blossom remains beside the named ChatGPT service. The
+official Outlook product icon was found, but Microsoft's current
+[Trademark and Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks)
+require an express license for product icons. Hutch has no license recorded, so
+the app keeps the exact **Microsoft Outlook** name and uses an original
+blue-toned inbox category glyph. Google Calendar and Gmail continue to use
+Hutch-drawn category marks pending approval. The source review and use boundary
+are recorded in
+[`../research/icon-and-chat-interface-references-2026-10-10.md`](../research/icon-and-chat-interface-references-2026-10-10.md).
+
+The app's simple 2D mascot eyes are now broad, curved solid-ink shapes with no
+pupils or highlights. Their placement and scale vary by silhouette, and the
+identity picker reuses the same geometry. Sidebar assistant names remain one
+line; long names ellipsize, expose their full accessible name, and do not push
+the single overflow control beyond the selected-row background.
+
+Verification passed: the focused responsive-browser batch ran
+`test_shared_design_tokens_render_consistently_across_all_surfaces`,
+`test_every_workspace_route_renders_independently_at_responsive_sizes`,
+`test_flat_mascot_eyes_stay_inside_every_silhouette`, and
+`test_bot_roster_pins_persist_and_simple_mascots_stay_distinct` (**4 passed in
+32.06s**). Ten named routes were captured at desktop **1440×960**, tablet
+**900×1024**, phone **390×844**, and compact phone **320×740**; the mascot test
+also captured and checked all eight distinct faces and the picker. We individually
+reopened the affected Studio, Connections, selected-roster, and mascot screens.
+Chromium **153.0.8010.12** / Playwright **1.63.0** used local fixtures with zero
+provider calls or external requests. JavaScript syntax, `.impeccable/design.json`
+parsing, whitespace checks, and the Impeccable detector passed; it reported
+zero anti-patterns and one advisory for the 4px corner radius on Microsoft's
+official sign-in control. No live provider, physical phone, or screen reader was
+tested. Captures, traces, and source hashes are in
+[`artifacts/ui-surface-review/`](artifacts/ui-surface-review/),
+[`artifacts/mascot-eye-review-2026-10-10/`](artifacts/mascot-eye-review-2026-10-10/),
+and [`artifacts/pinned-roster/`](artifacts/pinned-roster/).
+
+This is one verified interface slice, not the end of the requested UI overhaul.
+The independent all-surface redesign remains scheduled after the incomplete
+functional realignment work. The local implementation and evidence commit hash
+will be recorded immediately after that commit is created.

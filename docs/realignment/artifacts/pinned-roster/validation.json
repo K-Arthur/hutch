@@ -16,8 +16,8 @@
       ],
       "horizontal_overflow": 0,
       "long_name": {
-        "height": 20,
-        "lineHeight": 19.5,
+        "height": 21,
+        "lineHeight": 20.8,
         "overflow": "ellipsis",
         "clipped": true
       },
@@ -41,8 +41,8 @@
       ],
       "horizontal_overflow": 0,
       "long_name": {
-        "height": 20,
-        "lineHeight": 19.5,
+        "height": 21,
+        "lineHeight": 20.8,
         "overflow": "ellipsis",
         "clipped": true
       },
@@ -66,8 +66,8 @@
       ],
       "horizontal_overflow": 0,
       "long_name": {
-        "height": 20,
-        "lineHeight": 19.5,
+        "height": 21,
+        "lineHeight": 20.8,
         "overflow": "ellipsis",
         "clipped": true
       },
@@ -98,9 +98,9 @@
   ],
   "avatar_svg_ids": 0,
   "source_sha256": {
-    "src/hutch/server/static/app.js": "dc5c6f66fab32d0042110b2c74a89b761667c4ee2aaddcc9e9c8e871e45178a1",
-    "src/hutch/server/static/style.css": "a98e7a18de42a2a06282a210d0d37a96b61a0a5309622753f076c8da6c824ba4",
+    "src/hutch/server/static/app.js": "d48f2053cf550b90dc955c5aff20fcbacc43dbb058f8be3325ee69ab4fd0ec10",
+    "src/hutch/server/static/style.css": "75639b6c30ab608a1aa586619a100a1cd2b7a2a8b41e258145678f9ceecff80d",
     "src/hutch/server/app.py": "436c20c0ba64bb6b31c754b7d2626879c6585450de86b0abb9884c929b0136cf",
-    "tests/e2e/test_browser.py": "400fa45f79c9e25515e7e55d453fd255c4a3cb7506c8edf84b5e3aa644f9f171"
+    "tests/e2e/test_browser.py": "dae8c0aa5743622b9e8b07da69af7dae8561c5e5c63a4a84cea01dbaa020dcb4"
   }
 }

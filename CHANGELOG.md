@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Refine the 2D assistant faces into shape-fitted, softly curved dark eyes without
+  pupils or detached marks; raise the app's default reading size to 16px.
+- Keep ChatGPT's exact OpenAI Blossom beside its named service. Microsoft Outlook,
+  Gmail, and Google Calendar use original category artwork until provider terms
+  or written approval permit product-icon use.
+
 ## Separate Outlook Mail send setup and provider artwork
 
 - Exposed the existing experimental `Mail.Send` connection flow inside Outlook Mail's optional account settings. Read and send now have visibly separate sign-ins and Bot grants; exact per-message approval and the no-retry/uncertain-delivery limits appear before a send grant can be saved.

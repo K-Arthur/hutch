@@ -16,23 +16,25 @@ is ISC, with MIT terms for its listed Feather-derived icons. Hutch does not
 vendor SVGs from the Figma file in this change; the local interface follows the
 consistent 24×24 outline, current-color, round-cap vocabulary as a reference.
 
-I found official marks for ChatGPT, Outlook, Gmail, and Google Calendar.
-Finding an asset is not the same as having rights to bundle it in Hutch or its
-marketing site. Microsoft's published rules say product icons require express
-permission; Hutch therefore keeps a neutral mail category mark beside the
-explicit **Microsoft Outlook** label and uses the official, unaltered Microsoft
-"Sign in" control only for authorization. OpenAI's brand terms permit its exact
-logo in a directly related context under those terms; Hutch now uses the
-official, unaltered white Blossom next to the explicitly named ChatGPT service.
-Google's product-icon rules route business use through its partner marketing
-and permission process, so Gmail and Google Calendar retain neutral mail and
-calendar category glyphs. No hand-drawn or recolored mark imitates a provider.
-References: [Google product-icon guidance](https://partnermarketinghub.withgoogle.com/brands/google/branding-guidelines/how-to-show-googles-brand/),
-[Microsoft Trademark and Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks),
-[Microsoft sign-in button requirements](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-branding-in-apps),
-and [OpenAI Brand Guidelines](https://openai.com/brand/). The earlier Google
-SVG files were from an older icon generation and have been removed; the icon
-refresh is documented by [Google Workspace Updates](https://workspaceupdates.googleblog.com/2026/05/introducing-fresh-visual-identity-for-Google-Workspace-app-icons.html).
+The product uses OpenAI's exact, unaltered white Blossom beside the named
+ChatGPT service. I also located the official full-color Outlook app icon. The
+current [Microsoft Trademark and Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks)
+say that Microsoft logos, app icons, and product icons cannot be used without an
+express license; this repository records no such license. I therefore did not
+bundle the Outlook icon. Microsoft Outlook appears by its full service name with
+Hutch's own blue-toned inbox category glyph. This identifies the service
+without presenting original Hutch artwork as a Microsoft logo.
+
+I did not bundle the Gmail or Google Calendar product icons. Google's current
+[product-icon guidance](https://partnermarketinghub.withgoogle.com/brands/google/branding-guidelines/how-to-show-googles-brand/)
+directs users to obtain current assets and request permission through Partner
+Marketing Hub; product icons should appear only when necessary and in context.
+The Google services keep clearly labeled, original category glyphs until that
+approval is available; their shapes and colors do not imitate Google's marks.
+OpenAI's [brand guide](https://openai.com/brand/) allows its unaltered logo when it
+directly relates to OpenAI services, with no implied endorsement. The earlier
+Google SVG files were from an older icon generation and have been removed; the
+icon refresh is documented by [Google Workspace Updates](https://workspaceupdates.googleblog.com/2026/05/introducing-fresh-visual-identity-for-Google-Workspace-app-icons.html).
 
 ## User-provided ChatGPT screen
 
@@ -67,24 +69,32 @@ show actual device/session state rather than copying the reference's labels.
 
 These screenshots are task references, not evidence that Hutch already supports
 those device operations or that a particular layout performs better for all
-users. The native Mobbin connector is unavailable on the current account's plan.
-The shared Figma Community file opened in the in-app browser, but its preview
-exposed only the toolbar to the accessibility tree; individual canvas frames
-were not inspectable there. Figma MCP node retrieval also returned the connected
-account's plan limit. The user-supplied screens remain the specific
-screen-level evidence used.
+users. I individually selected and inspected the supplied Figma Community
+file's [new-chat screen](https://www.figma.com/design/9HXDgkK25xdCOI5ifRXEY3/Bobo---Chatbot-Messenger-App-UI-Kit--Preview-?node-id=1627-66),
+[conversation list](https://www.figma.com/design/9HXDgkK25xdCOI5ifRXEY3/Bobo---Chatbot-Messenger-App-UI-Kit--Preview-?node-id=1627-67),
+[chat options menu](https://www.figma.com/design/9HXDgkK25xdCOI5ifRXEY3/Bobo---Chatbot-Messenger-App-UI-Kit--Preview-?node-id=1627-61),
+and [settings screen](https://www.figma.com/design/9HXDgkK25xdCOI5ifRXEY3/Bobo---Chatbot-Messenger-App-UI-Kit--Preview-?node-id=1627-40)
+one at a time on its canvas. Those screens reinforce short action menus, one
+clear assistant identity, and grouped settings; the light UI kit is a pattern
+reference, not a visual system to copy into Hutch. The native Mobbin searches
+returned a paid-plan requirement, so no Mobbin results were used. Figma MCP
+node retrieval also hit the connected account's Starter-plan limit; the opened
+canvas remains available for visual reference.
 
 ## Decisions and validation limits
 
 - Keep the app's system-sans type family and marketing's locally bundled Archivo
   display family as separate, coordinated roles.
-- Follow each provider's current published asset rules by context. Keep exact
-  service names visible and never imply a category glyph is the provider's logo.
+- Follow each provider's current published asset rules by context. ChatGPT's
+  official mark is used beside its named service. Keep exact names visible and
+  never imply a category glyph is a provider's logo; no Outlook product mark is
+  bundled without the required Microsoft license.
 - Keep a selected assistant's background across the entire row, including its
   single overflow target, and expose selection on the assistant button with
   `aria-current`. Keep assistant names to one line, use an ellipsis for long
-  names, and preserve the full name in an accessible title.
+  names, and preserve the full name in an accessible title. The existing
+  responsive browser regression verifies one-line truncation and that the
+  selected treatment reaches through the overflow control.
 - Community retrieval was manual and individual. No Figma assets were copied,
-  no provider was contacted, and no live service was used. Figma Community
-  assets will remain a reference until individual frames can be inspected and
-  their licensing is clear.
+  no provider was contacted, and no live service was used. Individual frames
+  were inspected; no provider artwork was copied from the Figma file.

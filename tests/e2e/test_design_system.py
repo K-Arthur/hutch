@@ -29,6 +29,7 @@ VISUAL_SOURCE_FILES = (
     "src/hutch/server/static/app.js",
     "src/hutch/server/static/index.html",
     "src/hutch/server/static/style.css",
+    "src/hutch/server/static/brands/openai-white-monoblossom.svg",
     "website/index.html",
     "website/site.js",
     "website/styles.css",
@@ -226,8 +227,8 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
               root.style.fontSize = original;
               return {body, pageTitle};
             }""")
-            assert scale_result == {"body": "30px", "pageTitle": "48px"}, (label, scale_result)
-            assert studio["bodyFontSize"] == "15px", (label, studio["bodyFontSize"])
+            assert scale_result == {"body": "32px", "pageTitle": "48px"}, (label, scale_result)
+            assert studio["bodyFontSize"] == "16px", (label, studio["bodyFontSize"])
 
             # The user-facing Connections surface lives in the Studio shell.
             # `/connections` is a compatibility HTML page with a separate legacy
@@ -289,8 +290,8 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
                 assert view["panel"]["background"] == "rgb(8, 12, 18)", (label, name, view["panel"])
                 if name != "marketing":
                     type_tokens = view["typography"]["tokens"]
-                    assert type_tokens["--type-body-size"] == "0.9375rem", (label, name, type_tokens)
-                    assert type_tokens["--type-reading-size"] == "1rem", (label, name, type_tokens)
+                    assert type_tokens["--type-body-size"] == "1rem", (label, name, type_tokens)
+                    assert type_tokens["--type-reading-size"] == "1.0625rem", (label, name, type_tokens)
                     assert type_tokens["--type-label-size"] == "0.875rem", (label, name, type_tokens)
                     assert type_tokens["--type-caption-size"] == "0.75rem", (label, name, type_tokens)
                     assert type_tokens["--type-mono-size"] == "0.8125rem", (label, name, type_tokens)
@@ -301,7 +302,7 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
                     assert roles["display"]["size"] in {"28px", "36px"}, (label, name, roles)
                     assert roles["page-title"]["size"] == "24px", (label, name, roles)
                     assert roles["section-title"]["size"] == "18px", (label, name, roles)
-                    assert roles["reading"]["size"] == "16px", (label, name, roles)
+                    assert roles["reading"]["size"] == "17px", (label, name, roles)
                     assert roles["label"]["size"] == "14px", (label, name, roles)
                     assert roles["caption"]["size"] == "12px", (label, name, roles)
                     assert roles["mono"]["size"] == "13px", (label, name, roles["mono"])
@@ -576,7 +577,7 @@ def test_assistant_settings_keep_everyday_edits_up_front(browser, app_server):
 
 
 def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
-    """The app's paired oval eyes read as a face and remain inside all eight shapes."""
+    """Shape-fitted ink eyes stay clear and contained across the 2D mascot family."""
     app_url, app = app_server
     names = [f"mascot-{index}" for index in range(8)]
     for name in names:
@@ -603,6 +604,7 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
           const eyes = [...svg.querySelectorAll('[data-sigil-eye]')];
+          const glints = [...svg.querySelectorAll('[data-sigil-glint]')];
           const contained = eyes.map(eye => {
             const x = Number(eye.dataset.cx);
             const y = Number(eye.dataset.cy);
@@ -618,32 +620,38 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
             return {perimeter: points.every(point => ctx.isPointInPath(shape, point.x, point.y))};
           });
           return {head: body.getAttribute('d'), color: body.getAttribute('fill'),
-                  eyes: eyes.map(eye => ({tag: eye.tagName.toLowerCase(), rx: Number(eye.dataset.rx),
+                  eyes: eyes.map(eye => ({name:eye.dataset.sigilEye, tag: eye.tagName.toLowerCase(), rx: Number(eye.dataset.rx),
                     ry: Number(eye.dataset.ry), cx: Number(eye.dataset.cx), cy: Number(eye.dataset.cy),
+                    angle:Number(eye.dataset.angle),
                     d: eye.getAttribute('d'), transform: eye.getAttribute('transform'),
                     fill: eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill'),
                     stroke: eye.getAttribute('stroke'), strokeWidth: Number(eye.getAttribute('stroke-width')),
                     contrastInk: eye.dataset.contrastInk})),
           outlines: [...svg.querySelectorAll('[data-sigil-outline]')].map(outline => ({
             stroke:outline.getAttribute('stroke'), width:Number(outline.getAttribute('stroke-width'))})),
-          glints: [...svg.querySelectorAll('[data-sigil-glint]')].map(glint => ({
-            cx:Number(glint.getAttribute('cx')), cy:Number(glint.getAttribute('cy')),
-            r:Number(glint.getAttribute('r')),
-            fill:glint.getAttribute('fill') || glint.closest('g')?.getAttribute('fill')})),
+                  glints: glints.map(glint => ({tag:glint.tagName.toLowerCase(),
+                    cx:Number(glint.getAttribute('cx')), cy:Number(glint.getAttribute('cy')),
+                    rx:Number(glint.getAttribute('rx')), ry:Number(glint.getAttribute('ry')),
+                    eye:glint.dataset.sigilGlint, fill:glint.getAttribute('fill'),
+                    transform:glint.getAttribute('transform')})),
                   contained};
         })""")
         assert len(identity) == 8, identity
         assert len({item["color"] for item in identity}) == 8, identity
         assert all(len(item["eyes"]) == 2 for item in identity), identity
-        assert all(eye["tag"] == "path" and eye["fill"] == "#101714" and eye["stroke"] is None
-                   and eye["contrastInk"] == "#101714"
-                   and 1.1 <= eye["ry"] / eye["rx"] <= 1.4
+        assert all(item["glints"] == [] for item in identity), "the simplified faces have no pupils or detached highlights"
+        assert all(eye["tag"] == "path" and eye["fill"] == "#10251e"
+                   and eye["stroke"] is None
+                   and eye["contrastInk"] == "#10251e"
+                   and .58 <= eye["ry"] / eye["rx"] <= .69
                    for item in identity for eye in item["eyes"]), identity
         assert all(not item["outlines"] for item in identity), identity
-        assert all(not item["glints"] for item in identity), "the mascot face uses no detached highlights"
         assert all(item["eyes"][0]["rx"] > item["eyes"][1]["rx"] for item in identity), identity
         assert all(.3 <= item["eyes"][0]["cy"] - item["eyes"][1]["cy"] <= 1.3
                    for item in identity), identity
+        assert all(-7 <= eye["angle"] <= -1 for item in identity for eye in item["eyes"]), identity
+        assert all(abs(item["eyes"][0]["angle"] - item["eyes"][1]["angle"]) <= 3
+                   for item in identity), "paired eyes should share one calm visual rhythm"
         assert len({tuple((eye["rx"], eye["ry"]) for eye in item["eyes"])
                     for item in identity}) == 8, identity
         face_rows = {round(sum(eye["cy"] for eye in item["eyes"]) / 2, 1) for item in identity}
@@ -697,6 +705,11 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
             preview_eyes = preview.locator("[data-sigil-eye]").evaluate_all(
                 "eyes => eyes.map(eye => [eye.dataset.cx, eye.dataset.cy, eye.getAttribute('d'), eye.getAttribute('transform')])")
             assert preview_eyes == selected_eyes
+            selected_glints = shape_buttons.nth(index).locator("svg [data-sigil-glint]").evaluate_all(
+                "glints => glints.map(glint => [glint.dataset.sigilGlint, glint.getAttribute('cx'), glint.getAttribute('cy'), glint.getAttribute('transform')])")
+            preview_glints = preview.locator("[data-sigil-glint]").evaluate_all(
+                "glints => glints.map(glint => [glint.dataset.sigilGlint, glint.getAttribute('cx'), glint.getAttribute('cy'), glint.getAttribute('transform')])")
+            assert preview_glints == selected_glints
             avatar_preview = page.locator("[data-idp-prev] .avatar")
             avatar_preview.evaluate("el => el.style.setProperty('--av', '128px')")
             avatar_preview.screenshot(path=str(out / f"face-{shape_key}.png"), animations="disabled")
@@ -758,7 +771,7 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
             "silhouettes": 8,
             "colors": 8,
             "minimum_eye_contrast": round(min(eye_contrast), 2),
-            "checks": ["paired dark oval eyes stay compact and vary by silhouette", "eye contours stay inside every head with a visible margin", "shape-specific faces match every picker silhouette and live preview", "44px shape controls", "balanced two-row phone and compact-phone picker", "no phone overflow", "no browser errors"],
+            "checks": ["simple curved ink eyes have no pupils or detached highlights", "eye contours stay inside every head with a visible margin", "shape-specific faces match every picker silhouette and live preview", "44px shape controls", "balanced two-row phone and compact-phone picker", "no phone overflow", "no browser errors"],
             "page_errors": errors,
             "provider_calls": 0,
             "source_sha256": {
@@ -982,8 +995,9 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                 if surface_name == "connections":
                     chatgpt_mark = page.locator(".service-mark-chatgpt img")
                     assert chatgpt_mark.get_attribute("src") == "/static/brands/openai-white-monoblossom.svg"
-                    outlook_mark = page.locator(".service-mark-outlook [data-icon='mail']")
+                    outlook_mark = page.locator(".service-mark-outlook svg[data-icon='inbox']")
                     assert outlook_mark.is_visible()
+                    assert page.locator(".service-mark-outlook img").count() == 0
                     assert page.get_by_role("heading", name="Microsoft Outlook", exact=True).is_visible()
                 if surface_name == "bot-settings":
                     page.wait_for_function(
@@ -1165,7 +1179,8 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
             "individual_surfaces": [name for name, _, _ in surfaces] + ["preferences", "Fleet details disclosure", "Fleet action menu"],
             "visual_review": "Open each desktop, tablet, and phone screenshot individually; 320px compact-phone has overflow assertions.",
             "reference_access": {
-                "figma": "A node-level request for the supplied screen was attempted; the current Starter-plan MCP call limit blocked retrieval. DESIGN.md remains the implementation authority.",
+                "figma": "MCP node retrieval hit the Starter-plan limit; the supplied community file's chat, list, options-menu, and settings screens were selected and inspected individually in the open browser canvas.",
+                "mobbin": "The screen searches returned a paid-plan requirement; no Mobbin result was used.",
             },
             "source_sha256": _visual_source_hashes(),
         }, indent=2) + "\n", encoding="utf-8")

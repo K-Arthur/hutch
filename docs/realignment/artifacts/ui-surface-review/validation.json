@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
-  "captured_at": "2026-10-10T15:32:00.592545+00:00",
+  "captured_at": "2026-10-10T16:30:51.175464+00:00",
   "python": "3.13.15",
   "browser": "Chromium 153.0.8010.12",
   "playwright": "1.63.0",
@@ -602,15 +602,17 @@
   ],
   "visual_review": "Open each desktop, tablet, and phone screenshot individually; 320px compact-phone has overflow assertions.",
   "reference_access": {
-    "figma": "A node-level request for the supplied screen was attempted; the current Starter-plan MCP call limit blocked retrieval. DESIGN.md remains the implementation authority."
+    "figma": "MCP node retrieval hit the Starter-plan limit; the supplied community file's chat, list, options-menu, and settings screens were selected and inspected individually in the open browser canvas.",
+    "mobbin": "The screen searches returned a paid-plan requirement; no Mobbin result was used."
   },
   "source_sha256": {
-    "src/hutch/server/static/app.js": "dc5c6f66fab32d0042110b2c74a89b761667c4ee2aaddcc9e9c8e871e45178a1",
+    "src/hutch/server/static/app.js": "d48f2053cf550b90dc955c5aff20fcbacc43dbb058f8be3325ee69ab4fd0ec10",
     "src/hutch/server/static/index.html": "575a9641e4be85f5ed3294571370073ed90656c728baa218cfe11bd0b6e6f932",
-    "src/hutch/server/static/style.css": "a98e7a18de42a2a06282a210d0d37a96b61a0a5309622753f076c8da6c824ba4",
+    "src/hutch/server/static/style.css": "75639b6c30ab608a1aa586619a100a1cd2b7a2a8b41e258145678f9ceecff80d",
+    "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
     "website/index.html": "3cc72969a1db70426edff5ff5f2bea107915636cf5ee733ae39c87b6cbd3de2c",
     "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
     "website/styles.css": "b4734e30bccfce415329ffc6dc8b0631bb7937f51e8f8525c912229526ddfda8",
-    "tests/e2e/test_design_system.py": "4e676c824a17ed5c48039a034dc696cbb59a7ceae53f8727dfd8043e6245b69d"
+    "tests/e2e/test_design_system.py": "91208c33c6672dd0ec6125a5041cb5c83cff1841f20d05b0b2bd5f7413557c70"
   }
 }

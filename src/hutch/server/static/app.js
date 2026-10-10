@@ -590,9 +590,9 @@ function icon(name, cls = "") {
   return `<svg class="icon ${esc(cls)}" data-icon="${esc(name)}" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICON_PATHS[name] || ""}</svg>`;
 }
 
-// Use OpenAI's unaltered monochrome Blossom only beside its explicitly named
-// service. Other symbols describe categories; Microsoft branding is reserved
-// for its official sign-in control rather than an unlicensed Outlook mark.
+// Provider marks are used only beside the named service they represent. The
+// ChatGPT mark follows OpenAI's terms; other services use original Hutch
+// category glyphs unless their current brand terms permit a specific mark.
 function serviceMark(kind) {
   if (kind === "chatgpt") {
     return '<span class="service-mark service-mark-chatgpt" data-service-category="chatgpt" aria-hidden="true"><img src="/static/brands/openai-white-monoblossom.svg" alt=""></span>';
@@ -600,9 +600,7 @@ function serviceMark(kind) {
   const serviceIcons = {
     calendar: "calendar",
     gmail: "mail",
-    // Use the familiar, neutral mail category glyph; Microsoft product marks
-    // stay reserved for the unchanged official sign-in control.
-    outlook: "mail",
+    outlook: "inbox",
     hosted: "cloud",
     local: "monitor",
   };
@@ -621,7 +619,7 @@ function summarizeOutput(output) {
 
 /* ---------------------------------------------------------------- avatars
    Each Bot gets one light 2D character: a distinctive, name-stable silhouette,
-   one brand-family colour and a pair of shape-fitted oval eyes. This family
+   one brand-family colour and a pair of shape-fitted, softly curved eyes. This family
    belongs to the operator app; the marketing site keeps its detailed 3D artwork.
    Identity never encodes status. Status remains a separate labeled indicator. */
 const ID_COLORS = ["#3DE8C5", "#35C3F0", "#5B9BFF", "#9B7CFF", "#C77DFF", "#FF6FA5", "#FFA83C", "#7BD85A"];
@@ -635,18 +633,17 @@ const ID_HEADS = [
   { key: "triangle", d: "M27 12c2-4 8-4 10 0l19 32c2 4-1 8-5 8H13c-5 0-7-4-5-8l19-32Z" },
   { key: "hex", d: "M22 9h20l13 23-13 23H22L9 32 22 9Z" },
 ];
-// Each silhouette gets a pair of soft oval eyes fitted to its usable area.
-// Their spacing, size, and tilt vary with the head rather than repeating one
-// diagonal mark across every character.
+// Each silhouette gets a pair of broad, softly curved ink eyes. Shape-specific
+// size and placement keep the face expressive without pupils or extra marks.
 const ID_FACES = [
-  [[25, 29, 4.2, 5.1, -8], [39, 28.2, 3.7, 4.7, 8]], // orb: open, gently lifted
-  [[25.5, 28, 4, 5.3, -6], [39, 27.6, 3.7, 4.9, 7]], // capsule: upright in the tall face
-  [[24.5, 30, 4, 5, -10], [39, 28.8, 3.6, 4.6, 7]], // bean: follows the lean
-  [[25, 36.5, 4, 4.9, -7], [39, 35.4, 3.6, 4.5, 8]], // drop: lower in its bowl
-  [[24.5, 30, 4.1, 5, -8], [39, 28.8, 3.7, 4.6, 7]], // pebble: follows its wide face
-  [[25.2, 31.3, 3.8, 4.8, -7], [38.8, 30.2, 3.5, 4.4, 7]], // shield: compact below its taper
-  [[28, 37.4, 3.6, 4.6, -6], [39, 36.5, 3.3, 4.2, 7]], // triangle: centered in the base
-  [[25, 33.3, 4, 5, -8], [39, 32.2, 3.6, 4.5, 7]], // hex: clear of the facets
+  [[25.5, 29, 4.4, 2.75, -4], [38.2, 28.4, 4, 2.6, -3]], // orb: open, gently lifted
+  [[25.5, 28.4, 4.3, 2.7, -3], [38.2, 28, 3.9, 2.55, -2]], // capsule: upright in the tall face
+  [[25.2, 30, 4.25, 2.75, -5], [38.2, 28.8, 3.95, 2.55, -4]], // bean: follows the lean
+  [[25.5, 36.4, 4.2, 2.7, -3], [38.2, 35.4, 3.9, 2.55, -2]], // drop: lower in its bowl
+  [[25, 30, 4.35, 2.65, -4], [38.2, 28.8, 3.95, 2.5, -3]], // pebble: follows its wide face
+  [[25.6, 31.5, 4.1, 2.65, -2], [38.2, 30.4, 3.8, 2.5, -1]], // shield: compact below its taper
+  [[28.5, 37.4, 4.1, 2.7, -3], [39.2, 36.5, 3.7, 2.45, -2]], // triangle: centered in the base
+  [[25.4, 33.3, 4.35, 2.75, -4], [38.2, 32.2, 4, 2.55, -3]], // hex: clear of the facets
 ];
 
 function hash32(s) {
@@ -686,18 +683,17 @@ function sigilSet(name, pair) { idStore.all[name] = pair; idStore.save(); }
 function sigilEyes(shapeIndex) {
   const [lead, companion] = ID_FACES[shapeIndex] || ID_FACES[0];
   const eye = (name, [cx, cy, rx, ry, angle]) => {
-    // Four cubic arcs make a smooth, compact oval that stays legible at 24px.
-    const k = .55228475;
-    const d = "M " + cx + " " + (cy - ry) +
-      " C " + (cx + rx * k) + " " + (cy - ry) + " " + (cx + rx) + " " + (cy - ry * k) + " " + (cx + rx) + " " + cy +
-      " C " + (cx + rx) + " " + (cy + ry * k) + " " + (cx + rx * k) + " " + (cy + ry) + " " + cx + " " + (cy + ry) +
-      " C " + (cx - rx * k) + " " + (cy + ry) + " " + (cx - rx) + " " + (cy + ry * k) + " " + (cx - rx) + " " + cy +
-      " C " + (cx - rx) + " " + (cy - ry * k) + " " + (cx - rx * k) + " " + (cy - ry) + " " + cx + " " + (cy - ry) + " Z";
+    // A broad, curved silhouette avoids the round eye-ring and slash extremes.
+    const d = "M " + (cx - rx) + " " + cy +
+      " C " + (cx - rx * .7) + " " + (cy - ry * .78) + " " + (cx - rx * .36) + " " + (cy - ry) + " " + cx + " " + (cy - ry) +
+      " C " + (cx + rx * .43) + " " + (cy - ry) + " " + (cx + rx * .79) + " " + (cy - ry * .66) + " " + (cx + rx) + " " + cy +
+      " C " + (cx + rx * .73) + " " + (cy + ry * .72) + " " + (cx + rx * .36) + " " + (cy + ry) + " " + cx + " " + (cy + ry) +
+      " C " + (cx - rx * .45) + " " + (cy + ry) + " " + (cx - rx * .82) + " " + (cy + ry * .65) + " " + (cx - rx) + " " + cy + " Z";
     const transform = "rotate(" + angle + " " + cx + " " + cy + ")";
-    const metadata = 'data-cx="' + cx + '" data-cy="' + cy + '" data-rx="' + rx + '" data-ry="' + ry + '" d="' + d + '" transform="' + transform + '"';
-    return '<path data-sigil-eye="' + name + '" data-contrast-ink="#101714" ' + metadata + ' fill="#101714" aria-hidden="true"/>';
+    const metadata = 'data-cx="' + cx + '" data-cy="' + cy + '" data-rx="' + rx + '" data-ry="' + ry + '" data-angle="' + angle + '" d="' + d + '" transform="' + transform + '"';
+    return '<path data-sigil-eye="' + name + '" data-contrast-ink="#10251e" ' + metadata + ' fill="#10251e" aria-hidden="true"/>';
   };
-  return '<g aria-hidden="true" fill="#101714">' + eye("lead", lead) + eye("companion", companion) + '</g>';
+  return '<g aria-hidden="true">' + eye("lead", lead) + eye("companion", companion) + '</g>';
 }
 
 function sigilBody(pair) {

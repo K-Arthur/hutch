@@ -1521,19 +1521,76 @@ in [`artifacts/studio-service-refinement/`](artifacts/studio-service-refinement/
 ## Follow-up: mascot face correction and final roster check (2026-10-10)
 
 The tapered light marks in the prior capture still read like slashes. The app
-mascots and shape picker now use simple dark oval eyes, with per-shape spacing,
-height, scale, and a slight tilt. I opened the eight face crops individually
-after the change, then inspected the updated full Studio capture. The existing
-browser check verifies each face against its own SVG boundary, checks contrast,
-and confirms that the picker preview matches the selected silhouette. It passed
-**1 test in 5.44s** on Chromium **153.0.8010.12** / Playwright **1.63.0**. The
-measured minimum eye-to-body contrast is **5.82:1**. Current captures are in
-[`artifacts/mascot-eye-review-2026-10-10/`](artifacts/mascot-eye-review-2026-10-10/).
+mascots and shape picker were changed to dark oval eyes, with per-shape spacing,
+height, scale, and a slight tilt. The later refinement keeps those dark eyes
+and softens their curved contours, with no pupils or highlights. All eight
+silhouettes use shape-aware geometry shared with the
+identity picker; details and current screenshots appear in the final review
+below.
 
 The latest roster capture also confirms each assistant name remains on one line
 and truncates with an ellipsis only when the available width requires it. The
 selection color reaches the row's single options control. The official white
-OpenAI Blossom is used next to ChatGPT; the Outlook product tile remains a
-neutral inbox glyph because Microsoft requires express permission for its
-product icons. The official Microsoft sign-in lockup is kept on the authorization
-control. The full UI redesign across every surface remains unfinished.
+OpenAI Blossom is used next to ChatGPT. Outlook's icon decision was checked
+against Microsoft's current guideline: product icons require an express license,
+which is not recorded for Hutch. The account tile therefore uses Hutch's own
+blue-toned inbox glyph beside the full product name. Gmail and Google Calendar
+retain category artwork pending Google's approval process. Current icon and
+visual evidence follows below.
+
+## Final provider-icon and one-line roster review (2026-10-10)
+
+Apps & AI displays the exact local OpenAI Blossom beside **ChatGPT**. Microsoft
+Outlook, Gmail, and Google Calendar each have a 48px service tile with Hutch's
+original category art and the full provider name. I opened the Connections
+screenshots independently at desktop, tablet, and phone. Gmail and Google
+Calendar continue to use Hutch's mail and calendar glyphs because Google's
+current product-icon rules require approval; Microsoft bars product-icon use
+without an express license.
+
+Assistant names remain single-line in the expanded desktop and phone roster.
+Long names end in an ellipsis, retain the complete name for assistive discovery,
+and never push the shared options button out of the selected row. The mascot
+follow-up replaces ring-like pale eyes with broad, softly curved solid ink eyes
+without pupils or highlights; all eight silhouettes
+and the shape picker were inspected after the change. The focused 4-test
+verification and refreshed screenshots are recorded in the current ledger
+checkpoint. The cross-product visual overhaul remains open.
+
+## Provider artwork correction and simplified mascot faces (2026-10-10)
+
+The official ChatGPT Blossom remains next to the named ChatGPT service. I found
+the Outlook product icon, but Microsoft's current [trademark rules](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks)
+require an express license for app and product icons; Hutch has no recorded
+license, so the Outlook connection now uses an original blue-toned inbox glyph
+beside the full provider name. Gmail and Google Calendar also use Hutch's own
+category glyphs pending Google's approval process.
+
+The last eye revision removed the tiny white dots that made the characters look
+like they had pupils. Each of the eight app silhouettes now has two softly
+curved, solid ink eyes, placed and sized for its face; the identity picker uses
+the same paths. The result keeps the small 2D characters simple and leaves the
+marketing site's detailed 3D mascot separate. I opened the updated Studio at
+desktop and phone widths, Connections at desktop and phone widths, the selected
+desktop and phone roster, and individual orb, drop, and shield faces. The
+broader route suite had already been inspected page by page and was recaptured
+at desktop **1440×960**, tablet **900×1024**, phone **390×844**, and compact phone
+**320×740**.
+
+The focused browser batch passed **4 tests in 32.06s**:
+`test_shared_design_tokens_render_consistently_across_all_surfaces`,
+`test_every_workspace_route_renders_independently_at_responsive_sizes`,
+`test_flat_mascot_eyes_stay_inside_every_silhouette`, and
+`test_bot_roster_pins_persist_and_simple_mascots_stay_distinct`. It checks the
+ChatGPT asset, original Outlook inbox glyph, one-line ellipsis names, selected
+row coverage through its one options button, pin persistence, all eight
+shape-specific faces, picker parity, and responsive routes. Chromium
+**153.0.8010.12** / Playwright **1.63.0** used local fixtures; there were **zero
+provider calls and zero external requests**. `node --check`, sidecar JSON
+validation, `git diff --check`, and the Impeccable detector passed with zero
+anti-patterns. No live provider, screen reader, or physical device was used.
+Screenshots, source hashes, and traces are in
+[`artifacts/ui-surface-review/`](artifacts/ui-surface-review/),
+[`artifacts/mascot-eye-review-2026-10-10/`](artifacts/mascot-eye-review-2026-10-10/),
+and [`artifacts/pinned-roster/`](artifacts/pinned-roster/). The all-surface
+redesign remains open.

@@ -67,8 +67,8 @@
   --type-display-size: clamp(1.75rem, 3vw, 2.25rem);
   --type-page-size: 1.5rem;
   --type-section-size: 1.125rem;
-  --type-body-size: 0.9375rem;
-  --type-reading-size: 1rem;
+  --type-body-size: 1rem;
+  --type-reading-size: 1.0625rem;
   --type-label-size: 0.875rem;
   --type-caption-size: 0.75rem;
   --type-mono-size: 0.8125rem;
@@ -515,7 +515,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 /* ───────────────────────────── avatar (identity system) ───────────────────────────── */
 
 /* Unique agent sigils: one shape from a curated set, one brand-family colour,
-   and a pair of dark oval eyes fitted to that silhouette. Derived from the
+   and a pair of shape-fitted, swept light eyes. Derived from the
    bot's name; overridable at creation
    and in bot settings. Identity never encodes status — status rides the pip,
    which is always paired with a word (title/aria). */
@@ -2161,17 +2161,17 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
 .service-tile-top { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-width: 0; }
 .service-mark {
   display: grid; place-items: center; width: 48px; height: 48px; flex: none;
-  border: 1px solid color-mix(in srgb, var(--service-accent, var(--brand-hi)) 28%, var(--line));
-  border-radius: var(--r-panel); background: color-mix(in srgb, var(--service-accent, var(--brand-hi)) 15%, var(--sunken));
+  border: 1px solid color-mix(in srgb, var(--service-accent, var(--brand-hi)) 38%, var(--line));
+  border-radius: var(--r-panel); background: color-mix(in srgb, var(--service-accent, var(--brand-hi)) 23%, var(--sunken));
   color: var(--service-accent, var(--brand-hi));
 }
-.service-mark svg { width: 23px; height: 23px; }
+.service-mark svg { width: 26px; height: 26px; stroke-width: 1.9; }
 .service-mark img { display: block; width: 24px; height: 24px; object-fit: contain; }
-.service-mark-calendar { --service-accent: #75aaff; }
-.service-mark-gmail { --service-accent: #ff8475; }
-.service-mark-outlook { --service-accent: #75aaff; }
+.service-mark-calendar { --service-accent: #82b0ff; }
+.service-mark-gmail { --service-accent: #ff8a7c; }
+.service-mark-outlook { --service-accent: #91aaff; }
 .service-mark-chatgpt { --service-accent: #68d6b4; border-color: var(--line-strong); background: var(--sunken); }
-.service-mark-chatgpt img { width: 25px; height: 25px; }
+.service-mark-chatgpt img { width: 36px; height: 36px; }
 .service-mark-hosted { --service-accent: #c5b5ff; }
 .service-state { max-width: 100%; padding: 5px 9px; color: var(--text-2); border: 1px solid var(--line); border-radius: var(--r-chip); font-size: var(--fs-xs); line-height: 1.3; text-align: center; white-space: nowrap; }
 .service-state.connected { color: var(--brand-hi); border-color: color-mix(in srgb, var(--brand) 36%, transparent); }

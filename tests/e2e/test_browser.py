@@ -5361,8 +5361,9 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
         assert identity["count"] == 0, "flat app avatars need no shared SVG definition IDs"
         assert len(set(identity["shapes"])) == 5, "name-derived avatars should remain distinguishable"
         assert len(set(identity["fills"])) > 1 and all(len(eyes) == 2 for eyes in identity["eyes"])
-        assert all(eye["fill"] == "#101714" and eye["stroke"] is None and eye["tag"] == "path"
+        assert all(eye["fill"] == "#10251e" and eye["stroke"] is None and eye["tag"] == "path"
                    for eyes in identity["eyes"] for eye in eyes)
+        assert page.locator("#roster-list .avatar svg [data-sigil-glint]").count() == 0
         assert all(" C " in eye["d"] for eyes in identity["eyes"] for eye in eyes)
         assert all(abs(float(eyes[0]["cx"]) - float(eyes[1]["cx"])) <= 16
                    for eyes in identity["eyes"]), "paired eyes should read as one compact face"

@@ -9,26 +9,22 @@ change its work, or create a second management surface. Keep the existing Fleet 
 for larger workspaces; ten Bots remains the owner's starting heuristic, not a proven
 usability threshold.
 
-Use simple flat 2D characters in the working app: a distinct coloured silhouette with
-two inset ink eyes. Each eye pair follows its head's usable area, center, spacing,
-proportions and tilt; the shape chooser must show the same face geometry as the
-selected avatar. An earlier white-glint treatment was rejected after it looked
-detached on the pointed drop head. Keep the more detailed original 3D artwork on
-the marketing site. The mascot and its colour never indicate whether a Bot is
+Use simple flat 2D characters in the working app: a distinct coloured silhouette
+with a matched pair of softly curved, solid ink eyes and no pupils or highlights.
+Each pair follows its head's usable area, center, spacing, proportions and slant;
+the shape chooser must show the same face
+geometry as the selected avatar. Detached marks are avoided. Keep the more
+detailed original 3D artwork on the marketing site. The mascot and its colour
+never indicate whether a Bot is
 running, waiting, paused, or failed; those states remain separately labeled.
 
 ## Shape-specific face follow-up (2026-10-10)
 
-An additional desktop and phone review found that the earlier narrow diagonal
-eyes looked like repeated slashes and obscured the differences between the head
-forms. The app now uses softer upright ink ovals with an individual face-safe
-area for each silhouette: orb, capsule, bean, drop, pebble, shield, triangle and
-hex. Their centerline, eye spacing, proportions, height and restrained tilt are
-chosen against the visible body shape; the drop and triangle sit lower in their
-wider areas, while the shield stays compact below its taper. Eyes remain fully
-inside every path, and the picker and selected avatar share the exact geometry.
-This keeps the app characters simple while allowing the silhouette—not a generic
-face stamp—to lead identity.
+An earlier desktop and phone review found that narrow diagonal eyes looked like
+repeated slashes and obscured differences between head forms. That review changed
+the design to upright ink ovals with an individual face-safe area for each
+silhouette. A later owner review found the heavier ink ovals still felt rigid;
+the current treatment below replaces them with lighter swept shapes.
 
 ## Evidence and limits
 
@@ -79,17 +75,20 @@ synced between browsers. Pinning is persisted with the Bot and survives app relo
 
 ## Face refinement after owner review (2026-10-10)
 
-The owner rejected the previous matched-looking dark dots as heavy and poorly
-integrated with the different silhouettes. The app now renders each face as two
-light, tapered eye slits with a fine dark edge. Both eyes share one angle and
-visual rhythm, with shape-specific size and placement; the drop and triangle sit
-lower where their heads are widest. The dark edge preserves legibility against
-the brighter identity colours. This is app artwork, not copied Grok Bot art.
+The owner rejected the matched-looking dark ovals as heavy and poorly integrated
+with the different silhouettes. A later trial of pale eyes with outlined pupils
+looked googly at preview size. The current design uses broad, curved dark shapes
+without pupils or highlights, with individualized placement and slant. The drop and triangle sit lower where
+their heads are widest. They remain simple flat app artwork and are not copied
+from a Grok Bot asset.
 
-The provider artwork review found official ChatGPT, Outlook, Gmail, and Google
-Calendar marks, but no Hutch permission record for bundling those trademarks in
-the app and marketing site. Apps & AI therefore retains original, tinted category
-glyphs, with **Microsoft Outlook**, **Gmail**, and **ChatGPT** spelled out beside
-them. The glyphs identify mail, calendar, inbox, or AI functions and are not
-presented as those providers' marks. The user-supplied reference screens guide
-hierarchy and interaction only; they do not grant rights to copy logos.
+The provider artwork decision was revisited after checking current official
+guidelines. ChatGPT keeps OpenAI's exact, unaltered white Blossom beside its
+name. Microsoft bars product-icon use without an express license, so the
+**Microsoft Outlook** account tile uses Hutch's original inbox glyph and keeps
+the full product name. Gmail and Google Calendar also keep original category
+glyphs until Google's approval process grants product-icon access. The visual
+and usage boundaries are detailed in
+[`icon-and-chat-interface-references-2026-10-10.md`](icon-and-chat-interface-references-2026-10-10.md).
+User-supplied reference screens guide hierarchy and interaction only; they do
+not grant rights to copy logos.

@@ -46,13 +46,13 @@ typography:
     letterSpacing: "-0.02em"
   body:
     fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
-    fontSize: "0.9375rem"
+    fontSize: "1rem"
     fontWeight: 400
     lineHeight: 1.55
     letterSpacing: "normal"
   reading:
     fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
-    fontSize: "1rem"
+    fontSize: "1.0625rem"
     fontWeight: 400
     lineHeight: 1.65
   label:
@@ -157,17 +157,17 @@ can access or what the machine has actually confirmed.
   cost, timing, run references, and transcript checks remain available in a
   clearly labeled optional details layer.
 - A simple, shape-aware 2D character gives the app a recognizable face. Each
-  distinct silhouette has its own calm pair of dark oval eyes; size, spacing,
-  and gentle tilt adapt to the shape. Keep the face uncluttered, with no detached
-  highlights or extra marks. Larger original 3D character art belongs to
-  marketing; both use the same friendly palette and visual family.
+  distinct silhouette has two softly curved, solid ink eyes. Size, spacing,
+  height, and shared slant follow the shape. Keep the face uncluttered, with no
+  pupils, highlights, or detached marks. Larger original 3D
+  character art belongs to marketing; both use the same friendly palette and
+  visual family.
 - Provider art follows the provider's current published rules. ChatGPT uses
-  OpenAI's unaltered white Blossom beside its explicit name. Microsoft Outlook
-  keeps a neutral mail category icon; its product icon is not reused without a
-  license, while the official Microsoft sign-in artwork appears unchanged only
-  on the account-authorization control. Gmail and other services keep neutral
-  category icons until the provider's rules allow a specific asset and use.
-  Every mark stays secondary to its exact service name and connection state.
+  OpenAI's unaltered white Blossom beside its explicit name. Microsoft Outlook,
+  Gmail, and Google Calendar use original service-category glyphs beside their
+  full names unless Hutch receives permission to use specific product icons.
+  Every mark stays secondary to its exact service name and connection state;
+  category artwork never imitates a provider logo.
 - Layered graphite surfaces keep long sessions comfortable. Emerald is the brand
   and primary action; azure is interaction; amber means a person needs to act; rose
   means failure. Text and familiar icons reinforce each color's meaning.
@@ -207,8 +207,8 @@ prose, labels, or marketing.
   −0.035em tracking for occasional welcome or feature emphasis.
 - **Page title:** 1.5rem/1.25 weight 700, −0.02em tracking. **Section title:**
   1.125rem/1.25 weight 650. Routine settings pages keep a restrained hierarchy.
-- **Body:** 0.9375rem/1.55 for interface prose; longer reading and conversation
-  passages use 1rem/1.65. Labels use 0.875rem/1.4; compact metadata uses
+- **Body:** 1rem/1.55 for interface prose; longer reading and conversation
+  passages use 1.0625rem/1.65. Labels use 0.875rem/1.4; compact metadata uses
   0.75rem/1.45. Composer text stays at 1rem or above.
 - **Labels:** system sans with medium/semibold weight and restrained uppercase
   tracking only for compact group labels. Mono is reserved for measured data.
@@ -222,12 +222,11 @@ prose, labels, or marketing.
 - **Icons:** actions and categories use one local 24×24 outline-vector family,
   with 16/20/24px size roles, a shared current-color stroke, and round joins and
   caps. Apps & AI presents original calendar, mail, inbox, and cloud glyphs in
-  compact, service-tinted tiles. ChatGPT uses OpenAI's unaltered white Blossom
-  beside its explicit name. Outlook keeps a neutral inbox glyph until Hutch has
-  permission for its product icon; the official Microsoft sign-in lockup appears
-  unchanged only on authorization controls. Keep exact service names and states
-  visible; category cues are not provider logos. No provider icon is fetched
-  remotely.
+  compact service tiles. ChatGPT uses OpenAI's unaltered white Blossom beside
+  its exact name. Microsoft Outlook, Gmail, and Google Calendar use original
+  category glyphs until product-icon use is permitted. Keep exact service names
+  and states visible; category cues are not provider logos. Provider artwork is
+  bundled locally.
 
 ## Layout
 
@@ -275,10 +274,11 @@ language after explicit user direction ("right angles feel too off"):
 - **Status chip** — pill, mono 11px, dot + word always together (`● working`,
   `● needs you`, `✕ failed`); colour never carries state alone.
 - **App avatar/sigil** — one flat silhouette from a varied, curated set in one of
-  eight identity colours with a pair of solid dark oval eyes. Each silhouette
-  has a face-safe zone that determines eye center, spacing, proportions, and
-  height; pointed heads place them lower in the wider face. Keep the minimal
-  face free of detached highlights or extra marks. The identity picker uses the exact same face geometry as the
+  eight identity colours with two softly curved solid ink eyes. Their gentle
+  shared slant gives each face a fluid expression; every silhouette has a face-safe zone that
+  determines eye center, spacing, proportions, height, and tilt. Pointed heads
+  place them lower in the wider face. Keep the face free of detached marks. The identity
+  picker uses the exact same face geometry as the
   selected avatar. Derived from the Bot name and overridable
   at creation and in settings. Identity colours are decorative only, never status;
   the separate state pip sits beside it with its word. The marketing site's 3D art
