@@ -593,9 +593,9 @@ function summarizeOutput(output) {
 
 /* ---------------------------------------------------------------- avatars
    Each Bot gets one light 2D character: a distinctive, name-stable silhouette,
-   one brand-family colour and two bright glints. This simple family belongs to
-   the operator app; the marketing site keeps its detailed 3D artwork. Identity
-   never encodes status. Status remains a separate labeled indicator. */
+   one brand-family colour and a pair of inset ink eyes. This simple family
+   belongs to the operator app; the marketing site keeps its detailed 3D artwork.
+   Identity never encodes status. Status remains a separate labeled indicator. */
 const ID_COLORS = ["#3DE8C5", "#35C3F0", "#5B9BFF", "#9B7CFF", "#C77DFF", "#FF6FA5", "#FFA83C", "#7BD85A"];
 const ID_HEADS = [
   { key: "orb", d: "M32 8C45 8 55 18 55 32S45 56 32 56 9 46 9 32 19 8 32 8Z" },
@@ -606,6 +606,18 @@ const ID_HEADS = [
   { key: "shield", d: "M32 9c7 4 15 6 21 7v17c0 12-8 19-21 23-13-4-21-11-21-23V16c6-1 14-3 21-7Z" },
   { key: "triangle", d: "M27 12c2-4 8-4 10 0l19 32c2 4-1 8-5 8H13c-5 0-7-4-5-8l19-32Z" },
   { key: "hex", d: "M22 9h20l13 23-13 23H22L9 32 22 9Z" },
+];
+// Eye placement follows each silhouette's usable face area. Pointed shapes
+// carry the eyes lower so they read as a face instead of floating on the tip.
+const ID_FACES = [
+  [[25, 29, -14], [39, 28, 12]], // orb
+  [[25, 29, -12], [39, 29, 10]], // capsule
+  [[24, 30, -14], [39, 28, 12]], // bean
+  [[25, 34, -14], [39, 32, 12]], // drop
+  [[25, 29, -14], [39, 28, 12]], // pebble
+  [[25, 27, -12], [39, 27, 10]], // shield
+  [[25, 34, -14], [39, 32, 12]], // triangle
+  [[25, 30, -12], [39, 30, 10]], // hex
 ];
 
 function hash32(s) {
@@ -642,12 +654,13 @@ function sigilPair(name) {
 }
 function sigilSet(name, pair) { idStore.all[name] = pair; idStore.save(); }
 
-function sigilEyes(fill = "#fff") {
-  const lead = "M22.4 14.3c-1.4.5-1.9 2-.9 3.9l3.5 6.7c.9 1.7 2.6 2.3 4 1.5 1.3-.7 1.7-2.1.8-3.8L26.2 16c-.9-1.7-2.4-2.4-3.8-1.7Z";
-  const companion = "M39.5 10.4c-1.1.4-1.5 1.6-.7 3.1l2.6 4.7c.7 1.3 1.9 1.9 3 1.3 1-.5 1.3-1.6.6-2.9l-2.7-4.8c-.7-1.3-1.8-1.8-2.8-1.4Z";
-  return `<g fill="${fill}" aria-hidden="true">
-    <path data-sigil-eye="lead" d="${lead}"/>
-    <path data-sigil-eye="companion" d="${companion}"/>
+function sigilEyes(shapeIndex) {
+  const [lead, companion] = ID_FACES[shapeIndex] || ID_FACES[0];
+  const eye = (name, [cx, cy, angle], rx, ry) =>
+    `<ellipse data-sigil-eye="${name}" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" transform="rotate(${angle} ${cx} ${cy})"/>`;
+  return `<g fill="#10161f" aria-hidden="true">
+    ${eye("lead", lead, 5, 4.2)}
+    ${eye("companion", companion, 4.6, 4)}
   </g>`;
 }
 
@@ -655,7 +668,7 @@ function sigilBody(pair) {
   const [ci, si] = pair;
   const base = ID_COLORS[ci];
   const h = ID_HEADS[si] || ID_HEADS[0];
-  return `<path d="${h.d}" fill="${base}"/>${sigilEyes()}`;
+  return `<path d="${h.d}" fill="${base}"/>${sigilEyes(si)}`;
 }
 
 function avatarFromPair(pair, size, state = "") {

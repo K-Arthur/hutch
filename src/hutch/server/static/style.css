@@ -473,7 +473,8 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 /* ───────────────────────────── avatar (identity system) ───────────────────────────── */
 
 /* Unique agent sigils: one shape from a curated set, one brand-family colour,
-   two glints for a face. Derived from the bot's name; overridable at creation
+   and a pair of rounded ink eyes placed for that silhouette. Derived from the
+   bot's name; overridable at creation
    and in bot settings. Identity never encodes status — status rides the pip,
    which is always paired with a word (title/aria). */
 .avatar {

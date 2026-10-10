@@ -134,7 +134,9 @@ understand what the machine is actually doing, or it is chrome that should shrin
 - Mono type is reserved for measured values (ids, durations, counts, budgets) —
   it signals "this number came from the machine".
 - The operator workspace uses simple, flat 2D Bot characters: one coloured
-  silhouette and two white glints, stable by Bot name and editable by the owner.
+  silhouette and two inset ink oval eyes. Eye position follows the chosen head
+  shape, with lower placement on pointed silhouettes so the eyes stay inside the
+  face. Identity is stable by Bot name and editable by the owner.
   Detailed original 3D mascot artwork belongs to marketing pages; the product
   and marketing characters are related brand work, not a shared UI asset.
 
@@ -221,8 +223,9 @@ language after explicit user direction ("right angles feel too off"):
 - **Status chip** — pill, mono 11px, dot + word always together (`● working`,
   `● needs you`, `✕ failed`); colour never carries state alone.
 - **App avatar/sigil** — one flat silhouette from a curated set in one of eight
-  identity colours with a pair of softly tapered eye glints; related curved shapes
-  share a diagonal, while a smaller companion balances the larger lead eye. Derived from the Bot name and overridable
+  identity colours with a pair of soft ink oval eyes. Eye placement is tuned per
+  silhouette; pointed heads place the eyes lower so they remain integrated into
+  the face. Derived from the Bot name and overridable
   at creation and in settings. Identity colours are decorative only, never status;
   the separate state pip sits beside it with its word. The marketing site's 3D art
   is a separate, larger brand illustration.

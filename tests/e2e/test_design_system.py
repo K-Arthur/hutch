@@ -232,3 +232,103 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
         except Exception:
             pass
         context.close()
+
+
+def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
+    """The app's paired eyes read as a face and remain contained across all eight shapes."""
+    app_url, app = app_server
+    names = [f"mascot-{index}" for index in range(8)]
+    for name in names:
+        app.state.store.create_bot(Bot(name=name, display_name=name, model="mock/demo", tools=[]))
+
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    context.add_init_script(f"""const names = {json.dumps(names)};
+      localStorage.setItem("hutch:sigils", JSON.stringify(
+        Object.fromEntries(names.map((name, index) => [name, [index, index]]))));""")
+    page = context.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    out = ROOT / "docs/realignment/artifacts/mascot-eye-review"
+    out.mkdir(parents=True, exist_ok=True)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(f"{app_url}/#/chat/design-system-review")
+        page.locator(".ctx-id h1").wait_for()
+        page.locator("#roster-list [data-switch-bot='mascot-7'] .avatar svg").wait_for()
+        page.screenshot(path=str(out / "desktop.png"), animations="disabled")
+        identity = page.locator("#roster-list [data-switch-bot^='mascot-'] .avatar svg").evaluate_all("""svgs => svgs.map(svg => {
+          const body = svg.querySelector(':scope > path');
+          const shape = new Path2D(body.getAttribute('d'));
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const eyes = [...svg.querySelectorAll('[data-sigil-eye]')];
+          const contained = eyes.map(eye => {
+            const x = Number(eye.getAttribute('cx'));
+            const y = Number(eye.getAttribute('cy'));
+            const rx = Number(eye.getAttribute('rx')) * .98;
+            const ry = Number(eye.getAttribute('ry')) * .98;
+            const transform = eye.transform.baseVal.consolidate()?.matrix;
+            const points = Array.from({length:32}, (_, index) => {
+              const angle = index * Math.PI / 16;
+              return new DOMPoint(x + Math.cos(angle) * rx, y + Math.sin(angle) * ry)
+                .matrixTransform(transform);
+            });
+            const center = new DOMPoint(x, y).matrixTransform(transform);
+            return {center: ctx.isPointInPath(shape, center.x, center.y),
+                    perimeter: points.every(point => ctx.isPointInPath(shape, point.x, point.y))};
+          });
+          return {color: body.getAttribute('fill'),
+                  eyes: eyes.map(eye => ({tag: eye.tagName.toLowerCase(), fill: eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill')})),
+                  contained};
+        })""")
+        assert len(identity) == 8, identity
+        assert len({item["color"] for item in identity}) == 8, identity
+        assert all(len(item["eyes"]) == 2 for item in identity), identity
+        assert all(eye == {"tag": "ellipse", "fill": "#10161f"}
+                   for item in identity for eye in item["eyes"]), identity
+        assert all(part == {"center": True, "perimeter": True}
+                   for item in identity for part in item["contained"]), identity
+
+        def relative_luminance(color: str) -> float:
+            channels = [int(color[index:index + 2], 16) / 255 for index in (1, 3, 5)]
+            linear = [value / 12.92 if value <= .04045 else ((value + .055) / 1.055) ** 2.4
+                      for value in channels]
+            return .2126 * linear[0] + .7152 * linear[1] + .0722 * linear[2]
+
+        eye_ink = identity[0]["eyes"][0]["fill"]
+        eye_contrast = [
+            (max(relative_luminance(eye_ink), relative_luminance(item["color"])) + .05)
+            / (min(relative_luminance(eye_ink), relative_luminance(item["color"])) + .05)
+            for item in identity
+        ]
+        assert min(eye_contrast) >= 3, eye_contrast
+
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.screenshot(path=str(out / "phone-studio.png"), animations="disabled")
+        if page.locator("#nav-toggle").is_visible():
+            page.locator("#nav-toggle").click()
+            page.locator("#workspace.open").wait_for()
+        page.screenshot(path=str(out / "phone-roster.png"), animations="disabled")
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+        assert not errors, errors
+        context.tracing.stop(path=str(out / "trace.zip"))
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "viewports": {"desktop": [1440, 960], "phone": [390, 844]},
+            "screenshots": ["desktop.png", "phone-studio.png", "phone-roster.png"],
+            "silhouettes": 8,
+            "colors": 8,
+            "minimum_eye_contrast": round(min(eye_contrast), 2),
+            "checks": ["paired ink eyes", "eye forms inside each mascot silhouette", "no phone overflow", "no browser errors"],
+            "page_errors": errors,
+            "provider_calls": 0,
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace-failed.zip"))
+        except Exception:
+            pass
+        context.close()

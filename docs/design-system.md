@@ -52,8 +52,9 @@ generated token files and the declared WCAG text pairs.
 
 The marketing site keeps Archivo for display and section headings and uses the
 locally bundled 3D Hutch mascot. Product body text uses the same system sans as
-Studio. The operator app keeps its compact flat 2D Bot silhouettes; their eyes
-are a matched, gently tapered pair, and status is shown separately. Brand art,
+Studio. The operator app keeps its compact flat 2D Bot silhouettes; their dark,
+rounded eyes are inset and positioned for each head shape, while status is shown
+separately. Brand art,
 Bot identity, and runtime state never substitute for one another.
 
 ## Surface roles

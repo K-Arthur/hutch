@@ -53,9 +53,9 @@
   ],
   "avatar_svg_ids": 0,
   "source_sha256": {
-    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
-    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
+    "src/hutch/server/static/app.js": "981271fe7e29d61d13f9568950c3bbaf721a629f139b920c386ac7c6a03e51e4",
+    "src/hutch/server/static/style.css": "1ce2957af6a19fe073954c868b09a3b6a69857b336e47736b8bfced6e0c55d75",
     "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
-    "tests/e2e/test_browser.py": "cb110cb5fb29bab353bc2c87d883f43f3a237301df33b2136a4c50ed04b03238"
+    "tests/e2e/test_browser.py": "c914120196569cfb4069e5d25746fd03d8a7bad1229bf40616aae70031c7460b"
   }
 }

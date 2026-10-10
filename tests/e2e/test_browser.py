@@ -4703,15 +4703,17 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
           return {count: ids.length, shapes: svgs.map(svg => svg.querySelector('path')?.getAttribute('d')),
                   fills: svgs.map(svg => svg.querySelector('path')?.getAttribute('fill')),
                   eyes: svgs.map(svg => [...svg.querySelectorAll('[data-sigil-eye]')].map(eye => ({
-                    shape:eye.getAttribute('data-sigil-eye'),path:eye.getAttribute('d'),
-                    fill:eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill')})))};
+                    shape:eye.getAttribute('data-sigil-eye'),tag:eye.tagName.toLowerCase(),
+                    fill:eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill'),
+                    cx:eye.getAttribute('cx'),cy:eye.getAttribute('cy')})))};
         }""")
         assert identity["count"] == 0, "flat app avatars need no shared SVG definition IDs"
         assert len(set(identity["shapes"])) == 5, "name-derived avatars should remain distinguishable"
         assert len(set(identity["fills"])) > 1 and all(len(eyes) == 2 for eyes in identity["eyes"])
-        assert all(eye["fill"] == "#fff" for eyes in identity["eyes"] for eye in eyes)
+        assert all(eye["fill"] == "#10161f" and eye["tag"] == "ellipse"
+                   for eyes in identity["eyes"] for eye in eyes)
         assert {eye["shape"] for eyes in identity["eyes"] for eye in eyes} == {"lead", "companion"}
-        assert all(len({eye["path"] for eye in eyes}) == 2 for eyes in identity["eyes"])
+        assert all(len({(eye["cx"], eye["cy"]) for eye in eyes}) == 2 for eyes in identity["eyes"])
 
         snapshots = []
         for label, width, height in viewports:

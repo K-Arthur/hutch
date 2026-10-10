@@ -1,0 +1,32 @@
+{
+  "test": "tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette",
+  "captured_at": "2026-10-10T06:14:11.070274+00:00",
+  "browser": "Chromium 153.0.8010.12",
+  "viewports": {
+    "desktop": [
+      1440,
+      960
+    ],
+    "phone": [
+      390,
+      844
+    ]
+  },
+  "screenshots": [
+    "desktop.png",
+    "phone-studio.png",
+    "phone-roster.png"
+  ],
+  "silhouettes": 8,
+  "colors": 8,
+  "minimum_eye_contrast": 5.81,
+  "checks": [
+    "paired ink eyes",
+    "eye forms inside each mascot silhouette",
+    "no phone overflow",
+    "no browser errors"
+  ],
+  "page_errors": [],
+  "provider_calls": 0
+}

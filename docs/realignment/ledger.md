@@ -3115,8 +3115,8 @@ Commit `dffe717` simplifies the routine setup path and the Studio roster. Creati
 user request forward as its standing instructions, with an optional edit and an editable role-based name; it does not ask the owner
 to retype the request, start a run, add tools, or schedule work. Empty-chat setup uses safe defaults and shows advanced options only
 when requested. The roster keeps one options button per Bot for pinning and settings, wraps names to two lines before clamping, and
-collapses idle Bots at ten or more in a searchable, keyboard-operable section. Flat 2D mascots retain distinct fills and now use a
-paired set of shaped eye glints; the larger marketing mascot remains separate.
+collapses idle Bots at ten or more in a searchable, keyboard-operable section. Flat 2D app mascots retain distinct fills and use
+rounded ink eyes positioned for each silhouette; the larger marketing mascot remains separate.
 
 The `bot-setup-patterns-2026-10-09.md` research note records official Grok Bot, OpenAI Dots and GPT Builder behavior separately from
 individual user reports. It treats reported failures as acceptance scenarios, not prevalence claims; Dots availability and GPT
@@ -3202,3 +3202,18 @@ browser**). The full suite has not been rerun after these corrections. Visual ev
 [`artifacts/saved-requests/`](artifacts/saved-requests/). No changes are pushed or published.
 The application, schema, documentation and tests are committed on local `main` as `257ef10`; the refreshed screenshot, validation JSON,
 and trace evidence is committed as `e1bd3b9`.
+
+## Mascot face correction across all silhouettes (2026-10-10)
+
+The owner screenshot showed white tapered marks perched outside a pointed drop mascot, where they looked detached rather than like eyes.
+The shared 2D app renderer now uses two dark rounded ovals; positions are selected per head shape, with the drop and triangle eyes moved
+lower into the wider face area. Bot-name identity and the separate status pip are unchanged. Marketing's detailed 3D mascot is not affected.
+
+The new browser regression renders all eight silhouettes in all eight identity colours and checks each eye pair's centers and sampled
+98%-perimeter lie inside its exact SVG head path. Dark eye ink measures at least **5.81:1** against every identity colour. The combined
+roster/design-system browser batch passed **3 tests in 11.98s** in Chromium **153.0.8010.12** / Playwright **1.63.0**. Screenshots at
+desktop **1440×960**, tablet **900×1024**, and phone **390×844** (Studio with roster closed/open) plus the Playwright trace and validation
+JSON are in [`artifacts/mascot-eye-review/`](artifacts/mascot-eye-review/); refreshed shared-shell examples are in
+[`artifacts/design-system/`](artifacts/design-system/) and [`artifacts/pinned-roster/`](artifacts/pinned-roster/). The page produced no
+browser errors or horizontal overflow and made no provider calls. This is fixture-based visual validation, not physical-device or
+screen-reader testing.
