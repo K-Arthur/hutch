@@ -1,6 +1,6 @@
 {
   "test": "tests/e2e/test_browser.py::test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewports",
-  "captured_at": "2026-10-09T18:30:32.360939+00:00",
+  "captured_at": "2026-10-10T05:26:47.821618+00:00",
   "browser": "153.0.8010.12",
   "provider_credentials_used": false,
   "provider_calls": 0,
@@ -46,11 +46,11 @@
     }
   ],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "c1ce5aca051aa139d8719c9010b3ab3f9202d45844fe73a39ede37f54cafe93f",
-    "src/hutch/server/static/style.css": "cab7f95dffbbf7a1c15dfdc1b019ab56d8f56c9d90d111f865b8ce12832268f1",
-    "src/hutch/server/app.py": "31c7a1f1a801c595518269121277f179c768b69f44bae3a37d6297525c73026c",
-    "src/hutch/server/security.py": "ed5082c5978a21cc9d3cabad394fe034ef89859ebe1ede2d3e70852415749ff5",
-    "src/hutch/store.py": "705fe90e07c1bd0762bd9370f110b346e99888a8ebacfca0af8a1da69c6594d4",
+    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
+    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
+    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
+    "src/hutch/server/security.py": "f089474763ce669a2b2a0f7400eb99635a3a59782620cc0d505b230c5f035bfb",
+    "src/hutch/store.py": "febf2e054c553fd67684a2f361bda5c43e7fdfce317f2d04d69e601ab8324fdb",
     "src/hutch/outlook_calendar.py": "972d9ff878e290c93bc04e0f91df9b5acdd243bf860c1c1e260f46e09ed6dd02",
     "src/hutch/tools/outlook_calendar.py": "47fc1aae2356bec4e5799b9c0fc09761f8537cccce8464bf6cae002cf8acec36"
   }

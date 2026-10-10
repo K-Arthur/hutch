@@ -1,13 +1,13 @@
 {
-  "captured_at": "2026-10-08T20:49:08.326691+00:00",
+  "captured_at": "2026-10-10T05:26:56.838743+00:00",
   "browser": "chromium",
   "browser_version": "153.0.8010.12",
   "playwright": "1.63.0",
   "source_sha256": {
-    "src/hutch/server/app.py": "1c747226c46265733fb4dc9164ec1c444c93a2329fe5a2520fd8e59679ef3e09",
-    "src/hutch/server/static/app.js": "b59b6f080fc4d1658a7f3249a8da967c4cedc437e928a785d31e889473db6ba0",
-    "src/hutch/server/static/style.css": "8388a0f7ccd930fe8f14b82ef4eb32e18a5b3af4a67cafbcb56934bc0f9f4c0c",
-    "src/hutch/runtime/steps.py": "da05be64a1288a20be1582226bd1fcc6724a0c699c6757de4d6078497e56c4b5"
+    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
+    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
+    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
+    "src/hutch/runtime/steps.py": "7c41f7debfd06c5723f4face05c3678eb9633df59659b8349d72e35c4f13e97e"
   },
   "artifacts": [
     {
@@ -17,7 +17,7 @@
         1000
       ],
       "screenshot": "desktop.png",
-      "screenshot_sha256": "ba5a7c9a78d11dc5b115ead8af4c86606350f25e59d08db5f16c4beebea5c6d6",
+      "screenshot_sha256": "71e72373960d9332d8154fb3ca0a42dc0b7aeeb9ed9efb9a4dbeb7ed8379d78c",
       "artifact_sha256": "605976e1632e185ce0f739439be988d2fb5f77b429842477e58b9df1a24cc13b",
       "overflow_px": 0,
       "page_errors": []
@@ -29,7 +29,7 @@
         1024
       ],
       "screenshot": "tablet.png",
-      "screenshot_sha256": "40b057548c7bbbee7bbc73730938b233ba356eb7224b5cc4c6d280a676f54e66",
+      "screenshot_sha256": "c0b56330b7639d0807c4d69b185db40f6700b0ae5d1401ccf9413c5f938747e2",
       "artifact_sha256": "605976e1632e185ce0f739439be988d2fb5f77b429842477e58b9df1a24cc13b",
       "overflow_px": 0,
       "page_errors": []
@@ -41,7 +41,7 @@
         844
       ],
       "screenshot": "phone.png",
-      "screenshot_sha256": "7498b29baba42bde46cab8412da9f2ec44af8ec99fb305bd49ae4ae7875a84b7",
+      "screenshot_sha256": "662093c46e768e869d6a70d096f7e47ae22c825fa456bf496d778c1a25ddc5ef",
       "artifact_sha256": "605976e1632e185ce0f739439be988d2fb5f77b429842477e58b9df1a24cc13b",
       "overflow_px": 0,
       "page_errors": []

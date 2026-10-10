@@ -38,17 +38,5 @@
   "search_keeps_full_roster_reachable": true,
   "desktop_options_control_visible_at_rest_and_emphasized_on_hover": true,
   "page_errors": [],
-  "provider_calls": 0,
-  "visual_review": {
-    "inspected": [
-      "collapsed-desktop.png",
-      "collapsed-tablet.png",
-      "collapsed-phone.png"
-    ],
-    "notes": [
-      "Coordinator remains visible while the nine idle Bots are reachable through the count and Show control.",
-      "The phone drawer retains a visible close control and fixed bottom navigation.",
-      "The 10-Bot example has no horizontal overflow at any inspected size."
-    ]
-  }
+  "provider_calls": 0
 }

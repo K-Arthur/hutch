@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_shared_design_tokens_render_consistently_across_all_surfaces",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py",
-  "captured_at": "2026-10-10T03:13:27.443405+00:00",
+  "captured_at": "2026-10-10T05:33:12.938088+00:00",
   "python": "3.13.15",
   "browser": "Chromium 153.0.8010.12",
   "playwright": "1.63.0",
@@ -351,23 +351,5 @@
     "Connections in the shared Studio shell",
     "marketing landing page"
   ],
-  "visual_review": {
-    "reviewed_at": "2026-10-09",
-    "reviewed": true,
-    "screenshots": [
-      "studio-desktop.png",
-      "studio-tablet.png",
-      "studio-phone.png",
-      "connections-desktop.png",
-      "connections-tablet.png",
-      "connections-phone.png",
-      "marketing-desktop-viewport.png",
-      "marketing-tablet-viewport.png",
-      "marketing-phone-viewport.png",
-      "marketing-desktop.png",
-      "marketing-tablet.png",
-      "marketing-phone.png"
-    ],
-    "notes": "Studio and Connections share the operator shell. Marketing retains its editorial layout. Reviewed desktop, tablet and phone compositions plus full-page marketing overviews; no clipping or horizontal overflow appeared at the tested widths."
-  }
+  "visual_review_required": "Open and inspect all twelve desktop/tablet/phone screenshots before accepting this result."
 }

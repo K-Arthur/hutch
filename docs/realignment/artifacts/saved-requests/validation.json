@@ -1,0 +1,130 @@
+{
+  "test": "tests/e2e/test_saved_requests.py::test_saved_request_library_is_private_reusable_and_reviewed",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_saved_requests.py",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "viewports": {
+    "save_review": [
+      {
+        "label": "desktop",
+        "viewport": [
+          1440,
+          960
+        ],
+        "bounds": {
+          "x": 400.4772644042969,
+          "y": 202.17642211914062,
+          "width": 639.0454406738281,
+          "height": 557.6202087402344
+        }
+      },
+      {
+        "label": "tablet",
+        "viewport": [
+          900,
+          1024
+        ],
+        "bounds": {
+          "x": 130,
+          "y": 232.765625,
+          "width": 640,
+          "height": 558.453125
+        }
+      },
+      {
+        "label": "phone",
+        "viewport": [
+          390,
+          844
+        ],
+        "bounds": {
+          "x": 0,
+          "y": 244.71875,
+          "width": 390,
+          "height": 599.28125
+        }
+      },
+      {
+        "label": "compact-phone",
+        "viewport": [
+          320,
+          844
+        ],
+        "bounds": {
+          "x": 0,
+          "y": 224.578125,
+          "width": 320,
+          "height": 619.421875
+        }
+      }
+    ],
+    "library": [
+      {
+        "label": "desktop",
+        "viewport": [
+          1440,
+          960
+        ],
+        "bounds": {
+          "x": 400.76519775390625,
+          "y": 310.9874267578125,
+          "width": 638.4696655273438,
+          "height": 341.19775390625
+        }
+      },
+      {
+        "label": "tablet",
+        "viewport": [
+          900,
+          1024
+        ],
+        "bounds": {
+          "x": 130,
+          "y": 340.984375,
+          "width": 640,
+          "height": 342.015625
+        }
+      },
+      {
+        "label": "phone",
+        "viewport": [
+          390,
+          844
+        ],
+        "bounds": {
+          "x": 0,
+          "y": 414.84375,
+          "width": 390,
+          "height": 429.15625
+        }
+      },
+      {
+        "label": "compact-phone",
+        "viewport": [
+          320,
+          844
+        ],
+        "bounds": {
+          "x": 0,
+          "y": 414.84375,
+          "width": 320,
+          "height": 429.15625
+        }
+      }
+    ]
+  },
+  "fixture_only": true,
+  "provider_calls": 0,
+  "external_requests": [],
+  "page_errors": [],
+  "verified": [
+    "first request is reviewed before saving",
+    "templates persist in the local database",
+    "search filters the library",
+    "Use request fills a draft and starts no run",
+    "edit increments the revision",
+    "delete is confirmed and removes only the template",
+    "dialogs fit desktop, tablet, phone, and compact phone"
+  ],
+  "trace": "trace.zip"
+}

@@ -7,18 +7,18 @@
     "height": 844
   },
   "event_seq": 4,
-  "api_path": "/api/v1/tasks/runs/run_b9aeffa59628/resume",
+  "api_path": "/api/v1/tasks/runs/run_9662ad4b9e37/resume",
   "api_status": 200,
   "api_replayed": false,
-  "idempotency_key": "studio-human-resume:run_b9aeffa59628:4",
+  "idempotency_key": "studio-human-resume:run_9662ad4b9e37:4",
   "horizontal_overflow": 0,
   "page_errors": [],
   "provider_calls": 0,
-  "captured_at": "2026-10-09T02:39:23.384836+00:00",
+  "captured_at": "2026-10-10T05:28:22.134557+00:00",
   "source_sha256": {
-    "src/hutch/server/static/app.js": "382d4651b5795c1f774c83ce8b7511c93b9f9496a2c6b8d8c4f74507171f7e48",
-    "src/hutch/server/static/style.css": "834d4bc18ccba8d378c71a3ad7e0400aada08c911920206b07ae8e4af69edc93",
-    "src/hutch/server/app.py": "7316e7575814cfdfd633a9645b2435b7a79990dcd81400a1baee7793384eae44",
-    "src/hutch/store.py": "8b59fb4d4a7e9014c58c6f26a8128e6fcd07a7129b891a369080a6a84c871cb2"
+    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
+    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
+    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
+    "src/hutch/store.py": "febf2e054c553fd67684a2f361bda5c43e7fdfce317f2d04d69e601ab8324fdb"
   }
 }

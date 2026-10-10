@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-10-08T20:28:01.835431+00:00",
+  "captured_at": "2026-10-10T05:30:13.326958+00:00",
   "browser": "chromium",
   "version": "153.0.8010.12",
   "playwright_version": "1.63.0",
@@ -21,14 +21,14 @@
   "page_errors": [],
   "horizontal_overflow": 0,
   "source_sha256": {
-    "src/hutch/server/static/app.js": "5687627f91c5d696c9e47a2e62b9941e65e60af51ec7b8e2b0788eefa061d36a",
-    "src/hutch/server/static/style.css": "b6ffbc2c3a8186e935a0ed5840bcf976d33c70b04c51567de1eb625851016474",
-    "src/hutch/engine.py": "70ae302506c3a5446e2ac7193999ab99a84b2cf4e6535d9a99f42cbaadcf6af8",
-    "src/hutch/config.py": "e5dd02ee2903255b2f95df8657ce3c43415f7d90329f51669f73b54aacb9242b",
-    "src/hutch/models.py": "5d570ad659e67789fd86137c27bfd3f021b443fcd66dd917443fe73782b2fa71",
-    "src/hutch/cli.py": "19d89e1eccb8642ad79a7ab942ae3bff60d1deec56c95b4e071f0a6702db9beb",
-    "src/hutch/server/app.py": "6bbe24749346c82012a3dd1265efa0d21de8c654a7b457de78b6818f65cf618e",
-    "src/hutch/server/pages.py": "69318557cb076bfbe96bbae8f13ac3681352fa3edb176de1ac7a180fcffb7f03",
-    "src/hutch/server/templates/bot.html": "5314044f8cc58affc5da398fb9626b441208b6b2aec86ce92a44c55631da8d14"
+    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
+    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
+    "src/hutch/engine.py": "cfb61cb9496b1d612a5b7220b512653b239a63a8cf935a674fe8b5aaca01401c",
+    "src/hutch/config.py": "4f7483a7e7291adc8fd6b482334b5424a707b3a66b47c8d63bfa76ef22441572",
+    "src/hutch/models.py": "52c470ab0de1b75dc59773a16c7b4bf2adcf3e13c00fd17aca3b1c637d81d1d5",
+    "src/hutch/cli.py": "91c13b3d93428819f12b10a06f7b50a28b2e5c83e7a248f2753108c46339ed0c",
+    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
+    "src/hutch/server/pages.py": "178b02e9d7a54fdad46ce8e6b7db0b7c2232390a8da7240224fc9df09259e27d",
+    "src/hutch/server/templates/bot.html": "b84423d31182995da2f57bb69725b206a8e55052fde308556b3ea711fa6bf68f"
   }
 }

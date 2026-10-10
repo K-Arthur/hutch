@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_browser.py::test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone",
   "command": "PLAYWRIGHT_BROWSERS_PATH=/home/kevina/.cache/ms-playwright .venv/bin/pytest -q tests/e2e/test_browser.py::test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone",
-  "captured_at": "2026-10-09T19:13:44.819423+00:00",
+  "captured_at": "2026-10-10T05:26:43.783257+00:00",
   "browser": "153.0.8010.12",
   "provider_credentials_used": false,
   "provider_calls": 0,
@@ -47,11 +47,11 @@
     }
   ],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "44b94310fe918a6e00b0b63ca279df5158ec2b462be04af402b4ee24e3c695a0",
-    "src/hutch/server/static/style.css": "3ca514093c71699c427180bb622219c5d2b7eebfb9f2611f3d377554d6ff0343",
-    "src/hutch/server/app.py": "db5d9e490cda36b6a5bf74ecc080c3d35a1dfa3bd830cb0bc6e99d9a2290b828",
-    "src/hutch/server/security.py": "2623ea8ff06977c40fbfc56dcdb15a2633e7ef90273f7491d6fa5d59bb813643",
-    "src/hutch/store.py": "650bf5d8f1bd5b3d3dde64a2721e4fa4a717e733d9312132d69ef1c46ab487a5",
+    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
+    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
+    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
+    "src/hutch/server/security.py": "f089474763ce669a2b2a0f7400eb99635a3a59782620cc0d505b230c5f035bfb",
+    "src/hutch/store.py": "febf2e054c553fd67684a2f361bda5c43e7fdfce317f2d04d69e601ab8324fdb",
     "src/hutch/google_calendar.py": "dad7c21b8f5ac416de6de619595a9b11ff9f55c244c249fffafaad984da10660",
     "src/hutch/google_mail.py": "07fc56e6918d2ccdb8759e2c648a2ec31b9d261916c4223413f0650d683bed1a",
     "src/hutch/tools/google_mail.py": "8a17828f999f3178324bb1cbe28724fbfb6da131675631f9f1db329c2d85a976"

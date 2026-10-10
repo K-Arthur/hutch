@@ -15,14 +15,18 @@
     "phone": [
       390,
       844
+    ],
+    "compact_phone": [
+      320,
+      844
     ]
   },
-  "scenario": "the selected workspace coordinator opens as the default direct chat, is labelled in the roster and composer, and can be reassigned from Bot settings",
+  "scenario": "the selected workspace coordinator opens as the default direct chat, is labelled in the roster and composer, the owner can maintain an explicit specialist allowlist from settings, and promoting a specialist removes it without adding the former coordinator",
   "page_errors": [],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "e490b1e2cc9c840df7727e65e9fb2bb88de1017256a06ab47e3d49ad3682d282",
-    "src/hutch/server/static/style.css": "1d61e67e0103ecd0670066c6bcc399789c1f0ab453f9b4ff3855adb05f1db55f",
-    "src/hutch/server/app.py": "927e49255b7539e7022ee2820c932540281aa45017d52c6e1860c1661ec2a7e5",
-    "tests/e2e/test_browser.py": "209c342efd1fc7206ef0415820cc03ecdba3f41dfd9bbc9f5ecccc0d4855ef30"
+    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
+    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
+    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
+    "tests/e2e/test_browser.py": "cb110cb5fb29bab353bc2c87d883f43f3a237301df33b2136a4c50ed04b03238"
   }
 }

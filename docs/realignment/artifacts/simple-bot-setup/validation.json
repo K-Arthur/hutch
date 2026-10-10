@@ -48,21 +48,9 @@
     "creation starts no run"
   ],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "a98ecb651bec0f0391393aff700ac13a0b11f1854cb770a182a6b5f6b22e63fe",
-    "src/hutch/server/static/style.css": "b238c83ea8b6eb403bc420b4c8038e70e83fe9791cf875496549ff6bb7069703",
-    "src/hutch/server/app.py": "d73f7fb23beb07ba85fe4edb06922e3173170886f744d37c7d3e3285fe99bb05",
-    "tests/e2e/test_browser.py": "f81cd9f875bc734f16bb922fb9f0e45e469fd13b90baaa5a2b576c5e3f717e59"
-  },
-  "visual_review": {
-    "inspected": [
-      "quick-desktop.png",
-      "quick-tablet.png",
-      "quick-phone.png"
-    ],
-    "notes": [
-      "Bot name reads as a bordered, editable field at all three sizes.",
-      "Selected request, optional instruction editing, starting settings, and advanced controls remain distinct.",
-      "The action footer and name field remain visible on phone; no horizontal overflow."
-    ]
+    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
+    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
+    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
+    "tests/e2e/test_browser.py": "cb110cb5fb29bab353bc2c87d883f43f3a237301df33b2136a4c50ed04b03238"
   }
 }

@@ -1,16 +1,16 @@
 {
   "test": "tests/e2e/test_browser.py::test_verified_artifact_can_be_shared_with_another_chat_and_revoked",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_verified_artifact_can_be_shared_with_another_chat_and_revoked",
-  "captured_at": "2026-10-09T02:12:06.428829+00:00",
+  "captured_at": "2026-10-10T05:27:09.260004+00:00",
   "browser": "chromium",
   "browser_version": "153.0.8010.12",
   "playwright": "1.63.0",
   "source_sha256": {
-    "src/hutch/store.py": "dda72dd244e3625996d1332a85685164912c80b1c8dc02886e4226b06d505426",
-    "src/hutch/server/app.py": "479f15faadc412878ffb2c430c3a60e7ae64c550280f2c093c54f0c7dce6f403",
-    "src/hutch/server/static/app.js": "c2db27f55f5fea41efbf86d872a4f3310093051a3c48ebce9b9dfdd9d6bb08d9",
-    "src/hutch/server/static/style.css": "50b26e12ac10ecc6d3f33900bda132e55c02f10f54e139c8bb7ebd71f103a7a9",
-    "tests/e2e/test_browser.py": "eb3eef5f1c47773ea56dcd3a489bdb9fbd7f5d5000e9484f5875d007720d2934"
+    "src/hutch/store.py": "febf2e054c553fd67684a2f361bda5c43e7fdfce317f2d04d69e601ab8324fdb",
+    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
+    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
+    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
+    "tests/e2e/test_browser.py": "cb110cb5fb29bab353bc2c87d883f43f3a237301df33b2136a4c50ed04b03238"
   },
   "journey": "owner explicitly shares a verified reference to another bot chat; recipient downloads it, then owner revokes the grant",
   "provider_calls": 0,

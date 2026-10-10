@@ -1,0 +1,50 @@
+{
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_bot_menu_downloads_a_reviewable_local_setup_template",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewports": [
+    {
+      "label": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "overflow_px": 0,
+      "preview_visible": true,
+      "confirm_visible": true
+    },
+    {
+      "label": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "overflow_px": 0,
+      "preview_visible": true,
+      "confirm_visible": true
+    },
+    {
+      "label": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "overflow_px": 0,
+      "preview_visible": true,
+      "confirm_visible": true
+    }
+  ],
+  "effect": "download-only local YAML; no public share, no Bot creation, no provider calls",
+  "trace": "template-review-trace.zip",
+  "excluded_fixture_values": [
+    "provider endpoint URL",
+    "local workspace path"
+  ],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
+    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
+    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
+    "src/hutch/store.py": "febf2e054c553fd67684a2f361bda5c43e7fdfce317f2d04d69e601ab8324fdb"
+  }
+}

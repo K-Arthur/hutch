@@ -84,14 +84,14 @@
       ],
       "saveVisible": true,
       "delegateEnabled": true,
-      "scrollTop": 1652
+      "scrollTop": 1980
     }
   ],
   "scenario": "synthetic Settings form; enable the delegated task tool and persist the explicit opt-in",
   "page_errors": [],
   "source_sha256": {
-    "app.js": "b08561837fd79265edbc586e79580d51a4b320038dc7f2bdb3ace1e4d2a40d4d",
-    "style.css": "4597d48f74822541d88b709e4576c44149e4f160fd52b073b9060db35558d381",
-    "app.py": "f1ebc9de8fd1fe32ce196573b31ea38d3772a88e4b5b759201117a9ef2881d60"
+    "app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
+    "style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
+    "app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7"
   }
 }

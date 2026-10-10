@@ -6,7 +6,7 @@
   "provider_calls": 0,
   "external_requests": [],
   "page_errors": [],
-  "scenario": "Keyboard-activate a message action in a multi-request conversation; exact source is carried into reviewed Bot setup; later unrelated user text is excluded; creation is not confirmed and no Bot/run is added",
+  "scenario": "Keyboard-activate a message action in a multi-request conversation; exact request is used without retyping; only the chosen message is saved as Bot instructions; unrelated later text is excluded; create starts no run; phone path keeps the same no-retype default",
   "captures": [
     {
       "size": "desktop",
@@ -15,6 +15,8 @@
         960
       ],
       "horizontal_overflow": 0,
+      "name_visible": true,
+      "defaults_visible": true,
       "selected_message": "selected-request-message"
     },
     {
@@ -24,6 +26,8 @@
         1024
       ],
       "horizontal_overflow": 0,
+      "name_visible": true,
+      "defaults_visible": true,
       "selected_message": "selected-request-message"
     },
     {
@@ -33,6 +37,8 @@
         844
       ],
       "horizontal_overflow": 0,
+      "name_visible": true,
+      "defaults_visible": true,
       "selected_message": "selected-request-message"
     },
     {
@@ -48,8 +54,8 @@
     }
   ],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "98e27ca546c36c703020f26e7f37152cc38d0db3c115011f448402dee20e73a9",
-    "src/hutch/server/static/style.css": "3230dbbb6872155652ceb6ea71ef9b562e490ed0eb9464401a6c68508d14f868",
-    "tests/e2e/test_browser.py": "51d874078648aca2d9a1a5348690e0311b857bf30bee811ccacb17210051140c"
+    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
+    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
+    "tests/e2e/test_browser.py": "cb110cb5fb29bab353bc2c87d883f43f3a237301df33b2136a4c50ed04b03238"
   }
 }

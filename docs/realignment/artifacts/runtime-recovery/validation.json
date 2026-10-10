@@ -43,8 +43,8 @@
   ],
   "page_errors": [],
   "source_sha256": {
-    "app.js": "2d2fe7e799d1a387453d4fdadb6a51ed5263baea04f3ae6aa260a0d68a5d4666",
-    "app.py": "e201a9bbd84a2000585fb178cef843815042a3f766ccae0bcbc5ea04cd109e35",
-    "style.css": "4c8170e188364dff1cfd01f3b2a6dfd53618a5a19ab8061afcb433c4062ee5f7"
+    "app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
+    "app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
+    "style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a"
   }
 }

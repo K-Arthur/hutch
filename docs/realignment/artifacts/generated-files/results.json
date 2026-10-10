@@ -1,14 +1,14 @@
 {
-  "captured_at": "2026-10-09T01:06:10.267584+00:00",
-  "browser": "firefox",
-  "browser_version": "155.0",
+  "captured_at": "2026-10-10T05:27:02.113828+00:00",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
   "playwright": "1.63.0",
   "source_sha256": {
-    "src/hutch/runtime/steps.py": "da05be64a1288a20be1582226bd1fcc6724a0c699c6757de4d6078497e56c4b5",
-    "src/hutch/store.py": "dc38022c170fdd8a4dc3d834174dd2c1d45f7b475885ccf006552e6028cc6fd6",
-    "src/hutch/server/app.py": "35ae98ee7beebf6a1ad7c92d314a5626a350cbf2a97b33e592d4db285af1af86",
-    "src/hutch/server/static/app.js": "4ff8f4fc137aaf79286c86c291b10b00969241a57339b9d99df5c3a5c38411b0",
-    "src/hutch/server/static/style.css": "f64358d133c588eb769a639a3e43b394739a898ba915a8ef3108ffc948e02751"
+    "src/hutch/runtime/steps.py": "7c41f7debfd06c5723f4face05c3678eb9633df59659b8349d72e35c4f13e97e",
+    "src/hutch/store.py": "febf2e054c553fd67684a2f361bda5c43e7fdfce317f2d04d69e601ab8324fdb",
+    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
+    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
+    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a"
   },
   "screenshots": {
     "generated_files": [

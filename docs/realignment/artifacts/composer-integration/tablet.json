@@ -5,12 +5,12 @@
     900,
     1024
   ],
-  "captured_at": "2026-10-08T15:35:05.066489+00:00",
+  "captured_at": "2026-10-10T05:32:05.121492+00:00",
   "scenario": "real mock rehearsal; synthetic cancellation and admitted queue timing",
   "page_errors": [],
   "horizontal_overflow": 0,
   "source_sha256": {
-    "src/hutch/server/static/app.js": "4a4c665c2a5b1111eded455aa003118131d99f2792473fc163910d1502ca14c5",
-    "src/hutch/server/static/style.css": "6cf2076fd22754c6bd13d4d5afc09dcad57ce3a26a9f613b3a1e80a876434cea"
+    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
+    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a"
   }
 }

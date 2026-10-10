@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_browser.py::test_model_switcher_can_explicitly_save_the_selected_route_as_bot_default",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_model_switcher_can_explicitly_save_the_selected_route_as_bot_default",
-  "captured_at": "2026-10-09T10:45:23.774687+00:00",
+  "captured_at": "2026-10-10T05:29:45.829572+00:00",
   "python": "3.13.15",
   "browser": "153.0.8010.12",
   "playwright_version": "1.63.0",
@@ -93,8 +93,8 @@
   "provider_calls": 0,
   "source_sha256": {
     "src/hutch/server/static/model-switcher.js": "5d95d9662f20f245eda722278a2f2decb7d6baa49a807635dc9efc23edd9c0b0",
-    "src/hutch/server/static/model-switcher.css": "aa1e9c3f92c117f9288cf3abaf3d83efa3e9cf834a80eaffb802ef52c6ff8cae",
-    "src/hutch/server/app.py": "15b74982cb8d98568b72e8d1a33fa97e2b7079802684e38f7fc5870ed4c82789",
-    "tests/e2e/test_browser.py": "ab7f89f8ac63466b13be6db001e7c758eb10b1f0d2075f7dab7244bab06e0b2e"
+    "src/hutch/server/static/model-switcher.css": "012143a1438b37f9b3ba3cc8282ab194ab6b05ce7e751df7c7d9e65bcc15ca20",
+    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
+    "tests/e2e/test_browser.py": "cb110cb5fb29bab353bc2c87d883f43f3a237301df33b2136a4c50ed04b03238"
   }
 }

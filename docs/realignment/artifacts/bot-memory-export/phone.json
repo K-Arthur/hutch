@@ -14,9 +14,9 @@
   "screenshot": "phone.png",
   "trace": "phone-trace.zip",
   "source_sha256": {
-    "src/hutch/server/app.py": "aceb3e6ff724a1c9c5f3c3b828a1900ac1c65f6f00745c4116ddd8d59cc65627",
-    "src/hutch/store.py": "260f2304d7f6788a50cb5bb33c9f3f30778ea8f428eef042d827d81bfe21052d",
-    "src/hutch/server/static/app.js": "c997be83bd064f700b25b33de1a6d3ad9207d9eb671c3d4d427608dae6adc28a",
-    "src/hutch/server/static/style.css": "93e433b9980fdd2b276c42066d9155a05f46e78d99b5f93f95b16f06f42e9fac"
+    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
+    "src/hutch/store.py": "febf2e054c553fd67684a2f361bda5c43e7fdfce317f2d04d69e601ab8324fdb",
+    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
+    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a"
   }
 }

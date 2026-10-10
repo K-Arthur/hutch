@@ -39,10 +39,10 @@
     "unconfigured-phone.png"
   ],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "44b94310fe918a6e00b0b63ca279df5158ec2b462be04af402b4ee24e3c695a0",
-    "src/hutch/server/static/style.css": "3ca514093c71699c427180bb622219c5d2b7eebfb9f2611f3d377554d6ff0343",
-    "src/hutch/server/app.py": "db5d9e490cda36b6a5bf74ecc080c3d35a1dfa3bd830cb0bc6e99d9a2290b828",
-    "docs/connections.md": "d8c8e2fd0804b5d2d004123024d149d5c62ef610ca7b62fa0714c7335ea15964",
-    "docs/requirements.md": "23900df544589bde3536b12daa571c14def250ba3075a83cdca39559cd3aae08"
+    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
+    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
+    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
+    "docs/connections.md": "4b9ff04ea781221b8b484f75075690d3b3f026f0d6fe7392368a64ec104fbd58",
+    "docs/requirements.md": "057120fac2792ed364b18ddcd60d592205c6d85a58142a09a94245eac9f50a12"
   }
 }
