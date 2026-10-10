@@ -4032,4 +4032,5 @@ phone, summary and form states at all sizes, no overflow, and that **2.5
 minutes** persists as **150 seconds**. The local fixture made no provider or
 external requests. Captures, metadata, source hashes, and the trace are in
 [`artifacts/assistant-usage-details-2026-10-10/`](artifacts/assistant-usage-details-2026-10-10/).
+Implementation, docs, and visual evidence are committed as `abcde90`.
 The broader assistant settings and all-surface redesign remain open.
