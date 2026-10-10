@@ -43,7 +43,7 @@ assistant identities; the marketing site may use the detailed 3D character.
 | Activity / schedules / history / task details | Activity independently reviewed; remaining pages to inspect | Open |
 | Apps & AI / local and hosted model settings | Source-aligned desktop, tablet, phone, and compact-phone review; compact phone cards | Open |
 | Preferences, sign-in, pairing, and server pages | Route coverage exists; independent visual review remains | Open |
-| Marketing website | Full desktop and phone pages individually inspected | Open |
+| Marketing website | Updated hero and feature sections individually inspected at desktop, tablet, phone, and compact phone | In progress |
 
 ## Research and visual direction
 
@@ -131,6 +131,27 @@ page still presents technical setup details and remains in the redesign queue.
 Captures, trace, source hashes, and browser version are in
 [`artifacts/dashboard-polish/`](artifacts/dashboard-polish/). This typography
 slice does not complete the all-surface overhaul.
+
+### Marketing hierarchy and phone legibility — verified (2026-10-10)
+
+The three **Your choices** and three approval-flow cards now place each icon
+beside its heading instead of repeating a large tile above it. The main
+illustration keeps its detailed 3D mascot, while the blue halo and orbit rings
+have been removed so the character and example request carry the focus. Helper
+labels, provider examples, and the phone promise row now use at least 12px text.
+Benefit and example artwork keeps its distinct colors with simpler fills.
+
+The new responsive browser check verifies side-by-side icon/title structure,
+type size and leading, restrained hero lighting, and no overflow at **1440×960**,
+**900×1024**, **390×844**, and **320×740**. The full anonymous website suite
+passed **28 tests in 43.56s** on Chromium **153.0.8010.12**. I inspected the
+hero and individual choice, approval, benefit, and example cards rather than a
+collage. The audit returned no website anti-pattern findings after the changes.
+The browser used local assets only and made no provider calls. Evidence, source
+hashes, screenshots, and trace are in
+[`artifacts/marketing-card-hierarchy-2026-10-10/`](artifacts/marketing-card-hierarchy-2026-10-10/).
+The rest of the marketing page and all other open product surfaces still need
+review; this slice does not close the overhaul.
 
 A separate send-only Gmail setup has since been added under Connections with
 its own account rows, sender address, permission label and per-assistant grant.

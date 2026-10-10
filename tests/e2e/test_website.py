@@ -116,7 +116,7 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert mascot.count() == 1 and "assets/hutch-agent.webp" in mascot.get_attribute("src")
     assert page.locator(".hero-promises li").count() == 3
     assert page.locator(".benefit-card").count() == 3
-    assert page.locator(".benefit-art svg").count() == 6
+    assert page.locator(".benefit-art svg").count() == 7  # The three illustrated cards include 7 distinct icon paths.
     assert page.locator("#proof .proof-img").count() == 1
     assert "Real application" in page.inner_text("#proof .proof-chrome")
     assert "carries your words into assistant setup" in page.inner_text("#proof")
@@ -217,6 +217,105 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
         "source_sha256": hashlib.sha256((ROOT / "website/index.html").read_bytes()).hexdigest(),
     }, indent=2) + "\n", encoding="utf-8")
     context.close()
+
+
+def test_marketing_card_hierarchy_and_mobile_labels_are_readable(browser, site_url):
+    """Keep feature icons with their labels and make mobile helper text legible."""
+    context, page, errors = _page(browser, width=1440, height=960, reduced_motion="reduce")
+    output = ROOT / "docs/realignment/artifacts/marketing-card-hierarchy-2026-10-10"
+    output.mkdir(parents=True, exist_ok=True)
+    requests: list[str] = []
+    page.on("request", lambda request: requests.append(request.url))
+    captures = []
+    trace_stopped = False
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844), ("compact-phone", 320, 740)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.goto(site_url, wait_until="networkidle")
+            page.evaluate("document.fonts.ready")
+            values = page.evaluate("""() => {
+              const metrics = selector => {
+                const element = document.querySelector(selector);
+                const style = getComputedStyle(element);
+                return {fontSize: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight)};
+              };
+              return {
+                choiceHead: getComputedStyle(document.querySelector('.choice-heading')).display,
+                reviewHead: getComputedStyle(document.querySelector('.review-flow-heading')).display,
+                choiceIconBackground: getComputedStyle(document.querySelector('.choice-icon')).backgroundColor,
+                choiceIconWidth: parseFloat(getComputedStyle(document.querySelector('.choice-icon')).width),
+                heroSceneBackground: getComputedStyle(document.querySelector('.hero-scene')).backgroundImage,
+                heroSceneDecorations: [
+                  getComputedStyle(document.querySelector('.hero-scene'), '::before').content,
+                  getComputedStyle(document.querySelector('.hero-scene'), '::after').content,
+                ],
+                heroSceneGlowCount: document.querySelectorAll('.hero-scene-glow').length,
+                heroNote: metrics('.hero-note small'),
+                heroPromise: metrics('.hero-promises li'),
+                exampleLabel: metrics('.case-kicker'),
+                scrollWidth: document.documentElement.scrollWidth,
+              };
+            }""")
+            assert values["choiceHead"] == values["reviewHead"] == "flex", (label, values)
+            assert values["choiceIconBackground"] == "rgba(0, 0, 0, 0)", (label, values)
+            assert values["choiceIconWidth"] <= 40, (label, values)
+            assert "radial-gradient" not in values["heroSceneBackground"], (label, values)
+            assert values["heroSceneDecorations"] == ["none", "none"], (label, values)
+            assert values["heroSceneGlowCount"] == 0, (label, values)
+            for key in ("heroNote", "heroPromise", "exampleLabel"):
+                assert values[key]["fontSize"] >= 12, (label, key, values[key])
+                assert values[key]["lineHeight"] >= values[key]["fontSize"] * 1.35, (label, key, values[key])
+            overflow = values["scrollWidth"] - width
+            assert overflow <= 1, (label, overflow)
+            screenshots = []
+            if label in {"desktop", "tablet", "phone"}:
+                page.evaluate("scrollTo(0, 0)")
+                filename = f"website-{label}.png"
+                page.screenshot(path=str(output / filename), animations="disabled")
+                screenshots.append(filename)
+                for selector, name in (("#runs .choice-grid", "choices"), ("#control .review-flow", "review-flow"),
+                                       ("#receipts .benefit-grid", "everyday-help"), ("#cases .grid", "examples")):
+                    section = page.locator(selector)
+                    if label == "phone" and name in {"everyday-help", "examples"}:
+                        cards = section.locator("article")
+                        for index in range(cards.count()):
+                            card = cards.nth(index)
+                            card.evaluate("element => element.scrollIntoView({block: 'center', behavior: 'instant'})")
+                            box = card.bounding_box()
+                            assert box and box["y"] >= 80 and box["y"] + box["height"] <= height, (name, index, box)
+                            filename = f"{name}-{index + 1}-{label}.png"
+                            card.screenshot(path=str(output / filename), animations="disabled")
+                            screenshots.append(filename)
+                    else:
+                        filename = f"{name}-{label}.png"
+                        section.screenshot(path=str(output / filename), animations="disabled")
+                        screenshots.append(filename)
+            captures.append({"size": label, "viewport": [width, height], **values,
+                             "horizontal_overflow": overflow, "screenshots": screenshots})
+        assert not errors, errors
+        external = [url for url in requests if not url.startswith(site_url)]
+        assert not external, external
+        files = [SITE_DIR / path for path in ("index.html", "styles.css", "tokens.css", "app.css")]
+        (output / "validation.json").write_text(json.dumps({
+            "browser": page.context.browser.browser_type.name,
+            "browser_version": page.context.browser.version,
+            "playwright_version": package_version("playwright"),
+            "provider_calls": 0,
+            "external_requests": external,
+            "page_errors": errors,
+            "captures": captures,
+            "source_sha256": {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest() for path in files},
+        }, indent=2) + "\n", encoding="utf-8")
+        context.tracing.stop(path=str(output / "trace.zip"))
+        trace_stopped = True
+    finally:
+        if not trace_stopped:
+            try:
+                context.tracing.stop(path=str(output / "trace-failed.zip"))
+            except Exception:
+                pass
+        context.close()
 
 
 def test_chatgpt_background_consent_marketing_copy_at_responsive_sizes(browser, site_url):
@@ -491,7 +590,8 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
         assert "consent unverified" in availability
         assert "private gmail search" in availability
         assert "public release awaits google scope verification" in availability
-        assert "read-only outlook calendar and mail previews" in availability
+        assert "outlook calendar lookup and optional guest-free event creation on one selected calendar" in availability
+        assert "read-only outlook mail previews" in availability
         assert page.locator("a[href='#get']").count() >= 1
         for label, width, height in viewports:
             page.set_viewport_size({"width": width, "height": height})

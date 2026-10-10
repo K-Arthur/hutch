@@ -3901,3 +3901,20 @@ This fixture-only browser work made no provider calls and does not verify
 packaged installation fonts, screen readers or physical mobile devices. Evidence
 and source hashes are in [`artifacts/dashboard-polish/`](artifacts/dashboard-polish/).
 The UI overhaul remains open; no push or publication occurred.
+
+## Marketing card hierarchy and mobile readability (2026-10-10)
+
+Placed the six choice/approval icons beside their headings, increased small
+hero and example labels, and removed the decorative blue spotlight and orbit
+rings around the 3D mascot. Benefit and example illustrations retain their
+distinct color palettes with simpler fills. The focused responsive check passed
+at desktop **1440×960**, tablet **900×1024**, phone **390×844**, and compact phone
+**320×740**. The complete anonymous marketing browser suite passed **28 tests
+in 43.56s** on Chromium **153.0.8010.12** / Playwright **1.63.0**; CTA, local
+asset, and availability checks passed with the rest of that suite. I reviewed
+the hero and individual card groups at their relevant sizes. No page errors,
+external requests or provider calls occurred. Impeccable found no website
+anti-patterns after the update. Evidence and source hashes are in
+[`artifacts/marketing-card-hierarchy-2026-10-10/`](artifacts/marketing-card-hierarchy-2026-10-10/).
+This narrows one marketing pattern but leaves the broader all-surface redesign
+open. No push or publication occurred.

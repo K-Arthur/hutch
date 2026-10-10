@@ -30,6 +30,27 @@ made no external requests and no provider calls. This is local fixture evidence;
 no screen reader or physical mobile device was used. The anonymous marketing suite
 `tests/e2e/test_website.py` passed separately (**27 passed**).
 
+## Marketing icons and legibility refinement (2026-10-10)
+
+The website's choice and approval cards now align each illustration icon with
+its heading, reducing repeated tile chrome and keeping the cards easy to scan.
+Small hero and example labels are at least 12px. The main scene retains the
+detailed 3D Hutch character while using a restrained surface and neutral shadow
+rather than a blue glow with orbit rings. Benefit and example illustrations use
+simpler color fields.
+
+The responsive check covers **1440×960**, **900×1024**, **390×844**, and
+**320×740**, verifying icon/title alignment, readable label size and leading,
+and no horizontal overflow. The anonymous website suite passed **28 tests in
+43.56s** on Chromium **153.0.8010.12** / Playwright **1.63.0**. I viewed the
+hero at desktop, tablet, and phone sizes, then opened the choice cards, approval
+flow, benefit cards, and example cards separately at desktop and phone sizes.
+There were no page errors, external requests, or provider calls. Screenshots,
+source hashes, and validation records are in
+[`artifacts/marketing-card-hierarchy-2026-10-10/`](artifacts/marketing-card-hierarchy-2026-10-10/).
+No screen reader or physical phone was used. The full marketing page still needs
+a broader content and surface review.
+
 ## Guided Bot setup YAML import (2026-10-09)
 
 I inspected the first-step import panel and final imported review at desktop **1440×960**, tablet

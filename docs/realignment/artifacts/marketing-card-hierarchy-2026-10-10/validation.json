@@ -1,0 +1,166 @@
+{
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "provider_calls": 0,
+  "external_requests": [],
+  "page_errors": [],
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "choiceHead": "flex",
+      "reviewHead": "flex",
+      "choiceIconBackground": "rgba(0, 0, 0, 0)",
+      "choiceIconWidth": 34,
+      "heroSceneBackground": "linear-gradient(145deg, color(srgb 0.0643137 0.0906667 0.130039), rgb(5, 7, 10) 82%)",
+      "heroSceneDecorations": [
+        "none",
+        "none"
+      ],
+      "heroSceneGlowCount": 0,
+      "heroNote": {
+        "fontSize": 13,
+        "lineHeight": 18.2
+      },
+      "heroPromise": {
+        "fontSize": 13,
+        "lineHeight": 19.5
+      },
+      "exampleLabel": {
+        "fontSize": 12,
+        "lineHeight": 16.8
+      },
+      "scrollWidth": 1440,
+      "horizontal_overflow": 0,
+      "screenshots": [
+        "website-desktop.png",
+        "choices-desktop.png",
+        "review-flow-desktop.png",
+        "everyday-help-desktop.png",
+        "examples-desktop.png"
+      ]
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "choiceHead": "flex",
+      "reviewHead": "flex",
+      "choiceIconBackground": "rgba(0, 0, 0, 0)",
+      "choiceIconWidth": 34,
+      "heroSceneBackground": "linear-gradient(145deg, color(srgb 0.0643137 0.0906667 0.130039), rgb(5, 7, 10) 82%)",
+      "heroSceneDecorations": [
+        "none",
+        "none"
+      ],
+      "heroSceneGlowCount": 0,
+      "heroNote": {
+        "fontSize": 13,
+        "lineHeight": 18.2
+      },
+      "heroPromise": {
+        "fontSize": 13,
+        "lineHeight": 19.5
+      },
+      "exampleLabel": {
+        "fontSize": 12,
+        "lineHeight": 16.8
+      },
+      "scrollWidth": 900,
+      "horizontal_overflow": 0,
+      "screenshots": [
+        "website-tablet.png",
+        "choices-tablet.png",
+        "review-flow-tablet.png",
+        "everyday-help-tablet.png",
+        "examples-tablet.png"
+      ]
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "choiceHead": "flex",
+      "reviewHead": "flex",
+      "choiceIconBackground": "rgba(0, 0, 0, 0)",
+      "choiceIconWidth": 34,
+      "heroSceneBackground": "linear-gradient(145deg, color(srgb 0.0643137 0.0906667 0.130039), rgb(5, 7, 10) 82%)",
+      "heroSceneDecorations": [
+        "none",
+        "none"
+      ],
+      "heroSceneGlowCount": 0,
+      "heroNote": {
+        "fontSize": 13,
+        "lineHeight": 18.2
+      },
+      "heroPromise": {
+        "fontSize": 13,
+        "lineHeight": 19.5
+      },
+      "exampleLabel": {
+        "fontSize": 12,
+        "lineHeight": 16.8
+      },
+      "scrollWidth": 390,
+      "horizontal_overflow": 0,
+      "screenshots": [
+        "website-phone.png",
+        "choices-phone.png",
+        "review-flow-phone.png",
+        "everyday-help-1-phone.png",
+        "everyday-help-2-phone.png",
+        "everyday-help-3-phone.png",
+        "examples-1-phone.png",
+        "examples-2-phone.png",
+        "examples-3-phone.png"
+      ]
+    },
+    {
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "choiceHead": "flex",
+      "reviewHead": "flex",
+      "choiceIconBackground": "rgba(0, 0, 0, 0)",
+      "choiceIconWidth": 34,
+      "heroSceneBackground": "linear-gradient(145deg, color(srgb 0.0643137 0.0906667 0.130039), rgb(5, 7, 10) 82%)",
+      "heroSceneDecorations": [
+        "none",
+        "none"
+      ],
+      "heroSceneGlowCount": 0,
+      "heroNote": {
+        "fontSize": 13,
+        "lineHeight": 18.2
+      },
+      "heroPromise": {
+        "fontSize": 13,
+        "lineHeight": 19.5
+      },
+      "exampleLabel": {
+        "fontSize": 12,
+        "lineHeight": 16.8
+      },
+      "scrollWidth": 320,
+      "horizontal_overflow": 0,
+      "screenshots": []
+    }
+  ],
+  "source_sha256": {
+    "website/index.html": "b60f0ccbd52208e8f8a7e32ec9c43b4948c938c95f676832673cde8eb90012b2",
+    "website/styles.css": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
+    "website/tokens.css": "5b585bb3e3513f5f5084de0110003862387c061b1f8b7257dcd8cc9d9153a9a0",
+    "website/app.css": "0d79350069472ad3e7bc3879896ebb0c1c221d53a58232312e8d3013e333af89"
+  }
+}
