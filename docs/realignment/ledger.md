@@ -3598,3 +3598,19 @@ controller-loss/`hutch code reconcile` path, real OpenCode config loading and li
 account/provider behavior remain unverified. Local implementation and documentation
 are committed on `main` as `0a15635`. Broader S5–S9 work and the requested all-surface
 UI overhaul remain open. No push or publication occurred.
+
+## S5 OpenCode handoff reconciliation boundary (2026-10-10)
+
+Extended the Linux fake-CLI coverage to the recovery command. A prepared chat-sourced
+handoff is claimed and bound to a test process with a saved boot/PID/start/group/session
+identity. `hutch code reconcile` observes the live identity and leaves it running
+without signalling it. After the owned test process exits, a second reconcile verifies
+that exact group is gone, records `interrupted`, and the store rejects relaunch. This
+validates the command's safe live/dead decisions and single-use boundary; it does not
+kill a real Hutch controller during `hutch code run` or test OpenCode itself.
+
+The focused handoff, CLI, procguard, and store suites passed **43 tests in 17.03s**.
+Implementation and docs from the preceding launch slice are `0a15635`; this test and
+evidence-boundary update are committed on `main` as `d217c51`. Live OpenCode config,
+account/model behavior, hard usage accounting, and the broader all-surface UI overhaul
+remain open. No push or publication occurred.
