@@ -95,7 +95,7 @@ def test_local_chatgpt_signin_callback_creates_a_secret_free_connection_api(tmp_
         assert connection["output_token_limit_enforced"] is False
         assert client.post(f"/api/connections/{connection['name']}/set-key", json={"key": "not-an-api-key"}).status_code == 422
         assert client.post(f"/api/connections/{connection['name']}/clear-key", json={}).status_code == 422
-        page = client.get("/connections")
+        page = client.get("/legacy/connections")
         csrf = re.search(r'<meta name="csrf" content="([^"]+)"', page.text).group(1)
         page_set_key = client.post(f"/connections/{connection['name']}/key",
                                    data={"csrf": csrf, "key": "not-an-api-key"}, follow_redirects=False)

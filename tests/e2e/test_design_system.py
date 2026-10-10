@@ -26,6 +26,7 @@ from hutch.server.app import create_app  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 SITE = ROOT / "website"
 VISUAL_SOURCE_FILES = (
+    "src/hutch/server/pages.py",
     "src/hutch/server/static/app.js",
     "src/hutch/server/static/index.html",
     "src/hutch/server/static/style.css",
@@ -1194,7 +1195,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
         ("fleet", f"{app_url}/#/bots", ".bot-grid"),
         ("runs", f"{app_url}/#/runs", "#runs-table-wrap"),
         ("approvals", f"{app_url}/#/approvals", "#needs-you"),
-        ("connections", f"{app_url}/#/connections", ".service-tile"),
+        ("connections", f"{app_url}/connections", ".service-tile"),
         ("bot-settings", f"{app_url}/#/bot/design-system-review", "#app-top-context h1"),
         ("run-detail", f"{app_url}/#/run/{run.id}", "#run-technical-details > summary"),
         ("marketing", site_server, ".hero-title"),
@@ -1207,6 +1208,8 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
             for surface_name, url, ready_selector in surfaces:
                 active_surface["name"] = f"{surface_name}-{viewport_name}"
                 page.goto(url, wait_until="domcontentloaded")
+                if surface_name == "connections":
+                    assert page.url.endswith("/#/connections"), page.url
                 nav_toggle = page.locator("#nav-toggle")
                 if nav_toggle.count() and nav_toggle.get_attribute("aria-expanded") == "true":
                     page.keyboard.press("Escape")

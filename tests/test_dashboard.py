@@ -22,7 +22,7 @@ def client(tmp_path, monkeypatch):
 
 
 def token(client) -> str:
-    html = client.get("/connections").text
+    html = client.get("/legacy/connections").text
     return re.search(r'<meta name="csrf" content="([^"]+)"', html).group(1)
 
 
@@ -58,8 +58,16 @@ def test_retired_pages_redirect_to_the_studio(client):
         assert client.get(path).status_code == 200, path
 
 
+def test_connections_url_opens_the_current_apps_and_ai_screen(client):
+    response = client.get("/connections", follow_redirects=False)
+    assert response.status_code == 302
+    assert response.headers["location"] == "/#/connections"
+    legacy = client.get("/legacy/connections", follow_redirects=False)
+    assert legacy.status_code == 200 and "/static/hutch-pages.css" in legacy.text
+
+
 def test_pages_are_server_rendered_with_htmx_and_no_build_step(client):
-    html = client.get("/connections").text
+    html = client.get("/legacy/connections").text
     assert "/static/vendor/htmx.min.js" in html and "/static/hutch.js" in html
     assert client.get("/static/vendor/htmx.min.js").status_code == 200
     assert "<script" in html and "node_modules" not in html
@@ -155,7 +163,7 @@ def test_outward_actions_never_offer_always(client):
 
 def test_stop_all_is_in_the_app_header_and_stops_a_run(client):
     bot = make_bot(client)
-    assert "/stop-all" in client.get("/connections").text
+    assert "/stop-all" in client.get("/legacy/connections").text
     assert "/stop-all" not in client.get("/login").text
     store, engine = client.app_.state.store, client.app_.state.engine
     run = engine.submit(bot, "write a report")

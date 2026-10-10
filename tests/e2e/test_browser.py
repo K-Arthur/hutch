@@ -1115,7 +1115,7 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
             studio_capture = out / f"studio-{label}.png"
             page.screenshot(path=str(studio_capture), animations="disabled")
 
-            page.goto(f"{base}/connections")
+            page.goto(f"{base}/legacy/connections")
             heading = page.locator("#main h1")
             heading.wait_for()
             page.evaluate("document.fonts.ready")

@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
-  "captured_at": "2026-10-10T21:12:55.195241+00:00",
+  "captured_at": "2026-10-10T22:07:09.792772+00:00",
   "python": "3.13.15",
   "browser": "Chromium 153.0.8010.12",
   "playwright": "1.63.0",
@@ -636,13 +636,14 @@
     "mobbin": "The screen searches returned a paid-plan requirement; no Mobbin result was used."
   },
   "source_sha256": {
-    "src/hutch/server/static/app.js": "dbb5ff7251221755c7cf31b559528d1d2cb87f138478e43dec60064a0a6e96cd",
+    "src/hutch/server/pages.py": "50291d0b17f0ca651698f7159435e336de30f0b7595097919e930abef86f4b78",
+    "src/hutch/server/static/app.js": "babf688692c8ab7078ea0b018d827ed7f7785f0f6fd92e8febc5b60650cf6ee7",
     "src/hutch/server/static/index.html": "d9d037b323fa06b27dbe718edf247f3c925839642a410264926d085b860d07c6",
-    "src/hutch/server/static/style.css": "625becaca00811feef06b7d7d11df029d2d79ff34fe49b327620247f86ccee3c",
+    "src/hutch/server/static/style.css": "f2b6351171d443d679395aca7c2254970278ebed79c46710964a099665371439",
     "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
     "website/index.html": "b60f0ccbd52208e8f8a7e32ec9c43b4948c938c95f676832673cde8eb90012b2",
     "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
     "website/styles.css": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
-    "tests/e2e/test_design_system.py": "f9dad470c53a7ccfeb6ca4a1fd176d0f26c84c9352e378aca0fff04071089cb9"
+    "tests/e2e/test_design_system.py": "6167224be4e97494ce2d54740a1fa48b01f71bea8b6a139039b520541fc64c43"
   }
 }

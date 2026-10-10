@@ -4034,3 +4034,21 @@ external requests. Captures, metadata, source hashes, and the trace are in
 [`artifacts/assistant-usage-details-2026-10-10/`](artifacts/assistant-usage-details-2026-10-10/).
 Implementation, docs, and visual evidence are committed as `abcde90`.
 The broader assistant settings and all-surface redesign remain open.
+
+## Canonical Connections route and compatibility forms (2026-10-10)
+
+Direct visits to `/connections` now redirect into **Apps & AI** in the current
+Studio shell. The old server-rendered form is named `/legacy/connections`; its
+POST endpoints still return there so older local workflows keep working. The
+visual capture script now targets the current app route, and route evidence
+includes the server router source hash so the redirect itself is traceable.
+
+Verification: 62 focused dashboard, connection, and ChatGPT integration tests
+passed; the independent responsive route sweep and legacy dashboard-polish
+journey passed (**1 test each**). I opened the current Connections desktop and
+phone captures individually after testing the canonical URL; they show the
+same shared shell and Apps & AI cards as navigation from Studio. Chromium
+153.0.8010.12 / Playwright 1.63.0 reported no page errors, external requests,
+or provider calls. Legacy form checks remain separate from the main product
+surface. This completes one route-alignment slice; the all-surface UI overhaul
+remains active.

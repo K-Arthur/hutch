@@ -575,7 +575,13 @@ def register_pages(app: FastAPI) -> None:
         return out
 
     @app.get("/connections", response_class=HTMLResponse, include_in_schema=False)
-    def connections_page(request: Request):
+    def connections_page():
+        # Preserve the bookmark while sending people into Apps & AI in the
+        # shared workspace. Old form clients can use /legacy/connections.
+        return RedirectResponse("/#/connections", status_code=302)
+
+    @app.get("/legacy/connections", response_class=HTMLResponse, include_in_schema=False)
+    def legacy_connections_page(request: Request):
         book = conn_book()
         have = set(book.names())
         return page(request, "connections.html", nav="connections", conns=conn_views(book),
@@ -587,12 +593,12 @@ def register_pages(app: FastAPI) -> None:
     async def chatgpt_sign_in_page(request: Request):
         form = await read_form(request)
         if not chatgpt_plan_signin_enabled():
-            return go("/connections", error="Sign in with ChatGPT is an eligibility-gated preview. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for this flow.")
+            return go("/legacy/connections", error="Sign in with ChatGPT is an eligibility-gated preview. Set HUTCH_ENABLE_CHATGPT_PLAN=1 only if Hutch is eligible for this flow.")
         try:
             url = ChatGPTAuthBook(config.state_dir).start(
                 loopback_callback_uri(request), account_id=form.get("account_id"))
         except ChatGPTAuthError as exc:
-            return go("/connections", error=str(exc))
+            return go("/legacy/connections", error=str(exc))
         response = RedirectResponse(url, status_code=303)
         response.headers["Cache-Control"] = "no-store"
         response.headers["Referrer-Policy"] = "no-referrer"
@@ -610,8 +616,8 @@ def register_pages(app: FastAPI) -> None:
                 if conn.auth_type == "chatgpt-siws" and conn.auth_account_id == account_id:
                     book.remove(name)
         except ChatGPTAuthError as exc:
-            return go("/connections", error=str(exc))
-        return go("/connections", notice=("ChatGPT access was revoked and removed from this Hutch." if revoked else
+            return go("/legacy/connections", error=str(exc))
+        return go("/legacy/connections", notice=("ChatGPT access was revoked and removed from this Hutch." if revoked else
                                            "Local ChatGPT credentials were cleared, but OpenAI did not confirm remote revocation."))
 
     @app.post("/connections/add", include_in_schema=False)
@@ -623,8 +629,8 @@ def register_pages(app: FastAPI) -> None:
             over = {"base_url": form.get("base_url").strip() or None, "api_key_env": form.get("api_key_env").strip() or None}
             c = book.add(tpl, form.get("name").strip() or None, **over)
         except ValueError as exc:
-            return go("/connections", error=str(exc))
-        return go("/connections", notice=f"Added {c.name}. Now give it a key, and acknowledge its terms if it has any.")
+            return go("/legacy/connections", error=str(exc))
+        return go("/legacy/connections", notice=f"Added {c.name}. Now give it a key, and acknowledge its terms if it has any.")
 
     @app.post("/connections/{name}/{action}", include_in_schema=False)
     async def connection_action(request: Request, name: str, action: str):
@@ -635,50 +641,50 @@ def register_pages(app: FastAPI) -> None:
             raise HTTPException(404, f"No connection named '{name}'.")
         if action == "key":
             if conn.auth_type != "api_key":
-                return go("/connections", error="This connection uses a sign-in account. Manage it from Connections instead of setting an API key.")
+                return go("/legacy/connections", error="This connection uses a sign-in account. Manage it from Connections instead of setting an API key.")
             key = form.get("key").strip()
             if not key:
-                return go("/connections", error="That key was empty.")
+                return go("/legacy/connections", error="That key was empty.")
             book.set_key(name, key)          # written to a 0600 file; never echoed, logged or stored in the database
-            return go("/connections", notice=f"Key stored for {name}.")
+            return go("/legacy/connections", notice=f"Key stored for {name}.")
         if action == "clear-key":
             if conn.auth_type != "api_key":
-                return go("/connections", error="This connection uses a sign-in account. Disconnect the account from Connections instead.")
+                return go("/legacy/connections", error="This connection uses a sign-in account. Disconnect the account from Connections instead.")
             book.clear_key(name)
-            return go("/connections", notice=f"Stored key removed for {name}.")
+            return go("/legacy/connections", notice=f"Stored key removed for {name}.")
         if action == "ack":
             if not form.flag("agree"):
-                return go("/connections", error="Tick the box to confirm you read the terms.")
+                return go("/legacy/connections", error="Tick the box to confirm you read the terms.")
             book.acknowledge(store, name)
-            return go("/connections", notice=f"Terms acknowledged for {name}.")
+            return go("/legacy/connections", notice=f"Terms acknowledged for {name}.")
         if action == "test":
             res = check_connection(book, name)
-            return go("/connections", **({"notice": f"{name}: {res.detail}"} if res.ok else {"error": f"{name}: {res.detail}"}))
+            return go("/legacy/connections", **({"notice": f"{name}: {res.detail}"} if res.ok else {"error": f"{name}: {res.detail}"}))
         if action == "allowance":
             try:
                 book.set_quota(name, form.get("window") or "month", int(form.get("tokens") or 0))
             except (ValueError, KeyError) as exc:
-                return go("/connections", error=str(exc))
-            return go("/connections", notice="Allowance saved. Hutch will stop before it is spent.")
+                return go("/legacy/connections", error=str(exc))
+            return go("/legacy/connections", notice="Allowance saved. Hutch will stop before it is spent.")
         if action == "account-cap":
             try:
                 raw = form.get("daily_usd").strip()
                 cap = float(raw or 0)
                 book.update(name, account_daily_cost_cap_usd=cap)
             except (ValueError, KeyError) as exc:
-                return go("/connections", error=str(exc))
-            return go("/connections", notice=f"Shared daily account cap saved for {name}.")
+                return go("/legacy/connections", error=str(exc))
+            return go("/legacy/connections", notice=f"Shared daily account cap saved for {name}.")
         if action == "protocol":
             try:
                 book.set_model_protocol(name, form.get("model").strip(), form.get("protocol"))
             except (ValueError, KeyError) as exc:
-                return go("/connections", error=str(exc))
-            return go("/connections", notice="Protocol saved for that model.")
+                return go("/legacy/connections", error=str(exc))
+            return go("/legacy/connections", notice="Protocol saved for that model.")
         if action == "remove":
             if conn.auth_type == "chatgpt-siws":
                 store.revoke_background_provider_consents(provider=name)
             book.remove(name)
-            return go("/connections", notice=f"Removed {name} and its stored key.")
+            return go("/legacy/connections", notice=f"Removed {name} and its stored key.")
         raise HTTPException(404, "Unknown action.")
 
     # ----------------------------------------------------------- login (remote)

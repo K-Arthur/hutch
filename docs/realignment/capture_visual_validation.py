@@ -89,7 +89,7 @@ def main() -> None:
     with sync_playwright() as p:
         browser = p.firefox.launch(headless=True)
         records = (capture(browser, "site", args.site) + capture(browser, "app", args.app)
-                   + capture(browser, "connections", args.app.rstrip("/") + "/connections")
+                   + capture(browser, "connections", args.app.rstrip("/") + "/#/connections")
                    + capture(browser, "usage", args.app.rstrip("/") + "/usage"))
         browser_version = browser.version
         browser.close()

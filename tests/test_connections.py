@@ -171,13 +171,13 @@ def test_the_key_is_never_written_to_the_database_the_connections_file_or_the_ap
     monkeypatch.setenv("HUTCH_ALLOWED_HOSTS", "testserver")
     secret = "sk-SUPER-SECRET-12345"
     with TestClient(create_app()) as c:
-        html = c.get("/connections").text
+        html = c.get("/legacy/connections").text
         tok = re.search(r'<meta name="csrf" content="([^"]+)"', html).group(1)
         c.post("/connections/add", data={"csrf": tok, "template": "opencode-go", "name": ""})
         c.post("/connections/opencode-go/key", data={"csrf": tok, "key": secret})
-        for url in ("/connections", "/", "/bots", "/api/bots", "/api/stats", "/api/runs"):
+        for url in ("/legacy/connections", "/", "/bots", "/api/bots", "/api/stats", "/api/runs"):
             assert secret not in c.get(url).text, url
-        assert "present" in c.get("/connections").text
+        assert "present" in c.get("/legacy/connections").text
     assert secret not in (config.state_dir / "connections.json").read_text()
     assert secret not in (config.state_dir / "hutch.db").read_bytes().decode("latin-1")
     assert secret in book_key_file(config).read_text()      # it IS in the 0600 file, and only there
@@ -515,16 +515,16 @@ def test_dashboard_connection_flow_add_key_ack_allowance_remove(config, monkeypa
     monkeypatch.setenv("HUTCH_ALLOWED_HOSTS", "testserver")
     monkeypatch.delenv("OPENCODE_API_KEY", raising=False)
     with TestClient(create_app()) as c:
-        tok = re.search(r'<meta name="csrf" content="([^"]+)"', c.get("/connections").text).group(1)
+        tok = re.search(r'<meta name="csrf" content="([^"]+)"', c.get("/legacy/connections").text).group(1)
         post = lambda path, **d: c.post(path, data={"csrf": tok, **d}, follow_redirects=True)
         assert "OpenCode Go" in post("/connections/add", template="opencode-go", name="").text
-        page = c.get("/connections").text
+        page = c.get("/legacy/connections").text
         assert "acknowledgement required" in page and "missing" in page and "monitored for abuse" in page
         # the box must be ticked: a bare POST does not acknowledge
         post("/connections/opencode-go/ack")
-        assert "acknowledgement required" in c.get("/connections").text
+        assert "acknowledgement required" in c.get("/legacy/connections").text
         post("/connections/opencode-go/ack", agree="1")
-        assert "acknowledgement required" not in c.get("/connections").text
+        assert "acknowledgement required" not in c.get("/legacy/connections").text
         post("/connections/opencode-go/key", key="k-123")
         page = post("/connections/opencode-go/allowance", tokens="40000", window="5h").text
         assert "40k" in page and "5h window" in page
@@ -537,7 +537,7 @@ def test_dashboard_connection_flow_add_key_ack_allowance_remove(config, monkeypa
         assert "window must be one of" in post("/connections/opencode-go/allowance", tokens="5", window="fortnight").text
         assert "unknown template" in post("/connections/add", template="telepathy", name="").text
         post("/connections/opencode-go/remove")
-        assert "No connections yet" in c.get("/connections").text
+        assert "No connections yet" in c.get("/legacy/connections").text
         assert c.post("/connections/ghost/key", data={"csrf": tok, "key": "x"}).status_code == 404
 
 

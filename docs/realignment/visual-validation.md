@@ -13,10 +13,10 @@ I inspected the actual user-facing Studio and Connections SPA routes at desktop
 **1440×960**, tablet **900×1024**, and phone **390×844**, plus the marketing site
 at those sizes. The Connections capture uses `/#/connections` inside the shared
 workspace shell. Marketing was captured as both a readable viewport and a full-page
-overview at each size. An earlier exploratory capture used the compatibility route at
-`/connections`; it showed an older server-rendered page and was not used as visual
-evidence for the current Connections screen. The twelve current screenshots have been
-opened and reviewed. The operator layouts keep their shared shell at tablet and
+overview at each size. The familiar `/connections` URL now redirects into the shared
+Apps & AI screen. Legacy server-rendered forms remain at `/legacy/connections` for
+compatibility and are not presented as the current product surface. The twelve
+current screenshots have been opened and reviewed. The operator layouts keep their shared shell at tablet and
 phone widths; the website preserves its distinct editorial composition. A 320px
 reflow check reports no horizontal overflow on any of the three surfaces.
 

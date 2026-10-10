@@ -20,9 +20,10 @@ compiled `ui.css` imports the generated tokens; the server-rendered templates
 load the same generated file before `hutch.css`. Both Tailwind themes map their
 component roles to these values. The semantic meanings are reviewed in
 `DESIGN.md` and tested in `tests/test_site_tokens.py` and
-`tests/e2e/test_design_system.py`. The browser test deliberately opens the
-in-app `/#/connections` route; `/connections` is a legacy-compatible HTML page
-and is not a substitute for the current screen.
+`tests/e2e/test_design_system.py`. The familiar `/connections` URL redirects
+into the current Apps & AI screen in the shared workspace shell. Retired
+server-rendered forms remain at `/legacy/connections` for older clients; their
+POST handlers stay available while the app uses the versioned API.
 
 Keep semantic button variants intact after CSS generation: primary actions use
 the emerald fill and dark ink, ghost actions stay transparent with a hairline
