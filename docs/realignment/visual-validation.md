@@ -1,5 +1,35 @@
 # Visual validation record
 
+## Shared design system across Studio, Connections, and marketing (2026-10-09)
+
+The shared semantic tokens now feed the operator UI and static marketing build from
+`website/tokens.json`. Studio and Connections use the same workspace sidebar,
+contextual header, system body font, emerald action color, azure focus ring, and
+8px control / 12px panel geometry. Marketing keeps its editorial layout, Archivo
+display headings, and detailed 3D mascot while using the same body type and
+semantic palette. The app's 2D Bot silhouettes remain product identity, not status.
+
+I inspected the actual user-facing Studio and Connections SPA routes at desktop
+**1440×960**, tablet **900×1024**, and phone **390×844**, plus the marketing site
+at those sizes. The Connections capture uses `/#/connections` inside the shared
+workspace shell. Marketing was captured as both a readable viewport and a full-page
+overview at each size. An earlier exploratory capture used the compatibility route at
+`/connections`; it showed an older server-rendered page and was not used as visual
+evidence for the current Connections screen. The twelve current screenshots have been
+opened and reviewed. The operator layouts keep their shared shell at tablet and
+phone widths; the website preserves its distinct editorial composition. A 320px
+reflow check reports no horizontal overflow on any of the three surfaces.
+
+`tests/e2e/test_design_system.py::test_shared_design_tokens_render_consistently_across_all_surfaces`
+and `tests/test_site_tokens.py` passed together (**8 passed**). The rendered
+checks compare body font, background/surface colors, primary action, focus ring,
+panel/control geometry, and the Studio/Connections shell. Chromium
+**153.0.8010.12** / Playwright **1.63.0** generated screenshots, validation JSON,
+and a trace in [`artifacts/design-system/`](artifacts/design-system/). The browser
+made no external requests and no provider calls. This is local fixture evidence;
+no screen reader or physical mobile device was used. The anonymous marketing suite
+`tests/e2e/test_website.py` passed separately (**27 passed**).
+
 ## Guided Bot setup YAML import (2026-10-09)
 
 I inspected the first-step import panel and final imported review at desktop **1440×960**, tablet

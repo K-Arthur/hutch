@@ -4,7 +4,7 @@
    · Surfaces: layered graphite with a cool undertow; elevation by offset+blur
      shadow and a 1px top hairline, never glow alone.
    · Color jobs (locked): emerald #34d399 lineage = brand + primary action
-     (dark ink on emerald, never white); azure #52a8ff = interaction
+     (dark ink on emerald, never white); azure #60a5fa = interaction
      (focus/selection/info) only; amber/rose = state, always with icon + word.
    · Geometry: one rounded scale — 8px controls, 12px panels, 18px bubbles,
      22px composer/modals, 100px chips. Consistency carries it.
@@ -32,7 +32,7 @@
   /* ── lines ────────────────────────────────────────────────────────── */
   --line:        rgb(255 255 255 / 0.07);
   --line-strong: rgb(255 255 255 / 0.14);
-  --line-hi:     rgb(255 255 255 / 0.22);
+  --line-hi:     var(--color-semantic-border-emphasis);
   --hairline-top: rgb(255 255 255 / 0.06);
 
   /* ── text ─────────────────────────────────────────────────────────── */
@@ -61,7 +61,7 @@
   --info:    var(--color-info);
 
   /* ── type: tailwind's system stacks ──────────────────────────────── */
-  --sans: var(--font-sans);
+  --sans: var(--font-body);
   --mono: var(--font-mono);
   --fs-2xs: 11px; --fs-xs: 12px; --fs-sm: 13px; --fs-base: 14px;
   --fs-md: 15px;  --fs-lg: 16px; --fs-xl: 18px; --fs-2xl: 22px; --fs-3xl: 28px;
@@ -73,8 +73,8 @@
   /* ── geometry: one rounded scale (defined in ui.css's layer) ─────── */
   --r-ctl: 0.5rem;       /* buttons, inputs, rows                         */
   --r-panel: 0.75rem;    /* cards, panels, menus, popovers, tables        */
-  --r-chat: 1.25rem;     /* chat tier: bubbles + composer                 */
-  --r-composer: var(--r-chat);
+  --r-chat: 1.125rem;    /* chat bubbles and cards                        */
+  --r-composer: 1.375rem; /* larger composer and phone sheets             */
   --r-card: var(--r-chat);
   --r-chip: 100px;       /* chips/pills                                   */
 
@@ -108,7 +108,7 @@ body {
 }
 
 /* Themed browser surfaces: selection, caret, scrollbars belong to the system. */
-::selection { background: rgba(82, 168, 255, 0.30); color: var(--text); }
+::selection { background: color-mix(in oklab, var(--focus) 30%, transparent); color: var(--text); }
 input, textarea { caret-color: var(--brand-hi); }
 * { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.18) transparent; }
 *::-webkit-scrollbar { width: 10px; height: 10px; }

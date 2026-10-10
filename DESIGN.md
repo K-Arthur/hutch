@@ -11,17 +11,17 @@ colors:
   surface-sidebar: "#030508"
   surface-sunken: "#020406"
   bubble-user: "#1d2735"
-  selection: "rgba(82, 168, 255, 0.30)"
+  selection: "rgba(96, 165, 250, 0.30)"
   line: "rgba(255, 255, 255, 0.07)"
   line-strong: "rgba(255, 255, 255, 0.14)"
-  border-emphasis: "#283649"
+  border-emphasis: "rgba(255, 255, 255, 0.22)"
   hairline-top: "rgba(255, 255, 255, 0.06)"
   track: "rgba(255, 255, 255, 0.09)"
   text-primary: "#f0f4f9"
   text-secondary: "#9daebf"
   text-tertiary: "#7d8ea4"
   focus: "#60a5fa"
-  focus-ink: "#04121f"
+  focus-ink: "#05070a"
   success: "#34d399"
   warning: "#fbbf24"
   error: "#f87171"
@@ -147,8 +147,9 @@ prose, labels, or marketing.
 - **Rose `#f87171`** — failure: errors, denied outcomes, destructive actions.
 - **Neutrals** — ground `#05070a` → panel `#080c12` → raised `#10161f`, text
   `#f0f4f9` / `#9daebf` / `#7d8ea4`, lines `rgba(255,255,255,0.07/0.14/0.22)`.
-  Surfaces derive from one daisyUI theme (`hutch`) compiled in `app/src/input.css`
-  — the marketing site compiles the same theme, so both surfaces share one ramp.
+  Shared semantic values live in `website/tokens.json`, compile into the app and
+  server pages, and are mapped into each DaisyUI theme. Marketing can use deeper
+  layers, but it keeps the same ground, surface, panel, brand, focus, and borders.
 
 ## Typography
 
@@ -160,7 +161,7 @@ prose, labels, or marketing.
 - **Mono:** ids, durations, tokens, budgets, code, timestamps — always with tabular
   numerals and ligatures disabled. Prose never uses mono (The Measured Rule).
 - **Marketing display:** the locally bundled Archivo variable font gives the site’s
-  oversized hero wordmark its brand voice; it is not used for application prose.
+  oversized hero and section headings their voice; body copy stays system sans.
 - **Marketing micro type:** 11px is limited to compact table labels and numbered
   proof captions; 12px is the smallest metadata size. Both remain secondary.
 
@@ -208,7 +209,8 @@ language after explicit user direction ("right angles feel too off"):
 - **Status chip** — pill, mono 11px, dot + word always together (`● working`,
   `● needs you`, `✕ failed`); colour never carries state alone.
 - **App avatar/sigil** — one flat silhouette from a curated set in one of eight
-  identity colours with two white glints; derived from the Bot name and overridable
+  identity colours with a pair of softly tapered eye glints; related curved shapes
+  share a diagonal, while a smaller companion balances the larger lead eye. Derived from the Bot name and overridable
   at creation and in settings. Identity colours are decorative only, never status;
   the separate state pip sits beside it with its word. The marketing site's 3D art
   is a separate, larger brand illustration.

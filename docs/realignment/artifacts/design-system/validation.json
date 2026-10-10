@@ -1,0 +1,373 @@
+{
+  "test": "tests/e2e/test_design_system.py::test_shared_design_tokens_render_consistently_across_all_surfaces",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py",
+  "captured_at": "2026-10-10T03:13:27.443405+00:00",
+  "python": "3.13.15",
+  "browser": "Chromium 153.0.8010.12",
+  "playwright": "1.63.0",
+  "viewports": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "views": {
+        "studio": {
+          "shared": {
+            "--color-semantic-bg": "#05070a",
+            "--color-semantic-surface": "#080c12",
+            "--color-semantic-panel": "#10161f",
+            "--color-semantic-brand": "#34d399",
+            "--color-semantic-on-brand": "#052e21",
+            "--color-semantic-focus-ring": "#60a5fa",
+            "--color-semantic-border": "#ffffff12",
+            "--color-semantic-border-strong": "#ffffff24",
+            "--color-semantic-border-emphasis": "#ffffff38",
+            "--font-body": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+            "--radius-control": "8px",
+            "--radius-panel": "12px",
+            "--radius-chip": "100px"
+          },
+          "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "button": {
+            "background": "rgb(52, 211, 153)",
+            "color": "rgb(5, 46, 33)",
+            "radius": "8px"
+          },
+          "panel": {
+            "background": "rgb(8, 12, 18)",
+            "radius": "12px",
+            "border": "rgba(255, 255, 255, 0.07)"
+          },
+          "operatorShell": {
+            "workspace": true,
+            "brand": "hutch",
+            "studioLink": "Studio",
+            "connectionsLink": "Connections",
+            "context": true,
+            "view": true
+          }
+        },
+        "connections": {
+          "shared": {
+            "--color-semantic-bg": "#05070a",
+            "--color-semantic-surface": "#080c12",
+            "--color-semantic-panel": "#10161f",
+            "--color-semantic-brand": "#34d399",
+            "--color-semantic-on-brand": "#052e21",
+            "--color-semantic-focus-ring": "#60a5fa",
+            "--color-semantic-border": "#ffffff12",
+            "--color-semantic-border-strong": "#ffffff24",
+            "--color-semantic-border-emphasis": "#ffffff38",
+            "--font-body": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+            "--radius-control": "8px",
+            "--radius-panel": "12px",
+            "--radius-chip": "100px"
+          },
+          "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "button": {
+            "background": "rgb(52, 211, 153)",
+            "color": "rgb(5, 46, 33)",
+            "radius": "8px"
+          },
+          "panel": {
+            "background": "rgb(8, 12, 18)",
+            "radius": "12px",
+            "border": "rgba(255, 255, 255, 0.07)"
+          },
+          "operatorShell": {
+            "workspace": true,
+            "brand": "hutch",
+            "studioLink": "Studio",
+            "connectionsLink": "Connections",
+            "context": true,
+            "view": true
+          }
+        },
+        "marketing": {
+          "shared": {
+            "--color-semantic-bg": "#05070a",
+            "--color-semantic-surface": "#080c12",
+            "--color-semantic-panel": "#10161f",
+            "--color-semantic-brand": "#34d399",
+            "--color-semantic-on-brand": "#052e21",
+            "--color-semantic-focus-ring": "#60a5fa",
+            "--color-semantic-border": "rgba(255,255,255,0.07)",
+            "--color-semantic-border-strong": "rgba(255,255,255,0.14)",
+            "--color-semantic-border-emphasis": "rgba(255,255,255,0.22)",
+            "--font-body": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+            "--radius-control": "8px",
+            "--radius-panel": "12px",
+            "--radius-chip": "100px"
+          },
+          "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "button": {
+            "background": "rgb(52, 211, 153)",
+            "color": "rgb(5, 46, 33)",
+            "radius": "8px"
+          },
+          "panel": {
+            "background": "rgb(8, 12, 18)",
+            "radius": "12px",
+            "border": "rgba(255, 255, 255, 0.07)"
+          },
+          "displayFont": "Archivo, ui-sans-serif, system-ui, \"Segoe UI\", sans-serif"
+        }
+      }
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "views": {
+        "studio": {
+          "shared": {
+            "--color-semantic-bg": "#05070a",
+            "--color-semantic-surface": "#080c12",
+            "--color-semantic-panel": "#10161f",
+            "--color-semantic-brand": "#34d399",
+            "--color-semantic-on-brand": "#052e21",
+            "--color-semantic-focus-ring": "#60a5fa",
+            "--color-semantic-border": "#ffffff12",
+            "--color-semantic-border-strong": "#ffffff24",
+            "--color-semantic-border-emphasis": "#ffffff38",
+            "--font-body": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+            "--radius-control": "8px",
+            "--radius-panel": "12px",
+            "--radius-chip": "100px"
+          },
+          "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "button": {
+            "background": "rgb(52, 211, 153)",
+            "color": "rgb(5, 46, 33)",
+            "radius": "8px"
+          },
+          "panel": {
+            "background": "rgb(8, 12, 18)",
+            "radius": "12px",
+            "border": "rgba(255, 255, 255, 0.07)"
+          },
+          "operatorShell": {
+            "workspace": true,
+            "brand": "hutch",
+            "studioLink": "Studio",
+            "connectionsLink": "Connections",
+            "context": true,
+            "view": true
+          }
+        },
+        "connections": {
+          "shared": {
+            "--color-semantic-bg": "#05070a",
+            "--color-semantic-surface": "#080c12",
+            "--color-semantic-panel": "#10161f",
+            "--color-semantic-brand": "#34d399",
+            "--color-semantic-on-brand": "#052e21",
+            "--color-semantic-focus-ring": "#60a5fa",
+            "--color-semantic-border": "#ffffff12",
+            "--color-semantic-border-strong": "#ffffff24",
+            "--color-semantic-border-emphasis": "#ffffff38",
+            "--font-body": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+            "--radius-control": "8px",
+            "--radius-panel": "12px",
+            "--radius-chip": "100px"
+          },
+          "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "button": {
+            "background": "rgb(52, 211, 153)",
+            "color": "rgb(5, 46, 33)",
+            "radius": "8px"
+          },
+          "panel": {
+            "background": "rgb(8, 12, 18)",
+            "radius": "12px",
+            "border": "rgba(255, 255, 255, 0.07)"
+          },
+          "operatorShell": {
+            "workspace": true,
+            "brand": "hutch",
+            "studioLink": "Studio",
+            "connectionsLink": "Connections",
+            "context": true,
+            "view": true
+          }
+        },
+        "marketing": {
+          "shared": {
+            "--color-semantic-bg": "#05070a",
+            "--color-semantic-surface": "#080c12",
+            "--color-semantic-panel": "#10161f",
+            "--color-semantic-brand": "#34d399",
+            "--color-semantic-on-brand": "#052e21",
+            "--color-semantic-focus-ring": "#60a5fa",
+            "--color-semantic-border": "rgba(255,255,255,0.07)",
+            "--color-semantic-border-strong": "rgba(255,255,255,0.14)",
+            "--color-semantic-border-emphasis": "rgba(255,255,255,0.22)",
+            "--font-body": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+            "--radius-control": "8px",
+            "--radius-panel": "12px",
+            "--radius-chip": "100px"
+          },
+          "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "button": {
+            "background": "rgb(52, 211, 153)",
+            "color": "rgb(5, 46, 33)",
+            "radius": "8px"
+          },
+          "panel": {
+            "background": "rgb(8, 12, 18)",
+            "radius": "12px",
+            "border": "rgba(255, 255, 255, 0.07)"
+          },
+          "displayFont": "Archivo, ui-sans-serif, system-ui, \"Segoe UI\", sans-serif"
+        }
+      }
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "views": {
+        "studio": {
+          "shared": {
+            "--color-semantic-bg": "#05070a",
+            "--color-semantic-surface": "#080c12",
+            "--color-semantic-panel": "#10161f",
+            "--color-semantic-brand": "#34d399",
+            "--color-semantic-on-brand": "#052e21",
+            "--color-semantic-focus-ring": "#60a5fa",
+            "--color-semantic-border": "#ffffff12",
+            "--color-semantic-border-strong": "#ffffff24",
+            "--color-semantic-border-emphasis": "#ffffff38",
+            "--font-body": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+            "--radius-control": "8px",
+            "--radius-panel": "12px",
+            "--radius-chip": "100px"
+          },
+          "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "button": {
+            "background": "rgb(52, 211, 153)",
+            "color": "rgb(5, 46, 33)",
+            "radius": "8px"
+          },
+          "panel": {
+            "background": "rgb(8, 12, 18)",
+            "radius": "12px",
+            "border": "rgba(255, 255, 255, 0.07)"
+          },
+          "operatorShell": {
+            "workspace": true,
+            "brand": "hutch",
+            "studioLink": "Studio",
+            "connectionsLink": "Connections",
+            "context": true,
+            "view": true
+          }
+        },
+        "connections": {
+          "shared": {
+            "--color-semantic-bg": "#05070a",
+            "--color-semantic-surface": "#080c12",
+            "--color-semantic-panel": "#10161f",
+            "--color-semantic-brand": "#34d399",
+            "--color-semantic-on-brand": "#052e21",
+            "--color-semantic-focus-ring": "#60a5fa",
+            "--color-semantic-border": "#ffffff12",
+            "--color-semantic-border-strong": "#ffffff24",
+            "--color-semantic-border-emphasis": "#ffffff38",
+            "--font-body": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+            "--radius-control": "8px",
+            "--radius-panel": "12px",
+            "--radius-chip": "100px"
+          },
+          "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "button": {
+            "background": "rgb(52, 211, 153)",
+            "color": "rgb(5, 46, 33)",
+            "radius": "8px"
+          },
+          "panel": {
+            "background": "rgb(8, 12, 18)",
+            "radius": "12px",
+            "border": "rgba(255, 255, 255, 0.07)"
+          },
+          "operatorShell": {
+            "workspace": true,
+            "brand": "hutch",
+            "studioLink": "Studio",
+            "connectionsLink": "Connections",
+            "context": true,
+            "view": true
+          }
+        },
+        "marketing": {
+          "shared": {
+            "--color-semantic-bg": "#05070a",
+            "--color-semantic-surface": "#080c12",
+            "--color-semantic-panel": "#10161f",
+            "--color-semantic-brand": "#34d399",
+            "--color-semantic-on-brand": "#052e21",
+            "--color-semantic-focus-ring": "#60a5fa",
+            "--color-semantic-border": "rgba(255,255,255,0.07)",
+            "--color-semantic-border-strong": "rgba(255,255,255,0.14)",
+            "--color-semantic-border-emphasis": "rgba(255,255,255,0.22)",
+            "--font-body": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+            "--radius-control": "8px",
+            "--radius-panel": "12px",
+            "--radius-chip": "100px"
+          },
+          "bodyFont": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif",
+          "button": {
+            "background": "rgb(52, 211, 153)",
+            "color": "rgb(5, 46, 33)",
+            "radius": "8px"
+          },
+          "panel": {
+            "background": "rgb(8, 12, 18)",
+            "radius": "12px",
+            "border": "rgba(255, 255, 255, 0.07)"
+          },
+          "displayFont": "Archivo, ui-sans-serif, system-ui, \"Segoe UI\", sans-serif"
+        }
+      }
+    },
+    {
+      "size": "reflow",
+      "viewport": [
+        320,
+        740
+      ]
+    }
+  ],
+  "external_requests": [],
+  "provider_calls": 0,
+  "states": [
+    "empty selected Studio conversation",
+    "Connections in the shared Studio shell",
+    "marketing landing page"
+  ],
+  "visual_review": {
+    "reviewed_at": "2026-10-09",
+    "reviewed": true,
+    "screenshots": [
+      "studio-desktop.png",
+      "studio-tablet.png",
+      "studio-phone.png",
+      "connections-desktop.png",
+      "connections-tablet.png",
+      "connections-phone.png",
+      "marketing-desktop-viewport.png",
+      "marketing-tablet-viewport.png",
+      "marketing-phone-viewport.png",
+      "marketing-desktop.png",
+      "marketing-tablet.png",
+      "marketing-phone.png"
+    ],
+    "notes": "Studio and Connections share the operator shell. Marketing retains its editorial layout. Reviewed desktop, tablet and phone compositions plus full-page marketing overviews; no clipping or horizontal overflow appeared at the tested widths."
+  }
+}

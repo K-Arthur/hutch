@@ -4,8 +4,8 @@
  * The built website/app.css is committed so the site stays a static, no-build,
  * no-external-request surface at runtime.
  *
- * Brand contract (pinned): dark near-black mineral ground, emerald #34d399 accent,
- * 0px controls / 8px panels / 100px chips, one dark theme, amber = status only.
+ * Brand contract: dark near-black mineral ground, emerald #34d399 accent,
+ * 8px controls / 12px panels / 100px chips, one dark theme, amber = status only.
  */
 
 @import "tailwindcss";
@@ -25,35 +25,35 @@
   color-scheme: dark;
 
   /* surfaces */
-  --color-base-100: #05070a;
-  --color-base-200: #080c12;
-  --color-base-300: #10161f;
-  --color-base-content: #f0f4f9;
+  --color-base-100: var(--color-semantic-bg);
+  --color-base-200: var(--color-semantic-surface);
+  --color-base-300: var(--color-semantic-panel);
+  --color-base-content: var(--color-semantic-text);
 
   /* brand */
-  --color-primary: #34d399;
-  --color-primary-content: #052e21;
-  --color-secondary: #60a5fa;
-  --color-secondary-content: #05070a;
-  --color-accent: #6ee7b7;
-  --color-accent-content: #052e21;
-  --color-neutral: #10161f;
-  --color-neutral-content: #f0f4f9;
+  --color-primary: var(--color-semantic-brand);
+  --color-primary-content: var(--color-semantic-on-brand);
+  --color-secondary: var(--color-semantic-focus-ring);
+  --color-secondary-content: var(--color-semantic-bg);
+  --color-accent: var(--color-semantic-brand-strong);
+  --color-accent-content: var(--color-semantic-on-brand);
+  --color-neutral: var(--color-semantic-panel);
+  --color-neutral-content: var(--color-semantic-text);
 
   /* semantic state */
-  --color-info: #60a5fa;
-  --color-info-content: #05070a;
-  --color-success: #34d399;
-  --color-success-content: #052e21;
-  --color-warning: #fbbf24;
+  --color-info: var(--color-semantic-info);
+  --color-info-content: var(--color-semantic-bg);
+  --color-success: var(--color-semantic-success);
+  --color-success-content: var(--color-semantic-on-brand);
+  --color-warning: var(--color-semantic-warning);
   --color-warning-content: #2a1e02;
-  --color-error: #f87171;
+  --color-error: var(--color-semantic-danger);
   --color-error-content: #2a0707;
 
-  /* shape: 0px controls, 8px panels, 100px chips */
+  /* Shared geometry: 8px controls, 12px panels, 100px chips. */
   --radius-selector: 100px;
-  --radius-field: 0rem;
-  --radius-box: 0.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
 
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
@@ -84,5 +84,6 @@
   --color-danger: var(--color-semantic-danger);
 
   --font-display: var(--font-display);
+  --font-body: var(--font-body);
   --font-mono: var(--font-mono);
 }

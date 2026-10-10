@@ -21,6 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 TOKENS = ROOT / "website" / "tokens.json"
 OUTPUT = ROOT / "website" / "tokens.css"
+APP_OUTPUT = ROOT / "src" / "hutch" / "server" / "static" / "brand-tokens.css"
 
 REF = re.compile(r"^\{([^{}]+)\}$")
 
@@ -162,14 +163,17 @@ def main(argv: list[str]) -> int:
         print(f"token error: {exc}", file=sys.stderr)
         return 1
     if check:
-        current = OUTPUT.read_text() if OUTPUT.exists() else ""
-        if current != css:
-            print("drift: website/tokens.css is stale — run scripts/build_site_tokens.py", file=sys.stderr)
+        stale = [path.relative_to(ROOT).as_posix() for path in (OUTPUT, APP_OUTPUT)
+                 if not path.exists() or path.read_text() != css]
+        if stale:
+            print("drift: generated design tokens are stale (" + ", ".join(stale)
+                  + ") — run scripts/build_site_tokens.py", file=sys.stderr)
             return 1
-        print(f"ok: {len(tokens)} tokens, no drift, contrast verified")
+        print(f"ok: {len(tokens)} tokens, both surfaces current, contrast verified")
         return 0
     OUTPUT.write_text(css)
-    print(f"wrote {OUTPUT.relative_to(ROOT)} ({len(tokens)} tokens)")
+    APP_OUTPUT.write_text(css)
+    print(f"wrote {OUTPUT.relative_to(ROOT)} and {APP_OUTPUT.relative_to(ROOT)} ({len(tokens)} shared tokens)")
     return 0
 
 

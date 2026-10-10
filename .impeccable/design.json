@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-09T23:31:23Z",
+  "generatedAt": "2026-10-10T03:18:11Z",
   "title": "Design System: Hutch",
   "extensions": {
     "colorMeta": {
@@ -142,16 +142,16 @@
       "selection": {
         "role": "interaction",
         "displayName": "Selection Azure",
-        "canonical": "rgba(82, 168, 255, 0.30)",
+        "canonical": "rgba(96, 165, 250, 0.30)",
         "tonalRamp": [
-          "#000b1d",
-          "#0a2540",
-          "#26425f",
-          "#44607f",
-          "#6280a0",
-          "#83a2c3",
-          "#a8c8eb",
-          "#e3f0ff"
+          "#000b1f",
+          "#00234b",
+          "#003e7d",
+          "#145dac",
+          "#3a7ed0",
+          "#5ca1f5",
+          "#9cc7ff",
+          "#e4f0ff"
         ]
       },
       "line": {
@@ -187,16 +187,16 @@
       "border-emphasis": {
         "role": "neutral-border",
         "displayName": "Emphasis Slate",
-        "canonical": "#283649",
+        "canonical": "rgba(255, 255, 255, 0.22)",
         "tonalRamp": [
-          "#020b1b",
-          "#172537",
-          "#324154",
-          "#4f5f74",
-          "#6e7f95",
-          "#8fa0b7",
-          "#b4c6de",
-          "#e4f0ff"
+          "#07090c",
+          "#202326",
+          "#3a3d40",
+          "#585b5e",
+          "#777a7d",
+          "#979a9d",
+          "#b9bbbe",
+          "#f1f3f5"
         ]
       },
       "hairline-top": {
@@ -292,16 +292,16 @@
       "focus-ink": {
         "role": "on-interaction",
         "displayName": "Focus Ink",
-        "canonical": "#04121f",
+        "canonical": "#05070a",
         "tonalRamp": [
-          "#010c19",
-          "#162634",
-          "#314251",
-          "#4e6070",
-          "#6d8091",
-          "#8ea1b3",
-          "#b3c7da",
-          "#e1f1ff"
+          "#090b0f",
+          "#212428",
+          "#3d4044",
+          "#5a5e63",
+          "#7a7e82",
+          "#9b9fa4",
+          "#c0c4ca",
+          "#eaeff4"
         ]
       },
       "success": {
@@ -361,7 +361,7 @@
       },
       "marketing-display": {
         "displayName": "Archivo Display",
-        "purpose": "Oversized marketing hero wordmark only; not application prose."
+        "purpose": "Marketing hero and section headings; body copy uses the shared system sans."
       },
       "marketing-display-min": {
         "displayName": "Archivo Display Compact",

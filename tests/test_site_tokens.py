@@ -34,10 +34,20 @@ def test_generated_css_carries_the_brand_accent():
     css = CSS.read_text()
     assert "--color-semantic-brand: #34d399;" in css
     assert "--color-semantic-on-brand: #052e21;" in css
-    # shape contract survives generation
-    assert "--radius-control: 0px;" in css
-    assert "--radius-panel: 8px;" in css
+    # Shared Studio, server-page, and marketing geometry stays in sync.
+    assert "--color-semantic-surface: #080c12;" in css
+    assert "--color-semantic-border: rgba(255,255,255,0.07);" in css
+    assert "--color-semantic-border-emphasis: rgba(255,255,255,0.22);" in css
+    assert "--color-semantic-focus-ring: #60a5fa;" in css
+    assert "--radius-control: 8px;" in css
+    assert "--radius-panel: 12px;" in css
     assert "--radius-chip: 100px;" in css
+
+
+@pytest.mark.skipif(not CSS.exists(), reason="website tokens not built")
+def test_shared_operator_tokens_are_generated_from_the_same_source():
+    shared = ROOT / "src/hutch/server/static/brand-tokens.css"
+    assert shared.read_text() == CSS.read_text()
 
 
 @pytest.mark.skipif(not CSS.exists(), reason="website tokens not built")
@@ -65,8 +75,10 @@ def test_built_tailwind_sheet_is_present():
     app = ROOT / "website" / "app.css"
     assert app.exists(), "website/app.css missing — run `npm run build:css`"
     css = app.read_text().replace(" ", "")
-    assert "--color-primary:#34d399" in css
-    assert "--radius-field:0rem" in css
+    assert "--color-primary:var(--color-semantic-brand)" in css
+    assert "--color-base-200:var(--color-semantic-surface)" in css
+    assert "--radius-field:.5rem" in css
+    assert "--radius-box:.75rem" in css
     for component in (".btn{", ".badge{", ".card{", ".navbar{", ".table{", ".collapse{"):
         assert component in css, f"{component} missing from built sheet"
 
