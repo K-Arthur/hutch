@@ -23,10 +23,12 @@ from .models import (
     CatchUpPolicy,
     Limits,
     InferenceMode,
+    OverlapPolicy,
     RiskTier,
     RunStatus,
     RuntimeKind,
     Schedule,
+    TriggerKind,
     bot_slug_display_name,
 )
 from .lifecycle import TERMINAL
@@ -417,15 +419,28 @@ def state_activate(restore_id: str, evidence: str = typer.Option(..., '--evidenc
 
 # --------------------------------------------------------------------- bots
 
-def _validate_schedule(cron: str, timezone_name: str) -> None:
-    from croniter import croniter
+def _validate_timezone(timezone_name: str) -> None:
     from zoneinfo import ZoneInfo
-    if len(cron.split()) != 5 or not croniter.is_valid(cron):
-        raise typer.BadParameter("cron must be a valid five-field expression")
     try:
         ZoneInfo(timezone_name)
     except Exception:
         raise typer.BadParameter("timezone must be a valid IANA time zone") from None
+
+
+def _validate_schedule(cron: str, timezone_name: str) -> None:
+    from croniter import croniter
+    if len(cron.split()) != 5 or not croniter.is_valid(cron):
+        raise typer.BadParameter("cron must be a valid five-field expression")
+    _validate_timezone(timezone_name)
+
+
+def _schedule_trigger_label(schedule: Schedule) -> str:
+    if schedule.trigger is TriggerKind.interval and schedule.interval_seconds:
+        minutes = schedule.interval_seconds / 60
+        return f"every {minutes:g}m" if minutes == int(minutes) else f"every {schedule.interval_seconds}s"
+    if schedule.trigger is TriggerKind.once:
+        return f"once @ {schedule.anchor_at or '?'}"
+    return schedule.cron
 
 
 @schedule_app.command("list")
@@ -442,9 +457,7 @@ def schedule_list(bot_name: str = typer.Argument(..., help="Bot name or ID")) ->
         console.print(f"{bot.name} has no recurring tasks.")
         return
     scheduler = Scheduler(store)
-    table = Table(title=f"{bot.name} recurring tasks")
-    for column in ("name", "id", "cron", "timezone", "next run", "catch-up"):
-        table.add_column(column)
+    console.print(f"{bot.name} recurring tasks")
     for schedule in schedules:
         nxt = scheduler.next_fire(bot, schedule=schedule)
         try:
@@ -452,16 +465,25 @@ def schedule_list(bot_name: str = typer.Argument(..., help="Bot name or ID")) ->
             next_run = nxt.astimezone(task_zone).strftime("%a %d %b %H:%M %Z") if nxt else "—"
         except ZoneInfoNotFoundError:
             next_run = "invalid timezone"
-        table.add_row(schedule.name, schedule.id, schedule.cron, schedule.timezone, next_run, schedule.catch_up.value)
-    console.print(table)
+        state = "enabled" if schedule.enabled else "draft"
+        console.print(
+            f"- {schedule.name} [{state}]\n"
+            f"  id={schedule.id}  trigger={_schedule_trigger_label(schedule)}  "
+            f"tz={schedule.timezone}  next={next_run}  catch_up={schedule.catch_up.value}  "
+            f"overlap={schedule.overlap.value}"
+        )
 
 
 @schedule_app.command("add")
 def schedule_add(bot_name: str = typer.Argument(..., help="Bot name or ID"),
-                 cron: str = typer.Option(..., "--cron", help="Five-field cron expression"),
+                 cron: Optional[str] = typer.Option(None, "--cron", help="Five-field cron expression"),
+                 interval_minutes: Optional[float] = typer.Option(None, "--interval-minutes",
+                                                                  help="Fixed-rate interval; not a cron approximation"),
                  name: str = typer.Option("Scheduled task", "--name"),
                  timezone_name: str = typer.Option("UTC", "--timezone"),
                  catch_up: CatchUpPolicy = typer.Option(CatchUpPolicy.coalesce, "--catch-up"),
+                 overlap: OverlapPolicy = typer.Option(OverlapPolicy.queue, "--overlap"),
+                 enabled: bool = typer.Option(True, "--enabled/--draft", help="Drafts do not admit occurrences"),
                  prompt: str = typer.Option("", "--prompt", help="Task instruction; blank uses bot instructions")) -> None:
     store = _store()
     bot = store.get_bot(bot_name)
@@ -470,13 +492,28 @@ def schedule_add(bot_name: str = typer.Argument(..., help="Bot name or ID"),
         raise typer.Exit(code=1)
     if len(prompt) > 4000:
         raise typer.BadParameter("prompt must be 4000 characters or fewer")
-    _validate_schedule(cron, timezone_name)
+    _validate_timezone(timezone_name)
+    if interval_minutes is not None and cron:
+        raise typer.BadParameter("choose either --cron or --interval-minutes")
+    if interval_minutes is not None:
+        if interval_minutes <= 0:
+            raise typer.BadParameter("interval minutes must be positive")
+        schedule = Schedule(name=name, trigger=TriggerKind.interval,
+                            interval_seconds=int(round(interval_minutes * 60)),
+                            timezone=timezone_name, catch_up=catch_up, overlap=overlap,
+                            enabled=enabled, prompt=prompt)
+    else:
+        if not cron:
+            raise typer.BadParameter("--cron is required unless --interval-minutes is set")
+        _validate_schedule(cron, timezone_name)
+        schedule = Schedule(name=name, cron=cron, timezone=timezone_name, catch_up=catch_up,
+                            overlap=overlap, enabled=enabled, prompt=prompt)
     try:
-        schedule = Schedule(name=name, cron=cron, timezone=timezone_name, catch_up=catch_up, prompt=prompt)
         store.put_schedule(bot.id, schedule)
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from None
-    console.print(f"[green]added[/green] {schedule.name} ({schedule.id}) to {bot.name}")
+    state = "enabled" if enabled else "draft"
+    console.print(f"[green]added[/green] {schedule.name} ({schedule.id}) to {bot.name} [{state}]")
 
 
 @schedule_app.command("update")
@@ -484,8 +521,11 @@ def schedule_update(bot_name: str = typer.Argument(..., help="Bot name or ID"),
                     schedule_id: str = typer.Argument(..., help="Stable schedule ID from `hutch bot schedules list`"),
                     name: Optional[str] = typer.Option(None, "--name"),
                     cron: Optional[str] = typer.Option(None, "--cron"),
+                    interval_minutes: Optional[float] = typer.Option(None, "--interval-minutes"),
                     timezone_name: Optional[str] = typer.Option(None, "--timezone"),
                     catch_up: Optional[CatchUpPolicy] = typer.Option(None, "--catch-up"),
+                    overlap: Optional[OverlapPolicy] = typer.Option(None, "--overlap"),
+                    enabled: Optional[bool] = typer.Option(None, "--enabled/--draft"),
                     prompt: Optional[str] = typer.Option(None, "--prompt")) -> None:
     store = _store()
     bot = store.get_bot(bot_name)
@@ -496,20 +536,86 @@ def schedule_update(bot_name: str = typer.Argument(..., help="Bot name or ID"),
     if not existing:
         err.print(f"[red]No scheduled task '{schedule_id}' on {bot.name}.[/red]")
         raise typer.Exit(code=1)
-    new_cron = cron if cron is not None else existing.cron
     new_timezone = timezone_name if timezone_name is not None else existing.timezone
     new_prompt = prompt if prompt is not None else existing.prompt
     if len(new_prompt) > 4000:
         raise typer.BadParameter("prompt must be 4000 characters or fewer")
-    _validate_schedule(new_cron, new_timezone)
-    schedule = Schedule(id=existing.id, name=name if name is not None else existing.name,
-                        created_at=existing.created_at, cron=new_cron, timezone=new_timezone,
-                        catch_up=catch_up or existing.catch_up, prompt=new_prompt)
+    _validate_timezone(new_timezone)
+    if interval_minutes is not None:
+        schedule = Schedule(
+            id=existing.id, name=name if name is not None else existing.name,
+            created_at=existing.created_at, trigger=TriggerKind.interval,
+            interval_seconds=int(round(interval_minutes * 60)), timezone=new_timezone,
+            catch_up=catch_up or existing.catch_up, overlap=overlap or existing.overlap,
+            enabled=existing.enabled if enabled is None else enabled, prompt=new_prompt,
+            anchor_at=existing.anchor_at,
+        )
+    else:
+        new_cron = cron if cron is not None else existing.cron
+        if existing.trigger is TriggerKind.cron or cron is not None:
+            _validate_schedule(new_cron, new_timezone)
+            schedule = Schedule(
+                id=existing.id, name=name if name is not None else existing.name,
+                created_at=existing.created_at, trigger=TriggerKind.cron, cron=new_cron,
+                timezone=new_timezone, catch_up=catch_up or existing.catch_up,
+                overlap=overlap or existing.overlap,
+                enabled=existing.enabled if enabled is None else enabled, prompt=new_prompt,
+            )
+        else:
+            schedule = existing.model_copy(update={
+                "name": name if name is not None else existing.name,
+                "timezone": new_timezone,
+                "catch_up": catch_up or existing.catch_up,
+                "overlap": overlap or existing.overlap,
+                "enabled": existing.enabled if enabled is None else enabled,
+                "prompt": new_prompt,
+            })
     try:
         store.put_schedule(bot.id, schedule)
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from None
     console.print(f"[green]updated[/green] {schedule.name} ({schedule.id})")
+
+
+@schedule_app.command("run-now")
+def schedule_run_now(bot_name: str = typer.Argument(..., help="Bot name or ID"),
+                     schedule_id: str = typer.Argument(..., help="Stable schedule ID")) -> None:
+    """Run the routine once without advancing its recurring marker."""
+    from .engine import Engine
+    store = _store()
+    bot = store.get_bot(bot_name)
+    if not bot:
+        err.print(f"[red]No bot named '{bot_name}'.[/red]")
+        raise typer.Exit(code=1)
+    scheduled = next((item for item in bot.schedules if item.id == schedule_id), None)
+    if not scheduled:
+        err.print(f"[red]No scheduled task '{schedule_id}' on {bot.name}.[/red]")
+        raise typer.Exit(code=1)
+    engine = Engine(get_config(), store)
+    before = store.kv_get(f"{schedule_id}:last_fire")
+    run = engine.run_schedule_now(bot, scheduled)
+    after = store.kv_get(f"{schedule_id}:last_fire")
+    if before != after:
+        err.print("[red]run-now advanced the schedule marker; refusing to continue silently.[/red]")
+        raise typer.Exit(code=1)
+    console.print(f"[green]started[/green] {run.id} (origin={run.origin}; schedule marker unchanged)")
+
+
+@schedule_app.command("skip-next")
+def schedule_skip_next(bot_name: str = typer.Argument(..., help="Bot name or ID"),
+                       schedule_id: str = typer.Argument(..., help="Stable schedule ID")) -> None:
+    from .scheduler import Scheduler
+    store = _store()
+    bot = store.get_bot(bot_name)
+    if not bot:
+        err.print(f"[red]No bot named '{bot_name}'.[/red]")
+        raise typer.Exit(code=1)
+    scheduled = next((item for item in bot.schedules if item.id == schedule_id), None)
+    if not scheduled:
+        err.print(f"[red]No scheduled task '{schedule_id}' on {bot.name}.[/red]")
+        raise typer.Exit(code=1)
+    Scheduler(store).request_skip_next(scheduled)
+    console.print(f"[green]skip-next armed[/green] for {scheduled.name} ({schedule_id})")
 
 
 @schedule_app.command("remove")
@@ -535,14 +641,13 @@ def bot_list() -> None:
     if not bots:
         console.print("No bots yet. Configure a real model route, then create one with `hutch bot create` or the dashboard.")
         return
-    table = Table()
-    for col in ("display name", "address", "model", "runtime", "tools", "schedule", "approvals", "paused"):
-        table.add_column(col)
     for b in bots:
         sched = b.schedule.cron if b.schedule else "on demand"
-        table.add_row(b.display_name, b.name, b.model, b.runtime.value, ",".join(b.tools), sched,
-                      b.approval_mode.value, "yes" if b.paused else "")
-    console.print(table)
+        paused = "paused" if b.paused else "active"
+        console.print(
+            f"- {b.display_name} ({b.name})  model={b.model}  runtime={b.runtime.value}  "
+            f"tools={','.join(b.tools) or '—'}  schedule={sched}  approvals={b.approval_mode.value}  {paused}"
+        )
 
 
 @bot_app.command("templates")

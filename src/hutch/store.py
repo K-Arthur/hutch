@@ -2730,6 +2730,35 @@ class Store:
         self.bus.notify("work", "bots")
         return bot
 
+    def list_schedule_occurrences(self, schedule_id: str, *, limit: int = 50,
+                                  offset: int = 0) -> list[dict[str, Any]]:
+        """Recent claimed occurrences for one routine, newest first (bounded page)."""
+        limit = max(1, min(int(limit), 100))
+        offset = max(0, int(offset))
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT schedule_id, occurrence, bot_id, run_id, claimed_at, claimed_by "
+                "FROM schedule_occurrences_v20 WHERE schedule_id = ? "
+                "ORDER BY occurrence DESC LIMIT ? OFFSET ?",
+                (schedule_id, limit, offset),
+            ).fetchall()
+        out = []
+        for row in rows:
+            run = self.get_run(row["run_id"])
+            out.append({
+                "schedule_id": row["schedule_id"],
+                "occurrence": row["occurrence"],
+                "bot_id": row["bot_id"],
+                "run_id": row["run_id"],
+                "claimed_at": row["claimed_at"],
+                "claimed_by": row["claimed_by"],
+                "run_status": run.status.value if run else None,
+                "run_origin": run.origin if run else None,
+                "exit_reason": run.exit_reason if run else None,
+                "missed_windows": run.missed_windows if run else None,
+            })
+        return out
+
     def delete_schedule(self, bot_id: str, schedule_id: str) -> Bot | None:
         """Remove exactly one recurring task; leaving no schedules is the on-demand state."""
         with self._tx() as db:

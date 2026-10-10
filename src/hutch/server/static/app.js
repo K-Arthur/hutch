@@ -4810,10 +4810,22 @@ function scheduleNextTime(row) {
 }
 
 function schedulePauseStatus(row) {
+  if (row.blocked?.reason) return "Needs repair";
+  if (row.enabled === false) return "Draft";
   if (row.workspace_paused && row.paused) return "Paused";
   if (row.workspace_paused) return "Paused for now";
   if (row.paused) return "Paused for this assistant";
   return "On";
+}
+
+function scheduleTriggerLabel(row) {
+  if (row.trigger === "interval" && row.interval_seconds) {
+    const minutes = row.interval_seconds / 60;
+    if (Number.isInteger(minutes)) return `Every ${minutes} minutes`;
+    return `Every ${row.interval_seconds} seconds`;
+  }
+  if (row.trigger === "once") return "One time";
+  return row.cron || "Schedule unavailable";
 }
 
 function paintSchedules() {
@@ -4857,24 +4869,32 @@ function paintSchedules() {
             const botLabel = row.bot_display_name || row.bot_name;
             const scheduleStatus = schedulePauseStatus(row);
             const missedTimeChoice = row.catch_up === "coalesce" ? "Run once for missed times" : "Skip missed times";
-            return `<article class="schedule-overview-row" role="listitem">
+            const overlapChoice = row.overlap === "skip" ? "Skip while busy"
+              : row.overlap === "buffer_one" ? "Keep one waiting" : "Queue while busy";
+            return `<article class="schedule-overview-row" role="listitem" data-schedule-id="${esc(row.id)}">
               <div class="schedule-overview-task">
                 <div class="schedule-overview-bot"><a href="#/chat/${encodeURIComponent(row.bot_name)}">${esc(botLabel)}</a>
                   <span class="tag">${esc(scheduleStatus)}</span></div>
                 <h3>${esc(row.name)}</h3>
                 <details class="schedule-overview-details"><summary>Timing details</summary>
                   <dl class="schedule-overview-timing">
-                    <div><dt>Schedule</dt><dd><code>${esc(row.cron)}</code></dd></div>
+                    <div><dt>Schedule</dt><dd><code>${esc(scheduleTriggerLabel(row))}</code></dd></div>
                     <div><dt>Time zone</dt><dd>${esc(row.timezone)}</dd></div>
                     <div><dt>If a time is missed</dt><dd>${esc(missedTimeChoice)}</dd></div>
+                    <div><dt>If already busy</dt><dd>${esc(overlapChoice)}</dd></div>
                   </dl>
                 </details>
-                ${row.last_skip?.windows ? `<p class="schedule-skip" role="status">Last skipped ${Number(row.last_skip.windows).toLocaleString()} missed window${Number(row.last_skip.windows) === 1 ? "" : "s"}${row.last_skip.at ? ` · ${esc(timeAgo(row.last_skip.at))}` : ""}.</p>` : ""}
+                ${row.blocked?.reason ? `<p class="schedule-skip" role="status">Blocked: ${esc(row.blocked.reason.replaceAll("_", " "))}${row.blocked.detail ? ` (${esc(row.blocked.detail)})` : ""}. Repair the timezone or trigger before it can run.</p>` : ""}
+                ${row.last_skip?.windows ? `<p class="schedule-skip" role="status">Last skipped ${Number(row.last_skip.windows).toLocaleString()} missed window${Number(row.last_skip.windows) === 1 ? "" : "s"}${row.last_skip.reason ? ` · ${esc(String(row.last_skip.reason).replaceAll("_", " "))}` : ""}${row.last_skip.at ? ` · ${esc(timeAgo(row.last_skip.at))}` : ""}.</p>` : ""}
               </div>
               <div class="schedule-overview-next"><span>${row.effective_paused ? "Next scheduled time" : "Next run"}</span>
                 ${row.next_fire ? `<time datetime="${esc(row.next_fire)}">${esc(scheduleNextTime(row))}</time>` : `<strong>Unavailable</strong>`}
               </div>
-              <a class="btn ghost small schedule-overview-edit" href="#/bot/${encodeURIComponent(row.bot_name)}">Edit schedule</a>
+              <div class="schedule-overview-actions">
+                <button class="btn ghost small" type="button" data-schedule-run-now="${esc(row.bot_name)}/${esc(row.id)}">Run now</button>
+                <button class="btn ghost small" type="button" data-schedule-skip-next="${esc(row.bot_name)}/${esc(row.id)}">Skip next</button>
+                <a class="btn ghost small schedule-overview-edit" href="#/bot/${encodeURIComponent(row.bot_name)}">Edit</a>
+              </div>
             </article>`;
           }).join("")}
         </div>
@@ -4918,6 +4938,38 @@ function paintSchedules() {
       toast(`More schedules could not be loaded: ${error.message}`, true);
       if (more.isConnected) { more.disabled = false; more.removeAttribute("aria-busy"); }
     }
+  });
+
+  view.querySelectorAll("[data-schedule-run-now]").forEach(button => {
+    button.addEventListener("click", async () => {
+      const [botName, scheduleId] = button.getAttribute("data-schedule-run-now").split("/");
+      button.setAttribute("aria-busy", "true");
+      try {
+        const result = await api(`/v1/bots/${encodeURIComponent(botName)}/schedules/${encodeURIComponent(scheduleId)}/run-now`, { method: "POST", body: {} });
+        toast("Started a one-off run. The recurring schedule is unchanged.");
+        if (result?.run_id) location.hash = `#/run/${encodeURIComponent(result.run_id)}`;
+      } catch (error) {
+        toast(`Could not run now: ${error.message}`, true);
+      } finally {
+        button.removeAttribute("aria-busy");
+      }
+    });
+  });
+
+  view.querySelectorAll("[data-schedule-skip-next]").forEach(button => {
+    button.addEventListener("click", async () => {
+      const [botName, scheduleId] = button.getAttribute("data-schedule-skip-next").split("/");
+      button.setAttribute("aria-busy", "true");
+      try {
+        await api(`/v1/bots/${encodeURIComponent(botName)}/schedules/${encodeURIComponent(scheduleId)}/skip-next`, { method: "POST", body: {} });
+        toast("The next scheduled occurrence will be skipped.");
+        await renderSchedules();
+      } catch (error) {
+        toast(`Could not skip next: ${error.message}`, true);
+      } finally {
+        button.removeAttribute("aria-busy");
+      }
+    });
   });
 
   // Resource-feed refreshes can repaint this page while a schedule command is
@@ -5289,27 +5341,73 @@ const TOOL_SETTINGS = [
   ["delegate_task", "Delegate a bounded task", "Strict Offline only. Each request asks for approval and uses another run slot; the child receives only its task text."],
 ];
 
+function scheduleBodyFromForm(fd) {
+  const trigger = String(fd.get("trigger") || "cron");
+  const body = {
+    name: String(fd.get("name") || "").trim(),
+    trigger,
+    cron: String(fd.get("cron") || "").trim(),
+    timezone: String(fd.get("timezone") || "UTC").trim(),
+    catch_up: String(fd.get("catch_up") || "coalesce"),
+    overlap: String(fd.get("overlap") || "queue"),
+    enabled: fd.get("enabled") === "on" || fd.get("enabled") === "true",
+    prompt: String(fd.get("schedule_prompt") || fd.get("prompt") || "").trim(),
+  };
+  if (trigger === "interval") {
+    const minutes = Number(fd.get("interval_minutes"));
+    body.interval_seconds = Math.round(minutes * 60);
+    body.cron = "";
+    const anchor = String(fd.get("anchor_at") || "").trim();
+    if (anchor) body.anchor_at = anchor;
+  } else if (trigger === "once") {
+    body.cron = "";
+    body.anchor_at = String(fd.get("anchor_at") || "").trim();
+  }
+  return body;
+}
+
 function scheduleEditorHtml(schedule, index, status = null) {
   const id = String(schedule.id || "");
+  const trigger = schedule.trigger || "cron";
+  const enabled = schedule.enabled !== false;
   let nextFire = "Not calculated";
   if (status?.next_fire) {
     try { nextFire = new Intl.DateTimeFormat(undefined, {dateStyle:"medium", timeStyle:"short", timeZone:schedule.timezone || "UTC"})
       .format(new Date(status.next_fire)); } catch { nextFire = "Next run available"; }
   }
+  const intervalMinutes = schedule.interval_seconds ? String(schedule.interval_seconds / 60) : "65";
+  const summaryTrigger = trigger === "interval"
+    ? `every ${intervalMinutes}m`
+    : trigger === "once" ? "one time" : (schedule.cron || "cron");
   const formId = index === 0 ? "form-schedule" : `form-schedule-${index}`;
+  const preview = Array.isArray(status?.preview) ? status.preview.slice(0, 5) : [];
   return `<details class="schedule-entry" data-schedule-entry ${index === 0 ? "open" : ""}>
     <summary class="schedule-summary">
       <strong>${esc(schedule.name || "Scheduled task")}</strong>
-      <span class="schedule-summary-cron mono">${esc(schedule.cron)} · ${esc(schedule.timezone || "UTC")}</span>
-      <span class="tag">${index === 0 ? "Primary" : `Task ${index + 1}`}</span>
+      <span class="schedule-summary-cron mono">${esc(summaryTrigger)} · ${esc(schedule.timezone || "UTC")}</span>
+      <span class="tag">${enabled ? (index === 0 ? "Primary" : `Task ${index + 1}`) : "Draft"}</span>
     </summary>
     <form id="${formId}" class="form-grid schedule-editor" data-schedule-form data-schedule-id="${esc(id)}">
+      <label class="check"><input type="checkbox" name="enabled" ${enabled ? "checked" : ""}> Enabled for future scheduled runs</label>
       <div class="form-grid row2">
         <label class="field">Task name
           <input type="text" name="name" maxlength="80" value="${esc(schedule.name || "Scheduled task")}" required>
         </label>
-        <label class="field">Cron expression
-          <input type="text" name="cron" value="${esc(schedule.cron || "")}" placeholder="0 9 * * 1" required>
+        <label class="field">Trigger
+          <select name="trigger" data-schedule-trigger>
+            <option value="cron" ${trigger === "cron" ? "selected" : ""}>Calendar cron</option>
+            <option value="interval" ${trigger === "interval" ? "selected" : ""}>Fixed interval</option>
+            <option value="once" ${trigger === "once" ? "selected" : ""}>One time</option>
+          </select>
+        </label>
+        <label class="field" data-cron-field ${trigger === "cron" ? "" : "hidden"}>Cron expression
+          <input type="text" name="cron" value="${esc(schedule.cron || "")}" placeholder="0 9 * * 1" ${trigger === "cron" ? "required" : ""}>
+        </label>
+        <label class="field" data-interval-field ${trigger === "interval" ? "" : "hidden"}>Interval (minutes)
+          <input type="number" name="interval_minutes" min="1" step="1" value="${esc(intervalMinutes)}" ${trigger === "interval" ? "required" : ""}>
+        </label>
+        <label class="field" data-anchor-field ${trigger === "cron" ? "hidden" : ""}>Anchor (ISO UTC)
+          <input type="text" name="anchor_at" value="${esc(schedule.anchor_at || "")}" placeholder="2026-10-07T00:00:00+00:00" ${trigger === "once" ? "required" : ""}>
         </label>
         <label class="field">Timezone
           <input type="text" name="timezone" value="${esc(schedule.timezone || "UTC")}" required>
@@ -5320,15 +5418,31 @@ function scheduleEditorHtml(schedule, index, status = null) {
             <option value="skip" ${schedule.catch_up === "skip" ? "selected" : ""}>Skip if the last window was missed</option>
           </select>
         </label>
+        <label class="field">If already busy
+          <select name="overlap">
+            <option value="queue" ${(schedule.overlap || "queue") === "queue" ? "selected" : ""}>Queue</option>
+            <option value="skip" ${schedule.overlap === "skip" ? "selected" : ""}>Skip this occurrence</option>
+            <option value="buffer_one" ${schedule.overlap === "buffer_one" ? "selected" : ""}>Keep one waiting</option>
+          </select>
+        </label>
       </div>
       <label class="field">Task prompt
         <textarea name="schedule_prompt" rows="3" maxlength="4000" aria-describedby="schedule-prompt-help-${index}">${esc(schedule.prompt || "")}</textarea>
-        <span class="hint" id="schedule-prompt-help-${index}">Leave blank to use this bot’s standing instructions. Each scheduled task runs as a separate attempt.</span>
+        <span class="hint" id="schedule-prompt-help-${index}">Leave blank to use this bot’s standing instructions. Saving a draft (unchecked Enabled) does not admit future occurrences.</span>
       </label>
       <div class="meta-row"><span>Next run</span><span class="mono">${esc(nextFire)}</span></div>
-      ${status?.last_skip ? `<p class="hint schedule-skip" role="status">Last skipped ${esc(status.last_skip.windows)} missed windows.</p>` : ""}
+      ${preview.length ? `<details class="schedule-preview"><summary>Upcoming occurrences</summary><ol>${preview.map(p => `<li><time datetime="${esc(p.at)}">${esc(p.at)}</time> · ${esc(p.timezone)} (${esc(p.utc_offset)})</li>`).join("")}</ol></details>` : ""}
+      <div class="schedule-occurrence-panel" data-occurrence-panel="${esc(id)}" hidden>
+        <h4>Recent occurrences</h4>
+        <div class="schedule-occurrence-list hint">Loading…</div>
+      </div>
+      ${status?.blocked ? `<p class="hint schedule-skip" role="status">Blocked: ${esc(String(status.blocked.reason || "configuration").replaceAll("_", " "))}.</p>` : ""}
+      ${status?.last_skip ? `<p class="hint schedule-skip" role="status">Last skipped ${esc(status.last_skip.windows)} missed windows${status.last_skip.reason ? ` · ${esc(String(status.last_skip.reason).replaceAll("_", " "))}` : ""}.</p>` : ""}
       <div class="btn-row schedule-actions">
         <button class="btn primary small" type="submit">Save task</button>
+        <button class="btn ghost small" type="button" data-schedule-run-now-bot="${esc(id)}">Run now</button>
+        <button class="btn ghost small" type="button" data-schedule-skip-next-bot="${esc(id)}">Skip next</button>
+        <button class="btn ghost small" type="button" data-show-occurrences="${esc(id)}">History</button>
         <button class="btn ghost small" type="button" data-remove-schedule="${esc(id)}">Remove task</button>
       </div>
     </form>
@@ -5836,14 +5950,18 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   });
   $("#btn-add-schedule").addEventListener("click", () => {
     const form = `<form id="modal-schedule-form" class="form-grid">
+      <label class="check"><input type="checkbox" name="enabled" checked> Enable immediately</label>
       <label class="field">Task name<input name="name" maxlength="80" value="Scheduled task" required></label>
+      <label class="field">Trigger<select name="trigger"><option value="cron">Calendar cron</option><option value="interval">Fixed interval</option></select></label>
       <div class="form-grid row2">
         <label class="field">Cron expression<input name="cron" placeholder="0 9 * * 1" required></label>
+        <label class="field">Interval (minutes)<input type="number" name="interval_minutes" min="1" value="65"></label>
         <label class="field">Timezone<input name="timezone" value="UTC" required></label>
+        <label class="field">If already busy<select name="overlap"><option value="queue">Queue</option><option value="skip">Skip</option><option value="buffer_one">Keep one waiting</option></select></label>
       </div>
       <label class="field">Missed run policy<select name="catch_up"><option value="coalesce">Run once and report missed windows</option><option value="skip">Skip if the last window was missed</option></select></label>
       <label class="field">Task prompt<textarea name="prompt" rows="3" maxlength="4000"></textarea>
-        <span class="hint">Leave blank to use this bot’s standing instructions.</span>
+        <span class="hint">Leave blank to use this bot’s standing instructions. Uncheck Enable to save a draft.</span>
       </label>
     </form>`;
     openModal({ title: "Add a recurring task", bodyHtml: form, confirmText: "Add task", returnFocus: $("#btn-add-schedule"),
@@ -5852,28 +5970,62 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
         const scheduleId = `schedule_${newIdempotencyKey().replace(/[^a-zA-Z0-9_-]/g, "")}`;
         try {
           await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(scheduleId)}`, {
-            method: "PUT", body: { name: fd.get("name").trim(), cron: fd.get("cron").trim(),
-              timezone: fd.get("timezone").trim(), catch_up: fd.get("catch_up"), prompt: fd.get("prompt").trim() },
+            method: "PUT", body: scheduleBodyFromForm(fd),
           });
-          toast("Recurring task added.");
+          toast(fd.get("enabled") ? "Recurring task added." : "Draft routine saved (not enabled).");
           renderBotDetail(b.name); refreshRoster();
           return true;
         } catch (err) { toast(`Task not added: ${err.message}`, true); return false; }
       },
     });
   });
+  $$("[data-schedule-trigger]").forEach(select => select.addEventListener("change", () => {
+    const form = select.closest("form");
+    if (!form) return;
+    const trigger = select.value;
+    form.querySelectorAll("[data-cron-field]").forEach(el => { el.hidden = trigger !== "cron"; el.querySelector("input")?.toggleAttribute("required", trigger === "cron"); });
+    form.querySelectorAll("[data-interval-field]").forEach(el => { el.hidden = trigger !== "interval"; el.querySelector("input")?.toggleAttribute("required", trigger === "interval"); });
+    form.querySelectorAll("[data-anchor-field]").forEach(el => { el.hidden = trigger === "cron"; el.querySelector("input")?.toggleAttribute("required", trigger === "once"); });
+  }));
   $$('[data-schedule-form]').forEach(form => form.addEventListener("submit", async ev => {
     ev.preventDefault();
     const fd = new FormData(form);
     const scheduleId = form.dataset.scheduleId;
     try {
       await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(scheduleId)}`, {
-        method: "PUT", body: { name: fd.get("name").trim(), cron: fd.get("cron").trim(),
-          timezone: fd.get("timezone").trim(), catch_up: fd.get("catch_up"), prompt: fd.get("schedule_prompt").trim() },
+        method: "PUT", body: scheduleBodyFromForm(fd),
       });
-      toast("Scheduled task saved.");
+      toast(fd.get("enabled") === "on" ? "Scheduled task saved." : "Draft saved. Future occurrences stay off until enabled.");
       renderBotDetail(b.name); refreshRoster();
     } catch (err) { toast(`Task not saved: ${err.message}`, true); }
+  }));
+  $$("[data-schedule-run-now-bot]").forEach(button => button.addEventListener("click", async () => {
+    try {
+      const result = await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(button.dataset.scheduleRunNowBot)}/run-now`, { method: "POST", body: {} });
+      toast("Started a one-off run. The recurring schedule is unchanged.");
+      if (result?.run_id) location.hash = `#/run/${encodeURIComponent(result.run_id)}`;
+    } catch (err) { toast(`Could not run now: ${err.message}`, true); }
+  }));
+  $$("[data-schedule-skip-next-bot]").forEach(button => button.addEventListener("click", async () => {
+    try {
+      await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(button.dataset.scheduleSkipNextBot)}/skip-next`, { method: "POST", body: {} });
+      toast("Next occurrence will be skipped.");
+      renderBotDetail(b.name);
+    } catch (err) { toast(`Could not skip next: ${err.message}`, true); }
+  }));
+  $$("[data-show-occurrences]").forEach(button => button.addEventListener("click", async () => {
+    const scheduleId = button.dataset.showOccurrences;
+    const panel = view.querySelector(`[data-occurrence-panel="${CSS.escape(scheduleId)}"]`);
+    if (!panel) return;
+    panel.hidden = false;
+    const list = panel.querySelector(".schedule-occurrence-list");
+    list.textContent = "Loading…";
+    try {
+      const rows = await api(`/v1/bots/${encodeURIComponent(b.id)}/schedules/${encodeURIComponent(scheduleId)}/occurrences?limit=20`);
+      list.innerHTML = rows.length
+        ? `<ol>${rows.map(row => `<li><time datetime="${esc(row.occurrence)}">${esc(row.occurrence)}</time> · ${esc(row.run_status || "unknown")}${row.missed_windows ? ` · missed ${esc(row.missed_windows)}` : ""} · <a href="#/run/${encodeURIComponent(row.run_id)}">open run</a></li>`).join("")}</ol>`
+        : "No claimed occurrences yet.";
+    } catch (err) { list.textContent = `History unavailable: ${err.message}`; }
   }));
   $$('[data-remove-schedule]').forEach(button => button.addEventListener("click", async () => {
     const schedule = schedules.find(item => item.id === button.dataset.removeSchedule);

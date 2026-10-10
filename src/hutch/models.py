@@ -92,12 +92,33 @@ class CatchUpPolicy(str, Enum):
     skip = "skip"            # never run for a past window
 
 
+class TriggerKind(str, Enum):
+    """How a routine chooses fire times. Calendar cron, fixed-rate interval, or one-shot."""
+
+    cron = "cron"
+    interval = "interval"
+    once = "once"
+
+
+class OverlapPolicy(str, Enum):
+    """What to do when a new occurrence is due while this routine or bot is already busy."""
+
+    queue = "queue"              # admit a pending run (per-bot single-instance still serializes execution)
+    skip = "skip"                # drop this occurrence with a visible skip record
+    buffer_one = "buffer_one"    # admit at most one pending run for this schedule
+
+
 class Schedule(BaseModel):
     id: str = Field(default_factory=lambda: new_id("schedule"))
     name: str = Field(default="Scheduled task", max_length=80)
-    cron: str                          # 5-field cron expression
-    timezone: str = "UTC"              # IANA name; schedule fires in this zone
+    trigger: TriggerKind = TriggerKind.cron
+    cron: str = ""                     # 5-field cron when trigger=cron
+    interval_seconds: Optional[int] = None  # fixed-rate seconds when trigger=interval (not cron approximation)
+    anchor_at: Optional[str] = None    # ISO UTC anchor for interval / once; interval defaults to created_at
+    timezone: str = "UTC"              # IANA name; calendar schedules fire in this zone
     catch_up: CatchUpPolicy = CatchUpPolicy.coalesce
+    overlap: OverlapPolicy = OverlapPolicy.queue
+    enabled: bool = True               # draft/disabled routines do not admit occurrences
     prompt: str = Field(default="", max_length=4000)  # task to perform; empty preserves legacy instruction fallback
     created_at: str = Field(default_factory=lambda: iso(utcnow()))
 
@@ -113,6 +134,32 @@ class Schedule(BaseModel):
     @classmethod
     def _prompt(cls, value: str) -> str:
         return value.strip()
+
+    @field_validator("interval_seconds")
+    @classmethod
+    def _interval(cls, value: Optional[int]) -> Optional[int]:
+        if value is None:
+            return None
+        if value < 1 or value > 31_536_000:
+            raise ValueError("interval_seconds must be between 1 and 31536000")
+        return value
+
+    @model_validator(mode="after")
+    def _trigger_fields(self) -> "Schedule":
+        if self.trigger is TriggerKind.cron:
+            cron = self.cron.strip()
+            if not cron:
+                raise ValueError("cron trigger requires a five-field cron expression")
+            object.__setattr__(self, "cron", cron)
+        elif self.trigger is TriggerKind.interval:
+            if not self.interval_seconds:
+                raise ValueError("interval trigger requires interval_seconds")
+            object.__setattr__(self, "cron", "")
+        elif self.trigger is TriggerKind.once:
+            if not (self.anchor_at or "").strip():
+                raise ValueError("once trigger requires anchor_at")
+            object.__setattr__(self, "cron", "")
+        return self
 
     model_config = {"frozen": True}
 

@@ -47,8 +47,8 @@ from ..engine import Engine, bot_prompt_for_schedule
 from ..lifecycle import LABELS
 from ..models import (
     ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, BotCreationSource, CatchUpPolicy, CommandRule, Event, EventType,
-    InferenceMode, Limits, MemoryItem, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task, bot_slug_display_name, iso,
-    utcnow,
+    InferenceMode, Limits, MemoryItem, OverlapPolicy, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task,
+    TriggerKind, bot_slug_display_name, iso, utcnow,
 )
 from ..store import (ActiveRunConflict, AuthChallengeLimitExceeded, BotConflict, IdempotencyConflict,
                      RevisionConflict, Store)
@@ -1014,9 +1014,14 @@ class ScheduleResource(BaseModel):
     bot_name: str
     bot_display_name: Optional[str] = None
     name: str
-    cron: str
+    trigger: str = "cron"
+    cron: str = ""
+    interval_seconds: Optional[int] = None
+    anchor_at: Optional[str] = None
     timezone: str
     catch_up: str
+    overlap: str = "queue"
+    enabled: bool = True
     prompt: str = ""
     created_at: str
     paused: bool
@@ -1025,6 +1030,8 @@ class ScheduleResource(BaseModel):
     next_fire: Optional[str] = None
     last_dispatched: Optional[str] = None
     last_skip: Optional[dict] = None
+    blocked: Optional[dict] = None
+    preview: list[dict] = Field(default_factory=list)
 
 
 class ScheduleControlPut(BaseModel):
@@ -1039,9 +1046,14 @@ class ScheduleControlResource(BaseModel):
 
 class SchedulePut(BaseModel):
     name: str = Field(default="Scheduled task", min_length=1, max_length=80)
-    cron: str = Field(min_length=1, max_length=100)
+    trigger: str = Field(default="cron", pattern="^(cron|interval|once)$")
+    cron: str = Field(default="", max_length=100)
+    interval_seconds: Optional[int] = Field(default=None, ge=1, le=31_536_000)
+    anchor_at: Optional[str] = None
     timezone: str = Field(default="UTC", min_length=1, max_length=80)
     catch_up: CatchUpPolicy = CatchUpPolicy.coalesce
+    overlap: str = Field(default="queue", pattern="^(queue|skip|buffer_one)$")
+    enabled: bool = True
     prompt: str = Field(default="", max_length=4000)
 
 
@@ -2352,8 +2364,30 @@ def create_app() -> FastAPI:
     def put_schedule_control(body: ScheduleControlPut) -> dict:
         return store.set_workspace_schedules_paused(body.paused)
 
+    def _schedule_resource(bot: Bot, scheduled: Schedule, *, workspace_paused: bool,
+                           include_preview: bool = False) -> dict:
+        nxt = scheduler.next_fire(bot, schedule=scheduled)
+        preview = []
+        if include_preview:
+            preview = [{"at": p.at.isoformat(), "timezone": p.timezone, "utc_offset": p.utc_offset,
+                        "note": p.note} for p in scheduler.preview(scheduled, limit=8)]
+        return {"id": scheduled.id, "bot_id": bot.id, "bot_name": bot.name,
+                "bot_display_name": bot.display_name, "name": scheduled.name,
+                "trigger": scheduled.trigger.value, "cron": scheduled.cron,
+                "interval_seconds": scheduled.interval_seconds, "anchor_at": scheduled.anchor_at,
+                "timezone": scheduled.timezone, "catch_up": scheduled.catch_up.value,
+                "overlap": scheduled.overlap.value, "enabled": scheduled.enabled,
+                "prompt": scheduled.prompt, "created_at": scheduled.created_at, "paused": bot.paused,
+                "workspace_paused": workspace_paused,
+                "effective_paused": bot.paused or workspace_paused or (not scheduled.enabled),
+                "next_fire": nxt.isoformat() if nxt else None,
+                "last_dispatched": scheduler._last_dispatched(bot, scheduled).isoformat(),
+                "last_skip": scheduler.last_skip(bot, scheduled),
+                "blocked": scheduler.blocked(scheduled), "preview": preview}
+
     @app.get("/api/v1/schedules", response_model=list[ScheduleResource])
-    def list_schedules(bot: Optional[str] = None, limit: int = 100, offset: int = 0) -> list[dict]:
+    def list_schedules(bot: Optional[str] = None, limit: int = 100, offset: int = 0,
+                       preview: bool = False) -> list[dict]:
         bot_id = bot_or_404(bot).id if bot else None
         workspace_paused = store.workspace_schedule_control()["paused"]
         rows = []
@@ -2361,17 +2395,9 @@ def create_app() -> FastAPI:
             if bot_id and bot.id != bot_id:
                 continue
             for scheduled in bot.schedules or ([bot.schedule] if bot.schedule else []):
-                nxt = scheduler.next_fire(bot, schedule=scheduled)
-                rows.append({"id": scheduled.id, "bot_id": bot.id, "bot_name": bot.name,
-                             "bot_display_name": bot.display_name,
-                             "name": scheduled.name, "cron": scheduled.cron, "timezone": scheduled.timezone,
-                             "catch_up": scheduled.catch_up.value, "prompt": scheduled.prompt,
-                             "created_at": scheduled.created_at, "paused": bot.paused,
-                             "workspace_paused": workspace_paused,
-                             "effective_paused": bot.paused or workspace_paused,
-                             "next_fire": nxt.isoformat() if nxt else None,
-                             "last_dispatched": scheduler._last_dispatched(bot, scheduled).isoformat(),
-                             "last_skip": scheduler.last_skip(bot, scheduled)})
+                rows.append(_schedule_resource(
+                    bot, scheduled, workspace_paused=workspace_paused,
+                    include_preview=preview or bool(bot_id)))
         rows.sort(key=lambda item: (item["next_fire"] or "9999", item["bot_display_name"] or item["bot_name"],
                                     item["name"], item["id"]))
         start = max(0, offset)
@@ -2416,15 +2442,25 @@ def create_app() -> FastAPI:
     def put_schedule(ref: str, schedule_id: str, body: SchedulePut) -> dict:
         bot = bot_or_404(ref)
         from croniter import croniter
-        if len(body.cron.split()) != 5 or not croniter.is_valid(body.cron):
-            raise HTTPException(422, "cron must be a valid five-field schedule")
+        try:
+            trigger = TriggerKind(body.trigger)
+            overlap = OverlapPolicy(body.overlap)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        if trigger is TriggerKind.cron:
+            if len(body.cron.split()) != 5 or not croniter.is_valid(body.cron):
+                raise HTTPException(422, "cron must be a valid five-field schedule")
         try:
             ZoneInfo(body.timezone)
         except Exception:
             raise HTTPException(422, "timezone must be a valid IANA time zone") from None
         try:
-            schedule = Schedule(id=schedule_id, name=body.name, cron=body.cron, timezone=body.timezone,
-                                catch_up=body.catch_up, prompt=body.prompt)
+            schedule = Schedule(
+                id=schedule_id, name=body.name, trigger=trigger, cron=body.cron,
+                interval_seconds=body.interval_seconds, anchor_at=body.anchor_at,
+                timezone=body.timezone, catch_up=body.catch_up, overlap=overlap,
+                enabled=body.enabled, prompt=body.prompt,
+            )
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         try:
@@ -2434,16 +2470,47 @@ def create_app() -> FastAPI:
         if updated is None:
             raise HTTPException(404, f"no such bot: {ref}")
         saved = next(item for item in updated.schedules if item.id == schedule_id)
-        nxt = scheduler.next_fire(updated, schedule=saved)
-        return {"id": saved.id, "bot_id": updated.id, "bot_name": updated.name,
-                "bot_display_name": updated.display_name, "name": saved.name,
-                "cron": saved.cron, "timezone": saved.timezone, "catch_up": saved.catch_up.value,
-                "prompt": saved.prompt, "created_at": saved.created_at, "paused": updated.paused,
-                "workspace_paused": store.workspace_schedule_control()["paused"],
-                "effective_paused": updated.paused or store.workspace_schedule_control()["paused"],
-                "next_fire": nxt.isoformat() if nxt else None,
-                "last_dispatched": scheduler._last_dispatched(updated, saved).isoformat(),
-                "last_skip": scheduler.last_skip(updated, saved)}
+        return _schedule_resource(updated, saved,
+                                  workspace_paused=store.workspace_schedule_control()["paused"],
+                                  include_preview=True)
+
+    @app.post("/api/v1/bots/{ref}/schedules/{schedule_id}/run-now")
+    def run_schedule_now(ref: str, schedule_id: str) -> dict:
+        bot = bot_or_404(ref)
+        scheduled = next((item for item in bot.schedules if item.id == schedule_id), None)
+        if scheduled is None:
+            raise HTTPException(404, f"no such scheduled task: {schedule_id}")
+        marker_before = store.kv_get(f"{schedule_id}:last_fire")
+        run = engine.run_schedule_now(bot, scheduled)
+        marker_after = store.kv_get(f"{schedule_id}:last_fire")
+        if marker_before != marker_after:
+            raise HTTPException(500, "run-now must not advance the schedule marker")
+        return {"run_id": run.id, "schedule_id": schedule_id, "origin": run.origin,
+                "marker_unchanged": True}
+
+    @app.post("/api/v1/bots/{ref}/schedules/{schedule_id}/skip-next", response_model=ScheduleResource)
+    def skip_next_schedule(ref: str, schedule_id: str) -> dict:
+        bot = bot_or_404(ref)
+        scheduled = next((item for item in bot.schedules if item.id == schedule_id), None)
+        if scheduled is None:
+            raise HTTPException(404, f"no such scheduled task: {schedule_id}")
+        scheduler.request_skip_next(scheduled)
+        return _schedule_resource(bot, scheduled,
+                                  workspace_paused=store.workspace_schedule_control()["paused"],
+                                  include_preview=True)
+
+    @app.get("/api/v1/bots/{ref}/schedules/{schedule_id}/occurrences")
+    def list_schedule_occurrences(ref: str, schedule_id: str, limit: int = 50, offset: int = 0) -> list[dict]:
+        bot = bot_or_404(ref)
+        scheduled = next((item for item in bot.schedules if item.id == schedule_id), None)
+        if scheduled is None:
+            with store._lock:
+                identity = store._db.execute(
+                    "SELECT schedule_id FROM schedule_identities WHERE schedule_id = ? AND bot_id = ?",
+                    (schedule_id, bot.id)).fetchone()
+            if identity is None:
+                raise HTTPException(404, f"no such scheduled task: {schedule_id}")
+        return store.list_schedule_occurrences(schedule_id, limit=limit, offset=offset)
 
     @app.delete("/api/v1/bots/{ref}/schedules/{schedule_id}", status_code=204)
     def remove_schedule(ref: str, schedule_id: str) -> Response:

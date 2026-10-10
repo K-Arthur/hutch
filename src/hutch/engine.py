@@ -1058,15 +1058,28 @@ class Engine:
             run = Run(bot_id=due.bot.id, prompt=bot_prompt_for_schedule(due.bot, due.schedule),
                       missed_windows=due.missed, origin="schedule", schedule_id=due.schedule.id)
             task = Task(bot_id=due.bot.id, kind="scheduled", prompt=run.prompt)
-            now = utcnow()
+            occurrence_marker = iso(due.occurrence)
             won = self.store.submit_scheduled(
-                run, task, occurrence=iso(due.occurrence), expected_marker=due.marker, new_marker=iso(now),
+                run, task, occurrence=occurrence_marker, expected_marker=due.marker,
+                new_marker=occurrence_marker,
                 claimed_by=self.owner_id, schedule_id=due.schedule.id,
                 note={"scheduled_run": run.id, "schedule_id": due.schedule.id,
-                      "missed_windows": due.missed})
+                      "missed_windows": due.missed,
+                      "missed_uncertain": due.missed_uncertain,
+                      "occurrence": occurrence_marker})
             if won is not None:
                 created.append(won)
         return created
+
+    def run_schedule_now(self, bot: Bot, schedule) -> Run:
+        """On-demand execution of a routine's task prompt without consuming the next scheduled occurrence.
+
+        Uses ordinary admission (not ``submit_scheduled``), so the last-fire marker and occurrence
+        identity stay untouched. The run still records ``schedule_id`` for provenance.
+        """
+        prompt = bot_prompt_for_schedule(bot, schedule)
+        run = Run(bot_id=bot.id, prompt=prompt, origin="manual:schedule", schedule_id=schedule.id)
+        return self.store.submit_run(run, Task(bot_id=bot.id, kind="on_demand", prompt=prompt))
 
     def tick(self) -> list[Run]:
         """One beat: recover, expire approvals, claim schedules, drain work and bound change replay."""

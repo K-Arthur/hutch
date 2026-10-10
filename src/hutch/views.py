@@ -233,19 +233,10 @@ class Stale:
 
 def _prev_fire(scheduler, bot: Bot, now: datetime) -> Optional[datetime]:
     """Most recent scheduled fire time at or before ``now`` (UTC-aware), in the bot's own zone."""
-    from croniter import croniter
-    zone = scheduler._zone(bot)
-    local_now = scheduler._to_local(now, zone)
-    try:
-        itr = croniter(bot.schedule.cron, local_now)
-        for _ in range(4):
-            prev = itr.get_prev(datetime)
-            utc = scheduler._to_utc(prev, zone)
-            if utc is not None:
-                return utc
-    except (ValueError, KeyError):
+    zone = scheduler.try_zone(bot)
+    if zone is None or bot.schedule is None:
         return None
-    return None
+    return scheduler._newest_on_or_before(bot.schedule, now, zone)
 
 
 def stale_info(store, scheduler, bot: Bot, now: Optional[datetime] = None) -> Optional[Stale]:
@@ -273,7 +264,10 @@ def stale_info(store, scheduler, bot: Bot, now: Optional[datetime] = None) -> Op
     if last_ok and last_ok >= prev - grace:
         return None
     latest = store.latest_finished_run(bot.id)
-    when = prev.astimezone(scheduler._zone(bot)).strftime("%a %d %b %H:%M %Z")
+    zone = scheduler.try_zone(bot)
+    if zone is None:
+        return None
+    when = prev.astimezone(zone).strftime("%a %d %b %H:%M %Z")
     skip = scheduler.last_skip(bot)
     if latest and latest.status is RunStatus.failed and parse_ts(latest.created_at) >= prev - grace:
         why = explain_outcome(latest, bot)

@@ -140,24 +140,32 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   resource invalidation. A pause prevents future schedule admissions only; queued and running work
   continues. After resume, retained missed windows are processed according to each schedule's
   `catch_up` policy.
-* `GET /api/v1/schedules?bot=&limit=&offset=` returns a bounded page of each bot's named recurring
-  tasks, including stable `id`, `name`, `cron`, `timezone`, `catch_up`, `paused`, optional `prompt`,
-  `created_at`, `next_fire`, `last_dispatched`, `last_skip`, `workspace_paused`, and
-  `effective_paused`. A bot can have at most 100 tasks. The workspace pause is checked again inside
-  the transaction that claims the due occurrence and creates its run, so an earlier scheduler
-  snapshot cannot admit work after a committed pause.
-  `PUT /api/v1/bots/{ref}/schedules/{schedule_id}` creates or updates that exact task; cron and IANA
-  timezone are validated, prompts are trimmed and limited to 4,000 characters, and an ID already
-  assigned or previously removed returns 409. `DELETE` removes one stream and returns 204; its runs,
-  occurrence claims, and reserved ID remain as history. Per-task timing, missed-window policy and
-  task prompt are independent. All tasks on a bot share its tools, workspace, limits and permissions,
-  and remain subject to the one-active-run-per-bot rule.
+* `GET /api/v1/schedules?bot=&limit=&offset=&preview=` returns a bounded page of each bot's named
+  recurring tasks (routines), including stable `id`, `name`, `trigger` (`cron`|`interval`|`once`),
+  `cron`, `interval_seconds`, `anchor_at`, `timezone`, `catch_up`, `overlap`
+  (`queue`|`skip`|`buffer_one`), `enabled`, `paused`, optional `prompt`, `created_at`, `next_fire`,
+  `last_dispatched`, `last_skip`, `blocked`, `preview` (when `bot` is set or `preview=true`),
+  `workspace_paused`, and `effective_paused` (true when workspace/bot paused or the task is not
+  enabled). Invalid IANA zones never silently become UTC; they surface in `blocked` and suppress
+  due admission. Long downtime claims the true newest occurrence; capped missed counts set
+  `missed_uncertain` on the claim/dispatch note. A bot can have at most 100 tasks. The workspace
+  pause is rechecked inside the transaction that claims the due occurrence and creates its run.
+  `PUT /api/v1/bots/{ref}/schedules/{schedule_id}` creates or updates that exact task; trigger fields,
+  cron/interval/once constraints, and IANA timezone are validated; prompts are trimmed and limited to
+  4,000 characters; an ID already assigned or previously removed returns 409. Saving with
+  `enabled=false` is a durable draft and does not admit occurrences. `POST .../run-now` starts a
+  manual attempt (`origin=manual:schedule`) without advancing the last-fire marker.
+  `POST .../skip-next` arms a one-shot skip of the next due occurrence.
+  `GET .../occurrences` returns a bounded newest-first page of claimed occurrences with run status.
+  `DELETE` removes one stream and returns 204; its runs, occurrence claims, and reserved ID remain
+  as history. All tasks on a bot share its tools, workspace, limits and permissions, and remain
+  subject to the one-active-run-per-bot rule.
 * Legacy bot creation's `cron`/`schedule_prompt` fields and bot-update schedule fields remain
   compatibility aliases for the first task. Empty task prompts use the bot's standing `instructions`,
   then the generic workspace-report task if those are empty. CLI task management is available through
-  `hutch bot schedules list|add|update|remove`; the older `hutch bot update` options edit the first
-  task. Schema v21 adds a persistent schedule-identity registry and reserves each removed ID so
-  retries and historical run provenance cannot attach to a newly created schedule.
+  `hutch bot schedules list|add|update|remove|run-now|skip-next`; the older `hutch bot update` options
+  edit the first task. Schema v21 adds a persistent schedule-identity registry and reserves each
+  removed ID so retries and historical run provenance cannot attach to a newly created schedule.
 * `GET /api/v1/compatibility` returns a versioned provider/runtime route matrix. Each route has an implementation state,
   Hutch's request fields, documented omissions, verification boundary, and dated policy/API sources. `supported` means
   Hutch's common request/response contract has recorded tests; it does not certify every provider version, model, tool

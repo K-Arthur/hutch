@@ -181,16 +181,17 @@ remain independent.
 
 ### D3 — Scheduling correctness is a feature, not a detail
 
-All timestamps are ISO-8601 UTC-with-offset. Cron math happens in the bot's IANA zone via croniter,
-with a round-trip check that drops DST-gap times (spring-forward) and de-duplicates ambiguous times
-(fall-back) — Vixie-cron semantics. Each task records its own last dispatched window; on wake the
-scheduler counts that task's missed windows and (policy `coalesce`, the default) dispatches one
-catch-up run tagged `missed_windows=N`, or (policy `skip`) records a visible skip marker. Both
-paths are visible in task settings and the schedule API so a silent non-run can never look like
-success. Schema v21 retains schedule identities after removal, preventing an unused or deleted
-task ID from being assigned to a different stream later. The workspace-wide pause is rechecked in
-the same transaction that claims the occurrence and creates its run, closing the stale due-snapshot
-race.
+All timestamps are ISO-8601 UTC-with-offset. Calendar cron math happens in the task's IANA zone via
+croniter, with a round-trip check that drops DST-gap times (spring-forward) and de-duplicates
+ambiguous times (fall-back) — Vixie-cron semantics. Invalid IANA zones never fall back to UTC;
+admission is blocked until repaired. Fixed-rate `interval` triggers keep exact second periods
+(65/90 minutes are not hourly cron approximations). After downtime the scheduler finds the *true*
+newest eligible occurrence (not the last element of a capped prefix); coalesced `missed_windows`
+may be marked uncertain when the count hits the bound. Progress markers advance to the claimed
+occurrence instant. Catch-up `skip` grace scales with the estimated period. Overlap policies
+(`queue` / `skip` / `buffer_one`), skip-next, and run-now (manual, marker-preserving) are first-class.
+Schema v21 retains schedule identities after removal. The workspace-wide pause is rechecked in the
+same transaction that claims the occurrence and creates its run.
 
 ### D4 — Policy before execution, transcripts regardless of outcome
 
