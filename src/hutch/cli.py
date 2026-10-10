@@ -55,6 +55,8 @@ app.add_typer(conn_app, name="connections")
 app.add_typer(usage_app, name="usage")
 state_app = typer.Typer(no_args_is_help=True, help="Snapshot the database and review an isolated restore.")
 app.add_typer(state_app, name="state")
+service_app = typer.Typer(no_args_is_help=True, help="Install or inspect Hutch's Linux user service.")
+app.add_typer(service_app, name="service")
 
 console = Console()
 err = Console(stderr=True)
@@ -1346,6 +1348,62 @@ def doctor(deep: bool = typer.Option(False, "--deep", help="also run each local 
         console.print("\n" + {OK: "[green]everything checks out[/green]", WARN: "[yellow]warnings only[/yellow]",
                               FAIL: "[red]problems found[/red]"}[w])
     raise typer.Exit(code=1 if worst(checks) == FAIL else 0)
+
+
+# --------------------------------------------------------------- user service
+
+@service_app.command("install")
+def service_install(port: int = typer.Option(8787, min=1, max=65535,
+                                              help="loopback dashboard port for the user service")) -> None:
+    """Install and start the loopback-only dashboard on this Linux user account."""
+    from .service import ServiceError, install_user_service
+
+    try:
+        installed = install_user_service(get_config().state_dir, port=port)
+    except ServiceError as exc:
+        err.print(str(exc), style="red", markup=False)
+        raise typer.Exit(code=2) from None
+    console.print(f"Installed and started {installed.path}.")
+    console.print(f"Dashboard: http://127.0.0.1:{port}/")
+    console.print("Remote phone access stays off. Hutch state and workspaces were not moved.")
+
+
+@service_app.command("status")
+def service_status() -> None:
+    """Show whether the user-level Hutch dashboard service is installed and active."""
+    from .service import ServiceError, user_service_status
+
+    try:
+        status = user_service_status()
+    except ServiceError as exc:
+        err.print(str(exc), style="red", markup=False)
+        raise typer.Exit(code=2) from None
+    if status.active:
+        console.print("systemd reports hutch.service active" +
+                      (f"; dashboard: http://127.0.0.1:{status.port}/" if status.port else "."))
+    elif status.installed:
+        console.print(f"hutch.service is installed but {status.state}.")
+        console.print("Inspect logs with: journalctl --user -u hutch.service")
+        raise typer.Exit(code=1)
+    else:
+        console.print("hutch.service is not installed. Start Hutch with `hutch serve` or run `hutch service install`.")
+        raise typer.Exit(code=1)
+
+
+@service_app.command("uninstall")
+def service_uninstall() -> None:
+    """Stop and remove Hutch's managed user unit; preserve all local Hutch data."""
+    from .service import ServiceError, remove_user_service
+
+    try:
+        removed = remove_user_service()
+    except ServiceError as exc:
+        err.print(str(exc), style="red", markup=False)
+        raise typer.Exit(code=2) from None
+    if removed:
+        console.print("Stopped and removed Hutch's user service. Your database, assistants, credentials and workspaces remain.")
+    else:
+        console.print("Hutch's user service is not installed. No local data was changed.")
 
 
 # ------------------------------------------------------------------ models

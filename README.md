@@ -42,6 +42,11 @@ hutch init                   # create local state; no bots or runs are fabricate
 hutch serve                  # dashboard → http://127.0.0.1:8787
 ```
 
+On Linux with systemd, `hutch service install` can start the same loopback-only dashboard in your user session
+and bring it back at the next login. It does not enable remote access or change your data. Hutch does not enable
+systemd linger for you; if you want background work to continue after logout, review your own systemd user-session
+policy first. `hutch service status` and `hutch service uninstall` inspect or remove the unit without deleting data.
+
 Configure a real model route in **Connections**. Save a workspace model default if you want the
 one-screen New Bot flow to reuse it; without a configured model, setup asks you to choose one
 instead of silently switching providers. For a local

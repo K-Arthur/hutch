@@ -1,5 +1,13 @@
 # Changelog
 
+## Linux user service
+
+- Added `hutch service install`, `status`, and `uninstall` for the loopback-only dashboard under `systemd --user`. The installer
+  uses the active Python environment and Hutch state directory, refuses to overwrite an unrelated or modified unit, and does not
+  enable remote access. Uninstall preserves all application data.
+- Added operations and quickstart guidance for service logs, user-session behavior, and the fact that systemd status is not an HTTP
+  readiness check. Automated tests use a controlled systemd runner; installation was not performed on this machine.
+
 ## App typography, icon language, and roster selection
 
 - Added named, rem-based app type roles for body, reading, labels, metadata, and headings while keeping Hutch's marketing display font separate.
