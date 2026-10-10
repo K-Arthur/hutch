@@ -57,11 +57,11 @@ generated token files and the declared WCAG text pairs.
 The app and marketing site share locally bundled Archivo for display, page, and
 section headings, and system sans for interface and reading text. The app loads
 the same licensed font locally, without a remote request. The site keeps the
-locally bundled 3D Hutch mascot. The app uses compact flat 2D assistant characters. Each distinct head
-shape gets a fitted deep-green face panel and two narrow, softly curved light
-slits, with no pupils, highlights, or detached marks. Panel contour and eye
-spacing, slight tilt, and height follow the usable face area; the picker previews
-the same geometry. Status is shown separately.
+locally bundled 3D Hutch mascot. The app uses compact flat 2D assistant characters.
+Each head shape has two balanced, near-round ink eyes directly on its colour;
+eye size, spacing, height, and subtle inward tilt follow that shape's usable
+face area. The picker previews the same geometry. Do not add a visor or extra
+facial marks. Status is shown separately.
 Brand art, assistant identity, and runtime state never substitute for one another.
 
 ## Surface roles

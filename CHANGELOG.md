@@ -4,7 +4,7 @@
 
 - Compact the Apps & AI connection tiles on phones while preserving full service names, connection states, descriptions, and 44px actions. Refresh source-aligned screenshots after finding older captures did not match current labels or artwork.
 - Replace the raw run-number label beside chat replies with an accessible **View work details** control. Keep internal identifiers on the optional details page and give the touch target 44px on phones.
-- Refine the app's 2D mascots after review: each of the eight head shapes now has its own fitted dark face panel and two narrow, curved light slits. The identity picker uses the same paths as the final avatar. Individually inspected each face and responsive picker captures; the detailed 3D mascot remains exclusive to marketing.
+- Refine the app's 2D mascots after review: remove the visor and pale slits, replacing them with two balanced ink eyes placed directly on each of the eight shape-specific silhouettes. The picker previews the final avatar geometry; the detailed 3D mascot remains exclusive to marketing.
 - Keep quick assistant setup in everyday language: it confirms the saved AI
   choice, missing app access and recurring work, and approval checks without
   displaying internal model IDs. Model and routing details remain in **Fine-tune
@@ -22,8 +22,8 @@
 - Simplify Scheduled work: pause/resume uses plain language, the empty state fits its content, and
   cron syntax plus missed-time behavior sit under **Timing details**.
 - Keep the app's simple 2D assistant faces consistent across all head shapes,
-  with fitted dark face panels and paired pale slits; keep the detailed 3D mascot
-  on the marketing site.
+  with two balanced, shape-fitted ink eyes; keep the detailed 3D mascot on the
+  marketing site.
 - Keep ChatGPT's exact OpenAI Blossom beside its named service. Microsoft Outlook,
   Gmail, and Google Calendar use original category artwork until provider terms
   or required permission for product-icon use are confirmed. Outlook's inbox

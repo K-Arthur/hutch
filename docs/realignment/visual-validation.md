@@ -117,6 +117,26 @@ pickers keep a balanced two-row layout without horizontal overflow. Captures, so
 metadata and a Playwright trace are in [`artifacts/mascot-eye-review/`](artifacts/mascot-eye-review/).
 This used local SQLite fixtures only; no provider call, screen reader or physical phone was tested.
 
+## Simpler 2D mascot eyes after owner review (2026-10-10)
+
+The earlier fitted visor and pale slits still read as a mask. The app now uses
+two near-round dark eyes directly on each colored silhouette, with matched
+proportions and subtle inward tilt. Their positions and sizes adapt to the orb,
+capsule, bean, drop, pebble, shield, triangle, and hex heads. The face stays
+flat and restrained; the more detailed 3D character remains on the marketing
+site.
+
+Chromium **153.0.8010.12** / Playwright **1.63.0** passed
+`tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette`
+in **7.84s**. The browser measures every eye path within its colored head,
+checks at least **3:1** eye-to-body contrast and balanced placement, and compares
+all eight identity-picker faces with their selected previews. I opened the eight
+enlarged shape captures, picker, phone settings and roster individually. The
+44px picker controls remain usable, the phone layout fits without horizontal
+overflow, and no page errors occurred. Captures, source hashes and trace are in
+[`artifacts/mascot-eye-review-2026-10-10/`](artifacts/mascot-eye-review-2026-10-10/).
+This fixture did not use providers, a screen reader, or a physical phone.
+
 The scoped Impeccable detector found no primary issues in the changed JavaScript,
 stylesheet, or marketing page. It reported three advisory out-of-scale radii on existing
 workspace task/checkpoint/capability cards in `style.css`; those components were not

@@ -72,13 +72,13 @@ assets with its OFL license, and updated the app/server-page declarations and
 cross-surface browser assertions. `tests/e2e/test_design_system.py::test_shared_design_tokens_render_consistently_across_all_surfaces`
 passes, including checks for the rendered Archivo face and local font readiness.
 
-The app's 2D faces now use a small, shape-fitted deep-green panel with two
-narrow light slits. A dedicated browser check verifies the panel and eye paths
-stay inside all eight silhouettes, each head has distinct panel and eye
-geometry, and every selected identity-picker preview matches the final avatar.
-The eight enlarged faces were inspected individually at full size; roster-sized
-faces and the desktop/phone app captures were also reviewed. The marketing
-site's original 3D mascot remains separate. This improves the mascot family but
+The app's 2D faces use two near-round ink eyes directly on each colored
+silhouette. There is no visor, pale slit, or detached decoration. A dedicated
+browser check verifies the eyes remain inside all eight different heads, retain
+at least 3:1 contrast against each identity color, and match the selected
+identity-picker preview. The eight enlarged faces and picker were inspected
+individually at full size; the roster was reviewed at phone width. The marketing
+site's original 3D mascot remains separate. This corrects the face treatment but
 does not close the still-open roster, settings, or all-surface design reviews.
 
 Studio's first-use copy now explains the approval promise without an extra panel,
@@ -159,6 +159,25 @@ Those older images remain historical context; the current capture set is
 [`artifacts/app-catalog-source-aligned-2026-10-10/`](artifacts/app-catalog-source-aligned-2026-10-10/).
 This improves phone scanning and fixes the evidence boundary, but Connections
 and its deeper account flows still need a complete redesign review.
+
+### Mascot face redraw after owner review — verified
+
+Replaced the visor and slanted pale marks with two simple ink oval eyes, fitted
+individually to the orb, capsule, bean, drop, pebble, shield, triangle, and hex
+silhouettes. The owner-provided reference favored a plain 2D face; the separate
+3D mascot remains on the marketing site. The picker and live avatar use the same
+paths.
+
+`tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette`
+passed **1 test in 7.84s** in Chromium **153.0.8010.12** / Playwright **1.63.0**.
+The check measured eye paths against each head, verified balanced pairs and at
+least 3:1 eye-to-body contrast, confirmed picker/avatar parity, and checked
+44px choices and phone reflow. I inspected all eight enlarged shapes, the picker,
+and the phone roster individually. Current captures, validation metadata, source
+hashes, and trace are in
+[`artifacts/mascot-eye-review-2026-10-10/`](artifacts/mascot-eye-review-2026-10-10/).
+This is a mascot correction, not completion of the broader app and marketing
+redesign.
 
 ### Next
 
