@@ -47,7 +47,7 @@ LABELS: dict[RunStatus, str] = {
     P.waiting_approval: "Waiting for you",
     P.waiting_human: "Needs you",
     P.waiting_resources: "Waiting for a free slot or quota",
-    P.recovering: "Recovering",
+    P.recovering: "Cleaning up",
     P.cancelling: "Stopping",
     P.succeeded: "Done",
     P.failed: "Failed",

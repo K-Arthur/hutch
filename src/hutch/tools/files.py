@@ -6,7 +6,17 @@ import os
 from pathlib import Path
 from typing import Any
 
-from .base import Tool, ToolContext, ToolResult, _schema, clip, rehearsed
+from .base import (
+    MAX_TOOL_OUTPUT,
+    Tool,
+    ToolContext,
+    ToolResult,
+    _schema,
+    clip,
+    read_text_bounded,
+    rehearsed,
+    truncation_meta,
+)
 from .filewrite import destination, replace_reviewed, revision
 
 
@@ -28,9 +38,10 @@ class FilesReadTool(Tool):
             return ToolResult(ok=False, output=f"error: {decision.reason}")
         try:
             ws, p = _resolve(path, ctx)
-            if not p.is_file():
-                return ToolResult(ok=False, output=f"error: not a file: {path}")
-            return ToolResult(ok=True, output=clip(p.read_text(errors="replace")), data={"path": path})
+            if p.is_symlink() or not p.is_file():
+                return ToolResult(ok=False, output=f"error: not a regular file: {path}")
+            output, meta = read_text_bounded(p, MAX_TOOL_OUTPUT)
+            return ToolResult(ok=True, output=output, data={"path": path, **meta})
         except OSError as exc:
             return ToolResult(ok=False, output=f"error: {exc}")
 
@@ -52,14 +63,34 @@ class FilesListTool(Tool):
         if not base.exists():
             return ToolResult(ok=False, output=f"error: no such directory: {rel}")
         lines: list[str] = []
+        retained = 0
+        truncated = False
+        listed = 0
         for root, dirs, files in os.walk(base):
             depth = len(Path(root).relative_to(ws).parts)
             if depth >= 4:
                 dirs[:] = []
                 continue
             for name in sorted(files):
-                lines.append(str((Path(root) / name).relative_to(ws)))
-        return ToolResult(ok=True, output=clip("\n".join(lines) or "(empty)"), data={"count": len(lines)})
+                listed += 1
+                entry = str((Path(root) / name).relative_to(ws))
+                # +1 for the newline that will join lines
+                cost = len(entry) + (1 if lines else 0)
+                if retained + cost > MAX_TOOL_OUTPUT:
+                    truncated = True
+                    dirs[:] = []
+                    break
+                lines.append(entry)
+                retained += cost
+            if truncated:
+                break
+        output = "\n".join(lines) or "(empty)"
+        data: dict[str, Any] = {"count": len(lines), "listed_entries": listed}
+        if truncated:
+            output = clip(output + f"\n… [listing clipped; retained {len(lines):,} paths, scanned {listed:,}]")
+            data.update(truncation_meta(stream="listing", retained=len(output), limit=MAX_TOOL_OUTPUT,
+                                        reason="capture_limit", observed=listed))
+        return ToolResult(ok=True, output=output, data=data)
 
 
 class FilesWriteTool(Tool):

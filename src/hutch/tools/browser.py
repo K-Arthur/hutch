@@ -649,8 +649,22 @@ class BrowserTool(Tool):
                 return checkpoint
 
         if action == "read":
-            text = page.inner_text("body")
-            return ToolResult(ok=True, output=clip(text), data={"url": page.url})
+            from .base import MAX_TOOL_OUTPUT, truncation_meta
+            # Bound in the page context so Playwright does not ship an unbounded DOM string.
+            limit = MAX_TOOL_OUTPUT
+            text = page.evaluate(
+                """(limit) => {
+                    const raw = document.body ? (document.body.innerText || '') : '';
+                    return raw.length > limit ? raw.slice(0, limit + 1) : raw;
+                }""",
+                limit,
+            )
+            data: dict = {"url": page.url}
+            if isinstance(text, str) and len(text) > limit:
+                text = text[:limit] + f"\n… [page text clipped; retained {limit:,} chars]"
+                data.update(truncation_meta(stream="page", retained=limit, limit=limit,
+                                            reason="capture_limit"))
+            return ToolResult(ok=True, output=clip(text if isinstance(text, str) else ""), data=data)
 
         if action == "click":
             target = args.get("selector") or args.get("label") or ""

@@ -237,5 +237,70 @@ def clip(text: str, limit: int = MAX_TOOL_OUTPUT) -> str:
     return text[:limit] + f"\n… [output clipped, {len(text) - limit} chars omitted]"
 
 
+def truncation_meta(*, stream: str, retained: int, limit: int, reason: str,
+                    observed: int | None = None, omitted: int | None = None,
+                    artifact: str | None = None) -> dict[str, Any]:
+    """Structured truncation metadata for tool/API/UI consumers."""
+    meta: dict[str, Any] = {
+        "truncated": True,
+        "stream": stream,
+        "retained_chars": retained,
+        "limit_chars": limit,
+        "truncation_reason": reason,
+    }
+    if observed is not None:
+        meta["observed_chars"] = observed
+    if omitted is not None:
+        meta["omitted_chars"] = omitted
+    if artifact is not None:
+        meta["artifact"] = artifact
+    return meta
+
+
+def read_text_bounded(path: Path, limit: int = MAX_TOOL_OUTPUT) -> tuple[str, dict[str, Any]]:
+    """Read a text file without materializing more than ``limit`` characters."""
+    p = path if isinstance(path, Path) else Path(path)
+    parts: list[str] = []
+    retained = 0
+    truncated = False
+    with p.open("rb") as fh:
+        while retained < limit:
+            chunk = fh.read(65_536)
+            if not chunk:
+                break
+            text = chunk.decode("utf-8", errors="replace")
+            room = limit - retained
+            if len(text) <= room:
+                parts.append(text)
+                retained += len(text)
+            else:
+                parts.append(text[:room])
+                retained += room
+                truncated = True
+                break
+        else:
+            # Retained filled the budget; peek whether more bytes remain.
+            if fh.read(1):
+                truncated = True
+    try:
+        file_bytes = p.stat().st_size
+    except OSError:
+        file_bytes = None
+    output = "".join(parts)
+    data: dict[str, Any] = {"retained_chars": retained, "limit_chars": limit}
+    if file_bytes is not None:
+        data["file_bytes"] = file_bytes
+    if truncated:
+        note = f"\n… [output clipped while reading; retained {retained:,} of at most {limit:,} chars"
+        if file_bytes is not None:
+            note += f"; file is {file_bytes:,} bytes"
+        note += "]"
+        output += note
+        data.update(truncation_meta(stream="stdout", retained=retained, limit=limit,
+                                    reason="capture_limit",
+                                    observed=None if file_bytes is None else None))
+    return output, data
+
+
 def _schema(required: list[str], properties: dict[str, Any]) -> dict[str, Any]:
     return {"type": "object", "properties": properties, "required": required}

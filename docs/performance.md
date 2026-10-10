@@ -54,6 +54,24 @@ The five-minute cap is a deliberate safety net, **not** a poll: `CLOCK_MONOTONIC
 while a laptop is suspended, so an unbounded sleep could oversleep a due window after resume. At one
 wake per five minutes the cost is unmeasurable above.
 
+### Dashboard roster SQL (2026-10-10)
+
+Nested `bot_stats()` inside each bot card made `/api/bots` Θ(N²) in SQL. Shared
+`Store.roster_aggregates()` now computes run counts, active runs, last success, day budgets,
+fact counts and sticky allows in a constant number of grouped queries (plus
+`idx_runs_bot_status`). Isolated corpus on this machine:
+
+| Bots N | SQL before (nested pattern) | SQL after (`roster_aggregates`) |
+|---:|---:|---:|
+| 1 | 10 | 10 |
+| 10 | 181 | 10 |
+| 50 | 2,901 | 10 |
+| 100 | 10,801 | 10 |
+
+Raw samples: `docs/realignment/artifacts/performance/dashboard-sql-*.json`. Full write-up:
+`docs/realignment/artifacts/performance/hardening-2026-10-10.md`. These numbers are Hutch
+control-path SQL counts, not model or network latency.
+
 ### Honest limits
 
 - Measured once on one noisy machine. CLI timings varied by ~30% between back-to-back runs while

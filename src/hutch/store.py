@@ -1286,6 +1286,11 @@ def _migrate_48(db: sqlite3.Connection) -> None:
                "ON outlook_calendar_write_grants(account_id)")
 
 
+def _migrate_49(db: sqlite3.Connection) -> None:
+    """Cover per-bot status aggregates and active-run lookups used by the dashboard roster."""
+    db.execute("CREATE INDEX IF NOT EXISTS idx_runs_bot_status ON runs(bot_id, status)")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1293,7 +1298,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
-               _migrate_48]
+               _migrate_48, _migrate_49]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -4634,17 +4639,31 @@ class Store:
         now = now or utcnow()
         stamp, expires = iso(now), iso(now + timedelta(seconds=lease_seconds))
         marks = ",".join("?" for _ in _LIVE_VALUES)
+        # Capacity includes: live statuses, leased pending (starting), and any run that still
+        # has unreaped recorded processes — even if its status already became terminal. A timed-out
+        # wrapper must not free a slot while owned descendants can still act.
+        occupying = (
+            "(c.status IN (" + marks + ") OR "
+            "(c.status = 'pending' AND c.lease_owner != '' AND c.lease_expires_at >= ?) OR "
+            "EXISTS (SELECT 1 FROM run_procs rp WHERE rp.run_id = c.id "
+            "AND rp.ended_at IS NULL AND rp.detached_at IS NULL))"
+        )
+        peer_occupying = (
+            "(o.status IN (" + marks + ") OR "
+            "(o.status = 'pending' AND o.lease_owner != '' AND o.lease_expires_at >= ?) OR "
+            "EXISTS (SELECT 1 FROM run_procs rp WHERE rp.run_id = o.id "
+            "AND rp.ended_at IS NULL AND rp.detached_at IS NULL))"
+        )
         # A successful claim leaves a run in `pending` while its supervisor starts the
         # worker. That reservation already consumes a global slot, even though it is not
         # yet one of the active execution statuses.
-        cap = (" AND (SELECT COUNT(*) FROM runs c WHERE c.status IN (" + marks + ") OR "
-               "(c.status = 'pending' AND c.lease_owner != '' AND c.lease_expires_at >= ?)) < ?") if max_live else ""
+        cap = (" AND (SELECT COUNT(*) FROM runs c WHERE " + occupying + ") < ?") if max_live else ""
         sql = (
             "UPDATE runs SET lease_owner = ?, lease_expires_at = ?, heartbeat_at = ?, fence = fence + 1 "
             "WHERE id = ? AND status = 'pending' AND cancel_requested = 0 "
             "AND (lease_owner = '' OR lease_expires_at IS NULL OR lease_expires_at < ?) "
             "AND NOT EXISTS (SELECT 1 FROM runs o WHERE o.bot_id = runs.bot_id AND o.id != runs.id AND "
-            "(o.status IN (" + marks + ") OR (o.status = 'pending' AND o.lease_owner != '' AND o.lease_expires_at >= ?)) "
+            + peer_occupying + " "
             "AND NOT (runs.parent_run_id IS NOT NULL AND (o.id IN (runs.parent_run_id, "
             "(SELECT parent_run_id FROM runs p WHERE p.id = runs.parent_run_id)) "
             "OR o.parent_run_id = runs.parent_run_id)))"
@@ -5169,9 +5188,27 @@ class Store:
         return [self._run(r) for r in rows]
 
     def active_run_for_bot(self, bot_id: str) -> Optional[Run]:
-        runs = [r for r in self.active_runs() if r.bot_id == bot_id]
+        """Most relevant live run for one bot (executing/waiting preferred over queued)."""
+        live = tuple(st.value for st in ACTIVE_STATUSES)
+        marks = ",".join("?" for _ in live)
+        with self._lock:
+            rows = self._db.execute(
+                f"SELECT {_RUN_COLS} FROM runs WHERE bot_id = ? AND status IN ({marks})",
+                (bot_id, *live),
+            ).fetchall()
+        runs = [self._run(r) for r in rows]
         # A queued turn must not hide work already executing or waiting for a human.
         return min(runs, key=lambda r: (r.status is RunStatus.pending, r.created_at, r.id)) if runs else None
+
+    def active_runs_by_bot(self) -> dict[str, Run]:
+        """Map bot_id → preferred active run from a single live-status scan."""
+        by_bot: dict[str, list[Run]] = {}
+        for run in self.active_runs():
+            by_bot.setdefault(run.bot_id, []).append(run)
+        out: dict[str, Run] = {}
+        for bot_id, runs in by_bot.items():
+            out[bot_id] = min(runs, key=lambda r: (r.status is RunStatus.pending, r.created_at, r.id))
+        return out
 
     def last_successful_run(self, bot_id: str) -> Optional[Run]:
         with self._lock:
@@ -5180,6 +5217,23 @@ class Store:
                 (bot_id, RunStatus.succeeded.value),
             ).fetchone()
         return self._run(row) if row else None
+
+    def last_successful_runs_by_bot(self) -> dict[str, Run]:
+        """Latest succeeded run per bot in one query (window over created_at)."""
+        with self._lock:
+            rows = self._db.execute(
+                f"SELECT {_RUN_COLS} FROM ("
+                f"SELECT {_RUN_COLS}, ROW_NUMBER() OVER "
+                f"(PARTITION BY bot_id ORDER BY created_at DESC, id DESC) AS rn "
+                f"FROM runs WHERE status = ?"
+                f") WHERE rn = 1",
+                (RunStatus.succeeded.value,),
+            ).fetchall()
+        out: dict[str, Run] = {}
+        for row in rows:
+            run = self._run(row)
+            out[run.bot_id] = run
+        return out
 
     # --------------------------------------------------- processes a run started
 
@@ -5194,7 +5248,13 @@ class Store:
         with self._lock:
             self._db.execute("UPDATE run_procs SET ended_at = ? WHERE run_id = ? AND pid = ? AND ended_at IS NULL AND detached_at IS NULL",
                              (iso(utcnow()), run_id, pid))
+            left = self._db.execute(
+                "SELECT 1 FROM run_procs WHERE run_id = ? AND ended_at IS NULL AND detached_at IS NULL LIMIT 1",
+                (run_id,)).fetchone()
             self._db.commit()
+        if left is None:
+            # Capacity may have been held solely by unreaped processes; wake dispatch.
+            self.bus.notify("work", "runs", f"run:{run_id}")
 
     def live_procs(self, run_id: str) -> list[dict[str, Any]]:
         """Processes recorded for the run that were never recorded as finished."""
@@ -5203,6 +5263,22 @@ class Store:
                                     "AND ended_at IS NULL AND detached_at IS NULL",
                                     (run_id,)).fetchall()
         return [dict(r) for r in rows]
+
+    def occupying_capacity(self, run_id: str) -> bool:
+        """True while the run is live, leased-pending, or still has unreaped recorded processes."""
+        live = tuple(st.value for st in ACTIVE_STATUSES if st is not RunStatus.pending)
+        marks = ",".join("?" for _ in live)
+        stamp = iso(utcnow())
+        with self._lock:
+            row = self._db.execute(
+                f"SELECT 1 FROM runs WHERE id = ? AND ("
+                f"status IN ({marks}) OR "
+                f"(status = 'pending' AND lease_owner != '' AND lease_expires_at >= ?) OR "
+                f"EXISTS (SELECT 1 FROM run_procs rp WHERE rp.run_id = runs.id "
+                f"AND rp.ended_at IS NULL AND rp.detached_at IS NULL))",
+                (run_id, *live, stamp),
+            ).fetchone()
+        return row is not None
 
     def claim_recovery(self, run: Run, owner: str, lease_seconds: float, *, owner_exited: bool = False,
                        now: Optional[datetime] = None) -> Optional[Run]:
@@ -5272,7 +5348,12 @@ class Store:
             else:
                 self._db.execute("UPDATE run_procs SET ended_at = ? WHERE run_id = ? AND ended_at IS NULL AND detached_at IS NULL AND pid != ?",
                                  (iso(utcnow()), run_id, keep_pid))
+            left = self._db.execute(
+                "SELECT 1 FROM run_procs WHERE run_id = ? AND ended_at IS NULL AND detached_at IS NULL LIMIT 1",
+                (run_id,)).fetchone()
             self._db.commit()
+        if left is None:
+            self.bus.notify("work", "runs", f"run:{run_id}")
 
     # ----------------------------------------------------- tool actions (receipts)
 
@@ -6506,23 +6587,50 @@ class Store:
         """Hosted spend for the current local day, for one bot or for all (the daily cost cap)."""
         return sum(r.cost_usd for r in self._runs_today(bot_id, now))
 
-    def bot_budget_today(self, bot_id: str, now: Optional[datetime] = None) -> tuple[int, int, float, float]:
-        """Measured tokens/cost and held token/cost estimates for a bot's local day."""
+    def _run_totals_today_by_bot(self, now: Optional[datetime] = None) -> dict[str, tuple[int, float]]:
+        """Legacy per-run token/cost totals for the local day, grouped once."""
         start, end = local_day_bounds(now)
         with self._lock:
-            measured = self._db.execute(
-                "SELECT COALESCE(SUM(prompt_tokens + completion_tokens), 0) AS tokens, "
-                "COALESCE(SUM(cost_usd), 0) AS cost FROM usage WHERE bot_id = ? AND ts >= ? AND ts < ?",
-                (bot_id, start, end)).fetchone()
-            held = self._db.execute(
-                "SELECT COALESCE(SUM(reserved_tokens), 0) AS tokens, COALESCE(SUM(reserved_cost_usd), 0) AS cost "
-                "FROM usage_reservations WHERE bot_id = ? "
-                "AND status IN ('reserved', 'uncertain')", (bot_id,)).fetchone()
-        # Older releases also wrote per-run totals. Taking the larger value preserves those totals without counting
-        # the same calls twice when both representations exist.
-        measured_tokens = max(int(measured["tokens"]), self.tokens_today(bot_id, now))
-        measured_cost = max(float(measured["cost"]), self.cost_today(bot_id, now))
-        return measured_tokens, int(held["tokens"]), measured_cost, float(held["cost"])
+            rows = self._db.execute(
+                "SELECT bot_id, "
+                "COALESCE(SUM(CAST(json_extract(doc, '$.tokens') AS INTEGER)), 0) AS tokens, "
+                "COALESCE(SUM(CAST(json_extract(doc, '$.cost_usd') AS REAL)), 0) AS cost "
+                "FROM runs WHERE created_at >= ? AND created_at < ? GROUP BY bot_id",
+                (start, end),
+            ).fetchall()
+        return {r["bot_id"]: (int(r["tokens"]), float(r["cost"])) for r in rows}
+
+    def bot_budget_today(self, bot_id: str, now: Optional[datetime] = None) -> tuple[int, int, float, float]:
+        """Measured tokens/cost and held token/cost estimates for a bot's local day."""
+        return self.bot_budgets_today(now).get(bot_id, (0, 0, 0.0, 0.0))
+
+    def bot_budgets_today(self, now: Optional[datetime] = None) -> dict[str, tuple[int, int, float, float]]:
+        """Per-bot measured/held day budgets from a constant number of grouped queries."""
+        start, end = local_day_bounds(now)
+        with self._lock:
+            measured_rows = self._db.execute(
+                "SELECT bot_id, COALESCE(SUM(prompt_tokens + completion_tokens), 0) AS tokens, "
+                "COALESCE(SUM(cost_usd), 0) AS cost FROM usage WHERE ts >= ? AND ts < ? GROUP BY bot_id",
+                (start, end),
+            ).fetchall()
+            held_rows = self._db.execute(
+                "SELECT bot_id, COALESCE(SUM(reserved_tokens), 0) AS tokens, "
+                "COALESCE(SUM(reserved_cost_usd), 0) AS cost FROM usage_reservations "
+                "WHERE status IN ('reserved', 'uncertain') GROUP BY bot_id",
+            ).fetchall()
+        legacy = self._run_totals_today_by_bot(now)
+        measured = {r["bot_id"]: (int(r["tokens"]), float(r["cost"])) for r in measured_rows}
+        held = {r["bot_id"]: (int(r["tokens"]), float(r["cost"])) for r in held_rows}
+        bot_ids = set(measured) | set(held) | set(legacy)
+        out: dict[str, tuple[int, int, float, float]] = {}
+        for bot_id in bot_ids:
+            m_tok, m_cost = measured.get(bot_id, (0, 0.0))
+            l_tok, l_cost = legacy.get(bot_id, (0, 0.0))
+            h_tok, h_cost = held.get(bot_id, (0, 0.0))
+            # Older releases also wrote per-run totals. Taking the larger value preserves those totals without
+            # counting the same calls twice when both representations exist.
+            out[bot_id] = (max(m_tok, l_tok), h_tok, max(m_cost, l_cost), h_cost)
+        return out
 
     def run_reserved_usage(self, run_id: str) -> tuple[int, float]:
         with self._lock:
@@ -6532,18 +6640,49 @@ class Store:
         return int(row["tokens"]), float(row["cost"])
 
     def bot_stats(self) -> dict[str, dict[str, Any]]:
-        """Per-bot aggregates for the dashboard: run counts + staleness."""
+        """Per-bot aggregates for the dashboard: run counts by status (one grouped scan)."""
         bots = self.list_bots()
-        out: dict[str, dict[str, Any]] = {}
+        out: dict[str, dict[str, Any]] = {bot.id: {"counts": {}} for bot in bots}
         with self._lock:
-            for bot in bots:
-                counts: dict[str, int] = {}
-                for row in self._db.execute(
-                    "SELECT status, COUNT(*) AS n FROM runs WHERE bot_id = ? GROUP BY status", (bot.id,)
-                ):
-                    counts[row["status"]] = row["n"]
-                out[bot.id] = {"counts": counts}
+            for row in self._db.execute(
+                "SELECT bot_id, status, COUNT(*) AS n FROM runs GROUP BY bot_id, status"
+            ):
+                bucket = out.setdefault(row["bot_id"], {"counts": {}})
+                bucket["counts"][row["status"]] = row["n"]
         return out
+
+    def count_facts_by_bot(self) -> dict[str, int]:
+        """Current non-archived fact counts per bot in one grouped query."""
+        from .fact_memory import CURRENT
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT f.bot_id AS bot_id, COUNT(*) AS n FROM memory_facts f "
+                "WHERE f.status != 'archived' AND " + CURRENT + " GROUP BY f.bot_id"
+            ).fetchall()
+        return {r["bot_id"]: int(r["n"]) for r in rows}
+
+    def sticky_allows_by_bot(self) -> dict[str, list[str]]:
+        """Sticky allow keys per bot from one scan."""
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT bot_id, sticky_key FROM tool_allows ORDER BY bot_id, created_at"
+            ).fetchall()
+        out: dict[str, list[str]] = {}
+        for row in rows:
+            out.setdefault(row["bot_id"], []).append(row["sticky_key"])
+        return out
+
+    def roster_aggregates(self) -> dict[str, Any]:
+        """Shared dashboard maps computed once per roster/stats request."""
+        return {
+            "stats": self.bot_stats(),
+            "active": self.active_runs_by_bot(),
+            "last_success": self.last_successful_runs_by_bot(),
+            "budgets": self.bot_budgets_today(),
+            "facts": self.count_facts_by_bot(),
+            "sticky": self.sticky_allows_by_bot(),
+            "coordinator_id": self.workspace_coordinator_id(),
+        }
 
     # -------------------------------------------------------------- usage
 

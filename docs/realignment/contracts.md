@@ -16,7 +16,7 @@ inline approvals and Stop use idempotent v1 commands. Other screens retain compa
 | `waiting_approval` | Waiting for you | no | **yes** | an approval request is attached |
 | `waiting_human` | Needs you | no | **yes** | login/password/passkey/OTP, CAPTCHA, MFA or other detected human checkpoint; `reason` and `handoff` describe how |
 | `waiting_resources` | Waiting for a free slot or quota | no | no | `reason` says which |
-| `recovering` | Recovering | no | no | owner lost; recovery deciding |
+| `recovering` | Cleaning up | no | no | owner lost or cleanup incomplete; recovery deciding |
 | `cancelling` | Stopping | no | no | stay visible until `stopped`; never show "stopped" early |
 | `succeeded` | Done | yes | no | `verified` is `true`, `false` or `null` |
 | `failed` | Failed | yes | no | `exit_reason` explains |

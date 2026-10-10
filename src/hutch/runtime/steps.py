@@ -132,8 +132,12 @@ def save_artifact(ctx: ToolContext, tool: str, text: str) -> tuple[str, str, int
 
 def truncate_for_model(ctx: ToolContext, tool: str, output: str) -> tuple[str, Optional[dict[str, Any]]]:
     """PF-2: cap model context while keeping an immutable, verifiable copy of the full tool output."""
+    from ..tools.base import MAX_TOOL_OUTPUT
     limit = int(ctx.bot.tool_limits.get(tool, DEFAULT_TOOL_LIMIT))
-    if limit <= 0 or len(output) <= limit:
+    if limit <= 0:
+        limit = DEFAULT_TOOL_LIMIT
+    limit = min(limit, MAX_TOOL_OUTPUT)
+    if len(output) <= limit:
         return output, None
     try:
         rel, digest, byte_size = save_artifact(ctx, tool, output)

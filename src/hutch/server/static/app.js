@@ -19,7 +19,7 @@ const DEFAULT_STATUS_INFO = {
   waiting_approval: { label: "Waiting for you", terminal: false },
   waiting_human: { label: "Needs you", terminal: false },
   waiting_resources: { label: "Waiting for a free slot or quota", terminal: false },
-  recovering: { label: "Recovering", terminal: false },
+  recovering: { label: "Cleaning up", terminal: false },
   cancelling: { label: "Stopping", terminal: false },
   succeeded: { label: "Done", terminal: true },
   failed: { label: "Failed", terminal: true },
@@ -59,9 +59,11 @@ async function api(path, opts = {}) {
       ...opts,
       credentials: "same-origin",
       headers,
+      signal: opts.signal,
       body: opts.body ? JSON.stringify(opts.body) : undefined,
     });
   } catch (error) {
+    if (error?.name === "AbortError") throw error;
     error.status = 0;
     throw error;
   }
@@ -75,6 +77,35 @@ async function api(path, opts = {}) {
   }
   return res.status === 204 ? null : res.json();
 }
+
+/** One owned abort+generation token for a route or dialog subscription. */
+function makeSubOwner() {
+  return { gen: 0, abort: null, timers: new Set(), sources: new Set() };
+}
+
+function bumpSubOwner(owner) {
+  owner.gen += 1;
+  if (owner.abort) owner.abort.abort();
+  owner.abort = typeof AbortController !== "undefined" ? new AbortController() : null;
+  for (const t of owner.timers) clearTimeout(t);
+  owner.timers.clear();
+  for (const s of owner.sources) { try { s.close(); } catch {} }
+  owner.sources.clear();
+  return owner.gen;
+}
+
+function singleFlight(slot, fn) {
+  if (slot.promise) return slot.promise;
+  slot.promise = Promise.resolve()
+    .then(fn)
+    .finally(() => { slot.promise = null; });
+  return slot.promise;
+}
+
+const routeOwner = makeSubOwner();
+const shellOwner = makeSubOwner();
+const approvalsOwner = makeSubOwner();
+bumpSubOwner(shellOwner);
 
 function newIdempotencyKey() {
   return window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -1251,6 +1282,7 @@ async function route() {
   updateRosterCurrentItem();
   document.body.classList.toggle("has-composer", hash.startsWith("#/chat"));
   stopRunSubs();
+  bumpSubOwner(routeOwner);
   studioGeneration++;
   if (needsYouDialog.open) closeNeedsYou();
   setTopContext("");
@@ -1266,7 +1298,7 @@ async function route() {
       if (["overview", "schedules", "runs", "bots"].includes(nav)) $("#monitor-nav").open = true;
       try { await handler(m); }
       catch (err) { view.innerHTML = errorState(err); }
-      refreshBadge();
+      void refreshBadge();
       return;
     }
   }
@@ -1288,12 +1320,18 @@ window.addEventListener("hashchange", route);
 
 /* -------------------------------------------------- roster + attention */
 
+const rosterFlight = { promise: null };
 async function refreshRoster() {
-  try {
-    botsCache = await api("/bots");
-    renderRoster();
-    renderAttention();
-  } catch { /* offline is handled by the daemon pill */ }
+  return singleFlight(rosterFlight, async () => {
+    try {
+      botsCache = await api("/bots", { signal: shellOwner.abort?.signal });
+      renderRoster();
+      renderAttention();
+    } catch (err) {
+      if (err?.name === "AbortError") return;
+      /* offline is handled by the daemon pill */
+    }
+  });
 }
 
 function renderRoster() {
@@ -1473,8 +1511,6 @@ function wireRosterMenuButtons(list, menuBot, focusedMenuAction) {
 let currentStudioBot = null;
 let currentRunId = null;
 let lastPrompt = "";
-let pollTimer = null;
-
 // Mobile overlay: labeled navigation sheet with focus ownership + restore.
 const wsBtn = $("#nav-toggle"), wsEl = $("#workspace"), wsScrim = $("#ws-scrim"), wsClose = $("#ws-close");
 function openWorkspace() {
@@ -1652,20 +1688,24 @@ function setDaemon(state, title) {
   pill.hidden = state === "live";   // healthy says nothing; degraded speaks up
 }
 
+const healthFlight = { promise: null };
 async function pollHealth() {
-  try {
-    const h = await api("/health");
-    lastHealthAt = Date.now();
-    setDaemon(h.execution_held ? "held" : "live", `${h.execution_held ? 'Execution held for restore review' : 'daemon live'} — v${h.version} · schema ${h.schema}`);
-  } catch {
-    const recent = lastHealthAt && Date.now() - lastHealthAt < 3 * HEARTBEAT_MS;
-    const state = recent ? "reconnecting" : "offline";
-    const changed = lastDaemonState !== state;
-    setDaemon(state,
-      recent ? "Server unreachable — retrying on the next heartbeat"
-             : "Server offline — commands will not run until it returns");
-    if (changed) announce("Connection to the hutch server was lost. Commands are paused until it returns.");
-  }
+  return singleFlight(healthFlight, async () => {
+    try {
+      const h = await api("/health", { signal: shellOwner.abort?.signal });
+      lastHealthAt = Date.now();
+      setDaemon(h.execution_held ? "held" : "live", `${h.execution_held ? 'Execution held for restore review' : 'daemon live'} — v${h.version} · schema ${h.schema}`);
+    } catch (err) {
+      if (err?.name === "AbortError") return;
+      const recent = lastHealthAt && Date.now() - lastHealthAt < 3 * HEARTBEAT_MS;
+      const state = recent ? "reconnecting" : "offline";
+      const changed = lastDaemonState !== state;
+      setDaemon(state,
+        recent ? "Server unreachable — retrying on the next heartbeat"
+               : "Server offline — commands will not run until it returns");
+      if (changed) announce("Connection to the hutch server was lost. Commands are paused until it returns.");
+    }
+  });
 }
 
 /* ------------------------------------------ app-wide attention + badge */
@@ -1742,9 +1782,11 @@ function notifyNewAttention(approvals, receipts) {
   } catch { /* an OS/browser notification failure must not affect work or approvals */ }
 }
 
+const badgeFlight = { promise: null };
 async function refreshBadge() {
+  return singleFlight(badgeFlight, async () => {
   try {
-    const stats = await api("/stats");
+    const stats = await api("/stats", { signal: shellOwner.abort?.signal });
     $('#execution-hold').hidden = !stats.execution_held;
     unresolvedReceiptCount = stats.unresolved_actions || 0;
     const n = (stats.pending_approvals || 0) + unresolvedReceiptCount;
@@ -1759,9 +1801,12 @@ async function refreshBadge() {
     $('[data-nav="approvals"]')?.classList.toggle("attention", n > 0);
     if (n) {
       try {
-        const pend = await api("/approvals");
+        const pend = await api("/approvals", { signal: shellOwner.abort?.signal });
         attentionBots = [...new Set(pend.map(a => a.bot_name))];
-      } catch { attentionBots = []; }
+      } catch (err) {
+        if (err?.name === "AbortError") return;
+        attentionBots = [];
+      }
     } else attentionBots = [];
     lastPendingCount = n;
     renderRoster();
@@ -1771,7 +1816,10 @@ async function refreshBadge() {
     }
     notifyNewAttention(stats.pending_approvals || 0, unresolvedReceiptCount);
     lastPendingCount = n;
-  } catch {}
+  } catch (err) {
+    if (err?.name === "AbortError") return;
+  }
+  });
 }
 
 updateBrowserAlertsUi();
@@ -2967,12 +3015,14 @@ function budgetMeterHtml(bot) {
 
 let runStream = null, statusTimer = null, renderTimer = null, subRunId = null, feedRefreshPending = false;
 let feedMode = "studio";   // "studio" (bot transcript) or "run" (single-run detail)
+const feedRenderFlight = { promise: null };
 
 function stopRunSubs() {
   subRunId = null;
   if (runStream) { runStream.close(); runStream = null; }
   if (statusTimer) { clearInterval(statusTimer); statusTimer = null; }
   if (renderTimer) { clearTimeout(renderTimer); renderTimer = null; }
+  bumpSubOwner(routeOwner);
 }
 
 function subscribeRun(runId) {
@@ -2981,6 +3031,7 @@ function subscribeRun(runId) {
   subRunId = runId;
   try {
     runStream = new EventSource(`/api/runs/${runId}/stream`);
+    routeOwner.sources.add(runStream);
     // The server coalesces bursts; one message may carry up to a batch of events.
     runStream.onmessage = () => scheduleFeedRender();
     runStream.onerror = () => {
@@ -2996,8 +3047,10 @@ function scheduleFeedRender() {
   if (renderTimer) return;
   renderTimer = setTimeout(() => {
     renderTimer = null;
-    if (feedMode === "run" && currentRunId) renderRunDetail(currentRunId);
-    else renderChatFeed();
+    void singleFlight(feedRenderFlight, async () => {
+      if (feedMode === "run" && currentRunId) await renderRunDetail(currentRunId);
+      else await renderChatFeed();
+    });
   }, 250);
 }
 
@@ -5099,6 +5152,17 @@ async function renderRuns(query = "") {
 let approvalsTimer = null, approvalSignature = "", needsYouReturnFocus = null, approvalOffset = 0;
 const APPROVAL_PAGE_SIZE = 50;
 const needsYouDialog = $("#needs-you");
+const approvalsFlight = { promise: null };
+
+function scheduleApprovalsPoll() {
+  clearTimeout(approvalsTimer);
+  approvalsTimer = null;
+  if (!needsYouDialog.open || document.hidden) return;
+  approvalsTimer = setTimeout(() => {
+    approvalsTimer = null;
+    void refreshApprovals().finally(() => scheduleApprovalsPoll());
+  }, 5000);
+}
 
 async function openNeedsYou() {
   needsYouReturnFocus = wsEl.classList.contains("open") ? wsBtn : document.activeElement;
@@ -5106,14 +5170,15 @@ async function openNeedsYou() {
   if (!needsYouDialog.open) needsYouDialog.showModal();
   $("#needs-you-close").focus();
   renderAttention();
+  bumpSubOwner(approvalsOwner);
   await refreshApprovals();
-  clearInterval(approvalsTimer);
-  approvalsTimer = setInterval(refreshApprovals, 5000);
+  scheduleApprovalsPoll();
 }
 
 function closeNeedsYou() {
-  clearInterval(approvalsTimer);
+  clearTimeout(approvalsTimer);
   approvalsTimer = null;
+  bumpSubOwner(approvalsOwner);
   needsYouDialog.close();
   if (needsYouReturnFocus?.isConnected) needsYouReturnFocus.focus();
   renderAttention();
@@ -5138,18 +5203,25 @@ const RECEIPT_PAGE_SIZE = 20;
 
 async function refreshApprovals() {
   if (!needsYouDialog.open) return;
+  let retry = false;
+  await singleFlight(approvalsFlight, async () => {
+  if (!needsYouDialog.open) return;
   const error = $("#needs-you-error");
   const offset = approvalOffset;
+  const gen = approvalsOwner.gen;
+  const signal = approvalsOwner.abort?.signal;
   try {
     const receiptPageOffset = receiptOffset;
     const [pending, resolved, stats, receipts] = await Promise.all([
-      api(`/v1/actions/approvals?limit=${APPROVAL_PAGE_SIZE}&offset=${offset}`),
-      api("/v1/actions/approvals?status=resolved&limit=8"), api("/stats"),
-      api(`/v1/actions/receipts?unresolved=true&limit=${RECEIPT_PAGE_SIZE}&offset=${receiptPageOffset}`),
+      api(`/v1/actions/approvals?limit=${APPROVAL_PAGE_SIZE}&offset=${offset}`, { signal }),
+      api("/v1/actions/approvals?status=resolved&limit=8", { signal }),
+      api("/stats", { signal }),
+      api(`/v1/actions/receipts?unresolved=true&limit=${RECEIPT_PAGE_SIZE}&offset=${receiptPageOffset}`, { signal }),
     ]);
-    if (!needsYouDialog.open || offset !== approvalOffset || receiptPageOffset !== receiptOffset) return;
-    if (!pending.length && offset) { approvalOffset = 0; return refreshApprovals(); }
-    if (!receipts.length && receiptPageOffset) { receiptOffset = 0; return refreshApprovals(); }
+    if (!needsYouDialog.open || gen !== approvalsOwner.gen
+        || offset !== approvalOffset || receiptPageOffset !== receiptOffset) return;
+    if (!pending.length && offset) { approvalOffset = 0; retry = true; return; }
+    if (!receipts.length && receiptPageOffset) { receiptOffset = 0; retry = true; return; }
     error.hidden = true;
     const signature = JSON.stringify([pending, resolved, offset, stats.pending_approvals, receipts, receiptPageOffset, stats.unresolved_actions]);
     // Preserve keyboard focus and expanded review details during unchanged polls.
@@ -5195,8 +5267,10 @@ async function refreshApprovals() {
     if (!needsYouDialog.open) return;
     error.hidden = false;
     error.innerHTML = `<p>Could not refresh requests: ${esc(err.message)}. Displayed requests may be outdated.</p><button class="btn ghost small" id="needs-you-retry">Retry</button>`;
-    $("#needs-you-retry").addEventListener("click", refreshApprovals);
+    $("#needs-you-retry").addEventListener("click", () => void refreshApprovals());
   }
+  });
+  if (retry && needsYouDialog.open) return refreshApprovals();
 }
 
 /* -------------------------------------------------------- bot settings */
@@ -5920,7 +5994,7 @@ async function renderRunDetail(runId) {
   const generation = studioGeneration;
   const stillCurrent = () => generation === studioGeneration && location.hash === `#/run/${runId}`;
   feedMode = "run";
-  const r = await api(`/runs/${runId}`);
+  const r = await api(`/runs/${runId}`, { signal: routeOwner.abort?.signal });
   if (!stillCurrent()) return;
   currentStudioBot = r.bot_name;
   currentRunId = runId;
@@ -9043,16 +9117,25 @@ function startPhoneApp() {
   }).catch(() => {});
 }
 
+let shellBadgeTimer = null, shellRosterTimer = null, shellHealthTimer = null;
+
+function armShellTimers() {
+  clearInterval(shellBadgeTimer);
+  clearInterval(shellRosterTimer);
+  clearInterval(shellHealthTimer);
+  shellBadgeTimer = setInterval(() => { if (!document.hidden) void refreshBadge(); }, 6000);
+  shellRosterTimer = setInterval(() => { if (!document.hidden) void refreshRoster(); }, 20000);
+  shellHealthTimer = setInterval(() => { if (!document.hidden) void pollHealth(); }, HEARTBEAT_MS);
+}
+
 function startOwnerApp() {
   $("#topbar-new-bot")?.addEventListener("click", promptNewBot);
   route();
   void loadStatusInfo();
-  refreshRoster();
+  void refreshRoster();
   void startResourceStream();
-  setInterval(() => { refreshBadge(); }, 6000);
-  setInterval(refreshRoster, 20000);
-  pollHealth();
-  setInterval(pollHealth, HEARTBEAT_MS);
+  void pollHealth();
+  armShellTimers();
 }
 
 async function bootstrapHutchApp() {
@@ -9078,6 +9161,10 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
     refreshChangedResources(["bots", "runs", "approvals", "conversations"]);
     void startResourceStream();
+    if (needsYouDialog.open) scheduleApprovalsPoll();
+  } else {
+    clearTimeout(approvalsTimer);
+    approvalsTimer = null;
   }
 });
 

@@ -1,0 +1,29 @@
+{
+  "commit": "f2b8b009f691a54ca7bfa41f2c7618753e52b2a0",
+  "python": "3.14.7",
+  "os": "Linux 7.2.7-1-cachyos",
+  "hardware": "8 logical CPUs, 22 GiB RAM",
+  "scenario": "nested bot_view pattern: active_run_for_bot + bot_stats + bot_budget_today + count_facts + workspace_coordinator_id per bot",
+  "results": [
+    {
+      "n": 1,
+      "sql": 10,
+      "wall_ms": 2.5
+    },
+    {
+      "n": 10,
+      "sql": 181,
+      "wall_ms": 4.3
+    },
+    {
+      "n": 50,
+      "sql": 2901,
+      "wall_ms": 72.7
+    },
+    {
+      "n": 100,
+      "sql": 10801,
+      "wall_ms": 322.1
+    }
+  ]
+}

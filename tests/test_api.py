@@ -1392,6 +1392,7 @@ def test_tool_limits_patch_and_artifact_serving(client):
     assert res.status_code == 200 and res.json()["tool_limits"] == {"list_files": 1}
     assert client.patch(f"/api/bots/{bot['name']}", json={"tool_limits": {"nope": 5}}).status_code == 422
     assert client.patch(f"/api/bots/{bot['name']}", json={"tool_limits": {"list_files": -3}}).status_code == 422
+    assert client.patch(f"/api/bots/{bot['name']}", json={"tool_limits": {"list_files": 0}}).status_code == 422
 
     res = client.post("/api/bots/api-bot/run", json={"prompt": "research the news"})
     assert res.status_code == 201

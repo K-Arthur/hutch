@@ -1710,15 +1710,28 @@ def create_app() -> FastAPI:
             if not bot.remote_start_enabled:
                 raise HTTPException(403, "this Bot has not been enabled for phone starts by the local owner")
 
-    def bot_view(bot: Bot, connections=None) -> dict:
+    def bot_view(bot: Bot, connections=None, *, agg: dict | None = None) -> dict:
         from ..chatgpt_consent import chatgpt_background_view
         from ..connections import ConnectionBook
 
         nxt = scheduler.next_fire(bot)
-        last = store.last_successful_run(bot.id)
-        active = store.active_run_for_bot(bot.id)
-        stats = store.bot_stats().get(bot.id, {}).get("counts", {})
-        measured_tokens, reserved_tokens, measured_cost, reserved_cost = store.bot_budget_today(bot.id)
+        if agg is None:
+            last = store.last_successful_run(bot.id)
+            active = store.active_run_for_bot(bot.id)
+            stats = store.bot_stats().get(bot.id, {}).get("counts", {})
+            measured_tokens, reserved_tokens, measured_cost, reserved_cost = store.bot_budget_today(bot.id)
+            memory_count = store.count_facts(bot.id)
+            sticky_allows = store.list_sticky_allows(bot.id)
+            is_coordinator = store.workspace_coordinator_id() == bot.id
+        else:
+            last = agg["last_success"].get(bot.id)
+            active = agg["active"].get(bot.id)
+            stats = agg["stats"].get(bot.id, {}).get("counts", {})
+            measured_tokens, reserved_tokens, measured_cost, reserved_cost = agg["budgets"].get(
+                bot.id, (0, 0, 0.0, 0.0))
+            memory_count = agg["facts"].get(bot.id, 0)
+            sticky_allows = agg["sticky"].get(bot.id, [])
+            is_coordinator = agg["coordinator_id"] == bot.id
         bot_data = bot.model_dump(exclude={"background_provider_consents"})
         if bot.creation_source is not None:
             # Keep the exact source request with the Bot's local durable record for
@@ -1744,18 +1757,23 @@ def create_app() -> FastAPI:
             "tokens_reserved_today": reserved_tokens,
             "cost_measured_today_usd": measured_cost,
             "cost_reserved_today_usd": reserved_cost,
-            "memory_count": store.count_facts(bot.id),
-            "sticky_allows": store.list_sticky_allows(bot.id),
-            "is_workspace_coordinator": store.workspace_coordinator_id() == bot.id,
+            "memory_count": memory_count,
+            "sticky_allows": sticky_allows,
+            "is_workspace_coordinator": is_coordinator,
             "chatgpt_background": chatgpt_background_view(
                 bot, connections if connections is not None else ConnectionBook(config.state_dir)),
         }
 
-    def phone_bot_view(bot: Bot, *, can_start: bool) -> dict:
+    def phone_bot_view(bot: Bot, *, can_start: bool, agg: dict | None = None) -> dict:
         """Project the small, useful phone roster without local paths or bot instructions."""
-        active = store.active_run_for_bot(bot.id)
-        last = store.last_successful_run(bot.id)
-        stats = store.bot_stats().get(bot.id, {}).get("counts", {})
+        if agg is None:
+            active = store.active_run_for_bot(bot.id)
+            last = store.last_successful_run(bot.id)
+            stats = store.bot_stats().get(bot.id, {}).get("counts", {})
+        else:
+            active = agg["active"].get(bot.id)
+            last = agg["last_success"].get(bot.id)
+            stats = agg["stats"].get(bot.id, {}).get("counts", {})
         return {
             "id": bot.id, "name": bot.name, "display_name": bot.display_name,
             "description": bot.description, "model": bot.model, "paused": bot.paused,
@@ -2828,25 +2846,26 @@ def create_app() -> FastAPI:
     @app.get("/api/bots")
     def list_bots(request: Request) -> list[dict]:
         bots = store.list_bots()
+        agg = store.roster_aggregates()
         if is_paired_phone(request):
             can_start = phone_start_capability(request)
-            return [phone_bot_view(bot, can_start=can_start) for bot in bots]
+            return [phone_bot_view(bot, can_start=can_start, agg=agg) for bot in bots]
         from ..connections import ConnectionBook
         connections = ConnectionBook(config.state_dir)
-        return [bot_view(b, connections) for b in bots]
+        return [bot_view(b, connections, agg=agg) for b in bots]
 
     @app.get("/api/v1/bots")
     def list_bots_v1(request: Request, limit: int = 100, offset: int = 0) -> list[dict]:
         bots = store.list_bots()
+        agg = store.roster_aggregates()
+        start = max(0, offset)
+        page = bots[start:start + max(1, min(limit, 500))]
         if is_paired_phone(request):
-            start = max(0, offset)
             can_start = phone_start_capability(request)
-            return [phone_bot_view(bot, can_start=can_start)
-                    for bot in bots[start:start + max(1, min(limit, 500))]]
+            return [phone_bot_view(bot, can_start=can_start, agg=agg) for bot in page]
         from ..connections import ConnectionBook
         connections = ConnectionBook(config.state_dir)
-        start = max(0, offset)
-        return [bot_view(bot, connections) for bot in bots[start:start + max(1, min(limit, 500))]]
+        return [bot_view(bot, connections, agg=agg) for bot in page]
 
     @app.get("/api/bots/templates")
     def bot_templates() -> list[dict]:
@@ -3127,14 +3146,19 @@ def create_app() -> FastAPI:
             raise HTTPException(422, str(exc)) from None
 
     def _checked_tool_limits(limits: dict[str, int]) -> dict[str, int]:
-        """PF-2 per-tool output caps: known tools only, 0 (unlimited) to 10M chars."""
+        """PF-2 per-tool model-view caps: known tools only, 1..MAX_TOOL_OUTPUT chars (no unlimited)."""
+        from ..tools.base import MAX_TOOL_OUTPUT
         out: dict[str, int] = {}
         for tool, val in limits.items():
             if tool not in ALL_TOOL_NAMES:
                 raise HTTPException(422, f"unknown tool: {tool}")
-            if not 0 <= int(val) <= 10_000_000:
-                raise HTTPException(422, f"limit for {tool} must be 0..10000000 chars")
-            out[tool] = int(val)
+            n = int(val)
+            if not 1 <= n <= MAX_TOOL_OUTPUT:
+                raise HTTPException(
+                    422,
+                    f"limit for {tool} must be 1..{MAX_TOOL_OUTPUT} chars (unlimited / 0 is not allowed)",
+                )
+            out[tool] = n
         return out
 
     def _checked_rules(rules: list[CommandRule]) -> list[CommandRule]:
@@ -4192,8 +4216,9 @@ def create_app() -> FastAPI:
         bots = store.list_bots()
         active = store.active_runs()
         pending = store.pending_approvals()
-        budgets = [store.bot_budget_today(b.id) for b in bots]
-        tokens_today = sum(measured + held for measured, held, _, _ in budgets)
+        budgets = store.bot_budgets_today()
+        budget_rows = [budgets.get(b.id, (0, 0, 0.0, 0.0)) for b in bots]
+        tokens_today = sum(measured + held for measured, held, _, _ in budget_rows)
         return {
             "bots": len(bots), "paused": sum(1 for b in bots if b.paused),
             "active_runs": len(active), "pending_approvals": len(pending),
@@ -4201,10 +4226,10 @@ def create_app() -> FastAPI:
             "execution_held": bool((report := store.restoration_status()) and report['execution_held']),
             "queued_tasks": len(store.pending_tasks()),
             "tokens_today": tokens_today,
-            "tokens_measured_today": sum(row[0] for row in budgets),
-            "tokens_reserved_today": sum(row[1] for row in budgets),
-            "cost_measured_today_usd": sum(row[2] for row in budgets),
-            "cost_reserved_today_usd": sum(row[3] for row in budgets),
+            "tokens_measured_today": sum(row[0] for row in budget_rows),
+            "tokens_reserved_today": sum(row[1] for row in budget_rows),
+            "cost_measured_today_usd": sum(row[2] for row in budget_rows),
+            "cost_reserved_today_usd": sum(row[3] for row in budget_rows),
             "version": __version__,
         }
 

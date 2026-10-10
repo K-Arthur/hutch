@@ -203,7 +203,8 @@ verified; otherwise `cancelling` or `recovering` remains visible with a reason. 
 ### D5 — Caps are enforced by the engine, not by model behavior
 
 - `max_steps` — agent turns per run
-- `timeout_seconds` — wall clock. `serve`, `daemon`, and `hutch run` execute one owned OS worker process per attempt. Cleanup verifies boot/start identities and keeps a run in `Stopping` or `Recovering` until no owned process remains. `HUTCH_EXECUTOR=thread` is for tests and compatibility; a stuck thread is joined before persistence closes, so it cannot be declared terminal while still running.
+- `timeout_seconds` — wall clock. `serve`, `daemon`, and `hutch run` execute one owned OS worker process per attempt. Cleanup verifies boot/start identities and keeps a run in `Stopping` or `Cleaning up` until no owned process remains. Admission also treats unreaped `run_procs` as occupying capacity so a peer cannot start while descendants may still act. `HUTCH_EXECUTOR=thread` is for tests and compatibility; a stuck thread is joined before persistence closes, so it cannot be declared terminal while still running.
+- Tool capture is bounded before allocation (`MAX_TOOL_OUTPUT`); the model sees a smaller per-tool view (PF-2) with optional artifacts. Unlimited `tool_limits=0` is rejected.
 - `daily_token_cap` — actual response usage plus pre-call prompt/reply estimates and unresolved reservations;
   admission reserves the next estimate atomically across processes. Currency caps also reserve a price-based estimate;
   provider-side billing can differ, so this is not an exact dollar guarantee.

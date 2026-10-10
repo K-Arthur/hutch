@@ -237,18 +237,21 @@ def register_pages(app: FastAPI) -> None:
 
     @app.get("/bots", response_class=HTMLResponse, include_in_schema=False)
     def bots_page(request: Request):
+        # Legacy HTML route redirects immediately; keep the body cheap and bounded.
         views_ = []
+        agg = store.roster_aggregates()
         for b in store.list_bots():
             nxt = scheduler.next_fire(b)
-            last = store.last_successful_run(b.id)
-            active = store.active_run_for_bot(b.id)
+            last = agg["last_success"].get(b.id)
+            active = agg["active"].get(b.id)
+            budget = agg["budgets"].get(b.id, (0, 0, 0.0, 0.0))
             d = b.model_dump()
             d.update(
                 next_run_local=nxt.astimezone().strftime("%a %d %b %H:%M") if nxt else None,
                 last_success=(last.finished_at or last.created_at) if last else None,
                 active_run_id=active.id if active else None,
-                tokens_today=sum(store.bot_budget_today(b.id)[:2]),
-                memory_count=len(store.recall_all(b.id)))
+                tokens_today=budget[0] + budget[1],
+                memory_count=agg["facts"].get(b.id, 0))
             d["schedule"] = b.schedule
             d["approval_mode"] = b.approval_mode
             views_.append(_Obj(d))

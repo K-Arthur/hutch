@@ -402,7 +402,13 @@ class Run(BaseModel):
     @property
     def status_label(self) -> str:
         from .lifecycle import LABELS
-        return LABELS[self.status]
+        label = LABELS[self.status]
+        reason = (self.reason or self.exit_reason or "").lower()
+        if self.status is RunStatus.recovering and "cleanup" in reason:
+            return "Cleanup could not be verified"
+        if self.status is RunStatus.pending and reason:
+            return f"Queued — {self.reason or self.exit_reason}"
+        return label
 
     @computed_field  # type: ignore[prop-decorator]
     @property
