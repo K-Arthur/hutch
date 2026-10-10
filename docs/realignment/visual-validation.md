@@ -1726,10 +1726,15 @@ captured the current source to
 and inspected desktop (1440×960), short desktop (1280×720), tablet (900×1024),
 phone (390×844), and compact phone (320×740) individually.
 
+The first attempt at the compact-phone welcome capture began midway down the
+page because this app scrolls inside its content pane. The fixture now resets and
+asserts the app's scroll position before each capture; the replacement image
+shows the complete first-use screen from its true top.
+
 The phone cards are shorter and retain the full label, state, description, and
 44px action. Each is at most 190px high in the mobile fixture; no viewport had
 horizontal overflow. The provider and seed content stayed local: the browser
 made no external requests or model/provider calls. The focused test passed **1
-case** with Chromium **153.0.8010.12** and Playwright **1.63.0**. It checks that
+case in 8.83s** with Chromium **153.0.8010.12** and Playwright **1.63.0**. It checks that
 the ChatGPT tile uses OpenAI's unchanged local white mark and that Gmail and
 Outlook category illustrations stay separate from any claimed provider logo.

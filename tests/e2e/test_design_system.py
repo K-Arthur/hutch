@@ -360,6 +360,7 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("request", lambda request: external_requests.append(request.url)
             if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    app_scroll = page.locator("main#view > .page-scroll")
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     viewports = (("desktop", 1440, 960), ("short-desktop", 1280, 720),
                  ("tablet", 900, 1024), ("phone", 390, 844), ("compact-phone", 320, 740))
@@ -369,6 +370,8 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
             page.set_viewport_size({"width": width, "height": height})
             page.goto(f"{app_url}/#/chat")
             page.get_by_role("heading", name="What would you like help with?").wait_for()
+            app_scroll.evaluate("el => { el.scrollTop = 0; }")
+            assert app_scroll.evaluate("el => el.scrollTop") == 0
             request = page.get_by_label("Your first request")
             assert request.is_visible()
             setup_button = page.get_by_role("button", name="Set up my assistant")
@@ -399,6 +402,7 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
                     page.screenshot(path=str(out / f"welcome-example-{label}.png"), full_page=True, animations="disabled")
                 request.fill("")
             page.evaluate("document.activeElement.blur(); window.scrollTo(0, 0)")
+            app_scroll.evaluate("el => { el.scrollTop = 0; }")
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, "first run", overflow)
             page.screenshot(path=str(out / f"welcome-{label}.png"), full_page=True, animations="disabled")
@@ -434,6 +438,8 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
             page.set_viewport_size({"width": width, "height": height})
             page.goto(f"{app_url}/#/connections")
             page.get_by_role("heading", name="Apps & AI").wait_for()
+            app_scroll.evaluate("el => { el.scrollTop = 0; }")
+            assert app_scroll.evaluate("el => el.scrollTop") == 0
             assert page.get_by_role("heading", name="Your apps").is_visible()
             assert page.get_by_role("heading", name="How Hutch replies").is_visible()
             cards = page.locator(".service-tile")
@@ -473,9 +479,11 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
 
         page.set_viewport_size({"width": 1440, "height": 960})
         page.goto(f"{app_url}/#/connections")
+        app_scroll.evaluate("el => { el.scrollTop = 0; }")
         page.locator(".service-tile").filter(has_text="Google Calendar").get_by_role("button", name="Check setup").click()
         assert page.locator("#connection-management").evaluate("el => el.open")
         assert page.locator("#connection-google-calendar").evaluate("el => document.activeElement === el")
+        page.locator("#connection-google-calendar").scroll_into_view_if_needed()
         page.screenshot(path=str(out / "google-calendar-access-desktop.png"), animations="disabled")
         page.goto(f"{app_url}/#/connections")
         page.locator(".service-tile").filter(has_text="Other reply services").get_by_role("button", name="See options").click()
