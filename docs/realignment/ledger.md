@@ -25,8 +25,8 @@ controls live under one optional disclosure. Apps & AI uses named local service 
 clear states. Main-app mascots remain shape-aware 2D faces, with detailed 3D artwork reserved
 for marketing. Fleet details and account setup are progressively disclosed; navigation groups
 secondary work surfaces under More. Main's `DESIGN.md` remains canonical. Source is committed
-locally as `437da02`; current individual screenshots and source fingerprints accompany this
-ledger update. Verification passed 13 design-system/site-token tests and 20 focused settings
+locally as `437da02`; refreshed individual screenshots and source fingerprints were committed
+in `01a5f2a`. Verification passed 13 design-system/site-token tests and 20 focused settings
 journeys; fixture coverage made no external or provider calls. Figma node-level retrieval hit
 the current Starter-plan call limit, so visual implementation follows the checked-in system
 and supplied individual screens. Physical devices, live providers and screen-reader checks
@@ -183,6 +183,7 @@ grant for held operator review. Desktop, tablet and phone share/revoke flows are
 | `fcefc5c` | Refresh the scoped UI audit to distinguish the historical failure run from the verified offline suite and separately passed browser journeys |
 | `160af58` | Add optional multi-round, intent-preserving Bot setup clarification with bounded answers, same-browser resume, regression coverage and inspected responsive captures |
 | `437da02` | Refine the everyday-first assistant UI, request carryover, Apps & AI cards, grouped settings, simple app faces and matching marketing visuals |
+| `01a5f2a` | Save independently inspected desktop/tablet/phone captures with source hashes and update the visual-validation record |
 
 ## Dashboard polish continuation (2026-10-09)
 
