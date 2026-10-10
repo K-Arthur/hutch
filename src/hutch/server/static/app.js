@@ -1109,6 +1109,19 @@ function botDisplayName(ref) {
   return botsCache.find(bot => bot.name === ref || bot.id === ref)?.display_name || ref || "Bot";
 }
 
+function botIdentityParts(ref) {
+  const bot = ref && typeof ref === "object" ? ref
+    : botsCache.find(item => item.name === ref || item.id === ref);
+  const fullName = bot?.display_name || bot?.bot_display_name || bot?.name || ref || "Bot";
+  const parts = String(fullName).split(" · ");
+  return parts.length > 1
+    ? { name: parts.slice(0, -1).join(" · "), role: parts.at(-1) || bot?.description || "" }
+    : { name: String(fullName), role: bot?.description || "" };
+}
+
+function botHeading(ref) { return botIdentityParts(ref).name; }
+function botRole(ref) { return botIdentityParts(ref).role; }
+
 const routes = [
   [/^#\/chat(?:\/([\w-]+))?$/, m => renderChatStudio(m ? m[1] : null), "chat"],
   [/^#\/conversation\/([\w-]+)$/, m => openConversation(m[1]), "chat"],
@@ -1415,20 +1428,24 @@ function updateRosterCurrentItem() {
 function rosterRowHtml(bot, currentStudioBot) {
   const state = botState(bot);
   const pip = botNeedsYou(bot) ? "waiting" : state === "running" ? "running" : state === "paused" ? "paused" : "";
-  const word = botNeedsYou(bot) ? "Needs you" : botStatusLabel(bot);
-  const subtitle = [bot.is_workspace_coordinator ? "Coordinator" : "", bot.sidebar_hidden ? "Hidden" : "", word]
+  const status = botNeedsYou(bot) ? "Needs you" : botStatusLabel(bot);
+  const role = botRole(bot);
+  const visibleStatus = status === "Idle" && role ? "" : status;
+  const coordinatorLabel = bot.is_workspace_coordinator && role.toLowerCase() !== "workspace coordinator" ? "Coordinator" : "";
+  const subtitle = [visibleStatus, role, coordinatorLabel, bot.sidebar_hidden ? "Hidden" : ""]
     .filter(Boolean).join(" · ");
+  const name = botHeading(bot);
   return `
     <div class="roster-entry${bot.name === currentStudioBot && location.hash.startsWith("#/chat") ? " is-current" : ""}"><button class="roster-row" type="button" data-switch-bot="${esc(bot.name)}"
       ${bot.name === currentStudioBot && location.hash.startsWith("#/chat") ? 'aria-current="true"' : ""}
-      title="${esc(bot.display_name || bot.name)} — ${esc(subtitle)}">
+      title="${esc(name)} — ${esc([subtitle, status !== visibleStatus ? status : ""].filter(Boolean).join(" · "))}">
       ${botAvatar(bot.name, 30, pip)}
       <span class="roster-id">
-        <span class="roster-name">${esc(bot.display_name || bot.name)}</span>
+        <span class="roster-name">${esc(name)}</span>
         <span class="roster-sub">${esc(subtitle)}</span>
       </span>
     </button><button class="icon-btn roster-options" type="button" data-bot-options="${esc(bot.name)}"
-      aria-label="Options for ${esc(bot.display_name || bot.name)}" aria-haspopup="menu" aria-expanded="false"
+      aria-label="Options for ${esc(name)}" aria-haspopup="menu" aria-expanded="false"
       title="Assistant options">${icon("moreHorizontal")}</button></div>`;
 }
 
@@ -2256,16 +2273,14 @@ async function renderChatStudio(preferredBot = null) {
   currentRunId = activeRun?.id || selectedConversation.latest_run_id || null;
 
   const state = botState(detail);
-  const botTitle = bot.display_name || bot.name;
-  const botTitleParts = botTitle.split(" · ");
-  const botHeading = botTitleParts.length > 1 ? botTitleParts.slice(0, -1).join(" · ") : botTitle;
-  const botRole = botTitleParts.length > 1 ? botTitleParts[botTitleParts.length - 1] : "";
+  const assistantName = botHeading(bot);
+  const assistantRole = botRole(bot);
   setTopContext(`
     <div class="ctx-id">
       ${botAvatar(bot.name, 30, state === "running" ? "running" : state === "paused" ? "paused" : "")}
         <div class="ctx-heading">
-          <h1>${esc(botHeading)}</h1>
-        <span class="ctx-subtitle" title="${esc(botRole)}">AI assistant${botRole ? ` · ${esc(botRole)}` : ""}</span>
+          <h1 title="${esc(assistantName)}">${esc(assistantName)}</h1>
+        <span class="ctx-subtitle" title="${esc(assistantRole)}">AI assistant${assistantRole ? ` · ${esc(assistantRole)}` : ""}</span>
         </div>
         <div class="ctx-meta${bot.is_workspace_coordinator ? " workspace-coordinator-meta" : ""}">
           ${bot.is_workspace_coordinator ? '<span class="tag" id="workspace-coordinator-pill" aria-label="Workspace coordinator"><span class="coordinator-label-wide">Workspace coordinator</span><span class="coordinator-label-compact" aria-hidden="true">Coordinator</span></span>' : ""}
@@ -4900,7 +4915,7 @@ async function renderBots() {
           <article class="bot-card" data-fleet-bot="${esc(b.name)}">
             <div class="bot-head">
               ${botAvatar(b.name, 32, botState(b) === "running" ? "running" : b.paused ? "paused" : "")}
-              <span class="bot-name" title="${esc(b.display_name || b.name)}">${esc(b.display_name || b.name)}</span>
+              <span class="bot-name" title="${esc(botHeading(b))}">${esc(botHeading(b))}</span>
               ${b.active_run_id ? statusChip(b.active_run_status, b.active_run_status_label) : `<span class="tag">${esc(botStatusLabel(b))}</span>`}
             </div>
             <p class="bot-desc">${esc(b.description || "Ready when you are.")}</p>
@@ -5299,7 +5314,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   setTopContext(`
     <div class="ctx-id">
       ${botAvatar(b.name, 30)}
-      <div class="ctx-heading"><h1>${esc(b.display_name || b.name)}</h1><span class="ctx-subtitle">Assistant settings</span></div>
+      <div class="ctx-heading"><h1 title="${esc(botHeading(b))}">${esc(botHeading(b))}</h1><span class="ctx-subtitle" title="${esc(botRole(b))}">Assistant settings${botRole(b) ? ` · ${esc(botRole(b))}` : ""}</span></div>
     </div>
     <div class="ctx-actions">
       <details class="assistant-settings-menu">
@@ -7590,15 +7605,14 @@ function suggestBotRoleName(purpose) {
 }
 
 function suggestBotDisplayName(purpose, existingBots = botsCache) {
-  const role = suggestBotRoleName(purpose);
-  if (!role) return "";
+  if (!suggestBotRoleName(purpose)) return "";
   const givenNames = ["Avery", "Jordan", "Riley", "Morgan", "Casey", "Taylor", "Rowan", "Quinn",
     "Alex", "Jamie", "Cameron", "Sage", "Reese", "Drew", "Robin", "Sam"];
   const familyNames = ["Bennett", "Chen", "Clarke", "Ellis", "James", "Kim", "Lee", "Morgan",
     "Patel", "Reed", "Rivera", "Shah", "Singh", "Taylor", "Walker", "Wright"];
   const identities = givenNames.flatMap(given => familyNames.map(family => `${given} ${family}`));
   const occupied = new Set((existingBots || []).map(bot =>
-    (bot.display_name || bot.name || "").trim().split(" · ", 1)[0].toLowerCase()));
+    String(bot.display_name || bot.name || "").trim().split(" · ", 1)[0].toLowerCase()));
   let seed = 0;
   for (const char of `${purpose || ""}`.toLowerCase()) seed = (Math.imul(seed, 31) + char.charCodeAt(0)) | 0;
   const start = (seed >>> 0) % identities.length;
@@ -7608,12 +7622,11 @@ function suggestBotDisplayName(purpose, existingBots = botsCache) {
     if (!occupied.has(candidate.toLowerCase())) { identity = candidate; break; }
   }
   if (!identity) identity = `${identities[start]} ${(existingBots || []).length + 1}`;
-  return `${identity} · ${role}`;
+  return identity;
 }
 
-function suggestedBotAddress(displayName) {
-  const pieces = (displayName || "").split(" · ");
-  const addressSource = pieces[pieces.length - 1];
+function suggestedBotAddress(roleName) {
+  const addressSource = roleName || "";
   const normalized = addressSource.normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 41).replace(/-+$/g, "");
   return normalized.length >= 2 ? normalized : "workspace-assistant";
@@ -7694,7 +7707,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     useConversationSource: !duplicateBot && !!conversationSource,
     selectedContextMessageIds: new Set(),
     template: chosenTemplate?.name || "", preset: duplicateBot?.preset || chosenTemplate?.preset || "", name: "",
-    display_name: duplicateBot ? `${duplicateBot.display_name || duplicateBot.name} copy`.slice(0, 80) : "",
+    display_name: duplicateBot ? `${botHeading(duplicateBot)} copy`.slice(0, 80) : "",
     description: duplicateBot?.description || "", model: modelSuggestion,
     purposeRefinement: null, purposeRefinementStatus: "",
     purposeClarificationHistory: [], purposeClarificationQuestion: null,
@@ -7711,6 +7724,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
   let presetEdited = false;
   draft.memory_enabled = draft.tools.has("remember") || draft.tools.has("recall");
   let displayNameEdited = !!duplicateBot;
+  let descriptionEdited = !!duplicateBot?.description;
   let addressEdited = false;
   const occupiedAddresses = new Set(botsCache.map(bot => bot.name));
   const uniqueAddress = value => {
@@ -7724,12 +7738,16 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     return base;
   };
   const refreshSuggestedIdentity = () => {
+    const role = suggestBotRoleName(draft.purpose);
     if (!displayNameEdited) draft.display_name = suggestBotDisplayName(draft.purpose);
-    if (!addressEdited) draft.name = uniqueAddress(draft.display_name);
+    if (!descriptionEdited) draft.description = role;
+    if (!addressEdited) draft.name = uniqueAddress(role);
   };
   const refreshNamePreview = () => {
     const displayName = $("#setup-display_name");
     if (displayName && !displayNameEdited) displayName.value = draft.display_name;
+    const description = $("#setup-description");
+    if (description && !descriptionEdited) description.value = draft.description;
     const address = $("#setup-name");
     if (address && !addressEdited) address.value = draft.name;
   };
@@ -7762,7 +7780,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       source_message_id: conversationSource.message_id, purpose: draft.purpose,
       selected_context_message_ids: [...draft.selectedContextMessageIds],
       display_name: draft.display_name, name: draft.name,
-      display_name_edited: displayNameEdited, address_edited: addressEdited,
+      description: draft.description, display_name_edited: displayNameEdited,
+      description_edited: descriptionEdited, address_edited: addressEdited,
       clarification_history: draft.purposeClarificationHistory,
       clarification_question: draft.purposeClarificationQuestion,
       clarification_choice: draft.purposeClarificationChoice,
@@ -7819,6 +7838,9 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     }
     if (saved.display_name_edited && typeof saved.display_name === "string" && saved.display_name.length <= 80) {
       draft.display_name = saved.display_name; displayNameEdited = true;
+    }
+    if (saved.description_edited && typeof saved.description === "string" && saved.description.length <= 240) {
+      draft.description = saved.description; descriptionEdited = true;
     }
     if (saved.address_edited && typeof saved.name === "string" && /^[a-z0-9][a-z0-9-]{1,40}$/.test(saved.name)) {
       draft.name = saved.name; addressEdited = true;
@@ -7967,6 +7989,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     clearPurposeSetupProgress();
     draft.purposeRefinementStatus = "";
     displayNameEdited = true;
+    descriptionEdited = true;
     addressEdited = true;
     modelSuggestion = draft.model;
     modelSuggestionSource = "import";
@@ -8193,6 +8216,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       <p class="setup-assistant">Here’s the setup you chose. Creating it saves the bot only; it will not start a run.</p>
       <dl class="setup-review-list">
         <div><dt>Display name</dt><dd>${esc(draft.display_name)}</dd></div>
+        <div><dt>Short note</dt><dd>${esc(draft.description.trim() || "None")}</dd></div>
         <div><dt>Bot address</dt><dd>${esc(draft.name)}</dd></div>
         <div><dt>Purpose</dt><dd>${esc(draft.purpose)}</dd></div>
         ${sourceReview}
@@ -8231,7 +8255,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       ${duplicateBot ? `<p class="hint setup-duplicate-note">Starting from <b>${esc(duplicateBot.display_name || duplicateBot.name)}</b>. Instructions, model route, inference mode, workspace type and limits are copied. Tools, connected accounts, schedules, memory values, custom provider URLs, local folders, browser handoff and chat history are not copied. Review the new setup before saving.</p>` : ""}
       ${conversationSource ? `<label class="setup-context-source"><input id="setup-use-source" type="checkbox" ${draft.useConversationSource ? "checked" : ""}>
         <span><b>Use this request as the Bot’s instructions</b><small>From ${esc(conversationSource.source_bot_name)} · ${esc(conversationSource.conversation_title)} · message ${conversationSource.sequence}.</small><small class="setup-request-preview">${esc(truncate(conversationSource.original_request.replace(/\s+/g, " ").trim(), 220))}</small></span></label>
-        ${!draft.forceAdvanced ? `<p class="hint setup-source-note">The request you already gave becomes the starting instructions. No need to enter it again.</p>` : `<p class="setup-assistant">Only this request and earlier user messages you select are included in this Bot draft. Assistant replies and other chats stay private; selected text cannot change tools, accounts or permissions.</p>`}`
+        ${draft.forceAdvanced ? `<p class="setup-assistant">Only this request and earlier user messages you select are included in this Bot draft. Assistant replies and other chats stay private; selected text cannot change tools, accounts or permissions.</p>` : ""}`
         : ""}
       ${draft.forceAdvanced ? `<details class="setup-schedule setup-yaml-import" id="setup-yaml-import-details" ${draft.yamlImportExpanded ? "open" : ""}>
         <summary>Load a saved YAML setup</summary>
@@ -8269,13 +8293,13 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
             ${purposeRefinementHtml()}
           </div>
         </details>` : ""}
-      <label class="field" for="setup-display_name">Assistant name<input id="setup-display_name" maxlength="80" autocomplete="off" placeholder="Avery Morgan · Project Status Reporter" value="${esc(draft.display_name)}" required>
-        <span class="hint">Suggested from your request. You can change it now or later.</span></label>
+      <label class="field" for="setup-display_name">Assistant name<input id="setup-display_name" maxlength="80" autocomplete="off" placeholder="Avery Chen" value="${esc(draft.display_name)}" required>
+        <span class="hint">Suggested from your request. Rename it anytime.</span></label>
       <details class="setup-schedule setup-identity">
-        <summary>Advanced name options</summary>
+        <summary>Advanced details</summary>
         <div class="form-grid">
           <label class="field" for="setup-name">Internal address<input id="setup-name" maxlength="41" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="release-notes-reviewer" value="${esc(draft.name)}" required>
-            <span class="hint">A stable local identifier. It follows your chosen name until you edit it.</span></label>
+            <span class="hint">A stable local identifier based on the task. Most people can leave it as suggested.</span></label>
           <label class="field" for="setup-description">Short note<input id="setup-description" maxlength="240" placeholder="What people can ask this assistant to do" value="${esc(draft.description)}"></label>
         </div>
       </details>
@@ -8382,7 +8406,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       ? draft.useConversationSource : !!prefillPurpose.trim());
     title.textContent = sourceQuick ? "Create from this request" : stepTitles[step];
     const progress = step === 0 && !draft.forceAdvanced
-      ? sourceQuick ? "Your request is already selected · review the name and starting settings"
+      ? sourceQuick ? "Your request is already selected · no need to enter it again"
         : "Quick setup · safe defaults; customize anything before creating"
       : `Step ${step + 1} of ${stepTitles.length}`;
     body.innerHTML = `<div class="bot-setup" aria-live="polite"><div class="setup-progress">${progress}</div>${back}${content}<p class="setup-error" id="bot-setup-error" role="alert" hidden></p></div>`;
@@ -8530,11 +8554,11 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       displayNameEdited = true;
       draft.display_name = event.currentTarget.value;
       refreshNamePreview();
-      if (!addressEdited) {
-        draft.name = uniqueAddress(draft.display_name);
-        const address = $("#setup-name");
-        if (address) address.value = draft.name;
-      }
+      persistPurposeSetupDraft();
+    });
+    $("#setup-description")?.addEventListener("input", event => {
+      descriptionEdited = true;
+      draft.description = event.currentTarget.value;
       persistPurposeSetupDraft();
     });
     $("#setup-name")?.addEventListener("input", event => {

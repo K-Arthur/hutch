@@ -24,6 +24,12 @@
   disclosures during transcript refresh.
 - Keep ordinary assistant names whole on one sidebar line; use an ellipsis only
   when a custom name exceeds the available row width.
+- Suggest a short, professional assistant name from the request and keep its
+  inferred task role in an editable note. Show name and role separately in chat,
+  settings, the sidebar, and larger assistant rosters; routine Idle text yields
+  to the task role, while urgent status stays first. Changing the display name
+  no longer changes the task-based local address. Existing combined names remain
+  readable, and creating from a chat request still avoids asking for it again.
 - Put pending approvals and uncertain outcomes ahead of optional browser-alert
   settings in **Needs you**. Keep notification controls in one collapsed
   disclosure, with a visible On/Off/Blocked/Unavailable state.

@@ -54,8 +54,8 @@
     }
   ],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
-    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
-    "tests/e2e/test_browser.py": "cb110cb5fb29bab353bc2c87d883f43f3a237301df33b2136a4c50ed04b03238"
+    "src/hutch/server/static/app.js": "b7ad53e1460a5689fc3bfc72924d79e6bf993e9f6ae1ffc6f41a991ade5f46f0",
+    "src/hutch/server/static/style.css": "625becaca00811feef06b7d7d11df029d2d79ff34fe49b327620247f86ccee3c",
+    "tests/e2e/test_browser.py": "d5096e8cccf501438678ad03cb673055550a980983bfa84c692a3c821447b241"
   }
 }

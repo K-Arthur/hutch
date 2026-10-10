@@ -17,7 +17,7 @@
       844
     ]
   },
-  "scenario": "purpose-derived names pair a non-duplicated friendly teammate name with a clear monitor/reviewer/organizer/reminder/reporter role; role names preserve follow-up compounds, trim secondary/time/status clauses, normalize reminder actions and receipt nouns, and identify the workspace coordinator; local addresses follow roles; the owner can edit either value; chats keep the AI Bot label and role visible at every viewport; no run or model/provider request occurs",
+  "scenario": "purpose-derived short teammate names keep inferred task roles in descriptions and headers; role names preserve follow-up compounds, trim secondary/time/status clauses, normalize reminder actions and receipt nouns, and identify the workspace coordinator; local addresses follow roles independently of custom display names; the owner can edit either value; chat, settings, roster, and ten-assistant management views keep names on one line with long-name ellipses; no provider request occurs",
   "inspected_screenshots": [
     "chat-identity-desktop.png",
     "chat-identity-tablet.png",
@@ -25,6 +25,12 @@
     "automatic-name-desktop.png",
     "automatic-name-tablet.png",
     "automatic-name-phone.png",
+    "settings-identity-desktop.png",
+    "settings-identity-tablet.png",
+    "settings-identity-phone.png",
+    "fleet-identity-desktop.png",
+    "fleet-identity-tablet.png",
+    "fleet-identity-phone.png",
     "identity-desktop.png",
     "identity-tablet.png",
     "identity-phone.png",
@@ -41,9 +47,9 @@
   ],
   "page_errors": [],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
-    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
-    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
-    "tests/e2e/test_browser.py": "cb110cb5fb29bab353bc2c87d883f43f3a237301df33b2136a4c50ed04b03238"
+    "src/hutch/server/static/app.js": "dd59577ec8d97a1877b7448644b983b4f6bfa3a44a9df0c74b7d0bc2d13b1570",
+    "src/hutch/server/static/style.css": "625becaca00811feef06b7d7d11df029d2d79ff34fe49b327620247f86ccee3c",
+    "src/hutch/server/app.py": "743ab6fae831bef9bed41f842ac4775b9f1f9cca2e7df177d3f0ceb0934f71f3",
+    "tests/e2e/test_browser.py": "93d9bd9256bacaaf28d70bcb2f96bca3e9b1f05b72ae65ecefec34d5c2d4d5d7"
   }
 }

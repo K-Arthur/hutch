@@ -1938,3 +1938,29 @@ and phone, and the opened assistant choices separately on desktop and phone.
 Evidence is in [`artifacts/ui-surface-review/`](artifacts/ui-surface-review/).
 This is a focused route refinement; it does not complete the all-surface UI
 overhaul.
+
+## Assistant naming, role separation, and roster truncation (2026-10-10)
+
+The request-based setup now suggests a short first-and-last assistant name and
+keeps its task role in a separate editable note. The task-based local address
+updates with the request but stays independent from a custom display name. The
+selected-request flow still saves the user's original message as instructions
+without asking them to enter it a second time. Legacy combined `Name · Role`
+values keep rendering as a short name with the role below it.
+
+The focused setup, YAML-import, settings-header, and all-route browser check
+passed **7 tests in 45.63s**. It covered purpose-derived names, user edits, chat
+and settings headers, sidebar rows, and the ten-assistant management view at
+**1440×960**, **900×1024**, and **390×844** with Chromium **153.0.8010.12** and
+Playwright **1.63.0**; selected-request setup also passed at those sizes.
+I inspected the chat welcome, setup dialog, settings page, and larger roster
+individually on desktop and phone, with tablet captures checked for overflow.
+The name stays on one line, the task remains visible as secondary text, and
+long management names retain their full accessible title when ellipsized. The
+roster uses the idle row for the task role and keeps status in its accessible
+title; active and attention states remain visible. No model/provider requests
+were made. Screenshots, trace, browser details, and
+source hashes are in
+[`artifacts/bot-naming-quality/`](artifacts/bot-naming-quality/) and
+[`artifacts/bot-from-message/`](artifacts/bot-from-message/). The broader
+all-surface UI review remains open.

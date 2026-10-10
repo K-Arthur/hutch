@@ -35,9 +35,9 @@ assistant identities; the marketing site may use the detailed 3D character.
 |---|---|---|
 | Chat / empty Studio | Individually reviewed at desktop, tablet, phone and compact phone; helper examples are collapsed below the message path | In progress |
 | Chat / populated, choices, replies, attachments, waits | Existing interaction evidence available; refresh after shell redesign | Open |
-| Assistant roster and one-action menu | One-line names, full-row selection and one grouped options menu checked at responsive sizes | Open |
-| Assistant management for larger rosters | Cards simplified; phone overflow and long names checked independently | In progress |
-| Assistant creation and identity | Request-preserving setup already implemented; visual simplification remains | Open |
+| Assistant roster and one-action menu | One-line human names, task/status subtitle, full-row selection and one grouped options menu checked at responsive sizes | In progress |
+| Assistant management for larger rosters | Ten-assistant threshold and one-line ellipsis behavior checked on desktop/tablet/phone | In progress |
+| Assistant creation and identity | Carries the source request forward; suggests a short name and task note, both editable; advanced details stay optional | In progress |
 | Assistant settings / advanced controls | Individually reviewed at desktop and phone | Open |
 | Needs you / approvals / human checkpoints | Approval-first queue; optional browser notifications collapsed by default and available from one disclosure | In progress |
 | Activity / schedules / history / task details | Each route independently reviewed at desktop and phone; responsive route coverage also checks tablet and compact phone | Redesign pass open |
@@ -188,6 +188,25 @@ requests, or browser errors occurred. Evidence and source hashes are in
 This improves one settings route. The individual route reviews are underway;
 the wider redesign of Studio, Connections, approvals, assistant management,
 supervision, preferences, and the complete marketing site remains open.
+
+### Short assistant names and task roles — verified (2026-10-10)
+
+New assistants now receive a short, human name from the request. Hutch keeps the
+inferred task role in the editable **Short note** field and shows it below the
+name in chat, settings, and the assistant roster. Routine **Idle** text yields
+to the task role in the roster; the full hover title still includes status, and
+urgent status remains visible first. Existing `Name · Role`
+records remain readable as a name plus role. Changing the display name no
+longer changes the task-based local address; users who want a different address
+can still edit it under **Advanced details**. Creating an assistant from a
+selected chat request still carries the original words into its instructions
+without asking for them again.
+
+The browser check covers purpose changes, role-derived addresses, manual name
+and note overrides, selected-request creation, chat/settings headers, a ten-
+assistant management roster, and long-name ellipses across desktop, tablet, and
+phone. The broader review of settings, chats, Connections, supervision, and
+marketing remains open; this identity change does not complete the overhaul.
 
 The current route-baseline pass now has independent captures for Studio,
 Activity, Scheduled work, Manage assistants, Past work, Needs you, Apps & AI,

@@ -4970,7 +4970,10 @@ def test_quick_bot_creation_uses_the_workspace_default_without_starting_work(bro
         page.get_by_label("What would you like this assistant to handle?").fill(purpose)
         name_input = page.get_by_label("Assistant name")
         assert name_input.is_visible() and name_input.is_enabled()
-        assert name_input.input_value().endswith(" · Project Reporter")
+        assert re.fullmatch(r"[A-Z][a-z]+ [A-Z][a-z]+", name_input.input_value())
+        page.locator(".setup-identity summary").click()
+        assert page.locator("#setup-description").input_value() == "Project Reporter"
+        page.locator(".setup-identity summary").click()
         name_style = name_input.evaluate("""el => {
           const style = getComputedStyle(el);
           return {height: el.getBoundingClientRect().height, borderStyle: style.borderStyle,
@@ -5062,8 +5065,9 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         page.get_by_label("What would you like this assistant to handle?").fill(
             "Review release notes and prepare a short summary of changes that affect our project.")
         suggested_name = page.get_by_label("Assistant name").input_value()
-        assert suggested_name.endswith(" · Release Notes Reviewer")
-        assert len(suggested_name.split(" · ", 1)[0].split()) == 2
+        assert re.fullmatch(r"[A-Z][a-z]+ [A-Z][a-z]+", suggested_name)
+        page.locator(".setup-identity summary").click()
+        assert page.locator("#setup-description").input_value() == "Release Notes Reviewer"
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.screenshot(path=str(out / f"purpose-{label}.png"), animations="disabled")
@@ -5079,7 +5083,6 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
             assert metrics["footerVisible"], (label, metrics)
         page.set_viewport_size({"width": 390, "height": 844})
         page.locator("#setup-display_name").fill("Release Notes Reviewer")
-        page.locator(".setup-identity summary").click()
         page.locator("#setup-name").fill("guided-release-reviewer")
         page.get_by_label("Short note").fill("Summarize project release notes")
         page.locator("#modal-confirm").click()
@@ -6170,17 +6173,33 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
         page.goto(f"{base}/#/chat")
         first_request = "Track the launch checklist and notify me when a blocker needs attention."
         occupied_name = page.evaluate("purpose => suggestBotDisplayName(purpose, [])", first_request)
-        app.state.store.create_bot(Bot(name="occupied-name", display_name=occupied_name, model="mock/demo", tools=[]))
+        occupied_name = occupied_name.split(" · ", 1)[0]
+        expected_role = "Launch Checklist Monitor"
+        app.state.store.create_bot(Bot(name="occupied-name", display_name=occupied_name,
+                                       description=expected_role, model="mock/demo", tools=[]))
         page.reload()
         page.locator("#roster-list [data-switch-bot]").wait_for()
-        expected_person, expected_role = occupied_name.split(" · ", 1)
+        expected_person = occupied_name
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.locator(".ctx-subtitle").wait_for(state="visible")
             assert page.locator(".ctx-id h1").inner_text() == expected_person
-            assert page.locator(".ctx-subtitle").inner_text() == f"AI bot · {expected_role}"
+            assert page.locator(".ctx-subtitle").inner_text() == f"AI assistant · {expected_role}"
+            roster_name = page.locator('#roster-list [data-switch-bot="occupied-name"] .roster-name')
+            assert roster_name.inner_text() == expected_person
+            assert page.locator('#roster-list [data-switch-bot="occupied-name"] .roster-sub').inner_text() == expected_role
             assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
             page.screenshot(path=str(out / f"chat-identity-{label}.png"), animations="disabled")
+        page.goto(f"{base}/#/bot/occupied-name")
+        page.locator(".ctx-id h1").wait_for()
+        assert page.locator(".ctx-id h1").inner_text() == expected_person
+        assert page.locator(".ctx-subtitle").inner_text() == "Assistant settings · Launch Checklist Monitor"
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+            page.screenshot(path=str(out / f"settings-identity-{label}.png"), animations="disabled")
+        page.goto(f"{base}/#/chat/occupied-name")
+        page.locator(".ctx-id h1").wait_for()
         page.set_viewport_size({"width": 1440, "height": 960})
         page.locator("#topbar-new-bot").click()
         display_name = page.locator("#setup-display_name")
@@ -6193,16 +6212,19 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
         purpose.fill(first_request)
         address = page.locator("#setup-name")
         page.locator(".setup-identity summary").click()
+        description = page.locator("#setup-description")
+        page.locator(".setup-identity summary").click()
 
         def assert_identity(role: str, local_address: str) -> str:
-            identity, actual_role = display_name.input_value().split(" · ", 1)
+            identity = display_name.input_value()
             assert re.fullmatch(r"[A-Z][a-z]+ [A-Z][a-z]+", identity)
-            assert actual_role == role
+            assert " · " not in identity
+            assert description.input_value() == role
             assert address.input_value() == local_address
             return identity
 
         first_identity = assert_identity("Launch Checklist Monitor", "launch-checklist-monitor")
-        assert first_identity != occupied_name.split(" · ", 1)[0]
+        assert first_identity != occupied_name
         purpose.fill("Track my follow-up tasks from each meeting and remind me when anything is overdue.")
         assert_identity("Follow-up Task Monitor", "follow-up-task-monitor")
         purpose.fill("Organize my receipts into monthly folders and tell me when one is missing.")
@@ -6230,8 +6252,15 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
         purpose.fill("Review release notes for changes affecting our project.")
         assert_identity("Release Notes Reviewer", "release-notes-reviewer")
 
+        page.locator(".setup-identity summary").click()
+        description.fill("A note I wrote myself")
+        purpose.fill("Review monthly security alerts for my team.")
+        assert display_name.input_value() != ""
+        assert description.input_value() == "A note I wrote myself"
+        assert address.input_value() == "security-alerts-reviewer"
+
         display_name.fill("Launch Readiness Analyst")
-        assert address.input_value() == "launch-readiness-analyst"
+        assert address.input_value() == "security-alerts-reviewer"
         address.fill("launch-ops")
 
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
@@ -6261,7 +6290,7 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
         page.locator("#modal-confirm").click()
         page.get_by_role("heading", name="Review and create").wait_for()
         review = page.locator(".setup-review-list").inner_text()
-        assert "Launch Readiness Analyst" in review and "launch-ops" in review
+        assert "Launch Readiness Analyst" in review and "A note I wrote myself" in review and "launch-ops" in review
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.screenshot(path=str(out / f"review-{label}.png"), animations="disabled")
@@ -6289,27 +6318,50 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
         assert created.value.status == 201, created.value.text()
         bot = app.state.store.get_bot("launch-ops")
         assert bot is not None and bot.display_name == "Launch Readiness Analyst"
-        assert bot.instructions == "Review release notes for changes affecting our project."
+        assert bot.description == "A note I wrote myself"
+        assert bot.instructions == "Review monthly security alerts for my team."
         assert app.state.store.list_runs() == []
         assert not any("/chat/completions" in url or "/responses" in url for url in requests)
         page.locator(".ctx-id h1").wait_for()
         assert page.locator(".ctx-id h1").inner_text() == "Launch Readiness Analyst"
-        assert page.locator(".ctx-subtitle").get_by_text("AI bot").is_visible()
+        assert page.locator(".ctx-subtitle").inner_text() == "AI assistant · A note I wrote myself"
+        if page.locator(".toast-close").count():
+            page.locator(".toast-close").last.click()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.screenshot(path=str(out / f"chat-{label}.png"), animations="disabled")
             metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight],
               documentWidth:document.documentElement.scrollWidth, headingVisible:!!document.querySelector('.ctx-id h1')})""")
             assert metrics["documentWidth"] - width <= 1 and metrics["headingVisible"], (label, metrics)
+        for index in range(8):
+            app.state.store.create_bot(Bot(
+                name=f"roster-helper-{index}",
+                display_name="Quarterly Cross-functional Project Research and Reporting Assistant " + str(index),
+                description="Supports a shared team workflow.", model="mock/demo", tools=[]))
+        page.goto(f"{base}/#/bots")
+        page.get_by_role("heading", name="Manage assistants").wait_for()
+        card = page.locator('[data-fleet-bot="occupied-name"]')
+        assert card.locator(".bot-name").inner_text() == expected_person
+        assert card.locator(".bot-desc").inner_text() == expected_role
+        long_name = page.locator('[data-fleet-bot="roster-helper-0"] .bot-name')
+        assert long_name.evaluate("element => getComputedStyle(element).whiteSpace") == "nowrap"
+        assert long_name.evaluate("element => getComputedStyle(element).textOverflow") == "ellipsis"
+        assert long_name.get_attribute("title").startswith("Quarterly Cross-functional")
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+            page.screenshot(path=str(out / f"fleet-identity-{label}.png"), animations="disabled")
         assert not errors, errors
         (out / "validation.json").write_text(json.dumps({
             "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes",
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright_version": package_version("playwright"),
             "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
-            "scenario": "purpose-derived names pair a non-duplicated friendly teammate name with a clear monitor/reviewer/organizer/reminder/reporter role; role names preserve follow-up compounds, trim secondary/time/status clauses, normalize reminder actions and receipt nouns, and identify the workspace coordinator; local addresses follow roles; the owner can edit either value; chats keep the AI Bot label and role visible at every viewport; no run or model/provider request occurs",
+            "scenario": "purpose-derived short teammate names keep inferred task roles in descriptions and headers; role names preserve follow-up compounds, trim secondary/time/status clauses, normalize reminder actions and receipt nouns, and identify the workspace coordinator; local addresses follow roles independently of custom display names; the owner can edit either value; chat, settings, roster, and ten-assistant management views keep names on one line with long-name ellipses; no provider request occurs",
             "inspected_screenshots": [f"chat-identity-{size}.png" for size in ("desktop", "tablet", "phone")]
                                      + [f"automatic-name-{size}.png" for size in ("desktop", "tablet", "phone")]
+                                     + [f"settings-identity-{size}.png" for size in ("desktop", "tablet", "phone")]
+                                     + [f"fleet-identity-{size}.png" for size in ("desktop", "tablet", "phone")]
                                      + [f"identity-{size}.png" for size in ("desktop", "tablet", "phone")]
                                      + ["identity-phone-address-visible.png"]
                                      + [f"review-{size}.png" for size in ("desktop", "tablet", "phone")]
@@ -6374,10 +6426,11 @@ def test_bot_creation_reuses_only_the_selected_chat_messages_and_keeps_provenanc
         assert not purpose.is_visible()
         page.locator("#setup-purpose-editor > summary").click()
         purpose.fill("Track the launch checklist; notify me when a blocker needs attention.")
-        assert page.locator("#setup-display_name").input_value() == "Avery Shah · Launch Checklist Monitor"
+        assert re.fullmatch(r"[A-Z][a-z]+ [A-Z][a-z]+", page.locator("#setup-display_name").input_value())
+        page.locator(".setup-identity summary").click()
+        assert page.locator("#setup-description").input_value() == "Launch Checklist Monitor"
         page.set_viewport_size({"width": 390, "height": 844})
         page.locator("#setup-display_name").fill("Launch Checklist Monitor")
-        page.locator(".setup-identity summary").click()
         page.locator("#setup-name").fill("launch-checklist")
         page.locator("#setup-customize").click()
         model_route = page.get_by_label("Model route")
@@ -6560,7 +6613,7 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
         assert page.locator("#setup-purpose").input_value() == selected_request
         assert not page.locator("#setup-purpose").is_visible(), "the selected request is already the instruction; editing stays optional"
         assert "Use this request as the Bot’s instructions" in page.locator(".setup-context-source").inner_text()
-        assert "No need to enter it again" in page.locator(".setup-source-note").inner_text()
+        assert "no need to enter it again" in page.locator(".bot-setup").inner_text().lower()
         assert page.locator("#setup-display_name").input_value()
         assert page.locator(".setup-quick-summary").is_visible()
         assert page.locator("#modal-confirm").inner_text() == "Create bot"
@@ -6587,8 +6640,12 @@ def test_user_can_start_bot_setup_from_the_exact_chat_request(browser, live, mon
                              "name_visible": True, "defaults_visible": True, "selected_message": "selected-request-message"})
         assert len(store.list_bots()) == bot_count_before and len(store.list_runs(limit=100)) == run_count_before
         suggested_name = page.locator("#setup-display_name").input_value()
-        assert suggested_name, "the selected request should produce an initial professional Bot name"
-        custom_name = "Taylor Reed · Rollout Reviewer"
+        assert re.fullmatch(r"[A-Z][a-z]+ [A-Z][a-z]+", suggested_name), (
+            "the selected request should produce a short professional name")
+        page.locator(".setup-identity summary").click()
+        assert page.locator("#setup-description").input_value() == "Supplier Proposals Reviewer"
+        page.locator(".setup-identity summary").click()
+        custom_name = "Taylor Reed"
         page.locator("#setup-display_name").fill(custom_name)
         with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
                                  and response.request.method == "POST") as created:
@@ -9432,6 +9489,29 @@ def test_chat_choice_question_is_selectable_and_readable_at_all_viewports(browse
         answered = run_card.locator(".choice-card.answered")
         answered.wait_for(state="visible")
         assert answered.locator(".choice-selection span").all_inner_texts() == ["Risks", "Timeline"]
+        answer_run = response.json()
+        answer_card = page.locator(f'#chat-stream [data-run-id="{answer_run["id"]}"]')
+        answer_bubble = answer_card.locator(".msg.you .bubble")
+        answer_bubble.wait_for(state="visible")
+        page.wait_for_function("""() => {
+          const scroll = document.querySelector('#chat-scroll');
+          const bubble = [...document.querySelectorAll('#chat-stream .thread')].at(-1)?.querySelector('.msg.you .bubble');
+          const composer = document.querySelector('.composer');
+          if (!scroll || !bubble || !composer) return false;
+          const bubbleRect = bubble.getBoundingClientRect();
+          const composerRect = composer.getBoundingClientRect();
+          return scroll.scrollTop + scroll.clientHeight >= scroll.scrollHeight - 2
+            && bubbleRect.bottom <= composerRect.top + 1;
+        }""")
+        answer_scroll = page.evaluate("""() => {
+          const scroll = document.querySelector('#chat-scroll');
+          const bubble = [...document.querySelectorAll('#chat-stream .thread')].at(-1)?.querySelector('.msg.you .bubble');
+          const composer = document.querySelector('.composer');
+          return {
+            at_latest: scroll.scrollTop + scroll.clientHeight >= scroll.scrollHeight - 2,
+            answer_above_composer: bubble.getBoundingClientRect().bottom <= composer.getBoundingClientRect().top + 1,
+          };
+        }""")
         if page.locator(".toast-close").count():
             page.locator(".toast-close").last.click()
         for label, (width, height) in sizes.items():
@@ -9442,7 +9522,8 @@ def test_chat_choice_question_is_selectable_and_readable_at_all_viewports(browse
             trace.append({"viewport": label, "size": [width, height], "state": "answered",
                           "api_status": response.status,
                           "answer_run_initial_status": response.json()["status"],
-                          "selected_labels": ["Risks", "Timeline"], "horizontal_overflow": overflow})
+                          "selected_labels": ["Risks", "Timeline"], "horizontal_overflow": overflow,
+                          "answer_scroll": answer_scroll})
 
         assert not errors, errors
         context.tracing.stop(path=str(out / "trace.zip"))
