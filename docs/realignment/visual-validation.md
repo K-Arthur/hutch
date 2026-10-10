@@ -1323,3 +1323,18 @@ mascot silhouettes and their per-shape face geometry remain covered separately i
 
 The implementation and focused screenshots are committed locally on `main` as `160af58`. No provider call, external request, push,
 or publication occurred.
+
+## Google Calendar event-creation approval (2026-10-10)
+
+I inspected the Connection surface and grant confirmation separately at desktop **1440×960**, tablet **900×1024**, phone **390×844**,
+and compact phone **320×740**. The exact event-creation grant copy was also opened individually at desktop and phone sizes. The
+mobile form wraps within the viewport, preserves the full permission disclosure, and keeps actions reachable; all sizes report zero
+horizontal overflow. Evidence and trace are in [`artifacts/google-calendar-event-creation/`](artifacts/google-calendar-event-creation/),
+and the read-only connection journey remains in [`artifacts/google-calendar/`](artifacts/google-calendar/). The journey uses synthetic
+account/calendar fixtures and made no Google calls or external requests. Chromium **153.0.8010.12** / Playwright **1.63.0**.
+
+The focused provider/API/migration and two responsive browser journeys passed **56 tests**. Python compilation, JavaScript syntax,
+`git diff --check`, and scoped Impeccable detection (`[]`) passed. Live Google sign-in, consent, provider behavior, screen-reader and
+physical-device validation remain open. Mobbin's connector returned the paid-plan restriction; Figma library discovery returned
+`INVALID_ARGUMENT` and `whoami` confirmed the connected Starter plan, so the page follows Hutch's existing visual system and does not
+claim a fresh Mobbin or Figma screen reference.

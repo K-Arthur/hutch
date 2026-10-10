@@ -5826,12 +5826,12 @@ async function renderConnections() {
   const googleCalendarAccountsHtml = (googleCalendar.accounts || []).map(account => {
     const grants = (googleCalendar.grants || []).filter(grant => grant.account_id === account.id);
     const grantRows = grants.length ? grants.map(grant => `
-      <div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Can read ${esc(grant.calendar_name)} · ${esc(account.label)}</p></div>
+      <div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">${grant.allow_event_creation ? "Can read and create events on" : "Can read"} ${esc(grant.calendar_name)} · ${esc(account.label)}${grant.allow_event_creation ? " · every creation needs approval" : ""}</p></div>
         <button class="btn ghost small" type="button" data-google-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")
       : '<p class="hint">No Bot has access to this account.</p>';
     return `<article class="google-calendar-account" data-google-calendar-account="${esc(account.id)}">
       <div class="device-row"><div><strong>${esc(account.label)}</strong> <span class="chip ok">connected</span>
-        <p class="hint">Read-only calendar-list and event scopes · connected ${esc(new Date(account.created_at).toLocaleDateString())}</p></div>
+        <p class="hint">${account.can_create_events ? "Calendar read and event-creation scope" : "Read-only calendar-list and event scopes"} · connected ${esc(new Date(account.created_at).toLocaleDateString())}</p></div>
         <button class="btn danger small" type="button" data-google-calendar-disconnect="${esc(account.id)}">Disconnect</button>
       </div>
       <div class="google-calendar-grants" aria-label="Bots with calendar access">${grantRows}</div>
@@ -5845,6 +5845,10 @@ async function renderConnections() {
         <label class="field" hidden data-google-calendar-calendar-field>Calendar
           <select data-google-calendar-calendar aria-label="Calendar to grant" disabled><option value="">Choose a calendar…</option></select>
         </label>
+        ${account.can_create_events ? `<label class="background-consent-row calendar-create-consent">
+          <input type="checkbox" data-google-calendar-create-access disabled>
+          <span>Allow event creation after each approval<small>Only calendars you own qualify. Guests, invitations, edits and deletion stay unavailable.</small></span>
+        </label>` : '<p class="hint">This account is read-only. To grant event creation, reconnect with the explicit event-creation option below.</p>'}
         <button class="btn primary small" type="button" data-google-calendar-grant="${esc(account.id)}" disabled>Grant read access</button>
         <p class="hint" role="status" aria-live="polite" data-google-calendar-status></p>
       </div>
@@ -5957,9 +5961,9 @@ async function renderConnections() {
       </section>
       <section class="panel conn-card google-calendar-card" aria-labelledby="google-calendar-title">
         <div class="bot-head"><span class="bot-name" id="google-calendar-title">Google Calendar</span>
-          <span class="tag">read only</span><span class="tag">local desktop sign in</span></div>
-        <p class="hint">Connect with Google's official installed-app flow. Hutch can list calendars and read events only. Grant one calendar to one Bot; matching event titles, times and locations go to that Bot's selected model and remain in its run history. Descriptions and attendee details are not included.</p>
-        <p class="hint"><strong>Google permission:</strong> Google's OAuth grant is read-only at the account level; Hutch exposes only the calendar you select to each Bot. Calendar content is untrusted and cannot approve actions.</p>
+          <span class="tag">experimental</span><span class="tag">local desktop sign in</span></div>
+        <p class="hint">Connect with Google's official installed-app flow. By default, Hutch reads event titles, times and locations from one calendar you grant to one Bot. You can separately request event-creation access; Hutch shows each guest-free event in chat and waits for your exact approval before creating it.</p>
+        <p class="hint"><strong>Google permission:</strong> event creation requires a broader account-level scope that can change or delete events on calendars you own. Google desktop OAuth cannot add that scope later, so it needs a separate sign-in. Hutch exposes only guest-free event creation on the one calendar you choose; it offers no event edits, deletes or invitations. Public OAuth verification and live account tests remain incomplete.</p>
         <details class="google-oauth-setup" id="google-oauth-setup" ${googleOAuthSetupOpen ? "open" : ""}>
           <summary>Google account setup <span class="chip ${googleOAuthClient.configured ? "ok" : "warn"}">${googleOAuthClient.configured ? "client ready" : "setup needed"}</span></summary>
           <div class="google-oauth-setup-body">
@@ -5984,8 +5988,12 @@ async function renderConnections() {
           <label class="field" for="google-calendar-label">Account label
             <input id="google-calendar-label" type="text" maxlength="80" autocomplete="off" placeholder="Personal or Work" aria-describedby="google-calendar-label-help">
           </label>
+          <label class="background-consent-row calendar-create-consent">
+            <input id="google-calendar-event-creation" type="checkbox">
+            <span>Also request event-creation access<small>Google's account-wide scope can also change or delete events on calendars you own. Hutch requires approval and offers creation on one selected calendar.</small></span>
+          </label>
           <button class="btn primary small" id="google-calendar-connect" type="button" ${!googleCalendar.configured || !googleCalendar.secret_store_available ? "disabled" : ""}>Connect Google Calendar</button>
-          <p class="hint" id="google-calendar-label-help">This label stays on this Hutch. Sign-in must start on the Hutch host at <code>127.0.0.1</code>; pair the phone after connecting here.</p>
+          <p class="hint" id="google-calendar-label-help">This label stays on this Hutch. A write-enabled sign-in is a separate account record; previous read-only accounts remain unchanged. Sign-in starts here and finishes in your system browser at <code>127.0.0.1</code>.</p>
         </div>
         ${googleCalendarAccountsHtml || '<p class="hint">No Google Calendar accounts connected.</p>'}
         ${orphanCalendarGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanCalendarGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-google-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
@@ -6217,6 +6225,7 @@ async function renderConnections() {
   $("#google-calendar-connect")?.addEventListener("click", async event => {
     const button = event.currentTarget;
     const label = $("#google-calendar-label")?.value.trim();
+    const allowEventCreation = !!$("#google-calendar-event-creation")?.checked;
     if (!label) { toast("Enter a label for this Google Calendar account.", true); $("#google-calendar-label")?.focus(); return; }
     // Google installed-app OAuth must run in a browser context, not inside a
     // form submit or embedded credential field. Open synchronously during the
@@ -6231,7 +6240,8 @@ async function renderConnections() {
     button.disabled = true;
     button.textContent = "Opening Google…";
     try {
-      const result = await api("/v1/connections/google-calendar/sign-in", { method: "POST", body: { label } });
+      const result = await api("/v1/connections/google-calendar/sign-in", {
+        method: "POST", body: { label, allow_event_creation: allowEventCreation } });
       let authUrl;
       try { authUrl = new URL(result.authorization_url); }
       catch { throw new Error("Hutch returned an invalid Google sign-in destination."); }
@@ -6241,7 +6251,9 @@ async function renderConnections() {
       }
       authWindow.location.replace(authUrl.href);
       button.textContent = "Connect Google Calendar";
-      toast("Finish Google sign-in in the new browser tab, then reload Connections here.");
+      toast(allowEventCreation
+        ? "Finish Google sign-in for event creation in the new browser tab. This creates a separate account record; reload Connections after returning."
+        : "Finish Google read-only sign-in in the new browser tab, then reload Connections here.");
     } catch (err) {
       authWindow.close();
       button.disabled = false;
@@ -6263,7 +6275,12 @@ async function renderConnections() {
       try {
         const result = await api(`/v1/connections/google-calendar/calendars?account_id=${encodeURIComponent(button.dataset.googleCalendarLoadCalendars)}`);
         const rows = result.calendars || [];
-        calendarSelect.innerHTML = `<option value="">Choose a calendar…</option>${rows.map(calendar => `<option value="${esc(calendar.id)}">${esc(calendar.name)}${calendar.primary ? " · primary" : ""}</option>`).join("")}`;
+        const account = (googleCalendar.accounts || []).find(row => row.id === button.dataset.googleCalendarLoadCalendars);
+        calendarSelect.innerHTML = `<option value="">Choose a calendar…</option>${rows.map(calendar => {
+          const canCreate = !!account?.can_create_events && calendar.access_role === "owner";
+          const capability = account?.can_create_events ? (canCreate ? " · event creation available" : " · read only here") : "";
+          return `<option value="${esc(calendar.id)}" data-calendar-name="${esc(calendar.name)}" data-calendar-owner="${canCreate ? "true" : "false"}">${esc(calendar.name)}${calendar.primary ? " · primary" : ""}${capability}</option>`;
+        }).join("")}`;
         calendarField.hidden = false;
         calendarSelect.disabled = false;
         grantButton.disabled = true;
@@ -6276,22 +6293,50 @@ async function renderConnections() {
   $$('[data-google-calendar-grant-form] [data-google-calendar-calendar]').forEach(select => {
     select.addEventListener("change", () => {
       const form = select.closest("[data-google-calendar-grant-form]");
-      $("[data-google-calendar-grant]", form).disabled = !select.value;
+      const button = $("[data-google-calendar-grant]", form);
+      const createAccess = $("[data-google-calendar-create-access]", form);
+      const canCreate = select.selectedOptions?.[0]?.dataset?.calendarOwner === "true";
+      if (createAccess) {
+        createAccess.disabled = !canCreate;
+        if (!canCreate && createAccess.checked) {
+          createAccess.checked = false;
+          $("[data-google-calendar-status]", form).textContent = "Google's event-creation scope covers calendars you own. This selection will stay read-only.";
+        }
+      }
+      button.disabled = !select.value;
+      button.textContent = $("[data-google-calendar-create-access]", form)?.checked
+        ? "Grant read and create access" : "Grant read access";
+    });
+  });
+  $$('[data-google-calendar-create-access]').forEach(input => {
+    input.addEventListener("change", () => {
+      const form = input.closest("[data-google-calendar-grant-form]");
+      const button = $("[data-google-calendar-grant]", form);
+      button.textContent = input.checked ? "Grant read and create access" : "Grant read access";
     });
   });
   $$('[data-google-calendar-grant]').forEach(button => {
     button.addEventListener("click", async () => {
       const form = button.closest("[data-google-calendar-grant-form]");
       const bot = $("[data-google-calendar-bot]", form).value;
-      const calendar = $("[data-google-calendar-calendar]", form).value;
+      const calendarSelect = $("[data-google-calendar-calendar]", form);
+      const calendar = calendarSelect.value;
+      const calendarName = calendarSelect.selectedOptions?.[0]?.dataset?.calendarName || calendar;
+      const allowEventCreation = !!$("[data-google-calendar-create-access]", form)?.checked;
       const status = $("[data-google-calendar-status]", form);
       const existing = (googleCalendar.grants || []).find(grant => grant.bot_id === bot);
-      if (existing && !(await confirmDialog({ title: "Replace calendar access", body: `<b>${esc(grantedBotLabel(existing))}</b> already has access to <b>${esc(existing.calendar_name)}</b>. Replace that grant with the selected calendar?`, confirmText: "Replace grant" }))) return;
+      const grantChange = allowEventCreation
+        ? `This enables that Bot to create guest-free events on one calendar. Each event still needs exact approval; event edits, deletion and invitations remain unavailable. Google's account-level scope can also change or delete events on every calendar you own.`
+        : "The Bot will have read-only access to the selected calendar.";
+      if (existing && !(await confirmDialog({ title: "Replace calendar access", body: `<b>${esc(grantedBotLabel(existing))}</b> already has access to <b>${esc(existing.calendar_name)}</b>. Replace it with access to <b>${esc(calendarName)}</b>? ${esc(grantChange)}`, confirmText: allowEventCreation ? "Review and replace" : "Replace grant" }))) return;
+      const selectedBotName = bots.find(candidate => candidate.id === bot)?.display_name || bots.find(candidate => candidate.id === bot)?.name || "this Bot";
+      if (!existing && allowEventCreation && !(await confirmDialog({ title: "Grant event creation", body: `<b>${esc(selectedBotName)}</b> can create events on <b>${esc(calendarName)}</b> after your approval of each exact event. Google’s account-level scope also permits changing and deleting events on calendars you own; Hutch itself offers creation only.`, confirmText: "Grant after review" }))) return;
       button.disabled = true;
       status.textContent = "Verifying the selected calendar with Google…";
       try {
         const result = await api("/v1/connections/google-calendar/grants", { method: "POST", body: {
-          bot, account_id: button.dataset.googleCalendarGrant, calendar_id: calendar } });
+          bot, account_id: button.dataset.googleCalendarGrant, calendar_id: calendar,
+          allow_event_creation: allowEventCreation } });
         toast(result.detail);
         await renderConnections();
       } catch (err) { status.textContent = err.message; button.disabled = false; }
@@ -6300,7 +6345,7 @@ async function renderConnections() {
   $$('[data-google-calendar-ungrant]').forEach(button => {
     button.addEventListener("click", async () => {
       const grant = (googleCalendar.grants || []).find(row => row.bot_id === button.dataset.googleCalendarUngrant);
-      if (!(await confirmDialog({ title: "Revoke Bot calendar access", body: `Stop <b>${esc(grantedBotLabel(grant))}</b> from reading the granted Google Calendar?`, confirmText: "Revoke access" }))) return;
+      if (!(await confirmDialog({ title: "Revoke Bot calendar access", body: `Stop <b>${esc(grantedBotLabel(grant))}</b> from ${grant?.allow_event_creation ? "reading and creating events on" : "reading"} the granted Google Calendar?`, confirmText: "Revoke access" }))) return;
       button.disabled = true;
       try {
         await api(`/v1/connections/google-calendar/grants/${encodeURIComponent(button.dataset.googleCalendarUngrant)}`, { method: "DELETE" });

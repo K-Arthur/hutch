@@ -1,4 +1,4 @@
-"""Local, read-only Google Calendar OAuth client.
+"""Local Google Calendar OAuth client with separately requested event creation.
 
 This module uses Google's installed-app authorization-code flow with PKCE. Only
 refresh credentials are retained, through the Linux Secret Service CLI; token
@@ -24,7 +24,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 from urllib.parse import quote, urlencode, urlsplit
 
 import httpx
@@ -37,6 +37,7 @@ REVOKE_URL = "https://oauth2.googleapis.com/revoke"
 CALENDAR_API = "https://www.googleapis.com/calendar/v3"
 CALENDAR_LIST_SCOPE = "https://www.googleapis.com/auth/calendar.calendarlist.readonly"
 CALENDAR_EVENTS_SCOPE = "https://www.googleapis.com/auth/calendar.events.readonly"
+CALENDAR_EVENT_CREATE_SCOPE = "https://www.googleapis.com/auth/calendar.events.owned"
 SCOPES = (CALENDAR_LIST_SCOPE, CALENDAR_EVENTS_SCOPE)
 CALLBACK_PATH = "/api/v1/connections/google-calendar/callback"
 STATE_TTL_SECONDS = 600
@@ -49,6 +50,10 @@ _SECRET_PROBE_RESULT: tuple[float, bool] | None = None
 
 class GoogleCalendarError(ValueError):
     """A safe, actionable OAuth or Calendar API failure."""
+
+
+class GoogleCalendarOutcomeUnknown(GoogleCalendarError):
+    """A write request may have reached Google but no verifiable receipt returned."""
 
 
 class SecretStore(Protocol):
@@ -243,7 +248,7 @@ class GoogleCalendarBook:
         if not valid_google_oauth_client_id(self.client_id):
             raise GoogleCalendarError(f"{self.feature_name} is not configured with a valid Google Desktop OAuth client ID; check Connections")
 
-    def start(self, label: str, redirect_uri: str) -> OAuthStart:
+    def start(self, label: str, redirect_uri: str, *, allow_event_creation: bool = False) -> OAuthStart:
         self._require_client_id()
         self._validate_callback(redirect_uri)
         clean_label = " ".join(str(label or "").split())
@@ -268,12 +273,16 @@ class GoogleCalendarBook:
         verifier = secrets.token_urlsafe(48)
         challenge = _b64url(hashlib.sha256(verifier.encode("ascii")).digest())
         now = self.clock()
+        requested_scopes = list(self.oauth_scopes)
+        if allow_event_creation is True:
+            requested_scopes.append(CALENDAR_EVENT_CREATE_SCOPE)
         pending = {"created_at": now, "expires_at": now + STATE_TTL_SECONDS,
-                   "redirect_uri": redirect_uri, "label": clean_label, "verifier": verifier}
+                   "redirect_uri": redirect_uri, "label": clean_label, "verifier": verifier,
+                   "requested_scopes": requested_scopes}
         _atomic_private_json(self.pending_dir / f"{state}.json", pending)
         url = AUTH_URL + "?" + urlencode({
             "client_id": self.client_id, "redirect_uri": redirect_uri, "response_type": "code",
-            "scope": " ".join(self.oauth_scopes), "access_type": "offline", "prompt": "consent select_account",
+            "scope": " ".join(requested_scopes), "access_type": "offline", "prompt": "consent select_account",
             "code_challenge": challenge, "code_challenge_method": "S256", "state": state,
         })
         return OAuthStart(url, state)
@@ -359,16 +368,21 @@ class GoogleCalendarBook:
         token_type = str(payload.get("token_type", "")).lower()
         expires = payload.get("expires_in")
         scope_set = set(str(payload.get("scope", "")).split())
+        requested_scopes = pending.get("requested_scopes", list(self.oauth_scopes))
+        if not isinstance(requested_scopes, list) or not all(isinstance(scope, str) for scope in requested_scopes):
+            raise GoogleCalendarError(f"This {self.feature_name} sign-in request is invalid; start again")
         if (not isinstance(refresh, str) or not 1 <= len(refresh) <= 512 or
                 not isinstance(access, str) or not 1 <= len(access) <= 2048 or
                 any(ord(c) < 33 or ord(c) > 126 for c in access) or token_type != "bearer" or
                 not isinstance(expires, (int, float)) or isinstance(expires, bool) or not 0 < expires <= 86400 or
-                not set(self.required_scopes).issubset(scope_set)):
-            raise GoogleCalendarError(f"Google did not grant the requested read-only {self.feature_name} scopes with offline access; disconnect and reconnect")
+                not set(requested_scopes).issubset(scope_set)):
+            raise GoogleCalendarError(f"Google did not grant the requested {self.feature_name} scopes with offline access; disconnect and reconnect")
         account_id = self.account_prefix + secrets.token_hex(12)
         created = datetime.fromtimestamp(self.clock(), timezone.utc).isoformat()
         account = {"id": account_id, "label": pending["label"], "created_at": created,
-                   "scopes": list(self.oauth_scopes), "status": "connected"}
+                   "scopes": sorted(scope_set),
+                   "event_creation_opted_in": CALENDAR_EVENT_CREATE_SCOPE in requested_scopes,
+                   "status": "connected"}
         try:
             self.secrets.put(account_id, refresh)
             with self._lock_context():
@@ -383,10 +397,19 @@ class GoogleCalendarBook:
             raise
         return account
 
-    def accounts(self) -> list[dict[str, str]]:
+    def accounts(self) -> list[dict[str, Any]]:
         with self._lock_context():
             accounts = self._read_accounts()["accounts"]
             return [dict(row) for _, row in sorted(accounts.items(), key=lambda pair: pair[1].get("created_at", ""))]
+
+    @staticmethod
+    def account_can_create_events(account: dict[str, Any]) -> bool:
+        scopes = account.get("scopes", [])
+        return (account.get("event_creation_opted_in") is True and isinstance(scopes, list) and
+                CALENDAR_EVENT_CREATE_SCOPE in scopes)
+
+    def can_create_events(self, account_id: str) -> bool:
+        return self.account_can_create_events(self._account(account_id))
 
     def _account(self, account_id: str) -> dict[str, Any]:
         if not self.account_pattern.fullmatch(account_id):
@@ -428,21 +451,26 @@ class GoogleCalendarBook:
             _ACCESS_CACHE[cache_key] = (self.clock() + float(expires), token)
             return token
 
-    def _get(self, url: str, account_id: str, params: dict[str, Any] | None = None, purpose="Calendar data") -> dict[str, Any]:
+    def _api_request(self, method: str, url: str, account_id: str, *, params: dict[str, Any] | None = None,
+                     json_body: dict[str, Any] | None = None, purpose="Calendar data") -> dict[str, Any]:
         parts = urlsplit(url)
         if parts.scheme != "https" or parts.hostname != self.api_host or parts.username or parts.password:
             raise GoogleCalendarError(f"Refusing a {self.feature_name} API destination outside Google's verified API host")
         def request(token: str) -> httpx.Response:
             with self._http() as client:
                 try:
-                    return client.get(url, params=params, headers={"Authorization": f"Bearer {token}",
-                                                                   "Accept": "application/json"})
+                    return client.request(method, url, params=params, json=json_body,
+                                          headers={"Authorization": f"Bearer {token}",
+                                                   "Accept": "application/json"})
                 except httpx.HTTPError:
+                    if method != "GET":
+                        raise GoogleCalendarOutcomeUnknown(
+                            f"Google may have received the {purpose}; verify the calendar before trying again") from None
                     raise GoogleCalendarError(f"Could not contact Google for {purpose}; check the network and retry") from None
 
         token = self.access_token(account_id)
         response = request(token)
-        if response.status_code == 401:
+        if response.status_code == 401 and method == "GET":
             # Google can reject a locally cached token before its advertised
             # expiry. Invalidate only that exact token: a concurrent request
             # may already have refreshed and installed a newer one.
@@ -453,8 +481,22 @@ class GoogleCalendarBook:
                     _ACCESS_CACHE.pop(cache_key, None)
             response = request(self.access_token(account_id))
         if response.request.url.host != self.api_host:
+            if method != "GET":
+                raise GoogleCalendarOutcomeUnknown(f"Google's response destination changed during {purpose}; verify the calendar before retrying")
             raise GoogleCalendarError(f"Google {self.feature_name} request changed destination; no credentials were forwarded")
-        return self._json(response, purpose)
+        if method != "GET" and (300 <= response.status_code < 400 or response.status_code >= 500):
+            raise GoogleCalendarOutcomeUnknown(
+                f"Google returned HTTP {response.status_code} during {purpose}; verify the calendar before trying again")
+        try:
+            return self._json(response, purpose)
+        except GoogleCalendarError as exc:
+            if method != "GET" and 200 <= response.status_code < 300:
+                raise GoogleCalendarOutcomeUnknown(
+                    f"Google may have completed {purpose} but returned no verifiable result; verify the calendar before retrying") from None
+            raise
+
+    def _get(self, url: str, account_id: str, params: dict[str, Any] | None = None, purpose="Calendar data") -> dict[str, Any]:
+        return self._api_request("GET", url, account_id, params=params, purpose=purpose)
 
     def list_calendars(self, account_id: str) -> list[dict[str, Any]]:
         self._account(account_id)
@@ -486,7 +528,7 @@ class GoogleCalendarBook:
     def _time(value: str, label: str) -> datetime:
         try:
             result = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        except (TypeError, ValueError):
+        except (AttributeError, TypeError, ValueError):
             raise GoogleCalendarError(f"Calendar {label} must be an ISO 8601 date-time with a time zone") from None
         if result.tzinfo is None or result.utcoffset() is None:
             raise GoogleCalendarError(f"Calendar {label} must include a time zone")
@@ -523,6 +565,108 @@ class GoogleCalendarBook:
                            "end": str(finish.get("dateTime") or finish.get("date") or "")[:64],
                            "location": str(item.get("location") or "")[:500]})
         return events
+
+    @staticmethod
+    def _event_text(value: Any, label: str, maximum: int, *, required: bool = False) -> str:
+        if not isinstance(value, str):
+            raise GoogleCalendarError(f"Calendar event {label} must be text")
+        result = value.strip()
+        if (required and not result) or len(result) > maximum or any(
+                ord(character) < 32 and character not in "\n\t" for character in result):
+            raise GoogleCalendarError(f"Calendar event {label} must be {('1' if required else '0')} to {maximum} plain-text characters")
+        return result
+
+    @classmethod
+    def prepare_event(cls, *, summary: str, start: str, end: str, description: str = "",
+                      location: str = "") -> dict[str, str]:
+        """Validate and normalize the exact guest-free event shown for approval."""
+        clean_summary = cls._event_text(summary, "title", 180, required=True)
+        clean_description = cls._event_text(description, "description", 2000)
+        clean_location = cls._event_text(location, "location", 300)
+        start_dt, end_dt = cls._time(start, "start"), cls._time(end, "end")
+        if start_dt >= end_dt:
+            raise GoogleCalendarError("Calendar event end after start is required")
+        if (end_dt - start_dt).total_seconds() > 366 * 24 * 3600:
+            raise GoogleCalendarError("Calendar events cannot be longer than 366 days")
+        try:
+            start_value = datetime.fromisoformat(start.replace("Z", "+00:00")).isoformat()
+            end_value = datetime.fromisoformat(end.replace("Z", "+00:00")).isoformat()
+        except (AttributeError, TypeError, ValueError):
+            raise GoogleCalendarError("Calendar event times must be ISO 8601 date-times with a time zone") from None
+        return {"summary": clean_summary, "start": start_value, "end": end_value,
+                "description": clean_description, "location": clean_location}
+
+    def create_event(self, account_id: str, calendar_id: str, *, summary: str, start: str, end: str,
+                     description: str = "", location: str = "",
+                     before_write: Callable[[], str | None] | None = None) -> dict[str, str]:
+        """Create a guest-free event on one account-owned calendar using an opted-in write scope.
+
+        The caller must obtain one-time human approval and persist the effect intent before
+        calling this method. Unknown HTTP outcomes are raised separately and must not be retried.
+        """
+        account = self._account(account_id)
+        if not isinstance(calendar_id, str) or not 1 <= len(calendar_id) <= 256 or any(ord(c) < 32 for c in calendar_id):
+            raise GoogleCalendarError("Choose a valid calendar from the connected account")
+        prepared = self.prepare_event(summary=summary, start=start, end=end, description=description,
+                                     location=location)
+        clean_summary, clean_description, clean_location = (prepared["summary"], prepared["description"],
+                                                             prepared["location"])
+        start_value, end_value = prepared["start"], prepared["end"]
+        start_dt, end_dt = self._time(start_value, "start"), self._time(end_value, "end")
+        if not self.account_can_create_events(account):
+            raise GoogleCalendarError("This Google account does not have event-creation permission; reconnect with that explicit option")
+
+        calendars = self.list_calendars(account_id)
+        selected = next((item for item in calendars if item["id"] == calendar_id), None)
+        if selected is None:
+            raise GoogleCalendarError("The selected calendar is no longer available; review this Bot's Connections grant")
+        if selected.get("access_role") != "owner":
+            raise GoogleCalendarError("Google's event-creation scope only covers calendars you own; this Bot can keep read-only access here")
+
+        event = {"summary": clean_summary,
+                 "start": {"dateTime": start_value},
+                 "end": {"dateTime": end_value}}
+        if clean_description:
+            event["description"] = clean_description
+        if clean_location:
+            event["location"] = clean_location
+        if before_write is not None:
+            refusal = before_write()
+            if refusal:
+                raise GoogleCalendarError(f"{refusal}; the event was not sent")
+        url = f"{self.api_base}/calendars/{quote(calendar_id, safe='')}/events"
+        try:
+            payload = self._api_request("POST", url, account_id, json_body=event, purpose="event creation")
+        except GoogleCalendarOutcomeUnknown:
+            raise
+        except GoogleCalendarError:
+            raise
+        event_id = payload.get("id")
+        if not isinstance(event_id, str) or not 1 <= len(event_id) <= 256:
+            raise GoogleCalendarOutcomeUnknown(
+                "Google may have created the event but returned no verifiable ID; check the calendar before retrying")
+        verify_url = f"{self.api_base}/calendars/{quote(calendar_id, safe='')}/events/{quote(event_id, safe='')}"
+        try:
+            verified = self._api_request("GET", verify_url, account_id,
+                                         params={"fields": "id,status,summary,start(dateTime),end(dateTime),description,location"},
+                                         purpose="created event verification")
+            verified_start = verified.get("start") if isinstance(verified.get("start"), dict) else {}
+            verified_end = verified.get("end") if isinstance(verified.get("end"), dict) else {}
+            actual_start = self._time(verified_start.get("dateTime"), "verified start")
+            actual_end = self._time(verified_end.get("dateTime"), "verified end")
+            actual_description = verified.get("description", "")
+            actual_location = verified.get("location", "")
+            if (verified.get("id") != event_id or verified.get("status") != "confirmed" or
+                    verified.get("summary") != clean_summary or actual_start != start_dt or actual_end != end_dt or
+                    actual_description != clean_description or actual_location != clean_location):
+                raise GoogleCalendarOutcomeUnknown(
+                    "Google accepted the event request but the created event details could not be verified exactly; check the calendar before retrying")
+        except GoogleCalendarOutcomeUnknown:
+            raise
+        except GoogleCalendarError:
+            raise GoogleCalendarOutcomeUnknown(
+                "Google may have created the event, but Hutch could not verify it; check the calendar before retrying") from None
+        return {"id": event_id, "summary": clean_summary, "start": start_value, "end": end_value}
 
     def disconnect(self, account_id: str) -> dict[str, Any]:
         if not self.account_pattern.fullmatch(account_id):

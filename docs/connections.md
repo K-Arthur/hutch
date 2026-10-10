@@ -1,8 +1,9 @@
 # Connections: subscription plans and custom endpoints
 
-## Google Calendar event lookup (experimental, local setup required)
+## Google Calendar lookup and event creation (experimental, local setup required)
 
-Hutch implements read-only Google Calendar lookup for the built-in runtime. In Connections, enter
+Hutch implements read-only Google Calendar lookup for the built-in runtime. Owners may separately
+opt into creating guest-free events after reviewing each exact action in chat. In Connections, enter
 the public client ID for an OAuth client of type **Desktop app**, then enable the Calendar API in
 the Google Cloud project. The ID is shared with the separate Gmail preview; do not enter a client
 secret or token. Hutch stores this non-secret setting in its local SQLite configuration. Operators
@@ -14,21 +15,39 @@ in [requirements](requirements.md#connections-and-integrations-added-at-the-prod
 Sign in from the Hutch host at
 `http://127.0.0.1:<port>` on the Connections page; Hutch opens Google in a separate browser tab.
 Finish consent in that tab, then return to the original Hutch tab and reload Connections. The
-installed-app flow uses authorization code
-with PKCE and the read-only `calendar.calendarlist.readonly` and `calendar.events.readonly` scopes.
+installed-app flow uses authorization code with PKCE and the read-only
+`calendar.calendarlist.readonly` and `calendar.events.readonly` scopes by default. Event creation is
+a separate account sign-in because Google's installed-app flow does not support incremental
+authorization. That separate sign-in also requests `calendar.events.owned`.
 Hutch stores the refresh token in the Linux Secret Service through `secret-tool`; access tokens are
 held in process memory. SQLite stores the named account reference and each Bot's selected calendar
 grant, never provider tokens. The browser does not receive tokens. Callbacks are local loopback only,
 one-use, expire after ten minutes, and have their authorization query removed before request logs.
 
-Google authorizes read-only access at the account level. Hutch's typed Bot tool further restricts
-each Bot to the one calendar the owner selected in Connections; that Hutch restriction is not a
-provider-enforced per-calendar OAuth grant. The tool can list calendars and return event title, start,
-end and location for a bounded time range. It cannot create, edit, delete, invite or send events.
-Those returned fields are sent to the Bot's selected model and retained in that Bot's run history.
-Descriptions and attendee details are not passed to the model or saved in run history. Calendar text
-is untrusted data and cannot approve actions. Strict Offline mode does not expose the online Calendar
-tool.
+Google grants access at the account level. Hutch's typed Bot tool further restricts each Bot to the
+one calendar the owner selected in Connections; this Hutch boundary is not a provider-enforced
+per-calendar OAuth grant. The default read-only grant returns bounded title, start, end and location
+fields. Event creation requires a separate sign-in choice and a separate per-Bot grant, and is only
+offered for calendars Google identifies as owned by the account. Google's `calendar.events.owned`
+scope also permits Google-side changes and deletion on all calendars the account owns; Hutch only
+implements guest-free event creation on the selected calendar. Hutch shows the exact title, time,
+description, location, account and calendar in a fresh outward approval—even when that Bot uses auto
+approval—and checks the grant again after the decision. It sends no guest list or invitations and
+offers no edit or delete action. Required event times include an explicit UTC offset and the approval
+displays those exact values. After insertion, Hutch reads the returned event ID back and checks the
+title, time instants, description and location before reporting success; a silently omitted field or
+shifted time remains unverified. If the write or verification result is uncertain, Hutch does not retry
+automatically; the owner must inspect the selected calendar first. Event details sent to the model are
+retained in run history. Read results contain only titles, times and locations;
+descriptions and attendee details are not passed to the model. Calendar text is untrusted data and
+cannot authorize actions. Strict Offline mode exposes neither online Calendar tool.
+
+Live Google consent, public OAuth verification and provider requests remain unverified. The event
+creation path is an experimental owner-configured preview, not a public support claim. See Google's
+[Calendar scope table](https://developers.google.com/workspace/calendar/api/auth),
+[installed-app OAuth limits](https://developers.google.com/identity/protocols/oauth2/native-app),
+[event insert](https://developers.google.com/workspace/calendar/api/v3/reference/events/insert), and
+[event readback](https://developers.google.com/workspace/calendar/api/v3/reference/events/get).
 
 Disconnect first removes Hutch's Bot grants and local refresh credential, then requests Google
 revocation. If Google does not confirm revocation, Hutch reports that explicitly and directs the

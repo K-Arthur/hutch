@@ -51,7 +51,7 @@ pinned in the primary roster without hiding active work; pinning is a navigation
    parent cancellation, cost display, bounded prompt questions,
    and delivery reconciliation. Prompt refinement cannot grant capabilities or change standing instructions.
    Creating a reusable specialist or changing its role needs separate review and confirmation.
-4. **Google/Outlook Calendar and Outlook Mail reads are experimental local paths (IG-5–IG-8 partial).**
+4. **Calendar and mail connections remain experimental local paths (IG-5–IG-8 partial).**
    Each operator configures a Google Desktop or Microsoft public-client OAuth registration and
    Linux Secret Service; no live account or consent-screen verification has been completed. Provider
    grants are account-wide; Hutch limits each Bot to one selected calendar or mailbox. Outlook Calendar uses delegated
@@ -61,10 +61,14 @@ pinned in the primary roster without hiding active work; pinning is a navigation
    preview using restricted, account-wide `gmail.readonly`; it returns only bounded sender/subject/date/snippet
    previews to built-in Bots whose model routes all use loopback Local endpoints and have no hosted
    fallback. Google OAuth still authorizes broader account-level access, which Hutch cannot narrow.
-   Live account and consent verification remain open. Calendar writes and all mail changes remain unavailable.
-   Event creation, message sending and every external write need a fresh review showing account,
-   destination and complete payload. Keep refresh credentials in the OS credential store rather than
-   SQLite, transcripts, prompts or browser storage.
+   Google Calendar now also has an owner-configured guest-free event-create preview: the owner must
+   separately request Google's account-wide `calendar.events.owned` scope, grant one owned calendar
+   to one Bot, and approve each exact event in context. Hutch verifies the returned event ID, title,
+   time, description and location; uncertain outcomes are never retried automatically. Google's scope is broader than the single
+   action Hutch exposes, and public OAuth verification plus live account consent remain open. Outlook
+   Calendar writes and all mail changes remain unavailable. Event creation, message sending and every
+   external write need a fresh review showing account, destination and complete payload. Keep refresh
+   credentials in the OS credential store rather than SQLite, transcripts, prompts or browser storage.
 
 5. Give the workspace and each Bot an explicit model default. The workspace choice seeds new-Bot
    setup; the coordinator and each specialist keep their own editable route and inference mode.

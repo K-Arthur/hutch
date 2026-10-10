@@ -3378,3 +3378,38 @@ Implementation and focused visual evidence are committed on local `main` as
 scenario runtime confined to `tests/support`; a clean wheel-content check is still unverified because this host's available Python
 environment has no Hatchling build backend. The broader user-facing functionality inventory remains open in `docs/requirements.md`.
 No push or publication occurred.
+
+## Google Calendar owner-controlled event creation (2026-10-10)
+
+Google Calendar keeps read-only access as the default. Event creation requires a distinct installed-app OAuth sign-in that records
+the owner's explicit request for `calendar.events.owned`, then a separate grant of one Google-owned calendar to one Bot. The local
+opt-in is checked as well as Google's returned scope, so a read-only sign-in that reports a previously granted broad scope does not
+silently activate writes. Schema v45 gives old Bot grants a read-only default. Shared writer calendars stay read-only because Google's
+scope only permits calendars the account owns. Each create action presents the exact account, calendar, title, explicit-offset times,
+description and location for fresh outward approval, including auto mode. It sends no attendees, and Hutch has no edit/delete action.
+After the POST, Hutch reads the returned event ID back and verifies confirmed status, title, time instants, description and location.
+Uncertain transport or an omitted/shifted field remains `outcome_unknown` and is never automatically replayed.
+
+Failure research informed the verification boundary. [A reported Google Calendar MCP defect](https://github.com/anthropics/claude-ai-mcp/issues/783)
+described `create_event` accepting and reporting success while silently dropping `location`; Hutch now verifies both description and
+location in Google readback, with a regression test for a missing location. [An n8n Calendar-node report](https://github.com/n8n-io/n8n/issues/14411)
+described timezone settings being ignored, with another user reporting that changing workflow settings resolved it. Hutch requires
+explicit offsets, shows those exact values for approval, and rejects a readback whose instant shifted. [A user report of duplicated
+events while moving among linked calendars](https://www.reddit.com/r/GoogleCalendar/comments/1t018nj/google_calendar_duplicating_events/) reinforced the single-calendar boundary: Hutch does not move/copy events between calendars
+and will not replay an uncertain create. These isolated reports are acceptance evidence, not prevalence estimates. Google documents
+that `calendar.events.owned` can also change and delete events across all calendars an account owns, which remains broader than Hutch's
+creation-only UI.
+
+Mobbin desktop and iOS screen searches returned the paid-plan restriction. Figma library discovery returned `INVALID_ARGUMENT`, and
+the connected account is on Starter; this slice therefore follows Hutch's existing visual system rather than claiming a fresh Mobbin
+or Figma screen reference. The event-creation confirmation was inspected separately at desktop and phone sizes. Responsive captures
+cover desktop **1440×960**, tablet **900×1024**, phone **390×844**, and compact phone **320×740**, with no horizontal overflow, external
+requests or browser errors. Chromium **153.0.8010.12** / Playwright **1.63.0** evidence is in
+[`artifacts/google-calendar-event-creation/`](artifacts/google-calendar-event-creation/) and the read-only journey captures are in
+[`artifacts/google-calendar/`](artifacts/google-calendar/).
+
+The focused provider/API/migration/browser command passed **56 tests** with thread and syntax warnings treated as errors. The full
+non-browser suite (`.venv/bin/python -m pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning --ignore=tests/e2e`)
+passed **1,549 tests** in 363.93 seconds. Python compilation, JavaScript syntax validation, `git diff --check` and the scoped
+Impeccable detector (`[]`) passed. Live Google consent, public OAuth verification and real provider requests remain unverified. The
+local `main` commit hash will be recorded after commit; no push or publication is intended.

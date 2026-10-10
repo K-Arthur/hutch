@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_browser.py::test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone",
   "command": "PLAYWRIGHT_BROWSERS_PATH=/home/kevina/.cache/ms-playwright .venv/bin/pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning tests/e2e/test_browser.py -k google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone",
-  "captured_at": "2026-10-10T05:26:40.021753+00:00",
+  "captured_at": "2026-10-10T10:03:42.283910+00:00",
   "browser": "153.0.8010.12",
   "provider_credentials_used": false,
   "provider_calls": 0,
@@ -47,12 +47,12 @@
     }
   ],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
-    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
-    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
+    "src/hutch/server/static/app.js": "818e364419a9f349eb4242bf0eaaf7d8e31d0c9a3aec6293a1927dc0b930a093",
+    "src/hutch/server/static/style.css": "ed1b414dd924d942fc60d4427b420c9eaa0c94f1d43c97e8f6ac9bfe4c96e99b",
+    "src/hutch/server/app.py": "9d97a8bd03b1ca8c7bc37718829c4881b2ff59fcc44a8e326921f2cea926c3e5",
     "src/hutch/server/security.py": "f089474763ce669a2b2a0f7400eb99635a3a59782620cc0d505b230c5f035bfb",
-    "src/hutch/store.py": "febf2e054c553fd67684a2f361bda5c43e7fdfce317f2d04d69e601ab8324fdb",
-    "src/hutch/google_calendar.py": "dad7c21b8f5ac416de6de619595a9b11ff9f55c244c249fffafaad984da10660",
-    "src/hutch/tools/google_calendar.py": "358fb1dc2ba2138c6e92981dbe5364dcf8dcdeea3f76c5e208c160f6ac2c8726"
+    "src/hutch/store.py": "faab3b6c579ea0bd6e631ec049301f693f5968c69a9514c99a7d1f3d9b511b7d",
+    "src/hutch/google_calendar.py": "8e9632c27d7bfb7cdea1218656d45190defff6abc9815cfd14097f0275e482ea",
+    "src/hutch/tools/google_calendar.py": "ffeaf98ad800b3fa003a82ee6389c27a3041af6e624cbf6fbbb53f4eed289881"
   }
 }

@@ -55,11 +55,15 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   bounded reconciliation at `/api/v1/snapshot`, and partial remote device resources at `/api/v1/pairing/exchange` and
   `/api/v1/devices`. Versioned bot, run and approval lists accept bounded `limit`/`offset` pages; the legacy bot and approval
   aliases keep their prior response behavior.
-* **Google Calendar (experimental, schema v27).** The local installed-app PKCE flow requests the read-only Calendar List and event scopes.
-  The owner uses `/api/v1/connections/google-calendar` to connect an account and select one calendar for a Bot;
-  `google_calendar_events` returns bounded event title/time/location fields and rechecks the grant.
-  Refresh credentials are stored in Linux Secret Service. The OAuth scope remains account-wide, and Hutch's selected-calendar limit is
-  enforced by its tool. No write operation is exposed; live Google consent and OAuth verification are unverified.
+* **Google Calendar (experimental; account schema v27, Bot capability schema v45).** By default, the local installed-app PKCE flow
+  requests read-only Calendar List and event scopes. An explicit separate sign-in can also request `calendar.events.owned`; installed-app
+  OAuth does not support incremental authorization. The owner selects one calendar per Bot. `google_calendar_events` returns bounded
+  title/time/location fields; `google_calendar_create_event` is installed only for a Bot with a separately opted-in account and explicit
+  owner grant on an account-owned calendar. It always obtains exact outward approval, even in auto mode, sends no guests, and offers
+  no edit/delete operation. The server checks the returned event ID, title, time instants, description and location before reporting success; uncertain outcomes remain
+  unreplayed for reconciliation. Refresh credentials are stored in Linux Secret Service. Google's scope allows broader changes/deletes
+  on calendars the user owns; Hutch's selected-calendar/action limits are local boundaries, not provider-enforced scopes. Live consent,
+  public OAuth verification and real provider calls remain unverified.
 * **Gmail (experimental private preview).** `/api/v1/connections/google-mail` uses a separate PKCE connection and requests account-wide restricted
   `gmail.readonly`; it cannot reuse Calendar consent. The owner grants one mailbox to a Bot. Search returns up to ten bounded sender/subject/date/snippet previews. Hutch
   offers the tool only to its built-in runtime in Local inference mode after checking the primary, fallback and escalation routes are

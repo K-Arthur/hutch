@@ -1267,12 +1267,14 @@ class ChatGPTSignInRequest(BaseModel):
 
 class GoogleCalendarSignInRequest(BaseModel):
     label: str = Field(min_length=1, max_length=80)
+    allow_event_creation: bool = False
 
 
 class GoogleCalendarGrantRequest(BaseModel):
     bot: str = Field(min_length=1, max_length=128)
     account_id: str = Field(min_length=1, max_length=64)
     calendar_id: str = Field(min_length=1, max_length=256)
+    allow_event_creation: bool = False
 
 
 class GoogleCalendarAccountResource(BaseModel):
@@ -1280,6 +1282,7 @@ class GoogleCalendarAccountResource(BaseModel):
     label: str
     created_at: str
     scopes: list[str]
+    can_create_events: bool = False
     status: Literal["connected"]
 
 
@@ -1290,6 +1293,7 @@ class GoogleCalendarGrantResource(BaseModel):
     calendar_id: str
     calendar_name: str
     granted_at: str
+    allow_event_creation: bool = False
 
 
 class GoogleCalendarResource(BaseModel):
@@ -1336,7 +1340,7 @@ class GoogleCalendarAuthorizationResource(BaseModel):
 
 
 class GoogleCalendarGrantResponseResource(BaseModel):
-    grant: dict[str, str]
+    grant: dict[str, Any]
     detail: str
 
 
@@ -4116,7 +4120,9 @@ def create_app() -> FastAPI:
                 "google_oauth_client": google_oauth,
                 "google_calendar": {"configured": google_oauth["configured"],
                                     "secret_store_available": calendar_book.secrets.available(),
-                                    "accounts": calendar_book.accounts(),
+                                    "accounts": [{**account, "can_create_events":
+                                                  calendar_book.account_can_create_events(account)}
+                                                 for account in calendar_book.accounts()],
                                     "grants": store.list_google_calendar_grants()},
                 "google_mail": {"configured": google_oauth["configured"],
                                 "secret_store_available": google_mail_book.secrets.available(),
@@ -4157,7 +4163,9 @@ def create_app() -> FastAPI:
         client_id = effective_google_oauth_client_id()
         book = GoogleCalendarBook(config.state_dir, client_id)
         return {"configured": valid_google_oauth_client_id(client_id), "secret_store_available": book.secrets.available(),
-                "accounts": book.accounts(), "grants": store.list_google_calendar_grants()}
+                "accounts": [{**account, "can_create_events": book.account_can_create_events(account)}
+                             for account in book.accounts()],
+                "grants": store.list_google_calendar_grants()}
 
     @app.post("/api/v1/connections/google-calendar/sign-in", response_model=GoogleCalendarAuthorizationResource)
     def google_calendar_sign_in(request: Request, body: GoogleCalendarSignInRequest, response: Response) -> dict:
@@ -4165,7 +4173,7 @@ def create_app() -> FastAPI:
         try:
             book = GoogleCalendarBook(config.state_dir, effective_google_oauth_client_id())
             callback = book.callback_uri(request)
-            result = book.start(body.label, callback)
+            result = book.start(body.label, callback, allow_event_creation=body.allow_event_creation)
         except GoogleCalendarError as exc:
             raise HTTPException(409, str(exc)) from None
         response.headers["Cache-Control"] = "no-store"
@@ -4197,11 +4205,32 @@ def create_app() -> FastAPI:
             raise HTTPException(422, "Choose a calendar returned by the connected Google account")
         if selected.get("access_role") == "freeBusyReader":
             raise HTTPException(422, "This calendar grant exposes availability only; Hutch's event lookup needs reader or stronger access")
-        grant = store.set_google_calendar_grant(bot.id, body.account_id, selected["id"], selected["name"])
-        return {"grant": grant, "detail": (f"{bot.name} can read events from {selected['name']}. Google's OAuth grant is account-level "
-                "read-only; Hutch exposes only this calendar to the Bot. Matching event titles, times, and locations are sent "
-                "to the selected model and retained in this Bot's run history. Descriptions and attendee details are not "
-                "passed to the model or saved in run history.")}
+        try:
+            account_write_scope = book.can_create_events(body.account_id)
+        except GoogleCalendarError as exc:
+            raise HTTPException(422, str(exc)) from None
+        if body.allow_event_creation:
+            if not account_write_scope:
+                raise HTTPException(422, "Reconnect Google Calendar and explicitly request event-creation access before granting writes to this Bot")
+            if selected.get("access_role") != "owner":
+                raise HTTPException(422, "Google's event-creation scope only covers calendars you own; this Bot can keep read-only access here")
+        grant = store.set_google_calendar_grant(bot.id, body.account_id, selected["id"], selected["name"],
+                                                allow_event_creation=body.allow_event_creation)
+        if body.allow_event_creation:
+            detail = (f"{bot.display_name or bot.name} can read and create events on {selected['name']}. Each creation requires an exact, "
+                      "one-time approval in Hutch. Hutch does not expose edit, delete, invitations or attendee entry. Google’s "
+                      "event-creation OAuth scope also permits changing and deleting events on calendars you own; Hutch limits this Bot to "
+                      "creation on the selected calendar. Event details are sent to the selected model and retained in run history.")
+        else:
+            if account_write_scope:
+                permission_note = ("Google's account-level scope also permits changing and deleting events on calendars you own, "
+                                   "but this Bot's Hutch grant remains read-only for the selected calendar. ")
+            else:
+                permission_note = ("Google's OAuth grant is account-level read-only; Hutch exposes only this calendar to the Bot. ")
+            detail = (f"{bot.display_name or bot.name} can read events from {selected['name']}. {permission_note}Matching event "
+                      "titles, times, and locations are sent to the selected model and retained in this Bot's run history. "
+                      "Descriptions and attendee details are not passed to the model or saved in run history.")
+        return {"grant": grant, "detail": detail}
 
     @app.delete("/api/v1/connections/google-calendar/grants/{bot_ref}",
                 response_model=GoogleCalendarUnGrantResource)

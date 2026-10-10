@@ -1244,13 +1244,19 @@ def _migrate_44(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX idx_task_templates_updated ON task_templates(updated_at DESC, id)")
 
 
+def _migrate_45(db: sqlite3.Connection) -> None:
+    """Keep explicit per-Bot Google Calendar event-creation consent on one calendar."""
+    db.execute("ALTER TABLE google_calendar_grants ADD COLUMN allow_event_creation INTEGER NOT NULL DEFAULT 0 "
+               "CHECK(allow_event_creation IN (0, 1))")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
                _migrate_19, _migrate_20, _migrate_21, _migrate_22, _migrate_23, _migrate_24, _migrate_25, _migrate_26,
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
-               _migrate_41, _migrate_42, _migrate_43, _migrate_44]
+               _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -2263,19 +2269,22 @@ class Store:
         return changed
 
     def set_google_calendar_grant(self, bot_ref: str, account_id: str, calendar_id: str,
-                                  calendar_name: str) -> Optional[dict[str, str]]:
-        """Grant one Bot read access to one verified calendar; replacing it is explicit at the caller."""
+                                  calendar_name: str, *, allow_event_creation: bool = False) -> Optional[dict[str, Any]]:
+        """Grant one Bot read access, and optionally approved event creation, on one verified calendar."""
         with self._tx() as db:
             row = db.execute("SELECT id FROM bots WHERE id = ? OR name = ? LIMIT 1", (bot_ref, bot_ref)).fetchone()
             if row is None:
                 return None
             grant = {"bot_id": row["id"], "account_id": account_id, "calendar_id": calendar_id,
-                     "calendar_name": calendar_name, "granted_at": iso(utcnow())}
-            db.execute("""INSERT INTO google_calendar_grants (bot_id, account_id, calendar_id, calendar_name, granted_at)
-                VALUES (:bot_id, :account_id, :calendar_id, :calendar_name, :granted_at)
+                     "calendar_name": calendar_name, "granted_at": iso(utcnow()),
+                     "allow_event_creation": int(allow_event_creation is True)}
+            db.execute("""INSERT INTO google_calendar_grants
+                (bot_id, account_id, calendar_id, calendar_name, granted_at, allow_event_creation)
+                VALUES (:bot_id, :account_id, :calendar_id, :calendar_name, :granted_at, :allow_event_creation)
                 ON CONFLICT(bot_id) DO UPDATE SET account_id = excluded.account_id,
                     calendar_id = excluded.calendar_id, calendar_name = excluded.calendar_name,
-                    granted_at = excluded.granted_at""", grant)
+                    granted_at = excluded.granted_at, allow_event_creation = excluded.allow_event_creation""", grant)
+            grant["allow_event_creation"] = bool(grant["allow_event_creation"])
         self.bus.notify("work", "bots")
         return grant
 
@@ -2284,22 +2293,26 @@ class Store:
         if bot is None:
             return None
         with self._lock:
-            row = self._db.execute("SELECT bot_id, account_id, calendar_id, calendar_name, granted_at "
+            row = self._db.execute("SELECT bot_id, account_id, calendar_id, calendar_name, granted_at, allow_event_creation "
                                    "FROM google_calendar_grants WHERE bot_id = ?", (bot.id,)).fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        result = dict(row)
+        result["allow_event_creation"] = bool(result["allow_event_creation"])
+        return result
 
     def list_google_calendar_grants(self, account_id: str | None = None) -> list[dict[str, str]]:
         with self._lock:
             if account_id is None:
                 rows = self._db.execute("""SELECT g.bot_id, b.name AS bot_name, g.account_id, g.calendar_id,
-                    g.calendar_name, g.granted_at FROM google_calendar_grants g
+                    g.calendar_name, g.granted_at, g.allow_event_creation FROM google_calendar_grants g
                     JOIN bots b ON b.id = g.bot_id ORDER BY b.name""").fetchall()
             else:
                 rows = self._db.execute("""SELECT g.bot_id, b.name AS bot_name, g.account_id, g.calendar_id,
-                    g.calendar_name, g.granted_at FROM google_calendar_grants g
+                    g.calendar_name, g.granted_at, g.allow_event_creation FROM google_calendar_grants g
                     JOIN bots b ON b.id = g.bot_id WHERE g.account_id = ? ORDER BY b.name""",
                     (account_id,)).fetchall()
-        return [dict(row) for row in rows]
+        return [{**dict(row), "allow_event_creation": bool(row["allow_event_creation"])} for row in rows]
 
     def remove_google_calendar_grant(self, bot_ref: str) -> bool:
         bot = self.get_bot(bot_ref)

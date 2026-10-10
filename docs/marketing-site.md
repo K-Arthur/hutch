@@ -58,15 +58,18 @@ fills a chat draft and does not send or start work. The library is in local SQLi
 template download/import remains an explicit local file workflow. Do not imply public links, team sharing, typed placeholders, or
 that saved prompt text is sent to a provider before the owner sends the chat message.
 
-The Connections support table may list Google Calendar, Outlook Calendar, and Outlook Mail as experimental, read-only local integrations that
-require operator OAuth configuration and Linux Secret Service. No provider account or consent verification has been performed.
+The Connections support table may list Google Calendar, Outlook Calendar, and Outlook Mail as experimental local integrations that
+require operator OAuth configuration and Linux Secret Service. Google Calendar lookup is read-only by default; guest-free event creation
+is an owner-configured experimental preview that requests a broader Google scope and exact per-event approval. Do not describe it as a
+publicly supported integration while OAuth verification and live account consent remain unverified. No provider account or consent
+verification has been performed.
 For Outlook Calendar, Hutch requests delegated `Calendars.ReadBasic`; for Outlook Mail it requests delegated `Mail.Read` and returns
 bounded message previews to a Bot explicitly granted one mailbox. Microsoft consent is account-level, and Hutch cannot revoke it itself.
 Gmail may be described only as an owner-configured private preview: it requests restricted, account-wide `gmail.readonly`, returns bounded
 sender/subject/date/snippet previews, and grants the Hutch tool only to built-in Bots with loopback Local model routes and no hosted
 fallback. Google's permission remains broader than Hutch's Bot grant. Public release is unavailable pending applicable Google scope
-verification and any required security assessment. No live provider account or consent has been verified. Do not imply supported Gmail,
-calendar writes, mail changes, or provider-side approval.
+verification and any required security assessment. No live provider account or consent has been verified. Do not imply public support for
+Gmail, calendar writes, mail changes, or provider-side approval.
 
 The coordinator workflow may say that a completed coordinator answer can be prepared as a task for one selected Bot. The user must
 choose the specialist, review its saved settings, edit the goal, optionally add an expected deliverable and constraints, and explicitly

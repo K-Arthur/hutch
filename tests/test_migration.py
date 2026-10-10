@@ -19,7 +19,7 @@ from hutch.engine import Engine
 from hutch.lifecycle import IllegalTransition
 from hutch.models import RunStatus
 from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28,
-                         _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34,
+                         _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34, _migrate_45,
                          _migrate_35, _migrate_37, _migrate_40, _migrate_41)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
@@ -119,6 +119,26 @@ def test_v41_workspace_specialist_roster_is_empty_and_durably_invalidated():
         assert db.execute("SELECT COUNT(*) FROM workspace_specialists").fetchone()[0] == 0
         assert db.execute("SELECT COUNT(*) FROM resource_outbox WHERE resource='workspace'").fetchone()[0] == 2
         assert SCHEMA_VERSION >= 41
+    finally:
+        db.close()
+
+
+def test_v45_calendar_grants_default_to_read_only_and_store_explicit_event_creation():
+    db = sqlite3.connect(":memory:")
+    try:
+        db.executescript("""
+            CREATE TABLE google_calendar_grants (
+                bot_id TEXT PRIMARY KEY, account_id TEXT NOT NULL, calendar_id TEXT NOT NULL,
+                calendar_name TEXT NOT NULL, granted_at TEXT NOT NULL);
+            INSERT INTO google_calendar_grants VALUES ('bot-a', 'account-a', 'primary', 'Personal', 'now');
+        """)
+        _migrate_45(db)
+        assert db.execute("SELECT allow_event_creation FROM google_calendar_grants WHERE bot_id='bot-a'").fetchone()[0] == 0
+        db.execute("UPDATE google_calendar_grants SET allow_event_creation=1 WHERE bot_id='bot-a'")
+        assert db.execute("SELECT allow_event_creation FROM google_calendar_grants WHERE bot_id='bot-a'").fetchone()[0] == 1
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute("UPDATE google_calendar_grants SET allow_event_creation=2 WHERE bot_id='bot-a'")
+        assert SCHEMA_VERSION >= 45
     finally:
         db.close()
 

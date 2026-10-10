@@ -79,6 +79,14 @@ rotated connection key. Generic hosted sticky grants and the old legacy key-rout
 cannot bypass that boundary. Streaming recovery reserves each attempt separately, retaining
 uncertain first usage. These are fixture-tested controls, not live billing certification.
 
+Google Calendar stays read-only unless the owner separately requests `calendar.events.owned` and
+grants one Bot one account-owned calendar. Google says this scope can also change and delete events
+on every calendar the account owns; Hutch only offers guest-free creation on the selected calendar.
+Each exact event still requires outward approval even in auto mode, and the grant is rechecked after
+approval. Hutch reads the returned event ID back and verifies the title, time instants, description and
+location before reporting success. An uncertain write or failed readback remains unreplayed; the owner must check the calendar
+before attempting another event. Consent and provider requests have fixture-only coverage.
+
 Explicit extra read-only shell mounts are installed after private temporary mounts and the
 writable workspace so the declared mode survives execution. Credential descendants, symlinks
 outside the granted folder, unreadable trees and grants covering the workspace are refused;

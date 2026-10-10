@@ -1,5 +1,13 @@
 # Changelog
 
+## Google Calendar event creation (experimental, schema v45)
+
+- Read-only calendar sign-in remains the default. A separate explicit installed-app OAuth sign-in can request Google's `calendar.events.owned` scope; existing read-only accounts remain unchanged because Google's desktop flow cannot add scopes incrementally.
+- Owners can grant one Bot access to create guest-free events on one calendar Google identifies as owned by the signed-in account. Every event shows its normalized title, time, description, location, account and calendar for one-time outward approval, even when Bot approval mode is automatic.
+- The request has no attendees and Hutch exposes no event edit/delete actions. Hutch reads the returned event ID back and compares title, time instants, description, location and confirmed status before saying the event was created. Transport/server uncertainty or a readback mismatch remains unreplayed and asks the owner to verify the calendar.
+- Google warns the selected OAuth scope itself also permits changes and deletion on all calendars the user owns. Consent, public OAuth verification and provider/live-account behavior remain unverified; keep this experimental and do not market it as public support.
+- HTTP/API/migration fixtures and a responsive Chromium journey cover the consent split, owned-vs-shared calendar boundary, exact review, grant revocation and uncertain-write handling. No Google credentials or provider calls were used.
+
 ## Intent-preserving chat-led Bot setup
 
 - Simple Bot setup can optionally ask the workspace coordinator to clarify only a missing work detail. It asks one bounded question at a time, offers choice cards plus free text, and asks at most five questions before producing an editable proposal.

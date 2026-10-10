@@ -18,7 +18,7 @@ import time
 from datetime import datetime, timezone
 from importlib.metadata import version as package_version
 from pathlib import Path
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 import pytest
 
@@ -1453,12 +1453,21 @@ def test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone(browser
             return cls.accounts_rows
 
         @staticmethod
+        def account_can_create_events(account):
+            return (account.get("event_creation_opted_in") is True and
+                    "https://www.googleapis.com/auth/calendar.events.owned" in account.get("scopes", []))
+
+        @staticmethod
+        def can_create_events(account_id):
+            return False
+
+        @staticmethod
         def list_calendars(account_id):
             return [{"id": "primary", "name": "Personal Calendar", "primary": True, "access_role": "owner"},
                     {"id": "team@example.test", "name": "Team Calendar", "primary": False, "access_role": "reader"}]
 
         @staticmethod
-        def start(label, callback):
+        def start(label, callback, *, allow_event_creation=False):
             from hutch.google_calendar import OAuthStart
             return OAuthStart("https://accounts.google.com/o/oauth2/v2/auth?state=fixture", "fixture")
 
@@ -1508,7 +1517,7 @@ def test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone(browser
         assert "Calendar Assistant" in grant_summary.inner_text()
         assert "calendar-assistant" not in grant_summary.inner_text()
         assert page.get_by_text("retained in this Bot's run history", exact=False).is_visible()
-        assert page.get_by_text("read-only at the account level", exact=False).is_visible()
+        assert page.get_by_text("Google's OAuth grant is account-level read-only", exact=False).is_visible()
         page.get_by_role("button", name="Dismiss notification").click()
         captures = []
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
@@ -1526,7 +1535,7 @@ def test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone(browser
         assert page.get_by_role("button", name="Revoke Bot access").bounding_box()["height"] >= 44
         page.locator("#google-calendar-label").fill("Work")
         page.get_by_role("button", name="Connect Google Calendar").click()
-        page.get_by_text("Finish Google sign-in in the new browser tab", exact=False).wait_for()
+        page.get_by_text("Finish Google read-only sign-in in the new browser tab", exact=False).wait_for()
         oauth = page.evaluate("window.__calendarOAuth")
         assert oauth["target"] == "_blank" and oauth["opener"] is None
         authorization_url = urlsplit(oauth["url"])
@@ -1551,6 +1560,177 @@ def test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone(browser
         }, indent=2) + "\n", encoding="utf-8")
     finally:
         page.close()
+
+
+def test_google_calendar_event_creation_scope_is_explicit_and_owner_only(browser, live, monkeypatch):
+    from hutch.google_calendar import OAuthStart
+
+    base, app = live
+    monkeypatch.setenv("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "fixture-client.apps.googleusercontent.com")
+    write_account_id = "gcal_1123456789abcdef01234567"
+    write_scope = "https://www.googleapis.com/auth/calendar.events.owned"
+
+    class FixtureGoogleCalendarBook:
+        accounts_rows = [{"id": write_account_id, "label": "Work calendar",
+                          "created_at": "2026-10-09T00:00:00+00:00", "scopes": [
+                              "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+                              "https://www.googleapis.com/auth/calendar.events.readonly", write_scope],
+                          "event_creation_opted_in": True,
+                          "status": "connected"}]
+        sign_in_calls = []
+
+        class Secrets:
+            @staticmethod
+            def available():
+                return True
+
+        def __init__(self, state_dir, client_id):
+            self.secrets = self.Secrets()
+
+        @classmethod
+        def accounts(cls):
+            return cls.accounts_rows
+
+        @staticmethod
+        def account_can_create_events(account):
+            return (account.get("event_creation_opted_in") is True and
+                    write_scope in account.get("scopes", []))
+
+        @staticmethod
+        def can_create_events(account_id):
+            return account_id == write_account_id
+
+        @staticmethod
+        def list_calendars(account_id):
+            return [{"id": "primary", "name": "Personal Calendar", "primary": True, "access_role": "owner"},
+                    {"id": "team@example.test", "name": "Shared Team Calendar", "primary": False,
+                     "access_role": "writer"}]
+
+        @classmethod
+        def start(cls, label, callback, *, allow_event_creation=False):
+            cls.sign_in_calls.append((label, allow_event_creation))
+            scopes = "calendar.calendarlist.readonly calendar.events.readonly"
+            if allow_event_creation:
+                scopes += " " + write_scope
+            url = "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode({"state": "fixture", "scope": scopes})
+            return OAuthStart(url, "fixture")
+
+        @staticmethod
+        def callback_uri(request):
+            port = request.scope["server"][1]
+            return f"http://127.0.0.1:{port}/api/v1/connections/google-calendar/callback"
+
+    monkeypatch.setattr("hutch.google_calendar.GoogleCalendarBook", FixtureGoogleCalendarBook)
+    bot = Bot(name="calendar-owner", display_name="Calendar Owner", model="mock/demo", tools=[])
+    app.state.store.create_bot(bot)
+    browser_context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    browser_context.tracing.start(screenshots=True, snapshots=True, sources=True)
+    page = browser_context.new_page()
+    page.add_init_script("""
+      window.__calendarOAuth = { target: null, url: null, opener: 'not-set' };
+      window.open = (_url, target) => {
+        window.__calendarOAuth.target = target;
+        return {
+          set opener(value) { window.__calendarOAuth.opener = value; },
+          location: { replace(value) { window.__calendarOAuth.url = value; } },
+          close() {}
+        };
+      };
+    """)
+    errors, external = [], []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(base) else None)
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/google-calendar-event-creation"
+    out.mkdir(parents=True, exist_ok=True)
+    captures = []
+    try:
+        page.goto(base + "/#/connections")
+        page.get_by_role("heading", name="Connections").wait_for()
+        account = page.locator(f'[data-google-calendar-account="{write_account_id}"]')
+        create_access = account.locator("[data-google-calendar-create-access]")
+        assert create_access.is_disabled()
+        page.get_by_role("button", name="Load calendars").click()
+        calendar = account.locator("[data-google-calendar-calendar]")
+        calendar.wait_for(state="visible")
+        calendar.select_option("team@example.test")
+        assert "read only here" in calendar.locator("option:checked").inner_text()
+        assert create_access.is_disabled(), "shared writer calendars must not receive this owned-calendar scope"
+        calendar.select_option("primary")
+        assert create_access.is_enabled()
+        create_access.check()
+        calendar.select_option("team@example.test")
+        assert create_access.is_disabled() and not create_access.is_checked()
+        assert "This selection will stay read-only" in account.locator("[data-google-calendar-status]").inner_text()
+        calendar.select_option("primary")
+        assert create_access.is_enabled()
+        create_access.check()
+        grant_button = account.get_by_role("button", name="Grant read and create access")
+        assert grant_button.is_enabled()
+        grant_button.click()
+        approval = page.get_by_role("dialog", name="Grant event creation")
+        assert "Personal Calendar" in approval.inner_text() and "primary" not in approval.inner_text()
+        approval.get_by_text("Google’s account-level scope also permits changing and deleting events on calendars you own", exact=False).wait_for()
+        for label, width, height in (("desktop", 1440, 960), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.screenshot(path=str(out / f"permission-review-{label}.png"), animations="disabled")
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+            if width <= 390:
+                assert approval.get_by_role("button", name="Grant after review").bounding_box()["height"] >= 44
+        page.set_viewport_size({"width": 1440, "height": 960})
+        approval.get_by_role("button", name="Grant after review").click()
+        page.get_by_text("Can read and create events on Personal Calendar", exact=False).wait_for()
+        grant = app.state.store.google_calendar_grant(bot.id)
+        assert grant and grant["allow_event_creation"] is True and grant["calendar_id"] == "primary"
+        grant_summary = account.locator(".google-calendar-grants .device-row")
+        grant_summary.wait_for(state="visible")
+        assert "every creation needs approval" in grant_summary.inner_text()
+        page.get_by_role("button", name="Dismiss notification").click()
+
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
+                                     ("phone", 390, 844), ("compact-phone", 320, 740)):
+            page.set_viewport_size({"width": width, "height": height})
+            account.scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"owner-grant-{label}.png"), animations="disabled")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            if width <= 390:
+                assert account.get_by_role("button", name="Revoke Bot access").bounding_box()["height"] >= 44
+            captures.append({"size": label, "viewport": [width, height], "scene": "owned calendar event-creation grant",
+                             "horizontal_overflow": overflow})
+
+        assert page.locator("#google-calendar-event-creation").is_enabled()
+        page.locator("#google-calendar-label").fill("Write-enabled account")
+        page.locator("#google-calendar-event-creation").check()
+        page.get_by_role("button", name="Connect Google Calendar").click()
+        page.get_by_text("Finish Google sign-in for event creation", exact=False).wait_for()
+        oauth = page.evaluate("window.__calendarOAuth")
+        assert oauth["target"] == "_blank" and oauth["opener"] is None
+        query = parse_qs(urlsplit(oauth["url"]).query)
+        assert write_scope in query["scope"][0].split()
+        assert FixtureGoogleCalendarBook.sign_in_calls[-1] == ("Write-enabled account", True)
+        assert not errors, errors
+        assert not external, external
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_google_calendar_event_creation_scope_is_explicit_and_owner_only",
+            "command": ("PLAYWRIGHT_BROWSERS_PATH=/home/kevina/.cache/ms-playwright .venv/bin/pytest -q "
+                        "-W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning "
+                        "tests/e2e/test_browser.py::test_google_calendar_event_creation_scope_is_explicit_and_owner_only"),
+            "captured_at": datetime.now(timezone.utc).isoformat(), "browser": browser.version,
+            "provider_credentials_used": False, "provider_calls": 0,
+            "scenario": "Fixture-only account consent metadata, owner calendar selection, disabled shared-writer grant, exact user review, local persistence and explicit OAuth scope choice",
+            "external_requests": external, "page_errors": errors, "captures": captures,
+            "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
+                              for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                           "src/hutch/server/app.py", "src/hutch/store.py",
+                                           "src/hutch/google_calendar.py", "src/hutch/tools/google_calendar.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            browser_context.tracing.stop(path=str(out / "google-calendar-write-trace.zip"))
+        except Exception:
+            pass
+        browser_context.close()
 
 
 def test_gmail_preview_discloses_restricted_scope_and_requires_local_setup(browser, live):
