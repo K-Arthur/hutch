@@ -17,6 +17,19 @@ detached on the pointed drop head. Keep the more detailed original 3D artwork on
 the marketing site. The mascot and its colour never indicate whether a Bot is
 running, waiting, paused, or failed; those states remain separately labeled.
 
+## Shape-specific face follow-up (2026-10-10)
+
+An additional desktop and phone review found that the earlier narrow diagonal
+eyes looked like repeated slashes and obscured the differences between the head
+forms. The app now uses softer upright ink ovals with an individual face-safe
+area for each silhouette: orb, capsule, bean, drop, pebble, shield, triangle and
+hex. Their centerline, eye spacing, proportions, height and restrained tilt are
+chosen against the visible body shape; the drop and triangle sit lower in their
+wider areas, while the shield stays compact below its taper. Eyes remain fully
+inside every path, and the picker and selected avatar share the exact geometry.
+This keeps the app characters simple while allowing the silhouette—not a generic
+face stamp—to lead identity.
+
 ## Evidence and limits
 
 - The user's seven supplied mobile screenshots show a coordinator with a star-like

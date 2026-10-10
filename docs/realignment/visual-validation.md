@@ -71,9 +71,10 @@ named group and the rest under “All bots”. Search matches both groups. Pinni
 with the Bot and changes only its roster placement. Hiding is reversible from a disclosed
 Hidden bots group and does not pause work or schedules. One Bot overflow control contains
 pin, named section, hide/show, template download, safe duplicate and settings actions.
-The operator app uses a small family of flat, solid-colour 2D silhouettes with two
-white glints. The welcome view uses that Bot's same identity. The detailed original 3D
-mascot on the marketing site remains separate and unchanged.
+At this validation point, the operator app used flat, solid-colour 2D silhouettes with
+two white glints. The welcome view used that Bot's same identity. The eye treatment was
+refined in the follow-up below; the detailed original 3D mascot on the marketing site
+remains separate and unchanged.
 
 `.venv/bin/pytest -q tests/e2e/test_browser.py::test_bot_roster_pins_persist_and_simple_mascots_stay_distinct`
 passed on Chromium **153.0.8010.12** / Playwright **1.63.0** with local SQLite fixtures:
@@ -96,6 +97,25 @@ image loaded at its declared 560px width and retains the detailed 3D character; 
 operator app does not request that asset. The anonymous site checks made no external
 requests; the complete anonymous website suite passed **27 tests**. No live provider,
 screen reader, or physical mobile device was used.
+
+## Shape-aware flat Bot faces (2026-10-10)
+
+I reviewed the eight mascot silhouettes separately at a magnified **128px** preview size.
+The earlier diagonal slits read as repeated eyebrow-like marks, especially on pointed
+heads. The product now uses softer upright ink ovals, with a per-shape centerline, spacing,
+proportion, height and subtle tilt. The drop and triangle sit lower in their wider body;
+the shield keeps a compact pair below its taper. The picker preview remains the same SVG
+geometry used by the selected Bot throughout Studio.
+
+Chromium **153.0.8010.12** / Playwright **1.63.0** passed
+`tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette`.
+The test measures each rotated ellipse against its actual vector path, checks shape-specific
+face layouts and picker/preview parity, and verifies minimum **3:1** eye-to-body contrast.
+I opened the eight individual face captures, plus the picker and roster at desktop
+**1440×960**, tablet **900×1024**, phone **390×844**, and compact phone **320×740**. Phone
+pickers keep a balanced two-row layout without horizontal overflow. Captures, source hashes,
+metadata and a Playwright trace are in [`artifacts/mascot-eye-review/`](artifacts/mascot-eye-review/).
+This used local SQLite fixtures only; no provider call, screen reader or physical phone was tested.
 
 The scoped Impeccable detector found no primary issues in the changed JavaScript,
 stylesheet, or marketing page. It reported three advisory out-of-scale radii on existing

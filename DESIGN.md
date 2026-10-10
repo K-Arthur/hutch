@@ -134,11 +134,12 @@ understand what the machine is actually doing, or it is chrome that should shrin
 - Mono type is reserved for measured values (ids, durations, counts, budgets) —
   it signals "this number came from the machine".
 - The operator workspace uses simple, flat 2D Bot characters: one coloured
-  silhouette and two inset ink oval eyes. Each head shape has its own face center,
-  spacing, proportions and tilt; pointed silhouettes place the eyes in the wider
-  lower face. The shape chooser previews the same geometry used by the avatar, and
-  every eye remains inside its silhouette. Identity is stable by Bot name and
-  editable by the owner.
+  silhouette and two soft, upright ink oval eyes. Each head shape has its own
+  face center, spacing, proportions, height and subtle tilt; pointed silhouettes
+  place eyes lower in the wider face, while narrow forms use a more compact pair.
+  The shape chooser previews the same geometry used by the avatar, and every eye
+  remains inside its silhouette. Identity is stable by Bot name and editable by
+  the owner.
   Detailed original 3D mascot artwork belongs to marketing pages; the product
   and marketing characters are related brand work, not a shared UI asset.
 
@@ -224,10 +225,11 @@ language after explicit user direction ("right angles feel too off"):
   the composer: send/stop/+).
 - **Status chip** — pill, mono 11px, dot + word always together (`● working`,
   `● needs you`, `✕ failed`); colour never carries state alone.
-- **App avatar/sigil** — one flat silhouette from a curated set in one of eight
-  identity colours with a pair of soft ink oval eyes. Each silhouette has its own
-  eye center, spacing, proportions and tilt; pointed heads place the eyes lower in
-  the wider face. The identity picker uses the exact same face geometry as the
+- **App avatar/sigil** — one flat silhouette from a varied, curated set in one of
+  eight identity colours with a pair of soft, upright ink oval eyes. Each
+  silhouette has a face-safe zone that determines the eyes' center, spacing,
+  proportions, height and subtle tilt; pointed heads place them lower in the
+  wider face. The identity picker uses the exact same face geometry as the
   selected avatar. Derived from the Bot name and overridable
   at creation and in settings. Identity colours are decorative only, never status;
   the separate state pip sits beside it with its word. The marketing site's 3D art

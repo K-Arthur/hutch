@@ -607,18 +607,18 @@ const ID_HEADS = [
   { key: "triangle", d: "M27 12c2-4 8-4 10 0l19 32c2 4-1 8-5 8H13c-5 0-7-4-5-8l19-32Z" },
   { key: "hex", d: "M22 9h20l13 23-13 23H22L9 32 22 9Z" },
 ];
-// Each silhouette gets a face tuned to its usable area. The paired eyes keep
-// one simple language, while their spacing, oval proportions, and tilt follow
-// the head instead of stamping the same expression onto every shape.
+// Each silhouette gets a face fitted to its own usable area. Soft upright eyes
+// avoid reading as eyebrows at small sizes; individual spacing, height, scale,
+// and slight tilt follow each head's centerline and widest face region.
 const ID_FACES = [
-  [[25, 29, 4.8, 2.6, -42], [39, 28, 4.5, 2.4, -39]], // orb: relaxed diagonal
-  [[25, 29, 4.4, 2.6, -35], [39, 29, 4.3, 2.5, -35]], // capsule: upright
-  [[24, 30, 4.8, 2.7, -39], [39, 29, 4.3, 2.5, -36]], // bean: follows the lean
-  [[25, 34, 4.6, 2.6, -42], [39, 32, 4.5, 2.5, -40]], // drop: lower in the bowl
-  [[25, 29, 4.4, 2.5, -40], [39, 29, 4.8, 2.7, -45]], // pebble: gently uneven
-  [[25, 27, 4.1, 2.6, -36], [39, 27, 4.1, 2.5, -36]], // shield: narrow brow
-  [[26, 35, 4.0, 2.6, -42], [39, 33, 4.1, 2.5, -40]], // triangle: lower, centered
-  [[25, 30, 4.4, 2.5, -35], [39, 30, 4.2, 2.4, -35]], // hex: upright facets
+  [[25, 29, 3.4, 4.5, -8], [39, 28, 3.2, 4.2, 8]], // orb: open, softly balanced
+  [[25, 27, 3.1, 4.8, -3], [39, 27, 3.1, 4.8, 3]], // capsule: tall and upright
+  [[24, 30, 3.4, 4.5, -12], [39, 32, 3.1, 4.2, 8]], // bean: follows the lean
+  [[24, 36, 3.2, 4.4, -7], [40, 36, 3.2, 4.4, 7]], // drop: lower in its bowl
+  [[24, 30, 3.1, 4.1, -10], [39, 29, 3.6, 4.5, 8]], // pebble: follows its uneven crown
+  [[25, 31, 2.9, 4.1, -4], [39, 31, 2.9, 4.1, 4]], // shield: compact below its taper
+  [[27, 36, 2.9, 4.0, -6], [39, 35, 2.9, 4.0, 6]], // triangle: centered in the base
+  [[25, 31, 3.3, 4.4, -5], [39, 31, 3.3, 4.4, 5]], // hex: follows the flat facets
 ];
 
 function hash32(s) {

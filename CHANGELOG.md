@@ -1,5 +1,10 @@
 # Changelog
 
+## Shape-aware 2D Bot faces
+
+- Replaced the small diagonal eye marks with softer upright ink ovals. Eye placement, scale, spacing and subtle tilt now follow each mascot silhouette, and the identity picker previews the exact avatar face. Detailed 3D characters remain a marketing-site treatment.
+- Verified every shape against its vector boundary and contrast in Chromium; individually inspected the eight enlarged silhouettes and responsive picker screenshots. See `docs/realignment/visual-validation.md`.
+
 ## Per-Bot task focus profiles
 
 - Bot setup and Bot model settings can select or clear a task focus: router, research, extraction, coding, planner, or vision. The choice is persisted and used by the built-in local runtime for its context target and residency policy.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import http.server
 import json
 import platform
@@ -287,10 +288,12 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
         assert len(identity) == 8, identity
         assert len({item["color"] for item in identity}) == 8, identity
         assert all(len(item["eyes"]) == 2 for item in identity), identity
-        assert all(eye["tag"] == "ellipse" and eye["fill"] == "#10161f" and eye["rx"] > eye["ry"]
+        assert all(eye["tag"] == "ellipse" and eye["fill"] == "#10161f" and eye["ry"] > eye["rx"] * 1.15
                    for item in identity for eye in item["eyes"]), identity
         assert len({tuple((eye["rx"], eye["ry"]) for eye in item["eyes"])
                     for item in identity}) == 8, identity
+        face_rows = {round(sum(eye["cy"] for eye in item["eyes"]) / 2, 1) for item in identity}
+        assert len(face_rows) >= 6, "eye height should follow each silhouette's usable face area"
         assert all(part == {"center": True, "perimeter": True}
                    for item in identity for part in item["contained"]), identity
 
@@ -324,7 +327,8 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
         identity_panel = page.locator("#idp-panel")
         identity_panel.screenshot(path=str(out / "shape-picker-desktop.png"), animations="disabled")
 
-        for index in range(8):
+        shape_keys = ("orb", "capsule", "bean", "drop", "pebble", "shield", "triangle", "hex")
+        for index, shape_key in enumerate(shape_keys):
             shape_buttons.nth(index).click()
             assert shape_buttons.nth(index).get_attribute("aria-pressed") == "true"
             preview = page.locator("[data-idp-prev] .avatar svg")
@@ -336,6 +340,10 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
             preview_eyes = preview.locator("[data-sigil-eye]").evaluate_all(
                 "eyes => eyes.map(eye => [eye.getAttribute('cx'), eye.getAttribute('cy'), eye.getAttribute('transform')])")
             assert preview_eyes == selected_eyes
+            avatar_preview = page.locator("[data-idp-prev] .avatar")
+            avatar_preview.evaluate("el => el.style.setProperty('--av', '128px')")
+            avatar_preview.screenshot(path=str(out / f"face-{shape_key}.png"), animations="disabled")
+            avatar_preview.evaluate("el => el.style.removeProperty('--av')")
         shape_buttons.first.click()
         page.set_viewport_size({"width": 900, "height": 1024})
         identity_panel.screenshot(path=str(out / "shape-picker-tablet.png"), animations="disabled")
@@ -389,12 +397,18 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
             "browser": f"{browser.browser_type.name.title()} {browser.version}",
             "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844], "compact_phone": [320, 740]},
             "screenshots": ["desktop.png", "phone-studio.png", "phone-roster.png", "shape-picker-desktop.png", "shape-picker-tablet.png", "shape-picker-phone.png", "shape-picker-compact-phone.png"],
+            "individually_reviewed_faces": [f"face-{shape_key}.png" for shape_key in shape_keys],
             "silhouettes": 8,
             "colors": 8,
             "minimum_eye_contrast": round(min(eye_contrast), 2),
-            "checks": ["shape-specific faces match every picker silhouette and live preview", "eyes inside each mascot silhouette", "44px shape controls", "balanced two-row phone and compact-phone picker", "no phone overflow", "no browser errors"],
+            "checks": ["upright soft oval eyes with silhouette-specific center, spacing, scale, height, and tilt", "shape-specific faces match every picker silhouette and live preview", "eyes inside each mascot silhouette", "44px shape controls", "balanced two-row phone and compact-phone picker", "no phone overflow", "no browser errors"],
             "page_errors": errors,
             "provider_calls": 0,
+            "source_sha256": {
+                relative: hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
+                for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                 "src/hutch/server/static/index.html", "tests/e2e/test_design_system.py")
+            },
         }, indent=2) + "\n", encoding="utf-8")
     finally:
         try:
