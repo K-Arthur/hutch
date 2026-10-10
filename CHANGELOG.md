@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Tighten chat reply references: discard template indentation instead of rendering it as empty quoted space, and rely on the visible message for ordinary send confirmation so phone toasts no longer cover the composer. Keep notices for rehearsals and queued work.
 - Streamline assistant settings headers: keep the assistant name on one line and group chat navigation and the destructive delete action under one accessible options menu.
 - Restore shared primary/ghost button contrast after the generated utility cascade, and improve the empty schedule chooser with a clear primary action, real one-line ellipses, and a bounded scrollable assistant list on phones.
 - Refine marketing illustrations and phone readability: align feature icons with headings, enlarge small labels, and remove decorative mascot glow rings while keeping the detailed 3D Hutch character.

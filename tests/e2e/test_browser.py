@@ -9336,7 +9336,7 @@ def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser
     store.append_event(Event(run_id=run.id, type=EventType.message, data={"role": "assistant", "content": answer}))
     store.flush_events()
 
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/message-replies-clean-chat-2026-10-10"
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/reply-quote-polish-2026-10-10"
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": width, "height": height}, reduced_motion="reduce",
                                   has_touch=(size == "phone"))
@@ -9388,10 +9388,13 @@ def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser
         && message.content === 'Can you explain that result?'
         && message.reply_to_message_id === sourceId);
     }""", arg={"conversationId": conversation["id"], "sourceId": "reply-fixture-answer"})
+    assert page.locator("#toast-root .toast").count() == 0, "The sent message itself confirms ordinary send success."
     assert preview.is_hidden()
     anchored = page.locator(".reply-reference-quote")
     anchored.wait_for(state="visible")
     assert "The migration finished successfully" in anchored.inner_text()
+    quote_height = anchored.bounding_box()["height"]
+    assert quote_height <= 140, f"A short reply reference should stay compact; rendered at {quote_height:.1f}px"
     quote_style = anchored.evaluate("""element => {
       const style = getComputedStyle(element);
       return {leftWidth: style.borderLeftWidth, topWidth: style.borderTopWidth,

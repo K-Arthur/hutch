@@ -1964,3 +1964,23 @@ source hashes are in
 [`artifacts/bot-naming-quality/`](artifacts/bot-naming-quality/) and
 [`artifacts/bot-from-message/`](artifacts/bot-from-message/). The broader
 all-surface UI review remains open.
+
+## Populated chat reply references (2026-10-10)
+
+The independently reviewed same-chat reply flow showed a short quoted message
+with a large empty area caused by preserved indentation in the markup. The
+quote now collapses template whitespace and preserves line breaks in actual
+message text. A normal send also no longer raises a transient **Sent** toast
+over the phone composer; the new message and timestamp supply the confirmation.
+Special rehearsal and queued-work notices are retained.
+
+The browser regression passed **3 cases** at desktop **1440×1000**, tablet
+**900×1024**, and phone **390×844** in Chromium **153.0.8010.12** / Playwright
+**1.63.0**. The local fixture verifies the anchored reply survives reload,
+keyboard focus returns to the composer, the short quote stays under **140px**,
+and the viewport does not overflow. It recorded no page errors, provider calls,
+or external requests. The sent-message screenshots were opened separately at
+desktop, tablet, and phone sizes. Per-size JSON, source hashes, and traces are
+in [`artifacts/reply-quote-polish-2026-10-10/`](artifacts/reply-quote-polish-2026-10-10/).
+Attachments, long histories, human waits, and other open surfaces remain in
+the broader review queue.

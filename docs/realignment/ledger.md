@@ -3990,3 +3990,25 @@ and `artifacts/bot-from-message/`.
 This is a focused identity slice. Connections, provider artwork, populated chat,
 the remaining operator pages, marketing, and final all-surface review stay open.
 No push or publication occurred.
+
+## Populated chat reply reference and send feedback (2026-10-10)
+
+The reply reference previously inherited `white-space: pre-wrap` from the user
+message bubble. Newlines and indentation in the HTML template were therefore
+rendered as a large blank area around a short quote. The quote now collapses
+markup whitespace while preserving line breaks in the actual quoted text.
+Routine send success no longer adds a **Sent** toast over the phone composer;
+the posted message is visible in the transcript. Rehearsal and queued-work
+notices remain.
+
+Verification: `uv run --frozen pytest -q
+tests/e2e/test_browser.py::test_bot_message_reply_is_keyboard_accessible_editable_and_persisted`
+passed **3 tests** at **1440×1000**, **900×1024**, and **390×844** on Chromium
+**153.0.8010.12** / Playwright **1.63.0**. It verifies keyboard selection,
+focus return, persisted anchored replies, compact quote geometry, ordinary-send
+feedback, and no overflow or page errors. Screenshots, per-size source hashes,
+and traces are in
+[`artifacts/reply-quote-polish-2026-10-10/`](artifacts/reply-quote-polish-2026-10-10/).
+I reviewed the desktop, tablet, and phone conversation screenshots separately.
+No model calls or external requests occurred. This is one populated-chat
+refinement; broader UI review remains open and nothing was pushed or published.

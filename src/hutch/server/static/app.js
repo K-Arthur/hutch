@@ -2771,8 +2771,8 @@ async function renderChatStudio(preferredBot = null) {
       if (titleOption && titleOption.textContent.trim().endsWith("New conversation")) {
         titleOption.textContent = text.slice(0, 72);
       }
-      toast(body.rehearse ? "Rehearsal started — model calls and reads still happen."
-        : (ACTIVE.has(r.status) && activeRun ? "Sent — queued behind the current run." : "Sent."));
+      if (body.rehearse) toast("Rehearsal started — model calls and reads still happen.");
+      else if (ACTIVE.has(r.status) && activeRun) toast("Sent — queued behind the current run.");
       if (generation !== studioGeneration) { if (loadDraft(composerDraftId) === snapshot) saveDraft(composerDraftId, ""); return; }
       currentRunId = r.id;
       // Clear only the submitted revision; anything typed since stays put.

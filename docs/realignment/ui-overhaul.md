@@ -34,7 +34,7 @@ assistant identities; the marketing site may use the detailed 3D character.
 | Surface | Current review | Overhaul state |
 |---|---|---|
 | Chat / empty Studio | Individually reviewed at desktop, tablet, phone and compact phone; helper examples are collapsed below the message path | In progress |
-| Chat / populated, choices, replies, attachments, waits | Existing interaction evidence available; refresh after shell redesign | Open |
+| Chat / populated, choices, replies, attachments, waits | Reply references and message-level reply reviewed on desktop/tablet/phone; choice and approval states inspected individually | In progress |
 | Assistant roster and one-action menu | One-line human names, task/status subtitle, full-row selection and one grouped options menu checked at responsive sizes | In progress |
 | Assistant management for larger rosters | Ten-assistant threshold and one-line ellipsis behavior checked on desktop/tablet/phone | In progress |
 | Assistant creation and identity | Carries the source request forward; suggests a short name and task note, both editable; advanced details stay optional | In progress |
@@ -76,6 +76,25 @@ lookalike. See [OpenAI's brand guide](https://openai.com/brand/),
 and [Google's product compatibility guidance](https://partnermarketinghub.withgoogle.com/brands/google/use-cases/product-co-branding/).
 
 ## Progress and evidence
+
+### Populated chat and referenced replies — verified partial pass
+
+Independent review of the current reply flow exposed whitespace from the
+multiline HTML template being inherited as visible `pre-wrap` content, which
+made a short quoted reply fill about 179px on desktop. The quote now normalizes
+markup whitespace while preserving real line breaks in the referenced text.
+Ordinary sends no longer add a redundant **Sent** toast on top of the phone
+composer; the posted message itself confirms success. Rehearsal and queued-work
+notices remain available.
+
+The keyboard reply journey passed at desktop, tablet, and phone sizes with zero
+horizontal overflow, preserved focus and draft after reload, and a persisted
+message-to-message reference. I opened the resulting conversation screenshots
+individually at all three sizes. The local SQLite fixture made no provider calls
+or external requests. Evidence is in
+[`artifacts/reply-quote-polish-2026-10-10/`](artifacts/reply-quote-polish-2026-10-10/).
+This does not close the populated-chat review; attachments, longer histories,
+human waits, and remaining distinct surfaces still require review.
 
 ### Type-system foundation and first route refinements — verified
 
