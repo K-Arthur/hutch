@@ -3709,3 +3709,26 @@ and traces are under
 Implementation and UI documentation are committed on `main` as `9b02c01`.
 This narrow cleanup does not close the populated chat design review or the
 broader app-and-marketing UI overhaul; no push or publication occurred.
+
+## Source-aligned Apps & AI review and phone layout (2026-10-10)
+
+The Connections catalog now reduces tile density on phones while keeping the
+service name, setup state, explanation, and a 44px action target. The 40px icon
+container remains a service-category illustration; ChatGPT keeps OpenAI's exact
+white Blossom mark. The source-aligned capture showed that older
+`assistant-first-ui` images did not have source hashes and differed from current
+code: they used the shorter **Outlook** label and different-looking marks. The
+old captures were left intact as historical evidence; new five-size captures
+include source hashes in
+[`artifacts/app-catalog-source-aligned-2026-10-10/`](artifacts/app-catalog-source-aligned-2026-10-10/).
+
+Verification: `.venv/bin/pytest -q tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language`
+passed **1 test in 9.62s** with Chromium **153.0.8010.12** and Playwright
+**1.63.0**. It covers desktop, short desktop, tablet, phone, and compact phone;
+all had zero horizontal overflow, mobile actions remained at least 44px tall,
+and cards stayed at or below 190px on mobile. No external requests, provider
+calls, or page errors occurred. I reviewed current desktop, tablet, phone, and
+compact-phone screenshots individually. `git diff --check`, JavaScript syntax,
+and design sidecar JSON validation passed. The layout and design docs are
+committed on `main` as `c1e47ad`; this is not the full Connections or all-surface
+redesign. No push or publication occurred.
