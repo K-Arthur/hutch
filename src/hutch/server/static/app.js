@@ -4893,7 +4893,7 @@ function paintSchedules() {
               <div class="schedule-overview-actions">
                 <button class="btn ghost small" type="button" data-schedule-run-now="${esc(row.bot_name)}/${esc(row.id)}">Run now</button>
                 <button class="btn ghost small" type="button" data-schedule-skip-next="${esc(row.bot_name)}/${esc(row.id)}">Skip next</button>
-                <a class="btn ghost small schedule-overview-edit" href="#/bot/${encodeURIComponent(row.bot_name)}">Edit</a>
+                <a class="btn ghost small schedule-overview-edit" href="#/bot/${encodeURIComponent(row.bot_name)}">Edit schedule</a>
               </div>
             </article>`;
           }).join("")}
@@ -5393,21 +5393,8 @@ function scheduleEditorHtml(schedule, index, status = null) {
         <label class="field">Task name
           <input type="text" name="name" maxlength="80" value="${esc(schedule.name || "Scheduled task")}" required>
         </label>
-        <label class="field">Trigger
-          <select name="trigger" data-schedule-trigger>
-            <option value="cron" ${trigger === "cron" ? "selected" : ""}>Calendar cron</option>
-            <option value="interval" ${trigger === "interval" ? "selected" : ""}>Fixed interval</option>
-            <option value="once" ${trigger === "once" ? "selected" : ""}>One time</option>
-          </select>
-        </label>
         <label class="field" data-cron-field ${trigger === "cron" ? "" : "hidden"}>Cron expression
           <input type="text" name="cron" value="${esc(schedule.cron || "")}" placeholder="0 9 * * 1" ${trigger === "cron" ? "required" : ""}>
-        </label>
-        <label class="field" data-interval-field ${trigger === "interval" ? "" : "hidden"}>Interval (minutes)
-          <input type="number" name="interval_minutes" min="1" step="1" value="${esc(intervalMinutes)}" ${trigger === "interval" ? "required" : ""}>
-        </label>
-        <label class="field" data-anchor-field ${trigger === "cron" ? "hidden" : ""}>Anchor (ISO UTC)
-          <input type="text" name="anchor_at" value="${esc(schedule.anchor_at || "")}" placeholder="2026-10-07T00:00:00+00:00" ${trigger === "once" ? "required" : ""}>
         </label>
         <label class="field">Timezone
           <input type="text" name="timezone" value="${esc(schedule.timezone || "UTC")}" required>
@@ -5418,31 +5405,51 @@ function scheduleEditorHtml(schedule, index, status = null) {
             <option value="skip" ${schedule.catch_up === "skip" ? "selected" : ""}>Skip if the last window was missed</option>
           </select>
         </label>
-        <label class="field">If already busy
-          <select name="overlap">
-            <option value="queue" ${(schedule.overlap || "queue") === "queue" ? "selected" : ""}>Queue</option>
-            <option value="skip" ${schedule.overlap === "skip" ? "selected" : ""}>Skip this occurrence</option>
-            <option value="buffer_one" ${schedule.overlap === "buffer_one" ? "selected" : ""}>Keep one waiting</option>
-          </select>
-        </label>
       </div>
       <label class="field">Task prompt
-        <textarea name="schedule_prompt" rows="3" maxlength="4000" aria-describedby="schedule-prompt-help-${index}">${esc(schedule.prompt || "")}</textarea>
-        <span class="hint" id="schedule-prompt-help-${index}">Leave blank to use this bot’s standing instructions. Saving a draft (unchecked Enabled) does not admit future occurrences.</span>
+        <textarea name="schedule_prompt" rows="2" maxlength="4000" aria-describedby="schedule-prompt-help-${index}">${esc(schedule.prompt || "")}</textarea>
+        <span class="hint" id="schedule-prompt-help-${index}">Leave blank to use this bot’s standing instructions.</span>
       </label>
       <div class="meta-row"><span>Next run</span><span class="mono">${esc(nextFire)}</span></div>
-      ${preview.length ? `<details class="schedule-preview"><summary>Upcoming occurrences</summary><ol>${preview.map(p => `<li><time datetime="${esc(p.at)}">${esc(p.at)}</time> · ${esc(p.timezone)} (${esc(p.utc_offset)})</li>`).join("")}</ol></details>` : ""}
-      <div class="schedule-occurrence-panel" data-occurrence-panel="${esc(id)}" hidden>
-        <h4>Recent occurrences</h4>
-        <div class="schedule-occurrence-list hint">Loading…</div>
-      </div>
       ${status?.blocked ? `<p class="hint schedule-skip" role="status">Blocked: ${esc(String(status.blocked.reason || "configuration").replaceAll("_", " "))}.</p>` : ""}
       ${status?.last_skip ? `<p class="hint schedule-skip" role="status">Last skipped ${esc(status.last_skip.windows)} missed windows${status.last_skip.reason ? ` · ${esc(String(status.last_skip.reason).replaceAll("_", " "))}` : ""}.</p>` : ""}
+      <button class="btn ghost small schedule-advanced-toggle" type="button" data-schedule-advanced-toggle aria-expanded="false">Advanced timing and recovery</button>
+      <div class="schedule-advanced" hidden>
+        <div class="form-grid row2">
+          <label class="field">Trigger
+            <select name="trigger" data-schedule-trigger>
+              <option value="cron" ${trigger === "cron" ? "selected" : ""}>Calendar cron</option>
+              <option value="interval" ${trigger === "interval" ? "selected" : ""}>Fixed interval</option>
+              <option value="once" ${trigger === "once" ? "selected" : ""}>One time</option>
+            </select>
+          </label>
+          <label class="field" data-interval-field ${trigger === "interval" ? "" : "hidden"}>Interval (minutes)
+            <input type="number" name="interval_minutes" min="1" step="1" value="${esc(intervalMinutes)}" ${trigger === "interval" ? "required" : ""}>
+          </label>
+          <label class="field" data-anchor-field ${trigger === "cron" ? "hidden" : ""}>Anchor (ISO UTC)
+            <input type="text" name="anchor_at" value="${esc(schedule.anchor_at || "")}" placeholder="2026-10-07T00:00:00+00:00" ${trigger === "once" ? "required" : ""}>
+          </label>
+          <label class="field">If already busy
+            <select name="overlap">
+              <option value="queue" ${(schedule.overlap || "queue") === "queue" ? "selected" : ""}>Queue</option>
+              <option value="skip" ${schedule.overlap === "skip" ? "selected" : ""}>Skip this occurrence</option>
+              <option value="buffer_one" ${schedule.overlap === "buffer_one" ? "selected" : ""}>Keep one waiting</option>
+            </select>
+          </label>
+        </div>
+        ${preview.length ? `<div class="schedule-preview" aria-label="Upcoming occurrences"><p class="hint">Upcoming occurrences</p><ol>${preview.map(p => `<li><time datetime="${esc(p.at)}">${esc(p.at)}</time> · ${esc(p.timezone)} (${esc(p.utc_offset)})</li>`).join("")}</ol></div>` : ""}
+        <div class="schedule-occurrence-panel" data-occurrence-panel="${esc(id)}" hidden>
+          <h4>Recent occurrences</h4>
+          <div class="schedule-occurrence-list hint">Loading…</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn ghost small" type="button" data-schedule-run-now-bot="${esc(id)}">Run now</button>
+          <button class="btn ghost small" type="button" data-schedule-skip-next-bot="${esc(id)}">Skip next</button>
+          <button class="btn ghost small" type="button" data-show-occurrences="${esc(id)}">History</button>
+        </div>
+      </div>
       <div class="btn-row schedule-actions">
         <button class="btn primary small" type="submit">Save task</button>
-        <button class="btn ghost small" type="button" data-schedule-run-now-bot="${esc(id)}">Run now</button>
-        <button class="btn ghost small" type="button" data-schedule-skip-next-bot="${esc(id)}">Skip next</button>
-        <button class="btn ghost small" type="button" data-show-occurrences="${esc(id)}">History</button>
         <button class="btn ghost small" type="button" data-remove-schedule="${esc(id)}">Remove task</button>
       </div>
     </form>
@@ -5979,6 +5986,13 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
       },
     });
   });
+  $$("[data-schedule-advanced-toggle]").forEach(button => button.addEventListener("click", () => {
+    const panel = button.parentElement?.querySelector(".schedule-advanced");
+    if (!panel) return;
+    const open = panel.hidden;
+    panel.hidden = !open;
+    button.setAttribute("aria-expanded", open ? "true" : "false");
+  }));
   $$("[data-schedule-trigger]").forEach(select => select.addEventListener("change", () => {
     const form = select.closest("form");
     if (!form) return;

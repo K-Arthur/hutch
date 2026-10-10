@@ -19,8 +19,8 @@ after their tests and visual review. Do not push or publish.
 **Routines lane (2026-10-10):** owned on worktree `.worktrees/routines` branch `routines/durable` (base `a2106ec`).
 Integrator for `src/hutch/scheduler.py`, schedule occurrence contracts, schedule migrations, and `/api/v1/schedules*`.
 Sibling worktrees (`computer-use`, `skills-lifecycle`, `ui-*`, `site-mascot`, `realign`) must not edit those paths without
-re-read. Plan/research: `docs/realignment/routines-plan.md`, `docs/realignment/routines-research-ledger.md`. No second
-scheduler against live user data; no push.
+re-read. Plan/research: `docs/realignment/routines-plan.md`, `docs/realignment/routines-research-ledger.md`. Milestone
+commits: `87658e2` (core recurrence/lifecycle), follow-up UI/e2e evidence. No second scheduler against live user data; no push.
 
 ## Current slices
 

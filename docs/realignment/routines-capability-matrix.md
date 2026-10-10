@@ -18,7 +18,7 @@ Branch `routines/durable` worktree. Base `a2106ec`. Evidence from isolated pytes
 | Draft `enabled=false` | **implemented-and-verified** | `test_disabled_schedule_never_due`, durability draft test |
 | Occurrence history API | **implemented-and-verified** | `test_occurrence_history_lists_claimed_windows` |
 | Atomic claim (marker+row+run) | **implemented-and-verified** | durability duplicate/stale-marker tests |
-| Schedules UI run/skip/history/editor | **implemented-but-unverified** | code landed; browser screenshots not yet captured this session |
+| Schedules UI run/skip/history/editor | **implemented-and-verified** | e2e `test_schedule_overview_*` + `test_multiple_scheduled_tasks_*` passed; artifacts under `docs/realignment/artifacts/schedules` and `scheduled-tasks` |
 | Delivery/digest notifications | **unsupported** | deferred; in-app run history only |
 | Multi-step workflow canvas | **unsupported** | out of smallest architecture |
 | Overnight soak / live providers | **blocked** | no authorization for live accounts or overnight host soak |

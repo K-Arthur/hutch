@@ -20,8 +20,8 @@
       ],
       "rows": 3,
       "actionHeight": 26,
-      "actionWidth": 218.859375,
-      "actionFontSize": 13,
+      "actionWidth": 195.671875,
+      "actionFontSize": 14,
       "nextTimeCount": 3,
       "screenshot": "desktop.png"
     },
@@ -37,8 +37,8 @@
       ],
       "rows": 3,
       "actionHeight": 26,
-      "actionWidth": 218.859375,
-      "actionFontSize": 13,
+      "actionWidth": 195.671875,
+      "actionFontSize": 14,
       "nextTimeCount": 3,
       "screenshot": "tablet.png"
     },
@@ -54,8 +54,8 @@
       ],
       "rows": 3,
       "actionHeight": 44,
-      "actionWidth": 226.859375,
-      "actionFontSize": 13,
+      "actionWidth": 203.671875,
+      "actionFontSize": 14,
       "nextTimeCount": 3,
       "screenshot": "phone.png"
     },
@@ -65,8 +65,8 @@
         390,
         844
       ],
-      "scrollHeight": 1098,
-      "scrollViewportHeight": 722,
+      "scrollHeight": 1067,
+      "scrollViewportHeight": 720,
       "screenshot": "phone-bottom.png"
     }
   ],
@@ -112,12 +112,12 @@
     "no external browser requests"
   ],
   "source_sha256": {
-    "src/hutch/server/static/index.html": "911f5b2eb59eb865a12b4f651b649d76610cea115968295c5ca000c6d8dda001",
-    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
-    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
-    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
-    "src/hutch/store.py": "febf2e054c553fd67684a2f361bda5c43e7fdfce317f2d04d69e601ab8324fdb",
-    "src/hutch/engine.py": "cfb61cb9496b1d612a5b7220b512653b239a63a8cf935a674fe8b5aaca01401c",
-    "src/hutch/scheduler.py": "3ad7266a569b24cf06db0c5dda5952babf45b9b0e69b19f7947189fb1fc2e266"
+    "src/hutch/server/static/index.html": "d9d037b323fa06b27dbe718edf247f3c925839642a410264926d085b860d07c6",
+    "src/hutch/server/static/app.js": "3d641593bdca4bdbdadfe7fec68c869aa52b13b350e92384d3742d23c75a3c21",
+    "src/hutch/server/static/style.css": "3d0e9f53f3e68d3a38c613b353ca5e8c642987147d30d5d36f4d1a1c1ec63ee4",
+    "src/hutch/server/app.py": "623bda14b6d0b492126535cbea92b2c750d4cd64b5382218fe43160135e8fbe7",
+    "src/hutch/store.py": "1b4c2697d57997329acbf0215991d03dac420d17b487cb1f122ae8f28a783849",
+    "src/hutch/engine.py": "70a286161a41c268eb164994b7b7d500663a7d1536bee2fbaf94bd2c3757e7b9",
+    "src/hutch/scheduler.py": "3669700f9b98b7aff59b96e090cbb0233fce92cc1e512da776b91f18aad9d459"
   }
 }

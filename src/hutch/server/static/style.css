@@ -1705,9 +1705,13 @@ button.inline-link:hover { color: var(--text); }
 .schedule-overview-actions .btn { min-height: 44px; white-space: nowrap; }
 .schedule-overview-more { display: flex; justify-content: center; padding: var(--s-2) 0; }
 .schedule-preview, .schedule-occurrence-panel { margin-top: var(--s-2); }
-.schedule-preview > summary, .schedule-occurrence-panel h4 { font-size: var(--fs-xs); color: var(--text-2); }
+.schedule-preview > .hint, .schedule-occurrence-panel h4 { font-size: var(--fs-xs); color: var(--text-2); }
 .schedule-preview ol, .schedule-occurrence-list ol { margin: var(--s-2) 0 0; padding-left: 1.2rem; font-size: var(--fs-sm); }
-.schedule-editor .check { display: flex; align-items: center; gap: var(--s-2); min-height: 44px; }
+.schedule-editor .check { display: flex; align-items: center; gap: var(--s-2); min-height: 36px; }
+.schedule-editor { gap: var(--s-2); }
+.schedule-advanced-toggle { margin-top: var(--s-1); justify-self: start; min-height: 36px; }
+.schedule-advanced { margin: var(--s-2) 0; padding: var(--s-3); background: var(--sunken); border-radius: var(--r-control); }
+.schedule-editor .schedule-actions { margin-top: var(--s-1); }
 .schedule-empty-bots { display: grid; justify-items: center; gap: var(--s-2); width: min(100%, 760px); margin-top: var(--s-3); }
 .schedule-empty-bots > summary { display: inline-flex; align-items: center; justify-self: center; gap: var(--s-2); list-style: none; min-height: 44px; cursor: pointer; }
 .schedule-empty-bots > summary .schedule-empty-chevron { flex: none; }
