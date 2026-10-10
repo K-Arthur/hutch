@@ -3000,3 +3000,13 @@ it repeated three radius advisories on unchanged CSS lines 558, 580 and 591. Cap
 [`artifacts/bot-memory-export/`](artifacts/bot-memory-export/). I inspected all three final captures; the phone sheet keeps the
 download action visible, meets the 44px target and has no horizontal overflow. Fixtures used synthetic SQLite data and made no
 model/provider calls. No screen reader or physical phone was used.
+
+## Guided Bot setup YAML preview and download (2026-10-09)
+
+Commit `c960215` completes the UI-7 YAML view with a versioned, sanitized preview and download from the final Bot-setup review.
+The preview reuses Bot-create validation and returns a typed response marked `no-store`; it never persists configuration or
+starts work. Endpoint URLs, local paths and source-message identifiers are omitted. The normal explicit **Create bot** action is
+still required to save. Documentation distinguishes this unsaved setup export from importing YAML or snapshotting an existing
+Bot, which remain open roadmap work.
+
+The focused API + browser batch, `uv run pytest -q tests/test_api.py tests/e2e/test_browser.py::test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone --no-header`, passed **41 tests in 16.48s**. The browser ran on Chromium **153.0.8010.12** / Playwright **1.63.0** at desktop **1440×960**, tablet **900×1024**, and phone **390×844**. Enter builds the preview and downloads identical YAML. I inspected each final capture and fixed horizontal overflow from long YAML lines. `node --check src/hutch/server/static/app.js`, `uv run python -m compileall -q src/hutch`, and `git diff --check` passed. Tests used local fixtures and a test-only credential marker; no model call or external request occurred. No screen reader or physical phone was used. Screenshots, trace, downloaded sample and validation metadata are in [`artifacts/bot-setup/`](artifacts/bot-setup/).
