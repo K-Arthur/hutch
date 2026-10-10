@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
-  "captured_at": "2026-10-10T17:27:37.036605+00:00",
+  "captured_at": "2026-10-10T18:58:33.048569+00:00",
   "python": "3.13.15",
   "browser": "Chromium 153.0.8010.12",
   "playwright": "1.63.0",
@@ -58,7 +58,13 @@
       "title": "Manage assistants",
       "workspace": true,
       "visibleBotNames": [],
-      "menuControls": 11
+      "menuControls": 11,
+      "longAssistantCard": {
+        "left": 864,
+        "right": 1408,
+        "width": 544,
+        "viewport": 1440
+      }
     },
     {
       "surface": "runs",
@@ -211,7 +217,13 @@
       "title": "Manage assistants",
       "workspace": true,
       "visibleBotNames": [],
-      "menuControls": 11
+      "menuControls": 11,
+      "longAssistantCard": {
+        "left": 458,
+        "right": 884,
+        "width": 426,
+        "viewport": 900
+      }
     },
     {
       "surface": "runs",
@@ -345,7 +357,13 @@
       "title": "Manage assistants",
       "workspace": true,
       "visibleBotNames": [],
-      "menuControls": 11
+      "menuControls": 11,
+      "longAssistantCard": {
+        "left": 16,
+        "right": 374,
+        "width": 358,
+        "viewport": 390
+      }
     },
     {
       "surface": "runs",
@@ -498,7 +516,13 @@
       "title": "Manage assistants",
       "workspace": true,
       "visibleBotNames": [],
-      "menuControls": 11
+      "menuControls": 11,
+      "longAssistantCard": {
+        "left": 16,
+        "right": 304,
+        "width": 288,
+        "viewport": 320
+      }
     },
     {
       "surface": "runs",
@@ -598,7 +622,8 @@
     "marketing",
     "preferences",
     "Fleet details disclosure",
-    "Fleet action menu"
+    "Fleet action menu",
+    "Long assistant name on phone and compact phone"
   ],
   "visual_review": "Open each desktop, tablet, and phone screenshot individually; 320px compact-phone has overflow assertions.",
   "reference_access": {
@@ -606,13 +631,13 @@
     "mobbin": "The screen searches returned a paid-plan requirement; no Mobbin result was used."
   },
   "source_sha256": {
-    "src/hutch/server/static/app.js": "2f27e83d4553cc1a2576cce619e59517bb6f5684e1eb3a53575e0343fd4b6b78",
+    "src/hutch/server/static/app.js": "4f25c441056c7cd2d2d45a889c4d790119df7f5b7f9b2d6f47a47b14229ebebb",
     "src/hutch/server/static/index.html": "575a9641e4be85f5ed3294571370073ed90656c728baa218cfe11bd0b6e6f932",
-    "src/hutch/server/static/style.css": "4ef9b9a4fbf491f781f1cce7d57467604f508d927267b0e3ced9ca7b8fed8f0f",
+    "src/hutch/server/static/style.css": "1edd163a413c064c0f23a482c733f8849c5be7b6ce93fba69649b3e2d7493daf",
     "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
     "website/index.html": "3cc72969a1db70426edff5ff5f2bea107915636cf5ee733ae39c87b6cbd3de2c",
     "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
     "website/styles.css": "b4734e30bccfce415329ffc6dc8b0631bb7937f51e8f8525c912229526ddfda8",
-    "tests/e2e/test_design_system.py": "d0b72c510f47884fd05e6934c240c879d21869cae7641298d7d3013fccf86ee0"
+    "tests/e2e/test_design_system.py": "3a4c4234ceec6867edfecd6d5ef920db606c9437f2d7ec03f00838670660a131"
   }
 }

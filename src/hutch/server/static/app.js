@@ -4872,19 +4872,16 @@ async function renderBots() {
           <article class="bot-card" data-fleet-bot="${esc(b.name)}">
             <div class="bot-head">
               ${botAvatar(b.name, 32, botState(b) === "running" ? "running" : b.paused ? "paused" : "")}
-              <span class="bot-name">${esc(b.display_name || b.name)}</span>
+              <span class="bot-name" title="${esc(b.display_name || b.name)}">${esc(b.display_name || b.name)}</span>
               ${b.active_run_id ? statusChip(b.active_run_status, b.active_run_status_label) : `<span class="tag">${esc(botStatusLabel(b))}</span>`}
             </div>
             <p class="bot-desc">${esc(b.description || "Ready when you are.")}</p>
-            <div class="bot-chips">
-              <span class="tag">${b.schedule ? "Scheduled" : "Runs when you ask"}</span>
-              <span class="tag">${esc(botActionSummary(b.approval_mode))}</span>
-            </div>
             <details class="bot-card-details">
-              <summary><span class="bot-card-details-label">More details</span><span class="bot-card-details-hint">AI service, schedule, and activity</span>${icon("down", "bot-card-details-chevron")}</summary>
+              <summary><span class="bot-card-details-label">Details</span><span class="bot-card-details-hint">Settings and activity</span>${icon("down", "bot-card-details-chevron")}</summary>
               <div class="bot-facts">
                 <div>AI service <b>${esc(b.model || "Not selected")}</b></div>
                 <div>Schedule <b>${b.schedule ? esc(b.schedule.cron) : "No schedule"}</b></div>
+                <div>Action access <b>${esc(botActionSummary(b.approval_mode))}</b></div>
                 <div>Next run <b>${esc(b.next_run_local || "Not scheduled")}</b></div>
                 <div>Last completed <b title="${esc(b.last_success || "")}">${b.last_success ? timeAgo(b.last_success) : "Not yet"}</b></div>
                 <div>Estimated tokens today <b>${fmtTokens(b.tokens_today)}</b></div>

@@ -7635,31 +7635,31 @@ def test_fleet_appears_at_ten_bots_with_search_and_state_filters(browser, live):
     page.reload()
     page.locator("#conversation-switcher").wait_for()
     page.locator("#monitor-nav > summary").click()
-    page.get_by_role("link", name="Fleet", exact=True).click()
+    page.get_by_role("link", name="Manage assistants", exact=True).click()
     page.locator("#fleet-search").wait_for()
-    assert page.locator("#fleet-count").inner_text() == "10 of 10 bots"
+    assert page.locator("#fleet-count").inner_text() == "10 of 10 assistants"
     page.locator("#fleet-state").select_option("paused")
-    assert page.locator("#fleet-count").inner_text() == "1 of 10 bots"
+    assert page.locator("#fleet-count").inner_text() == "1 of 10 assistants"
     page.locator("#fleet-search").fill("fleet-9")
-    assert page.locator("#fleet-count").inner_text() == "0 of 10 bots"
+    assert page.locator("#fleet-count").inner_text() == "0 of 10 assistants"
     page.locator("#fleet-state").select_option("all")
-    assert page.locator("#fleet-count").inner_text() == "1 of 10 bots"
+    assert page.locator("#fleet-count").inner_text() == "1 of 10 assistants"
     card = page.locator('[data-fleet-bot="fleet-9"]')
     card.locator("[data-fleet-options]").click()
     menu = card.locator(".fleet-card-menu-panel")
-    assert menu.get_by_role("button", name="Pause bot").is_visible()
+    assert menu.get_by_role("button", name="Pause assistant").is_visible()
     with page.expect_response(lambda response: response.url.endswith("/api/bots/fleet-9")
                              and response.request.method == "PATCH") as paused:
-        menu.get_by_role("button", name="Pause bot").click()
+        menu.get_by_role("button", name="Pause assistant").click()
     assert paused.value.status == 200
     wait_for(lambda: app.state.store.get_bot("fleet-9").paused)
     card = page.locator('[data-fleet-bot="fleet-9"]')
     card.locator("[data-fleet-options]").click()
     menu = card.locator(".fleet-card-menu-panel")
-    assert menu.get_by_role("button", name="Resume bot").is_visible()
+    assert menu.get_by_role("button", name="Resume assistant").is_visible()
     with page.expect_response(lambda response: response.url.endswith("/api/bots/fleet-9")
                              and response.request.method == "PATCH") as resumed:
-        menu.get_by_role("button", name="Resume bot").click()
+        menu.get_by_role("button", name="Resume assistant").click()
     assert resumed.value.status == 200
     wait_for(lambda: not app.state.store.get_bot("fleet-9").paused)
     page.close()
@@ -8450,7 +8450,7 @@ def test_fleet_attention_survives_queue_failure_and_includes_human_wait(browser,
     page.route("**/api/approvals", lambda route: route.abort())
     page.goto(base + "/#/bots")
     page.locator("#fleet-state").select_option("needs")
-    assert page.locator("#fleet-count").inner_text() == "2 of 10 bots"
+    assert page.locator("#fleet-count").inner_text() == "2 of 10 assistants"
     assert page.locator(".bot-card:visible").count() == 2
     assert "Needs you" in page.locator('[data-fleet-bot="attention-0"]').inner_text()
     assert "Waiting for you" in page.locator('[data-fleet-bot="attention-9"]').inner_text()

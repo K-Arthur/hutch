@@ -80,12 +80,14 @@ An open approval review remains readable and actionable through feed refresh; if
 the card has nested detail panels, preserve the open state of each panel
 independently.
 
-The large **Fleet** view keeps the default card human-readable: assistant name,
-readiness, description, schedule cadence, and the action-approval expectation.
-Provider/model identifiers, exact schedules, last-run information, estimated
-tokens, and saved-note counts are grouped under one **More details** disclosure.
-Pause/resume and settings stay in one options menu, so a large roster does not
-turn into a wall of controls or infrastructure metrics.
+The large **Fleet** view keeps each assistant card scannable: one-line name,
+current status, a short description, and a clear way to open its chat. Avoid
+repeating schedule and action-access chips on every card. Place the service,
+schedule, action-access setting, recent activity, token estimate, and saved-note
+count behind one **Details** disclosure. Pause/resume and settings stay in one
+options menu, so a large roster does not turn into a wall of controls or
+infrastructure metrics. Long names shorten with an ellipsis and retain their
+full text for assistive technology and hover.
 
 Assistant creation should reuse the request that led to the creation flow,
 suggest a short role-based name that the owner can edit, and keep the first path brief.

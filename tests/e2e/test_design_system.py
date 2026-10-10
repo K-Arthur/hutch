@@ -1057,11 +1057,22 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                     assert first_card.locator(".card-actions > a").count() == 1
                     assert first_card.locator(".bot-card-details").count() == 1
                     detail_summary = " ".join(first_card.locator(".bot-card-details > summary").inner_text().split())
-                    assert detail_summary.startswith("More details")
-                    assert ("AI service, schedule, and activity" in detail_summary) == (width > 560)
+                    assert detail_summary.startswith("Details")
+                    assert ("Settings and activity" in detail_summary) == (width > 560)
                     assert first_card.locator(".bot-facts").is_hidden()
-                    visible_summary = first_card.locator(".bot-chips").inner_text().lower()
-                    assert "mock/demo" not in visible_summary and "ask: ask" not in visible_summary
+                    assert first_card.locator(".bot-chips").count() == 0
+                    assert first_card.locator(".bot-desc").is_visible()
+                    long_card = page.locator('[data-fleet-bot="customer-operations-analyst"]')
+                    long_name = long_card.locator(".bot-name")
+                    assert long_name.get_attribute("title") == "Customer Operations and Knowledge Research Analyst"
+                    assert long_name.evaluate("el => getComputedStyle(el).whiteSpace") == "nowrap"
+                    assert long_name.evaluate("el => getComputedStyle(el).textOverflow") == "ellipsis"
+                    card_bounds = long_card.evaluate("el => { const r = el.getBoundingClientRect(); return {left:r.left, right:r.right, width:r.width, viewport:innerWidth} }")
+                    assert card_bounds["left"] >= -1 and card_bounds["right"] <= width + 1, (viewport_name, card_bounds)
+                    metrics["longAssistantCard"] = card_bounds
+                    if viewport_name != "desktop":
+                        assert long_name.evaluate("el => el.scrollWidth > el.clientWidth"), viewport_name
+                    assert long_name.evaluate("el => el.getBoundingClientRect().height <= parseFloat(getComputedStyle(el).lineHeight) + 1"), viewport_name
                     if viewport_name in {"phone", "compact-phone"}:
                         create_button = page.locator("#btn-new-bot-top")
                         title_box = page.locator("#app-top-context h1").bounding_box()
@@ -1130,6 +1141,10 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                 if viewport_name != "compact-phone":
                     page.screenshot(
                         path=str(out / f"{surface_name}-{viewport_name}.png"), animations="disabled"
+                    )
+                if surface_name == "fleet" and viewport_name in {"phone", "compact-phone"}:
+                    long_card.screenshot(
+                        path=str(out / f"fleet-long-name-{viewport_name}.png"), animations="disabled"
                     )
                 if surface_name == "studio" and viewport_name in {"desktop", "phone"}:
                     last_template = page.locator("#tpl-grid .tpl-card").last
@@ -1204,7 +1219,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
             "provider_calls": 0,
             "synthetic_bots": len(bot_names) + 1,
             "long_display_name": display_names[4],
-            "individual_surfaces": [name for name, _, _ in surfaces] + ["preferences", "Fleet details disclosure", "Fleet action menu"],
+            "individual_surfaces": [name for name, _, _ in surfaces] + ["preferences", "Fleet details disclosure", "Fleet action menu", "Long assistant name on phone and compact phone"],
             "visual_review": "Open each desktop, tablet, and phone screenshot individually; 320px compact-phone has overflow assertions.",
             "reference_access": {
                 "figma": "MCP node retrieval hit the Starter-plan limit; the supplied community file's chat, list, options-menu, and settings screens were selected and inspected individually in the open browser canvas.",

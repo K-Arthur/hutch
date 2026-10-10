@@ -24,6 +24,9 @@
 - Keep the app's simple 2D assistant faces consistent across all head shapes,
   with two balanced, shape-fitted ink eyes; keep the detailed 3D mascot on the
   marketing site.
+- Simplify larger assistant rosters by removing repeated schedule and access
+  chips, keeping names on one line, and placing service, schedule, action-access,
+  and usage details behind one disclosure. Correct narrow-phone card overflow.
 - Keep ChatGPT's exact OpenAI Blossom beside its named service. Microsoft Outlook,
   Gmail, and Google Calendar use original category artwork until provider terms
   or required permission for product-icon use are confirmed. Outlook's inbox

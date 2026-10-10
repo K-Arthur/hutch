@@ -1207,13 +1207,21 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 
 /* ───────────────────────────── bots ───────────────────────────── */
 
-.bot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr)); gap: var(--s-4); }
-.bot-card { display: flex; flex-direction: column; gap: var(--s-3); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-panel); box-shadow: var(--sh-1); padding: var(--s-4); }
+.bot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr)); gap: var(--s-4); min-width: 0; }
+.bot-card { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-panel); box-shadow: var(--sh-1); padding: var(--s-4); }
 .bot-card:hover { border-color: var(--line-strong); }
-.bot-head { display: flex; align-items: center; gap: var(--s-3); }
-.bot-name { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.01em; }
+.bot-head { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
+.bot-name {
+  display: block; flex: 1 1 auto; min-width: 0; overflow: hidden;
+  color: var(--text); font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.01em;
+  white-space: nowrap; text-overflow: ellipsis;
+}
 .bot-head .status { margin-left: auto; }
-.bot-desc { margin: 0; font-size: var(--fs-sm); color: var(--text-2); min-height: 2.8em; }
+.bot-desc {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  min-height: 0; overflow: hidden; margin: 0; color: var(--text-2);
+  font-size: var(--fs-sm); line-height: 1.5;
+}
 .bot-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .bot-card-details { border-top: 1px solid var(--line); }
 .bot-card-details > summary {

@@ -35,7 +35,8 @@ assistant identities; the marketing site may use the detailed 3D character.
 |---|---|---|
 | Chat / empty Studio | Individually reviewed at desktop and phone | Open |
 | Chat / populated, choices, replies, attachments, waits | Existing interaction evidence available; refresh after shell redesign | Open |
-| Assistant roster and one-action menu | Independently reviewed in app captures and user references | Open |
+| Assistant roster and one-action menu | One-line names, full-row selection and one grouped options menu checked at responsive sizes | Open |
+| Assistant management for larger rosters | Cards simplified; phone overflow and long names checked independently | In progress |
 | Assistant creation and identity | Request-preserving setup already implemented; visual simplification remains | Open |
 | Assistant settings / advanced controls | Individually reviewed at desktop and phone | Open |
 | Needs you / approvals / human checkpoints | Existing responsive evidence; refresh after component redesign | Open |
@@ -178,6 +179,30 @@ hashes, and trace are in
 [`artifacts/mascot-eye-review-2026-10-10/`](artifacts/mascot-eye-review-2026-10-10/).
 This is a mascot correction, not completion of the broader app and marketing
 redesign.
+
+### Larger-roster card simplification — verified
+
+Assistant cards now lead with a one-line name, status, short description and an
+**Open** action. Repeated schedule and action-access chips were removed; model,
+schedule, access, recent activity and usage remain available in one collapsed
+**Details** section. The existing single ellipsis menu still groups pause/resume
+and assistant settings. Long names ellipsize without wrapping and retain their
+full `title` and text for accessibility.
+
+The independent route capture exposed a real mobile sizing defect: an
+assistant card's minimum-content width reached 617px inside a 390px phone
+viewport while an outer scroller hid the overflow. A card-boundary regression
+now verifies every card fits the viewport at desktop, tablet, phone and
+compact-phone widths. The all-surface Chromium test passed **1 test in 15.84s**;
+I inspected the roster at desktop, tablet, phone, plus the long-name card on
+phone and compact phone individually. Updated route captures and source hashes
+are in [`artifacts/ui-surface-review/`](artifacts/ui-surface-review/). No
+external or provider requests were made. The separate Fleet search, pause/resume
+and waiting-approval fixture journeys also passed **3 tests in 5.92s** after the
+existing tests were updated to the current **Manage assistants** and **assistant**
+labels. Desktop and phone attention captures are in
+[`artifacts/fleet-attention/`](artifacts/fleet-attention/). This improves Fleet
+but leaves the all-surface overhaul open.
 
 ### Next
 

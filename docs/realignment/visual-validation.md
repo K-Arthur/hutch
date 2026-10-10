@@ -1674,25 +1674,57 @@ was performed.
 
 ## Mascot face correction after owner review (2026-10-10)
 
-The earlier eye treatments still read as dots at roster size. Each flat app
-mascot now has an individually fitted dark face panel with two narrower,
-curved light slits. The face artwork remains 2D, uses no pupils or detached
-decoration, and leaves the website's detailed 3D mascot separate. The panel and
-both eye paths are checked against each silhouette; picker previews are compared
-with the matching live-avatar geometry. The minimum measured contrast between
-the light marks and dark panel is **15.8:1**.
+The earlier visor and pale slits still read as a mask. Each flat app mascot now
+has two balanced, near-round ink eyes directly on its colored silhouette. Their
+position and size follow the orb, capsule, bean, drop, pebble, shield, triangle,
+and hex shapes. The face uses no panel, pupils or detached marks; the website's
+detailed 3D mascot remains separate. Tests compare the picker with the matching
+live-avatar geometry and verify each eye stays inside its head with at least
+3:1 contrast against the body.
 
 The focused browser check passed:
 `.venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette`
-(**1 passed**, Chromium **153.0.8010.12**). It also checks all eight shapes and
-colors, 44px picker targets, two-row choices at phone and compact-phone widths,
-and no horizontal overflow. I opened all eight enlarged faces one by one, then
-reviewed the desktop Studio/roster and the desktop, tablet, phone, and compact
-phone picker captures. They use local fixtures with no provider calls. Exact
-captures, source hashes and trace are in
+(**1 passed in 7.84s**, Chromium **153.0.8010.12** / Playwright **1.63.0**). It
+also checks all eight shapes and colors, 44px picker targets, two-row choices
+at phone and compact-phone widths, and no horizontal overflow. I opened all
+eight enlarged faces one by one, then reviewed the desktop Studio/roster and
+the desktop, tablet, phone, and compact-phone picker captures. They use local
+fixtures with no provider calls. Exact captures, source hashes and trace are in
 [`artifacts/mascot-eye-review-2026-10-10/`](artifacts/mascot-eye-review-2026-10-10/).
 This mascot correction does not complete the broader app or marketing UI
 overhaul; the surface inventory above remains open for independent review.
+
+## Larger assistant roster and long-name reflow (2026-10-10)
+
+The larger-roster view no longer repeats schedule cadence and action-access
+chips on every assistant. Each card leads with its one-line name, status, short
+description and **Open** action; service, schedule, action access, recent work
+and usage are grouped under **Details**. Pause/resume and settings remain in a
+single ellipsis menu. Long names use an ellipsis while their full text remains
+available.
+
+The responsive test found that one long-name card could be 617px wide inside a
+390px phone viewport; the application scroll container clipped it, so the old
+document-width-only assertion did not detect it. The card, grid and header now
+permit shrinking, and the browser asserts each card stays inside the viewport
+at 1440px, 900px, 390px and 320px. Long-name phone and compact-phone crops are
+saved as `fleet-long-name-phone.png` and `fleet-long-name-compact-phone.png` in
+[`artifacts/ui-surface-review/`](artifacts/ui-surface-review/).
+
+`tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes`
+passed **1 test in 15.84s** with Chromium **153.0.8010.12** / Playwright
+**1.63.0**. I inspected desktop, tablet, phone, and the two long-name crops
+individually. Every route and assistant card fit; the browser reported no
+external requests, provider calls, or page errors. Current source hashes,
+responsive captures, and the trace are in the same artifact directory. This is
+fixture evidence; no screen reader or physical phone was tested.
+
+The separate Fleet search, pause/resume, and attention-with-approval tests also
+passed **3 cases in 5.92s**. Desktop and phone screenshots show the open and
+human-wait states after the compact-card change; I reviewed both independently.
+Their sanitized fixture metadata and images are in
+[`artifacts/fleet-attention/`](artifacts/fleet-attention/). No live approval or
+provider was used.
 
 ## Quick assistant setup and single-line roster (2026-10-10)
 
