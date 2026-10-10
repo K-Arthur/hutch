@@ -150,6 +150,8 @@ grant for held operator review. Desktop, tablet and phone share/revoke flows are
 | `2a30ee2` | Record integrated UI and validation commits |
 | `0b76808` | Polish app mascot eyes across all silhouettes and capture the shape-specific visual check |
 | `66c0b3c` | Add bounded, Bot-filterable Studio message search with excerpt-only responses, responsive screenshots and route authorization coverage |
+| `0b2875a` | Record the conversation-search checkpoint in the continuation ledger |
+| `32d5e69` | Refine all eight app-mascot faces with shape-specific diagonal eyes; verify conversation-search empty, error and escaped-text states with updated responsive evidence; offline suite 1,532 passed |
 
 ## Dashboard polish continuation (2026-10-09)
 
