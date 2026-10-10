@@ -4052,3 +4052,28 @@ same shared shell and Apps & AI cards as navigation from Studio. Chromium
 or provider calls. Legacy form checks remain separate from the main product
 surface. This completes one route-alignment slice; the all-surface UI overhaul
 remains active.
+
+## OpenRouter model catalog (2026-10-10)
+
+Implementation commit: `6a64d3a` on local `main`. Hutch now has a named
+OpenRouter connection template, credential-scoped catalog requests, a popular
+text-model list with live search in the chat model picker, and the provider's
+current `max_completion_tokens` request field. Catalog names, availability,
+prices, context and tool metadata remain provider-reported and changeable;
+prices are informational and do not become Hutch's reviewed currency pricebook.
+Ordinary chat loading does not fetch the catalog, and selecting a model does not
+send an inference request. The marketing copy describes those same boundaries.
+
+Verification: the focused connection, compatibility, model-picker, website-copy
+and responsive browser tests passed (**37 passed**). The browser fixture ran
+1440×960 desktop, 900×1024 tablet and 390×844 phone; the captures and trace are
+in [`artifacts/openrouter-model-search/`](artifacts/openrouter-model-search/).
+I inspected each capture separately. The fixture recorded only the catalog
+requests and zero inference requests. `node --check` for the picker and
+`git diff --check` passed. A separate broad `pytest -q` run was interrupted
+after browser failures/errors appeared and before it produced a final summary;
+it is not a passing suite result. No OpenRouter account, live catalog or paid
+inference was used. OpenRouter fallback routing and provider-side final billing
+remain separate from this explicit single-model picker flow. Apps & AI's
+provider setup, the rest of the product surfaces, and the full all-surface
+visual review remain open.
