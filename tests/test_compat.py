@@ -14,7 +14,7 @@ from hutch.server.app import create_app
 def test_versioned_matrix_has_status_and_dated_policy_evidence_for_every_route():
     matrix = compatibility_matrix()
     assert matrix["version"] == 1
-    assert matrix["reviewed_on"] == "2026-10-09"
+    assert matrix["reviewed_on"] == "2026-10-10"
     routes = {route["id"]: route for route in matrix["routes"]}
     assert {
         "openai-chat-completions", "anthropic-messages", "ollama-native",
@@ -64,6 +64,14 @@ def test_openai_request_mapping_strips_unimplemented_fields_and_uses_exact_host(
     }
     assert "num_ctx" not in body and "think" not in body and "effort" not in body
     assert "reasoning_effort" not in body and "response_format" not in body
+
+
+def test_openrouter_uses_its_current_completion_limit_field():
+    provider = OpenAICompatProvider("https://openrouter.ai/api/v1", "fixture-key", "openrouter")
+    body = provider._body(ChatRequest(model="anthropic/claude-sonnet-4", messages=[], max_tokens=19), stream=True)
+    assert body["max_completion_tokens"] == 19
+    assert "max_tokens" not in body
+    assert body["stream_options"] == {"include_usage": True}
 
 
 @pytest.mark.parametrize("url", [

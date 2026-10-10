@@ -141,9 +141,14 @@
     function focusItem(i) { const l = items(); if (l.length) l[(i + l.length) % l.length].focus(); }
     function onOutside(ev) { if (!slot.contains(ev.target)) closeMenu(false); }
 
-    async function refresh() {
+    async function refresh({ discover = false, query = "" } = {}) {
       try {
-        const fresh = await api(`/bots/${encodeURIComponent(bot.name)}/models`);
+        const params = new URLSearchParams();
+        if (discover) params.set("discover", "1");
+        if (query) params.set("q", query);
+        const encoded = params.toString();
+        const suffix = encoded ? `?${encoded}` : "";
+        const fresh = await api(`/bots/${encodeURIComponent(bot.name)}/models${suffix}`);
         data = fresh;
         paintButton();
         if (!menu.hidden) {                              // re-render without dropping the keyboard user's place
@@ -164,7 +169,7 @@
       document.addEventListener("mousedown", onOutside, true);
       const checked = items().findIndex(i => i.getAttribute("aria-checked") === "true");
       focusItem(Math.max(0, checked));
-      refresh();
+      refresh({ discover: true });
     }
     function closeMenu(returnFocus) {
       menu.hidden = true;
@@ -196,15 +201,7 @@
 
     // ------------------------------------------------------------- the full list
     async function openAll() {
-      await refresh();                                   // never show a stale list
-      const groups = [];
-      for (const m of data.models) {
-        let g = groups.find(x => x.name === m.group);
-        if (!g) groups.push(g = { name: m.group, list: [] });
-        g.list.push(m);
-      }
-      const rank = { "This bot": 0, "On this machine": 1, "Hosted": 2 };
-      groups.sort((a, b) => (rank[a.name] ?? 3) - (rank[b.name] ?? 3));
+      await refresh({ discover: true });               // the model picker is an explicit catalog request
       const cur = active();
       const row = m => {
         const ok = usable(m);
@@ -220,11 +217,9 @@
       };
       const body = `
         <div class="ms-all">
-          <input type="text" role="searchbox" class="ms-search" placeholder="Filter models" aria-label="Filter models" autocomplete="off" spellcheck="false">
-          <div class="ms-groups" role="radiogroup" aria-label="Models">
-            ${groups.map(g => `<section class="ms-group"><h4>${escHtml(g.name)}</h4>${g.list.map(row).join("")}</section>`).join("")}
-            <p class="ms-empty" hidden>No model matches that filter.</p>
-          </div>
+          <input type="text" role="searchbox" class="ms-search" placeholder="Search available models" aria-label="Search available models" autocomplete="off" spellcheck="false">
+          <p class="ms-search-status" role="status" aria-live="polite"></p>
+          <div class="ms-groups" role="radiogroup" aria-label="Models"></div>
           <label class="ms-other">Another model <span class="muted">(provider/model, for example a model on one of your connections)</span>
             <input type="text" class="ms-custom mono" placeholder="opencode-go/glm-5.3" autocomplete="off" spellcheck="false"></label>
           <p class="ms-foot"><a href="/models">Hardware fit, task presets and prices</a> &middot;
@@ -251,16 +246,60 @@
       });
       const root = document.getElementById("modal-root");
       const search = root.querySelector(".ms-search");
-      search.addEventListener("input", () => {
-        const q = search.value.trim().toLowerCase();
+      const groupList = root.querySelector(".ms-groups");
+      const searchStatus = root.querySelector(".ms-search-status");
+      const renderGroups = (models, query = "") => {
+        const groups = [];
+        for (const model of models) {
+          let group = groups.find(item => item.name === model.group);
+          if (!group) groups.push(group = { name: model.group, list: [] });
+          group.list.push(model);
+        }
+        const rank = { "This bot": 0, "On this machine": 1, "Hosted": 2 };
+        groups.sort((a, b) => (rank[a.name] ?? 3) - (rank[b.name] ?? 3));
+        groupList.innerHTML = groups.map(group =>
+          `<section class="ms-group"><h4>${escHtml(group.name)}</h4>${group.list.map(row).join("")}</section>`).join("") +
+          '<p class="ms-empty" hidden>No model matches. Try a different name or enter its ID below.</p>';
+        const q = query.trim().toLowerCase();
         let any = false;
-        root.querySelectorAll(".ms-row").forEach(r => {
-          const hit = !q || r.dataset.text.includes(q);
-          r.hidden = !hit;
+        root.querySelectorAll(".ms-row").forEach(item => {
+          const hit = !q || item.dataset.text.includes(q);
+          item.hidden = !hit;
           any = any || hit;
         });
-        root.querySelectorAll(".ms-group").forEach(g => { g.hidden = !g.querySelector(".ms-row:not([hidden])"); });
+        root.querySelectorAll(".ms-group").forEach(group => {
+          group.hidden = !group.querySelector(".ms-row:not([hidden])");
+        });
         root.querySelector(".ms-empty").hidden = any;
+      };
+      renderGroups(data.models);
+      let searchTimer = 0;
+      let searchRevision = 0;
+      search.addEventListener("input", () => {
+        const query = search.value.trim();
+        renderGroups(data.models, query);
+        if (searchTimer) clearTimeout(searchTimer);
+        const revision = ++searchRevision;
+        if (query.length < 2 || !data.models.some(model => model.spec.startsWith("openrouter/"))) {
+          searchStatus.textContent = "";
+          return;
+        }
+        searchStatus.textContent = "Searching connected model catalogs…";
+        searchTimer = setTimeout(async () => {
+          try {
+            const params = new URLSearchParams({ discover: "1", q: query });
+            const fresh = await api(`/bots/${encodeURIComponent(bot.name)}/models?${params.toString()}`);
+            if (revision !== searchRevision || search.value.trim() !== query) return;
+            data = fresh;
+            paintButton();
+            renderGroups(data.models, query);
+            searchStatus.textContent = "";
+          } catch {
+            if (revision === searchRevision) {
+              searchStatus.textContent = "Could not search OpenRouter models right now. Check the connection and try again.";
+            }
+          }
+        }, 300);
       });
     }
 

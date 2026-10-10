@@ -13,6 +13,8 @@ Limits worth knowing, and surfaced rather than hidden:
 from __future__ import annotations
 
 import json
+import math
+import re
 import time
 from typing import Any, Optional
 
@@ -41,6 +43,7 @@ class OpenAICompatProvider(Provider):
         from .registry import is_official_endpoint, reject_endpoint_credentials
         self.base_url = reject_endpoint_credentials(base_url).rstrip("/")
         self._official_openai = is_official_endpoint("openai", self.base_url)
+        self._uses_completion_token_field = self._official_openai or provider_name == "openrouter"
         self.api_key = api_key
         self.auth_hint = auth_hint        # why an ambient key was withheld, appended to auth failures
         self.name = provider_name
@@ -142,6 +145,57 @@ class OpenAICompatProvider(Provider):
         r.raise_for_status()
         return [ModelMeta(name=m.get("id", "")) for m in r.json().get("data", [])]
 
+    def list_openrouter_catalog(self, query: str = "", limit: int = 40) -> list[dict[str, Any]]:
+        """Read OpenRouter's text-model catalog for the model picker; never makes an inference request."""
+        if self.name != "openrouter":
+            raise ProviderError("bad_request", "the OpenRouter catalog is available only on its named connection",
+                                provider=self.name)
+        params: dict[str, str] = {"sort": "most-popular", "output_modalities": "text"}
+        query = (query or "").strip()[:80]
+        if len(query) >= 2:
+            params["q"] = query
+        try:
+            response = self._http().get("/models", params=params, timeout=self._timeout(read=10.0))
+            if response.status_code >= 400:
+                raise self._error_from_response(response)
+            payload = response.json()
+        except Exception as exc:
+            raise self._wrap_exc(exc)
+        rows = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(rows, list):
+            raise ProviderError("other", "OpenRouter returned an invalid model catalog", provider=self.name)
+        found: list[dict[str, Any]] = []
+        model_id_pattern = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,159}$")
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            model_id = row.get("id")
+            if not isinstance(model_id, str) or not model_id_pattern.fullmatch(model_id):
+                continue
+            name = row.get("name")
+            if not isinstance(name, str) or not name.strip() or len(name) > 160 or any(ord(ch) < 32 for ch in name):
+                name = model_id
+            pricing: dict[str, float] = {}
+            raw_pricing = row.get("pricing")
+            if isinstance(raw_pricing, dict):
+                for field in ("prompt", "completion"):
+                    try:
+                        rate = float(raw_pricing[field]) * 1_000_000
+                    except (KeyError, TypeError, ValueError, OverflowError):
+                        continue
+                    if math.isfinite(rate) and 0 <= rate <= 100_000:
+                        pricing[field] = rate
+            parameters = row.get("supported_parameters")
+            context_length = row.get("context_length")
+            if not isinstance(context_length, int) or isinstance(context_length, bool) or context_length <= 0:
+                context_length = 0
+            found.append({"id": model_id, "name": name.strip(), "pricing": pricing,
+                          "supports_tools": isinstance(parameters, list) and "tools" in parameters,
+                          "context_length": context_length})
+            if len(found) >= max(1, min(int(limit), 80)):
+                break
+        return found
+
     # ----------------------------------------------------------------- chat
 
     def _body(self, req: ChatRequest, stream: bool) -> dict[str, Any]:
@@ -151,7 +205,7 @@ class OpenAICompatProvider(Provider):
         if req.max_tokens:
             # OpenAI's official host uses max_completion_tokens; compatible endpoints generally use max_tokens.
             # Match the authority exactly so a proxy path or lookalike hostname cannot select the OpenAI dialect.
-            body["max_completion_tokens" if self._official_openai else "max_tokens"] = int(req.max_tokens)
+            body["max_completion_tokens" if self._uses_completion_token_field else "max_tokens"] = int(req.max_tokens)
         if req.temperature is not None:
             body["temperature"] = req.temperature
         if stream:

@@ -57,6 +57,7 @@
 .ms-search::placeholder, .ms-custom::placeholder { color: var(--text-3); }
 .ms-search:hover, .ms-custom:hover { border-color: var(--line-hi); }
 .ms-search:focus-visible, .ms-custom:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--line-hi); }
+.ms-search-status { min-height: 1.4em; margin: -4px 0 0; font-size: var(--fs-xs); color: var(--text-3); }
 .ms-groups { max-height: 46dvh; overflow: auto; padding-right: 4px; }
 .ms-group { margin-bottom: 12px; }
 .ms-group h4 { margin: 0 0 4px; font: 600 var(--fs-2xs)/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }

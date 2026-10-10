@@ -255,6 +255,21 @@ hutch usage reservations                             # inspect held or uncertain
 hutch bot update my-bot --model opencode-go/zhipuai/glm-5.3
 ```
 
+OpenRouter has a first-party **OpenRouter** template at
+`https://openrouter.ai/api/v1`. Add it from Connections or run
+`hutch connections add openrouter`, then store the key from
+[OpenRouter's key settings](https://openrouter.ai/settings/keys) with
+`hutch connections set-key openrouter`. Hutch sends that key only to the
+configured OpenRouter endpoint. When you open the model picker, Hutch loads the
+40 most-popular text models; typing a search asks OpenRouter's model catalog
+for matching results. The catalog request does not generate a response or
+spend model tokens. OpenRouter's own model ids, names, reported prices and
+context values can change. Hutch shows those values as catalog information,
+not as a verified quote; currency-limited admission still needs a reviewed
+price row in Settings > Prices. Tool support varies by model and upstream
+provider, so a catalog entry does not prove a model will work for every task.
+Live OpenRouter account and model requests have not been tested here.
+
 For OpenCode Go, sign in and manage the plan on OpenCode, then copy its provider API key into Hutch. This is the
 provider's documented third-party connection method, not an OAuth session shared with Hutch. Hutch's Go connection does not
 reuse OpenCode's private auth database, browser profile or CLI sign-in. Separately, the experimental interactive coding handoff
@@ -290,6 +305,7 @@ exercised against a live account** (there are no keys on the development machine
 
 | Template | Endpoint | Key | Billing | Source |
 |---|---|---|---|---|
+| `openrouter` | `https://openrouter.ai/api/v1` (Chat Completions) | `OPENROUTER_API_KEY` or a key pasted into Hutch | per token; add a reviewed price row before currency-limited use | [OpenRouter model catalog](https://openrouter.ai/docs/api/api-reference/models/get-models), [chat completions](https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request) |
 | `opencode-go` | `https://opencode.ai/zen/go/v1` (OpenAI chat) | `OPENCODE_API_KEY` or a key pasted into Hutch, after the user signs into Go and copies its provider key | flat subscription, dollar-denominated caps: 5-hour 20%, weekly 50%, monthly 100% | [OpenCode Go docs](https://opencode.ai/docs/go/) |
 | `chatgpt-plan` | `https://api.openai.com/v1` (Responses only) | Official Sign in with ChatGPT local token-sharing flow; never an API key | subscription account; OpenAI controls actual allowance | [SIWC preview](https://developers.openai.com/siwc/token-sharing-open-source/) |
 | `xiaomi-token-plan-{sgp,cn,ams}` | `https://token-plan-<region>.xiaomimimo.com/v1` (OpenAI chat) and `/anthropic` (Anthropic messages) | `XIAOMI_TOKEN_PLAN_API_KEY` (`tp-...`) | subscription **Credits**, not tokens | [OpenClaw provider docs](https://docs.openclaw.ai/providers/xiaomi), [MiMo docs](https://mimo.mi.com/docs/en-US/tokenplan/subscription) |

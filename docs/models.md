@@ -11,11 +11,19 @@ text that says something true on this machine:
 | installed local model | `fits, 16k context` or `tight fit, 7k context` (the context the bot will really get) |
 | hosted model | `$4 in / $20 out per 1M tokens`, or `needs ANTHROPIC_API_KEY` |
 | connection model | `flat-rate plan` / `pay per token`, or what is missing (key, acknowledged terms) |
+| OpenRouter model | provider-reported catalog price and name when listed; the model's own usage and tool behavior still need verification |
 
 **All models** opens a searchable dialog with everything, grouped. Models that cannot be used are shown with the
 reason and the fix (`the weights alone are 40 GiB against 3.5 GiB usable`, `set ANTHROPIC_API_KEY where hutch
 starts`) instead of being hidden. Anything that sends the chat off the machine carries a **leaves this machine** tag.
 A field at the bottom takes any `provider/model`, for connection models that are not listed.
+
+OpenRouter is available as a first-party connection. Opening the composer model picker fetches its 40 most-popular
+text models; typing at least two characters searches OpenRouter's catalog and returns matching entries. The chat
+page itself does not contact OpenRouter to refresh the list. Catalog pricing and context size are shown as reported
+by OpenRouter and are not verified Hutch prices or guarantees of upstream availability. Hutch does not use those
+live catalog prices for currency-limit admission: review and save a row in Settings > Prices first. A model listing
+also does not establish tool-call compatibility; verify task behavior with a normal governed run.
 
 Rules worth knowing:
 
@@ -36,7 +44,7 @@ Rules worth knowing:
   fix. Bots saved with legacy `pi` or `opencode` runtime values create a visible failed run with an `unsupported` reason; those
   runtimes are disabled before an external process starts.
 
-API: `GET /api/bots/<name>/models` returns `{default, models:[{spec,label,group,state,note,fix,default,hosted,detail}]}`;
+API: `GET /api/bots/<name>/models` returns `{default, models:[{spec,label,group,state,note,fix,default,hosted,detail}]}` without contacting provider catalogs. The picker explicitly calls `GET /api/bots/<name>/models?discover=1`; an optional `q` filters the OpenRouter catalog;
 `POST /api/bots/<name>/run` takes an optional `"model": "provider/model"` (409 = usable once set up, 422 = malformed
 or unknown).
 

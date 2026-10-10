@@ -540,6 +540,8 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
         assert "next message" in model_text
         assert "save as bot default" in model_text
         assert "scheduled runs" in model_text
+        assert "openrouter" in model_text and "searchable model catalog" in model_text
+        assert "listed prices can change" in model_text
         for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             card.scroll_into_view_if_needed()

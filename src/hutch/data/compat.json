@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "reviewed_on": "2026-10-09",
+  "reviewed_on": "2026-10-10",
   "routes": [
     {
       "id": "openai-chat-completions",
@@ -92,7 +92,7 @@
       "harness": "Hutch builtin runtime",
       "api_shape": "OpenAI Chat Completions-compatible HTTP endpoint",
       "auth_flow": "Each named connection owns its endpoint and key. The ambient OpenAI key is never sent to a custom host.",
-      "models": "A model-list request is used when the configured endpoint provides one; model capabilities are endpoint/model-specific and remain unknown without a verified probe.",
+      "models": "A model-list request is used when the configured endpoint provides one; model-specific capabilities still depend on the endpoint and model. The first-party OpenRouter connection loads 40 most-popular text models only when model selection opens and sends q-filtered searches to OpenRouter; names, prices and context are provider-reported and changeable. Model capabilities remain unverified without a governed run.",
       "streaming": "SSE is requested with include_usage. Hutch retries once without streaming when a compatible endpoint rejects stream options; live charge behavior is provider-specific.",
       "tool_calls": "Function-tool framing is tested against a scripted endpoint. Compatibility does not prove that every server or model parses tools correctly.",
       "structured_output": "Not sent by the current adapter.",
@@ -103,15 +103,17 @@
       "quota_reporting": "Only operator-declared connection allowances are enforced; provider quotas and reset times are not queried.",
       "retention": "The configured endpoint controls processing and retention. Review its terms before sending data.",
       "hutch_request_mapping": {
-        "sent": ["model", "messages", "tools", "stream", "stream_options.include_usage", "temperature when set", "max_tokens"],
+        "sent": ["model", "messages", "tools", "stream", "stream_options.include_usage", "temperature when set", "max_tokens for generic connections; max_completion_tokens for OpenAI and OpenRouter"],
         "omitted": ["num_ctx", "think", "effort", "reasoning_effort", "response_format"]
       },
-      "verification": "Scripted HTTP contract tests exercise the common Chat Completions shape; each real endpoint still needs an operator connection check and capability verification.",
+      "verification": "Scripted HTTP contract tests exercise the common Chat Completions shape and OpenRouter catalog query. No live OpenRouter account or model request was used; each real model still needs capability verification.",
       "verified_on": "2026-10-08",
       "policy_evidence": [
         {"title": "LM Studio OpenAI-compatible tool use", "url": "https://lmstudio.ai/docs/developer/openai-compat/tools", "observed_on": "2026-10-08"},
         {"title": "llama.cpp server API", "url": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md", "observed_on": "2026-10-08"},
-        {"title": "vLLM OpenAI-compatible server", "url": "https://docs.vllm.ai/en/stable/serving/online_serving/openai_compatible_server/", "observed_on": "2026-10-08"}
+        {"title": "vLLM OpenAI-compatible server", "url": "https://docs.vllm.ai/en/stable/serving/online_serving/openai_compatible_server/", "observed_on": "2026-10-08"},
+        {"title": "OpenRouter model catalog", "url": "https://openrouter.ai/docs/api/api-reference/models/get-models", "observed_on": "2026-10-10"},
+        {"title": "OpenRouter chat completions", "url": "https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request", "observed_on": "2026-10-10"}
       ]
     },
     {

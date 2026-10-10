@@ -94,6 +94,19 @@
       "terms": {"url": "https://mimo.mi.com/", "requires_ack": false, "notice": ""},
       "quota_hint": "Per-token billing needs a price row in prices.json (Settings > Prices) before Hutch can estimate currency use; provider billing can differ."
     },
+    "openrouter": {
+      "title": "OpenRouter",
+      "protocol": "openai-chat",
+      "base_url": "https://openrouter.ai/api/v1",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "billing": "per_token",
+      "get_key_url": "https://openrouter.ai/settings/keys",
+      "source": "https://openrouter.ai/docs/api/api-reference/models/get-models",
+      "models_endpoint": true,
+      "terms": {"url": "https://openrouter.ai/terms", "requires_ack": false, "notice": ""},
+      "quota_hint": "OpenRouter prices vary by model and can change. Hutch shows the provider's catalog price, but currency-limited admission requires a reviewed price row in Settings > Prices. Hutch token allowances are separate estimates.",
+      "model_protocol_hint": "OpenRouter model ids come from its authenticated catalog. Chat Completions and tool support vary by model and upstream provider; the catalog does not prove a model will work for every task."
+    },
     "custom-openai": {
       "title": "Custom OpenAI-compatible endpoint",
       "protocol": "openai-chat",

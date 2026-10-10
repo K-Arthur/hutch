@@ -3671,11 +3671,13 @@ def create_app() -> FastAPI:
         return {**asdict(e), "effective_ceiling_usd": e.effective_ceiling_usd, "summary": e.summary}
 
     @app.get("/api/bots/{ref}/models")
-    def bot_models(ref: str) -> dict:
-        """The switcher's list for this bot: its own model first, then what is usable, then what needs setup."""
+    def bot_models(ref: str, discover: bool = False, q: str = Query(default="", max_length=80)) -> dict:
+        """Return model choices; provider catalogs are queried only when the picker is explicitly opened."""
         from ..modelchoices import choices_json, model_choices
         bot = bot_or_404(ref)
-        return {"default": bot.model, "models": choices_json(model_choices(config, store, bot))}
+        return {"default": bot.model,
+                "models": choices_json(model_choices(config, store, bot, discover_hosted_models=discover,
+                                                     model_query=q.strip()))}
 
     # --------------------------------------------------------------- runs
 

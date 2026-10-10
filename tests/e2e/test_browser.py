@@ -7619,6 +7619,97 @@ def test_all_models_dialog_filters_explains_and_applies(browser, switcher_env, r
     assert page.locator(".ms-menu").is_hidden() and "small:2b" in page.locator(".ms-btn").inner_text()
 
 
+def test_openrouter_models_are_searchable_from_the_chat_picker(browser, switcher_env, request):
+    from tests.fakes import FakeOpenAI
+
+    base, app, _fake = switcher_env
+    router = FakeOpenAI()
+    router.require_key = "router-e2e-secret"
+    router.models = [
+        {"id": "anthropic/claude-sonnet-4", "name": "Claude Sonnet 4",
+         "pricing": {"prompt": "0.000003", "completion": "0.000015"},
+         "supported_parameters": ["tools"]},
+        {"id": "deepseek/deepseek-chat-v3", "name": "DeepSeek Chat V3",
+         "pricing": {"prompt": "0.0000002", "completion": "0.0000008"},
+         "supported_parameters": ["temperature"]},
+    ]
+    request.addfinalizer(router.close)
+    book = ConnectionBook(app.state.config.state_dir)
+    book.add("openrouter", base_url=router.url + "/v1")
+    book.set_key("openrouter", "router-e2e-secret")
+    from hutch.modelchoices import reset_cache
+    reset_cache()
+
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/openrouter-model-search"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(f"{base}/#/chat/chatty")
+        button = page.locator(".ms-btn")
+        button.wait_for()
+        assert router.requests == [], "opening a chat must not refresh provider catalogs"
+        button.click()
+        page.locator('.ms-menu [data-spec="openrouter/anthropic/claude-sonnet-4"]').wait_for()
+        catalog = page.request.get(f"{base}/api/bots/chatty/models?discover=1").json()
+        assert any(row["spec"] == "openrouter/anthropic/claude-sonnet-4" for row in catalog["models"]), catalog
+        with page.expect_response(lambda response: "/api/bots/chatty/models?discover=1" in response.url) as all_models_response:
+            page.locator(".ms-more").click()
+        all_models = all_models_response.value.json()
+        assert any(row["spec"] == "openrouter/anthropic/claude-sonnet-4" for row in all_models["models"]), all_models
+        dialog = page.locator(".modal-card")
+        dialog.wait_for()
+        # The catalog is below the initial viewport in the scrollable model list;
+        # text_content verifies it is present before exercising visible search.
+        assert "OpenRouter" in page.locator(".ms-groups").text_content()
+        assert "catalog price" in page.locator(".ms-groups").text_content()
+
+        page.locator(".ms-search").fill("deepseek")
+        wait_for(lambda: any("q=deepseek" in row["path"] for row in router.requests))
+        result = page.locator('.ms-row[data-text*="deepseek"]:visible')
+        result.wait_for()
+        assert "DeepSeek Chat V3" in result.inner_text()
+
+        captures = []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            box = page.locator(".modal-card").bounding_box()
+            assert box and box["x"] >= 0 and box["x"] + box["width"] <= width + 1, (label, box)
+            assert page.evaluate("document.documentElement.scrollWidth") <= width + 1, label
+            page.screenshot(path=str(out / f"search-{label}.png"), animations="disabled")
+            captures.append({"viewport": [width, height], "modal": box})
+
+        page.locator('input[name="ms-pick"][value="openrouter/deepseek/deepseek-chat-v3"]').check()
+        page.locator("#modal-confirm").click()
+        assert "is-custom" in button.get_attribute("class")
+        assert app.state.store.get_bot("chatty").model == "ollama/tiny:1b"
+        assert not any(row["method"] == "POST" for row in router.requests), "search and selection must not call a model"
+        assert not errors, errors
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_openrouter_models_are_searchable_from_the_chat_picker",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_openrouter_models_are_searchable_from_the_chat_picker",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(), "browser": browser.version,
+            "playwright_version": package_version("playwright"), "captures": captures,
+            "page_errors": errors,
+            "provider_requests": [{"method": row["method"], "path": row["path"]} for row in router.requests],
+            "inference_requests": sum(row["method"] == "POST" for row in router.requests),
+            "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
+                              for relative in ("src/hutch/server/static/model-switcher.js",
+                                               "src/hutch/server/static/model-switcher.css", "src/hutch/modelchoices.py",
+                                               "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace.zip"))
+        except Exception:
+            pass
+        context.close()
+
+
 def test_switcher_fits_a_phone_screen(browser, switcher_env, request):
     base, app, fake = switcher_env
     page = browser.new_context(viewport={"width": 390, "height": 844}).new_page()

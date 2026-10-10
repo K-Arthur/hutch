@@ -74,6 +74,11 @@ def test_templates_carry_the_endpoints_and_requirements_found_in_the_vendor_docs
         assert x["anthropic_base_url"] == f"https://token-plan-{region}.xiaomimimo.com/anthropic"
         assert x["api_key_env"] == "XIAOMI_TOKEN_PLAN_API_KEY" and x["billing"] == "subscription"
     assert tpl["xiaomi"]["base_url"] == "https://api.xiaomimimo.com/v1" and tpl["xiaomi"]["billing"] == "per_token"
+    openrouter = tpl["openrouter"]
+    assert openrouter["base_url"] == "https://openrouter.ai/api/v1"
+    assert openrouter["api_key_env"] == "OPENROUTER_API_KEY" and openrouter["billing"] == "per_token"
+    assert openrouter["get_key_url"] == "https://openrouter.ai/settings/keys"
+    assert openrouter["protocol"] == "openai-chat" and not openrouter["terms"]["requires_ack"]
     assert {"custom-openai", "custom-anthropic"} <= set(tpl)
     del t
 

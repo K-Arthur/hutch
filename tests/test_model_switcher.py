@@ -155,6 +155,81 @@ def test_connection_models_known_from_bots_appear_with_their_state(env, monkeypa
     assert plan.state == "ready" and "flat-rate" in plan.note
 
 
+def test_openrouter_model_catalog_is_fetched_only_on_request_and_searches_with_its_key(env, monkeypatch):
+    from urllib.parse import parse_qs, urlsplit
+    from hutch.providers import ChatRequest
+    from hutch.providers.connection import provider_for_connection
+    from tests.fakes import FakeOpenAI
+
+    router = FakeOpenAI()
+    router.require_key = "router-secret"
+    router.models = [
+        {"id": "anthropic/claude-sonnet-4", "name": "Claude Sonnet 4",
+         "pricing": {"prompt": "0.000003", "completion": "0.000015"},
+         "supported_parameters": ["tools", "temperature"]},
+        {"id": "deepseek/deepseek-chat-v3", "name": "DeepSeek Chat V3",
+         "pricing": {"prompt": "0.0000002", "completion": "0.0000008"},
+         "supported_parameters": ["temperature"]},
+    ]
+    try:
+        book = ConnectionBook(env.config.state_dir)
+        book.add("openrouter", base_url=router.url + "/v1")
+        book.set_key("openrouter", "router-secret")
+        monkeypatch.setenv("OPENAI_API_KEY", "must-not-be-sent-to-openrouter")
+        bot = mkbot(env, model="ollama/fake:8b")
+        reset_cache()
+
+        before = len(router.requests)
+        model_choices(env.config, env.store, bot, discover_hosted_models=False)
+        assert len(router.requests) == before, "loading a chat must not contact OpenRouter"
+
+        choices = model_choices(env.config, env.store, bot, discover_hosted_models=True)
+        by = {choice.spec: choice for choice in choices}
+        sonnet = by["openrouter/anthropic/claude-sonnet-4"]
+        assert sonnet.label == "Claude Sonnet 4" and sonnet.group == "OpenRouter"
+        assert "catalog" in sonnet.note and "$3" in sonnet.note
+        assert any("does not verify" in detail for detail in sonnet.detail)
+        request = router.requests[-1]
+        assert request["headers"]["authorization"] == "Bearer router-secret"
+        assert "must-not-be-sent-to-openrouter" not in str(request)
+        assert parse_qs(urlsplit(request["path"]).query)["sort"] == ["most-popular"]
+
+        reset_cache()
+        result = env.get("/api/bots/chatty/models?discover=1&q=deepseek").json()
+        assert [row["spec"] for row in result["models"] if row["spec"].startswith("openrouter/")] == [
+            "openrouter/deepseek/deepseek-chat-v3"]
+        query_request = router.requests[-1]
+        assert parse_qs(urlsplit(query_request["path"]).query)["q"] == ["deepseek"]
+        assert query_request["headers"]["authorization"] == "Bearer router-secret"
+        assert validate_override(env.config, env.store, bot,
+                                 "openrouter/anthropic/claude-sonnet-4") == "openrouter/anthropic/claude-sonnet-4"
+        assert "router-secret" not in env.get("/api/bots/chatty/models?discover=1").text
+
+        result = provider_for_connection(book, "openrouter", "anthropic/claude-sonnet-4").chat(
+            ChatRequest(model="anthropic/claude-sonnet-4", messages=[{"role": "user", "content": "hello"}],
+                        max_tokens=23, stream=False))
+        sent = router.of("/v1/chat/completions")[-1]
+        assert result.content == "ok"
+        assert sent["headers"]["authorization"] == "Bearer router-secret"
+        assert sent["body"]["model"] == "anthropic/claude-sonnet-4"
+        assert sent["body"]["max_completion_tokens"] == 23 and "max_tokens" not in sent["body"]
+        assert "must-not-be-sent-to-openrouter" not in str(sent)
+    finally:
+        router.close()
+
+
+def test_model_catalog_cache_is_bounded_and_keeps_recent_entries():
+    from hutch.modelchoices import _CACHE_MAX, _cache, _cached
+
+    reset_cache()
+    for index in range(_CACHE_MAX + 20):
+        _cached(f"catalog-search-{index}", lambda index=index: index, ttl=60)
+    assert len(_cache) == _CACHE_MAX
+    assert "catalog-search-0" not in _cache
+    assert _cached(f"catalog-search-{_CACHE_MAX + 19}", lambda: -1, ttl=60) == _CACHE_MAX + 19
+    reset_cache()
+
+
 @pytest.mark.parametrize("mode", ["local", "offline"])
 def test_local_and_offline_model_picker_never_discovers_chatgpt_models(env, monkeypatch, mode):
     from hutch.chatgpt_auth import ChatGPTAuthBook

@@ -257,6 +257,7 @@ class FakeOpenAI(_Server):
     def __init__(self):
         self.script: Callable[[dict], dict] = lambda body: {"content": "ok"}
         self.require_key: Optional[str] = None
+        self.models: list[dict[str, Any]] = [{"id": "fake-model"}]
         self.reject_stream_options = False
         self.fail_stream_once = False
         self.force_status: Optional[tuple[int, dict, dict]] = None   # status, body, headers
@@ -269,8 +270,13 @@ class FakeOpenAI(_Server):
         if self.force_status:
             code, obj, hdrs = self.force_status
             return self.send_json(h, obj, status=code, headers=hdrs)
-        if path == "/v1/models" or path == "/models":
-            return self.send_json(h, {"data": [{"id": "fake-model"}]})
+        from urllib.parse import parse_qs, urlsplit
+        route = urlsplit(path)
+        if route.path in ("/v1/models", "/models"):
+            query = (parse_qs(route.query).get("q") or [""])[0].casefold()
+            models = [row for row in self.models if not query or query in
+                      f"{row.get('id', '')} {row.get('name', '')}".casefold()]
+            return self.send_json(h, {"data": models})
         if path in ("/v1/chat/completions", "/chat/completions"):
             if body.get("stream") and body.get("stream_options") and self.reject_stream_options:
                 return self.send_json(h, {"error": {"message": "stream_options is not supported"}}, status=400)

@@ -1,0 +1,64 @@
+{
+  "test": "tests/e2e/test_browser.py::test_openrouter_models_are_searchable_from_the_chat_picker",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_openrouter_models_are_searchable_from_the_chat_picker",
+  "captured_at": "2026-10-10T22:26:08.619918+00:00",
+  "python": "3.13.15",
+  "browser": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "captures": [
+    {
+      "viewport": [
+        1440,
+        960
+      ],
+      "modal": {
+        "x": 400,
+        "y": 234.328125,
+        "width": 640,
+        "height": 491.328125
+      }
+    },
+    {
+      "viewport": [
+        900,
+        1024
+      ],
+      "modal": {
+        "x": 130,
+        "y": 266.328125,
+        "width": 640,
+        "height": 491.328125
+      }
+    },
+    {
+      "viewport": [
+        390,
+        844
+      ],
+      "modal": {
+        "x": 0,
+        "y": 303.1875,
+        "width": 390,
+        "height": 540.8125
+      }
+    }
+  ],
+  "page_errors": [],
+  "provider_requests": [
+    {
+      "method": "GET",
+      "path": "/v1/models?sort=most-popular&output_modalities=text"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/models?sort=most-popular&output_modalities=text&q=deepseek"
+    }
+  ],
+  "inference_requests": 0,
+  "source_sha256": {
+    "src/hutch/server/static/model-switcher.js": "b21bfaa597069477e9da296eed85c87fdfc39167c6430b50f0fc55ca957a14eb",
+    "src/hutch/server/static/model-switcher.css": "f28ff955c424aff07313699c59bb6d56a9dcbcd946f25d12948c611ea5ef5bd7",
+    "src/hutch/modelchoices.py": "362ca544dbf825c89d1ce332e2fda0448cd234c0bbc0f97b6dbb402c21b2e440",
+    "tests/e2e/test_browser.py": "a51449f6a94c918d6361253daa45d12b4656c05af3e34c3c2af0ff294be871df"
+  }
+}
