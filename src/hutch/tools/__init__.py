@@ -101,6 +101,12 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
         if outlook_mail_send_grant:
             from .outlook_mail_send import OutlookMailSendTool
             tools["outlook_mail_send"] = OutlookMailSendTool(outlook_mail_send_grant)
+        google_mail_send_grant_reader = getattr(ctx.store, "google_mail_send_grant", None)
+        google_mail_send_grant = (google_mail_send_grant_reader(ctx.bot.id)
+                                  if callable(google_mail_send_grant_reader) else None)
+        if google_mail_send_grant:
+            from .google_mail_send import GoogleMailSendTool
+            tools["google_mail_send"] = GoogleMailSendTool(google_mail_send_grant)
     if ctx is not None and getattr(getattr(ctx.bot, "inference_mode", None), "value", "") == "local":
         # Gmail's restricted data stays with an explicitly loopback-routed
         # built-in Bot. Also omit the tool if later Bot edits add remote

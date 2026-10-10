@@ -59,18 +59,20 @@ pinned in the primary roster without hiding active work; pinning is a navigation
    search at most ten matching messages and receives sender, subject, received time and a short
    untrusted preview. This read grant cannot send, edit, delete, forward or fetch attachments.
    A separate experimental Outlook send preview has its own `Mail.Send` sign-in and per-Bot grant,
-   exact fresh approval for each message, no automatic retry after uncertainty, no Apps & AI setup
-   screen, and no live-account verification. Gmail is a private
+   exact fresh approval for each message, and no automatic retry after uncertainty. Gmail search is a private
    preview using restricted, account-wide `gmail.readonly`; it returns only bounded sender/subject/date/snippet
    previews to built-in Bots whose model routes all use loopback Local endpoints and have no hosted
-   fallback. Google OAuth still authorizes broader account-level access, which Hutch cannot narrow.
+   fallback. A distinct Gmail send-only preview requests sensitive `gmail.send`, cannot search or read mail,
+   and requires fresh exact approval for one plain-text message each time; it never retries an uncertain outcome.
+   Google OAuth still authorizes broader account-level access, which Hutch cannot narrow, and no live account
+   or consent was verified.
    Google Calendar now also has an owner-configured guest-free event-create preview: the owner must
    separately request Google's account-wide `calendar.events.owned` scope, grant one owned calendar
    to one Bot, and approve each exact event in context. Hutch verifies the returned event ID, title,
    time, description and location; uncertain outcomes are never retried automatically. Google's scope is broader than the single
    action Hutch exposes, and public OAuth verification plus live account consent remain open. Outlook
-   Calendar writes, Gmail sending, and mail changes outside that narrow Outlook send preview remain
-   unavailable. Event creation, message sending and every
+   Calendar writes and mailbox changes outside the narrow Outlook/Gmail send previews remain unavailable.
+   Event creation, message sending and every
    external write need a fresh review showing account, destination and complete payload. Keep refresh
    credentials in the OS credential store rather than SQLite, transcripts, prompts or browser storage.
 

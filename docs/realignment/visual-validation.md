@@ -1631,3 +1631,23 @@ art until the applicable terms are confirmed. This does not establish that every
 in-app usage requires approval. Microsoft's current guidance separately states
 that Outlook product icons require an express license. OpenAI's current guide
 says not to recolor Blossom, so its local exact white mark remains unmodified.
+
+## Gmail send-only setup (2026-10-10)
+
+The Connections page now offers a separate Gmail send-only setup, account list,
+per-assistant grant, revocation, and disconnect path. A Chromium fixture test
+opened the path and captured desktop (1440×960), tablet (900×1024), phone
+(390×844), and compact phone (320×740). I inspected the desktop, phone, and
+compact-phone screenshots individually. The form reflows to one column on
+phones; each viewport reports zero horizontal overflow, no page errors, and no
+external requests. The browser version was **153.0.8010.12** with Playwright
+**1.63.0**. Google credentials and provider calls: none.
+
+Screenshots, source hashes, and the trace are in
+[`artifacts/google-mail-send/`](artifacts/google-mail-send/). The rendered
+surface distinguishes sensitive `gmail.send` from restricted search access,
+shows the account's sender address and exact approval boundary, and keeps
+revocation and disconnect visible. This fixture review covers the new
+send-only journey only; the wider Connections redesign and all-surface UI
+overhaul remain open. No live sign-in, screen-reader, or physical-device check
+was performed.

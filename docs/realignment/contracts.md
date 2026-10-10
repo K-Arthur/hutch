@@ -64,11 +64,16 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   unreplayed for reconciliation. Refresh credentials are stored in Linux Secret Service. Google's scope allows broader changes/deletes
   on calendars the user owns; Hutch's selected-calendar/action limits are local boundaries, not provider-enforced scopes. Live consent,
   public OAuth verification and real provider calls remain unverified.
-* **Gmail (experimental private preview).** `/api/v1/connections/google-mail` uses a separate PKCE connection and requests account-wide restricted
+* **Gmail (experimental private preview).** `/api/v1/connections/google-mail` uses a local PKCE connection and requests account-wide restricted
   `gmail.readonly`; it cannot reuse Calendar consent. The owner grants one mailbox to a Bot. Search returns up to ten bounded sender/subject/date/snippet previews. Hutch
   offers the tool only to its built-in runtime in Local inference mode after checking the primary, fallback and escalation routes are
   loopback-only; this keeps previews away from hosted provider models. The local inference service is outside Hutch's isolation boundary.
-  Gmail is not cleared for public release pending Google scope verification and any applicable security assessment; no live account was tested.
+  Separate `/api/v1/connections/google-mail-send` endpoints use an independent local PKCE account with only sensitive `gmail.send`, a
+  user-entered From address, and independent per-Bot grants. The tool prepares one plain-text email to 1–5 recipients, has no attachments,
+  CC/BCC, replies or forwards, and requires fresh exact owner approval for each send even in automatic mode. It sends one request and
+  never retries a timeout, server error, redirect or unverifiable receipt; those outcomes require a Sent-folder check. Google acceptance
+  is not delivery confirmation. Connections can revoke or disconnect sending without changing search access. Public OAuth verification,
+  applicable read-scope security assessment and live consent remain unverified; no provider request was used.
 * **Outlook Calendar (experimental, schema v33).** `GET /api/v1/connections/outlook-calendar` returns typed, credential-free
   account and Bot-grant metadata. Sign-in begins at `POST /api/v1/connections/outlook-calendar/sign-in` and returns a validated
   Microsoft authorization URL; Microsoft returns only to the local loopback callback. Calendar listing, one-calendar-per-Bot

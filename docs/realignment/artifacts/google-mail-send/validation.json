@@ -1,0 +1,54 @@
+{
+  "test": "tests/e2e/test_browser.py::test_google_mail_send_access_is_send_only_and_responsive",
+  "captured_at": "2026-10-10T18:06:57.904215+00:00",
+  "browser": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "provider_credentials_used": false,
+  "provider_calls": 0,
+  "scenario": "Fixture send-only Gmail account; separate gmail.send OAuth, explicit assistant grant/revoke, and local disconnect",
+  "external_requests": [],
+  "page_errors": [],
+  "captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "horizontal_overflow": 0
+    }
+  ],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "760006c8082801f042ad179a98c4ce7cd1d60c65029f23cf6a05b20c4e5195df",
+    "src/hutch/server/static/style.css": "4ef9b9a4fbf491f781f1cce7d57467604f508d927267b0e3ced9ca7b8fed8f0f",
+    "src/hutch/server/app.py": "9d835a811f94ea5c0606c8ebfea0cbe3f18bc3e5431d47a6982b18c844160cf5",
+    "src/hutch/google_mail_send.py": "4b3a96b43fb29195567b97d1997afad875c2cddb8cff480a5325c5bdaa0c6f62",
+    "src/hutch/tools/google_mail_send.py": "dc2350595bf2aceee9fd225fb4020f156ed827bd12dc7f44aed69a8ec459c27b",
+    "src/hutch/store.py": "d42575b1832dfbfa98aaf8f6e48193bbbb5f4f07dc24a061988f4108671de7c3",
+    "tests/e2e/test_browser.py": "c7b74a1b46c4e19f9aadcd867b6a92c6c43895ee12a928d2541147d7406aa010"
+  }
+}

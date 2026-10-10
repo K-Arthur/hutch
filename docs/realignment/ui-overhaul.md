@@ -111,6 +111,12 @@ separate verification gaps. Apps & AI, approvals, assistant setup, settings,
 history, Preferences, server pages, and the marketing website still need their
 own redesign review and acceptance.
 
+A separate send-only Gmail setup has since been added under Connections with
+its own account rows, sender address, permission label and per-assistant grant.
+The fixture journey was visually inspected at desktop, phone and compact-phone
+sizes and is recorded in `visual-validation.md`. This integration-specific
+check does not close the broader Apps & AI redesign or any other open surface.
+
 ### Next
 
 1. Finish Studio's initial and active-chat layouts, then separately review the

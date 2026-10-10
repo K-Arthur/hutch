@@ -464,12 +464,16 @@ const chatgptCallback = new URLSearchParams(location.search);
 const chatgptResult = chatgptCallback.get("chatgpt_result");
 const googleCalendarResult = chatgptCallback.get("google_calendar_result");
 const googleMailResult = chatgptCallback.get("google_mail_result");
+const googleMailSendResult = chatgptCallback.get("google_mail_send_result");
 const outlookCalendarResult = chatgptCallback.get("outlook_calendar_result");
 const outlookMailResult = chatgptCallback.get("outlook_mail_result");
 const outlookMailSendResult = chatgptCallback.get("outlook_mail_send_result");
-if (chatgptResult || googleCalendarResult || googleMailResult || outlookCalendarResult || outlookMailResult || outlookMailSendResult) {
+if (chatgptResult || googleCalendarResult || googleMailResult || googleMailSendResult || outlookCalendarResult || outlookMailResult || outlookMailSendResult) {
   const detail = chatgptCallback.get("detail");
-  const message = outlookMailSendResult
+  const message = googleMailSendResult
+    ? googleMailSendResult === "connected" ? "Gmail send-only account connected. Grant one assistant permission to prepare messages; each send still needs your approval."
+      : detail || "Gmail send-only sign-in did not complete. Start again from Connections."
+    : outlookMailSendResult
     ? outlookMailSendResult === "connected" ? "Outlook Mail sending account connected. Grant one Bot sending access from Connections."
       : detail || "Outlook Mail sign-in did not complete. Start again from Connections."
     : outlookMailResult
@@ -6009,6 +6013,8 @@ async function renderConnections() {
   const googleCalendar = data.google_calendar || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const googleMail = data.google_mail || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const googleMailBots = bots.filter(bot => bot.inference_mode === "local");
+  const googleMailSend = data.google_mail_send || { configured: false, secret_store_available: false, accounts: [], grants: [] };
+  const googleMailSendBots = bots.filter(bot => bot.inference_mode !== "offline");
   const outlookCalendar = data.outlook_calendar || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const outlookMail = data.outlook_mail || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const outlookMailSend = data.outlook_mail_send || { configured: false, secret_store_available: false, accounts: [], grants: [] };
@@ -6018,6 +6024,7 @@ async function renderConnections() {
   const outlookMailAccessOpen = $("#outlook-mail-access")?.open || false;
   const outlookMailSendAccessOpen = $("#outlook-mail-send-access")?.open || false;
   const googleMailAccessOpen = $("#google-mail-access")?.open || false;
+  const googleMailSendAccessOpen = $("#google-mail-send-access")?.open || false;
   const googleOAuthSetupOpen = $("#google-oauth-setup")?.open ?? false;
   const connectionManagerOpen = $("#connection-management")?.open || false;
   const googleCalendarAccountsHtml = (googleCalendar.accounts || []).map(account => {
@@ -6079,6 +6086,31 @@ async function renderConnections() {
   }).join("");
   const orphanGoogleMailGrants = (googleMail.grants || []).filter(grant =>
     !(googleMail.accounts || []).some(account => account.id === grant.account_id));
+  const googleMailSendAccountsHtml = (googleMailSend.accounts || []).map(account => {
+    const grants = (googleMailSend.grants || []).filter(grant => grant.account_id === account.id);
+    const grantRows = grants.length ? grants.map(grant => `
+      <div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">May prepare approved messages · ${esc(account.from_address)}</p></div>
+        <button class="btn ghost small" type="button" data-google-mail-send-ungrant="${esc(grant.bot_id)}">Revoke send access</button></div>`).join("")
+      : '<p class="hint">No assistant has send access to this account.</p>';
+    return `<article class="google-calendar-account" data-google-mail-send-account="${esc(account.id)}">
+      <div class="device-row"><div><strong>${esc(account.label)}</strong> <span class="chip ok">send only</span>
+        <p class="hint">From ${esc(account.from_address)} · connected ${esc(new Date(account.created_at).toLocaleDateString())}</p></div>
+        <button class="btn danger small" type="button" data-google-mail-send-disconnect="${esc(account.id)}">Disconnect</button>
+      </div>
+      <div class="google-calendar-grants" aria-label="Assistants with Gmail send access">${grantRows}</div>
+      <div class="google-calendar-grant-form" data-google-mail-send-grant-form="${esc(account.id)}">
+        <label class="field">Choose an assistant
+          <select data-google-mail-send-bot ${googleMailSendBots.length ? "" : "disabled"} aria-label="Assistant for Gmail send access">
+            ${googleMailSendBots.length ? googleMailSendBots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("") : '<option value="">Create an assistant first</option>'}
+          </select>
+        </label>
+        <button class="btn primary small" type="button" data-google-mail-send-grant="${esc(account.id)}" ${googleMailSendBots.length ? "" : "disabled"}>Allow approved sending</button>
+        <p class="hint" role="status" aria-live="polite" data-google-mail-send-status></p>
+      </div>
+    </article>`;
+  }).join("");
+  const orphanGoogleMailSendGrants = (googleMailSend.grants || []).filter(grant =>
+    !(googleMailSend.accounts || []).some(account => account.id === grant.account_id));
   const outlookCalendarAccountsHtml = (outlookCalendar.accounts || []).map(account => {
     const grants = (outlookCalendar.grants || []).filter(grant => grant.account_id === account.id);
     const grantRows = grants.length ? grants.map(grant => `
@@ -6273,8 +6305,8 @@ async function renderConnections() {
       <section class="panel conn-card outlook-calendar-card" id="connection-gmail" aria-labelledby="google-mail-title">
         <div class="bot-head"><span class="bot-name" id="google-mail-title">Gmail</span>
           <span class="tag">experimental</span><span class="tag">Local inference only</span></div>
-        <p class="hint">Search a connected mailbox for up to 10 matches. Hutch returns only sender, subject, received date and a short preview, which becomes untrusted local run history. It cannot send, edit, forward, delete or fetch attachments. Only built-in Bots with loopback Local model routes and no hosted fallbacks can receive Gmail access; Hutch cannot verify what the operator's local model service does.</p>
-        <p class="hint"><strong>Google permission:</strong> <code>gmail.readonly</code> is a restricted, account-wide scope. Each Bot grant is enforced by Hutch, but Google consent is broader and remains managed in your Google Account. Public distribution requires Google's restricted-scope verification; server-side access can also require a security assessment. This private-preview integration is not approved for public release.</p>
+        <p class="hint">Search a connected mailbox for up to 10 matches. Hutch returns only sender, subject, received date and a short preview, which becomes untrusted local run history. This search connection cannot send, edit, forward, delete or fetch attachments. Only built-in assistants with loopback Local model routes and no hosted fallbacks can receive search access; Hutch cannot verify what the operator's local model service does.</p>
+        <p class="hint"><strong>Search permission:</strong> <code>gmail.readonly</code> is a restricted, account-wide scope. Each assistant grant is enforced by Hutch, but Google consent is broader and remains managed in your Google Account. Public distribution requires Google's restricted-scope verification; server-side access can also require a security assessment. This private-preview search integration is not approved for public release.</p>
         <p class="hint"><a href="https://developers.google.com/workspace/gmail/api/auth/scopes" target="_blank" rel="noopener noreferrer">Review Google's Gmail scope requirements</a> · <a href="https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification" target="_blank" rel="noopener noreferrer">Review restricted-scope verification</a>.</p>
         <details class="outlook-calendar-details" id="google-mail-access" ${googleMailAccessOpen ? "open" : ""}>
           <summary>Manage Gmail access</summary>
@@ -6289,6 +6321,25 @@ async function renderConnections() {
           </div>` : ''}
           ${googleMailAccountsHtml || '<p class="hint">No Gmail accounts connected.</p>'}
           ${orphanGoogleMailGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A Bot grant refers to a disconnected Gmail account. Revoke it before reconnecting.</p>${orphanGoogleMailGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Gmail search access</p></div><button class="btn ghost small" data-google-mail-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ''}
+        </details>
+        <details class="outlook-calendar-details" id="google-mail-send-access" ${googleMailSendAccessOpen ? "open" : ""}>
+          <summary>Set up send-only access</summary>
+          <p class="hint">This is a separate Google connection with <code>gmail.send</code> only. It cannot read or search your mailbox. An assistant can prepare one plain-text message; you approve the exact sender, recipients, subject and message each time, even in automatic mode. No attachments, CC, BCC, replies or forwards.</p>
+          <p class="hint"><strong>Google permission:</strong> <code>gmail.send</code> is sensitive and requires additional OAuth app verification for public distribution. It is separate from restricted <code>gmail.readonly</code>. Hutch is a private preview; no live Google account or consent flow has been verified.</p>
+          ${!googleMailSend.configured ? '<p class="hint" role="status">Add the Google Desktop OAuth client ID in the shared setup above to connect a send-only account.</p>' : ''}
+          ${googleMailSend.configured && !googleMailSend.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting. Refresh tokens stay outside SQLite and browser storage.</p>' : ''}
+          ${googleMailSend.configured && googleMailSend.secret_store_available ? `<div class="google-calendar-connect outlook-calendar-connect">
+            <label class="field" for="google-mail-send-label">Account label
+              <input id="google-mail-send-label" type="text" maxlength="80" autocomplete="off" placeholder="Work sender" aria-describedby="google-mail-send-help">
+            </label>
+            <label class="field" for="google-mail-send-from">Send-from address
+              <input id="google-mail-send-from" type="email" maxlength="254" autocomplete="email" placeholder="you@example.com" aria-describedby="google-mail-send-help">
+            </label>
+            <button class="btn primary small" id="google-mail-send-connect" type="button">Connect send-only Gmail</button>
+            <p class="hint" id="google-mail-send-help">Google checks that the address is allowed for this account. The address is stored only in this Hutch account record. Sign-in stays on this computer at <code>127.0.0.1</code>.</p>
+          </div>` : ''}
+          ${googleMailSendAccountsHtml || '<p class="hint">No send-only Gmail accounts connected.</p>'}
+          ${orphanGoogleMailSendGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved send grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanGoogleMailSendGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Gmail send access</p></div><button class="btn ghost small" data-google-mail-send-ungrant="${esc(grant.bot_id)}">Revoke send access</button></div>`).join("")}</div>` : ''}
         </details>
       </section>
       <section class="panel conn-card outlook-calendar-card" id="connection-outlook-calendar" aria-labelledby="outlook-calendar-title">
@@ -6770,6 +6821,98 @@ async function renderConnections() {
       try {
         const result = await api(`/v1/connections/google-mail/accounts/${encodeURIComponent(button.dataset.googleMailDisconnect)}/disconnect`, { method: "POST", body: {} });
         toast(result.detail, result.provider_revocation === "not_confirmed");
+        await renderConnections();
+      } catch (err) { button.disabled = false; toast(err.message, true); }
+    });
+  });
+
+  $("#google-mail-send-connect")?.addEventListener("click", async event => {
+    const button = event.currentTarget;
+    const label = $("#google-mail-send-label")?.value.trim();
+    const fromAddress = $("#google-mail-send-from")?.value.trim();
+    if (!label) { toast("Enter a label for this send-only Gmail account.", true); $("#google-mail-send-label")?.focus(); return; }
+    if (!fromAddress || !$("#google-mail-send-from")?.reportValidity()) {
+      toast("Enter the email address this account should send from.", true);
+      $("#google-mail-send-from")?.focus();
+      return;
+    }
+    const authWindow = window.open("about:blank", "_blank");
+    if (!authWindow) {
+      toast("Allow Hutch to open a browser tab, then try Google sign-in again.", true);
+      return;
+    }
+    authWindow.opener = null;
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+    try {
+      const result = await api("/v1/connections/google-mail-send/sign-in", {
+        method: "POST", body: { label, from_address: fromAddress },
+      });
+      let authUrl;
+      try { authUrl = new URL(result.authorization_url); }
+      catch { throw new Error("Hutch returned an invalid Google sign-in destination."); }
+      if (authUrl.origin !== "https://accounts.google.com" || authUrl.pathname !== "/o/oauth2/v2/auth" ||
+          authUrl.username || authUrl.password || authUrl.hash || !authUrl.search) {
+        throw new Error("Hutch returned an unexpected Google sign-in destination.");
+      }
+      authWindow.location.replace(authUrl.href);
+      toast("Review the separate Gmail send permission in Google, then return to Connections.");
+    } catch (err) { authWindow.close(); toast(err.message, true); }
+    finally { button.disabled = false; button.removeAttribute("aria-busy"); }
+  });
+  $$('[data-google-mail-send-grant]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const form = button.closest("[data-google-mail-send-grant-form]");
+      const bot = $("[data-google-mail-send-bot]", form).value;
+      const status = $("[data-google-mail-send-status]", form);
+      const existing = (googleMailSend.grants || []).find(grant => grant.bot_id === bot);
+      if (existing && existing.account_id !== button.dataset.googleMailSendGrant && !(await confirmDialog({
+        title: "Replace Gmail send access",
+        body: `<b>${esc(grantedBotLabel(existing))}</b> already has send access to another account. Replace that grant?`,
+        confirmText: "Replace grant",
+      }))) return;
+      button.disabled = true;
+      status.textContent = "Saving this assistant's send-only grant…";
+      try {
+        const result = await api("/v1/connections/google-mail-send/grants", { method: "POST", body: {
+          bot, account_id: button.dataset.googleMailSendGrant,
+        } });
+        toast(result.detail);
+        await renderConnections();
+      } catch (err) { status.textContent = err.message; button.disabled = false; }
+    });
+  });
+  $$('[data-google-mail-send-ungrant]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const botRef = button.dataset.googleMailSendUngrant;
+      const grant = (googleMailSend.grants || []).find(row => row.bot_id === botRef);
+      if (!(await confirmDialog({ title: "Revoke Gmail sending access",
+        body: `Stop <b>${esc(grantedBotLabel(grant))}</b> from preparing approved emails from this account?`,
+        confirmText: "Revoke access" }))) return;
+      button.disabled = true;
+      try {
+        await api(`/v1/connections/google-mail-send/grants/${encodeURIComponent(botRef)}`, { method: "DELETE" });
+        toast("Assistant Gmail sending access revoked.");
+        await renderConnections();
+      } catch (err) { button.disabled = false; toast(err.message, true); }
+    });
+  });
+  $$('[data-google-mail-send-disconnect]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const accountId = button.dataset.googleMailSendDisconnect;
+      const account = (googleMailSend.accounts || []).find(row => row.id === accountId);
+      const grants = (googleMailSend.grants || []).filter(row => row.account_id === accountId);
+      const botNames = grants.map(grantedBotLabel);
+      const linkedBots = botNames.length ? `<p>This also revokes Gmail send access for ${botNames.map(esc).join(", ")}.</p>` : "";
+      if (!(await confirmDialog({ title: "Disconnect send-only Gmail",
+        body: `Clear Hutch's send-only refresh credential for <b>${esc(account?.label || "this account")}</b> and request Google revocation?${linkedBots} This does not affect a separate Gmail search connection.`,
+        confirmText: "Disconnect", danger: true }))) return;
+      button.disabled = true;
+      try {
+        const result = await api(`/v1/connections/google-mail-send/accounts/${encodeURIComponent(accountId)}/disconnect`, {
+          method: "POST", body: {},
+        });
+        toast(result.detail, result.provider_revocation !== "confirmed");
         await renderConnections();
       } catch (err) { button.disabled = false; toast(err.message, true); }
     });

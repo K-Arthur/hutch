@@ -6,11 +6,13 @@ from fastapi.testclient import TestClient
 
 from hutch.google_calendar import OAuthStart
 from hutch.google_mail import GOOGLE_MAIL_SCOPE
+from hutch.google_mail_send import GOOGLE_MAIL_SEND_SCOPE
 from hutch.models import Bot, InferenceMode
 from hutch.server.app import REMOTE_ROUTE_CAPABILITIES, create_app
 
 
 ACCOUNT_ID = "gmail_0123456789abcdef01234567"
+SEND_ACCOUNT_ID = "gmail_send_0123456789abcdef01234567"
 
 
 class FixtureGoogleMailBook:
@@ -59,6 +61,55 @@ class FixtureGoogleMailBook:
 
     def disconnect(self, account_id):
         return {"removed": True, "provider_revocation": "confirmed"}
+
+
+class FixtureGoogleMailSendBook:
+    callback_scopes = []
+    accounts_rows = [{"id": SEND_ACCOUNT_ID, "label": "Work sender", "from_address": "owner@example.test",
+                      "created_at": "2026-10-10T00:00:00+00:00", "scopes": [GOOGLE_MAIL_SEND_SCOPE],
+                      "status": "connected"}]
+
+    class Secrets:
+        @staticmethod
+        def available():
+            return True
+
+    def __init__(self, state_dir, client_id):
+        self.secrets = self.Secrets()
+        self.client_id = client_id
+
+    def accounts(self):
+        return list(self.accounts_rows)
+
+    @classmethod
+    def callback_uri(cls, request):
+        if request.headers.get("host", "").startswith("127.0.0.1"):
+            return "http://127.0.0.1:18787/api/v1/connections/google-mail-send/callback"
+        from hutch.google_calendar import GoogleCalendarError
+        raise GoogleCalendarError("Gmail sending sign-in must start and finish at 127.0.0.1")
+
+    def start(self, label, callback, from_address):
+        self.callback_scopes.append((label, callback, from_address))
+        from urllib.parse import urlencode
+        url = "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode({"scope": GOOGLE_MAIL_SEND_SCOPE})
+        return OAuthStart(url, "fixture-send-state")
+
+    def _account(self, account_id):
+        from hutch.google_calendar import GoogleCalendarError
+        account = next((row for row in self.accounts_rows if row["id"] == account_id), None)
+        if account is None:
+            raise GoogleCalendarError("Gmail sending account is not connected")
+        return account
+
+    def disconnect(self, account_id):
+        return {"removed": True, "provider_revocation": "confirmed"}
+
+    def finish(self, state, code, callback):
+        self.callback_scopes.append(("finish", state, code, callback))
+        return self.accounts_rows[0]
+
+    def cancel(self, state):
+        self.callback_scopes.append(("cancel", state))
 
 
 def test_gmail_connection_and_grant_require_local_inference_and_are_revocable(tmp_path, monkeypatch):
@@ -176,6 +227,62 @@ def test_gmail_callback_strips_authorization_code_from_access_log_scope(tmp_path
     assert scope_query == b""
     assert values == {"state": ["one-time-state"], "code": ["one-time-code"]}
     assert FixtureGoogleMailBook.callback_scopes[1][0:3] == ("finish", "one-time-state", "one-time-code")
+
+
+def test_gmail_send_connection_has_a_separate_authorization_path(tmp_path, monkeypatch):
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "fixture-desktop-client.apps.googleusercontent.com")
+    with TestClient(create_app(), base_url="http://127.0.0.1:18787") as client:
+        monkeypatch.setattr("hutch.google_mail_send.GoogleMailSendBook", FixtureGoogleMailSendBook)
+        response = client.post("/api/v1/connections/google-mail-send/sign-in", json={
+            "label": "Work sender", "from_address": "owner@example.test"})
+
+    assert response.status_code == 200, response.text
+    assert urlsplit(response.json()["authorization_url"]).hostname == "accounts.google.com"
+    assert response.headers["cache-control"] == "no-store"
+    assert parse_qs(urlsplit(response.json()["authorization_url"]).query)["scope"] == [GOOGLE_MAIL_SEND_SCOPE]
+
+
+def test_gmail_send_connection_and_grants_are_separate_from_read_access(tmp_path, monkeypatch):
+    monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "fixture-desktop-client.apps.googleusercontent.com")
+    FixtureGoogleMailSendBook.callback_scopes.clear()
+    app = create_app()
+    with TestClient(app, base_url="http://127.0.0.1:18787") as client:
+        monkeypatch.setattr("hutch.google_mail_send.GoogleMailSendBook", FixtureGoogleMailSendBook)
+        bot = client.app.state.store.create_bot(Bot(name="mail-sender", model="mock/demo", tools=[]))
+        client.app.state.store.set_google_mail_grant(bot.id, ACCOUNT_ID)
+
+        resource = client.get("/api/v1/connections/google-mail-send")
+        assert resource.status_code == 200
+        assert resource.json()["accounts"] == FixtureGoogleMailSendBook.accounts_rows
+        assert resource.json()["grants"] == []
+        assert client.get("/api/connections").json()["google_mail_send"]["accounts"] == \
+            FixtureGoogleMailSendBook.accounts_rows
+
+        sign_in = client.post("/api/v1/connections/google-mail-send/sign-in", json={
+            "label": "Work sender", "from_address": "owner@example.test"})
+        assert sign_in.status_code == 200, sign_in.text
+        assert sign_in.headers["cache-control"] == "no-store"
+        assert FixtureGoogleMailSendBook.callback_scopes == [
+            ("Work sender", "http://127.0.0.1:18787/api/v1/connections/google-mail-send/callback",
+             "owner@example.test")]
+
+        grant = client.post("/api/v1/connections/google-mail-send/grants", json={
+            "bot": bot.id, "account_id": SEND_ACCOUNT_ID})
+        assert grant.status_code == 200, grant.text
+        assert "Every message" in grant.json()["detail"]
+        assert "does not confirm delivery" in grant.json()["detail"]
+        assert client.app.state.store.google_mail_send_grant(bot.id)["account_id"] == SEND_ACCOUNT_ID
+        assert client.app.state.store.google_mail_grant(bot.id)["account_id"] == ACCOUNT_ID
+
+        removed = client.delete(f"/api/v1/connections/google-mail-send/grants/{bot.id}")
+        assert removed.status_code == 200 and removed.json() == {"removed": True}
+        client.app.state.store.set_google_mail_send_grant(bot.id, SEND_ACCOUNT_ID, "Work sender")
+        disconnected = client.post(f"/api/v1/connections/google-mail-send/accounts/{SEND_ACCOUNT_ID}/disconnect", json={})
+        assert disconnected.status_code == 200
+        assert client.app.state.store.google_mail_send_grant(bot.id) is None
+        assert client.app.state.store.google_mail_grant(bot.id)["account_id"] == ACCOUNT_ID
 
 
 def test_gmail_denied_callback_consumes_state_without_echoing_provider_error(tmp_path, monkeypatch):

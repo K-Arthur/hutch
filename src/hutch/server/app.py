@@ -1385,6 +1385,53 @@ class GoogleMailResource(BaseModel):
     grants: list[GoogleMailGrantResource]
 
 
+class GoogleMailSendAccountResource(BaseModel):
+    id: str
+    label: str
+    from_address: str
+    created_at: str
+    scopes: list[str]
+    status: Literal["connected"]
+
+
+class GoogleMailSendGrantResource(BaseModel):
+    bot_id: str
+    bot_name: Optional[str] = None
+    account_id: str
+    account_label: str
+    granted_at: str
+
+
+class GoogleMailSendSignInRequest(BaseModel):
+    label: str = Field(min_length=1, max_length=80)
+    from_address: str = Field(min_length=3, max_length=254)
+
+
+class GoogleMailSendGrantRequest(BaseModel):
+    bot: str = Field(min_length=1, max_length=128)
+    account_id: str = Field(min_length=1, max_length=64)
+
+
+class GoogleMailSendResource(BaseModel):
+    configured: bool
+    secret_store_available: bool
+    accounts: list[GoogleMailSendAccountResource]
+    grants: list[GoogleMailSendGrantResource]
+
+
+class GoogleMailSendAuthorizationResource(BaseModel):
+    authorization_url: str
+
+
+class GoogleMailSendGrantResponseResource(BaseModel):
+    grant: GoogleMailSendGrantResource
+    detail: str
+
+
+class GoogleMailSendUnGrantResource(BaseModel):
+    removed: bool
+
+
 class GoogleMailAuthorizationResource(BaseModel):
     authorization_url: str
 
@@ -4143,6 +4190,8 @@ def create_app() -> FastAPI:
         calendar_book = GoogleCalendarBook(config.state_dir, effective_google_oauth_client_id())
         from ..google_mail import GoogleMailBook
         google_mail_book = GoogleMailBook(config.state_dir, effective_google_oauth_client_id())
+        from ..google_mail_send import GoogleMailSendBook
+        google_mail_send_book = GoogleMailSendBook(config.state_dir, effective_google_oauth_client_id())
         google_oauth = google_oauth_client_settings(store)
         from ..outlook_calendar import OutlookCalendarBook
         outlook_book = OutlookCalendarBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
@@ -4162,6 +4211,10 @@ def create_app() -> FastAPI:
                                 "secret_store_available": google_mail_book.secrets.available(),
                                 "accounts": google_mail_book.accounts(),
                                 "grants": store.list_google_mail_grants()},
+                "google_mail_send": {"configured": google_oauth["configured"],
+                                     "secret_store_available": google_mail_send_book.secrets.available(),
+                                     "accounts": google_mail_send_book.accounts(),
+                                     "grants": store.list_google_mail_send_grants()},
                 "outlook_calendar": {"configured": bool(os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "").strip()),
                                      "secret_store_available": outlook_book.secrets.available(),
                                      "accounts": outlook_book.accounts(),
@@ -4420,6 +4473,105 @@ def create_app() -> FastAPI:
         response.headers["Referrer-Policy"] = "no-referrer"
         if status == "error":
             response.headers["Location"] = f"/?google_mail_result=error&detail={quote(detail)}#/connections"
+        return response
+
+    @app.get("/api/v1/connections/google-mail-send", response_model=GoogleMailSendResource)
+    def google_mail_send_connections() -> dict:
+        from ..google_mail_send import GoogleMailSendBook
+        client_id = effective_google_oauth_client_id()
+        book = GoogleMailSendBook(config.state_dir, client_id)
+        return {"configured": valid_google_oauth_client_id(client_id),
+                "secret_store_available": book.secrets.available(),
+                "accounts": book.accounts(), "grants": store.list_google_mail_send_grants()}
+
+    @app.post("/api/v1/connections/google-mail-send/sign-in",
+              response_model=GoogleMailSendAuthorizationResource)
+    def google_mail_send_sign_in(request: Request, body: GoogleMailSendSignInRequest, response: Response) -> dict:
+        from ..google_mail_send import GoogleMailSendBook
+        from ..google_calendar import GoogleCalendarError
+        try:
+            book = GoogleMailSendBook(config.state_dir, effective_google_oauth_client_id())
+            result = book.start(body.label, book.callback_uri(request), body.from_address)
+        except GoogleCalendarError as exc:
+            raise HTTPException(409, str(exc)) from None
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        return {"authorization_url": result.url}
+
+    @app.post("/api/v1/connections/google-mail-send/grants",
+              response_model=GoogleMailSendGrantResponseResource)
+    def google_mail_send_grant(body: GoogleMailSendGrantRequest) -> dict:
+        from ..google_mail_send import GOOGLE_MAIL_SEND_SCOPE, GoogleMailSendBook
+        from ..google_calendar import GoogleCalendarError
+        bot = store.get_bot(body.bot)
+        if bot is None:
+            raise HTTPException(404, "No Bot with that name or ID exists")
+        try:
+            account = GoogleMailSendBook(config.state_dir,
+                effective_google_oauth_client_id())._account(body.account_id)
+            if GOOGLE_MAIL_SEND_SCOPE not in account.get("scopes", []):
+                raise GoogleCalendarError("This connection did not grant gmail.send; sign in with send-only access first")
+        except GoogleCalendarError as exc:
+            raise HTTPException(422, str(exc)) from None
+        grant = store.set_google_mail_send_grant(bot.id, body.account_id,
+                                                 str(account.get("label") or ""))
+        return {"grant": grant, "detail": (
+            f"{bot.display_name or bot.name} may prepare one plain-text email from {account.get('label') or 'this Gmail account'}. "
+            "Every message requires your exact approval, including in automatic mode. Hutch submits one request and never "
+            "retries an uncertain result; Google acceptance does not confirm delivery. No attachments, CC, BCC, replies, or forwards are enabled.")}
+
+    @app.delete("/api/v1/connections/google-mail-send/grants/{bot_ref}",
+                response_model=GoogleMailSendUnGrantResource)
+    def google_mail_send_ungrant(bot_ref: str) -> dict:
+        bot = store.get_bot(bot_ref)
+        if bot is None:
+            raise HTTPException(404, "No Bot with that name or ID exists")
+        return {"removed": store.remove_google_mail_send_grant(bot.id)}
+
+    @app.post("/api/v1/connections/google-mail-send/accounts/{account_id}/disconnect",
+              response_model=GoogleMailDisconnectResource)
+    def google_mail_send_disconnect(account_id: str) -> dict:
+        from ..google_mail_send import GoogleMailSendBook
+        from ..google_calendar import GoogleCalendarError
+        try:
+            result = GoogleMailSendBook(config.state_dir,
+                effective_google_oauth_client_id()).disconnect(account_id)
+        except GoogleCalendarError as exc:
+            raise HTTPException(422, str(exc)) from None
+        if not result["removed"]:
+            raise HTTPException(404, "Gmail sending account is not connected")
+        store.remove_google_mail_send_account_grants(account_id)
+        detail = ("Local sending access was cleared and Google confirmed revocation." if result["provider_revocation"] == "confirmed"
+                  else "Local sending access was cleared, but Google did not confirm remote revocation. Review connected apps in your Google Account.")
+        return {**result, "detail": detail}
+
+    @app.get("/api/v1/connections/google-mail-send/callback", include_in_schema=False)
+    def google_mail_send_oauth_callback(request: Request):
+        from ..google_mail_send import GoogleMailSendBook
+        from ..google_calendar import GoogleCalendarError
+        status, detail = "connected", ""
+        try:
+            callback = GoogleMailSendBook.callback_uri(request)
+            values: dict[str, str] = {}
+            for key in ("state", "code", "error"):
+                entries = request.scope.get("hutch_oauth_query", {}).get(key, [])
+                if len(entries) > 1:
+                    raise GoogleCalendarError("Google returned a duplicate sign-in field; start again")
+                values[key] = entries[0] if entries else ""
+            if not values["state"]:
+                raise GoogleCalendarError("Google did not return sign-in state; start again")
+            book = GoogleMailSendBook(config.state_dir, effective_google_oauth_client_id())
+            if values["error"]:
+                book.cancel(values["state"])
+                raise GoogleCalendarError("Gmail sending access was not granted; no account was connected")
+            book.finish(values["state"], values["code"], callback)
+        except GoogleCalendarError as exc:
+            status, detail = "error", str(exc)
+        response = RedirectResponse(f"/?google_mail_send_result={status}#/connections", status_code=303)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        if status == "error":
+            response.headers["Location"] = f"/?google_mail_send_result=error&detail={quote(detail)}#/connections"
         return response
 
     @app.get("/api/v1/connections/outlook-calendar", response_model=OutlookCalendarResource)

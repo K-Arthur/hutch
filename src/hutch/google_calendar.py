@@ -302,6 +302,14 @@ class GoogleCalendarBook:
     def _write_accounts(self, value: dict[str, Any]) -> None:
         _atomic_private_json(self.accounts_path, value)
 
+    def _account_metadata(self, pending: dict[str, Any]) -> dict[str, str]:
+        """Return validated, non-secret per-account metadata for a specialized OAuth flow."""
+        return {}
+
+    def _granted_scopes_allowed(self, requested: set[str], granted: set[str]) -> bool:
+        """Allow specialized flows to reject grants broader than their requested scopes."""
+        return requested.issubset(granted)
+
     def _read_pending(self, state: str) -> dict[str, Any]:
         if not re.fullmatch(r"[A-Za-z0-9_-]{32,128}", state):
             raise GoogleCalendarError(f"This {self.feature_name} sign-in request is invalid; start again")
@@ -375,7 +383,7 @@ class GoogleCalendarBook:
                 not isinstance(access, str) or not 1 <= len(access) <= 2048 or
                 any(ord(c) < 33 or ord(c) > 126 for c in access) or token_type != "bearer" or
                 not isinstance(expires, (int, float)) or isinstance(expires, bool) or not 0 < expires <= 86400 or
-                not set(requested_scopes).issubset(scope_set)):
+                not self._granted_scopes_allowed(set(requested_scopes), scope_set)):
             raise GoogleCalendarError(f"Google did not grant the requested {self.feature_name} scopes with offline access; disconnect and reconnect")
         account_id = self.account_prefix + secrets.token_hex(12)
         created = datetime.fromtimestamp(self.clock(), timezone.utc).isoformat()
@@ -383,6 +391,12 @@ class GoogleCalendarBook:
                    "scopes": sorted(scope_set),
                    "event_creation_opted_in": CALENDAR_EVENT_CREATE_SCOPE in requested_scopes,
                    "status": "connected"}
+        metadata = self._account_metadata(pending)
+        if (not isinstance(metadata, dict) or
+                any(not isinstance(key, str) or not isinstance(value, str) or
+                    len(key) > 64 or len(value) > 512 for key, value in metadata.items())):
+            raise GoogleCalendarError(f"This {self.feature_name} sign-in request has invalid account details; start again")
+        account.update(metadata)
         try:
             self.secrets.put(account_id, refresh)
             with self._lock_context():

@@ -95,7 +95,7 @@ source for those constraints.
 
 Disconnect clears Hutch's local token and Bot grants, then requests token revocation. If Google does
 not confirm revocation, Connections says so and points the owner to Google's connected-app settings.
-Calendar consent is separate. Gmail sending and all mailbox changes remain unavailable. Outlook
+Calendar consent is separate. Gmail mailbox search remains read-only. Outlook
 Calendar and Outlook Mail use separate permissions and accounts; see the Outlook sections below.
 See the current provider
 references: [Google Calendar scopes](https://developers.google.com/workspace/calendar/api/auth),
@@ -103,6 +103,32 @@ references: [Google Calendar scopes](https://developers.google.com/workspace/cal
 [Gmail scopes](https://developers.google.com/workspace/gmail/api/auth/scopes),
 [Microsoft Graph permissions](https://learn.microsoft.com/en-us/graph/permissions-reference), and
 [Microsoft authorization-code/PKCE guidance](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow).
+
+## Gmail send-only (experimental private preview; local setup required)
+
+Gmail sending uses a separate local PKCE account and Secret Service entry with only
+`https://www.googleapis.com/auth/gmail.send`. It cannot read, search, modify, or delete mailbox
+messages. Enable the Gmail API and use the same owner-configured Google Desktop OAuth client ID as
+the read-only search connection. In Connections, enter an account label and the sender address you
+intend to use. Google must permit that address for the account; Hutch does not request mailbox
+settings access to discover or validate aliases. An OAuth project in Testing has Google's 100-user
+limit and seven-day refresh-token expiration.
+
+An owner can grant one send account to one assistant. The built-in tool prepares one plain-text
+email to one through five addresses; it has no attachments, CC, BCC, replies, or forwards. Every
+send shows the sender, account, full recipient list, subject, and body for a fresh owner decision,
+including when the assistant is in automatic mode. Hutch submits one request. Google acceptance is
+not proof of delivery. A timeout, server error, redirect, or malformed success receipt is held as
+`outcome_unknown`; check Gmail Sent before deciding what to do, because Hutch will never retry it.
+
+Google classifies `gmail.send` as a sensitive scope requiring additional OAuth app verification
+for public distribution. It is separate from restricted `gmail.readonly`; the restricted-data
+security-assessment rule applies to the read scope, not this send-only capability. Hutch has no
+Google verification or live-account evidence, so send-only Gmail remains a private preview and
+must not be described as generally available. Sending and search consent are disconnected and
+revoked independently. See [Google's scope table](https://developers.google.com/workspace/gmail/api/auth/scopes),
+[message send method](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/send),
+and [message-format guide](https://developers.google.com/workspace/gmail/api/guides/sending).
 
 ## Outlook Calendar event lookup (experimental, local setup required)
 

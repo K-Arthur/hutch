@@ -2789,6 +2789,151 @@ def test_outlook_mail_send_access_is_separate_and_responsive(browser, live, monk
         context.close()
 
 
+def test_google_mail_send_access_is_send_only_and_responsive(browser, live, monkeypatch):
+    from urllib.parse import parse_qs, urlsplit
+
+    monkeypatch.setenv("HUTCH_GOOGLE_OAUTH_CLIENT_ID", "fixture-desktop-client.apps.googleusercontent.com")
+    base, app = live
+    scope = "https://www.googleapis.com/auth/gmail.send"
+
+    class FixtureGoogleMailSendBook:
+        account_id = "gmail_send_0123456789abcdef01234567"
+        accounts_rows = [{"id": account_id, "label": "Work sender", "from_address": "owner@example.test",
+                          "created_at": "2026-10-10T00:00:00+00:00", "scopes": [scope], "status": "connected"}]
+
+        class Secrets:
+            @staticmethod
+            def available():
+                return True
+
+        def __init__(self, state_dir, client_id):
+            self.secrets = self.Secrets()
+
+        def accounts(self):
+            return list(self.accounts_rows)
+
+        @classmethod
+        def callback_uri(cls, request):
+            return f"http://127.0.0.1:{request.scope['server'][1]}/api/v1/connections/google-mail-send/callback"
+
+        @staticmethod
+        def start(label, callback, from_address):
+            assert label == "Second sender" and from_address == "owner@example.test"
+            from hutch.google_calendar import OAuthStart
+            return OAuthStart("https://accounts.google.com/o/oauth2/v2/auth?" +
+                              urlencode({"state": "send-fixture", "scope": scope}), "send-fixture")
+
+        def _account(self, account_id):
+            return next(account for account in self.accounts_rows if account["id"] == account_id)
+
+        @classmethod
+        def disconnect(cls, account_id):
+            assert account_id == cls.account_id
+            cls.accounts_rows = [account for account in cls.accounts_rows if account["id"] != account_id]
+            return {"removed": True, "provider_revocation": "confirmed"}
+
+    monkeypatch.setattr("hutch.google_mail_send.GoogleMailSendBook", FixtureGoogleMailSendBook)
+    app.state.store.create_bot(Bot(name="gmail-assistant", display_name="Mail Assistant", model="mock/demo", tools=[]))
+    output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/google-mail-send"
+    output.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    page.add_init_script("""
+      window.__googleMailSendOAuth = { url: null, opener: 'not-set', closed: false };
+      window.open = () => ({
+        set opener(value) { window.__googleMailSendOAuth.opener = value; },
+        location: { replace(value) { window.__googleMailSendOAuth.url = value; } },
+        close() { window.__googleMailSendOAuth.closed = true; }
+      });
+    """)
+    errors, external = [], []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(base) else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(base + "/#/connections")
+        page.get_by_role("heading", name="Apps & AI").wait_for()
+        page.locator("#connection-management > summary").click()
+        page.locator("#google-mail-access > summary").click()
+        send_access = page.locator("#google-mail-send-access")
+        send_access.locator("summary").click()
+        assert "gmail.send" in send_access.inner_text()
+        assert "sensitive" in send_access.inner_text()
+        assert "cannot read or search your mailbox" in send_access.inner_text()
+
+        page.locator("#google-mail-send-label").fill("Second sender")
+        page.locator("#google-mail-send-from").fill("owner@example.test")
+        page.locator("#google-mail-send-connect").click()
+        page.wait_for_function("window.__googleMailSendOAuth.url !== null")
+        oauth = page.evaluate("window.__googleMailSendOAuth")
+        authorization_url = urlsplit(oauth["url"])
+        assert oauth["opener"] is None
+        assert authorization_url.scheme == "https" and authorization_url.hostname == "accounts.google.com"
+        assert authorization_url.path == "/o/oauth2/v2/auth"
+        assert parse_qs(authorization_url.query)["scope"] == [scope]
+
+        account = page.locator('[data-google-mail-send-account="gmail_send_0123456789abcdef01234567"]')
+        assert "owner@example.test" in account.inner_text()
+        assert "send only" in account.inner_text()
+        assert "gmail.readonly" not in account.inner_text()
+        selector = account.locator("[data-google-mail-send-bot]")
+        assert selector.locator("option:checked").inner_text() == "Mail Assistant"
+        account.get_by_role("button", name="Allow approved sending").click()
+        page.get_by_text("may prepare one plain-text email", exact=False).wait_for()
+        grant_row = account.locator(".google-calendar-grants .device-row")
+        grant_row.wait_for()
+        assert "Mail Assistant" in grant_row.inner_text()
+        assert "gmail_send_" not in grant_row.inner_text()
+
+        captures = []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
+                                     ("phone", 390, 844), ("compact-phone", 320, 740)):
+            page.set_viewport_size({"width": width, "height": height})
+            while page.locator(".toast-close").count():
+                page.locator(".toast-close").first.click()
+            send_access.locator("summary").evaluate("el => el.scrollIntoView({block: 'start'})")
+            page.screenshot(path=str(output / f"send-only-{label}.png"), animations="disabled")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            captures.append({"size": label, "viewport": [width, height], "horizontal_overflow": overflow})
+        assert account.get_by_role("button", name="Revoke send access").bounding_box()["height"] >= 44
+
+        account.get_by_role("button", name="Revoke send access").click()
+        page.get_by_role("dialog", name="Revoke Gmail sending access").get_by_role(
+            "button", name="Revoke access").click()
+        page.get_by_text("No assistant has send access to this account.").wait_for()
+        account.get_by_role("button", name="Disconnect").click()
+        dialog = page.get_by_role("dialog", name="Disconnect send-only Gmail")
+        assert "does not affect a separate Gmail search connection" in dialog.inner_text()
+        dialog.get_by_role("button", name="Disconnect").click()
+        page.get_by_text("No send-only Gmail accounts connected.").wait_for()
+        assert app.state.store.list_google_mail_send_grants() == []
+        assert not errors, errors
+        assert not external, external
+        (output / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_google_mail_send_access_is_send_only_and_responsive",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": browser.version, "playwright_version": package_version("playwright"),
+            "provider_credentials_used": False, "provider_calls": 0,
+            "scenario": "Fixture send-only Gmail account; separate gmail.send OAuth, explicit assistant grant/revoke, and local disconnect",
+            "external_requests": external, "page_errors": errors, "captures": captures,
+            "source_sha256": {path: hashlib.sha256((output.parents[3] / path).read_bytes()).hexdigest()
+                              for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                           "src/hutch/server/app.py", "src/hutch/google_mail_send.py",
+                                           "src/hutch/tools/google_mail_send.py", "src/hutch/store.py",
+                                           "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+        context.tracing.stop(path=str(output / "trace.zip"))
+    finally:
+        if context.tracing:
+            try:
+                context.tracing.stop()
+            except Exception:
+                pass
+        context.close()
+
+
 def test_opt_in_chatgpt_signin_is_fixture_intercepted_and_responsive(browser, live, monkeypatch):
     from pathlib import Path
 

@@ -20,7 +20,7 @@ from hutch.lifecycle import IllegalTransition
 from hutch.models import RunStatus
 from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28,
                          _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34, _migrate_45,
-                         _migrate_35, _migrate_37, _migrate_40, _migrate_41, _migrate_46)
+                         _migrate_35, _migrate_37, _migrate_40, _migrate_41, _migrate_46, _migrate_47)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
@@ -164,6 +164,31 @@ def test_v46_outlook_send_grants_are_empty_and_separate_from_read_grants():
         with pytest.raises(sqlite3.IntegrityError):
             db.execute("INSERT INTO outlook_mail_send_grants VALUES ('missing-bot', 'x', '', 'now')")
         assert SCHEMA_VERSION >= 46
+    finally:
+        db.close()
+
+
+def test_v47_gmail_send_grants_are_empty_and_separate_from_read_grants():
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("PRAGMA foreign_keys=ON")
+        db.executescript("""
+            CREATE TABLE bots (id TEXT PRIMARY KEY);
+            INSERT INTO bots VALUES ('bot-a');
+            CREATE TABLE google_mail_grants (bot_id TEXT PRIMARY KEY, account_id TEXT NOT NULL, granted_at TEXT NOT NULL);
+            INSERT INTO google_mail_grants VALUES ('bot-a', 'gmail_000000000000000000000001', 'now');
+        """)
+        _migrate_47(db)
+        _migrate_47(db)
+        assert db.execute("SELECT COUNT(*) FROM google_mail_send_grants").fetchone()[0] == 0
+        columns = [row[1] for row in db.execute("PRAGMA table_info(google_mail_send_grants)")]
+        assert columns == ["bot_id", "account_id", "account_label", "granted_at"]
+        db.execute("INSERT INTO google_mail_send_grants VALUES ('bot-a', 'gmail_send_000000000000000000000001', 'Work sender', 'now')")
+        assert db.execute("SELECT account_id FROM google_mail_grants").fetchone()[0].startswith("gmail_")
+        assert db.execute("SELECT account_id FROM google_mail_send_grants").fetchone()[0].startswith("gmail_send_")
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute("INSERT INTO google_mail_send_grants VALUES ('missing-bot', 'x', '', 'now')")
+        assert SCHEMA_VERSION >= 47
     finally:
         db.close()
 
