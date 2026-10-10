@@ -2979,3 +2979,24 @@ compilation, JSON parsing and `git diff --check` passed. Evidence and trace are 
 [`artifacts/schedules/`](artifacts/schedules/) and the marketing captures are in
 [`artifacts/bot-purpose-refinement/marketing/`](artifacts/bot-purpose-refinement/marketing/).
 These checks do not exercise a live provider schedule, physical phone or screen reader.
+
+## Bot-scoped memory export (2026-10-09)
+
+Commit `ba39ba7` adds **Download memory JSON** to each Bot's existing settings instead of introducing a separate all-Bot
+memory page. The latter stays deferred unless the roster approaches ten Bots or actual navigation friction supports it. The
+versioned `GET /api/v1/bots/{ref}/memory/export` reads a consistent SQLite snapshot containing the Bot label, every immutable
+fact revision and scope (including proposed, legacy and archived records), review/archive decisions, and incoming/outgoing
+explicit share snapshots with their current status. The export excludes conversations, provider credentials, run events,
+action receipts, workspace files and artifact bytes. It is `no-store`, unencrypted plaintext; the modal warns that fact values
+and review notes may be sensitive and tells users not to store passwords there. Export rejects, rather than truncates, more
+than 10,000 revisions, 5,000 shares in either direction, 2 MiB of source content, or 16 MiB of serialized JSON. Permanent
+deletion remains unavailable; archive retains history.
+
+The API test checks historical revisions, review decisions, a share made stale by source revision, and separation from another
+Bot's private fact. The store test verifies completeness and revision/byte bounds. The final affected API/store/browser batch
+passed **61 tests in 15.99s**, including desktop, tablet and phone Chromium **153.0.8010.12** / Playwright **1.63.0** download
+journeys. JavaScript syntax, Python compilation, and `git diff --check` passed. The design detector reported zero anti-patterns;
+it repeated three radius advisories on unchanged CSS lines 558, 580 and 591. Captures, source hashes and traces are in
+[`artifacts/bot-memory-export/`](artifacts/bot-memory-export/). I inspected all three final captures; the phone sheet keeps the
+download action visible, meets the 44px target and has no horizontal overflow. Fixtures used synthetic SQLite data and made no
+model/provider calls. No screen reader or physical phone was used.
