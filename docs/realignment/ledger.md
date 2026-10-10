@@ -3746,3 +3746,28 @@ provider calls, or page errors; I reviewed the corrected first-run and Calendar
 captures individually. The regression and refreshed evidence are committed on
 `main` as `bbb4a05`. This improves capture reliability; it does not close the
 all-surface UI redesign. No push or publication occurred.
+
+## Mascot simplicity and larger-roster density (2026-10-10)
+
+After the owner rejected the mask-like face, the app returned to a plain 2D
+colored silhouette with two balanced dark oval eyes, separately fitted to each
+of its eight shapes. The enlarged faces and identity picker were inspected one
+at a time. The focused geometry/contrast/picker browser test passed **1 test in
+7.84s**. Implementation and source-aligned captures are committed locally on
+`main` as `2243f66`.
+
+The management page for larger assistant rosters no longer repeats schedule and
+action-access chips on every card. A card now shows one-line name, status, short
+description and **Open**; less frequent service, schedule, action access and
+usage details stay in one collapsed section, while pause/resume and settings
+stay in one menu. Long names keep a full accessible/title value when shortened.
+An element-level regression caught and fixed cards extending to 617px inside a
+390px phone scroll pane; all four tested card widths now stay inside their
+viewport. The responsive visual test passed **1 case in 15.84s**, and the
+search/pause/resume/attention tests passed **3 cases in 5.92s**. Independent
+screenshots, traces and source hashes are in
+[`artifacts/ui-surface-review/`](artifacts/ui-surface-review/) and
+[`artifacts/fleet-attention/`](artifacts/fleet-attention/). Implementation and
+docs are committed locally on `main` as `1ea03fa`. This advances but does not
+complete the user's requested all-surface UI overhaul; no push or publication
+occurred.
