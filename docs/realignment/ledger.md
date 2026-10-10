@@ -3451,3 +3451,21 @@ scan passed. The broad marketing scan still reports additional page findings out
 
 Implementation and evidence are committed on local `main` as `89e4772b565643f36aae4f04facda6264b77c717`. No push or publication
 occurred.
+
+## Managed Linux user service (2026-10-10)
+
+Added `hutch service install`, `status`, and `uninstall` because the health and troubleshooting surfaces recommended a service
+installer that did not exist. Installation creates a managed `systemd --user` unit for the currently active Python interpreter and
+Hutch state directory, binds the dashboard to loopback, and starts the process executor. It refuses symlink and modified/unmanaged
+unit files, reports a failed activation without claiming success, and removal preserves the database, credentials, workspaces, and
+browser profiles. This does not configure remote access or systemd linger; the systemd `active` result is process state, not an HTTP
+readiness check.
+
+Verification passed: service/CLI/doctor tests **45/45** with unhandled-thread and syntax warnings promoted to errors; the generated
+unit passed `systemd-analyze verify`; Python compilation and `git diff --check` passed. The service was **not installed or started**
+on this machine; systemd command behavior is tested with a controlled runner. Implementation and operator docs are committed on local
+`main` as `b755a24`. No push or publication occurred.
+
+This is a narrow reliability slice, not completion of the realignment or the user-requested full UI overhaul. The wider product
+features remain tracked in [`../requirements.md`](../requirements.md); the UI redesign is intentionally queued after the remaining
+functional work and must retain responsive screenshot and interaction validation.
