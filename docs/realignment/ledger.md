@@ -3017,3 +3017,26 @@ The focused API + browser batch, `uv run pytest -q tests/test_api.py tests/e2e/t
 Commit `c551483` adds a bounded `POST /api/v1/bot-configs/import` route and a first-step file picker in the guided Bot wizard. The parser accepts only the `hutch.ai/v1` `BotConfig` shape, up to 64 KiB, and rejects YAML aliases, duplicate keys, unsafe tags, excessive nesting, unknown fields, endpoint URLs, local folder paths, chat sources, command rules and unsupported authority. It returns a sanitized unsaved draft with `Cache-Control: no-store`; import has no persistence, run or provider side effect. Credentials, terms acknowledgement and Strict Offline host readiness are deferred until normal Bot creation; route syntax, provider identity, inference-mode policy and the remaining Bot fields are checked during import. The setup then exposes the imported values through the same editable wizard and explicit final **Create bot** action.
 
 The browser also refuses a file over 64 KiB before posting it. API coverage checks exported-preview round-trip, strict parser failures, absence of writes/runs, and that an unavailable local OpenAI key does not prevent review but still prevents final creation. The affected API, model-route, offline-policy and responsive setup batch passed **104 tests with 1 skipped in 45.83s**. JavaScript syntax, Python compilation and `git diff --check` passed. Chromium **153.0.8010.12** / Playwright **1.63.0** coverage exercised desktop **1440×960**, tablet **900×1024**, and phone **390×844**. I inspected the imported setup and review captures; keyboard file selection, the announced status, scrollable review and visible phone actions were verified. The browser made no external request or model call. Screenshots, the reviewed sample, validation metadata and trace are in [`artifacts/bot-setup-import/`](artifacts/bot-setup-import/). No physical phone or screen reader was used.
+
+## Bot setup and roster usability (2026-10-09)
+
+Commit `dffe717` simplifies the routine setup path and the Studio roster. Creating a Bot from a chat request carries the selected
+user request forward as its standing instructions, with an optional edit and an editable role-based name; it does not ask the owner
+to retype the request, start a run, add tools, or schedule work. Empty-chat setup uses safe defaults and shows advanced options only
+when requested. The roster keeps one options button per Bot for pinning and settings, wraps names to two lines before clamping, and
+collapses idle Bots at ten or more in a searchable, keyboard-operable section. Flat 2D mascots retain distinct fills and now use a
+paired set of shaped eye glints; the larger marketing mascot remains separate.
+
+The `bot-setup-patterns-2026-10-09.md` research note records official Grok Bot, OpenAI Dots and GPT Builder behavior separately from
+individual user reports. It treats reported failures as acceptance scenarios, not prevalence claims; Dots availability and GPT
+Builder policy are explicitly time-bounded to the reviewed documentation. Mobbin screen galleries were unavailable behind their
+account/paywall boundary, so no inaccessible captures are represented as inspected research. Figma Community references remain
+inspiration, not a source of adopted assets or an imported design system.
+
+The focused setup/roster browser batch passed **5 tests in 17.08s** and the separate small-workspace Bot-settings menu regression
+passed **1 test in 5.17s**. Chromium **153.0.8010.12** / Playwright **1.63.0** captures were visually inspected at desktop
+**1440×960**, tablet **900×1024**, and phone **390×844**. The name field and action footer stayed visible; the sidebar menu fit the
+phone drawer; and the 10-Bot example kept idle Bots reachable by search and keyboard. Browser tests made no external requests or
+provider calls. No physical phone or screen reader was used. Evidence and traces are in
+[`artifacts/simple-bot-setup/`](artifacts/simple-bot-setup/), [`artifacts/pinned-roster/`](artifacts/pinned-roster/), and
+[`artifacts/compact-roster/`](artifacts/compact-roster/).
