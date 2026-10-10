@@ -121,12 +121,19 @@ class BuiltinRuntime:
         import datetime as dt
         coordination = (COORDINATOR_GUIDANCE
                         if ctx.store.workspace_coordinator_id() == ctx.bot.id else "")
-        return SYSTEM_TEMPLATE.format(
+        prompt = SYSTEM_TEMPLATE.format(
             name=ctx.bot.name, description=ctx.bot.description or "(none given)",
             instructions=ctx.bot.instructions or "(none given)", workspace=ctx.workspace,
             rehearsal=REHEARSAL_NOTE if ctx.dry_run else "",
             coordination=coordination,
             date=dt.datetime.now(dt.timezone.utc).date().isoformat())
+        resolved = getattr(ctx, "skills", None)
+        if resolved is not None:
+            from ..skills import activated_block, catalog_block
+            blocks = [block for block in (catalog_block(resolved), activated_block(resolved)) if block]
+            if blocks:
+                prompt = prompt + "\n\n" + "\n\n".join(blocks)
+        return prompt
 
     # --------------------------------------------------------------- helpers
 

@@ -121,22 +121,36 @@ class Engine:
 
     def submit(self, bot: Bot, prompt: str, kind: str = "on_demand", missed_windows: int = 0,
                origin: str = "manual", plan_id: Optional[str] = None,
-               plan_task_id: Optional[str] = None, rehearsal: bool = False, model: str = "") -> Run:
+               plan_task_id: Optional[str] = None, rehearsal: bool = False, model: str = "",
+               skills: Optional[list[str]] = None) -> Run:
         """Admit work: a queued run and its task, created together in one transaction.
 
-        ``model`` runs this one run on a different model than the bot's own (the chat switcher)."""
+        ``model`` runs this one run on a different model than the bot's own (the chat switcher).
+        ``skills`` activates specific bound, reviewed skills for this run only; an unavailable
+        activation is refused here, never silently dropped."""
+        activation = self._validated_activation(bot, skills)
         run = Run(bot_id=bot.id, prompt=prompt, missed_windows=missed_windows, origin=origin,
-                  plan_id=plan_id, plan_task_id=plan_task_id, rehearsal=rehearsal, model_override=model)
+                  plan_id=plan_id, plan_task_id=plan_task_id, rehearsal=rehearsal, model_override=model,
+                  skill_activation=activation)
         return self.store.submit_run(run, Task(bot_id=bot.id, kind=kind, prompt=prompt))
 
     def submit_idempotent(self, bot: Bot, prompt: str, *, idem_key: str, request_hash: str,
                           rehearsal: bool = False, model: str = "",
-                          origin: str = "manual:api:v1") -> tuple[Run, bool]:
+                          origin: str = "manual:api:v1",
+                          skills: Optional[list[str]] = None) -> tuple[Run, bool]:
         """Submit one versioned manual request with durable retry semantics."""
+        activation = self._validated_activation(bot, skills)
         run = Run(bot_id=bot.id, prompt=prompt, origin=origin,
-                  rehearsal=rehearsal, model_override=model)
+                  rehearsal=rehearsal, model_override=model, skill_activation=activation)
         task = Task(bot_id=bot.id, kind="on_demand", prompt=prompt)
         return self.store.submit_run_idempotent(run, task, idem_key=idem_key, request_hash=request_hash)
+
+    def _validated_activation(self, bot: Bot, skills: Optional[list[str]]) -> list[str]:
+        """Explicit per-run activation must name skills bound to the Bot and currently usable."""
+        if not skills:
+            return []
+        from .skills import SkillRegistry
+        return SkillRegistry(self.config.state_dir).validate_activation(bot, list(skills))
 
     def dispatch_pending(self) -> int:
         """Claim and start pending runs while capacity allows. Returns number started.
@@ -272,6 +286,15 @@ class Engine:
         except (IllegalTransition, LeaseLost, KeyError):
             pass
 
+    def _fail_skill_unavailable(self, run: Run, reason: str) -> None:
+        """An operator explicitly activated skills; if they cannot all be honored, fail instead of running partially."""
+        try:
+            self.store.transition_run(
+                run.id, RunStatus.failed, fence=run.fence, exit_reason="skill_unavailable", error=reason,
+                event={"reason": "skill_unavailable", "error": reason}, cancel_wins=True)
+        except (IllegalTransition, LeaseLost, KeyError):
+            pass
+
     # ------------------------------------------------------ process executor
 
     def _start_process(self, run: Run, *, bot: Bot | None = None) -> None:
@@ -360,12 +383,14 @@ class Engine:
             pass
 
     def run_blocking(self, bot: Bot, prompt: str, missed_windows: int = 0,
-                     origin: str = "manual:cli", rehearsal: bool = False) -> Run:
+                     origin: str = "manual:cli", rehearsal: bool = False,
+                     skills: Optional[list[str]] = None) -> Run:
         """Create + execute a run in the calling thread. Goes through the same claim as everything else, so it cannot start
         beside another live run of the same bot (it used to bypass that rule)."""
         if bot.inference_mode.value == "offline":
             raise ValueError("Strict offline needs a supervised process worker; use `hutch run`, `hutch serve` or `hutch daemon`")
-        run = self.submit(bot, prompt, missed_windows=missed_windows, origin=origin, rehearsal=rehearsal)
+        run = self.submit(bot, prompt, missed_windows=missed_windows, origin=origin, rehearsal=rehearsal,
+                          skills=skills)
         claimed = self.store.claim_run(run.id, self.owner_id, self.lease_seconds, max_live=self.max_concurrent)
         if claimed is None:
             self.store.request_cancel(run.id)
@@ -507,6 +532,7 @@ class Engine:
             "runtime": bot.runtime.value,
             "model": bot.model,
             "tools": sorted(tools),
+            "skills": sorted(bot.skills or []),
             "risk_tier": bot.risk_tier.value,
             "command_rules": [rule.model_dump(mode="json") for rule in bot.command_rules],
             "sandbox": bot.sandbox,
@@ -572,8 +598,11 @@ class Engine:
             if not isinstance(tools, list) or any(not isinstance(name, str) for name in tools):
                 raise ValueError("the stored tool set is invalid")
             tools = [name for name in tools if name not in {"browser", "remember", "recall"}]
+            skills = snapshot.get("skills", [])
+            if not isinstance(skills, list) or any(not isinstance(name, str) for name in skills):
+                raise ValueError("the stored skill set is invalid")
             update = {
-                "runtime": snapshot["runtime"], "model": snapshot["model"], "tools": tools,
+                "runtime": snapshot["runtime"], "model": snapshot["model"], "tools": tools, "skills": skills,
                 "inference_mode": snapshot["inference_mode"], "risk_tier": snapshot["risk_tier"],
                 "command_rules": snapshot["command_rules"], "sandbox": snapshot["sandbox"],
                 "shell_network": snapshot["shell_network"], "approval_mode": snapshot["approval_mode"],
@@ -697,6 +726,28 @@ class Engine:
             return
         run_dir, workspace, workdir_error = self._prepare_workspace(bot, run)
         run_dir.mkdir(parents=True, exist_ok=True)
+        # Resolve this run's skills once, before anything starts: trusted+enabled bindings become
+        # the disclosure catalog, operator-selected activation loads bodies, and every exclusion is
+        # recorded on the run. An explicitly activated skill that is no longer usable fails the run
+        # here rather than running with different instructions than the operator reviewed.
+        from .skills import SkillRegistry
+        try:
+            from .readiness import available_connection_services
+            granted_connections = available_connection_services(self.store, bot)
+            resolved_skills = SkillRegistry(self.config.state_dir).effective_for_bot(
+                bot, activation=list(run.skill_activation), runtime=bot.runtime.value,
+                connections=granted_connections)
+        except Exception as exc:  # noqa: BLE001 - a skill-resolution bug must fail closed, not crash the worker
+            self._fail_skill_unavailable(run, f"skills could not be resolved: {exc}")
+            return
+        if run.skill_activation and resolved_skills.missing_activation:
+            reasons = "; ".join(f"{item['name']} — {item['reason']}" for item in resolved_skills.missing_activation)
+            self._fail_skill_unavailable(run, f"Requested skill activation cannot be honored: {reasons}")
+            return
+        skill_snapshot = (
+            [{"name": s.name, "hash": s.hash, "activated": False} for s in resolved_skills.catalog]
+            + [{"name": s.name, "hash": s.hash, "activated": True} for s in resolved_skills.activated]
+        )
         closed = threading.Event()          # set once the run is over: a late worker's events and tool calls are dropped
         degraded: list[str] = []            # audit writes that failed: shown, never silent
 
@@ -715,7 +766,8 @@ class Engine:
         try:
             run = self.store.transition_run(
                 run.id, RunStatus.running, fence=run.fence, event={"origin": run.origin},
-                fields={"started_at": iso(utcnow()), "workspace": str(workspace), "owner": str(os.getpid())},
+                fields={"started_at": iso(utcnow()), "workspace": str(workspace), "owner": str(os.getpid()),
+                        "skill_snapshot": skill_snapshot},
                 capability_snapshot=self.capability_snapshot(bot, run.tool_access) if run.parent_run_id is None else None)
         except (IllegalTransition, LeaseLost, KeyError):
             self._finish_unstarted(run)
@@ -730,7 +782,8 @@ class Engine:
         deadline = time.monotonic() + bot.limits.timeout_seconds
         ctx = ToolContext(bot=bot, run=run, store=self.store, policy=policy, gate=gate,
                           config=self.config, workspace=workspace, emit=emit,
-                          headless=not bot.local_browser_handoff, dry_run=run.rehearsal)
+                          headless=not bot.local_browser_handoff, dry_run=run.rehearsal,
+                          skills=resolved_skills)
         self._ctxs[run.id] = ctx
         if (self.executor == "process" and bot.runtime.value == "builtin"
                 and bot.inference_mode.value == "offline"):
@@ -748,6 +801,8 @@ class Engine:
                          "inference_mode": bot.inference_mode.value,
                          "browser_handoff": "local_desktop" if bot.local_browser_handoff else "headless",
                          "tools": sorted(tools), "limits": bot.limits.model_dump(),
+                         "skill_activation": list(run.skill_activation), "skills": skill_snapshot,
+                         **({"skill_warnings": resolved_skills.warnings} if resolved_skills.warnings else {}),
                          **({"containment": sandbox.describe(bot)} if "shell" in tools else {}),
                          **({"rehearsal": True} if run.rehearsal else {})}))
 

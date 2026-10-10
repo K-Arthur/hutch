@@ -9,6 +9,7 @@ from .shell import ShellTool
 from .webfetch import WebFetchTool
 from .delegation import DelegateTaskTool
 from .choice import AskUserChoiceTool
+from .skill import UseSkillTool
 from .google_calendar import GoogleCalendarCreateEventTool, GoogleCalendarEventsTool
 from .outlook_calendar import OutlookCalendarEventsTool
 from .outlook_calendar_write import OutlookCalendarCreateEventTool
@@ -77,6 +78,12 @@ def build_tools(names: list[str], ctx: ToolContext, *, memory_enabled: bool | No
             tools[name] = BrowserTool()
         elif name in _CATALOG:
             tools[name] = _CATALOG[name]()
+    # Skills are instruction packages resolved for this run, not bot-granted action tools. The
+    # activation tool exists only when the run has a non-empty trusted catalog, and its results
+    # are untrusted instruction text routed through the same tool pipeline as everything else.
+    resolved_skills = getattr(ctx, "skills", None) if ctx is not None else None
+    if resolved_skills is not None and getattr(resolved_skills, "catalog", None):
+        tools["use_skill"] = UseSkillTool(resolved_skills)
     # A clarification is an ordinary conversation primitive, not a Bot-granted
     # action capability. It is never offered to scheduled or CLI-only runs.
     if ctx is not None and getattr(getattr(ctx, "run", None), "conversation_id", ""):

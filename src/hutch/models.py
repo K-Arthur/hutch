@@ -247,6 +247,7 @@ class Bot(BaseModel):
     runtime: RuntimeKind = RuntimeKind.builtin
     inference_mode: InferenceMode = InferenceMode.hybrid
     tools: list[str] = Field(default_factory=lambda: ["shell", "files", "memory"])
+    skills: list[str] = Field(default_factory=list)   # bound Agent Skill names; review state lives in the skill registry
     schedule: Optional[Schedule] = None
     schedules: list[Schedule] = Field(default_factory=list)
     limits: Limits = Field(default_factory=Limits)
@@ -378,6 +379,8 @@ class Run(BaseModel):
     delegation_budget_cost_usd: Optional[float] = None  # immutable shared currency cap inherited by descendants
     rehearsal: bool = False           # dry run: mutating actions are simulated
     model_override: str = ""          # the model picked for THIS message in the chat switcher (bot.model is untouched)
+    skill_activation: list[str] = Field(default_factory=list)  # operator-selected skills for this run (validated at submit)
+    skill_snapshot: list[dict] = Field(default_factory=list)   # effective skills recorded when this run started
     tool_access: Literal["bot", "none"] = "bot"  # per-run capability ceiling; "none" is reserved for review-only drafts
     conversation_id: str = ""          # canonical conversation this run belongs to, if submitted through /api/v1
     conversation_context: list[dict[str, str]] = Field(default_factory=list, exclude=True)
