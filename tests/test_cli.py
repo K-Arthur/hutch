@@ -68,6 +68,15 @@ def test_init_does_not_seed_fake_bots(state_env):
     assert "no bots" in listing.output.lower() or "no bot" in listing.output.lower()
 
 
+def test_opencode_login_requires_an_interactive_linux_terminal(state_env, monkeypatch):
+    import sys
+
+    monkeypatch.setattr(sys, "platform", "linux")
+    result = runner.invoke(app, ["code", "login"])
+    assert result.exit_code == 2
+    assert "interactive terminal on the linux hutch host" in result.output.lower()
+
+
 def test_bot_create_and_validation(state_env, monkeypatch):
     runner.invoke(app, ["init"])
     ok = runner.invoke(app, ["bot", "create", "my-scout", "--model", "mock/demo",

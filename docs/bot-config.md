@@ -150,8 +150,9 @@ by Pi or OpenCode are never imported. An active run or missing Hutch route block
 
 Separately, an owner may prepare a reviewed coding task from a completed Studio answer when this Bot uses an existing Git
 repository as its `folder` workspace. The original request and proposed brief are shown for editing; the exact brief must be
-confirmed before a durable task appears in chat. Run its `hutch code run <task-id>` command from an interactive Linux terminal
-on the Hutch host. This local OpenCode CLI handoff uses OpenCode's own sign-in, model choice and usage allowance. OpenCode's
+confirmed before a durable task appears in chat. The first time, run `hutch code login` from an interactive Linux terminal on
+the Hutch host to connect a provider in a dedicated private profile; this does not import the regular OpenCode profile. Then
+run the card's `hutch code run <task-id>` command. Choose the model in OpenCode; provider usage is outside Hutch's budgets. OpenCode's
 permission prompts remain outside Hutch: commands approved there run with the Linux user's filesystem, process and network
 authority and are not contained by Hutch's bubblewrap shell sandbox. Hutch creates a separate worktree at the reviewed commit and
 does not change the source folder, commit, push, deploy or automatically apply the branch. Inspect it manually before use. Avoid

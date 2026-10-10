@@ -1,9 +1,10 @@
-"""Reviewed coding handoffs to the user's interactive OpenCode CLI.
+"""Reviewed coding handoffs to a Hutch-managed interactive OpenCode profile.
 
 This is intentionally not the OpenCode runtime adapter: Hutch prepares a durable
 task, then the owner explicitly launches OpenCode from a local terminal. The code
-agent gets a detached Git worktree and a restrictive task agent profile; Hutch
-does not import OpenCode credentials or claim control over its account budget.
+agent gets a detached Git worktree and a restrictive task agent profile. Owners
+authenticate through OpenCode's supported CLI flow in a private Hutch profile;
+Hutch never imports, reads, or exports credentials from another OpenCode profile.
 """
 
 from __future__ import annotations
@@ -121,6 +122,160 @@ def inspect_opencode(binary: str | None = None) -> tuple[str, str]:
     if mini.returncode != 0 or "--prompt" not in help_text or "--standalone" not in help_text:
         raise CodeHandoffError("OpenCode CLI needs the interactive mini interface with --prompt and --standalone")
     return executable, match.group(1)
+
+
+def _private_directory(path: Path) -> Path:
+    """Create/check a private OpenCode profile directory without following symlinks."""
+    try:
+        path.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if path.is_symlink() or not path.is_dir():
+            raise CodeHandoffError("The Hutch OpenCode profile path is unsafe")
+        os.chmod(path, 0o700)
+    except OSError as exc:
+        raise CodeHandoffError("The private Hutch OpenCode profile could not be prepared") from exc
+    return path
+
+
+def opencode_profile_paths(state_dir: Path) -> dict[str, Path]:
+    """Return an isolated, persistent profile used only by Hutch coding handoffs."""
+    root = _private_directory(state_dir / "opencode-profile")
+    paths = {
+        "root": root,
+        "home": root / "home",
+        "config_home": root / "xdg-config",
+        "cache_home": root / "xdg-cache",
+        "data_home": root / "xdg-data",
+        "state_home": root / "xdg-state",
+        "tmpdir": root / "tmp",
+        "config_dir": root / "config-dir",
+    }
+    for path in paths.values():
+        _private_directory(path)
+    paths["database"] = root / "opencode.db"
+    return paths
+
+
+def write_profile_config(state_dir: Path) -> Path:
+    """Write Hutch's minimal OpenCode profile config, refusing unreviewed edits."""
+    paths = opencode_profile_paths(state_dir)
+    path = paths["root"] / "profile.json"
+    expected = {
+        "$schema": "https://opencode.ai/config.json",
+        "share": "disabled",
+        "autoupdate": False,
+        "mcp": {},
+        "plugins": [],
+    }
+    content = json.dumps(expected, separators=(",", ":"), ensure_ascii=False)
+    try:
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    except FileExistsError:
+        if path.is_symlink() or not path.is_file():
+            raise CodeHandoffError("The Hutch OpenCode profile config is unsafe")
+        try:
+            if path.read_text(encoding="utf-8") != content:
+                raise CodeHandoffError("The Hutch OpenCode profile config changed; review it before continuing")
+            os.chmod(path, 0o600)
+        except OSError as exc:
+            raise CodeHandoffError("The Hutch OpenCode profile config could not be checked") from exc
+    except OSError as exc:
+        raise CodeHandoffError("The Hutch OpenCode profile config could not be created") from exc
+    else:
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+                stream.write(content)
+                stream.flush()
+                os.fsync(stream.fileno())
+        except BaseException:
+            path.unlink(missing_ok=True)
+            raise
+    return path
+
+
+def safe_opencode_environment(config_path: Path, *, state_dir: Path) -> dict[str, str]:
+    """Use Hutch's persistent OpenCode profile without inheriting host credentials."""
+    paths = opencode_profile_paths(state_dir)
+    if config_path.is_symlink() or not config_path.is_file():
+        raise CodeHandoffError("The private OpenCode config file is missing or unsafe")
+    # OpenCode can use ambient provider variables and cloud credential chains in
+    # addition to its saved accounts. Allow only terminal, locale, and display
+    # settings so a Hutch coding task uses the account explicitly connected to
+    # this profile rather than credentials from the shell that launched Hutch.
+    env = {"PATH": os.environ.get("PATH", os.defpath)}
+    for key, value in os.environ.items():
+        if (key in {"LANG", "LANGUAGE", "TERM", "COLORTERM", "NO_COLOR", "FORCE_COLOR",
+                    "DISPLAY", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS"}
+                or key.startswith("LC_")):
+            env[key] = value
+    env.update({
+        "HOME": str(paths["home"]),
+        "XDG_CONFIG_HOME": str(paths["config_home"]),
+        "XDG_CACHE_HOME": str(paths["cache_home"]),
+        "XDG_DATA_HOME": str(paths["data_home"]),
+        "XDG_STATE_HOME": str(paths["state_home"]),
+        "TMPDIR": str(paths["tmpdir"]),
+        "OPENCODE_CONFIG": str(config_path),
+        "OPENCODE_CONFIG_DIR": str(paths["config_dir"]),
+        "OPENCODE_DB": str(paths["database"]),
+        "OPENCODE_PURE": "1",
+        "OPENCODE_DISABLE_DEFAULT_PLUGINS": "1",
+        "OPENCODE_DISABLE_EXTERNAL_SKILLS": "1",
+        "OPENCODE_DISABLE_CLAUDE_CODE": "1",
+        "OPENCODE_DISABLE_CLAUDE_CODE_PROMPT": "1",
+        "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS": "1",
+        "OPENCODE_DISABLE_PROJECT_CONFIG": "1",
+        "OPENCODE_DISABLE_AUTOUPDATE": "1",
+        "OPENCODE_DISABLE_MODELS_FETCH": "1",
+        "OPENCODE_AUTO_SHARE": "0",
+    })
+    return env
+
+
+def opencode_auth_list_command(executable: str) -> list[str]:
+    """Use OpenCode's non-secret listing command to check its private auth profile."""
+    return [executable, "auth", "list", "--standalone", "--format", "json"]
+
+
+def opencode_auth_login_command(executable: str) -> list[str]:
+    """Open OpenCode's supported interactive provider sign-in picker."""
+    return [executable, "auth", "login", "--standalone"]
+
+
+def opencode_profile_has_auth(executable: str, *, state_dir: Path) -> bool:
+    """Check whether the private profile has a provider account without reading credentials."""
+    config_path = write_profile_config(state_dir)
+    paths = opencode_profile_paths(state_dir)
+    env = safe_opencode_environment(config_path, state_dir=state_dir)
+    try:
+        result = subprocess.run(opencode_auth_list_command(executable), cwd=paths["home"], env=env,
+                                capture_output=True, text=True, timeout=12, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise CodeHandoffError("OpenCode sign-in status could not be checked; run `hutch code login` again") from exc
+    if result.returncode != 0:
+        raise CodeHandoffError("OpenCode sign-in status could not be checked; run `hutch code login` again")
+    try:
+        records = json.loads(result.stdout)
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise CodeHandoffError("OpenCode returned an unreadable sign-in status; update its CLI and retry") from exc
+    if not isinstance(records, list) or any(not isinstance(row, dict) for row in records):
+        raise CodeHandoffError("OpenCode returned an unreadable sign-in status; update its CLI and retry")
+    return bool(records)
+
+
+def opencode_profile_login(executable: str, *, state_dir: Path) -> None:
+    """Run OpenCode's interactive provider login inside Hutch's private profile."""
+    config_path = write_profile_config(state_dir)
+    paths = opencode_profile_paths(state_dir)
+    env = safe_opencode_environment(config_path, state_dir=state_dir)
+    try:
+        result = subprocess.run(opencode_auth_login_command(executable), cwd=paths["home"], env=env,
+                                check=False)
+    except OSError as exc:
+        raise CodeHandoffError("OpenCode sign-in could not be started; check the CLI installation") from exc
+    if result.returncode != 0:
+        raise CodeHandoffError("OpenCode sign-in did not complete. Run `hutch code login` to try again")
+    if not opencode_profile_has_auth(executable, state_dir=state_dir):
+        raise CodeHandoffError("No provider account was saved. Run `hutch code login` to try again")
 
 
 def inspect_project(project: str) -> dict[str, Any]:
@@ -302,33 +457,6 @@ def write_task_config(state_dir: Path, task_id: str) -> Path:
         path.unlink(missing_ok=True)
         raise
     return path
-
-
-def safe_opencode_environment(config_path: Path, *, cache_home: Path) -> dict[str, str]:
-    """Use a private config/cache, existing OpenCode sign-in, and no inherited API-key variables."""
-    env = {key: value for key, value in os.environ.items()
-           if not any(part in key.upper() for part in ("API_KEY", "TOKEN", "SECRET", "PASSWORD", "CREDENTIAL"))
-           and key not in {"HUTCH_STATE_DIR", "PYTHONPATH", "PYTHONHOME"}
-           and not key.startswith("OPENCODE_")}
-    config_home = cache_home / "config"
-    config_home.mkdir(mode=0o700, parents=True, exist_ok=True)
-    cache_home.mkdir(mode=0o700, parents=True, exist_ok=True)
-    env.update({
-        "XDG_CONFIG_HOME": str(config_home),
-        "XDG_CACHE_HOME": str(cache_home / "cache"),
-        "OPENCODE_CONFIG": str(config_path),
-        "OPENCODE_PURE": "1",
-        "OPENCODE_DISABLE_DEFAULT_PLUGINS": "1",
-        "OPENCODE_DISABLE_EXTERNAL_SKILLS": "1",
-        "OPENCODE_DISABLE_CLAUDE_CODE": "1",
-        "OPENCODE_DISABLE_CLAUDE_CODE_PROMPT": "1",
-        "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS": "1",
-        "OPENCODE_DISABLE_PROJECT_CONFIG": "1",
-        "OPENCODE_DISABLE_AUTOUPDATE": "1",
-        "OPENCODE_DISABLE_MODELS_FETCH": "1",
-        "OPENCODE_AUTO_SHARE": "0",
-    })
-    return env
 
 
 def assert_no_project_plugins(worktree: Path) -> None:

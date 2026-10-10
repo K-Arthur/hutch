@@ -235,8 +235,11 @@ hutch bot update my-bot --model opencode-go/zhipuai/glm-5.3
 ```
 
 For OpenCode Go, sign in and manage the plan on OpenCode, then copy its provider API key into Hutch. This is the
-provider's documented third-party connection method, not an OAuth session shared with Hutch. Hutch does not reuse
-OpenCode's private `auth.json`, browser profile or CLI sign-in. For the eligibility-gated ChatGPT preview, the
+provider's documented third-party connection method, not an OAuth session shared with Hutch. Hutch's Go connection does not
+reuse OpenCode's private auth database, browser profile or CLI sign-in. Separately, the experimental interactive coding handoff
+supports `hutch code login`, which starts OpenCode's documented provider picker in a dedicated profile under Hutch state; it
+does not import the user's regular OpenCode profile. See [coding handoff operations](operations.md#reviewing-an-opencode-coding-task).
+For the eligibility-gated ChatGPT preview, the
 Connections page starts OpenAI's official local sign-in flow; do not enable it unless Hutch is eligible for the flow:
 
 ```bash
@@ -381,10 +384,13 @@ does not itself create API billing credentials.
 **Reusing a consumer app's login session** (Claude Pro/Max, ChatGPT Plus/Pro, Copilot...). Anthropic's
 documentation says OAuth tokens from consumer plans are for use inside its own applications and that using them
 in other products or tools is not permitted; its consumer terms prohibit automated access except through an API
-key. Hutch never reads or proxies browser cookies, CLI auth files or copied session tokens (`LM-15`). This is separate
-from the official, eligibility-gated ChatGPT local-app preview above. Plans that issue an **API key**
+key. Hutch never reads or proxies browser cookies, another tool's CLI auth files or copied session tokens (`LM-15`). The
+experimental local OpenCode coding handoff uses a new provider login saved by OpenCode in a profile managed under Hutch state;
+it is separate from using an OpenCode CLI session as a Hutch Bot runtime. This is separate from the official, eligibility-gated
+ChatGPT local-app preview above. Plans that issue an **API key**
 (OpenCode Go, MiMo Token Plan, and the API products themselves) are supported through Hutch's built-in provider clients. Vendor
-CLI harnesses (`pi`, `opencode`) are currently disabled; Hutch does not launch them or use their independent authentication.
+CLI harnesses (`pi`, `opencode`) remain disabled as Hutch Bot runtimes; the separate reviewed OpenCode coding handoff is an
+owner-launched terminal workflow and is not a runtime adapter.
 
 ## Limits worth knowing
 

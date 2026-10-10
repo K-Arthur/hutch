@@ -428,7 +428,7 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .faq-intro .section-heading { max-width: 18ch; }
 .faq-list { border-top: 1px solid var(--color-semantic-border); }
 .faq-item { border-bottom: 1px solid var(--color-semantic-border-soft); border-radius: 0; background: transparent; }
-.faq-item .collapse-title { font-size: var(--text-size-base); font-weight: 650; letter-spacing: -0.008em; padding-inline: 0; }
+.faq-item .collapse-title { font-size: var(--text-size-base); font-weight: 650; letter-spacing: -0.008em; padding-inline: 0; padding-inline-end: var(--space-12); }
 .faq-item .collapse-content { padding-inline: 0; }
 /* Native disclosure is immediate; avoid animating FAQ layout on every open/close. */
 .faq-item .collapse-title, .faq-item .collapse-content { transition: none; }

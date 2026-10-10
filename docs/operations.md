@@ -233,14 +233,23 @@ the original database intact and make a separate backup before investigating a r
 
 When a completed Studio answer offers **Prepare coding task**, review the original request and edit the suggested brief before
 confirming. Preparation is available only when the Bot's configured workspace is an existing Git repository and the OpenCode CLI
-is installed on the Linux Hutch host. In an interactive terminal on that host, run the exact command shown on the task card:
+is installed on the Linux Hutch host. The first time, connect a provider in an interactive terminal on that host:
+
+```sh
+hutch code login
+```
+
+OpenCode presents its supported provider sign-in picker. Hutch stores that provider connection in a dedicated private profile
+under Hutch's state directory. It does not copy or inspect credentials in your regular OpenCode profile. OpenCode Go's provider
+connection remains a separate API-key flow. After connecting a provider, run the exact command shown on the task card:
 
 ```sh
 hutch code run <task-id>
 ```
 
-The command creates a separate Git worktree at the reviewed commit and opens the installed OpenCode mini interface. OpenCode uses
-its own account, model and usage allowance. Review every OpenCode permission prompt: commands you approve run with your Linux
+The command checks the private profile, creates a separate Git worktree at the reviewed commit and opens the installed OpenCode
+mini interface. Select the model in OpenCode. Its provider usage is separate from Hutch's account records and budgets. Review
+every OpenCode permission prompt: commands you approve run with your Linux
 user’s file, process and network access and do not pass through Hutch’s bubblewrap shell boundary. Do not include credentials in
 the task. The branch is retained for you to inspect; Hutch does not apply, commit, push or publish it.
 
@@ -258,14 +267,20 @@ has exited. Reconcile never sends a signal; if boot/PID identity or process-grou
 task active for review. Task records and immutable project identity are stored in schema v39; normal SQLite backup and restore
 retain them. Restoring state does not copy or remove the Git worktree, which must be managed separately.
 
-The local command is not a remote API worker. Launching a coding task makes OpenCode use its own account and may consume its
-provider quota; Hutch does not account for this usage. The version/help check used while preparing a task makes no model call.
+The local command is not a remote API worker. Launching a coding task may consume the connected provider's quota; Hutch does not
+account for this usage. The version/help and saved-connection checks make no model call. OpenCode keeps provider secrets in its
+SQLite database at `opencode-profile/opencode.db` under Hutch's state directory. That separate database is not included in
+Hutch's SQLite-only state backup; after restoring Hutch state without the profile database, connect a provider again with
+`hutch code login`. Protect the profile directory as account credentials.
 Never claim a Hutch hard spending limit for these tasks.
 
 ### Common handoff errors
 
 - **OpenCode is not installed or has no interactive `mini` command:** install a supported OpenCode CLI on the Hutch host and
-  retry preparation. Hutch currently checks version/help only; config loading is not live-verified.
+  retry preparation. Hutch checks the version and required commands before use; the OpenCode agent-config loading and live
+  model behavior have not been verified.
+- **No provider is connected to Hutch's private OpenCode profile:** run `hutch code login` in an interactive terminal on the
+  Linux host. The browser chat cannot start a terminal or complete this provider sign-in for you.
 - **Configure the repository root:** select the Git worktree root as the Bot's existing folder. Hutch records the commit at
   preparation time; later source changes are not copied into the task.
 - **Project contains OpenCode plugin files:** the handoff refuses to start while `.opencode/plugins` or `.opencode/plugin`
@@ -360,8 +375,9 @@ preview requires the process executor and verified Linux Strict Offline prerequi
 enable Pi/OpenCode child runs or parallel child tool calls. See
 [`realignment/delegation.md`](realignment/delegation.md) before enabling it.
 Schema v39 adds immutable, idempotent local OpenCode coding-handoff records and content-free change notifications. The reviewed
-Git project identity and source chat references migrate in the SQLite database; the task worktrees and private OpenCode session
-databases are separate files and are not included by database-only backup. See [Reviewing an OpenCode coding task](#reviewing-an-opencode-coding-task).
+Git project identity and source chat references migrate in the SQLite database; task worktrees and OpenCode's private profile
+database are separate files and are not included by database-only backup. The OpenCode profile contains provider credentials;
+keep it private and reconnect after a restore if it was not separately retained. See [Reviewing an OpenCode coding task](#reviewing-an-opencode-coding-task).
 Hutch does not infer that adjacent runs share a
 private context. New conversations and message submissions are written transactionally with their idempotency records. The
 `conversation_fts` index contains message text only; it excludes tool output, credentials, workspaces and bot memory.

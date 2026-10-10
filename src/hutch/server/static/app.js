@@ -3655,7 +3655,7 @@ function codeHandoffCardHtml(task) {
   const active = ["launching", "running", "stopping", "cleanup_incomplete"].includes(task.status);
   const completed = ["changes_ready", "complete_no_changes", "stopped", "interrupted", "failed"].includes(task.status);
   const statusDetail = prepared
-    ? `<p class="hint">Open a terminal on the Linux Hutch host, paste this command, then review OpenCode’s own permission prompts.</p>
+    ? `<p class="hint">First connect a provider once with <code>hutch code login</code>. Then run this command in a terminal on the Linux Hutch host and review OpenCode’s permission prompts.</p>
        <div class="code-handoff-command"><code>${esc(task.launch_command)}</code>
          <button class="btn ghost small" type="button" data-copy-code-command="${esc(task.id)}">Copy command</button></div>`
     : task.status === "cleanup_incomplete"
@@ -3673,7 +3673,7 @@ function codeHandoffCardHtml(task) {
     <details><summary>Review source and execution boundary</summary>
       <p><b>Your original request</b><br>${esc(task.original_request)}</p>
       <p><b>Bot’s suggested brief</b><br>${esc(task.proposed_brief)}</p>
-      <p class="hint">Pinned base: <code>${esc(String(task.base_commit || "").slice(0, 12))}</code> · OpenCode ${esc(task.opencode_version || "version checked at launch")}. The OpenCode CLI uses its own sign-in, model selection and usage pool; Hutch’s provider budgets do not cover this work. Hutch asks you to review the handoff before launch. Once launched, OpenCode shell commands run with your Linux user’s authority and each command must be reviewed there. Hutch does not inspect or approve that CLI’s commands.</p>
+      <p class="hint">Pinned base: <code>${esc(String(task.base_commit || "").slice(0, 12))}</code> · OpenCode ${esc(task.opencode_version || "version checked at launch")}. The provider connection and model usage belong to OpenCode, not Hutch’s budgets. Hutch stores this connection in a private profile separate from your regular OpenCode setup. Hutch asks you to review the handoff before launch. Once launched, OpenCode shell commands run with your Linux user’s authority and each command must be reviewed there. Hutch does not inspect or approve that CLI’s commands.</p>
     </details>
   </section>`;
 }
@@ -3706,12 +3706,13 @@ async function prepareCodeTask(button) {
   openModal({
     returnFocus: button, title: "Prepare a coding task for OpenCode", confirmText: "Prepare reviewed task", wide: true, tall: true,
     bodyHtml: `<p>Turn this chat request into a separate coding task. Edit the suggested brief so OpenCode knows what to change and how you will judge the result.</p>
+      <p class="hint"><b>Before launch:</b> Run <code>hutch code login</code> once on the Linux Hutch host to connect a provider. Hutch stores it in a private OpenCode profile; it does not copy your regular OpenCode sign-in. The task card will show the launch command.</p>
       <blockquote class="workspace-task-source"><b>Your original request</b><br>${esc(originalRequest)}</blockquote>
       <label class="field">Reviewed coding task<textarea id="code-task-brief" rows="7" maxlength="20000" aria-describedby="code-task-brief-help">${esc(answer.content)}</textarea>
         <span class="hint" id="code-task-brief-help">This is a draft from ${esc(botDisplayName(bot))}. Review or rewrite it; it does not grant extra access.</span></label>
       <p class="hint"><b>Project:</b> ${esc(projectName)} · the task starts from its saved Git commit in a new isolated worktree. Uncommitted and untracked files from the source folder are not copied.</p>
       <p class="hint"><b>How launch works:</b> Hutch prepares and saves the handoff. You launch it from a terminal on the Linux computer running Hutch; the browser cannot start a local terminal for you.</p>
-      <p class="hint"><b>Account and permissions:</b> OpenCode uses its own sign-in, chosen model and usage limits, separate from Hutch’s budgets. Its interactive permission prompts are owned by OpenCode. Approved shell commands run with your Linux user’s filesystem, process and network access. Review each one; Hutch does not broker these approvals.</p>
+      <p class="hint"><b>OpenCode permissions:</b> Choose a model and review usage in OpenCode; costs are separate from Hutch’s budgets. Review each OpenCode prompt. Approved commands run with your Linux account’s filesystem, process and network access. Hutch does not broker or sandbox them.</p>
       <p class="hint">Do not include passwords, access tokens, or other secrets in the coding task. The reviewed brief is sent to OpenCode’s selected model provider under that account’s terms.</p>
       <p class="hint">Hutch will not copy the resulting branch into your configured folder or publish it. Review the changes in the worktree before applying them yourself.</p>
       <p id="code-task-error" role="alert" hidden></p>`,

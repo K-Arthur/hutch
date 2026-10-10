@@ -446,7 +446,7 @@
             </li>
             <li>
               <b>OpenCode coding tasks are experimental.</b>
-              <span>A reviewed task can open the user's local OpenCode CLI in a pinned worktree. Its command approvals, account usage and shell authority remain outside Hutch's sandbox. OpenCode and Pi are unavailable as Hutch-managed Bot runtimes.</span>
+              <span>A reviewed task can open the user's OpenCode CLI in a pinned worktree. Run <code>hutch code login</code> once to connect a provider in a private Hutch-managed profile; this does not copy the regular OpenCode profile. Provider usage and approved shell commands remain outside Hutch's budgets and sandbox. OpenCode and Pi are unavailable as Hutch-managed Bot runtimes.</span>
             </li>
             <li>
               <b>Phone supervision is not remote access.</b>
@@ -574,11 +574,11 @@
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">Can I hand coding work to OpenCode?</summary>
-          <div class="collapse-content"><p>An experimental Linux handoff can prepare a reviewed coding task from a completed Hutch chat answer. You launch the installed OpenCode CLI from a terminal; Hutch creates a separate worktree from the reviewed Git commit. OpenCode uses its own sign-in, model and usage pool. Its shell approvals are not brokered or sandboxed by Hutch, so approved commands run with your Linux user's authority. The task branch stays separate for your review. This does not make OpenCode a Hutch-managed Bot runtime.</p></div>
+          <div class="collapse-content"><p>An experimental Linux handoff can turn a completed Hutch answer into a reviewed coding task. Run <code>hutch code login</code> once to connect a provider in Hutch's private profile; your regular OpenCode sign-in stays separate. Review the task, then launch it in a terminal. Hutch creates a separate worktree from the selected Git commit, leaving your original project folder untouched. OpenCode controls the model, usage, and command approvals. Approved commands run with your Linux account's permissions, outside Hutch's budget and sandbox. This is a CLI handoff, not a managed Hutch assistant.</p></div>
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">Can I run it on my ChatGPT or Claude subscription?</summary>
-          <div class="collapse-content"><p>OpenCode Go connects through its provider API key: sign in with OpenCode, copy the key, and add it to Hutch. A separate experimental coding handoff starts the OpenCode CLI with its own sign-in, model and usage allowance; OpenCode's command approvals are outside Hutch's sandbox. Hutch does not reuse OpenCode's private sign-in file. Sign in with ChatGPT is an opt-in local-app preview; eligibility for Hutch is unconfirmed and its Responses API does not enforce Hutch's output-token allowance. Scheduled or coordinator-assigned work needs your express permission for each Bot and connected account; the permission follows that Bot's current provider routes and can be revoked. Hutch never reuses consumer-app cookies or sessions, and no plan is silently upgraded or selected as a fallback.</p></div>
+          <div class="collapse-content"><p>OpenCode Go connects through its provider API key: sign in with OpenCode, copy the key, and add it to Hutch. A separate experimental coding handoff uses OpenCode's interactive provider sign-in inside a private profile managed by Hutch; it does not import your regular OpenCode profile. Its model use remains outside Hutch's budgets, and its command approvals are outside Hutch's sandbox. Sign in with ChatGPT is an opt-in local-app preview; eligibility for Hutch is unconfirmed and its Responses API does not enforce Hutch's output-token allowance. Scheduled or coordinator-assigned work needs your express permission for each Bot and connected account; the permission follows that Bot's current provider routes and can be revoked. Hutch never reuses consumer-app cookies or sessions, and no plan is silently upgraded or selected as a fallback.</p></div>
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">What does a runaway bot cost me?</summary>

@@ -62,10 +62,12 @@ shown by Hutch before the requested action can continue. `hutch daemon` runs sch
 approval expiry without the dashboard.
 
 For an experimental coding handoff, set the Bot's workspace to the root of an existing Git project. After a successful Studio
-reply, choose **Prepare coding task**, edit and confirm the brief, then run the exact `hutch code run <task-id>` command shown on
-its card from an interactive Linux terminal on the Hutch host. It launches your installed OpenCode CLI in a separate worktree at
-the reviewed commit. Hutch gives OpenCode foreground input in its own process group, then restores your terminal after verified
-cleanup. OpenCode has its own sign-in and usage; commands you approve there use your Linux account's full authority.
+reply, choose **Prepare coding task** and review the brief. On the Linux Hutch host, run `hutch code login` once to connect a
+provider in a dedicated private OpenCode profile; this does not copy your regular OpenCode sign-in. Then run the exact
+`hutch code run <task-id>` command shown on the task card from an interactive terminal. It launches your installed OpenCode CLI
+in a separate worktree at the reviewed commit. Hutch gives OpenCode foreground input in its own process group, then restores
+your terminal after verified cleanup. OpenCode model usage remains outside Hutch's budgets; commands you approve there use your
+Linux account's full authority.
 Review the retained branch manually. Hutch does not apply or publish it; see [operations](docs/operations.md#reviewing-an-opencode-coding-task).
 
 ## Feature highlights
@@ -78,7 +80,7 @@ Review the retained branch manually. Hutch does not apply or publish it; see [op
 - **Per-bot model routing** — Hybrid allows local and hosted routes; Local keeps model calls on recognized local routes while tools may still use the network. Experimental Offline is offered only after Linux bubblewrap network/PID-namespace and Unix-socket broker checks pass. It removes browser/web tools and requires contained shell; the separate model service may still use the network.
 - **Switch models from the chat** — a composer menu shows what fits this machine, what it costs and what is missing; per message, never a silent edit of the bot
 - **Provider connections** — OpenCode Go uses its issued API key copied into Hutch; Xiaomi MiMo Token Plan and custom endpoints use their own scoped keys. An opt-in Sign in with ChatGPT preview uses the official local token-sharing flow when eligible. Each route keeps its own allowance and terms; Hutch never imports another app's sign-in files.
-- **Reviewed OpenCode coding handoff (experimental, Linux)** — from a completed chat answer, review an editable coding brief, then launch the installed OpenCode CLI in a new worktree pinned to the Bot's configured Git project commit. Hutch hands its interactive process group the controlling terminal and restores terminal input after verified cleanup. OpenCode uses its own sign-in, model and usage pool. Its terminal permission prompts are not brokered by Hutch; approved shell commands run with the Linux user's authority. Hutch does not apply or publish the resulting branch. This is separate from the OpenCode Go provider connection and does not enable the OpenCode bot runtime.
+- **Reviewed OpenCode coding handoff (experimental, Linux)** — from a completed chat answer, review an editable coding brief, connect a provider with `hutch code login`, then launch the installed OpenCode CLI in a new worktree pinned to the Bot's configured Git project commit. The provider connection is saved in a private Hutch-managed OpenCode profile, separate from your regular OpenCode profile. Hutch hands its interactive process group the controlling terminal and restores it after verified cleanup. Model usage stays outside Hutch's budgets. OpenCode's terminal permission prompts are not brokered by Hutch; approved shell commands run with the Linux user's authority. Hutch does not apply or publish the resulting branch. This is separate from OpenCode Go's API-key connection and does not enable the OpenCode Bot runtime.
 - **Local inference admission** — one caller and eight waiters across Hutch workers; releases capacity during human waits,
   rechecks native Ollama memory headroom, and shows queue reasons. Fit remains estimated; real models are unverified.
   `hutch doctor` reports configuration problems with suggested fixes.

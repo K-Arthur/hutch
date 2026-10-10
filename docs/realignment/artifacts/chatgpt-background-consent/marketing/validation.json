@@ -19,15 +19,19 @@
   },
   "external_requests": [],
   "page_errors": [],
+  "source_sha256": "f839a4b54a218debd35f759570f766f5d66b7c1355bb3d84d8c329c5d0dba6a8",
+  "styles_sha256": "5fad30e38ec34405dc5158127771a55bde8f6f5902fc56c5de09ce7201644a52",
   "coding_handoff_screenshots": [
     "marketing-coding-handoff-faq-desktop.png",
     "marketing-coding-handoff-faq-tablet.png",
     "marketing-coding-handoff-faq-phone.png"
   ],
+  "wrapped_faq_screenshot": "marketing-faq-wrapped-phone.png",
   "verified": [
     "clear per-Bot express consent disclosure",
     "revoke and route-change disclosure",
     "OpenCode CLI handoff boundaries",
+    "wrapped phone FAQ title clears disclosure arrow",
     "responsive FAQ and copy",
     "no horizontal overflow"
   ]

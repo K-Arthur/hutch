@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add `hutch code login` for the experimental OpenCode coding handoff. It uses OpenCode's supported interactive provider flow in a persistent private profile under Hutch state; coding tasks now check that profile before claiming a handoff and no longer start with an empty per-task auth database. Hutch does not import the regular OpenCode profile, and provider usage remains outside Hutch budgets.
 - Keep message entry primary in an empty Studio chat. Put reusable-helper examples
   behind a collapsed setup disclosure, use compact 2D assistant rows, and state
   that opening an example does not start work.

@@ -82,6 +82,26 @@ def _require_run(store: Store, run_id: str) -> "Run":
     return run
 
 
+@code_app.command("login")
+def code_login() -> None:
+    """Connect a provider to the private OpenCode profile used by coding tasks."""
+    import sys
+
+    if sys.platform != "linux" or not sys.stdin.isatty() or not sys.stdout.isatty():
+        err.print("Run this command in an interactive terminal on the Linux Hutch host.",
+                  style="red", markup=False)
+        raise typer.Exit(2)
+    from .code_handoff import CodeHandoffError, inspect_opencode, opencode_profile_login
+
+    try:
+        executable, version_text = inspect_opencode()
+        opencode_profile_login(executable, state_dir=get_config().state_dir)
+    except CodeHandoffError as exc:
+        err.print(str(exc), style="red", markup=False)
+        raise typer.Exit(1) from None
+    console.print(f"OpenCode provider connected in Hutch's private profile (CLI {version_text}).")
+
+
 @code_app.command("run")
 def code_run(handoff_id: str = typer.Argument(..., help="Reviewed code task ID from the Hutch chat")) -> None:
     """Launch the reviewed task in OpenCode's interactive CLI and a pinned Git worktree."""
@@ -94,7 +114,7 @@ def code_run(handoff_id: str = typer.Argument(..., help="Reviewed code task ID f
     from .code_handoff import (CodeHandoffError, create_task_worktree, inspect_opencode, was_terminal_interrupt,
                                safe_opencode_environment, opencode_task_command, task_prompt,
                                worktree_change_summary, write_task_config, assert_no_project_plugins,
-                               spawn_interactive, restore_terminal)
+                               spawn_interactive, restore_terminal, opencode_profile_has_auth)
 
     if not procguard.pidfd_available():
         err.print("This Linux host lacks verified process identity support; the OpenCode task cannot start.",
@@ -108,25 +128,29 @@ def code_run(handoff_id: str = typer.Argument(..., help="Reviewed code task ID f
     task: Optional[dict] = None
     worktree: Optional[Path] = None
     try:
-        task = store.code_handoff(handoff_id)
-        if task is None:
+        saved_task = store.code_handoff(handoff_id)
+        if saved_task is None:
             err.print(f"No coding task named {handoff_id}.", style="red", markup=False)
             raise typer.Exit(1)
         executable, version_text = inspect_opencode()
+        state_dir = get_config().state_dir
+        if not opencode_profile_has_auth(executable, state_dir=state_dir):
+            err.print("No provider is connected to Hutch's private OpenCode profile. "
+                      "Run `hutch code login` on this Linux computer first.", style="red", markup=False)
+            raise typer.Exit(2)
         task = store.claim_code_handoff(handoff_id)
         try:
-            worktree, branch = create_task_worktree(task, get_config().state_dir)
+            worktree, branch = create_task_worktree(task, state_dir)
             assert_no_project_plugins(worktree)
-            config_path = write_task_config(get_config().state_dir, handoff_id)
-            cache_home = get_config().state_dir / "opencode-task-runtime" / handoff_id
-            env = safe_opencode_environment(config_path, cache_home=cache_home)
-            env["OPENCODE_DB"] = str(cache_home / "sessions.db")
+            config_path = write_task_config(state_dir, handoff_id)
+            env = safe_opencode_environment(config_path, state_dir=state_dir)
             prompt = task_prompt(task)
             command = opencode_task_command(executable, handoff_id, prompt)
             console.print(Panel.fit(
                 f"Task: {handoff_id}\nProject: {task['project_name']} at {task['base_commit'][:12]}\n"
                 f"Branch: {branch}\nOpenCode: {version_text}\n\n"
-                "OpenCode uses its own sign-in and usage limits. Hutch will not auto-approve shell commands, "
+                "OpenCode uses the provider connected to Hutch's private profile and its own usage limits. "
+                "Hutch will not auto-approve shell commands, "
                 "commit, push, or apply changes to your original folder. Review OpenCode permission prompts.",
                 title="Reviewed coding task"))
             console.print("Starting OpenCode's interactive mini interface. Press Ctrl+C there to stop the task.")

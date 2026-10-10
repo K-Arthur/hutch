@@ -38,27 +38,73 @@ def test_terminal_interrupt_exit_is_classified_as_stopped():
     assert not code_handoff.was_terminal_interrupt(1)
 
 
-def test_opencode_environment_removes_inherited_credentials_and_config_overrides(tmp_path, monkeypatch):
+def test_opencode_environment_uses_a_private_persistent_profile_and_scrubs_host_credentials(tmp_path, monkeypatch):
     monkeypatch.setenv("PATH", "/usr/bin")
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("OPENAI_API_KEY", "must-not-leak")
+    monkeypatch.setenv("AWS_PROFILE", "host-profile")
+    monkeypatch.setenv("AWS_CONFIG_FILE", str(tmp_path / "aws-config"))
     monkeypatch.setenv("OPENCODE_CONFIG_CONTENT", '{"agents":{"build":{"permissions":[]}}}')
     monkeypatch.setenv("OPENCODE_PERMISSION", '{"shell":"allow"}')
     monkeypatch.setenv("OPENCODE_DB", "/tmp/user-opencode.db")
     monkeypatch.setenv("PYTHONPATH", "/tmp/hostile-python")
     config = tmp_path / "task.json"
     config.write_text("{}")
+    state_dir = tmp_path / "hutch-state"
 
-    env = code_handoff.safe_opencode_environment(config, cache_home=tmp_path / "cache")
+    env = code_handoff.safe_opencode_environment(config, state_dir=state_dir)
+    paths = code_handoff.opencode_profile_paths(state_dir)
     assert env["PATH"] == "/usr/bin"
+    assert env["HOME"] == str(paths["home"])
+    assert env["XDG_CONFIG_HOME"] == str(paths["config_home"])
+    assert env["XDG_DATA_HOME"] == str(paths["data_home"])
     assert env["OPENCODE_CONFIG"] == str(config)
+    assert env["OPENCODE_DB"] == str(paths["database"])
     assert env["OPENCODE_DISABLE_PROJECT_CONFIG"] == "1"
     assert env["OPENCODE_AUTO_SHARE"] == "0"
     assert "OPENAI_API_KEY" not in env
+    assert "AWS_PROFILE" not in env and "AWS_CONFIG_FILE" not in env
     assert "OPENCODE_CONFIG_CONTENT" not in env
     assert "OPENCODE_PERMISSION" not in env
-    assert "OPENCODE_DB" not in env
     assert "PYTHONPATH" not in env
+    assert paths["root"].stat().st_mode & 0o777 == 0o700
+
+
+@pytest.mark.parametrize(("auth_json", "expected"), [
+    ('[{"provider":"openai","type":"oauth"}]', True),
+    ("[]", False),
+])
+def test_opencode_auth_status_checks_only_the_private_profile(tmp_path, monkeypatch, auth_json, expected):
+    seen = {}
+
+    def fake_run(command, **kwargs):
+        seen.update(command=command, **kwargs)
+        return subprocess.CompletedProcess(command, 0, stdout=auth_json, stderr="")
+
+    monkeypatch.setattr(code_handoff.subprocess, "run", fake_run)
+    state_dir = tmp_path / "state"
+    assert code_handoff.opencode_profile_has_auth("/fixture/opencode", state_dir=state_dir) is expected
+    assert seen["command"] == ["/fixture/opencode", "auth", "list", "--standalone", "--format", "json"]
+    assert seen["env"]["OPENCODE_DB"] == str(state_dir / "opencode-profile" / "opencode.db")
+    assert seen["cwd"] == state_dir / "opencode-profile" / "home"
+    assert seen["capture_output"] and seen["text"]
+
+
+def test_opencode_login_uses_the_supported_private_profile_flow(tmp_path, monkeypatch):
+    seen = {}
+
+    def fake_run(command, **kwargs):
+        seen.update(command=command, **kwargs)
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(code_handoff.subprocess, "run", fake_run)
+    monkeypatch.setattr(code_handoff, "opencode_profile_has_auth", lambda executable, *, state_dir: True)
+    state_dir = tmp_path / "state"
+    code_handoff.opencode_profile_login("/fixture/opencode", state_dir=state_dir)
+    assert seen["command"] == ["/fixture/opencode", "auth", "login", "--standalone"]
+    assert seen["cwd"] == state_dir / "opencode-profile" / "home"
+    assert seen["env"]["OPENCODE_DB"] == str(state_dir / "opencode-profile" / "opencode.db")
+    assert "capture_output" not in seen
 
 
 @pytest.mark.skipif(not hasattr(os, "tcsetpgrp") or sys.platform != "linux", reason="Linux controlling TTY required")
@@ -311,14 +357,19 @@ if sys.argv[1:] == ["--version"]:
 if sys.argv[1:] == ["mini", "--help"]:
     print("mini --standalone --prompt")
     raise SystemExit(0)
+if sys.argv[1:] == ["auth", "list", "--standalone", "--format", "json"]:
+    print('[{"provider":"openai","type":"oauth"}]')
+    raise SystemExit(0)
 if "--auto" in sys.argv:
     raise SystemExit(90)
 signal.signal(signal.SIGINT, lambda *_: sys.exit(130))
 prompt = sys.argv[sys.argv.index("--prompt") + 1]
-print("FAKE_READY tty=%d foreground=%d reviewed=%d isolated=%d auto=%d" % (
+print("FAKE_READY tty=%d foreground=%d reviewed=%d isolated=%d private=%d auto=%d" % (
     os.isatty(0), os.tcgetpgrp(0) == os.getpgrp(),
     "Add one concise contributor setup note" in prompt,
-    Path.cwd().name == os.environ.get("HANDOFF_SUFFIX"),
+    Path.cwd().name.endswith(sys.argv[sys.argv.index("--agent") + 1].removeprefix("hutch-code-")),
+    os.environ.get("OPENCODE_DB", "").endswith("/opencode-profile/opencode.db")
+    and os.environ.get("HOME", "").endswith("/opencode-profile/home"),
     "--auto" in sys.argv), flush=True)
 input("Fixture is ready. Press Enter to apply its reviewed change. ")
 readme = Path("README.md")
@@ -329,8 +380,6 @@ while True:
 """, encoding="utf-8")
     fake_opencode.chmod(0o755)
     monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}")
-    # The worktree's private folder is deterministic, so the fixture can verify the real isolated cwd.
-    monkeypatch.setenv("HANDOFF_SUFFIX", handoff_id)
 
     runner = r'''import sys
 from hutch.cli import main
@@ -357,7 +406,7 @@ while time.monotonic() < deadline:
             chunk = b""
         if chunk:
             output.extend(chunk)
-            if b"FAKE_READY tty=1 foreground=1 reviewed=1 isolated=1 auto=0" in output and not sent_ready:
+            if b"FAKE_READY tty=1 foreground=1 reviewed=1 isolated=1 private=1 auto=0" in output and not sent_ready:
                 os.write(master, b"\n")
                 sent_ready = True
             if b"FAKE_EDITED" in output and not sent_interrupt:
@@ -397,7 +446,7 @@ raise SystemExit(0)
     transcript = process.stdout + process.stderr
     assert process.returncode == 0, transcript
     assert "CHILD_EXIT=130" in transcript, transcript
-    assert "FAKE_READY tty=1 foreground=1 reviewed=1 isolated=1 auto=0" in transcript, transcript
+    assert "FAKE_READY tty=1 foreground=1 reviewed=1 isolated=1 private=1 auto=0" in transcript, transcript
     assert "FAKE_EDITED" in transcript, transcript
     assert "Worktree retained at:" in transcript, transcript
 
