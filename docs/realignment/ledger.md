@@ -3571,6 +3571,31 @@ functional realignment work. The local implementation and screenshot evidence
 are committed on `main` as `9b02cf4d2405e56245d821c9d49e6fff46298598`. No push or
 publication occurred.
 
+## Core assistant and chat UI checkpoint (2026-10-10)
+
+The chat title now uses the available header width, and assistant settings join
+the existing conversation options menu. Approval review remains reachable on
+phone, including its nested technical disclosure after live-feed refresh.
+Common assistant names such as Workspace Coordinator fit on one roster line;
+long custom names stay on one line with an ellipsis and accessible full name.
+Gmail and Outlook use distinct, original category artwork. The app's 2D mascot
+eyes are softly rounded upright ovals fitted to all eight silhouette shapes.
+Archivo is bundled locally for app display and section headings.
+
+Independent screenshots cover Studio, Apps & AI, roster actions, approvals,
+mascot picker, Activity, Scheduled work, history, settings, and other current
+routes at desktop/tablet/phone sizes. The final focused browser batch passed
+**7 tests in 46.98s**; JavaScript syntax, generated-site-token parity, and
+`git diff --check` passed. This browser evidence uses local fixtures with no
+provider calls; live services, assistive-technology operation, and physical
+phones remain unverified. See
+[`visual-validation.md`](visual-validation.md) and the linked artifact folders.
+
+Implementation, docs, and screenshot evidence are committed on `main` as
+`05ea75a`. This is a verified UI slice only: the all-surface overhaul remains
+open and is sequenced after the outstanding functional realignment work. No
+push or publication occurred.
+
 ## S5 OpenCode handoff launch and interruption (2026-10-10)
 
 A Linux pseudo-terminal test now drives the actual `hutch code run` entry point with a
