@@ -1214,3 +1214,17 @@ horizontal overflow. Chromium **153.0.8010.12** / Playwright **1.63.0** made no 
 visual-review notes, source hashes and traces are in [`artifacts/simple-bot-setup/`](artifacts/simple-bot-setup/),
 [`artifacts/pinned-roster/`](artifacts/pinned-roster/), and [`artifacts/compact-roster/`](artifacts/compact-roster/). These
 fixture checks do not replace screen-reader or physical-device validation.
+
+## Shape-aware 2D mascot faces and Studio search states (2026-10-10)
+
+App mascots remain simple 2D forms. The eight silhouettes now use their own eye spacing, height, and tilt so the same face is not pasted
+onto an orb, capsule, bean, drop, pebble, shield, triangle, and hex. The browser test checks each pair's sampled edge stays within the
+corresponding SVG silhouette and that all eight face proportions are distinct. I inspected the updated individual desktop and phone
+captures in [`artifacts/mascot-eye-review/`](artifacts/mascot-eye-review/); the marketing site's more detailed mascot remains separate.
+
+Studio conversation search was also rechecked with a no-results query, a simulated service error, and HTML-like content in an excerpt.
+The latter is displayed as text and creates no image element. I inspected the desktop, tablet, phone, compact-phone, empty-result, and
+error-state screenshots separately in [`artifacts/conversation-search/`](artifacts/conversation-search/). None has horizontal overflow;
+the touch search control measures 44×44 CSS pixels. These checks used local Chromium **153.0.8010.12** fixtures and made no provider or
+external requests. The full offline non-E2E suite passed **1,532 tests** with thread and syntax warnings treated as errors. Physical phone,
+screen-reader, and live-provider checks remain outstanding.

@@ -3216,17 +3216,24 @@ and trace evidence is committed as `e1bd3b9`.
 ## Mascot face correction across all silhouettes (2026-10-10)
 
 The owner screenshot showed white tapered marks perched outside a pointed drop mascot, where they looked detached rather than like eyes.
-The shared 2D app renderer now uses two dark rounded ovals; positions are selected per head shape, with the drop and triangle eyes moved
-lower into the wider face area. Bot-name identity and the separate status pip are unchanged. Marketing's detailed 3D mascot is not affected.
+The shared 2D app renderer now uses two dark, tapered oval eyes; their spacing, proportions, and tilt are selected per head shape, with the
+drop and triangle eyes moved lower into the wider face area. Bot-name identity and the separate status pip are unchanged. Marketing's
+detailed 3D mascot is not affected.
 
 The new browser regression renders all eight silhouettes in all eight identity colours and checks each eye pair's centers and sampled
-98%-perimeter lie inside its exact SVG head path. Dark eye ink measures at least **5.81:1** against every identity colour. The combined
+98%-perimeter lie inside its exact SVG head path. It also checks each silhouette has its own eye proportions. Dark eye ink measures at
+least **5.81:1** against every identity colour. The combined
 roster/design-system browser batch passed **3 tests in 11.98s** in Chromium **153.0.8010.12** / Playwright **1.63.0**. Screenshots at
 desktop **1440×960**, tablet **900×1024**, and phone **390×844** (Studio with roster closed/open) plus the Playwright trace and validation
 JSON are in [`artifacts/mascot-eye-review/`](artifacts/mascot-eye-review/); refreshed shared-shell examples are in
 [`artifacts/design-system/`](artifacts/design-system/) and [`artifacts/pinned-roster/`](artifacts/pinned-roster/). The page produced no
 browser errors or horizontal overflow and made no provider calls. This is fixture-based visual validation, not physical-device or
 screen-reader testing.
+
+After the first owner review, the faces were refined again because their proportions still looked too uniform across distinct head shapes.
+The orb, capsule, bean, drop, pebble, shield, triangle, and hex now each have a separately tuned pair of diagonal oval eye marks. The updated
+shape-containment browser test passed **1 test in 2.24s**; its desktop and phone screenshots were individually inspected. The 2D mascot
+language stays deliberately simple in the app, while the 3D illustration remains marketing-only.
 
 ## In-Studio conversation search (2026-10-10)
 
@@ -3239,11 +3246,13 @@ result count, and paired Monitor sessions still require the standard origin and 
 Placement was informed by separately inspected Figma mobile frames, where search is a compact header action; the wide preview collage
 was treated only as an index. Mobbin captures remain unavailable behind its account-plan gate, so none are cited as inspected.
 
-The unit, authorization and browser batch passed **24 tests in 17.37s**; the phone search trigger measures **44×44 CSS pixels** in a
+The unit, authorization and initial browser batch passed **24 tests in 17.37s**; the phone search trigger measures **44×44 CSS pixels** in a
 touch-enabled Chromium context. JS syntax, Python compilation, CSS-token generation check,
 design detection and `git diff --check` passed. Chromium **153.0.8010.12** / Playwright **1.63.0** screenshots were captured and
 individually inspected at desktop **1440×960**, tablet **900×1024**, phone **390×844** and compact phone **320×740**. Search returned
 two all-Bot results and one Bot-filtered result, opened the selected chat, restored keyboard focus, had no horizontal overflow, page
 errors, external requests or provider calls. Images, trace and machine-readable validation are in
-[`artifacts/conversation-search/`](artifacts/conversation-search/). These are local fixtures; there was no physical-phone or
-screen-reader test. The broader full suite and live provider validation remain unverified.
+[`artifacts/conversation-search/`](artifacts/conversation-search/). A follow-up browser pass added empty-result, service-error, and HTML-like
+message content checks; that focused journey passed **1 test**. The populated desktop, tablet, phone, and compact-phone captures, plus
+desktop empty/error states, were inspected individually. The full offline non-E2E suite passed **1,532 tests** using warnings-as-errors
+for unhandled thread and syntax warnings. These are local fixtures; there was no physical-phone, screen-reader, or live provider test.

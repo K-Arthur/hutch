@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_chat_message_search_is_scoped_responsive_and_opens_its_conversation",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_chat_message_search_is_scoped_responsive_and_opens_its_conversation",
-  "captured_at": "2026-10-10T06:38:22.490835+00:00",
+  "captured_at": "2026-10-10T06:47:03.523172+00:00",
   "python": "3.13.15",
   "browser": "Chromium 153.0.8010.12",
   "playwright": "1.63.0",
@@ -54,11 +54,13 @@
     44
   ],
   "states": [
-    "active conversation message search",
-    "all Bots",
-    "filtered Bot",
+    "active conversation search",
+    "Bot filter",
+    "no results",
+    "service error",
+    "escaped HTML excerpt",
     "conversation opened",
     "focus restored"
   ],
-  "visual_review": "Individually inspected desktop/tablet/phone/compact-phone screenshots; no overflow or layout clipping."
+  "visual_review": "Individually inspected populated desktop/tablet/phone/compact-phone plus desktop empty and service-error states; safe text rendering, no overflow or layout clipping."
 }

@@ -278,14 +278,17 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
                     perimeter: points.every(point => ctx.isPointInPath(shape, point.x, point.y))};
           });
           return {color: body.getAttribute('fill'),
-                  eyes: eyes.map(eye => ({tag: eye.tagName.toLowerCase(), fill: eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill')})),
+                  eyes: eyes.map(eye => ({tag: eye.tagName.toLowerCase(), rx: Number(eye.getAttribute('rx')),
+                    ry: Number(eye.getAttribute('ry')), fill: eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill')})),
                   contained};
         })""")
         assert len(identity) == 8, identity
         assert len({item["color"] for item in identity}) == 8, identity
         assert all(len(item["eyes"]) == 2 for item in identity), identity
-        assert all(eye == {"tag": "ellipse", "fill": "#10161f"}
+        assert all(eye["tag"] == "ellipse" and eye["fill"] == "#10161f" and eye["rx"] > eye["ry"]
                    for item in identity for eye in item["eyes"]), identity
+        assert len({tuple((eye["rx"], eye["ry"]) for eye in item["eyes"])
+                    for item in identity}) == 8, identity
         assert all(part == {"center": True, "perimeter": True}
                    for item in identity for part in item["contained"]), identity
 
@@ -322,7 +325,7 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
             "silhouettes": 8,
             "colors": 8,
             "minimum_eye_contrast": round(min(eye_contrast), 2),
-            "checks": ["paired ink eyes", "eye forms inside each mascot silhouette", "no phone overflow", "no browser errors"],
+            "checks": ["paired diagonal oval eyes", "shape-specific face proportions", "eyes inside each mascot silhouette", "no phone overflow", "no browser errors"],
             "page_errors": errors,
             "provider_calls": 0,
         }, indent=2) + "\n", encoding="utf-8")
@@ -354,7 +357,7 @@ def test_chat_message_search_is_scoped_responsive_and_opens_its_conversation(bro
         )
         store._insert_conversation_message(
             db, message_id="search-trip-message", conversation_id=second["id"], seq=1,
-            run_id="", role="user", content="We found a violet gearbox in the travel case.",
+            run_id="", role="user", content="We found a violet gearbox in the travel case. <img src=x onerror=alert(1)>",
             created_at="2026-10-09T12:05:00+00:00",
         )
 
@@ -399,10 +402,33 @@ def test_chat_message_search_is_scoped_responsive_and_opens_its_conversation(bro
             assert "Trip planning" in result.inner_text()
             assert "Travel Planner" in result.inner_text()
             assert "violet gearbox" in result.inner_text().lower()
+            assert "<img" in result.inner_text()
+            assert result.locator("img").count() == 0
             assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
             page.screenshot(path=str(out / f"search-{label}.png"), animations="disabled")
             evidence.append({"size": label, "viewport": [width, height], "all_bot_hits": 2,
                              "filtered_hits": 1, "query_in_url": False})
+            if label == "desktop":
+                dialog.locator("#message-search-bot").select_option("")
+                field.fill("saffron calibration absent")
+                page.wait_for_function(
+                    "document.querySelector('#message-search-status')?.textContent === 'No messages found in active chats.'"
+                )
+                assert dialog.locator(".message-search-result").count() == 0
+                page.screenshot(path=str(out / "search-empty-desktop.png"), animations="disabled")
+
+                def fail_search(route):
+                    route.fulfill(status=503, content_type="application/json",
+                                  body=json.dumps({"detail": "search service unavailable"}))
+
+                page.route("**/api/v1/search/messages", fail_search)
+                field.fill("violet gearbox")
+                page.wait_for_function(
+                    "document.querySelector('#message-search-status')?.textContent === 'Search unavailable: search service unavailable'"
+                )
+                assert dialog.locator(".message-search-result").count() == 0
+                page.screenshot(path=str(out / "search-error-desktop.png"), animations="disabled")
+                page.unroute("**/api/v1/search/messages", fail_search)
             field.press("Escape")
             assert page.evaluate("document.activeElement.id") == "studio-search-messages"
             if label == "phone":
@@ -433,7 +459,7 @@ def test_chat_message_search_is_scoped_responsive_and_opens_its_conversation(bro
             "external_requests": external_requests,
             "provider_calls": 0,
             "touch_search_target_css_pixels": [touch_size["width"], touch_size["height"]],
-            "states": ["active conversation message search", "all Bots", "filtered Bot", "conversation opened", "focus restored"],
+            "states": ["active conversation search", "Bot filter", "no results", "service error", "escaped HTML excerpt", "conversation opened", "focus restored"],
             "visual_review": "Individually inspected desktop/tablet/phone/compact-phone screenshots; no overflow or layout clipping.",
         }, indent=2) + "\n", encoding="utf-8")
     finally:

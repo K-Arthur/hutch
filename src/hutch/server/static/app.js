@@ -607,17 +607,18 @@ const ID_HEADS = [
   { key: "triangle", d: "M27 12c2-4 8-4 10 0l19 32c2 4-1 8-5 8H13c-5 0-7-4-5-8l19-32Z" },
   { key: "hex", d: "M22 9h20l13 23-13 23H22L9 32 22 9Z" },
 ];
-// Eye placement follows each silhouette's usable face area. Pointed shapes
-// carry the eyes lower so they read as a face instead of floating on the tip.
+// Each silhouette gets a face tuned to its usable area. The paired eyes keep
+// one simple language, while their spacing, oval proportions, and tilt follow
+// the head instead of stamping the same expression onto every shape.
 const ID_FACES = [
-  [[25, 29, -14], [39, 28, 12]], // orb
-  [[25, 29, -12], [39, 29, 10]], // capsule
-  [[24, 30, -14], [39, 28, 12]], // bean
-  [[25, 34, -14], [39, 32, 12]], // drop
-  [[25, 29, -14], [39, 28, 12]], // pebble
-  [[25, 27, -12], [39, 27, 10]], // shield
-  [[25, 34, -14], [39, 32, 12]], // triangle
-  [[25, 30, -12], [39, 30, 10]], // hex
+  [[25, 29, 4.8, 2.6, -42], [39, 28, 4.5, 2.4, -39]], // orb: relaxed diagonal
+  [[25, 29, 4.4, 2.6, -35], [39, 29, 4.3, 2.5, -35]], // capsule: upright
+  [[24, 30, 4.8, 2.7, -39], [39, 29, 4.3, 2.5, -36]], // bean: follows the lean
+  [[25, 34, 4.6, 2.6, -42], [39, 32, 4.5, 2.5, -40]], // drop: lower in the bowl
+  [[25, 29, 4.4, 2.5, -40], [39, 29, 4.8, 2.7, -45]], // pebble: gently uneven
+  [[25, 27, 4.1, 2.6, -36], [39, 27, 4.1, 2.5, -36]], // shield: narrow brow
+  [[26, 35, 4.0, 2.6, -42], [39, 33, 4.1, 2.5, -40]], // triangle: lower, centered
+  [[25, 30, 4.4, 2.5, -35], [39, 30, 4.2, 2.4, -35]], // hex: upright facets
 ];
 
 function hash32(s) {
@@ -656,11 +657,11 @@ function sigilSet(name, pair) { idStore.all[name] = pair; idStore.save(); }
 
 function sigilEyes(shapeIndex) {
   const [lead, companion] = ID_FACES[shapeIndex] || ID_FACES[0];
-  const eye = (name, [cx, cy, angle], rx, ry) =>
+  const eye = (name, [cx, cy, rx, ry, angle]) =>
     `<ellipse data-sigil-eye="${name}" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" transform="rotate(${angle} ${cx} ${cy})"/>`;
   return `<g fill="#10161f" aria-hidden="true">
-    ${eye("lead", lead, 5, 4.2)}
-    ${eye("companion", companion, 4.6, 4)}
+    ${eye("lead", lead)}
+    ${eye("companion", companion)}
   </g>`;
 }
 
