@@ -3530,7 +3530,7 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
             ? statusChip("waiting_for_answer", "Waiting for your choice")
             : statusChip(run.status, run.status_label)}
           ${running ? `<button class="btn ghost small" data-stop-run="${esc(runId)}" ${run.status === "cancelling" ? "disabled" : ""}>${run.status === "cancelling" ? "Stopping" : "Stop"}</button>` : ""}
-          <a class="mrun mono" href="#/run/${esc(runId)}" title="${esc(runId)} · ${esc(run.origin || "manual")} · ${dur}">#${esc(runId.slice(4, 12))}</a>
+          <a class="mrun" href="#/run/${esc(runId)}" aria-label="View work details" title="View work details">${icon("fileText")}</a>
         </div>
         ${cards.join("")}
         ${(run.unknown_actions || []).map(receiptCardHtml).join("")}

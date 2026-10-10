@@ -139,6 +139,16 @@ passed **2 tests** with no provider calls, external requests, or browser errors.
 This is a narrow improvement; the separate review and redesign of every app and
 marketing surface remains open.
 
+The populated chat no longer prints a shortened internal run identifier beside
+each assistant reply. A compact, screen-reader-labeled **View work details**
+control opens the existing task-detail page, where the technical identifiers can
+be inspected when needed. Its touch target grows to 44px on phones; the assistant
+name, live status and stop action retain their own space. Desktop, tablet and
+phone captures were inspected individually. The screenshot and trace evidence
+is in [`artifacts/message-replies-clean-chat-2026-10-10/`](artifacts/message-replies-clean-chat-2026-10-10/).
+This chat refinement does not close the populated-chat redesign or the full
+all-surface overhaul.
+
 ### Next
 
 1. Finish Studio's initial and active-chat layouts, then separately review the

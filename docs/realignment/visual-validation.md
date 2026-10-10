@@ -1696,3 +1696,21 @@ or external requests and reported no page errors. Evidence is in
 and [`artifacts/pinned-roster/`](artifacts/pinned-roster/). These are local
 browser fixtures, not a screen-reader or physical-phone test. The all-surface
 UI overhaul remains open.
+
+## Chat details affordance (2026-10-10)
+
+The normal transcript now replaces a shortened execution ID with an icon button
+named **View work details**. The link targets the existing run detail page, while
+the raw ID is absent from the visible thread text. The keyboard-accessible reply
+journey also verifies focus return, draft recovery after reload, persisted reply
+anchoring and successful send. All three responsive browser cases passed with
+Chromium **153.0.8010.12** and Playwright **1.63.0**. Each viewport reported
+zero horizontal overflow and no page errors; no model or provider was called.
+
+I inspected the desktop (1440×1000), tablet (900×1024), and phone (390×844)
+screenshots independently. The detail control remains aligned with the reply,
+wraps to its own row on phone rather than squeezing the assistant label or stop
+control, and exposes a 44px phone touch target. Images, JSON, and traces are in
+[`artifacts/message-replies-clean-chat-2026-10-10/`](artifacts/message-replies-clean-chat-2026-10-10/).
+This is a focused transcript polish check, not acceptance of the populated chat
+surface or the all-surface redesign.

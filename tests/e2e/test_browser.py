@@ -9078,7 +9078,7 @@ def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser
     store.append_event(Event(run_id=run.id, type=EventType.message, data={"role": "assistant", "content": answer}))
     store.flush_events()
 
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/message-replies"
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/message-replies-clean-chat-2026-10-10"
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": width, "height": height}, reduced_motion="reduce",
                                   has_touch=(size == "phone"))
@@ -9087,6 +9087,13 @@ def test_bot_message_reply_is_keyboard_accessible_editable_and_persisted(browser
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.goto(f"{base}/#/chat/{bot.name}")
+    details_link = page.get_by_role("link", name="View work details")
+    details_link.wait_for(state="visible")
+    assert details_link.get_attribute("href") == f"#/run/{run.id}"
+    assert run.id not in page.locator(f".thread[data-run-id='{run.id}']").inner_text()
+    if size == "phone":
+        details_bounds = details_link.bounding_box()
+        assert details_bounds["width"] >= 44 and details_bounds["height"] >= 44
     reply = page.get_by_role("button", name=f"Reply to {bot_label} message")
     reply.wait_for(state="visible")
     reply.focus()

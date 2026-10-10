@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Replace the raw run-number label beside chat replies with an accessible **View work details** control. Keep internal identifiers on the optional details page and give the touch target 44px on phones.
 - Refine the app's 2D mascots after review: each of the eight head shapes now has its own fitted dark face panel and two narrow, curved light slits. The identity picker uses the same paths as the final avatar. Individually inspected each face and responsive picker captures; the detailed 3D mascot remains exclusive to marketing.
 - Keep quick assistant setup in everyday language: it confirms the saved AI
   choice, missing app access and recurring work, and approval checks without

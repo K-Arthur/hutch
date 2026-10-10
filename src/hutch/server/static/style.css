@@ -756,8 +756,11 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 /* turn head: quiet identity row above the work — no card, no border */
 .mhead { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .mhead b { font-size: var(--fs-sm); font-weight: 650; }
-.mrun { margin-left: auto; font: 400 var(--fs-2xs)/1 var(--mono); color: var(--text-3); }
-.mrun:hover { color: var(--focus); }
+.mrun { display: inline-grid; place-items: center; flex: none; width: 36px; height: 36px; margin-left: auto;
+  border: 1px solid var(--line); border-radius: var(--r-ctl); color: var(--text-2); background: var(--bg-subtle); }
+.mrun svg { width: 16px; height: 16px; }
+.mrun:hover { color: var(--focus); background: var(--panel-hover); }
+.mrun:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 /* tool activity: plain monospace lines, no containers, no chrome.
    Fully transparent — every command and result is visible; expansion just
@@ -1970,6 +1973,7 @@ button.inline-link:hover { color: var(--text); }
   .modal-footer .btn, .modal-header .icon-btn { min-height: 44px; min-width: 44px; }
   .mhead { flex-wrap: wrap; }
   .mhead .status { flex-shrink: 0; max-width: 100%; white-space: normal; }
+  .mrun { width: 44px; height: 44px; }
   .composer-send, .composer-util { width: 44px; height: 44px; }
   .quick-prompts button, .cmenu-row { min-height: 44px; }
   .mhead [data-stop-run], #studio-stop-run, #studio-review-run { min-height: 44px; }
