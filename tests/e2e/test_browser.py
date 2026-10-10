@@ -5537,18 +5537,18 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
         assert identity["count"] == 0, "flat app avatars need no shared SVG definition IDs"
         assert len(set(identity["shapes"])) == 5, "name-derived avatars should remain distinguishable"
         assert len(set(identity["fills"])) > 1 and all(len(eyes) == 2 for eyes in identity["eyes"])
-        assert all(eye["fill"] == "#f7fff9" and eye["stroke"] is None and eye["tag"] == "path"
+        assert all(eye["fill"] == "#0b1511" and eye["stroke"] is None and eye["tag"] == "path"
                    for eyes in identity["eyes"] for eye in eyes)
         assert page.locator("#roster-list .avatar svg [data-sigil-glint]").count() == 0
-        assert all(1.7 <= float(eye["height"]) / float(eye["width"]) <= 2.5
-                   and -26 <= float(eye.get("angle", 0)) <= -10
+        assert all(1.0 <= float(eye["height"]) / float(eye["width"]) <= 1.35
+                   and -12 <= float(eye.get("angle", 0)) <= 12
                    for eyes in identity["eyes"] for eye in eyes)
-        assert all(abs(float(eyes[0].get("angle", 0)) - float(eyes[1].get("angle", 0))) <= 3
-                   for eyes in identity["eyes"])
+        assert all(abs(float(eyes[0].get("angle", 0)) + float(eyes[1].get("angle", 0))) <= 4
+                   for eyes in identity["eyes"]), "paired eyes should have a gentle mirrored tilt"
         assert all(abs(float(eyes[0]["cx"]) - float(eyes[1]["cx"])) <= 16
                    for eyes in identity["eyes"]), "paired eyes should read as one compact face"
         assert page.locator("#roster-list .avatar svg [data-sigil-outline]").count() == 0
-        assert {eye["shape"] for eyes in identity["eyes"] for eye in eyes} == {"lead", "companion"}
+        assert {eye["shape"] for eyes in identity["eyes"] for eye in eyes} == {"left", "right"}
         assert all(len({(eye["cx"], eye["cy"]) for eye in eyes}) == 2 for eyes in identity["eyes"])
 
         snapshots = []
@@ -5659,7 +5659,7 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
             "verified": ["one options button per Bot; pin and settings actions share its menu", "pin persists after reload", "coordinator stays first and cannot be pinned",
                          "search includes pinned bots", "keyboard activation and Escape restore focus", "long names truncate with an ellipsis on one line while full names remain available in the title",
                          "mobile roster has a visible close control", "phone roster reopens with all Bots visible", "phone menu target is at least 44px",
-                         "flat 2D identities use distinct silhouettes and colors with close, flowing eye marks"],
+                         "flat 2D identities use distinct silhouettes, colors, and balanced shape-fitted ink eyes"],
             "avatar_svg_ids": identity["count"], "source_sha256": {
                 relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
                 for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",

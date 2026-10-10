@@ -116,13 +116,13 @@
     "mobile roster has a visible close control",
     "phone roster reopens with all Bots visible",
     "phone menu target is at least 44px",
-    "flat 2D identities use distinct silhouettes and colors with close, flowing eye marks"
+    "flat 2D identities use distinct silhouettes, colors, and balanced shape-fitted ink eyes"
   ],
   "avatar_svg_ids": 0,
   "source_sha256": {
-    "src/hutch/server/static/app.js": "18bc816aaf05423a06832262f9ea3e6a0393aa8be9f6ce97434b4f209f868837",
-    "src/hutch/server/static/style.css": "4ef9b9a4fbf491f781f1cce7d57467604f508d927267b0e3ced9ca7b8fed8f0f",
+    "src/hutch/server/static/app.js": "4f25c441056c7cd2d2d45a889c4d790119df7f5b7f9b2d6f47a47b14229ebebb",
+    "src/hutch/server/static/style.css": "1edd163a413c064c0f23a482c733f8849c5be7b6ce93fba69649b3e2d7493daf",
     "src/hutch/server/app.py": "9d835a811f94ea5c0606c8ebfea0cbe3f18bc3e5431d47a6982b18c844160cf5",
-    "tests/e2e/test_browser.py": "5eff70143ded674556f633a56861b190390d712c1381c0a600edad47545f0288"
+    "tests/e2e/test_browser.py": "b208271d55aeca1b2591f2b053bc278c0305feb548a0df6d94ed117cbc873cf6"
   }
 }

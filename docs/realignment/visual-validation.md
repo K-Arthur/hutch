@@ -1755,6 +1755,12 @@ and [`artifacts/pinned-roster/`](artifacts/pinned-roster/). These are local
 browser fixtures, not a screen-reader or physical-phone test. The all-surface
 UI overhaul remains open.
 
+After simplifying the mascot eyes, the pinned-roster check was updated to
+assert two balanced dark eyes and rerun. It passed **1 test in 7.75s**; the
+refreshed desktop, tablet and phone captures retain the one-line long name and
+selected-row coverage. Metadata records matching current source hashes, zero
+external requests, and zero page errors.
+
 ## Chat details affordance (2026-10-10)
 
 The normal transcript now replaces a shortened execution ID with an icon button

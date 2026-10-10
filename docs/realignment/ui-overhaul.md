@@ -180,6 +180,15 @@ hashes, and trace are in
 This is a mascot correction, not completion of the broader app and marketing
 redesign.
 
+The pinned sidebar roster was rechecked after the face change. Long custom names
+stay on one line and truncate only as needed, short everyday names remain whole,
+and the selected background reaches the one ellipsis control. Pin and settings
+still share that menu. The focused browser journey passed **1 test in 7.75s**;
+desktop, tablet and phone captures in
+[`artifacts/pinned-roster/`](artifacts/pinned-roster/) show the long name and
+selected row individually. This confirms the sidebar behavior; the wider
+all-surface redesign remains open.
+
 ### Larger-roster card simplification — verified
 
 Assistant cards now lead with a one-line name, status, short description and an
