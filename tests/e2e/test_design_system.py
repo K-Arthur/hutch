@@ -103,6 +103,23 @@ def site_server():
             assert not thread.is_alive(), "local marketing preview did not stop"
 
 
+def test_studio_template_gallery_survives_background_refresh(browser, app_server):
+    """Polling an unchanged conversation must preserve asynchronously loaded welcome content."""
+    app_url, _ = app_server
+    context = browser.new_context(reduced_motion="reduce")
+    page = context.new_page()
+    try:
+        page.goto(f"{app_url}/#/chat/design-system-review", wait_until="domcontentloaded")
+        gallery = page.locator("#tpl-grid .tpl-card")
+        gallery.first.wait_for(state="visible", timeout=15_000)
+        page.evaluate("window.__galleryCard = document.querySelector('#tpl-grid .tpl-card')")
+        page.wait_for_timeout(4_400)
+        assert page.evaluate("window.__galleryCard?.isConnected") is True
+        assert gallery.count() == 6
+    finally:
+        context.close()
+
+
 def _measure_tokens(page, surface: str) -> dict:
     return page.evaluate("""surface => {
       const root = getComputedStyle(document.documentElement);
@@ -956,6 +973,18 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                 page.locator(ready_selector).first.wait_for(timeout=15_000)
                 if surface_name == "approvals":
                     page.locator("#needs-you").wait_for(state="visible")
+                if surface_name == "studio":
+                    page.locator("#chat-stream .welcome").wait_for(state="visible", timeout=15_000)
+                    assert page.locator("#chat-stream .welcome").is_visible()
+                    assert page.get_by_text("No description yet.", exact=True).count() == 0
+                    if viewport_name in {"phone", "compact-phone"}:
+                        assert page.locator("#chat-prompt").get_attribute("placeholder") == "Message…"
+                if surface_name == "connections":
+                    chatgpt_mark = page.locator(".service-mark-chatgpt img")
+                    assert chatgpt_mark.get_attribute("src") == "/static/brands/openai-white-monoblossom.svg"
+                    outlook_mark = page.locator(".service-mark-outlook [data-icon='mail']")
+                    assert outlook_mark.is_visible()
+                    assert page.get_by_role("heading", name="Microsoft Outlook", exact=True).is_visible()
                 if surface_name == "bot-settings":
                     page.wait_for_function(
                         "document.querySelector('#app-top-context h1')?.textContent.trim() === 'Design Partner settings'"
@@ -1061,16 +1090,13 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                         path=str(out / f"{surface_name}-{viewport_name}.png"), animations="disabled"
                     )
                 if surface_name == "studio" and viewport_name in {"desktop", "phone"}:
-                    geometry = page.evaluate("""async () => {
-                      const card = document.querySelector('#tpl-grid .tpl-card:last-child');
-                      const composer = document.querySelector('.composer');
-                      if (!card || !composer) return null;
-                      card.scrollIntoView({ block: 'end' });
-                      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-                      const finalCard = document.querySelector('#tpl-grid .tpl-card:last-child');
-                      return { card: finalCard?.getBoundingClientRect().toJSON(),
-                        composer: document.querySelector('.composer')?.getBoundingClientRect().toJSON() };
-                    }""")
+                    last_template = page.locator("#tpl-grid .tpl-card").last
+                    last_template.wait_for(state="visible")
+                    last_template.scroll_into_view_if_needed()
+                    geometry = {
+                        "card": last_template.evaluate("el => el.getBoundingClientRect().toJSON()"),
+                        "composer": page.locator(".composer").evaluate("el => el.getBoundingClientRect().toJSON()"),
+                    }
                     assert geometry and geometry["card"] and geometry["composer"]
                     final_template, composer_box = geometry["card"], geometry["composer"]
                     assert final_template and composer_box

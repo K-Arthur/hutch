@@ -3517,3 +3517,13 @@ After the face update and correction of the two stale visual assertions, the foc
 run-detail, and responsive-surface browser batch passed **13 tests in 54.21s**. The dedicated mascot check also passed independently
 in **5.44s**. Chromium **153.0.8010.12** and Playwright **1.63.0** used local fixtures; no provider calls or external requests
 occurred. The full broader UI overhaul remains open.
+
+## Studio welcome and service-tile refinement (2026-10-10)
+
+The empty Studio welcome no longer prints “No description yet” for a blank Bot description, and the composer uses the shorter “Message…” placeholder so a long Bot name cannot wrap it on phone. The hidden accessible label still names the selected Bot. Apps & AI category glyphs were enlarged and given stronger contrast; Outlook uses the neutral blue mail cue, while ChatGPT uses OpenAI's exact, unaltered white Blossom beside its named service. The OpenAI asset is not recolored; Hutch does not copy Microsoft's product mark without its express license. Provider asset boundaries and individual Figma/user-reference review remain documented in [`../research/icon-and-chat-interface-references-2026-10-10.md`](../research/icon-and-chat-interface-references-2026-10-10.md).
+
+The first verification rerun exposed a Studio polling regression: comparison against live `innerHTML` treated the asynchronously inserted template gallery as changed server content and replaced its cards every four seconds. Rendering now compares the canonical API-backed snapshot, preserving the gallery and any in-progress interaction across unchanged polls. A dedicated regression test retains a gallery card through a background refresh.
+
+The responsive route, gallery-refresh, and long-name roster checks passed **3 tests in 23.02s** after adding explicit blank-description, concise-composer, exact-ChatGPT-asset, Outlook-category-glyph, and sidebar-name checks. The route test captured each app route at **1440×960**, **900×1024**, **390×844**, and **320×740**; updated Studio and Apps & AI images were opened separately at desktop, tablet, and phone sizes. Chromium **153.0.8010.12** / Playwright **1.63.0** made no external requests or provider calls. JavaScript syntax validation passed. Current focused captures and metadata are in [`artifacts/studio-service-refinement/`](artifacts/studio-service-refinement/); the broader route baseline remains in [`artifacts/ui-surface-review/`](artifacts/ui-surface-review/).
+
+This focused correction does not close the `surface-overhaul-polish` checkpoint. The cross-product design-system audit and independent page-by-page visual overhaul remain an explicit completion gate after the outstanding functionality slices.

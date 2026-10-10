@@ -600,7 +600,9 @@ function serviceMark(kind) {
   const serviceIcons = {
     calendar: "calendar",
     gmail: "mail",
-    outlook: "inbox",
+    // Use the familiar, neutral mail category glyph; Microsoft product marks
+    // stay reserved for the unchanged official sign-in control.
+    outlook: "mail",
     hosted: "cloud",
     local: "monitor",
   };
@@ -2332,7 +2334,7 @@ async function renderChatStudio(preferredBot = null) {
                 </div>
               </div>
               <label class="visually-hidden" for="chat-prompt">Message ${esc(bot.display_name || bot.name)}</label>
-              <textarea class="composer-textarea" id="chat-prompt" rows="1" placeholder="Message ${esc(bot.display_name || bot.name)}…" aria-describedby="chat-help"></textarea>
+              <textarea class="composer-textarea" id="chat-prompt" rows="1" placeholder="Message…" aria-describedby="chat-help"></textarea>
               <div class="composer-actions">
                 <span class="model-switch-slot" id="model-switch-slot"></span>
                 <button class="composer-send" id="chat-send" type="submit" aria-label="Send message">${icon("up")}</button>
@@ -2971,6 +2973,7 @@ function scheduleFeedRender() {
 // the active one re-renders as events arrive.
 const terminalRunCache = new Map();
 const terminalRunReplyCache = new Set();
+const chatRenderSnapshots = new WeakMap();
 
 async function renderChatFeed() {
   if (feedMode !== "studio") return;
@@ -3014,9 +3017,12 @@ async function renderChatFeed() {
     // Polling can return the same snapshot many times. Avoid replacing the
     // transcript DOM on a no-op refresh: doing so drops focus and invalidates
     // element references while someone is reading or interacting with a card.
-    if (stream.innerHTML === nextHtml) return;
+    // Compare the server-rendered snapshot, not innerHTML: wireWelcome() adds
+    // the async template gallery after this markup is installed.
+    if (chatRenderSnapshots.get(stream) === nextHtml) return;
     const factUi = captureFactUi(stream);
     stream.innerHTML = nextHtml;
+    chatRenderSnapshots.set(stream, nextHtml);
     wireWelcome();
     wireFactControls(factPage.facts || [], currentStudioBot, factShares);
     $('[data-retry-facts]', stream)?.addEventListener('click', () => scheduleFeedRender());
@@ -3062,8 +3068,9 @@ async function renderChatFeed() {
   const focusedFact = focused?.dataset.factReview;
   const factUi = captureFactUi(stream);
   const nextHtml = parts.join("") + factPanelHtml(factPage.facts || [], factPage.error, factShares);
-  if (stream.innerHTML === nextHtml) return;
+  if (chatRenderSnapshots.get(stream) === nextHtml) return;
   stream.innerHTML = nextHtml;
+  chatRenderSnapshots.set(stream, nextHtml);
   $$("[data-approval-card] details", stream).forEach(d => {
     const id = d.closest("[data-approval-card]").dataset.approvalCard;
     if (reviewState.has(id)) d.open = reviewState.get(id);
@@ -3354,6 +3361,7 @@ const seenRunStatus = new Map();
 function welcomeHtml() {
   const b = botsCache.find(x => x.name === currentStudioBot);
   if (!b) return "";
+  const description = String(b.description || "").trim();
   return `
     <div class="welcome">
       <div class="welcome-hero">
@@ -3361,7 +3369,7 @@ function welcomeHtml() {
           ${avatarFromPair(sigilPair(b.name), 160)}
         </div>
         <h2>${esc(botDisplayName(b))}</h2>
-        <p class="hint">${esc(b.description || "No description yet.")}</p>
+        ${description ? `<p class="hint">${esc(description)}</p>` : ""}
       </div>
       <div class="welcome-steps">
         <p><b>Start a conversation.</b> Send a task below, or choose an earlier conversation above. Actions that need a decision appear here.</p>

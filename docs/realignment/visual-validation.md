@@ -1426,11 +1426,12 @@ No screen reader or physical mobile device was used.
 
 The first visual pass bundled Google Calendar and Gmail SVGs locally. A later
 brand-permission review found that those files were from an older icon generation
-and that Hutch has no documented permission to ship Google, Microsoft, or OpenAI
-product marks in the app or marketing site. That trial was removed. Current
-surfaces use Hutch-colored category glyphs instead, with exact service names
-visible in Apps & AI; these glyphs are not provider logos. The ChatGPT mark was
-found, but not added without permission. Relevant primary guidance: [Google
+and that Hutch has no documented permission to ship Google or Microsoft product
+marks in the app or marketing site. That trial was removed. Current surfaces use
+Hutch-colored category glyphs beside exact service names; these glyphs are not
+provider logos. The official, unaltered white OpenAI Blossom is used only beside
+the explicitly named ChatGPT service in its directly related app context, under
+OpenAI's published use terms. Relevant primary guidance: [Google
 product-icon usage](https://partnermarketinghub.withgoogle.com/brands/google/branding-guidelines/how-to-show-googles-brand/),
 [Microsoft Trademark and Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks) and [Microsoft Copyright Permissions](https://www.microsoft.com/en-us/legal/intellectualproperty/copyright/permissions),
 and [OpenAI Brand Guidelines](https://openai.com/brand/).
@@ -1486,6 +1487,36 @@ No live provider, physical device, or screen reader was used. Mobbin remained
 behind its paid-plan gate and Figma node-level retrieval was blocked by the
 connected account's Starter-plan tool limit, so neither is claimed as a source
 for this pass.
+
+## Studio welcome and service-tile refinement (2026-10-10)
+
+Independent Studio and Apps & AI captures showed two avoidable rough edges: a
+blank assistant description appeared as the literal “No description yet,” and
+the long assistant-specific composer placeholder wrapped on phone. Studio now
+omits that empty description and uses a short “Message…” placeholder while its
+accessible label continues to name the assistant. The ChatGPT mark remains the
+exact white OpenAI asset; generic mail and calendar cues are slightly larger and
+more legible, with Outlook still using a neutral blue mail symbol rather than an
+unlicensed Microsoft product icon.
+
+The responsive route test checked Studio and Apps & AI, along with the other
+workspace routes and marketing, at **1440×960**, **900×1024**, **390×844**, and
+**320×740**. I opened the updated Studio and Apps & AI screens separately at
+desktop, tablet, and phone sizes. The test also verifies that blank description
+copy stays absent, the phone composer remains concise, ChatGPT loads the exact
+local Blossom asset, Outlook has a distinct blue mail cue beside its full name,
+and long sidebar assistant names keep their one-line/ellipsis behavior.
+
+The same rerun exposed an async gallery race: the four-second conversation
+refresh compared its server snapshot with live DOM after `wireWelcome()` had
+inserted template cards, so it replaced the gallery and detached its cards.
+Studio now compares the last canonical server snapshot held for that feed, so
+the asynchronous enhancement does not trigger a redundant rerender. A browser
+regression check retains the same template card through a full background
+refresh. The focused route, refresh, and roster run passed **3 tests in 23.02s**
+on Chromium **153.0.8010.12** / Playwright **1.63.0** with no external requests
+or provider calls. See the individually inspected Studio and Apps & AI captures
+in [`artifacts/studio-service-refinement/`](artifacts/studio-service-refinement/).
 
 ## Follow-up: mascot face correction and final roster check (2026-10-10)
 

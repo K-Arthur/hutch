@@ -10,6 +10,7 @@
 
 - Refined the app mascot faces into a simple pair of solid, softly oval ink eyes. Their size, spacing, and tilt adapt to all eight head shapes; the separate marketing mascot is unchanged.
 - Apps & AI now pairs the unaltered OpenAI Blossom with the named ChatGPT service. Outlook keeps a neutral mail glyph; Microsoft's unmodified sign-in lockup appears only on account-authorization buttons. Gmail remains a category glyph.
+- Empty assistant welcomes no longer show “No description yet,” and the composer uses a short “Message…” prompt so a long assistant name cannot wrap it on phones. Background refreshes preserve the async template gallery instead of replacing its cards. Service glyphs have clearer size and color contrast while remaining distinct from provider logos.
 - Short desktop windows use a compact first-run welcome so the main setup action can remain in the first screen. Assistant names remain single-line in the roster, and the active selection continues through its one options button.
 - The responsive browser checks now cover the short desktop welcome, colored app tiles, shape-fitted oval eyes, selected-row coverage, and single-line names. New screenshots are individually reviewed before this UI slice is committed.
 
