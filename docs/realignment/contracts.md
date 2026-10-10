@@ -74,27 +74,31 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   never retries a timeout, server error, redirect or unverifiable receipt; those outcomes require a Sent-folder check. Google acceptance
   is not delivery confirmation. Connections can revoke or disconnect sending without changing search access. Public OAuth verification,
   applicable read-scope security assessment and live consent remain unverified; no provider request was used.
-* **Outlook Calendar (experimental, schema v33).** `GET /api/v1/connections/outlook-calendar` returns typed, credential-free
+* **Outlook Calendar (experimental, schemas v33 and v48).** `GET /api/v1/connections/outlook-calendar` returns typed, credential-free
   account and Bot-grant metadata. Sign-in begins at `POST /api/v1/connections/outlook-calendar/sign-in` and returns a validated
   Microsoft authorization URL; Microsoft returns only to the local loopback callback. Calendar listing, one-calendar-per-Bot
   grant/revoke, and local-account disconnect are exposed under `/api/v1/connections/outlook-calendar`. Disconnect clears Hutch's
   refresh token/grants but does not revoke account-level Microsoft consent. The Bot read tool returns at most 25 events and only
-  subject, start, end and location; its grant is rechecked for each invocation. This Calendar connection exposes no mail or
-  calendar-write operation.
+  subject, start, end and location; its grant is rechecked for each invocation. Event creation uses a separate
+  `/api/v1/connections/outlook-calendar-write` account, PKCE callback, Secret Service namespace and per-Bot selected-calendar
+  grant. It requests delegated `Calendars.ReadWrite`, which is account-wide and permits create/read/change/delete, while Hutch
+  exposes only guest-free event creation on that one calendar after exact approval every time. It verifies the created event by
+  reading it back and leaves ambiguous writes `outcome_unknown` for reconciliation. No edit, delete, invitation or Strict Offline
+  action exists. Live Microsoft consent and Graph writes remain unverified.
 * **Outlook Mail search (experimental, schema v35).** `GET /api/v1/connections/outlook-mail` returns typed, credential-free account
   and Bot-grant metadata. `POST /api/v1/connections/outlook-mail/sign-in` starts an isolated local PKCE flow that requests delegated
   `Mail.Read` and `offline_access`; it does not reuse Calendar's credential. The callback is loopback-only, one-use, and scrubbed from
   access logs. The owner grants one mailbox to one Bot. `outlook_mail_search` uses the fixed Graph v1.0 `/me/messages` `$search`
   endpoint, which includes Deleted Items and Clutter, and returns at most ten sender/subject/date/body-preview records. Preview text
-  is untrusted and enters the selected model and the run history. A separate API-only send preview uses
+  is untrusted and enters the selected model and the run history. A separate send preview uses
   `GET /api/v1/connections/outlook-mail-send`, `POST .../sign-in`, `POST .../grants`, grant deletion, and account disconnect
   under the same resource path. Its isolated local PKCE flow requests delegated `Mail.Send` and `offline_access` and the callback
   is included in OAuth query scrubbing. `outlook_mail_send` is available only to a Bot with an explicit send-only account grant,
   outside Strict Offline mode. Each request is one new plain-text message to at most five addresses, and requires exact outward
   approval of account, recipients, subject and body even in auto mode. It makes one fixed Graph v1.0 `/me/sendMail` POST; timeout,
   server error, redirect or non-202 2xx is `outcome_unknown` and never automatically replayed. `202 Accepted` does not confirm
-  delivery. No reply, forward, attachment, CC, BCC, modify or delete action exists. The send flow currently has no Apps & AI setup
-  UI. Removing a grant blocks later calls; disconnect removes the local refresh token/grants but leaves Microsoft consent for the
+  delivery. No reply, forward, attachment, CC, BCC, modify or delete action exists. The optional send setup is in Connections
+  under Outlook Mail. Removing a grant blocks later calls; disconnect removes the local refresh token/grants but leaves Microsoft consent for the
   account owner to revoke separately. Account consent and live Graph behavior remain unverified.
 * **Coordinator specialist handoff, explicit result return, progress markers, and task-only reviewed facts (schema v32).** `GET /api/v1/workspace/tasks?conversation_id={id}&limit=100` returns up to 100
   task records scoped to one coordinator conversation, including source request/answer IDs, the proposed and reviewed briefs,

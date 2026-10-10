@@ -1,0 +1,102 @@
+{
+  "test": "tests/e2e/test_browser.py::test_outlook_calendar_event_creation_is_separate_approved_and_responsive",
+  "captured_at": "2026-10-10T20:25:32.452490+00:00",
+  "browser": "153.0.8010.12",
+  "provider_credentials_used": false,
+  "provider_calls": 0,
+  "scenario": "Synthetic Microsoft sign-in and calendar list, real local connection API and per-Bot grant; no event was sent",
+  "external_requests": [],
+  "page_errors": [],
+  "permission_review_captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "scene": "separate scope and exact-approval disclosure",
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "scene": "separate scope and exact-approval disclosure",
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "scene": "separate scope and exact-approval disclosure",
+      "horizontal_overflow": 0
+    }
+  ],
+  "approval_notice_captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "scene": "exact event approval and uncertain-result boundary"
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "scene": "exact event approval and uncertain-result boundary"
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "scene": "exact event approval and uncertain-result boundary"
+    }
+  ],
+  "grant_captures": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "scene": "separate event-creation account and selected-calendar Bot grant",
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "scene": "separate event-creation account and selected-calendar Bot grant",
+      "horizontal_overflow": 0
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "scene": "separate event-creation account and selected-calendar Bot grant",
+      "horizontal_overflow": 0
+    }
+  ],
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "9416d78e38c9de5603225114062fafbc5fd80e5e832bf2c36adf7e31be5a3f74",
+    "src/hutch/server/app.py": "743ab6fae831bef9bed41f842ac4775b9f1f9cca2e7df177d3f0ceb0934f71f3",
+    "src/hutch/server/security.py": "b83059b4571344c2d0a057305b9e086c46b9905f5772a9ca97c90d46c25c7f0c",
+    "src/hutch/store.py": "922dd5eed149ccfa371fb13e8a6c453b346a2a4183e11a6afbda0d6073d6b53a",
+    "src/hutch/outlook_calendar_write.py": "63e4cc7f0ec54dbe7bcf3ee9f99c02c681d89c050ddd44dc9691c9618b93450e",
+    "src/hutch/tools/outlook_calendar_write.py": "8c298493185b76103064de1198c15425f2bf6e2fb158124dca9eca51a4538fa0"
+  }
+}

@@ -466,9 +466,10 @@ const googleCalendarResult = chatgptCallback.get("google_calendar_result");
 const googleMailResult = chatgptCallback.get("google_mail_result");
 const googleMailSendResult = chatgptCallback.get("google_mail_send_result");
 const outlookCalendarResult = chatgptCallback.get("outlook_calendar_result");
+const outlookCalendarWriteResult = chatgptCallback.get("outlook_calendar_write_result");
 const outlookMailResult = chatgptCallback.get("outlook_mail_result");
 const outlookMailSendResult = chatgptCallback.get("outlook_mail_send_result");
-if (chatgptResult || googleCalendarResult || googleMailResult || googleMailSendResult || outlookCalendarResult || outlookMailResult || outlookMailSendResult) {
+if (chatgptResult || googleCalendarResult || googleMailResult || googleMailSendResult || outlookCalendarResult || outlookCalendarWriteResult || outlookMailResult || outlookMailSendResult) {
   const detail = chatgptCallback.get("detail");
   const message = googleMailSendResult
     ? googleMailSendResult === "connected" ? "Gmail send-only account connected. Grant one assistant permission to prepare messages; each send still needs your approval."
@@ -482,6 +483,9 @@ if (chatgptResult || googleCalendarResult || googleMailResult || googleMailSendR
     : googleMailResult
     ? googleMailResult === "connected" ? "Gmail account connected. Grant one Local-inference Bot search access from Connections."
       : detail || "Gmail sign-in did not complete. Start again from Connections."
+    : outlookCalendarWriteResult
+    ? outlookCalendarWriteResult === "connected" ? "Outlook event-creation account connected. Choose one calendar and grant one assistant permission to create events after your approval."
+      : detail || "Outlook event-creation sign-in did not complete. Start again from Connections."
     : outlookCalendarResult
     ? outlookCalendarResult === "connected" ? "Outlook Calendar account connected. Choose a calendar and grant one Bot read access from Connections."
       : detail || "Outlook Calendar sign-in did not complete. Start again from Connections."
@@ -491,7 +495,7 @@ if (chatgptResult || googleCalendarResult || googleMailResult || googleMailSendR
     : chatgptResult === "connected" ? "ChatGPT plan route connected."
     : chatgptResult === "identity-only" ? "ChatGPT signed in, but plan use was not granted. Reauthorize to use it for models."
     : detail || "ChatGPT sign-in did not complete. Start again from Connections.";
-  setTimeout(() => toast(message, chatgptResult === "error" || googleCalendarResult === "error" || googleMailResult === "error" || outlookCalendarResult === "error" || outlookMailResult === "error" || outlookMailSendResult === "error"), 0);
+  setTimeout(() => toast(message, chatgptResult === "error" || googleCalendarResult === "error" || googleMailResult === "error" || outlookCalendarResult === "error" || outlookCalendarWriteResult === "error" || outlookMailResult === "error" || outlookMailSendResult === "error"), 0);
   history.replaceState(null, "", `${location.pathname}${location.hash || "#/connections"}`);
 }
 
@@ -6026,11 +6030,13 @@ async function renderConnections() {
   const googleMailSend = data.google_mail_send || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const googleMailSendBots = bots.filter(bot => bot.inference_mode !== "offline");
   const outlookCalendar = data.outlook_calendar || { configured: false, secret_store_available: false, accounts: [], grants: [] };
+  const outlookCalendarWrite = data.outlook_calendar_write || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const outlookMail = data.outlook_mail || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const outlookMailSend = data.outlook_mail_send || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const windows = { "5h": "per 5 hours", "day": "per day", "week": "per week", "month": "per month" };
   const devicesOpen = $(".device-manager")?.open || false;
   const outlookCalendarAccessOpen = $("#outlook-calendar-access")?.open || false;
+  const outlookCalendarWriteAccessOpen = $("#outlook-calendar-write-access")?.open || false;
   const outlookMailAccessOpen = $("#outlook-mail-access")?.open || false;
   const outlookMailSendAccessOpen = $("#outlook-mail-send-access")?.open || false;
   const googleMailAccessOpen = $("#google-mail-access")?.open || false;
@@ -6150,6 +6156,35 @@ async function renderConnections() {
   }).join("");
   const orphanOutlookGrants = (outlookCalendar.grants || []).filter(grant =>
     !(outlookCalendar.accounts || []).some(account => account.id === grant.account_id));
+  const outlookCalendarWriteAccountsHtml = (outlookCalendarWrite.accounts || []).map(account => {
+    const grants = (outlookCalendarWrite.grants || []).filter(grant => grant.account_id === account.id);
+    const grantRows = grants.length ? grants.map(grant => `
+      <div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Can create approved events on ${esc(grant.calendar_name)} · ${esc(account.label)}</p></div>
+        <button class="btn ghost small" type="button" data-outlook-calendar-write-ungrant="${esc(grant.bot_id)}">Revoke event access</button></div>`).join("")
+      : '<p class="hint">No assistant has event-creation access to this account.</p>';
+    return `<article class="google-calendar-account" data-outlook-calendar-write-account="${esc(account.id)}">
+      <div class="device-row"><div><strong>${esc(account.label)}</strong> <span class="chip ok">connected</span>
+        <p class="hint">Separate Calendars.ReadWrite sign-in · connected ${esc(new Date(account.created_at).toLocaleDateString())}</p></div>
+        <button class="btn danger small" type="button" data-outlook-calendar-write-disconnect="${esc(account.id)}">Disconnect</button>
+      </div>
+      <div class="google-calendar-grants" aria-label="Assistants with Outlook event-creation access">${grantRows}</div>
+      <div class="google-calendar-grant-form" data-outlook-calendar-write-grant-form="${esc(account.id)}">
+        <label class="field">Choose an assistant
+          <select data-outlook-calendar-write-bot ${bots.length ? "" : "disabled"} aria-label="Assistant for Outlook event access">
+            ${bots.length ? bots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("") : '<option value="">Create an assistant first</option>'}
+          </select>
+        </label>
+        <button class="btn ghost small" type="button" data-outlook-calendar-write-load-calendars="${esc(account.id)}" ${bots.length ? "" : "disabled"}>Load calendars</button>
+        <label class="field" hidden data-outlook-calendar-write-calendar-field>Calendar
+          <select data-outlook-calendar-write-calendar aria-label="Outlook calendar for event creation" disabled><option value="">Choose a calendar…</option></select>
+        </label>
+        <button class="btn primary small" type="button" data-outlook-calendar-write-grant="${esc(account.id)}" disabled>Allow approved event creation</button>
+        <p class="hint" role="status" aria-live="polite" data-outlook-calendar-write-status></p>
+      </div>
+    </article>`;
+  }).join("");
+  const orphanOutlookCalendarWriteGrants = (outlookCalendarWrite.grants || []).filter(grant =>
+    !(outlookCalendarWrite.accounts || []).some(account => account.id === grant.account_id));
   const outlookMailAccountsHtml = (outlookMail.accounts || []).map(account => {
     const grants = (outlookMail.grants || []).filter(grant => grant.account_id === account.id);
     const grantRows = grants.length ? grants.map(grant => `
@@ -6354,8 +6389,8 @@ async function renderConnections() {
       </section>
       <section class="panel conn-card outlook-calendar-card" id="connection-outlook-calendar" aria-labelledby="outlook-calendar-title">
         <div class="bot-head"><span class="bot-name" id="outlook-calendar-title">Outlook Calendar</span>
-          <span class="tag">experimental</span><span class="tag">read only</span></div>
-        <p class="hint">Connect a Microsoft account through its official local sign-in flow. Hutch uses delegated <code>Calendars.ReadBasic</code>; it cannot read event bodies, attachments or extensions. Grant one selected calendar to one Bot. Matching titles, times and locations go to that Bot's selected model and remain in its run history.</p>
+          <span class="tag">experimental</span><span class="tag">read, with optional event creation</span></div>
+        <p class="hint">Connect a Microsoft account to let an assistant check one selected calendar. The default sign-in uses delegated <code>Calendars.ReadBasic</code>; event bodies, attachments and extensions are not available. Event creation is a separate optional sign-in and requires your approval each time.</p>
         <p class="hint"><strong>Permission boundary:</strong> Microsoft consent applies to the signed-in account. Hutch enforces each Bot's selected-calendar grant locally, and calendar text stays untrusted. Disconnect clears Hutch's refresh credential and Bot grants; Microsoft consent must be revoked separately in your account or organisation settings.</p>
         <details class="outlook-calendar-details" id="outlook-calendar-access">
           <summary>Manage Outlook Calendar access</summary>
@@ -6370,6 +6405,22 @@ async function renderConnections() {
           </div>
           ${outlookCalendarAccountsHtml || '<p class="hint">No Outlook Calendar accounts connected.</p>'}
           ${orphanOutlookGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-outlook-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
+          <details class="outlook-mail-send-details" id="outlook-calendar-write-access" ${outlookCalendarWriteAccessOpen ? "open" : ""}>
+            <summary>Add event creation (optional)</summary>
+            <p class="hint">This needs a separate Microsoft sign-in for <code>Calendars.ReadWrite</code>. Microsoft grants that permission to create, read, change and delete events across the signed-in user's calendars. Hutch keeps this token separate and only gives an assistant the ability to create guest-free events on the one calendar you select. Hutch does not expose event editing or deletion.</p>
+            <div class="outlook-mail-send-safety"><strong>Every event needs your exact approval.</strong><p class="hint">The approval shows the title, time, description, location, account and calendar. Hutch creates once, checks the event details with Microsoft, and never retries an uncertain result. Disconnect removes Hutch's credential; revoke Microsoft's broader account permission in your Microsoft account or organisation settings.</p></div>
+            ${!outlookCalendarWrite.configured ? '<p class="hint" role="status">Unavailable until the Hutch operator configures <code>HUTCH_OUTLOOK_OAUTH_CLIENT_ID</code> for a Microsoft public-client application registration.</p>' : ''}
+            ${outlookCalendarWrite.configured && !outlookCalendarWrite.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting an account. Refresh tokens stay outside SQLite and browser storage.</p>' : ''}
+            <div class="google-calendar-connect outlook-calendar-connect">
+              <label class="field" for="outlook-calendar-write-label">Event-creation account label
+                <input id="outlook-calendar-write-label" type="text" maxlength="80" autocomplete="off" placeholder="Work calendar" aria-describedby="outlook-calendar-write-help">
+              </label>
+              <button class="microsoft-signin-button" id="outlook-calendar-write-connect" type="button" aria-label="Sign in with Microsoft for event creation" ${!outlookCalendarWrite.configured || !outlookCalendarWrite.secret_store_available ? "disabled" : ""}><img src="/static/brands/ms-symbollockup_signin_dark.svg" width="215" height="41" alt=""></button>
+              <p class="hint" id="outlook-calendar-write-help">Use a Microsoft registration that supports your account type. Add <code>http://localhost/api/v1/connections/outlook-calendar-write/callback</code> under Mobile and desktop application redirects. Sign in from this Hutch host.</p>
+            </div>
+            ${outlookCalendarWriteAccountsHtml || '<p class="hint">No Outlook event-creation accounts connected.</p>'}
+            ${orphanOutlookCalendarWriteGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved event-creation grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookCalendarWriteGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Can create approved events on ${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-outlook-calendar-write-ungrant="${esc(grant.bot_id)}">Revoke event access</button></div>`).join("")}</div>` : ''}
+          </details>
         </details>
       </section>
       <section class="panel conn-card outlook-calendar-card outlook-mail-card" id="connection-outlook-mail" aria-labelledby="outlook-mail-title">
@@ -7036,6 +7087,120 @@ async function renderConnections() {
       button.disabled = true;
       try {
         const result = await api(`/v1/connections/outlook-calendar/accounts/${encodeURIComponent(button.dataset.outlookCalendarDisconnect)}/disconnect`, { method: "POST", body: {} });
+        toast(result.detail);
+        await renderConnections();
+      } catch (err) { button.disabled = false; toast(err.message, true); }
+    });
+  });
+
+  $("#outlook-calendar-write-connect")?.addEventListener("click", async event => {
+    const button = event.currentTarget;
+    const label = $("#outlook-calendar-write-label")?.value.trim();
+    if (!label) { toast("Enter a label for this Outlook event-creation account.", true); $("#outlook-calendar-write-label")?.focus(); return; }
+    const authWindow = window.open("about:blank", "_blank");
+    if (!authWindow) {
+      toast("Allow Hutch to open a browser tab, then try Microsoft sign-in again.", true);
+      return;
+    }
+    authWindow.opener = null;
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+    try {
+      const result = await api("/v1/connections/outlook-calendar-write/sign-in", { method: "POST", body: { label } });
+      let authUrl;
+      try { authUrl = new URL(result.authorization_url); }
+      catch { throw new Error("Hutch returned an invalid Microsoft sign-in destination."); }
+      if (authUrl.origin !== "https://login.microsoftonline.com" ||
+          authUrl.pathname !== "/common/oauth2/v2.0/authorize" ||
+          authUrl.username || authUrl.password || authUrl.hash || !authUrl.search) {
+        throw new Error("Hutch returned an unexpected Microsoft sign-in destination.");
+      }
+      authWindow.location.replace(authUrl.href);
+      toast("Finish Microsoft sign-in in the new browser tab, then reload Connections here.");
+    } catch (err) {
+      authWindow.close();
+      toast(err.message, true);
+    } finally {
+      button.disabled = false;
+      button.removeAttribute("aria-busy");
+    }
+  });
+  $$('[data-outlook-calendar-write-load-calendars]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const form = button.closest("[data-outlook-calendar-write-grant-form]");
+      const status = $("[data-outlook-calendar-write-status]", form);
+      const calendarField = $("[data-outlook-calendar-write-calendar-field]", form);
+      const calendarSelect = $("[data-outlook-calendar-write-calendar]", form);
+      const grantButton = $("[data-outlook-calendar-write-grant]", form);
+      button.disabled = true;
+      button.textContent = "Loading…";
+      status.textContent = "Loading calendars from Microsoft…";
+      try {
+        const result = await api(`/v1/connections/outlook-calendar-write/calendars?account_id=${encodeURIComponent(button.dataset.outlookCalendarWriteLoadCalendars)}`);
+        const rows = result.calendars || [];
+        calendarSelect.innerHTML = `<option value="">Choose a calendar…</option>${rows.map(calendar => `<option value="${esc(calendar.id)}">${esc(calendar.name)}${calendar.primary ? " · default" : ""}</option>`).join("")}`;
+        calendarField.hidden = false;
+        calendarSelect.disabled = false;
+        grantButton.disabled = true;
+        status.textContent = rows.length ? `${rows.length} calendar${rows.length === 1 ? "" : "s"} loaded. Select one to continue.` : "Microsoft returned no calendars for this account.";
+        calendarSelect.focus();
+      } catch (err) { status.textContent = err.message; }
+      finally { button.disabled = false; button.textContent = "Load calendars"; }
+    });
+  });
+  $$('[data-outlook-calendar-write-grant-form] [data-outlook-calendar-write-calendar]').forEach(select => {
+    select.addEventListener("change", () => {
+      const form = select.closest("[data-outlook-calendar-write-grant-form]");
+      $("[data-outlook-calendar-write-grant]", form).disabled = !select.value;
+    });
+  });
+  $$('[data-outlook-calendar-write-grant]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const form = button.closest("[data-outlook-calendar-write-grant-form]");
+      const bot = $("[data-outlook-calendar-write-bot]", form).value;
+      const calendar = $("[data-outlook-calendar-write-calendar]", form).value;
+      const status = $("[data-outlook-calendar-write-status]", form);
+      const existing = (outlookCalendarWrite.grants || []).find(grant => grant.bot_id === bot);
+      if (existing && !(await confirmDialog({
+        title: "Replace event-creation access",
+        body: `<b>${esc(grantedBotLabel(existing))}</b> already has permission to create events on <b>${esc(existing.calendar_name)}</b>. Replace it with the selected calendar?`,
+        confirmText: "Replace access",
+      }))) return;
+      button.disabled = true;
+      status.textContent = "Verifying the selected calendar with Microsoft…";
+      try {
+        const result = await api("/v1/connections/outlook-calendar-write/grants", { method: "POST", body: {
+          bot, account_id: button.dataset.outlookCalendarWriteGrant, calendar_id: calendar } });
+        toast(result.detail);
+        await renderConnections();
+      } catch (err) { status.textContent = err.message; button.disabled = false; }
+    });
+  });
+  $$('[data-outlook-calendar-write-ungrant]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const grant = (outlookCalendarWrite.grants || []).find(row => row.bot_id === button.dataset.outlookCalendarWriteUngrant);
+      if (!(await confirmDialog({ title: "Revoke assistant event access",
+        body: `Stop <b>${esc(grantedBotLabel(grant))}</b> from creating Outlook Calendar events?`,
+        confirmText: "Revoke access" }))) return;
+      button.disabled = true;
+      try {
+        await api(`/v1/connections/outlook-calendar-write/grants/${encodeURIComponent(button.dataset.outlookCalendarWriteUngrant)}`, { method: "DELETE" });
+        toast("Outlook Calendar event access revoked for this assistant.");
+        await renderConnections();
+      } catch (err) { button.disabled = false; toast(err.message, true); }
+    });
+  });
+  $$('[data-outlook-calendar-write-disconnect]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const account = (outlookCalendarWrite.accounts || []).find(row => row.id === button.dataset.outlookCalendarWriteDisconnect);
+      const botNames = (outlookCalendarWrite.grants || []).filter(row => row.account_id === account?.id).map(grantedBotLabel);
+      const grants = botNames.length ? `<p>This also removes Hutch event access for ${botNames.map(esc).join(", ")}.</p>` : "";
+      if (!(await confirmDialog({ title: "Disconnect Outlook event creation",
+        body: `Clear Hutch's separate event-creation credential for <b>${esc(account?.label || "this account")}</b>? Microsoft consent remains account-wide until revoked in your Microsoft account or organisation settings.${grants}`,
+        confirmText: "Disconnect", danger: true }))) return;
+      button.disabled = true;
+      try {
+        const result = await api(`/v1/connections/outlook-calendar-write/accounts/${encodeURIComponent(button.dataset.outlookCalendarWriteDisconnect)}/disconnect`, { method: "POST", body: {} });
         toast(result.detail);
         await renderConnections();
       } catch (err) { button.disabled = false; toast(err.message, true); }

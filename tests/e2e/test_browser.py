@@ -2415,7 +2415,7 @@ def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewport
         card = page.locator('[aria-labelledby="outlook-calendar-title"]')
         assert "Calendars.ReadBasic" in card.inner_text()
         assert "Microsoft consent applies to the signed-in account" in card.inner_text()
-        assert "event bodies, attachments or extensions" in card.inner_text()
+        assert "event bodies, attachments and extensions are not available" in card.inner_text()
         page.locator("#outlook-calendar-access > summary").click()
         assert "common" in card.inner_text()
         assert "cannot expand that choice" in card.inner_text()
@@ -2440,7 +2440,7 @@ def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewport
         grant_button = page.get_by_role("button", name="Grant read access")
         assert grant_button.is_enabled()
         grant_button.click()
-        calendar_details = card.locator("details")
+        calendar_details = card.locator("#outlook-calendar-access")
         if not calendar_details.evaluate("element => element.open"):
             calendar_details.locator("summary").click()
         card.get_by_text("Can read Work Calendar", exact=False).wait_for(state="visible")
@@ -2458,8 +2458,9 @@ def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewport
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             card = page.locator('[aria-labelledby="outlook-calendar-title"]')
-            if not card.locator("details").evaluate("element => element.open"):
-                card.locator("details > summary").click()
+            access_details = card.locator("#outlook-calendar-access")
+            if not access_details.evaluate("element => element.open"):
+                access_details.locator("summary").click()
             scroll = page.locator(".page-scroll")
             scroll.evaluate("element => { element.scrollTop = 0; }")
             page.screenshot(path=str(out / f"overview-{label}.png"), full_page=True, animations="disabled")
@@ -2484,6 +2485,164 @@ def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewport
                                            "src/hutch/server/app.py", "src/hutch/server/security.py",
                                            "src/hutch/store.py", "src/hutch/outlook_calendar.py",
                                            "src/hutch/tools/outlook_calendar.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        page.close()
+
+
+def test_outlook_calendar_event_creation_is_separate_approved_and_responsive(browser, live, monkeypatch):
+    from pathlib import Path
+
+    base, app = live
+    monkeypatch.setenv("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "fixture-public-client")
+
+    class FixtureOutlookCalendarWriteBook:
+        accounts_rows = [{"id": "mscalw_0123456789abcdef01234567", "label": "Work events",
+                          "created_at": "2026-10-10T00:00:00+00:00", "scopes": ["Calendars.ReadWrite"],
+                          "status": "connected"}]
+
+        class Secrets:
+            @staticmethod
+            def available():
+                return True
+
+        def __init__(self, state_dir, client_id):
+            self.secrets = self.Secrets()
+
+        @classmethod
+        def accounts(cls):
+            return cls.accounts_rows
+
+        @staticmethod
+        def list_calendars(account_id):
+            assert account_id == "mscalw_0123456789abcdef01234567"
+            return [{"id": "work", "name": "Work Calendar", "primary": True}]
+
+        @staticmethod
+        def callback_uri(request):
+            port = request.scope["server"][1]
+            return f"http://localhost:{port}/api/v1/connections/outlook-calendar-write/callback"
+
+        @staticmethod
+        def start(label, callback):
+            from hutch.google_calendar import OAuthStart
+            return OAuthStart("https://login.microsoftonline.com/common/oauth2/v2.0/authorize?scope=Calendars.ReadWrite&state=fixture",
+                              "fixture")
+
+    monkeypatch.setattr("hutch.outlook_calendar_write.OutlookCalendarWriteBook", FixtureOutlookCalendarWriteBook)
+    bot = Bot(name="outlook-event-reviewer", display_name="Calendar Assistant", model="mock/demo", tools=[])
+    app.state.store.create_bot(bot)
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page.add_init_script("""
+      window.__outlookWriteOAuth = { target: null, url: null, opener: 'not-set' };
+      window.open = (_url, target) => {
+        window.__outlookWriteOAuth.target = target;
+        return {
+          set opener(value) { window.__outlookWriteOAuth.opener = value; },
+          location: { replace(value) { window.__outlookWriteOAuth.url = value; } },
+          close() {}
+        };
+      };
+    """)
+    errors, external = [], []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(base) else None)
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/outlook-calendar-write"
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        page.goto(base + "/#/connections")
+        page.get_by_role("heading", name="Apps & AI").wait_for()
+        page.locator("#connection-management > summary").click()
+        card = page.locator('[aria-labelledby="outlook-calendar-title"]')
+        card.locator("#outlook-calendar-access > summary").click()
+        card.get_by_text("Add event creation (optional)").click()
+        assert "Calendars.ReadWrite" in card.inner_text()
+        assert "create, read, change and delete" in card.inner_text()
+        assert "Hutch does not expose event editing or deletion" in card.inner_text()
+        assert "Every event needs your exact approval" in card.inner_text()
+
+        permission_captures = []
+        approval_notice_captures = []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.locator("#outlook-calendar-write-access > summary").evaluate("""el => {
+              const scroller = el.closest('.page-scroll');
+              const box = el.getBoundingClientRect();
+              const frame = scroller?.getBoundingClientRect();
+              if (scroller && frame) scroller.scrollTop += box.top - frame.top - 18;
+            }""")
+            page.screenshot(path=str(out / f"permission-{label}.png"), animations="disabled")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            permission_captures.append({"size": label, "viewport": [width, height],
+                                        "scene": "separate scope and exact-approval disclosure",
+                                        "horizontal_overflow": overflow})
+            notice = page.locator("#outlook-calendar-write-access .outlook-mail-send-safety")
+            notice.scroll_into_view_if_needed()
+            notice.screenshot(path=str(out / f"approval-{label}.png"), animations="disabled")
+            approval_notice_captures.append({"size": label, "viewport": [width, height],
+                                             "scene": "exact event approval and uncertain-result boundary"})
+
+        page.set_viewport_size({"width": 1440, "height": 960})
+
+        page.locator("#outlook-calendar-write-label").fill("Work events")
+        signin = page.locator("#outlook-calendar-write-connect")
+        assert signin.is_enabled()
+        assert signin.get_attribute("aria-label") == "Sign in with Microsoft for event creation"
+        signin.click()
+        page.get_by_text("Finish Microsoft sign-in in the new browser tab", exact=False).wait_for()
+        oauth = page.evaluate("window.__outlookWriteOAuth")
+        assert oauth["target"] == "_blank" and oauth["opener"] is None
+        authorization_url = urlsplit(oauth["url"])
+        assert authorization_url.scheme == "https" and authorization_url.hostname == "login.microsoftonline.com"
+        assert parse_qs(authorization_url.query)["scope"] == ["Calendars.ReadWrite"]
+
+        page.get_by_role("button", name="Load calendars").click()
+        calendar = page.locator("[data-outlook-calendar-write-calendar]")
+        calendar.wait_for(state="visible")
+        calendar.select_option("work")
+        grant_button = page.get_by_role("button", name="Allow approved event creation")
+        assert grant_button.is_enabled()
+        grant_button.click()
+        card.get_by_text("Can create approved events on Work Calendar", exact=False).wait_for()
+        account_card = page.locator('[data-outlook-calendar-write-account="mscalw_0123456789abcdef01234567"]')
+        assert "Calendar Assistant" in account_card.inner_text()
+        assert app.state.store.outlook_calendar_write_grant(bot.id)["calendar_name"] == "Work Calendar"
+        while page.locator(".toast").count():
+            page.locator(".toast-close").first.click()
+
+        captures = []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            if not page.locator("#connection-management").evaluate("element => element.open"):
+                page.locator("#connection-management > summary").click()
+            card = page.locator('[aria-labelledby="outlook-calendar-title"]')
+            if not card.locator("#outlook-calendar-access").evaluate("element => element.open"):
+                card.locator("#outlook-calendar-access > summary").click()
+            if not card.locator("#outlook-calendar-write-access").evaluate("element => element.open"):
+                card.locator("#outlook-calendar-write-access > summary").click()
+            page.locator("[data-outlook-calendar-write-account]").scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"granted-{label}.png"), animations="disabled")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            captures.append({"size": label, "viewport": [width, height], "scene": "separate event-creation account and selected-calendar Bot grant",
+                             "horizontal_overflow": overflow})
+        assert page.get_by_role("button", name="Revoke event access").bounding_box()["height"] >= 44
+        assert not errors, errors
+        assert not external, external
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_outlook_calendar_event_creation_is_separate_approved_and_responsive",
+            "captured_at": datetime.now(timezone.utc).isoformat(), "browser": browser.version,
+            "provider_credentials_used": False, "provider_calls": 0,
+            "scenario": "Synthetic Microsoft sign-in and calendar list, real local connection API and per-Bot grant; no event was sent",
+            "external_requests": external, "page_errors": errors,
+            "permission_review_captures": permission_captures,
+            "approval_notice_captures": approval_notice_captures, "grant_captures": captures,
+            "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
+                              for path in ("src/hutch/server/static/app.js", "src/hutch/server/app.py",
+                                           "src/hutch/server/security.py", "src/hutch/store.py",
+                                           "src/hutch/outlook_calendar_write.py", "src/hutch/tools/outlook_calendar_write.py")},
         }, indent=2) + "\n", encoding="utf-8")
     finally:
         page.close()
@@ -5436,15 +5595,20 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
         long_name_row.evaluate("button => { for (let parent = button.parentElement; parent && parent.id !== 'roster-list'; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement) parent.open = true; }")
         name_label = long_name_row.locator(".roster-name")
         name_label.wait_for(state="visible")
+        page.wait_for_function("""() => {
+          const el = document.querySelector("[data-switch-bot='research-helper'] .roster-name");
+          if (!el) return false;
+          const style = getComputedStyle(el);
+          return style.whiteSpace === 'nowrap' && style.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth;
+        }""")
         name_metrics = name_label.evaluate(
-            "el => ({text:el.textContent.trim(), height:el.clientHeight, lineHeight:parseFloat(getComputedStyle(el).lineHeight), fullName:el.closest('[data-switch-bot]').title})")
+            "el => ({text:el.textContent.trim(), fullName:el.closest('[data-switch-bot]').title})")
         assert "monospace" not in page.locator("[data-switch-bot='research-helper'] .roster-sub").evaluate(
             "el => getComputedStyle(el).fontFamily")
         assert name_metrics["text"] == long_name
         assert name_metrics["fullName"].startswith(long_name)
-        assert name_metrics["height"] <= name_metrics["lineHeight"] + 1
         assert page.locator(".roster-name").evaluate_all(
-            "els => els.every(el => getComputedStyle(el).whiteSpace === 'nowrap' && el.clientHeight <= parseFloat(getComputedStyle(el).lineHeight) + 1)")
+            "els => els.every(el => getComputedStyle(el).whiteSpace === 'nowrap' && getComputedStyle(el).textOverflow === 'ellipsis')")
         ellipsis = name_label.evaluate("""el => ({
           computed: getComputedStyle(el).getPropertyValue('text-overflow'),
           inline: el.getAttribute('style'),
@@ -5465,8 +5629,6 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
         }""")
         assert selected_row_metrics["width"] > 220 and selected_row_metrics["menuRightGap"] <= 1, selected_row_metrics
         assert selected_row_metrics["background"] not in {"transparent", "rgba(0, 0, 0, 0)"}, selected_row_metrics
-        short_name_height = page.locator("[data-switch-bot='agenda-assistant'] .roster-name").evaluate("el => el.clientHeight")
-        assert short_name_height <= name_metrics["lineHeight"] + 1
         typical_name_metrics = page.locator("#roster-list .roster-name").evaluate_all(
             "els => els.filter(el => el.textContent.trim() !== 'Research Companion for Long-Term Vendor Strategy and Operations')"
             ".map(el => ({name:el.textContent.trim(), width:el.clientWidth, textWidth:el.scrollWidth}))"

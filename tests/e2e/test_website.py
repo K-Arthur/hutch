@@ -541,7 +541,7 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
 
 def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_viewports(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
-    out = ROOT / "docs/realignment/artifacts/assistant-first-ui/marketing/connection-support"
+    out = ROOT / "docs/realignment/artifacts/outlook-calendar-write/marketing"
     out.mkdir(parents=True, exist_ok=True)
     source = (SITE_DIR / "index.html").read_bytes()
     styles = (SITE_DIR / "styles.css").read_bytes()
@@ -559,7 +559,10 @@ def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_
         assert "consent unverified" in text
         assert "credential/captcha handoff" in text
         assert "browser field detection" in text
-        assert "read-only outlook calendar and mail previews" in text
+        assert "outlook calendar lookup and optional guest-free event creation on one selected calendar" in text
+        assert "exact approval each time" in text
+        assert "microsoft consent is account-wide and unverified" in text
+        assert "read-only outlook mail previews" in text
         assert "consent unverified" in text
         assert "private gmail search" in text
         assert "public release awaits google scope verification" in text

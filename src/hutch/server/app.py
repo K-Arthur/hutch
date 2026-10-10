@@ -1514,6 +1514,60 @@ class OutlookCalendarDisconnectResource(BaseModel):
     detail: str
 
 
+class OutlookCalendarWriteSignInRequest(BaseModel):
+    label: str = Field(min_length=1, max_length=80)
+
+
+class OutlookCalendarWriteGrantRequest(BaseModel):
+    bot: str = Field(min_length=1, max_length=128)
+    account_id: str = Field(min_length=1, max_length=64)
+    calendar_id: str = Field(min_length=1, max_length=1024)
+
+
+class OutlookCalendarWriteAccountResource(BaseModel):
+    id: str
+    label: str
+    created_at: str
+    scopes: list[str]
+    status: Literal["connected"]
+
+
+class OutlookCalendarWriteGrantResource(BaseModel):
+    bot_id: str
+    bot_name: Optional[str] = None
+    account_id: str
+    account_label: str
+    calendar_id: str
+    calendar_name: str
+    granted_at: str
+
+
+class OutlookCalendarWriteResource(BaseModel):
+    configured: bool
+    secret_store_available: bool
+    accounts: list[OutlookCalendarWriteAccountResource]
+    grants: list[OutlookCalendarWriteGrantResource]
+
+
+class OutlookCalendarWriteAuthorizationResource(BaseModel):
+    authorization_url: str
+
+
+class OutlookCalendarWriteGrantResponseResource(BaseModel):
+    grant: dict[str, str]
+    detail: str
+
+
+class OutlookCalendarWriteUnGrantResource(BaseModel):
+    removed: bool
+
+
+class OutlookCalendarWriteDisconnectResource(BaseModel):
+    removed: bool
+    provider_revocation: Literal["unavailable", "not_needed"]
+    detail: str
+
+
 class OutlookMailSignInRequest(BaseModel):
     label: str = Field(min_length=1, max_length=80)
 
@@ -4195,6 +4249,8 @@ def create_app() -> FastAPI:
         google_oauth = google_oauth_client_settings(store)
         from ..outlook_calendar import OutlookCalendarBook
         outlook_book = OutlookCalendarBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+        from ..outlook_calendar_write import OutlookCalendarWriteBook
+        outlook_write_book = OutlookCalendarWriteBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
         from ..outlook_mail import OutlookMailBook, OutlookMailSendBook
         outlook_mail_book = OutlookMailBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
         outlook_mail_send_book = OutlookMailSendBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
@@ -4219,6 +4275,10 @@ def create_app() -> FastAPI:
                                      "secret_store_available": outlook_book.secrets.available(),
                                      "accounts": outlook_book.accounts(),
                                      "grants": store.list_outlook_calendar_grants()},
+                "outlook_calendar_write": {"configured": bool(os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "").strip()),
+                                           "secret_store_available": outlook_write_book.secrets.available(),
+                                           "accounts": outlook_write_book.accounts(),
+                                           "grants": store.list_outlook_calendar_write_grants()},
                 "outlook_mail": {"configured": bool(os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "").strip()),
                                  "secret_store_available": outlook_mail_book.secrets.available(),
                                  "accounts": outlook_mail_book.accounts(),
@@ -4677,6 +4737,126 @@ def create_app() -> FastAPI:
         response.headers["Referrer-Policy"] = "no-referrer"
         if status == "error":
             response.headers["Location"] = f"/?outlook_calendar_result=error&detail={quote(detail)}#/connections"
+        return response
+
+    @app.get("/api/v1/connections/outlook-calendar-write", response_model=OutlookCalendarWriteResource)
+    def outlook_calendar_write_connections() -> dict:
+        from ..outlook_calendar_write import OutlookCalendarWriteBook
+        client_id = os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "")
+        book = OutlookCalendarWriteBook(config.state_dir, client_id)
+        return {"configured": bool(client_id.strip()), "secret_store_available": book.secrets.available(),
+                "accounts": book.accounts(), "grants": store.list_outlook_calendar_write_grants()}
+
+    @app.post("/api/v1/connections/outlook-calendar-write/sign-in",
+              response_model=OutlookCalendarWriteAuthorizationResource)
+    def outlook_calendar_write_sign_in(request: Request, body: OutlookCalendarWriteSignInRequest,
+                                       response: Response) -> dict:
+        from ..outlook_calendar import OutlookCalendarError
+        from ..outlook_calendar_write import OutlookCalendarWriteBook
+        try:
+            book = OutlookCalendarWriteBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            result = book.start(body.label, book.callback_uri(request))
+        except OutlookCalendarError as exc:
+            raise HTTPException(409, str(exc)) from None
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        return {"authorization_url": result.url}
+
+    @app.get("/api/v1/connections/outlook-calendar-write/calendars",
+             response_model=OutlookCalendarListResource)
+    def outlook_calendar_write_calendars(account_id: str) -> dict:
+        from ..outlook_calendar import OutlookCalendarError
+        from ..outlook_calendar_write import OutlookCalendarWriteBook
+        try:
+            book = OutlookCalendarWriteBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            return {"calendars": book.list_calendars(account_id)}
+        except OutlookCalendarError as exc:
+            raise HTTPException(422, str(exc)) from None
+
+    @app.post("/api/v1/connections/outlook-calendar-write/grants",
+              response_model=OutlookCalendarWriteGrantResponseResource)
+    def outlook_calendar_write_grant(body: OutlookCalendarWriteGrantRequest) -> dict:
+        from ..outlook_calendar import OutlookCalendarError
+        from ..outlook_calendar_write import OutlookCalendarWriteBook
+        bot = store.get_bot(body.bot)
+        if bot is None:
+            raise HTTPException(404, "No Bot with that name or ID exists")
+        try:
+            book = OutlookCalendarWriteBook(config.state_dir,
+                os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            accounts = book.accounts()
+            account = next((item for item in accounts if item["id"] == body.account_id), None)
+            if account is None:
+                raise OutlookCalendarError("Connect an Outlook event-creation account before granting it")
+            calendars = book.list_calendars(body.account_id)
+        except OutlookCalendarError as exc:
+            raise HTTPException(422, str(exc)) from None
+        selected = next((row for row in calendars if row["id"] == body.calendar_id), None)
+        if selected is None:
+            raise HTTPException(422, "Choose a calendar returned by the connected Microsoft account")
+        grant = store.set_outlook_calendar_write_grant(bot.id, body.account_id,
+            str(account.get("label") or ""), selected["id"], selected["name"])
+        detail = (f"{bot.display_name} can create a guest-free event on {selected['name']} after each exact approval. "
+                  "Microsoft's separate delegated Calendars.ReadWrite consent allows creating, reading, changing, and "
+                  "deleting events across the signed-in user's calendars. Hutch stores this credential separately, "
+                  "limits this Bot to creating events on this selected calendar, and does not expose event editing or deletion. "
+                  "Revoke provider consent in Microsoft account or organisation settings to remove the underlying account permission.")
+        return {"grant": grant, "detail": detail}
+
+    @app.delete("/api/v1/connections/outlook-calendar-write/grants/{bot_ref}",
+                response_model=OutlookCalendarWriteUnGrantResource)
+    def outlook_calendar_write_ungrant(bot_ref: str) -> dict:
+        bot = store.get_bot(bot_ref)
+        if bot is None:
+            raise HTTPException(404, "No Bot with that name or ID exists")
+        return {"removed": store.remove_outlook_calendar_write_grant(bot.id)}
+
+    @app.post("/api/v1/connections/outlook-calendar-write/accounts/{account_id}/disconnect",
+              response_model=OutlookCalendarWriteDisconnectResource)
+    def outlook_calendar_write_disconnect(account_id: str) -> dict:
+        from ..outlook_calendar import OutlookCalendarError
+        from ..outlook_calendar_write import OutlookCalendarWriteBook
+        try:
+            result = OutlookCalendarWriteBook(config.state_dir,
+                os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "")).disconnect(account_id)
+        except OutlookCalendarError as exc:
+            raise HTTPException(422, str(exc)) from None
+        if not result["removed"]:
+            raise HTTPException(404, "Outlook Calendar event-creation account is not connected")
+        store.remove_outlook_calendar_write_account_grants(account_id)
+        detail = ("Hutch removed the local event-creation credential and Bot grants. Microsoft does not offer a "
+                  "revocation endpoint for this sign-in flow; review connected application consent in your "
+                  "Microsoft account or organisation settings to revoke the provider permission.")
+        return {**result, "detail": detail}
+
+    @app.get("/api/v1/connections/outlook-calendar-write/callback", include_in_schema=False)
+    def outlook_calendar_write_oauth_callback(request: Request):
+        from ..outlook_calendar import OutlookCalendarError
+        from ..outlook_calendar_write import OutlookCalendarWriteBook
+        status, detail = "connected", ""
+        try:
+            callback = OutlookCalendarWriteBook.callback_uri(request)
+            values: dict[str, str] = {}
+            for key in ("state", "code", "error"):
+                entries = request.scope.get("hutch_oauth_query", {}).get(key, [])
+                if len(entries) > 1:
+                    raise OutlookCalendarError("Microsoft returned a duplicate sign-in field; start again")
+                values[key] = entries[0] if entries else ""
+            if not values["state"]:
+                raise OutlookCalendarError("Microsoft did not return sign-in state; start again")
+            book = OutlookCalendarWriteBook(config.state_dir,
+                os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            if values["error"]:
+                book.cancel(values["state"])
+                raise OutlookCalendarError("Outlook Calendar event-creation access was not granted; no account was connected")
+            book.finish(values["state"], values["code"], callback)
+        except OutlookCalendarError as exc:
+            status, detail = "error", str(exc)
+        response = RedirectResponse(f"/?outlook_calendar_write_result={status}#/connections", status_code=303)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        if status == "error":
+            response.headers["Location"] = f"/?outlook_calendar_write_result=error&detail={quote(detail)}#/connections"
         return response
 
     @app.get("/api/v1/connections/outlook-mail", response_model=OutlookMailResource)

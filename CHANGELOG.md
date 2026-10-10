@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add a separate experimental Outlook Calendar event-creation sign-in and per-Bot calendar grant. Each guest-free event shows its full details for exact approval and is read back before success; uncertain writes are held for reconciliation. The Microsoft scope is account-wide and can change or delete events, while Hutch exposes create-only on the selected calendar. Live Microsoft consent and provider writes remain unverified.
 - Add `hutch code login` for the experimental OpenCode coding handoff. It uses OpenCode's supported interactive provider flow in a persistent private profile under Hutch state; coding tasks now check that profile before claiming a handoff and no longer start with an empty per-task auth database. Hutch does not import the regular OpenCode profile, and provider usage remains outside Hutch budgets.
 - Keep message entry primary in an empty Studio chat. Put reusable-helper examples
   behind a collapsed setup disclosure, use compact 2D assistant rows, and state

@@ -7,8 +7,9 @@ Gmail and Outlook integrations, a named coordinator Bot, and human completion of
 key product requirements. Studio has purpose-derived editable Bot naming, a user-reviewed chat-seeded
 setup draft, typed built-in-runtime choices, inline approvals, and an experimental read-only Calendar
 path. The named coordinator now has one user-confirmed, durable cross-Bot handoff to an explicitly approved specialist;
-multi-step team planning and restart-safe checkpoints remain open. Outlook Calendar and Outlook Mail
-have separate experimental read-only local integrations; neither has live provider verification. Gmail
+multi-step team planning and restart-safe checkpoints remain open. Outlook Calendar read and separately
+consented create-only event actions, plus Outlook Mail read, have experimental local integrations; none
+has live provider verification. Gmail
 has an owner-configured private-preview search limited to built-in Bots on loopback Local model routes;
 public release remains unavailable pending Google's restricted-scope verification and any required
 security assessment. No live Google account or consent was tested. Bot creation now offers a one-screen purpose-first
@@ -71,7 +72,11 @@ pinned in the primary roster without hiding active work; pinning is a navigation
    to one Bot, and approve each exact event in context. Hutch verifies the returned event ID, title,
    time, description and location; uncertain outcomes are never retried automatically. Google's scope is broader than the single
    action Hutch exposes, and public OAuth verification plus live account consent remain open. Outlook
-   Calendar writes and mailbox changes outside the narrow Outlook/Gmail send previews remain unavailable.
+   Calendar also has a separate `Calendars.ReadWrite` sign-in and per-Bot selected-calendar grant for
+   guest-free create-only events. The delegated scope reaches all account calendars and can change/delete events,
+   while Hutch exposes create only on the selected calendar after exact per-event approval; it reads back the event
+   before reporting success and holds uncertainty for reconciliation. No live Microsoft account or consent was tested.
+   Mailbox changes outside the narrow Outlook/Gmail send previews remain unavailable.
    Event creation, message sending and every
    external write need a fresh review showing account, destination and complete payload. Keep refresh
    credentials in the OS credential store rather than SQLite, transcripts, prompts or browser storage.

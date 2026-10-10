@@ -60,11 +60,14 @@ that saved prompt text is sent to a provider before the owner sends the chat mes
 
 The Connections support table may list Google Calendar, Outlook Calendar, and Outlook Mail as experimental local integrations that
 require operator OAuth configuration and Linux Secret Service. Google Calendar lookup is read-only by default; guest-free event creation
-is an owner-configured experimental preview that requests a broader Google scope and exact per-event approval. Do not describe it as a
-publicly supported integration while OAuth verification and live account consent remain unverified. No provider account or consent
-verification has been performed.
-For Outlook Calendar, Hutch requests delegated `Calendars.ReadBasic`; for Outlook Mail it requests delegated `Mail.Read` and returns
-bounded message previews to a Bot explicitly granted one mailbox. A separate Outlook `Mail.Send` API-only preview exists, but it has no Apps & AI setup UI, no live account verification, and must not be listed as a currently usable marketing capability. Microsoft consent is account-level, and Hutch cannot revoke it itself.
+is an owner-configured experimental preview that requests a broader Google scope and exact per-event approval. Outlook Calendar lookup
+uses `Calendars.ReadBasic`; optional guest-free event creation uses a separate `Calendars.ReadWrite` sign-in and one-calendar Bot grant,
+then requires exact approval and readback verification. Microsoft scope is account-wide and can change or delete events, while Hutch
+exposes creation only on the selected calendar. Do not describe either provider as publicly supported while OAuth verification and live
+account consent remain unverified. No provider account or consent verification has been performed. For Outlook Mail, Hutch requests
+delegated `Mail.Read` and returns bounded message previews to a Bot explicitly granted one mailbox. A separate Outlook `Mail.Send`
+preview has a Connections setup, but no live account verification; public copy must keep it experimental. Microsoft consent is
+account-level, and Hutch cannot revoke it itself.
 Gmail may be described only as an owner-configured private preview: it requests restricted, account-wide `gmail.readonly`, returns bounded
 sender/subject/date/snippet previews, and grants the Hutch tool only to built-in Bots with loopback Local model routes and no hosted
 fallback. Google's permission remains broader than Hutch's Bot grant. Public release is unavailable pending applicable Google scope

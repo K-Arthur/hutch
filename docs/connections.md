@@ -164,6 +164,27 @@ that provider-side consent was revoked. See [Microsoft Graph permissions](https:
 [authorization code with PKCE](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow),
 and [redirect URI guidance](https://learn.microsoft.com/en-us/entra/identity-platform/reply-url).
 
+### Outlook Calendar event creation (separate experimental opt-in)
+
+Event creation uses a second sign-in and credential namespace; it never upgrades or reuses the
+read-only `Calendars.ReadBasic` account. Configure the same Microsoft public-client ID and register
+`http://localhost/api/v1/connections/outlook-calendar-write/callback` under **Mobile and desktop
+applications**. In Connections, open Outlook Calendar's optional event-creation section, sign in
+again, and grant one Bot one calendar returned by Microsoft. The write credential is stored in a
+separate Linux Secret Service entry; SQLite stores only the account label and selected-calendar
+grant. Disconnect removes Hutch's token and grants, but the owner must revoke Microsoft consent in
+their account or organisation settings.
+
+Microsoft's delegated `Calendars.ReadWrite` scope is account-wide and permits creating, reading,
+changing and deleting calendar events. Hutch discloses this before opt-in, then exposes only guest-free
+event creation on the one calendar selected for that Bot. Each event requires a fresh exact approval,
+including in automatic mode; the review shows title, time, description, location, account and calendar.
+After one Graph create request, Hutch reads the event back and verifies those fields and the absence
+of attendees before reporting success. A timeout, server error, redirect, missing receipt or mismatch
+is `outcome_unknown`; check the calendar before trying again. Hutch does not automatically retry, and
+does not expose event editing, deletion, invitations or Strict Offline access. No Microsoft account,
+tenant policy, live consent screen, or live Graph write has been verified.
+
 ## Outlook Mail search (experimental, local setup required)
 
 Outlook Mail uses its own Microsoft public-client registration, callback, token namespace, and
