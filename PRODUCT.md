@@ -8,26 +8,33 @@ web
 
 ## Users
 
-Developer-operators who run Hutch on their own machine: they create named bots, send them real
-tasks, supervise long-running work, and decide approvals. Desktop is the primary workspace. A
-responsive phone layout is part of the target experience, but remote phone supervision and
-physical-device validation are not available in this preview.
+People who want a personal assistant to keep useful work moving, with optional specialist
+assistants for separate kinds of work. The everyday path should work for someone who does not
+know provider, runtime, or executor terminology. People who want to tune models, tools, memory,
+budgets, or workspaces can open those controls when they need them. Desktop and phone are both
+first-class reading and supervision surfaces; remote phone features remain experimental and
+physical-device validation is not available in this preview.
 
 ## Product Purpose
 
-Hutch is a local-first, MIT-licensed multi-bot platform in private preview; there is no public
-source checkout or release today. The web app is the operator's workspace: converse with bots,
-watch actual execution, review consequential actions, and manage schedules and memory. Usage
-limits use measured or estimated data and do not guarantee a provider invoice. Success = an
-operator trusts every state the screen shows, because each one comes from real server data.
+Hutch is a local-first personal-assistant app in private preview; there is no public source
+checkout or release today. A person starts with a conversation, can turn an existing request into
+a task-specific assistant without repeating it, and stays in control when a task needs a decision.
+The app can keep work and its history on a computer the person controls while connecting to a
+chosen local or hosted model. Advanced configuration is available on purpose, not imposed on the
+first screen. Usage limits use measured or estimated data and do not guarantee a provider invoice.
+Success means ordinary tasks feel approachable and every action, connection, and status remains
+honest and reviewable.
 
 ## Positioning
 
-One directory on your machine holds the orchestrator, memory, logs, and bots; the operator
-brings their own models (local Ollama/llama.cpp/LM Studio, or OpenAI-compatible/Anthropic
-connections). Governance is the product: approval gates, estimate-based usage admission,
-append-only transcripts, DST-safe schedules. Provider-side controls remain necessary for a
-guaranteed external spending limit. The app must make that governance legible, not decorate it.
+Hutch runs its control state on the person's computer and uses the local or hosted models and
+connected apps they choose. The product begins with a familiar conversation and explains model,
+account, privacy, and permission choices in plain language where they matter. People can inspect
+task history, adjust assistant behavior, and review consequential actions. Technical routes,
+resource limits, permissions, and provider-side billing details remain available in contextual
+advanced controls. Provider-side controls remain necessary for a guaranteed external spending
+limit.
 
 ## Operating Context
 
@@ -54,11 +61,11 @@ guaranteed external spending limit. The app must make that governance legible, n
   separate imported threads. Connection JSON APIs support the shared settings surface.
 - The workspace roster pin preference persists with each Bot and does not change its
   runtime or authority. See the [roster and mascot review](docs/research/bot-roster-and-mascot-review-2026-10-09.md).
-- Chat is the daily workspace: one searchable roster, one settings destination, inline
-  approvals and an explicit Needs you drawer. The workspace coordinator stays first;
-  owners can pin frequent Bots in a separate group without hiding active work. Monitor
-  holds Activity/history; Fleet appears at ten Bots with search/state filters. Ten is a
-  product heuristic, not a research-proven threshold.
+- Chat is the daily workspace: familiar conversations, one compact assistant list, one Apps & AI
+  destination, inline approvals and a clear Needs you view. The main assistant stays first;
+  owners can pin frequent assistants without hiding active work. More contains Activity,
+  Scheduled work, Work history, and Manage assistants. The larger assistant manager appears
+  at ten assistants with search/state filters; ten is a product heuristic, not a research-proven threshold.
 - Frontend stack constraint: zero build step, zero external assets (fonts/CDNs),
   vanilla ES + hash-routed SPA at `/`; Jinja2+HTMX server pages for the remainder.
   Restructuring inside those files is allowed; introducing a framework or bundler is not.
@@ -67,20 +74,15 @@ guaranteed external spending limit. The app must make that governance legible, n
 
 ## Brand Commitments
 
-User-pinned v2 contract (binding):
-- Emerald lineage as the brand accent (`#34d399` family); `#52a8ff` is a candidate
-  interaction/information color, never a second brand accent; success/warning/danger stay
-  semantic state colors, paired with text and/or icon, never color alone.
-- Geometry: square structural panels and data surfaces; 0px buttons/icon buttons;
-  100px pill chips; named 16px exceptions only for the composer and conversation rows.
-- Type: readable sans for UI/conversation, one monospace family for operational data
-  (IDs, timestamps, tokens, code); tabular numerals.
-- Dark, architectural, developer-focused; simple flat 2D Bot identities in the operator
-  app, with detailed original 3D mascot art reserved for marketing pages; no borrowed
-  mascot and no marketing theatrics in the working app,
-  no compulsory intro, no full-screen ambient animation in the working app.
-- Motion: short, functional, state-linked; honors `prefers-reduced-motion` plus an
-  explicit Reduce-effects control; forced-colors fallbacks.
+The main-branch design system in [`DESIGN.md`](DESIGN.md) is the visual source of truth.
+Hutch should feel like a capable personal assistant for everyday users: familiar chat,
+recognizable app marks, a simple 2D identity in the product, and concise, task-focused
+screens. Put model, permission, workspace, and execution details in contextual settings
+for people who choose to tune them. Keep the original, more detailed 3D mascot for marketing.
+Use the shared graphite surfaces, emerald actions, azure focus, semantic status colors,
+system-sans prose, and rounded geometry documented in `DESIGN.md`. Icons clarify actions
+and destinations; service marks always sit beside their names. Motion stays short, useful,
+state-linked, and respectful of reduced-motion and forced-colors settings.
 - Accessibility: WCAG 2.2 AA target everywhere; 24×24 AA minimum with Hutch's 44×44
   touch comfort target; visible focus independent of glow.
 

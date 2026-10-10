@@ -25,6 +25,23 @@ from hutch.server.app import create_app  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 SITE = ROOT / "website"
+VISUAL_SOURCE_FILES = (
+    "src/hutch/server/static/app.js",
+    "src/hutch/server/static/index.html",
+    "src/hutch/server/static/style.css",
+    "website/index.html",
+    "website/site.js",
+    "website/styles.css",
+    "tests/e2e/test_design_system.py",
+)
+
+
+def _visual_source_hashes() -> dict[str, str]:
+    """Bind saved browser evidence to the exact app, site, and test sources."""
+    return {
+        relative: hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
+        for relative in VISUAL_SOURCE_FILES
+    }
 
 
 @pytest.fixture(scope="module")
@@ -153,8 +170,8 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
             page.locator("#conversation-switcher").wait_for()
             studio_shell = _measure_operator_shell(page)
             assert studio_shell == {
-                "workspace": True, "brand": "hutch", "studioLink": "Studio",
-                "connectionsLink": "Connections", "context": True, "view": True,
+                "workspace": True, "brand": "hutch", "studioLink": "Chats",
+                "connectionsLink": "Apps & AI", "context": True, "view": True,
             }, (label, studio_shell)
             studio = _measure_tokens(page, "studio")
             studio["operatorShell"] = studio_shell
@@ -165,8 +182,8 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
             # `/connections` is a compatibility HTML page with a separate legacy
             # layout; using it here would validate the wrong product surface.
             page.goto(f"{app_url}/#/connections")
-            page.get_by_role("heading", name="Connections").wait_for()
-            page.locator(".conn-card").first.wait_for()
+            page.get_by_role("heading", name="Apps & AI").wait_for()
+            page.locator(".service-tile").first.wait_for()
             connections_shell = _measure_operator_shell(page)
             assert connections_shell == studio_shell, (label, studio_shell, connections_shell)
             connections = _measure_tokens(page, "connections")
@@ -225,7 +242,220 @@ def test_shared_design_tokens_render_consistently_across_all_surfaces(browser, a
             "external_requests": external_requests,
             "provider_calls": 0,
             "states": ["empty selected Studio conversation", "Connections in the shared Studio shell", "marketing landing page"],
+            "source_sha256": _visual_source_hashes(),
             "visual_review_required": "Open and inspect all twelve desktop/tablet/phone screenshots before accepting this result.",
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace-failed.zip"))
+        except Exception:
+            pass
+        context.close()
+
+
+def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browser, app_server):
+    """Capture a real request-first setup and the non-technical app catalog at common sizes."""
+    app_url, app = app_server
+    assert app.state.store.delete_bot("design-system-review")
+    out = ROOT / "docs/realignment/artifacts/assistant-first-ui/everyday-start"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    external_requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    viewports = (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844),
+                 ("compact-phone", 320, 740))
+    evidence = []
+    try:
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            page.goto(f"{app_url}/#/chat")
+            page.get_by_role("heading", name="What would you like help with?").wait_for()
+            request = page.get_by_label("Your first request")
+            assert request.is_visible()
+            assert page.get_by_role("button", name="Set up my assistant").is_visible()
+            assert page.locator(".welcome-app-mark .service-mark svg").count() == 3
+            starter_buttons = page.locator("[data-first-run-example]")
+            assert starter_buttons.count() == 3
+            starter_requests = (
+                ("plan", "Help me plan my week and keep track of the follow-ups."),
+                ("email", "Help me find the emails I need to answer and prepare drafts for me to review."),
+                ("project", "Help me organize a project and keep track of the next steps."),
+            )
+            for example, expected in starter_requests:
+                page.locator(f"[data-first-run-example='{example}']").click()
+                assert request.input_value() == expected, example
+                assert page.evaluate("document.activeElement.id === 'first-run-request'")
+                if example == "plan" and label in {"desktop", "phone"}:
+                    page.screenshot(path=str(out / f"welcome-example-{label}.png"), full_page=True, animations="disabled")
+                request.fill("")
+            page.evaluate("document.activeElement.blur(); window.scrollTo(0, 0)")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, "first run", overflow)
+            page.screenshot(path=str(out / f"welcome-{label}.png"), full_page=True, animations="disabled")
+            if label == "phone":
+                request.focus()
+                request.press("Tab")
+                assert page.evaluate("document.activeElement.dataset.firstRunExample === 'plan'")
+                page.keyboard.press("Tab")
+                page.keyboard.press("Tab")
+                page.keyboard.press("Tab")
+                assert page.evaluate("document.activeElement.type === 'submit'")
+            evidence.append({"surface": "first-run", "viewport": [width, height], "overflow": overflow})
+
+        request_text = "Help me plan my week and keep track of the follow-ups."
+        page.set_viewport_size({"width": 1440, "height": 960})
+        page.goto(f"{app_url}/#/chat")
+        page.get_by_label("Your first request").fill(request_text)
+        page.get_by_role("button", name="Set up my assistant").click()
+        page.get_by_role("heading", name="Create from this request").wait_for()
+        purpose = page.locator("#setup-purpose")
+        purpose.wait_for()
+        assert purpose.input_value() == request_text, "setup must carry the original request forward"
+        assert page.get_by_label("Your starting request").is_visible()
+        assert page.get_by_text("We carried this over from your first message. You can edit it, but you do not need to repeat it.", exact=True).is_visible()
+        suggested_name = page.locator("#setup-display_name").input_value().strip()
+        assert suggested_name and len(suggested_name) <= 80
+        page.screenshot(path=str(out / "setup-from-request-desktop.png"), full_page=True, animations="disabled")
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.screenshot(path=str(out / "setup-from-request-phone.png"), full_page=True, animations="disabled")
+        page.get_by_role("button", name="Cancel").click()
+
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            page.goto(f"{app_url}/#/connections")
+            page.get_by_role("heading", name="Apps & AI").wait_for()
+            assert page.get_by_role("heading", name="Your apps").is_visible()
+            assert page.get_by_role("heading", name="How Hutch replies").is_visible()
+            cards = page.locator(".service-tile")
+            assert cards.count() == 5
+            assert page.locator(".service-tile .service-mark svg").count() == 5
+            assert not page.locator("#connection-management").evaluate("el => el.open")
+            assert not page.get_by_role("button", name="Add a custom service").is_visible()
+            restricted_scope = page.get_by_text("gmail.readonly", exact=True).all()
+            assert not any(item.is_visible() for item in restricted_scope), label
+            tile_labels = cards.locator("h3").all_text_contents()
+            assert tile_labels == ["Google Calendar", "Gmail", "Outlook", "ChatGPT", "Other reply services"]
+            icon_widths = page.locator(".service-mark").evaluate_all("els => els.map(el => Math.round(el.getBoundingClientRect().width))")
+            assert icon_widths == [58] * 5, (label, icon_widths)
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, "Apps & AI", overflow)
+            page.screenshot(path=str(out / f"apps-ai-{label}.png"), full_page=True, animations="disabled")
+            evidence.append({"surface": "apps-ai", "viewport": [width, height], "overflow": overflow})
+
+        page.set_viewport_size({"width": 1440, "height": 960})
+        page.goto(f"{app_url}/#/connections")
+        page.locator(".service-tile").filter(has_text="Google Calendar").get_by_role("button", name="Check setup").click()
+        assert page.locator("#connection-management").evaluate("el => el.open")
+        assert page.locator("#connection-google-calendar").evaluate("el => document.activeElement === el")
+        page.screenshot(path=str(out / "google-calendar-access-desktop.png"), animations="disabled")
+        page.goto(f"{app_url}/#/connections")
+        page.locator(".service-tile").filter(has_text="Other reply services").get_by_role("button", name="See options").click()
+        assert page.locator("#connection-management").evaluate("el => el.open")
+        assert page.get_by_role("heading", name="Add a custom service").is_visible()
+        page.locator("#modal-close").click()
+        assert not external_requests, external_requests
+        assert not errors, errors
+        context.tracing.stop(path=str(out / "trace.zip"))
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(),
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "playwright": package_version("playwright"),
+            "viewports": evidence,
+            "states": ["empty first run", "request carried into assistant setup", "service catalog", "Google Calendar access expanded"],
+            "external_requests": external_requests,
+            "provider_calls": 0,
+            "reduced_motion": "reduce",
+            "source_sha256": _visual_source_hashes(),
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace-failed.zip"))
+        except Exception:
+            pass
+        context.close()
+
+
+def test_assistant_settings_keep_everyday_edits_up_front(browser, app_server):
+    """A one-assistant setup stays approachable while detailed controls remain available."""
+    app_url, _app = app_server
+    out = ROOT / "docs/realignment/artifacts/assistant-settings-everyday"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    external_requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    viewports = (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844))
+    evidence = []
+    try:
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            page.goto(f"{app_url}/#/bot/design-system-review")
+            page.get_by_role("heading", name="Design Partner settings").wait_for()
+            assert page.get_by_role("heading", name="About this assistant").is_visible()
+            assert page.get_by_label("Assistant name").is_visible()
+            assert page.get_by_label("What it helps with").is_visible()
+            assert page.locator("#btn-set-workspace-coordinator").count() == 0
+            assert not page.locator("#assistant-more-settings").evaluate("el => el.open")
+            assert not page.locator("#form-model").is_visible()
+            assert not page.locator("#form-instructions").is_visible()
+            summary = page.locator("#assistant-more-settings > summary")
+            assert "Customize how it works" in summary.inner_text()
+            assert "Choose its AI, apps, schedule, safety, and saved notes" in summary.inner_text()
+            assert summary.get_by_text("More settings", exact=True).is_visible()
+            assert not summary.get_by_text("Hide settings", exact=True).is_visible()
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, "collapsed settings", overflow)
+            page.screenshot(path=str(out / f"settings-simple-{label}.png"), full_page=True, animations="disabled")
+
+            summary.focus()
+            page.keyboard.press("Space")
+            assert page.locator("#assistant-more-settings").evaluate("el => el.open")
+            assert summary.get_by_text("Hide settings", exact=True).is_visible()
+            assert not summary.get_by_text("More settings", exact=True).is_visible()
+            assert page.locator("#form-instructions").is_visible()
+            assert page.get_by_label("Standing directions").is_visible()
+            assert page.locator("#form-model").is_visible()
+            assert page.locator("#form-tools").is_visible()
+            assert page.locator(".settings-panel-icon svg").count() >= 8
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, "custom settings", overflow)
+            if label in {"desktop", "phone"}:
+                page.screenshot(path=str(out / f"settings-customize-{label}.png"), full_page=True, animations="disabled")
+            summary.focus()
+            page.keyboard.press("Space")
+            assert not page.locator("#assistant-more-settings").evaluate("el => el.open")
+            page.evaluate("document.activeElement?.blur()")
+            evidence.append({"viewport": [width, height], "overflow": overflow,
+                             "advanced_controls": "keyboard disclosure works"})
+
+        assert not external_requests, external_requests
+        assert not errors, errors
+        context.tracing.stop(path=str(out / "trace.zip"))
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_design_system.py::test_assistant_settings_keep_everyday_edits_up_front",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_assistant_settings_keep_everyday_edits_up_front",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(),
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "playwright": package_version("playwright"),
+            "viewports": evidence,
+            "states": ["single assistant", "basic details visible", "advanced settings collapsed", "keyboard-expanded controls"],
+            "external_requests": external_requests,
+            "provider_calls": 0,
+            "source_sha256": _visual_source_hashes(),
+            "visual_review_required": "Inspect each screenshot independently before accepting this result.",
         }, indent=2) + "\n", encoding="utf-8")
     finally:
         try:
@@ -249,7 +479,7 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
     page = context.new_page()
     errors: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    out = ROOT / "docs/realignment/artifacts/mascot-eye-review"
+    out = ROOT / "docs/realignment/artifacts/mascot-eye-review-2026-10-10"
     out.mkdir(parents=True, exist_ok=True)
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
@@ -283,13 +513,20 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
                     ry: Number(eye.getAttribute('ry')), cx: Number(eye.getAttribute('cx')),
                     cy: Number(eye.getAttribute('cy')), transform: eye.getAttribute('transform'),
                     fill: eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill')})),
+          glints: [...svg.querySelectorAll('[data-sigil-glint]')].map(glint => ({
+            cx:Number(glint.getAttribute('cx')), cy:Number(glint.getAttribute('cy')),
+            r:Number(glint.getAttribute('r')),
+            fill:glint.getAttribute('fill') || glint.closest('g')?.getAttribute('fill')})),
                   contained};
         })""")
         assert len(identity) == 8, identity
         assert len({item["color"] for item in identity}) == 8, identity
         assert all(len(item["eyes"]) == 2 for item in identity), identity
-        assert all(eye["tag"] == "ellipse" and eye["fill"] == "#10161f" and eye["ry"] > eye["rx"] * 1.15
+        assert all(eye["tag"] == "ellipse" and eye["fill"] == "#10161f" and eye["ry"] > eye["rx"] * 1.1
                    for item in identity for eye in item["eyes"]), identity
+        assert all(not item["glints"] for item in identity), "the mascot face uses no detached highlights"
+        assert all(item["eyes"][0]["rx"] > item["eyes"][1]["rx"] for item in identity), identity
+        assert all(abs(item["eyes"][0]["cy"] - item["eyes"][1]["cy"]) <= 1 for item in identity), identity
         assert len({tuple((eye["rx"], eye["ry"]) for eye in item["eyes"])
                     for item in identity}) == 8, identity
         face_rows = {round(sum(eye["cy"] for eye in item["eyes"]) / 2, 1) for item in identity}
@@ -301,6 +538,9 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
         # This catches the old bug where every chooser button inherited the orb
         # eye positions even though the silhouettes themselves were different.
         page.goto(f"{app_url}/#/bot/mascot-0")
+        details = page.locator("#assistant-more-settings")
+        details.wait_for(state="attached")
+        details.locator(":scope > summary").click()
         page.locator("[data-idp-shapes] .shp svg").first.wait_for()
         picker_faces = page.locator("[data-idp-shapes] .shp svg").evaluate_all("""svgs => svgs.map(svg => ({
           head: svg.querySelector('path')?.getAttribute('d'),
@@ -401,7 +641,7 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
             "silhouettes": 8,
             "colors": 8,
             "minimum_eye_contrast": round(min(eye_contrast), 2),
-            "checks": ["upright soft oval eyes with silhouette-specific center, spacing, scale, height, and tilt", "shape-specific faces match every picker silhouette and live preview", "eyes inside each mascot silhouette", "44px shape controls", "balanced two-row phone and compact-phone picker", "no phone overflow", "no browser errors"],
+            "checks": ["slightly asymmetric ink oval eyes with silhouette-specific center, spacing, scale, height, and tilt", "no white eye highlights", "shape-specific faces match every picker silhouette and live preview", "eyes inside each mascot silhouette", "44px shape controls", "balanced two-row phone and compact-phone picker", "no phone overflow", "no browser errors"],
             "page_errors": errors,
             "provider_calls": 0,
             "source_sha256": {
@@ -600,7 +840,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
         ("fleet", f"{app_url}/#/bots", ".bot-grid"),
         ("runs", f"{app_url}/#/runs", "#runs-table-wrap"),
         ("approvals", f"{app_url}/#/approvals", "#needs-you"),
-        ("connections", f"{app_url}/#/connections", ".conn-card"),
+        ("connections", f"{app_url}/#/connections", ".service-tile"),
         ("bot-settings", f"{app_url}/#/bot/design-system-review", "#app-top-context h1"),
         ("run-detail", f"{app_url}/#/run/{run.id}", "[data-run-integrity-run]"),
         ("marketing", site_server, ".hero-title"),
@@ -645,9 +885,25 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                     first_card = page.locator(".bot-card").first
                     assert first_card.locator(".card-actions [data-fleet-options]").count() == 1
                     assert first_card.locator(".card-actions > a").count() == 1
+                    assert first_card.locator(".bot-card-details").count() == 1
+                    detail_summary = " ".join(first_card.locator(".bot-card-details > summary").inner_text().split())
+                    assert detail_summary.startswith("More details")
+                    assert ("AI service, schedule, and activity" in detail_summary) == (width > 560)
+                    assert first_card.locator(".bot-facts").is_hidden()
+                    visible_summary = first_card.locator(".bot-chips").inner_text().lower()
+                    assert "mock/demo" not in visible_summary and "ask: ask" not in visible_summary
+                if surface_name == "studio":
+                    page.locator("#tpl-grid .tpl-name").first.wait_for()
+                    gallery_names = page.locator("#tpl-grid .tpl-name").all_text_contents()
+                    assert gallery_names[:6] == [
+                        "File organizer", "Meeting follow-up", "Weekly review",
+                        "Research briefing", "Website change alerts", "Support inbox helper",
+                    ], gallery_names
+                    assert page.locator('#tpl-grid [data-tpl="tidy-downloads"]').count() == 1
+                    assert "repo-sweeper" not in gallery_names
                 if surface_name == "schedules":
                     assert page.locator("details.schedule-empty-bots").count() == 1
-                    assert page.locator(".schedule-empty-bots summary").inner_text() == "Choose a Bot"
+                    assert page.locator(".schedule-empty-bots summary").inner_text() == "Choose an assistant"
                     assert page.locator(".schedule-empty-bots a[href^='#/bot/']").count() == 11
                 if surface_name == "runs":
                     if width <= 900:
@@ -662,19 +918,45 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                     page.screenshot(
                         path=str(out / f"{surface_name}-{viewport_name}.png"), animations="disabled"
                     )
+                if surface_name == "studio" and viewport_name in {"desktop", "phone"}:
+                    geometry = page.evaluate("""async () => {
+                      const card = document.querySelector('#tpl-grid .tpl-card:last-child');
+                      const composer = document.querySelector('.composer');
+                      if (!card || !composer) return null;
+                      card.scrollIntoView({ block: 'end' });
+                      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                      const finalCard = document.querySelector('#tpl-grid .tpl-card:last-child');
+                      return { card: finalCard?.getBoundingClientRect().toJSON(),
+                        composer: document.querySelector('.composer')?.getBoundingClientRect().toJSON() };
+                    }""")
+                    assert geometry and geometry["card"] and geometry["composer"]
+                    final_template, composer_box = geometry["card"], geometry["composer"]
+                    assert final_template and composer_box
+                    assert final_template["y"] + final_template["height"] <= composer_box["y"] + 1, (
+                        viewport_name, final_template, composer_box
+                    )
+                    page.screenshot(
+                        path=str(out / f"studio-template-bottom-{viewport_name}.png"), animations="disabled"
+                    )
 
             if viewport_name in {"desktop", "phone"}:
                 active_surface["name"] = f"fleet-menu-{viewport_name}"
                 page.goto(f"{app_url}/#/bots", wait_until="domcontentloaded")
                 page.locator(".bot-card").first.wait_for(timeout=15_000)
                 first_card = page.locator(".bot-card").first
+                details = first_card.locator(".bot-card-details")
+                details.locator("summary").click()
+                assert details.locator(".bot-facts").is_visible()
+                assert "mock/demo" in details.locator(".bot-facts").inner_text()
+                first_card.screenshot(path=str(out / f"fleet-details-{viewport_name}.png"), animations="disabled")
+                details.locator("summary").click()
                 menu_trigger = first_card.locator(".fleet-card-menu > summary")
                 assert menu_trigger.evaluate("node => [node.getBoundingClientRect().width, node.getBoundingClientRect().height]") == [44, 44]
                 menu_trigger.click()
                 menu = first_card.locator(".fleet-card-menu-panel")
                 menu.wait_for(state="visible")
-                assert menu.get_by_role("button", name="Pause bot").is_visible()
-                assert menu.get_by_role("link", name="Bot settings").is_visible()
+                assert menu.get_by_role("button", name="Pause assistant").is_visible()
+                assert menu.get_by_role("link", name="Assistant settings").is_visible()
                 assert page.evaluate("Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= innerWidth + 1")
                 page.screenshot(path=str(out / f"fleet-menu-{viewport_name}.png"), animations="disabled")
 
@@ -712,12 +994,12 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
             "provider_calls": 0,
             "synthetic_bots": len(bot_names) + 1,
             "long_display_name": display_names[4],
-            "individual_surfaces": [name for name, _, _ in surfaces] + ["preferences", "Fleet action menu"],
+            "individual_surfaces": [name for name, _, _ in surfaces] + ["preferences", "Fleet details disclosure", "Fleet action menu"],
             "visual_review": "Open each desktop, tablet, and phone screenshot individually; 320px compact-phone has overflow assertions.",
             "reference_access": {
-                "mobbin": "Search blocked by the paid-plan gate.",
-                "figma": "Whole file rendered at 1600px; node-level detail calls hit the Starter-plan tool limit.",
+                "figma": "A node-level request for the supplied screen was attempted; the current Starter-plan MCP call limit blocked retrieval. DESIGN.md remains the implementation authority.",
             },
+            "source_sha256": _visual_source_hashes(),
         }, indent=2) + "\n", encoding="utf-8")
     finally:
         if not trace_saved:

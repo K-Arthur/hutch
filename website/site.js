@@ -16,7 +16,11 @@
   var revealTargets = Array.prototype.slice.call(document.querySelectorAll(
     "#proof .proof-figure, .step-card, .feature, .arch, " +
     ".control-grid, .case, .get-grid, .cta-grid"
-  ));
+  )).filter(function (el) {
+    /* A descendant of a closed disclosure has no rendered transition state.
+       Revealing it while hidden can leave it transparent when the panel opens. */
+    return !el.closest("details:not([open])");
+  });
   var io = null;
   if ("IntersectionObserver" in window) {
     io = new IntersectionObserver(function (entries) {

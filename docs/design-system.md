@@ -1,11 +1,13 @@
 # Hutch design system
 
-Hutch uses one shared design language across its operator workspace, supporting
-server-rendered pages, and public marketing site. Studio and Connections share
-the same application shell; Connections, Models, Usage, and other operator
-views share its semantic colors, focus states, control and panel geometry, and
-body type. The marketing site keeps its editorial composition while reusing
-those same semantic foundations. The operator rules in
+Hutch uses one shared design language across its assistant workspace, supporting
+settings pages, and public marketing site. Chats and Apps & AI share the same
+application shell; Apps & AI, Models, Usage, and other settings views share its
+semantic colors, focus states, control and panel geometry, and body type. The
+marketing site keeps its editorial composition while reusing those same semantic
+foundations. The app should feel like a personal assistant first; deeper provider,
+permission, model, workspace, and resource controls remain available as optional
+settings. The rules in
 [`DESIGN.md`](../DESIGN.md) take precedence whenever this guide or an older
 surface brief conflicts with them.
 
@@ -52,16 +54,17 @@ generated token files and the declared WCAG text pairs.
 
 The marketing site keeps Archivo for display and section headings and uses the
 locally bundled 3D Hutch mascot. Product body text uses the same system sans as
-Studio. The operator app keeps its compact flat 2D Bot silhouettes; their soft,
-upright ink eyes use a face-safe area tuned to each head's width, contour and
-centerline. Round, leaning, tapered and pointed forms therefore get different
-eye scale, spacing, height and subtle tilt, and the picker previews that same
-face. Status is shown separately. Brand art,
-Bot identity, and runtime state never substitute for one another.
+Studio. The app uses compact flat 2D assistant characters; each distinct head
+shape gets a slightly uneven pair of dark oval eyes fitted to its face. Round,
+leaning, tapered and pointed forms therefore get different eye size, spacing,
+height and tilt, and the picker previews that same face. The app face stays
+minimal, with no separate pupils, white eye highlights, or mouth. Status is
+shown separately. Brand art, assistant identity, and runtime state never
+substitute for one another.
 
 ## Surface roles
 
-### Studio workspace
+### Chats and assistants
 
 The chat is the daily workspace. Keep the active conversation and current work
 prominent, with approvals and human waits visible in context. Use a searchable
@@ -70,26 +73,58 @@ options menu for pinning and settings; idle, unpinned Bots collapse only when a
 workspace has ten or more Bots. Long custom names remain available to assistive
 technology and are clamped to two lines in the roster.
 
-Bot creation should reuse the request that led to the creation flow, suggest a
-short role-based name that the owner can edit, and keep the first path brief.
+The large **Fleet** view keeps the default card human-readable: assistant name,
+readiness, description, schedule cadence, and the action-approval expectation.
+Provider/model identifiers, exact schedules, last-run information, estimated
+tokens, and saved-note counts are grouped under one **More details** disclosure.
+Pause/resume and settings stay in one options menu, so a large roster does not
+turn into a wall of controls or infrastructure metrics.
+
+Assistant creation should reuse the request that led to the creation flow,
+suggest a short role-based name that the owner can edit, and keep the first path brief.
 Advanced model, permissions, schedule, workspace, and memory controls remain
 available as optional customization. Do not ask users to restate a task already
 present in the source conversation.
+
+The empty first-run screen offers a few illustrated starter requests, such as
+planning a week, catching up on email, or organizing a project. Selecting one
+fills the request field; it never starts work or creates an assistant by itself.
+Use recognizable local service marks and small line icons as helpful cues, with
+plain-language labels beside them. Keep provider, model, permission, and runtime
+terminology in the relevant optional detail layer.
+
+Assistant settings lead with the editable name and what the assistant helps with.
+Standing directions and the rest of the controls sit behind one clearly named
+disclosure with a meaningful icon, so people do not face a long technical form
+when they only want to rename an assistant. AI, app access, scheduling, safety,
+workspace, memory, and usage remain available when they choose to customize.
+A workspace with only one assistant does not show a coordinator choice.
+
+For an empty conversation in an existing assistant, lead the template gallery
+with familiar jobs such as organizing files, following up after a meeting, and
+reviewing the week. Give cards short task names instead of exposing internal
+template IDs; preserve the IDs only in the action and saved configuration.
 
 Approvals appear in the chat where the action was requested and remain available
 in the dedicated queue for review at scale. Lead with the action and consequence;
 keep exact arguments and destination reviewable; never hide an approval behind a
 generic notification or rely on color alone.
 
-### Operator workspace and supporting pages
+### Apps, activity, and settings
 
-Studio and the in-app Connections, Models, Usage, and other views share one
+Chats and the in-app Apps & AI, Models, Usage, and other views share one
 workspace sidebar, contextual header, system type, emerald actions, azure focus,
 solid graphite surfaces, and 8px/12px control-panel geometry. Sign-in, pairing,
 and remaining server-rendered pages load the same generated semantic tokens and
-map their components to that contract. Their information architecture can stay
-task-specific. Avoid a separate brand palette, blue primary actions, glass
-panels, or square-button overrides.
+map their components to that contract. Familiar local vector marks identify
+calendar, mail, and AI choices beside plain-language names and connection states.
+The AI tile uses Hutch's generic spark mark rather than a recolored imitation of
+the OpenAI Blossom; provider marks must remain accurate, secondary, and within
+their owner's brand rules ([OpenAI brand guidance](https://openai.com/brand/)).
+The first layer explains the useful choice; detailed scopes, OAuth setup, and
+account controls stay inside the optional **More account settings** disclosure.
+Never make a provider mark the only label. Avoid a separate brand palette, blue
+primary actions, glass panels, or square-button overrides.
 
 ### Marketing site
 
@@ -123,12 +158,10 @@ local-host access, or fixture-only states in public flows.
 
 The documented reference and access limits are in
 [`docs/research/ui-reference-patterns-2026-10-09.md`](research/ui-reference-patterns-2026-10-09.md).
-Mobbin's in-app search required a paid tier in this environment, so no gated
-screens were claimed as inspected. Public Figma Community previews and
-user-provided Grok Bot screens informed interaction patterns, not copied assets
-or unsupported prevalence claims. Continue recording web and mobile references
-for future frontend work; never bypass a paid gate or purchase access as part of
-research.
+Hutch's `DESIGN.md` on `main` remains the authority for code changes. The user's
+supplied mobile screens informed familiar chat and per-assistant action patterns;
+Figma Community references are useful when their individual nodes can be inspected.
+Do not copy assets or imply that a broad preview verifies individual screen details.
 
 Prioritize defects with direct evidence: clipped names, hidden approval work,
 focus loss after refresh, crowded controls, duplicate setup questions, unclear

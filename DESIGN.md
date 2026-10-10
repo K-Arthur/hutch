@@ -1,6 +1,6 @@
 ---
 name: Hutch
-description: Local-first multi-bot agent workspace — a conversation-first console for supervising, approving and reviewing bot work.
+description: A personal assistant for everyday work, with optional specialist helpers and clear control over apps, models, and actions.
 colors:
   primary: "#34d399"
   primary-ink: "#052e21"
@@ -117,31 +117,31 @@ components:
 
 ## Overview
 
-Hutch is a local-first multi-bot agent workspace: an operator console where a person
-sends tasks to bots, watches real execution, and decides consequential approvals.
-The design job is **trust under time pressure** — every pixel either helps someone
-understand what the machine is actually doing, or it is chrome that should shrink.
+Hutch is a personal assistant for everyday work. People begin in a conversation,
+turn a request into a specialist when useful, and review important actions in plain
+language. Model, integration, memory, and execution details are available when
+someone wants to adjust them. The design job is **helpful at first glance, dependable
+when it matters** — make the next useful step obvious without hiding what a service
+can access or what the machine has actually confirmed.
 
-**Creative North Star: "An instrument that never lies, and never shouts."**
+**Creative North Star: "A capable companion, with the details in reach."**
 
 **Key Characteristics:**
-- Layered graphite surfaces with elevation by offset+blur shadow and a top hairline — never glow.
-- One conversation column (760px) carries the story; operational ledgers (runs, usage,
-  approvals) support it as tables, not as the homepage.
-- Colour does jobs: emerald is the brand and the primary action; azure is interaction
-  only; amber means a human must act now; rose means failure. Everything else is
-  neutral so those four stay legible.
-- Mono type is reserved for measured values (ids, durations, counts, budgets) —
-  it signals "this number came from the machine".
-- The operator workspace uses simple, flat 2D Bot characters: one coloured
-  silhouette and two soft, upright ink oval eyes. Each head shape has its own
-  face center, spacing, proportions, height and subtle tilt; pointed silhouettes
-  place eyes lower in the wider face, while narrow forms use a more compact pair.
-  The shape chooser previews the same geometry used by the avatar, and every eye
-  remains inside its silhouette. Identity is stable by Bot name and editable by
-  the owner.
-  Detailed original 3D mascot artwork belongs to marketing pages; the product
-  and marketing characters are related brand work, not a shared UI asset.
+- Familiar chat and app patterns carry everyday tasks; advanced controls appear in
+  clear, optional layers instead of defining the first impression.
+- A simple, shape-aware 2D character gives the app a recognizable face. A gently
+  uneven pair of dark oval eyes follows each distinct silhouette. Faces stay
+  minimal: no white eye dots, mouth, or decorative marks. Larger original 3D
+  character art belongs to marketing; both use the same friendly palette and
+  visual family.
+- Inline vector marks make email, calendar, model, and other service choices easy to
+  scan. Every mark sits beside the service name and an honest connection state; no
+  remote logo fetch or unfamiliar icon-only control is required.
+- Layered graphite surfaces keep long sessions comfortable. Emerald is the brand
+  and primary action; azure is interaction; amber means a person needs to act; rose
+  means failure. Text and familiar icons reinforce each color's meaning.
+- Mono type is reserved for measured values such as IDs, durations, and budgets.
+  Prose and instructions use the familiar system sans.
 
 **The Measure Rule.** Reading text caps at ~72ch; anything wider is layout debt.
 **The One-Ink Rule.** Emerald fills always carry near-black ink (#052e21); white on
@@ -214,7 +214,7 @@ language after explicit user direction ("right angles feel too off"):
 - **`rounded.chat` 18px** — conversation bubbles (user bubble tail corner 6px);
   composer 22px (`--r-composer`) as the one larger surface.
 - **`rounded.chip` 100px** — status chips, badges, counts, jump-to-latest, meter tracks.
-- Mascot identity shapes (sigils, avatar glints) are artwork and may be any
+- Mascot identity shapes (sigils and faces) are artwork and may be any
   silhouette — they are not containers.
 
 ## Components
@@ -226,10 +226,10 @@ language after explicit user direction ("right angles feel too off"):
 - **Status chip** — pill, mono 11px, dot + word always together (`● working`,
   `● needs you`, `✕ failed`); colour never carries state alone.
 - **App avatar/sigil** — one flat silhouette from a varied, curated set in one of
-  eight identity colours with a pair of soft, upright ink oval eyes. Each
-  silhouette has a face-safe zone that determines the eyes' center, spacing,
-  proportions, height and subtle tilt; pointed heads place them lower in the
-  wider face. The identity picker uses the exact same face geometry as the
+  eight identity colours with a slightly asymmetric pair of filled ink ovals.
+  Each silhouette has a face-safe zone that determines the eyes' center, spacing,
+  proportions, height and tilt; pointed heads place them lower in the wider face.
+  The minimal face has no separate pupils, white highlights, or mouth. The identity picker uses the exact same face geometry as the
   selected avatar. Derived from the Bot name and overridable
   at creation and in settings. Identity colours are decorative only, never status;
   the separate state pip sits beside it with its word. The marketing site's 3D art
@@ -241,6 +241,18 @@ language after explicit user direction ("right angles feel too off"):
   Bot contains pin/unpin and settings. Hover and focus add contrast; display
   names wrap to two lines before the clamp; idle Bots collapse into a searchable
   group in workspaces with ten or more Bots.
+- **Fleet card** — lead with the assistant's name, readiness, plain-language role,
+  run cadence and action expectation. Keep provider/model identifiers, exact
+  schedule, run recency, estimated tokens and memory counts together under one
+  **More details** disclosure. Do not repeat machine-oriented telemetry on every
+  card by default; pause/resume and settings remain together in the card menu.
+- **Assistant settings** — start with the editable name and short description.
+  Keep standing directions and technical controls under one optional
+  **Customize how it works** disclosure; preserve its open state after a save so
+  people can adjust several related choices in one visit.
+- **Template gallery** — prioritize everyday jobs with short names that describe
+  the result. Never show storage IDs such as `repo-sweeper` as a title; keep them
+  only in the underlying action.
 - **Composer** — 22px rounded box, 16–18px textarea, circular emerald send and
   rose stop, a "+" popover holding only real capabilities (suggestions, rehearsal,
   Enter-behaviour, live budget).

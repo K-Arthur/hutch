@@ -111,23 +111,33 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     page.on("request", lambda request: requests.append(request.url))
     page.goto(site_url, wait_until="networkidle")
     assert page.title().startswith("hutch")
-    assert "Your bots." in page.inner_text("h1.hero-title")
+    assert "A little help with what’s next." in page.inner_text("h1.hero-title")
     mascot = page.locator("img.weave-agent")
     assert mascot.count() == 1 and "assets/hutch-agent.webp" in mascot.get_attribute("src")
+    assert page.locator(".hero-promises li").count() == 3
+    assert page.locator(".benefit-card").count() == 3
+    assert page.locator(".benefit-art svg").count() == 6
     assert page.locator("#proof .proof-img").count() == 1
     assert "Real application" in page.inner_text("#proof .proof-chrome")
-    assert "empty state directory" in page.inner_text("#proof")
+    assert "carries your words into assistant setup" in page.inner_text("#proof")
+    assert "2026-10-10" in page.inner_text("#proof")
     assert page.locator("#gate-card, #gate-demo, #gate-allow, #gate-deny").count() == 0
     assert page.locator("#get").get_by_text("Public access", exact=True).count() == 1
     assert page.locator("#get .ev").filter(has_text="Experimental").count() >= 1
     assert page.locator("#get .ev").filter(has_text="Unavailable").count() >= 1
+    workflow_details = page.locator(".workflow-details")
+    assert workflow_details.count() == 3
+    assert all(not detail.evaluate("el => el.open") for detail in workflow_details.all())
+    workflow_details.nth(1).locator("summary").click()
     coordinator_card = page.locator(".step-card").filter(has_text="Experimental coordinator handoff")
-    assert "only Bots on the owner-approved roster can receive a new task" in coordinator_card.inner_text()
+    assert "only assistants on the owner-approved roster can receive a new task" in coordinator_card.inner_text()
     assert "changing the roster never stops existing work" in coordinator_card.inner_text()
-    saved_requests_card = page.locator(".step-card").filter(has_text="Check the run evidence")
+    saved_requests_card = page.locator(".step-card").filter(has_text="Come back to the result")
+    workflow_details.nth(2).locator("summary").click()
     saved_requests_copy = saved_requests_card.inner_text().lower()
     assert "save a reviewed request in hutch’s local library" in saved_requests_copy
     assert "choosing one fills a draft only; you still review and send it yourself" in saved_requests_copy
+    workflow_details.evaluate_all("els => els.forEach(el => el.open = false)")
     for image in page.locator("img").all():
         image.evaluate("img => { img.loading = 'eager'; return img.decode(); }")
     assert page.locator("img").evaluate_all("imgs => imgs.every(img => img.complete && img.naturalWidth > 0)")
@@ -140,9 +150,9 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     for retired in ("deterministic mock", "mock/offline", "scripted gate", "no telemetry"):
         assert retired not in text, retired
     assert "provider's own billing controls" in text
-    assert "private" in text and "public package or release" in text
+    assert "private" in text and "no anonymous download or public release" in text
     assert "not a virtual machine" in text
-    assert "browser egress" in text and "non-http" in text
+    assert "fixture-tested dns pinning" in text and "browser field detection" in text
     assert "sign in with chatgpt is an opt-in local preview" in text
     assert "eligibility for hutch is unconfirmed" in text
     assert "does not enforce hutch's output-token allowance" in text
@@ -152,7 +162,7 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
     assert not errors, errors
     external_requests = [url for url in requests if urlsplit(url).netloc not in {urlsplit(site_url).netloc, ""}]
     assert not external_requests, external_requests
-    out = ROOT / "docs/realignment/artifacts/bot-purpose-refinement/marketing"
+    out = ROOT / "docs/realignment/artifacts/assistant-first-ui/marketing"
     out.mkdir(parents=True, exist_ok=True)
     viewports = (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844))
     for label, width, height in viewports:
@@ -168,7 +178,7 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
         "viewports": [{"name": label, "size": [width, height]} for label, width, height in viewports],
         "source_sha256": hashlib.sha256((ROOT / "website/index.html").read_bytes()).hexdigest(),
     }, indent=2) + "\n", encoding="utf-8")
-    saved_out = ROOT / "docs/realignment/artifacts/saved-requests/marketing"
+    saved_out = ROOT / "docs/realignment/artifacts/assistant-first-ui/marketing/repeat-work"
     saved_out.mkdir(parents=True, exist_ok=True)
     saved_viewports = []
     for label, width, height in viewports:
@@ -189,7 +199,7 @@ def test_home_loads_real_assets_and_truthful_availability(browser, site_url):
         "verified": ["local saved-request library is described", "reuse fills a draft without sending",
                      "responsive marketing card has no horizontal overflow"],
     }, indent=2) + "\n", encoding="utf-8")
-    handoff_out = ROOT / "docs/realignment/artifacts/workspace-specialists/marketing"
+    handoff_out = ROOT / "docs/realignment/artifacts/assistant-first-ui/marketing/specialists"
     handoff_out.mkdir(parents=True, exist_ok=True)
     for label, width, height in viewports:
         page.set_viewport_size({"width": width, "height": height})
@@ -219,7 +229,8 @@ def test_chatgpt_background_consent_marketing_copy_at_responsive_sizes(browser, 
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
         page.goto(site_url, wait_until="networkidle")
-        card = page.locator("article.card").filter(has=page.get_by_role("heading", name="Plans & keys"))
+        page.locator("#runs .technical-details > summary").click()
+        card = page.locator("#runs article.feature").filter(has=page.get_by_role("heading", name="Plans & keys"))
         assert "scheduled use requires a separate permission for each Bot and account" in card.inner_text()
         faq = page.locator("details.faq-item").filter(has_text="Can I run it on my ChatGPT or Claude subscription?")
         faq.locator("summary").click()
@@ -280,10 +291,7 @@ def test_internal_links_resolve_and_external_links_are_public_reports(browser, s
       .filter(href => href.length > 1 && !document.getElementById(decodeURIComponent(href.slice(1))))""")
     assert not broken, broken
     external = page.locator("a[href^='https://']").evaluate_all("els => els.map(a => a.href)")
-    assert len(external) == 3, external
-    assert all("github.com/openclaw/openclaw/issues/138499" in href
-               or "github.com/open-webui/open-webui/issues/30055" in href
-               or "github.com/open-webui/open-webui/issues/31656" in href for href in external)
+    assert external == [], external
     context.close()
 
 
@@ -300,7 +308,7 @@ def test_static_site_makes_no_external_requests(browser, site_url):
 
 def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
-    out = ROOT / "docs/realignment/artifacts/bot-purpose-refinement/marketing"
+    out = ROOT / "docs/realignment/artifacts/assistant-first-ui/marketing/workflow"
     out.mkdir(parents=True, exist_ok=True)
     index = (SITE_DIR / "index.html").read_bytes()
     external = []
@@ -311,22 +319,25 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
     try:
         page.goto(site_url, wait_until="networkidle")
         workflow = page.locator("#workflow")
+        workflow.locator("details").evaluate_all("els => els.forEach(el => el.open = true)")
+        technical = page.locator("#runs .technical-details")
+        technical.locator("summary").click()
         scheduling = page.locator("#runs .card.feature").filter(has_text="Scheduling")
-        assert "named recurring tasks" in workflow.inner_text().lower()
+        assert "dedicated assistant" in workflow.inner_text().lower()
         assert "local supervisor" in page.locator("body").inner_text().lower()
         assert "one workspace-wide pause stops new scheduled admissions" in scheduling.inner_text().lower()
         assert "queued or running work continues" in scheduling.inner_text().lower()
         assert "when resumed, missed windows are coalesced or skipped" in scheduling.inner_text().lower()
         assert "teammate name" in workflow.inner_text().lower()
         assert "clear work role" in workflow.inner_text().lower()
-        assert "built-in chat can ask you to choose among options" in workflow.inner_text().lower()
-        assert "your answer continues the conversation and never approves an action" in workflow.inner_text().lower()
+        assert "if hutch needs your preference" in workflow.inner_text().lower()
+        assert "your reply guides the conversation; it never approves an action" in workflow.inner_text().lower()
         assert "experimental (built-in coordinator only)" in workflow.inner_text().lower()
         assert "tool-free purpose rewrite from the exact source" in workflow.inner_text().lower()
         assert "each request returns one response" in workflow.inner_text().lower()
         assert "select earlier user messages if useful" in workflow.inner_text().lower()
         assert "hosted providers may retain the text" in workflow.inner_text().lower()
-        assert "drafting creates no bot or permission changes" in workflow.inner_text().lower()
+        assert "drafting creates no assistant or permission changes" in workflow.inner_text().lower()
         assert "normal route and fallback limits still apply" in workflow.inner_text().lower()
         assert "live quality is unverified" in workflow.inner_text().lower()
         assert "experimental coordinator handoff" in workflow.inner_text().lower()
@@ -340,7 +351,7 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
         assert "up to eight current, approved coordinator facts for that task alone" in workflow.inner_text().lower()
         assert "providers may retain submitted copies" in workflow.inner_text().lower()
         assert "keep memory private by default" in workflow.inner_text().lower()
-        assert "share the reviewed snapshot with that named bot" in workflow.inner_text().lower()
+        assert "share the reviewed snapshot with that named assistant" in workflow.inner_text().lower()
         assert "either side can revoke" in workflow.inner_text().lower()
         assert "the share adds no tools, account access or workspace context" in workflow.inner_text().lower()
         assert "without describing the work again" in workflow.inner_text().lower()
@@ -349,7 +360,7 @@ def test_public_workflow_describes_named_recurring_tasks(browser, site_url):
         assert "suggests an editable teammate name" in workflow.inner_text().lower()
         for label, width, height in (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
-            workflow.get_by_role("heading", name="Keep each task reviewable from request to result.").scroll_into_view_if_needed()
+            workflow.get_by_role("heading", name="Turn one conversation into help you can return to.").scroll_into_view_if_needed()
             workflow.screenshot(
                 path=str(out / f"site-workflow-{label}.png"), animations="disabled",
                 style="body > header { display: none !important; } .skip-link { display: none !important; }")
@@ -387,8 +398,10 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
     try:
         page.goto(site_url, wait_until="networkidle")
         card = page.locator("#workflow .step-card").first
+        card.locator("details.workflow-details > summary").click()
         text = card.inner_text().lower()
-        assert "make a bot under the request you already gave the agent" in text
+        assert "start in chat" in text
+        assert "carries your words into setup" in text
         assert "without describing the work again" in text
         assert "latest request" in text
         assert "later messages, assistant replies and other chats stay excluded" in text
@@ -400,6 +413,7 @@ def test_public_bot_setup_copy_matches_reviewed_chat_sourced_creation(browser, s
         assert "no tools" in text and "schedule" in text
         assert "starts no run" in text
         assert "experimental (built-in coordinator only)" in page.locator("#workflow").inner_text().lower()
+        page.locator("#runs .technical-details > summary").click()
         model_card = page.locator("#runs .feature").filter(has_text="Hutch supports configured OpenAI").first
         model_text = model_card.inner_text().lower()
         assert "next message" in model_text
@@ -439,32 +453,35 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
     external = []
     page.on("request", lambda request: external.append(request.url)
             if not request.url.startswith(site_url) and not request.url.startswith("data:") else None)
-    out = ROOT / "docs/realignment/artifacts/google-mail/marketing"
+    out = ROOT / "docs/realignment/artifacts/assistant-first-ui/marketing/availability"
     out.mkdir(parents=True, exist_ok=True)
     source = (SITE_DIR / "index.html").read_bytes()
     styles = (SITE_DIR / "styles.css").read_bytes()
     viewports = (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844))
     try:
+        page.locator("#get .availability-details > summary").click()
         assert page.locator("#get .availability").get_by_text("Public access", exact=True).count() == 1
         availability = page.locator("#get").inner_text().lower()
         assert "opencode go api-key handoff" in availability
         assert "chatgpt sign-in preview" in availability
         assert "eligibility unconfirmed" in availability
-        assert "read-only google/outlook calendar" in availability
-        assert "account consent unverified" in availability
+        assert "google calendar lookup" in availability
+        assert "consent unverified" in availability
         assert "private gmail search" in availability
         assert "public release awaits google scope verification" in availability
-        assert "outlook mail previews" in availability
+        assert "read-only outlook calendar and mail previews" in availability
         assert page.locator("a[href='#get']").count() >= 1
         for label, width, height in viewports:
             page.set_viewport_size({"width": width, "height": height})
-            page.get_by_role("heading", name="How to get hutch").scroll_into_view_if_needed()
+            page.get_by_role("heading", name="Hutch is still a private preview.").scroll_into_view_if_needed()
             page.screenshot(path=str(out / f"marketing-{label}.png"), animations="disabled")
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, overflow)
         feature_sizes = (("desktop", 1440, 900), ("tablet", 900, 1024), ("phone", 390, 844))
         for label, width, height in feature_sizes:
             page.set_viewport_size({"width": width, "height": height})
+            if not page.locator("#runs .technical-details").evaluate("el => el.open"):
+                page.locator("#runs .technical-details > summary").click()
             page.locator("#runs").screenshot(
                 path=str(out / f"marketing-features-{label}.png"), animations="disabled",
                 style="body > header { display: none !important; } .skip-link { display: none !important; }")
@@ -502,7 +519,7 @@ def test_provider_availability_is_readable_without_horizontal_page_scroll(browse
 
 def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_viewports(browser, site_url):
     context, page, errors = _page(browser, reduced_motion="reduce")
-    out = ROOT / "docs/realignment/artifacts/google-mail/site-availability"
+    out = ROOT / "docs/realignment/artifacts/assistant-first-ui/marketing/connection-support"
     out.mkdir(parents=True, exist_ok=True)
     source = (SITE_DIR / "index.html").read_bytes()
     styles = (SITE_DIR / "styles.css").read_bytes()
@@ -512,15 +529,16 @@ def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_
     captures = []
     try:
         page.goto(site_url, wait_until="networkidle")
+        page.locator("#get .availability-details > summary").click()
         row = page.locator("#get .availability tbody tr").filter(has_text="Outlook Calendar")
         assert row.count() == 1
         text = row.inner_text().lower()
         assert "experimental" in row.inner_text().lower()
-        assert "account consent unverified" in text
+        assert "consent unverified" in text
         assert "credential/captcha handoff" in text
         assert "browser field detection" in text
-        assert "outlook mail previews" in text
-        assert "account consent unverified" in text
+        assert "read-only outlook calendar and mail previews" in text
+        assert "consent unverified" in text
         assert "private gmail search" in text
         assert "public release awaits google scope verification" in text
         wrapper = page.locator("#get .overflow-x-auto")
@@ -581,6 +599,8 @@ def test_reveal_watchdog_shows_everything(browser, site_url):
     context, page, _ = _page(browser)
     page.goto(site_url, wait_until="networkidle")
     page.wait_for_timeout(3400)
+    hidden_disclosure_targets = page.locator("details:not([open]) .reveal")
+    assert hidden_disclosure_targets.count() == 0, "closed disclosures must not receive hidden reveal styles"
     hidden = page.locator(".reveal").evaluate_all("els => els.filter(e => getComputedStyle(e).opacity === '0').length")
     assert hidden == 0, f"{hidden} reveal targets remain hidden"
     context.close()
@@ -617,6 +637,7 @@ def test_mobile_drawer_focus_and_ctas(browser, site_url):
 def test_term_tabs_keyboard_operable(browser, site_url):
     context, page, errors = _page(browser)
     page.goto(site_url, wait_until="networkidle")
+    page.locator("#control .control-details > summary").click()
     tabs = page.locator(".term-tabs [role=tab]")
     tabs.first.focus()
     page.keyboard.press("ArrowRight")
@@ -644,7 +665,7 @@ def test_real_setup_capture_is_truthful_and_fits_anonymous_viewports(browser, si
         image.evaluate("img => { img.loading='eager'; return img.decode(); }")
         figure = image.locator("xpath=ancestor::figure")
         assert image.evaluate("img => img.naturalWidth") == (390 if width <= 640 else 1440)
-        assert "state directory was empty" in figure.inner_text()
+        assert "temporary account was empty" in figure.inner_text()
         assert "no provider call" in figure.inner_text()
         assert page.locator("#gate-card, #gate-demo").count() == 0
         page.evaluate("window.scrollTo(0, 0)")

@@ -582,6 +582,20 @@ function icon(name, cls = "") {
   return `<svg class="icon ${cls}" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name] || ""}</svg>`;
 }
 
+// Small inline marks make familiar apps scannable without remote image requests.
+// The visible service name remains the primary label; the mark is never the only cue.
+function serviceMark(kind) {
+  const marks = {
+    calendar: `<svg viewBox="0 0 40 40"><rect x="5" y="6" width="30" height="29" rx="7" fill="#fff"/><path d="M5 13h30V9a3 3 0 0 0-3-3H8a3 3 0 0 0-3 3z" fill="#4285f4"/><path d="M11 6h6v8h-6z" fill="#ea4335"/><path d="M23 6h6v8h-6z" fill="#34a853"/><path d="M5 19h9v9H5z" fill="#fbbc04"/><text x="19.8" y="28" fill="#4285f4" font-size="12" font-weight="700" font-family="Arial,sans-serif">31</text></svg>`,
+    gmail: `<svg viewBox="0 0 40 40"><rect x="4" y="7" width="32" height="26" rx="6" fill="#fff"/><path d="M7 12v17M33 12v17" fill="none" stroke="#4285f4" stroke-width="4" stroke-linecap="round"/><path d="m7 12 13 10 13-10" fill="none" stroke="#ea4335" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 29h5M28 29h5" fill="none" stroke="#34a853" stroke-width="3" stroke-linecap="round"/></svg>`,
+    outlook: `<svg viewBox="0 0 40 40"><rect x="5" y="8" width="23" height="24" rx="5" fill="#0078d4"/><path d="M17 8h14a4 4 0 0 1 4 4v16a4 4 0 0 1-4 4H17z" fill="#28a8ea"/><path d="m19 15 9 7 9-7" fill="none" stroke="#eaf7ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><text x="9" y="25" fill="#fff" font-size="12" font-weight="700" font-family="Arial,sans-serif">O</text></svg>`,
+    chatgpt: `<svg viewBox="0 0 40 40"><path d="M20 5 23.1 16.9 35 20l-11.9 3.1L20 35l-3.1-11.9L5 20l11.9-3.1L20 5Z" fill="#34d399"/><path d="m31 5 1.6 5.4L38 12l-5.4 1.6L31 19l-1.6-5.4L24 12l5.4-1.6L31 5Z" fill="#9b7cff"/></svg>`,
+    hosted: `<svg viewBox="0 0 40 40"><path d="M8 30h24a6 6 0 0 0 .4-12A10.8 10.8 0 0 0 12 15.5 7.2 7.2 0 0 0 8 30Z" fill="none" stroke="#7c6be8" stroke-width="2.6" stroke-linejoin="round"/><path d="m16 25 3-4 3 4 3-4" fill="none" stroke="#7c6be8" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    local: `<svg viewBox="0 0 40 40"><rect x="6" y="7" width="28" height="21" rx="4" fill="none" stroke="#36c6a4" stroke-width="2.5"/><path d="M15 34h10M20 28v6M13 17h3m4 0h3m4 0h1M13 22h2m4 0h7" fill="none" stroke="#36c6a4" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+  };
+  return `<span class="service-mark service-mark-${esc(kind)}" aria-hidden="true">${marks[kind] || marks.hosted}</span>`;
+}
+
 function truncate(s, n) {
   return s.length > n ? `${s.slice(0, n - 1)}…` : s;
 }
@@ -607,18 +621,18 @@ const ID_HEADS = [
   { key: "triangle", d: "M27 12c2-4 8-4 10 0l19 32c2 4-1 8-5 8H13c-5 0-7-4-5-8l19-32Z" },
   { key: "hex", d: "M22 9h20l13 23-13 23H22L9 32 22 9Z" },
 ];
-// Each silhouette gets a face fitted to its own usable area. Soft upright eyes
-// avoid reading as eyebrows at small sizes; individual spacing, height, scale,
-// and slight tilt follow each head's centerline and widest face region.
+// Each silhouette gets a face fitted to its own usable area. A slightly
+// asymmetric pair of soft ink ovals keeps the simple 2D faces expressive and
+// legible without extra highlights or facial detail.
 const ID_FACES = [
-  [[25, 29, 3.4, 4.5, -8], [39, 28, 3.2, 4.2, 8]], // orb: open, softly balanced
-  [[25, 27, 3.1, 4.8, -3], [39, 27, 3.1, 4.8, 3]], // capsule: tall and upright
-  [[24, 30, 3.4, 4.5, -12], [39, 32, 3.1, 4.2, 8]], // bean: follows the lean
-  [[24, 36, 3.2, 4.4, -7], [40, 36, 3.2, 4.4, 7]], // drop: lower in its bowl
-  [[24, 30, 3.1, 4.1, -10], [39, 29, 3.6, 4.5, 8]], // pebble: follows its uneven crown
-  [[25, 31, 2.9, 4.1, -4], [39, 31, 2.9, 4.1, 4]], // shield: compact below its taper
-  [[27, 36, 2.9, 4.0, -6], [39, 35, 2.9, 4.0, 6]], // triangle: centered in the base
-  [[25, 31, 3.3, 4.4, -5], [39, 31, 3.3, 4.4, 5]], // hex: follows the flat facets
+  [[23.8, 29, 4.3, 5.4, -18], [40.1, 28.4, 3.8, 4.9, 13]], // orb: open, gently tilted pair
+  [[25, 28, 3.7, 5.6, -12], [39.1, 27.8, 3.3, 4.9, 10]], // capsule: tall and upright
+  [[23.6, 30, 4.1, 5, -20], [40.3, 29, 3.7, 4.6, 12]], // bean: follows the lean
+  [[24.2, 36, 4.1, 4.8, -13], [39.7, 35.2, 3.6, 4.4, 10]], // drop: lower in its bowl
+  [[23.7, 29.5, 4.3, 5.1, -16], [40.4, 29, 3.7, 4.6, 11]], // pebble: follows its wider face
+  [[24.8, 31, 3.7, 5, -13], [39.4, 30.3, 3.2, 4.4, 9]], // shield: compact below its taper
+  [[26.8, 37, 3.6, 4.4, -11], [39.6, 36.2, 3.1, 4, 8]], // triangle: centered in the base
+  [[24, 33, 4.4, 5, -14], [40.4, 32.6, 3.8, 4.7, 10]], // hex: broader pair follows its facets
 ];
 
 function hash32(s) {
@@ -659,10 +673,7 @@ function sigilEyes(shapeIndex) {
   const [lead, companion] = ID_FACES[shapeIndex] || ID_FACES[0];
   const eye = (name, [cx, cy, rx, ry, angle]) =>
     `<ellipse data-sigil-eye="${name}" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" transform="rotate(${angle} ${cx} ${cy})"/>`;
-  return `<g fill="#10161f" aria-hidden="true">
-    ${eye("lead", lead)}
-    ${eye("companion", companion)}
-  </g>`;
+  return `<g aria-hidden="true" fill="#10161f">${eye("lead", lead)}${eye("companion", companion)}</g>`;
 }
 
 function sigilBody(pair) {
@@ -688,6 +699,13 @@ function botStatusLabel(b) {
 
 function botNeedsYou(b) {
   return ["waiting_approval", "waiting_human"].includes(b.active_run_status) || attentionBots.includes(b.name);
+}
+
+function botActionSummary(mode) {
+  if (mode === "ask") return "Checks with you before actions";
+  if (mode === "auto") return "Uses actions you approved";
+  if (mode === "deny_all") return "Actions turned off";
+  return "Action settings";
 }
 // shared identity picker (creation modal + bot settings)
 function identityPickerHtml() {
@@ -952,9 +970,9 @@ function openRosterActionMenu(trigger) {
   menu.innerHTML = `${bot.is_workspace_coordinator ? "" : `<button type="button" role="menuitem" tabindex="-1" data-menu-pin>${icon("pin")} ${bot.pinned ? "Remove from pinned" : "Pin to sidebar"}</button>
     <button type="button" role="menuitem" tabindex="-1" data-menu-section>${icon("folder")} ${bot.roster_section ? "Move to a section" : "New section"}</button>
     `}<button type="button" role="menuitem" tabindex="-1" data-menu-template>${icon("fileText")} Share as template</button>
-    <button type="button" role="menuitem" tabindex="-1" data-menu-duplicate>${icon("bot")} Duplicate bot</button>
+    <button type="button" role="menuitem" tabindex="-1" data-menu-duplicate>${icon("bot")} Duplicate assistant</button>
     ${bot.is_workspace_coordinator ? "" : `<button type="button" role="menuitem" tabindex="-1" data-menu-hide>${icon(bot.sidebar_hidden ? "eye" : "eyeOff")} ${bot.sidebar_hidden ? "Show in sidebar" : "Hide from sidebar"}</button>`}
-    <a role="menuitem" tabindex="-1" data-menu-settings href="#/bot/${encodeURIComponent(bot.name)}">${icon("sliders")} Bot settings</a>`;
+    <a role="menuitem" tabindex="-1" data-menu-settings href="#/bot/${encodeURIComponent(bot.name)}">${icon("sliders")} Assistant settings</a>`;
   document.body.append(menu);
   trigger.setAttribute("aria-expanded", "true");
   const triggerRect = trigger.getBoundingClientRect();
@@ -1252,7 +1270,7 @@ function renderRoster() {
     const rowHtml = b => rosterRowHtml(b, currentStudioBot);
     list.innerHTML = `${coordinatorMatch ? `<div class="roster-section roster-coordinator">${rosterRowHtml(coordinatorMatch, currentStudioBot)}</div>` : ""}
       ${rows.length ? `<section class="roster-section" aria-label="Bot search results"><h3 class="roster-section-title">Search results</h3>${rows.map(rowHtml).join("")}</section>`
-        : `<div class="roster-empty">No bot matches.</div>`}`;
+      : `<div class="roster-empty">No assistant matches.</div>`}`;
     wireRosterRows(list);
     wireRosterMenuButtons(list, menuBot, focusedMenuAction);
     return;
@@ -1272,7 +1290,7 @@ function renderRoster() {
   const idle = remaining.filter(b => !spotlight.has(b));
   const bots = [...(coordinatorMatch ? [coordinatorMatch] : []), ...pinned, ...remaining, ...hiddenIdle];
   if (!bots.length) {
-    list.innerHTML = `<div class="roster-empty">${botsCache.length ? "No bot matches." : "No bots yet — create one."}</div>`;
+    list.innerHTML = `<div class="roster-empty">${botsCache.length ? "No assistant matches." : "No assistants yet — create one."}</div>`;
     return;
   }
   const rowHtml = b => rosterRowHtml(b, currentStudioBot);
@@ -1362,7 +1380,7 @@ function rosterRowHtml(bot, currentStudioBot) {
       </span>
     </button><button class="icon-btn roster-options" type="button" data-bot-options="${esc(bot.name)}"
       aria-label="Options for ${esc(bot.display_name || bot.name)}" aria-haspopup="menu" aria-expanded="false"
-      title="Bot options">${icon("moreHorizontal")}</button></div>`;
+      title="Assistant options">${icon("moreHorizontal")}</button></div>`;
 }
 
 function wireRosterRows(list) {
@@ -2088,14 +2106,65 @@ async function renderChatStudio(preferredBot = null) {
   botsCache = fetchedBots;
   renderRoster();
   if (!botsCache.length) {
-    view.innerHTML = `<div class="page-scroll"><div class="container"><div class="empty-state">
-      ${icon("bot", "icon-lg")}
-      <p><b>No bots yet.</b></p>
-      <p class="hint">Choose a real model route when you create a bot. Configure a hosted connection or start a local model first; Hutch will not create sample bots or simulate a run.</p>
-      <a class="btn ghost" href="#/connections">Configure a model connection</a>
-      <button class="btn primary" id="btn-create-first">Create a bot</button>
-    </div></div></div>`;
-    $("#btn-create-first")?.addEventListener("click", promptNewBot);
+    view.innerHTML = `<div class="page-scroll first-run-scroll"><div class="container first-run-container">
+      <section class="welcome first-run-welcome" aria-labelledby="first-run-title">
+        <div class="welcome-hero">
+          <div class="welcome-stage" aria-hidden="true">
+            <span class="welcome-app-mark welcome-app-calendar">${serviceMark("calendar")}</span>
+            <span class="welcome-app-mark welcome-app-mail">${serviceMark("gmail")}</span>
+            <span class="welcome-app-mark welcome-app-ai">${serviceMark("chatgpt")}</span>
+            <div class="hero-agent first-run-mascot">${avatarFromPair([0, 0], 144)}</div>
+          </div>
+          <p class="first-run-eyebrow">Your personal assistant</p>
+          <h1 id="first-run-title">What would you like help with?</h1>
+          <p class="first-run-copy">Tell Hutch what you’re trying to get done. It suggests a name and carries your request into setup; you can fine-tune the details when you want to.</p>
+        </div>
+        <form class="first-run-request" id="first-run-request-form">
+          <label for="first-run-request">Your first request</label>
+          <textarea id="first-run-request" rows="3" maxlength="20000" placeholder="For example, help me plan my week and keep track of the follow-ups." required></textarea>
+          <div class="first-run-examples" aria-label="Try a starting point">
+            <p class="first-run-examples-title">Or start with an idea</p>
+            <div class="first-run-examples-grid">
+              <button class="first-run-example" type="button" data-first-run-example="plan">${icon("clock")}<span>Plan my week</span></button>
+              <button class="first-run-example" type="button" data-first-run-example="email">${icon("mail")}<span>Catch up on email</span></button>
+              <button class="first-run-example" type="button" data-first-run-example="project">${icon("folder")}<span>Organize a project</span></button>
+            </div>
+          </div>
+          <div class="first-run-request-foot">
+            <span class="hint">This gives your assistant a starting point. Nothing happens until you ask it to start.</span>
+            <button class="btn primary" type="submit">Set up my assistant ${icon("arrow")}</button>
+          </div>
+        </form>
+        <div class="first-run-secondary">
+          <span class="hint">Have an AI you like?</span>
+          <a href="#/connections">Choose it here</a>
+        </div>
+        <ul class="first-run-promises" aria-label="How Hutch works">
+          <li>${icon("chat")}Start with a conversation</li>
+          <li>${icon("shield")}Review important actions</li>
+          <li>${icon("layers")}Choose the apps and AI you use</li>
+        </ul>
+        <p class="first-run-note">If you need help choosing an AI service, Hutch can guide you. You can rename your assistant and change its settings before saving.</p>
+      </section>
+    </div></div>`;
+    $("#first-run-request-form")?.addEventListener("submit", event => {
+      event.preventDefault();
+      const request = $("#first-run-request")?.value.trim() || "";
+      if (!request) { $("#first-run-request")?.focus(); return; }
+      void promptNewBot("", "", null, request);
+    });
+    const starterRequests = {
+      plan: "Help me plan my week and keep track of the follow-ups.",
+      email: "Help me find the emails I need to answer and prepare drafts for me to review.",
+      project: "Help me organize a project and keep track of the next steps.",
+    };
+    $$('[data-first-run-example]').forEach(button => button.addEventListener("click", () => {
+      const request = $("#first-run-request");
+      if (!request) return;
+      request.value = starterRequests[button.dataset.firstRunExample] || "";
+      request.focus();
+      request.setSelectionRange(request.value.length, request.value.length);
+    }));
     return;
   }
 
@@ -2143,7 +2212,7 @@ async function renderChatStudio(preferredBot = null) {
       ${botAvatar(bot.name, 30, state === "running" ? "running" : state === "paused" ? "paused" : "")}
         <div class="ctx-heading">
           <h1>${esc(botHeading)}</h1>
-          <span class="ctx-subtitle" title="${esc(botRole)}">AI bot${botRole ? ` · ${esc(botRole)}` : ""}</span>
+        <span class="ctx-subtitle" title="${esc(botRole)}">AI assistant${botRole ? ` · ${esc(botRole)}` : ""}</span>
         </div>
         <div class="ctx-meta${bot.is_workspace_coordinator ? " workspace-coordinator-meta" : ""}">
           ${bot.is_workspace_coordinator ? '<span class="tag" id="workspace-coordinator-pill" aria-label="Workspace coordinator"><span class="coordinator-label-wide">Workspace coordinator</span><span class="coordinator-label-compact" aria-hidden="true">Coordinator</span></span>' : ""}
@@ -3270,6 +3339,26 @@ function welcomeHtml() {
     </div>`;
 }
 
+const TEMPLATE_TITLES = {
+  "tidy-downloads": "File organizer",
+  "meeting-actions": "Meeting follow-up",
+  "weekly-review": "Weekly review",
+  "research-briefing": "Research briefing",
+  "page-change-monitor": "Website change alerts",
+  "support-triage": "Support inbox helper",
+  "repo-sweeper": "Project health check",
+  "sales-prospector": "Prospect research",
+  "pm-standup-digest": "Team work update",
+  "competitor-watch": "Track important pages",
+  "data-reporter": "Spreadsheet summary",
+  "release-notes": "Release notes",
+};
+const TEMPLATE_GALLERY_ORDER = [
+  "tidy-downloads", "meeting-actions", "weekly-review", "research-briefing",
+  "page-change-monitor", "support-triage", "data-reporter", "sales-prospector",
+  "pm-standup-digest", "competitor-watch", "release-notes", "repo-sweeper",
+];
+
 async function wireWelcome() {
   /* Explore-agents gallery: real templates from the API, fetched lazily —
      never seeded. Picking one opens the create dialog with it preselected. */
@@ -3277,14 +3366,17 @@ async function wireWelcome() {
     const templates = await api("/bots/templates");
     const grid = $("#tpl-grid"), gal = $("#tpl-gal");
     if (!grid || !templates.length) return;
-    grid.innerHTML = templates.slice(0, 6).map((t, i) => {
+    const rankedTemplates = [...templates].sort((a, b) =>
+      TEMPLATE_GALLERY_ORDER.indexOf(a.name) - TEMPLATE_GALLERY_ORDER.indexOf(b.name));
+    grid.innerHTML = rankedTemplates.slice(0, 6).map((t, i) => {
       const ci = i % ID_COLORS.length;
       const si = hash32(t.name) % ID_HEADS.length;
       const hue = ID_COLORS[ci];
       const tile = `radial-gradient(circle at 50% 64%, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0) 62%), linear-gradient(135deg, ${tint(hue, 0.34)}, ${hue} 55%, ${shade(hue, 0.5)})`;
-      return `<button class="tpl-card" type="button" data-tpl="${esc(t.name)}">
+      const title = TEMPLATE_TITLES[t.name] || t.name.replace(/[-_]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
+      return `<button class="tpl-card" type="button" data-tpl="${esc(t.name)}" aria-label="Start ${esc(title)}: ${esc(t.tagline || t.description || "")}">
         <span class="tpl-tile" style="background:${tile}">${avatarFromPair([ci, si], 64)}</span>
-        <span class="tpl-name">${esc(t.name)}${icon("arrow", "tpl-go")}</span>
+        <span class="tpl-name">${esc(title)}${icon("arrow", "tpl-go")}</span>
         <span class="tpl-tag">${esc(t.tagline || t.description || "")}</span>
       </button>`;
     }).join("");
@@ -4531,13 +4623,13 @@ function paintSchedules() {
   const emptyDetails = bots.length === 1
     ? `<a class="btn primary" href="#/bot/${encodeURIComponent(bots[0].name)}">Set up a schedule for ${esc(bots[0].display_name || bots[0].name)}</a>`
     : bots.length > 1
-      ? `<details class="schedule-empty-bots" aria-label="Bots available for recurring tasks">
-        <summary class="btn ghost small">Choose a Bot ${icon("down", "schedule-empty-chevron")}</summary>
+          ? `<details class="schedule-empty-bots" aria-label="Assistants available for scheduled work">
+        <summary class="btn ghost small">Choose an assistant ${icon("down", "schedule-empty-chevron")}</summary>
           <p class="hint">Choose where to create the recurring task.</p>
-          <div class="schedule-empty-bot-list">${bots.map(bot => `<a class="btn ghost small" href="#/bot/${encodeURIComponent(bot.name)}">${esc(bot.display_name || bot.name)} settings</a>`).join("")}</div>
+          <div class="schedule-empty-bot-list">${bots.map(bot => `<a class="btn ghost small" href="#/bot/${encodeURIComponent(bot.name)}">Set up ${esc(bot.display_name || bot.name)}</a>`).join("")}</div>
         </details>`
-    : `<a class="btn primary" href="#/chat">Create a Bot</a>`;
-  setTopContext(`<div class="ctx-id"><h1>Schedules</h1></div>
+    : `<a class="btn primary" href="#/chat">Create an assistant</a>`;
+  setTopContext(`<div class="ctx-id"><h1>Scheduled work</h1></div>
     <div class="ctx-actions schedule-control-actions"><span class="schedule-control-state" role="status">Workspace schedules ${paused ? "paused" : "active"}</span>
       <button class="btn ${paused ? "primary" : "ghost"} small" id="schedule-control-toggle" type="button"
         ${scheduleControlPending ? 'aria-disabled="true" aria-busy="true"' : ""}>
@@ -4545,11 +4637,11 @@ function paintSchedules() {
       </button></div>`);
   view.innerHTML = `
     <div class="page-scroll"><div class="container schedule-overview">
-      <p class="schedule-overview-note">See the next run in each task’s own time zone. While paused, no new scheduled run starts; queued or running work continues. On resume, missed windows follow each task’s catch-up policy. Bot-specific pauses remain in effect.</p>
+      <p class="schedule-overview-note">See when each task will run. Pausing stops new scheduled work; anything already underway can finish. Each task follows its own missed-time setting when you resume.</p>
       ${paused ? `<p class="schedule-paused-note" role="status">Future scheduled admissions are paused. Missed windows follow each task’s catch-up policy after resume.</p>` : ""}
       ${empty ? `<section class="empty-state schedule-empty" aria-labelledby="schedule-empty-title">
           ${icon("clock", "icon-lg")}<h2 id="schedule-empty-title">No recurring tasks yet</h2>
-          <p class="hint">Bots only run on a schedule when you add a recurring task in their settings.</p>${emptyDetails}
+          <p class="hint">Choose an assistant and add a task for it to repeat.</p>${emptyDetails}
         </section>` : `
         <div class="schedule-overview-heading"><h2>Upcoming scheduled work</h2>
           <span class="hint" role="status">${rows.length}${hasMore ? "+" : ""} task${rows.length === 1 ? "" : "s"}${hasMore ? " loaded" : ""}</span>
@@ -4628,7 +4720,7 @@ async function renderSchedules() {
   const routeAtStart = location.hash;
   const alreadyVisible = routeAtStart === "#/schedules" && !!$(".schedule-overview", view);
   if (!alreadyVisible) {
-    setTopContext(`<div class="ctx-id"><h1>Schedules</h1></div>`);
+    setTopContext(`<div class="ctx-id"><h1>Scheduled work</h1></div>`);
     view.innerHTML = `<div class="page-scroll"><div class="container"><div class="empty-state"><div class="spinner" role="status" aria-label="Loading schedules"></div><p>Loading schedules…</p></div></div></div>`;
   }
   const [control, rows, bots] = await Promise.all([
@@ -4652,13 +4744,13 @@ async function renderBots() {
     return;
   }
   renderRoster();
-  setTopContext(`<div class="ctx-id"><h1>Fleet</h1></div>
-    <div class="ctx-actions"><button class="btn primary small" id="btn-new-bot-top">${icon("plus")} New bot</button></div>`);
+  setTopContext(`<div class="ctx-id"><h1>Manage assistants</h1></div>
+    <div class="ctx-actions"><button class="btn primary small" id="btn-new-bot-top">${icon("plus")} New assistant</button></div>`);
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
       ${bots.length ? `
-      <div class="fleet-filters"><label class="field">Find a bot<input id="fleet-search" type="search" placeholder="Name, description or model"></label>
-        <label class="field">Show<select id="fleet-state"><option value="all">All bots</option><option value="needs">Needs you</option><option value="active">In progress</option><option value="paused">Paused</option></select></label></div>
+      <div class="fleet-filters"><label class="field">Find an assistant<input id="fleet-search" type="search" placeholder="Search by name or task"></label>
+        <label class="field">Show<select id="fleet-state"><option value="all">All assistants</option><option value="needs">Need your attention</option><option value="active">Working now</option><option value="paused">Paused</option></select></label></div>
       <p class="hint" id="fleet-count" role="status"></p>
       <div class="bot-grid">
         ${bots.map(b => `
@@ -4668,27 +4760,31 @@ async function renderBots() {
               <span class="bot-name">${esc(b.display_name || b.name)}</span>
               ${b.active_run_id ? statusChip(b.active_run_status, b.active_run_status_label) : `<span class="tag">${esc(botStatusLabel(b))}</span>`}
             </div>
-            <p class="bot-desc">${esc(b.description || "No description.")}</p>
+            <p class="bot-desc">${esc(b.description || "Ready when you are.")}</p>
             <div class="bot-chips">
-              <span class="tag mono">${esc(truncate(b.model || "", 24))}</span>
-              ${b.schedule ? `<span class="tag mono" title="${esc(b.schedule.timezone || "UTC")}">${esc(b.schedule.cron)}</span>` : `<span class="tag">on demand</span>`}
-              <span class="tag">ask: ${esc(b.approval_mode)}</span>
+              <span class="tag">${b.schedule ? "Scheduled" : "Runs when you ask"}</span>
+              <span class="tag">${esc(botActionSummary(b.approval_mode))}</span>
             </div>
-            <div class="bot-facts">
-              <div>next run <b>${esc(b.next_run_local || "—")}</b></div>
-              <div>last success <b title="${esc(b.last_success || "")}">${timeAgo(b.last_success)}</b></div>
-              <div>tokens today <b>${fmtTokens(b.tokens_today)}</b></div>
-              <div>memories <b>${b.memory_count}</b></div>
-            </div>
+            <details class="bot-card-details">
+              <summary><span class="bot-card-details-label">More details</span><span class="bot-card-details-hint">AI service, schedule, and activity</span>${icon("down", "bot-card-details-chevron")}</summary>
+              <div class="bot-facts">
+                <div>AI service <b>${esc(b.model || "Not selected")}</b></div>
+                <div>Schedule <b>${b.schedule ? esc(b.schedule.cron) : "No schedule"}</b></div>
+                <div>Next run <b>${esc(b.next_run_local || "Not scheduled")}</b></div>
+                <div>Last completed <b title="${esc(b.last_success || "")}">${b.last_success ? timeAgo(b.last_success) : "Not yet"}</b></div>
+                <div>Estimated tokens today <b>${fmtTokens(b.tokens_today)}</b></div>
+                <div>Saved notes <b>${b.memory_count}</b></div>
+              </div>
+            </details>
             <div class="card-actions">
               <a class="btn primary small" href="#/chat/${esc(b.name)}">${icon("chat")} Open</a>
               <details class="fleet-card-menu">
                 <summary class="icon-btn" data-fleet-options="${esc(b.name)}" aria-label="More options for ${esc(b.display_name || b.name)}" title="More options">${icon("moreHorizontal")}</summary>
                 <div class="fleet-card-menu-panel" aria-label="More options for ${esc(b.display_name || b.name)}">
                   <button class="fleet-card-menu-item" type="button" data-action="toggle-pause" data-bot="${esc(b.name)}" data-paused="${b.paused}">
-                    ${icon(b.paused ? "play" : "pause")} ${b.paused ? "Resume bot" : "Pause bot"}
+                    ${icon(b.paused ? "play" : "pause")} ${b.paused ? "Resume assistant" : "Pause assistant"}
                   </button>
-                  <a class="fleet-card-menu-item" href="#/bot/${esc(b.name)}">${icon("sliders")} Bot settings</a>
+                  <a class="fleet-card-menu-item" href="#/bot/${esc(b.name)}">${icon("sliders")} Assistant settings</a>
                 </div>
               </details>
             </div>
@@ -4698,9 +4794,9 @@ async function renderBots() {
       ` : `
       <div class="empty-state">
         ${icon("bot", "icon-lg")}
-        <p><b>No bots yet.</b></p>
-        <p class="hint">A bot is a named agent with its own model, tools, workspace, schedule, and memory. Start from a template.</p>
-        <button class="btn primary" id="btn-create-first-bot">Create your first bot</button>
+        <p><b>No assistants yet.</b></p>
+        <p class="hint">Start with a request. Hutch will suggest a name and carry your words into setup.</p>
+        <button class="btn primary" id="btn-create-first-bot">Create your first assistant</button>
       </div>`}
     </div></div>`;
   const filterFleet = () => {
@@ -4714,7 +4810,7 @@ async function renderBots() {
       card.hidden = !match;
       if (match) visible++;
     });
-    $("#fleet-count").textContent = `${visible} of ${bots.length} bots`;
+    $("#fleet-count").textContent = `${visible} of ${bots.length} assistants`;
   };
   $("#fleet-search")?.addEventListener("input", filterFleet);
   $("#fleet-state")?.addEventListener("change", filterFleet);
@@ -4737,12 +4833,12 @@ async function renderRuns(query = "") {
     q: params.get("q") || "",
     shown: RUNS_PAGE_SIZE,
   };
-  setTopContext(`<div class="ctx-id"><h1>Runs</h1></div>`);
+  setTopContext(`<div class="ctx-id"><h1>Work history</h1></div>`);
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
       <div class="runs-filter-bar">
-        <label class="visually-hidden" for="run-search">Filter runs</label>
-        <input type="search" id="run-search" placeholder="Filter by bot or prompt…" value="${esc(runsState.q)}">
+        <label class="visually-hidden" for="run-search">Find past work</label>
+        <input type="search" id="run-search" placeholder="Search assistants or requests…" value="${esc(runsState.q)}">
         <div class="runs-filter-pills" role="group" aria-label="Filter by status">
           ${["all", "succeeded", "failed", "waiting_approval"].map(f => `
             <button class="${runsState.status === f ? "active" : ""}" data-filter="${f}" aria-pressed="${runsState.status === f}">
@@ -5051,6 +5147,8 @@ function scheduleEditorHtml(schedule, index, status = null) {
 
 async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) {
   const generation = ++botDetailRenderGeneration;
+  const route = `#/bot/${encodeURIComponent(name)}`;
+  const keepCustomizationOpen = location.hash === route && $("#assistant-more-settings")?.open === true;
   const b = await api(`/bots/${encodeURIComponent(name)}`);
   let taskPresets = [];
   let taskPresetsError = "";
@@ -5096,15 +5194,15 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   // A save can trigger another render before these independent resource reads
   // finish. Only the newest request for the still-active bot route may replace
   // the settings DOM; slower old responses otherwise discard newer task state.
-  if (generation !== botDetailRenderGeneration || location.hash !== `#/bot/${encodeURIComponent(name)}`) return;
+  if (generation !== botDetailRenderGeneration || location.hash !== route) return;
   setTopContext(`
     <div class="ctx-id">
       ${botAvatar(b.name, 30)}
-          <h1>${esc(b.display_name || b.name)} settings</h1>
+      <h1>${esc(b.display_name || b.name)} settings</h1>
     </div>
     <div class="ctx-actions">
-      <a class="btn ghost small" href="#/chat/${esc(b.name)}">${icon("chat")} Open Studio</a>
-      <button class="btn danger small" id="btn-delete-bot">${icon("trash")}Delete bot</button>
+      <a class="btn ghost small" href="#/chat/${esc(b.name)}">${icon("chat")} Open chat</a>
+      <button class="btn danger small" id="btn-delete-bot">${icon("trash")}Delete assistant</button>
     </div>`);
 
   const limits = b.limits || {};
@@ -5139,44 +5237,58 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             </details>
           </section>` : "";
   view.innerHTML = `
-    <div class="page-scroll"><div class="container">
-      <p class="crumb"><a href="#/chat/${esc(b.name)}">Studio</a> / Settings</p>
+    <div class="page-scroll"><div class="container assistant-settings-page">
+      <p class="crumb"><a href="#/chat/${esc(b.name)}">Chats</a> / Assistant settings</p>
+      <form class="panel form-grid assistant-settings-basics" id="form-identity">
+        <div class="assistant-settings-intro">
+          ${botAvatar(b.name, 48)}
+          <div><h2 class="panel-title">About this assistant</h2><p class="hint">Give it a name and a little direction. You can change the details whenever you like.</p></div>
+        </div>
+        <label class="field">Assistant name
+          <input type="text" name="display_name" maxlength="80" value="${esc(b.display_name || b.name)}" required>
+          <span class="hint">Shown in your chats and assistant list.</span>
+        </label>
+        <label class="field">What it helps with
+          <input type="text" name="description" value="${esc(b.description || "")}" placeholder="For example, helps me stay on top of email">
+        </label>
+        <div class="btn-row"><button class="btn primary small" type="submit">Save details</button></div>
+      </form>
+      <details class="assistant-more-settings" id="assistant-more-settings">
+        <summary>
+          <span class="assistant-settings-summary-icon">${icon("sliders")}</span>
+          <span class="assistant-settings-summary-copy"><strong>Customize how it works</strong><small>Choose its AI, apps, schedule, safety, and saved notes</small></span>
+          <span class="assistant-settings-summary-action"><span class="when-closed">More settings</span><span class="when-open">Hide settings</span>${icon("down")}</span>
+        </summary>
       <div class="detail-grid">
         <div>
-          <form class="panel form-grid" id="form-identity">
-            <div class="panel-title">Identity and instructions</div>
-            <label class="field">Display name
-              <input type="text" name="display_name" maxlength="80" value="${esc(b.display_name || b.name)}" required>
-              <span class="hint">Shown in chats and lists. The Bot address in existing links stays the same.</span>
+          <form class="panel form-grid" id="form-instructions">
+            <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("chat")}</span>How it should help</div>
+            <p class="hint">These are the standing directions it follows in every conversation. Requests you already gave it stay here, ready for you to refine when you want.</p>
+            <label class="field" for="assistant-instructions">Standing directions
+              <textarea id="assistant-instructions" name="instructions" rows="7" placeholder="Add guidance for how this assistant should work">${esc(b.instructions || "")}</textarea>
             </label>
-            <label class="field">Description
-              <input type="text" name="description" value="${esc(b.description || "")}" placeholder="What this bot does">
-            </label>
-            <label class="field">System instructions
-              <textarea name="instructions" rows="7">${esc(b.instructions || "")}</textarea>
-            </label>
-            <div class="btn-row"><button class="btn primary small" type="submit">Save</button></div>
+            <div class="btn-row"><button class="btn primary small" type="submit">Save directions</button></div>
           </form>
 
-          <section class="panel" aria-labelledby="workspace-coordinator-title">
-            <div class="panel-title" id="workspace-coordinator-title">Workspace coordinator</div>
-            <p class="hint">Choose one Bot as the main conversation for your workspace. You can still chat with every Bot directly. This role does not add tools, account access, or permissions.</p>
+          ${b.is_workspace_coordinator || botsCache.length > 1 ? `<section class="panel" aria-labelledby="workspace-coordinator-title">
+            <div class="panel-title" id="workspace-coordinator-title">Main assistant</div>
+            <p class="hint">Choose which assistant opens as your main conversation. You can still chat with all of them directly. This role does not add app access or permissions.</p>
             ${b.is_workspace_coordinator
-              ? `<div class="coordinator-role-state" role="status"><span class="tag" id="workspace-coordinator-settings-state">Current coordinator</span>
-                  <button class="btn ghost small" type="button" id="btn-clear-workspace-coordinator">Clear role</button></div>`
-              : `<button class="btn ghost small" type="button" id="btn-set-workspace-coordinator">Set as workspace coordinator</button>`}
-          </section>
+              ? `<div class="coordinator-role-state" role="status"><span class="tag" id="workspace-coordinator-settings-state">Main assistant</span>
+                  <button class="btn ghost small" type="button" id="btn-clear-workspace-coordinator">Clear selection</button></div>`
+              : `<button class="btn ghost small" type="button" id="btn-set-workspace-coordinator">Make this the main assistant</button>`}
+          </section>` : ""}
 
           ${specialistRosterHtml}
 
           <div class="panel" id="idp-panel">
-            <div class="panel-title">Identity</div>
+            <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("bot")}</span>Look and feel</div>
             ${identityPickerHtml()}
             <p class="hint" style="text-align:center;margin-top:8px;">Chosen immediately — the roster updates everywhere.</p>
           </div>
 
           <form class="panel form-grid" id="form-model">
-            <div class="panel-title">Model &amp; connection</div>
+            <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("zap")}</span>AI service and model</div>
             <div class="form-grid row2">
               <label class="field">Default model
                 <input type="text" name="model" value="${esc(b.model || "")}">
@@ -5227,8 +5339,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
           </section>` : ""}
 
           <section class="panel" aria-labelledby="tool-settings-title">
-            <div class="panel-title" id="tool-settings-title">Tools</div>
-            <p class="hint" id="tool-settings-help">Choose what this bot may call. Every action still passes Hutch’s policy and approval checks. Strict Offline removes browser and public-page tools.</p>
+            <div class="panel-title settings-panel-title" id="tool-settings-title"><span class="settings-panel-icon">${icon("check")}</span>What it can do</div>
+            <p class="hint" id="tool-settings-help">Choose which actions this assistant may use. Important actions still come to you for review. Offline mode removes web browsing.</p>
             <form id="form-tools">
               <div class="tool-options" role="group" aria-labelledby="tool-settings-title" aria-describedby="tool-settings-help">
                 ${TOOL_SETTINGS.map(([value, label, help]) => `
@@ -5244,8 +5356,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
           <section class="panel schedule-manager" id="schedule-manager" aria-labelledby="schedule-manager-title">
             <div class="schedule-manager-head">
               <div>
-                <div class="panel-title" id="schedule-manager-title">Recurring tasks</div>
-                <p class="hint">Each task has its own timing and prompt. Runs share this bot’s tools, workspace, limits, and permissions.</p>
+                <div class="panel-title settings-panel-title" id="schedule-manager-title"><span class="settings-panel-icon">${icon("calendar")}</span>Work on a schedule</div>
+                <p class="hint">Set a time for this assistant to check in or take care of a repeat task.</p>
               </div>
               <button class="btn primary small" type="button" id="btn-add-schedule">Add task</button>
             </div>
@@ -5257,16 +5369,17 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
           </section>
 
           <form class="panel form-grid" id="form-risk">
-            <div class="panel-title">Risk policy</div>
+            <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("shield")}</span>Approvals and workspace</div>
             <div class="form-grid row2">
-              <label class="field">Approval mode
+              <label class="field">When should it check with you?
                 <select name="approval_mode">
-                  ${["ask", "auto"].map(m => `<option value="${m}" ${b.approval_mode === m ? "selected" : ""}>${m}</option>`).join("")}
+                  <option value="ask" ${b.approval_mode === "ask" ? "selected" : ""}>Ask before each important action</option>
+                  <option value="auto" ${b.approval_mode === "auto" ? "selected" : ""}>Use actions I have already approved</option>
                 </select>
               </label>
-              <label class="field">Risk tier
+              <label class="field">Action safety level
                 <select name="risk_tier">
-                  ${["readonly", "supervised", "trusted"].map(t => `<option value="${t}" ${(b.risk_tier || "supervised") === t ? "selected" : ""}>${t}</option>`).join("")}
+                  ${[["readonly", "Look only"], ["supervised", "Ask before changes"], ["trusted", "Use approved actions"]].map(([value, label]) => `<option value="${value}" ${(b.risk_tier || "supervised") === value ? "selected" : ""}>${label}</option>`).join("")}
                 </select>
               </label>
             </div>
@@ -5298,7 +5411,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
           </form>
 
           <div class="panel">
-            <div class="panel-title">Command rules</div>
+            <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("sliders")}</span>Extra command rules</div>
             <div class="settings-list" id="rules-list">
               ${rules.map((r, i) => `
                 <div class="meta-row"><span class="mono">${esc(r.match)}</span>${statusChipTag(r.verdict)}</div>`).join("")
@@ -5327,7 +5440,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
 
         <div>
           <div class="panel">
-            <div class="panel-title">Execution and usage limits</div>
+            <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("chart")}</span>Usage and time limits</div>
             <form class="form-grid" id="form-limits">
               <div class="form-grid row2">
                 <label class="field">Maximum steps
@@ -5356,7 +5469,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
           </div>
 
           <div class="panel">
-            <div class="panel-title">Reference facts (${b.memory_count})</div>
+            <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("fileText")}</span>Saved notes (${b.memory_count})</div>
             <p class="hint">${b.memory_enabled ? 'Runtime memory is enabled. Proposals require human review before recall.' : 'Runtime memory is disabled. Saved records remain manageable here.'} Review records are reference data, not tool permission. Never save credentials.</p>
             <button class="btn ghost small" id="memory-toggle" type="button">${b.memory_enabled ? 'Disable' : 'Enable'} memory</button>
             <button class="btn ghost small" id="memory-archives" type="button">${showArchivedFacts ? 'Hide' : 'Show'} archived facts</button>
@@ -5369,17 +5482,20 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
           </div>
 
           <div class="panel">
-            <div class="panel-title">Standing permissions (${b.sticky_allows.length})</div>
+            <div class="panel-title settings-panel-title"><span class="settings-panel-icon">${icon("check")}</span>Always-allowed actions (${b.sticky_allows.length})</div>
             ${b.sticky_allows.map(s => `
               <div class="allow-item"><code>${esc(s)}</code>
                 <button class="chip-del" aria-label="Revoke ${esc(s)}" data-revoke-sticky="${esc(s)}">${icon("x")}</button>
               </div>`).join("") || `<p class="empty-inline">None — every risky command asks.</p>`}
           </div>
 
-<p><a href="#/runs?q=${encodeURIComponent(b.name)}">View this bot’s run history</a></p>
+<p><a href="#/runs?q=${encodeURIComponent(b.name)}">See this assistant’s work history</a></p>
         </div>
       </div>
+      </details>
     </div></div>`;
+
+  if (keepCustomizationOpen) $("#assistant-more-settings").open = true;
 
   // wiring
   mountIdentityPicker($("#idp-panel"), b.name, pair => { sigilSet(b.name, pair); refreshRoster(); });
@@ -5393,19 +5509,24 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   $("#form-identity").addEventListener("submit", ev => {
     ev.preventDefault();
     const fd = new FormData(ev.target);
-    patch({ display_name: fd.get("display_name"), description: fd.get("description"), instructions: fd.get("instructions") }, "Saved.");
+    patch({ display_name: fd.get("display_name"), description: fd.get("description") }, "Saved.");
+  });
+  $("#form-instructions").addEventListener("submit", ev => {
+    ev.preventDefault();
+    const fd = new FormData(ev.target);
+    patch({ instructions: fd.get("instructions") }, "Directions saved.");
   });
   $("#btn-set-workspace-coordinator")?.addEventListener("click", () => {
     const current = botsCache.find(bot => bot.is_workspace_coordinator);
     const replacement = current && current.id !== b.id
       ? `<p>This replaces <b>${esc(current.display_name || current.name)}</b> as the workspace coordinator. It does not change either Bot’s permissions or settings.</p>`
       : `<p>This makes <b>${esc(b.display_name || b.name)}</b> the main workspace conversation. It does not change the Bot’s permissions or settings.</p>`;
-    openModal({ title: "Set workspace coordinator?", bodyHtml: `${replacement}<p>If this Bot is currently an approved specialist, it will be removed from that roster. The former coordinator will not be added automatically. You can still open a direct conversation with each Bot from the roster.</p>`,
-      confirmText: "Set coordinator", returnFocus: $("#btn-set-workspace-coordinator"),
+    openModal({ title: "Make this your main assistant?", bodyHtml: `${replacement}<p>If this assistant is currently approved to receive assigned work, it will be removed from that list. The previous main assistant will not be added automatically. You can still open a conversation with every assistant from the roster.</p>`,
+      confirmText: "Make main assistant", returnFocus: $("#btn-set-workspace-coordinator"),
       onConfirm: async () => {
         try {
           await api("/v1/workspace/coordinator", { method: "PUT", body: { bot_id: b.id } });
-          toast(`${b.display_name || b.name} is now the workspace coordinator.`);
+          toast(`${b.display_name || b.name} is now your main assistant.`);
           await refreshRoster();
           await renderBotDetail(b.name);
           return true;
@@ -5443,12 +5564,12 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     if (status) status.textContent = `${shown} of ${choices.length} Bots shown.`;
   });
   $("#btn-clear-workspace-coordinator")?.addEventListener("click", () => {
-    openModal({ title: "Clear workspace coordinator?", bodyHtml: `<p>${esc(b.display_name || b.name)} will remain a Bot and its direct conversations will stay available. The workspace will not have a selected main conversation.</p>`,
+    openModal({ title: "Remove the main assistant?", bodyHtml: `<p>${esc(b.display_name || b.name)} will remain an assistant and its conversations will stay available. You can choose another main assistant later.</p>`,
       confirmText: "Clear role", confirmClass: "danger", returnFocus: $("#btn-clear-workspace-coordinator"),
       onConfirm: async () => {
         try {
           await api("/v1/workspace/coordinator", { method: "PUT", body: { bot_id: null } });
-          toast("Workspace coordinator cleared.");
+          toast("Main assistant cleared.");
           await refreshRoster();
           await renderBotDetail(b.name);
           return true;
@@ -5644,9 +5765,9 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   });
   $("#btn-delete-bot").addEventListener("click", async () => {
     if (!(await confirmDialog({
-      title: "Delete bot",
+      title: "Delete assistant",
       body: `Delete <b>${esc(b.name)}</b>? Its workspace, memory, and transcripts stay on disk, but the bot and its schedule are removed.`,
-      confirmText: "Delete bot", danger: true,
+      confirmText: "Delete assistant", danger: true,
     }))) return;
     await api(`/bots/${encodeURIComponent(b.name)}`, { method: "DELETE" });
     toast(`Deleted ${b.name}`);
@@ -5805,8 +5926,7 @@ async function renderConnections() {
   let devicesError = "";
   try { devices = await api("/v1/devices"); }
   catch (err) { devicesError = err.message; }
-  setTopContext(`<div class="ctx-id"><h1>Connections</h1></div>
-    <div class="ctx-actions"><button class="btn primary small" id="btn-add-conn">${icon("plus")} Add connection</button></div>`);
+  setTopContext(`<div class="ctx-id"><h1>Apps &amp; AI</h1></div>`);
   const conns = data.connections || [];
   const googleOAuthClient = data.google_oauth_client || {
     client_id: "", source: "unset", editable: true, configured: false, valid: false,
@@ -5822,7 +5942,8 @@ async function renderConnections() {
   const outlookCalendarAccessOpen = $("#outlook-calendar-access")?.open || false;
   const outlookMailAccessOpen = $("#outlook-mail-access")?.open || false;
   const googleMailAccessOpen = $("#google-mail-access")?.open || false;
-  const googleOAuthSetupOpen = $("#google-oauth-setup")?.open ?? !googleOAuthClient.configured;
+  const googleOAuthSetupOpen = $("#google-oauth-setup")?.open ?? false;
+  const connectionManagerOpen = $("#connection-management")?.open || false;
   const googleCalendarAccountsHtml = (googleCalendar.accounts || []).map(account => {
     const grants = (googleCalendar.grants || []).filter(grant => grant.account_id === account.id);
     const grantRows = grants.length ? grants.map(grant => `
@@ -5936,10 +6057,60 @@ async function renderConnections() {
   }).join("");
   const orphanOutlookMailGrants = (outlookMail.grants || []).filter(grant =>
     !(outlookMail.accounts || []).some(account => account.id === grant.account_id));
+  const chatgptAccounts = data.chatgpt_accounts || [];
+  const tile = (kind, title, description, state, stateKind, action = "manage", actionLabel = "Manage") => `
+    <article class="service-tile">
+      <div class="service-tile-top">${serviceMark(kind)}<span class="service-state ${stateKind}">${esc(state)}</span></div>
+      <h3>${esc(title)}</h3><p>${esc(description)}</p>
+      <button class="service-tile-action" type="button" data-connection-open="${esc(action)}">
+        ${esc(actionLabel)}${icon("arrow")}
+      </button>
+    </article>`;
+  const appTiles = [
+    tile("calendar", "Google Calendar", "See upcoming events. An assistant can create an event only after you approve it.",
+      googleCalendar.accounts.length ? "Connected" : googleCalendar.configured ? "Ready to connect" : "Needs setup",
+      googleCalendar.accounts.length ? "connected" : "setup", "google-calendar",
+      googleCalendar.accounts.length ? "Manage access" : googleCalendar.configured ? "Connect account" : "Check setup"),
+    tile("gmail", "Gmail", "Find emails without sending, editing, or deleting messages.",
+      googleMail.accounts.length ? "Connected" : "Limited preview",
+      googleMail.accounts.length ? "connected" : "preview", "gmail",
+      googleMail.accounts.length ? "Manage access" : "See requirements"),
+    tile("outlook", "Outlook", "Use mail or calendar, then choose which assistant can reach each account.",
+      outlookCalendar.accounts.length || outlookMail.accounts.length ? "Connected"
+        : outlookCalendar.configured && outlookCalendar.secret_store_available ? "Ready to connect" : "Needs setup",
+      outlookCalendar.accounts.length || outlookMail.accounts.length ? "connected" : "setup", "outlook-calendar",
+      outlookCalendar.accounts.length || outlookMail.accounts.length ? "Manage access"
+        : outlookCalendar.configured && outlookCalendar.secret_store_available ? "Connect account" : "Check setup"),
+  ].join("");
+  const modelTiles = [
+    tile("chatgpt", "ChatGPT", "Sign in with ChatGPT where available. Your existing chats stay separate.",
+      chatgptAccounts.some(account => account.connected && account.plan_usage) ? "Connected"
+        : data.chatgpt_enabled ? "Sign-in preview" : "Not available here",
+      chatgptAccounts.some(account => account.connected && account.plan_usage) ? "connected"
+        : data.chatgpt_enabled ? "preview" : "unavailable", "chatgpt",
+      data.chatgpt_enabled ? "See sign-in options" : "Check availability"),
+    tile("hosted", "Other reply services", "Choose a service you already use or one running on this computer.",
+      conns.length ? `${conns.length} service${conns.length === 1 ? "" : "s"}` : "Not set up yet",
+      conns.length ? "connected" : "setup", "models", conns.length ? "Manage services" : "See options"),
+  ].join("");
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
-      <p class="page-subtitle">A named hosted endpoint with its own key, terms, and allowance. Reference its models as <code class="mono">&lt;connection&gt;/&lt;model&gt;</code>.</p>
-      <section class="panel conn-card" aria-labelledby="chatgpt-auth-title">
+      <div class="connections-intro">
+        <p>Connect an app your assistant should use. You choose which assistant gets access, and can change that choice anytime.</p>
+      </div>
+      <section class="service-group" aria-labelledby="app-connections-heading">
+        <div class="service-group-heading"><h2 id="app-connections-heading">Your apps</h2><p>Calendar and email, with you in control.</p></div>
+        <div class="service-grid">${appTiles}</div>
+      </section>
+      <section class="service-group" aria-labelledby="model-connections-heading">
+        <div class="service-group-heading"><h2 id="model-connections-heading">How Hutch replies</h2><p>Choose a service you know, or use one on this computer.</p></div>
+        <div class="service-grid">${modelTiles}</div>
+        <p class="local-model-note">Each assistant can have its own reply service. You can change it anytime.</p>
+      </section>
+      <details class="connection-management" id="connection-management" ${connectionManagerOpen ? "open" : ""}>
+        <summary><span>More account settings</span><span class="connection-management-hint">Access, permissions and setup details</span></summary>
+        <div class="connection-management-content">
+      <section class="panel conn-card" id="connection-chatgpt" aria-labelledby="chatgpt-auth-title">
         <div class="bot-head"><span class="bot-name" id="chatgpt-auth-title">Sign in with ChatGPT</span>
           <span class="tag">experimental preview</span><span class="tag">local callback</span></div>
         <p class="hint">Uses OpenAI's official local sign-in flow and requests separate plan-use permission. It does not provide Hutch access to ChatGPT conversations. Availability depends on OpenAI eligibility and your account.</p>
@@ -5959,7 +6130,7 @@ async function renderConnections() {
             </div>
           </div>`).join("")}
       </section>
-      <section class="panel conn-card google-calendar-card" aria-labelledby="google-calendar-title">
+      <section class="panel conn-card google-calendar-card" id="connection-google-calendar" aria-labelledby="google-calendar-title">
         <div class="bot-head"><span class="bot-name" id="google-calendar-title">Google Calendar</span>
           <span class="tag">experimental</span><span class="tag">local desktop sign in</span></div>
         <p class="hint">Connect with Google's official installed-app flow. By default, Hutch reads event titles, times and locations from one calendar you grant to one Bot. You can separately request event-creation access; Hutch shows each guest-free event in chat and waits for your exact approval before creating it.</p>
@@ -5998,7 +6169,7 @@ async function renderConnections() {
         ${googleCalendarAccountsHtml || '<p class="hint">No Google Calendar accounts connected.</p>'}
         ${orphanCalendarGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanCalendarGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-google-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
       </section>
-      <section class="panel conn-card outlook-calendar-card" aria-labelledby="google-mail-title">
+      <section class="panel conn-card outlook-calendar-card" id="connection-gmail" aria-labelledby="google-mail-title">
         <div class="bot-head"><span class="bot-name" id="google-mail-title">Gmail</span>
           <span class="tag">experimental</span><span class="tag">Local inference only</span></div>
         <p class="hint">Search a connected mailbox for up to 10 matches. Hutch returns only sender, subject, received date and a short preview, which becomes untrusted local run history. It cannot send, edit, forward, delete or fetch attachments. Only built-in Bots with loopback Local model routes and no hosted fallbacks can receive Gmail access; Hutch cannot verify what the operator's local model service does.</p>
@@ -6019,7 +6190,7 @@ async function renderConnections() {
           ${orphanGoogleMailGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A Bot grant refers to a disconnected Gmail account. Revoke it before reconnecting.</p>${orphanGoogleMailGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Gmail search access</p></div><button class="btn ghost small" data-google-mail-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ''}
         </details>
       </section>
-      <section class="panel conn-card outlook-calendar-card" aria-labelledby="outlook-calendar-title">
+      <section class="panel conn-card outlook-calendar-card" id="connection-outlook-calendar" aria-labelledby="outlook-calendar-title">
         <div class="bot-head"><span class="bot-name" id="outlook-calendar-title">Outlook Calendar</span>
           <span class="tag">experimental</span><span class="tag">read only</span></div>
         <p class="hint">Connect a Microsoft account through its official local sign-in flow. Hutch uses delegated <code>Calendars.ReadBasic</code>; it cannot read event bodies, attachments or extensions. Grant one selected calendar to one Bot. Matching titles, times and locations go to that Bot's selected model and remain in its run history.</p>
@@ -6039,7 +6210,7 @@ async function renderConnections() {
           ${orphanOutlookGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">${esc(grant.calendar_name)}</p></div><button class="btn ghost small" data-outlook-calendar-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
         </details>
       </section>
-      <section class="panel conn-card outlook-calendar-card outlook-mail-card" aria-labelledby="outlook-mail-title">
+      <section class="panel conn-card outlook-calendar-card outlook-mail-card" id="connection-outlook-mail" aria-labelledby="outlook-mail-title">
         <div class="bot-head"><span class="bot-name" id="outlook-mail-title">Outlook Mail</span>
           <span class="tag">experimental</span><span class="tag">read only</span></div>
         <p class="hint">Search across a connected mailbox, including Deleted Items and Clutter. Hutch returns sender, subject, received time and a short, untrusted preview for up to 10 matches. Grant one mailbox to a Bot from here.</p>
@@ -6070,6 +6241,10 @@ async function renderConnections() {
               <button class="btn danger small" type="button" data-device-revoke="${esc(device.id)}">Revoke</button>
             </div>`).join("")}</div>` : `<p class="hint">No active paired devices.</p>`}
       </details>
+      <div class="custom-service-heading">
+        <div><h3>Custom reply services</h3><p class="hint">For another service you already use or an AI running on this computer.</p></div>
+        <button class="btn ghost small" id="btn-add-conn" type="button">${icon("plus")} Add a custom service</button>
+      </div>
       ${conns.length ? conns.map(c => `
         <div class="panel conn-card" data-conn="${esc(c.name)}">
           <div class="bot-head">
@@ -6111,11 +6286,39 @@ async function renderConnections() {
         <p class="hint">Hutch records a tool-call observation only after a normal, owned Bot run receives a declared tool call with valid arguments and its usage reservation is settled or retained for reconciliation. Each record applies to that exact connection, account, model and route revision. It is evidence from one past response, not a guarantee about the next run.</p>
         <div id="model-capability-results"><p class="hint" role="status">Loading model tool-call observations…</p></div>
       </section>
-  </div></div>`;
+        </div>
+      </details>
+    </div></div>`;
+  $("#connection-management").open = connectionManagerOpen;
   $(".device-manager").open = devicesOpen;
   $("#outlook-calendar-access").open = outlookCalendarAccessOpen;
   $("#outlook-mail-access").open = outlookMailAccessOpen;
   $("#google-mail-access").open = googleMailAccessOpen;
+  $$("[data-connection-open]").forEach(button => button.addEventListener("click", () => {
+    const targetKey = button.dataset.connectionOpen;
+    if (targetKey === "models") {
+      const manager = $("#connection-management");
+      if (manager) manager.open = true;
+      $("#btn-add-conn")?.click();
+      return;
+    }
+    const sectionId = ({
+      "chatgpt": "connection-chatgpt",
+      "google-calendar": "connection-google-calendar",
+      "gmail": "connection-gmail",
+      "outlook-calendar": "connection-outlook-calendar",
+    })[targetKey] || "connection-outlook-mail";
+    const manager = $("#connection-management");
+    const section = document.getElementById(sectionId);
+    if (!manager || !section) return;
+    manager.open = true;
+    section.setAttribute("tabindex", "-1");
+    section.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "start",
+    });
+    section.focus({ preventScroll: true });
+  }));
 
   const beginChatGPTSignIn = async (accountId = "", button = null) => {
     if (button) { button.disabled = true; button.textContent = "Opening ChatGPT…"; }
@@ -6653,13 +6856,13 @@ async function renderConnections() {
   $("#btn-add-conn")?.addEventListener("click", () => {
     const tpls = data.templates || [];
     openModal({
-      title: "Add connection",
+      title: "Add a custom service",
       bodyHtml: `
         <form id="conn-form" class="form-grid">
           <label class="field">Template
             <select name="template">${tpls.map(t => `<option value="${esc(t.key)}">${esc(t.title || t.key)} — ${esc(t.billing)}</option>`).join("")}</select>
           </label>
-          <label class="field">Name (blank = template's)
+          <label class="field">Service name (optional)
             <input type="text" name="name" placeholder="my-plan">
           </label>
           <label class="field">Base URL override (optional)
@@ -6884,7 +7087,7 @@ function templateTools(template) {
   return result;
 }
 
-async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot = null) {
+async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot = null, prefillPurpose = "") {
   let templates;
   try { templates = await api("/bots/templates"); }
   catch (err) { toast(`Bot setup is unavailable: ${err.message}`, true); return; }
@@ -6947,7 +7150,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
   let modelSuggestionSource = duplicateBot ? "duplicate" : conversationSource?.model_suggestion ? "chat" : workspaceDefaults.model ? "workspace" : "";
   const draft = {
     step: 0, forceAdvanced: !!chosenTemplate || !!duplicateBot,
-    purpose: duplicateBot?.instructions || conversationSource?.original_request || "",
+    purpose: duplicateBot?.instructions || conversationSource?.original_request || prefillPurpose || "",
     useConversationSource: !duplicateBot && !!conversationSource,
     selectedContextMessageIds: new Set(),
     template: chosenTemplate?.name || "", preset: duplicateBot?.preset || chosenTemplate?.preset || "", name: "",
@@ -7241,7 +7444,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     node.textContent = `${count ? `${count} message${count === 1 ? "" : "s"} selected` : "No earlier messages selected"} · ${characters.toLocaleString()} / 20,000 saved-instruction characters`;
     node.setAttribute("aria-invalid", String(characters > 20000));
   };
-  const stepTitles = ["Describe the work", "Set model and workspace", "Choose tools and schedule", "Review bot"];
+  const stepTitles = ["Set up your assistant", "Choose what powers it", "Choose its apps", "Review and create"];
   const selectedTemplate = () => templates.find(item => item.name === draft.template) || null;
   const setError = message => {
     const node = $("#bot-setup-error");
@@ -7514,8 +7717,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         <summary>Edit these instructions (optional)</summary>
         <label class="field" for="setup-purpose">Bot instructions<textarea id="setup-purpose" rows="4" maxlength="20000" required>${esc(draft.purpose)}</textarea>
           <span class="hint">By default, Hutch uses your selected request. Editing it is optional; no tools or account access are inferred.</span></label>
-      </details>` : `<label class="field" for="setup-purpose">${conversationSource ? "What should this bot keep doing?" : "What would you like this bot to handle?"}<textarea id="setup-purpose" rows="${draft.forceAdvanced ? 5 : 3}" maxlength="20000" placeholder="For example: review release notes and prepare a short summary of changes that affect our project." required>${esc(draft.purpose)}</textarea>
-        <span class="hint">This becomes the Bot’s standing instructions. Hutch does not add tools or account access.</span></label>`}
+      </details>` : `<label class="field" for="setup-purpose">${prefillPurpose.trim() ? "Your starting request" : conversationSource ? "What should this assistant keep doing?" : "What would you like this assistant to handle?"}<textarea id="setup-purpose" rows="${draft.forceAdvanced ? 5 : 3}" maxlength="20000" placeholder="For example: review release notes and prepare a short summary of changes that affect our project." required>${esc(draft.purpose)}</textarea>
+        <span class="hint">${prefillPurpose.trim() ? "We carried this over from your first message. You can edit it, but you do not need to repeat it." : "This becomes the assistant’s starting instructions. Hutch does not add tools or account access."}</span></label>`}
         ${conversationSource?.source_bot_is_coordinator && conversationSource.source_bot_runtime === "builtin" && conversationSource.source_bot_model ? `<details class="setup-schedule setup-refine-details" id="setup-refine-details" ${draft.purposeClarificationQuestion || draft.purposeRefinement || draft.purposeDraftPending || draft.purposeRefinementStatus ? "open" : ""}>
           <summary>Check for missing details (optional)</summary>
           <div class="setup-refine-action">
@@ -7526,21 +7729,21 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
             ${purposeRefinementHtml()}
           </div>
         </details>` : ""}
-      <label class="field" for="setup-display_name">Bot name<input id="setup-display_name" maxlength="80" autocomplete="off" placeholder="Avery Morgan · Project Status Reporter" value="${esc(draft.display_name)}" required>
-        <span class="hint">Suggested from the work you described. You can change it now or later.</span></label>
+      <label class="field" for="setup-display_name">Assistant name<input id="setup-display_name" maxlength="80" autocomplete="off" placeholder="Avery Morgan · Project Status Reporter" value="${esc(draft.display_name)}" required>
+        <span class="hint">Suggested from your request. You can change it now or later.</span></label>
       <details class="setup-schedule setup-identity">
-        <summary>More name options</summary>
+        <summary>Advanced name options</summary>
         <div class="form-grid">
-          <label class="field" for="setup-name">Bot address<input id="setup-name" maxlength="41" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="release-notes-reviewer" value="${esc(draft.name)}" required>
-            <span class="hint">Stable local address; it follows the display name until you edit it.</span></label>
-          <label class="field" for="setup-description">Short description<input id="setup-description" maxlength="240" placeholder="What people can ask this Bot to do" value="${esc(draft.description)}"></label>
+          <label class="field" for="setup-name">Internal address<input id="setup-name" maxlength="41" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="release-notes-reviewer" value="${esc(draft.name)}" required>
+            <span class="hint">A stable local identifier. It follows your chosen name until you edit it.</span></label>
+          <label class="field" for="setup-description">Short note<input id="setup-description" maxlength="240" placeholder="What people can ask this assistant to do" value="${esc(draft.description)}"></label>
         </div>
       </details>
       ${!draft.forceAdvanced ? `<section class="setup-quick-summary" aria-label="Starting settings">
-        <p>${draft.model ? `Uses ${esc(draft.model)} · ${esc(draft.inference_mode)} route` : "Choose a model route to continue"} · managed workspace · no tools or schedule · actions ask first.</p>
-        <p class="hint">Creates the Bot only; no run starts.</p>
+        <p>${draft.model ? `Reply service: ${esc(draft.model)}` : "Choose a reply service to finish setup"} · no connected apps or recurring tasks · checks with you before important actions.</p>
+        <p class="hint">Saves your assistant only; nothing starts until you ask it to work.</p>
       </section>
-      <button type="button" class="btn ghost small setup-customize" id="setup-customize">Customize advanced settings</button>` : ""}
+      <button type="button" class="btn ghost small setup-customize" id="setup-customize">Fine-tune the details</button>` : ""}
     </div>`;
     if (step === 1) {
       let routeOptions = [];
@@ -7635,7 +7838,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     const root = $("#modal-root");
     const body = $(".modal-body", root), title = $("#modal-title"), confirm = $("#modal-confirm");
     if (!body || !title || !confirm) return;
-    const sourceQuick = step === 0 && !draft.forceAdvanced && !!conversationSource && draft.useConversationSource;
+    const sourceQuick = step === 0 && !draft.forceAdvanced && (conversationSource
+      ? draft.useConversationSource : !!prefillPurpose.trim());
     title.textContent = sourceQuick ? "Create from this request" : stepTitles[step];
     const progress = step === 0 && !draft.forceAdvanced
       ? sourceQuick ? "Your request is already selected · review the name and starting settings"

@@ -1,5 +1,17 @@
 # Changelog
 
+## Personal-assistant first run and app choices
+
+- The empty chat now starts with a real request composer and carries that exact request into assistant setup. Its title and helper text make clear that the person is reviewing the request they just gave Hutch, not being asked to repeat it.
+- The request composer offers three one-tap, icon-led starting ideas. Choosing one fills the request for editing; it does not create an assistant or start work.
+- Quick setup suggests an editable assistant name and describes its safe starting behavior in everyday language. Model and permissions remain configurable in later steps.
+- Assistant settings now open on the editable name and short role only. Standing directions and technical controls share one optional disclosure, and it stays open while settings are saved.
+- The Connections view is now presented as **Apps & AI**. Calendar, mail, and reply-service choices use local visual marks with clear names and states; detailed account scopes and setup fields are tucked into an optional disclosure.
+- The public website's desktop and phone product captures now match the current app welcome screen, including the example-request icons and current 2D face design. Fleet cards show readiness, schedule cadence, and approval expectations first; model IDs and usage/memory metrics live together under **More details**.
+- The large chat's template gallery now leads with common personal-assistant tasks and human names such as **File organizer** and **Meeting follow-up**; stable template IDs remain internal.
+- App mascots keep simple, shape-aware 2D silhouettes with a gently uneven pair of dark oval eyes and no separate pupils or highlights. The marketing site keeps its separate, more detailed 3D mascot.
+- Browser fixtures verified first-run, request handoff, model selection, app setup and mascot geometry without provider calls.
+
 ## Google Calendar event creation (experimental, schema v45)
 
 - Read-only calendar sign-in remains the default. A separate explicit installed-app OAuth sign-in can request Google's `calendar.events.owned` scope; existing read-only accounts remain unchanged because Google's desktop flow cannot add scopes incrementally.

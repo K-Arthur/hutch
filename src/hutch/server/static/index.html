@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>hutch — your bots, your machine</title>
+  <title>hutch — your personal assistant</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 28 9v14L16 30 4 23V9z' fill='none' stroke='%2334d399' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%2334d399'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/static/ui.css">
   <link rel="stylesheet" href="/static/style.css">
@@ -17,7 +17,7 @@
          On phones this becomes a labeled overlay sheet. -->
     <aside class="workspace" id="workspace" aria-label="Workspace">
       <header class="ws-brand">
-        <a class="brand" href="#/chat" aria-label="hutch — open the studio">
+        <a class="brand" href="#/chat" aria-label="hutch — open chats">
           <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true">
             <path d="M16 2 28 9v14L16 30 4 23V9z" fill="none" stroke="var(--brand)" stroke-width="2.5"/>
             <circle cx="16" cy="16" r="4" fill="var(--brand)"/>
@@ -33,38 +33,38 @@
       </header>
 
       <nav class="ws-nav" aria-label="Primary">
-        <a href="#/chat" data-nav="chat"><span class="nav-ico" aria-hidden="true"></span>Studio</a>
-        <button type="button" id="needs-you-open"><span class="nav-ico" aria-hidden="true"></span>Needs you<span id="approval-badge" class="badge hidden">0</span></button>
+        <a href="#/chat" data-nav="chat"><span class="nav-ico" aria-hidden="true"></span><span>Chats</span></a>
+        <button type="button" id="needs-you-open"><span class="nav-ico" aria-hidden="true"></span><span>Needs you</span><span id="approval-badge" class="badge hidden">0</span></button>
         <details id="monitor-nav">
-          <summary>Monitor</summary>
+          <summary><span class="nav-ico" aria-hidden="true"></span><span>More</span></summary>
           <a href="#/overview" data-nav="overview"><span class="nav-ico" aria-hidden="true"></span>Activity</a>
-          <a href="#/schedules" data-nav="schedules"><span class="nav-ico" aria-hidden="true"></span>Schedules</a>
-          <a href="#/runs" data-nav="runs"><span class="nav-ico" aria-hidden="true"></span>Run history</a>
-          <a href="#/bots" data-nav="bots" id="fleet-nav" hidden><span class="nav-ico" aria-hidden="true"></span>Fleet</a>
+          <a href="#/schedules" data-nav="schedules"><span class="nav-ico" aria-hidden="true"></span>Scheduled work</a>
+          <a href="#/runs" data-nav="runs"><span class="nav-ico" aria-hidden="true"></span>Work history</a>
+          <a href="#/bots" data-nav="bots" id="fleet-nav" hidden><span class="nav-ico" aria-hidden="true"></span>Manage assistants</a>
         </details>
       </nav>
 
-      <section class="ws-roster" aria-label="Your bots">
+      <section class="ws-roster" aria-label="Your assistants">
         <div class="roster-head">
-          <h2 class="roster-title">Bots</h2>
-          <button class="icon-btn roster-new" type="button" id="topbar-new-bot" aria-label="New bot" title="New bot">
+          <h2 class="roster-title">Assistants</h2>
+          <button class="icon-btn roster-new" type="button" id="topbar-new-bot" aria-label="New assistant" title="New assistant">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
           </button>
         </div>
-        <label class="visually-hidden" for="bot-search">Filter bots</label>
-        <input class="roster-search" id="bot-search" type="search" placeholder="Filter bots" autocomplete="off">
+        <label class="visually-hidden" for="bot-search">Find an assistant</label>
+        <input class="roster-search" id="bot-search" type="search" placeholder="Find an assistant" autocomplete="off">
         <div class="roster-list" id="roster-list"></div>
       </section>
 
       <footer class="ws-foot">
         <a href="#/connections" class="ws-foot-link" data-nav="connections">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 8.5 4.7L12 11.4 3.5 6.7z"/><path d="m3.5 12.6 8.5 4.7 8.5-4.7"/><path d="m3.5 17.3 8.5 4.7 8.5-4.7"/></svg>
-          <span>Connections</span>
+          <span>Apps &amp; AI</span>
         </a>
         <div class="pref-wrap">
           <button class="ws-foot-link" id="prefs-toggle" type="button" aria-expanded="false" aria-haspopup="true" aria-controls="prefs-pop">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/></svg>
-            <span>Preferences</span>
+            <span>Settings</span>
           </button>
           <div class="pref-pop" id="prefs-pop" hidden>
             <button class="btn ghost small" id="prefs-model-defaults" type="button">Model defaults for new Bots</button>

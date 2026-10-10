@@ -467,6 +467,7 @@ def test_chatgpt_background_permission_is_explicit_responsive_and_reversible(bro
     viewports = (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844))
     try:
         page.goto(f"{base}/#/bot/{bot.name}")
+        open_assistant_customization(page)
         page.get_by_role("heading", name="Weekly Project Reviewer").wait_for()
         panel = page.get_by_role("region", name="ChatGPT plan for unattended runs")
         assert "Permission required" in panel.inner_text()
@@ -1292,7 +1293,8 @@ def test_provider_connections_fit_phone_viewports_and_capture_signin_states(brow
     out.mkdir(parents=True, exist_ok=True)
     try:
         page.goto(base + "/#/connections")
-        page.get_by_role("heading", name="Connections").wait_for()
+        page.get_by_role("heading", name="Apps & AI").wait_for()
+        page.locator("#connection-management > summary").click()
         page.get_by_text("Sign in with ChatGPT").wait_for()
         page.get_by_text("Sign in to Go, subscribe if needed, copy its provider-issued key", exact=False).wait_for()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
@@ -1355,6 +1357,7 @@ def test_model_capability_observations_show_unknown_and_latest_evidence(browser,
     page.route("**/api/v1/model-capabilities**", capability_response)
     try:
         page.goto(base + "/#/connections")
+        page.locator("#connection-management > summary").click()
         panel = page.get_by_role("region", name="Model tool-call observations")
         panel.wait_for()
         loading_state = panel.locator("#model-capability-results [role=status]")
@@ -1375,6 +1378,7 @@ def test_model_capability_observations_show_unknown_and_latest_evidence(browser,
 
         capability_state["error"] = True
         page.reload()
+        page.locator("#connection-management > summary").click()
         panel = page.get_by_role("region", name="Model tool-call observations")
         error_state = panel.locator("#model-capability-results [role=alert]")
         error_state.wait_for()
@@ -1392,6 +1396,7 @@ def test_model_capability_observations_show_unknown_and_latest_evidence(browser,
             "observed_at": datetime.now(timezone.utc).isoformat(), "status": "observed",
             "scope": "exact connection, account, model, and route revision"}]
         page.reload()
+        page.locator("#connection-management > summary").click()
         panel = page.get_by_role("region", name="Model tool-call observations")
         panel.get_by_text("fixture-route · fixture-model", exact=True).wait_for()
         panel.get_by_text("list_files", exact=True).wait_for()
@@ -1499,7 +1504,8 @@ def test_google_calendar_read_grant_is_clear_at_desktop_tablet_and_phone(browser
     out.mkdir(parents=True, exist_ok=True)
     try:
         page.goto(base + "/#/connections")
-        page.get_by_role("heading", name="Connections").wait_for()
+        page.get_by_role("heading", name="Apps & AI").wait_for()
+        page.locator("#connection-management > summary").click()
         page.get_by_text("Connect with Google's official installed-app flow", exact=False).wait_for()
         assert page.get_by_role("button", name="Connect Google Calendar").is_enabled()
         page.get_by_role("button", name="Load calendars").click()
@@ -1646,7 +1652,8 @@ def test_google_calendar_event_creation_scope_is_explicit_and_owner_only(browser
     captures = []
     try:
         page.goto(base + "/#/connections")
-        page.get_by_role("heading", name="Connections").wait_for()
+        page.get_by_role("heading", name="Apps & AI").wait_for()
+        page.locator("#connection-management > summary").click()
         account = page.locator(f'[data-google-calendar-account="{write_account_id}"]')
         create_access = account.locator("[data-google-calendar-create-access]")
         assert create_access.is_disabled()
@@ -1747,7 +1754,8 @@ def test_gmail_preview_discloses_restricted_scope_and_requires_local_setup(brows
             if not request.url.startswith(base) else None)
     try:
         page.goto(base + "/#/connections")
-        page.get_by_role("heading", name="Connections").wait_for()
+        page.get_by_role("heading", name="Apps & AI").wait_for()
+        page.locator("#connection-management > summary").click()
         card = page.locator('[aria-labelledby="google-mail-title"]')
         card.wait_for()
         text = card.inner_text().lower()
@@ -1757,6 +1765,7 @@ def test_gmail_preview_discloses_restricted_scope_and_requires_local_setup(brows
         assert "account-wide" in text and "cannot send" in text
         assert card.get_by_role("button").count() == 0
         page.locator("#google-mail-access summary").click()
+        page.locator("#google-oauth-setup > summary").click()
         assert "add a valid google desktop oauth client id" in card.inner_text().lower()
         setup = page.locator("#google-oauth-setup")
         setup.wait_for()
@@ -1823,7 +1832,8 @@ def test_google_oauth_environment_override_is_readonly_in_connections(browser, l
             if not request.url.startswith(base) else None)
     try:
         page.goto(base + "/#/connections")
-        page.get_by_role("heading", name="Connections").wait_for()
+        page.get_by_role("heading", name="Apps & AI").wait_for()
+        page.locator("#connection-management > summary").click()
         setup = page.locator("#google-oauth-setup")
         setup.locator("summary").click()
         field = setup.get_by_label("Google Desktop OAuth client ID")
@@ -1933,9 +1943,11 @@ def test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone(browser, l
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
         page.goto(base + "/#/connections")
+        page.locator("#connection-management > summary").click()
         card = page.locator('[aria-labelledby="google-mail-title"]')
         card.wait_for()
         page.locator("#google-mail-access summary").click()
+        page.locator("#google-oauth-setup > summary").click()
         page.locator("#google-oauth-client-id").fill("fixture-client.apps.googleusercontent.com")
         page.locator("#google-oauth-client-save").click()
         client_change_review = page.locator(".modal-card[role='dialog']")
@@ -2260,7 +2272,8 @@ def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewport
     out.mkdir(parents=True, exist_ok=True)
     try:
         page.goto(base + "/#/connections")
-        page.get_by_role("heading", name="Connections").wait_for()
+        page.get_by_role("heading", name="Apps & AI").wait_for()
+        page.locator("#connection-management > summary").click()
         card = page.locator('[aria-labelledby="outlook-calendar-title"]')
         assert "Calendars.ReadBasic" in card.inner_text()
         assert "Microsoft consent applies to the signed-in account" in card.inner_text()
@@ -2396,7 +2409,8 @@ def test_outlook_mail_grant_and_consent_boundary_fit_all_viewports(browser, live
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
         page.goto(base + "/#/connections")
-        page.get_by_role("heading", name="Connections").wait_for()
+        page.get_by_role("heading", name="Apps & AI").wait_for()
+        page.locator("#connection-management > summary").click()
         card = page.locator(".outlook-mail-card")
         card.wait_for()
         assert "Mail.Read" in card.inner_text()
@@ -2506,9 +2520,10 @@ def test_opt_in_chatgpt_signin_is_fixture_intercepted_and_responsive(browser, li
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
         page.goto(base + "/#/connections")
+        page.locator("#connection-management > summary").click()
         button = page.get_by_role("button", name="Continue with ChatGPT")
         button.wait_for(state="visible")
-        page.get_by_role("heading", name="Connections").wait_for()
+        page.get_by_role("heading", name="Apps & AI").wait_for()
         assert button.is_enabled()
         assert page.get_by_text("Availability depends on OpenAI eligibility and your account", exact=False).is_visible()
         # Wait for the first app paint before taking the full-page desktop capture. The button can
@@ -2518,6 +2533,7 @@ def test_opt_in_chatgpt_signin_is_fixture_intercepted_and_responsive(browser, li
         page.wait_for_timeout(250)
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
+            button.scroll_into_view_if_needed()
             page.screenshot(path=str(out / f"chatgpt-preview-enabled-{label}.png"),
                             full_page=True, animations="disabled")
             assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
@@ -2639,6 +2655,14 @@ def wait_for(fn, timeout=20.0):
             return v
         time.sleep(0.05)
     raise AssertionError("timed out")
+
+
+def open_assistant_customization(page):
+    details = page.locator("#assistant-more-settings")
+    details.wait_for(state="attached")
+    if not details.evaluate("element => element.open"):
+        details.locator(":scope > summary").click()
+    assert details.evaluate("element => element.open")
 
 
 def test_spa_transcript_renders_a_live_run(browser, live, monkeypatch):
@@ -3495,7 +3519,7 @@ def test_conversation_options_are_compact_persistent_and_recoverable(browser, li
                           for name in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                        "src/hutch/server/app.py", "src/hutch/store.py", "tests/e2e/test_browser.py")},
         "trace": "trace.zip",
-    }, indent=2) + "\n", encoding="utf-8")
+            }, indent=2) + "\n", encoding="utf-8")
     page.context.tracing.stop(path=str(artifacts / "trace.zip"))
     page.close()
 
@@ -4187,6 +4211,7 @@ def test_bot_limits_can_be_saved_from_the_phone_settings(browser, live):
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.goto(f"{base}/#/bot/limit-bot")
+    open_assistant_customization(page)
     page.locator("#form-limits").wait_for()
     assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
     page.locator('#form-limits [name="max_steps"]').fill("11")
@@ -4228,6 +4253,7 @@ def test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone(browser
 
     try:
         page.goto(f"{base}/#/bot/{bot.name}")
+        open_assistant_customization(page)
         page.locator("#form-tools").wait_for()
         delegate = page.locator('#form-tools input[name="tools"][value="delegate_task"]')
         assert not delegate.is_checked()
@@ -4238,7 +4264,7 @@ def test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone(browser
             panel = page.locator('section[aria-labelledby="tool-settings-title"]')
             position = position_panel("start")
             page.wait_for_timeout(80)
-            delete_button = page.get_by_role("button", name="Delete bot")
+            delete_button = page.get_by_role("button", name="Delete assistant")
             assert delete_button.is_visible()
             if label == "phone":
                 assert delete_button.locator("svg").is_visible()
@@ -4275,6 +4301,7 @@ def test_tool_permissions_are_clear_and_save_at_desktop_tablet_and_phone(browser
         page.keyboard.press("Enter")
         wait_for(lambda: "delegate_task" in app.state.store.get_bot(bot.name).tools)
         page.reload()
+        open_assistant_customization(page)
         page.locator('#form-tools input[name="tools"][value="delegate_task"]:checked').wait_for()
         panel = page.locator('section[aria-labelledby="tool-settings-title"]')
         position_panel("end")
@@ -4317,7 +4344,7 @@ def test_quick_bot_creation_uses_the_workspace_default_without_starting_work(bro
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("request", lambda request: outside_requests.append(request.url)
             if urlsplit(request.url).netloc not in {urlsplit(base).netloc, ""} else None)
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/simple-bot-setup"
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/assistant-first-ui/quick-setup"
     out.mkdir(parents=True, exist_ok=True)
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
@@ -4327,10 +4354,10 @@ def test_quick_bot_creation_uses_the_workspace_default_without_starting_work(bro
         assert configured.status == 200, configured.text()
         page.goto(f"{base}/#/chat")
         page.locator("#topbar-new-bot").click()
-        page.get_by_role("heading", name="Describe the work").wait_for()
+        page.get_by_role("heading", name="Set up your assistant").wait_for()
         purpose = "Prepare a weekly project update from notes I share."
-        page.get_by_label("What would you like this bot to handle?").fill(purpose)
-        name_input = page.get_by_label("Bot name")
+        page.get_by_label("What would you like this assistant to handle?").fill(purpose)
+        name_input = page.get_by_label("Assistant name")
         assert name_input.is_visible() and name_input.is_enabled()
         assert name_input.input_value().endswith(" · Project Reporter")
         name_style = name_input.evaluate("""el => {
@@ -4343,7 +4370,7 @@ def test_quick_bot_creation_uses_the_workspace_default_without_starting_work(bro
         assert name_style["background"] != "rgba(0, 0, 0, 0)", name_style
         assert page.locator(".setup-quick-summary").is_visible()
         assert "openai/gpt-4o-mini" in page.locator(".setup-quick-summary").inner_text()
-        assert "no tools or schedule" in page.locator(".setup-quick-summary").inner_text()
+        assert "no connected apps or recurring tasks" in page.locator(".setup-quick-summary").inner_text()
         assert page.locator("#modal-confirm").inner_text() == "Create bot"
         assert page.locator("#setup-customize").is_visible()
         assert app.state.store.list_bots() == [] and app.state.store.list_runs() == []
@@ -4408,10 +4435,10 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
     try:
         page.goto(base + "/#/chat")
         page.locator("#topbar-new-bot").click()
-        page.get_by_role("heading", name="Describe the work").wait_for()
-        page.get_by_label("What would you like this bot to handle?").fill(
+        page.get_by_role("heading", name="Set up your assistant").wait_for()
+        page.get_by_label("What would you like this assistant to handle?").fill(
             "Review release notes and prepare a short summary of changes that affect our project.")
-        suggested_name = page.get_by_label("Bot name").input_value()
+        suggested_name = page.get_by_label("Assistant name").input_value()
         assert suggested_name.endswith(" · Release Notes Reviewer")
         assert len(suggested_name.split(" · ", 1)[0].split()) == 2
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
@@ -4431,16 +4458,16 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         page.locator("#setup-display_name").fill("Release Notes Reviewer")
         page.locator(".setup-identity summary").click()
         page.locator("#setup-name").fill("guided-release-reviewer")
-        page.get_by_label("Short description").fill("Summarize project release notes")
+        page.get_by_label("Short note").fill("Summarize project release notes")
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Set model and workspace").wait_for()
+        page.get_by_role("heading", name="Choose what powers it").wait_for()
         page.locator("#setup-back").click()
         assert "Review release notes" in page.locator("#setup-purpose").input_value()
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Set model and workspace").wait_for()
+        page.get_by_role("heading", name="Choose what powers it").wait_for()
         page.get_by_label("Model route").fill("openai/gpt-4o-mini")
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Choose tools and schedule").wait_for()
+        page.get_by_role("heading", name="Choose its apps").wait_for()
         assert page.locator("#setup-tools input:checked").count() == 0
         page.get_by_text("Task focus (optional)").click()
         page.locator("#setup-preset").select_option("research")
@@ -4496,7 +4523,7 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         assert app.state.store.get_bot("guided-release-reviewer") is None
         page.get_by_label("Cron schedule", exact=True).fill("0 9 * * 1")
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Review bot").wait_for()
+        page.get_by_role("heading", name="Review and create").wait_for()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.screenshot(path=str(out / f"review-{label}.png"), animations="disabled")
@@ -4658,9 +4685,9 @@ spec:
     try:
         page.goto(base + "/#/chat")
         page.locator("#topbar-new-bot").click()
-        page.get_by_role("heading", name="Describe the work").wait_for()
+        page.get_by_role("heading", name="Set up your assistant").wait_for()
         page.locator("#setup-customize").click()
-        page.get_by_role("heading", name="Set model and workspace").wait_for()
+        page.get_by_role("heading", name="Choose what powers it").wait_for()
         page.locator("#setup-back").click()
         page.locator("#setup-yaml-import-details > summary").click()
         choose = page.get_by_role("button", name="Choose YAML file")
@@ -4683,7 +4710,7 @@ spec:
         chooser.value.set_files({"name": "project-reviewer.yaml", "mimeType": "application/yaml",
                                 "buffer": yaml_text.encode("utf-8")})
         page.get_by_role("status").filter(has_text="YAML validated and copied into this unsaved draft").wait_for()
-        assert page.get_by_label("What would you like this bot to handle?").input_value().startswith("Review release notes")
+        assert page.get_by_label("What would you like this assistant to handle?").input_value().startswith("Review release notes")
         assert page.locator("#setup-display_name").input_value() == "Jordan Reed · Release Notes Reviewer"
         assert app.state.store.get_bot("imported-release-reviewer") is None
         assert app.state.store.list_runs() == []
@@ -4699,18 +4726,18 @@ spec:
 
         page.set_viewport_size({"width": 390, "height": 844})
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Set model and workspace").wait_for()
+        page.get_by_role("heading", name="Choose what powers it").wait_for()
         assert page.get_by_label("Model route").input_value() == "openai/gpt-4o-mini"
         assert page.get_by_label("Inference mode").input_value() == "hybrid"
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Choose tools and schedule").wait_for()
+        page.get_by_role("heading", name="Choose its apps").wait_for()
         assert page.locator('input[name="setup-tool"][value="read_file"]').is_checked()
         page.get_by_text("Add a recurring task (optional)").click()
         assert page.get_by_label("Cron schedule", exact=True).input_value() == "0 9 * * 1"
         assert page.get_by_label("Time zone").input_value() == "America/Vancouver"
         assert page.get_by_label("Missed schedule windows").input_value() == "skip"
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Review bot").wait_for()
+        page.get_by_role("heading", name="Review and create").wait_for()
         assert "America/Vancouver" in page.locator(".setup-review").inner_text()
         assert "missed windows: skip" in page.locator(".setup-review").inner_text()
         assert "Memory" in page.locator(".setup-review").inner_text()
@@ -4786,6 +4813,7 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
         page.goto(f"{base}/#/bot/{coordinator.name}")
+        open_assistant_customization(page)
         page.get_by_role("heading", name="Workspace Coordinator settings").wait_for()
         roster_panel = page.locator("#workspace-specialist-roster")
         roster_details = page.locator("#workspace-specialist-settings")
@@ -4845,14 +4873,17 @@ def test_named_workspace_coordinator_is_first_class_direct_chat_at_responsive_si
         specialist_options = page.locator("[data-bot-options='release-notes-reviewer']")
         specialist_options.wait_for(state="visible")
         specialist_options.click()
-        page.get_by_role("menuitem", name="Bot settings").click()
-        page.get_by_role("button", name="Set as workspace coordinator").click()
-        page.get_by_role("heading", name="Set workspace coordinator?").wait_for()
+        page.get_by_role("menuitem", name="Assistant settings").click()
+        open_assistant_customization(page)
+        page.get_by_role("button", name="Make this the main assistant").click()
+        page.get_by_role("heading", name="Make this your main assistant?").wait_for()
         page.locator("#modal-confirm").click()
         page.get_by_role("heading", name="Release Notes Reviewer settings").wait_for()
         assert app.state.store.workspace_coordinator_id() == specialist.id
         assert app.state.store.workspace_specialists()["specialist_bot_ids"] == []
-        page.get_by_role("link", name="Open Studio").click()
+        chat_link = page.locator(f"#app-top-context .ctx-actions a[href='#/chat/{specialist.name}']")
+        assert chat_link.count() == 1, page.locator("#app-top-context").inner_html()
+        chat_link.click()
         page.locator("#chat-stream").get_by_role("heading", name="Release Notes Reviewer").wait_for()
         assert page.locator("#workspace-coordinator-pill").inner_text() == "Workspace coordinator"
         assert page.locator("#roster-list [data-switch-bot]").first.get_attribute("data-switch-bot") == specialist.name
@@ -4947,7 +4978,7 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
         page.locator("[data-switch-bot='research-helper']").hover()
         page.get_by_role("button", name=f"Options for {long_name}").click()
         menu = page.get_by_role("menu")
-        assert menu.get_by_role("menuitem", name="Bot settings").is_visible()
+        assert menu.get_by_role("menuitem", name="Assistant settings").is_visible()
         menu.get_by_role("menuitem", name="Pin to sidebar").click()
         assert store.get_bot("research-helper").pinned is True
         page.locator("[data-switch-bot='website-auditor']").hover()
@@ -4966,10 +4997,10 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
         coordinator_options.evaluate("el => el.scrollIntoView({block:'nearest'})")
         coordinator_options.click()
         coordinator_menu = page.get_by_role("menu")
-        assert coordinator_menu.get_by_role("menuitem", name="Bot settings").is_visible()
+        assert coordinator_menu.get_by_role("menuitem", name="Assistant settings").is_visible()
         assert coordinator_menu.get_by_role("menuitem", name="Pin to sidebar").count() == 0
         page.evaluate("renderRoster()")
-        assert page.get_by_role("menu").get_by_role("menuitem", name="Bot settings").is_visible()
+        assert page.get_by_role("menu").get_by_role("menuitem", name="Assistant settings").is_visible()
         page.keyboard.press("Escape")
         assert page.locator("[data-bot-options='workspace-coordinator']").evaluate("el => el === document.activeElement")
 
@@ -5024,7 +5055,7 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
                     assert page.locator("#roster-list [data-switch-bot]").count() == len(bots)
             page.locator("[data-switch-bot='research-helper']").hover()
             page.locator("[data-bot-options='research-helper']").click()
-            assert page.get_by_role("menu").get_by_role("menuitem", name="Bot settings").is_visible()
+            assert page.get_by_role("menu").get_by_role("menuitem", name="Assistant settings").is_visible()
             menu_capture = out / f"{label}-menu.png"
             page.screenshot(path=str(menu_capture), animations="disabled")
             page.keyboard.press("Escape")
@@ -5053,7 +5084,7 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
             "verified": ["one options button per Bot; pin and settings actions share its menu", "pin persists after reload", "coordinator stays first and cannot be pinned",
                          "search includes pinned bots", "keyboard activation and Escape restore focus", "long Bot name wraps without clipping",
                          "mobile roster has a visible close control", "phone roster reopens with all Bots visible", "phone menu target is at least 44px",
-                         "flat 2D identities use distinct solid fills and glints"],
+                         "flat 2D identities use distinct solid fills and simple, shape-aware ink eyes"],
             "avatar_svg_ids": identity["count"], "source_sha256": {
                 relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
                 for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
@@ -5291,9 +5322,9 @@ def test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority
         page.goto(f"{base}/#/chat/{source.name}")
         page.locator("[data-bot-options='release-reviewer']").click()
         page.get_by_role("menuitem", name="Duplicate bot").click()
-        page.get_by_role("heading", name="Describe the work").wait_for()
-        assert page.get_by_label("Bot name").input_value() == "Release Notes Reviewer copy"
-        name_input = page.get_by_label("Bot name")
+        page.get_by_role("heading", name="Set up your assistant").wait_for()
+        assert page.get_by_label("Assistant name").input_value() == "Release Notes Reviewer copy"
+        name_input = page.get_by_label("Assistant name")
         name_style = name_input.evaluate("el => ({borderStyle:getComputedStyle(el).borderStyle, borderWidth:getComputedStyle(el).borderWidth, background:getComputedStyle(el).backgroundColor})")
         assert name_style["borderStyle"] == "solid" and name_style["borderWidth"] == "1px", name_style
         assert name_style["background"] != "rgba(0, 0, 0, 0)", name_style
@@ -5316,14 +5347,14 @@ def test_duplicate_bot_starts_from_safe_editable_setup_without_copying_authority
 
         page.set_viewport_size({"width": 390, "height": 844})
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Set model and workspace").wait_for()
+        page.get_by_role("heading", name="Choose what powers it").wait_for()
         assert page.get_by_label("Model route").input_value() == source.model
         assert page.locator("#setup-workspace_mode").input_value() == "managed"
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Choose tools and schedule").wait_for()
+        page.get_by_role("heading", name="Choose its apps").wait_for()
         assert page.locator("#setup-tools input:checked").count() == 0
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Review bot").wait_for()
+        page.get_by_role("heading", name="Review and create").wait_for()
         review = page.locator(".setup-review").inner_text()
         assert "managed" in review.lower() and "no tools enabled" in review.lower()
         assert "Recurring task\nNone" in review and "Memory\nDisabled" in review
@@ -5400,7 +5431,7 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
         page.locator("#topbar-new-bot").click()
         display_name = page.locator("#setup-display_name")
         display_name.wait_for(state="visible")
-        assert page.get_by_text("Suggested from the work you described", exact=False).is_visible()
+        assert page.get_by_text("Suggested from your request", exact=False).is_visible()
         purpose = page.locator("#setup-purpose")
         if not purpose.is_visible():
             page.locator("#setup-use-source").uncheck()
@@ -5474,7 +5505,7 @@ def test_purpose_derived_bot_name_is_editable_and_reviewed_at_responsive_sizes(b
         page.get_by_label("Model route").fill("openai/gpt-4o-mini")
         page.locator("#modal-confirm").click()
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Review bot").wait_for()
+        page.get_by_role("heading", name="Review and create").wait_for()
         review = page.locator(".setup-review-list").inner_text()
         assert "Launch Readiness Analyst" in review and "launch-ops" in review
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
@@ -5612,7 +5643,7 @@ def test_bot_creation_reuses_only_the_selected_chat_messages_and_keeps_provenanc
             page.screenshot(path=str(out / f"chat-source-model-{label}.png"), animations="disabled")
 
         page.locator("#setup-back").click()
-        page.get_by_role("heading", name="Describe the work").wait_for()
+        page.get_by_role("heading", name="Set up your assistant").wait_for()
         context_picker = page.locator("#setup-context-picker")
         assert context_picker.is_visible()
         context_picker.locator(":scope > summary").click()
@@ -5641,12 +5672,12 @@ def test_bot_creation_reuses_only_the_selected_chat_messages_and_keeps_provenanc
             page.screenshot(path=str(out / f"chat-source-context-{label}.png"), animations="disabled")
 
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Set model and workspace").wait_for()
+        page.get_by_role("heading", name="Choose what powers it").wait_for()
         page.set_viewport_size({"width": 390, "height": 844})
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Choose tools and schedule").wait_for()
+        page.get_by_role("heading", name="Choose its apps").wait_for()
         page.locator("#modal-confirm").click()
-        page.get_by_role("heading", name="Review bot").wait_for()
+        page.get_by_role("heading", name="Review and create").wait_for()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.locator(".setup-source-details").first.locator(":scope > summary").click()
@@ -5924,7 +5955,7 @@ def test_coordinator_can_refine_a_bot_purpose_without_changing_its_source_or_aut
         page.locator("#setup-purpose-editor > summary").click()
         assert purpose.is_visible()
         page.locator("#setup-customize").click()
-        page.get_by_role("heading", name="Set model and workspace").wait_for()
+        page.get_by_role("heading", name="Choose what powers it").wait_for()
         page.locator("#setup-back").click()
         page.locator("#setup-context-picker > summary").click()
         selected_context = page.locator('[data-setup-context-message="purpose-context-earlier"]')
@@ -6168,13 +6199,13 @@ def test_workspace_model_default_is_editable_persistent_and_seeds_new_bot_setup(
         page.reload()
         page.locator("#conversation-switcher").wait_for()
         page.locator("#topbar-new-bot").click()
-        page.get_by_role("heading", name="Describe the work").wait_for()
+        page.get_by_role("heading", name="Set up your assistant").wait_for()
         page.locator("#setup-purpose").fill("Prepare a weekly project summary.")
         page.locator("#setup-display_name").fill("Project Summary Assistant")
         page.locator(".setup-identity summary").click()
         page.locator("#setup-name").fill("workspace-default-child")
         page.locator("#setup-customize").click()
-        page.get_by_role("heading", name="Set model and workspace").wait_for()
+        page.get_by_role("heading", name="Choose what powers it").wait_for()
         assert page.get_by_label("Model route").input_value() == "openai/gpt-4o-mini"
         assert "Workspace default for new Bots" in page.locator(".setup-conversation").inner_text()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
@@ -6230,6 +6261,7 @@ def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live
 
         # Hash-only navigation was unreliable under full-suite load; exercise the route directly.
         page.goto(f"{base}/#/bot/scheduled-research")
+        open_assistant_customization(page)
         page.locator("#form-schedule").wait_for()
         prompt = page.locator('#form-schedule [name="schedule_prompt"]')
         assert prompt.input_value() == "Review release notes and report important changes."
@@ -6286,6 +6318,7 @@ def test_multiple_scheduled_tasks_can_be_managed_from_bot_settings(browser, live
         assert page.locator('#form-schedule [name="schedule_prompt"]').input_value() \
             == "Check the weekly security feed and list actionable changes."
         page.reload()
+        open_assistant_customization(page)
         page.locator("#form-schedule").wait_for()
         assert page.locator("[data-schedule-form]").count() == 2
         assert next(item.name for item in app.state.store.get_bot("scheduled-research").schedules
@@ -6394,6 +6427,7 @@ def test_model_route_setting_explains_host_gated_offline_mode_and_saves_on_phone
     errors: list[str] = []
     page.on("pageerror", lambda exc: errors.append(str(exc)))
     page.goto(f"{base}/#/bot/route-bot")
+    open_assistant_customization(page)
     mode = page.locator('#form-model select[name="inference_mode"]')
     task_focus = page.locator('#form-model select[name="preset"]')
     mode.wait_for()
@@ -6718,6 +6752,7 @@ def test_legacy_external_runtime_can_move_to_hutch_and_run_a_real_local_route(br
     captures = []
     try:
         page.goto(f"{base}/#/bot/{bot.name}")
+        open_assistant_customization(page)
         page.locator("#runtime-recovery").wait_for()
         assert page.get_by_text("OpenCode execution is unavailable in Hutch.").is_visible()
         assert "Hutch never imports private sign-in files or credentials" in page.locator("#runtime-recovery").inner_text()
@@ -6807,7 +6842,8 @@ def test_small_workspace_has_one_roster_and_legacy_routes_do_not_trap_back(brows
     assert page.get_by_text("Manage all bots", exact=True).count() == 0
     assert page.get_by_role("button", name="Context", exact=True).count() == 0
     page.locator("[data-bot-options='one-bot']").click()
-    page.get_by_role("menuitem", name="Bot settings").click()
+    page.get_by_role("menuitem", name="Assistant settings").click()
+    open_assistant_customization(page)
     page.get_by_role("heading", name="One Bot settings", exact=True).wait_for()
     assert page.get_by_text("Recent runs", exact=True).count() == 0
     page.goto(base + "/#/overview")
@@ -6837,6 +6873,7 @@ def test_bot_workspace_modes_are_clear_and_persist_across_settings(browser, live
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
         page.goto(base + "/#/bot/workspace-helper")
+        open_assistant_customization(page)
         page.get_by_role("heading", name="Workspace Helper settings", exact=True).wait_for()
         mode = page.locator('#form-risk [name="workspace_mode"]')
         assert mode.input_value() == "fresh"
@@ -6916,6 +6953,7 @@ def test_local_browser_handoff_setting_is_explicit_and_persists(browser, live, w
     page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
     try:
         page.goto(base + "/#/bot/local-handoff")
+        open_assistant_customization(page)
         page.get_by_role("heading", name="Local Handoff settings", exact=True).wait_for()
         handoff = page.locator('#form-risk [name="local_browser_handoff"]')
         assert handoff.input_value() == "false"
@@ -7606,7 +7644,8 @@ def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(br
     page.evaluate("id => { location.hash = '#/run/' + id; }", run.id)
     page.wait_for_function("feedMode === 'run'")
     page.evaluate("location.hash = '#/bot/resource-replay'")
-    settings = page.locator('#form-identity textarea[name="instructions"]')
+    open_assistant_customization(page)
+    settings = page.locator('#form-instructions textarea[name="instructions"]')
     settings.fill("Unsaved instructions stay intact")
     settings.focus()
     before = store.list_resource_changes()["cursor"]
@@ -7623,6 +7662,7 @@ def test_resource_replay_updates_chat_after_gap_without_losing_draft_or_focus(br
     assert held, "hold a run response across navigation"
     page.evaluate("location.hash = '#/bot/resource-replay'")
     page.get_by_role("heading", name="Resource Replay settings", exact=True).wait_for()
+    open_assistant_customization(page)
     settings.fill("Late run responses cannot replace this form")
     for route in held:
         route.continue_()
@@ -8145,6 +8185,7 @@ def test_bot_memory_export_explains_scope_and_downloads_complete_json(browser, l
     trace_stopped = False
     try:
         page.goto(f'{base}/#/bot/{bot.name}')
+        open_assistant_customization(page)
         download_button = page.get_by_role('button', name='Download memory JSON')
         download_button.wait_for()
         page.locator('#memory-toggle').wait_for()
