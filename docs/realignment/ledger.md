@@ -3771,3 +3771,17 @@ screenshots, traces and source hashes are in
 docs are committed locally on `main` as `1ea03fa`. This advances but does not
 complete the user's requested all-surface UI overhaul; no push or publication
 occurred.
+
+## Populated completion state in task-detail review (2026-10-10)
+
+The responsive route fixture now saves an assistant answer event with its
+completed request, so the **Done** capture shows the actual conversation
+structure rather than a blank response area. The all-surface test passed **1
+test in 16.65s** with Chromium **153.0.8010.12** / Playwright **1.63.0**. I
+reviewed task details at desktop **1440×960**, tablet **900×1024**, and phone
+**390×844** individually. The capture set now contains 42 individual
+route/viewport records and source hashes matching the tested code; there were no
+external requests, provider calls or browser errors. Tests and the updated
+screenshots/visual record are committed locally on `main` as `50cd1e7`. This is
+fixture-only visual evidence, not an application behavior change; no provider,
+screen-reader, or physical-device check occurred.
