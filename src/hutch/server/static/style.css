@@ -2239,8 +2239,16 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
   .tpl-grid { grid-template-columns: minmax(0, 1fr); }
   .tpl-tile { height: 92px; }
   .service-grid { grid-template-columns: minmax(0, 1fr); }
-  .service-tile { padding: 16px; }
-  .connections-intro { font-size: var(--fs-base); }
+  .service-tile { grid-template-columns: 40px minmax(0, 1fr); gap: 7px 10px; padding: 12px; }
+  .service-tile-top { grid-column: 1 / -1; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; }
+  .service-tile .service-mark { width: 40px; height: 40px; }
+  .service-tile .service-mark svg { width: 23px; height: 23px; }
+  .service-tile .service-mark-chatgpt img { width: 30px; height: 30px; }
+  .service-tile p { grid-column: 2 / -1; max-width: none; margin: 0; font-size: var(--fs-sm); line-height: 1.45; }
+  .service-tile-action { grid-column: 2 / -1; min-height: 44px; margin: 0; }
+  .connections-intro { margin-bottom: 20px; font-size: var(--fs-base); }
+  .service-group { margin: 18px 0 24px; }
+  .service-group-heading { margin-bottom: 9px; }
   .connection-management-hint { flex-basis: 100%; }
   .custom-service-heading { align-items: stretch; flex-direction: column; }
   .custom-service-heading .btn { width: 100%; justify-content: center; min-height: 44px; }

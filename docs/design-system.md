@@ -52,7 +52,7 @@ generated token files and the declared WCAG text pairs.
 | Control / panel / chat / composer / pill radius | `8 / 12 / 18 / 22 / 100px` | Shared geometry scale |
 | Display / UI body / measured data | local Archivo / system sans / system mono | Brand headings, readable language, and machine values |
 | App type roles | `1rem` body / `1.0625rem` reading / `1.5rem` page title | Responsive hierarchy that respects browser text scaling |
-| App icon family | `16 / 20 / 24px`, `24px` view box | Local category vectors in 48px service tiles; exact service names and states stay visible |
+| App icon family | `16 / 20 / 24px`, `24px` view box | Local category vectors in 48px desktop/tablet tiles and compact 40px phone rows; exact service names and states stay visible |
 
 The app and marketing site share locally bundled Archivo for display, page, and
 section headings, and system sans for interface and reading text. The app loads
@@ -97,8 +97,9 @@ The empty first-run screen offers a few illustrated starter requests, such as
 planning a week, catching up on email, or organizing a project. Selecting one
 fills the request field; it never starts work or creates an assistant by itself.
 Use a consistent local outline-icon family for actions and categories, with
-plain-language labels beside them. Apps & AI uses 48px service tiles beside
-exact names. ChatGPT uses OpenAI's exact, unaltered white Blossom mark under its
+plain-language labels beside them. Apps & AI uses 48px service tiles on broad
+layouts and compact phone rows with a 40px category mark and 44px action target.
+ChatGPT uses OpenAI's exact, unaltered white Blossom mark under its
 published brand terms. Microsoft Outlook, Gmail, and Google Calendar use
 original service-category marks until product-icon use is permitted. Microsoft
 guidance requires an express license for Outlook product artwork. Google's

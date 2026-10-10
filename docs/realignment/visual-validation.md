@@ -1714,3 +1714,22 @@ control, and exposes a 44px phone touch target. Images, JSON, and traces are in
 [`artifacts/message-replies-clean-chat-2026-10-10/`](artifacts/message-replies-clean-chat-2026-10-10/).
 This is a focused transcript polish check, not acceptance of the populated chat
 surface or the all-surface redesign.
+
+## Source-aligned Apps & AI review (2026-10-10)
+
+The older Apps & AI captures showed a short **Outlook** label and colorful
+product-like marks, while the current implementation uses **Microsoft Outlook**
+and different, original category glyphs. Those older screenshots had no source
+hashes, so they could not establish which code revision they represented. I
+captured the current source to
+[`artifacts/app-catalog-source-aligned-2026-10-10/`](artifacts/app-catalog-source-aligned-2026-10-10/)
+and inspected desktop (1440×960), short desktop (1280×720), tablet (900×1024),
+phone (390×844), and compact phone (320×740) individually.
+
+The phone cards are shorter and retain the full label, state, description, and
+44px action. Each is at most 190px high in the mobile fixture; no viewport had
+horizontal overflow. The provider and seed content stayed local: the browser
+made no external requests or model/provider calls. The focused test passed **1
+case** with Chromium **153.0.8010.12** and Playwright **1.63.0**. It checks that
+the ChatGPT tile uses OpenAI's unchanged local white mark and that Gmail and
+Outlook category illustrations stay separate from any claimed provider logo.

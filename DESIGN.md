@@ -172,6 +172,9 @@ can access or what the machine has actually confirmed.
   product icons.
   Every mark stays secondary to its exact service name and connection state;
   category artwork never imitates a provider logo.
+- Apps & AI keeps connection choices scannable. On phones, app rows use 40px
+  category marks, compact copy, and one 44px action; wider layouts use 48px marks
+  in service tiles. Keep complete product names and availability labels visible.
 - Layered graphite surfaces keep long sessions comfortable. Emerald is the brand
   and primary action; azure is interaction; amber means a person needs to act; rose
   means failure. Text and familiar icons reinforce each color's meaning.

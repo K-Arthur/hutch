@@ -351,7 +351,7 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
     """Capture a real request-first setup and the non-technical app catalog at common sizes."""
     app_url, app = app_server
     assert app.state.store.delete_bot("design-system-review")
-    out = ROOT / "docs/realignment/artifacts/assistant-first-ui/everyday-start"
+    out = ROOT / "docs/realignment/artifacts/app-catalog-source-aligned-2026-10-10"
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -455,7 +455,15 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
             tile_labels = cards.locator("h3").all_text_contents()
             assert tile_labels == ["Google Calendar", "Gmail", "Microsoft Outlook", "ChatGPT", "Other reply services"]
             icon_widths = page.locator(".service-mark").evaluate_all("els => els.map(el => Math.round(el.getBoundingClientRect().width))")
-            assert icon_widths == [48] * 5, (label, icon_widths)
+            expected_mark_width = 40 if width <= 640 else 48
+            assert icon_widths == [expected_mark_width] * 5, (label, icon_widths)
+            if width <= 640:
+                card_heights = cards.evaluate_all("els => els.map(el => Math.round(el.getBoundingClientRect().height))")
+                action_heights = cards.locator(".service-tile-action").evaluate_all(
+                    "els => els.map(el => Math.round(el.getBoundingClientRect().height))"
+                )
+                assert max(card_heights) <= 190, (label, card_heights)
+                assert min(action_heights) >= 44, (label, action_heights)
             assert page.locator(".service-mark").evaluate_all("els => els.every(el => getComputedStyle(el).color !== 'rgb(240, 244, 249)')")
             assert cards.locator(".service-tile-top").evaluate_all("rows => rows.every(row => row.querySelector('h3') && row.querySelector('.service-mark') && row.querySelector('.service-state'))")
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")

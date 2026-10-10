@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Compact the Apps & AI connection tiles on phones while preserving full service names, connection states, descriptions, and 44px actions. Refresh source-aligned screenshots after finding older captures did not match current labels or artwork.
 - Replace the raw run-number label beside chat replies with an accessible **View work details** control. Keep internal identifiers on the optional details page and give the touch target 44px on phones.
 - Refine the app's 2D mascots after review: each of the eight head shapes now has its own fitted dark face panel and two narrow, curved light slits. The identity picker uses the same paths as the final avatar. Individually inspected each face and responsive picker captures; the detailed 3D mascot remains exclusive to marketing.
 - Keep quick assistant setup in everyday language: it confirms the saved AI

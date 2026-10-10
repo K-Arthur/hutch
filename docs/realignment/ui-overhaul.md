@@ -40,7 +40,7 @@ assistant identities; the marketing site may use the detailed 3D character.
 | Assistant settings / advanced controls | Individually reviewed at desktop and phone | Open |
 | Needs you / approvals / human checkpoints | Existing responsive evidence; refresh after component redesign | Open |
 | Activity / schedules / history / task details | Activity independently reviewed; remaining pages to inspect | Open |
-| Apps & AI / local and hosted model settings | Apps & AI independently reviewed at desktop and phone | Open |
+| Apps & AI / local and hosted model settings | Source-aligned desktop, tablet, phone, and compact-phone review; compact phone cards | Open |
 | Preferences, sign-in, pairing, and server pages | Route coverage exists; independent visual review remains | Open |
 | Marketing website | Full desktop and phone pages individually inspected | Open |
 
@@ -148,6 +148,17 @@ phone captures were inspected individually. The screenshot and trace evidence
 is in [`artifacts/message-replies-clean-chat-2026-10-10/`](artifacts/message-replies-clean-chat-2026-10-10/).
 This chat refinement does not close the populated-chat redesign or the full
 all-surface overhaul.
+
+Connections now shortens its five app/model cards on narrow screens without
+hiding their explanations or statuses: app marks shrink to 40px, descriptions
+stay with the service name, and each action keeps a 44px target. The first
+source-aligned desktop, short-desktop, tablet, phone, and compact-phone captures
+also exposed that older `assistant-first-ui` screenshots lack source hashes and
+show a shorter **Outlook** label and marks that do not match today's source.
+Those older images remain historical context; the current capture set is
+[`artifacts/app-catalog-source-aligned-2026-10-10/`](artifacts/app-catalog-source-aligned-2026-10-10/).
+This improves phone scanning and fixes the evidence boundary, but Connections
+and its deeper account flows still need a complete redesign review.
 
 ### Next
 

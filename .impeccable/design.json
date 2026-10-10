@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-10T18:22:17+00:00",
+  "generatedAt": "2026-10-10T18:43:20+00:00",
   "title": "Design System: Hutch",
   "extensions": {
     "colorMeta": {
@@ -525,9 +525,9 @@
     {
       "name": "App & AI Service Card",
       "kind": "card",
-      "description": "An exact service name, a permitted provider mark only where Hutch’s use is allowed, an original Hutch category glyph for other services, an honest connection state, and one helpful next step.",
+      "description": "Show an accurate service name, permitted provider artwork or an original category glyph, an honest connection state, and one helpful action. On phones, compact the row without hiding the description or reducing the 44px action target.",
       "html": "<article class=\"ds-service\"><span class=\"ds-service-mark\" data-service-category=\"calendar\" aria-hidden=\"true\"><svg data-icon=\"calendar\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M16 3v4M8 3v4M3 11h18\"/></svg></span><span class=\"ds-state\">Needs setup</span><h3>Google Calendar</h3><p>An assistant can create an event only after you approve it.</p><button>Check setup →</button></article>",
-      "css": ".ds-service { min-height:220px; padding:18px; border:1px solid rgba(255,255,255,.07); border-radius:12px; color:#f0f4f9; background:#080c12; font-family:system-ui,sans-serif; } .ds-service-mark { display:grid; place-items:center; width:58px; height:58px; border:1px solid rgba(255,255,255,.14); border-radius:16px; color:#34d399; background:#020406;  } .ds-state { float:right; padding:6px 10px; border:1px solid rgba(255,255,255,.14); border-radius:100px; color:#9daebf; font-size:.75rem; } .ds-service p { max-width:38ch; color:#9daebf; line-height:1.55; } .ds-service button { padding:10px 0; border:0; color:#34d399; background:none; font:inherit; font-weight:650; } .ds-service-mark svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}"
+      "css": ".ds-service { display:grid; grid-template-columns:58px minmax(0,1fr) auto; grid-template-areas:\"mark title state\" \". description description\" \". action action\"; gap:12px; min-height:220px; padding:18px; border:1px solid rgba(255,255,255,.07); border-radius:12px; color:#f0f4f9; background:#080c12; font-family:system-ui,sans-serif; } .ds-service-mark { grid-area:mark; display:grid; place-items:center; width:58px; height:58px; border:1px solid rgba(255,255,255,.14); border-radius:16px; color:#34d399; background:#020406; } .ds-service h3 { grid-area:title; align-self:center; margin:0; } .ds-state { grid-area:state; justify-self:end; align-self:center; padding:6px 10px; border:1px solid rgba(255,255,255,.14); border-radius:100px; color:#9daebf; font-size:.75rem; } .ds-service p { grid-area:description; max-width:38ch; margin:0; color:#9daebf; line-height:1.55; } .ds-service button { grid-area:action; justify-self:start; min-height:44px; padding:8px 0; border:0; color:#34d399; background:none; font:inherit; font-weight:650; } .ds-service-mark svg { width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; } @media (max-width:640px) { .ds-service { grid-template-columns:40px minmax(0,1fr) auto; grid-template-areas:\"mark title state\" \". description description\" \". action action\"; gap:7px 10px; min-height:0; padding:12px; } .ds-service-mark { width:40px; height:40px; } .ds-service p { max-width:none; line-height:1.45; } .ds-service button { min-height:44px; } }"
     },
     {
       "name": "Assistant Management Card",
