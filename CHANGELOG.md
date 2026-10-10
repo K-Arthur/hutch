@@ -1,5 +1,11 @@
 # Changelog
 
+## Per-Bot task focus profiles
+
+- Bot setup and Bot model settings can select or clear a task focus: router, research, extraction, coding, planner, or vision. The choice is persisted and used by the built-in local runtime for its context target and residency policy.
+- Choosing a focus never selects or installs a model, changes a provider route, or triggers a run. The review step names the selected focus; an invalid or no-longer-configured profile is rejected instead of silently falling back.
+- API and desktop/tablet/phone Chromium tests covered preset listing, persistence, update, clearing, invalid IDs, and the full no-provider-call setup journey.
+
 ## Independent responsive UI review
 
 - Reduced Fleet card actions to **Open** plus one 44px options menu for pause/resume and settings. Empty Schedules now offers one explicit Bot chooser instead of presenting every Bot link at once.

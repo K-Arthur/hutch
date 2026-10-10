@@ -3,7 +3,7 @@
   "browser": "chromium",
   "browser_version": "153.0.8010.12",
   "playwright_version": "1.63.0",
-  "scenario": "guided setup uses a test-only dummy key and makes no model call; Enter builds a non-persisting YAML preview and downloads the same sanitized text before the separate Create bot confirmation; checked review configuration at desktop, tablet and phone widths",
+  "scenario": "guided setup selects a task focus without changing the explicit provider route, uses a test-only dummy key and makes no model call; Enter builds a non-persisting YAML preview and downloads the same sanitized text before the separate Create bot confirmation; checked review configuration at desktop, tablet and phone widths",
   "viewports": {
     "desktop": [
       1440,
@@ -41,10 +41,10 @@
   ],
   "page_errors": [],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
-    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
-    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
-    "src/hutch/store.py": "febf2e054c553fd67684a2f361bda5c43e7fdfce317f2d04d69e601ab8324fdb",
-    "tests/e2e/test_browser.py": "cb110cb5fb29bab353bc2c87d883f43f3a237301df33b2136a4c50ed04b03238"
+    "src/hutch/server/static/app.js": "a160192a44ffe9c88c0092f4fa5d26a3f1f27b0c57e24f24e2a8cfff0d9bda2b",
+    "src/hutch/server/static/style.css": "cce1d42b0600f3ac386f702390ab77dee8ec33978f533683739d45def79fc2dd",
+    "src/hutch/server/app.py": "e2bb8f171b4d2d70de26ec82ce8961f3c5f8ee817e9282f6842494dc15a1d660",
+    "src/hutch/store.py": "5630bce3b9d00e535069a7bc605b50fe3fb8c75e8f257687cc3b0a9d78969548",
+    "tests/e2e/test_browser.py": "8916b6c9abae3cd5bd16c2a5c56647721b6ba1e73e44c338fde766e70c6c0974"
   }
 }

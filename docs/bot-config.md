@@ -33,6 +33,10 @@ route, fallback and budget controls, but the run has no tools and cannot create 
 the suggestion and then review the complete Bot setup before saving. Hosted providers may retain submitted text under their terms;
 the suggestion quality has not been verified against a live provider.
 
+The advanced setup flow also offers an optional task focus. The owner can change it later under Bot settings → **Model & connection**.
+It changes local context sizing and residency only; it does not verify model capabilities, and the user still chooses the
+model/provider route separately.
+
 ### Review, download and import the setup as YAML
 
 The final setup review can build a YAML preview and download it as `hutch-<bot-address>.yaml`. The server runs the same
@@ -62,6 +66,7 @@ response is marked `Cache-Control: no-store`.
 | `description` | str | "" | one-liner shown in dashboards |
 | `instructions` | str | "" | standing system-prompt guidance, prepended every run |
 | `model` | provider/model | none | choose a configured real route before creating or running a bot |
+| `preset` | task profile? | null | optional configured focus (`router`, `research`, `extraction`, `coding`, `planner`, or `vision`); tunes local context/residency without selecting a model or provider |
 | `inference_mode` | enum | `hybrid` | `hybrid` permits local and hosted routes; `local` restricts model routes to classified local providers while tools may still use the network; experimental `offline` requires fresh host-verified Linux network/PID namespaces, loopback model routes through Hutch's private Unix-socket broker, and strict shell containment when shell is enabled. |
 | `base_url` | str? | null | override endpoint for OpenAI-compatible providers |
 | `runtime` | enum | `builtin` | `builtin`; legacy values `mock`, `pi` and `opencode` are retained for migration but fail closed as unsupported |

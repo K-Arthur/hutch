@@ -21,6 +21,7 @@
         1000
       ],
       "settingsVisible": true,
+      "taskFocusControlVisible": true,
       "strictOfflineDisabled": false,
       "capabilityStatus": "experimental"
     },
@@ -35,6 +36,7 @@
         1024
       ],
       "settingsVisible": true,
+      "taskFocusControlVisible": true,
       "strictOfflineDisabled": false,
       "capabilityStatus": "experimental"
     },
@@ -49,6 +51,7 @@
         844
       ],
       "settingsVisible": true,
+      "taskFocusControlVisible": true,
       "strictOfflineDisabled": false,
       "capabilityStatus": "experimental"
     },
@@ -59,9 +62,10 @@
         844
       ],
       "routingVisible": true,
+      "taskFocusVisible": true,
       "helpVisible": true
     }
   ],
   "pageErrors": [],
-  "scenario": "synthetic bot settings; no provider or model call"
+  "scenario": "synthetic bot settings; changed routing mode and per-Bot local task focus together; no provider or model call"
 }

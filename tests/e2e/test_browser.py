@@ -4262,6 +4262,9 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         page.locator("#modal-confirm").click()
         page.get_by_role("heading", name="Choose tools and schedule").wait_for()
         assert page.locator("#setup-tools input:checked").count() == 0
+        page.get_by_text("Task focus (optional)").click()
+        page.locator("#setup-preset").select_option("research")
+        assert "never chooses a model or provider" in page.locator(".setup-task-focus").inner_text()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.locator(".modal-body").evaluate("element => { element.scrollTop = 0; }")
@@ -4344,6 +4347,7 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
             page.locator(".modal-body").evaluate("element => { element.scrollTop = 0; }")
         assert page.get_by_text("It will not start a run.", exact=False).is_visible()
         assert page.get_by_text("Browser handoff", exact=True).is_visible()
+        assert page.locator(".setup-review-list").get_by_text("Research", exact=True).is_visible()
         assert app.state.store.list_runs() == []
         assert app.state.store.get_bot("guided-release-reviewer") is None
         page.locator("#setup-yaml-details > summary").click()
@@ -4357,6 +4361,7 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         preview_payload = preview_response.json()
         yaml_text = preview_payload["yaml"]
         assert "kind: BotConfig" in yaml_text and "guided-release-reviewer" in yaml_text
+        assert "preset: research" in yaml_text
         assert "Review release notes and prepare a short summary" in yaml_text
         assert preview_payload["saved"] is False
         assert "provider endpoint URL" in preview_payload["omitted_fields"]
@@ -4392,6 +4397,7 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         bot = app.state.store.get_bot("guided-release-reviewer")
         assert bot.instructions == "Review release notes and prepare a short summary of changes that affect our project."
         assert bot.description == "Summarize project release notes"
+        assert bot.preset == "research"
         assert bot.tools == ["read_file"] and bot.approval_mode is ApprovalMode.ask
         assert bot.local_browser_handoff is handoff_enabled
         assert bot.schedule and bot.schedule.prompt == "Review release notes and report important changes."
@@ -4401,7 +4407,7 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
             "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone",
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright_version": package_version("playwright"),
-            "scenario": "guided setup uses a test-only dummy key and makes no model call; Enter builds a non-persisting YAML preview and downloads the same sanitized text before the separate Create bot confirmation; checked review configuration at desktop, tablet and phone widths",
+            "scenario": "guided setup selects a task focus without changing the explicit provider route, uses a test-only dummy key and makes no model call; Enter builds a non-persisting YAML preview and downloads the same sanitized text before the separate Create bot confirmation; checked review configuration at desktop, tablet and phone widths",
             "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
             "inspected_screenshots": ["purpose-desktop.png", "purpose-tablet.png", "purpose-phone.png",
                                       "options-desktop.png", "options-tablet.png", "options-phone.png",
@@ -6066,8 +6072,13 @@ def test_model_route_setting_explains_host_gated_offline_mode_and_saves_on_phone
     page.on("pageerror", lambda exc: errors.append(str(exc)))
     page.goto(f"{base}/#/bot/route-bot")
     mode = page.locator('#form-model select[name="inference_mode"]')
+    task_focus = page.locator('#form-model select[name="preset"]')
     mode.wait_for()
+    task_focus.wait_for()
     assert mode.input_value() == "hybrid"
+    assert task_focus.input_value() == ""
+    assert task_focus.locator('option[value="coding"]').count() == 1
+    assert "never selects a model, provider, or paid route" in page.locator("#task-focus-help").inner_text()
     offline_option = mode.locator('option[value="offline"]')
     offline_capability = next(row for row in page.request.get(f"{base}/api/v1/capabilities").json()
                               if row["id"] == "strict_offline")
@@ -6095,7 +6106,8 @@ def test_model_route_setting_explains_host_gated_offline_mode_and_saves_on_phone
             settingsVisible: Boolean(document.querySelector('#form-model'))
         })""")
         assert metrics["document"][0] - metrics["viewport"][0] <= 1
-        captures.append({"size": size, **metrics, "strictOfflineDisabled": disabled_state["disabled"],
+        captures.append({"size": size, **metrics, "taskFocusControlVisible": task_focus.is_visible(),
+                         "strictOfflineDisabled": disabled_state["disabled"],
                          "capabilityStatus": offline_capability["status"]})
 
     page.set_viewport_size({"width": 390, "height": 844})
@@ -6104,11 +6116,18 @@ def test_model_route_setting_explains_host_gated_offline_mode_and_saves_on_phone
     page.screenshot(path=str(capture_dir / "settings-phone-routing.png"), animations="disabled")
     ctx.tracing.stop(path=str(capture_dir / "settings-trace.zip"))
     captures.append({"size": "phone-routing", "viewport": [390, 844], "routingVisible": mode.is_visible(),
+                     "taskFocusVisible": task_focus.is_visible(),
                      "helpVisible": page.locator("#inference-mode-help").is_visible()})
 
     mode.select_option("local")
-    page.locator('#form-model button[type="submit"]').click()
-    wait_for(lambda: store.get_bot("route-bot").inference_mode.value == "local")
+    task_focus.select_option("coding")
+    with page.expect_response(lambda response: response.url.endswith("/api/bots/route-bot")
+                              and response.request.method == "PATCH") as saved:
+        page.locator('#form-model button[type="submit"]').click()
+    assert saved.value.status == 200, saved.value.text()
+    assert saved.value.json()["preset"] == "coding"
+    wait_for(lambda: store.get_bot("route-bot").inference_mode.value == "local"
+             and store.get_bot("route-bot").preset == "coding")
     assert page.locator("#form-model").is_visible()
     assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
     assert not errors, errors
@@ -6120,7 +6139,7 @@ def test_model_route_setting_explains_host_gated_offline_mode_and_saves_on_phone
         "capability": offline_capability,
         "captures": captures,
         "pageErrors": errors,
-        "scenario": "synthetic bot settings; no provider or model call",
+        "scenario": "synthetic bot settings; changed routing mode and per-Bot local task focus together; no provider or model call",
     }, indent=2) + "\n", encoding="utf-8")
     ctx.close()
 

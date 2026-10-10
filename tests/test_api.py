@@ -53,6 +53,44 @@ def test_health_and_stats(client):
     assert stats["bots"] == 0 and stats["pending_approvals"] == 0
 
 
+def test_task_focus_presets_are_real_bot_settings_with_safe_validation(client):
+    presets = client.get("/api/v1/task-presets")
+    assert presets.status_code == 200, presets.text
+    assert {item["id"] for item in presets.json()} >= {
+        "router", "research", "extraction", "coding", "planner", "vision",
+    }
+    research = next(item for item in presets.json() if item["id"] == "research")
+    assert research["title"] == "Research"
+    assert research["want_context"] > research["minimum_context"] > 0
+
+    created = client.post("/api/v1/bots", headers={"Idempotency-Key": "create-research-focus"}, json={
+        "name": "research-focus-bot", "model": "mock/demo", "tools": [], "preset": "research",
+    })
+    assert created.status_code == 201, created.text
+    assert created.json()["preset"] == "research"
+    assert client.app.state.store.get_bot("research-focus-bot").preset == "research"
+
+    template = client.post("/api/v1/bots", headers={"Idempotency-Key": "keep-template-task-focus"}, json={
+        "name": "template-focus-bot", "template": "repo-sweeper", "model": "mock/demo", "tools": [],
+    })
+    assert template.status_code == 201, template.text
+    assert template.json()["preset"] == "coding"
+
+    cleared = client.patch("/api/bots/research-focus-bot", json={"preset": ""})
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["preset"] is None
+
+    invalid = client.patch("/api/bots/research-focus-bot", json={"preset": "provider-that-does-not-exist"})
+    assert invalid.status_code == 422
+    assert client.app.state.store.get_bot("research-focus-bot").preset is None
+
+    invalid_create = client.post("/api/v1/bots", headers={"Idempotency-Key": "reject-unknown-focus"}, json={
+        "name": "invalid-focus-bot", "model": "mock/demo", "tools": [], "preset": "unknown-focus",
+    })
+    assert invalid_create.status_code == 422
+    assert client.app.state.store.get_bot("invalid-focus-bot") is None
+
+
 def test_workspace_task_continuation_route_returns_not_found_for_missing_history(client):
     response = client.post("/api/v1/workspace/tasks/wst_missing/continue",
                            headers={"Idempotency-Key": "continue-missing-task"})

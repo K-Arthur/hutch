@@ -54,6 +54,18 @@ default; the user can change it before saving. Explicit choices in the setup req
 remain the saved per-Bot default. The composer offers a one-message override, then returns to the saved route; a separate
 **Save as Bot default** action changes future chats and schedules. Coordinator and specialist Bot routing is not yet implemented.
 
+## Per-Bot task focus
+
+The advanced Bot setup flow and each Bot's **Model & connection** settings expose an optional task focus: Router, Research,
+Extraction, Coding, Planner, or Vision. A focus is saved on the Bot and tunes the built-in local runtime's requested context
+window and model-residency behavior. The standard profile keeps the existing default. Focus selection never chooses or installs a
+model, changes a provider route, enables tools, or starts a run, and does not verify that the chosen model supports the task.
+Keep choosing the model route separately; the Models page and
+`hutch models presets` show which local candidates fit this machine and whether they are installed.
+
+`GET /api/v1/task-presets` returns the configured profiles. Bot create/update accepts a `preset` ID; an empty value clears it,
+and an unknown or removed ID is rejected rather than silently falling back.
+
 The versioned provider compatibility matrix is available at `GET /api/v1/compatibility` and in
 [provider compatibility](realignment/provider-compatibility.md). It records Hutch's request mapping and evidence for each
 route. The route state describes the common protocol contract, not whether a particular live model can reliably use tools;

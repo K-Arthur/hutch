@@ -4,6 +4,7 @@ spec:
   name: guided-release-reviewer
   display_name: Release Notes Reviewer
   template: null
+  preset: research
   description: Summarize project release notes
   instructions: Review release notes and prepare a short summary of changes that affect
     our project.

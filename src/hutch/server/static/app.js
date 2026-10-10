@@ -5052,6 +5052,10 @@ function scheduleEditorHtml(schedule, index, status = null) {
 async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) {
   const generation = ++botDetailRenderGeneration;
   const b = await api(`/bots/${encodeURIComponent(name)}`);
+  let taskPresets = [];
+  let taskPresetsError = "";
+  try { taskPresets = await api("/v1/task-presets"); }
+  catch (error) { taskPresetsError = error.message; }
   const runtimeNames = { builtin: "Hutch built-in", opencode: "OpenCode", pi: "Pi", mock: "Retired mock" };
   const runtimeName = runtimeNames[b.runtime] || b.runtime || "Unknown";
   const runtimeUnavailable = b.runtime !== "builtin";
@@ -5197,6 +5201,15 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
                 <option value="offline" ${b.inference_mode === "offline" ? "selected" : ""} ${offlineDisabled}>${offlineLabel}</option>
               </select>
               <span class="hint" id="inference-mode-help">${esc(offlineReason)}</span>
+            </label>
+            <label class="field">Task focus for local models
+              <select name="preset" aria-describedby="task-focus-help" ${taskPresetsError ? "disabled" : ""}>
+                <option value="" ${b.preset ? "" : "selected"}>Standard context policy</option>
+                ${taskPresets.map(preset => `<option value="${esc(preset.id)}" ${b.preset === preset.id ? "selected" : ""}>${esc(preset.title)}</option>`).join("")}
+              </select>
+              <span class="hint" id="task-focus-help">${taskPresetsError
+                ? `Task focus could not be loaded: ${esc(taskPresetsError)}. Reload before changing this setting.`
+                : "This changes the built-in local runtime’s context sizing and residency only. The selected model still determines its capabilities; this never selects a model, provider, or paid route."}</span>
             </label>
             <div class="btn-row"><button class="btn primary small" type="submit">Save model settings</button></div>
           </form>
@@ -5446,7 +5459,8 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   $("#form-model").addEventListener("submit", ev => {
     ev.preventDefault();
     const fd = new FormData(ev.target);
-    patch({ model: fd.get("model").trim(), inference_mode: fd.get("inference_mode") }, "Model settings saved.");
+    patch({ model: fd.get("model").trim(), inference_mode: fd.get("inference_mode"),
+      preset: fd.get("preset") || null }, "Model settings saved.");
   });
   $$('[data-background-provider]').forEach(button => button.addEventListener("click", () => {
     const provider = button.dataset.backgroundProvider;
@@ -6829,6 +6843,9 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
   let templates;
   try { templates = await api("/bots/templates"); }
   catch (err) { toast(`Bot setup is unavailable: ${err.message}`, true); return; }
+  let taskPresets = [];
+  try { taskPresets = await api("/v1/task-presets"); }
+  catch { /* choosing a task focus is optional; the server still validates a submitted profile */ }
   let workspaceDefaults = { model: "", inference_mode: "hybrid", configured: false };
   try { workspaceDefaults = await api("/v1/preferences/model-defaults"); }
   catch (err) { toast(`Workspace model defaults could not be loaded; choose a route manually. ${err.message}`, true); }
@@ -6888,7 +6905,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     purpose: duplicateBot?.instructions || conversationSource?.original_request || "",
     useConversationSource: !duplicateBot && !!conversationSource,
     selectedContextMessageIds: new Set(),
-    template: chosenTemplate?.name || "", name: "",
+    template: chosenTemplate?.name || "", preset: duplicateBot?.preset || chosenTemplate?.preset || "", name: "",
     display_name: duplicateBot ? `${duplicateBot.display_name || duplicateBot.name} copy`.slice(0, 80) : "",
     description: duplicateBot?.description || "", model: modelSuggestion,
     purposeRefinement: null, purposeRefinementStatus: "",
@@ -6901,6 +6918,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     limits: { max_steps: 24, timeout_seconds: 900, daily_token_cap: 200000,
       max_turn_tokens: 0, max_cost_usd: 0, daily_cost_cap_usd: 0, ...(duplicateBot?.limits || {}) },
   };
+  let presetEdited = false;
   draft.memory_enabled = draft.tools.has("remember") || draft.tools.has("recall");
   let displayNameEdited = !!duplicateBot;
   let addressEdited = false;
@@ -6961,6 +6979,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
   };
   const setupConfiguration = () => ({
     name: draft.name.trim(), display_name: draft.display_name.trim(), template: draft.template || null,
+    preset: draft.preset,
     description: draft.description.trim() || draft.purpose.trim().split("\n")[0].slice(0, 240),
     instructions: instructionsForDraft(), model: draft.model.trim(), inference_mode: draft.inference_mode,
     workspace_mode: draft.workspace_mode, tools: [...draft.tools], approval_mode: "ask", risk_tier: "supervised",
@@ -6978,6 +6997,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     draft.display_name = config.display_name;
     draft.description = config.description || "";
     draft.template = config.template || "";
+    draft.preset = config.preset || "";
+    presetEdited = true;
     draft.model = config.model || "";
     draft.inference_mode = config.inference_mode || "hybrid";
     draft.workspace_mode = config.workspace_mode || "managed";
@@ -7025,7 +7046,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     for (const key of ["name", "display_name", "description", "model", "cron", "timezone", "schedule_prompt"]) {
       const field = $(`#setup-${key}`); if (field) draft[key] = field.value;
     }
-    for (const key of ["inference_mode", "workspace_mode", "catch_up"]) {
+    for (const key of ["inference_mode", "workspace_mode", "catch_up", "preset"]) {
       const field = $(`#setup-${key}`); if (field) draft[key] = field.value;
     }
     const handoff = $("#setup-local-browser-handoff");
@@ -7041,6 +7062,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
   const displayTool = tool => BOT_SETUP_TOOLS.find(([name]) => name === tool)?.[1] || tool;
   const reviewHtml = () => {
     const template = selectedTemplate();
+    const taskFocus = taskPresets.find(item => item.id === draft.preset);
     const selectedContext = selectedCreationContext();
     const sourceReview = draft.useConversationSource && conversationSource
       ? `<div><dt>Request source</dt><dd>${esc(conversationSource.source_bot_name)} · ${esc(conversationSource.conversation_title)} · message ${conversationSource.sequence}
@@ -7061,6 +7083,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         ${contextReview}
         <div><dt>Starting point</dt><dd>${duplicateBot ? `Setup based on ${esc(duplicateBot.display_name || duplicateBot.name)}` : esc(template?.tagline || "Blank bot")}</dd></div>
         <div><dt>Model route</dt><dd>${esc(draft.model)}</dd></div>
+        <div><dt>Task focus</dt><dd>${esc(taskFocus?.title || "Standard context policy")}</dd></div>
         <div><dt>Inference</dt><dd>${esc(draft.inference_mode)}</dd></div>
         <div><dt>Workspace</dt><dd>${esc(draft.workspace_mode)}</dd></div>
         <div><dt>Approval</dt><dd>Ask before actions that require approval</dd></div>
@@ -7179,6 +7202,16 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
           ${templates.map(template => `<label class="setup-choice"><input type="radio" name="setup-template" value="${esc(template.name)}" ${draft.template === template.name ? "checked" : ""}>
             <span><b>${esc(template.tagline || template.name)}</b><small>${esc(template.description || template.safety || "Starter configuration")}</small></span></label>`).join("")}
         </fieldset>
+      </details>
+      <details class="setup-schedule setup-task-focus">
+        <summary>Task focus (optional)</summary>
+        <label class="field" for="setup-preset">Focus
+          <select id="setup-preset">
+            <option value="" ${draft.preset ? "" : "selected"}>Standard context policy</option>
+            ${taskPresets.map(preset => `<option value="${esc(preset.id)}" ${draft.preset === preset.id ? "selected" : ""}>${esc(preset.title)}</option>`).join("")}
+          </select>
+          <span class="hint">A focus profile tunes local context sizing and residency. The selected model and tools determine actual capabilities; this never chooses a model or provider, and the route above stays explicit.</span>
+        </label>
       </details>
       <details class="setup-schedule" id="setup-tools-details" ${draft.tools.size ? "open" : ""}>
         <summary>Enable tools (none enabled by default)</summary>
@@ -7433,9 +7466,18 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       draft.template = input.value;
       draft.tools = templateTools(selectedTemplate());
       draft.memory_enabled = draft.tools.has("remember") || draft.tools.has("recall");
+      if (!presetEdited) {
+        draft.preset = selectedTemplate()?.preset || "";
+        const preset = $("#setup-preset");
+        if (preset) preset.value = draft.preset;
+      }
       const toolsDetails = $("#setup-tools-details");
       if (toolsDetails && draft.tools.size) toolsDetails.open = true;
     }));
+    $("#setup-preset")?.addEventListener("change", event => {
+      draft.preset = event.currentTarget.value;
+      presetEdited = true;
+    });
     $$('input[name="setup-tool"]').forEach(input => input.addEventListener("change", () => {
       if (input.checked) draft.tools.add(input.value); else draft.tools.delete(input.value);
       draft.memory_enabled = draft.tools.has("remember") || draft.tools.has("recall");

@@ -177,6 +177,7 @@ class BotCreate(BaseModel):
     name: str
     display_name: Optional[str] = Field(default=None, max_length=80)
     template: Optional[str] = None
+    preset: Optional[str] = Field(default=None, max_length=80)
     description: str = ""
     instructions: str = ""
     model: str = ""
@@ -347,6 +348,7 @@ class BotPatch(BaseModel):
     description: Optional[str] = None
     instructions: Optional[str] = None
     model: Optional[str] = None
+    preset: Optional[str] = Field(default=None, max_length=80)
     runtime: Optional[Literal["builtin"]] = None
     inference_mode: Optional[InferenceMode] = None
     tools: Optional[list[str]] = None
@@ -386,6 +388,15 @@ class BotPatch(BaseModel):
 class WorkspaceModelDefaultsUpdate(BaseModel):
     model: str = Field(default="", max_length=200)
     inference_mode: InferenceMode = InferenceMode.hybrid
+
+
+class TaskPresetResource(BaseModel):
+    id: str
+    title: str
+    description: str
+    want_context: int
+    minimum_context: int
+    keep_resident: bool
 
 
 class WorkspaceCoordinatorUpdate(BaseModel):
@@ -2686,6 +2697,17 @@ def create_app() -> FastAPI:
             for i in TEMPLATE_INFO.values()
         ]
 
+    @app.get("/api/v1/task-presets", response_model=list[TaskPresetResource])
+    def task_presets_v1() -> list[dict]:
+        """List task-focus profiles without choosing a provider route or creating work."""
+        from ..presets import load_presets
+        return [
+            {"id": preset.id, "title": preset.title, "description": preset.description,
+             "want_context": preset.want_ctx, "minimum_context": preset.min_ctx,
+             "keep_resident": preset.keep_resident}
+            for preset in load_presets(config.state_dir / "presets.json").values()
+        ]
+
     @app.get("/api/v1/model-routes")
     def model_routes_v1(inference_mode: InferenceMode = InferenceMode.hybrid) -> list[dict]:
         """Return route choices for setup without creating a bot or run."""
@@ -2959,6 +2981,16 @@ def create_app() -> FastAPI:
             raise HTTPException(422, f"at most {MAX_RULES} command rules")
         return rules
 
+    def _checked_task_preset(value: Optional[str]) -> Optional[str]:
+        """Accept only a configured task profile; blank explicitly clears a saved profile."""
+        if value is None or not value.strip():
+            return None
+        from ..presets import load_presets
+        normalized = value.strip()
+        if normalized not in load_presets(config.state_dir / "presets.json"):
+            raise HTTPException(422, "unknown task focus; choose one from the available task presets")
+        return normalized
+
     def bot_from_create_request(body: BotCreate, *, creation_source: Optional[BotCreationSource] = None,
                                 creation_context_sources: Optional[list[BotCreationSource]] = None,
                                 allow_unconfigured_model: bool = False) -> Bot:
@@ -2982,6 +3014,8 @@ def create_app() -> FastAPI:
         if body.display_name is not None:
             bot.display_name = body.display_name
         bot.instructions = body.instructions or bot.instructions
+        if "preset" in body.model_fields_set:
+            bot.preset = _checked_task_preset(body.preset)
         workspace_defaults = get_workspace_model_defaults()
         requested_model = body.model.strip()
         inherited_default = not requested_model and bool(workspace_defaults["model"])
@@ -3045,6 +3079,8 @@ def create_app() -> FastAPI:
         # context list has the same command identity it had before this field existed.
         if not body.source_context_message_ids:
             request_data.pop("source_context_message_ids", None)
+        if "preset" not in body.model_fields_set:
+            request_data.pop("preset", None)
         digest = request_digest(request_data)
         try:
             replay = store.replay_bot_creation(key, digest)
@@ -3197,6 +3233,7 @@ def create_app() -> FastAPI:
             unknown = [tool for tool in proposed_tools if tool not in ALL_TOOL_NAMES]
             if unknown:
                 raise HTTPException(422, f"unknown tools: {unknown}")
+        proposed_preset = _checked_task_preset(body.preset) if "preset" in body.model_fields_set else None
         schedule_update_requested = body.clear_cron or body.cron is not None or body.timezone is not None \
             or body.schedule_prompt is not None
         from ..providers.registry import validate_inference_mode, validate_offline_bot
@@ -3225,6 +3262,7 @@ def create_app() -> FastAPI:
         if body.remote_start_enabled is not None: bot.remote_start_enabled = body.remote_start_enabled
         if body.instructions is not None: bot.instructions = body.instructions
         if body.model is not None: bot.model = body.model
+        if "preset" in body.model_fields_set: bot.preset = proposed_preset
         if changing_runtime: bot.runtime = proposed_runtime
         if body.inference_mode is not None: bot.inference_mode = body.inference_mode
         if proposed_tools is not None: bot.tools = proposed_tools
