@@ -3274,3 +3274,39 @@ phone wrapping, no page errors, and no horizontal overflow. Desktop, tablet, pho
 [`artifacts/mascot-eye-review/`](artifacts/mascot-eye-review/). Figma Community organic shapes were consulted for shape variety only;
 Mobbin's individual screens remained behind a sign-in gate and its connector returned `INVALID_ARGUMENT`. No external artwork or
 provider calls were used. Screen-reader and physical-device checks remain open.
+
+## Self-service Google OAuth client setup (2026-10-10)
+
+Connections now lets the owner save one public Google Desktop OAuth client ID locally and share it
+between Google Calendar and the Gmail private preview. The operator environment value remains
+authoritative and read-only. Calendar, Gmail, and their built-in tools resolve the same setting;
+malformed local or environment values do not enable sign-in. Paired-phone sessions cannot read or
+change this local operator configuration. Changing a saved ID with connected accounts requires an
+explicit review; clearing it explains that connected account records and tokens remain.
+
+The UX review inspected the Bobo Community settings, security, and chat-list screens individually.
+Mobbin web and iOS searches returned `INVALID_ARGUMENT` because an active paid plan is required, so
+there are no Mobbin captures cited. Google’s official documentation still classifies `gmail.readonly`
+as restricted, may require an annual security assessment for server-side restricted-data access,
+and applies a 100-user cap plus seven-day authorization/refresh-token expiry to OAuth projects in
+Testing. These are provider constraints, not user-prevalence claims. No public eligibility or live
+Google account was verified.
+
+The browser journey covers empty setup, Gmail's unavailable state, operator-managed read-only
+configuration, a connected Gmail grant, and client-change confirmation. Chromium
+**153.0.8010.12** / Playwright **1.63.0** screenshots were individually opened at desktop
+**1440×960**, tablet **900×1024**, phone **390×844**, and compact phone **320×740** where applicable.
+The 320px action row stacks; all phone save controls meet the 44px touch target. This focused
+command passed **33 tests in 8.78s** with unhandled-thread and syntax warnings treated as errors:
+
+```text
+.venv/bin/pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning tests/test_google_calendar.py tests/test_google_calendar_api.py tests/test_google_mail.py tests/test_google_mail_api.py tests/e2e/test_browser.py::test_gmail_preview_discloses_restricted_scope_and_requires_local_setup tests/e2e/test_browser.py::test_google_oauth_environment_override_is_readonly_in_connections tests/e2e/test_browser.py::test_gmail_local_grant_and_oauth_flow_at_desktop_tablet_and_phone
+```
+
+The run observed **zero external requests, page errors, or live provider calls** and no horizontal
+overflow. `node --check`, `git diff --check`, and the Impeccable detector (`[]`) passed. Captures,
+trace and JSON verification records are in
+[`artifacts/google-mail/`](artifacts/google-mail/).
+
+Implementation, documentation, tests and inspected evidence are committed locally on `main` as
+`85de2c2de26464ad391b5bc61c606266d965b6c6`. No push or publication occurred.
