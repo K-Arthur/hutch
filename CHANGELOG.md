@@ -1,5 +1,11 @@
 # Changelog
 
+## Independent responsive UI review
+
+- Reduced Fleet card actions to **Open** plus one 44px options menu for pause/resume and settings. Empty Schedules now offers one explicit Bot chooser instead of presenting every Bot link at once.
+- Run history uses readable Bot display names and switches from a dense table to compact run cards through tablet widths. The app's eight simple 2D Bot shapes keep their own face geometry; the marketing site retains its separate detailed 3D mascot.
+- Captured Studio, Activity, Schedules, Fleet, Runs, approvals, Connections, Bot settings, run detail, Preferences and marketing independently at desktop, tablet and phone sizes. Fixture results and individual screenshots are recorded in `docs/realignment/visual-validation.md`.
+
 ## Conversation organization and local task templates
 
 - Chat options now keep frequent actions visible and group template, export and archive actions under **More**. Keyboard Escape closes the nested disclosure first and restores focus at each level.

@@ -18,7 +18,7 @@ import pytest
 pw = pytest.importorskip("playwright.sync_api")
 import uvicorn  # noqa: E402
 
-from hutch.models import Bot  # noqa: E402
+from hutch.models import Bot, Run, RunStatus  # noqa: E402
 from hutch.server.app import create_app  # noqa: E402
 
 
@@ -534,4 +534,181 @@ def test_chat_message_search_is_scoped_responsive_and_opens_its_conversation(bro
             context.tracing.stop(path=str(out / "trace.zip"))
         except Exception:
             pass
+        context.close()
+
+
+def test_every_workspace_route_renders_independently_at_responsive_sizes(browser, app_server, site_server):
+    """Keep one screenshot per surface and viewport; never judge these pages from a contact sheet."""
+    app_url, app = app_server
+    store = app.state.store
+    bot_names = [
+        "research-partner", "release-reviewer", "calendar-planner", "inbox-organizer",
+        "customer-operations-analyst", "coding-partner", "quality-reviewer", "policy-researcher",
+        "project-planner", "content-editor",
+    ]
+    display_names = [
+        "Research Partner", "Release Notes Reviewer", "Calendar Planner", "Inbox Organizer",
+        "Customer Operations and Knowledge Research Analyst", "Coding Partner", "Quality Reviewer",
+        "Policy Researcher", "Project Planner", "Content Editor",
+    ]
+    for name, display_name in zip(bot_names, display_names, strict=True):
+        store.create_bot(Bot(name=name, display_name=display_name, model="mock/demo", tools=[]))
+    run = store.create_run(Run(
+        bot_id=store.get_bot("design-system-review").id,
+        prompt="Review the recent workspace activity.",
+        status=RunStatus.succeeded,
+        exit_reason="completed",
+        finished_at=datetime.now(timezone.utc).isoformat(),
+    ))
+
+    out = ROOT / "docs/realignment/artifacts/ui-surface-review"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[dict[str, str]] = []
+    external_requests: list[str] = []
+    active_surface = {"name": "setup"}
+    page.on("pageerror", lambda error: errors.append({"surface": active_surface["name"], "error": str(error)}))
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+
+    viewports = {
+        "desktop": (1440, 960),
+        "tablet": (900, 1024),
+        "phone": (390, 844),
+        "compact-phone": (320, 740),
+    }
+    surfaces = [
+        ("studio", f"{app_url}/#/chat/design-system-review", "#conversation-switcher"),
+        ("activity", f"{app_url}/#/overview", ".ov-grid"),
+        ("schedules", f"{app_url}/#/schedules", ".schedule-overview"),
+        ("fleet", f"{app_url}/#/bots", ".bot-grid"),
+        ("runs", f"{app_url}/#/runs", "#runs-table-wrap"),
+        ("approvals", f"{app_url}/#/approvals", "#needs-you"),
+        ("connections", f"{app_url}/#/connections", ".conn-card"),
+        ("bot-settings", f"{app_url}/#/bot/design-system-review", "#app-top-context h1"),
+        ("run-detail", f"{app_url}/#/run/{run.id}", "[data-run-integrity-run]"),
+        ("marketing", site_server, ".hero-title"),
+    ]
+    evidence = []
+    trace_saved = False
+    try:
+        for viewport_name, (width, height) in viewports.items():
+            page.set_viewport_size({"width": width, "height": height})
+            for surface_name, url, ready_selector in surfaces:
+                active_surface["name"] = f"{surface_name}-{viewport_name}"
+                page.goto(url, wait_until="domcontentloaded")
+                page.locator(ready_selector).first.wait_for(timeout=15_000)
+                if surface_name == "approvals":
+                    page.locator("#needs-you").wait_for(state="visible")
+                if surface_name == "bot-settings":
+                    page.wait_for_function(
+                        "document.querySelector('#app-top-context h1')?.textContent.trim() === 'Design Partner settings'"
+                    )
+                page.evaluate("document.fonts.ready")
+                metrics = page.evaluate("""() => ({
+                  viewport: [innerWidth, innerHeight],
+                  documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+                  title: document.querySelector('#app-top-context h1')?.textContent.trim()
+                    || document.querySelector('.hero-title')?.textContent.trim()
+                    || document.querySelector('#needs-you-title')?.textContent.trim() || '',
+                  workspace: !!document.querySelector('.app-shell #workspace'),
+                  visibleBotNames: [...document.querySelectorAll('#roster-list .roster-name')]
+                    .filter(node => node.getClientRects().length
+                      && (!node.closest('details') || node.closest('details').open))
+                    .map(node => node.textContent.trim()),
+                  menuControls: document.querySelectorAll('#roster-list [data-bot-options]').length
+                })""")
+                assert metrics["documentWidth"] <= width + 1, (surface_name, viewport_name, metrics)
+                if surface_name != "marketing":
+                    assert metrics["workspace"], (surface_name, viewport_name, "workspace shell missing")
+                if surface_name == "fleet":
+                    assert metrics["menuControls"] == 11, metrics
+                    assert "Customer Operations and Knowledge Research Analyst" not in metrics["visibleBotNames"]
+                    # The long role name is intentionally visible through All bots, whose sidebar is collapsed by default.
+                    assert page.locator("#roster-idle-details summary").count() == 1
+                    first_card = page.locator(".bot-card").first
+                    assert first_card.locator(".card-actions [data-fleet-options]").count() == 1
+                    assert first_card.locator(".card-actions > a").count() == 1
+                if surface_name == "schedules":
+                    assert page.locator("details.schedule-empty-bots").count() == 1
+                    assert page.locator(".schedule-empty-bots summary").inner_text() == "Choose a Bot"
+                    assert page.locator(".schedule-empty-bots a[href^='#/bot/']").count() == 11
+                if surface_name == "runs":
+                    if width <= 900:
+                        run_card = page.locator("#runs-table-wrap .run-card").first
+                        assert run_card.is_visible()
+                        assert run_card.locator(".run-card-bot b").inner_text() == "Design Partner"
+                        assert page.locator("#runs-table-wrap > table").is_hidden()
+                    else:
+                        assert page.locator("#runs-table-wrap tbody tr td:nth-child(2) b").first.inner_text() == "Design Partner"
+                evidence.append({"surface": surface_name, "size": viewport_name, **metrics})
+                if viewport_name != "compact-phone":
+                    page.screenshot(
+                        path=str(out / f"{surface_name}-{viewport_name}.png"), animations="disabled"
+                    )
+
+            if viewport_name in {"desktop", "phone"}:
+                active_surface["name"] = f"fleet-menu-{viewport_name}"
+                page.goto(f"{app_url}/#/bots", wait_until="domcontentloaded")
+                page.locator(".bot-card").first.wait_for(timeout=15_000)
+                first_card = page.locator(".bot-card").first
+                menu_trigger = first_card.locator(".fleet-card-menu > summary")
+                assert menu_trigger.evaluate("node => [node.getBoundingClientRect().width, node.getBoundingClientRect().height]") == [44, 44]
+                menu_trigger.click()
+                menu = first_card.locator(".fleet-card-menu-panel")
+                menu.wait_for(state="visible")
+                assert menu.get_by_role("button", name="Pause bot").is_visible()
+                assert menu.get_by_role("link", name="Bot settings").is_visible()
+                assert page.evaluate("Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= innerWidth + 1")
+                page.screenshot(path=str(out / f"fleet-menu-{viewport_name}.png"), animations="disabled")
+
+            if viewport_name in {"desktop", "phone"}:
+                active_surface["name"] = f"preferences-{viewport_name}"
+                page.goto(f"{app_url}/#/chat/design-system-review", wait_until="domcontentloaded")
+                page.locator("#conversation-switcher").wait_for(timeout=15_000)
+                if viewport_name == "phone":
+                    page.locator("#nav-toggle").click()
+                    page.locator("#workspace.open").wait_for()
+                page.locator("#prefs-toggle").click()
+                page.locator("#prefs-pop:not([hidden])").wait_for()
+                metrics = page.evaluate("""() => ({
+                  viewport: [innerWidth, innerHeight],
+                  documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+                  dialog: document.querySelector('#prefs-pop')?.getBoundingClientRect().toJSON()
+                })""")
+                assert metrics["documentWidth"] <= width + 1, ("preferences", viewport_name, metrics)
+                page.screenshot(path=str(out / f"preferences-{viewport_name}.png"), animations="disabled")
+                evidence.append({"surface": "preferences", "size": viewport_name, **metrics})
+
+        assert not external_requests, external_requests
+        assert not errors, errors
+        context.tracing.stop(path=str(out / "trace.zip"))
+        trace_saved = True
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(),
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "playwright": package_version("playwright"),
+            "viewports": evidence,
+            "external_requests": external_requests,
+            "provider_calls": 0,
+            "synthetic_bots": len(bot_names) + 1,
+            "long_display_name": display_names[4],
+            "individual_surfaces": [name for name, _, _ in surfaces] + ["preferences", "Fleet action menu"],
+            "visual_review": "Open each desktop, tablet, and phone screenshot individually; 320px compact-phone has overflow assertions.",
+            "reference_access": {
+                "mobbin": "Search blocked by the paid-plan gate.",
+                "figma": "Whole file rendered at 1600px; node-level detail calls hit the Starter-plan tool limit.",
+            },
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        if not trace_saved:
+            try:
+                context.tracing.stop(path=str(out / "trace-failed.zip"))
+            except Exception:
+                pass
         context.close()

@@ -1,0 +1,607 @@
+{
+  "test": "tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
+  "captured_at": "2026-10-10T08:20:47.496924+00:00",
+  "python": "3.13.15",
+  "browser": "Chromium 153.0.8010.12",
+  "playwright": "1.63.0",
+  "viewports": [
+    {
+      "surface": "studio",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [
+        "Design Partner"
+      ],
+      "menuControls": 11
+    },
+    {
+      "surface": "activity",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Activity",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "schedules",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Schedules",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "fleet",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Fleet",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "runs",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Runs",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "approvals",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [
+        "Design Partner"
+      ],
+      "menuControls": 11
+    },
+    {
+      "surface": "connections",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Connections",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "bot-settings",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Design Partner settings",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "run-detail",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Run #run_73e939c4",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "marketing",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "title": "Your bots.Your machine.Your rules.",
+      "workspace": false,
+      "visibleBotNames": [],
+      "menuControls": 0
+    },
+    {
+      "surface": "preferences",
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentWidth": 1440,
+      "dialog": {
+        "x": 12,
+        "y": 818.671875,
+        "width": 268,
+        "height": 93.1875,
+        "top": 818.671875,
+        "right": 280,
+        "bottom": 911.859375,
+        "left": 12
+      }
+    },
+    {
+      "surface": "studio",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [
+        "Design Partner"
+      ],
+      "menuControls": 11
+    },
+    {
+      "surface": "activity",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Activity",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "schedules",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Schedules",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "fleet",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Fleet",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "runs",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Runs",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "approvals",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [
+        "Design Partner"
+      ],
+      "menuControls": 11
+    },
+    {
+      "surface": "connections",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Connections",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "bot-settings",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Design Partner settings",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "run-detail",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Run #run_73e939c4",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "marketing",
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "documentWidth": 900,
+      "title": "Your bots.Your machine.Your rules.",
+      "workspace": false,
+      "visibleBotNames": [],
+      "menuControls": 0
+    },
+    {
+      "surface": "studio",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [
+        "Design Partner"
+      ],
+      "menuControls": 11
+    },
+    {
+      "surface": "activity",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Activity",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "schedules",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Schedules",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "fleet",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Fleet",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "runs",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Runs",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "approvals",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [
+        "Design Partner"
+      ],
+      "menuControls": 11
+    },
+    {
+      "surface": "connections",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Connections",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "bot-settings",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Design Partner settings",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "run-detail",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Run #run_73e939c4",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "marketing",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "title": "Your bots.Your machine.Your rules.",
+      "workspace": false,
+      "visibleBotNames": [],
+      "menuControls": 0
+    },
+    {
+      "surface": "preferences",
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentWidth": 390,
+      "dialog": {
+        "x": 12,
+        "y": 702.671875,
+        "width": 268,
+        "height": 93.1875,
+        "top": 702.671875,
+        "right": 280,
+        "bottom": 795.859375,
+        "left": 12
+      }
+    },
+    {
+      "surface": "studio",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [
+        "Design Partner"
+      ],
+      "menuControls": 11
+    },
+    {
+      "surface": "activity",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Activity",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "schedules",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Schedules",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "fleet",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Fleet",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "runs",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Runs",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "approvals",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Design Partner",
+      "workspace": true,
+      "visibleBotNames": [
+        "Design Partner"
+      ],
+      "menuControls": 11
+    },
+    {
+      "surface": "connections",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Connections",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "bot-settings",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Design Partner settings",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "run-detail",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Run #run_73e939c4",
+      "workspace": true,
+      "visibleBotNames": [],
+      "menuControls": 11
+    },
+    {
+      "surface": "marketing",
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "documentWidth": 320,
+      "title": "Your bots.Your machine.Your rules.",
+      "workspace": false,
+      "visibleBotNames": [],
+      "menuControls": 0
+    }
+  ],
+  "external_requests": [],
+  "provider_calls": 0,
+  "synthetic_bots": 11,
+  "long_display_name": "Customer Operations and Knowledge Research Analyst",
+  "individual_surfaces": [
+    "studio",
+    "activity",
+    "schedules",
+    "fleet",
+    "runs",
+    "approvals",
+    "connections",
+    "bot-settings",
+    "run-detail",
+    "marketing",
+    "preferences",
+    "Fleet action menu"
+  ],
+  "visual_review": "Open each desktop, tablet, and phone screenshot individually; 320px compact-phone has overflow assertions.",
+  "reference_access": {
+    "mobbin": "Search blocked by the paid-plan gate.",
+    "figma": "Whole file rendered at 1600px; node-level detail calls hit the Starter-plan tool limit."
+  }
+}

@@ -399,6 +399,8 @@ def test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences(
                 assert store.delete_schedule(bot.id, schedule.id) is not None
         page.reload()
         page.get_by_role("heading", name="No recurring tasks yet").wait_for()
+        assert page.get_by_role("link", name="West Coast Review settings").count() == 0
+        page.locator(".schedule-empty-bots summary").click()
         assert page.get_by_role("link", name="West Coast Review settings").count() == 1
         assert page.get_by_role("link", name="London Digest settings").count() == 1
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
@@ -6644,6 +6646,24 @@ def test_fleet_appears_at_ten_bots_with_search_and_state_filters(browser, live):
     assert page.locator("#fleet-count").inner_text() == "0 of 10 bots"
     page.locator("#fleet-state").select_option("all")
     assert page.locator("#fleet-count").inner_text() == "1 of 10 bots"
+    card = page.locator('[data-fleet-bot="fleet-9"]')
+    card.locator("[data-fleet-options]").click()
+    menu = card.locator(".fleet-card-menu-panel")
+    assert menu.get_by_role("button", name="Pause bot").is_visible()
+    with page.expect_response(lambda response: response.url.endswith("/api/bots/fleet-9")
+                             and response.request.method == "PATCH") as paused:
+        menu.get_by_role("button", name="Pause bot").click()
+    assert paused.value.status == 200
+    wait_for(lambda: app.state.store.get_bot("fleet-9").paused)
+    card = page.locator('[data-fleet-bot="fleet-9"]')
+    card.locator("[data-fleet-options]").click()
+    menu = card.locator(".fleet-card-menu-panel")
+    assert menu.get_by_role("button", name="Resume bot").is_visible()
+    with page.expect_response(lambda response: response.url.endswith("/api/bots/fleet-9")
+                             and response.request.method == "PATCH") as resumed:
+        menu.get_by_role("button", name="Resume bot").click()
+    assert resumed.value.status == 200
+    wait_for(lambda: not app.state.store.get_bot("fleet-9").paused)
     page.close()
 
 

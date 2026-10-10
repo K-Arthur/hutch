@@ -1129,6 +1129,38 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .bot-facts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-1) var(--s-4); padding: var(--s-3) 0; border-top: 1px solid var(--line); font-size: var(--fs-xs); color: var(--text-3); }
 .bot-facts b { color: var(--text); font-weight: 600; }
 .card-actions { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-top: auto; padding-top: var(--s-2); }
+.fleet-card-menu { position: relative; margin-left: auto; }
+.fleet-card-menu > summary { width: 44px; height: 44px; list-style: none; cursor: pointer; }
+.fleet-card-menu > summary::-webkit-details-marker { display: none; }
+.fleet-card-menu > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.fleet-card-menu[open] > summary { color: var(--text); background: var(--raised); }
+.fleet-card-menu-panel {
+  position: absolute; z-index: calc(var(--z-toast) + 5); right: 0; bottom: calc(100% + 6px);
+  width: min(220px, calc(100vw - 32px)); padding: 6px;
+  border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--overlay); box-shadow: var(--sh-pop);
+}
+.fleet-card-menu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 10px;
+  border: 0; border-radius: var(--r-ctl); background: transparent; color: var(--text); text-align: left; cursor: pointer;
+}
+.fleet-card-menu-item:hover, .fleet-card-menu-item:focus-visible { background: var(--raised-hi); }
+.fleet-card-menu-item .icon { flex: none; color: var(--text-2); }
+.run-card-list { display: none; }
+.run-card {
+  display: grid; gap: var(--s-2); min-width: 0; padding: var(--s-3);
+  border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--panel); color: var(--text);
+}
+.run-card:hover { border-color: var(--line-strong); text-decoration: none; }
+.run-card:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.run-card-head, .run-card-bot, .run-card-meta, .run-card-foot { display: flex; align-items: center; min-width: 0; }
+.run-card-head { justify-content: space-between; gap: var(--s-2); }
+.run-card-bot { gap: var(--s-2); }
+.run-card-bot b { min-width: 0; overflow-wrap: anywhere; }
+.run-card-prompt { margin: 0; color: var(--text-2); font-size: var(--fs-sm); line-height: 1.45; overflow-wrap: anywhere; }
+.run-card-meta { flex-wrap: wrap; gap: var(--s-2) var(--s-4); color: var(--text-3); font-size: var(--fs-xs); }
+.run-card-foot { justify-content: space-between; gap: var(--s-2); color: var(--text-3); font-size: var(--fs-2xs); }
+.run-card-foot code { font-family: var(--mono); }
+.run-card-foot time { text-align: right; }
 
 /* Provider connection headers combine multiple status chips and long endpoint
    names. Let them wrap inside narrow screens instead of widening the page. */
@@ -1499,10 +1531,16 @@ button.inline-link:hover { color: var(--text); }
 .schedule-overview-next time, .schedule-overview-next strong { overflow-wrap: anywhere; font-size: var(--fs-sm); font-weight: 650; }
 .schedule-overview-edit { min-height: 44px; white-space: nowrap; }
 .schedule-overview-more { display: flex; justify-content: center; padding: var(--s-2) 0; }
-.schedule-empty-bots { display: grid; justify-items: center; gap: var(--s-2); margin-top: var(--s-3); }
-.schedule-empty-bots h3 { margin: 0; font-size: var(--fs-md); }
-.schedule-empty-bots > div { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--s-2); }
-.schedule-empty-bots .btn { min-height: 44px; }
+.schedule-empty-bots { display: grid; justify-items: center; gap: var(--s-2); width: min(100%, 760px); margin-top: var(--s-3); }
+.schedule-empty-bots > summary { display: inline-flex; align-items: center; justify-self: center; gap: var(--s-2); list-style: none; min-height: 44px; cursor: pointer; }
+.schedule-empty-bots > summary .schedule-empty-chevron { flex: none; }
+.schedule-empty-bots[open] > summary .schedule-empty-chevron { transform: rotate(180deg); }
+.schedule-empty-bots > summary::-webkit-details-marker { display: none; }
+.schedule-empty-bots > summary::marker { content: ""; }
+.schedule-empty-bots > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.schedule-empty-bot-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: var(--s-2); width: 100%; }
+.schedule-empty-bot-list .btn { min-height: 44px; justify-content: flex-start; white-space: normal; text-align: left; overflow-wrap: anywhere; }
+.schedule-empty-bots[open] > p { margin: var(--s-1) 0; text-align: center; }
 
 /* ───────────────────────────── responsive ───────────────────────────── */
 
@@ -1540,6 +1578,8 @@ button.inline-link:hover { color: var(--text); }
   .composer { padding: 0 var(--s-3) calc(var(--s-4) + env(safe-area-inset-bottom, 0px)); }
   .chat-head-pad { padding: 0 var(--s-3) !important; }
   .cell-truncate { max-width: 200px; }
+  #runs-table-wrap.runs-has-results > table { display: none; }
+  #runs-table-wrap.runs-has-results .run-card-list { display: grid; gap: var(--s-2); }
 }
 
 @media (max-width: 640px) {

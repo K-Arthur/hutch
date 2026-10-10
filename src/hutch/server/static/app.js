@@ -4528,11 +4528,14 @@ function paintSchedules() {
   const { rows, bots, control, hasMore } = scheduleOverview;
   const paused = !!control?.paused;
   const empty = rows.length === 0;
-  const emptyDetails = bots.length
-    ? `<section class="schedule-empty-bots" aria-labelledby="schedule-empty-bots-title">
-        <h3 id="schedule-empty-bots-title">Add a recurring task to a Bot</h3>
-        <div>${bots.slice(0, 8).map(bot => `<a class="btn ghost small" href="#/bot/${encodeURIComponent(bot.name)}">${esc(bot.display_name || bot.name)} settings</a>`).join("")}</div>
-      </section>`
+  const emptyDetails = bots.length === 1
+    ? `<a class="btn primary" href="#/bot/${encodeURIComponent(bots[0].name)}">Set up a schedule for ${esc(bots[0].display_name || bots[0].name)}</a>`
+    : bots.length > 1
+      ? `<details class="schedule-empty-bots" aria-label="Bots available for recurring tasks">
+        <summary class="btn ghost small">Choose a Bot ${icon("down", "schedule-empty-chevron")}</summary>
+          <p class="hint">Choose where to create the recurring task.</p>
+          <div class="schedule-empty-bot-list">${bots.map(bot => `<a class="btn ghost small" href="#/bot/${encodeURIComponent(bot.name)}">${esc(bot.display_name || bot.name)} settings</a>`).join("")}</div>
+        </details>`
     : `<a class="btn primary" href="#/chat">Create a Bot</a>`;
   setTopContext(`<div class="ctx-id"><h1>Schedules</h1></div>
     <div class="ctx-actions schedule-control-actions"><span class="schedule-control-state" role="status">Workspace schedules ${paused ? "paused" : "active"}</span>
@@ -4679,10 +4682,15 @@ async function renderBots() {
             </div>
             <div class="card-actions">
               <a class="btn primary small" href="#/chat/${esc(b.name)}">${icon("chat")} Open</a>
-              <button class="btn ghost small" data-action="toggle-pause" data-bot="${esc(b.name)}" data-paused="${b.paused}">
-                ${b.paused ? "Resume" : "Pause"}
-              </button>
-              <a class="btn ghost small" href="#/bot/${esc(b.name)}">${icon("sliders")} Settings</a>
+              <details class="fleet-card-menu">
+                <summary class="icon-btn" data-fleet-options="${esc(b.name)}" aria-label="More options for ${esc(b.display_name || b.name)}" title="More options">${icon("moreHorizontal")}</summary>
+                <div class="fleet-card-menu-panel" aria-label="More options for ${esc(b.display_name || b.name)}">
+                  <button class="fleet-card-menu-item" type="button" data-action="toggle-pause" data-bot="${esc(b.name)}" data-paused="${b.paused}">
+                    ${icon(b.paused ? "play" : "pause")} ${b.paused ? "Resume bot" : "Pause bot"}
+                  </button>
+                  <a class="fleet-card-menu-item" href="#/bot/${esc(b.name)}">${icon("sliders")} Bot settings</a>
+                </div>
+              </details>
             </div>
           </article>
         `).join("")}
@@ -4757,12 +4765,13 @@ async function renderRuns(query = "") {
     const q = runsState.q.trim().toLowerCase();
     const filtered = runsState.all.filter(r => {
       if (runsState.status !== "all" && r.status !== runsState.status) return false;
-      if (q && !`${r.bot_name} ${r.prompt}`.toLowerCase().includes(q)) return false;
+      if (q && !`${r.bot_display_name || ""} ${r.bot_name} ${r.prompt}`.toLowerCase().includes(q)) return false;
       return true;
     });
     const wrap = $("#runs-table-wrap");
     if (!wrap) return;
     if (!filtered.length) {
+      wrap.classList.remove("runs-has-results");
       wrap.innerHTML = runsState.all.length ? `
         <div class="empty-state">
           ${icon("search", "icon-lg")}
@@ -4794,7 +4803,23 @@ async function renderRuns(query = "") {
         return Math.max(0, b - a);
       };
       const maxDur = Math.max(1, ...rows.map(durMs));
+      wrap.classList.add("runs-has-results");
       wrap.innerHTML = `
+        <div class="run-card-list" aria-label="Run history">
+          ${rows.map(r => {
+            const d = durMs(r);
+            const displayName = r.bot_display_name || r.bot_name;
+            return `<a class="run-card" href="#/run/${esc(r.id)}">
+              <div class="run-card-head">
+                <span class="run-card-bot">${botAvatar(r.bot_name, 28)}<b title="${esc(r.bot_name)}">${esc(displayName)}</b></span>
+                ${statusChip(r.status, r.status_label)}
+              </div>
+              <p class="run-card-prompt">${esc(r.prompt || "No prompt saved.")}</p>
+              <div class="run-card-meta"><span>${fmtDur(d)}</span><span>${r.steps} steps</span><span>${fmtTokens(r.tokens)} tokens</span></div>
+              <div class="run-card-foot"><code>${esc(r.id.slice(0, 12))}…</code><time datetime="${esc(r.created_at || "")}">${timeAgo(r.created_at)}</time></div>
+            </a>`;
+          }).join("")}
+        </div>
         <table>
           <caption class="visually-hidden">Runs, newest first</caption>
           <thead>
@@ -4810,7 +4835,7 @@ async function renderRuns(query = "") {
               return `
               <tr class="clickable" tabindex="0" role="link" aria-label="Open run ${esc(r.id)}" data-goto="#/run/${esc(r.id)}" title="${esc(r.created_at || "")}">
                 <td class="mono">${esc(r.id.slice(0, 12))}…</td>
-                <td><b>${esc(r.bot_name)}</b></td>
+                <td><b title="${esc(r.bot_name)}">${esc(r.bot_display_name || r.bot_name)}</b></td>
                 <td>${statusChip(r.status)}</td>
                 <td class="cell-truncate">${esc(r.prompt)}</td>
                 <td><span class="timeline"><span class="timeline-track"><i class="timeline-fill ${cls}" style="width:${Math.max(3, Math.round(d / maxDur * 100))}%"></i></span><span class="timeline-label">${fmtDur(d)}</span></span></td>

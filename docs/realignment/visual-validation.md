@@ -1244,3 +1244,36 @@ desktop, tablet, phone, and compact-phone selector captures individually in [`ar
 No provider calls or external requests occurred. Mobbin's screen catalog required sign-in and its search connector returned an
 argument error, so this refinement uses no claimed Mobbin screen evidence. The Figma Community shape library was reviewed for variety
 of base forms only; no artwork was reused. Physical-device and screen-reader checks remain open.
+
+## Independent route review and responsive control-density fixes (2026-10-10)
+
+I reviewed Studio, Activity, Schedules, Fleet, Run history, Needs you/approvals, Connections, Bot settings, Run detail, Preferences,
+and the marketing page as separate rendered surfaces. Desktop **1440×960**, tablet **900×1024**, phone **390×844**, and compact phone
+**320×740** were checked in Chromium **153.0.8010.12** / Playwright **1.63.0**. Each desktop, tablet and phone image was opened
+individually; the compact-phone sweep asserts the page width instead of relying on a collage. The route fixture uses 11 synthetic Bots
+and one completed run, so these captures are layout evidence, not live workspace or provider evidence.
+
+The review found three worthwhile density/readability fixes. Fleet cards now show **Open** and one 44×44 options control; pause/resume
+and settings sit inside that menu. The empty Schedules state offers a single **Choose a Bot** disclosure, with its Bot links revealed on
+demand. Run history uses professional Bot display names and switches to linked cards at widths up to 900px, where the previous table
+wrapped Bot names, timestamps and columns awkwardly. The chooser includes a downward indicator, and the menu action journey verifies
+pause and resume against the local API.
+
+The final focused command passed **3 tests in 14.13s**, with thread and syntax warnings treated as errors:
+
+```text
+.venv/bin/python -m pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes tests/e2e/test_browser.py::test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences tests/e2e/test_browser.py::test_fleet_appears_at_ten_bots_with_search_and_state_filters
+```
+
+`test_every_workspace_route_renders_independently_at_responsive_sizes` checks all primary routes, 320px overflow, no browser errors
+and no request outside the local fixture; `test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences` checks
+the compact chooser; `test_fleet_appears_at_ten_bots_with_search_and_state_filters` checks the combined menu actions. `node --check`,
+`git diff --check`, and the Impeccable detector (`[]`) passed. Validation metadata and individual screenshots are in
+[`artifacts/ui-surface-review/`](artifacts/ui-surface-review/). No external requests or provider calls occurred. The shared app
+design tokens remain consistent across the workspace routes, while marketing keeps its
+editorial layout and detailed 3D character. The eight 2D app silhouettes retain their own face geometry, as separately verified in
+[`artifacts/mascot-eye-review/`](artifacts/mascot-eye-review/).
+
+Mobbin's screen catalog was blocked by its plan/sign-in gate. Figma's file preview was available as a broad reference, but node-level
+inspection hit the Starter-plan tool limit; those limits are recorded in the machine-readable validation file. This review therefore
+does not claim detailed Mobbin screen comparisons. It is local fixture validation, not screen-reader or physical-device testing.
