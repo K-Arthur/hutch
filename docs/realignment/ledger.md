@@ -3400,6 +3400,19 @@ scenario runtime confined to `tests/support`; a clean wheel-content check is sti
 environment has no Hatchling build backend. The broader user-facing functionality inventory remains open in `docs/requirements.md`.
 No push or publication occurred.
 
+## Empty Studio helper gallery hierarchy (2026-10-10)
+
+Committed locally on `main` as `bced7ae`. The empty chat keeps direct messaging
+primary; reusable-helper examples are collapsed by default, compact, and clear
+that they open setup without starting work. The focused Playwright check passed
+**1 test in 10.76s** at desktop, tablet, phone, and compact-phone widths. It
+covered keyboard expansion, scroll access above the composer, no unintended bot
+or run creation, and refresh stability. Individually inspected captures,
+metadata, and trace are under
+[`artifacts/studio-helper-gallery-2026-10-10/`](artifacts/studio-helper-gallery-2026-10-10/).
+No provider call, external request, or publication occurred. The complete
+all-surface UI overhaul remains open.
+
 ## Google Calendar owner-controlled event creation (2026-10-10)
 
 Google Calendar keeps read-only access as the default. Event creation requires a distinct installed-app OAuth sign-in that records
