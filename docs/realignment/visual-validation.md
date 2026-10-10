@@ -1005,3 +1005,18 @@ The anonymous marketing test also opened the new coding-handoff FAQ and captured
 `tests/e2e/test_browser.py::test_schedule_overview_shows_local_times_and_pauses_only_future_occurrences` covers three Bots with separate time zones and pause states, a currently running task, and a workspace pause persisted through reload. It confirms that the transaction fences a scheduler snapshot read before the pause; existing execution continues, and a Bot-specific pause remains after workspace resume. Windows missed during the pause remain subject to each task's catch-up policy after resume. The first phone render exposed an icon-only pause action with no icon because the shared phone header hides button labels. The schedule control now keeps its action text visible and stacks it beneath the status line; the browser test checks its 44px height, readable label size and width, and keyboard focus restoration after both commands. I also inspected both phone scroll positions so all three tasks are reviewable without a toast covering the list, and the empty state at all three viewports.
 
 Chromium **153.0.8010.12** / Playwright **1.63.0** captures and trace are in [`artifacts/schedules/`](artifacts/schedules/). Desktop **1440×960**, tablet **900×1024**, and phone **390×844** showed no horizontal overflow or browser errors. The anonymous site's Scheduling card was checked at the same widths with no external requests; see `artifacts/bot-purpose-refinement/marketing/site-scheduling-*.png`. The focused browser and anonymous-site tests passed. This evidence uses local SQLite/fixture data, not real scheduled provider calls, a screen reader or a physical phone.
+
+## Bot memory export (2026-10-09)
+
+`tests/e2e/test_browser.py::test_bot_memory_export_explains_scope_and_downloads_complete_json` passed at desktop
+**1440×960**, tablet **900×1024**, and phone **390×844** in Chromium **153.0.8010.12** / Playwright **1.63.0**.
+The scenario downloads the real local API response, parses the JSON, checks active and archived fact revisions and their
+archive decision, verifies the download action remains within the phone viewport, and returns keyboard focus to the settings control. The confirmation explicitly says the file is
+plaintext, notes that fact values and review notes may be sensitive, and lists included and excluded data. The phone action and confirmation controls meet the 44px target; no horizontal
+overflow or browser errors occurred. I inspected each saved dialog screenshot; text wraps cleanly and the dialog footer remains
+visible at phone width. Screenshots, traces and source hashes are in [`artifacts/bot-memory-export/`](artifacts/bot-memory-export/).
+
+The final affected API/store/browser batch passed **61 tests in 15.99s**, including the three responsive download cases. JavaScript
+syntax, Python compilation and `git diff --check` passed. This uses synthetic SQLite facts and no provider/model call. It verifies browser
+download handling and server scope/size behavior, not the contents of a user's real memory, password-manager protection,
+screen-reader behavior or physical-phone behavior.

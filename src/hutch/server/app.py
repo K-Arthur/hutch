@@ -39,7 +39,11 @@ from ..config import get_config
 from ..durable_changes import SnapshotRequired
 from ..engine import Engine, bot_prompt_for_schedule
 from ..lifecycle import LABELS
-from ..models import ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, BotCreationSource, CatchUpPolicy, CommandRule, Event, EventType, InferenceMode, Limits, MemoryItem, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task, bot_slug_display_name
+from ..models import (
+    ACTIVE_STATUSES, ApprovalMode, ApprovalStatus, Bot, BotCreationSource, CatchUpPolicy, CommandRule, Event, EventType,
+    InferenceMode, Limits, MemoryItem, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task, bot_slug_display_name, iso,
+    utcnow,
+)
 from ..store import ActiveRunConflict, BotConflict, IdempotencyConflict, Store
 from ..state_snapshot import ExecutionHeld
 from ..templates import TEMPLATE_INFO, TEMPLATES
@@ -59,6 +63,10 @@ MAX_CONVERSATION_EXPORT_BYTES = 16 * 1024 * 1024
 MAX_BOT_CREATION_CONTEXT_MESSAGES = 8
 MAX_BOT_CREATION_SOURCE_CHARS = 20_000
 MAX_BOT_PURPOSE_DRAFT_CONTEXT_CHARS = 24_000
+MAX_BOT_MEMORY_EXPORT_FACTS = 10_000
+MAX_BOT_MEMORY_EXPORT_SHARES_PER_DIRECTION = 5_000
+MAX_BOT_MEMORY_EXPORT_SOURCE_BYTES = 2 * 1024 * 1024
+MAX_BOT_MEMORY_EXPORT_BYTES = 16 * 1024 * 1024
 
 #: transcript window returned by default (PF-9): the run page stays usable at 10,000+ events
 DEFAULT_EVENT_WINDOW = 200
@@ -826,6 +834,22 @@ class FactSharePageResource(BaseModel):
     limit: int
     offset: int
     next_offset: Optional[int]
+
+
+class BotMemoryExportScope(BaseModel):
+    included: list[str]
+    excluded: list[str]
+    notice: str
+
+
+class BotMemoryExportResource(BaseModel):
+    format: str
+    exported_at: str
+    scope: BotMemoryExportScope
+    bot: dict[str, Any]
+    facts: list[dict[str, Any]]
+    reviews: list[dict[str, Any]]
+    shares: dict[str, list[dict[str, Any]]]
 
 
 class FactShareRevocationResource(BaseModel):
@@ -2600,6 +2624,45 @@ def create_app() -> FastAPI:
         if not 1 <= limit <= 100 or offset < 0:
             raise HTTPException(422, 'limit must be 1–100 and offset cannot be negative')
         return store.fact_shares(bot.id, limit=limit, offset=offset)
+
+    @app.get('/api/v1/bots/{ref}/memory/export', response_model=BotMemoryExportResource)
+    def export_bot_memory(ref: str, response: Response) -> BotMemoryExportResource:
+        bot = bot_or_404(ref)
+        snapshot = store.fact_memory_export_snapshot(
+            bot.id, max_facts=MAX_BOT_MEMORY_EXPORT_FACTS,
+            max_shares_per_direction=MAX_BOT_MEMORY_EXPORT_SHARES_PER_DIRECTION,
+            max_source_bytes=MAX_BOT_MEMORY_EXPORT_SOURCE_BYTES,
+        )
+        if snapshot is None:
+            raise HTTPException(404, f'no such bot: {ref}')
+        if snapshot.get('limit') == 'facts':
+            raise HTTPException(
+                413, 'Bot memory export is limited to 10,000 fact revisions; use the paginated memory API.')
+        if snapshot.get('limit') == 'shares':
+            raise HTTPException(
+                413, 'Bot memory export is limited to 5,000 shares per direction; use the paginated share API.')
+        if snapshot.get('limit') == 'bytes':
+            raise HTTPException(413, 'Bot memory export source data exceeds 2 MiB; use the paginated memory API.')
+
+        resource = BotMemoryExportResource(
+            format='hutch-bot-memory-export-v1',
+            exported_at=iso(utcnow()),
+            scope=BotMemoryExportScope(
+                included=['all immutable fact revisions, scopes and provenance',
+                          'human review and archive decisions',
+                          'explicit incoming and outgoing Bot memory-share snapshots and current status'],
+                excluded=['conversation transcripts and titles', 'provider credentials and connection secrets',
+                          'run events and action receipts', 'workspace files and artifact bytes'],
+                notice=('Fact values and review notes may contain personal or sensitive information. This JSON file is '
+                        'unencrypted plaintext; review it before sharing. Hutch memory is not a credential vault.'),
+            ),
+            bot=snapshot['bot'], facts=snapshot['facts'], reviews=snapshot['reviews'], shares=snapshot['shares'],
+        )
+        if len(resource.model_dump_json().encode('utf-8')) > MAX_BOT_MEMORY_EXPORT_BYTES:
+            raise HTTPException(413, 'Bot memory export exceeds 16 MiB; use the paginated memory API.')
+        response.headers['Content-Disposition'] = f'attachment; filename="hutch-memory-{bot.name}.json"'
+        response.headers['Cache-Control'] = 'no-store'
+        return resource
 
     @app.post('/api/v1/bots/{ref}/facts/{fact_id}/shares', response_model=FactShareResource)
     def create_fact_share(ref: str, fact_id: str, body: FactShareCreateRequest,

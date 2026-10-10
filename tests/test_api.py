@@ -60,6 +60,53 @@ def test_workspace_task_continuation_route_returns_not_found_for_missing_history
     assert response.json()["detail"] == "This task is no longer available."
 
 
+def test_bot_memory_export_preserves_history_and_shares_without_other_private_data(client):
+    import json
+
+    owner = make_bot(client, name="memory-export-owner", paused=True)
+    recipient = make_bot(client, name="memory-export-recipient", paused=True)
+    store = client.app.state.store
+    first = store.remember(owner["id"], "report_style", "Use concise bullet points.")
+    reviewed = client.post(f"/api/v1/bots/{owner['id']}/facts/{first.id}/review",
+                           headers={"Idempotency-Key": "review-memory-export-fact"},
+                           json={"content_hash": first.content_hash, "action": "approve"})
+    assert reviewed.status_code == 200, reviewed.text
+    share = client.post(f"/api/v1/bots/{owner['id']}/facts/{first.id}/shares",
+                        headers={"Idempotency-Key": "share-memory-export-fact"},
+                        json={"target_bot_id": recipient["id"]})
+    assert share.status_code == 201, share.text
+    newer = store.remember(owner["id"], "report_style", "Use one short paragraph.")
+    archived = store.remember(owner["id"], "old_project", "An archived reference.")
+    archived_result = client.post(f"/api/v1/bots/{owner['id']}/facts/{archived.id}/review",
+                                  headers={"Idempotency-Key": "archive-memory-export-fact"},
+                                  json={"content_hash": archived.content_hash, "action": "archive"})
+    assert archived_result.status_code == 200, archived_result.text
+    store.remember(recipient["id"], "private_to_recipient", "Do not include in owner export.")
+
+    response = client.get(f"/api/v1/bots/{owner['id']}/memory/export")
+
+    assert response.status_code == 200, response.text
+    assert response.headers["content-disposition"] == 'attachment; filename="hutch-memory-memory-export-owner.json"'
+    assert response.headers["cache-control"] == "no-store"
+    payload = response.json()
+    assert payload["format"] == "hutch-bot-memory-export-v1"
+    assert payload["bot"]["id"] == owner["id"]
+    records = {fact["id"]: fact for fact in payload["facts"]}
+    assert records[first.id]["status"] == "approved"
+    assert records[first.id]["scope_kind"] == "bot"
+    assert records[newer.id]["status"] == "proposed"
+    assert records[archived.id]["status"] == "archived"
+    assert any(review["action"] == "approve" and review["fact_id"] == first.id
+               for review in payload["reviews"])
+    assert any(review["action"] == "archive" and review["fact_id"] == archived.id
+               for review in payload["reviews"])
+    assert payload["shares"]["outgoing"][0]["id"] == share.json()["id"]
+    assert payload["shares"]["outgoing"][0]["state"] == "source_revised"
+    assert "Do not include in owner export." not in json.dumps(payload)
+    assert any("workspace files" in item for item in payload["scope"]["excluded"])
+    assert "plaintext" in payload["scope"]["notice"].lower()
+
+
 def test_bot_creation_records_only_an_explicit_user_message_source(client):
     source = make_bot(client, name="source-conversation-bot", paused=True)
     store = client.app.state.store

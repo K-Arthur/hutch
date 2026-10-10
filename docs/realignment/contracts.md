@@ -523,3 +523,15 @@ snapshot described above.
 The older `GET /api/bots/{ref}` has no conversation selector, so its `memory` field exposes
 reviewed bot-wide references only. Chat-scoped inventory belongs to the scoped v1 endpoint;
 the local CLI remains an operator-wide diagnostic inventory.
+
+`GET /api/v1/bots/{ref}/memory/export` returns an attachment named `hutch-memory-{bot-name}.json`
+with `Cache-Control: no-store`. The versioned payload contains the Bot's stable ID/name/display name,
+all immutable fact revisions across scopes (including archived and legacy rows), human review/archive
+decisions, and all incoming/outgoing share snapshots with current state. It contains no conversation
+transcripts/titles, connection credentials, run events, action receipts, workspace files or artifact
+bytes. It is plaintext; fact values and review notes may contain personal or sensitive information, so
+the owner should review the file before sharing. The response is a
+consistent SQLite read snapshot, limited to 10,000 fact revisions, 5,000 shares per direction, 2 MiB
+of source content and 16 MiB serialized JSON. Oversize returns 413 with guidance to use the paginated
+fact/history/share resources; records are never silently truncated. This is an export of Bot memory,
+not a database backup or permanent-delete facility.

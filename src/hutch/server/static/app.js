@@ -4294,6 +4294,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             <p class="hint">${b.memory_enabled ? 'Runtime memory is enabled. Proposals require human review before recall.' : 'Runtime memory is disabled. Saved records remain manageable here.'} Review records are reference data, not tool permission. Never save credentials.</p>
             <button class="btn ghost small" id="memory-toggle" type="button">${b.memory_enabled ? 'Disable' : 'Enable'} memory</button>
             <button class="btn ghost small" id="memory-archives" type="button">${showArchivedFacts ? 'Hide' : 'Show'} archived facts</button>
+            <div class="memory-actions"><button class="btn ghost small" id="memory-export" type="button">Download memory JSON</button></div>
             ${factsPage.facts.map(factCardHtml).join('') || `<p class="empty-inline">No active facts in this window.</p>`}
             ${factShareRecordsHtml(factSharesPage)}
             <div class="btn-row"><button class="btn ghost small" id="facts-previous" type="button" ${factOffset ? '' : 'disabled'}>Previous facts</button>
@@ -4491,6 +4492,46 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   wireFactControls(factsPage.facts, b.name, factSharesPage);
   $('#memory-toggle').onclick = () => patch({memory_enabled: !b.memory_enabled}, `Memory ${b.memory_enabled ? 'disabled' : 'enabled'}.`);
   $('#memory-archives').onclick = () => renderBotDetail(name, 0, !showArchivedFacts);
+  $('#memory-export').onclick = event => {
+    const button = event.currentTarget;
+    openModal({
+      title: 'Export Bot memory', confirmText: 'Download JSON', returnFocus: button,
+      bodyHtml: `<p>Archived fact versions and review history are included with saved provenance and incoming or outgoing Bot shares.</p>
+        <p>Excluded: conversation transcripts, credentials, action receipts, and workspace files.</p>
+        <p class="hint">This downloads unencrypted plaintext and may include personal or sensitive fact values and review notes. Review the file before sharing it. Never save passwords or credentials in memory. Export is limited to 10,000 fact revisions, 5,000 shares per direction, and 2 MiB of source data.</p>
+        <p id="memory-export-error" class="hint" role="status"></p>`,
+      onConfirm: async () => {
+        const confirm = $('#modal-confirm');
+        const error = $('#memory-export-error');
+        confirm.disabled = true;
+        try {
+          const response = await fetch(`/api/v1/bots/${encodeURIComponent(b.name)}/memory/export`, {
+            headers: {Accept: 'application/json'}, credentials: 'same-origin',
+          });
+          if (!response.ok) {
+            let message = `Export failed (${response.status}).`;
+            try { message = (await response.json()).detail || message; } catch {}
+            throw new Error(message);
+          }
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `hutch-memory-${b.name}.json`;
+          document.body.append(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 60_000);
+          return true;
+        } catch (err) {
+          error.textContent = `Memory export was not downloaded: ${err.message}`;
+          return false;
+        } finally {
+          if (confirm.isConnected) confirm.disabled = false;
+        }
+      },
+    });
+  };
   $('#facts-previous').onclick = () => renderBotDetail(name, Math.max(0, factOffset - 20), showArchivedFacts);
   $('#facts-next').onclick = () => renderBotDetail(name, factsPage.next_offset, showArchivedFacts);
   $$("[data-revoke-sticky]").forEach(btn => btn.addEventListener("click", async () => {

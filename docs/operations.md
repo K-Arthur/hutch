@@ -310,7 +310,10 @@ previous conversation/tool history. Never store credentials in reference facts.
 
 `hutch bot forget NAME --key KEY` archives all scopes and versions with that key for the bot.
 Without a key it archives all reference facts and revokes standing tool grants. Archive retains
-history, the search index and backups; permanent scoped deletion/export remain unfinished.
-The private `/api/v1/bots/{ref}/facts` and `/{id}/history` responses expose bounded inventories;
-review their scope before any manual export. Deleting a bot archives its facts and leaves a
-user-owned workspace intact.
+history, the search index and backups; permanent scoped deletion is not implemented. To download
+portable memory, open that Bot's settings and choose **Download memory JSON**. The bounded export
+contains all revisions/scopes, review records and explicit incoming/outgoing share snapshots. It is
+unencrypted plaintext; fact values and review notes can contain personal or sensitive information. It excludes conversations,
+credentials, run events, action receipts, workspace files and artifact bytes. A separate all-Bot memory
+page is deferred; direct settings are the owner-facing inventory for each Bot. Deleting a Bot archives
+its facts and leaves a user-owned workspace intact.

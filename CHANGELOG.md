@@ -1,5 +1,11 @@
 # Changelog
 
+## Bounded Bot memory export
+
+- Bot settings can download a consistent JSON snapshot of all fact scopes and revisions, human review/archive decisions, and incoming/outgoing Bot-share records. The endpoint applies explicit count and byte limits, refuses oversize exports instead of truncating, and sends `Cache-Control: no-store`.
+- The confirmation describes plaintext handling and excluded data. The export does not contain conversation transcripts, credentials, run events, action receipts, workspace files or artifact bytes. Permanent deletion remains unavailable; archive retains history.
+- API, snapshot-boundary and desktop/tablet/phone Chromium download tests passed with synthetic local data and no model/provider call. Screenshots and traces are in `docs/realignment/artifacts/bot-memory-export/`.
+
 ## Reviewed OpenCode coding handoff (experimental, schema v39)
 
 - Studio can prepare a durable OpenCode coding task from a completed Bot answer after the owner reviews and edits the exact brief. The Bot must point to an existing Git project; each task is pinned to its reviewed commit in a separate worktree.

@@ -8,6 +8,10 @@ JSON/reference framing reduces role confusion but does not prove a model will ig
 Independent action policy, receipts and containment remain required. Memory off denies new runtime
 reads/writes but cannot retract prior prompts; human management stays available. Credential stores
 are never indexed as facts, but user/model text can contain private material and is not a secret vault.
+The Bot settings JSON export includes all saved fact revisions and explicit share snapshots but excludes
+transcripts, credentials, action receipts and workspace files. It is bounded and served with `no-store`,
+but the downloaded file is unencrypted plaintext; fact values and review notes may be sensitive, so the
+owner must review it before sharing. Archive is not permanent deletion.
 
 hutch assumes a **supervising human** is part of the system. It is not a formal security boundary
 against a determined adversary — it is a policy layer that checks what hutch's own tools are asked to

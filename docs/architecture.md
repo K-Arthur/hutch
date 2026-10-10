@@ -9,6 +9,9 @@ instructions. During a reviewed coordinator handoff only, the owner may explicit
 from the coordinator Bot or exact chat; immutable snapshots are attached to that task and enter the specialist run as untrusted
 context, not specialist memory. Archived/replaced/unreviewed versions are excluded. Retained versions/reviews remain
 private persistent data; archive is not erasure. See ADR-0008 and the continuation ledger for actual checks.
+Bot settings can export one consistent, bounded SQLite snapshot of that Bot's complete fact history,
+review decisions and explicit share records. The downloadable JSON is unencrypted; credentials, transcripts,
+action receipts and workspaces remain outside the export.
 
 Bots retain a stable machine address (`name`) for routes, files and old links, with a separate human-facing
 `display_name`. Older records receive a readable label derived from their address. Guided creation suggests a

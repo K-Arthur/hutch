@@ -5260,6 +5260,102 @@ class Store:
         with self._lock:
             return page(self._db, bot_id, **options)
 
+    def fact_memory_export_snapshot(self, bot_id: str, *, max_facts: int, max_shares_per_direction: int,
+                                    max_source_bytes: int) -> Optional[dict[str, Any]]:
+        """Read one bounded, consistent Bot memory export without loading unrelated state."""
+        from .fact_memory import CURRENT
+
+        with self._lock:
+            if self._db.in_transaction:
+                raise RuntimeError("Bot memory exports cannot be read inside another database transaction")
+            self._db.execute("BEGIN")
+            try:
+                bot_row = self._db.execute("SELECT id, name, doc FROM bots WHERE id = ?", (bot_id,)).fetchone()
+                if bot_row is None:
+                    self._db.commit()
+                    return None
+                bot = Bot.model_validate_json(bot_row["doc"])
+                metadata = {"id": bot_row["id"], "name": bot_row["name"],
+                            "display_name": bot.display_name, "memory_enabled": bot.memory_enabled}
+
+                fact_count, fact_bytes = self._db.execute(
+                    "SELECT COUNT(*), COALESCE(SUM(length(CAST(id AS BLOB)) + length(CAST(bot_id AS BLOB)) + "
+                    "length(CAST(scope_kind AS BLOB)) + length(CAST(scope_id AS BLOB)) + "
+                    "length(CAST(key AS BLOB)) + length(CAST(value AS BLOB)) + "
+                    "length(CAST(content_hash AS BLOB)) + length(CAST(run_id AS BLOB)) + "
+                    "length(CAST(source AS BLOB)) + length(CAST(updated_at AS BLOB)) + "
+                    "length(CAST(status AS BLOB))), 0) FROM memory_facts WHERE bot_id = ?", (bot_id,)
+                ).fetchone()
+                share_counts = {}
+                share_bytes = 0
+                for direction, column in (("incoming", "target_bot_id"), ("outgoing", "source_bot_id")):
+                    if column not in {"target_bot_id", "source_bot_id"}:
+                        raise ValueError("invalid memory share direction")
+                    count, size = self._db.execute(
+                        f"SELECT COUNT(*), COALESCE(SUM(length(CAST(id AS BLOB)) + "
+                        f"length(CAST(source_fact_id AS BLOB)) + length(CAST(source_display_name AS BLOB)) + "
+                        f"length(CAST(source_scope_kind AS BLOB)) + length(CAST(source_scope_id AS BLOB)) + "
+                        f"length(CAST(source_bot_id AS BLOB)) + length(CAST(target_bot_id AS BLOB)) + "
+                        f"length(CAST(target_display_name AS BLOB)) + length(CAST(fact_key AS BLOB)) + "
+                        f"length(CAST(fact_value AS BLOB)) + length(CAST(content_hash AS BLOB)) + "
+                        f"length(CAST(created_at AS BLOB)) + length(CAST(COALESCE(revoked_at, '') AS BLOB)) + "
+                        f"length(CAST(revoked_by AS BLOB))), 0) FROM memory_fact_shares WHERE {column} = ?",
+                        (bot_id,),
+                    ).fetchone()
+                    share_counts[direction] = int(count)
+                    share_bytes += int(size)
+                _review_count, review_bytes = self._db.execute(
+                    "SELECT COUNT(*), COALESCE(SUM(length(CAST(d.fact_id AS BLOB)) + "
+                    "length(CAST(d.action AS BLOB)) + length(CAST(d.request_hash AS BLOB)) + "
+                    "length(CAST(d.actor AS BLOB)) + length(CAST(d.note AS BLOB)) + "
+                    "length(CAST(d.created_at AS BLOB)) + length(CAST(d.result_json AS BLOB))), 0) "
+                    "FROM memory_fact_decisions d JOIN memory_facts f ON f.id = d.fact_id WHERE f.bot_id = ?",
+                    (bot_id,),
+                ).fetchone()
+                if int(fact_count) > max_facts:
+                    self._db.commit()
+                    return {"bot": metadata, "limit": "facts"}
+                if any(count > max_shares_per_direction for count in share_counts.values()):
+                    self._db.commit()
+                    return {"bot": metadata, "limit": "shares"}
+                if int(fact_bytes) + share_bytes + int(review_bytes) > max_source_bytes:
+                    self._db.commit()
+                    return {"bot": metadata, "limit": "bytes"}
+
+                facts = [dict(row) for row in self._db.execute(
+                    "SELECT id, bot_id, scope_kind, scope_id, key, value, revision, content_hash, run_id, "
+                    "source, updated_at, status FROM memory_facts WHERE bot_id = ? "
+                    "ORDER BY updated_at, id", (bot_id,)).fetchall()]
+                reviews = []
+                for row in self._db.execute(
+                        "SELECT d.fact_id, d.action, d.actor, d.note, d.created_at, d.result_json "
+                        "FROM memory_fact_decisions d JOIN memory_facts f ON f.id = d.fact_id "
+                        "WHERE f.bot_id = ? ORDER BY d.created_at, d.fact_id, d.action", (bot_id,)).fetchall():
+                    result = json.loads(row["result_json"])
+                    reviews.append({"fact_id": row["fact_id"], "action": row["action"],
+                                    "actor": row["actor"], "note": row["note"],
+                                    "created_at": row["created_at"], "result_id": result["result_id"]})
+
+                def shares_for(column: str) -> list[dict[str, Any]]:
+                    rows = self._db.execute(
+                        "SELECT s.*, f.status AS source_fact_status, CASE WHEN " + CURRENT +
+                        " THEN 1 ELSE 0 END AS source_fact_current, source_bot.doc AS source_bot_doc, "
+                        "target_bot.doc AS target_bot_doc FROM memory_fact_shares s "
+                        "LEFT JOIN memory_facts f ON f.id = s.source_fact_id "
+                        "LEFT JOIN bots source_bot ON source_bot.id = s.source_bot_id "
+                        "LEFT JOIN bots target_bot ON target_bot.id = s.target_bot_id "
+                        f"WHERE s.{column} = ? ORDER BY s.created_at, s.id", (bot_id,)).fetchall()
+                    return [self._fact_share_record(self._db, row) for row in rows]
+
+                snapshot = {"bot": metadata, "facts": facts, "reviews": reviews,
+                            "shares": {"incoming": shares_for("target_bot_id"),
+                                       "outgoing": shares_for("source_bot_id")}}
+                self._db.commit()
+                return snapshot
+            except BaseException:
+                self._db.rollback()
+                raise
+
     def recall_fact_page(self, bot_id: str, *, conversation_id: str | None = None, run_id: str | None = None,
                          query: str = '', limit: int = 20) -> list[dict]:
         """Recall this Bot's reviewed facts plus only active owner-granted inbound snapshots."""

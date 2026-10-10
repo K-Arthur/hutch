@@ -308,6 +308,22 @@ def test_bounded_literal_fts_keeps_private_context_and_archived_revisions_out(st
     assert store._db.execute('SELECT COUNT(*) FROM memory_facts').fetchone()[0] == 25
 
 
+def test_memory_export_snapshot_is_complete_and_refuses_exceeded_bounds(store):
+    bot = store.create_bot(Bot(name='memory-export-bounds'))
+    fact = store.remember(bot.id, 'reviewed-preference', 'Short reports with source links.')
+    store.review_fact(bot.id, fact.id, content_hash=fact.content_hash, action='approve', actor='fixture')
+
+    snapshot = store.fact_memory_export_snapshot(bot.id, max_facts=1, max_shares_per_direction=1,
+                                                 max_source_bytes=100_000)
+    assert snapshot['bot']['id'] == bot.id
+    assert snapshot['facts'][0]['id'] == fact.id
+    assert snapshot['reviews'][0]['action'] == 'approve'
+    assert store.fact_memory_export_snapshot(bot.id, max_facts=0, max_shares_per_direction=1,
+                                             max_source_bytes=100_000)['limit'] == 'facts'
+    assert store.fact_memory_export_snapshot(bot.id, max_facts=1, max_shares_per_direction=1,
+                                             max_source_bytes=1)['limit'] == 'bytes'
+
+
 def test_two_reviewers_resolve_once_and_restart_keeps_exact_review(store, config):
     bot = store.create_bot(Bot(name='race-facts'))
     fact = store.remember(bot.id, 'race', 'reference')

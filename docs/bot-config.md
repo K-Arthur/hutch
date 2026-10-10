@@ -8,6 +8,14 @@ shared with this bot's chats. A revision requires a new review. Keys/values are 
 characters. Legacy unscoped facts need an explicit sharing decision. Archive retains versions, earlier
 prompts and backups. Store credentials through configured connections, never reference facts.
 
+Bot settings keep memory management beside the Bot. The owner can review proposals, create immutable
+revisions, archive records, inspect history and manage exact cross-Bot snapshots there. **Download
+memory JSON** exports all fact revisions and scopes, review/archive decisions, and incoming/outgoing
+share snapshots with current status. It is limited to 10,000 fact revisions, 5,000 shares in each
+direction and 2 MiB of source data. It is unencrypted plaintext; fact values and review notes may contain
+personal or sensitive information. The export excludes conversations, credentials, run events, action receipts, workspace
+files and artifact bytes. Permanent deletion is not implemented; archive retains history and backups.
+
 A **bot** is a stored configuration; a **run** is one execution of it. Bots are managed via CLI,
 dashboard, or the REST API, and live in `hutch.db`.
 

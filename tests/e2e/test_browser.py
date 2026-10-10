@@ -6247,6 +6247,86 @@ def test_explicit_cross_bot_fact_share_is_reviewable_revocable_and_responsive(br
         context.close()
 
 
+@pytest.mark.parametrize('label,width,height', [('desktop',1440,960),('tablet',900,1024),('phone',390,844)])
+def test_bot_memory_export_explains_scope_and_downloads_complete_json(browser, live, tmp_path, label, width, height):
+    import hashlib
+    import json
+    from pathlib import Path
+
+    base, application = live
+    store = application.state.store
+    bot = store.create_bot(Bot(name=f'memory-export-{label}', display_name='Memory Export', tools=['memory']))
+    current = store.remember(bot.id, 'report_style', 'Use concise headings and short bullets.')
+    archived = store.remember(bot.id, 'old_project', 'Keep the historical project reference.')
+    store.review_fact(bot.id, archived.id, content_hash=archived.content_hash, action='archive', actor='operator')
+
+    page = browser.new_page(viewport={'width':width,'height':height}, reduced_motion='reduce')
+    page.set_default_timeout(8000)
+    errors = []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    page.context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    trace_stopped = False
+    try:
+        page.goto(f'{base}/#/bot/{bot.name}')
+        download_button = page.get_by_role('button', name='Download memory JSON')
+        download_button.wait_for()
+        page.locator('#memory-toggle').wait_for()
+        download_button.click()
+        dialog = page.get_by_role('dialog', name='Export Bot memory')
+        dialog.get_by_text('unencrypted plaintext', exact=False).wait_for()
+        dialog.get_by_text('Archived fact versions and review history', exact=False).wait_for()
+        dialog.get_by_text('conversation transcripts, credentials, action receipts, and workspace files', exact=False).wait_for()
+        metrics = page.evaluate("""() => ({
+          viewport:[innerWidth,innerHeight], document:[document.documentElement.scrollWidth,document.documentElement.scrollHeight],
+          button:document.querySelector('#memory-export')?.getBoundingClientRect().toJSON(),
+          confirm:document.querySelector('#modal-confirm')?.getBoundingClientRect().toJSON(),
+          modal:document.querySelector('.modal-card')?.getBoundingClientRect().toJSON(),
+          body: {scroll:document.querySelector('.modal-body')?.scrollHeight, client:document.querySelector('.modal-body')?.clientHeight}
+        })""")
+        assert metrics['document'][0] - metrics['viewport'][0] <= 1, (label, metrics)
+        assert 0 <= metrics['confirm']['top'] and metrics['confirm']['bottom'] <= metrics['viewport'][1], (label, metrics)
+        if width <= 640:
+            assert metrics['button']['height'] >= 44 and metrics['confirm']['height'] >= 44, metrics
+
+        out = Path(__file__).resolve().parents[2] / 'docs/realignment/artifacts/bot-memory-export'
+        out.mkdir(parents=True, exist_ok=True)
+        screenshot = out / f'{label}.png'
+        trace = out / f'{label}-trace.zip'
+        page.screenshot(path=str(screenshot), animations='disabled')
+        with page.expect_download() as download_info:
+            dialog.get_by_role('button', name='Download JSON').click()
+        download = download_info.value
+        assert download.suggested_filename == f'hutch-memory-{bot.name}.json'
+        saved = tmp_path / download.suggested_filename
+        download.save_as(str(saved))
+        payload = json.loads(saved.read_text(encoding='utf-8'))
+        assert payload['bot']['id'] == bot.id
+        assert {fact['id'] for fact in payload['facts']} == {current.id, archived.id}
+        assert next(fact for fact in payload['facts'] if fact['id'] == archived.id)['status'] == 'archived'
+        assert any(review['fact_id'] == archived.id and review['action'] == 'archive'
+                   for review in payload['reviews'])
+        assert page.evaluate('document.activeElement?.id') == 'memory-export'
+        assert not errors, errors
+
+        page.context.tracing.stop(path=str(trace))
+        trace_stopped = True
+        repo = Path(__file__).resolve().parents[2]
+        (out / f'{label}.json').write_text(json.dumps({
+            'test':'tests/e2e/test_browser.py::test_bot_memory_export_explains_scope_and_downloads_complete_json',
+            'browser':browser.browser_type.name, 'browser_version':browser.version,
+            'viewport':[width,height], 'page_errors':errors, 'horizontal_overflow_px':metrics['document'][0]-width,
+            'facts_exported':len(payload['facts']), 'reviews_exported':len(payload['reviews']),
+            'provider_calls':0, 'screenshot':screenshot.name, 'trace':trace.name,
+            'source_sha256':{name:hashlib.sha256((repo/name).read_bytes()).hexdigest() for name in (
+                'src/hutch/server/app.py','src/hutch/store.py','src/hutch/server/static/app.js',
+                'src/hutch/server/static/style.css')},
+        },indent=2)+'\n',encoding='utf-8')
+    finally:
+        if not trace_stopped:
+            page.context.tracing.stop()
+        page.context.close()
+
+
 def test_needs_you_receipt_queue_pages_old_actions_and_stays_keyboard_reachable(browser, live, monkeypatch):
     from hutch.models import Run
     base, app = live; store = app.state.store
