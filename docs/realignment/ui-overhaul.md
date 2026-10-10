@@ -47,12 +47,13 @@ assistant identities; the marketing site may use the detailed 3D character.
 
 ## Research and visual direction
 
-The supplied ChatGPT screenshots and the Figma Community Bobo preview were used
-as interaction references. Individual mobile list, chat, and options-menu frames
-were opened in the Figma canvas. We use their clear chat hierarchy, bottom-fixed
-composer, short list rows, and grouped per-chat actions as patterns; Hutch keeps
-its own colors, copy, icons, and mascot artwork. Mobbin was not used because its
-screen search was gated on the available plan.
+The supplied ChatGPT screenshots were reviewed individually for the list,
+conversation, and per-chat options patterns. In the Figma Community Bobo preview,
+I opened the Settings and Edit Profile frames individually; their short settings
+rows, stacked editable fields, and fixed primary action inform Hutch's hierarchy.
+Those frames did not provide the list or chat references. Hutch keeps its own
+colors, copy, icons, and mascot artwork. Mobbin's screen search requires a paid
+plan here, so no Mobbin screens or findings are claimed.
 
 The latest app captures show a large empty area around the Studio welcome, a
 narrow settings card inside a wide canvas, an Activity clear-state that can feel
@@ -61,6 +62,18 @@ generic on phones. The marketing page is long and technical on desktop and much
 harder to scan on a phone. The redesign will use task-first copy, clearer page
 rhythm, more useful illustrations/screens, familiar local icons, and optional
 technical detail instead of increasing decorative chrome.
+
+The integration-mark audit found that Figma or icon-library availability alone
+does not grant brand permission. OpenAI's current guide says not to recolor the
+Blossom; the existing exact white asset follows that rule. Microsoft's 2025
+Microsoft 365 trademark guide requires a trademark-use license for Microsoft
+365 app icons, while Google's Partner Marketing Hub says product icons require
+an approval request and should be used only when needed to show compatibility.
+Until an approved asset or license is recorded, the interface keeps the exact
+service name beside an original category glyph instead of shipping a traced
+lookalike. See [OpenAI's brand guide](https://openai.com/brand/),
+[Microsoft's 2025 guide](https://cdn-dynmedia-1.microsoft.com/is/content/microsoftcorp/microsoft/mscle/documents/presentations/Microsoft_365_trademark_guidelines_2024_.pdf),
+and [Google's product compatibility guidance](https://partnermarketinghub.withgoogle.com/brands/google/use-cases/product-co-branding/).
 
 ## Progress and evidence
 
@@ -329,6 +342,28 @@ independently at desktop and phone sizes. These use a local notification stub
 and fixture approvals; there was no operating-system prompt, provider request,
 or real notification. The approval and human-wait redesign remains open beyond
 this queue refinement.
+
+### Shared button variants and schedule chooser — verified slice
+
+The route review caught a shared CSS cascade problem: generated utility styles
+replaced the emerald fill on `.btn.primary` with the neutral panel fill. The
+semantic variants now sit above that base, restoring the primary, ghost, danger,
+and warning treatments described in the design system. The empty schedule's
+**Choose an assistant** action is visibly primary. Its eleven choices stay on
+one line; long labels show an actual ellipsis while the full name remains in the
+accessible label/title. On phones, the expanded list has a bounded scroll area
+and keyboard focus scrolls the final choice into view.
+
+The independent route test passed **1 case in 22.25s** at desktop **1440×960**,
+tablet **900×1024**, phone **390×844**, and compact phone **320×740**. It checks
+the primary/ghost computed colors, text overflow on the inner labels, list
+scrolling, focus visibility, all route overflow, and no browser errors or
+external requests. I opened the empty schedule and expanded assistant chooser
+separately at desktop and phone sizes; the tablet empty schedule was also
+reviewed. Fixtures made no provider calls. Current-source screenshots, trace,
+and viewport evidence are in [`artifacts/ui-surface-review/`](artifacts/ui-surface-review/).
+This fixes the empty schedule and shared button rendering; populated task rows
+and the rest of the all-surface UI redesign remain open.
 
 ### Next
 

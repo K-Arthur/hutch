@@ -1169,7 +1169,9 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
 
     out = ROOT / "docs/realignment/artifacts/ui-surface-review"
     out.mkdir(parents=True, exist_ok=True)
-    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    context = browser.new_context(
+        viewport={"width": 1440, "height": 960}, reduced_motion="reduce", forced_colors="none"
+    )
     page = context.new_page()
     errors: list[dict[str, str]] = []
     external_requests: list[str] = []
@@ -1305,8 +1307,38 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                     assert "repo-sweeper" not in gallery_names
                 if surface_name == "schedules":
                     assert page.locator("details.schedule-empty-bots").count() == 1
-                    assert page.locator(".schedule-empty-bots summary").inner_text() == "Choose an assistant"
-                    assert page.locator(".schedule-empty-bots a[href^='#/bot/']").count() == 11
+                    schedule_start = page.locator(".schedule-empty-bots summary")
+                    assert schedule_start.inner_text() == "Choose an assistant"
+                    assert "primary" in schedule_start.get_attribute("class").split()
+                    assert schedule_start.evaluate("el => getComputedStyle(el).backgroundColor") == "rgb(52, 211, 153)"
+                    schedule_start.click()
+                    schedule_choices = page.locator(".schedule-empty-bots a[href^='#/bot/']")
+                    assert schedule_choices.count() == 11
+                    assert schedule_choices.first.is_visible()
+                    assert schedule_choices.first.evaluate("el => getComputedStyle(el).backgroundColor") == "rgba(0, 0, 0, 0)"
+                    for choice in schedule_choices.all():
+                        assert choice.evaluate("el => getComputedStyle(el).whiteSpace") == "nowrap"
+                        assert choice.locator("span").evaluate("el => getComputedStyle(el).textOverflow") == "ellipsis"
+                    long_schedule_choice = page.locator(
+                        '.schedule-empty-bots a[aria-label="Set up Customer Operations and Knowledge Research Analyst"]'
+                    )
+                    assert long_schedule_choice.get_attribute("title") == "Customer Operations and Knowledge Research Analyst"
+                    assert long_schedule_choice.locator("span").evaluate("el => el.scrollWidth > el.clientWidth")
+                    assert long_schedule_choice.evaluate("el => el.getBoundingClientRect().height <= 45")
+                    if viewport_name in {"phone", "compact-phone"}:
+                        choice_list = page.locator(".schedule-empty-bot-list")
+                        assert choice_list.evaluate("el => getComputedStyle(el).overflowY") == "auto"
+                        assert choice_list.evaluate("el => el.scrollHeight > el.clientHeight")
+                    if viewport_name in {"desktop", "phone"}:
+                        page.locator(".schedule-empty").screenshot(
+                            path=str(out / f"schedules-assistant-choices-{viewport_name}.png"), animations="disabled"
+                        )
+                    if viewport_name in {"phone", "compact-phone"}:
+                        last_choice = schedule_choices.last
+                        last_choice.focus()
+                        assert last_choice.evaluate("el => { const list = el.closest('.schedule-empty-bot-list'); const box = list.getBoundingClientRect(); const item = el.getBoundingClientRect(); return list.scrollTop > 0 && item.top >= box.top && item.bottom <= box.bottom; }")
+                    schedule_start.click()
+                    page.locator(".page-scroll").evaluate("el => { el.scrollTop = 0; }")
                 if surface_name == "activity":
                     assert page.locator(".ov-summary-stats .kpi").count() == 2
                     usage_details = page.locator(".ov-usage-details")
@@ -1425,10 +1457,10 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
             "provider_calls": 0,
             "synthetic_bots": len(bot_names) + 1,
             "long_display_name": display_names[4],
-            "individual_surfaces": [name for name, _, _ in surfaces] + ["preferences", "Fleet details disclosure", "Fleet action menu", "Long assistant name on phone and compact phone"],
+            "individual_surfaces": [name for name, _, _ in surfaces] + ["preferences", "Schedule assistant chooser", "Fleet details disclosure", "Fleet action menu", "Long assistant name on phone and compact phone"],
             "visual_review": "Open each desktop, tablet, and phone screenshot individually; 320px compact-phone has overflow assertions.",
             "reference_access": {
-                "figma": "MCP node retrieval hit the Starter-plan limit; the supplied community file's chat, list, options-menu, and settings screens were selected and inspected individually in the open browser canvas.",
+                "figma": "MCP node retrieval hit the Starter-plan limit; the open browser canvas exposed the supplied community file's Settings and Edit Profile frames, which were inspected individually. The supplied ChatGPT screenshots, not Figma frames, informed list, chat, and per-chat menu review.",
                 "mobbin": "The screen searches returned a paid-plan requirement; no Mobbin result was used.",
             },
             "source_sha256": _visual_source_hashes(),

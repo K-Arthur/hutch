@@ -4758,9 +4758,13 @@ function paintSchedules() {
     ? `<a class="btn primary" href="#/bot/${encodeURIComponent(bots[0].name)}">Set up a schedule for ${esc(bots[0].display_name || bots[0].name)}</a>`
     : bots.length > 1
           ? `<details class="schedule-empty-bots" aria-label="Assistants available for scheduled work">
-        <summary class="btn ghost small">Choose an assistant ${icon("down", "schedule-empty-chevron")}</summary>
+        <summary class="btn primary small">Choose an assistant ${icon("down", "schedule-empty-chevron")}</summary>
           <p class="hint">Choose where to create the recurring task.</p>
-          <div class="schedule-empty-bot-list">${bots.map(bot => `<a class="btn ghost small" href="#/bot/${encodeURIComponent(bot.name)}">Set up ${esc(bot.display_name || bot.name)}</a>`).join("")}</div>
+          <div class="schedule-empty-bot-list">${bots.map(bot => {
+            const displayName = bot.display_name || bot.name;
+            const setupLabel = `Set up ${displayName}`;
+            return `<a class="btn ghost small" href="#/bot/${encodeURIComponent(bot.name)}" aria-label="${esc(setupLabel)}" title="${esc(displayName)}"><span>${esc(setupLabel)}</span></a>`;
+          }).join("")}</div>
         </details>`
     : `<a class="btn primary" href="#/chat">Create an assistant</a>`;
   setTopContext(`<div class="ctx-id"><h1>Scheduled work</h1></div>

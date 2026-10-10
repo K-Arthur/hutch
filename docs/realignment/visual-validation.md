@@ -1911,9 +1911,30 @@ reports no browser errors or external requests.
 I opened the current desktop and phone screenshots independently for each app
 route and the marketing page. This baseline review identified the assistant
 settings header action crowding and a low-emphasis **Choose an assistant** action
-in the empty schedule state; the settings header has been fixed. A compact
-primary schedule action is the next visual slice. The responsive captures,
-trace, and source hashes are in [`artifacts/ui-surface-review/`](artifacts/ui-surface-review/).
-The remaining account, pairing, legacy server-page, expanded-state, and full
-marketing reviews are still open; this route batch does not mark the redesign
-complete.
+in the empty schedule state; the settings header and empty-state action have
+since been fixed. The responsive captures, trace, and source hashes are in
+[`artifacts/ui-surface-review/`](artifacts/ui-surface-review/). The remaining
+account, pairing, legacy server-page, expanded-state, and full marketing reviews
+are still open; this route batch does not mark the redesign complete.
+
+## Shared button variants and schedule assistant chooser (2026-10-10)
+
+The empty schedule's **Choose an assistant** action now renders with the shared
+emerald primary fill; generated utility CSS had previously flattened named
+button variants to the neutral fill. Ghost choices retain a transparent fill.
+With eleven fixture assistants, each choice is a 44px, one-line row. Long labels
+show a rendered ellipsis while `aria-label` and `title` retain the full assistant
+name. On phone and compact phone widths, the expanded roster stays within a
+bounded scroll area, and keyboard focus brings the final row into view.
+
+`uv run --frozen pytest -q tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes`
+passed **1 test in 22.25s** on Chromium **153.0.8010.12** / Playwright
+**1.63.0**. It checked desktop **1440×960**, tablet **900×1024**, phone
+**390×844**, and compact phone **320×740** for Studio, Activity, Scheduled work,
+Manage assistants, Past work, Needs you, Apps & AI, Assistant settings, Task
+details, Preferences, and marketing. There were no browser errors, external
+requests, or provider calls. I inspected the empty schedule on desktop, tablet,
+and phone, and the opened assistant choices separately on desktop and phone.
+Evidence is in [`artifacts/ui-surface-review/`](artifacts/ui-surface-review/).
+This is a focused route refinement; it does not complete the all-surface UI
+overhaul.

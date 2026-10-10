@@ -24,6 +24,12 @@ component roles to these values. The semantic meanings are reviewed in
 in-app `/#/connections` route; `/connections` is a legacy-compatible HTML page
 and is not a substitute for the current screen.
 
+Keep semantic button variants intact after CSS generation: primary actions use
+the emerald fill and dark ink, ghost actions stay transparent with a hairline
+border, danger actions use the rose outline, and warning actions use the warning
+fill. Check computed browser styles for each role when changing or rebuilding
+utility CSS; a neutral `.btn` base must not erase a named variant.
+
 After changing a shared token, run:
 
 ```sh
@@ -123,6 +129,12 @@ A workspace with only one assistant does not show a coordinator choice.
 Keep the assistant name on one line in the settings header. Put secondary
 navigation and destructive actions in one labeled **Assistant options** menu;
 deletion should not compete visually with ordinary page navigation.
+
+Scheduled work uses a filled primary **Choose an assistant** action when the
+empty state offers multiple assistants. Keep each choice at a 44px minimum
+height, one line, with an actual ellipsis on long visible labels and the complete
+name in its accessible label. Bound and internally scroll larger choice lists
+on phones so the menu does not become a page-length wall of options.
 
 For an empty conversation in an existing assistant, lead the template gallery
 with familiar jobs such as organizing files, following up after a meeting, and

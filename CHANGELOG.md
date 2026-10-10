@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Streamline assistant settings headers: keep the assistant name on one line and group chat navigation and the destructive delete action under one accessible options menu.
+- Restore shared primary/ghost button contrast after the generated utility cascade, and improve the empty schedule chooser with a clear primary action, real one-line ellipses, and a bounded scrollable assistant list on phones.
 - Refine marketing illustrations and phone readability: align feature icons with headings, enlarge small labels, and remove decorative mascot glow rings while keeping the detailed 3D Hutch character.
 - Add a separate experimental Outlook Calendar event-creation sign-in and per-Bot calendar grant. Each guest-free event shows its full details for exact approval and is read back before success; uncertain writes are held for reconciliation. The Microsoft scope is account-wide and can change or delete events, while Hutch exposes create-only on the selected calendar. Live Microsoft consent and provider writes remain unverified.
 - Add `hutch code login` for the experimental OpenCode coding handoff. It uses OpenCode's supported interactive provider flow in a persistent private profile under Hutch state; coding tasks now check that profile before claiming a handoff and no longer start with an empty per-task auth database. Hutch does not import the regular OpenCode profile, and provider usage remains outside Hutch budgets.

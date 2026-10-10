@@ -3946,6 +3946,20 @@ independent route captures. Each current app route and the marketing page was
 opened individually at desktop and phone sizes.
 
 The review found the empty schedule's next action less visible than its empty
-state copy. This is queued as the next UI slice. Server-rendered sign-in,
-pairing, and operator pages plus expanded error/waiting states remain in the
-broader redesign.
+state copy. That action now uses the emerald primary treatment; all eleven
+assistant choices have actual single-line ellipses and full accessible names,
+and the expanded list is bounded and keyboard-scrollable on phones. The generated
+CSS cascade was corrected so primary, ghost, danger, and warning button variants
+retain their design-system roles. Server-rendered sign-in, pairing, and operator
+pages plus expanded error/waiting states remain in the broader redesign.
+
+## Shared button variants and schedule chooser (2026-10-10)
+
+`uv run --frozen pytest -q tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes`
+passed **1 test in 22.25s**. Desktop/tablet/phone/compact-phone route checks had
+no overflow, browser errors, external requests, or provider calls. `node --check`,
+the focused Impeccable detector, and `git diff --check` passed. Individual
+schedule views were inspected at desktop, tablet, and phone; the expanded choice
+panel was inspected at desktop and phone. Figma's MCP call limit and Mobbin's
+paid-plan gate remain documented; no Mobbin findings were used. This is a
+verified slice; the broader UI overhaul stays active.

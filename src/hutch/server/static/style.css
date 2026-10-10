@@ -461,6 +461,17 @@ button.danger { background: transparent; border-color: color-mix(in oklab, var(-
 button.danger:hover { background: color-mix(in oklab, var(--danger) 12%, transparent); }
 button.small, a.small { min-height: 26px; font-size: var(--fs-sm); padding: 0 var(--s-3); }
 
+/* Keep Hutch's semantic button variants above the generated Daisy utilities.
+   The utility layer otherwise applies its neutral .btn fill after the
+   component-layer .btn.primary/.btn.ghost rules. */
+.btn.primary { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+.btn.primary:hover { background: var(--brand-hi); border-color: var(--brand-hi); }
+.btn.ghost { background: transparent; border-color: var(--line); color: var(--text-2); opacity: 1; }
+.btn.ghost:hover { background: rgba(255, 255, 255, 0.045); border-color: var(--line-strong); color: var(--text); }
+.btn.danger { background: transparent; border-color: color-mix(in oklab, var(--danger) 50%, transparent); color: var(--danger); }
+.btn.danger:hover { background: color-mix(in oklab, var(--danger) 12%, transparent); }
+.btn.warn { background: var(--warn); border-color: var(--warn); color: var(--warn-ink); }
+
 /* ── chips: state pills — the 100px geometry exception ── */
 .chip, .status, .tag {
   display: inline-flex; align-items: center; gap: 5px;
@@ -1698,8 +1709,9 @@ button.inline-link:hover { color: var(--text); }
 .schedule-empty-bots > summary::-webkit-details-marker { display: none; }
 .schedule-empty-bots > summary::marker { content: ""; }
 .schedule-empty-bots > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.schedule-empty-bot-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: var(--s-2); width: 100%; }
-.schedule-empty-bot-list .btn { min-height: 44px; justify-content: flex-start; white-space: normal; text-align: left; overflow-wrap: anywhere; }
+.schedule-empty-bot-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: var(--s-2); width: 100%; max-height: min(42vh, 360px); overflow-y: auto; overscroll-behavior: contain; padding: 2px; }
+.schedule-empty-bot-list .btn { min-width: 0; min-height: 44px; justify-content: flex-start; white-space: nowrap; text-align: left; overflow: hidden; }
+.schedule-empty-bot-list .btn span { display: block; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .schedule-empty-bots[open] > p { margin: var(--s-1) 0; text-align: center; }
 
 /* ───────────────────────────── responsive ───────────────────────────── */

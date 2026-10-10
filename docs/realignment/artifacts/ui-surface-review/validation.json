@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_every_workspace_route_renders_independently_at_responsive_sizes",
-  "captured_at": "2026-10-10T20:58:06.298697+00:00",
+  "captured_at": "2026-10-10T21:12:55.195241+00:00",
   "python": "3.13.15",
   "browser": "Chromium 153.0.8010.12",
   "playwright": "1.63.0",
@@ -625,23 +625,24 @@
     "run-detail",
     "marketing",
     "preferences",
+    "Schedule assistant chooser",
     "Fleet details disclosure",
     "Fleet action menu",
     "Long assistant name on phone and compact phone"
   ],
   "visual_review": "Open each desktop, tablet, and phone screenshot individually; 320px compact-phone has overflow assertions.",
   "reference_access": {
-    "figma": "MCP node retrieval hit the Starter-plan limit; the supplied community file's chat, list, options-menu, and settings screens were selected and inspected individually in the open browser canvas.",
+    "figma": "MCP node retrieval hit the Starter-plan limit; the open browser canvas exposed the supplied community file's Settings and Edit Profile frames, which were inspected individually. The supplied ChatGPT screenshots, not Figma frames, informed list, chat, and per-chat menu review.",
     "mobbin": "The screen searches returned a paid-plan requirement; no Mobbin result was used."
   },
   "source_sha256": {
-    "src/hutch/server/static/app.js": "298ff44c28b788c7d50a9d775acec450a0bc673c08667a102610a81a107f4983",
+    "src/hutch/server/static/app.js": "dbb5ff7251221755c7cf31b559528d1d2cb87f138478e43dec60064a0a6e96cd",
     "src/hutch/server/static/index.html": "d9d037b323fa06b27dbe718edf247f3c925839642a410264926d085b860d07c6",
-    "src/hutch/server/static/style.css": "287eabf52866ed9de1a80a287590edab9a5d2fd118ecee9fa6dfb8f20eae156e",
+    "src/hutch/server/static/style.css": "625becaca00811feef06b7d7d11df029d2d79ff34fe49b327620247f86ccee3c",
     "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
     "website/index.html": "b60f0ccbd52208e8f8a7e32ec9c43b4948c938c95f676832673cde8eb90012b2",
     "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
     "website/styles.css": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
-    "tests/e2e/test_design_system.py": "e6e9a7a72add27826d8c5b79ab9f83690ca13609727401b5bb14517222ef30ad"
+    "tests/e2e/test_design_system.py": "f9dad470c53a7ccfeb6ca4a1fd176d0f26c84c9352e378aca0fff04071089cb9"
   }
 }
