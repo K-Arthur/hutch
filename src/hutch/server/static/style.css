@@ -1451,6 +1451,12 @@ button.inline-link:hover { color: var(--text); }
 .setup-refine-action .hint, .setup-purpose-draft .hint { margin: 0; line-height: 1.55; }
 .setup-purpose-draft h4 { margin: 0; font-size: var(--fs-md); }
 .setup-purpose-draft textarea { min-height: 160px; }
+.setup-clarification-options { grid-template-columns: minmax(0, 1fr); }
+.setup-clarification-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.setup-clarification-actions .btn { min-height: 44px; }
+#setup-purpose-draft-assumptions { padding-top: var(--s-2); border-top: 1px solid var(--line); color: var(--text-2); line-height: 1.55; }
+#setup-purpose-draft-assumptions ul { margin: var(--s-2) 0 0; padding-left: 1.25rem; }
+#setup-purpose-draft-assumptions li + li { margin-top: var(--s-1); }
 .setup-template-options, .setup-tool-options { display: grid; gap: var(--s-2); min-width: 0; margin: 0; padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-panel); }
 .setup-template-options legend, .setup-tool-options legend { padding: 0 var(--s-2); color: var(--text-2); font-size: var(--fs-sm); font-weight: 650; }
 .setup-choice { display: flex; align-items: flex-start; gap: var(--s-3); padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-control); background: var(--surface); cursor: pointer; }

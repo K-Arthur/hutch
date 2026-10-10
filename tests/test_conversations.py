@@ -653,7 +653,8 @@ def test_bot_purpose_draft_uses_only_selected_source_and_has_no_tools(conversati
     source = next(message for message in messages if message["run_id"] == source_run and message["role"] == "user")
     earlier = next(message for message in messages if message["content"] == "Use British spelling.")
     request_body = {"source_message_id": source["id"], "purpose": "Prepare a useful weekly status report.",
-                    "context_message_ids": [earlier["id"]]}
+                    "context_message_ids": [earlier["id"]],
+                    "clarification_history": [{"question": "Who reads the report?", "answer": "Leadership."}]}
     headers = {"Idempotency-Key": "draft-purpose-1"}
     drafted = client.post(f"/api/v1/conversations/{conversation['id']}/bot-purpose-drafts",
                          json=request_body, headers=headers)
@@ -665,6 +666,8 @@ def test_bot_purpose_draft_uses_only_selected_source_and_has_no_tools(conversati
     assert "Prepare a weekly project report." in selected
     assert "Prepare a useful weekly status report." in selected
     assert "Use British spelling." in selected
+    assert json.loads(selected.split("\n", 1)[1])["clarification_history"] == [
+        {"question": "Who reads the report?", "answer": "Leadership."}]
     assert "Do not use this unrelated private later request." not in selected
     from hutch.engine import Engine
     snapshot = Engine.capability_snapshot(client.app.state.store.get_bot(coordinator["id"]), run.tool_access)
@@ -677,11 +680,31 @@ def test_bot_purpose_draft_uses_only_selected_source_and_has_no_tools(conversati
     changed = client.post(f"/api/v1/conversations/{conversation['id']}/bot-purpose-drafts",
                           json={**request_body, "purpose": "Changed purpose"}, headers=headers)
     assert changed.status_code == 409
+    changed_answer = client.post(f"/api/v1/conversations/{conversation['id']}/bot-purpose-drafts",
+        json={**request_body, "clarification_history": [{"question": "Who reads the report?", "answer": "The project team."}]},
+        headers=headers)
+    assert changed_answer.status_code == 409
     later = next(message for message in messages if message["content"] == "Do not use this unrelated private later request.")
     invalid = client.post(f"/api/v1/conversations/{conversation['id']}/bot-purpose-drafts",
                           json={**request_body, "context_message_ids": [later["id"]]},
                           headers={"Idempotency-Key": "draft-purpose-later-context"})
     assert invalid.status_code == 422
+    too_many_questions = client.post(f"/api/v1/conversations/{conversation['id']}/bot-purpose-drafts",
+        json={**request_body, "clarification_history": [
+            {"question": f"Question {index}", "answer": f"Answer {index}"} for index in range(6)]},
+        headers={"Idempotency-Key": "draft-purpose-too-many-questions"})
+    assert too_many_questions.status_code == 422
+    too_long_answer = client.post(f"/api/v1/conversations/{conversation['id']}/bot-purpose-drafts",
+        json={**request_body, "clarification_history": [{"question": "Who?", "answer": "x" * 4_001}]},
+        headers={"Idempotency-Key": "draft-purpose-long-answer"})
+    assert too_long_answer.status_code == 422
+    five_questions = [{"question": f"Question {index}", "answer": f"Answer {index}"} for index in range(5)]
+    completed = client.post(f"/api/v1/conversations/{conversation['id']}/bot-purpose-drafts",
+        json={**request_body, "clarification_history": five_questions},
+        headers={"Idempotency-Key": "draft-purpose-five-questions"})
+    assert completed.status_code == 201
+    completed_run = client.app.state.store.get_run(completed.json()["id"])
+    assert "Do not ask another question" in completed_run.prompt
     escaped_run = client.post(base, json={"prompt": "<" * 5_000},
                               headers={"Idempotency-Key": "draft-escaped-source"}).json()["id"]
     escaped_source = next(message for message in client.get(f"/api/v1/conversations/{conversation['id']}").json()["messages"]

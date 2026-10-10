@@ -5729,7 +5729,7 @@ def test_coordinator_can_refine_a_bot_purpose_without_changing_its_source_or_aut
     page.route("**/api/v1/tasks/runs/fixture-purpose-draft-run**", lambda route: route.fulfill(
         status=200, json={"id": "fixture-purpose-draft-run", "terminal": True, "status": "succeeded",
                          "status_label": "Succeeded", "events": [{"type": "message", "data": {
-                             "role": "assistant", "content": "Prepare a weekly leadership report from the project information the owner provides.\n\nSeparate confirmed facts from assumptions, highlight material changes, and list unanswered questions. Keep the report to one page, use British spelling, and do not contact anyone."}}]}
+                             "role": "assistant", "content": json.dumps({"kind": "draft", "instructions": "Prepare a weekly leadership report from the project information the owner provides.\n\nSeparate confirmed facts from assumptions, highlight material changes, and list unanswered questions. Keep the report to one page, use British spelling, and do not contact anyone.", "assumptions": []})}}]}
     ))
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
@@ -5750,7 +5750,7 @@ def test_coordinator_can_refine_a_bot_purpose_without_changing_its_source_or_aut
         selected_context = page.locator('[data-setup-context-message="purpose-context-earlier"]')
         selected_context.check()
         page.locator("#setup-refine-details > summary").click()
-        refine = page.get_by_role("button", name="Draft clearer instructions with Mara")
+        refine = page.get_by_role("button", name="Check for missing details")
         assert refine.evaluate("el => el.getBoundingClientRect().height") >= 44
         refine.click()
         suggestion_text = "Prepare a weekly leadership report from the project information the owner provides.\n\nSeparate confirmed facts from assumptions, highlight material changes, and list unanswered questions. Keep the report to one page, use British spelling, and do not contact anyone."
@@ -5759,7 +5759,7 @@ def test_coordinator_can_refine_a_bot_purpose_without_changing_its_source_or_aut
         assert page.locator("#setup-purpose-draft-text").input_value() == suggestion_text
         assert len(calls) == 1
         assert calls[0] == {"source_message_id": "purpose-source-message", "purpose": original,
-                            "context_message_ids": ["purpose-context-earlier"]}
+                            "context_message_ids": ["purpose-context-earlier"], "clarification_history": []}
         assert "Do not use this unrelated private follow-up." not in json.dumps(calls)
         assert "I can help you define a reporting Bot." not in json.dumps(calls)
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
@@ -5801,6 +5801,149 @@ def test_coordinator_can_refine_a_bot_purpose_without_changing_its_source_or_aut
                               for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
                                                "src/hutch/server/app.py", "src/hutch/models.py", "src/hutch/store.py",
                                                "tests/test_conversations.py", "tests/e2e/test_browser.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace.zip"))
+        except Exception:
+            pass
+        context.close()
+
+
+def test_chat_sourced_bot_setup_clarifies_one_detail_and_restores_after_reload(browser, live, monkeypatch):
+    """A coordinator asks one missing-detail question, remembers it locally, and returns a review-only draft."""
+    import hashlib
+    import json
+    from pathlib import Path
+
+    base, app = live
+    monkeypatch.setattr(app.state.engine, "tick", lambda: None)
+    store = app.state.store
+    coordinator = store.create_bot(Bot(name="guided-setup-coordinator", display_name="Mara",
+        model="openai/gpt-4o-mini", tools=["files", "memory"]))
+    store.set_workspace_coordinator(coordinator.id)
+    conversation, _ = store.create_conversation(coordinator.id, "Bot planning",
+        idem_key="guided-setup-chat", request_hash="guided-setup-chat")
+    for seq, message_id, role, content in (
+        (1, "guided-setup-source", "user", "Prepare a weekly project status report for leadership."),
+        (2, "guided-setup-answer", "assistant", "I can help set up a reporting Bot."),
+        (3, "guided-setup-later", "user", "Do not include this unrelated later request."),
+    ):
+        message_run = Run(bot_id=coordinator.id, prompt=content, status=RunStatus.succeeded,
+                          conversation_id=conversation["id"])
+        store.create_run(message_run)
+        with store._tx() as db:
+            db.execute("INSERT INTO conversation_runs (conversation_id, run_id, attached_at) VALUES (?, ?, ?)",
+                       (conversation["id"], message_run.id, message_run.created_at))
+            store._insert_conversation_message(db, message_id=message_id, conversation_id=conversation["id"],
+                seq=seq, run_id=message_run.id, role=role, content=content, created_at=message_run.created_at)
+
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-setup-clarification"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    calls: list[dict] = []
+    responses = {
+        "guided-setup-question-run": '{"kind":"question","question":"What should leadership receive?",'
+            '"options":["A concise written summary","A table of status, owner and next step"]}',
+        "guided-setup-draft-run": '{"kind":"draft","instructions":"Prepare a weekly leadership status report. '
+            'Use a concise written summary with confirmed facts, blockers and next steps. Do not send it.",'
+            '"assumptions":["The owner will provide project updates in the conversation."]}',
+    }
+    page.on("pageerror", lambda error: errors.append(str(error)))
+
+    def submit_draft(route):
+        calls.append(json.loads(route.request.post_data or "{}"))
+        run_id = "guided-setup-question-run" if len(calls) == 1 else "guided-setup-draft-run"
+        route.fulfill(status=201, json={"id": run_id})
+
+    def read_draft_run(route):
+        run_id = route.request.url.split("/tasks/runs/")[1].split("?")[0]
+        route.fulfill(status=200, json={"id": run_id, "terminal": True, "status": "succeeded",
+            "status_label": "Succeeded", "events": [{"type": "message", "data": {
+                "role": "assistant", "content": responses[run_id]}}]})
+
+    page.route("**/api/v1/conversations/*/bot-purpose-drafts", submit_draft)
+    page.route("**/api/v1/tasks/runs/guided-setup-*-run**", read_draft_run)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(f"{base}/#/chat/{coordinator.name}")
+        page.locator("#conversation-switcher").wait_for()
+        bot_count = len(store.list_bots())
+        run_count = len(store.list_runs(limit=100))
+        page.locator('[data-create-bot-from-request="guided-setup-source"]').click()
+        assert page.locator("#setup-purpose").input_value() == "Prepare a weekly project status report for leadership."
+        assert not page.locator("#setup-purpose").is_visible()
+        page.locator("#setup-refine-details > summary").click()
+        page.get_by_role("button", name="Check for missing details").click()
+        question = page.locator("#setup-clarification-question")
+        question.wait_for()
+        assert "What should leadership receive?" in question.inner_text()
+        assert page.get_by_role("radio", name="A concise written summary").is_visible()
+        assert len(calls) == 1
+        assert calls[0] == {"source_message_id": "guided-setup-source",
+                            "purpose": "Prepare a weekly project status report for leadership.",
+                            "context_message_ids": [], "clarification_history": []}
+        assert "Do not include this unrelated later request." not in json.dumps(calls)
+        page.screenshot(path=str(out / "question-desktop.png"), animations="disabled")
+        page.get_by_role("radio", name="A concise written summary").check()
+        page.locator("#setup-clarification-answer").fill("A three-bullet note in chat, please.")
+
+        # Reopening the setup restores the selected request and unsent answer from this browser only.
+        page.reload()
+        page.locator("#conversation-switcher").wait_for()
+        page.locator('[data-create-bot-from-request="guided-setup-source"]').click()
+        question = page.locator("#setup-clarification-question")
+        question.wait_for()
+        assert page.get_by_role("radio", name="A concise written summary").is_checked()
+        assert page.locator("#setup-clarification-answer").input_value() == "A three-bullet note in chat, please."
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.screenshot(path=str(out / "question-phone-restored.png"), animations="disabled")
+        page.get_by_role("button", name="Continue with this answer").click()
+        page.locator("#setup-purpose-draft-text").wait_for()
+        assert len(calls) == 2
+        assert calls[1]["clarification_history"] == [{
+            "question": "What should leadership receive?",
+            "answer": "A concise written summary — A three-bullet note in chat, please."}]
+        assert calls[1]["source_message_id"] == "guided-setup-source"
+        assert calls[1]["context_message_ids"] == []
+        assert "Do not include this unrelated later request." not in json.dumps(calls[1])
+        assert page.locator("#setup-purpose-draft-text").input_value().startswith("Prepare a weekly leadership")
+        assert "The owner will provide project updates" in page.locator("#setup-purpose-draft-assumptions").inner_text()
+
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            metrics = page.evaluate("""() => ({width:document.documentElement.scrollWidth, viewport:innerWidth,
+              modalWidth:document.querySelector('.modal-card').scrollWidth-document.querySelector('.modal-card').clientWidth,
+              footerBottom:document.querySelector('.modal-footer').getBoundingClientRect().bottom,
+              textarea:document.querySelector('#setup-purpose-draft-text').getBoundingClientRect().toJSON(),
+              body:document.querySelector('.modal-body').getBoundingClientRect().toJSON(),
+              footer:document.querySelector('.modal-footer').getBoundingClientRect().toJSON()})""")
+            assert metrics["width"] - width <= 1 and metrics["modalWidth"] <= 1, (label, metrics)
+            assert metrics["footerBottom"] <= height and metrics["textarea"]["top"] >= metrics["body"]["top"] - 1
+            assert metrics["textarea"]["bottom"] <= metrics["footer"]["top"] + 1
+            page.screenshot(path=str(out / f"review-draft-{label}.png"), animations="disabled")
+        page.get_by_role("button", name="Use this draft").click()
+        assert page.locator("#setup-purpose").input_value().startswith("Prepare a weekly leadership")
+        assert len(store.list_bots()) == bot_count, "clarification must not create a Bot before explicit confirmation"
+        assert len(store.list_runs(limit=100)) == run_count, "fixtures must not create or run provider work"
+        assert not errors, errors
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_chat_sourced_bot_setup_clarifies_one_detail_and_restores_after_reload",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_chat_sourced_bot_setup_clarifies_one_detail_and_restores_after_reload",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"),
+            "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
+            "provider_calls": 0, "external_requests": 0,
+            "scenario": "chat-derived Bot setup preserves its exact request, asks one bounded choice question, restores an unsent free-text answer after reload, carries it into a review-only draft, and creates no Bot or run",
+            "screenshots": ["question-desktop.png", "question-phone-restored.png"]
+                + [f"review-draft-{size}.png" for size in ("desktop", "tablet", "phone")],
+            "clarification_request_count": len(calls), "page_errors": errors,
+            "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
+                              for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                               "src/hutch/server/app.py", "tests/test_conversations.py",
+                                               "tests/e2e/test_browser.py")},
         }, indent=2) + "\n", encoding="utf-8")
     finally:
         try:

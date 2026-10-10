@@ -6909,6 +6909,8 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     display_name: duplicateBot ? `${duplicateBot.display_name || duplicateBot.name} copy`.slice(0, 80) : "",
     description: duplicateBot?.description || "", model: modelSuggestion,
     purposeRefinement: null, purposeRefinementStatus: "",
+    purposeClarificationHistory: [], purposeClarificationQuestion: null,
+    purposeClarificationChoice: "", purposeClarificationAnswer: "", purposeDraftPending: null,
     inference_mode: duplicateBot?.inference_mode || conversationSource?.inference_mode_suggestion || workspaceDefaults.inference_mode || "hybrid",
     workspace_mode: duplicateBot?.workspace_mode === "fresh" ? "fresh" : "managed",
     // A duplicate is a safe configuration starting point, not a copy of authority.
@@ -6937,7 +6939,6 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     if (!displayNameEdited) draft.display_name = suggestBotDisplayName(draft.purpose);
     if (!addressEdited) draft.name = uniqueAddress(draft.display_name);
   };
-  refreshSuggestedIdentity();
   const refreshNamePreview = () => {
     const displayName = $("#setup-display_name");
     if (displayName && !displayNameEdited) displayName.value = draft.display_name;
@@ -6946,28 +6947,193 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
   };
   const selectedCreationContext = () => (conversationSource?.context_candidates || [])
     .filter(message => draft.selectedContextMessageIds.has(message.id));
+  const purposeSetupStorageKey = conversationSource && !duplicateBot
+    ? `hutch-bot-setup-clarification:${conversationSource.conversation_id}:${conversationSource.message_id}` : "";
   const currentPurposeDraftFingerprint = () => JSON.stringify({
     source_message_id: draft.useConversationSource ? conversationSource?.message_id || "" : "",
     purpose: draft.purpose, context: selectedCreationContext().map(message => message.id),
+    clarification_history: draft.purposeClarificationHistory,
   });
+  const currentPurposeDraftRequest = () => ({
+    source_message_id: conversationSource?.message_id || "", purpose: draft.purpose,
+    context_message_ids: selectedCreationContext().map(message => message.id),
+    clarification_history: draft.purposeClarificationHistory,
+  });
+  const validClarificationTurn = turn => turn && typeof turn.question === "string"
+    && turn.question.trim() && turn.question.length <= 1_000 && typeof turn.answer === "string"
+    && turn.answer.trim() && turn.answer.length <= 4_000;
+  const validClarificationQuestion = question => question && typeof question.question === "string"
+    && question.question.trim() && question.question.length <= 1_000 && Array.isArray(question.options)
+    && question.options.length >= 2 && question.options.length <= 5
+    && question.options.every(option => typeof option === "string" && option.trim() && option.length <= 240);
+  const persistPurposeSetupDraft = () => {
+    if (!purposeSetupStorageKey || !conversationSource || !draft.useConversationSource) return;
+    const pending = draft.purposeDraftPending;
+    storageSet(purposeSetupStorageKey, JSON.stringify({
+      version: 1, updated_at: Date.now(), conversation_id: conversationSource.conversation_id,
+      source_message_id: conversationSource.message_id, purpose: draft.purpose,
+      selected_context_message_ids: [...draft.selectedContextMessageIds],
+      display_name: draft.display_name, name: draft.name,
+      display_name_edited: displayNameEdited, address_edited: addressEdited,
+      clarification_history: draft.purposeClarificationHistory,
+      clarification_question: draft.purposeClarificationQuestion,
+      clarification_choice: draft.purposeClarificationChoice,
+      clarification_answer: draft.purposeClarificationAnswer,
+      refinement: draft.purposeRefinement,
+      status: draft.purposeRefinementStatus,
+      pending: pending ? {
+        request_body: pending.requestBody, idempotency_key: pending.idempotencyKey,
+        run_id: pending.runId || "", source_fingerprint: pending.sourceFingerprint,
+      } : null,
+    }));
+  };
+  const clearPurposeSetupProgress = ({ clearStorage = true } = {}) => {
+    draft.purposeClarificationHistory = [];
+    draft.purposeClarificationQuestion = null;
+    draft.purposeClarificationChoice = "";
+    draft.purposeClarificationAnswer = "";
+    draft.purposeRefinement = null;
+    draft.purposeDraftPending = null;
+    draft.purposeRefinementStatus = "";
+    if (clearStorage && purposeSetupStorageKey) storageRemove(purposeSetupStorageKey);
+  };
+  const restorePurposeSetupDraft = () => {
+    if (!purposeSetupStorageKey || !conversationSource) return;
+    let saved;
+    try { saved = JSON.parse(storageGet(purposeSetupStorageKey) || "null"); }
+    catch { storageRemove(purposeSetupStorageKey); return; }
+    if (!saved || saved.version !== 1 || saved.conversation_id !== conversationSource.conversation_id
+        || saved.source_message_id !== conversationSource.message_id || typeof saved.purpose !== "string"
+        || !Number.isFinite(saved.updated_at) || saved.updated_at > Date.now() + 60_000
+        || Date.now() - saved.updated_at > 7 * 24 * 60 * 60 * 1000
+        || saved.purpose.length > 20_000 || !saved.purpose.trim()
+        || !Array.isArray(saved.clarification_history) || saved.clarification_history.length > 5
+        || !saved.clarification_history.every(validClarificationTurn)) {
+      storageRemove(purposeSetupStorageKey); return;
+    }
+    const validContextIds = new Set((conversationSource.context_candidates || []).map(message => message.id));
+    const contextIds = Array.isArray(saved.selected_context_message_ids)
+      ? saved.selected_context_message_ids : [];
+    if (contextIds.length > (conversationSource.context_candidates || []).length
+        || contextIds.some(id => typeof id !== "string" || !validContextIds.has(id))) {
+      storageRemove(purposeSetupStorageKey); return;
+    }
+    draft.useConversationSource = true;
+    draft.purpose = saved.purpose;
+    draft.selectedContextMessageIds = new Set(contextIds);
+    draft.purposeClarificationHistory = saved.clarification_history;
+    if (validClarificationQuestion(saved.clarification_question)) {
+      draft.purposeClarificationQuestion = saved.clarification_question;
+    }
+    if (typeof saved.clarification_choice === "string") draft.purposeClarificationChoice = saved.clarification_choice;
+    if (typeof saved.clarification_answer === "string" && saved.clarification_answer.length <= 4_000) {
+      draft.purposeClarificationAnswer = saved.clarification_answer;
+    }
+    if (saved.display_name_edited && typeof saved.display_name === "string" && saved.display_name.length <= 80) {
+      draft.display_name = saved.display_name; displayNameEdited = true;
+    }
+    if (saved.address_edited && typeof saved.name === "string" && /^[a-z0-9][a-z0-9-]{1,40}$/.test(saved.name)) {
+      draft.name = saved.name; addressEdited = true;
+    }
+    if (saved.refinement && typeof saved.refinement.content === "string"
+        && saved.refinement.content.length <= 20_000
+        && Array.isArray(saved.refinement.assumptions || [])
+        && (saved.refinement.assumptions || []).length <= 5
+        && (saved.refinement.assumptions || []).every(item => typeof item === "string" && item.length <= 500)) {
+      draft.purposeRefinement = {
+        content: saved.refinement.content,
+        assumptions: saved.refinement.assumptions || [],
+        sourceFingerprint: typeof saved.refinement.sourceFingerprint === "string"
+          ? saved.refinement.sourceFingerprint : "",
+      };
+    }
+    if (typeof saved.status === "string" && saved.status.length <= 500) draft.purposeRefinementStatus = saved.status;
+    const pending = saved.pending;
+    const pendingBody = pending?.request_body;
+    const pendingContext = Array.isArray(pendingBody?.context_message_ids) ? pendingBody.context_message_ids : [];
+    const pendingHistory = Array.isArray(pendingBody?.clarification_history) ? pendingBody.clarification_history : [];
+    const pendingBodyValid = pendingBody && pendingBody.source_message_id === conversationSource.message_id
+      && typeof pendingBody.purpose === "string" && pendingBody.purpose.trim() && pendingBody.purpose.length <= 20_000
+      && pendingContext.length <= (conversationSource.context_candidates || []).length
+      && pendingContext.every(id => typeof id === "string" && validContextIds.has(id))
+      && new Set(pendingContext).size === pendingContext.length
+      && !pendingContext.includes(conversationSource.message_id)
+      && pendingHistory.length <= 5 && pendingHistory.every(validClarificationTurn);
+    if (pending && typeof pending.idempotency_key === "string" && pending.idempotency_key.length <= 128
+        && typeof pending.source_fingerprint === "string" && pending.source_fingerprint.length <= 4_000
+        && (!pending.run_id || (typeof pending.run_id === "string" && pending.run_id.length <= 128))
+        && pendingBodyValid) {
+      draft.purposeDraftPending = {
+        requestBody: pending.request_body, idempotencyKey: pending.idempotency_key,
+        runId: pending.run_id || "", sourceFingerprint: pending.source_fingerprint,
+      };
+    }
+    const sourceChars = conversationSource.original_request.length + draft.purpose.length
+      + selectedCreationContext().reduce((total, message) => total + message.content.length, 0)
+      + draft.purposeClarificationHistory.reduce((total, turn) => total + turn.question.length + turn.answer.length, 0);
+    if (sourceChars > 20_000) clearPurposeSetupProgress();
+  };
+  restorePurposeSetupDraft();
+  refreshSuggestedIdentity();
   const markPurposeDraftFreshness = () => {
-    const suggestion = draft.purposeRefinement;
-    if (!suggestion) return;
-    draft.purposeRefinementStatus = suggestion.sourceFingerprint === currentPurposeDraftFingerprint()
-      ? "Draft ready. Review it before applying; no Bot configuration has changed."
-      : "The purpose or selected context changed after this suggestion. Draft again before applying it.";
+    const savedOutput = draft.purposeRefinement || draft.purposeClarificationQuestion;
+    if (!savedOutput) {
+      if (draft.purposeDraftPending) {
+        const fresh = draft.purposeDraftPending.sourceFingerprint === currentPurposeDraftFingerprint();
+        draft.purposeRefinementStatus = fresh
+          ? "Coordinator review is still running; resume it here or Stop it in the coordinator chat."
+          : "A review for an earlier request is still running. It cannot be applied to this edited draft.";
+        const pendingStatus = $("#setup-purpose-draft-status");
+        if (pendingStatus) pendingStatus.textContent = draft.purposeRefinementStatus;
+      }
+      persistPurposeSetupDraft(); return;
+    }
+    const fingerprint = savedOutput.sourceFingerprint;
+    const fresh = fingerprint === currentPurposeDraftFingerprint();
+    draft.purposeRefinementStatus = fresh
+      ? draft.purposeClarificationQuestion
+        ? "Answer this one detail to continue; nothing has been saved or created."
+        : "Draft ready. Review it before applying; no Bot configuration has changed."
+      : "The request or selected context changed. Start a fresh check before using this response.";
     const status = $("#setup-purpose-draft-status");
     if (status) status.textContent = draft.purposeRefinementStatus;
+    const apply = $("#setup-purpose-draft-use");
+    if (apply) apply.disabled = !fresh;
+    const continueButton = $("#setup-clarification-continue");
+    if (continueButton) continueButton.disabled = !fresh;
+    persistPurposeSetupDraft();
   };
   const purposeRefinementHtml = () => {
+    const question = draft.purposeClarificationQuestion;
+    if (question) {
+      const fresh = question.sourceFingerprint === currentPurposeDraftFingerprint();
+      return `<section class="setup-purpose-draft" id="setup-clarification-question" tabindex="-1" aria-labelledby="setup-clarification-title">
+        <h4 id="setup-clarification-title">One detail to confirm</h4>
+        <p>${esc(question.question)}</p>
+        <fieldset class="setup-template-options setup-clarification-options"><legend>Choose one, or write another answer</legend>
+          ${question.options.map((option, index) => `<label class="setup-choice"><input type="radio" name="setup-clarification-choice" value="${index}" ${draft.purposeClarificationChoice === String(index) ? "checked" : ""}>
+            <span><b>${esc(option)}</b></span></label>`).join("")}
+        </fieldset>
+        <label class="field" for="setup-clarification-answer">Your answer (optional if you choose above)
+          <textarea id="setup-clarification-answer" rows="3" maxlength="4000" placeholder="Add a different answer or useful detail">${esc(draft.purposeClarificationAnswer)}</textarea>
+        </label>
+        <p class="hint">Do not enter passwords, codes or account credentials. Your answer and draft stay on this device for up to 7 days.</p>
+        <div class="setup-clarification-actions"><button type="button" class="btn" id="setup-clarification-continue" ${fresh ? "" : "disabled"}>Continue with this answer</button>
+          <button type="button" class="btn ghost small" id="setup-clarification-reset">Start over</button></div>
+      </section>`;
+    }
     if (!draft.purposeRefinement) return "";
     const suggestion = draft.purposeRefinement;
-    return `<section class="setup-purpose-draft" aria-labelledby="setup-purpose-draft-title">
-      <h4 id="setup-purpose-draft-title">Coordinator’s instruction draft</h4>
-      ${suggestion ? `<p class="hint">Review and edit the suggestion. Your original request remains linked; nothing changes until you apply it.</p>
-        <label class="field" for="setup-purpose-draft-text">Proposed standing instructions<textarea id="setup-purpose-draft-text" rows="7" maxlength="20000">${esc(suggestion.content)}</textarea></label>
-        <p class="hint">Open questions are listed instead of guessed. To add an answer, update the purpose above and draft again; later chat messages are not sent.</p>
-        <button type="button" class="btn small" id="setup-purpose-draft-use">Use this draft</button>` : ""}
+    const fresh = suggestion.sourceFingerprint === currentPurposeDraftFingerprint();
+    const assumptions = suggestion.assumptions?.length
+      ? `<div id="setup-purpose-draft-assumptions"><b>Assumptions to review</b><ul>${suggestion.assumptions.map(item => `<li>${esc(item)}</li>`).join("")}</ul></div>` : "";
+    return `<section class="setup-purpose-draft" id="setup-purpose-draft-review" tabindex="-1" aria-labelledby="setup-purpose-draft-title">
+      <h4 id="setup-purpose-draft-title">Proposed Bot instructions</h4>
+      <p class="hint">Review and edit this draft. Your original request stays linked. No settings or permissions change until you confirm.</p>
+      <label class="field" for="setup-purpose-draft-text">Standing instructions<textarea id="setup-purpose-draft-text" rows="7" maxlength="20000">${esc(suggestion.content)}</textarea></label>
+      ${assumptions}
+      <div class="setup-clarification-actions"><button type="button" class="btn small" id="setup-purpose-draft-use" ${fresh ? "" : "disabled"}>Use this draft</button>
+        <button type="button" class="btn ghost small" id="setup-clarification-reset">Start over</button></div>
     </section>`;
   };
   const instructionsForDraft = () => {
@@ -7010,7 +7176,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     draft.timezone = config.timezone || "UTC";
     draft.catch_up = config.catch_up || "coalesce";
     draft.schedule_prompt = config.schedule_prompt || "";
-    draft.purposeRefinement = null;
+    clearPurposeSetupProgress();
     draft.purposeRefinementStatus = "";
     displayNameEdited = true;
     addressEdited = true;
@@ -7058,6 +7224,168 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     }
     const tools = $("#setup-tools");
     if (tools) draft.tools = new Set($$("input[name=setup-tool]:checked", tools).map(input => input.value));
+  };
+  let purposeDraftRequestInFlight = false;
+  const parsePurposeDraftResponse = answer => {
+    const normalized = answer.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+    let parsed;
+    try { parsed = JSON.parse(normalized); }
+    catch { throw new Error("The coordinator response was not valid JSON. Nothing was applied; edit the request or try again."); }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("The coordinator response did not match the review format. Nothing was applied.");
+    }
+    const sensitive = /password|passcode|credential|verification code|one[- ]time code|two[- ]factor|\b2fa\b|sign[- ]?in|authorization|permission|account access|access token|secret/i;
+    if (parsed.kind === "question") {
+      if (!validClarificationQuestion(parsed) || sensitive.test(parsed.question)
+          || parsed.options.some(option => sensitive.test(option))) {
+        throw new Error("The coordinator returned an unsafe or malformed follow-up. Nothing was applied; edit the request and try again.");
+      }
+      const options = parsed.options.map(option => option.trim());
+      if (new Set(options.map(option => option.toLocaleLowerCase())).size !== options.length) {
+        throw new Error("The coordinator returned duplicate choices. Nothing was applied; try again.");
+      }
+      return {kind: "question", question: parsed.question.trim(), options};
+    }
+    if (parsed.kind === "draft") {
+      const assumptions = parsed.assumptions === undefined ? [] : parsed.assumptions;
+      if (typeof parsed.instructions !== "string" || !parsed.instructions.trim()
+          || parsed.instructions.length > 20_000 || !Array.isArray(assumptions)
+          || assumptions.length > 5 || assumptions.some(item => typeof item !== "string" || item.length > 500)) {
+        throw new Error("The coordinator returned an incomplete instruction draft. Nothing was applied; try again.");
+      }
+      return {kind: "draft", instructions: parsed.instructions, assumptions};
+    }
+    throw new Error("The coordinator response did not match the review format. Nothing was applied.");
+  };
+  const runPurposeClarification = async ({ answerCurrentQuestion = false } = {}) => {
+    if (purposeDraftRequestInFlight) return;
+    snapshotFields();
+    setError("");
+    if (!conversationSource?.source_bot_is_coordinator || !draft.useConversationSource || !draft.purpose.trim()) {
+      setError("Use the selected coordinator request and review a non-empty purpose before drafting.");
+      return;
+    }
+    if (answerCurrentQuestion) {
+      const question = draft.purposeClarificationQuestion;
+      if (!question || question.sourceFingerprint !== currentPurposeDraftFingerprint()) {
+        setError("The request changed after this question. Start a fresh check before answering it.");
+        return;
+      }
+      const answerText = $("#setup-clarification-answer")?.value?.trim() || "";
+      const choiceIndex = draft.purposeClarificationChoice;
+      const chosen = /^\d+$/.test(choiceIndex) ? question.options[Number(choiceIndex)] || "" : "";
+      const answer = answerText && chosen ? `${chosen} — ${answerText}` : answerText || chosen;
+      if (!answer) {
+        setError("Choose an option or write a short answer before continuing.");
+        $("#setup-clarification-answer")?.focus();
+        return;
+      }
+      if (answer.length > 4_000) {
+        setError("Keep this answer under 4,000 characters.");
+        $("#setup-clarification-answer")?.focus();
+        return;
+      }
+      if (draft.purposeClarificationHistory.length >= 5) {
+        setError("This setup has reached its five-question limit. Start a fresh check or edit the instructions directly.");
+        return;
+      }
+      const selectedChars = selectedCreationContext().reduce((total, message) => total + message.content.length, 0);
+      const historyChars = draft.purposeClarificationHistory.reduce(
+        (total, turn) => total + turn.question.length + turn.answer.length, 0);
+      if (conversationSource.original_request.length + draft.purpose.length + selectedChars
+          + historyChars + question.question.length + answer.length > 20_000) {
+        setError("This request plus its clarifications exceeds the 20,000-character review limit. Shorten the purpose or start over.");
+        return;
+      }
+      draft.purposeClarificationHistory.push({question: question.question, answer});
+      draft.purposeClarificationQuestion = null;
+      draft.purposeClarificationChoice = "";
+      draft.purposeClarificationAnswer = "";
+    }
+    if (Array.from(instructionsForDraft()).length > 20_000) {
+      setError("Shorten the purpose or select fewer messages before drafting; the combined text exceeds 20,000 characters.");
+      return;
+    }
+    const requestBody = draft.purposeDraftPending?.requestBody || currentPurposeDraftRequest();
+    const sourceFingerprint = draft.purposeDraftPending?.sourceFingerprint || currentPurposeDraftFingerprint();
+    if (!draft.purposeDraftPending) {
+      const keyStorage = `hutch-bot-purpose-draft:${conversationSource.conversation_id}:${conversationSource.message_id}`;
+      const fingerprint = await payloadFingerprint(requestBody);
+      let key;
+      try {
+        const prior = JSON.parse(storageGet(keyStorage) || "null");
+        key = prior?.fingerprint === fingerprint ? prior.key : null;
+      } catch { /* replace a damaged retry marker */ }
+      if (!key) {
+        key = newIdempotencyKey();
+        storageSet(keyStorage, JSON.stringify({fingerprint, key}));
+      }
+      draft.purposeDraftPending = {requestBody, idempotencyKey: key, runId: "", sourceFingerprint};
+    }
+    purposeDraftRequestInFlight = true;
+    draft.purposeRefinementStatus = draft.purposeDraftPending.runId
+      ? "Resuming the coordinator’s tool-free review…"
+      : "Starting the coordinator’s tool-free review…";
+    persistPurposeSetupDraft();
+    const status = $("#setup-purpose-draft-status");
+    if (status) status.textContent = draft.purposeRefinementStatus;
+    const button = $("#setup-refine-purpose");
+    if (button) button.disabled = true;
+    let state = null;
+    try {
+      if (!draft.purposeDraftPending.runId) {
+        const run = await api(`/v1/conversations/${encodeURIComponent(conversationSource.conversation_id)}/bot-purpose-drafts`, {
+          method: "POST", headers: {"Idempotency-Key": draft.purposeDraftPending.idempotencyKey},
+          body: draft.purposeDraftPending.requestBody,
+        });
+        if (typeof run.id !== "string" || !run.id || run.id.length > 128) {
+          throw new Error("The coordinator did not return a valid review run. You can safely resume it.");
+        }
+        draft.purposeDraftPending.runId = run.id;
+        persistPurposeSetupDraft();
+      }
+      const deadline = Date.now() + 120_000;
+      while (Date.now() < deadline) {
+        state = await api(`/v1/tasks/runs/${encodeURIComponent(draft.purposeDraftPending.runId)}?events=200`);
+        if (state.terminal) break;
+        draft.purposeRefinementStatus = `Coordinator review is ${state.status_label || state.status}; you can Stop it in the coordinator chat.`;
+        const progress = $("#setup-purpose-draft-status");
+        if (progress) progress.textContent = draft.purposeRefinementStatus;
+        await new Promise(resolve => setTimeout(resolve, 900));
+      }
+      if (!state?.terminal) throw new Error("The review is still running. Its status and Stop control are in the coordinator chat; resume here when it finishes.");
+      if (state.status !== "succeeded") throw new Error(state.error || state.reason || `Review ended as ${state.status_label || state.status}.`);
+      const answer = [...(state.events || [])].reverse().find(item => item.type === "message" && item.data?.role === "assistant")?.data?.content || "";
+      if (!answer.trim()) throw new Error("The coordinator did not return a review response.");
+      const parsed = parsePurposeDraftResponse(answer);
+      draft.purposeDraftPending = null;
+      if (parsed.kind === "question") {
+        if (draft.purposeClarificationHistory.length >= 5) {
+          throw new Error("The coordinator requested another question after the five-question limit. Edit the instructions directly or start over.");
+        }
+        draft.purposeRefinement = null;
+        draft.purposeClarificationQuestion = {...parsed, sourceFingerprint};
+        draft.purposeRefinementStatus = "Answer this one detail to continue; nothing has been saved or created.";
+      } else {
+        draft.purposeClarificationQuestion = null;
+        draft.purposeRefinement = {content: parsed.instructions, assumptions: parsed.assumptions, sourceFingerprint};
+        draft.purposeRefinementStatus = "Draft ready. Review it before applying; no Bot configuration has changed.";
+      }
+      markPurposeDraftFreshness();
+      persistPurposeSetupDraft();
+      await renderStep();
+      if (draft.purposeClarificationQuestion) $("#setup-clarification-question")?.focus();
+      else $("#setup-purpose-draft-review")?.focus();
+    } catch (error) {
+      if (state?.terminal) draft.purposeDraftPending = null;
+      draft.purposeRefinementStatus = `Nothing was applied: ${error.message}`;
+      persistPurposeSetupDraft();
+      const progress = $("#setup-purpose-draft-status");
+      if (progress) progress.textContent = draft.purposeRefinementStatus;
+      if (button?.isConnected) button.disabled = false;
+    } finally {
+      purposeDraftRequestInFlight = false;
+    }
   };
   const displayTool = tool => BOT_SETUP_TOOLS.find(([name]) => name === tool)?.[1] || tool;
   const reviewHtml = () => {
@@ -7143,12 +7471,12 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
           <span class="hint">By default, Hutch uses your selected request. Editing it is optional; no tools or account access are inferred.</span></label>
       </details>` : `<label class="field" for="setup-purpose">${conversationSource ? "What should this bot keep doing?" : "What would you like this bot to handle?"}<textarea id="setup-purpose" rows="${draft.forceAdvanced ? 5 : 3}" maxlength="20000" placeholder="For example: review release notes and prepare a short summary of changes that affect our project." required>${esc(draft.purpose)}</textarea>
         <span class="hint">This becomes the Bot’s standing instructions. Hutch does not add tools or account access.</span></label>`}
-        ${draft.forceAdvanced && conversationSource?.source_bot_is_coordinator && conversationSource.source_bot_runtime === "builtin" && conversationSource.source_bot_model ? `<details class="setup-schedule setup-refine-details" id="setup-refine-details" ${draft.purposeRefinement || draft.purposeRefinementStatus ? "open" : ""}>
-          <summary>Improve these instructions (optional)</summary>
+        ${conversationSource?.source_bot_is_coordinator && conversationSource.source_bot_runtime === "builtin" && conversationSource.source_bot_model ? `<details class="setup-schedule setup-refine-details" id="setup-refine-details" ${draft.purposeClarificationQuestion || draft.purposeRefinement || draft.purposeDraftPending || draft.purposeRefinementStatus ? "open" : ""}>
+          <summary>Check for missing details (optional)</summary>
           <div class="setup-refine-action">
-            <button type="button" class="btn small" id="setup-refine-purpose">Draft clearer instructions with ${esc(conversationSource.source_bot_display_name)}</button>
-            <p class="hint">This sends one request, purpose and only earlier messages you selected to ${esc(conversationSource.source_bot_display_name)}’s saved route (${esc(conversationSource.source_bot_model)}). No tools are available; normal usage limits apply. Review the draft before using it.</p>
-            <p class="hint">Stop a running draft from the coordinator chat. No Bot settings change until you apply it.</p>
+            <button type="button" class="btn small" id="setup-refine-purpose" ${draft.purposeClarificationQuestion || draft.purposeRefinement ? "hidden" : ""}>${draft.purposeDraftPending ? "Resume clarification" : "Check for missing details"}</button>
+            <p class="hint">${esc(conversationSource.source_bot_display_name)} uses this request and any earlier user messages you chose. It asks one question at a time only when an important work detail is missing, then offers an editable instruction draft. Up to five follow-ups. You can also skip this and create the Bot from your request as-is.</p>
+            <p class="hint">This uses ${esc(conversationSource.source_bot_model)} without tools or permission changes. The unsent answer and draft are kept in this browser so you can resume after reopening setup. Normal usage limits apply.</p>
             <p class="hint" role="status" aria-live="polite" id="setup-purpose-draft-status">${esc(draft.purposeRefinementStatus)}</p>
             ${purposeRefinementHtml()}
           </div>
@@ -7345,6 +7673,10 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     $("#setup-use-source")?.addEventListener("change", event => {
       draft.useConversationSource = event.currentTarget.checked;
       draft.purpose = draft.useConversationSource ? conversationSource.original_request : "";
+      if (!draft.useConversationSource) {
+        draft.selectedContextMessageIds.clear();
+        clearPurposeSetupProgress();
+      }
       const purposeEditor = $("#setup-purpose-editor");
       if (purposeEditor) purposeEditor.open = !draft.useConversationSource;
       refreshSuggestedIdentity();
@@ -7369,6 +7701,22 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       refreshContextCount();
       markPurposeDraftFreshness();
     }));
+    $$('input[name="setup-clarification-choice"]').forEach(input => input.addEventListener("change", event => {
+      draft.purposeClarificationChoice = event.currentTarget.value;
+      draft.purposeClarificationAnswer = $("#setup-clarification-answer")?.value || "";
+      persistPurposeSetupDraft();
+    }));
+    $("#setup-clarification-answer")?.addEventListener("input", event => {
+      draft.purposeClarificationAnswer = event.currentTarget.value;
+      persistPurposeSetupDraft();
+    });
+    $("#setup-clarification-continue")?.addEventListener("click", () => {
+      void runPurposeClarification({answerCurrentQuestion: true});
+    });
+    $("#setup-clarification-reset")?.addEventListener("click", () => {
+      clearPurposeSetupProgress();
+      void renderStep().then(() => $("#setup-refine-purpose")?.focus());
+    });
     $("#setup-purpose-draft-use")?.addEventListener("click", () => {
       const suggestion = $("#setup-purpose-draft-text")?.value || "";
       if (!suggestion.trim() || suggestion.length > 20_000) {
@@ -7384,69 +7732,10 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
       draft.purposeRefinement = null;
       draft.purposeRefinementStatus = "Draft applied to the purpose field. Review it and the remaining Bot settings before creating.";
       refreshSuggestedIdentity();
+      persistPurposeSetupDraft();
       void renderStep().then(() => $("#setup-purpose")?.focus());
     });
-    $("#setup-refine-purpose")?.addEventListener("click", async event => {
-      snapshotFields();
-      setError("");
-      if (!conversationSource?.source_bot_is_coordinator || !draft.useConversationSource || !draft.purpose.trim()) {
-        setError("Use the selected coordinator request and review a non-empty purpose before drafting.");
-        return;
-      }
-      if (Array.from(instructionsForDraft()).length > 20_000) {
-        setError("Shorten the purpose or select fewer messages before drafting; the combined text exceeds 20,000 characters.");
-        return;
-      }
-      const body = {source_message_id: conversationSource.message_id, purpose: draft.purpose,
-        context_message_ids: selectedCreationContext().map(message => message.id)};
-      const sourceFingerprint = currentPurposeDraftFingerprint();
-      const keyStorage = `hutch-bot-purpose-draft:${conversationSource.conversation_id}:${conversationSource.message_id}`;
-      const fingerprint = await payloadFingerprint(body);
-      let key;
-      try {
-        const prior = JSON.parse(storageGet(keyStorage) || "null");
-        key = prior?.fingerprint === fingerprint ? prior.key : null;
-      } catch { /* replace a damaged retry marker */ }
-      if (!key) {
-        key = newIdempotencyKey();
-        storageSet(keyStorage, JSON.stringify({fingerprint, key}));
-      }
-      const button = event.currentTarget;
-      button.disabled = true;
-      draft.purposeRefinement = null;
-      draft.purposeRefinementStatus = "Starting one tool-free model response with the workspace coordinator…";
-      const status = $("#setup-purpose-draft-status");
-      if (status) status.textContent = draft.purposeRefinementStatus;
-      try {
-        const run = await api(`/v1/conversations/${encodeURIComponent(conversationSource.conversation_id)}/bot-purpose-drafts`, {
-          method: "POST", headers: {"Idempotency-Key": key}, body,
-        });
-        const deadline = Date.now() + 120_000;
-        let state;
-        while (Date.now() < deadline) {
-          state = await api(`/v1/tasks/runs/${encodeURIComponent(run.id)}?events=200`);
-          if (state.terminal) break;
-          draft.purposeRefinementStatus = `Coordinator draft is ${state.status_label || state.status}; you can keep this sheet open or stop the run in chat.`;
-          const progress = $("#setup-purpose-draft-status");
-          if (progress) progress.textContent = draft.purposeRefinementStatus;
-          await new Promise(resolve => setTimeout(resolve, 900));
-        }
-        if (!state?.terminal) throw new Error("The request is still running. Its status and Stop control are in the coordinator chat.");
-        if (state.status !== "succeeded") throw new Error(state.error || state.reason || `Draft ended as ${state.status_label || state.status}.`);
-        const answer = [...(state.events || [])].reverse().find(item => item.type === "message" && item.data?.role === "assistant")?.data?.content || "";
-        if (!answer.trim()) throw new Error("The coordinator did not return an instruction draft.");
-        if (answer.length > 20_000) throw new Error("The coordinator draft exceeds the 20,000-character limit; edit it in chat before using it.");
-        draft.purposeRefinement = {content: answer, sourceFingerprint};
-        draft.purposeRefinementStatus = "Draft ready. Review it before applying; no Bot configuration has changed.";
-        await renderStep();
-        $("#setup-purpose-draft-text")?.focus();
-      } catch (error) {
-        draft.purposeRefinementStatus = `Draft not applied: ${error.message}`;
-        const progress = $("#setup-purpose-draft-status");
-        if (progress) progress.textContent = draft.purposeRefinementStatus;
-        button.disabled = false;
-      }
-    });
+    $("#setup-refine-purpose")?.addEventListener("click", () => { void runPurposeClarification(); });
     refreshContextCount();
     $("#setup-display_name")?.addEventListener("input", event => {
       displayNameEdited = true;
@@ -7457,10 +7746,12 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         const address = $("#setup-name");
         if (address) address.value = draft.name;
       }
+      persistPurposeSetupDraft();
     });
     $("#setup-name")?.addEventListener("input", event => {
       addressEdited = true;
       draft.name = event.currentTarget.value;
+      persistPurposeSetupDraft();
     });
     $$('input[name="setup-template"]').forEach(input => input.addEventListener("change", () => {
       draft.template = input.value;
@@ -7485,7 +7776,9 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
     $("#setup-inference_mode")?.addEventListener("change", async () => {
       snapshotFields(); draft.inference_mode = $("#setup-inference_mode").value; await renderStep();
     });
-    (step === 0 ? (conversationSource && draft.useConversationSource && !draft.forceAdvanced
+    (step === 0 && draft.purposeClarificationQuestion ? $("#setup-clarification-question")
+      : step === 0 && draft.purposeRefinement ? $("#setup-purpose-draft-review")
+      : step === 0 ? (conversationSource && draft.useConversationSource && !draft.forceAdvanced
       ? $("#setup-display_name") : $("#setup-purpose")) : step === 1 ? $("#setup-model") : $("input, textarea, select", body))?.focus();
   };
   const creationKey = async body => {
@@ -7536,6 +7829,7 @@ async function promptNewBot(preselect = "", sourceMessageId = "", duplicateBot =
         const key = await creationKey(body);
         const bot = await api("/v1/bots", { method: "POST", headers: { "Idempotency-Key": key }, body });
         storageRemove("hutch-pending-bot-create");
+        if (purposeSetupStorageKey) storageRemove(purposeSetupStorageKey);
         toast(`Bot “${bot.display_name || draft.display_name}” created. It has not started a run.`);
         location.hash = `#/chat/${encodeURIComponent(bot.name)}`;
         return true;
