@@ -156,7 +156,7 @@ Strict Offline Linux runs; it does not complete the broader S6 collaboration pla
 - [ ] Strict Offline end-to-end gate. Experimental Linux worker isolation uses fresh bubblewrap network/PID namespaces and a per-run Unix-socket model broker; this host probe and a fixture-provider request pass. No live local model journey is verified, and model-server provenance remains outside the boundary. Local explicitly means local inference with ordinary tool policy.
 - [ ] Run retries with backoff + idempotency keys for external actions
 - [ ] Notifications beyond tab-open browser alerts (webhook, service-worker push and closed-tab delivery)
-- [ ] Snapshot/export of bot definitions (YAML in/out) for sharing
+- [~] Guided new-Bot setup can preview and download a validated versioned YAML draft; importing files and snapshotting existing Bot definitions remain open.
 - [ ] Secret per-bot credentials via OS keyring (referenced, never in prompts)
 
 ## Phase 2 — capability

@@ -182,6 +182,10 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   pre-fills it as an explicitly labelled, editable suggestion; the confirmed route becomes the new Bot's saved default. It does not
   silently fall back or start a run. The current wizard does not yet infer other configuration or ask
   only for unresolved details; name, starter, model/mode, workspace, tools, limits and schedule remain user-reviewed choices.
+* `POST /api/v1/bot-configs/preview` accepts a typed Bot-creation body and returns `{yaml, omitted_fields, saved:false}` after the
+  same creation validation. Its `hutch.ai/v1` `BotConfig` YAML includes the reviewed setup fields and is marked `Cache-Control: no-store`.
+  Provider endpoint URLs, local folder paths, and conversation-source identifiers are excluded. Previewing creates no Bot or run;
+  Studio offers it only on the final review step, and creation still requires the separate **Create bot** confirmation.
 * **Landed workspace model default.** `GET/PUT /api/v1/preferences/model-defaults` reads or saves a validated `{model, inference_mode}` preference. When no model is supplied in `POST /api/v1/bots`, the workspace route seeds the new Bot; when no inference mode is supplied, the workspace mode does, including when the request names a route. Each explicitly supplied field takes precedence independently. Creation still requires a usable final route. The preference is consulted only for creation and never mutates an existing Bot, conversation or run. An empty model clears the route default and lets each new Bot choose. Invalid route/mode combinations are rejected without replacing the last saved value; Strict Offline additionally requires the host check and a verified local route. Chat-sourced setup suggestions take precedence and remain editable. The response's `configured` flag indicates whether the model route is non-empty.
 * `POST /api/v1/tasks/runs` takes `{bot, prompt, rehearse?, model?}` and requires `Idempotency-Key`. The run, task and replay
   response are stored in one SQLite transaction. A new request returns 201; an exact retry returns the same run with `replayed: true`

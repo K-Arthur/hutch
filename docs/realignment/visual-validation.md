@@ -1,5 +1,21 @@
 # Visual validation record
 
+## Bot setup YAML review and download (2026-10-09)
+
+The final guided setup review now has a keyboard-operable YAML preview and download action. The
+preview fits inside the modal at desktop **1440×960**, tablet **900×1024**, and phone **390×844**;
+the YAML block scrolls within its own boundary, the modal footer stays visible, and the page has no
+horizontal overflow. I inspected all three rendered captures. Pressing Enter builds the preview and
+downloads the same text. The setup remains unsaved until **Create bot** is confirmed.
+
+Chromium **153.0.8010.12** / Playwright **1.63.0** passed
+`tests/e2e/test_browser.py::test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone`.
+The API test validates parseable YAML and checks that endpoint URLs, local paths and chat-source
+references are omitted, the response is not cached, and no Bot/run is saved. The browser used a
+synthetic route and test-only credential marker; no model call or external request occurred. Screenshots,
+the downloaded YAML sample, validation metadata and trace are in
+[`artifacts/bot-setup/`](artifacts/bot-setup/). No screen reader or physical phone was used.
+
 ## Searchable pinned Bot roster and flat app mascots (2026-10-09)
 
 The Studio roster keeps the workspace coordinator first, then shows pinned Bots in a

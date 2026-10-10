@@ -42,6 +42,10 @@ All notable changes to hutch (formerly "openbot"). Format follows Keep a Changel
 
 ## [Unreleased]
 
+- Guided Bot setup now validates and previews a versioned YAML configuration and can download the unsaved draft for review. The
+  preview uses the Bot-creation validator, creates no Bot or run, and excludes provider endpoint URLs, local folder paths, and
+  conversation-source identifiers; its private text response is not cached. Desktop, tablet and phone browser checks cover the
+  preview and download.
 - The current compatibility guide now consolidates the experimental Google Calendar, Gmail, Outlook Calendar, and Outlook Mail scopes, per-Bot grant boundaries, local credential storage, model-data movement, and live-verification limits. The typed API contract now lists model capability and workspace-default endpoints and distinguishes them from still-unavailable general workspace filesystem management.
 - Connections now shows up to five newest, route-specific tool-call observations from normal Bot runs, with explicit unknown and history-unavailable states; this evidence is not a capability guarantee. Model-capability pagination supports newest-first keyset reads.
 - Bot setup labels the generated name as a suggested Bot identity, explains its professional work-role pairing, and keeps the AI Bot identity explicit in chat and lists.

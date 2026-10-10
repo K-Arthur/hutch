@@ -3,8 +3,7 @@
   "browser": "chromium",
   "browser_version": "153.0.8010.12",
   "playwright_version": "1.63.0",
-  "scenario": "four-screen Bot setup with a test-only credential-shaped value; configured model route is reviewed, safe defaults remain tool-free, optional controls are disclosed, and creating the Bot does not start a run; no provider call was made",
-  "focused_verification": "5 passed in 13.19s, including the four Bot-creation journeys and anonymous marketing-copy validation",
+  "scenario": "guided setup uses a test-only dummy key and makes no model call; Enter builds a non-persisting YAML preview and downloads the same sanitized text before the separate Create bot confirmation; checked review configuration at desktop, tablet and phone widths",
   "viewports": {
     "desktop": [
       1440,
@@ -35,14 +34,17 @@
     "review-phone.png",
     "review-details-end-desktop.png",
     "review-details-end-tablet.png",
-    "review-details-end-phone.png"
+    "review-details-end-phone.png",
+    "yaml-preview-desktop.png",
+    "yaml-preview-tablet.png",
+    "yaml-preview-phone.png"
   ],
   "page_errors": [],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "3cf01e0334288a6e92b4775f54efe56b61266d07583631796120f652c3a59803",
-    "src/hutch/server/static/style.css": "940748e3cc2532d0d0545ba39a3d81fa3ca44f4f9952da04b4a3868a9be71815",
-    "src/hutch/server/app.py": "488d0533ca2e44cd2e1594ad5009d75bbc19a6fc8b5b772f34b4a15bd15d4ddb",
-    "src/hutch/store.py": "fd257471c66f867f3e4a9fbe74f1f26c67b46f5178ad63371d82f711865e8be7",
-    "tests/e2e/test_browser.py": "1adce24f9abe2864d70da42414cadfb0776d100279bff6a8a3edc1012f9183f6"
+    "src/hutch/server/static/app.js": "a2f20498d4b1f93eb3e86334d7b6758d9399bff20d5f9461e4ed376f64594cb5",
+    "src/hutch/server/static/style.css": "2f9191ee3151077189760b4479c0a9625e82b59f0ba90497d401af2c8eaa54b1",
+    "src/hutch/server/app.py": "7db3505ec1c21ffe4cb36520e673ec146f883ba319bd36db611c9129d7fa9482",
+    "src/hutch/store.py": "260f2304d7f6788a50cb5bb33c9f3f30778ea8f428eef042d827d81bfe21052d",
+    "tests/e2e/test_browser.py": "10a99a9b99cd4dbe7a2a4d3491babdabd89bdd6557b1d764a6aa8bef39bf2bc8"
   }
 }

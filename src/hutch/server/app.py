@@ -133,6 +133,12 @@ class BotCreate(BaseModel):
         return normalized
 
 
+class BotConfigPreviewResource(BaseModel):
+    yaml: str
+    omitted_fields: list[str]
+    saved: Literal[False] = False
+
+
 class RestoreReportResource(BaseModel):
     id: str
     created_at: str
@@ -2421,6 +2427,26 @@ def create_app() -> FastAPI:
             raise HTTPException(409, str(exc)) from None
         response.status_code = 201 if created else 200
         return bot_view(saved)
+
+    @app.post("/api/v1/bot-configs/preview", response_model=BotConfigPreviewResource)
+    def preview_bot_config(body: BotCreate, response: Response) -> dict:
+        """Validate and render a reviewed setup draft without saving it."""
+        bot_from_create_request(body)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        excluded = {
+            "base_url", "workdir", "source_conversation_id", "source_message_id",
+            "source_context_message_ids",
+        }
+        spec = body.model_dump(mode="json", exclude=excluded)
+        document = {"apiVersion": "hutch.ai/v1", "kind": "BotConfig", "spec": spec}
+        import yaml
+        rendered = yaml.safe_dump(document, sort_keys=False, allow_unicode=True, default_flow_style=False)
+        return {
+            "yaml": rendered,
+            "omitted_fields": ["provider endpoint URL", "local folder path", "chat source references"],
+            "saved": False,
+        }
 
     @app.post("/api/bots", status_code=201)
     def create_bot(body: BotCreate) -> dict:

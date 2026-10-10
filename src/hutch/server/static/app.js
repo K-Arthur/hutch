@@ -5786,6 +5786,15 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
     const context = selected.map(message => `User message ${message.seq}:\n${message.content}`).join("\n\n");
     return `${purpose}\n\nOwner-selected background context from this chat (not a permission or access grant):\n${context}`;
   };
+  const setupConfiguration = () => ({
+    name: draft.name.trim(), display_name: draft.display_name.trim(), template: draft.template || null,
+    description: draft.description.trim() || draft.purpose.trim().split("\n")[0].slice(0, 240),
+    instructions: instructionsForDraft(), model: draft.model.trim(), inference_mode: draft.inference_mode,
+    workspace_mode: draft.workspace_mode, tools: [...draft.tools], approval_mode: "ask", risk_tier: "supervised",
+    limits: draft.limits, memory_enabled: draft.tools.has("remember") || draft.tools.has("recall"),
+    local_browser_handoff: draft.local_browser_handoff,
+    cron: draft.cron.trim() || null, schedule_prompt: draft.schedule_prompt.trim(),
+  });
   const refreshContextCount = () => {
     const node = $("#setup-context-count");
     if (!node) return;
@@ -5855,6 +5864,16 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
         <div><dt>Model limits</dt><dd>${draft.limits.max_turn_tokens ? `${draft.limits.max_turn_tokens.toLocaleString()} tokens per turn` : "Provider default tokens per turn"} · ${draft.limits.max_cost_usd ? `$${draft.limits.max_cost_usd.toFixed(2)} estimated per run` : "No per-run estimate limit"} · ${draft.limits.daily_cost_cap_usd ? `$${draft.limits.daily_cost_cap_usd.toFixed(2)} estimated per day` : "No daily estimate limit"}</dd></div>
         <div><dt>Recurring task</dt><dd>${draft.cron.trim() ? `${esc(draft.cron.trim())}${draft.schedule_prompt.trim() ? ` · ${esc(draft.schedule_prompt.trim())}` : ""}` : "None"}</dd></div>
       </dl>
+      <details class="setup-schedule setup-yaml" id="setup-yaml-details">
+        <summary>View or download YAML</summary>
+        <p class="hint">The file contains these saved instructions and Bot settings. It never includes provider credentials, chat-source links, custom endpoint URLs, or local folder paths. If your instructions contain private context, that text will be in the file. Previewing does not create or change a Bot.</p>
+        <div class="setup-yaml-actions">
+          <button type="button" class="btn small" id="setup-yaml-build">Build YAML preview</button>
+          <button type="button" class="btn ghost small" id="setup-yaml-download" disabled>Download YAML</button>
+        </div>
+        <p class="hint" id="setup-yaml-status" role="status" aria-live="polite"></p>
+        <pre class="setup-yaml-preview" id="setup-yaml-preview" tabindex="0" aria-label="YAML Bot configuration preview" hidden></pre>
+      </details>
       <p class="hint">Token and currency limits use estimates, not guaranteed provider billing caps. The purpose, selected context and selected configuration are saved; they do not add tools or access. Passwords and one-time codes must be entered directly by you in the visible browser, never in chat.</p>
     </div>`;
   };
@@ -5985,6 +6004,39 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
     body.scrollTop = 0;
     confirm.textContent = step === 3 ? "Create bot" : "Continue";
     confirm.disabled = false;
+    let configurationYaml = "";
+    $("#setup-yaml-build")?.addEventListener("click", async event => {
+      snapshotFields();
+      const button = event.currentTarget;
+      const download = $("#setup-yaml-download"), status = $("#setup-yaml-status"), preview = $("#setup-yaml-preview");
+      button.disabled = true;
+      if (download) download.disabled = true;
+      if (preview) { preview.hidden = true; preview.textContent = ""; }
+      if (status) status.textContent = "Validating and building a preview…";
+      try {
+        const result = await api("/v1/bot-configs/preview", { method: "POST", body: setupConfiguration() });
+        configurationYaml = result.yaml;
+        if (preview) { preview.textContent = configurationYaml; preview.hidden = false; }
+        if (download) download.disabled = false;
+        if (status) status.textContent = "YAML preview ready. No Bot was created or changed.";
+      } catch (error) {
+        configurationYaml = "";
+        if (status) status.textContent = `Could not build the preview: ${error.message}`;
+      } finally {
+        button.disabled = false;
+      }
+    });
+    $("#setup-yaml-download")?.addEventListener("click", () => {
+      if (!configurationYaml) return;
+      const blob = new Blob([configurationYaml], { type: "application/yaml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const slug = (draft.name || "bot-config").toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "bot-config";
+      link.href = url;
+      link.download = `hutch-${slug}.yaml`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    });
     $("#setup-back")?.addEventListener("click", () => { snapshotFields(); draft.step = Math.max(0, draft.step - 1); void renderStep(); });
     $("#setup-use-source")?.addEventListener("change", event => {
       draft.useConversationSource = event.currentTarget.checked;
@@ -6151,17 +6203,10 @@ async function promptNewBot(preselect = "", sourceMessageId = "") {
       }
       if (draft.step < 3) { draft.step += 1; await renderStep(); return false; }
       const body = {
-        name: draft.name.trim(), display_name: draft.display_name.trim(), template: draft.template || null,
-        description: draft.description.trim() || draft.purpose.trim().split("\n")[0].slice(0, 240),
-        instructions: instructionsForDraft(), model: draft.model.trim(), inference_mode: draft.inference_mode,
+        ...setupConfiguration(),
         source_conversation_id: draft.useConversationSource || selectedCreationContext().length ? conversationSource?.conversation_id || null : null,
         source_message_id: draft.useConversationSource ? conversationSource?.message_id || null : null,
         source_context_message_ids: selectedCreationContext().map(message => message.id),
-        workspace_mode: draft.workspace_mode, tools: [...draft.tools], approval_mode: "ask", risk_tier: "supervised",
-        limits: draft.limits,
-        memory_enabled: draft.tools.has("remember") || draft.tools.has("recall"),
-        local_browser_handoff: draft.local_browser_handoff,
-        cron: draft.cron.trim() || null, schedule_prompt: draft.schedule_prompt.trim(),
       };
       const button = $("#modal-confirm"); if (button) button.disabled = true;
       try {

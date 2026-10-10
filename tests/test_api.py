@@ -949,6 +949,53 @@ def test_bot_limits_are_editable_and_validated(client):
     assert client.patch("/api/bots/api-bot", json={"limits": {"max_cost_usd": -0.01}}).status_code == 422
 
 
+def test_bot_setup_yaml_preview_is_validated_sanitized_and_never_persists(client):
+    import yaml
+
+    body = {
+        "name": "yaml-preview-bot", "display_name": "Avery · Project Reporter",
+        "description": "Prepare project updates", "instructions": "Summarize confirmed facts only.",
+        "model": "mock/demo", "tools": ["files"], "inference_mode": "hybrid",
+        "workspace_mode": "managed", "approval_mode": "ask", "risk_tier": "supervised",
+        "local_browser_handoff": True,
+        "limits": {"max_steps": 12, "timeout_seconds": 300, "daily_token_cap": 5000,
+                   "max_turn_tokens": 1000, "max_cost_usd": 0.25, "daily_cost_cap_usd": 1.5},
+        "cron": None, "schedule_prompt": "",
+        "base_url": "https://private.example/v1?token=must-not-export",
+        "source_conversation_id": "private-conversation-id",
+        "source_message_id": "private-message-id",
+    }
+
+    response = client.post("/api/v1/bot-configs/preview", json=body)
+
+    assert response.status_code == 200, response.text
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    document = yaml.safe_load(response.json()["yaml"])
+    assert document["apiVersion"] == "hutch.ai/v1"
+    assert document["kind"] == "BotConfig"
+    assert document["spec"]["name"] == "yaml-preview-bot"
+    assert document["spec"]["instructions"] == body["instructions"]
+    assert document["spec"]["limits"] == body["limits"]
+    assert document["spec"]["tools"] == ["files"]
+    assert document["spec"]["local_browser_handoff"] is True
+    serialized = response.text
+    assert "must-not-export" not in serialized
+    assert "private-conversation-id" not in serialized
+    assert "private-message-id" not in serialized
+    assert "base_url" not in document["spec"] and "workdir" not in document["spec"]
+    assert client.get("/api/bots").json() == []
+    assert client.app.state.store.list_runs(limit=10) == []
+
+
+def test_bot_setup_yaml_preview_rejects_invalid_configuration_without_saving(client):
+    response = client.post("/api/v1/bot-configs/preview", json={
+        "name": "Invalid Bot!", "model": "mock/demo", "tools": ["not-a-tool"],
+    })
+    assert response.status_code == 422
+    assert client.get("/api/bots").json() == []
+
+
 def test_templates_endpoint(client):
     templates = client.get("/api/bots/templates").json()
     names = {t["name"] for t in templates}

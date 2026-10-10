@@ -3387,7 +3387,9 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         page.get_by_role("heading", name="Describe the work").wait_for()
         page.get_by_label("What would you like this bot to handle?").fill(
             "Review release notes and prepare a short summary of changes that affect our project.")
-        assert page.locator("#setup-name-preview").inner_text() == "Release Notes Reviewer"
+        suggested_name = page.locator("#setup-name-preview").inner_text()
+        assert suggested_name.endswith(" · Release Notes Reviewer")
+        assert len(suggested_name.split(" · ", 1)[0].split()) == 2
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             page.screenshot(path=str(out / f"purpose-{label}.png"), animations="disabled")
@@ -3499,6 +3501,45 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
         assert page.get_by_text("It will not start a run.", exact=False).is_visible()
         assert page.get_by_text("Browser handoff", exact=True).is_visible()
         assert app.state.store.list_runs() == []
+        assert app.state.store.get_bot("guided-release-reviewer") is None
+        page.locator("#setup-yaml-details > summary").click()
+        yaml_build = page.get_by_role("button", name="Build YAML preview")
+        with page.expect_response(lambda response: response.url.endswith("/api/v1/bot-configs/preview")
+                                 and response.request.method == "POST") as yaml_preview:
+            yaml_build.focus()
+            yaml_build.press("Enter")
+        preview_response = yaml_preview.value
+        assert preview_response.status == 200, preview_response.text()
+        preview_payload = preview_response.json()
+        yaml_text = preview_payload["yaml"]
+        assert "kind: BotConfig" in yaml_text and "guided-release-reviewer" in yaml_text
+        assert "Review release notes and prepare a short summary" in yaml_text
+        assert preview_payload["saved"] is False
+        assert "provider endpoint URL" in preview_payload["omitted_fields"]
+        assert page.locator("#setup-yaml-download").is_enabled()
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.locator("#setup-yaml-preview").scroll_into_view_if_needed()
+            page.screenshot(path=str(out / f"yaml-preview-{label}.png"), animations="disabled")
+            metrics = page.evaluate("""() => ({viewport:[innerWidth,innerHeight], documentWidth:document.documentElement.scrollWidth,
+              bodyOverflow:document.querySelector('.modal-body').scrollWidth-document.querySelector('.modal-body').clientWidth,
+              previewVisible:(() => {const r=document.querySelector('#setup-yaml-preview').getBoundingClientRect();
+                const body=document.querySelector('.modal-body').getBoundingClientRect();
+                const footer=document.querySelector('.modal-footer').getBoundingClientRect();
+                return r.height>0 && r.top>=body.top-1 && r.bottom<=footer.top+1;})(),
+              footerVisible:document.querySelector('.modal-footer').getBoundingClientRect().bottom<=innerHeight})""")
+            assert metrics["documentWidth"] - width <= 1 and metrics["bodyOverflow"] <= 1, (label, metrics)
+            assert metrics["previewVisible"] and metrics["footerVisible"], (label, metrics)
+        yaml_download_button = page.get_by_role("button", name="Download YAML")
+        yaml_download_button.focus()
+        with page.expect_download() as yaml_download:
+            yaml_download_button.press("Enter")
+        download = yaml_download.value
+        assert download.suggested_filename == "hutch-guided-release-reviewer.yaml"
+        download.save_as(str(out / download.suggested_filename))
+        assert (out / download.suggested_filename).read_text(encoding="utf-8") == yaml_text
+        assert app.state.store.get_bot("guided-release-reviewer") is None
+        assert app.state.store.list_runs() == []
         with page.expect_response(lambda response: response.url.endswith("/api/v1/bots")
                                  and response.request.method == "POST") as created:
             page.locator("#modal-confirm").click()
@@ -3516,14 +3557,15 @@ def test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone(b
             "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_guided_bot_creation_reviews_configuration_at_desktop_tablet_and_phone",
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright_version": package_version("playwright"),
-            "scenario": "guided setup against a configured-shape route with a test-only dummy key; no model call was made; create persists configuration and does not start a run; checked review details at both ends and handoff disclosure at phone width",
+            "scenario": "guided setup uses a test-only dummy key and makes no model call; Enter builds a non-persisting YAML preview and downloads the same sanitized text before the separate Create bot confirmation; checked review configuration at desktop, tablet and phone widths",
             "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
             "inspected_screenshots": ["purpose-desktop.png", "purpose-tablet.png", "purpose-phone.png",
                                       "options-desktop.png", "options-tablet.png", "options-phone.png",
                                       "configuration-desktop.png", "configuration-tablet.png", "configuration-phone.png",
                                       "configuration-handoff-phone.png", "review-desktop.png", "review-tablet.png",
                                       "review-phone.png", "review-details-end-desktop.png", "review-details-end-tablet.png",
-                                      "review-details-end-phone.png"],
+                                      "review-details-end-phone.png", "yaml-preview-desktop.png", "yaml-preview-tablet.png",
+                                      "yaml-preview-phone.png"],
             "page_errors": errors,
             "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
                               for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
