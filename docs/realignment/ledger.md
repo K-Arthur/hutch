@@ -3467,5 +3467,30 @@ on this machine; systemd command behavior is tested with a controlled runner. Im
 `main` as `b755a24`. No push or publication occurred.
 
 This is a narrow reliability slice, not completion of the realignment or the user-requested full UI overhaul. The wider product
-features remain tracked in [`../requirements.md`](../requirements.md); the UI redesign is intentionally queued after the remaining
-functional work and must retain responsive screenshot and interaction validation.
+features remain tracked in [`../requirements.md`](../requirements.md); the remaining all-surface design pass follows the unfinished
+functional slices and must retain responsive screenshot and interaction validation.
+
+## Assistant visual refinement (2026-10-10)
+
+After reviewing the user’s icon, mascot, and narrow-phone feedback, the app’s eight 2D mascot faces now use a shared pair of tapered
+light eyes with a fine dark edge, fitted to each silhouette. Apps & AI presents compact service-color category glyphs next to the
+full name and connection state; Microsoft Outlook is spelled out. The Fleet page keeps its full title and a one-line **New** action
+at phone width, with its full accessible name preserved. A short-desktop welcome layout keeps the setup action visible. The marketing
+approval illustration now uses a local vector check mark. The design docs, changelog, and separately saved screenshots were updated.
+
+The focused browser run passed **4 tests in 26.85s**: first-run/catalog, all eight face-containment and picker checks, all-route
+responsive rendering, and pinned roster selection. The route journey captures and checks ten pages at **1440×960**, **900×1024**,
+**390×844**, and **320×740**. All 30 desktop/tablet/phone route screenshots and all eight face crops were individually opened;
+the four-size mascot picker and the updated marketing illustration were also visually checked. Chromium **153.0.8010.12** /
+Playwright **1.63.0** with Python **3.13.15** made zero external requests or provider calls. `node --check` and `git diff --check`
+passed. No physical phone or screen reader was tested. Mobbin remained inaccessible on the current plan and Figma's node-level
+retrieval was blocked by its Starter-plan limit.
+
+The official ChatGPT and Outlook marks were found, but the provider guidelines reviewed for this pass do not establish a Hutch license
+to ship them. The Microsoft guideline explicitly reserves its product icons for licensed uses; OpenAI's mark must follow its use
+terms and not imply endorsement. Hutch keeps the original named category tiles until brand usage is authorized. This distinction is
+documented in [`../research/icon-and-chat-interface-references-2026-10-10.md`](../research/icon-and-chat-interface-references-2026-10-10.md).
+
+The implementation and visual evidence are committed locally on `main` as `0ef7c9ae782102921abbe100da4f1b72bf89c2f4`. This is one
+reviewed UI slice; the broader all-surface redesign and the remaining platform realignment are still open. No push or publication
+occurred.
