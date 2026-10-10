@@ -152,7 +152,7 @@ requested. No real Microsoft account, consent screen, or Graph request has been 
 The Connections page grants one connected mailbox to each Bot. Search uses the fixed Graph v1.0
 `/me/messages` endpoint, which includes Deleted Items and Clutter, and returns no more than ten
 matches with sender, subject, received time, and
-a 1,200-character-capped preview. Hutch does not fetch attachments or provide send, edit, delete,
+a 1,200-character-capped preview. The read grant does not provide send, edit, delete,
 forward, or mailbox-settings operations. Message content is untrusted, is sent to the Bot's selected
 model, and is retained in its run history. Strict Offline mode does not expose the search tool.
 Microsoft consent is account-wide: removing the Hutch grant or disconnecting removes Hutch's local
@@ -161,18 +161,21 @@ verification remain release gaps. See [List messages](https://learn.microsoft.co
 [`$search` for message collections](https://learn.microsoft.com/en-us/graph/search-query-parameter),
 and [Microsoft Graph permissions](https://learn.microsoft.com/en-us/graph/permissions-reference).
 
-### Outlook Mail sending (experimental API preview; no Connections UI yet)
+### Outlook Mail sending (experimental Connections setup)
 
 Sending uses a separate Outlook sign-in and credential namespace from `Mail.Read`. Set the same
 `HUTCH_OUTLOOK_OAUTH_CLIENT_ID`, register
 `http://localhost/api/v1/connections/outlook-mail-send/callback`, and explicitly sign in for
 delegated `Mail.Send` plus `offline_access`. Hutch will not upgrade a read-only sign-in or infer
 send permission from a broad account grant. Refresh credentials are stored in Linux Secret Service;
-SQLite stores only the account label and each Bot's explicit grant. This API-only preview has not
-been exercised with a real Microsoft account and is not yet exposed as a control in Apps & AI.
+SQLite stores only the account label and each Bot's explicit grant. The optional setup is inside
+**Apps & AI → More account settings → Outlook Mail → Set up optional email sending**. It has its own
+sign-in, account record and Bot grant; it does not upgrade or reuse the Mail.Read connection. It has
+not been exercised with a real Microsoft account.
 
-The owner grants one sending account to one Bot with the versioned
-`/api/v1/connections/outlook-mail-send` API. Each action is one new plain-text message to at most
+The owner grants one sending account to one Bot from that section or with the versioned
+`/api/v1/connections/outlook-mail-send` API. The screen states the approval and retry limits before
+the grant is saved. Each action is one new plain-text message to at most
 five addresses. Before sending, Hutch asks for a fresh decision on the exact account, recipients,
 subject and body—even when the Bot uses automatic approval. Replies, forwards, attachments, CC and
 BCC are not available. The request goes only to the fixed Microsoft Graph v1.0 `/me/sendMail`

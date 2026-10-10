@@ -466,9 +466,13 @@ const googleCalendarResult = chatgptCallback.get("google_calendar_result");
 const googleMailResult = chatgptCallback.get("google_mail_result");
 const outlookCalendarResult = chatgptCallback.get("outlook_calendar_result");
 const outlookMailResult = chatgptCallback.get("outlook_mail_result");
-if (chatgptResult || googleCalendarResult || googleMailResult || outlookCalendarResult || outlookMailResult) {
+const outlookMailSendResult = chatgptCallback.get("outlook_mail_send_result");
+if (chatgptResult || googleCalendarResult || googleMailResult || outlookCalendarResult || outlookMailResult || outlookMailSendResult) {
   const detail = chatgptCallback.get("detail");
-  const message = outlookMailResult
+  const message = outlookMailSendResult
+    ? outlookMailSendResult === "connected" ? "Outlook Mail sending account connected. Grant one Bot sending access from Connections."
+      : detail || "Outlook Mail sign-in did not complete. Start again from Connections."
+    : outlookMailResult
     ? outlookMailResult === "connected" ? "Outlook Mail account connected. Grant one Bot read access from Connections."
       : detail || "Outlook Mail sign-in did not complete. Start again from Connections."
     : googleMailResult
@@ -483,7 +487,7 @@ if (chatgptResult || googleCalendarResult || googleMailResult || outlookCalendar
     : chatgptResult === "connected" ? "ChatGPT plan route connected."
     : chatgptResult === "identity-only" ? "ChatGPT signed in, but plan use was not granted. Reauthorize to use it for models."
     : detail || "ChatGPT sign-in did not complete. Start again from Connections.";
-  setTimeout(() => toast(message, chatgptResult === "error" || googleCalendarResult === "error" || googleMailResult === "error" || outlookCalendarResult === "error" || outlookMailResult === "error"), 0);
+  setTimeout(() => toast(message, chatgptResult === "error" || googleCalendarResult === "error" || googleMailResult === "error" || outlookCalendarResult === "error" || outlookMailResult === "error" || outlookMailSendResult === "error"), 0);
   history.replaceState(null, "", `${location.pathname}${location.hash || "#/connections"}`);
 }
 
@@ -586,14 +590,17 @@ function icon(name, cls = "") {
   return `<svg class="icon ${esc(cls)}" data-icon="${esc(name)}" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICON_PATHS[name] || ""}</svg>`;
 }
 
-// Provider names stay explicit; the adjacent symbols describe categories and
-// are Hutch artwork, not provider logos.
+// Use OpenAI's unaltered monochrome Blossom only beside its explicitly named
+// service. Other symbols describe categories; Microsoft branding is reserved
+// for its official sign-in control rather than an unlicensed Outlook mark.
 function serviceMark(kind) {
+  if (kind === "chatgpt") {
+    return '<span class="service-mark service-mark-chatgpt" data-service-category="chatgpt" aria-hidden="true"><img src="/static/brands/openai-white-monoblossom.svg" alt=""></span>';
+  }
   const serviceIcons = {
     calendar: "calendar",
     gmail: "mail",
     outlook: "inbox",
-    chatgpt: "sparkles",
     hosted: "cloud",
     local: "monitor",
   };
@@ -612,7 +619,7 @@ function summarizeOutput(output) {
 
 /* ---------------------------------------------------------------- avatars
    Each Bot gets one light 2D character: a distinctive, name-stable silhouette,
-   one brand-family colour and a pair of tapered, shape-fitted eyes. This family
+   one brand-family colour and a pair of shape-fitted oval eyes. This family
    belongs to the operator app; the marketing site keeps its detailed 3D artwork.
    Identity never encodes status. Status remains a separate labeled indicator. */
 const ID_COLORS = ["#3DE8C5", "#35C3F0", "#5B9BFF", "#9B7CFF", "#C77DFF", "#FF6FA5", "#FFA83C", "#7BD85A"];
@@ -626,18 +633,18 @@ const ID_HEADS = [
   { key: "triangle", d: "M27 12c2-4 8-4 10 0l19 32c2 4-1 8-5 8H13c-5 0-7-4-5-8l19-32Z" },
   { key: "hex", d: "M22 9h20l13 23-13 23H22L9 32 22 9Z" },
 ];
-// Each silhouette gets a face fitted to its own usable area. The matching,
-// tapered eye slits share an angle and visual rhythm; their size and placement
-// change with each head instead of stamping one face across every shape.
+// Each silhouette gets a pair of soft oval eyes fitted to its usable area.
+// Their spacing, size, and tilt vary with the head rather than repeating one
+// diagonal mark across every character.
 const ID_FACES = [
-  [[24, 29, 2.8, 5.7, -25], [39.7, 28, 2.35, 5, -25]], // orb: open, gently lifted pair
-  [[24.8, 28, 2.65, 6.1, -24], [39.2, 27.4, 2.25, 5.2, -24]], // capsule: tall and upright
-  [[23.8, 30, 2.7, 5.5, -27], [40.2, 28.8, 2.3, 4.8, -27]], // bean: follows the lean
-  [[24.3, 36.5, 2.75, 5.15, -24], [39.7, 35.6, 2.3, 4.6, -24]], // drop: lower in its bowl
-  [[23.8, 29.8, 2.8, 5.5, -24], [40.3, 29, 2.4, 4.9, -24]], // pebble: follows its wider face
-  [[24.8, 31.3, 2.55, 5, -24], [39.3, 30.5, 2.2, 4.35, -24]], // shield: compact below its taper
-  [[27, 37.4, 2.35, 4.55, -23], [39.7, 36.8, 2.05, 4, -23]], // triangle: centered in the base
-  [[24.2, 33.3, 2.8, 5.25, -25], [40.5, 32.7, 2.4, 4.7, -25]], // hex: follows its facets
+  [[25, 29, 4.2, 5.1, -8], [39, 28.2, 3.7, 4.7, 8]], // orb: open, gently lifted
+  [[25.5, 28, 4, 5.3, -6], [39, 27.6, 3.7, 4.9, 7]], // capsule: upright in the tall face
+  [[24.5, 30, 4, 5, -10], [39, 28.8, 3.6, 4.6, 7]], // bean: follows the lean
+  [[25, 36.5, 4, 4.9, -7], [39, 35.4, 3.6, 4.5, 8]], // drop: lower in its bowl
+  [[24.5, 30, 4.1, 5, -8], [39, 28.8, 3.7, 4.6, 7]], // pebble: follows its wide face
+  [[25.2, 31.3, 3.8, 4.8, -7], [38.8, 30.2, 3.5, 4.4, 7]], // shield: compact below its taper
+  [[28, 37.4, 3.6, 4.6, -6], [39, 36.5, 3.3, 4.2, 7]], // triangle: centered in the base
+  [[25, 33.3, 4, 5, -8], [39, 32.2, 3.6, 4.5, 7]], // hex: clear of the facets
 ];
 
 function hash32(s) {
@@ -676,9 +683,19 @@ function sigilSet(name, pair) { idStore.all[name] = pair; idStore.save(); }
 
 function sigilEyes(shapeIndex) {
   const [lead, companion] = ID_FACES[shapeIndex] || ID_FACES[0];
-  const eye = (name, [cx, cy, rx, ry, angle]) =>
-    `<path data-sigil-eye="${name}" data-cx="${cx}" data-cy="${cy}" data-rx="${rx}" data-ry="${ry}" d="M ${cx} ${cy - ry} C ${cx + rx * .62} ${cy - ry * 1.02}, ${cx + rx * 1.04} ${cy - ry * .34}, ${cx + rx} ${cy} C ${cx + rx * .94} ${cy + ry * .48}, ${cx + rx * .4} ${cy + ry * .92}, ${cx} ${cy + ry} C ${cx - rx * .53} ${cy + ry * .86}, ${cx - rx * 1.02} ${cy + ry * .44}, ${cx - rx} ${cy} C ${cx - rx * 1.04} ${cy - ry * .42}, ${cx - rx * .56} ${cy - ry * 1.02}, ${cx} ${cy - ry} Z" transform="rotate(${angle} ${cx} ${cy})"/>`;
-  return `<g aria-hidden="true" fill="#fff8e9" stroke="#16362f" stroke-width=".65">${eye("lead", lead)}${eye("companion", companion)}</g>`;
+  const eye = (name, [cx, cy, rx, ry, angle]) => {
+    // Four cubic arcs make a smooth, compact oval that stays legible at 24px.
+    const k = .55228475;
+    const d = "M " + cx + " " + (cy - ry) +
+      " C " + (cx + rx * k) + " " + (cy - ry) + " " + (cx + rx) + " " + (cy - ry * k) + " " + (cx + rx) + " " + cy +
+      " C " + (cx + rx) + " " + (cy + ry * k) + " " + (cx + rx * k) + " " + (cy + ry) + " " + cx + " " + (cy + ry) +
+      " C " + (cx - rx * k) + " " + (cy + ry) + " " + (cx - rx) + " " + (cy + ry * k) + " " + (cx - rx) + " " + cy +
+      " C " + (cx - rx) + " " + (cy - ry * k) + " " + (cx - rx * k) + " " + (cy - ry) + " " + cx + " " + (cy - ry) + " Z";
+    const transform = "rotate(" + angle + " " + cx + " " + cy + ")";
+    const metadata = 'data-cx="' + cx + '" data-cy="' + cy + '" data-rx="' + rx + '" data-ry="' + ry + '" d="' + d + '" transform="' + transform + '"';
+    return '<path data-sigil-eye="' + name + '" data-contrast-ink="#101714" ' + metadata + ' fill="#101714" aria-hidden="true"/>';
+  };
+  return '<g aria-hidden="true" fill="#101714">' + eye("lead", lead) + eye("companion", companion) + '</g>';
 }
 
 function sigilBody(pair) {
@@ -4568,42 +4585,74 @@ async function renderOverview() {
     <a class="ov-row" href="#/run/${esc(r.id)}">
       <span class="ov-row-main"><b>${esc(botDisplayName(r.bot_display_name || r.bot_name))}</b>${statusChip(r.status)}</span>
       <span class="ov-row-prompt">${esc(truncate(r.prompt || "", 90))}</span>
-      <span class="ov-row-meta mono">${r.steps} steps · ${fmt(r.tokens)} tok · ${timeAgo(r.created_at)}</span>
+      <span class="ov-row-meta">${timeAgo(r.created_at)}</span>
     </a>`;
   const waitBox = (w) => w && w.cause ? `<div class="ov-wait banner ${esc(w.kind || "wait")}"><b>Why:</b> ${esc(w.cause)}<br><b>What to do:</b> ${esc(w.fix)}</div>` : "";
+  const approvalToolName = (tool) => {
+    const labels = {
+      gmail_send: "Gmail", gmail_read: "Gmail", google_calendar_events: "Google Calendar",
+      google_calendar_create_event: "Google Calendar", outlook_send: "Outlook", outlook_read: "Outlook",
+      browser: "Browser", shell: "Computer commands", web_fetch: "Web access",
+      read_file: "Workspace files", write_file: "Workspace files", list_files: "Workspace files",
+    };
+    return labels[tool] || BOT_SETUP_TOOLS.find(([name]) => name === tool)?.[1]
+      || String(tool || "Action").replace(/[_-]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
+  };
+  const needsCount = Number(o.needs_count || 0);
+  const running = o.running || [];
+  const stale = o.stale || [];
+  const sections = [];
+  if (needsCount) sections.push(`
+    <section class="ov-col loud">
+      <h2 class="ov-h">${icon("inbox")} Needs you <span class="count">${needsCount}</span></h2>
+      ${(o.approvals || []).map(a => `
+        <a class="ov-approval" href="#/approvals">
+          <span class="ov-approval-head"><b>${esc(botDisplayName(a.bot_display_name || a.bot_name))}</b> <span class="tag">${esc(approvalToolName(a.tool))}</span> <span class="tag ${a.risk === "high" ? "danger" : ""}">${esc(a.risk)} risk</span></span>
+          <span class="ov-approval-action">${esc(a.action)}</span>
+        </a>`).join("")}
+      ${(o.humans || []).map(r => `<div class="ov-item">${row(r)}${waitBox(r.wait)}</div>`).join("")}
+      ${(o.failures || []).map(r => `<div class="ov-item">${row(r)}${waitBox(r.wait)}</div>`).join("")}
+    </section>`);
+  if (running.length) sections.push(`
+    <section class="ov-col">
+      <h2 class="ov-h">${icon("play")} Working now <span class="count">${running.length}</span></h2>
+      ${running.map(row).join("")}
+    </section>`);
+  if (stale.length) sections.push(`
+    <section class="ov-col">
+      <h2 class="ov-h">${icon("clock")} Schedule check <span class="count">${stale.length}</span></h2>
+      ${stale.map(x => `
+        <a class="ov-row" href="#/bot/${esc(x.bot_name)}">
+          <span class="ov-row-main"><b>${esc(botDisplayName(x.bot_display_name || x.bot_name))}</b><span class="status stale">Needs a look</span></span>
+          <span class="ov-row-meta">Last completed ${timeAgo(x.last_success)}</span>
+        </a>`).join("")}
+    </section>`);
+  const activity = sections.length ? `<div class="ov-grid ov-grid-active">${sections.join("")}</div>` : `
+    <section class="ov-all-clear" aria-labelledby="ov-all-clear-title">
+      <span class="ov-all-clear-icon">${icon("check", "icon-lg")}</span>
+      <div class="ov-all-clear-copy">
+        <h2 id="ov-all-clear-title">No open tasks need your attention</h2>
+        <p>Your assistants are quiet right now. Start a chat when you need help, or revisit something you’ve already sent.</p>
+      </div>
+      <div class="ov-all-clear-actions">
+        <a class="btn primary" href="#/chat">Start a chat</a>
+        <a class="btn ghost" href="#/runs">View past work</a>
+      </div>
+    </section>`;
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
-      <div class="ov-stats">
-        <div class="kpi"><span class="kpi-label">Bots</span><span class="kpi-val">${fmt(s.bots)}</span></div>
-        <div class="kpi"><span class="kpi-label">Runs today</span><span class="kpi-val">${fmt(s.runs_today)}</span></div>
-        <div class="kpi"><span class="kpi-label">Reported tokens today</span><span class="kpi-val">${fmt(s.tokens_today)}</span></div>
-        <div class="kpi"><span class="kpi-label">Recorded cost today</span><span class="kpi-val">$${Number(s.spend_today || 0).toFixed(2)}</span></div>
+      <div class="ov-stats ov-summary-stats">
+        <div class="kpi"><span class="kpi-label">Assistants</span><span class="kpi-val">${fmt(s.bots)}</span></div>
+        <div class="kpi"><span class="kpi-label">Tasks today</span><span class="kpi-val">${fmt(s.runs_today)}</span></div>
       </div>
-      <div class="ov-grid">
-        <section class="ov-col loud">
-          <h2 class="ov-h">${icon("inbox")} Needs you <span class="count">${o.needs_count}</span></h2>
-          ${!o.needs_count ? `<div class="empty-state">${icon("check", "icon-lg")}<p>Nothing needs you.</p></div>` : ""}
-          ${(o.approvals || []).map(a => `
-            <a class="ov-approval" href="#/approvals">
-              <span class="ov-approval-head"><b>${esc(botDisplayName(a.bot_display_name || a.bot_name))}</b> <span class="tag">${esc(a.tool)}</span> <span class="tag ${a.risk === "high" ? "danger" : ""}">${esc(a.risk)} risk</span></span>
-              <span class="ov-approval-action">${esc(a.action)}</span>
-            </a>`).join("")}
-          ${(o.humans || []).map(r => `<div class="ov-item">${row(r)}${waitBox(r.wait)}</div>`).join("")}
-          ${(o.failures || []).map(r => `<div class="ov-item">${row(r)}${waitBox(r.wait)}</div>`).join("")}
-        </section>
-        <section class="ov-col">
-          <h2 class="ov-h">${icon("play")} In progress <span class="count">${(o.running || []).length}</span></h2>
-          ${(o.running || []).length ? (o.running || []).map(row).join("") : `<div class="empty-state"><p>No work in progress.</p></div>`}
-        </section>
-        <section class="ov-col">
-          <h2 class="ov-h">${icon("clock")} Stale <span class="count">${(o.stale || []).length}</span></h2>
-          ${(o.stale || []).length ? (o.stale || []).map(x => `
-            <a class="ov-row" href="#/bot/${esc(x.bot_name)}">
-              <span class="ov-row-main"><b>${esc(botDisplayName(x.bot_display_name || x.bot_name))}</b><span class="status stale">stale</span></span>
-              <span class="ov-row-meta">last success ${timeAgo(x.last_success)}</span>
-            </a>`).join("") : `<div class="empty-state">${icon("check", "icon-lg")}<p>Every scheduled bot is up to date.</p></div>`}
-        </section>
-      </div>
+      <details class="ov-usage-details">
+        <summary><span>Usage details</span><span>Model tokens and cost</span></summary>
+        <div class="ov-stats ov-usage-stats">
+          <div class="kpi"><span class="kpi-label">Reported model tokens today</span><span class="kpi-val">${fmt(s.tokens_today)}</span></div>
+          <div class="kpi"><span class="kpi-label">Recorded provider cost today</span><span class="kpi-val">$${Number(s.spend_today || 0).toFixed(2)}</span></div>
+        </div>
+      </details>
+      ${activity}
     </div></div>`;
 }
 
@@ -4655,7 +4704,7 @@ function paintSchedules() {
       </button></div>`);
   view.innerHTML = `
     <div class="page-scroll"><div class="container schedule-overview">
-      <p class="schedule-overview-note">See when each task will run. Pausing stops new scheduled work; anything already underway can finish. Each task follows its own missed-time setting when you resume.</p>
+      <p class="schedule-overview-note">See when each task will run. Pausing stops new scheduled work; anything already underway can finish. If a planned time passes while paused, each task keeps its own catch-up choice when you resume.</p>
       ${paused ? `<p class="schedule-paused-note" role="status">Future scheduled admissions are paused. Missed windows follow each task’s catch-up policy after resume.</p>` : ""}
       ${empty ? `<section class="empty-state schedule-empty" aria-labelledby="schedule-empty-title">
           ${icon("clock", "icon-lg")}<h2 id="schedule-empty-title">No recurring tasks yet</h2>
@@ -4851,21 +4900,22 @@ async function renderRuns(query = "") {
     q: params.get("q") || "",
     shown: RUNS_PAGE_SIZE,
   };
-  setTopContext(`<div class="ctx-id"><h1>Work history</h1></div>`);
+  setTopContext(`<div class="ctx-id"><h1>Past work</h1></div>`);
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
+      <p class="runs-intro">See what your assistants have done. Open any task to review the full conversation and decisions.</p>
       <div class="runs-filter-bar">
-        <label class="visually-hidden" for="run-search">Find past work</label>
-        <input type="search" id="run-search" placeholder="Search assistants or requests…" value="${esc(runsState.q)}">
-        <div class="runs-filter-pills" role="group" aria-label="Filter by status">
+        <label class="visually-hidden" for="run-search">Find a task or assistant</label>
+        <input type="search" id="run-search" placeholder="Find a task or assistant…" value="${esc(runsState.q)}">
+        <div class="runs-filter-pills" role="group" aria-label="Filter past work">
           ${["all", "succeeded", "failed", "waiting_approval"].map(f => `
             <button class="${runsState.status === f ? "active" : ""}" data-filter="${f}" aria-pressed="${runsState.status === f}">
-              ${f === "all" ? "All" : f === "waiting_approval" ? "Waiting" : f[0].toUpperCase() + f.slice(1)}
+              ${f === "all" ? "All" : f === "succeeded" ? "Completed" : f === "failed" ? "Didn't finish" : "Waiting on you"}
             </button>`).join("")}
         </div>
         <span class="hint" id="runs-count"></span>
       </div>
-      <div class="table-wrap" id="runs-table-wrap"></div>
+      <div class="runs-results" id="runs-table-wrap"></div>
     </div></div>`;
 
   const syncHash = () => {
@@ -4889,14 +4939,14 @@ async function renderRuns(query = "") {
       wrap.innerHTML = runsState.all.length ? `
         <div class="empty-state">
           ${icon("search", "icon-lg")}
-          <p>No runs match this filter.</p>
+          <p>No past work matches this filter.</p>
           <button class="btn ghost small" id="runs-clear">Clear filters</button>
         </div>` : `
         <div class="empty-state">
           ${icon("zap", "icon-lg")}
-          <p><b>No runs yet.</b></p>
-          <p class="hint">Start a bot from the Studio and its transcript will appear here.</p>
-          <a class="btn primary small" href="#/chat">Open Studio</a>
+          <p><b>No past work yet.</b></p>
+          <p class="hint">Tasks you start in a chat will show up here.</p>
+          <a class="btn primary small" href="#/chat">Start a chat</a>
         </div>`;
       $("#runs-clear")?.addEventListener("click", () => {
         runsState = { ...runsState, status: "all", q: "", shown: RUNS_PAGE_SIZE };
@@ -4910,66 +4960,26 @@ async function renderRuns(query = "") {
       });
     } else {
       const rows = filtered.slice(0, runsState.shown);
-      const nowMs = Date.now();
-      const durMs = (r) => {
-        const a = r.created_at ? new Date(r.created_at).getTime() : nowMs;
-        const b = r.finished_at ? new Date(r.finished_at).getTime() : nowMs;
-        return Math.max(0, b - a);
-      };
-      const maxDur = Math.max(1, ...rows.map(durMs));
       wrap.classList.add("runs-has-results");
       wrap.innerHTML = `
-        <div class="run-card-list" aria-label="Run history">
+        <div class="run-card-list" aria-label="Past work">
           ${rows.map(r => {
-            const d = durMs(r);
             const displayName = r.bot_display_name || r.bot_name;
             return `<a class="run-card" href="#/run/${esc(r.id)}">
               <div class="run-card-head">
                 <span class="run-card-bot">${botAvatar(r.bot_name, 28)}<b title="${esc(r.bot_name)}">${esc(displayName)}</b></span>
                 ${statusChip(r.status, r.status_label)}
               </div>
-              <p class="run-card-prompt">${esc(r.prompt || "No prompt saved.")}</p>
-              <div class="run-card-meta"><span>${fmtDur(d)}</span><span>${r.steps} steps</span><span>${fmtTokens(r.tokens)} tokens</span></div>
-              <div class="run-card-foot"><code>${esc(r.id.slice(0, 12))}…</code><time datetime="${esc(r.created_at || "")}">${timeAgo(r.created_at)}</time></div>
+              <p class="run-card-prompt">${esc(r.prompt || "No task description saved.")}</p>
+              <div class="run-card-foot"><time datetime="${esc(r.created_at || "")}">${timeAgo(r.created_at)}</time><span class="run-card-open">See what happened ${icon("arrow")}</span></div>
             </a>`;
           }).join("")}
         </div>
-        <table>
-          <caption class="visually-hidden">Runs, newest first</caption>
-          <thead>
-            <tr>
-              <th>Run</th><th>Bot</th><th>Status</th><th>Prompt</th>
-              <th>Duration</th><th class="num">Steps</th><th class="num">Tokens</th><th>When</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows.map(r => {
-              const d = durMs(r);
-              const cls = r.status === "failed" ? "bad" : ACTIVE.has(r.status) && r.status !== "pending" ? "warn" : "";
-              return `
-              <tr class="clickable" tabindex="0" role="link" aria-label="Open run ${esc(r.id)}" data-goto="#/run/${esc(r.id)}" title="${esc(r.created_at || "")}">
-                <td class="mono">${esc(r.id.slice(0, 12))}…</td>
-                <td><b title="${esc(r.bot_name)}">${esc(r.bot_display_name || r.bot_name)}</b></td>
-                <td>${statusChip(r.status)}</td>
-                <td class="cell-truncate">${esc(r.prompt)}</td>
-                <td><span class="timeline"><span class="timeline-track"><i class="timeline-fill ${cls}" style="width:${Math.max(3, Math.round(d / maxDur * 100))}%"></i></span><span class="timeline-label">${fmtDur(d)}</span></span></td>
-                <td class="num">${r.steps}</td>
-                <td class="num">${fmtTokens(r.tokens)}</td>
-                <td class="mono" title="${esc(r.created_at || "")}">${timeAgo(r.created_at)}</td>
-              </tr>`;
-            }).join("")}
-          </tbody>
-        </table>
         ${filtered.length > runsState.shown ? `
           <button class="btn ghost small runs-more" id="runs-more">Show ${Math.min(RUNS_PAGE_SIZE, filtered.length - runsState.shown)} more of ${filtered.length}</button>` : ""}`;
       $("#runs-more")?.addEventListener("click", () => { runsState.shown += RUNS_PAGE_SIZE; renderRows(); });
-      $$("tr[data-goto]", wrap).forEach(tr => {
-        const go = () => { location.hash = tr.dataset.goto; };
-        tr.addEventListener("click", go);
-        tr.addEventListener("keydown", ev => { if (ev.key === "Enter") go(); });
-      });
     }
-    $("#runs-count").textContent = `${filtered.length} run${filtered.length === 1 ? "" : "s"}`;
+    $("#runs-count").textContent = `${filtered.length} result${filtered.length === 1 ? "" : "s"}`;
   };
 
   let searchTimer = null;
@@ -5806,7 +5816,7 @@ async function renderRunDetail(runId) {
   currentStudioBot = r.bot_name;
   currentRunId = runId;
   setTopContext(`
-    <div class="ctx-id"><h1>Run <span class="mono">#${esc(runId.slice(0, 12))}</span></h1>
+    <div class="ctx-id"><h1>Task details</h1>
       <div class="ctx-meta">${statusChip(r.status, r.status_label)}</div></div>
     <div class="ctx-actions">
       ${ACTIVE.has(r.status) ? `<button class="btn danger small" id="stop-this-run" ${r.status === "cancelling" ? "disabled" : ""}>${icon("stop")} ${r.status === "cancelling" ? "Stopping" : "Stop"}</button>` : ""}
@@ -5819,8 +5829,11 @@ async function renderRunDetail(runId) {
   const pct = (v) => (v / total * 100).toFixed(1);
   const dur = (r.finished_at ? new Date(r.finished_at) : Date.now()) - new Date(r.created_at);
   view.innerHTML = `
-    <div class="page-scroll" id="chat-scroll"><div class="feed" id="chat-stream">
+    <div class="page-scroll run-detail-page" id="chat-scroll"><div class="feed" id="chat-stream">
       <div class="run-stats">
+        <details class="run-technical-details" id="run-technical-details">
+          <summary><span>More details</span><span>Usage, timing, and transcript checks</span></summary>
+          <div class="run-technical-content">
         <div class="ov-stats">
           <div class="kpi"><span class="kpi-label">Steps</span><span class="kpi-val">${r.steps}</span></div>
           <div class="kpi"><span class="kpi-label">Elapsed</span><span class="kpi-val">${fmtDur(dur)}</span></div>
@@ -5857,6 +5870,9 @@ async function renderRunDetail(runId) {
             }).join("")}
           </div>
         </div>` : ""}
+            <p class="run-reference hint">Run reference <code>${esc(runId)}</code></p>
+          </div>
+        </details>
       </div>
     </div></div>`;
   // append the transcript block below the stats
@@ -5955,10 +5971,12 @@ async function renderConnections() {
   const googleMailBots = bots.filter(bot => bot.inference_mode === "local");
   const outlookCalendar = data.outlook_calendar || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const outlookMail = data.outlook_mail || { configured: false, secret_store_available: false, accounts: [], grants: [] };
+  const outlookMailSend = data.outlook_mail_send || { configured: false, secret_store_available: false, accounts: [], grants: [] };
   const windows = { "5h": "per 5 hours", "day": "per day", "week": "per week", "month": "per month" };
   const devicesOpen = $(".device-manager")?.open || false;
   const outlookCalendarAccessOpen = $("#outlook-calendar-access")?.open || false;
   const outlookMailAccessOpen = $("#outlook-mail-access")?.open || false;
+  const outlookMailSendAccessOpen = $("#outlook-mail-send-access")?.open || false;
   const googleMailAccessOpen = $("#google-mail-access")?.open || false;
   const googleOAuthSetupOpen = $("#google-oauth-setup")?.open ?? false;
   const connectionManagerOpen = $("#connection-management")?.open || false;
@@ -6075,6 +6093,31 @@ async function renderConnections() {
   }).join("");
   const orphanOutlookMailGrants = (outlookMail.grants || []).filter(grant =>
     !(outlookMail.accounts || []).some(account => account.id === grant.account_id));
+  const outlookMailSendAccountsHtml = (outlookMailSend.accounts || []).map(account => {
+    const grants = (outlookMailSend.grants || []).filter(grant => grant.account_id === account.id);
+    const grantRows = grants.length ? grants.map(grant => `
+      <div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Can prepare one plain-text email · ${esc(account.label)} · every send needs your exact approval</p></div>
+        <button class="btn ghost small" type="button" data-outlook-mail-send-ungrant="${esc(grant.bot_id)}">Revoke send access</button></div>`).join("")
+      : '<p class="hint">No Bot can prepare email from this account.</p>';
+    return `<article class="google-calendar-account outlook-mail-send-account" data-outlook-mail-send-account="${esc(account.id)}">
+      <div class="device-row"><div><strong>${esc(account.label)}</strong> <span class="chip ok">connected</span>
+        <p class="hint">Delegated Mail.Send only · connected ${esc(new Date(account.created_at).toLocaleDateString())}</p></div>
+        <button class="btn danger small" type="button" data-outlook-mail-send-disconnect="${esc(account.id)}">Disconnect sending account</button>
+      </div>
+      <div class="outlook-mail-send-grants" aria-label="Bots with Outlook Mail sending access">${grantRows}</div>
+      <div class="google-calendar-grant-form outlook-mail-send-grant-form" data-outlook-mail-send-grant-form="${esc(account.id)}">
+        <label class="field">Give one Bot permission to prepare email
+          <select data-outlook-mail-send-bot ${bots.length ? "" : "disabled"} aria-label="Bot for Outlook Mail sending access">
+            ${bots.length ? bots.map(bot => `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("") : '<option value="">Create a Bot first</option>'}
+          </select>
+        </label>
+        <button class="btn primary small" type="button" data-outlook-mail-send-grant="${esc(account.id)}" ${bots.length ? "" : "disabled"}>Grant send access</button>
+        <p class="hint" role="status" aria-live="polite" data-outlook-mail-send-status></p>
+      </div>
+    </article>`;
+  }).join("");
+  const orphanOutlookMailSendGrants = (outlookMailSend.grants || []).filter(grant =>
+    !(outlookMailSend.accounts || []).some(account => account.id === grant.account_id));
   const chatgptAccounts = data.chatgpt_accounts || [];
   const tile = (kind, title, description, state, stateKind, action = "manage", actionLabel = "Manage") => `
     <article class="service-tile">
@@ -6094,10 +6137,10 @@ async function renderConnections() {
       googleMail.accounts.length ? "connected" : "preview", "gmail",
       googleMail.accounts.length ? "Manage access" : "See requirements"),
     tile("outlook", "Microsoft Outlook", "Use mail or calendar, then choose which assistant can reach each account.",
-      outlookCalendar.accounts.length || outlookMail.accounts.length ? "Connected"
+      outlookCalendar.accounts.length || outlookMail.accounts.length || outlookMailSend.accounts.length ? "Connected"
         : outlookCalendar.configured && outlookCalendar.secret_store_available ? "Ready to connect" : "Needs setup",
-      outlookCalendar.accounts.length || outlookMail.accounts.length ? "connected" : "setup", "outlook-calendar",
-      outlookCalendar.accounts.length || outlookMail.accounts.length ? "Manage access"
+      outlookCalendar.accounts.length || outlookMail.accounts.length || outlookMailSend.accounts.length ? "connected" : "setup", "outlook-calendar",
+      outlookCalendar.accounts.length || outlookMail.accounts.length || outlookMailSend.accounts.length ? "Manage access"
         : outlookCalendar.configured && outlookCalendar.secret_store_available ? "Connect account" : "Check setup"),
   ].join("");
   const modelTiles = [
@@ -6221,7 +6264,7 @@ async function renderConnections() {
             <label class="field" for="outlook-calendar-label">Account label
               <input id="outlook-calendar-label" type="text" maxlength="80" autocomplete="off" placeholder="Work or Personal" aria-describedby="outlook-calendar-label-help">
             </label>
-            <button class="btn primary small" id="outlook-calendar-connect" type="button" ${!outlookCalendar.configured || !outlookCalendar.secret_store_available ? "disabled" : ""}>Connect Outlook Calendar</button>
+            <button class="microsoft-signin-button" id="outlook-calendar-connect" type="button" aria-label="Sign in with Microsoft" ${!outlookCalendar.configured || !outlookCalendar.secret_store_available ? "disabled" : ""}><img src="/static/brands/ms-symbollockup_signin_dark.svg" width="215" height="41" alt=""></button>
             <p class="hint" id="outlook-calendar-label-help">Choose supported account types in the Microsoft registration for the accounts you want (organization, personal, or both); the <code>common</code> authority cannot expand that choice. Add <code>http://localhost/api/v1/connections/outlook-calendar/callback</code> under Mobile and desktop application redirects. Sign in from this Hutch host.</p>
           </div>
           ${outlookCalendarAccountsHtml || '<p class="hint">No Outlook Calendar accounts connected.</p>'}
@@ -6230,9 +6273,9 @@ async function renderConnections() {
       </section>
       <section class="panel conn-card outlook-calendar-card outlook-mail-card" id="connection-outlook-mail" aria-labelledby="outlook-mail-title">
         <div class="bot-head"><span class="bot-name" id="outlook-mail-title">Outlook Mail</span>
-          <span class="tag">experimental</span><span class="tag">read only</span></div>
+          <span class="tag">experimental</span><span class="tag">separate read and send access</span></div>
         <p class="hint">Search across a connected mailbox, including Deleted Items and Clutter. Hutch returns sender, subject, received time and a short, untrusted preview for up to 10 matches. Grant one mailbox to a Bot from here.</p>
-        <p class="hint"><strong>Permission boundary:</strong> Microsoft's delegated <code>Mail.Read</code> consent applies to the signed-in account; Hutch enables the search tool only for the Bot you grant. Matching previews are sent to that Bot's selected model and kept in its run history. Hutch cannot send, edit, delete or forward email, and cannot read attachments. Local disconnect clears Hutch's credential and grants; provider consent must be revoked separately.</p>
+        <p class="hint"><strong>Permission boundary:</strong> Microsoft's delegated <code>Mail.Read</code> consent applies to the signed-in account; Hutch enables search only for a Bot you grant. Reading and sending use separate account sign-ins and separate Bot grants. Mail previews are sent to that Bot's selected model and kept in its run history. Local disconnect clears Hutch's credential and grants; provider consent must be revoked separately.</p>
         ${!outlookMail.configured ? '<p class="hint" role="status">Unavailable until the Hutch operator configures <code>HUTCH_OUTLOOK_OAUTH_CLIENT_ID</code> for a Microsoft public-client application registration.</p>' : ''}
         ${outlookMail.configured && !outlookMail.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting an account. Hutch never stores refresh tokens in SQLite or browser storage.</p>' : ''}
         <details class="outlook-calendar-details" id="outlook-mail-access">
@@ -6241,11 +6284,29 @@ async function renderConnections() {
             <label class="field" for="outlook-mail-label">Account label
               <input id="outlook-mail-label" type="text" maxlength="80" autocomplete="off" placeholder="Work or Personal" aria-describedby="outlook-mail-label-help">
             </label>
-            <button class="btn primary small" id="outlook-mail-connect" type="button" ${!outlookMail.configured || !outlookMail.secret_store_available ? "disabled" : ""}>Connect Outlook Mail</button>
+            <button class="microsoft-signin-button" id="outlook-mail-connect" type="button" aria-label="Sign in with Microsoft" ${!outlookMail.configured || !outlookMail.secret_store_available ? "disabled" : ""}><img src="/static/brands/ms-symbollockup_signin_dark.svg" width="215" height="41" alt=""></button>
             <p class="hint" id="outlook-mail-label-help">Use a Microsoft registration that supports the accounts you want. Add <code>http://localhost/api/v1/connections/outlook-mail/callback</code> under Mobile and desktop application redirects. Mail consent is separate from calendar consent.</p>
           </div>
           ${outlookMailAccountsHtml || '<p class="hint">No Outlook Mail accounts connected.</p>'}
           ${orphanOutlookMailGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved Bot grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookMailGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Outlook Mail access</p></div><button class="btn ghost small" data-outlook-mail-ungrant="${esc(grant.bot_id)}">Revoke Bot access</button></div>`).join("")}</div>` : ""}
+          <details class="outlook-mail-send-details" id="outlook-mail-send-access" ${outlookMailSendAccessOpen ? "open" : ""}>
+            <summary>Set up optional email sending</summary>
+            <p class="hint">This uses a separate Microsoft sign-in for <code>Mail.Send</code>. Reading access does not include sending, and sending access does not include reading. Grant it only to a Bot that should prepare outgoing mail.</p>
+            <div class="outlook-mail-send-safety"><strong>Every send requires your exact approval.</strong><p class="hint">Hutch can prepare one new plain-text email to at most five recipients. No replies, forwards, attachments, CC or BCC. Hutch sends once and does not retry an uncertain result; Microsoft acceptance does not confirm delivery.</p></div>
+            <div class="google-calendar-connect outlook-calendar-connect">
+              <label class="field" for="outlook-mail-send-label">Sending account label
+                <input id="outlook-mail-send-label" type="text" maxlength="80" autocomplete="off" placeholder="Work sender" aria-describedby="outlook-mail-send-label-help">
+              </label>
+              <button class="microsoft-signin-button" id="outlook-mail-send-connect" type="button" aria-label="Sign in with Microsoft" ${!outlookMailSend.configured || !outlookMailSend.secret_store_available ? "disabled" : ""}>
+                <img src="/static/brands/ms-symbollockup_signin_dark.svg" width="215" height="41" alt="">
+              </button>
+              <p class="hint" id="outlook-mail-send-label-help">A new sign-in is required for delegated <code>Mail.Send</code>; Hutch never upgrades a read-only account. Register <code>http://localhost/api/v1/connections/outlook-mail-send/callback</code> as a desktop redirect.</p>
+            </div>
+            ${!outlookMailSend.configured ? '<p class="hint" role="status">Unavailable until the Hutch operator configures <code>HUTCH_OUTLOOK_OAUTH_CLIENT_ID</code> for a Microsoft public-client application registration.</p>' : ''}
+            ${outlookMailSend.configured && !outlookMailSend.secret_store_available ? '<p class="hint" role="alert">Unavailable because Linux Secret Service is missing. Install and unlock <code>secret-tool</code> before connecting. Hutch never stores refresh tokens in SQLite or browser storage.</p>' : ''}
+            ${outlookMailSendAccountsHtml || '<p class="hint">No Outlook Mail sending accounts connected.</p>'}
+            ${orphanOutlookMailSendGrants.length ? `<div class="google-calendar-orphan-grants"><p class="hint">A saved send grant refers to a disconnected account. Revoke it before reconnecting.</p>${orphanOutlookMailSendGrants.map(grant => `<div class="device-row"><div><strong>${esc(grantedBotLabel(grant))}</strong><p class="hint">Outlook Mail send access</p></div><button class="btn ghost small" data-outlook-mail-send-ungrant="${esc(grant.bot_id)}">Revoke send access</button></div>`).join("")}</div>` : ""}
+          </details>
         </details>
       </section>
       <details class="device-manager">
@@ -6311,6 +6372,7 @@ async function renderConnections() {
   $(".device-manager").open = devicesOpen;
   $("#outlook-calendar-access").open = outlookCalendarAccessOpen;
   $("#outlook-mail-access").open = outlookMailAccessOpen;
+  $("#outlook-mail-send-access").open = outlookMailSendAccessOpen;
   $("#google-mail-access").open = googleMailAccessOpen;
   $$("[data-connection-open]").forEach(button => button.addEventListener("click", () => {
     const targetKey = button.dataset.connectionOpen;
@@ -6684,7 +6746,7 @@ async function renderConnections() {
     }
     authWindow.opener = null;
     button.disabled = true;
-    button.textContent = "Opening Microsoft…";
+    button.setAttribute("aria-busy", "true");
     try {
       const result = await api("/v1/connections/outlook-calendar/sign-in", { method: "POST", body: { label } });
       let authUrl;
@@ -6702,7 +6764,7 @@ async function renderConnections() {
       toast(err.message, true);
     } finally {
       button.disabled = false;
-      button.textContent = "Connect Outlook Calendar";
+      button.removeAttribute("aria-busy");
     }
   });
   $$('[data-outlook-calendar-load-calendars]').forEach(button => {
@@ -6798,7 +6860,7 @@ async function renderConnections() {
     }
     authWindow.opener = null;
     button.disabled = true;
-    button.textContent = "Opening Microsoft…";
+    button.setAttribute("aria-busy", "true");
     try {
       const result = await api("/v1/connections/outlook-mail/sign-in", { method: "POST", body: { label } });
       let authUrl;
@@ -6816,8 +6878,89 @@ async function renderConnections() {
       toast(err.message, true);
     } finally {
       button.disabled = false;
-      button.textContent = "Connect Outlook Mail";
+      button.removeAttribute("aria-busy");
     }
+  });
+  $("#outlook-mail-send-connect")?.addEventListener("click", async event => {
+    const button = event.currentTarget;
+    const label = $("#outlook-mail-send-label")?.value.trim();
+    if (!label) { toast("Enter a label for this Outlook sending account.", true); $("#outlook-mail-send-label")?.focus(); return; }
+    const authWindow = window.open("about:blank", "_blank");
+    if (!authWindow) { toast("Allow Hutch to open a browser tab, then try Microsoft sign-in again.", true); return; }
+    authWindow.opener = null;
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+    try {
+      const result = await api("/v1/connections/outlook-mail-send/sign-in", { method: "POST", body: { label } });
+      let authUrl;
+      try { authUrl = new URL(result.authorization_url); }
+      catch { throw new Error("Hutch returned an invalid Microsoft sign-in destination."); }
+      if (authUrl.origin !== "https://login.microsoftonline.com" ||
+          authUrl.pathname !== "/common/oauth2/v2.0/authorize" ||
+          authUrl.username || authUrl.password || authUrl.hash || !authUrl.search) {
+        throw new Error("Hutch returned an unexpected Microsoft sign-in destination.");
+      }
+      authWindow.location.replace(authUrl.href);
+      toast("Finish Microsoft sign-in in the new browser tab, then reload Connections here.");
+    } catch (err) { authWindow.close(); toast(err.message, true); }
+    finally {
+      button.disabled = false;
+      button.removeAttribute("aria-busy");
+    }
+  });
+  $$('[data-outlook-mail-send-grant]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const form = button.closest("[data-outlook-mail-send-grant-form]");
+      const bot = $("[data-outlook-mail-send-bot]", form).value;
+      const status = $("[data-outlook-mail-send-status]", form);
+      const accountId = button.dataset.outlookMailSendGrant;
+      const existing = (outlookMailSend.grants || []).find(grant => grant.bot_id === bot);
+      if (existing && existing.account_id !== accountId && !(await confirmDialog({
+        title: "Replace Outlook Mail send access",
+        body: `<b>${esc(grantedBotLabel(existing))}</b> already has send access to another account. Replace that grant with this account?`,
+        confirmText: "Replace grant",
+      }))) return;
+      button.disabled = true;
+      status.textContent = "Saving this Bot's send grant…";
+      try {
+        const result = await api("/v1/connections/outlook-mail-send/grants", { method: "POST", body: { bot, account_id: accountId } });
+        toast(result.detail);
+        await renderConnections();
+      } catch (err) { status.textContent = err.message; button.disabled = false; }
+    });
+  });
+  $$('[data-outlook-mail-send-ungrant]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const botRef = button.dataset.outlookMailSendUngrant;
+      const grant = (outlookMailSend.grants || []).find(row => row.bot_id === botRef);
+      if (!(await confirmDialog({ title: "Revoke Outlook Mail sending access",
+        body: `Stop <b>${esc(grantedBotLabel(grant))}</b> from preparing outgoing email from this account?`,
+        confirmText: "Revoke access" }))) return;
+      button.disabled = true;
+      try {
+        await api(`/v1/connections/outlook-mail-send/grants/${encodeURIComponent(botRef)}`, { method: "DELETE" });
+        toast("Bot Outlook Mail send access revoked.");
+        await renderConnections();
+      } catch (err) { button.disabled = false; toast(err.message, true); }
+    });
+  });
+  $$('[data-outlook-mail-send-disconnect]').forEach(button => {
+    button.addEventListener("click", async () => {
+      const accountId = button.dataset.outlookMailSendDisconnect;
+      const account = (outlookMailSend.accounts || []).find(row => row.id === accountId);
+      const grants = (outlookMailSend.grants || []).filter(row => row.account_id === accountId);
+      const botNames = grants.map(grantedBotLabel);
+      const linkedBots = botNames.length ? `<p>This also removes Hutch send access for ${botNames.map(esc).join(", ")}.</p>` : "";
+      if (!(await confirmDialog({ title: "Disconnect Outlook Mail sending",
+        body: `Clear Hutch's local refresh credential for <b>${esc(account?.label || "this account")}</b>? Microsoft consent is not revoked by Hutch; revoke it separately in your Microsoft account or organisation settings.${linkedBots}`,
+        confirmText: "Disconnect", danger: true }))) return;
+      button.disabled = true;
+      try {
+        const result = await api(`/v1/connections/outlook-mail-send/accounts/${encodeURIComponent(accountId)}/disconnect`, { method: "POST", body: {} });
+        toast(result.detail);
+        await renderConnections();
+      } catch (err) { button.disabled = false; toast(err.message, true); }
+    });
   });
   $$('[data-outlook-mail-grant]').forEach(button => {
     button.addEventListener("click", async () => {

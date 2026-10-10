@@ -1,0 +1,28 @@
+{
+  "test": "tests/e2e/test_browser.py::test_activity_omits_empty_sections_when_attention_is_needed",
+  "command": ".venv/bin/pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning tests/e2e/test_browser.py::test_activity_omits_empty_sections_when_attention_is_needed",
+  "captured_at": "2026-10-10T15:32:08.210589+00:00",
+  "python": "3.13.15",
+  "hutch_version": "0.1.0",
+  "browser": "153.0.8010.12",
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "state": "one approval; empty activity sections omitted",
+  "external_requests": [],
+  "provider_credentials_used": false,
+  "provider_request_made": false,
+  "source_sha256": {
+    "app.js": "dc5c6f66fab32d0042110b2c74a89b761667c4ee2aaddcc9e9c8e871e45178a1",
+    "style.css": "a98e7a18de42a2a06282a210d0d37a96b61a0a5309622753f076c8da6c824ba4"
+  }
+}

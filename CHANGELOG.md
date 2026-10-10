@@ -1,11 +1,25 @@
 # Changelog
 
+## Separate Outlook Mail send setup and provider artwork
+
+- Exposed the existing experimental `Mail.Send` connection flow inside Outlook Mail's optional account settings. Read and send now have visibly separate sign-ins and Bot grants; exact per-message approval and the no-retry/uncertain-delivery limits appear before a send grant can be saved.
+- Reused Microsoft's official sign-in artwork unchanged on its authorization buttons. Added OpenAI's unmodified white Blossom beside the named ChatGPT service; the Outlook product icon remains a neutral mail glyph because Hutch has no license to reproduce it.
+- Desktop, tablet, phone, and compact-phone fixture captures cover the send sign-in, grant, revoke, and disconnect flow. No Microsoft account or provider request was used.
+
 ## Assistant identity and app-card refinement
 
-- Replaced the app mascot's dark dot eyes with paired, tapered light eyes. Their shared tilt and rhythm stay consistent while each of the eight head shapes gets individually fitted size and placement; the separate marketing mascot is unchanged.
-- Apps & AI now places each icon beside its service name and status, uses a restrained service-color tile, and labels Outlook as **Microsoft Outlook**. These are original function/category glyphs, not provider logos.
+- Refined the app mascot faces into a simple pair of solid, softly oval ink eyes. Their size, spacing, and tilt adapt to all eight head shapes; the separate marketing mascot is unchanged.
+- Apps & AI now pairs the unaltered OpenAI Blossom with the named ChatGPT service. Outlook keeps a neutral mail glyph; Microsoft's unmodified sign-in lockup appears only on account-authorization buttons. Gmail remains a category glyph.
 - Short desktop windows use a compact first-run welcome so the main setup action can remain in the first screen. Assistant names remain single-line in the roster, and the active selection continues through its one options button.
-- The responsive browser checks now cover the short desktop welcome, colored app tiles, shape-fitted eye paths, selected-row coverage, and single-line names. New screenshots are individually reviewed before this UI slice is committed.
+- The responsive browser checks now cover the short desktop welcome, colored app tiles, shape-fitted oval eyes, selected-row coverage, and single-line names. New screenshots are individually reviewed before this UI slice is committed.
+
+## Everyday activity and task review
+
+- Activity leads with assistant and task counts; reported model tokens and recorded provider cost stay inside an optional **Usage details** disclosure.
+- Empty Activity buckets no longer create three competing panels. A single clear-state links to a new chat and past work; populated views show only sections that contain something to review.
+- Past work uses the same readable task cards on desktop and phone, with assistant, request, status, time, and a clear way to review the conversation.
+- Task details keep the status and conversation in front. Run references, model usage, timing, and transcript verification stay available under **More details**.
+- Outlook Mail's optional send setup remains separate from read access and uses Microsoft's official sign-in button. Every new send still requires exact approval; fixtures cover grant, revoke, and disconnect without a live account.
 
 # Outlook email send preview (experimental, schema v46)
 
@@ -14,8 +28,8 @@
   the tool.
 - Hutch makes one Graph send request. Ambiguous transport/server responses stay `outcome_unknown` and are not retried; Graph's
   `202 Accepted` is not described as delivery confirmation. Replies, forwards, attachments, CC and BCC remain unavailable.
-- This checkpoint exposes connection setup through the versioned API, not the Apps & AI screen. Live consent and send behavior are
-  unverified; the feature is experimental and not a public marketing claim.
+- Optional setup is also available inside Apps & AI under Outlook Mail account settings; the versioned API remains available.
+  Live consent and send behavior are unverified, so the feature is experimental and not a public marketing claim.
 
 ## Marketing approval illustration
 

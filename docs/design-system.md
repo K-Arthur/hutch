@@ -56,11 +56,10 @@ generated token files and the declared WCAG text pairs.
 
 The marketing site keeps Archivo for display and section headings and uses the
 locally bundled 3D Hutch mascot. Product body text uses the same system sans as
-Studio. The app uses compact flat 2D assistant characters; each distinct head
-shape gets a matched pair of softly tapered light eyes with a fine dark edge.
-Round, leaning, tapered and pointed forms therefore get different eye size,
-spacing and height while keeping one shared tilt and rhythm. The picker previews
-the same face. There are no separate pupils or mouth. Status is shown separately.
+Studio. The app uses compact flat 2D assistant characters. Each distinct head
+shape gets a calm pair of solid dark oval eyes, with size, spacing, tilt, and
+height tuned to its face-safe area. The picker previews the same face. Avoid
+detached highlights and extra marks. Status is shown separately.
 Brand art, assistant identity, and runtime state never substitute for one another.
 
 ## Surface roles
@@ -91,12 +90,15 @@ The empty first-run screen offers a few illustrated starter requests, such as
 planning a week, catching up on email, or organizing a project. Selecting one
 fills the request field; it never starts work or creates an assistant by itself.
 Use a consistent local outline-icon family for actions and categories, with
-plain-language labels beside them. Apps & AI uses original Hutch-colored
-calendar, mail, inbox, sparkle, cloud, and monitor category glyphs in softly
-colored 48px tiles beside exact service names. Microsoft Outlook is named fully.
-These are not provider logos; branded artwork stays out until permission for app
-and marketing use is documented. Keep provider, model,
-permission, and runtime terminology in the relevant optional detail layer.
+plain-language labels beside them. Apps & AI uses 48px service tiles beside
+exact names. ChatGPT uses OpenAI's exact, unaltered white Blossom mark under its
+published brand terms. Microsoft Outlook uses a neutral inbox category glyph;
+its product icon requires express permission, so the unaltered Microsoft
+"Sign in" artwork is limited to its official account-authorization control.
+Gmail and other services keep category marks unless current provider guidance
+permits a specific asset and use. Never present a category icon as a provider
+logo. Keep provider, model, permission, and runtime terminology in the relevant
+optional detail layer.
 
 Assistant settings lead with the editable name and what the assistant helps with.
 Standing directions and the rest of the controls sit behind one clearly named
@@ -122,14 +124,25 @@ workspace sidebar, contextual header, system type, emerald actions, azure focus,
 solid graphite surfaces, and 8px/12px control-panel geometry. Sign-in, pairing,
 and remaining server-rendered pages load the same generated semantic tokens and
 map their components to that contract. Service categories use the same locally
-drawn outline glyphs across the app and marketing site. Provider names and
-connection states remain explicit; provider artwork requires documented rights
-before it is bundled. The AI tile uses Hutch's generic sparkle rather than an
-imitation of the OpenAI Blossom ([OpenAI brand guidance](https://openai.com/brand/)).
-The first layer explains the useful choice; detailed scopes, OAuth setup, and
-account controls stay inside the optional **More account settings** disclosure.
-Never make a provider mark the only label. Avoid a separate brand palette, blue
+drawn outline glyphs across the app and marketing site. Apps & AI shows the exact,
+unaltered OpenAI Blossom beside the named ChatGPT service under OpenAI's published
+brand terms. Outlook keeps a neutral inbox glyph until Hutch has permission for
+the product mark; the official Microsoft sign-in lockup is used unchanged only on
+account-authorization buttons. Gmail and other services retain category glyphs
+until their provider rules permit a specific asset in this use. Names and
+connection states stay visible beside every mark; a category glyph is never
+presented as a provider logo. The first layer explains the useful choice;
+detailed scopes, OAuth setup, and account controls stay inside the optional
+**More account settings** disclosure. Avoid a separate brand palette, blue
 primary actions, glass panels, or square-button overrides.
+
+Activity and task review follow the same first-layer rule: lead with the
+assistant, request, status, and conversation. Keep reported tokens, recorded
+cost, timing, run references, and transcript checks together in a clearly named
+optional details layer. Hide empty activity buckets; when no task needs
+attention, use one compact clear-state with direct links to chat and past work.
+Past work uses the same task cards at desktop and phone widths. Never imply
+recorded usage is a guaranteed bill or that an accepted send was delivered.
 
 ### Marketing site
 
@@ -148,9 +161,10 @@ local-host access, or fixture-only states in public flows.
   effective.
 - App captions start at `0.75rem/1.45`. Do not use mono for prose, labels, chips,
   or decorative eyebrows. Use it for measured values, code, and identifiers.
-- The app icon family uses local `24px`-viewBox outline vectors, `16/20/24px`
-  roles, and one current-color stroke. Keep exact provider names beside generic
-  category glyphs; do not draw lookalike provider logos.
+- The app action family uses local `24px`-viewBox outline vectors, `16/20/24px`
+  roles, and one current-color stroke. Provider art is a separate asset with
+  provider-specific usage rules; do not draw lookalike logos or recolor official
+  marks.
 - Display and section headings may use Archivo on the marketing site. IDs,
   timestamps, budgets, code, and measured values use the mono stack; prose does
   not.

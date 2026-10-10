@@ -1486,3 +1486,23 @@ No live provider, physical device, or screen reader was used. Mobbin remained
 behind its paid-plan gate and Figma node-level retrieval was blocked by the
 connected account's Starter-plan tool limit, so neither is claimed as a source
 for this pass.
+
+## Follow-up: mascot face correction and final roster check (2026-10-10)
+
+The tapered light marks in the prior capture still read like slashes. The app
+mascots and shape picker now use simple dark oval eyes, with per-shape spacing,
+height, scale, and a slight tilt. I opened the eight face crops individually
+after the change, then inspected the updated full Studio capture. The existing
+browser check verifies each face against its own SVG boundary, checks contrast,
+and confirms that the picker preview matches the selected silhouette. It passed
+**1 test in 5.44s** on Chromium **153.0.8010.12** / Playwright **1.63.0**. The
+measured minimum eye-to-body contrast is **5.82:1**. Current captures are in
+[`artifacts/mascot-eye-review-2026-10-10/`](artifacts/mascot-eye-review-2026-10-10/).
+
+The latest roster capture also confirms each assistant name remains on one line
+and truncates with an ellipsis only when the available width requires it. The
+selection color reaches the row's single options control. The official white
+OpenAI Blossom is used next to ChatGPT; the Outlook product tile remains a
+neutral inbox glyph because Microsoft requires express permission for its
+product icons. The official Microsoft sign-in lockup is kept on the authorization
+control. The full UI redesign across every surface remains unfinished.

@@ -151,15 +151,23 @@ can access or what the machine has actually confirmed.
 **Key Characteristics:**
 - Familiar chat and app patterns carry everyday tasks; advanced controls appear in
   clear, optional layers instead of defining the first impression.
-- A simple, shape-aware 2D character gives the app a recognizable face. A gently
-  matched pair of tapered, light eyes follows each distinct silhouette. Their
-  angle and rhythm stay consistent while size and position fit the available face
-  area. Larger original 3D character art belongs to marketing; both use the same
-  friendly palette and visual family.
-- Service tiles use original Hutch-colored category glyphs until provider
-  artwork has documented permission for both app and marketing use. Every glyph
-  stays secondary to its exact service name and connection state; no category
-  glyph is presented as a provider logo.
+- Activity and task review lead with assistant, task, status, and conversation.
+  Hide empty activity buckets; when no work needs attention, show one compact
+  clear-state with direct links to chat and past work. Reported tokens, recorded
+  cost, timing, run references, and transcript checks remain available in a
+  clearly labeled optional details layer.
+- A simple, shape-aware 2D character gives the app a recognizable face. Each
+  distinct silhouette has its own calm pair of dark oval eyes; size, spacing,
+  and gentle tilt adapt to the shape. Keep the face uncluttered, with no detached
+  highlights or extra marks. Larger original 3D character art belongs to
+  marketing; both use the same friendly palette and visual family.
+- Provider art follows the provider's current published rules. ChatGPT uses
+  OpenAI's unaltered white Blossom beside its explicit name. Microsoft Outlook
+  keeps a neutral mail category icon; its product icon is not reused without a
+  license, while the official Microsoft sign-in artwork appears unchanged only
+  on the account-authorization control. Gmail and other services keep neutral
+  category icons until the provider's rules allow a specific asset and use.
+  Every mark stays secondary to its exact service name and connection state.
 - Layered graphite surfaces keep long sessions comfortable. Emerald is the brand
   and primary action; azure is interaction; amber means a person needs to act; rose
   means failure. Text and familiar icons reinforce each color's meaning.
@@ -213,9 +221,12 @@ prose, labels, or marketing.
   proof captions; 12px is the smallest metadata size. Both remain secondary.
 - **Icons:** actions and categories use one local 24×24 outline-vector family,
   with 16/20/24px size roles, a shared current-color stroke, and round joins and
-  caps. Apps & AI presents its original calendar, mail, inbox, sparkle, and cloud
-  glyphs in compact, service-tinted tiles. Keep exact service names and states
-  visible; these are category cues, not provider logos. No provider icon is fetched
+  caps. Apps & AI presents original calendar, mail, inbox, and cloud glyphs in
+  compact, service-tinted tiles. ChatGPT uses OpenAI's unaltered white Blossom
+  beside its explicit name. Outlook keeps a neutral inbox glyph until Hutch has
+  permission for its product icon; the official Microsoft sign-in lockup appears
+  unchanged only on authorization controls. Keep exact service names and states
+  visible; category cues are not provider logos. No provider icon is fetched
   remotely.
 
 ## Layout
@@ -264,10 +275,10 @@ language after explicit user direction ("right angles feel too off"):
 - **Status chip** — pill, mono 11px, dot + word always together (`● working`,
   `● needs you`, `✕ failed`); colour never carries state alone.
 - **App avatar/sigil** — one flat silhouette from a varied, curated set in one of
-  eight identity colours with a pair of softly tapered light eyes and a fine dark
-  edge. Each silhouette has a face-safe zone that determines the eyes' center,
-  spacing, proportions, height and shared tilt; pointed heads place them lower in
-  the wider face. The minimal face has no separate pupils or mouth. The identity picker uses the exact same face geometry as the
+  eight identity colours with a pair of solid dark oval eyes. Each silhouette
+  has a face-safe zone that determines eye center, spacing, proportions, and
+  height; pointed heads place them lower in the wider face. Keep the minimal
+  face free of detached highlights or extra marks. The identity picker uses the exact same face geometry as the
   selected avatar. Derived from the Bot name and overridable
   at creation and in settings. Identity colours are decorative only, never status;
   the separate state pip sits beside it with its word. The marketing site's 3D art
@@ -306,6 +317,10 @@ language after explicit user direction ("right angles feel too off"):
 - **Workflow header status** — counts real activity (working/queued/needs-you)
   from `/api/stats`; hidden when idle, spoken loudly only when the executor is
   degraded.
+- **Activity and task review** — show only sections that contain active work.
+  Use one clear-state with chat/history links when all sections are empty. Keep
+  usage, timing, machine references, and transcript checks in optional details;
+  do not repeat a run ID in the visible conversation header.
 
 ## Do's and Don'ts
 

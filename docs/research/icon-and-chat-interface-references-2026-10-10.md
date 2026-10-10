@@ -18,16 +18,18 @@ consistent 24×24 outline, current-color, round-cap vocabulary as a reference.
 
 I found official marks for ChatGPT, Outlook, Gmail, and Google Calendar.
 Finding an asset is not the same as having rights to bundle it in Hutch or its
-marketing site. Google's current product-icon guidance routes business use
-through its Partner Marketing Hub and permission process; Microsoft says
-product icons require an express license; and OpenAI's rules require exact
-approved artwork and restrict use without permission or outside its terms.
-Hutch has no recorded approval or license for these marks, so the app and site
-use original Hutch-colored category glyphs instead: calendar, mail, inbox,
-sparkle, cloud, and monitor. Exact provider names remain visible beside the
-glyphs in Apps & AI. The AI category does not imitate OpenAI's Blossom.
+marketing site. Microsoft's published rules say product icons require express
+permission; Hutch therefore keeps a neutral mail category mark beside the
+explicit **Microsoft Outlook** label and uses the official, unaltered Microsoft
+"Sign in" control only for authorization. OpenAI's brand terms permit its exact
+logo in a directly related context under those terms; Hutch now uses the
+official, unaltered white Blossom next to the explicitly named ChatGPT service.
+Google's product-icon rules route business use through its partner marketing
+and permission process, so Gmail and Google Calendar retain neutral mail and
+calendar category glyphs. No hand-drawn or recolored mark imitates a provider.
 References: [Google product-icon guidance](https://partnermarketinghub.withgoogle.com/brands/google/branding-guidelines/how-to-show-googles-brand/),
-[Microsoft Trademark and Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks) and [Microsoft Copyright Permissions](https://www.microsoft.com/en-us/legal/intellectualproperty/copyright/permissions),
+[Microsoft Trademark and Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks),
+[Microsoft sign-in button requirements](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-branding-in-apps),
 and [OpenAI Brand Guidelines](https://openai.com/brand/). The earlier Google
 SVG files were from an older icon generation and have been removed; the icon
 refresh is documented by [Google Workspace Updates](https://workspaceupdates.googleblog.com/2026/05/introducing-fresh-visual-identity-for-Google-Workspace-app-icons.html).
@@ -46,6 +48,11 @@ The accompanying mobile references support keeping message-level actions near
 the related assistant or conversation and keeping the active task visible in
 the chat. Hutch retains explicit approval boundaries and provider/data-flow
 disclosures; the visual reference does not establish those product behaviors.
+The supplied conversation-list action sheet groups **Mark unread**, **Pin**,
+**New section**, **Share as template**, **Hide**, and a **More** submenu in one
+place. This supports Hutch's single overflow control per assistant or
+conversation, with less common actions grouped instead of exposing a row of
+separate buttons.
 
 ## User-provided assistant customization and device-access screens
 
@@ -60,23 +67,24 @@ show actual device/session state rather than copying the reference's labels.
 
 These screenshots are task references, not evidence that Hutch already supports
 those device operations or that a particular layout performs better for all
-users. The native Mobbin connector is unavailable on the current account's plan,
-and the connected Figma preview returned its plan retrieval limit, so no
-individual Mobbin screens or additional Figma nodes were independently inspected
-for this pass. The two user-supplied images remain the specific evidence used.
+users. The native Mobbin connector is unavailable on the current account's plan.
+The shared Figma Community file opened in the in-app browser, but its preview
+exposed only the toolbar to the accessibility tree; individual canvas frames
+were not inspectable there. Figma MCP node retrieval also returned the connected
+account's plan limit. The user-supplied screens remain the specific
+screen-level evidence used.
 
 ## Decisions and validation limits
 
 - Keep the app's system-sans type family and marketing's locally bundled Archivo
   display family as separate, coordinated roles.
-- Use original Hutch category glyphs until provider artwork has documented
-  permission for both app and marketing use. Keep exact provider names visible;
-  never imply a category glyph is the provider's logo.
+- Follow each provider's current published asset rules by context. Keep exact
+  service names visible and never imply a category glyph is the provider's logo.
 - Keep a selected assistant's background across the entire row, including its
   single overflow target, and expose selection on the assistant button with
   `aria-current`. Keep assistant names to one line, use an ellipsis for long
   names, and preserve the full name in an accessible title.
 - Community retrieval was manual and individual. No Figma assets were copied,
-  no provider was contacted, and no live service was used. The connected Figma
-  design-preview tool was unavailable for further node extraction at this
-  account's current plan limit.
+  no provider was contacted, and no live service was used. Figma Community
+  assets will remain a reference until individual frames can be inspected and
+  their licensing is clear.

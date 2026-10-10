@@ -566,20 +566,64 @@ def test_run_detail_reports_transcript_chain_verification_and_tampering(browser,
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
     try:
         page.goto(f"{base}/#/run/{run.id}")
-        page.get_by_role("heading", name=f"Run #{run.id[:12]}").wait_for()
-        result = page.locator("[data-run-integrity-result]")
+        page.get_by_role("heading", name="Task details").wait_for()
+        technical_details = page.locator("#run-technical-details")
+        assert technical_details.get_attribute("open") is None
+        assert not page.locator("[data-run-integrity-run]").is_visible()
+        assert page.locator("#chat-stream .mrun").count() == 1
+        assert not page.locator("#chat-stream .mrun").is_visible()
+        expected_verified = (f"{initial_verification['checked']} chained event"
+                             f"{'s' if initial_verification['checked'] != 1 else ''} verified")
         viewport_results = []
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
-            page.set_viewport_size({"width": width, "height": height})
-            page.get_by_role("button", name="Verify event history").click()
-            expected_verified = (f"{initial_verification['checked']} chained event"
-                                 f"{'s' if initial_verification['checked'] != 1 else ''} verified")
-            page.wait_for_function("""() => {
+            if page.viewport_size != {"width": width, "height": height}:
+                page.set_viewport_size({"width": width, "height": height})
+            # Reload each size independently. This avoids measuring a stale
+            # disclosure after browser resize and mirrors a fresh responsive visit.
+            page.goto(f"{base}/#/run/{run.id}")
+            page.get_by_role("heading", name="Task details").wait_for()
+            technical_details = page.locator("#run-technical-details")
+            if not technical_details.evaluate("element => element.open"):
+                technical_details.locator(":scope > summary").click()
+            page.wait_for_function("document.querySelector('#run-technical-details')?.open === true")
+            page.locator("[data-run-integrity-run]").wait_for(state="visible")
+            result = page.locator("[data-run-integrity-result]")
+            verify_control = page.evaluate("""() => {
+              const button = document.querySelector('[data-verify-run-history]');
+              const rect = button?.getBoundingClientRect();
+              const style = button && getComputedStyle(button);
+              return {exists:!!button, connected:button?.isConnected, text:button?.textContent.trim(),
+                display:style?.display, visibility:style?.visibility, width:rect?.width, height:rect?.height};
+            }""")
+            assert verify_control["exists"] and verify_control["width"] > 0 and verify_control["height"] > 0, (
+                label, verify_control)
+            # The run view can refresh after its initial snapshot. Dispatch the
+            # click against the current connected control in one browser turn.
+            page.evaluate("document.querySelector('[data-verify-run-history]')?.click()")
+            page.wait_for_function("""expected => {
+                  const node = document.querySelector('[data-run-integrity-result]');
+                  return node && node.dataset.state === 'verified' && node.textContent.includes(expected);
+                }""", arg=expected_verified, timeout=5000)
+            result_state = page.evaluate("""() => {
               const node = document.querySelector('[data-run-integrity-result]');
-              return node && node.dataset.state === 'verified' && node.textContent.includes('chained event');
-            }""", timeout=5000)
-            assert expected_verified in result.inner_text(), (result.inner_text(), verification_responses)
-            assert "legacy events are not chained" not in result.inner_text()
+              if (!node) return {text:'missing',visible:false,rect:null,chain:[]};
+              const chain = [];
+              for (let parent = node; parent; parent = parent.parentElement) {
+                const style = getComputedStyle(parent);
+                chain.push({tag:parent.tagName,id:parent.id,className:parent.className,display:style.display,
+                  visibility:style.visibility,opacity:style.opacity,open:parent instanceof HTMLDetailsElement ? parent.open : null,
+                  rect:parent.getBoundingClientRect().toJSON()});
+              }
+              const rect = node.getBoundingClientRect();
+              const style = getComputedStyle(node);
+              return {text:node.textContent,rect:rect.toJSON(),connected:node.isConnected,
+                visible:style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0,
+                chain};
+            }""")
+            assert result_state["visible"], (label, result_state)
+            result_text = result_state["text"]
+            assert expected_verified in result_text, (label, result_text, verification_responses)
+            assert "legacy events are not chained" not in result_text
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow == 0, f"{label} viewport overflows by {overflow}px"
             page.screenshot(path=str(output / f"verified-{label}.png"), animations="disabled")
@@ -599,20 +643,22 @@ def test_run_detail_reports_transcript_chain_verification_and_tampering(browser,
         legacy_verification = store.verify_chain(legacy_run.id)
         assert legacy_verification["ok"] and legacy_verification["legacy"] == 1
         page.goto(f"{base}/#/run/{legacy_run.id}")
-        page.get_by_role("heading", name=f"Run #{legacy_run.id[:12]}").wait_for()
+        page.get_by_role("heading", name="Task details").wait_for()
+        page.locator("#run-technical-details > summary").click()
         page.get_by_role("button", name="Verify event history").click()
         page.wait_for_function("""() => {
           const node = document.querySelector('[data-run-integrity-result]');
           return node && node.dataset.state === 'partial' && node.textContent.includes('older event');
         }""", timeout=5000)
-        legacy_result = result.inner_text()
+        legacy_result = result.text_content() or ""
         assert legacy_result == "0 chained events verified; 1 older event has no hash.", legacy_result
         assert result.get_attribute("data-state") == "partial"
         assert page.evaluate("document.documentElement.scrollWidth - innerWidth") == 0
         page.screenshot(path=str(output / "legacy-desktop.png"), animations="disabled")
 
         page.goto(f"{base}/#/run/{run.id}")
-        page.get_by_role("heading", name=f"Run #{run.id[:12]}").wait_for()
+        page.get_by_role("heading", name="Task details").wait_for()
+        page.locator("#run-technical-details > summary").click()
         store.flush_events()
         with store._lock:
             store._db.execute("UPDATE events SET data = ? WHERE run_id = ? AND seq = 1",
@@ -1149,6 +1195,82 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
         context.close()
 
 
+def test_activity_omits_empty_sections_when_attention_is_needed(browser, live):
+    """Keep an active Activity view focused on the one populated section."""
+    import json
+    import platform
+
+    base, app = live
+    for bot in (
+        Bot(name="design-partner", display_name="Design Partner", model="mock/demo", tools=[]),
+        Bot(name="research-partner", display_name="Research Partner", model="mock/demo", tools=[]),
+        Bot(name="calendar-helper", display_name="Calendar Helper", model="mock/demo", tools=[]),
+        Bot(name="writing-partner", display_name="Writing Partner", model="mock/demo", tools=[]),
+    ):
+        app.state.store.create_bot(bot)
+    payload = {
+        "stats": {"bots": 4, "runs_today": 2, "tokens_today": 0, "spend_today": 0},
+        "needs_count": 1,
+        "approvals": [{"bot_name": "design-partner", "bot_display_name": "Design Partner",
+                       "tool": "gmail_send", "risk": "high", "action": "Send the reviewed follow-up"}],
+        "humans": [], "failures": [], "running": [], "stale": [],
+    }
+    output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/ui-surface-review"
+    output.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    external: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(base) else None)
+    page.route("**/api/overview", lambda route: route.fulfill(
+        status=200, content_type="application/json", body=json.dumps(payload)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    viewports = (("desktop", 1440, 960), ("phone", 390, 844))
+    try:
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            page.goto(f"{base}/#/overview")
+            page.get_by_role("heading", name="Activity", exact=True).wait_for()
+            section = page.locator(".ov-col.loud")
+            assert section.count() == 1 and section.is_visible()
+            assert section.get_by_role("heading", name="Needs you 1").is_visible()
+            assert section.get_by_text("Send the reviewed follow-up", exact=True).is_visible()
+            assert section.get_by_text("Gmail", exact=True).is_visible()
+            assert section.get_by_text("gmail_send", exact=True).count() == 0
+            assert page.locator("#roster-list [data-switch-bot]").count() == 4
+            assert page.locator(".ov-col").count() == 1
+            assert page.locator(".ov-all-clear").count() == 0
+            assert page.get_by_text("Working now", exact=False).count() == 0
+            assert page.get_by_text("Schedule check", exact=False).count() == 0
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+            page.screenshot(path=str(output / f"activity-needs-{label}.png"), full_page=True, animations="disabled")
+        assert not errors, errors
+        assert not external, external
+        validation = {
+            "test": "tests/e2e/test_browser.py::test_activity_omits_empty_sections_when_attention_is_needed",
+            "command": ".venv/bin/pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning tests/e2e/test_browser.py::test_activity_omits_empty_sections_when_attention_is_needed",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(), "hutch_version": package_version("hutch"),
+            "browser": browser.version,
+            "viewports": [{"name": name, "width": width, "height": height}
+                          for name, width, height in viewports],
+            "state": "one approval; empty activity sections omitted",
+            "external_requests": external, "provider_credentials_used": False,
+            "provider_request_made": False,
+            "source_sha256": {
+                name: hashlib.sha256((Path(__file__).resolve().parents[2] / path).read_bytes()).hexdigest()
+                for name, path in (("app.js", "src/hutch/server/static/app.js"),
+                                   ("style.css", "src/hutch/server/static/style.css"))
+            },
+        }
+        (output / "activity-needs-validation.json").write_text(json.dumps(validation, indent=2) + "\n", encoding="utf-8")
+    finally:
+        context.tracing.stop(path=str(output / "activity-needs-trace.zip"))
+        context.close()
+
+
 def test_safe_checkpoint_continuation_is_reviewed_and_starts_a_new_attempt(browser, live, monkeypatch):
     """A no-effect task resumes only as a new, reviewable run with its checkpoint provenance intact."""
     from hutch.engine import Engine
@@ -1294,8 +1416,10 @@ def test_provider_connections_fit_phone_viewports_and_capture_signin_states(brow
     try:
         page.goto(base + "/#/connections")
         page.get_by_role("heading", name="Apps & AI").wait_for()
+        assert page.locator(".service-tile .service-mark-chatgpt img").evaluate(
+            "img => img.complete && img.naturalWidth === 721")
         page.locator("#connection-management > summary").click()
-        page.get_by_text("Sign in with ChatGPT").wait_for()
+        page.get_by_text("Sign in with ChatGPT", exact=True).wait_for()
         page.get_by_text("Sign in to Go, subscribe if needed, copy its provider-issued key", exact=False).wait_for()
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
                                      ("phone", 390, 844), ("compact-phone", 320, 740)):
@@ -2278,12 +2402,15 @@ def test_outlook_calendar_uses_account_consent_and_one_bot_grant_at_all_viewport
         assert "Calendars.ReadBasic" in card.inner_text()
         assert "Microsoft consent applies to the signed-in account" in card.inner_text()
         assert "event bodies, attachments or extensions" in card.inner_text()
-        card.locator("details > summary").click()
+        page.locator("#outlook-calendar-access > summary").click()
         assert "common" in card.inner_text()
         assert "cannot expand that choice" in card.inner_text()
-        assert page.get_by_role("button", name="Connect Outlook Calendar").is_enabled()
+        calendar_signin = page.locator("#outlook-calendar-connect")
+        assert calendar_signin.is_enabled()
+        assert calendar_signin.get_attribute("aria-label") == "Sign in with Microsoft"
+        assert calendar_signin.locator("img").evaluate("img => img.complete && img.naturalWidth === 215")
         page.locator("#outlook-calendar-label").fill("Work")
-        page.get_by_role("button", name="Connect Outlook Calendar").click()
+        calendar_signin.click()
         page.get_by_text("Finish Microsoft sign-in in the new browser tab", exact=False).wait_for()
         oauth = page.evaluate("window.__outlookOAuth")
         assert oauth["target"] == "_blank" and oauth["opener"] is None
@@ -2414,13 +2541,16 @@ def test_outlook_mail_grant_and_consent_boundary_fit_all_viewports(browser, live
         card = page.locator(".outlook-mail-card")
         card.wait_for()
         assert "Mail.Read" in card.inner_text()
-        assert "cannot send, edit, delete or forward email" in card.inner_text()
+        assert "Reading and sending use separate account sign-ins and separate Bot grants" in card.inner_text()
         assert "provider consent must be revoked separately" in card.inner_text()
         assert "including Deleted Items and Clutter" in card.inner_text()
-        card.locator("details > summary").click()
-        assert page.get_by_role("button", name="Connect Outlook Mail").is_enabled()
+        page.locator("#outlook-mail-access > summary").click()
+        mail_signin = page.locator("#outlook-mail-connect")
+        assert mail_signin.is_enabled()
+        assert mail_signin.get_attribute("aria-label") == "Sign in with Microsoft"
+        assert mail_signin.locator("img").evaluate("img => img.complete && img.naturalWidth === 215")
         page.locator("#outlook-mail-label").fill("Work")
-        page.get_by_role("button", name="Connect Outlook Mail").click()
+        mail_signin.click()
         page.get_by_text("Finish Microsoft sign-in in the new browser tab", exact=False).wait_for()
         oauth = page.evaluate("window.__outlookMailOAuth")
         assert oauth["target"] == "_blank" and oauth["opener"] is None
@@ -2436,7 +2566,7 @@ def test_outlook_mail_grant_and_consent_boundary_fit_all_viewports(browser, live
         grant_notice = page.locator(".toast-msg").last.inner_text()
         assert "in Work" in grant_notice
         assert "msmail_0123456789abcdef01234567" not in grant_notice
-        mail_details = card.locator("details")
+        mail_details = page.locator("#outlook-mail-access")
         if not mail_details.evaluate("element => element.open"):
             mail_details.locator("summary").click()
         card.get_by_text("Can search message previews", exact=False).wait_for(state="visible")
@@ -2451,7 +2581,7 @@ def test_outlook_mail_grant_and_consent_boundary_fit_all_viewports(browser, live
         assert "Mail Assistant" in disconnect_dialog.inner_text()
         assert "mail-assistant" not in disconnect_dialog.inner_text()
         disconnect_dialog.get_by_role("button", name="Cancel").click()
-        page.get_by_text("Matching previews are sent to that Bot's selected model", exact=False).wait_for()
+        page.get_by_text("Mail previews are sent to that Bot's selected model", exact=False).wait_for()
         while page.locator(".toast").count():
             page.locator(".toast-close").first.click()
 
@@ -2459,8 +2589,9 @@ def test_outlook_mail_grant_and_consent_boundary_fit_all_viewports(browser, live
         for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844)):
             page.set_viewport_size({"width": width, "height": height})
             card = page.locator(".outlook-mail-card")
-            if not card.locator("details").evaluate("element => element.open"):
-                card.locator("details > summary").click()
+            mail_access = page.locator("#outlook-mail-access")
+            if not mail_access.evaluate("element => element.open"):
+                mail_access.locator("summary").click()
             scroll = page.locator(".page-scroll")
             scroll.evaluate("element => { element.scrollTop = 0; }")
             card.evaluate("element => { const scroller = document.querySelector('.page-scroll'); "
@@ -2489,6 +2620,152 @@ def test_outlook_mail_grant_and_consent_boundary_fit_all_viewports(browser, live
                                            "src/hutch/server/app.py", "src/hutch/server/security.py",
                                            "src/hutch/store.py", "src/hutch/outlook_mail.py",
                                            "src/hutch/tools/outlook_mail.py")},
+        }, indent=2) + "\n", encoding="utf-8")
+        context.tracing.stop(path=str(output / "trace.zip"))
+    finally:
+        if context.tracing:
+            try:
+                context.tracing.stop()
+            except Exception:
+                pass
+        context.close()
+
+
+def test_outlook_mail_send_access_is_separate_and_responsive(browser, live, monkeypatch):
+    monkeypatch.setenv("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "fixture-public-client")
+    base, app = live
+
+    class FixtureOutlookMailSendBook:
+        account_id = "mssend_0123456789abcdef01234567"
+        accounts_rows = [{"id": account_id, "label": "Work sender",
+                          "created_at": "2026-10-09T00:00:00+00:00",
+                          "scopes": ["Mail.Send", "offline_access"], "status": "connected"}]
+
+        class Secrets:
+            @staticmethod
+            def available():
+                return True
+
+        def __init__(self, state_dir, client_id):
+            self.secrets = self.Secrets()
+
+        def accounts(self):
+            return list(self.accounts_rows)
+
+        @classmethod
+        def callback_uri(cls, request):
+            return f"http://localhost:{request.scope['server'][1]}/api/v1/connections/outlook-mail-send/callback"
+
+        @staticmethod
+        def start(label, callback):
+            assert label == "Second sender"
+            from hutch.outlook_calendar import OAuthStart
+            return OAuthStart("https://login.microsoftonline.com/common/oauth2/v2.0/authorize?state=send-fixture",
+                              "send-fixture")
+
+        def _account(self, account_id):
+            return next(account for account in self.accounts_rows if account["id"] == account_id)
+
+        @classmethod
+        def disconnect(cls, account_id):
+            assert account_id == cls.account_id
+            cls.accounts_rows = [account for account in cls.accounts_rows if account["id"] != account_id]
+            return {"removed": True, "provider_revocation": "unavailable"}
+
+    monkeypatch.setattr("hutch.outlook_mail.OutlookMailSendBook", FixtureOutlookMailSendBook)
+    bot = Bot(name="mail-assistant", display_name="Mail Assistant", model="mock/demo", tools=[])
+    app.state.store.create_bot(bot)
+    output = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/outlook-mail-send"
+    output.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    page.add_init_script("""
+      window.__outlookMailSendOAuth = { url: null, opener: 'not-set', closed: false };
+      window.open = () => ({
+        set opener(value) { window.__outlookMailSendOAuth.opener = value; },
+        location: { replace(value) { window.__outlookMailSendOAuth.url = value; } },
+        close() { window.__outlookMailSendOAuth.closed = true; }
+      });
+    """)
+    errors, external = [], []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(base) else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(base + "/#/connections")
+        page.get_by_role("heading", name="Apps & AI").wait_for()
+        page.locator("#connection-management > summary").click()
+        card = page.locator(".outlook-mail-card")
+        page.locator("#outlook-mail-access > summary").click()
+        send_access = page.locator("#outlook-mail-send-access")
+        send_access.locator("summary").click()
+        assert "Mail.Send" in send_access.inner_text()
+        assert "Every send requires your exact approval" in send_access.inner_text()
+        send_signin = page.locator("#outlook-mail-send-connect")
+        assert send_signin.get_attribute("aria-label") == "Sign in with Microsoft"
+        assert send_signin.is_enabled()
+        assert send_signin.locator("img").evaluate("img => img.complete && img.naturalWidth === 215")
+        page.locator("#outlook-mail-send-label").fill("Second sender")
+        send_signin.click()
+        page.wait_for_function("window.__outlookMailSendOAuth.url !== null")
+        oauth = page.evaluate("window.__outlookMailSendOAuth")
+        authorization_url = urlsplit(oauth["url"])
+        assert oauth["opener"] is None
+        assert authorization_url.scheme == "https" and authorization_url.hostname == "login.microsoftonline.com"
+        assert authorization_url.path == "/common/oauth2/v2.0/authorize"
+        assert parse_qs(authorization_url.query)["state"] == ["send-fixture"]
+
+        account = page.locator('[data-outlook-mail-send-account="mssend_0123456789abcdef01234567"]')
+        assert "Mail.Send" in account.inner_text()
+        assert "Mail.Read" not in account.inner_text()
+        selector = account.locator("[data-outlook-mail-send-bot]")
+        assert selector.locator("option:checked").inner_text() == "Mail Assistant"
+        account.get_by_role("button", name="Grant send access").click()
+        page.get_by_text("may prepare one new plain-text email", exact=False).wait_for()
+        grant_row = account.locator(".outlook-mail-send-grants .device-row")
+        grant_row.wait_for()
+        assert "Mail Assistant" in grant_row.inner_text()
+        assert "outlook-mail-send" not in grant_row.inner_text()
+
+        captures = []
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 900, 1024),
+                                     ("phone", 390, 844), ("compact-phone", 320, 740)):
+            page.set_viewport_size({"width": width, "height": height})
+            while page.locator(".toast-close").count():
+                page.locator(".toast-close").first.click()
+            send_access.locator("summary").evaluate("el => el.scrollIntoView({block: 'start'})")
+            page.screenshot(path=str(output / f"send-access-{label}.png"), animations="disabled")
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            captures.append({"size": label, "viewport": [width, height], "horizontal_overflow": overflow})
+        assert account.get_by_role("button", name="Revoke send access").bounding_box()["height"] >= 44
+
+        account.get_by_role("button", name="Revoke send access").click()
+        page.get_by_role("dialog", name="Revoke Outlook Mail sending access").get_by_role(
+            "button", name="Revoke access").click()
+        page.get_by_text("No Bot can prepare email from this account.").wait_for()
+        account.get_by_role("button", name="Disconnect sending account").click()
+        dialog = page.get_by_role("dialog", name="Disconnect Outlook Mail sending")
+        assert "Microsoft consent is not revoked by Hutch" in dialog.inner_text()
+        dialog.get_by_role("button", name="Disconnect").click()
+        page.get_by_text("No Outlook Mail sending accounts connected.").wait_for()
+        assert app.state.store.list_outlook_mail_send_grants() == []
+        assert not errors, errors
+        assert not external, external
+        (output / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_outlook_mail_send_access_is_separate_and_responsive",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": browser.version, "playwright_version": package_version("playwright"),
+            "provider_credentials_used": False, "provider_calls": 0,
+            "scenario": "Local fixture account; separate Mail.Send consent, explicit Bot grant/revoke and local disconnect",
+            "external_requests": external, "page_errors": errors, "captures": captures,
+            "source_sha256": {path: hashlib.sha256((output.parents[3] / path).read_bytes()).hexdigest()
+                              for path in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                                           "src/hutch/server/static/brands/openai-white-monoblossom.svg",
+                                           "src/hutch/server/static/brands/ms-symbollockup_signin_dark.svg",
+                                           "src/hutch/server/app.py", "src/hutch/outlook_mail.py",
+                                           "src/hutch/tools/outlook_mail_send.py", "tests/e2e/test_browser.py")},
         }, indent=2) + "\n", encoding="utf-8")
         context.tracing.stop(path=str(output / "trace.zip"))
     finally:
@@ -3711,6 +3988,7 @@ def test_inference_queue_reason_and_timing_are_visible(browser, live, monkeypatc
             data={"n": 1, "model_ms": 100, "tool_ms": 20, "overhead_ms": 10, "queue_ms": 1500}))
         app.state.store.transition_run(run.id, RunStatus.succeeded, fields={"queue_ms": 1800, "reason": "", "steps": 1})
         page.goto(base + "/#/run/" + run.id)
+        page.locator("#run-technical-details > summary").click()
         page.get_by_text("Recorded step timing", exact=True).wait_for()
         assert "startup and steps" in page.locator(".run-queue-time").inner_text()
         assert "queue 1500ms" in page.locator(".timeline-legend").inner_text()
@@ -4965,14 +5243,29 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
         page.locator(".ctx-id h1").wait_for()
         # This scenario validates readable names in the expanded sidebar,
         # independent of a remembered user's compact-rail preference.
-        if page.locator(".app-shell").evaluate("el => el.classList.contains('collapsed')"):
-            page.get_by_role("button", name="Expand sidebar").click()
-            page.locator(".roster-name").first.wait_for(state="visible")
+        name_labels = page.locator("#roster-list .roster-name")
+        if not name_labels.first.is_visible():
+            expand_sidebar = page.get_by_role("button", name="Expand sidebar")
+            if expand_sidebar.is_visible():
+                expand_sidebar.click()
+            else:
+                page.locator("#nav-toggle").click()
+        name_labels.first.wait_for(state="visible")
+        page.wait_for_function("""() => {
+          const name = document.querySelector('#roster-list .roster-name');
+          if (!name) return false;
+          const style = getComputedStyle(name);
+          return style.whiteSpace === 'nowrap' && style.textOverflow === 'ellipsis' && style.lineHeight !== 'normal';
+        }""")
         assert page.locator("#roster-list .avatar").count() == len(bots)
         assert page.locator("#roster-list .roster-entry").evaluate_all(
             "rows => rows.every(row => row.querySelectorAll('[data-bot-options]').length === 1 && !row.querySelector('[data-pin-bot], .roster-pin, .roster-settings'))")
         long_name = "Research Companion for Long-Term Vendor Strategy and Operations"
-        name_metrics = page.locator("[data-switch-bot='research-helper'] .roster-name").evaluate(
+        long_name_row = page.locator("[data-switch-bot='research-helper']")
+        long_name_row.evaluate("button => { for (let parent = button.parentElement; parent && parent.id !== 'roster-list'; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement) parent.open = true; }")
+        name_label = long_name_row.locator(".roster-name")
+        name_label.wait_for(state="visible")
+        name_metrics = name_label.evaluate(
             "el => ({text:el.textContent.trim(), height:el.clientHeight, lineHeight:parseFloat(getComputedStyle(el).lineHeight), fullName:el.closest('[data-switch-bot]').title})")
         assert "monospace" not in page.locator("[data-switch-bot='research-helper'] .roster-sub").evaluate(
             "el => getComputedStyle(el).fontFamily")
@@ -4981,8 +5274,14 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
         assert name_metrics["height"] <= name_metrics["lineHeight"] + 1
         assert page.locator(".roster-name").evaluate_all(
             "els => els.every(el => getComputedStyle(el).whiteSpace === 'nowrap' && el.clientHeight <= parseFloat(getComputedStyle(el).lineHeight) + 1)")
-        name_label = page.locator("[data-switch-bot='research-helper'] .roster-name")
-        assert name_label.evaluate("el => getComputedStyle(el).textOverflow") == "ellipsis"
+        ellipsis = name_label.evaluate("""el => ({
+          computed: getComputedStyle(el).getPropertyValue('text-overflow'),
+          inline: el.getAttribute('style'),
+          stylesheets: [...document.styleSheets].map(sheet => sheet.href),
+          rule: [...document.styleSheets].flatMap(sheet => [...(sheet.cssRules || [])])
+            .filter(rule => rule.selectorText === '.roster-name').map(rule => rule.cssText)
+        })""")
+        assert ellipsis["computed"] == "ellipsis", ellipsis
         assert name_label.evaluate("el => el.scrollWidth > el.clientWidth"), (
             "long sidebar names should visibly truncate on one line"
         )
@@ -5056,14 +5355,18 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
                   eyes: svgs.map(svg => [...svg.querySelectorAll('[data-sigil-eye]')].map(eye => ({
                     shape:eye.getAttribute('data-sigil-eye'),tag:eye.tagName.toLowerCase(),
                     fill:eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill'),
-                    stroke:eye.getAttribute('stroke') || eye.closest('g')?.getAttribute('stroke'),
+                    stroke:eye.getAttribute('stroke'),
                     cx:eye.dataset.cx,cy:eye.dataset.cy,d:eye.getAttribute('d')})))};
         }""")
         assert identity["count"] == 0, "flat app avatars need no shared SVG definition IDs"
         assert len(set(identity["shapes"])) == 5, "name-derived avatars should remain distinguishable"
         assert len(set(identity["fills"])) > 1 and all(len(eyes) == 2 for eyes in identity["eyes"])
-        assert all(eye["fill"] == "#fff8e9" and eye["stroke"] == "#16362f" and eye["tag"] == "path"
+        assert all(eye["fill"] == "#101714" and eye["stroke"] is None and eye["tag"] == "path"
                    for eyes in identity["eyes"] for eye in eyes)
+        assert all(" C " in eye["d"] for eyes in identity["eyes"] for eye in eyes)
+        assert all(abs(float(eyes[0]["cx"]) - float(eyes[1]["cx"])) <= 16
+                   for eyes in identity["eyes"]), "paired eyes should read as one compact face"
+        assert page.locator("#roster-list .avatar svg [data-sigil-outline]").count() == 0
         assert {eye["shape"] for eyes in identity["eyes"] for eye in eyes} == {"lead", "companion"}
         assert all(len({(eye["cx"], eye["cy"]) for eye in eyes}) == 2 for eyes in identity["eyes"])
 
@@ -5085,26 +5388,50 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
                 if width <= 640:
                     assert page.locator("#roster-list [data-switch-bot]").count() == len(bots)
             selected_row = page.locator("[data-switch-bot='research-helper']")
+            selected_row.evaluate("button => { for (let parent = button.parentElement; parent; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement) parent.open = true; }")
             selected_row.wait_for(state="visible")
             selected_row.click()
+            page.wait_for_url("**/#/chat/research-helper")
+            page.wait_for_function("""() => location.hash === '#/chat/research-helper'
+              && document.querySelector('.ctx-id h1')?.textContent.includes('Research Companion')""")
             page.wait_for_function("document.querySelector('[data-switch-bot=\\\"research-helper\\\"]')?.getAttribute('aria-current') === 'true'")
-            selected_row = page.locator("[data-switch-bot='research-helper']")
-            name_label = selected_row.locator(".roster-name")
-            name_geometry = name_label.evaluate("el => ({height:el.clientHeight, lineHeight:parseFloat(getComputedStyle(el).lineHeight), overflow:getComputedStyle(el).textOverflow, clipped:el.scrollWidth > el.clientWidth})")
+            page.wait_for_function("""() => {
+              const button = document.querySelector('#roster-list [data-switch-bot="research-helper"]');
+              const entry = button?.closest('.roster-entry');
+              const row = entry?.getBoundingClientRect();
+              const options = entry?.querySelector('[data-bot-options]')?.getBoundingClientRect();
+              const name = button?.querySelector('.roster-name');
+              const nameStyle = name && getComputedStyle(name);
+              return entry?.isConnected && row?.width > 0 && row.height > 0 && options?.width > 0
+                && name?.isConnected && name.getBoundingClientRect().height > 0
+                && nameStyle.whiteSpace === 'nowrap' && nameStyle.textOverflow === 'ellipsis';
+            }""")
+            # Route changes rebuild the roster DOM; re-resolve this button
+            # after the destination chat has rendered before reading geometry.
+            selected_row = page.locator("#roster-list [data-switch-bot='research-helper']")
+            row_evidence = page.evaluate("""() => {
+              const button = document.querySelector('#roster-list [data-switch-bot="research-helper"]');
+              const entry = button?.closest('.roster-entry');
+              const options = entry?.querySelector('[data-bot-options]');
+              const name = button?.querySelector('.roster-name');
+              const nameStyle = name && getComputedStyle(name);
+              const row = button?.getBoundingClientRect();
+              const option = options?.getBoundingClientRect();
+              const wrapper = entry?.getBoundingClientRect();
+              return {
+                name: {height:name?.clientHeight, lineHeight:parseFloat(nameStyle?.lineHeight),
+                       overflow:nameStyle?.textOverflow, clipped:name?.scrollWidth > name?.clientWidth},
+                selection: {current:button?.getAttribute('aria-current'),
+                  background:entry && getComputedStyle(entry).backgroundColor,
+                  rowRight:row?.right, optionsRight:option?.right, wrapperRight:wrapper?.right,
+                  optionsVisible:options && getComputedStyle(options).display !== 'none'}
+              };
+            }""")
+            name_geometry = row_evidence["name"]
+            selection_geometry = row_evidence["selection"]
             assert name_geometry["height"] <= name_geometry["lineHeight"] + 1, (label, name_geometry)
             assert name_geometry["overflow"] == "ellipsis", (label, name_geometry)
             assert name_geometry["clipped"], (label, name_geometry)
-            selection_geometry = selected_row.evaluate("""button => {
-              const entry = button.closest('.roster-entry');
-              const options = entry.querySelector('[data-bot-options]');
-              const row = button.getBoundingClientRect();
-              const option = options.getBoundingClientRect();
-              const wrapper = entry.getBoundingClientRect();
-              return { current: button.getAttribute('aria-current'),
-                background: getComputedStyle(entry).backgroundColor,
-                rowRight: row.right, optionsRight: option.right, wrapperRight: wrapper.right,
-                optionsVisible: getComputedStyle(options).display !== 'none' };
-            }""")
             assert selection_geometry["current"] == "true", (label, selection_geometry)
             assert selection_geometry["background"] != "rgba(0, 0, 0, 0)", (label, selection_geometry)
             assert selection_geometry["optionsVisible"], (label, selection_geometry)
@@ -5150,7 +5477,7 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
             "verified": ["one options button per Bot; pin and settings actions share its menu", "pin persists after reload", "coordinator stays first and cannot be pinned",
                          "search includes pinned bots", "keyboard activation and Escape restore focus", "long names truncate with an ellipsis on one line while full names remain available in the title",
                          "mobile roster has a visible close control", "phone roster reopens with all Bots visible", "phone menu target is at least 44px",
-                         "flat 2D identities use distinct solid fills and simple, shape-aware ink eyes"],
+                         "flat 2D identities use distinct silhouettes and colors with close, flowing eye marks"],
             "avatar_svg_ids": identity["count"], "source_sha256": {
                 relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()
                 for relative in ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",

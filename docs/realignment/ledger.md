@@ -3494,3 +3494,22 @@ documented in [`../research/icon-and-chat-interface-references-2026-10-10.md`](.
 The implementation and visual evidence are committed locally on `main` as `0ef7c9ae782102921abbe100da4f1b72bf89c2f4`. This is one
 reviewed UI slice; the broader all-surface redesign and the remaining platform realignment are still open. No push or publication
 occurred.
+
+## Follow-up correction: mascot face and provider marks (2026-10-10)
+
+The user correctly pointed out that the previous tapered marks still looked like slashes. The app and identity picker now use two
+simple dark oval eyes, each sized, tilted, and placed for its own head shape. All eight separately captured shapes were inspected;
+the browser check confirms the eye paths stay inside their silhouettes and meet the 3:1 non-text contrast target (measured minimum
+5.82:1). Current face images and the picker captures are in
+[`artifacts/mascot-eye-review-2026-10-10/`](artifacts/mascot-eye-review-2026-10-10/).
+
+The provider-mark decision is also clarified: the official, unaltered white OpenAI Blossom is present beside the named ChatGPT service.
+The Outlook mark was found, but [Microsoft's current trademark guidance](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks)
+requires an express license for product icons and logos in third-party apps. Hutch therefore uses a neutral inbox glyph for Outlook
+and Microsoft's official sign-in lockup only on the account authorization control. The icon evidence and use boundaries are in
+[`../research/icon-and-chat-interface-references-2026-10-10.md`](../research/icon-and-chat-interface-references-2026-10-10.md).
+
+After the face update and correction of the two stale visual assertions, the focused shape, picker, roster, Activity, Apps & AI,
+run-detail, and responsive-surface browser batch passed **13 tests in 54.21s**. The dedicated mascot check also passed independently
+in **5.44s**. Chromium **153.0.8010.12** and Playwright **1.63.0** used local fixtures; no provider calls or external requests
+occurred. The full broader UI overhaul remains open.

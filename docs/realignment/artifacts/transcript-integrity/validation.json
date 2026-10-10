@@ -1,6 +1,6 @@
 {
   "test": "tests/e2e/test_browser.py::test_run_detail_reports_transcript_chain_verification_and_tampering",
-  "captured_at": "2026-10-10T05:26:02.198518+00:00",
+  "captured_at": "2026-10-10T15:32:11.900082+00:00",
   "browser": "153.0.8010.12",
   "playwright_version": "1.63.0",
   "provider_calls": 0,
@@ -8,19 +8,19 @@
   "external_requests": [],
   "verification_responses": [
     {
-      "url": "http://127.0.0.1:39761/api/v1/tasks/runs/run_a8731090c0eb/verify",
+      "url": "http://127.0.0.1:36971/api/v1/tasks/runs/run_e5b2a3881ae3/verify",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:39761/api/v1/tasks/runs/run_a8731090c0eb/verify",
+      "url": "http://127.0.0.1:36971/api/v1/tasks/runs/run_e5b2a3881ae3/verify",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:39761/api/v1/tasks/runs/run_a8731090c0eb/verify",
+      "url": "http://127.0.0.1:36971/api/v1/tasks/runs/run_e5b2a3881ae3/verify",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:39761/api/v1/tasks/runs/run_a8731090c0eb/verify",
+      "url": "http://127.0.0.1:36971/api/v1/tasks/runs/run_e5b2a3881ae3/verify",
       "status": 200
     }
   ],
@@ -67,9 +67,9 @@
     960
   ],
   "source_sha256": {
-    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
-    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
-    "src/hutch/server/app.py": "8f974411bc5a31afc417ed4b097f0e0ad791af078eb1277b28756a2c156cb1b7",
-    "src/hutch/store.py": "febf2e054c553fd67684a2f361bda5c43e7fdfce317f2d04d69e601ab8324fdb"
+    "src/hutch/server/static/app.js": "dc5c6f66fab32d0042110b2c74a89b761667c4ee2aaddcc9e9c8e871e45178a1",
+    "src/hutch/server/static/style.css": "a98e7a18de42a2a06282a210d0d37a96b61a0a5309622753f076c8da6c824ba4",
+    "src/hutch/server/app.py": "436c20c0ba64bb6b31c754b7d2626879c6585450de86b0abb9884c929b0136cf",
+    "src/hutch/store.py": "d34012dc090f31f63392a8fae9a69f451fb30657a7b90ada3546dcd31cd7a74f"
   }
 }

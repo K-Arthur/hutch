@@ -356,10 +356,11 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
             welcome_marks = page.locator(".welcome-app-mark .service-mark")
             assert welcome_marks.locator("svg").evaluate_all(
                 "els => els.map(el => el.dataset.icon)"
-            ) == ["calendar", "mail", "sparkles"]
+            ) == ["calendar", "mail"]
             assert welcome_marks.evaluate_all(
                 "els => els.map(el => el.dataset.serviceCategory)"
             ) == ["calendar", "gmail", "chatgpt"]
+            assert welcome_marks.locator("img[src='/static/brands/openai-white-monoblossom.svg']").count() == 1
             starter_buttons = page.locator("[data-first-run-example]")
             assert starter_buttons.count() == 3
             starter_requests = (
@@ -414,11 +415,11 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
             assert page.get_by_role("heading", name="How Hutch replies").is_visible()
             cards = page.locator(".service-tile")
             assert cards.count() == 5
-            assert page.locator(".service-tile .service-mark img").count() == 0
-            assert page.locator(".service-tile .service-mark svg").count() == 5
+            assert page.locator(".service-tile .service-mark img[src='/static/brands/openai-white-monoblossom.svg']").count() == 1
+            assert page.locator(".service-tile .service-mark svg").count() == 4
             service_icons = page.locator(".service-tile .service-mark svg")
             assert service_icons.evaluate_all("els => els.map(el => el.dataset.icon)") == [
-                "calendar", "mail", "inbox", "sparkles", "cloud"
+                "calendar", "mail", "inbox", "cloud"
             ]
             assert service_icons.evaluate_all("els => els.every(el => !el.querySelector('text') && el.getAttribute('stroke') === 'currentColor')")
             assert page.locator(".service-tile .service-mark").evaluate_all(
@@ -558,7 +559,7 @@ def test_assistant_settings_keep_everyday_edits_up_front(browser, app_server):
 
 
 def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
-    """The app's paired eyes read as a face and remain contained across all eight shapes."""
+    """The app's paired oval eyes read as a face and remain inside all eight shapes."""
     app_url, app = app_server
     names = [f"mascot-{index}" for index in range(8)]
     for name in names:
@@ -590,21 +591,24 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
             const y = Number(eye.dataset.cy);
             const length = eye.getTotalLength();
             const transform = eye.transform.baseVal.consolidate()?.matrix;
-            const points = Array.from({length:40}, (_, index) => {
-              const point = eye.getPointAtLength(length * index / 40);
-              return new DOMPoint(x + (point.x - x) * .92, y + (point.y - y) * .92)
+            const points = Array.from({length:48}, (_, index) => {
+              const distance = length * index / 48;
+              const point = eye.getPointAtLength(distance);
+              const project = value => new DOMPoint(x + (value.x - x) * .96, y + (value.y - y) * .96)
                 .matrixTransform(transform);
+              return project(point);
             });
-            const center = new DOMPoint(x, y).matrixTransform(transform);
-            return {center: ctx.isPointInPath(shape, center.x, center.y),
-                    perimeter: points.every(point => ctx.isPointInPath(shape, point.x, point.y))};
+            return {perimeter: points.every(point => ctx.isPointInPath(shape, point.x, point.y))};
           });
           return {head: body.getAttribute('d'), color: body.getAttribute('fill'),
                   eyes: eyes.map(eye => ({tag: eye.tagName.toLowerCase(), rx: Number(eye.dataset.rx),
                     ry: Number(eye.dataset.ry), cx: Number(eye.dataset.cx), cy: Number(eye.dataset.cy),
                     d: eye.getAttribute('d'), transform: eye.getAttribute('transform'),
                     fill: eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill'),
-                    stroke: eye.getAttribute('stroke') || eye.closest('g')?.getAttribute('stroke')})),
+                    stroke: eye.getAttribute('stroke'), strokeWidth: Number(eye.getAttribute('stroke-width')),
+                    contrastInk: eye.dataset.contrastInk})),
+          outlines: [...svg.querySelectorAll('[data-sigil-outline]')].map(outline => ({
+            stroke:outline.getAttribute('stroke'), width:Number(outline.getAttribute('stroke-width'))})),
           glints: [...svg.querySelectorAll('[data-sigil-glint]')].map(glint => ({
             cx:Number(glint.getAttribute('cx')), cy:Number(glint.getAttribute('cy')),
             r:Number(glint.getAttribute('r')),
@@ -614,17 +618,20 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
         assert len(identity) == 8, identity
         assert len({item["color"] for item in identity}) == 8, identity
         assert all(len(item["eyes"]) == 2 for item in identity), identity
-        assert all(eye["tag"] == "path" and eye["fill"] == "#fff8e9" and eye["stroke"] == "#16362f"
-                   and eye["ry"] > eye["rx"] * 1.7
+        assert all(eye["tag"] == "path" and eye["fill"] == "#101714" and eye["stroke"] is None
+                   and eye["contrastInk"] == "#101714"
+                   and 1.1 <= eye["ry"] / eye["rx"] <= 1.4
                    for item in identity for eye in item["eyes"]), identity
+        assert all(not item["outlines"] for item in identity), identity
         assert all(not item["glints"] for item in identity), "the mascot face uses no detached highlights"
         assert all(item["eyes"][0]["rx"] > item["eyes"][1]["rx"] for item in identity), identity
-        assert all(abs(item["eyes"][0]["cy"] - item["eyes"][1]["cy"]) <= 1.5 for item in identity), identity
+        assert all(.3 <= item["eyes"][0]["cy"] - item["eyes"][1]["cy"] <= 1.3
+                   for item in identity), identity
         assert len({tuple((eye["rx"], eye["ry"]) for eye in item["eyes"])
                     for item in identity}) == 8, identity
         face_rows = {round(sum(eye["cy"] for eye in item["eyes"]) / 2, 1) for item in identity}
         assert len(face_rows) >= 6, "eye height should follow each silhouette's usable face area"
-        assert all(part == {"center": True, "perimeter": True}
+        assert all(part == {"perimeter": True}
                    for item in identity for part in item["contained"]), identity
 
         # The shape chooser must preview each head with that head's actual face.
@@ -706,7 +713,7 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
                       for value in channels]
             return .2126 * linear[0] + .7152 * linear[1] + .0722 * linear[2]
 
-        eye_ink = identity[0]["eyes"][0]["stroke"]
+        eye_ink = identity[0]["eyes"][0]["contrastInk"]
         eye_contrast = [
             (max(relative_luminance(eye_ink), relative_luminance(item["color"])) + .05)
             / (min(relative_luminance(eye_ink), relative_luminance(item["color"])) + .05)
@@ -734,7 +741,7 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
             "silhouettes": 8,
             "colors": 8,
             "minimum_eye_contrast": round(min(eye_contrast), 2),
-            "checks": ["paired tapered eye slits share a tilt and vary by silhouette", "eye paths have a high-contrast edge and stay inside each head", "shape-specific faces match every picker silhouette and live preview", "44px shape controls", "balanced two-row phone and compact-phone picker", "no phone overflow", "no browser errors"],
+            "checks": ["paired dark oval eyes stay compact and vary by silhouette", "eye contours stay inside every head with a visible margin", "shape-specific faces match every picker silhouette and live preview", "44px shape controls", "balanced two-row phone and compact-phone picker", "no phone overflow", "no browser errors"],
             "page_errors": errors,
             "provider_calls": 0,
             "source_sha256": {
@@ -928,14 +935,14 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
     }
     surfaces = [
         ("studio", f"{app_url}/#/chat/design-system-review", "#conversation-switcher"),
-        ("activity", f"{app_url}/#/overview", ".ov-grid"),
+        ("activity", f"{app_url}/#/overview", ".ov-all-clear"),
         ("schedules", f"{app_url}/#/schedules", ".schedule-overview"),
         ("fleet", f"{app_url}/#/bots", ".bot-grid"),
         ("runs", f"{app_url}/#/runs", "#runs-table-wrap"),
         ("approvals", f"{app_url}/#/approvals", "#needs-you"),
         ("connections", f"{app_url}/#/connections", ".service-tile"),
         ("bot-settings", f"{app_url}/#/bot/design-system-review", "#app-top-context h1"),
-        ("run-detail", f"{app_url}/#/run/{run.id}", "[data-run-integrity-run]"),
+        ("run-detail", f"{app_url}/#/run/{run.id}", "#run-technical-details > summary"),
         ("marketing", site_server, ".hero-title"),
     ]
     evidence = []
@@ -1015,14 +1022,39 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                     assert page.locator("details.schedule-empty-bots").count() == 1
                     assert page.locator(".schedule-empty-bots summary").inner_text() == "Choose an assistant"
                     assert page.locator(".schedule-empty-bots a[href^='#/bot/']").count() == 11
+                if surface_name == "activity":
+                    assert page.locator(".ov-summary-stats .kpi").count() == 2
+                    usage_details = page.locator(".ov-usage-details")
+                    assert usage_details.count() == 1 and not usage_details.evaluate("el => el.open")
+                    assert "tokens" not in page.locator(".ov-summary-stats").inner_text().lower()
+                    assert "cost" not in page.locator(".ov-summary-stats").inner_text().lower()
+                    assert page.locator(".ov-all-clear").is_visible()
+                    assert page.locator(".ov-col").count() == 0
+                    assert page.get_by_role("link", name="Start a chat").is_visible()
+                    assert page.get_by_role("link", name="View past work").is_visible()
+                    usage_details.locator("summary").click()
+                    usage_text = usage_details.inner_text().lower()
+                    assert "reported model tokens today" in usage_text
+                    assert "recorded provider cost today" in usage_text
+                    usage_details.locator("summary").click()
                 if surface_name == "runs":
-                    if width <= 900:
-                        run_card = page.locator("#runs-table-wrap .run-card").first
-                        assert run_card.is_visible()
-                        assert run_card.locator(".run-card-bot b").inner_text() == "Design Partner"
-                        assert page.locator("#runs-table-wrap > table").is_hidden()
-                    else:
-                        assert page.locator("#runs-table-wrap tbody tr td:nth-child(2) b").first.inner_text() == "Design Partner"
+                    run_card = page.locator("#runs-table-wrap .run-card").first
+                    assert run_card.is_visible()
+                    assert run_card.locator(".run-card-bot b").inner_text() == "Design Partner"
+                    assert "Review the recent workspace activity." in run_card.inner_text()
+                    assert "tokens" not in run_card.inner_text().lower()
+                    assert "steps" not in run_card.inner_text().lower()
+                    assert run.id not in run_card.inner_text()
+                    assert page.locator("#runs-table-wrap > table").count() == 0
+                    assert page.locator("#runs-count").inner_text() == "1 result"
+                if surface_name == "run-detail":
+                    assert page.get_by_role("heading", name="Task details").is_visible()
+                    technical_details = page.locator("#run-technical-details")
+                    assert technical_details.is_visible() and technical_details.get_attribute("open") is None
+                    assert not page.locator("[data-run-integrity-run]").is_visible()
+                    assert page.locator("#chat-stream .mrun").count() == 1
+                    assert not page.locator("#chat-stream .mrun").is_visible()
+                    assert technical_details.locator("summary").inner_text().startswith("More details")
                 evidence.append({"surface": surface_name, "size": viewport_name, **metrics})
                 if viewport_name != "compact-phone":
                     page.screenshot(
