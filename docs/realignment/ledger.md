@@ -3723,12 +3723,26 @@ include source hashes in
 [`artifacts/app-catalog-source-aligned-2026-10-10/`](artifacts/app-catalog-source-aligned-2026-10-10/).
 
 Verification: `.venv/bin/pytest -q tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language`
-passed **1 test in 9.62s** with Chromium **153.0.8010.12** and Playwright
+passed **1 test in 8.83s** with Chromium **153.0.8010.12** and Playwright
 **1.63.0**. It covers desktop, short desktop, tablet, phone, and compact phone;
 all had zero horizontal overflow, mobile actions remained at least 44px tall,
 and cards stayed at or below 190px on mobile. No external requests, provider
 calls, or page errors occurred. I reviewed current desktop, tablet, phone, and
-compact-phone screenshots individually. `git diff --check`, JavaScript syntax,
+compact-phone screenshots individually. The capture fixture resets and asserts
+the app's internal scroll position so a previous viewport cannot leave the next
+screenshot halfway down the page. `git diff --check`, JavaScript syntax,
 and design sidecar JSON validation passed. The layout and design docs are
 committed on `main` as `c1e47ad`; this is not the full Connections or all-surface
 redesign. No push or publication occurred.
+
+## Reliable in-app visual capture position (2026-10-10)
+
+The Apps & AI capture test now resets and asserts the app's own scroll pane
+before each first-use or Connections capture. It scrolls the expanded Calendar
+setup into view before saving that targeted image. This corrects screenshots
+that previously started midway down despite a viewport reset. The focused
+responsive test passed **1 test in 8.83s** with no overflow, external requests,
+provider calls, or page errors; I reviewed the corrected first-run and Calendar
+captures individually. The regression and refreshed evidence are committed on
+`main` as `bbb4a05`. This improves capture reliability; it does not close the
+all-surface UI redesign. No push or publication occurred.
