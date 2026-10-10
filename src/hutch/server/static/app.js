@@ -1185,6 +1185,7 @@ const routes = [
   [/^#\/schedules$/, renderSchedules, "schedules"],
   [/^#\/bots$/, renderBots, "bots"],
   [/^#\/runs(?:\?(.*))?$/, m => renderRuns(m ? m[1] : ""), "runs"],
+  [/^#\/skills$/, () => window.hutchSkills.renderSkillsPage(), "skills"],
   [/^#\/approvals$/, renderApprovals, "chat"],
   [/^#\/connections$/, renderConnections, "connections"],
   [/^#\/bot\/([\w-]+)$/, m => renderBotDetail(decodeURIComponent(m[1])), "chat"],
@@ -2471,6 +2472,7 @@ async function renderChatStudio(preferredBot = null) {
               <label class="visually-hidden" for="chat-prompt">Message ${esc(bot.display_name || bot.name)}</label>
               <textarea class="composer-textarea" id="chat-prompt" rows="1" placeholder="Message…" aria-describedby="chat-help" enterkeyhint="send"></textarea>
               <div class="composer-actions">
+                <span class="skill-switch-slot" id="skill-switch-slot"></span>
                 <span class="model-switch-slot" id="model-switch-slot"></span>
                 <button class="composer-send" id="chat-send" type="submit" aria-label="Send message">${icon("up")}</button>
               </div>
@@ -2637,6 +2639,7 @@ async function renderChatStudio(preferredBot = null) {
   const form = $("#chat-form"), txt = $("#chat-prompt"), sendBtn = $("#chat-send");
   const box = $("#composer-box");
   const switcher = window.hutchModelSwitcher?.mount($("#model-switch-slot"), detail, selectedConversation.id);
+  const skillPicker = window.hutchSkills?.mountComposer($("#skill-switch-slot"), detail);
   if (selectedConversation.archived) {
     txt.disabled = true;
     txt.placeholder = "This conversation is archived. Start a new one to continue.";
@@ -2854,7 +2857,8 @@ async function renderChatStudio(preferredBot = null) {
       ? {...selectedWorkspaceTaskResult} : null;
     lastPrompt = text;
     try {
-      const body = { prompt: text, rehearse: !!rehearseOpt?.checked, model: switcher?.selected() || null };
+      const body = { prompt: text, rehearse: !!rehearseOpt?.checked, model: switcher?.selected() || null,
+                     skills: skillPicker?.selected() || [] };
       if (replySnapshot) body.reply_to_message_id = replySnapshot;
       if (workspaceResultSnapshot) {
         body.workspace_task_result_id = workspaceResultSnapshot.id;
@@ -2866,6 +2870,7 @@ async function renderChatStudio(preferredBot = null) {
       });
       clearMessageIdempotencyKey(composerConversationId, key);
       if (body.model) switcher?.consumeOverride(body.model);
+      if (body.skills.length) skillPicker?.consume();
       if (replySnapshot && selectedReply?.id === replySnapshot) setReply(null);
       if (workspaceResultSnapshot && selectedWorkspaceTaskResult?.id === workspaceResultSnapshot.id) {
         setWorkspaceTaskResult(null);
@@ -5609,8 +5614,9 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
             </form>
           </section>
 
-          <section class="panel schedule-manager" id="schedule-manager" aria-labelledby="schedule-manager-title">
-            <div class="schedule-manager-head">
+          <div id="bot-skills-section"></div>
+
+          <section class="panel schedule-manager" id="schedule-manager" aria-labelledby="schedule-manager-title">            <div class="schedule-manager-head">
               <div>
                 <div class="panel-title settings-panel-title" id="schedule-manager-title"><span class="settings-panel-icon">${icon("calendar")}</span>Work on a schedule</div>
                 <p class="hint">Set a time for this assistant to check in or take care of a repeat task.</p>
@@ -5763,6 +5769,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
 
   // wiring
   mountIdentityPicker($("#idp-panel"), b.name, pair => { sigilSet(b.name, pair); refreshRoster(); });
+  window.hutchSkills?.mountBotPanel($("#bot-skills-section"), b);
   const patch = async (body, msg) => {
     try {
       await api(`/bots/${encodeURIComponent(b.name)}`, { method: "PATCH", body });
