@@ -1,0 +1,92 @@
+{
+  "test": "tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language",
+  "captured_at": "2026-10-10T12:32:36.797638+00:00",
+  "python": "3.13.15",
+  "browser": "Chromium 153.0.8010.12",
+  "playwright": "1.63.0",
+  "viewports": [
+    {
+      "surface": "first-run",
+      "viewport": [
+        1440,
+        960
+      ],
+      "overflow": 0
+    },
+    {
+      "surface": "first-run",
+      "viewport": [
+        900,
+        1024
+      ],
+      "overflow": 0
+    },
+    {
+      "surface": "first-run",
+      "viewport": [
+        390,
+        844
+      ],
+      "overflow": 0
+    },
+    {
+      "surface": "first-run",
+      "viewport": [
+        320,
+        740
+      ],
+      "overflow": 0
+    },
+    {
+      "surface": "apps-ai",
+      "viewport": [
+        1440,
+        960
+      ],
+      "overflow": 0
+    },
+    {
+      "surface": "apps-ai",
+      "viewport": [
+        900,
+        1024
+      ],
+      "overflow": 0
+    },
+    {
+      "surface": "apps-ai",
+      "viewport": [
+        390,
+        844
+      ],
+      "overflow": 0
+    },
+    {
+      "surface": "apps-ai",
+      "viewport": [
+        320,
+        740
+      ],
+      "overflow": 0
+    }
+  ],
+  "states": [
+    "empty first run",
+    "request carried into assistant setup",
+    "service catalog",
+    "Google Calendar access expanded"
+  ],
+  "external_requests": [],
+  "provider_calls": 0,
+  "reduced_motion": "reduce",
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "f9ec5cedf21cf04db04f98d69c658a987bf026e6cf46ee97e354246ab7c1ce4d",
+    "src/hutch/server/static/index.html": "575a9641e4be85f5ed3294571370073ed90656c728baa218cfe11bd0b6e6f932",
+    "src/hutch/server/static/style.css": "580461addb6a236c7e6786b0ca81c68a80d8cd08f8cfefd7a95be565ad7a0ea9",
+    "website/index.html": "f46ce02b2cfea91b5ea23530818314bde41685307163b49196251a1f578f8f96",
+    "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
+    "website/styles.css": "f7299051af1380b1c170f0ab0930b896b070c3c197e42f19f90a466b64499581",
+    "tests/e2e/test_design_system.py": "b7d51e9ef5a4110ed06762bb2836edaa7a58a35ba898687d9fc8a9fd7e86ee11"
+  }
+}

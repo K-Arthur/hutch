@@ -1190,10 +1190,9 @@ Chromium **153.0.8010.12** / Playwright **1.63.0**; all captured local fixtures 
 errors or horizontal overflow. No live provider, paid call, external account, screen reader,
 or physical phone was used.
 
-Mobbin searches for an iOS assistant inbox and web settings disclosure returned the plan-gate message and no screens. A screenshot
-of the user-provided Bobo Figma preview node rendered the full canvas at 1400×881 (natural canvas 32128×20200); it is too zoomed out
-to inspect individual components. The compact summary follows Hutch's committed design tokens and uses that preview only as
-high-level mobile-chat context. No external assets or token values were copied.
+The user-provided Bobo Figma preview rendered its full canvas at 1400×881 (natural canvas 32128×20200); it was too zoomed out to
+inspect individual components. The compact summary follows Hutch's committed design tokens and uses that preview only as high-level
+mobile-chat context. No external assets or token values were copied.
 
 ## Local saved-request library (2026-10-10)
 
@@ -1261,9 +1260,8 @@ balanced four-by-two grid on 390px and 320px phones; the colour remains a 26px s
 journey passed **1 test in 3.74s** on Chromium **153.0.8010.12** / Playwright **1.63.0**, checking every selector face against all eight
 rendered avatars, selected-state updates, target size, both phone layouts, no overflow, and no browser errors. I opened and inspected the
 desktop, tablet, phone, and compact-phone selector captures individually in [`artifacts/mascot-eye-review/`](artifacts/mascot-eye-review/).
-No provider calls or external requests occurred. Mobbin's screen catalog required sign-in and its search connector returned an
-argument error, so this refinement uses no claimed Mobbin screen evidence. The Figma Community shape library was reviewed for variety
-of base forms only; no artwork was reused. Physical-device and screen-reader checks remain open.
+No provider calls or external requests occurred. The Figma Community shape library was reviewed for variety of base forms only; no
+artwork was reused. Physical-device and screen-reader checks remain open.
 
 ## Independent route review and responsive control-density fixes (2026-10-10)
 
@@ -1274,7 +1272,7 @@ individually; the compact-phone sweep asserts the page width instead of relying 
 and one completed run, so these captures are layout evidence, not live workspace or provider evidence.
 
 The review found three worthwhile density/readability fixes. Fleet cards now show **Open** and one 44×44 options control; pause/resume
-and settings sit inside that menu. The empty Schedules state offers a single **Choose a Bot** disclosure, with its Bot links revealed on
+and settings sit inside that menu. The empty Schedules state offers a single **Choose an assistant** disclosure, with its assistant links revealed on
 demand. Run history uses professional Bot display names and switches to linked cards at widths up to 900px, where the previous table
 wrapped Bot names, timestamps and columns awkwardly. The chooser includes a downward indicator, and the menu action journey verifies
 pause and resume against the local API.
@@ -1294,9 +1292,8 @@ design tokens remain consistent across the workspace routes, while marketing kee
 editorial layout and detailed 3D character. The eight 2D app silhouettes retain their own face geometry, as separately verified in
 [`artifacts/mascot-eye-review/`](artifacts/mascot-eye-review/).
 
-Mobbin's screen catalog was blocked by its plan/sign-in gate. Figma's file preview was available as a broad reference, but node-level
-inspection hit the Starter-plan tool limit; those limits are recorded in the machine-readable validation file. This review therefore
-does not claim detailed Mobbin screen comparisons. It is local fixture validation, not screen-reader or physical-device testing.
+This is local fixture validation, not screen-reader or physical-device testing. Figma node-level retrieval was blocked by the current
+Starter-plan tool limit; the current visual-validation entry records that boundary.
 
 
 ## Intent-preserving chat-led Bot setup (2026-10-10)
@@ -1316,9 +1313,8 @@ no page errors, and no external/provider calls. This is same-browser fixture evi
 screen readers, or a physical phone.
 
 The focused clarification/refinement/API command passed **3 tests in 6.66s**; the full conversation module passed **19 tests in 6.30s**;
-the tool-free runtime guard passed **1 test in 1.17s**. `node --check`, Python compilation, and `git diff --check` passed. The Mobbin
-connector returned its paid-plan requirement, so this slice does not claim any Mobbin screen comparison. The eight distinct 2D app
-mascot silhouettes and their per-shape face geometry remain covered separately in
+the tool-free runtime guard passed **1 test in 1.17s**. `node --check`, Python compilation, and `git diff --check` passed. The eight
+distinct 2D app mascot silhouettes and their per-shape face geometry remain covered separately in
 [`artifacts/mascot-eye-review/`](artifacts/mascot-eye-review/).
 
 The implementation and focused screenshots are committed locally on `main` as `160af58`. No provider call, external request, push,
@@ -1335,6 +1331,54 @@ account/calendar fixtures and made no Google calls or external requests. Chromiu
 
 The focused provider/API/migration and two responsive browser journeys passed **56 tests**. Python compilation, JavaScript syntax,
 `git diff --check`, and scoped Impeccable detection (`[]`) passed. Live Google sign-in, consent, provider behavior, screen-reader and
-physical-device validation remain open. Mobbin's connector returned the paid-plan restriction; Figma library discovery returned
-`INVALID_ARGUMENT` and `whoami` confirmed the connected Starter plan, so the page follows Hutch's existing visual system and does not
-claim a fresh Mobbin or Figma screen reference.
+physical-device validation remain open. The page follows Hutch's existing visual system; individual Figma node inspection was limited
+by the connected Starter plan.
+
+## Personal-assistant entry, roster, app choices, and mascot faces (2026-10-10)
+
+The empty chat now leads with a real request field and locally drawn calendar, mail, and AI marks around the simple 2D Hutch face.
+Submitting carries the exact request into setup; the dialog calls it the person's starting request, suggests an editable assistant name,
+and says there is no need to repeat it. The quick summary describes the actual safe defaults without leading with workspace, tool, or
+schedule terminology. The next steps keep model choice and abilities explicit, with deeper controls available on request.
+
+The former Connections page is presented as **Apps & AI**. Its first layer uses concise cards with a service mark, plain-language
+description, honest state, and one next action. Account scopes, OAuth setup, and detailed integration controls sit under **More account
+settings**. The AI choice uses Hutch's generic sparkle mark; it does not imitate or recolor the OpenAI Blossom. The main app's faces use
+shape-specific, slightly asymmetric solid ink eyes with no highlights, keeping the 2D identity readable on each bright silhouette;
+the marketing site retains its richer 3D art.
+
+The larger Fleet view now shows a human role, truthful status, run cadence, and action expectation first. Exact model routes, schedules,
+activity, estimated tokens and saved-note counts stay together under **More details**; pause/resume and settings share one menu. The
+chat's empty-conversation gallery leads with common tasks and short names such as **File organizer** and **Meeting follow-up** rather
+than storage IDs. The first six are reordered for personal-assistant use while stored IDs and template behavior remain unchanged.
+
+The design uses the user's supplied mobile references for the recognizable chat list, direct assistant conversation, and grouped per-assistant actions. A node-level request for the connected Figma preview was attempted, but the account's Starter-plan tool limit blocked retrieval. Hutch's checked-in `DESIGN.md` remains the visual authority; no Bobo artwork or palette was copied.
+
+The current Hutch welcome and app-catalog captures under [`artifacts/assistant-first-ui/everyday-start/`](artifacts/assistant-first-ui/everyday-start/) show each surface separately at desktop **1440×960**, tablet **900×1024**, phone **390×844**, and compact phone **320×740**, plus the prefilled setup at desktop and phone and Calendar access expanded at desktop. Updated individual route captures, including Fleet's collapsed and expanded card, are in [`artifacts/ui-surface-review/`](artifacts/ui-surface-review/); the Studio gallery was separately inspected at desktop and phone before and after scrolling to its final choice, where every card stays above the composer. The separate 3D marketing hero captures are in [`artifacts/assistant-first-ui/marketing/`](artifacts/assistant-first-ui/marketing/), and current public-site product images are at `website/assets/captures/setup-{desktop,phone}.webp`. Mascot face previews under [`artifacts/mascot-eye-review-2026-10-10/`](artifacts/mascot-eye-review-2026-10-10/) were opened individually, including the drop, triangle, and hex, then the picker at desktop, tablet, phone, and compact phone. All screenshot checks use reduced motion and local fixtures.
+
+Chromium **153.0.8010.12** / Playwright **1.63.0** passed the **5-test** design-system browser file after the Fleet and gallery changes, plus the updated all-routes test that checks the composer overlap at desktop and phone scroll positions. The anonymous website suite passed **27 tests** after replacing its stale screenshot captures; no external requests or provider calls occurred. The first-run test verifies the original request remains exact, keyboard focus reaches the setup action, and all four sizes avoid horizontal overflow; the mascot test verifies eight distinct silhouettes, per-shape faces, picker parity, in-boundary eyes, and at least **3:1** eye/body contrast. Visual review also caught and fixed a reveal-animation issue: content nested in closed technical disclosures now stays out of the hidden reveal state and remains visible when opened. These fixture checks do not verify live account consent, screen readers, or physical devices.
+
+## Everyday-first UI and screenshot provenance (2026-10-10)
+
+The app now opens assistant settings on only the editable name and short role. Standing directions, model/runtime, permissions, schedules,
+memory and workspace controls remain available inside one optional disclosure. The first-run composer carries the exact request into
+setup and suggests an editable, request-based name; it does not ask the person to repeat their goal. Apps & AI uses familiar local
+calendar, mail and model marks with names, honest states and one next step. The everyday path uses plain language; the optional layer
+retains the technical controls for people who want them. App assistants stay simple, shape-aware 2D characters, while the public site
+keeps the detailed 3D mascot.
+
+The earlier screenshots looked behind the UI because saved image files were not tied to the exact app and website source that produced
+them. I added SHA-256 source fingerprints for the app shell, app JavaScript/CSS, marketing HTML/CSS/JavaScript and visual test to the
+responsive evidence, then regenerated the current individual route and assistant-settings captures. The route evidence covers Studio,
+Activity, Scheduled work, Manage assistants, Work history, Needs you, Apps & AI, assistant settings, run detail, preferences and the
+marketing site at **1440×960**, **900×1024** and **390×844**, plus 320px overflow checks. Each page is saved separately rather than as a
+collage. The screenshots and matching fingerprints are in [`artifacts/ui-surface-review/`](artifacts/ui-surface-review/) and
+[`artifacts/assistant-settings-everyday/`](artifacts/assistant-settings-everyday/); request-first and app-mark screenshots are in
+[`artifacts/assistant-first-ui/everyday-start/`](artifacts/assistant-first-ui/everyday-start/).
+
+I opened individual desktop and phone renders for settings, Studio, Fleet, Apps & AI, first run, request-carryover setup, Needs you and
+the 3D marketing hero. Chromium **153.0.8010.12** / Playwright **1.63.0** passed **13 design-system and site-token tests** and **20
+focused settings/provider journeys**, with thread and syntax warnings treated as errors. These fixture journeys made no external
+requests or provider calls. The supplied Figma screen was requested individually, but Figma's current Starter-plan tool-call limit
+prevented node-level retrieval; implementation follows the main-branch `DESIGN.md` and the user's supplied screens. Physical-device,
+live provider and screen-reader validation remain separate gaps.

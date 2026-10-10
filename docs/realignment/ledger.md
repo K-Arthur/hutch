@@ -18,6 +18,20 @@ after their tests and visual review. Do not push or publish.
 
 ## Current slices
 
+UI realignment, 2026-10-10: the everyday path now opens with a request, carries that exact
+request into assistant setup, and suggests a short editable name. Default assistant settings
+show only identity and role; model, runtime, permissions, schedules, memory and workspace
+controls live under one optional disclosure. Apps & AI uses named local service marks and
+clear states. Main-app mascots remain shape-aware 2D faces, with detailed 3D artwork reserved
+for marketing. Fleet details and account setup are progressively disclosed; navigation groups
+secondary work surfaces under More. Main's `DESIGN.md` remains canonical. Source is committed
+locally as `437da02`; current individual screenshots and source fingerprints accompany this
+ledger update. Verification passed 13 design-system/site-token tests and 20 focused settings
+journeys; fixture coverage made no external or provider calls. Figma node-level retrieval hit
+the current Starter-plan call limit, so visual implementation follows the checked-in system
+and supplied individual screens. Physical devices, live providers and screen-reader checks
+remain open.
+
 S6 continuation, 2026-10-10: the optional Bot-setup clarification begins from the selected chat request and asks at most five
 work-related questions, one at a time, with choice cards and free text. It reuses only the exact request, owner-selected earlier
 messages and previous answers. The same browser can restore user-provided answer text and the review draft for seven days; it is not
@@ -168,6 +182,7 @@ grant for held operator review. Desktop, tablet and phone share/revoke flows are
 | `32d5e69` | Refine all eight app-mascot faces with shape-specific diagonal eyes; verify conversation-search empty, error and escaped-text states with updated responsive evidence; offline suite 1,532 passed |
 | `fcefc5c` | Refresh the scoped UI audit to distinguish the historical failure run from the verified offline suite and separately passed browser journeys |
 | `160af58` | Add optional multi-round, intent-preserving Bot setup clarification with bounded answers, same-browser resume, regression coverage and inspected responsive captures |
+| `437da02` | Refine the everyday-first assistant UI, request carryover, Apps & AI cards, grouped settings, simple app faces and matching marketing visuals |
 
 ## Dashboard polish continuation (2026-10-09)
 

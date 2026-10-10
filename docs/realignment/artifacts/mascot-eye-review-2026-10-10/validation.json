@@ -1,0 +1,64 @@
+{
+  "test": "tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette",
+  "captured_at": "2026-10-10T12:32:43.418211+00:00",
+  "browser": "Chromium 153.0.8010.12",
+  "viewports": {
+    "desktop": [
+      1440,
+      960
+    ],
+    "tablet": [
+      900,
+      1024
+    ],
+    "phone": [
+      390,
+      844
+    ],
+    "compact_phone": [
+      320,
+      740
+    ]
+  },
+  "screenshots": [
+    "desktop.png",
+    "phone-studio.png",
+    "phone-roster.png",
+    "shape-picker-desktop.png",
+    "shape-picker-tablet.png",
+    "shape-picker-phone.png",
+    "shape-picker-compact-phone.png"
+  ],
+  "individually_reviewed_faces": [
+    "face-orb.png",
+    "face-capsule.png",
+    "face-bean.png",
+    "face-drop.png",
+    "face-pebble.png",
+    "face-shield.png",
+    "face-triangle.png",
+    "face-hex.png"
+  ],
+  "silhouettes": 8,
+  "colors": 8,
+  "minimum_eye_contrast": 5.81,
+  "checks": [
+    "slightly asymmetric ink oval eyes with silhouette-specific center, spacing, scale, height, and tilt",
+    "no white eye highlights",
+    "shape-specific faces match every picker silhouette and live preview",
+    "eyes inside each mascot silhouette",
+    "44px shape controls",
+    "balanced two-row phone and compact-phone picker",
+    "no phone overflow",
+    "no browser errors"
+  ],
+  "page_errors": [],
+  "provider_calls": 0,
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "f9ec5cedf21cf04db04f98d69c658a987bf026e6cf46ee97e354246ab7c1ce4d",
+    "src/hutch/server/static/style.css": "580461addb6a236c7e6786b0ca81c68a80d8cd08f8cfefd7a95be565ad7a0ea9",
+    "src/hutch/server/static/index.html": "575a9641e4be85f5ed3294571370073ed90656c728baa218cfe11bd0b6e6f932",
+    "tests/e2e/test_design_system.py": "b7d51e9ef5a4110ed06762bb2836edaa7a58a35ba898687d9fc8a9fd7e86ee11"
+  }
+}
