@@ -151,9 +151,20 @@ function choiceDraftKey(conversationId, questionId) {
 }
 
 document.addEventListener("click", ev => {
+  $$(".assistant-settings-menu[open]").forEach(menu => {
+    if (!menu.contains(ev.target)) menu.open = false;
+  });
   const openChoice = ev.target.closest("[data-open-choice-conversation]");
   if (!openChoice) return;
   void openConversation(openChoice.dataset.openChoiceConversation);
+});
+
+document.addEventListener("keydown", ev => {
+  if (ev.key !== "Escape") return;
+  const menu = $(".assistant-settings-menu[open]");
+  if (!menu) return;
+  menu.open = false;
+  menu.querySelector("summary")?.focus({ preventScroll: true });
 });
 
 async function createStudioConversation(bot) {
@@ -5284,11 +5295,16 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
   setTopContext(`
     <div class="ctx-id">
       ${botAvatar(b.name, 30)}
-      <h1>${esc(b.display_name || b.name)} settings</h1>
+      <div class="ctx-heading"><h1>${esc(b.display_name || b.name)}</h1><span class="ctx-subtitle">Assistant settings</span></div>
     </div>
     <div class="ctx-actions">
-      <a class="btn ghost small" href="#/chat/${esc(b.name)}">${icon("chat")} Open chat</a>
-      <button class="btn danger small" id="btn-delete-bot">${icon("trash")}Delete assistant</button>
+      <details class="assistant-settings-menu">
+        <summary class="icon-btn" aria-label="Assistant options" title="Assistant options">${icon("moreHorizontal")}</summary>
+        <div class="assistant-settings-menu-panel" aria-label="Assistant options">
+          <a class="assistant-settings-menu-item" href="#/chat/${esc(b.name)}">${icon("chat")} Open chat</a>
+          <button class="assistant-settings-menu-item is-danger" id="btn-delete-bot" type="button">${icon("trash")} Delete assistant</button>
+        </div>
+      </details>
     </div>`);
 
   const limits = b.limits || {};
@@ -5850,6 +5866,7 @@ async function renderBotDetail(name, factOffset = 0, showArchivedFacts = false) 
     } catch (err) { out.textContent = err.message; }
   });
   $("#btn-delete-bot").addEventListener("click", async () => {
+    $(".assistant-settings-menu").open = false;
     if (!(await confirmDialog({
       title: "Delete assistant",
       body: `Delete <b>${esc(b.name)}</b>? Its workspace, memory, and transcripts stay on disk, but the bot and its schedule are removed.`,

@@ -40,7 +40,7 @@ assistant identities; the marketing site may use the detailed 3D character.
 | Assistant creation and identity | Request-preserving setup already implemented; visual simplification remains | Open |
 | Assistant settings / advanced controls | Individually reviewed at desktop and phone | Open |
 | Needs you / approvals / human checkpoints | Approval-first queue; optional browser notifications collapsed by default and available from one disclosure | In progress |
-| Activity / schedules / history / task details | Activity independently reviewed; remaining pages to inspect | Open |
+| Activity / schedules / history / task details | Each route independently reviewed at desktop and phone; responsive route coverage also checks tablet and compact phone | Redesign pass open |
 | Apps & AI / local and hosted model settings | Source-aligned desktop, tablet, phone, and compact-phone review; compact phone cards | Open |
 | Preferences, sign-in, pairing, and server pages | Route coverage exists; independent visual review remains | Open |
 | Marketing website | Updated hero and feature sections individually inspected at desktop, tablet, phone, and compact phone | In progress |
@@ -152,6 +152,39 @@ hashes, screenshots, and trace are in
 [`artifacts/marketing-card-hierarchy-2026-10-10/`](artifacts/marketing-card-hierarchy-2026-10-10/).
 The rest of the marketing page and all other open product surfaces still need
 review; this slice does not close the overhaul.
+
+### Assistant settings header actions — verified (2026-10-10)
+
+The settings header now keeps the assistant's name as its one-line title and
+uses one **Assistant options** menu for the secondary **Open chat** link and
+the destructive **Delete assistant** action. This removes a permanently visible
+delete control beside everyday navigation while keeping both actions available
+from a 44px, labeled trigger. The menu uses the existing Hutch panel, focus,
+icon, and control language.
+
+`tests/e2e/test_design_system.py::test_assistant_settings_header_groups_secondary_actions`
+passed at **1440×960**, **390×844**, and **320×740** in Chromium
+**153.0.8010.12** / Playwright **1.63.0**. It verifies one header action,
+single-line assistant naming, menu content, close-on-outside-click, Escape
+close with focus return, and no horizontal overflow. I opened the settings page
+and menu screenshots separately at desktop and phone size; the menu stays
+inside the viewport and does not cover its trigger. No provider calls, external
+requests, or browser errors occurred. Evidence and source hashes are in
+[`artifacts/assistant-settings-actions-2026-10-10/`](artifacts/assistant-settings-actions-2026-10-10/).
+
+This improves one settings route. The individual route reviews are underway;
+the wider redesign of Studio, Connections, approvals, assistant management,
+supervision, preferences, and the complete marketing site remains open.
+
+The current route-baseline pass now has independent captures for Studio,
+Activity, Scheduled work, Manage assistants, Past work, Needs you, Apps & AI,
+Assistant settings, Task details, Preferences, and the marketing page. I opened
+desktop and phone captures separately and ran responsive overflow checks through
+tablet and compact-phone widths. The captures reveal that the empty schedule's
+**Choose an assistant** disclosure should read more clearly as the next action;
+that state remains open for the next slice. Account and pairing pages, deeper
+provider settings, expanded/loading/error states, and the remaining marketing
+sections still need their own review and redesign.
 
 A separate send-only Gmail setup has since been added under Connections with
 its own account rows, sender address, permission label and per-assistant grant.

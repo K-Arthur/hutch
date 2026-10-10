@@ -230,6 +230,89 @@ def test_studio_template_gallery_survives_background_refresh(browser, app_server
         context.close()
 
 
+def test_assistant_settings_header_groups_secondary_actions(browser, app_server):
+    """Assistant settings keep the name visible and place rare actions in one menu."""
+    app_url, _app = app_server
+    out = ROOT / "docs/realignment/artifacts/assistant-settings-actions-2026-10-10"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(reduced_motion="reduce", viewport={"width": 1440, "height": 960})
+    page = context.new_page()
+    errors: list[str] = []
+    external_requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    evidence = []
+    trace_saved = False
+    try:
+        for name, width, height in (("desktop", 1440, 960), ("phone", 390, 844), ("compact-phone", 320, 740)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.goto(f"{app_url}/#/bot/design-system-review", wait_until="domcontentloaded")
+            title = page.locator("#app-top-context h1")
+            title.wait_for()
+            assert title.inner_text() == "Design Partner"
+            assert page.locator("#app-top-context .ctx-subtitle").inner_text() == "Assistant settings"
+            menu = page.locator("#app-top-context .assistant-settings-menu")
+            assert menu.count() == 1
+            assert page.locator("#app-top-context .ctx-actions > *").count() == 1
+            assert page.locator("#btn-delete-bot").count() == 1
+            assert not page.locator("#btn-delete-bot").is_visible()
+            title_box = title.bounding_box()
+            identity_box = page.locator("#app-top-context .ctx-id").bounding_box()
+            action_box = menu.bounding_box()
+            assert title_box and identity_box and action_box
+            assert title.evaluate("el => getComputedStyle(el).whiteSpace") == "nowrap"
+            assert title_box["height"] <= title.evaluate("el => parseFloat(getComputedStyle(el).lineHeight)") + 1
+            if width <= 900:
+                assert abs((identity_box["y"] + identity_box["height"] / 2)
+                           - (action_box["y"] + action_box["height"] / 2)) <= 5, (name, title_box, action_box)
+            assert page.evaluate("Math.max(document.documentElement.scrollWidth, document.body.scrollWidth)") <= width + 1
+            page.evaluate("document.activeElement instanceof HTMLElement && document.activeElement.blur()")
+            page.screenshot(path=str(out / f"settings-{name}.png"), animations="disabled")
+
+            trigger = menu.locator("summary")
+            assert trigger.get_attribute("aria-label") == "Assistant options"
+            trigger.click()
+            assert page.get_by_role("link", name="Open chat", exact=True).is_visible()
+            assert page.get_by_role("button", name="Delete assistant", exact=True).is_visible()
+            if name in {"desktop", "phone"}:
+                page.evaluate("document.activeElement instanceof HTMLElement && document.activeElement.blur()")
+                page.screenshot(path=str(out / f"settings-options-{name}.png"), animations="disabled")
+
+            page.locator("#view").click(position={"x": 8, "y": 120})
+            assert not menu.evaluate("el => el.open")
+            trigger.click()
+            page.keyboard.press("Escape")
+            assert not menu.evaluate("el => el.open")
+            assert trigger.evaluate("el => el === document.activeElement")
+            evidence.append({"surface": name, "viewport": [width, height],
+                             "title": title.inner_text(), "headerActions": 1,
+                             "menuItems": ["Open chat", "Delete assistant"]})
+
+        assert not errors, errors
+        assert not external_requests, external_requests
+        (out / "validation.json").write_text(json.dumps({
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "test": "tests/e2e/test_design_system.py::test_assistant_settings_header_groups_secondary_actions",
+            "browser": browser.version,
+            "playwright": package_version("playwright"),
+            "source_hashes": _visual_source_hashes(),
+            "evidence": evidence,
+            "page_errors": errors,
+            "external_requests": external_requests,
+        }, indent=2) + "\n")
+        context.tracing.stop(path=str(out / "trace.zip"))
+        trace_saved = True
+    finally:
+        if not trace_saved:
+            try:
+                context.tracing.stop(path=str(out / "trace-failed.zip"))
+            except Exception:
+                pass
+        context.close()
+
+
 def _measure_tokens(page, surface: str) -> dict:
     return page.evaluate("""surface => {
       const root = getComputedStyle(document.documentElement);
@@ -1122,6 +1205,10 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
             for surface_name, url, ready_selector in surfaces:
                 active_surface["name"] = f"{surface_name}-{viewport_name}"
                 page.goto(url, wait_until="domcontentloaded")
+                nav_toggle = page.locator("#nav-toggle")
+                if nav_toggle.count() and nav_toggle.get_attribute("aria-expanded") == "true":
+                    page.keyboard.press("Escape")
+                    page.locator("#workspace:not(.open)").wait_for()
                 page.locator(ready_selector).first.wait_for(timeout=15_000)
                 if surface_name == "approvals":
                     page.locator("#needs-you").wait_for(state="visible")
@@ -1140,7 +1227,7 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                     assert page.get_by_role("heading", name="Microsoft Outlook", exact=True).is_visible()
                 if surface_name == "bot-settings":
                     page.wait_for_function(
-                        "document.querySelector('#app-top-context h1')?.textContent.trim() === 'Design Partner settings'"
+                        "document.querySelector('#app-top-context h1')?.textContent.trim() === 'Design Partner'"
                     )
                 page.evaluate("document.fonts.ready")
                 metrics = page.evaluate("""() => ({

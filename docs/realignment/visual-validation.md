@@ -1878,3 +1878,42 @@ inspected the helper setup dialog; the source fingerprints and trace are in
 [`artifacts/studio-helper-gallery-2026-10-10/`](artifacts/studio-helper-gallery-2026-10-10/).
 These are local fixture checks only: no provider, external site, screen reader,
 or physical phone was used.
+
+## Assistant settings action hierarchy (2026-10-10)
+
+The assistant settings header now shows the assistant name on one line with a
+single **Assistant options** control. **Open chat** and **Delete assistant** are
+inside the menu; the destructive action no longer sits beside routine
+navigation. The menu is 44px square, opens below its trigger, closes on outside
+click or Escape, and returns keyboard focus to the trigger.
+
+`uv run --frozen pytest -q tests/e2e/test_design_system.py::test_assistant_settings_header_groups_secondary_actions`
+passed **1 test** in **6.08s** on Chromium **153.0.8010.12** /
+Playwright **1.63.0**. It covers desktop **1440×960**, phone **390×844**, and
+compact phone **320×740**, checks one-line title geometry and zero horizontal
+overflow, and confirms the menu items and focus behavior. I inspected the
+settings page and open menu screenshots individually at desktop and phone
+sizes. The test recorded no external requests or page errors. Captures, source
+fingerprints, and trace are in
+[`artifacts/assistant-settings-actions-2026-10-10/`](artifacts/assistant-settings-actions-2026-10-10/).
+This validates one settings-page change; the all-surface redesign remains open.
+
+## Independent app-route baseline (2026-10-10)
+
+Refreshed source-bound screenshots for Studio, Activity, Scheduled work, Manage
+assistants, Past work, Needs you, Apps & AI, Assistant settings, Task details,
+Preferences, and the marketing page. The Playwright route check passed **1 case
+in 17.56s** at desktop **1440×960**, tablet **900×1024**, phone **390×844**,
+and compact phone **320×740**. It checks each route separately, resets the
+mobile navigation drawer between captures, asserts no page overflow, and
+reports no browser errors or external requests.
+
+I opened the current desktop and phone screenshots independently for each app
+route and the marketing page. This baseline review identified the assistant
+settings header action crowding and a low-emphasis **Choose an assistant** action
+in the empty schedule state; the settings header has been fixed. A compact
+primary schedule action is the next visual slice. The responsive captures,
+trace, and source hashes are in [`artifacts/ui-surface-review/`](artifacts/ui-surface-review/).
+The remaining account, pairing, legacy server-page, expanded-state, and full
+marketing reviews are still open; this route batch does not mark the redesign
+complete.

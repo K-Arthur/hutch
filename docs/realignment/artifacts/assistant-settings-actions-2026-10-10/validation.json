@@ -1,0 +1,59 @@
+{
+  "created_at": "2026-10-10T20:53:09.590779+00:00",
+  "test": "tests/e2e/test_design_system.py::test_assistant_settings_header_groups_secondary_actions",
+  "browser": "153.0.8010.12",
+  "playwright": "1.63.0",
+  "source_hashes": {
+    "src/hutch/server/static/app.js": "298ff44c28b788c7d50a9d775acec450a0bc673c08667a102610a81a107f4983",
+    "src/hutch/server/static/index.html": "d9d037b323fa06b27dbe718edf247f3c925839642a410264926d085b860d07c6",
+    "src/hutch/server/static/style.css": "287eabf52866ed9de1a80a287590edab9a5d2fd118ecee9fa6dfb8f20eae156e",
+    "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
+    "website/index.html": "b60f0ccbd52208e8f8a7e32ec9c43b4948c938c95f676832673cde8eb90012b2",
+    "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
+    "website/styles.css": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
+    "tests/e2e/test_design_system.py": "4f860b66d0c5f5e997866dcc9372e9daec3df922fc5831374dbedda24872ac7a"
+  },
+  "evidence": [
+    {
+      "surface": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "title": "Design Partner",
+      "headerActions": 1,
+      "menuItems": [
+        "Open chat",
+        "Delete assistant"
+      ]
+    },
+    {
+      "surface": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "title": "Design Partner",
+      "headerActions": 1,
+      "menuItems": [
+        "Open chat",
+        "Delete assistant"
+      ]
+    },
+    {
+      "surface": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "title": "Design Partner",
+      "headerActions": 1,
+      "menuItems": [
+        "Open chat",
+        "Delete assistant"
+      ]
+    }
+  ],
+  "page_errors": [],
+  "external_requests": []
+}

@@ -120,6 +120,9 @@ disclosure with a meaningful icon, so people do not face a long technical form
 when they only want to rename an assistant. AI, app access, scheduling, safety,
 workspace, memory, and usage remain available when they choose to customize.
 A workspace with only one assistant does not show a coordinator choice.
+Keep the assistant name on one line in the settings header. Put secondary
+navigation and destructive actions in one labeled **Assistant options** menu;
+deletion should not compete visually with ordinary page navigation.
 
 For an empty conversation in an existing assistant, lead the template gallery
 with familiar jobs such as organizing files, following up after a meeting, and

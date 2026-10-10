@@ -2362,3 +2362,37 @@ body.paired-phone > :not(#phone-root) { display: none !important; }
   #app-top-context:has(#btn-new-bot-top) .ctx-actions .btn { width: 44px; padding: 0; gap: 0; font-size: 0; }
   .fleet-create-compact-label { display: none; }
 }
+
+/* Assistant settings keep the name beside one options control. Chat navigation
+   and the destructive action stay available in the menu without crowding the
+   page header on small screens. */
+.assistant-settings-menu { position: relative; flex: none; }
+.assistant-settings-menu > summary {
+  display: grid; place-items: center; width: 44px; height: 44px; list-style: none; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--r-ctl); color: var(--text-2);
+}
+.assistant-settings-menu > summary::-webkit-details-marker { display: none; }
+.assistant-settings-menu > summary:hover,
+.assistant-settings-menu[open] > summary { color: var(--text); background: var(--raised); border-color: var(--line-strong); }
+.assistant-settings-menu > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.assistant-settings-menu-panel {
+  position: absolute; z-index: calc(var(--z-toast) + 5); top: calc(100% + 6px); right: 0;
+  width: min(224px, calc(100vw - 24px)); padding: 6px;
+  border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--overlay); box-shadow: var(--sh-pop);
+}
+.assistant-settings-menu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 10px;
+  border: 0; border-radius: var(--r-ctl); background: transparent; color: var(--text);
+  font: 500 var(--fs-sm)/1.35 var(--font-ui); text-align: left; text-decoration: none; cursor: pointer;
+}
+.assistant-settings-menu-item:hover,
+.assistant-settings-menu-item:focus-visible { background: var(--raised-hi); text-decoration: none; }
+.assistant-settings-menu-item:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.assistant-settings-menu-item .icon { flex: none; color: var(--text-2); }
+.assistant-settings-menu-item.is-danger,
+.assistant-settings-menu-item.is-danger .icon { color: var(--danger); }
+@media (max-width: 900px) {
+  #app-top-context:has(.assistant-settings-menu) { flex-wrap: nowrap; align-items: center; }
+  #app-top-context:has(.assistant-settings-menu) .ctx-id { width: auto; flex: 1 1 auto; }
+  #app-top-context:has(.assistant-settings-menu) .ctx-actions { width: auto; flex: 0 0 auto; margin-left: auto; }
+}

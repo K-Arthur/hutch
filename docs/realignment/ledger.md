@@ -3918,3 +3918,34 @@ anti-patterns after the update. Evidence and source hashes are in
 [`artifacts/marketing-card-hierarchy-2026-10-10/`](artifacts/marketing-card-hierarchy-2026-10-10/).
 This narrows one marketing pattern but leaves the broader all-surface redesign
 open. No push or publication occurred.
+
+## Assistant settings action hierarchy (2026-10-10)
+
+Changed the settings header to show the assistant name on one line and one
+**Assistant options** menu. The menu contains **Open chat** and the destructive
+**Delete assistant** action. It closes on outside click or Escape and returns
+focus to its trigger.
+
+`uv run --frozen pytest -q tests/e2e/test_design_system.py::test_assistant_settings_header_groups_secondary_actions`
+passed **1 test** at **1440×960**, **390×844**, and **320×740** with Chromium
+**153.0.8010.12** / Playwright **1.63.0**. No browser errors, external requests,
+or provider calls occurred. Individually inspected the settings page and open
+menu at desktop and phone sizes. Evidence is in
+`artifacts/assistant-settings-actions-2026-10-10/`. This is one focused UI
+checkpoint; the all-surface overhaul remains open.
+
+## Independent route review checkpoint (2026-10-10)
+
+Refreshed the source-bound `ui-surface-review` capture set after adding the
+settings options menu. The route test passed **1 case in 17.56s** across desktop,
+tablet, phone, and compact phone for Studio, Activity, Scheduled work, Manage
+assistants, Past work, Needs you, Apps & AI, Assistant settings, Task details,
+Preferences, and the marketing page. It reports no page errors or external
+requests. The mobile drawer is now reset through its Escape behavior between
+independent route captures. Each current app route and the marketing page was
+opened individually at desktop and phone sizes.
+
+The review found the empty schedule's next action less visible than its empty
+state copy. This is queued as the next UI slice. Server-rendered sign-in,
+pairing, and operator pages plus expanded error/waiting states remain in the
+broader redesign.
