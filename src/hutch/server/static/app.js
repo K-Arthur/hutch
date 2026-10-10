@@ -1076,6 +1076,107 @@ async function openConversation(id) {
   await renderChatStudio(bot.name);
 }
 
+function openConversationSearch(trigger) {
+  const botOptions = botsCache.map(bot =>
+    `<option value="${esc(bot.id)}">${esc(bot.display_name || bot.name)}</option>`).join("");
+  openModal({
+    title: "Search chats",
+    wide: true,
+    tall: true,
+    returnFocus: trigger,
+    confirmText: "Done",
+    confirmClass: "ghost",
+    showCancel: false,
+    bodyHtml: `<form class="message-search" id="message-search-form" role="search">
+      <div class="message-search-controls">
+        <label class="field message-search-query" for="message-search-query">Search messages
+          <input id="message-search-query" type="search" maxlength="256" autocomplete="off" spellcheck="false"
+            aria-describedby="message-search-scope" placeholder="Search words or a phrase" />
+        </label>
+        <label class="field message-search-bot-filter" for="message-search-bot">Bot
+          <select id="message-search-bot"><option value="">All Bots</option>${botOptions}</select>
+        </label>
+      </div>
+      <p class="hint message-search-scope" id="message-search-scope">Search covers active chats. Archived and imported history stays out of results.</p>
+      <p class="message-search-status" id="message-search-status" role="status" aria-live="polite">Type at least two characters to search.</p>
+      <div class="message-search-results" id="message-search-results" aria-label="Search results"></div>
+    </form>`,
+  });
+  const form = $("#message-search-form");
+  const input = $("#message-search-query");
+  const botFilter = $("#message-search-bot");
+  const status = $("#message-search-status");
+  const results = $("#message-search-results");
+  let requestGeneration = 0;
+  let debounce = null;
+  const renderHits = hits => {
+    results.innerHTML = hits.map(hit => {
+      const botName = botDisplayName(hit.bot_id);
+      const title = hit.title || "Untitled conversation";
+      const date = new Date(hit.created_at);
+      const time = Number.isNaN(date.valueOf()) ? "Date unavailable"
+        : new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(date);
+      const role = hit.role === "user" ? "You" : botName;
+      return `<button class="message-search-result" type="button"
+        data-search-conversation="${esc(hit.conversation_id)}" data-search-run="${esc(hit.run_id || "")}">
+        <span class="message-search-result-head"><span class="message-search-result-title">${esc(title)}</span>
+          <span class="message-search-result-meta">${esc(botName)} · ${esc(role)} · ${esc(time)}</span></span>
+        <span class="message-search-result-excerpt">${esc(hit.excerpt)}</span>
+      </button>`;
+    }).join("");
+  };
+  const search = async () => {
+    clearTimeout(debounce);
+    const query = input.value.trim();
+    const generation = ++requestGeneration;
+    if (query.length < 2) {
+      results.innerHTML = "";
+      status.textContent = "Type at least two characters to search.";
+      return;
+    }
+    status.textContent = "Searching chats…";
+    try {
+      const hits = await api("/v1/search/messages", {
+        method: "POST", body: { q: query, bot: botFilter.value || null, limit: 30 },
+      });
+      if (generation !== requestGeneration || !form.isConnected) return;
+      renderHits(hits);
+      status.textContent = hits.length ? `${hits.length} ${hits.length === 1 ? "message" : "messages"} found.`
+        : "No messages found in active chats.";
+    } catch (error) {
+      if (generation !== requestGeneration || !form.isConnected) return;
+      results.innerHTML = "";
+      status.textContent = `Search unavailable: ${error.message}`;
+    }
+  };
+  form.addEventListener("submit", event => { event.preventDefault(); void search(); });
+  input.addEventListener("input", () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(() => void search(), 220);
+  });
+  botFilter.addEventListener("change", () => { if (input.value.trim().length >= 2) void search(); });
+  results.addEventListener("click", async event => {
+    const result = event.target.closest("[data-search-conversation]");
+    if (!result) return;
+    const conversationId = result.dataset.searchConversation;
+    const runId = result.dataset.searchRun;
+    $("#modal-close")?.click();
+    try {
+      await openConversation(conversationId);
+      if (runId) {
+        const thread = $$("#chat-stream [data-run-id]").find(node => node.dataset.runId === runId);
+        thread?.scrollIntoView({ block: "center", behavior: "instant" });
+        if (thread) {
+          thread.classList.add("message-search-target");
+          setTimeout(() => thread.classList.remove("message-search-target"), 1600);
+        }
+      }
+    } catch (error) {
+      toast(`Could not open this conversation: ${error.message}`, true);
+    }
+  });
+}
+
 async function route() {
   const hash = location.hash || "#/chat";
   document.body.classList.toggle("has-composer", hash.startsWith("#/chat"));
@@ -2054,6 +2155,8 @@ async function renderChatStudio(preferredBot = null) {
       <select class="conversation-select" id="conversation-switcher" aria-label="Conversation">
         ${conversationOptionsHtml(currentConversations, currentConversationId)}
       </select>
+      <button class="icon-btn studio-search-button" id="studio-search-messages" type="button"
+        aria-label="Search chats" title="Search chats">${icon("search")}</button>
       <details class="conversation-actions" id="studio-conversation-actions">
         <summary class="icon-btn" id="studio-conversation-options" aria-label="Conversation options" title="Conversation options">${icon("moreHorizontal")}</summary>
         <div class="conversation-actions-panel" aria-label="Conversation actions">
@@ -2078,6 +2181,7 @@ async function renderChatStudio(preferredBot = null) {
       <button class="btn danger small" id="studio-stop-run" type="button" data-stop-target="${esc(activeRun?.id || "")}" ${activeRun ? "" : "hidden"}>${icon("stop")} Stop</button>
       <a class="btn ghost small" href="#/bot/${esc(bot.name)}">${icon("sliders")} Settings</a>
     </div>`);
+  $("#studio-search-messages")?.addEventListener("click", event => openConversationSearch(event.currentTarget));
 
   view.innerHTML = `
     <section class="studio">

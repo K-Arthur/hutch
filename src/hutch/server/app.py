@@ -99,6 +99,7 @@ REMOTE_ROUTE_CAPABILITIES: dict[tuple[str, str], Optional[str]] = {
     ("POST", "/api/v1/actions/approvals/{approval_id}/approve"): "review",
     ("POST", "/api/v1/actions/approvals/{approval_id}/deny"): "review",
     ("POST", "/api/v1/tasks/runs"): "start",
+    ("POST", "/api/v1/search/messages"): "monitor",
 }
 
 PUBLIC_REMOTE_ROUTES = {("GET", "/login"), ("POST", "/login"), ("GET", "/pair"),
@@ -860,6 +861,31 @@ class ConversationSearchResult(BaseModel):
     run_id: str
     role: str
     content: str
+    created_at: str
+    bot_id: str
+    title: str
+
+
+class ConversationSearchRequest(BaseModel):
+    q: str = Field(min_length=1, max_length=256)
+    bot: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    limit: int = Field(default=30, ge=1, le=100)
+
+    @field_validator("q")
+    @classmethod
+    def query_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("q must contain non-whitespace text")
+        return value
+
+
+class ConversationSearchHit(BaseModel):
+    id: str
+    conversation_id: str
+    seq: int
+    run_id: Optional[str] = None
+    role: str
+    excerpt: str
     created_at: str
     bot_id: str
     title: str
@@ -2362,6 +2388,13 @@ def create_app() -> FastAPI:
             raise HTTPException(422, "q must contain 1–256 characters")
         bot_id = bot_or_404(bot).id if bot else None
         return store.search_conversation_messages(q, bot_id=bot_id, limit=max(1, min(limit, 100)))
+
+    @app.post("/api/v1/search/messages", response_model=list[ConversationSearchHit])
+    def search_messages_private(body: ConversationSearchRequest) -> list[dict]:
+        bot_id = bot_or_404(body.bot).id if body.bot else None
+        return store.search_conversation_messages(
+            body.q, bot_id=bot_id, limit=body.limit, excerpt_only=True,
+        )
 
     @app.post("/api/v1/conversations/{conversation_id}/messages", response_model=dict)
     def send_conversation_message(conversation_id: str, body: ConversationMessageRequest,

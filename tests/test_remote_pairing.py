@@ -387,6 +387,11 @@ def test_paired_routes_require_origin_csrf_and_deny_legacy_mutation_aliases(tmp_
             {"X-Hutch-Request": "1", "Idempotency-Key": "stop-1"}))
         assert missing_csrf.status_code == 403
         csrf = app.state.store.auth_csrf_token(session["session_token"], session["session_id"])
+        assert client.post("/api/v1/search/messages", json={"q": "private phrase"}, headers=_phone_headers(
+            {"X-Hutch-Request": "1"})).status_code == 403
+        search_headers = _phone_headers({"X-Hutch-Request": "1", "X-Hutch-CSRF": csrf})
+        assert client.post("/api/v1/search/messages", json={"q": "private phrase"},
+                           headers=search_headers).status_code == 200
         secure_headers = _phone_headers({"X-Hutch-Request": "1", "X-Hutch-CSRF": csrf,
                                          "Idempotency-Key": "stop-1"})
         assert client.post("/api/runs/missing/stop", json={}, headers=secure_headers).status_code == 403

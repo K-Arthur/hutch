@@ -528,6 +528,8 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .coordinator-label-compact { display: none; }
 .ctx-actions { margin-left: auto; display: flex; align-items: center; gap: var(--s-2); flex: none; }
 .conversation-select { min-width: 115px; max-width: 190px; height: 34px; font-size: var(--fs-xs); }
+.studio-search-button { width: 40px; height: 40px; flex: none; border: 1px solid var(--line); }
+.studio-search-button:hover { border-color: var(--line-strong); }
 .conversation-actions { position: relative; flex: none; }
 .conversation-actions > summary { min-width: 40px; min-height: 40px; cursor: pointer; list-style: none; }
 .conversation-actions > summary::-webkit-details-marker { display: none; }
@@ -1220,6 +1222,7 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
   overflow: hidden;
   animation: modal-in var(--dur) var(--ease);   /* 0ms under reduced motion */
 }
+.modal-card.modal-wide { width: min(780px, 100%); }
 @keyframes modal-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } }
 .modal-header { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-4) var(--s-5); border-bottom: 1px solid var(--line); flex: none; }
 .modal-header h3 { font-size: var(--fs-xl); }
@@ -1228,6 +1231,25 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 .modal-footer { display: flex; justify-content: flex-end; gap: var(--s-2); padding: var(--s-4) var(--s-5); border-top: 1px solid var(--line); flex: none; }
 .confirm-body { font-size: var(--fs-md); color: var(--text-2); }
 .confirm-body b { color: var(--text); }
+
+.message-search { display: grid; gap: var(--s-3); }
+.message-search-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 220px); gap: var(--s-3); align-items: end; }
+.message-search-controls input, .message-search-controls select { min-height: 44px; }
+.message-search-scope { margin: 0; }
+.message-search-status { min-height: 1.5em; margin: 0; color: var(--text-2); font-size: var(--fs-sm); }
+.message-search-results { display: grid; gap: var(--s-2); }
+.message-search-result {
+  display: grid; gap: var(--s-2); width: 100%; min-width: 0; padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--panel);
+  color: var(--text); text-align: left; cursor: pointer; line-height: 1.5;
+}
+.message-search-result:hover, .message-search-result:focus-visible { border-color: var(--focus-line); background: var(--raised); }
+.message-search-result:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.message-search-result-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); min-width: 0; }
+.message-search-result-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
+.message-search-result-meta { flex: none; color: var(--text-3); font-size: var(--fs-xs); }
+.message-search-result-excerpt { display: -webkit-box; overflow: hidden; color: var(--text-2); line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.thread.message-search-target { outline: 2px solid var(--focus-line); outline-offset: 5px; border-radius: var(--r-panel); }
 
 .toast-root { position: fixed; right: var(--s-5); bottom: var(--s-5); z-index: var(--z-toast); display: flex; flex-direction: column; gap: var(--s-2); max-width: min(420px, calc(100vw - 24px)); }
 .toast {
@@ -1498,6 +1520,12 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 }
 
 @media (max-width: 640px) {
+  .message-search-controls { grid-template-columns: minmax(0, 1fr); }
+  .message-search-result-head { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .message-search-result-title { white-space: normal; }
+}
+
+@media (max-width: 640px) {
   .bot-grid { grid-template-columns: 1fr; }
   .tool-options { grid-template-columns: minmax(0, 1fr); }
   .setup-tool-options { grid-template-columns: minmax(0, 1fr); }
@@ -1556,6 +1584,7 @@ a.ov-approval:hover { background: rgba(255, 255, 255, 0.03); text-decoration: no
 
 @media (max-width: 640px) and (pointer: coarse) {
   .app-top-context .ctx-actions .btn { min-width: 44px; min-height: 44px; justify-content: center; }
+  .icon-btn.studio-search-button { width: 44px; height: 44px; }
 }
 
 /* touch comfort (Hutch standard 44x44; exceeds WCAG 2.5.8's 24px) */

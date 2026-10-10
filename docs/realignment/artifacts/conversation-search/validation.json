@@ -1,0 +1,64 @@
+{
+  "test": "tests/e2e/test_design_system.py::test_chat_message_search_is_scoped_responsive_and_opens_its_conversation",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_chat_message_search_is_scoped_responsive_and_opens_its_conversation",
+  "captured_at": "2026-10-10T06:38:22.490835+00:00",
+  "python": "3.13.15",
+  "browser": "Chromium 153.0.8010.12",
+  "playwright": "1.63.0",
+  "viewports": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "all_bot_hits": 2,
+      "filtered_hits": 1,
+      "query_in_url": false
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "all_bot_hits": 2,
+      "filtered_hits": 1,
+      "query_in_url": false
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "all_bot_hits": 2,
+      "filtered_hits": 1,
+      "query_in_url": false
+    },
+    {
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "all_bot_hits": 2,
+      "filtered_hits": 1,
+      "query_in_url": false
+    }
+  ],
+  "external_requests": [],
+  "provider_calls": 0,
+  "touch_search_target_css_pixels": [
+    44,
+    44
+  ],
+  "states": [
+    "active conversation message search",
+    "all Bots",
+    "filtered Bot",
+    "conversation opened",
+    "focus restored"
+  ],
+  "visual_review": "Individually inspected desktop/tablet/phone/compact-phone screenshots; no overflow or layout clipping."
+}

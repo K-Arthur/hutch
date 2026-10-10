@@ -255,7 +255,10 @@ Human password/CAPTCHA/MFA steps pause in the same live profile; Resume checks t
 processes. Schema v9 stores canonical conversations, user/assistant messages, run links and revocable device sessions; old runs are imported one per legacy
 conversation to avoid guessing continuity. Versioned conversation writes and run admission are idempotent and transactional. The
 builtin runtime receives a capped snapshot of earlier messages; Studio uses the versioned conversation endpoints. Versioned stop and
-approval decisions are also idempotent. Schema v26 stores a Bot-authored choice prompt and its options with the assistant message and
+approval decisions are also idempotent. Studio message search accepts a bounded query in the body of `POST /api/v1/search/messages`,
+returns excerpts rather than full message rows, excludes archived and imported conversations, and filters by Bot; paired Monitor
+sessions may search only with the normal origin and CSRF checks. The legacy GET search remains available to local clients. Schema v26
+stores a Bot-authored choice prompt and its options with the assistant message and
 hash-chained `choice_requested` event in one fenced transaction. A selected answer atomically records the chosen option IDs, adds a
 user message linked to the question, and admits the next conversation run under the normal idempotency key. Questions are separate
 from approvals and browser/CAPTCHA handoff: they do not change run authority or permissions. A provider response that combines a

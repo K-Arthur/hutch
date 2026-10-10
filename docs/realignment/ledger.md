@@ -3217,3 +3217,23 @@ JSON are in [`artifacts/mascot-eye-review/`](artifacts/mascot-eye-review/); refr
 [`artifacts/design-system/`](artifacts/design-system/) and [`artifacts/pinned-roster/`](artifacts/pinned-roster/). The page produced no
 browser errors or horizontal overflow and made no provider calls. This is fixture-based visual validation, not physical-device or
 screen-reader testing.
+
+## In-Studio conversation search (2026-10-10)
+
+The chat header now has one search action beside the conversation selector, keeping search out of the crowded Bot roster and
+conversation-options menu. Its accessible dialog filters across active chats or one Bot, shows a short context excerpt and opens the
+chosen conversation. Archived and imported conversations remain excluded, matching the existing FTS5 scope. The new POST route keeps
+the query out of the browser URL and returns at most 30 excerpt-only rows to Studio by default; the server bounds query length and
+result count, and paired Monitor sessions still require the standard origin and CSRF checks. The old GET route remains compatible.
+
+Placement was informed by separately inspected Figma mobile frames, where search is a compact header action; the wide preview collage
+was treated only as an index. Mobbin captures remain unavailable behind its account-plan gate, so none are cited as inspected.
+
+The unit, authorization and browser batch passed **24 tests in 17.37s**; the phone search trigger measures **44×44 CSS pixels** in a
+touch-enabled Chromium context. JS syntax, Python compilation, CSS-token generation check,
+design detection and `git diff --check` passed. Chromium **153.0.8010.12** / Playwright **1.63.0** screenshots were captured and
+individually inspected at desktop **1440×960**, tablet **900×1024**, phone **390×844** and compact phone **320×740**. Search returned
+two all-Bot results and one Bot-filtered result, opened the selected chat, restored keyboard focus, had no horizontal overflow, page
+errors, external requests or provider calls. Images, trace and machine-readable validation are in
+[`artifacts/conversation-search/`](artifacts/conversation-search/). These are local fixtures; there was no physical-phone or
+screen-reader test. The broader full suite and live provider validation remain unverified.

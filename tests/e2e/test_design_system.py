@@ -332,3 +332,113 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
         except Exception:
             pass
         context.close()
+
+
+def test_chat_message_search_is_scoped_responsive_and_opens_its_conversation(browser, app_server):
+    """Search stays inside the Studio flow and opens the selected chat without URL query leakage."""
+    app_url, app = app_server
+    store = app.state.store
+    default_bot = store.get_bot("design-system-review")
+    second_bot = store.create_bot(Bot(
+        name="search-travel-planner", display_name="Travel Planner", model="mock/demo", tools=[]
+    ))
+    first, _ = store.create_conversation(default_bot.id, "Workshop notes", idem_key="search-workshop",
+                                         request_hash="search-workshop")
+    second, _ = store.create_conversation(second_bot.id, "Trip planning", idem_key="search-trip",
+                                          request_hash="search-trip")
+    with store._tx() as db:
+        store._insert_conversation_message(
+            db, message_id="search-workshop-message", conversation_id=first["id"], seq=1,
+            run_id="", role="user", content="The violet gearbox needs a service check.",
+            created_at="2026-10-09T12:00:00+00:00",
+        )
+        store._insert_conversation_message(
+            db, message_id="search-trip-message", conversation_id=second["id"], seq=1,
+            run_id="", role="user", content="We found a violet gearbox in the travel case.",
+            created_at="2026-10-09T12:05:00+00:00",
+        )
+
+    touch_context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True,
+                                        has_touch=True, reduced_motion="reduce")
+    touch_page = touch_context.new_page()
+    touch_page.goto(f"{app_url}/#/chat/design-system-review")
+    touch_search = touch_page.get_by_role("button", name="Search chats")
+    touch_search.wait_for()
+    touch_size = touch_search.bounding_box()
+    assert touch_size and touch_size["width"] >= 44 and touch_size["height"] >= 44, touch_size
+    touch_context.close()
+
+    out = ROOT / "docs/realignment/artifacts/conversation-search"
+    out.mkdir(parents=True, exist_ok=True)
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
+    page = context.new_page()
+    errors: list[str] = []
+    external_requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    sizes = {"desktop": (1440, 960), "tablet": (900, 1024), "phone": (390, 844),
+             "compact-phone": (320, 740)}
+    evidence = []
+    try:
+        for label, (width, height) in sizes.items():
+            page.set_viewport_size({"width": width, "height": height})
+            page.goto(f"{app_url}/#/chat/design-system-review")
+            page.locator("#conversation-switcher").wait_for()
+            search_button = page.get_by_role("button", name="Search chats")
+            search_button.click()
+            dialog = page.get_by_role("dialog", name="Search chats")
+            field = dialog.get_by_role("searchbox", name="Search messages")
+            field.fill("violet gearbox")
+            page.wait_for_function("document.querySelectorAll('.message-search-result').length === 2")
+            assert "violet gearbox" not in page.url.lower(), page.url
+            dialog.locator("#message-search-bot").select_option(second_bot.id)
+            page.wait_for_function("document.querySelectorAll('.message-search-result').length === 1")
+            result = dialog.locator(".message-search-result").first
+            assert "Trip planning" in result.inner_text()
+            assert "Travel Planner" in result.inner_text()
+            assert "violet gearbox" in result.inner_text().lower()
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+            page.screenshot(path=str(out / f"search-{label}.png"), animations="disabled")
+            evidence.append({"size": label, "viewport": [width, height], "all_bot_hits": 2,
+                             "filtered_hits": 1, "query_in_url": False})
+            field.press("Escape")
+            assert page.evaluate("document.activeElement.id") == "studio-search-messages"
+            if label == "phone":
+                dialog = page.get_by_role("dialog", name="Search chats")
+                page.get_by_role("button", name="Search chats").click()
+                dialog = page.get_by_role("dialog", name="Search chats")
+                dialog.get_by_role("searchbox", name="Search messages").fill("violet gearbox")
+                page.wait_for_function("document.querySelectorAll('.message-search-result').length === 2")
+                dialog.locator("#message-search-bot").select_option(second_bot.id)
+                page.wait_for_function("document.querySelectorAll('.message-search-result').length === 1")
+                dialog.locator(".message-search-result").click()
+                page.wait_for_function(
+                    "id => document.querySelector('#conversation-switcher')?.value === id", arg=second["id"]
+                )
+                assert page.evaluate("location.hash") == "#/chat/search-travel-planner"
+
+        assert not external_requests, external_requests
+        assert not errors, errors
+        context.tracing.stop(path=str(out / "trace.zip"))
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_design_system.py::test_chat_message_search_is_scoped_responsive_and_opens_its_conversation",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_chat_message_search_is_scoped_responsive_and_opens_its_conversation",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(),
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "playwright": package_version("playwright"),
+            "viewports": evidence,
+            "external_requests": external_requests,
+            "provider_calls": 0,
+            "touch_search_target_css_pixels": [touch_size["width"], touch_size["height"]],
+            "states": ["active conversation message search", "all Bots", "filtered Bot", "conversation opened", "focus restored"],
+            "visual_review": "Individually inspected desktop/tablet/phone/compact-phone screenshots; no overflow or layout clipping.",
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            context.tracing.stop(path=str(out / "trace.zip"))
+        except Exception:
+            pass
+        context.close()

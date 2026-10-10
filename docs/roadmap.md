@@ -190,7 +190,9 @@ Strict Offline Linux runs; it does not complete the broader S6 collaboration pla
   certification remain separate verification gaps; this is not rollback of external effects.
 - **Conversation persistence: partial.** Schema v8 stores canonical messages and maps runs to conversations. Historical runs are
   imported separately. The local v1 API snapshots at most 12 prior messages / 16,000 characters for builtin runs and supports
-  FTS5 search. The Studio selects threads, displays restart-persistent history and archives without deleting it. Bounded JSON export
+  FTS5 search. Studio exposes search from one compact header action: a POST-body query returns bounded excerpts from active,
+  non-legacy chats, can be narrowed to one Bot, and opens the selected conversation without putting terms in the URL. The older GET
+  search route remains compatible. The Studio selects threads, displays restart-persistent history and archives without deleting it. Bounded JSON export
   is opt-in and includes an explicit disclosure; permanent scoped deletion remains unavailable.
 - **Studio navigation and approvals: consolidated.** Studio has one bot roster and one settings destination; the same exact-action
   approval card appears in the originating chat and in the cross-chat Needs you drawer. Monitor holds activity and run history. Fleet

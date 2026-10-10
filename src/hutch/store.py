@@ -3239,14 +3239,21 @@ class Store:
             ).fetchone()
         return dict(row) if row else None
 
-    def search_conversation_messages(self, query: str, *, bot_id: Optional[str] = None, limit: int = 20) -> list[dict[str, Any]]:
+    def search_conversation_messages(self, query: str, *, bot_id: Optional[str] = None, limit: int = 20,
+                                    excerpt_only: bool = False) -> list[dict[str, Any]]:
         terms = re.findall(r"[^\W_]+", query, flags=re.UNICODE)
         if not terms:
             return []
         # Treat input as plain text, not FTS operators. Quoting terms avoids malformed MATCH syntax
         # from punctuation and keeps the query language stable for API clients.
         fts_query = " AND ".join(f'"{term}"' for term in terms)
-        sql = ("SELECT m.*, c.bot_id, c.title FROM conversation_fts "
+        if excerpt_only:
+            fields = ("m.id, m.conversation_id, m.seq, m.run_id, m.role, "
+                      "substr(snippet(conversation_fts, 2, '', '', '…', 32), 1, 600) AS excerpt, "
+                      "m.created_at, c.bot_id, c.title")
+        else:
+            fields = "m.*, c.bot_id, c.title"
+        sql = (f"SELECT {fields} FROM conversation_fts "
                "JOIN messages m ON m.id = conversation_fts.message_id "
                "JOIN conversations c ON c.id = m.conversation_id "
                "WHERE conversation_fts MATCH ? AND c.archived = 0 AND c.is_legacy = 0")

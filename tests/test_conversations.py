@@ -166,6 +166,46 @@ def test_conversation_sidebar_preferences_are_durable_idempotent_and_track_unrea
     assert next(row for row in snapshot["items"]["conversations"] if row["id"] == conversation_id)["unread"] is True
 
 
+def test_private_conversation_search_returns_bounded_active_chat_excerpts(conversation_client):
+    client = conversation_client
+    first_bot = client.post("/api/bots", json={"name": "search-alpha", "model": "mock/demo", "tools": []}).json()
+    second_bot = client.post("/api/bots", json={"name": "search-beta", "model": "mock/demo", "tools": []}).json()
+    store = client.app.state.store
+    first, _ = store.create_conversation(first_bot["id"], "Engine notes", idem_key="search-alpha",
+                                         request_hash="search-alpha")
+    second, _ = store.create_conversation(second_bot["id"], "Meeting notes", idem_key="search-beta",
+                                          request_hash="search-beta")
+    archived, _ = store.create_conversation(first_bot["id"], "Old notes", idem_key="search-archived",
+                                            request_hash="search-archived")
+    with store._tx() as db:
+        for message_id, conversation_id, content in (
+            ("search-message-a", first["id"], "The violet gearbox needs a service check."),
+            ("search-message-b", second["id"], "I found a violet gearbox in the inventory."),
+            ("search-message-archived", archived["id"], "The violet gearbox is archived."),
+        ):
+            store._insert_conversation_message(
+                db, message_id=message_id, conversation_id=conversation_id, seq=1,
+                run_id="search-fixture-run", role="user", content=content,
+                created_at="2026-10-09T12:00:00+00:00",
+            )
+        db.execute("UPDATE conversations SET archived = 1 WHERE id = ?", (archived["id"],))
+
+    response = client.post("/api/v1/search/messages", json={"q": "violet gearbox", "limit": 30})
+    assert response.status_code == 200, response.text
+    hits = response.json()
+    assert {hit["conversation_id"] for hit in hits} == {first["id"], second["id"]}
+    assert {hit["bot_id"] for hit in hits} == {first_bot["id"], second_bot["id"]}
+    assert all("content" not in hit and len(hit["excerpt"]) <= 600 for hit in hits)
+    assert all("violet" in hit["excerpt"].lower() and "gearbox" in hit["excerpt"].lower() for hit in hits)
+
+    scoped = client.post("/api/v1/search/messages", json={"q": "violet gearbox", "bot": first_bot["id"]})
+    assert [hit["conversation_id"] for hit in scoped.json()] == [first["id"]]
+    assert client.post("/api/v1/search/messages", json={"q": "   "}).status_code == 422
+    assert client.post("/api/v1/search/messages", json={"q": "violet", "bot": "missing-bot"}).status_code == 404
+    assert client.post("/api/v1/search/messages", json={"q": "x" * 257}).status_code == 422
+    assert client.post("/api/v1/search/messages", json={"q": "violet", "limit": 101}).status_code == 422
+
+
 def test_conversation_section_validation_is_bounded_and_can_be_cleared(conversation_client):
     client = conversation_client
     bot = client.post("/api/bots", json={"name": "section-bounds", "model": "mock/demo", "tools": []}).json()
