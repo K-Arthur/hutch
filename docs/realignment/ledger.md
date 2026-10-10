@@ -3310,3 +3310,26 @@ trace and JSON verification records are in
 
 Implementation, documentation, tests and inspected evidence are committed locally on `main` as
 `85de2c2de26464ad391b5bc61c606266d965b6c6`. No push or publication occurred.
+
+## Independent responsive UI review (2026-10-10)
+
+The primary app routes and marketing site were each captured separately at desktop **1440×960**, tablet **900×1024**, and phone
+**390×844**; 320×740 compact-phone layouts were checked for overflow. The set covers Studio, Activity, Schedules, Fleet, Run history,
+Needs you/approvals, Connections, Bot settings, Run detail, Preferences, and marketing. The fixture uses 11 synthetic Bots and one
+completed run. No live user data, model/provider request or external request was used.
+
+The page review led to three UI refinements: Fleet cards now use one options menu for pause/resume and settings; empty Schedules keeps
+Bot links behind one explicit chooser; and Run history switches to display-name cards at widths through 900px. The schedule chooser
+has a clear disclosure indicator. Existing 2D app mascots retain all eight silhouettes with face geometry tuned to each shape, while
+the marketing page keeps its distinct 3D character.
+
+The final focused browser command passed **3 tests in 14.13s** with unhandled-thread and syntax warnings treated as errors. It verifies
+all primary routes, 320px overflow, the schedule disclosure, Fleet pause/resume, no browser errors, and no external/provider requests.
+`node --check`, `git diff --check`, and the scoped Impeccable detector passed (`[]`). Chromium **153.0.8010.12** / Playwright
+**1.63.0** screenshots, trace and validation JSON are in [`artifacts/ui-surface-review/`](artifacts/ui-surface-review/); each
+desktop/tablet/phone screenshot was inspected individually. Mobbin screens were blocked by the paid-plan/sign-in gate, and Figma
+node-level detail calls were blocked by the Starter-plan tool limit. No detailed Mobbin/Figma component comparison is claimed. Screen
+reader and physical-device validation remain open.
+
+The implementation, test, changelog, visual record and screenshots are committed on local `main` as
+`419862c`; this ledger update follows in a separate documentation commit. No push or publication occurred.
