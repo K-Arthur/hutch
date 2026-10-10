@@ -57,7 +57,10 @@ pinned in the primary roster without hiding active work; pinning is a navigation
    grants are account-wide; Hutch limits each Bot to one selected calendar or mailbox. Outlook Calendar uses delegated
    `Calendars.ReadBasic`. Outlook Mail is a separate flow with delegated `Mail.Read`; each Bot can
    search at most ten matching messages and receives sender, subject, received time and a short
-   untrusted preview. It cannot send, edit, delete, forward or fetch attachments. Gmail is a private
+   untrusted preview. This read grant cannot send, edit, delete, forward or fetch attachments.
+   A separate experimental Outlook send preview has its own `Mail.Send` sign-in and per-Bot grant,
+   exact fresh approval for each message, no automatic retry after uncertainty, no Apps & AI setup
+   screen, and no live-account verification. Gmail is a private
    preview using restricted, account-wide `gmail.readonly`; it returns only bounded sender/subject/date/snippet
    previews to built-in Bots whose model routes all use loopback Local endpoints and have no hosted
    fallback. Google OAuth still authorizes broader account-level access, which Hutch cannot narrow.
@@ -66,7 +69,8 @@ pinned in the primary roster without hiding active work; pinning is a navigation
    to one Bot, and approve each exact event in context. Hutch verifies the returned event ID, title,
    time, description and location; uncertain outcomes are never retried automatically. Google's scope is broader than the single
    action Hutch exposes, and public OAuth verification plus live account consent remain open. Outlook
-   Calendar writes and all mail changes remain unavailable. Event creation, message sending and every
+   Calendar writes, Gmail sending, and mail changes outside that narrow Outlook send preview remain
+   unavailable. Event creation, message sending and every
    external write need a fresh review showing account, destination and complete payload. Keep refresh
    credentials in the OS credential store rather than SQLite, transcripts, prompts or browser storage.
 

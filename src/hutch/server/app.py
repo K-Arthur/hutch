@@ -1507,6 +1507,39 @@ class OutlookMailGrantResponseResource(BaseModel):
     detail: str
 
 
+class OutlookMailSendGrantResource(BaseModel):
+    bot_id: str
+    bot_name: Optional[str] = None
+    account_id: str
+    account_label: str
+    granted_at: str
+
+
+class OutlookMailSendSignInRequest(BaseModel):
+    label: str = Field(min_length=1, max_length=80)
+
+
+class OutlookMailSendGrantRequest(BaseModel):
+    bot: str = Field(min_length=1, max_length=128)
+    account_id: str = Field(min_length=1, max_length=64)
+
+
+class OutlookMailSendResource(BaseModel):
+    configured: bool
+    secret_store_available: bool
+    accounts: list[OutlookMailAccountResource]
+    grants: list[OutlookMailSendGrantResource]
+
+
+class OutlookMailSendAuthorizationResource(BaseModel):
+    authorization_url: str
+
+
+class OutlookMailSendGrantResponseResource(BaseModel):
+    grant: OutlookMailSendGrantResource
+    detail: str
+
+
 def create_app() -> FastAPI:
     config = get_config()
     store = Store(config)
@@ -4113,8 +4146,9 @@ def create_app() -> FastAPI:
         google_oauth = google_oauth_client_settings(store)
         from ..outlook_calendar import OutlookCalendarBook
         outlook_book = OutlookCalendarBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
-        from ..outlook_mail import OutlookMailBook
+        from ..outlook_mail import OutlookMailBook, OutlookMailSendBook
         outlook_mail_book = OutlookMailBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+        outlook_mail_send_book = OutlookMailSendBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
         return {"connections": out, "templates": templates, "errors": book.errors,
                 "chatgpt_enabled": chatgpt_plan_signin_enabled(), "chatgpt_accounts": accounts,
                 "google_oauth_client": google_oauth,
@@ -4135,7 +4169,11 @@ def create_app() -> FastAPI:
                 "outlook_mail": {"configured": bool(os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "").strip()),
                                  "secret_store_available": outlook_mail_book.secrets.available(),
                                  "accounts": outlook_mail_book.accounts(),
-                                 "grants": store.list_outlook_mail_grants()}}
+                                 "grants": store.list_outlook_mail_grants()},
+                "outlook_mail_send": {"configured": bool(os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "").strip()),
+                                      "secret_store_available": outlook_mail_send_book.secrets.available(),
+                                      "accounts": outlook_mail_send_book.accounts(),
+                                      "grants": store.list_outlook_mail_send_grants()}}
 
     @app.get("/api/v1/connections/google-oauth-client", response_model=GoogleOAuthClientSettingsResource)
     def google_oauth_client_settings_get() -> dict:
@@ -4581,6 +4619,103 @@ def create_app() -> FastAPI:
         response.headers["Referrer-Policy"] = "no-referrer"
         if status == "error":
             response.headers["Location"] = f"/?outlook_mail_result=error&detail={quote(detail)}#/connections"
+        return response
+
+    @app.get("/api/v1/connections/outlook-mail-send", response_model=OutlookMailSendResource)
+    def outlook_mail_send_connections() -> dict:
+        from ..outlook_mail import OutlookMailSendBook
+        client_id = os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "")
+        book = OutlookMailSendBook(config.state_dir, client_id)
+        return {"configured": bool(client_id.strip()), "secret_store_available": book.secrets.available(),
+                "accounts": book.accounts(), "grants": store.list_outlook_mail_send_grants()}
+
+    @app.post("/api/v1/connections/outlook-mail-send/sign-in",
+              response_model=OutlookMailSendAuthorizationResource)
+    def outlook_mail_send_sign_in(request: Request, body: OutlookMailSendSignInRequest, response: Response) -> dict:
+        from ..outlook_mail import OutlookMailSendBook
+        from ..outlook_calendar import OutlookCalendarError
+        try:
+            book = OutlookMailSendBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            result = book.start(body.label, book.callback_uri(request))
+        except OutlookCalendarError as exc:
+            raise HTTPException(409, str(exc)) from None
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        return {"authorization_url": result.url}
+
+    @app.post("/api/v1/connections/outlook-mail-send/grants",
+              response_model=OutlookMailSendGrantResponseResource)
+    def outlook_mail_send_grant(body: OutlookMailSendGrantRequest) -> dict:
+        from ..outlook_mail import MAIL_SEND_SCOPE, OutlookMailSendBook
+        from ..outlook_calendar import OutlookCalendarError
+        bot = store.get_bot(body.bot)
+        if bot is None:
+            raise HTTPException(404, "No Bot with that name or ID exists")
+        try:
+            book = OutlookMailSendBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            account = book._account(body.account_id)
+            if MAIL_SEND_SCOPE not in account.get("scopes", []):
+                raise OutlookCalendarError("This connection did not grant Mail.Send; sign in with send access first")
+        except OutlookCalendarError as exc:
+            raise HTTPException(422, str(exc)) from None
+        grant = store.set_outlook_mail_send_grant(bot.id, body.account_id, str(account.get("label") or ""))
+        return {"grant": grant, "detail": (
+            f"{bot.display_name or bot.name} may prepare one new plain-text email from {account.get('label') or 'this Outlook account'}. "
+            "Every send requires your exact approval, even when the Bot is in automatic mode. Hutch sends one request and never "
+            "retries an ambiguous result; Microsoft acceptance does not confirm delivery. No replies, attachments, CC or BCC are enabled.")}
+
+    @app.delete("/api/v1/connections/outlook-mail-send/grants/{bot_ref}")
+    def outlook_mail_send_ungrant(bot_ref: str) -> dict:
+        bot = store.get_bot(bot_ref)
+        if bot is None:
+            raise HTTPException(404, "No Bot with that name or ID exists")
+        return {"removed": store.remove_outlook_mail_send_grant(bot.id)}
+
+    @app.post("/api/v1/connections/outlook-mail-send/accounts/{account_id}/disconnect",
+              response_model=OutlookCalendarDisconnectResource)
+    def outlook_mail_send_disconnect(account_id: str) -> dict:
+        from ..outlook_mail import OutlookMailSendBook
+        from ..outlook_calendar import OutlookCalendarError
+        try:
+            result = OutlookMailSendBook(config.state_dir,
+                os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", "")).disconnect(account_id)
+        except OutlookCalendarError as exc:
+            raise HTTPException(422, str(exc)) from None
+        if not result["removed"]:
+            raise HTTPException(404, "Outlook Mail sending account is not connected")
+        store.remove_outlook_mail_send_account_grants(account_id)
+        detail = ("Hutch removed the local refresh credential and Bot grants. Microsoft does not offer a "
+                  "revocation endpoint for this sign-in flow; review connected application consent in your "
+                  "Microsoft account or organisation settings to revoke provider access.")
+        return {**result, "detail": detail}
+
+    @app.get("/api/v1/connections/outlook-mail-send/callback", include_in_schema=False)
+    def outlook_mail_send_oauth_callback(request: Request):
+        from ..outlook_mail import OutlookMailSendBook
+        from ..outlook_calendar import OutlookCalendarError
+        status, detail = "connected", ""
+        try:
+            callback = OutlookMailSendBook.callback_uri(request)
+            values: dict[str, str] = {}
+            for key in ("state", "code", "error"):
+                entries = request.scope.get("hutch_oauth_query", {}).get(key, [])
+                if len(entries) > 1:
+                    raise OutlookCalendarError("Microsoft returned a duplicate sign-in field; start again")
+                values[key] = entries[0] if entries else ""
+            if not values["state"]:
+                raise OutlookCalendarError("Microsoft did not return sign-in state; start again")
+            book = OutlookMailSendBook(config.state_dir, os.environ.get("HUTCH_OUTLOOK_OAUTH_CLIENT_ID", ""))
+            if values["error"]:
+                book.cancel(values["state"])
+                raise OutlookCalendarError("Outlook Mail sending access was not granted; no account was connected")
+            book.finish(values["state"], values["code"], callback)
+        except OutlookCalendarError as exc:
+            status, detail = "error", str(exc)
+        response = RedirectResponse(f"/?outlook_mail_send_result={status}#/connections", status_code=303)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        if status == "error":
+            response.headers["Location"] = f"/?outlook_mail_send_result=error&detail={quote(detail)}#/connections"
         return response
 
     @app.post("/api/chatgpt/sign-in")

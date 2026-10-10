@@ -1250,13 +1250,24 @@ def _migrate_45(db: sqlite3.Connection) -> None:
                "CHECK(allow_event_creation IN (0, 1))")
 
 
+def _migrate_46(db: sqlite3.Connection) -> None:
+    """Store explicit, send-only Outlook Mail grants separately from mailbox-reading access."""
+    db.execute("""CREATE TABLE IF NOT EXISTS outlook_mail_send_grants (
+        bot_id TEXT PRIMARY KEY REFERENCES bots(id) ON DELETE CASCADE,
+        account_id TEXT NOT NULL,
+        account_label TEXT NOT NULL DEFAULT '',
+        granted_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_outlook_mail_send_grants_account ON outlook_mail_send_grants(account_id)")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
                _migrate_19, _migrate_20, _migrate_21, _migrate_22, _migrate_23, _migrate_24, _migrate_25, _migrate_26,
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
-               _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45]
+               _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -2434,6 +2445,61 @@ class Store:
     def remove_outlook_mail_account_grants(self, account_id: str) -> int:
         with self._tx() as db:
             count = db.execute("DELETE FROM outlook_mail_grants WHERE account_id = ?", (account_id,)).rowcount
+        if count:
+            self.bus.notify("work", "bots")
+        return count
+
+    def set_outlook_mail_send_grant(self, bot_ref: str, account_id: str,
+                                    account_label: str = "") -> Optional[dict[str, str]]:
+        """Grant one Bot explicit access to send from one send-only Outlook account."""
+        with self._tx() as db:
+            row = db.execute("SELECT id FROM bots WHERE id = ? OR name = ? LIMIT 1", (bot_ref, bot_ref)).fetchone()
+            if row is None:
+                return None
+            grant = {"bot_id": row["id"], "account_id": account_id,
+                     "account_label": " ".join(str(account_label or "").split())[:80],
+                     "granted_at": iso(utcnow())}
+            db.execute("""INSERT INTO outlook_mail_send_grants (bot_id, account_id, account_label, granted_at)
+                VALUES (:bot_id, :account_id, :account_label, :granted_at)
+                ON CONFLICT(bot_id) DO UPDATE SET account_id = excluded.account_id,
+                    account_label = excluded.account_label,
+                    granted_at = excluded.granted_at""", grant)
+        self.bus.notify("work", "bots")
+        return grant
+
+    def outlook_mail_send_grant(self, bot_ref: str) -> Optional[dict[str, str]]:
+        bot = self.get_bot(bot_ref)
+        if bot is None:
+            return None
+        with self._lock:
+            row = self._db.execute("SELECT bot_id, account_id, account_label, granted_at FROM outlook_mail_send_grants WHERE bot_id = ?",
+                                   (bot.id,)).fetchone()
+        return dict(row) if row else None
+
+    def list_outlook_mail_send_grants(self, account_id: str | None = None) -> list[dict[str, str]]:
+        with self._lock:
+            if account_id is None:
+                rows = self._db.execute("""SELECT g.bot_id, b.name AS bot_name, g.account_id, g.account_label, g.granted_at
+                    FROM outlook_mail_send_grants g JOIN bots b ON b.id = g.bot_id ORDER BY b.name""").fetchall()
+            else:
+                rows = self._db.execute("""SELECT g.bot_id, b.name AS bot_name, g.account_id, g.account_label, g.granted_at
+                    FROM outlook_mail_send_grants g JOIN bots b ON b.id = g.bot_id
+                    WHERE g.account_id = ? ORDER BY b.name""", (account_id,)).fetchall()
+        return [dict(row) for row in rows]
+
+    def remove_outlook_mail_send_grant(self, bot_ref: str) -> bool:
+        bot = self.get_bot(bot_ref)
+        if bot is None:
+            return False
+        with self._tx() as db:
+            changed = db.execute("DELETE FROM outlook_mail_send_grants WHERE bot_id = ?", (bot.id,)).rowcount
+        if changed:
+            self.bus.notify("work", "bots")
+        return bool(changed)
+
+    def remove_outlook_mail_send_account_grants(self, account_id: str) -> int:
+        with self._tx() as db:
+            count = db.execute("DELETE FROM outlook_mail_send_grants WHERE account_id = ?", (account_id,)).rowcount
         if count:
             self.bus.notify("work", "bots")
         return count

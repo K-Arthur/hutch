@@ -64,7 +64,7 @@ is an owner-configured experimental preview that requests a broader Google scope
 publicly supported integration while OAuth verification and live account consent remain unverified. No provider account or consent
 verification has been performed.
 For Outlook Calendar, Hutch requests delegated `Calendars.ReadBasic`; for Outlook Mail it requests delegated `Mail.Read` and returns
-bounded message previews to a Bot explicitly granted one mailbox. Microsoft consent is account-level, and Hutch cannot revoke it itself.
+bounded message previews to a Bot explicitly granted one mailbox. A separate Outlook `Mail.Send` API-only preview exists, but it has no Apps & AI setup UI, no live account verification, and must not be listed as a currently usable marketing capability. Microsoft consent is account-level, and Hutch cannot revoke it itself.
 Gmail may be described only as an owner-configured private preview: it requests restricted, account-wide `gmail.readonly`, returns bounded
 sender/subject/date/snippet previews, and grants the Hutch tool only to built-in Bots with loopback Local model routes and no hosted
 fallback. Google's permission remains broader than Hutch's Bot grant. Public release is unavailable pending applicable Google scope

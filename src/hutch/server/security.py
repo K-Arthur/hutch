@@ -234,7 +234,8 @@ class SecurityMiddleware:
         if scope.get("path") in ("/auth/callback", "/api/v1/connections/google-calendar/callback",
                                   "/api/v1/connections/google-mail/callback",
                                   "/api/v1/connections/outlook-calendar/callback",
-                                  "/api/v1/connections/outlook-mail/callback"):
+                                  "/api/v1/connections/outlook-mail/callback",
+                                  "/api/v1/connections/outlook-mail-send/callback"):
             # Authorization codes and state values must not survive in
             # Uvicorn's access-log scope, including rejected callback requests.
             query = scope.get("query_string", b"")

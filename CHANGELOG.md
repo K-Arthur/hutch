@@ -1,5 +1,20 @@
 # Changelog
 
+# Outlook email send preview (experimental, schema v46)
+
+- Added a separate Microsoft delegated `Mail.Send` sign-in, token namespace and per-Bot grant. Every new plain-text message requires
+  owner approval showing the exact account, recipients, subject and body, including in automatic mode; strict Offline does not expose
+  the tool.
+- Hutch makes one Graph send request. Ambiguous transport/server responses stay `outcome_unknown` and are not retried; Graph's
+  `202 Accepted` is not described as delivery confirmation. Replies, forwards, attachments, CC and BCC remain unavailable.
+- This checkpoint exposes connection setup through the versioned API, not the Apps & AI screen. Live consent and send behavior are
+  unverified; the feature is experimental and not a public marketing claim.
+
+## Marketing approval illustration
+
+- Replaced a text checkmark with a local SVG icon so the illustration renders consistently across fonts and satisfies the repository's
+  icon/emoji audit. Refreshed the static asset hash and checked the card at desktop, tablet and phone sizes.
+
 ## Linux user service
 
 - Added `hutch service install`, `status`, and `uninstall` for the loopback-only dashboard under `systemd --user`. The installer

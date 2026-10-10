@@ -81,9 +81,16 @@ without a terminal bit, keep it visible and reconcile instead of guessing that i
   `Mail.Read` and `offline_access`; it does not reuse Calendar's credential. The callback is loopback-only, one-use, and scrubbed from
   access logs. The owner grants one mailbox to one Bot. `outlook_mail_search` uses the fixed Graph v1.0 `/me/messages` `$search`
   endpoint, which includes Deleted Items and Clutter, and returns at most ten sender/subject/date/body-preview records. Preview text
-  is untrusted and enters the selected model and the run history. This Mail connection exposes no send, modify, delete, forward,
-  attachment or settings operation. Removing a grant blocks later calls; disconnect removes the local refresh token/grants but leaves Microsoft consent
-  for the account owner to revoke separately. Account consent and live Graph behavior remain unverified.
+  is untrusted and enters the selected model and the run history. A separate API-only send preview uses
+  `GET /api/v1/connections/outlook-mail-send`, `POST .../sign-in`, `POST .../grants`, grant deletion, and account disconnect
+  under the same resource path. Its isolated local PKCE flow requests delegated `Mail.Send` and `offline_access` and the callback
+  is included in OAuth query scrubbing. `outlook_mail_send` is available only to a Bot with an explicit send-only account grant,
+  outside Strict Offline mode. Each request is one new plain-text message to at most five addresses, and requires exact outward
+  approval of account, recipients, subject and body even in auto mode. It makes one fixed Graph v1.0 `/me/sendMail` POST; timeout,
+  server error, redirect or non-202 2xx is `outcome_unknown` and never automatically replayed. `202 Accepted` does not confirm
+  delivery. No reply, forward, attachment, CC, BCC, modify or delete action exists. The send flow currently has no Apps & AI setup
+  UI. Removing a grant blocks later calls; disconnect removes the local refresh token/grants but leaves Microsoft consent for the
+  account owner to revoke separately. Account consent and live Graph behavior remain unverified.
 * **Coordinator specialist handoff, explicit result return, progress markers, and task-only reviewed facts (schema v32).** `GET /api/v1/workspace/tasks?conversation_id={id}&limit=100` returns up to 100
   task records scoped to one coordinator conversation, including source request/answer IDs, the proposed and reviewed briefs,
   assumptions, target Bot/display-name snapshot, route/capability snapshot, child conversation/run IDs, authoritative run status,

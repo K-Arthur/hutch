@@ -328,7 +328,7 @@ class OutlookCalendarBook:
             raise self.error_type(f"Microsoft rejected the {purpose}; reconnect {self.feature} and try again")
         if response.status_code == 403:
             raise self.error_type(
-                f"Microsoft denied the {purpose}; confirm the requested read-only {self.required_scopes[0]} consent and check any organization policy")
+                f"Microsoft denied the {purpose}; confirm the requested {self.required_scopes[0]} consent and check any organization policy")
         if response.status_code == 404:
             raise self.error_type(f"Microsoft could not find the selected {self.feature} resource during {purpose}; select it again")
         if response.status_code == 429:
@@ -372,7 +372,7 @@ class OutlookCalendarBook:
                 not isinstance(expires, (int, float)) or isinstance(expires, bool) or not 0 < expires <= 86400 or
                 not scope_granted):
             raise self.error_type(
-                f"Microsoft did not grant the requested read-only {self.required_scopes[0]} permission with offline access; disconnect and reconnect")
+                f"Microsoft did not grant the requested {self.required_scopes[0]} permission with offline access; disconnect and reconnect")
         account_id = self.account_prefix + secrets.token_hex(12)
         created = datetime.fromtimestamp(self.clock(), timezone.utc).isoformat()
         account = {"id": account_id, "label": pending["label"], "created_at": created,

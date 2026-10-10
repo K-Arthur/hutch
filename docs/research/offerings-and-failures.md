@@ -91,6 +91,30 @@ product with the same shape; it is not a multi-tenant hosted service. See
 
 ## 3. Adjacent failures that hit exactly these features
 
+### Email sends with ambiguous acknowledgement (IG-6–IG-8)
+
+Microsoft's Graph `sendMail` operation requires delegated `Mail.Send` for the signed-in user,
+saves to Sent Items, and returns `202 Accepted` when Graph accepts the request; that response does not
+mean downstream delivery is complete. ([permission reference](https://learn.microsoft.com/en-us/graph/permissions-reference?view=graph-rest-1.0),
+[sendMail API](https://learn.microsoft.com/en-us/graph/api/user-sendmail?view=graph-rest-1.0),
+[send processing steps](https://learn.microsoft.com/en-us/graph/outlook-things-to-know-about-send-mail))
+
+Two individual connector reports describe the same user harm: a message was sent, the client reported
+a parse/transport failure, and retrying produced a duplicate. One reports the behavior reproduced
+twice in the OpenAI Codex Gmail connector ([#38474](https://github.com/openai/codex/issues/38474));
+another traces retry-on-5xx around a non-idempotent Gmail send in a community MCP server
+([#997](https://github.com/taylorwilsdon/google_workspace_mcp/issues/997)). These are issue reports,
+not a prevalence estimate or evidence that Microsoft Graph has the same defect.
+
+Hutch's Outlook experiment therefore uses a distinct delegated `Mail.Send` sign-in and a separate
+Bot grant from Mail.Read; one plain-text request displays the exact sender account, recipients,
+subject and body for fresh approval; and no transport or server failure triggers an automatic retry.
+Ambiguous outcomes stay `outcome_unknown` for the owner to reconcile in Sent Items. Only Graph's
+`202` is called accepted, never delivered. The narrower first version excludes replies, forwards,
+attachments, CC and BCC. This is an API-only fixture-tested preview; no Microsoft account, tenant,
+consent screen, send, or delivery was tested live. The product UI and public availability claim remain
+open. The cited reports motivate a regression scenario but do not establish how common duplicate sends are.
+
 ### Stop that doesn't stop (UI-2)
 Claude Code: *Stop* did not stop spawned sub-agents ([#95138](https://github.com/anthropics/claude-code/issues/95138));
 sub-agents of sub-agents stay "Running" forever ([#73916](https://github.com/anthropics/claude-code/issues/73916));

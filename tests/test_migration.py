@@ -20,7 +20,7 @@ from hutch.lifecycle import IllegalTransition
 from hutch.models import RunStatus
 from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28,
                          _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34, _migrate_45,
-                         _migrate_35, _migrate_37, _migrate_40, _migrate_41)
+                         _migrate_35, _migrate_37, _migrate_40, _migrate_41, _migrate_46)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
@@ -139,6 +139,31 @@ def test_v45_calendar_grants_default_to_read_only_and_store_explicit_event_creat
         with pytest.raises(sqlite3.IntegrityError):
             db.execute("UPDATE google_calendar_grants SET allow_event_creation=2 WHERE bot_id='bot-a'")
         assert SCHEMA_VERSION >= 45
+    finally:
+        db.close()
+
+
+def test_v46_outlook_send_grants_are_empty_and_separate_from_read_grants():
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("PRAGMA foreign_keys=ON")
+        db.executescript("""
+            CREATE TABLE bots (id TEXT PRIMARY KEY);
+            INSERT INTO bots VALUES ('bot-a');
+            CREATE TABLE outlook_mail_grants (bot_id TEXT PRIMARY KEY, account_id TEXT NOT NULL, granted_at TEXT NOT NULL);
+            INSERT INTO outlook_mail_grants VALUES ('bot-a', 'msmail_000000000000000000000001', 'now');
+        """)
+        _migrate_46(db)
+        _migrate_46(db)
+        assert db.execute("SELECT COUNT(*) FROM outlook_mail_send_grants").fetchone()[0] == 0
+        columns = [row[1] for row in db.execute("PRAGMA table_info(outlook_mail_send_grants)")]
+        assert columns == ["bot_id", "account_id", "account_label", "granted_at"]
+        db.execute("INSERT INTO outlook_mail_send_grants VALUES ('bot-a', 'mssend_000000000000000000000001', 'Work sender', 'now')")
+        assert db.execute("SELECT account_id FROM outlook_mail_grants").fetchone()[0].startswith("msmail_")
+        assert db.execute("SELECT account_id FROM outlook_mail_send_grants").fetchone()[0].startswith("mssend_")
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute("INSERT INTO outlook_mail_send_grants VALUES ('missing-bot', 'x', '', 'now')")
+        assert SCHEMA_VERSION >= 46
     finally:
         db.close()
 

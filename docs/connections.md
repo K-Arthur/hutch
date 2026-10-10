@@ -161,6 +161,35 @@ verification remain release gaps. See [List messages](https://learn.microsoft.co
 [`$search` for message collections](https://learn.microsoft.com/en-us/graph/search-query-parameter),
 and [Microsoft Graph permissions](https://learn.microsoft.com/en-us/graph/permissions-reference).
 
+### Outlook Mail sending (experimental API preview; no Connections UI yet)
+
+Sending uses a separate Outlook sign-in and credential namespace from `Mail.Read`. Set the same
+`HUTCH_OUTLOOK_OAUTH_CLIENT_ID`, register
+`http://localhost/api/v1/connections/outlook-mail-send/callback`, and explicitly sign in for
+delegated `Mail.Send` plus `offline_access`. Hutch will not upgrade a read-only sign-in or infer
+send permission from a broad account grant. Refresh credentials are stored in Linux Secret Service;
+SQLite stores only the account label and each Bot's explicit grant. This API-only preview has not
+been exercised with a real Microsoft account and is not yet exposed as a control in Apps & AI.
+
+The owner grants one sending account to one Bot with the versioned
+`/api/v1/connections/outlook-mail-send` API. Each action is one new plain-text message to at most
+five addresses. Before sending, Hutch asks for a fresh decision on the exact account, recipients,
+subject and body—even when the Bot uses automatic approval. Replies, forwards, attachments, CC and
+BCC are not available. The request goes only to the fixed Microsoft Graph v1.0 `/me/sendMail`
+endpoint, with redirects disabled. Hutch sends once: a timeout, server error, or unexpected response
+is `outcome_unknown`, not a retry instruction. A Graph `202 Accepted` response means Microsoft
+accepted the request; it does not prove delivery. Check Outlook Sent Items before considering any
+retry. The action receipt remains available for reconciliation. Strict Offline mode does not expose
+this tool.
+
+The added delegated `Mail.Send` scope is account-wide. Removing the Hutch grant or disconnecting
+removes local access, but the owner must revoke provider consent in Microsoft account or organisation
+settings. No live OAuth consent, email send, delivery, or tenant-policy behavior has been verified.
+This capability is experimental and must not be represented as generally supported or delivery
+verified. Microsoft's [sendMail API](https://learn.microsoft.com/en-us/graph/api/user-sendmail?view=graph-rest-1.0)
+documents the `202 Accepted` response; its [send processing overview](https://learn.microsoft.com/en-us/graph/outlook-things-to-know-about-send-mail)
+explains that Graph's direct interaction ends before the downstream delivery steps complete.
+
 A **connection** is a named hosted endpoint with its own provider-scoped credentials, protocol, headers, billing mode,
 usage allowance and terms notice. API-key routes use `<connection>/<model>`; the experimental ChatGPT plan route is
 created only after its separate authorization succeeds:

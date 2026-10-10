@@ -166,10 +166,15 @@ challenge has not been tested.
 
 ## Database migration and restore
 
-Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. This
-The current schema version is shown by `hutch doctor`. Keep the matching
+Before a schema upgrade, Hutch writes `hutch.db.bak-vN` using SQLite's online backup API. The
+current schema version is shown by `hutch doctor`. Keep the matching
 release and pre-upgrade backups. A normal snapshot captures committed database history, including
 WAL pages; event buffers that have not committed yet are outside its scope:
+
+Schema v46 adds an empty Outlook Mail send-grant table. Upgrade does not copy existing Mail.Read
+grants into it; Mail.Send always needs a separate sign-in and owner grant. Older releases cannot
+enforce the new approval or uncertain-send rules, so restore the matching pre-upgrade backup before
+rolling back the application.
 
 ```bash
 # Replace STATE, SNAPSHOT and STATE_RESTORE; both destination directories must be new.
