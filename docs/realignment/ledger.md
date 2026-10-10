@@ -3412,4 +3412,4 @@ The focused provider/API/migration/browser command passed **56 tests** with thre
 non-browser suite (`.venv/bin/python -m pytest -q -W error::pytest.PytestUnhandledThreadExceptionWarning -W error::SyntaxWarning --ignore=tests/e2e`)
 passed **1,549 tests** in 363.93 seconds. Python compilation, JavaScript syntax validation, `git diff --check` and the scoped
 Impeccable detector (`[]`) passed. Live Google consent, public OAuth verification and real provider requests remain unverified. The
-local `main` commit hash will be recorded after commit; no push or publication is intended.
+implementation and evidence are committed locally on `main` as `0cd3982`; no push or publication occurred.
