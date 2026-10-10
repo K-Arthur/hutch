@@ -3429,3 +3429,25 @@ non-browser suite (`.venv/bin/python -m pytest -q -W error::pytest.PytestUnhandl
 passed **1,549 tests** in 363.93 seconds. Python compilation, JavaScript syntax validation, `git diff --check` and the scoped
 Impeccable detector (`[]`) passed. Live Google consent, public OAuth verification and real provider requests remain unverified. The
 implementation and evidence are committed locally on `main` as `0cd3982`; no push or publication occurred.
+
+## Provider artwork and one-line assistant names (2026-10-10)
+
+The official ChatGPT and Outlook marks were found. The same review found that Hutch has no documented approval for provider artwork
+in its app and marketing site: Google directs product-icon requests through its partner approval process, Microsoft requires an express
+license for product icons, and OpenAI restricts use of its exact mark. The earlier, outdated Google SVG assets were removed. Apps & AI,
+first-run, and the marketing illustration now use original Hutch-colored category glyphs beside exact provider names; they are not
+presented as brand logos. See [`../research/icon-and-chat-interface-references-2026-10-10.md`](../research/icon-and-chat-interface-references-2026-10-10.md).
+
+Assistant names now stay on one line in the sidebar. Long names display an ellipsis; their full text remains in the accessible button
+name/title. The app and marketing site use the same local 24×24 calendar, mail, inbox, sparkle, cloud, and monitor glyph vocabulary.
+The change updated the design-system docs, changelog, reference sidecar, and visual evidence.
+
+Verification passed: design-system browser tests **6/6**; anonymous website checks **27/27**; pinned-roster test **1/1**. Checks used
+Chromium **153.0.8010.12** and Playwright **1.63.0**, reported no provider calls or unexpected external requests, and include inspected
+desktop, tablet, and phone screenshots under [`artifacts/design-system/`](artifacts/design-system/),
+[`artifacts/assistant-first-ui/everyday-start/`](artifacts/assistant-first-ui/everyday-start/) and
+[`artifacts/pinned-roster/`](artifacts/pinned-roster/). `node --check`, `git diff --check`, and the Impeccable app JavaScript/CSS
+scan passed. The broad marketing scan still reports additional page findings outside this icon-and-roster change.
+
+Implementation and evidence are committed on local `main` as `89e4772b565643f36aae4f04facda6264b77c717`. No push or publication
+occurred.
