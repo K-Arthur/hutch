@@ -130,6 +130,7 @@ grant for held operator review. Desktop, tablet and phone share/revoke flows are
 | `63b29bc` | Add schema-v34 safe checkpoint continuation, review/confirmation UI, truthful public copy, regression coverage and inspected desktop/tablet/phone evidence; live model recovery remains unverified |
 | `5cdd65f` | Recheck same-page human browser challenges before actions and after waits/effects; add async Chromium regression and document retry/verification boundaries |
 | `28bf0ac` | Record the no-mock/product-availability audit and verify OpenCode Go is a provider API-key flow rather than OAuth session sharing |
+| `0190f43` | Replace repeated diagonal mascot marks with shape-specific upright eye geometry; inspect eight separate 128px face captures and responsive picker views, with contour/contrast checks (targeted visual test 1 passed; design-system and token tests 11 passed) |
 | `2bba9c8` | Add schema-v37 passive model tool-call evidence, exact effective route identity, bounded `/api/v1/model-capabilities`, support docs and full offline validation (1,471 passed, 2 skipped) |
 | `236dd99` | Show newest route-specific tool-call observations in Connections with honest loading/unknown/error states, bidirectional keyset paging, updated Bot-name guidance and inspected responsive evidence; focused API/browser suite 4 passed |
 | `6b3d643` | Record the Connections capability-evidence implementation and verification boundary |
