@@ -3567,5 +3567,6 @@ and [`artifacts/pinned-roster/`](artifacts/pinned-roster/).
 
 This is one verified interface slice, not the end of the requested UI overhaul.
 The independent all-surface redesign remains scheduled after the incomplete
-functional realignment work. The local implementation and evidence commit hash
-will be recorded immediately after that commit is created.
+functional realignment work. The local implementation and screenshot evidence
+are committed on `main` as `9b02cf4d2405e56245d821c9d49e6fff46298598`. No push or
+publication occurred.
