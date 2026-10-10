@@ -3963,3 +3963,30 @@ schedule views were inspected at desktop, tablet, and phone; the expanded choice
 panel was inspected at desktop and phone. Figma's MCP call limit and Mobbin's
 paid-plan gate remain documented; no Mobbin findings were used. This is a
 verified slice; the broader UI overhaul stays active.
+
+## Assistant identity and one-line roster naming (2026-10-10)
+
+Commit: `0bf2a4532d74ef729fe3e943163cf52f45c4ef29` on local `main`.
+
+The setup now suggests a two-part human display name and stores the derived task
+role in its editable short note. Role-based local addresses no longer follow
+manual display-name edits. Legacy combined display names render as a short
+heading plus a role line. The sidebar suppresses routine `Idle` copy when the
+role is available, preserves status in its title, and keeps active/attention
+states visible before the role. The ten-assistant page is covered with long
+custom names and real ellipses.
+
+Verification: the initial focused setup/import/settings/route batch passed **7
+tests in 45.63s**. After the final roster-status adjustment, the naming test,
+roster pin/ellipsis test, and independent all-route responsive review passed
+**3 tests in 36.10s**. `node --check` and `git diff --check` passed. Chromium
+**153.0.8010.12** screenshots at **1440×960**, **900×1024**, and **390×844** were
+reviewed page by page for chat, setup, settings, and the ten-assistant roster;
+the source-request setup was reviewed separately on desktop, tablet, and phone.
+No model/provider calls or external requests were made. Screenshots, trace,
+browser details, and source hashes are under `artifacts/bot-naming-quality/`
+and `artifacts/bot-from-message/`.
+
+This is a focused identity slice. Connections, provider artwork, populated chat,
+the remaining operator pages, marketing, and final all-surface review stay open.
+No push or publication occurred.
