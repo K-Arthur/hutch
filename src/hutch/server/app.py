@@ -53,6 +53,7 @@ from ..models import (
 from ..store import (ActiveRunConflict, AuthChallengeLimitExceeded, BotConflict, IdempotencyConflict,
                      RevisionConflict, Store)
 from ..state_snapshot import ExecutionHeld
+from ..skills import MAX_SKILLS_PER_BOT, SkillError
 from ..templates import TEMPLATE_INFO, TEMPLATES
 from ..tools import ALL_TOOL_NAMES, expand_tools
 from .security import (DEVICE_COOKIE, ENROLLMENT_COOKIE, FLOW_COOKIE, SESSION_COOKIE,
@@ -184,6 +185,7 @@ class BotCreate(BaseModel):
     base_url: Optional[str] = None
     inference_mode: Optional[InferenceMode] = None
     tools: list[str] = ["shell", "files", "memory"]
+    skills: list[str] = Field(default_factory=list, max_length=MAX_SKILLS_PER_BOT)
     memory_enabled: bool = True
     cron: Optional[str] = None
     timezone: str = "UTC"
@@ -352,6 +354,7 @@ class BotPatch(BaseModel):
     runtime: Optional[Literal["builtin"]] = None
     inference_mode: Optional[InferenceMode] = None
     tools: Optional[list[str]] = None
+    skills: Optional[list[str]] = Field(default=None, max_length=MAX_SKILLS_PER_BOT)
     memory_enabled: Optional[bool] = None
     approval_mode: Optional[ApprovalMode] = None
     risk_tier: Optional[RiskTier] = None
@@ -584,6 +587,7 @@ class VersionedRunCreateRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=20_000)
     rehearse: bool = False
     model: Optional[str] = Field(default=None, max_length=200)
+    skills: list[str] = Field(default_factory=list, max_length=MAX_SKILLS_PER_BOT)
 
 
 class ResumeRunRequest(BaseModel):
@@ -611,6 +615,7 @@ class ConversationMessageRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=20_000)
     rehearse: bool = False
     model: Optional[str] = None
+    skills: list[str] = Field(default_factory=list, max_length=MAX_SKILLS_PER_BOT)
     reply_to_message_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
     workspace_task_result_id: Optional[str] = Field(default=None, min_length=1, max_length=100)
     workspace_task_result_message_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
@@ -1684,6 +1689,10 @@ def create_app() -> FastAPI:
         return JSONResponse(status_code=409, content={'detail': str(exc), 'code': 'restore_review_required',
                                                       'restore_id': exc.restore_id})
 
+    @app.exception_handler(SkillError)
+    async def skill_refused(_request: Request, exc: SkillError):
+        return JSONResponse(status_code=exc.status, content={'detail': str(exc), 'code': 'skill_refused'})
+
     # ------------------------------------------------------------- helpers
 
     def bot_or_404(ref: str) -> Bot:
@@ -2610,6 +2619,8 @@ def create_app() -> FastAPI:
         require_remote_start(bot, request)
         if is_paired_phone(request) and (body.model or body.rehearse):
             raise HTTPException(403, "phone starts use the Bot's locally configured model and policy")
+        if is_paired_phone(request) and body.skills:
+            raise HTTPException(403, "skill activation is a local owner action")
         # A restore hold governs the whole executor. Report it before model
         # setup or request-specific checks so a stale/unavailable route cannot
         # obscure the operator review that is currently required.
@@ -2631,8 +2642,12 @@ def create_app() -> FastAPI:
         digest = request_digest({"conversation_id": conversation_id, **request_body})
         principal = getattr(request.state, "hutch_principal", None)
         origin = f"remote:{principal['credential_id']}" if principal and principal.get("kind") == "paired" else "manual:api"
+        activation: list[str] = []
+        if body.skills:
+            from ..skills import SkillRegistry
+            activation = SkillRegistry(config.state_dir).validate_activation(bot, list(body.skills))
         run = Run(bot_id=bot.id, prompt=body.prompt, origin=origin, rehearsal=body.rehearse,
-                  model_override="" if model == bot.model else model)
+                  model_override="" if model == bot.model else model, skill_activation=activation)
         task = Task(bot_id=bot.id, kind="on_demand", prompt=body.prompt)
         try:
             run_id, created = store.submit_conversation_message(
@@ -3187,14 +3202,18 @@ def create_app() -> FastAPI:
         if body.template:
             if body.template not in TEMPLATES:
                 raise HTTPException(422, f"unknown template: {body.template}")
-            bot = TEMPLATES[body.template].model_copy(deep=True)
-            bot.name, bot.template = body.name, body.template
+            from ..templates import instantiate
+            bot = instantiate(body.template, body.name)
         else:
             bot = Bot(name=body.name)
         # Bot.name remains the stable machine address. The separate display
         # identity is user-facing and defaults from that address for API/CLI callers.
         bot.display_name = body.display_name or bot_slug_display_name(body.name)
+        # A template supplies its own tools; only an explicitly sent tool list (including an
+        # intentionally empty one) overrides it. An omitted list keeps the template's tools.
         tools = expand_tools(body.tools)
+        if body.template and "tools" not in body.model_fields_set:
+            tools = expand_tools(list(bot.tools))
         unknown = [t for t in tools if t not in ALL_TOOL_NAMES]
         if unknown:
             raise HTTPException(422, f"unknown tools: {unknown}")
@@ -3223,6 +3242,9 @@ def create_app() -> FastAPI:
         bot.inference_mode = selected_mode
         bot.base_url = body.base_url
         bot.tools = tools
+        if body.skills:
+            from ..skills import SkillRegistry
+            bot.skills = SkillRegistry(config.state_dir).validate_binding(list(body.skills))
         bot.memory_enabled = body.memory_enabled
         bot.approval_mode = body.approval_mode
         bot.risk_tier = body.risk_tier
@@ -3454,6 +3476,9 @@ def create_app() -> FastAPI:
         if changing_runtime: bot.runtime = proposed_runtime
         if body.inference_mode is not None: bot.inference_mode = body.inference_mode
         if proposed_tools is not None: bot.tools = proposed_tools
+        if body.skills is not None:
+            from ..skills import SkillRegistry
+            bot.skills = SkillRegistry(config.state_dir).validate_binding(list(body.skills))
         if body.memory_enabled is not None: bot.memory_enabled = body.memory_enabled
         if body.approval_mode is not None: bot.approval_mode = body.approval_mode
         if body.risk_tier is not None: bot.risk_tier = body.risk_tier
@@ -3715,6 +3740,8 @@ def create_app() -> FastAPI:
             require_remote_start(bot, request)
             if body.model or body.rehearse:
                 raise HTTPException(403, "phone starts use the Bot's locally configured model and policy")
+            if body.skills:
+                raise HTTPException(403, "skill activation is a local owner action")
         key = idempotency_key(request)
         digest = request_digest(body.model_dump())
         try:
@@ -3741,7 +3768,7 @@ def create_app() -> FastAPI:
         try:
             run, created = engine.submit_idempotent(
                 bot, body.prompt, idem_key=key, request_hash=digest, rehearsal=body.rehearse,
-                model="" if model == bot.model else model, origin=origin)
+                model="" if model == bot.model else model, origin=origin, skills=body.skills)
         except IdempotencyConflict as exc:
             raise HTTPException(409, str(exc)) from None
         except PermissionError as exc:
@@ -5239,6 +5266,8 @@ def create_app() -> FastAPI:
 
     # ------------------------------------------------------- pages + static
 
+    from .skills_api import install_skills_routes
+    install_skills_routes(app, store, config)
     from .pages import register_pages
     register_pages(app)
     app.mount("/static", StaticFiles(directory=_STATIC), name="static")
