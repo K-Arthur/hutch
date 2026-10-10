@@ -6414,8 +6414,8 @@ def test_coordinator_can_refine_a_bot_purpose_without_changing_its_source_or_aut
         context.close()
 
 
-def test_chat_sourced_bot_setup_clarifies_one_detail_and_restores_after_reload(browser, live, monkeypatch):
-    """A coordinator asks one missing-detail question, remembers it locally, and returns a review-only draft."""
+def test_chat_sourced_bot_setup_clarifies_multiple_details_and_restores_after_reload(browser, live, monkeypatch):
+    """A coordinator preserves multiple clarification turns and returns a review-only draft."""
     import hashlib
     import json
     from pathlib import Path
@@ -6442,7 +6442,7 @@ def test_chat_sourced_bot_setup_clarifies_one_detail_and_restores_after_reload(b
             store._insert_conversation_message(db, message_id=message_id, conversation_id=conversation["id"],
                 seq=seq, run_id=message_run.id, role=role, content=content, created_at=message_run.created_at)
 
-    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-setup-clarification"
+    out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/bot-setup-multi-round"
     out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(viewport={"width": 1440, "height": 960}, reduced_motion="reduce")
     page = context.new_page()
@@ -6451,15 +6451,20 @@ def test_chat_sourced_bot_setup_clarifies_one_detail_and_restores_after_reload(b
     responses = {
         "guided-setup-question-run": '{"kind":"question","question":"What should leadership receive?",'
             '"options":["A concise written summary","A table of status, owner and next step"]}',
+        "guided-setup-followup-run": '{"kind":"question","question":"What should the Bot do when an update is missing?",'
+            '"options":["Ask me before the report","Label the gap as not provided"]}',
         "guided-setup-draft-run": '{"kind":"draft","instructions":"Prepare a weekly leadership status report. '
-            'Use a concise written summary with confirmed facts, blockers and next steps. Do not send it.",'
+            'Use a concise three-bullet summary with confirmed facts, blockers and next steps. Label missing updates '
+            'as not provided and never guess. Do not send it.",'
             '"assumptions":["The owner will provide project updates in the conversation."]}',
     }
     page.on("pageerror", lambda error: errors.append(str(error)))
 
     def submit_draft(route):
         calls.append(json.loads(route.request.post_data or "{}"))
-        run_id = "guided-setup-question-run" if len(calls) == 1 else "guided-setup-draft-run"
+        run_id = ("guided-setup-question-run" if len(calls) == 1
+                  else "guided-setup-followup-run" if len(calls) == 2
+                  else "guided-setup-draft-run")
         route.fulfill(status=201, json={"id": run_id})
 
     def read_draft_run(route):
@@ -6505,14 +6510,51 @@ def test_chat_sourced_bot_setup_clarifies_one_detail_and_restores_after_reload(b
         page.set_viewport_size({"width": 390, "height": 844})
         page.screenshot(path=str(out / "question-phone-restored.png"), animations="disabled")
         page.get_by_role("button", name="Continue with this answer").click()
-        page.locator("#setup-purpose-draft-text").wait_for()
+        question = page.locator("#setup-clarification-question")
+        question.wait_for()
         assert len(calls) == 2
+        assert "What should the Bot do when an update is missing?" in question.inner_text()
         assert calls[1]["clarification_history"] == [{
             "question": "What should leadership receive?",
             "answer": "A concise written summary — A three-bullet note in chat, please."}]
         assert calls[1]["source_message_id"] == "guided-setup-source"
         assert calls[1]["context_message_ids"] == []
         assert "Do not include this unrelated later request." not in json.dumps(calls[1])
+
+        page.set_viewport_size({"width": 1440, "height": 960})
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+        page.screenshot(path=str(out / "followup-question-desktop.png"), animations="disabled")
+        page.get_by_role("radio", name="Label the gap as not provided").check()
+        page.locator("#setup-clarification-answer").fill("Never fill gaps with guesses.")
+
+        # The second question and the first answer both survive another reload.
+        page.reload()
+        page.locator("#conversation-switcher").wait_for()
+        page.locator('[data-create-bot-from-request="guided-setup-source"]').click()
+        question = page.locator("#setup-clarification-question")
+        question.wait_for()
+        assert page.get_by_role("radio", name="Label the gap as not provided").is_checked()
+        assert page.locator("#setup-clarification-answer").input_value() == "Never fill gaps with guesses."
+        page.set_viewport_size({"width": 390, "height": 844})
+        assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1
+        page.screenshot(path=str(out / "followup-question-phone-restored.png"), animations="disabled")
+        page.get_by_role("button", name="Continue with this answer").click()
+
+        page.locator("#setup-purpose-draft-text").wait_for()
+        assert len(calls) == 3
+        assert calls[2]["clarification_history"] == [
+            {
+                "question": "What should leadership receive?",
+                "answer": "A concise written summary — A three-bullet note in chat, please.",
+            },
+            {
+                "question": "What should the Bot do when an update is missing?",
+                "answer": "Label the gap as not provided — Never fill gaps with guesses.",
+            },
+        ]
+        assert calls[2]["source_message_id"] == "guided-setup-source"
+        assert calls[2]["context_message_ids"] == []
+        assert "Do not include this unrelated later request." not in json.dumps(calls[2])
         assert page.locator("#setup-purpose-draft-text").input_value().startswith("Prepare a weekly leadership")
         assert "The owner will provide project updates" in page.locator("#setup-purpose-draft-assumptions").inner_text()
 
@@ -6534,14 +6576,15 @@ def test_chat_sourced_bot_setup_clarifies_one_detail_and_restores_after_reload(b
         assert len(store.list_runs(limit=100)) == run_count, "fixtures must not create or run provider work"
         assert not errors, errors
         (out / "validation.json").write_text(json.dumps({
-            "test": "tests/e2e/test_browser.py::test_chat_sourced_bot_setup_clarifies_one_detail_and_restores_after_reload",
-            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_chat_sourced_bot_setup_clarifies_one_detail_and_restores_after_reload",
+            "test": "tests/e2e/test_browser.py::test_chat_sourced_bot_setup_clarifies_multiple_details_and_restores_after_reload",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_chat_sourced_bot_setup_clarifies_multiple_details_and_restores_after_reload",
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright_version": package_version("playwright"),
             "viewports": {"desktop": [1440, 960], "tablet": [900, 1024], "phone": [390, 844]},
             "provider_calls": 0, "external_requests": 0,
-            "scenario": "chat-derived Bot setup preserves its exact request, asks one bounded choice question, restores an unsent free-text answer after reload, carries it into a review-only draft, and creates no Bot or run",
-            "screenshots": ["question-desktop.png", "question-phone-restored.png"]
+            "scenario": "chat-derived Bot setup preserves its exact request, asks two bounded choice questions one at a time, restores each question and unsent answer after reload, carries both answers into a review-only draft, and creates no Bot or run",
+            "screenshots": ["question-desktop.png", "question-phone-restored.png",
+                            "followup-question-desktop.png", "followup-question-phone-restored.png"]
                 + [f"review-draft-{size}.png" for size in ("desktop", "tablet", "phone")],
             "clarification_request_count": len(calls), "page_errors": errors,
             "source_sha256": {relative: hashlib.sha256((Path(__file__).resolve().parents[2] / relative).read_bytes()).hexdigest()

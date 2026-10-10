@@ -2726,9 +2726,13 @@ tablet **900×1024**, and phone **390×844**, both before application and after 
 and inspected at desktop **1440×900**, tablet **900×1024**, and phone **390×844**; there were no horizontal overflows, page errors,
 or external requests. Evidence is under [`artifacts/bot-purpose-refinement/`](artifacts/bot-purpose-refinement/).
 
-No live model/provider call, provider retention behavior, screen reader or physical phone was tested. Multi-round clarification
-is not implemented: answers to open questions must be added to the editable purpose and submitted in a new explicit request.
-Naming remains a local deterministic suggestion rather than model-generated, and live semantic quality remains unverified.
+No live model/provider call, provider retention behavior, screen reader or physical phone was tested. The initial one-question browser fixture did not verify a second turn; multi-round behavior is covered separately in the 2026-10-10 continuation below. Naming remains a local deterministic suggestion rather than model-generated, and live semantic quality remains unverified.
+
+### Multi-round setup verification follow-through (2026-10-10)
+
+The application code added by `160af58` already supports up to five bounded clarification turns, keeps the exact source request and owner-selected context attached, and saves in-progress question/answer state in the same browser for up to seven days. The earlier status text above incorrectly described multi-round clarification as unimplemented because its fixture only returned one question. The additional browser journey now returns two distinct questions, reloads after each answer, verifies the second question and prior answer are restored, and asserts that both exact answers plus the original source message reach the final review-only draft. No Bot or real provider run is created by the fixture. Desktop, tablet and phone review screenshots and the browser trace are saved in [`artifacts/bot-setup-multi-round/`](artifacts/bot-setup-multi-round/).
+
+This fixture verifies client flow and provenance, not semantic quality from a live model. The five-question cap and input validation remain covered at the API boundary; live provider behavior and screen-reader/physical-device testing remain open.
 
 ## ChatGPT background plan consent (2026-10-09)
 
