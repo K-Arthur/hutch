@@ -27,17 +27,28 @@ colors:
   error: "#f87171"
 typography:
   body:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Noto Sans\", Arial, sans-serif, \"Apple Color Emoji\""
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif, "Apple Color Emoji"'
     fontSize: "14px"
     fontWeight: 400
     lineHeight: "1.55"
     letterSpacing: "normal"
   heading:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Noto Sans\", Arial, sans-serif"
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif'
     fontSize: "22px"
     fontWeight: 700
-    lineHeight: "1.25"
+    lineHeight: "1.4"
     letterSpacing: "-0.02em"
+  section:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif'
+    fontSize: "16px"
+    fontWeight: 650
+    lineHeight: "1.55"
+    letterSpacing: "-0.005em"
+  brand:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif'
+    fontSize: "16px"
+    fontWeight: 700
+    lineHeight: "1.55"
   marketing-display:
     fontFamily: "Archivo, ui-sans-serif, system-ui, sans-serif"
     fontSize: "176px"
@@ -50,7 +61,7 @@ typography:
   metadata:
     fontSize: "12px"
   mono:
-    fontFamily: "ui-monospace, SFMono-Regular, \"SF Mono\", \"Cascadia Mono\", \"JetBrains Mono\", Menlo, Consolas, monospace"
+    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace'
     fontSize: "13px"
     fontWeight: 400
     lineHeight: "1.5"
@@ -155,7 +166,8 @@ prose, labels, or marketing.
 
 - **Body:** system sans, 14px/1.55 default; conversation text 15px/1.65;
   editor text (composer, instructions) 16px+.
-- **Headings:** 22px/1.25 weight 700, tracking −0.02em; section heads 16px/650;
+- **Headings:** 22px/1.4 weight 700, tracking −0.02em; section heads 16px/650/1.55;
+  the wordmark uses 16px/700;
   micro-labels 11px mono uppercase, tracking +0.07em — used only as data labels,
   never as decorative eyebrows.
 - **Mono:** ids, durations, tokens, budgets, code, timestamps — always with tabular

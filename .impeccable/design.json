@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-10T03:18:11Z",
+  "generatedAt": "2026-10-10T04:59:04Z",
   "title": "Design System: Hutch",
   "extensions": {
     "colorMeta": {
@@ -357,7 +357,7 @@
       },
       "heading": {
         "displayName": "System Sans Display",
-        "purpose": "Page and section titles; 22px/1.25 with tight tracking."
+        "purpose": "Page titles; 22px/1.4 with tight tracking."
       },
       "marketing-display": {
         "displayName": "Archivo Display",
@@ -378,6 +378,14 @@
       "mono": {
         "displayName": "System Mono",
         "purpose": "Measured values, code and timestamps only; prose never uses mono."
+      },
+      "section": {
+        "displayName": "System Sans Section",
+        "purpose": "Panel and section titles; 16px/1.55 with restrained tracking."
+      },
+      "brand": {
+        "displayName": "System Sans Wordmark",
+        "purpose": "Operator wordmark; 16px/700."
       }
     },
     "shadows": [
@@ -407,11 +415,6 @@
         "name": "ease-out-soft",
         "value": "cubic-bezier(0.16, 1, 0.3, 1)",
         "purpose": "Decelerating entrance motion (msg-in 260ms, drawer slides)."
-      },
-      {
-        "name": "typing-bounce",
-        "value": "translateY loop, 1.3s, delays 0/0.16/0.32s",
-        "purpose": "The one live animation: thinking indicator, shown only while the server reports a run active; static under reduced motion or Reduce effects."
       }
     ],
     "breakpoints": [
@@ -528,11 +531,11 @@
       }
     ],
     "dos": [
+      "Keep motion short, functional and tied to an actual state change; honour reduced motion and the Reduce effects override.",
       "Take every radius from `rounded.*`; keep the pill only for chips.",
       "Pair every icon with a word for state; give every control a visible focus ring.",
       "Use mono only for machine-measured values.",
-      "Show real server state: if the API cannot confirm it, say \"unknown\".",
-      "Keep motion short, functional and state-linked; honour reduced motion and the Reduce effects override (the typing dots are the one live animation)."
+      "Show real server state: if the API cannot confirm it, say \"unknown\"."
     ],
     "donts": [
       "Never put white on emerald, or amber on something that isn't person-needed.",

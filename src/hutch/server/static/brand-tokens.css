@@ -67,9 +67,11 @@
   --text-size-2xs: 12px;
   --text-size-3xl: clamp(34px, 5vw, 58px);
   --text-size-base: 17px;
+  --text-size-brand: 16px;
   --text-size-display: clamp(40px, 5.6vw, 66px);
   --text-size-lg: 19px;
   --text-size-poster: clamp(88px, 12.5vw, 260px);
+  --text-size-section: 16px;
   --text-size-sm: 15px;
   --text-size-xl: clamp(22px, 2.4vw, 27px);
   --text-size-xs: 13px;
