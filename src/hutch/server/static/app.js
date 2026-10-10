@@ -3383,10 +3383,17 @@ function welcomeHtml() {
         ${description ? `<p class="hint">${esc(description)}</p>` : ""}
       </div>
       <p class="welcome-intro">Send me a message below. I’ll ask before anything that needs your okay.</p>
-      <div class="tpl-gal" id="tpl-gal" hidden>
-        <h3 class="tpl-h">Try a common task</h3>
+      <details class="tpl-gal" id="tpl-gal" hidden>
+        <summary class="tpl-gal-summary">
+          <span class="tpl-gal-copy">
+            <span class="tpl-gal-title">Create a helper from an example</span>
+            <span class="tpl-gal-subtitle">Optional setup; message below to start a task.</span>
+          </span>
+          ${icon("caret", "tpl-gal-caret")}
+        </summary>
+        <p class="tpl-gal-note">Choosing an example opens setup; it won’t start a task.</p>
         <div class="tpl-grid" id="tpl-grid"></div>
-      </div>
+      </details>
     </div>`;
 }
 
@@ -3422,13 +3429,11 @@ async function wireWelcome() {
     grid.innerHTML = rankedTemplates.slice(0, 6).map((t, i) => {
       const ci = i % ID_COLORS.length;
       const si = hash32(t.name) % ID_HEADS.length;
-      const hue = ID_COLORS[ci];
-      const tile = `radial-gradient(circle at 50% 64%, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0) 62%), linear-gradient(135deg, ${tint(hue, 0.34)}, ${hue} 55%, ${shade(hue, 0.5)})`;
       const title = TEMPLATE_TITLES[t.name] || t.name.replace(/[-_]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
-      return `<button class="tpl-card" type="button" data-tpl="${esc(t.name)}" aria-label="Start ${esc(title)}: ${esc(t.tagline || t.description || "")}">
-        <span class="tpl-tile" style="background:${tile}">${avatarFromPair([ci, si], 64)}</span>
-        <span class="tpl-name">${esc(title)}${icon("arrow", "tpl-go")}</span>
-        <span class="tpl-tag">${esc(t.tagline || t.description || "")}</span>
+      return `<button class="tpl-card" type="button" data-tpl="${esc(t.name)}" aria-label="Create ${esc(title)} helper from an example: ${esc(t.tagline || t.description || "")}">
+        <span class="tpl-tile">${avatarFromPair([ci, si], 36)}</span>
+        <span class="tpl-copy"><span class="tpl-name">${esc(title)}</span><span class="tpl-tag">${esc(t.tagline || t.description || "")}</span></span>
+        ${icon("arrow", "tpl-go")}
       </button>`;
     }).join("");
     gal.hidden = false;

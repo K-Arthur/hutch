@@ -95,12 +95,14 @@ Advanced model, permissions, schedule, workspace, and memory controls remain
 available as optional customization. Do not ask users to restate a task already
 present in the source conversation.
 
-The empty first-run screen offers a few illustrated starter requests, such as
-planning a week, catching up on email, or organizing a project. Selecting one
-fills the request field; it never starts work or creates an assistant by itself.
-Use a consistent local outline-icon family for actions and categories, with
-plain-language labels beside them. Apps & AI uses 48px service tiles on broad
-layouts and compact phone rows with a 40px category mark and 44px action target.
+The empty Studio chat keeps the message field primary. Reusable-helper examples
+sit behind a collapsed **Create a helper from an example** disclosure, use
+compact rows with small shape-aware 2D identities, and say that selecting one
+opens setup rather than starting work. Keep their names result-focused and hide
+storage IDs. Use a consistent local outline-icon family for actions and
+categories, with plain-language labels beside them. Apps & AI uses 48px service
+tiles on broad layouts and compact phone rows with a 40px category mark and 44px
+action target.
 ChatGPT uses OpenAI's exact, unaltered white Blossom mark under its
 published brand terms. Microsoft Outlook, Gmail, and Google Calendar use
 original service-category marks until product-icon use is permitted. Microsoft

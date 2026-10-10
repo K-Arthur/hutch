@@ -1,0 +1,75 @@
+{
+  "test": "tests/e2e/test_design_system.py::test_studio_template_gallery_survives_background_refresh",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_studio_template_gallery_survives_background_refresh",
+  "captured_at": "2026-10-10T19:31:53.334769+00:00",
+  "python": "3.13.15",
+  "browser": "Chromium 153.0.8010.12",
+  "playwright": "1.63.0",
+  "viewports": [
+    {
+      "size": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "cards": 6,
+      "default_collapsed": true,
+      "document_width": 1440,
+      "last_card_above_composer": true
+    },
+    {
+      "size": "tablet",
+      "viewport": [
+        900,
+        1024
+      ],
+      "cards": 6,
+      "default_collapsed": true,
+      "document_width": 900,
+      "last_card_above_composer": true
+    },
+    {
+      "size": "phone",
+      "viewport": [
+        390,
+        844
+      ],
+      "cards": 6,
+      "default_collapsed": true,
+      "document_width": 390,
+      "last_card_above_composer": true
+    },
+    {
+      "size": "compact-phone",
+      "viewport": [
+        320,
+        740
+      ],
+      "cards": 6,
+      "default_collapsed": true,
+      "document_width": 320,
+      "last_card_above_composer": true
+    }
+  ],
+  "states": [
+    "collapsed by default",
+    "expanded helper examples",
+    "final helper above composer",
+    "setup opened without task submission",
+    "gallery retained after feed refresh"
+  ],
+  "external_requests": [],
+  "provider_calls": 0,
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "e7b0a45c72f0472d78490e7433b7b383bf21e778f15acdb22def28cee2f35cea",
+    "src/hutch/server/static/index.html": "d9d037b323fa06b27dbe718edf247f3c925839642a410264926d085b860d07c6",
+    "src/hutch/server/static/style.css": "af59feb79ee04adad670bbb8e6f4e9ad5e031275ffca66c98e546bea6bc285e8",
+    "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
+    "website/index.html": "3cc72969a1db70426edff5ff5f2bea107915636cf5ee733ae39c87b6cbd3de2c",
+    "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
+    "website/styles.css": "b4734e30bccfce415329ffc6dc8b0631bb7937f51e8f8525c912229526ddfda8",
+    "tests/e2e/test_design_system.py": "6975a2499389f23438e0a4b16c66d2ec46653f2b64958ceccd3e3bbd8de1b86c"
+  },
+  "text_spacing_override": "At 320px applied WCAG 1.4.12 tolerance values to line, paragraph, letter, and word spacing simultaneously; no horizontal overflow or composer overlap.",
+  "visual_review": "Individually inspected collapsed and expanded desktop/tablet/phone/compact-phone states and the helper setup dialog."
+}

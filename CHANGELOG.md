@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Keep message entry primary in an empty Studio chat. Put reusable-helper examples
+  behind a collapsed setup disclosure, use compact 2D assistant rows, and state
+  that opening an example does not start work.
 - Compact the Apps & AI connection tiles on phones while preserving full service names, connection states, descriptions, and 44px actions. Refresh source-aligned screenshots after finding older captures did not match current labels or artwork.
 - Replace the raw run-number label beside chat replies with an accessible **View work details** control. Keep internal identifiers on the optional details page and give the touch target 44px on phones.
 - Refine the app's 2D mascots after review: remove the visor and pale slits, replacing them with two balanced ink eyes placed directly on each of the eight shape-specific silhouettes. The picker previews the final avatar geometry; the detailed 3D mascot remains exclusive to marketing.

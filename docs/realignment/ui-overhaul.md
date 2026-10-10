@@ -33,7 +33,7 @@ assistant identities; the marketing site may use the detailed 3D character.
 
 | Surface | Current review | Overhaul state |
 |---|---|---|
-| Chat / empty Studio | Individually reviewed at desktop and phone | Open |
+| Chat / empty Studio | Individually reviewed at desktop, tablet, phone and compact phone; helper examples are collapsed below the message path | In progress |
 | Chat / populated, choices, replies, attachments, waits | Existing interaction evidence available; refresh after shell redesign | Open |
 | Assistant roster and one-action menu | One-line names, full-row selection and one grouped options menu checked at responsive sizes | Open |
 | Assistant management for larger rosters | Cards simplified; phone overflow and long names checked independently | In progress |
@@ -218,6 +218,27 @@ completed run, rather than showing a **Done** state without an answer. Desktop,
 tablet and phone captures were inspected separately; the browser test confirms
 the reply is read from the saved transcript. This is synthetic completion
 content and makes no model or provider call.
+
+### Empty Studio helper examples — verified slice
+
+The empty chat now keeps messaging as its clear primary action. Reusable-helper
+examples live in one collapsed **Create a helper from an example** disclosure;
+its subtitle says messaging starts work, and the open state explains that an
+example only opens setup. The previous six large gradient banners became compact
+rows with small shape-aware 2D identities, short results-oriented names, and a
+clear setup affordance.
+
+The focused Chromium check passed **1 test in 10.76s** at desktop
+**1440×960**, tablet **900×1024**, phone **390×844**, and compact phone
+**320×740**. It verifies collapsed-by-default behavior, keyboard expansion,
+the six expected helper names, no horizontal overflow, the final item remaining
+above the composer, setup opening without creating an assistant or run, and the
+gallery surviving background refresh. A 320px text-spacing override also
+preserved reflow and composer access. I inspected the collapsed and expanded
+captures individually and inspected the desktop setup dialog. The fixtures made
+no provider or external requests. Evidence is in
+[`artifacts/studio-helper-gallery-2026-10-10/`](artifacts/studio-helper-gallery-2026-10-10/).
+This is one Studio improvement; the all-surface overhaul remains open.
 
 ### Approval queue hierarchy — verified
 

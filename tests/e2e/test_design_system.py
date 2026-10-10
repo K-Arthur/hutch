@@ -105,19 +105,128 @@ def site_server():
 
 
 def test_studio_template_gallery_survives_background_refresh(browser, app_server):
-    """Polling an unchanged conversation must preserve asynchronously loaded welcome content."""
-    app_url, _ = app_server
+    """Optional helper examples stay secondary and survive an unchanged chat refresh."""
+    app_url, app = app_server
+    store = app.state.store
+    out = ROOT / "docs/realignment/artifacts/studio-helper-gallery-2026-10-10"
+    out.mkdir(parents=True, exist_ok=True)
     context = browser.new_context(reduced_motion="reduce")
     page = context.new_page()
+    errors: list[str] = []
+    external_requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    evidence = []
+    trace_saved = False
     try:
-        page.goto(f"{app_url}/#/chat/design-system-review", wait_until="domcontentloaded")
-        gallery = page.locator("#tpl-grid .tpl-card")
-        gallery.first.wait_for(state="visible", timeout=15_000)
-        page.evaluate("window.__galleryCard = document.querySelector('#tpl-grid .tpl-card')")
-        page.wait_for_timeout(4_400)
-        assert page.evaluate("window.__galleryCard?.isConnected") is True
-        assert gallery.count() == 6
+        viewports = (("desktop", 1440, 960), ("tablet", 900, 1024),
+                     ("phone", 390, 844), ("compact-phone", 320, 740))
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            if label == "desktop":
+                page.goto(f"{app_url}/#/chat/design-system-review", wait_until="domcontentloaded")
+            else:
+                page.reload(wait_until="domcontentloaded")
+            page.locator("#conversation-switcher").wait_for(timeout=15_000)
+            disclosure = page.locator("#tpl-gal")
+            disclosure.wait_for(state="visible", timeout=15_000)
+            assert disclosure.evaluate("el => el instanceof HTMLDetailsElement && !el.open")
+            assert disclosure.locator(".tpl-gal-title").inner_text() == "Create a helper from an example"
+            assert "message below to start a task" in disclosure.locator("summary").inner_text()
+            gallery = page.locator("#tpl-grid .tpl-card")
+            assert gallery.count() == 6
+            assert not gallery.first.is_visible()
+            assert page.evaluate("Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= innerWidth + 1")
+            page.screenshot(path=str(out / f"welcome-collapsed-{label}.png"), animations="disabled")
+
+            summary = disclosure.locator("summary")
+            if label in {"desktop", "tablet"}:
+                summary.focus()
+                summary.press("Enter")
+            else:
+                summary.click()
+            gallery.first.wait_for(state="visible")
+            assert disclosure.locator(".tpl-gal-note").inner_text() == "Choosing an example opens setup; it won’t start a task."
+            gallery_names = page.locator("#tpl-grid .tpl-name").all_text_contents()
+            assert gallery_names == [
+                "File organizer", "Meeting follow-up", "Weekly review",
+                "Research briefing", "Website change alerts", "Support inbox helper",
+            ], gallery_names
+            assert gallery.first.get_attribute("aria-label").startswith("Create File organizer helper")
+            assert page.evaluate("Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= innerWidth + 1")
+            page.screenshot(path=str(out / f"welcome-expanded-{label}.png"), animations="disabled")
+
+            final_card = gallery.last.bounding_box()
+            composer = page.locator(".composer").bounding_box()
+            if label in {"phone", "compact-phone"}:
+                gallery.last.scroll_into_view_if_needed()
+                final_card = gallery.last.bounding_box()
+                composer = page.locator(".composer").bounding_box()
+            assert final_card and composer and final_card["y"] + final_card["height"] <= composer["y"] + 1, (
+                label, final_card, composer
+            )
+            page.screenshot(path=str(out / f"welcome-expanded-last-{label}.png"), animations="disabled")
+            evidence.append({
+                "size": label, "viewport": [width, height], "cards": len(gallery_names),
+                "default_collapsed": True, "document_width": page.evaluate("document.documentElement.scrollWidth"),
+                "last_card_above_composer": True,
+            })
+
+            if label == "compact-phone":
+                page.add_style_tag(content="""
+                  * { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; }
+                  p { margin-block-end: 2em !important; }
+                """)
+                assert page.evaluate("Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= innerWidth + 1")
+                gallery.last.scroll_into_view_if_needed()
+                spaced_card = gallery.last.bounding_box()
+                spaced_composer = page.locator(".composer").bounding_box()
+                assert spaced_card and spaced_composer and spaced_card["y"] + spaced_card["height"] <= spaced_composer["y"] + 1, (
+                    "compact-phone text spacing", spaced_card, spaced_composer
+                )
+
+            if label == "desktop":
+                page.evaluate("window.__galleryCard = document.querySelector('#tpl-grid .tpl-card')")
+                page.wait_for_timeout(4_400)
+                assert page.evaluate("window.__galleryCard?.isConnected") is True
+                assert gallery.count() == 6
+                bot_count_before = len(store.list_bots())
+                run_ids_before = {run.id for run in store.list_runs()}
+                gallery.first.click()
+                page.get_by_role("heading", name="Set up your assistant").wait_for()
+                assert page.locator("#setup-purpose").is_visible()
+                assert len(store.list_bots()) == bot_count_before
+                assert {run.id for run in store.list_runs()} == run_ids_before
+                page.screenshot(path=str(out / "helper-setup-desktop.png"), animations="disabled")
+                page.locator("#modal-close").click()
+
+        assert not external_requests, external_requests
+        assert not errors, errors
+        context.tracing.stop(path=str(out / "trace.zip"))
+        trace_saved = True
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_design_system.py::test_studio_template_gallery_survives_background_refresh",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_studio_template_gallery_survives_background_refresh",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "python": platform.python_version(),
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "playwright": package_version("playwright"),
+            "viewports": evidence,
+            "states": ["collapsed by default", "expanded helper examples", "final helper above composer", "setup opened without task submission", "gallery retained after feed refresh"],
+            "external_requests": external_requests,
+            "provider_calls": 0,
+            "source_sha256": _visual_source_hashes(),
+            "text_spacing_override": "At 320px applied WCAG 1.4.12 tolerance values to line, paragraph, letter, and word spacing simultaneously; no horizontal overflow or composer overlap.",
+            "visual_review": "Individually inspected collapsed and expanded desktop/tablet/phone/compact-phone states and the helper setup dialog.",
+        }, indent=2) + "\n", encoding="utf-8")
     finally:
+        if not trace_saved:
+            try:
+                context.tracing.stop(path=str(out / "trace-failed.zip"))
+            except Exception:
+                pass
         context.close()
 
 
@@ -1094,7 +1203,12 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                         else:
                             assert create_button.evaluate("el => getComputedStyle(el).fontSize") == "0px"
                 if surface_name == "studio":
-                    page.locator("#tpl-grid .tpl-name").first.wait_for()
+                    gallery_disclosure = page.locator("#tpl-gal")
+                    gallery_disclosure.wait_for(state="visible")
+                    assert gallery_disclosure.is_visible()
+                    assert not gallery_disclosure.evaluate("el => el.open")
+                    gallery_disclosure.locator("summary").click()
+                    page.locator("#tpl-grid .tpl-name").first.wait_for(state="visible")
                     gallery_names = page.locator("#tpl-grid .tpl-name").all_text_contents()
                     assert gallery_names[:6] == [
                         "File organizer", "Meeting follow-up", "Weekly review",

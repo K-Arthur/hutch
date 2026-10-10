@@ -308,9 +308,11 @@ language after explicit user direction ("right angles feel too off"):
   Keep standing directions and technical controls under one optional
   **Customize how it works** disclosure; preserve its open state after a save so
   people can adjust several related choices in one visit.
-- **Template gallery** — prioritize everyday jobs with short names that describe
-  the result. Never show storage IDs such as `repo-sweeper` as a title; keep them
-  only in the underlying action.
+- **Template gallery** — keep reusable-helper examples collapsed below the
+  direct message path. Label that opening an example enters setup and does not
+  start work. Use compact rows with a small, shape-aware 2D assistant identity;
+  prioritize everyday jobs with short result names and keep storage IDs such as
+  `repo-sweeper` out of visible titles.
 - **Composer** — 22px rounded box, 16–18px textarea, circular emerald send and
   rose stop, a "+" popover holding only real capabilities (suggestions, rehearsal,
   Enter-behaviour, live budget).

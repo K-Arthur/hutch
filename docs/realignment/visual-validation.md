@@ -1821,3 +1821,22 @@ phone notification settings and desktop and phone pending-approval screenshots
 individually. These fixtures use local approval data and a stubbed notification
 API; no OS prompt, provider call, or real notification was used. Screenshots
 and source hashes are in [`artifacts/browser-alerts/`](artifacts/browser-alerts/).
+
+## Empty Studio helper gallery hierarchy (2026-10-10)
+
+The empty chat now places the optional **Create a helper from an example**
+disclosure below its direct message invitation. It starts collapsed. Opening it
+shows six compact helper rows with distinct 2D shapes; selecting a row enters
+setup without creating a helper or starting a task. The phone list scrolls above
+the fixed composer so the last choice remains reachable.
+
+The focused Playwright test passed **1 case in 10.76s** with Chromium
+**153.0.8010.12** / Playwright **1.63.0**. It covered desktop **1440×960**,
+tablet **900×1024**, phone **390×844**, and compact phone **320×740**, tested
+keyboard expansion, and checked a simultaneous line/paragraph/letter/word
+spacing override at 320px. No horizontal overflow or composer overlap occurred.
+I opened the collapsed and expanded screenshots separately at each size and
+inspected the helper setup dialog; the source fingerprints and trace are in
+[`artifacts/studio-helper-gallery-2026-10-10/`](artifacts/studio-helper-gallery-2026-10-10/).
+These are local fixture checks only: no provider, external site, screen reader,
+or physical phone was used.
