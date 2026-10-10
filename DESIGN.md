@@ -152,10 +152,10 @@ can access or what the machine has actually confirmed.
 - Familiar chat and app patterns carry everyday tasks; advanced controls appear in
   clear, optional layers instead of defining the first impression.
 - A simple, shape-aware 2D character gives the app a recognizable face. A gently
-  uneven pair of dark oval eyes follows each distinct silhouette. Faces stay
-  minimal: no white eye dots, mouth, or decorative marks. Larger original 3D
-  character art belongs to marketing; both use the same friendly palette and
-  visual family.
+  matched pair of tapered, light eyes follows each distinct silhouette. Their
+  angle and rhythm stay consistent while size and position fit the available face
+  area. Larger original 3D character art belongs to marketing; both use the same
+  friendly palette and visual family.
 - Service tiles use original Hutch-colored category glyphs until provider
   artwork has documented permission for both app and marketing use. Every glyph
   stays secondary to its exact service name and connection state; no category
@@ -213,9 +213,10 @@ prose, labels, or marketing.
   proof captions; 12px is the smallest metadata size. Both remain secondary.
 - **Icons:** actions and categories use one local 24×24 outline-vector family,
   with 16/20/24px size roles, a shared current-color stroke, and round joins and
-  caps. Apps & AI uses original Hutch-colored calendar, mail, inbox, sparkle,
-  cloud, and monitor category glyphs. Keep exact service names visible; do not
-  present a category glyph as a provider logo. No provider icon is fetched remotely.
+  caps. Apps & AI presents its original calendar, mail, inbox, sparkle, and cloud
+  glyphs in compact, service-tinted tiles. Keep exact service names and states
+  visible; these are category cues, not provider logos. No provider icon is fetched
+  remotely.
 
 ## Layout
 
@@ -225,6 +226,8 @@ prose, labels, or marketing.
   state persists per browser.
 - Conversation column: max 760px, composer pinned 24px above the safe area;
   feed scrolls internally (app frame never page-scrolls).
+- On short desktop windows, the first-run welcome compresses its decorative stage
+  and spacing so the initial setup action stays in the first screen.
 - Operational pages: 1240px container, 32px gutters, 4px spacing rhythm.
 - Phone (≤900px): single surface + overlay navigation; ≤640px hides header meta
   and contextual labels; 44×44px touch targets.
@@ -261,10 +264,10 @@ language after explicit user direction ("right angles feel too off"):
 - **Status chip** — pill, mono 11px, dot + word always together (`● working`,
   `● needs you`, `✕ failed`); colour never carries state alone.
 - **App avatar/sigil** — one flat silhouette from a varied, curated set in one of
-  eight identity colours with a slightly asymmetric pair of filled ink ovals.
-  Each silhouette has a face-safe zone that determines the eyes' center, spacing,
-  proportions, height and tilt; pointed heads place them lower in the wider face.
-  The minimal face has no separate pupils, white highlights, or mouth. The identity picker uses the exact same face geometry as the
+  eight identity colours with a pair of softly tapered light eyes and a fine dark
+  edge. Each silhouette has a face-safe zone that determines the eyes' center,
+  spacing, proportions, height and shared tilt; pointed heads place them lower in
+  the wider face. The minimal face has no separate pupils or mouth. The identity picker uses the exact same face geometry as the
   selected avatar. Derived from the Bot name and overridable
   at creation and in settings. Identity colours are decorative only, never status;
   the separate state pip sits beside it with its word. The marketing site's 3D art

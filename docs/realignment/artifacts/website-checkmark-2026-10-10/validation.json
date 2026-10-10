@@ -1,0 +1,54 @@
+{
+  "browser": "Chromium",
+  "browser_version": "153.0.8010.12",
+  "page_errors": [],
+  "external_requests": [],
+  "provider_calls": 0,
+  "viewports": [
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        900
+      ],
+      "illustration_bounds": {
+        "x": 919.65625,
+        "y": 355.859375,
+        "width": 355.34375,
+        "height": 188
+      }
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        900,
+        1024
+      ],
+      "illustration_bounds": {
+        "x": 606.328125,
+        "y": 566.546875,
+        "width": 268.65625,
+        "height": 188
+      }
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        390,
+        844
+      ],
+      "illustration_bounds": {
+        "x": 17,
+        "y": 341.703125,
+        "width": 356,
+        "height": 160
+      }
+    }
+  ],
+  "verified": [
+    "approval illustration uses local SVG icons only",
+    "illustration remains visible at desktop/tablet/phone widths",
+    "no horizontal overflow",
+    "no external requests"
+  ]
+}

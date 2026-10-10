@@ -1,5 +1,12 @@
 # Changelog
 
+## Assistant identity and app-card refinement
+
+- Replaced the app mascot's dark dot eyes with paired, tapered light eyes. Their shared tilt and rhythm stay consistent while each of the eight head shapes gets individually fitted size and placement; the separate marketing mascot is unchanged.
+- Apps & AI now places each icon beside its service name and status, uses a restrained service-color tile, and labels Outlook as **Microsoft Outlook**. These are original function/category glyphs, not provider logos.
+- Short desktop windows use a compact first-run welcome so the main setup action can remain in the first screen. Assistant names remain single-line in the roster, and the active selection continues through its one options button.
+- The responsive browser checks now cover the short desktop welcome, colored app tiles, shape-fitted eye paths, selected-row coverage, and single-line names. New screenshots are individually reviewed before this UI slice is committed.
+
 # Outlook email send preview (experimental, schema v46)
 
 - Added a separate Microsoft delegated `Mail.Send` sign-in, token namespace and per-Bot grant. Every new plain-text message requires

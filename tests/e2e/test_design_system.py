@@ -338,8 +338,8 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
     page.on("request", lambda request: external_requests.append(request.url)
             if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
     context.tracing.start(screenshots=True, snapshots=True, sources=False)
-    viewports = (("desktop", 1440, 960), ("tablet", 900, 1024), ("phone", 390, 844),
-                 ("compact-phone", 320, 740))
+    viewports = (("desktop", 1440, 960), ("short-desktop", 1280, 720),
+                 ("tablet", 900, 1024), ("phone", 390, 844), ("compact-phone", 320, 740))
     evidence = []
     try:
         for label, width, height in viewports:
@@ -350,7 +350,7 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
             assert request.is_visible()
             setup_button = page.get_by_role("button", name="Set up my assistant")
             assert setup_button.is_visible()
-            if label == "phone":
+            if label in {"phone", "short-desktop"}:
                 button_box = setup_button.bounding_box()
                 assert button_box and 0 <= button_box["y"] and button_box["y"] + button_box["height"] <= height, button_box
             welcome_marks = page.locator(".welcome-app-mark .service-mark")
@@ -429,9 +429,11 @@ def test_assistant_first_run_and_app_catalog_use_familiar_visual_language(browse
             restricted_scope = page.get_by_text("gmail.readonly", exact=True).all()
             assert not any(item.is_visible() for item in restricted_scope), label
             tile_labels = cards.locator("h3").all_text_contents()
-            assert tile_labels == ["Google Calendar", "Gmail", "Outlook", "ChatGPT", "Other reply services"]
+            assert tile_labels == ["Google Calendar", "Gmail", "Microsoft Outlook", "ChatGPT", "Other reply services"]
             icon_widths = page.locator(".service-mark").evaluate_all("els => els.map(el => Math.round(el.getBoundingClientRect().width))")
-            assert icon_widths == [58] * 5, (label, icon_widths)
+            assert icon_widths == [48] * 5, (label, icon_widths)
+            assert page.locator(".service-mark").evaluate_all("els => els.every(el => getComputedStyle(el).color !== 'rgb(240, 244, 249)')")
+            assert cards.locator(".service-tile-top").evaluate_all("rows => rows.every(row => row.querySelector('h3') && row.querySelector('.service-mark') && row.querySelector('.service-state'))")
             overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert overflow <= 1, (label, "Apps & AI", overflow)
             page.screenshot(path=str(out / f"apps-ai-{label}.png"), full_page=True, animations="disabled")
@@ -584,14 +586,13 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
           const ctx = canvas.getContext('2d');
           const eyes = [...svg.querySelectorAll('[data-sigil-eye]')];
           const contained = eyes.map(eye => {
-            const x = Number(eye.getAttribute('cx'));
-            const y = Number(eye.getAttribute('cy'));
-            const rx = Number(eye.getAttribute('rx')) * .98;
-            const ry = Number(eye.getAttribute('ry')) * .98;
+            const x = Number(eye.dataset.cx);
+            const y = Number(eye.dataset.cy);
+            const length = eye.getTotalLength();
             const transform = eye.transform.baseVal.consolidate()?.matrix;
-            const points = Array.from({length:32}, (_, index) => {
-              const angle = index * Math.PI / 16;
-              return new DOMPoint(x + Math.cos(angle) * rx, y + Math.sin(angle) * ry)
+            const points = Array.from({length:40}, (_, index) => {
+              const point = eye.getPointAtLength(length * index / 40);
+              return new DOMPoint(x + (point.x - x) * .92, y + (point.y - y) * .92)
                 .matrixTransform(transform);
             });
             const center = new DOMPoint(x, y).matrixTransform(transform);
@@ -599,10 +600,11 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
                     perimeter: points.every(point => ctx.isPointInPath(shape, point.x, point.y))};
           });
           return {head: body.getAttribute('d'), color: body.getAttribute('fill'),
-                  eyes: eyes.map(eye => ({tag: eye.tagName.toLowerCase(), rx: Number(eye.getAttribute('rx')),
-                    ry: Number(eye.getAttribute('ry')), cx: Number(eye.getAttribute('cx')),
-                    cy: Number(eye.getAttribute('cy')), transform: eye.getAttribute('transform'),
-                    fill: eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill')})),
+                  eyes: eyes.map(eye => ({tag: eye.tagName.toLowerCase(), rx: Number(eye.dataset.rx),
+                    ry: Number(eye.dataset.ry), cx: Number(eye.dataset.cx), cy: Number(eye.dataset.cy),
+                    d: eye.getAttribute('d'), transform: eye.getAttribute('transform'),
+                    fill: eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill'),
+                    stroke: eye.getAttribute('stroke') || eye.closest('g')?.getAttribute('stroke')})),
           glints: [...svg.querySelectorAll('[data-sigil-glint]')].map(glint => ({
             cx:Number(glint.getAttribute('cx')), cy:Number(glint.getAttribute('cy')),
             r:Number(glint.getAttribute('r')),
@@ -612,11 +614,12 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
         assert len(identity) == 8, identity
         assert len({item["color"] for item in identity}) == 8, identity
         assert all(len(item["eyes"]) == 2 for item in identity), identity
-        assert all(eye["tag"] == "ellipse" and eye["fill"] == "#10161f" and eye["ry"] > eye["rx"] * 1.1
+        assert all(eye["tag"] == "path" and eye["fill"] == "#fff8e9" and eye["stroke"] == "#16362f"
+                   and eye["ry"] > eye["rx"] * 1.7
                    for item in identity for eye in item["eyes"]), identity
         assert all(not item["glints"] for item in identity), "the mascot face uses no detached highlights"
         assert all(item["eyes"][0]["rx"] > item["eyes"][1]["rx"] for item in identity), identity
-        assert all(abs(item["eyes"][0]["cy"] - item["eyes"][1]["cy"]) <= 1 for item in identity), identity
+        assert all(abs(item["eyes"][0]["cy"] - item["eyes"][1]["cy"]) <= 1.5 for item in identity), identity
         assert len({tuple((eye["rx"], eye["ry"]) for eye in item["eyes"])
                     for item in identity}) == 8, identity
         face_rows = {round(sum(eye["cy"] for eye in item["eyes"]) / 2, 1) for item in identity}
@@ -635,15 +638,15 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
         picker_faces = page.locator("[data-idp-shapes] .shp svg").evaluate_all("""svgs => svgs.map(svg => ({
           head: svg.querySelector('path')?.getAttribute('d'),
           eyes: [...svg.querySelectorAll('[data-sigil-eye]')].map(eye => ({
-            cx:Number(eye.getAttribute('cx')), cy:Number(eye.getAttribute('cy')),
-            rx:Number(eye.getAttribute('rx')), ry:Number(eye.getAttribute('ry')),
+            cx:Number(eye.dataset.cx), cy:Number(eye.dataset.cy),
+            rx:Number(eye.dataset.rx), ry:Number(eye.dataset.ry), d:eye.getAttribute('d'),
             transform:eye.getAttribute('transform'),
           }))
         }))""")
         assert len(picker_faces) == len(identity) == 8, picker_faces
         assert [face["head"] for face in picker_faces] == [face["head"] for face in identity]
         assert [face["eyes"] for face in picker_faces] == [
-            [{key: eye[key] for key in ("cx", "cy", "rx", "ry", "transform")} for eye in face["eyes"]]
+            [{key: eye[key] for key in ("cx", "cy", "rx", "ry", "d", "transform")} for eye in face["eyes"]]
             for face in identity
         ], picker_faces
         shape_buttons = page.locator("[data-idp-shapes] .shp")
@@ -662,13 +665,13 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
             shape_buttons.nth(index).click()
             assert shape_buttons.nth(index).get_attribute("aria-pressed") == "true"
             preview = page.locator("[data-idp-prev] .avatar svg")
-            selected_shape = shape_buttons.nth(index).locator("svg path").get_attribute("d")
+            selected_shape = shape_buttons.nth(index).locator("svg > path").first.get_attribute("d")
             preview_shape = preview.locator(":scope > path").get_attribute("d")
             assert preview_shape == selected_shape
             selected_eyes = shape_buttons.nth(index).locator("svg [data-sigil-eye]").evaluate_all(
-                "eyes => eyes.map(eye => [eye.getAttribute('cx'), eye.getAttribute('cy'), eye.getAttribute('transform')])")
+                "eyes => eyes.map(eye => [eye.dataset.cx, eye.dataset.cy, eye.getAttribute('d'), eye.getAttribute('transform')])")
             preview_eyes = preview.locator("[data-sigil-eye]").evaluate_all(
-                "eyes => eyes.map(eye => [eye.getAttribute('cx'), eye.getAttribute('cy'), eye.getAttribute('transform')])")
+                "eyes => eyes.map(eye => [eye.dataset.cx, eye.dataset.cy, eye.getAttribute('d'), eye.getAttribute('transform')])")
             assert preview_eyes == selected_eyes
             avatar_preview = page.locator("[data-idp-prev] .avatar")
             avatar_preview.evaluate("el => el.style.setProperty('--av', '128px')")
@@ -703,7 +706,7 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
                       for value in channels]
             return .2126 * linear[0] + .7152 * linear[1] + .0722 * linear[2]
 
-        eye_ink = identity[0]["eyes"][0]["fill"]
+        eye_ink = identity[0]["eyes"][0]["stroke"]
         eye_contrast = [
             (max(relative_luminance(eye_ink), relative_luminance(item["color"])) + .05)
             / (min(relative_luminance(eye_ink), relative_luminance(item["color"])) + .05)
@@ -731,7 +734,7 @@ def test_flat_mascot_eyes_stay_inside_every_silhouette(browser, app_server):
             "silhouettes": 8,
             "colors": 8,
             "minimum_eye_contrast": round(min(eye_contrast), 2),
-            "checks": ["slightly asymmetric ink oval eyes with silhouette-specific center, spacing, scale, height, and tilt", "no white eye highlights", "shape-specific faces match every picker silhouette and live preview", "eyes inside each mascot silhouette", "44px shape controls", "balanced two-row phone and compact-phone picker", "no phone overflow", "no browser errors"],
+            "checks": ["paired tapered eye slits share a tilt and vary by silhouette", "eye paths have a high-contrast edge and stay inside each head", "shape-specific faces match every picker silhouette and live preview", "44px shape controls", "balanced two-row phone and compact-phone picker", "no phone overflow", "no browser errors"],
             "page_errors": errors,
             "provider_calls": 0,
             "source_sha256": {
@@ -982,6 +985,23 @@ def test_every_workspace_route_renders_independently_at_responsive_sizes(browser
                     assert first_card.locator(".bot-facts").is_hidden()
                     visible_summary = first_card.locator(".bot-chips").inner_text().lower()
                     assert "mock/demo" not in visible_summary and "ask: ask" not in visible_summary
+                    if viewport_name in {"phone", "compact-phone"}:
+                        create_button = page.locator("#btn-new-bot-top")
+                        title_box = page.locator("#app-top-context h1").bounding_box()
+                        create_box = create_button.bounding_box()
+                        assert title_box and create_box and abs(
+                            (title_box["y"] + title_box["height"] / 2)
+                            - (create_box["y"] + create_box["height"] / 2)
+                        ) <= 3, (viewport_name, title_box, create_box)
+                        assert create_button.get_attribute("aria-label") == "New assistant"
+                        assert create_box["width"] >= 44
+                        assert page.locator("#app-top-context h1").inner_text() == "Manage assistants"
+                        assert page.locator("#app-top-context h1").evaluate("el => el.scrollWidth <= el.clientWidth")
+                        if viewport_name == "phone":
+                            assert create_button.inner_text().strip() == "New"
+                            assert create_box["width"] > 80, create_box
+                        else:
+                            assert create_button.evaluate("el => getComputedStyle(el).fontSize") == "0px"
                 if surface_name == "studio":
                     page.locator("#tpl-grid .tpl-name").first.wait_for()
                     gallery_names = page.locator("#tpl-grid .tpl-name").all_text_contents()

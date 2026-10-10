@@ -98,9 +98,9 @@
   ],
   "avatar_svg_ids": 0,
   "source_sha256": {
-    "src/hutch/server/static/app.js": "851b6ef151c4854ffa2b03ba1097c6dfd3a3c69e2ff541242f25cae2dbd5c53f",
-    "src/hutch/server/static/style.css": "074e1effb1902de46fdfb3f267e7a7595473f6cfc71234a67c048e215f21188b",
-    "src/hutch/server/app.py": "9d97a8bd03b1ca8c7bc37718829c4881b2ff59fcc44a8e326921f2cea926c3e5",
-    "tests/e2e/test_browser.py": "d3f9916e2a3a89d00649d6f415edebd4e5c9e1eada463b285d58b288339e1ff4"
+    "src/hutch/server/static/app.js": "6a8c370db21a75045350ec3d6f08d61b926d429c2d9c89fd8ca626bc7e3517b5",
+    "src/hutch/server/static/style.css": "3ac07f66c27b8ea26bbaf267e7183bb579a970caacfd553d7f1e8487161b2ec3",
+    "src/hutch/server/app.py": "436c20c0ba64bb6b31c754b7d2626879c6585450de86b0abb9884c929b0136cf",
+    "tests/e2e/test_browser.py": "f4c423dd656c99fdeb5ef328af4ffa265f0b91cdf48941fba4d88846c0ebc2d2"
   }
 }

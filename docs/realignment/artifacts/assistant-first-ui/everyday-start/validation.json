@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_assistant_first_run_and_app_catalog_use_familiar_visual_language",
-  "captured_at": "2026-10-10T13:15:52.863870+00:00",
+  "captured_at": "2026-10-10T14:09:46.897516+00:00",
   "python": "3.13.15",
   "browser": "Chromium 153.0.8010.12",
   "playwright": "1.63.0",
@@ -11,6 +11,14 @@
       "viewport": [
         1440,
         960
+      ],
+      "overflow": 0
+    },
+    {
+      "surface": "first-run",
+      "viewport": [
+        1280,
+        720
       ],
       "overflow": 0
     },
@@ -43,6 +51,14 @@
       "viewport": [
         1440,
         960
+      ],
+      "overflow": 0
+    },
+    {
+      "surface": "apps-ai",
+      "viewport": [
+        1280,
+        720
       ],
       "overflow": 0
     },
@@ -81,12 +97,12 @@
   "provider_calls": 0,
   "reduced_motion": "reduce",
   "source_sha256": {
-    "src/hutch/server/static/app.js": "851b6ef151c4854ffa2b03ba1097c6dfd3a3c69e2ff541242f25cae2dbd5c53f",
+    "src/hutch/server/static/app.js": "6a8c370db21a75045350ec3d6f08d61b926d429c2d9c89fd8ca626bc7e3517b5",
     "src/hutch/server/static/index.html": "575a9641e4be85f5ed3294571370073ed90656c728baa218cfe11bd0b6e6f932",
-    "src/hutch/server/static/style.css": "074e1effb1902de46fdfb3f267e7a7595473f6cfc71234a67c048e215f21188b",
-    "website/index.html": "e3f4122f6a72bc5c783c71e5f7fa09b08fe85c92818c4cb06b7c85ba80ae2db5",
+    "src/hutch/server/static/style.css": "3ac07f66c27b8ea26bbaf267e7183bb579a970caacfd553d7f1e8487161b2ec3",
+    "website/index.html": "3cc72969a1db70426edff5ff5f2bea107915636cf5ee733ae39c87b6cbd3de2c",
     "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
-    "website/styles.css": "7129a7ff4f9153d32743fe19f761caf119d4ceb2fb54e9205e83d8a89d5c1b75",
-    "tests/e2e/test_design_system.py": "13a8c23a485a6afd2b0375a1c2a34f80f6fd121436bf86e764d2a2caf85e8d5e"
+    "website/styles.css": "b4734e30bccfce415329ffc6dc8b0631bb7937f51e8f8525c912229526ddfda8",
+    "tests/e2e/test_design_system.py": "0465e6403892a04d717cdd0e4a20d5300a6b78069dc3953e35ca9448675a75db"
   }
 }

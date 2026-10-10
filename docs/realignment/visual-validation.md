@@ -1449,3 +1449,40 @@ The focused checks passed: the design-system browser file (**6 tests, 44.79s**),
 the pinned-roster interaction (**1 test, 8.09s**), on Chromium **153.0.8010.12** / Playwright **1.63.0**. The pages report no
 unexpected external requests or provider calls. The first website rerun caught a stale stylesheet cache key; the key was corrected,
 then all 27 checks passed. These fixture checks do not establish live provider consent or brand permission.
+
+## Assistant face, service-tile, and phone-header refinement (2026-10-10)
+
+The app mascot now uses paired tapered light eyes with a fine dark edge. All
+eight silhouettes have individually fitted eye paths, and the shape picker uses
+the same face geometry. Apps & AI now places the service glyph, full product
+name, and connection state on a shared row; the local color tiles are original
+function cues, not provider logos. A compact mobile Fleet action keeps the full
+page title on one line and retains the accessible label **New assistant**.
+Short desktop welcome spacing keeps its primary setup action visible at 1280×720.
+
+I ran the first-run/app-catalog, mascot-containment, all-route responsive, and
+roster-selection browser journeys together: **4 passed in 26.85s**. The all-route
+journey covers Studio, Activity, Schedules, Fleet, Runs, Approvals, Apps & AI,
+assistant settings, run detail, and the marketing site at **1440×960**,
+**900×1024**, **390×844**, and **320×740**. It checks 320px horizontal overflow;
+the Fleet title/action alignment is also asserted at both phone widths. I opened
+the 30 route screenshots individually at desktop, tablet, and phone sizes, then
+opened each of the eight mascot-face crops individually. The short-desktop
+welcome and service catalog have their own captures. The roster journey checks
+one-line long-name truncation, full title access, and the selected row reaching
+the trailing options control.
+
+Evidence and current-source fingerprints are in
+[`artifacts/ui-surface-review/`](artifacts/ui-surface-review/),
+[`artifacts/assistant-first-ui/everyday-start/`](artifacts/assistant-first-ui/everyday-start/),
+[`artifacts/mascot-eye-review-2026-10-10/`](artifacts/mascot-eye-review-2026-10-10/),
+and [`artifacts/pinned-roster/`](artifacts/pinned-roster/). The marketing
+approval illustration's local check icon was also inspected separately at
+desktop, tablet, and phone in
+[`artifacts/website-checkmark-2026-10-10/`](artifacts/website-checkmark-2026-10-10/).
+Checks used Python **3.13.15**, Chromium **153.0.8010.12**, and Playwright
+**1.63.0** with local fixtures: **zero external requests and zero provider calls**.
+No live provider, physical device, or screen reader was used. Mobbin remained
+behind its paid-plan gate and Figma node-level retrieval was blocked by the
+connected account's Starter-plan tool limit, so neither is claimed as a source
+for this pass.

@@ -4979,11 +4979,22 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
         assert name_metrics["text"] == long_name
         assert name_metrics["fullName"].startswith(long_name)
         assert name_metrics["height"] <= name_metrics["lineHeight"] + 1
+        assert page.locator(".roster-name").evaluate_all(
+            "els => els.every(el => getComputedStyle(el).whiteSpace === 'nowrap' && el.clientHeight <= parseFloat(getComputedStyle(el).lineHeight) + 1)")
         name_label = page.locator("[data-switch-bot='research-helper'] .roster-name")
         assert name_label.evaluate("el => getComputedStyle(el).textOverflow") == "ellipsis"
         assert name_label.evaluate("el => el.scrollWidth > el.clientWidth"), (
             "long sidebar names should visibly truncate on one line"
         )
+        selected_row = page.locator("#roster-list .roster-entry.is-current")
+        selected_row_metrics = selected_row.evaluate("""row => {
+          const box = row.getBoundingClientRect();
+          const menu = row.querySelector('.roster-options').getBoundingClientRect();
+          return {width:box.width, background:getComputedStyle(row).backgroundColor,
+                  menuRightGap:Math.abs(box.right-menu.right)};
+        }""")
+        assert selected_row_metrics["width"] > 220 and selected_row_metrics["menuRightGap"] <= 1, selected_row_metrics
+        assert selected_row_metrics["background"] not in {"transparent", "rgba(0, 0, 0, 0)"}, selected_row_metrics
         short_name_height = page.locator("[data-switch-bot='agenda-assistant'] .roster-name").evaluate("el => el.clientHeight")
         assert short_name_height <= name_metrics["lineHeight"] + 1
 
@@ -5040,17 +5051,18 @@ def test_bot_roster_pins_persist_and_simple_mascots_stay_distinct(browser, live)
 
         identity = page.locator("#roster-list .avatar svg").evaluate_all("""svgs => {
           const ids = svgs.flatMap(svg => [...svg.querySelectorAll('[id]')].map(node => node.id));
-          return {count: ids.length, shapes: svgs.map(svg => svg.querySelector('path')?.getAttribute('d')),
+          return {count: ids.length, shapes: svgs.map(svg => svg.querySelector(':scope > path')?.getAttribute('d')),
                   fills: svgs.map(svg => svg.querySelector('path')?.getAttribute('fill')),
                   eyes: svgs.map(svg => [...svg.querySelectorAll('[data-sigil-eye]')].map(eye => ({
                     shape:eye.getAttribute('data-sigil-eye'),tag:eye.tagName.toLowerCase(),
                     fill:eye.getAttribute('fill') || eye.closest('g')?.getAttribute('fill'),
-                    cx:eye.getAttribute('cx'),cy:eye.getAttribute('cy')})))};
+                    stroke:eye.getAttribute('stroke') || eye.closest('g')?.getAttribute('stroke'),
+                    cx:eye.dataset.cx,cy:eye.dataset.cy,d:eye.getAttribute('d')})))};
         }""")
         assert identity["count"] == 0, "flat app avatars need no shared SVG definition IDs"
         assert len(set(identity["shapes"])) == 5, "name-derived avatars should remain distinguishable"
         assert len(set(identity["fills"])) > 1 and all(len(eyes) == 2 for eyes in identity["eyes"])
-        assert all(eye["fill"] == "#10161f" and eye["tag"] == "ellipse"
+        assert all(eye["fill"] == "#fff8e9" and eye["stroke"] == "#16362f" and eye["tag"] == "path"
                    for eyes in identity["eyes"] for eye in eyes)
         assert {eye["shape"] for eyes in identity["eyes"] for eye in eyes} == {"lead", "companion"}
         assert all(len({(eye["cx"], eye["cy"]) for eye in eyes}) == 2 for eyes in identity["eyes"])

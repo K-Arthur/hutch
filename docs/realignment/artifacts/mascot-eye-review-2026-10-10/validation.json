@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_flat_mascot_eyes_stay_inside_every_silhouette",
-  "captured_at": "2026-10-10T12:32:43.418211+00:00",
+  "captured_at": "2026-10-10T14:09:51.041682+00:00",
   "browser": "Chromium 153.0.8010.12",
   "viewports": {
     "desktop": [
@@ -42,12 +42,11 @@
   ],
   "silhouettes": 8,
   "colors": 8,
-  "minimum_eye_contrast": 5.81,
+  "minimum_eye_contrast": 4.19,
   "checks": [
-    "slightly asymmetric ink oval eyes with silhouette-specific center, spacing, scale, height, and tilt",
-    "no white eye highlights",
+    "paired tapered eye slits share a tilt and vary by silhouette",
+    "eye paths have a high-contrast edge and stay inside each head",
     "shape-specific faces match every picker silhouette and live preview",
-    "eyes inside each mascot silhouette",
     "44px shape controls",
     "balanced two-row phone and compact-phone picker",
     "no phone overflow",
@@ -56,9 +55,9 @@
   "page_errors": [],
   "provider_calls": 0,
   "source_sha256": {
-    "src/hutch/server/static/app.js": "f9ec5cedf21cf04db04f98d69c658a987bf026e6cf46ee97e354246ab7c1ce4d",
-    "src/hutch/server/static/style.css": "580461addb6a236c7e6786b0ca81c68a80d8cd08f8cfefd7a95be565ad7a0ea9",
+    "src/hutch/server/static/app.js": "6a8c370db21a75045350ec3d6f08d61b926d429c2d9c89fd8ca626bc7e3517b5",
+    "src/hutch/server/static/style.css": "3ac07f66c27b8ea26bbaf267e7183bb579a970caacfd553d7f1e8487161b2ec3",
     "src/hutch/server/static/index.html": "575a9641e4be85f5ed3294571370073ed90656c728baa218cfe11bd0b6e6f932",
-    "tests/e2e/test_design_system.py": "b7d51e9ef5a4110ed06762bb2836edaa7a58a35ba898687d9fc8a9fd7e86ee11"
+    "tests/e2e/test_design_system.py": "0465e6403892a04d717cdd0e4a20d5300a6b78069dc3953e35ca9448675a75db"
   }
 }

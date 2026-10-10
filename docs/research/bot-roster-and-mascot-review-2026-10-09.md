@@ -76,3 +76,20 @@ inspection results are documented in `docs/realignment/visual-validation.md`.
 
 Manual mascot overrides continue to use browser-local view storage; they are not
 synced between browsers. Pinning is persisted with the Bot and survives app reloads.
+
+## Face refinement after owner review (2026-10-10)
+
+The owner rejected the previous matched-looking dark dots as heavy and poorly
+integrated with the different silhouettes. The app now renders each face as two
+light, tapered eye slits with a fine dark edge. Both eyes share one angle and
+visual rhythm, with shape-specific size and placement; the drop and triangle sit
+lower where their heads are widest. The dark edge preserves legibility against
+the brighter identity colours. This is app artwork, not copied Grok Bot art.
+
+The provider artwork review found official ChatGPT, Outlook, Gmail, and Google
+Calendar marks, but no Hutch permission record for bundling those trademarks in
+the app and marketing site. Apps & AI therefore retains original, tinted category
+glyphs, with **Microsoft Outlook**, **Gmail**, and **ChatGPT** spelled out beside
+them. The glyphs identify mail, calendar, inbox, or AI functions and are not
+presented as those providers' marks. The user-supplied reference screens guide
+hierarchy and interaction only; they do not grant rights to copy logos.

@@ -52,17 +52,16 @@ generated token files and the declared WCAG text pairs.
 | Control / panel / chat / composer / pill radius | `8 / 12 / 18 / 22 / 100px` | Shared geometry scale |
 | UI body / measured data | system sans / system mono | Language versus machine values |
 | App type roles | `0.9375rem` body / `1rem` reading / `1.5rem` page title | Responsive hierarchy that respects browser text scaling |
-| App icon family | `16 / 20 / 24px`, `24px` view box | Local category vectors plus unmodified approved provider art where permitted; names stay visible |
+| App icon family | `16 / 20 / 24px`, `24px` view box | Local category vectors in 48px service-tinted tiles; names and states stay visible |
 
 The marketing site keeps Archivo for display and section headings and uses the
 locally bundled 3D Hutch mascot. Product body text uses the same system sans as
 Studio. The app uses compact flat 2D assistant characters; each distinct head
-shape gets a slightly uneven pair of dark oval eyes fitted to its face. Round,
-leaning, tapered and pointed forms therefore get different eye size, spacing,
-height and tilt, and the picker previews that same face. The app face stays
-minimal, with no separate pupils, white eye highlights, or mouth. Status is
-shown separately. Brand art, assistant identity, and runtime state never
-substitute for one another.
+shape gets a matched pair of softly tapered light eyes with a fine dark edge.
+Round, leaning, tapered and pointed forms therefore get different eye size,
+spacing and height while keeping one shared tilt and rhythm. The picker previews
+the same face. There are no separate pupils or mouth. Status is shown separately.
+Brand art, assistant identity, and runtime state never substitute for one another.
 
 ## Surface roles
 
@@ -93,9 +92,10 @@ planning a week, catching up on email, or organizing a project. Selecting one
 fills the request field; it never starts work or creates an assistant by itself.
 Use a consistent local outline-icon family for actions and categories, with
 plain-language labels beside them. Apps & AI uses original Hutch-colored
-calendar, mail, inbox, sparkle, cloud, and monitor category glyphs beside exact
-service names. These are not provider logos; branded artwork stays out until
-permission for app and marketing use is documented. Keep provider, model,
+calendar, mail, inbox, sparkle, cloud, and monitor category glyphs in softly
+colored 48px tiles beside exact service names. Microsoft Outlook is named fully.
+These are not provider logos; branded artwork stays out until permission for app
+and marketing use is documented. Keep provider, model,
 permission, and runtime terminology in the relevant optional detail layer.
 
 Assistant settings lead with the editable name and what the assistant helps with.

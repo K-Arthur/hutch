@@ -612,7 +612,7 @@ function summarizeOutput(output) {
 
 /* ---------------------------------------------------------------- avatars
    Each Bot gets one light 2D character: a distinctive, name-stable silhouette,
-   one brand-family colour and a pair of inset ink eyes. This simple family
+   one brand-family colour and a pair of tapered, shape-fitted eyes. This family
    belongs to the operator app; the marketing site keeps its detailed 3D artwork.
    Identity never encodes status. Status remains a separate labeled indicator. */
 const ID_COLORS = ["#3DE8C5", "#35C3F0", "#5B9BFF", "#9B7CFF", "#C77DFF", "#FF6FA5", "#FFA83C", "#7BD85A"];
@@ -626,18 +626,18 @@ const ID_HEADS = [
   { key: "triangle", d: "M27 12c2-4 8-4 10 0l19 32c2 4-1 8-5 8H13c-5 0-7-4-5-8l19-32Z" },
   { key: "hex", d: "M22 9h20l13 23-13 23H22L9 32 22 9Z" },
 ];
-// Each silhouette gets a face fitted to its own usable area. A slightly
-// asymmetric pair of soft ink ovals keeps the simple 2D faces expressive and
-// legible without extra highlights or facial detail.
+// Each silhouette gets a face fitted to its own usable area. The matching,
+// tapered eye slits share an angle and visual rhythm; their size and placement
+// change with each head instead of stamping one face across every shape.
 const ID_FACES = [
-  [[23.8, 29, 4.3, 5.4, -18], [40.1, 28.4, 3.8, 4.9, 13]], // orb: open, gently tilted pair
-  [[25, 28, 3.7, 5.6, -12], [39.1, 27.8, 3.3, 4.9, 10]], // capsule: tall and upright
-  [[23.6, 30, 4.1, 5, -20], [40.3, 29, 3.7, 4.6, 12]], // bean: follows the lean
-  [[24.2, 36, 4.1, 4.8, -13], [39.7, 35.2, 3.6, 4.4, 10]], // drop: lower in its bowl
-  [[23.7, 29.5, 4.3, 5.1, -16], [40.4, 29, 3.7, 4.6, 11]], // pebble: follows its wider face
-  [[24.8, 31, 3.7, 5, -13], [39.4, 30.3, 3.2, 4.4, 9]], // shield: compact below its taper
-  [[26.8, 37, 3.6, 4.4, -11], [39.6, 36.2, 3.1, 4, 8]], // triangle: centered in the base
-  [[24, 33, 4.4, 5, -14], [40.4, 32.6, 3.8, 4.7, 10]], // hex: broader pair follows its facets
+  [[24, 29, 2.8, 5.7, -25], [39.7, 28, 2.35, 5, -25]], // orb: open, gently lifted pair
+  [[24.8, 28, 2.65, 6.1, -24], [39.2, 27.4, 2.25, 5.2, -24]], // capsule: tall and upright
+  [[23.8, 30, 2.7, 5.5, -27], [40.2, 28.8, 2.3, 4.8, -27]], // bean: follows the lean
+  [[24.3, 36.5, 2.75, 5.15, -24], [39.7, 35.6, 2.3, 4.6, -24]], // drop: lower in its bowl
+  [[23.8, 29.8, 2.8, 5.5, -24], [40.3, 29, 2.4, 4.9, -24]], // pebble: follows its wider face
+  [[24.8, 31.3, 2.55, 5, -24], [39.3, 30.5, 2.2, 4.35, -24]], // shield: compact below its taper
+  [[27, 37.4, 2.35, 4.55, -23], [39.7, 36.8, 2.05, 4, -23]], // triangle: centered in the base
+  [[24.2, 33.3, 2.8, 5.25, -25], [40.5, 32.7, 2.4, 4.7, -25]], // hex: follows its facets
 ];
 
 function hash32(s) {
@@ -677,8 +677,8 @@ function sigilSet(name, pair) { idStore.all[name] = pair; idStore.save(); }
 function sigilEyes(shapeIndex) {
   const [lead, companion] = ID_FACES[shapeIndex] || ID_FACES[0];
   const eye = (name, [cx, cy, rx, ry, angle]) =>
-    `<ellipse data-sigil-eye="${name}" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" transform="rotate(${angle} ${cx} ${cy})"/>`;
-  return `<g aria-hidden="true" fill="#10161f">${eye("lead", lead)}${eye("companion", companion)}</g>`;
+    `<path data-sigil-eye="${name}" data-cx="${cx}" data-cy="${cy}" data-rx="${rx}" data-ry="${ry}" d="M ${cx} ${cy - ry} C ${cx + rx * .62} ${cy - ry * 1.02}, ${cx + rx * 1.04} ${cy - ry * .34}, ${cx + rx} ${cy} C ${cx + rx * .94} ${cy + ry * .48}, ${cx + rx * .4} ${cy + ry * .92}, ${cx} ${cy + ry} C ${cx - rx * .53} ${cy + ry * .86}, ${cx - rx * 1.02} ${cy + ry * .44}, ${cx - rx} ${cy} C ${cx - rx * 1.04} ${cy - ry * .42}, ${cx - rx * .56} ${cy - ry * 1.02}, ${cx} ${cy - ry} Z" transform="rotate(${angle} ${cx} ${cy})"/>`;
+  return `<g aria-hidden="true" fill="#fff8e9" stroke="#16362f" stroke-width=".65">${eye("lead", lead)}${eye("companion", companion)}</g>`;
 }
 
 function sigilBody(pair) {
@@ -4763,7 +4763,7 @@ async function renderBots() {
   }
   renderRoster();
   setTopContext(`<div class="ctx-id"><h1>Manage assistants</h1></div>
-    <div class="ctx-actions"><button class="btn primary small" id="btn-new-bot-top">${icon("plus")} New assistant</button></div>`);
+    <div class="ctx-actions"><button class="btn primary small" id="btn-new-bot-top" aria-label="New assistant" title="New assistant">${icon("plus")}<span class="fleet-create-full-label">New assistant</span><span class="fleet-create-compact-label" aria-hidden="true">New</span></button></div>`);
   view.innerHTML = `
     <div class="page-scroll"><div class="container">
       ${bots.length ? `
@@ -6078,8 +6078,8 @@ async function renderConnections() {
   const chatgptAccounts = data.chatgpt_accounts || [];
   const tile = (kind, title, description, state, stateKind, action = "manage", actionLabel = "Manage") => `
     <article class="service-tile">
-      <div class="service-tile-top">${serviceMark(kind)}<span class="service-state ${stateKind}">${esc(state)}</span></div>
-      <h3>${esc(title)}</h3><p>${esc(description)}</p>
+      <div class="service-tile-top">${serviceMark(kind)}<h3>${esc(title)}</h3><span class="service-state ${stateKind}">${esc(state)}</span></div>
+      <p>${esc(description)}</p>
       <button class="service-tile-action" type="button" data-connection-open="${esc(action)}">
         ${esc(actionLabel)}${icon("arrow")}
       </button>
@@ -6093,7 +6093,7 @@ async function renderConnections() {
       googleMail.accounts.length ? "Connected" : "Limited preview",
       googleMail.accounts.length ? "connected" : "preview", "gmail",
       googleMail.accounts.length ? "Manage access" : "See requirements"),
-    tile("outlook", "Outlook", "Use mail or calendar, then choose which assistant can reach each account.",
+    tile("outlook", "Microsoft Outlook", "Use mail or calendar, then choose which assistant can reach each account.",
       outlookCalendar.accounts.length || outlookMail.accounts.length ? "Connected"
         : outlookCalendar.configured && outlookCalendar.secret_store_available ? "Ready to connect" : "Needs setup",
       outlookCalendar.accounts.length || outlookMail.accounts.length ? "connected" : "setup", "outlook-calendar",
