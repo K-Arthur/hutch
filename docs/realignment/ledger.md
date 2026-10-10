@@ -140,6 +140,16 @@ grant for held operator review. Desktop, tablet and phone share/revoke flows are
 | `a79aed2` | Add persistent Bot pinning, searchable roster and flat 2D product mascots while retaining detailed 3D marketing art |
 | `38e20e0` | Record mascot and Bot-roster research, design and visual verification |
 | `8a87ac9` | Add schema-v40 workspace schedule overview/control, atomic pause fencing, responsive app/site UI, docs and inspected evidence |
+| `462a374` | Align the shared design system across Studio, Connections and marketing; retain the main-branch visual tokens |
+| `f80b3f9` | Record the shared design-system checkpoint |
+| `dffe717` | Simplify Bot creation and roster management while retaining advanced configuration paths |
+| `3c19866` | Record the Bot setup and roster checkpoint |
+| `0b6cbe8` | Align server-rendered pages with the shared design tokens |
+| `257ef10` | Add phone supervision and richer chat workflows, including durable conversation actions and reviewed chat options |
+| `e1bd3b9` | Capture responsive UI validation evidence |
+| `2a30ee2` | Record integrated UI and validation commits |
+| `0b76808` | Polish app mascot eyes across all silhouettes and capture the shape-specific visual check |
+| `66c0b3c` | Add bounded, Bot-filterable Studio message search with excerpt-only responses, responsive screenshots and route authorization coverage |
 
 ## Dashboard polish continuation (2026-10-09)
 
