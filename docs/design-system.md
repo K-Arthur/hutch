@@ -127,7 +127,11 @@ template IDs; preserve the IDs only in the action and saved configuration.
 Approvals appear in the chat where the action was requested and remain available
 in the dedicated queue for review at scale. Lead with the action and consequence;
 keep exact arguments and destination reviewable; never hide an approval behind a
-generic notification or rely on color alone.
+generic notification or rely on color alone. The **Needs you** queue puts pending
+decisions and uncertain outcomes first. Optional browser notifications stay in a
+collapsed **Browser notifications** disclosure with their current state visible
+in its summary; recently decided requests remain collapsed until someone asks to
+review them.
 
 ### Apps, activity, and settings
 

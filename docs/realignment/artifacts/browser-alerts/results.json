@@ -7,6 +7,11 @@
   "private_action_text_in_notice": false,
   "duplicate_notices": false,
   "notification_click_opens_review_queue": true,
+  "notification_settings_collapsed_by_default": true,
+  "notification_settings_captures": [
+    "notifications-open-desktop.png",
+    "notifications-open-phone.png"
+  ],
   "page_errors": [],
   "captures": [
     {
@@ -17,7 +22,7 @@
       ],
       "overflow_px": 0,
       "page_errors": [],
-      "screenshot_sha256": "f8c3faf9cd9cce209d5b61a115a794eaf27c2710fb2294b0850215ee5aa4d606"
+      "screenshot_sha256": "c350ef2be96ce9ac3d7406987aaff4439fb85aed2c842f3e62d63e0d9faf30ad"
     },
     {
       "viewport": "tablet",
@@ -27,7 +32,7 @@
       ],
       "overflow_px": 0,
       "page_errors": [],
-      "screenshot_sha256": "b0dfcf9c2a7393e803d60e6881c4ded4b8e5366d8f2d9f173198032a754585cd"
+      "screenshot_sha256": "39825d9dcac0b541b8c176cd2135e46759ebb7e769c21c852cf3d0b9134073a9"
     },
     {
       "viewport": "phone",
@@ -37,12 +42,12 @@
       ],
       "overflow_px": 0,
       "page_errors": [],
-      "screenshot_sha256": "9bca3d53bacec12805f34decac12cadc4cfea43876380b2d9815767262cd1fa2"
+      "screenshot_sha256": "f414670e81b71414086dedb1426815ee0e72c07bc739e041c66ffb9558ec3116"
     }
   ],
   "source_sha256": {
-    "src/hutch/server/static/index.html": "911f5b2eb59eb865a12b4f651b649d76610cea115968295c5ca000c6d8dda001",
-    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b",
-    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a"
+    "src/hutch/server/static/index.html": "d9d037b323fa06b27dbe718edf247f3c925839642a410264926d085b860d07c6",
+    "src/hutch/server/static/app.js": "710a8f554c9b3fd177e9077bfbca2e89164246d972252adfca5eb92cf5278d5f",
+    "src/hutch/server/static/style.css": "3a7990c641c1119b8387761831bde00ebb2cec06f17d2674707014e95e3e8107"
   }
 }

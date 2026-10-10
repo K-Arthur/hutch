@@ -1652,12 +1652,15 @@ function browserAlertsEnabled() {
 function updateBrowserAlertsUi() {
   const button = $("#browser-alerts-toggle"), status = $("#browser-alerts-status");
   if (!button || !status) return;
+  const state = $("#browser-alerts-summary-state");
   if (!window.isSecureContext || typeof Notification === "undefined") {
+    if (state) state.textContent = "Unavailable";
     button.disabled = true;
     status.textContent = "This browser does not support alerts for this connection.";
     return;
   }
   const enabled = browserAlertsEnabled();
+  if (state) state.textContent = enabled ? "On" : Notification.permission === "denied" ? "Blocked" : "Off";
   button.textContent = enabled ? "Turn off alerts" : "Enable browser alerts";
   button.disabled = !enabled && Notification.permission === "denied";
   status.textContent = enabled

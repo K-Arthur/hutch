@@ -1802,3 +1802,22 @@ made no external requests or model/provider calls. The focused test passed **1
 case in 8.83s** with Chromium **153.0.8010.12** and Playwright **1.63.0**. It checks that
 the ChatGPT tile uses OpenAI's unchanged local white mark and that Gmail and
 Outlook category illustrations stay separate from any claimed provider logo.
+
+## Approval queue priority and optional notifications (2026-10-10)
+
+The **Needs you** drawer now places pending decisions and uncertain action
+outcomes before optional browser-notification settings. Notifications live in a
+collapsed disclosure; its summary shows **On**, **Off**, **Blocked**, or
+**Unavailable**, while the open panel retains the full privacy and tab-open
+explanation.
+
+The focused approval and route batch passed **4 tests in 30.46s** with Chromium
+**153.0.8010.12** / Playwright **1.63.0**. It verifies the closed default, the
+On/Off/Blocked/Unavailable states, notification click-through, preserved review
+focus, in-chat approval, and independent responsive route rendering. The
+approval screenshots have zero horizontal overflow at desktop **1440×1000**,
+tablet **768×1024**, and phone **390×844**. I inspected the expanded desktop and
+phone notification settings and desktop and phone pending-approval screenshots
+individually. These fixtures use local approval data and a stubbed notification
+API; no OS prompt, provider call, or real notification was used. Screenshots
+and source hashes are in [`artifacts/browser-alerts/`](artifacts/browser-alerts/).

@@ -16,6 +16,9 @@
   disclosures during transcript refresh.
 - Keep ordinary assistant names whole on one sidebar line; use an ellipsis only
   when a custom name exceeds the available row width.
+- Put pending approvals and uncertain outcomes ahead of optional browser-alert
+  settings in **Needs you**. Keep notification controls in one collapsed
+  disclosure, with a visible On/Off/Blocked/Unavailable state.
 - Bring Archivo display headings into the app and supporting pages, so headings now share the
   locally bundled type voice used by marketing while interface copy stays system sans. Activity
   also shows a short recent-work list when history exists.

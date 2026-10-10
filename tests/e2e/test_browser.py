@@ -7999,10 +7999,21 @@ def test_browser_alerts_are_opt_in_private_and_open_the_review_queue(browser, li
     out.mkdir(parents=True, exist_ok=True)
     page.goto(base + "/#/chat")
     page.locator("#needs-you-open").click()
+    alerts = page.locator("#browser-alerts-disclosure")
+    assert alerts.evaluate("el => !el.open"), "notification settings should stay out of the decision queue by default"
+    assert page.locator("#browser-alerts-status").is_hidden()
+    assert page.locator("#browser-alerts-summary-state").inner_text() == "Off"
+    alerts.locator("summary").click()
     page.locator("#browser-alerts-status").get_by_text("Optional alerts", exact=False).wait_for()
     page.locator("#browser-alerts-toggle").click()
     page.locator("#browser-alerts-status").get_by_text("On while Hutch is open", exact=False).wait_for()
+    assert page.locator("#browser-alerts-summary-state").inner_text() == "On"
     assert page.evaluate("Notification.permission") == "granted"
+    page.screenshot(path=str(out / "notifications-open-desktop.png"), full_page=True, animations="disabled")
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.screenshot(path=str(out / "notifications-open-phone.png"), full_page=True, animations="disabled")
+    page.set_viewport_size({"width": 1440, "height": 1000})
+    alerts.locator("summary").click()
     page.locator("#needs-you-close").click()
     page.evaluate("Object.defineProperty(document, 'hidden', {configurable:true, get:()=>true})")
 
@@ -8034,15 +8045,26 @@ def test_browser_alerts_are_opt_in_private_and_open_the_review_queue(browser, li
         records.append({"viewport": name, "size": [width, height], "overflow_px": overflow,
                         "page_errors": errors,
                         "screenshot_sha256": hashlib.sha256((out / f"{name}.png").read_bytes()).hexdigest()})
+    alerts.locator("summary").click()
     page.locator("#browser-alerts-toggle").click()
     page.locator("#browser-alerts-status").get_by_text("Optional alerts", exact=False).wait_for()
+    assert page.locator("#browser-alerts-summary-state").inner_text() == "Off"
     assert page.evaluate("JSON.parse(localStorage.getItem('hutch:browser-alerts'))") is False
+    page.evaluate("Notification.permission = 'denied'; updateBrowserAlertsUi()")
+    assert page.locator("#browser-alerts-summary-state").inner_text() == "Blocked"
+    assert page.locator("#browser-alerts-toggle").is_disabled()
+    page.evaluate("delete window.Notification; updateBrowserAlertsUi()")
+    assert page.locator("#browser-alerts-summary-state").inner_text() == "Unavailable"
+    assert page.locator("#browser-alerts-toggle").is_disabled()
     (out / "results.json").write_text(json.dumps({
         "browser": browser.browser_type.name, "browser_version": browser.version,
         "playwright": package_version("playwright"), "provider_calls": 0,
         "notification_api": "test stub; no operating-system permission or notification used",
         "private_action_text_in_notice": False, "duplicate_notices": False,
-        "notification_click_opens_review_queue": True, "page_errors": errors, "captures": records,
+        "notification_click_opens_review_queue": True,
+        "notification_settings_collapsed_by_default": True,
+        "notification_settings_captures": ["notifications-open-desktop.png", "notifications-open-phone.png"],
+        "page_errors": errors, "captures": records,
         "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
                           for name in ("src/hutch/server/static/index.html", "src/hutch/server/static/app.js",
                                        "src/hutch/server/static/style.css")},
@@ -8065,11 +8087,11 @@ def test_needs_you_drawer_preserves_review_focus_and_reports_refresh_failure(bro
     page.locator("#needs-you-open").click()
     card = page.locator("#needs-you [data-approval-card]").first
     card.wait_for()
-    card.locator("summary").click()
+    card.locator("details.approval-review > summary").click()
     allow = card.locator('[data-approve="1"]')
     allow.focus()
     time.sleep(5.3)  # unchanged queue poll must preserve review and decision focus
-    assert card.locator("details").get_attribute("open") is not None
+    assert card.locator("details.approval-review").get_attribute("open") is not None
     assert allow.evaluate("e => e === document.activeElement")
     page.keyboard.press("Escape")
     assert page.evaluate("document.activeElement.id") == "nav-toggle"

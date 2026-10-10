@@ -1873,6 +1873,15 @@ button.inline-link:hover { color: var(--text); }
 .browser-alerts { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-3); margin: var(--s-3) 0; border: 1px solid var(--line); border-radius: var(--r-md); }
 .browser-alerts p { margin: var(--s-1) 0 0; }
 .browser-alerts .btn { flex: 0 0 auto; min-height: 44px; }
+.browser-alerts-disclosure { margin-top: var(--s-4); border-top: 1px solid var(--line); }
+.browser-alerts-disclosure > summary { display: flex; align-items: center; gap: var(--s-2); min-height: 48px; color: var(--text-2); cursor: pointer; list-style: none; }
+.browser-alerts-disclosure > summary::-webkit-details-marker { display: none; }
+.browser-alerts-disclosure > summary::after { content: ""; width: 7px; height: 7px; margin-left: var(--s-1); border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translateY(-2px); transition: transform var(--dur-fast) var(--ease); }
+.browser-alerts-disclosure[open] > summary::after { transform: rotate(225deg) translate(-1px, -1px); }
+.browser-alerts-disclosure > summary:hover { color: var(--text); }
+.browser-alerts-disclosure > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.browser-alerts-state { margin-left: auto; padding: 3px 8px; color: var(--text-3); border: 1px solid var(--line); border-radius: var(--r-chip); font-size: var(--fs-xs); }
+.browser-alerts-disclosure .browser-alerts { margin: 0 0 var(--s-3); }
 .needs-you-history { margin-top: var(--s-5); }
 .needs-you-history > summary { cursor: pointer; color: var(--text-2); padding: var(--s-3) 0; }
 .needs-you .approval-card-chat { margin-top: var(--s-4); }

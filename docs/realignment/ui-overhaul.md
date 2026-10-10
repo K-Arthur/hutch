@@ -39,7 +39,7 @@ assistant identities; the marketing site may use the detailed 3D character.
 | Assistant management for larger rosters | Cards simplified; phone overflow and long names checked independently | In progress |
 | Assistant creation and identity | Request-preserving setup already implemented; visual simplification remains | Open |
 | Assistant settings / advanced controls | Individually reviewed at desktop and phone | Open |
-| Needs you / approvals / human checkpoints | Existing responsive evidence; refresh after component redesign | Open |
+| Needs you / approvals / human checkpoints | Approval-first queue; optional browser notifications collapsed by default and available from one disclosure | In progress |
 | Activity / schedules / history / task details | Activity independently reviewed; remaining pages to inspect | Open |
 | Apps & AI / local and hosted model settings | Source-aligned desktop, tablet, phone, and compact-phone review; compact phone cards | Open |
 | Preferences, sign-in, pairing, and server pages | Route coverage exists; independent visual review remains | Open |
@@ -218,6 +218,26 @@ completed run, rather than showing a **Done** state without an answer. Desktop,
 tablet and phone captures were inspected separately; the browser test confirms
 the reply is read from the saved transcript. This is synthetic completion
 content and makes no model or provider call.
+
+### Approval queue hierarchy — verified
+
+The **Needs you** drawer now leads with pending decisions and uncertain action
+outcomes. Optional browser-notification controls sit in a collapsed
+**Browser notifications** disclosure, whose summary still reports **On**,
+**Off**, **Blocked**, or **Unavailable**. The review queue, notification setup,
+and notification click-through retain their prior behavior; no chat or action
+details enter the operating-system notification.
+
+The focused approval and route batch passed **4 tests in 30.46s** with Chromium
+**153.0.8010.12** and Playwright **1.63.0**. It checks that the settings
+disclosure starts closed, its summary distinguishes On/Off/Blocked/Unavailable,
+a notification opens the pending request, review focus survives refresh, chat
+approval remains actionable, and the responsive route suite has no horizontal
+overflow. I inspected the expanded settings and pending approval screenshots
+independently at desktop and phone sizes. These use a local notification stub
+and fixture approvals; there was no operating-system prompt, provider request,
+or real notification. The approval and human-wait redesign remains open beyond
+this queue refinement.
 
 ### Next
 
