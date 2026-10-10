@@ -152,6 +152,7 @@ grant for held operator review. Desktop, tablet and phone share/revoke flows are
 | `66c0b3c` | Add bounded, Bot-filterable Studio message search with excerpt-only responses, responsive screenshots and route authorization coverage |
 | `0b2875a` | Record the conversation-search checkpoint in the continuation ledger |
 | `32d5e69` | Refine all eight app-mascot faces with shape-specific diagonal eyes; verify conversation-search empty, error and escaped-text states with updated responsive evidence; offline suite 1,532 passed |
+| `fcefc5c` | Refresh the scoped UI audit to distinguish the historical failure run from the verified offline suite and separately passed browser journeys |
 
 ## Dashboard polish continuation (2026-10-09)
 
