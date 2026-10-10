@@ -1,11 +1,11 @@
 {
   "test": "tests/e2e/test_browser.py::test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_browser.py::test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable",
-  "captured_at": "2026-10-10T05:26:29.357442+00:00",
+  "captured_at": "2026-10-10T20:34:13.673932+00:00",
   "browser": "chromium",
   "browser_version": "153.0.8010.12",
   "playwright_version": "1.63.0",
-  "scenario": "Synthetic visual-only working, workflow, running-status and success/error banner states; server-rendered Connections typography and live-status mark; no run or provider call",
+  "scenario": "Offscreen fixture assertions for working, workflow, running-status and success/error styles; clean Studio and server-rendered Connections captures; no run or provider call",
   "provider_calls": 0,
   "page_errors": [],
   "captures": [
@@ -17,10 +17,10 @@
       ],
       "typing_animation": "none",
       "typing_indicator_box": {
-        "x": 476,
-        "y": 833.015625,
-        "width": 760,
-        "height": 32.140625
+        "x": -10000,
+        "y": -14,
+        "width": 284.171875,
+        "height": 33.6875
       },
       "status_animations": {
         "workflowDot": "none",
@@ -28,18 +28,20 @@
       },
       "live_status_animation": "none",
       "studio_body": {
-        "fontSize": 14,
-        "lineHeight": 21.7
+        "fontSize": 16,
+        "lineHeight": 24.8
       },
       "studio_body_line_height_ratio": 1.55,
       "heading": {
-        "fontSize": 22,
-        "lineHeight": 30.8
+        "fontSize": 24,
+        "lineHeight": 30,
+        "fontFamily": "Archivo, ui-sans-serif, system-ui, \"Segoe UI\", sans-serif"
       },
-      "heading_line_height_ratio": 1.4,
+      "heading_line_height_ratio": 1.25,
       "body": {
-        "fontSize": 14,
-        "lineHeight": 21.7
+        "fontSize": 16,
+        "lineHeight": 24.8,
+        "fontFamily": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif"
       },
       "body_line_height_ratio": 1.55,
       "flash_styles": {
@@ -76,10 +78,10 @@
       ],
       "typing_animation": "none",
       "typing_indicator_box": {
-        "x": 70,
-        "y": 1182,
-        "width": 760,
-        "height": 32.140625
+        "x": -10000,
+        "y": -14,
+        "width": 284.171875,
+        "height": 33.6875
       },
       "status_animations": {
         "workflowDot": "none",
@@ -87,18 +89,20 @@
       },
       "live_status_animation": "none",
       "studio_body": {
-        "fontSize": 14,
-        "lineHeight": 21.7
+        "fontSize": 16,
+        "lineHeight": 24.8
       },
       "studio_body_line_height_ratio": 1.55,
       "heading": {
-        "fontSize": 22,
-        "lineHeight": 30.8
+        "fontSize": 24,
+        "lineHeight": 30,
+        "fontFamily": "Archivo, ui-sans-serif, system-ui, \"Segoe UI\", sans-serif"
       },
-      "heading_line_height_ratio": 1.4,
+      "heading_line_height_ratio": 1.25,
       "body": {
-        "fontSize": 14,
-        "lineHeight": 21.7
+        "fontSize": 16,
+        "lineHeight": 24.8,
+        "fontFamily": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif"
       },
       "body_line_height_ratio": 1.55,
       "flash_styles": {
@@ -135,10 +139,10 @@
       ],
       "typing_animation": "none",
       "typing_indicator_box": {
-        "x": 0,
-        "y": 1768.0625,
-        "width": 390,
-        "height": 32.140625
+        "x": -10000,
+        "y": -14,
+        "width": 284.171875,
+        "height": 33.6875
       },
       "status_animations": {
         "workflowDot": "none",
@@ -146,18 +150,20 @@
       },
       "live_status_animation": "none",
       "studio_body": {
-        "fontSize": 14,
-        "lineHeight": 21.7
+        "fontSize": 16,
+        "lineHeight": 24.8
       },
       "studio_body_line_height_ratio": 1.55,
       "heading": {
         "fontSize": 22,
-        "lineHeight": 30.8
+        "lineHeight": 27.5,
+        "fontFamily": "Archivo, ui-sans-serif, system-ui, \"Segoe UI\", sans-serif"
       },
-      "heading_line_height_ratio": 1.4,
+      "heading_line_height_ratio": 1.25,
       "body": {
-        "fontSize": 14,
-        "lineHeight": 21.7
+        "fontSize": 16,
+        "lineHeight": 24.8,
+        "fontFamily": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif"
       },
       "body_line_height_ratio": 1.55,
       "flash_styles": {
@@ -190,8 +196,8 @@
   "source_sha256": {
     "app/src/input.css": "24a278966cdb36c8e998820951af5b008678261beb39c2aaa647a9c55c8fe1ba",
     "src/hutch/server/static/ui.css": "629a752ac143e6f4adfe3657a6e3bb7e7c80a73e028cfbbea0c889ef94b0663f",
-    "src/hutch/server/static/style.css": "4d5d70df7384c7effe9c7d6311b630b1379018c0f64b503b33d6789d1014542a",
-    "src/hutch/server/static/hutch.css": "03d853b35a3f3bdbc53ca161d4c6b136c6238d2a533710c8918d02e0f025bf4c",
-    "src/hutch/server/static/app.js": "514ba0acc1cfd103c2491280b75afef628d4bce684119e1ebc1c80244eb98e2b"
+    "src/hutch/server/static/style.css": "af59feb79ee04adad670bbb8e6f4e9ad5e031275ffca66c98e546bea6bc285e8",
+    "src/hutch/server/static/hutch.css": "327134653a0b4aff090f2dadbfd2876c4028b630a139a46593b77e7c6f98458c",
+    "src/hutch/server/static/app.js": "9416d78e38c9de5603225114062fafbc5fd80e5e832bf2c36adf7e31be5a3f74"
   }
 }

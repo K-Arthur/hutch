@@ -3881,3 +3881,23 @@ account behavior. The all-surface UI overhaul remains active; this integration's
 focused responsive review does not replace the independent page-by-page visual
 review still required for Studio, Connections, settings, supervision, and the
 marketing site. No push or publication occurred.
+
+## App typography and clean screenshot evidence (2026-10-10)
+
+Aligned server-rendered page typography with the shared system: local Archivo
+for headings, 24px/1.25 desktop and 22px/1.25 phone page titles, and system-sans
+body text at 16px/1.55. Updated responsive browser checks to verify the loaded
+font and computed styles. The working-status and flash-style fixtures remain
+test-only and are now hidden or removed before screenshots; this prevents fake
+running work and contradictory success/error banners from appearing in review
+captures.
+
+The shared design-token, site-token and responsive style batch passed **9 tests
+in 11.85s**. I inspected Studio and the legacy server Connections page at
+desktop **1440×960**, tablet **900×1024**, and phone **390×844** separately.
+There were no browser page errors or horizontal overflow. The legacy Connections
+content is still too technical and remains part of the broader UI redesign.
+This fixture-only browser work made no provider calls and does not verify
+packaged installation fonts, screen readers or physical mobile devices. Evidence
+and source hashes are in [`artifacts/dashboard-polish/`](artifacts/dashboard-polish/).
+The UI overhaul remains open; no push or publication occurred.

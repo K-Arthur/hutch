@@ -1081,6 +1081,7 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
               slot.id = 'dashboard-polish-typing-fixture';
               slot.className = 'typing-slot';
               slot.setAttribute('aria-hidden', 'true');
+              slot.style.cssText = 'position:fixed;left:-10000px;top:0;';
               slot.innerHTML = '<div class="typing"><span class="typing-dots"><span></span><span></span><span></span></span><span class="typing-label">Working…</span></div>';
               const scroll = document.querySelector('#chat-scroll');
               scroll.append(slot);
@@ -1117,17 +1118,30 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
             page.goto(f"{base}/connections")
             heading = page.locator("#main h1")
             heading.wait_for()
+            page.evaluate("document.fonts.ready")
             heading_metrics = heading.evaluate("""element => {
               const style = getComputedStyle(element);
-              return {fontSize: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight)};
+              return {
+                fontSize: parseFloat(style.fontSize),
+                lineHeight: parseFloat(style.lineHeight),
+                fontFamily: style.fontFamily,
+              };
             }""")
             ratio = heading_metrics["lineHeight"] / heading_metrics["fontSize"]
-            assert ratio >= 1.39, (label, heading_metrics)
+            assert heading_metrics["fontSize"] == (22 if width <= 720 else 24), (label, heading_metrics)
+            assert ratio == pytest.approx(1.25), (label, heading_metrics)
+            assert "Archivo" in heading_metrics["fontFamily"], (label, heading_metrics)
+            assert page.evaluate("document.fonts.check('700 24px Archivo')"), (label, heading_metrics)
             body_metrics = page.locator("body").evaluate("""element => {
               const style = getComputedStyle(element);
-              return {fontSize: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight)};
+              return {
+                fontSize: parseFloat(style.fontSize),
+                lineHeight: parseFloat(style.lineHeight),
+                fontFamily: style.fontFamily,
+              };
             }""")
             body_ratio = body_metrics["lineHeight"] / body_metrics["fontSize"]
+            assert body_metrics["fontSize"] == 16, (label, body_metrics)
             assert body_ratio >= 1.5, (label, body_metrics)
             live_status = page.locator("#live-pill")
             live_status.wait_for()
@@ -1169,6 +1183,7 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
                 assert style["leftColor"] == style["topColor"], (label, kind, style)
                 assert style["textColor"] != style["iconColor"], (label, kind, style)
                 assert style["role"] == expected_role, (label, kind, style)
+            page.locator("#visual-notice, #visual-error").evaluate_all("nodes => nodes.forEach(node => node.remove())")
             template_overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
             assert template_overflow <= 1, (label, template_overflow)
             connections_capture = out / f"connections-{label}.png"
@@ -1192,7 +1207,7 @@ def test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable(brows
             "captured_at": datetime.now(timezone.utc).isoformat(),
             "browser": browser.browser_type.name, "browser_version": browser.version,
             "playwright_version": package_version("playwright"),
-            "scenario": "Synthetic visual-only working, workflow, running-status and success/error banner states; server-rendered Connections typography and live-status mark; no run or provider call",
+            "scenario": "Offscreen fixture assertions for working, workflow, running-status and success/error styles; clean Studio and server-rendered Connections captures; no run or provider call",
             "provider_calls": 0, "page_errors": errors, "captures": captures,
             "source_sha256": {path: hashlib.sha256((out.parents[3] / path).read_bytes()).hexdigest()
                               for path in ("app/src/input.css", "src/hutch/server/static/ui.css",

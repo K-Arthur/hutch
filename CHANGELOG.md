@@ -25,8 +25,8 @@
   settings in **Needs you**. Keep notification controls in one collapsed
   disclosure, with a visible On/Off/Blocked/Unavailable state.
 - Bring Archivo display headings into the app and supporting pages, so headings now share the
-  locally bundled type voice used by marketing while interface copy stays system sans. Activity
-  also shows a short recent-work list when history exists.
+  locally bundled type voice used by marketing while 16px interface copy stays system sans.
+  Activity also shows a short recent-work list when history exists.
 - Simplify Scheduled work: pause/resume uses plain language, the empty state fits its content, and
   cron syntax plus missed-time behavior sit under **Timing details**.
 - Keep the app's simple 2D assistant faces consistent across all head shapes,

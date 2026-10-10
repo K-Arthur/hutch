@@ -116,6 +116,22 @@ separate verification gaps. Apps & AI, approvals, assistant setup, settings,
 history, Preferences, server pages, and the marketing website still need their
 own redesign review and acceptance.
 
+### App and server-page typography parity — verified (2026-10-10)
+
+The shared display role now loads the locally bundled Archivo variable font in
+both the SPA and server-rendered pages. Server-rendered headings use the same
+24px/1.25 desktop and 22px/1.25 phone title scale; body copy is 16px/1.55, in
+line with the documented system-sans role. Visual-only status fixtures now run
+offscreen and temporary banners are removed before capture, so screenshots show
+the clean page instead of an impossible stacked state. The shared-token, site
+token, and responsive style checks passed **9 tests**. Studio desktop, tablet,
+and phone captures and the legacy server Connections page at those widths were
+opened separately; these are font/reflow checks only. The legacy Connections
+page still presents technical setup details and remains in the redesign queue.
+Captures, trace, source hashes, and browser version are in
+[`artifacts/dashboard-polish/`](artifacts/dashboard-polish/). This typography
+slice does not complete the all-surface overhaul.
+
 A separate send-only Gmail setup has since been added under Connections with
 its own account rows, sender address, permission label and per-assistant grant.
 The fixture journey was visually inspected at desktop, phone and compact-phone

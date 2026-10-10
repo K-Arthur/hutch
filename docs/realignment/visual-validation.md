@@ -390,6 +390,23 @@ After a final copy pass restored the visible route/fallback and safe-checkpoint 
 The base-template static detector does not resolve its linked `hutch.css` heading rule and still estimates the browser default line
 height. The existing path-scoped ignore remains, with its reason updated to the new computed measurements; no new ignore was added.
 
+### Current app typography pass (2026-10-10)
+
+The app and its supporting server pages now share locally bundled Archivo
+headings, a 24px/1.25 desktop page title (22px on phones), and 16px/1.55 system
+sans interface copy. The first responsive check measured computed font family,
+font readiness, title size/leading, body size/leading, and still status marks.
+Working/status and notice/error style assertions use offscreen or temporary
+fixtures; the screenshots contain no synthetic active run or simultaneous
+success and failure banners. The test batch passed **9 tests in 11.85s** on
+Chromium **153.0.8010.12** / Playwright **1.63.0**. I inspected Studio and the
+legacy server Connections route independently at desktop **1440×960**, tablet
+**900×1024**, and phone **390×844**. No page errors or horizontal overflow were
+recorded. The Connections captures are compatibility-page typography evidence;
+their technical setup content remains a separate redesign issue. These local
+fixtures made no provider calls and do not verify packaged-install font loading,
+a screen reader, or a physical phone.
+
 ## Marketing screenshot source alignment (2026-10-09)
 
 The earlier captures named older `website/index.html` and `website/styles.css` hashes, and the stylesheet link still used the old

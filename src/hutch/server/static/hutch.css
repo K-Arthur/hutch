@@ -2,6 +2,15 @@
    components used by Studio. The marketing site keeps its editorial composition
    and 3D mascot while consuming the same generated semantic token source. */
 
+@font-face {
+  font-family: "Archivo";
+  src: url("/static/fonts/archivo-latin-var.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --bg: var(--color-semantic-bg);
   --bg-subtle: var(--color-semantic-surface);
@@ -26,6 +35,7 @@
 
   --mono: var(--font-mono);
   --sans: var(--font-body);
+  --display: var(--font-display);
   --r: var(--radius-panel);
   --r-sm: var(--radius-control);
   --r-btn: var(--radius-control);
@@ -36,11 +46,12 @@
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
 body { min-height: 100vh; display: flex; flex-direction: column; }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
-h1 { font-family: var(--sans); font-weight: 700; font-size: 22px; line-height: 1.4; letter-spacing: -0.02em; margin: 0 0 3px; }
+h1, h2, h3, h4 { font-family: var(--display); }
+h1 { font-weight: 700; font-size: 24px; line-height: 1.25; letter-spacing: -0.02em; margin: 0 0 3px; }
 h2 { font-size: var(--text-size-section); font-weight: 650; letter-spacing: -0.005em; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
 h2 .ico { color: var(--faint); }
 h2.section { margin-top: 22px; }
