@@ -1336,6 +1336,32 @@ def _migrate_50(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX idx_document_versions_run ON document_versions(run_id)")
 
 
+def _migrate_51(db: sqlite3.Connection) -> None:
+    """Role-specific workflow qualification evidence, bound to one exact route revision.
+
+    A record is a *decision with a reason*, not a preference: it says a role was probed,
+    limited by an operator, or found unsupported for one provider/model/route revision.
+    Changing the connection, endpoint, template, quantization or backend changes the route
+    revision, so old records simply stop matching instead of silently applying.
+    """
+    db.execute("""CREATE TABLE IF NOT EXISTS workflow_role_qualifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL,
+        route_revision TEXT NOT NULL CHECK(length(route_revision) = 64),
+        role TEXT NOT NULL CHECK(role IN ('selector','author','worker','verifier')),
+        state TEXT NOT NULL CHECK(state IN ('probed','limited','unsupported','stale')),
+        scope TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(scope)),
+        evidence TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(evidence)),
+        reason TEXT NOT NULL DEFAULT '',
+        source TEXT NOT NULL CHECK(source IN ('probe','operator','runtime')),
+        tested_at TEXT NOT NULL,
+        UNIQUE(provider, model, route_revision, role)
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_workflow_role_qualifications_route "
+               "ON workflow_role_qualifications(provider, model, route_revision)")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1343,7 +1369,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
-               _migrate_48, _migrate_49, _migrate_50]
+               _migrate_48, _migrate_49, _migrate_50, _migrate_51]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -4953,6 +4979,99 @@ class Store:
                     capability, source_tool, observed_at FROM model_capability_observations
                     WHERE id > ? ORDER BY id LIMIT ?""", (after_id or 0, limit + 1)).fetchall()
         return [dict(row) for row in rows]
+
+    def model_capability_observations_for(self, provider: str, model: str, limit: int = 20) -> list[dict[str, Any]]:
+        """Recent governed observations for one provider/model, newest first."""
+        if not 1 <= limit <= 100:
+            raise ValueError("observation limit is out of range")
+        with self._lock:
+            rows = self._db.execute(
+                """SELECT id, run_id, provider, account_id, model, route_revision, capability,
+                          source_tool, observed_at FROM model_capability_observations
+                   WHERE provider = ? AND model = ? ORDER BY id DESC LIMIT ?""",
+                (provider, model, limit)).fetchall()
+        return [dict(row) for row in rows]
+
+    def record_role_qualification(self, *, provider: str, model: str, route_revision: str, role: str,
+                                  state: str, scope: Optional[dict[str, Any]] = None,
+                                  evidence: Optional[dict[str, Any]] = None, reason: str = "",
+                                  source: str) -> None:
+        """Upsert one role qualification. Records are evidence, never a permission grant."""
+        from .workflow.qualify import ROLES
+
+        if role not in ROLES or role == "executor":
+            raise ValueError(f"unsupported qualification role {role!r}")
+        if state not in ("probed", "limited", "unsupported", "stale"):
+            raise ValueError(f"unsupported qualification state {state!r}")
+        if source not in ("probe", "operator", "runtime"):
+            raise ValueError(f"unsupported qualification source {source!r}")
+        if (not isinstance(route_revision, str) or len(route_revision) != 64
+                or any(char not in "0123456789abcdef" for char in route_revision)):
+            raise ValueError("route revision must be a lowercase SHA-256 digest")
+        for value, name, cap in ((provider, "provider", 256), (model, "model", 256)):
+            if not isinstance(value, str) or not value or len(value) > cap:
+                raise ValueError(f"qualification {name} is invalid")
+        if len(reason) > 500:
+            raise ValueError("qualification reason is too long")
+        scope_json = json.dumps(scope or {}, sort_keys=True, default=str)
+        evidence_json = json.dumps(evidence or {}, sort_keys=True, default=str)
+        if len(scope_json) > 8_192 or len(evidence_json) > 8_192:
+            raise ValueError("qualification scope or evidence is too large")
+        with self._tx() as db:
+            db.execute("""INSERT INTO workflow_role_qualifications
+                (provider, model, route_revision, role, state, scope, evidence, reason, source, tested_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(provider, model, route_revision, role) DO UPDATE SET
+                    state = excluded.state, scope = excluded.scope, evidence = excluded.evidence,
+                    reason = excluded.reason, source = excluded.source, tested_at = excluded.tested_at""",
+                (provider, model, route_revision, role, state, scope_json, evidence_json,
+                 reason, source, iso(utcnow())))
+
+    def role_qualifications(self, provider: str, model: str,
+                            route_revision: Optional[str] = None) -> list[dict[str, Any]]:
+        with self._lock:
+            if route_revision:
+                rows = self._db.execute(
+                    """SELECT provider, model, route_revision, role, state, scope, evidence, reason,
+                              source, tested_at FROM workflow_role_qualifications
+                       WHERE provider = ? AND model = ? AND route_revision = ?
+                       ORDER BY role""", (provider, model, route_revision)).fetchall()
+            else:
+                rows = self._db.execute(
+                    """SELECT provider, model, route_revision, role, state, scope, evidence, reason,
+                              source, tested_at FROM workflow_role_qualifications
+                       WHERE provider = ? AND model = ? ORDER BY tested_at DESC""",
+                    (provider, model)).fetchall()
+        out = []
+        for row in rows:
+            item = dict(row)
+            item["scope"] = json.loads(item.get("scope") or "{}")
+            item["evidence"] = json.loads(item.get("evidence") or "{}")
+            out.append(item)
+        return out
+
+    def list_role_qualifications(self, *, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+        if not 1 <= limit <= 200 or offset < 0:
+            raise ValueError("qualification pagination is out of range")
+        with self._lock:
+            rows = self._db.execute(
+                """SELECT provider, model, route_revision, role, state, scope, evidence, reason,
+                          source, tested_at FROM workflow_role_qualifications
+                   ORDER BY tested_at DESC, id DESC LIMIT ? OFFSET ?""", (limit, offset)).fetchall()
+        out = []
+        for row in rows:
+            item = dict(row)
+            item["scope"] = json.loads(item.get("scope") or "{}")
+            item["evidence"] = json.loads(item.get("evidence") or "{}")
+            out.append(item)
+        return out
+
+    def delete_role_qualifications(self, provider: str, model: str, route_revision: str, role: str) -> int:
+        with self._tx() as db:
+            cur = db.execute("""DELETE FROM workflow_role_qualifications
+                WHERE provider = ? AND model = ? AND route_revision = ? AND role = ?""",
+                (provider, model, route_revision, role))
+            return int(cur.rowcount)
 
     def _notify_run(self, run: Run) -> None:
         # `work` wakes the scheduler loop; only a status transition changes what it should do,
