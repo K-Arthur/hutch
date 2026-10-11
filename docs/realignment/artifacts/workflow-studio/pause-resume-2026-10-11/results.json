@@ -1,0 +1,219 @@
+{
+  "test": "tests/e2e/test_browser.py::test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports",
+  "command": "uv run pytest tests/e2e/test_browser.py::test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports -q",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewports": [
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "state": "waiting",
+      "horizontal_overflow_px": 0,
+      "panel_bounds": {
+        "x": 476,
+        "y": 68,
+        "width": 760,
+        "height": 345.59
+      },
+      "title_bounds": {
+        "x": 493,
+        "y": 99.89,
+        "width": 177.92,
+        "height": 41.59
+      },
+      "actions_bounds": {
+        "x": 682.92,
+        "y": 81,
+        "width": 536.08,
+        "height": 26
+      }
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        768,
+        1024
+      ],
+      "state": "waiting",
+      "horizontal_overflow_px": 0,
+      "panel_bounds": {
+        "x": 24,
+        "y": 122.14,
+        "width": 720,
+        "height": 368.62
+      },
+      "title_bounds": {
+        "x": 41,
+        "y": 154.03,
+        "width": 137.92,
+        "height": 83.19
+      },
+      "actions_bounds": {
+        "x": 190.92,
+        "y": 135.14,
+        "width": 536.08,
+        "height": 26
+      }
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        360,
+        800
+      ],
+      "state": "waiting",
+      "horizontal_overflow_px": 0,
+      "panel_bounds": {
+        "x": 24,
+        "y": 122.14,
+        "width": 312,
+        "height": 464
+      },
+      "title_bounds": {
+        "x": 41,
+        "y": 154.03,
+        "width": 278,
+        "height": 41.59
+      },
+      "actions_bounds": {
+        "x": 41,
+        "y": 231.31,
+        "width": 278,
+        "height": 140
+      }
+    },
+    {
+      "viewport": "compact-phone",
+      "size": [
+        320,
+        800
+      ],
+      "state": "waiting",
+      "horizontal_overflow_px": 0,
+      "panel_bounds": {
+        "x": 24,
+        "y": 122.14,
+        "width": 272,
+        "height": 464
+      },
+      "title_bounds": {
+        "x": 41,
+        "y": 154.03,
+        "width": 238,
+        "height": 41.59
+      },
+      "actions_bounds": {
+        "x": 41,
+        "y": 231.31,
+        "width": 238,
+        "height": 140
+      }
+    },
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "state": "paused",
+      "horizontal_overflow_px": 0,
+      "resume_target": {
+        "x": 829.58,
+        "y": 81,
+        "width": 151.14,
+        "height": 26
+      }
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        768,
+        1024
+      ],
+      "state": "paused",
+      "horizontal_overflow_px": 0,
+      "resume_target": {
+        "x": 337.58,
+        "y": 135.14,
+        "width": 151.14,
+        "height": 26
+      }
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        360,
+        800
+      ],
+      "state": "paused",
+      "horizontal_overflow_px": 0,
+      "resume_target": {
+        "x": 41,
+        "y": 279.31,
+        "width": 151.14,
+        "height": 44
+      }
+    },
+    {
+      "viewport": "compact-phone",
+      "size": [
+        320,
+        800
+      ],
+      "state": "paused",
+      "horizontal_overflow_px": 0,
+      "resume_target": {
+        "x": 41,
+        "y": 279.31,
+        "width": 151.14,
+        "height": 44
+      }
+    }
+  ],
+  "question_id": "wq_a10cba4a398f",
+  "first_workflow_id": "wrun_3739e7b7921b",
+  "stopped_workflow_id": "wrun_db11d7bf7e1d",
+  "policy_override": {
+    "conversation_id": "conv_21d5b40a9719",
+    "mode": "off",
+    "revision": 1,
+    "updated_at": "2026-10-11T19:08:25.189102+00:00"
+  },
+  "keyboard_path": [
+    "focus answer",
+    "Tab to Send answer",
+    "Enter submits"
+  ],
+  "page_errors": [],
+  "provider_calls": 0,
+  "fixture_boundary": "A saved declarative ask workflow uses the real SQLite, supervisor, API and browser path; no model/provider call is made.",
+  "source_sha256": {
+    "src/hutch/models.py": "10d57a7f3c266ef9ae91cfe692c47625dcb35ecab83bba89812b378e08f59a82",
+    "src/hutch/store.py": "2b6b0c6dcf81eaf969389e806a8383a3a20c23ef4b0e81532564e48d4de66f87",
+    "src/hutch/workflow/persistence.py": "4ed8ce94bb64d522c6237d547b7db7e90dcaf461c1e588dbb0aeebe702a4d5cd",
+    "src/hutch/workflow/submit.py": "a1f3f517635422b1e44c4ffa1d4620c44747f55fbc8a009b76e2fd2b9701f061",
+    "src/hutch/server/workflows_api.py": "2976e00dc1fdbea41676c58a8b047153c22a7676adba054304195b2c250b45c5",
+    "src/hutch/server/static/app.js": "6480e21665742b39ffabcd587aed6062f36bea8a62133fa68dd277f5b63dd95f",
+    "src/hutch/server/static/style.css": "52e1ea61a280e8658c2608c9710053cbc235438df4699b66f3333f920ea9c45e"
+  },
+  "visual_artifact_sha256": {
+    "desktop-waiting.png": "f4ba1724933a726b1a25de109a0a96a9cb7d76ec694d3148f66a8ccf6da76aca",
+    "desktop-stopped.png": "50e6e9440f2c4fec5bd3dbcc453fa9c6b6e33fb93a31228d72a8e84f84ed58cf",
+    "desktop-paused.png": "df8528db83d3355fe681982235d13664d2bbaf3b7682de00c226938fabc250c9",
+    "desktop-answered-while-paused.png": "7db74f8dfbccfdeb0e81d34e126f6d1e4890a89df8930ff3c424b674d1f17c9b",
+    "tablet-waiting.png": "7e06f882df70c43f67808b91e384f0189ba334369273052f542b04cf3b9bb9e8",
+    "desktop-policy-off.png": "0faf51739bddd21d851692a0dc7f056c717afa5cc9d9dd4513a7764f7ff3957a",
+    "phone-waiting.png": "6dc8e3bfa40f0a622625b0aea5a88a2d2e54e0b42cd67e092b0767382b06f32d",
+    "compact-phone-paused.png": "b04a893595187a8a9624010062450d514f41bc66a28a3cf971d4691d7540a6e8",
+    "phone-paused.png": "d42e85683d8283449f0b8649b3e5dd551132098e44983015bb8cd72d2621631b",
+    "trace.zip": "57abab12bc72ebe2877526ec3b6e1a17707d0aec85b1126f413cbd6c162d7671",
+    "desktop-finished.png": "4f784a2374f8365d6018b45b1ab27b98258acebe4193f1fc07c609adf2f4742b",
+    "compact-phone-waiting.png": "d5ef94cca69c7af0339870ea280ddc8be0fea46493ed94af13476c024b14ca67",
+    "tablet-paused.png": "f854d3b4db876ec14179d1b02f949a8ac29ae8c9c61b7b488376c7d7ffb8ef91"
+  },
+  "captured_at": "2026-10-11T19:08:30.786498+00:00"
+}

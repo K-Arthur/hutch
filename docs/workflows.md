@@ -7,8 +7,8 @@ decides **when** saved work is invoked), not a skill (a skill teaches a method t
 and not an MCP server (which exposes operations). The workflow engine owns execution state.
 
 Workflows are optional. New assistants start in **Suggest**; schema v57 preserves the former
-Off behavior for existing assistants whose saved record did not contain a mode, and schema v58
-adds archived amendment history. When the
+Off behavior for existing assistants whose saved record did not contain a mode, schema v58
+adds archived amendment history, and schema v59 adds durable owner pause state. When the
 current chat model is selector-qualified for its exact execution profile, Suggest can return
 a compact route card during the ordinary model/tool turn. Simple requests do not get a separate
 classifier call, and Suggest never starts work. Auto can start only an activated saved definition
@@ -99,6 +99,21 @@ hutch workflow answer wq_… "yes"                       # answer one pending qu
 
 Running a saved workflow makes **no planning call**: the plan is fixed, and every model step
 must already have a qualified role binding.
+
+In Studio, **Pause workflow** appears only after an attempt is parked and its owned child/process
+tree is quiet. Pause leaves the run in its honest waiting state, keeps every pending question
+available, and prevents the supervisor from admitting a continuation. An answer may arrive while
+paused, but no downstream step starts until the owner resumes the workflow. Resume wakes the
+supervisor; it starts a fresh attempt from the durable state rather than restarting the old process.
+Stop remains available while paused and clears the pause flag as it cancels owned work.
+
+The local-owner API uses `POST /api/v1/workflows/runs/{id}/pause` and
+`POST /api/v1/workflows/runs/{id}/resume`. Both require an `Idempotency-Key`,
+`expected_revision_id`, and `expected_generation` (the current attempt id). They return 409 if the
+revision/generation changed, the attempt is not parked, or a child/process is still active. Run
+detail reports `pause_available` and `resume_available` from the current quiescence snapshot; the
+mutation rechecks those conditions transactionally. Paired phones can display the paused state,
+but planning and pause/resume remain local-owner controls.
 
 ## Authoring
 
@@ -275,11 +290,11 @@ attempt can run.
   a qualified selector profile has not been verified locally.
 * **Paired-phone workflow supervision is implemented as a redacted monitor/review view.** A
   paired session with `monitor` can list workflow runs and inspect planned steps plus
-  question-backed or recorded instance statuses. It does not receive workflow inputs,
+  question-backed or recorded instance statuses, including whether a parked run is paused. It does not receive workflow inputs,
   results, artifacts, usage ledgers, or expansion keys. A session with `review` can see each
   pending durable question ID and answer that question, or request Stop against the current
   revision; both mutations carry the paired session's CSRF token and an idempotency key.
-  Planning, workflow launch, probes, policy changes, and amendments remain local-owner-only.
+  Planning, workflow launch, probes, policy changes, amendments, and pause/resume remain local-owner-only.
   Monitor-only sessions do not load review data or show review controls. Browser evidence at
   390 and 320 CSS pixels and the route authorization/redaction regressions are recorded in
   [`artifacts/workflow-studio/phone/`](realignment/artifacts/workflow-studio/phone/).

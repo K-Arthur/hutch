@@ -722,7 +722,8 @@ def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url
         assert preview.count() == 1
         preview_text = preview.inner_text().lower()
         for phrase in ("private preview", "saved steps, started by you", "planned steps separately from discovered instances",
-                       "answer each pending question", "stop while owned work settles",
+                       "answer each pending question", "pause it after it is parked and its work settles",
+                       "resume it from the same chat", "stop while owned work settles",
                        "completed step is not necessarily verified", "selector qualification for the exact model profile",
                        "two local profiles tested did not qualify", "auto does not create new plans",
                        "routine links are not available yet"):
@@ -734,6 +735,7 @@ def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url
         assert workflow_row.count() == 1
         availability = workflow_row.inner_text().lower()
         for phrase in ("owner-started saved workflows", "chat route cards", "auto starts of activated saved methods",
+                       "parked run with no active owned work can be paused and resumed from its chat",
                        "selector qualification for the exact model profile", "two local profiles tested did not qualify",
                        "auto does not create new plans", "routine links are not available yet", "experimental"):
             assert phrase in availability, phrase
@@ -741,7 +743,7 @@ def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url
         faq_expectations = {
             "How do Suggest and Auto work for workflows?": "the two local profiles tested did not qualify",
             "Can a local model design or choose a workflow?": "neither of the two qwen3 profiles tested qualified",
-            "What happens if I stop a workflow or Hutch restarts?": "hutch holds retry for reconciliation",
+            "What happens if I stop a workflow or Hutch restarts?": "you can pause only after the workflow is parked",
             "What is the difference between a workflow and a routine?": "connecting a saved workflow to a routine is a separate action",
         }
         for question, expected in faq_expectations.items():

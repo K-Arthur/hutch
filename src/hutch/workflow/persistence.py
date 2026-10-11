@@ -175,6 +175,14 @@ def migrate_amendment_history(db: sqlite3.Connection) -> None:
                "ON workflow_amendment_history(workflow_run_id, created_at)")
 
 
+def migrate_workflow_pause(db: sqlite3.Connection) -> None:
+    """Add the durable owner pause flag without changing workflow terminal states."""
+    columns = {str(row[1]) for row in db.execute("PRAGMA table_info(workflow_runs)")}
+    if "pause_requested" not in columns:
+        db.execute("ALTER TABLE workflow_runs ADD COLUMN pause_requested INTEGER NOT NULL DEFAULT 0 "
+                   "CHECK(pause_requested IN (0,1))")
+
+
 # --------------------------------------------------------------------------- helpers
 
 def _json(value: Any, *, cap: int = 256 * 1024) -> str:
@@ -189,6 +197,7 @@ def _row_to_workflow(row: sqlite3.Row) -> dict[str, Any]:
     for key in ("inputs_json", "budget_json", "ledger_json", "result_json"):
         item[key.removesuffix("_json")] = json.loads(item.pop(key) or "{}")
     item["stop_requested"] = bool(item.get("stop_requested"))
+    item["pause_requested"] = bool(item.get("pause_requested"))
     return item
 
 
@@ -632,7 +641,7 @@ def update_workflow_run(store: Any, wf_id: str, *, attempt_run_id: Optional[str]
                         allow_cancelling: bool = False, allow_stopping: bool = False,
                         status: Optional[str] = None, reason: Optional[str] = None,
                         ledger: Optional[dict[str, Any]] = None, result: Optional[dict[str, Any]] = None,
-                        stop_requested: Optional[bool] = None,
+                        stop_requested: Optional[bool] = None, pause_requested: Optional[bool] = None,
                         finished: bool = False) -> bool:
     """Update workflow state, proving attempt, revision and current run lease when owner-scoped."""
     if status is not None and status not in WORKFLOW_STATES:
@@ -656,6 +665,9 @@ def update_workflow_run(store: Any, wf_id: str, *, attempt_run_id: Optional[str]
     if stop_requested is not None:
         sets.append("stop_requested = ?")
         args.append(1 if stop_requested else 0)
+    if pause_requested is not None:
+        sets.append("pause_requested = ?")
+        args.append(1 if pause_requested else 0)
     if finished:
         sets.append("finished_at = ?")
         args.append(iso(utcnow()))
@@ -715,7 +727,7 @@ def request_workflow_stop(store: Any, wf_id: str, *, expected_revision_id: str =
     if expected_revision_id and str(row["revision_id"]) != expected_revision_id:
         raise ValueError("workflow revision changed; refresh before stopping")
     attempt = str(row["attempt_run_id"] or "")
-    if not update_workflow_run(store, wf_id, status=None, stop_requested=True,
+    if not update_workflow_run(store, wf_id, status=None, stop_requested=True, pause_requested=False,
                                revision_id=expected_revision_id or str(row["revision_id"])):
         raise ValueError("workflow revision changed; refresh before stopping")
     if attempt:
@@ -723,6 +735,56 @@ def request_workflow_stop(store: Any, wf_id: str, *, expected_revision_id: str =
     cancel_questions(store, wf_id)
     store.bus.notify("work", "workflows", f"workflow:{wf_id}")
     return {"workflow_run_id": wf_id, "attempt_run_id": attempt, "stop_requested": True}
+
+
+def set_workflow_pause(store: Any, wf_id: str, *, paused: bool, expected_revision_id: str,
+                       expected_generation: str, idem_key: str, request_hash: str) -> dict[str, Any]:
+    """Pause or resume only a parked workflow whose owned execution tree is quiet.
+
+    This never cancels active work. The revision and generation compare, quiet-tree proof,
+    pause bit, and idempotency receipt share one write transaction with continuation admission.
+    """
+    scope = f"api:v1:workflow-pause:{wf_id}"
+    with store._tx() as db:
+        store._assert_execution_ready(db)
+        replay = store._idempotency_replay(db, scope, idem_key, request_hash)
+        if replay is not None:
+            return replay
+        row = db.execute("SELECT * FROM workflow_runs WHERE id = ?", (wf_id,)).fetchone()
+        if row is None:
+            raise KeyError(wf_id)
+        if str(row["revision_id"]) != expected_revision_id:
+            raise ValueError("the workflow revision changed; refresh before pausing or resuming")
+        if str(row["attempt_run_id"] or "") != expected_generation:
+            raise ValueError("the workflow generation changed; refresh before pausing or resuming")
+        if (str(row["status"]) != "waiting" or int(row["stop_requested"])
+                or bool(row["finished_at"])):
+            raise ValueError("pause and resume require a live workflow that is already parked")
+        attempt = db.execute("SELECT status, cancel_requested, lease_owner FROM runs WHERE id = ?",
+                             (expected_generation,)).fetchone()
+        if (attempt is None or str(attempt["status"]) != "waiting_workflow"
+                or int(attempt["cancel_requested"] or 0) or str(attempt["lease_owner"] or "")):
+            raise ValueError("the current workflow attempt has not released its process and owner lease")
+        if not _workflow_execution_tree_quiet(db, expected_generation):
+            raise ValueError("pause and resume are unavailable while child work or an owned process is active")
+
+        actual = bool(row["pause_requested"])
+        now = iso(utcnow())
+        if actual != paused:
+            reason = ("paused by owner; workflow remains parked" if paused
+                      else "resumed by owner; continuation is eligible")
+            db.execute("UPDATE workflow_runs SET pause_requested = ?, reason = ?, updated_at = ? WHERE id = ? "
+                       "AND revision_id = ? AND attempt_run_id = ? AND status = 'waiting' AND stop_requested = 0",
+                       (1 if paused else 0, reason, now, wf_id, expected_revision_id, expected_generation))
+        response = {"workflow_run_id": wf_id, "revision_id": expected_revision_id,
+                    "attempt_run_id": expected_generation, "status": "waiting", "paused": paused}
+        db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
+                   "VALUES (?, ?, ?, ?, ?)",
+                   (scope, idem_key, request_hash, _json(response), now))
+    store.bus.notify("workflows", f"workflow:{wf_id}")
+    if not paused:
+        store.bus.notify("work")
+    return response
 
 
 def workflow_runs_needing_attempt(store: Any, *, limit: int = 4,
@@ -743,6 +805,7 @@ def workflow_runs_needing_attempt(store: Any, *, limit: int = 4,
         rows = store._db.execute(
             """SELECT w.* FROM workflow_runs w
                WHERE w.status IN ('pending','running','waiting') AND w.stop_requested = 0
+                 AND w.pause_requested = 0
                ORDER BY w.updated_at LIMIT 500""").fetchall()
         ready: list[sqlite3.Row] = []
         terminal = set(_TERMINAL_VALUES)
@@ -803,7 +866,8 @@ def admit_workflow_continuation(store: Any, wf_id: str) -> Optional[Run]:
         row = db.execute("SELECT * FROM workflow_runs WHERE id = ?", (wf_id,)).fetchone()
         if row is None:
             raise KeyError(wf_id)
-        if str(row["status"]) not in ("pending", "running", "waiting") or int(row["stop_requested"]):
+        if (str(row["status"]) not in ("pending", "running", "waiting")
+                or int(row["stop_requested"]) or int(row["pause_requested"])):
             return None
         previous = db.execute("SELECT id, status, cancel_requested FROM runs WHERE id = ?",
                               (str(row["attempt_run_id"]),)).fetchone()

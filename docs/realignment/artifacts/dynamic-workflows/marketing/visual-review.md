@@ -38,7 +38,10 @@ and screenshot/trace hashes are in [`results.json`](results.json).
   brand rail, existing type scale and button treatment. It explains that chat
   route cards and saved-workflow Auto starts require exact-profile selector
   qualification; the two local profiles tested did not qualify. It states that
-  generated-plan Auto and routine links are unavailable.
+  generated-plan Auto and routine links are unavailable. The workflow copy now
+  also limits Pause/Resume to a parked run with no active owned work, and the
+  FAQ explains that pending questions remain answerable and a paused workflow
+  continues only after the owner resumes it from that chat.
 
 The viewport screenshots are focused on the teaser and availability row. The
 desktop workflow screenshot places the page under the sticky navigation while

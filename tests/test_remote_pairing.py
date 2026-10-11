@@ -476,6 +476,16 @@ def test_phone_workflow_monitor_and_review_permissions_use_redacted_projections(
                            json={"expected_revision_id": first.revision_id,
                                  "expected_generation": first.attempt_run_id, "plan": plan},
                            headers=owner_only_headers).status_code == 403
+        pause_body = {"expected_revision_id": first.revision_id,
+                      "expected_generation": first.attempt_run_id}
+        assert client.post(f"/api/v1/workflows/runs/{first.workflow_run_id}/pause",
+                           json=pause_body,
+                           headers=_phone_headers({"X-Hutch-Request": "1", "X-Hutch-CSRF": monitor_csrf,
+                                                   "Idempotency-Key": "phone-pause-denied"})).status_code == 403
+        assert client.post(f"/api/v1/workflows/runs/{first.workflow_run_id}/resume",
+                           json=pause_body,
+                           headers=_phone_headers({"X-Hutch-Request": "1", "X-Hutch-CSRF": monitor_csrf,
+                                                   "Idempotency-Key": "phone-resume-denied"})).status_code == 403
 
         client.cookies.set(SESSION_COOKIE, review["session_token"])
         review_csrf = store.auth_csrf_token(review["session_token"], review["session_id"])

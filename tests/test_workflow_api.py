@@ -207,6 +207,134 @@ def test_question_answering_is_bound_to_its_own_id(client):
                        json={"answer": "yes"}).status_code == 404
 
 
+def test_pause_holds_an_answered_wait_and_resume_continues_the_same_workflow(client):
+    bot = make_bot(client, name="wf-pause-resume-bot")
+    ask_plan = {
+        "name": "pause-resume-contract",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 8, "max_model_calls": 0},
+        "nodes": [
+            {"kind": "ask", "id": "confirm", "question": "Which result should continue?",
+             "options": ["verified", "all"], "timeout_seconds": 300},
+            {"kind": "transform", "id": "carry_answer", "op": "constant",
+             "args": {"value": {"ref": "confirm.answer"}}},
+        ],
+    }
+    submitted = client.post("/api/v1/workflows/plans", headers=KEY,
+                            json={"plan": ask_plan, "bot": bot["name"],
+                                  "definition_name": "pause-resume-contract"})
+    assert submitted.status_code == 201, submitted.text
+    workflow_id = submitted.json()["workflow_run_id"]
+    deadline = time.monotonic() + 15
+    detail = None
+    while time.monotonic() < deadline:
+        detail = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        if (detail["questions"] and detail["questions"][0]["status"] == "pending"
+                and detail["workflow"]["status"] == "waiting"
+                and detail["attempt"]["status"] == "waiting_workflow"):
+            break
+        time.sleep(0.05)
+    assert detail is not None and detail["pause_available"] is True, detail
+    workflow = detail["workflow"]
+    attempt_id = workflow["attempt_run_id"]
+    pause_body = {"expected_revision_id": workflow["revision_id"],
+                  "expected_generation": attempt_id}
+    pause_url = f"/api/v1/workflows/runs/{workflow_id}/pause"
+    pause_headers = {"Idempotency-Key": "wf-pause-once"}
+    assert client.post(pause_url, headers={"Idempotency-Key": "wf-pause-stale-revision"},
+                       json={**pause_body, "expected_revision_id": "stale-revision"}).status_code == 409
+    assert client.post(pause_url, headers={"Idempotency-Key": "wf-pause-stale-generation"},
+                       json={**pause_body, "expected_generation": "stale-generation"}).status_code == 409
+    store = client.app.state.store
+    child_id = "run_pause_active_child"
+    with store._tx() as db:
+        db.execute("INSERT INTO runs (id, bot_id, doc, status, created_at, parent_run_id, kind) "
+                   "VALUES (?, ?, '{}', 'queued', ?, ?, 'step')",
+                   (child_id, bot["id"], "2026-10-11T00:00:00+00:00", attempt_id))
+    blocked = client.post(pause_url, headers=pause_headers, json=pause_body)
+    assert blocked.status_code == 409 and "child work" in blocked.text
+    with store._lock:
+        child = store._db.execute("SELECT status, cancel_requested FROM runs WHERE id = ?", (child_id,)).fetchone()
+    assert child["status"] == "queued" and child["cancel_requested"] == 0
+    with store._tx() as db:
+        db.execute("UPDATE runs SET status='failed' WHERE id=?", (child_id,))
+    paused = client.post(pause_url, headers=pause_headers, json=pause_body)
+    assert paused.status_code == 200, paused.text
+    assert paused.json() == {"workflow_run_id": workflow_id, "revision_id": workflow["revision_id"],
+                             "attempt_run_id": attempt_id, "status": "waiting", "paused": True}
+    assert client.post(pause_url, headers=pause_headers, json=pause_body).json() == paused.json()
+
+    paused_detail = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+    assert paused_detail["workflow"]["pause_requested"] is True
+    assert paused_detail["pause_available"] is False and paused_detail["resume_available"] is True
+    question = paused_detail["questions"][0]
+    answer = client.post(f"/api/v1/workflows/questions/{question['id']}/answer", headers=KEY,
+                         json={"answer": "verified"})
+    assert answer.status_code == 200 and answer.json()["status"] == "answered"
+
+    # Keep the engine awake past its recovery interval: the durable pause still blocks admission.
+    time.sleep(2.25)
+    held = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+    assert held["workflow"]["pause_requested"] is True
+    assert held["workflow"]["attempt_run_id"] == attempt_id
+    assert held["attempt"]["status"] == "waiting_workflow"
+    assert {node["site_id"] for node in held["nodes"]} == set()
+
+    resume_url = f"/api/v1/workflows/runs/{workflow_id}/resume"
+    resumed = client.post(resume_url, headers={"Idempotency-Key": "wf-resume-once"}, json=pause_body)
+    assert resumed.status_code == 200, resumed.text
+    assert resumed.json()["paused"] is False
+    assert client.post(resume_url, headers={"Idempotency-Key": "wf-resume-once"}, json=pause_body).json() == resumed.json()
+    reused_key = client.post(pause_url, headers={"Idempotency-Key": "wf-resume-once"}, json=pause_body)
+    assert reused_key.status_code == 409
+
+    deadline = time.monotonic() + 20
+    finished = None
+    while time.monotonic() < deadline:
+        finished = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        if finished["workflow"]["status"] in ("succeeded", "failed", "stopped", "outcome_unknown"):
+            break
+        time.sleep(0.05)
+    assert finished is not None and finished["workflow"]["status"] == "succeeded", finished
+    assert finished["workflow"]["pause_requested"] is False
+    assert finished["workflow"]["attempt_run_id"] != attempt_id
+    assert {node["site_id"] for node in finished["nodes"]} == {"carry_answer"}
+    assert next(item for item in finished["questions"] if item["id"] == question["id"])["status"] == "answered"
+    assert next(node for node in finished["nodes"] if node["site_id"] == "carry_answer")["result"] == "verified"
+
+    stop_plan = {**ask_plan, "name": "stop-clears-pause", "nodes": ask_plan["nodes"][:1]}
+    stop_submission = client.post("/api/v1/workflows/plans", headers={"Idempotency-Key": "wf-pause-stop-submit"},
+                                  json={"plan": stop_plan, "bot": bot["name"],
+                                        "definition_name": "stop-clears-pause"})
+    assert stop_submission.status_code == 201, stop_submission.text
+    stop_workflow_id = stop_submission.json()["workflow_run_id"]
+    deadline = time.monotonic() + 15
+    parked = None
+    while time.monotonic() < deadline:
+        parked = client.get(f"/api/v1/workflows/runs/{stop_workflow_id}").json()
+        if parked["pause_available"]:
+            break
+        time.sleep(0.05)
+    assert parked and parked["pause_available"] is True
+    stop_body = {"expected_revision_id": parked["workflow"]["revision_id"],
+                 "expected_generation": parked["workflow"]["attempt_run_id"]}
+    pause_for_stop = client.post(f"/api/v1/workflows/runs/{stop_workflow_id}/pause",
+                                 headers={"Idempotency-Key": "wf-pause-before-stop"}, json=stop_body)
+    assert pause_for_stop.status_code == 200 and pause_for_stop.json()["paused"] is True
+    stopped = client.post(f"/api/v1/workflows/runs/{stop_workflow_id}/stop",
+                          headers={"Idempotency-Key": "wf-stop-after-pause"},
+                          json={"expected_revision_id": stop_body["expected_revision_id"]})
+    assert stopped.status_code == 200 and stopped.json()["stop_requested"] is True
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        stopped_detail = client.get(f"/api/v1/workflows/runs/{stop_workflow_id}").json()
+        if stopped_detail["workflow"]["status"] == "stopped":
+            break
+        time.sleep(0.05)
+    assert stopped_detail["workflow"]["status"] == "stopped"
+    assert stopped_detail["workflow"]["pause_requested"] is False
+
+
 def test_stop_is_durable_and_idempotent(client):
     bot = make_bot(client)
     res = client.post("/api/v1/workflows/plans", headers=KEY,

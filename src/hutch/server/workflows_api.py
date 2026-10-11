@@ -81,6 +81,7 @@ class WorkflowRunResource(BaseModel):
     origin: str = "operator"
     attempt_run_id: str = ""
     stop_requested: bool = False
+    pause_requested: bool = False
     inputs: dict[str, Any] = Field(default_factory=dict)
     budget: dict[str, Any] = Field(default_factory=dict)
     ledger: dict[str, Any] = Field(default_factory=dict)
@@ -137,6 +138,7 @@ class PhoneWorkflowRunSummary(BaseModel):
     bot_display_name: str
     status: str
     stop_requested: bool = False
+    pause_requested: bool = False
     created_at: str
     updated_at: str
     step_count: int = 0
@@ -193,6 +195,8 @@ class WorkflowRunDetail(BaseModel):
     questions: list[WorkflowQuestionResource] = Field(default_factory=list)
     plan: Optional[dict[str, Any]] = None
     structure: list[dict[str, Any]] = Field(default_factory=list)
+    pause_available: bool = False
+    resume_available: bool = False
 
 
 class WorkflowAmendmentPreviewRequest(BaseModel):
@@ -355,6 +359,18 @@ class WorkflowStopRequest(BaseModel):
     expected_revision_id: str = Field(min_length=1, max_length=100)
 
 
+class WorkflowPauseRequest(WorkflowStopRequest):
+    expected_generation: str = Field(min_length=1, max_length=100)
+
+
+class WorkflowPauseMutationResource(BaseModel):
+    workflow_run_id: str
+    revision_id: str
+    attempt_run_id: str
+    status: str
+    paused: bool
+
+
 class AnswerRequest(BaseModel):
     answer: str = Field(min_length=1, max_length=4000)
 
@@ -456,7 +472,8 @@ def _run_resource(row: dict[str, Any]) -> WorkflowRunResource:
         conversation_id=str(row.get("conversation_id") or ""), status=str(row["status"]),
         reason=str(row.get("reason") or ""), origin=str(row.get("origin") or "operator"),
         attempt_run_id=str(row.get("attempt_run_id") or ""),
-        stop_requested=bool(row.get("stop_requested")), inputs=row.get("inputs") or {},
+        stop_requested=bool(row.get("stop_requested")), pause_requested=bool(row.get("pause_requested")),
+        inputs=row.get("inputs") or {},
         budget=row.get("budget") or {}, ledger=row.get("ledger") or {}, result=row.get("result") or {},
         created_at=str(row.get("created_at") or ""), updated_at=str(row.get("updated_at") or ""),
         finished_at=row.get("finished_at"))
@@ -508,6 +525,7 @@ def _phone_workflow_summary(store: Any, row: dict[str, Any]) -> dict[str, Any]:
         "bot_display_name": str((bot.display_name if bot else "") or (bot.name if bot else "Assistant")),
         "status": str(row.get("status") or "unknown"),
         "stop_requested": bool(row.get("stop_requested")),
+        "pause_requested": bool(row.get("pause_requested")),
         "created_at": str(row.get("created_at") or ""),
         "updated_at": str(row.get("updated_at") or ""),
         "step_count": len(nodes),
@@ -915,11 +933,17 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
             raise HTTPException(404, "no such workflow run") from None
         revision = wstore.revision(store, str(view["workflow"]["revision_id"]))
         plan = revision["plan"] if revision else None
+        workflow = view["workflow"]
+        quiet = wstore.workflow_attempt_quiescence(store, str(workflow.get("attempt_run_id") or ""))
+        safe_to_control = (workflow["status"] == "waiting" and not workflow["stop_requested"]
+                           and quiet["attempt_parked"] and quiet["owned_work_quiet"])
         return WorkflowRunDetail(
-            workflow=_run_resource(view["workflow"]), attempt=view["attempt"],
+            workflow=_run_resource(workflow), attempt=view["attempt"],
             nodes=[_node_resource(node) for node in view["nodes"]],
             questions=[_question_resource(question) for question in view["questions"]],
-            plan=plan, structure=_structure(plan) if plan else [])
+            plan=plan, structure=_structure(plan) if plan else [],
+            pause_available=safe_to_control and not workflow["pause_requested"],
+            resume_available=safe_to_control and workflow["pause_requested"])
 
     @app.post("/api/v1/workflows/runs/{wf_id}/amendments/preview",
               response_model=WorkflowAmendmentPreviewResource)
@@ -1030,6 +1054,33 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
         row = wstore.workflow_run(store, wf_id)
         assert row is not None
         return _run_resource(row)
+
+    def _set_workflow_pause(wf_id: str, payload: WorkflowPauseRequest, request: Request,
+                            paused: bool) -> WorkflowPauseMutationResource:
+        key, digest = _idempotency(request, {"workflow_run_id": wf_id, "paused": paused,
+                                              **payload.model_dump()})
+        try:
+            response = wstore.set_workflow_pause(
+                store, wf_id, paused=paused, expected_revision_id=payload.expected_revision_id,
+                expected_generation=payload.expected_generation, idem_key=key, request_hash=digest)
+        except KeyError:
+            raise HTTPException(404, "no such workflow run") from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        except Exception as exc:
+            from ..store import IdempotencyConflict
+            if isinstance(exc, IdempotencyConflict):
+                raise HTTPException(409, str(exc)) from None
+            raise
+        return WorkflowPauseMutationResource(**response)
+
+    @app.post("/api/v1/workflows/runs/{wf_id}/pause", response_model=WorkflowPauseMutationResource)
+    def pause_workflow_run(wf_id: str, payload: WorkflowPauseRequest, request: Request) -> WorkflowPauseMutationResource:
+        return _set_workflow_pause(wf_id, payload, request, True)
+
+    @app.post("/api/v1/workflows/runs/{wf_id}/resume", response_model=WorkflowPauseMutationResource)
+    def resume_workflow_run(wf_id: str, payload: WorkflowPauseRequest, request: Request) -> WorkflowPauseMutationResource:
+        return _set_workflow_pause(wf_id, payload, request, False)
 
     @app.post("/api/v1/workflows/questions/{question_id}/answer", response_model=WorkflowQuestionResource)
     def answer_workflow_question(question_id: str, payload: AnswerRequest, request: Request) -> WorkflowQuestionResource:

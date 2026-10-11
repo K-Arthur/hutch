@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Add durable local-owner Pause/Resume for parked, quiescent workflow runs. The API requires idempotency plus the current revision and attempt generation; answering while paused does not start downstream work, Stop clears the pause, and paired phones can monitor the paused state but cannot change it. Studio controls, v59 migration, regressions and responsive browser evidence are recorded in `docs/realignment/dynamic-workflows.md`. The private-preview website now explains this boundary.
 - Make the terminal-run amendment boundary explicit: the API returns a clear 409 and preserves the completed result, revision, generation and history. Start a new run from the saved workflow to apply a changed plan; the preview's `eligible` field still means authority/budget only.
 - Verify Stop against an active workflow model step through the process executor and scripted local HTTP model server. The workflow does not become terminal until its step child and orchestration attempt are stopped and their owned process records are closed; see the A1 regression in `docs/realignment/dynamic-workflows.md`.
 - Keep “Jump to latest” in its own reserved row below the transcript so a scrolled chat control cannot cover workflow-card text or collide with the fixed composer. The real local Studio route-card journey now checks WCAG text-spacing overrides, forced-colors rendering, keyboard focus, 44px action geometry and jump-to-latest behavior at 320px; opened screenshots and traces are retained. Actual browser-chrome zoom remains unverified.

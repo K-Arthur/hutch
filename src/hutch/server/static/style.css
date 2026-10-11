@@ -751,6 +751,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
   .workflow-panel-head { flex-direction: column; }
   .workflow-panel-head > div:first-child { width: 100%; }
   .workflow-panel-actions { width: 100%; justify-content: flex-start; }
+  .workflow-panel-actions .btn { min-height: 44px; }
   .saved-request-card { grid-template-columns: minmax(0, 1fr); }
   .saved-request-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: stretch; }
   .saved-request-actions > :first-child { grid-column: 1 / -1; }

@@ -425,7 +425,7 @@ events through the same ownership check. Failed admission rolls back both withou
 the buffer. Expired execution cannot receive a new approval or standing grant; decisions still
 resolve once through compare-and-swap, and full-request rewrites are refused.
 
-## Dynamic workflows (schema v58)
+## Dynamic workflows (schema v59)
 
 A workflow is a **saved, validated plan**, not generated code. The plan schema, the bounded
 evaluator and the compiler live in `src/hutch/workflow/`; `plan` is strict data, `expr`
@@ -480,6 +480,16 @@ revision, site, instance and action slot. Completed receipts replay their bounde
 without dispatch; uncertain receipts refuse a retry until an operator records that the effect
 was not applied. Workflow questions also carry revision/attempt identity, so old answers
 cannot change a stopped or replaced instance.
+
+Schema v59 adds `workflow_runs.pause_requested`. The owner may pause only after the workflow
+instance is waiting, its current attempt has released its lease, and the complete child/process
+tree is quiet. The bit is checked in the same transaction as continuation admission and automatic
+recovery selection, so a pending answer or process restart cannot wake a paused workflow. Answers
+remain accepted by durable question ID while paused; resuming clears the bit and wakes the
+supervisor to create a fresh attempt when all ordinary wait conditions are satisfied. Stop clears
+pause intent and cancels owned work. The local-owner pause/resume routes require an idempotency
+key plus the current revision and attempt generation. The paired-phone projection exposes paused
+status, but the phone cannot pause or resume workflows.
 
 Terminal workflow results store node-state counts separately from `output_outcomes`. The
 latter groups declared outputs by the evidence and completion available (`verified`,
@@ -557,7 +567,7 @@ are browser-tested at 1440, 768, 360 and 320 CSS pixels. The paired-phone workfl
 uses the existing `monitor` permission for run summaries, safe plan structure, and redacted
 instance status; question IDs, question text/options, answers and Stop use the separate `review`
 permission. It omits inputs, node results, artifacts, usage ledgers and dynamic expansion keys.
-Paired sessions cannot plan, launch, probe, change policy, or amend workflows. A monitor-only
+Paired sessions cannot plan, launch, probe, change policy, amend, pause or resume workflows. A monitor-only
 session does not request approval or question data. Phone answer and Stop requests use the
 existing CSRF and per-credential idempotency checks; browser evidence is in
 `docs/realignment/artifacts/workflow-studio/phone/`.

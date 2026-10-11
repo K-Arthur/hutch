@@ -164,6 +164,11 @@ def test_paired_phone_monitors_and_reviews_redacted_workflows(browser, live):
             break
         time.sleep(0.05)
     assert review_question and stop_question, "the real workflow supervisor should park both ask nodes"
+    wstore.set_workflow_pause(
+        store, review_workflow.workflow_run_id, paused=True,
+        expected_revision_id=review_workflow.revision_id,
+        expected_generation=review_workflow.attempt_run_id,
+        idem_key="phone-workflow-paused-fixture", request_hash="phone-workflow-paused-fixture")
 
     enrollment, outcome = store.exchange_pairing_code(store.create_pairing_code(), "Workflow review phone", "browser-test")
     assert outcome == "ok" and enrollment
@@ -189,7 +194,9 @@ def test_paired_phone_monitors_and_reviews_redacted_workflows(browser, live):
         page.locator(".phone-workflow-detail").wait_for()
         assert page.locator(".phone-planned-steps .phone-step-title").filter(has_text="confirm").is_visible()
         assert page.locator(".phone-planned-steps .phone-step-status").inner_text() == "Planned"
-        assert "waiting" in page.locator(".phone-workflow-heading").inner_text()
+        assert "Paused" in page.locator(".phone-workflow-heading").inner_text()
+        assert page.get_by_role("button", name="Pause workflow").count() == 0
+        assert page.get_by_role("button", name="Resume workflow").count() == 0
         assert "PRIVATE_PHONE_INPUT_SENTINEL" not in page.locator("#phone-root").inner_text()
         page.screenshot(path=str(artifacts / "workflow-detail-390.png"), full_page=True, animations="disabled")
 
@@ -210,6 +217,7 @@ def test_paired_phone_monitors_and_reviews_redacted_workflows(browser, live):
         assert answer_response.request.post_data_json == {"answer": "yes"}
         assert answer_response.json()["question_id"] == review_question["id"]
         assert "yes" not in answer_response.text()
+        assert wstore.workflow_run(store, review_workflow.workflow_run_id)["pause_requested"] is True
 
         page.get_by_role("button", name="Workflows").click()
         page.locator(f'[data-phone-workflow="{stop_workflow.workflow_run_id}"]').click()
@@ -330,9 +338,11 @@ def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(bro
         "budget": {"max_nodes": 8, "max_model_calls": 0},
         "nodes": [{"kind": "ask", "id": "review", "title": "Review findings",
                    "question": "Which findings should be included?", "options": ["All", "Only verified"],
-                   "timeout_seconds": 600}],
+                   "timeout_seconds": 600},
+                  {"kind": "transform", "id": "carry_answer", "op": "constant",
+                   "args": {"value": {"ref": "review.answer"}}}],
     }
-    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workflow-studio"
+    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workflow-studio/pause-resume-2026-10-11"
     artifacts.mkdir(parents=True, exist_ok=True)
     page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1)
     context = page.context
@@ -399,12 +409,73 @@ def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(bro
 
         page.set_viewport_size({"width": 1440, "height": 960})
         page.wait_for_timeout(80)
+        selected = page.request.get(f"{base}/api/v1/workflows/runs/{first_workflow_id}").json()
+        assert selected["pause_available"] is True
+        pause_body = {"expected_revision_id": selected["workflow"]["revision_id"],
+                      "expected_generation": selected["workflow"]["attempt_run_id"]}
+        pause = panel.get_by_role("button", name="Pause workflow")
+        with page.expect_response(lambda response: response.url.endswith(f"/workflows/runs/{first_workflow_id}/pause")) as pause_response:
+            pause.click()
+        assert pause_response.value.status == 200, pause_response.value.text()
+        assert pause_response.value.request.headers.get("idempotency-key")
+        assert pause_response.value.request.post_data_json == pause_body
+        assert pause_response.value.json()["paused"] is True
+        panel.get_by_text("Paused · saved workflow", exact=True).wait_for()
+        resume_after_pause = panel.get_by_role("button", name="Resume workflow")
+        assert resume_after_pause.count() == 1
+        page.wait_for_function("document.activeElement?.dataset.workflowAction === 'resume'", timeout=2000)
+        assert resume_after_pause.evaluate("element => document.activeElement === element")
+        paused_detail = page.request.get(f"{base}/api/v1/workflows/runs/{first_workflow_id}").json()
+        assert paused_detail["workflow"]["pause_requested"] is True
+        assert paused_detail["resume_available"] is True
+        for label, width, height in sizes:
+            page.set_viewport_size({"width": width, "height": height})
+            page.wait_for_timeout(80)
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, f"{label} paused view has horizontal overflow: {overflow}px"
+            action = panel.locator(".workflow-panel-actions")
+            action.wait_for(state="visible")
+            resume_target = panel.get_by_role("button", name="Resume workflow").bounding_box()
+            assert resume_target and resume_target["height"] >= (44 if width <= 520 else 24)
+            page.screenshot(path=str(artifacts / f"{label}-paused.png"), full_page=True, animations="disabled")
+            trace.append({"viewport": label, "size": [width, height], "state": "paused",
+                          "horizontal_overflow_px": overflow,
+                          "resume_target": {key: round(value, 2) for key, value in resume_target.items()}})
+        page.set_viewport_size({"width": 1440, "height": 960})
+        page.wait_for_timeout(80)
+
+        question_form = panel.locator("[data-workflow-question-form]")
         answer_field = question_form.locator("textarea[name=answer]")
         answer_field.fill("Include only findings with independent evidence.")
         answer_field.press("Tab")
         send_answer = question_form.get_by_role("button", name="Send answer")
         assert send_answer.evaluate("element => document.activeElement === element")
         page.keyboard.press("Enter")
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            held = page.request.get(f"{base}/api/v1/workflows/runs/{first_workflow_id}").json()
+            if held["questions"][0]["status"] == "answered":
+                break
+            time.sleep(0.05)
+        assert held["workflow"]["pause_requested"] is True
+        assert held["workflow"]["attempt_run_id"] == paused_detail["workflow"]["attempt_run_id"]
+        assert held["attempt"]["status"] == "waiting_workflow"
+        assert "carry_answer" not in {node["site_id"] for node in held["nodes"]}
+        page.wait_for_timeout(2200)
+        still_held = page.request.get(f"{base}/api/v1/workflows/runs/{first_workflow_id}").json()
+        assert still_held["workflow"]["attempt_run_id"] == held["workflow"]["attempt_run_id"]
+        page.screenshot(path=str(artifacts / "desktop-answered-while-paused.png"), full_page=True, animations="disabled")
+
+        resume_button = panel.get_by_role("button", name="Resume workflow")
+        with page.expect_response(lambda response: response.url.endswith(f"/workflows/runs/{first_workflow_id}/resume")) as resume_response:
+            resume_button.click()
+        assert resume_response.value.status == 200, resume_response.value.text()
+        assert resume_response.value.request.headers.get("idempotency-key")
+        assert resume_response.value.request.post_data_json == pause_body
+        assert resume_response.value.json()["paused"] is False
+        page.wait_for_function("document.activeElement?.dataset.workflowAction === 'refresh'", timeout=2000)
+        assert panel.get_by_role("button", name="Refresh").evaluate(
+            "element => document.activeElement === element")
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
             current = workflow_store.workflow_run(store, first_workflow_id)
@@ -464,7 +535,7 @@ def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(bro
             "keyboard_path": ["focus answer", "Tab to Send answer", "Enter submits"],
             "page_errors": errors, "provider_calls": 0,
             "fixture_boundary": "A saved declarative ask workflow uses the real SQLite, supervisor, API and browser path; no model/provider call is made.",
-            "source_sha256": {name: hashlib.sha256((artifacts.parents[3] / name).read_bytes()).hexdigest()
+            "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
                               for name in sources},
             "visual_artifact_sha256": images_and_trace,
             "captured_at": datetime.now(timezone.utc).isoformat(),

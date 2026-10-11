@@ -21,7 +21,7 @@ from hutch.models import RunStatus
 from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28,
                          _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34, _migrate_45,
                          _migrate_35, _migrate_37, _migrate_40, _migrate_41, _migrate_46, _migrate_47,
-                         _migrate_48, _migrate_57, _migrate_58)
+                         _migrate_48, _migrate_57, _migrate_58, _migrate_59)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
@@ -73,6 +73,23 @@ def test_v58_amendment_history_preserves_revision_links_and_is_idempotent():
         with pytest.raises(sqlite3.IntegrityError):
             db.execute("DELETE FROM workflow_revisions WHERE id='wrev-before'")
         assert SCHEMA_VERSION >= 58
+    finally:
+        db.close()
+
+
+def test_v59_workflow_pause_defaults_to_unpaused_and_is_idempotent():
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("CREATE TABLE workflow_runs (id TEXT PRIMARY KEY)")
+        db.execute("INSERT INTO workflow_runs VALUES ('wrun-old')")
+        _migrate_59(db)
+        _migrate_59(db)
+        assert db.execute("SELECT pause_requested FROM workflow_runs WHERE id='wrun-old'").fetchone()[0] == 0
+        db.execute("UPDATE workflow_runs SET pause_requested=1 WHERE id='wrun-old'")
+        assert db.execute("SELECT pause_requested FROM workflow_runs WHERE id='wrun-old'").fetchone()[0] == 1
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute("UPDATE workflow_runs SET pause_requested=2 WHERE id='wrun-old'")
+        assert SCHEMA_VERSION >= 59
     finally:
         db.close()
 
@@ -756,7 +773,7 @@ def _prepare_historical_workflow_schema(config, *, version: int, qualification: 
         pytest.param(52, True, True, False, id="workflow-v52-tables"),
     ],
 )
-def test_historical_schema_51_and_52_variants_converge_on_schema_58(
+def test_historical_schema_51_and_52_variants_converge_on_current_schema(
     config, version, qualification, workflow_tables, question_guards,
 ):
     _prepare_historical_workflow_schema(
@@ -782,7 +799,7 @@ def test_historical_schema_51_and_52_variants_converge_on_schema_58(
         upgraded.close()
 
 
-def test_interrupted_schema_56_to_58_migrations_roll_back_and_retry(config, monkeypatch):
+def test_interrupted_schema_56_to_current_migrations_roll_back_and_retry(config, monkeypatch):
     from hutch import store as store_module
     from hutch.models import Bot
 
@@ -796,17 +813,18 @@ def test_interrupted_schema_56_to_58_migrations_roll_back_and_retry(config, monk
         db.execute("UPDATE bots SET doc=json_remove(doc, '$.workflow_mode') WHERE id=?", (bot.id,))
         db.execute("DROP TABLE conversation_workflow_policies")
         db.execute("DROP TABLE workflow_amendment_history")
+        db.execute("ALTER TABLE workflow_runs DROP COLUMN pause_requested")
         db.execute("PRAGMA user_version = 56")
         db.commit()
     finally:
         db.close()
 
     def interrupt(_db):
-        raise RuntimeError("injected v58 amendment history migration interruption")
+        raise RuntimeError("injected v59 workflow pause migration interruption")
 
     with monkeypatch.context() as patch:
         patch.setattr(store_module, "_MIGRATIONS", [*store_module._MIGRATIONS[:-1], interrupt])
-        with pytest.raises(RuntimeError, match="injected v58 amendment history migration interruption"):
+        with pytest.raises(RuntimeError, match="injected v59 workflow pause migration interruption"):
             Store(config)
 
     db = sqlite3.connect(config.db_path)
@@ -818,17 +836,19 @@ def test_interrupted_schema_56_to_58_migrations_roll_back_and_retry(config, monk
                           "AND name='conversation_workflow_policies'").fetchone() is None
         assert db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
                           "AND name='workflow_amendment_history'").fetchone() is None
+        assert "pause_requested" not in {row[1] for row in db.execute("PRAGMA table_info(workflow_runs)")}
     finally:
         db.close()
     assert config.db_path.with_suffix(".db.bak-v56").exists()
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == 58
+        assert upgraded.schema_version == SCHEMA_VERSION
         assert upgraded.get_bot(bot.name).workflow_mode == "off"
         assert upgraded.get_conversation_workflow_policy(conversation["id"]) is None
         assert upgraded._db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
                                     "AND name='workflow_amendment_history'").fetchone() is not None
+        assert upgraded._db.execute("SELECT pause_requested FROM workflow_runs LIMIT 1").fetchone() is None
     finally:
         upgraded.close()
 
