@@ -23,7 +23,7 @@ import re
 import unicodedata
 import uuid
 from dataclasses import dataclass, field
-from typing import Iterable, Optional, Sequence
+from typing import Optional, Sequence
 
 _WS_RE = re.compile(r"\s+")
 _URL_RE = re.compile(r"https?://\S+|www\.\S+", re.IGNORECASE)

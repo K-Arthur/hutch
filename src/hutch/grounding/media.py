@@ -27,7 +27,6 @@ import hashlib
 import json
 import os
 import shutil
-import struct
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path

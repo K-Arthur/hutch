@@ -22,8 +22,8 @@ frozen clocks and reused by adapters, tools, and rendering.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
-from datetime import date as _date, datetime, timedelta, timezone
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from enum import Enum
 from typing import Any, Iterable, Optional

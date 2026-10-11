@@ -24,6 +24,28 @@ commits: `87658e2` (core recurrence/lifecycle), follow-up UI/e2e evidence. No se
 
 ## Current slices
 
+Grounding slice, 2026-10-11 (branch `grounding/evidence`, worktree `.worktrees/grounding`): the
+integration base was re-derived from the actual repository — local `main` (`4ac6041`, documents
+pipeline) lacked both the Agent Skills work (`wcag22-audit-fixes`) and the tool-transpiler work
+(`toolcall/unified`). `toolcall/unified` merged into main cleanly; `wcag22-audit-fixes` produced
+29 conflicts (26 regenerated evidence artifacts resolved to main's captures; `CHANGELOG.md`,
+`models.py`, `tools/__init__.py`, `cli.py` resolved by keeping both sides). The merged tree is
+`f878724` + `bfc4590` with both source branches untouched. Schema v51 adds a canonical evidence
+layer (investigations, attempts, source revisions, claims, evidence links, media, observations,
+answers, stream cursors). `live_search` and `inspect_media` are opt-in tools; `web_fetch` records
+source rows with declared dates. Live-verified read-only: BBC/HN feeds, Hacker News Algolia,
+Wikimedia EventStreams (40 events, structured cursor). GDELT answered HTTP 200 earlier and
+`rate_limited` later — reported as its own outcome. Bluesky's public host is blocked from this
+network and says so; SearXNG awaits an operator instance; the Jetstream live reader reports
+`unsupported` without the optional dependency. The Evidence panel (approved route: run panel +
+chat entry) shows effective as-of, claimed/what-evidence-shows, outcomes and gaps, independence
+clusters with exact times, hash-verified frames, and answer revisions; inspected in a real browser
+at 1440/900/360 with zero console errors and no overflow. Offline tests: 72 grounding tests plus
+2 browser regressions; the merged tree additionally passed 318 focused tests across touched
+modules. Evidence: `docs/realignment/grounding-evidence.md`, `docs/grounding.md`, artifacts under
+`docs/realignment/artifacts/grounding/`. Not claimed: any live hosted-model media call, a live
+Jetstream connection, physical-device or screen-reader passes, or tuned budget benchmarks.
+
 UI realignment, 2026-10-10: the everyday path now opens with a request, carries that exact
 request into assistant setup, and suggests a short editable name. Default assistant settings
 show only identity and role; model, runtime, permissions, schedules, memory and workspace

@@ -22,7 +22,6 @@ network — the adapter says so honestly). Streams live in ``streams.py``.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import random
 import re
@@ -31,14 +30,14 @@ import time
 import xml.etree.ElementTree as ET
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Iterable, Optional, Sequence
+from datetime import timedelta
+from typing import Any, Callable, Optional, Sequence
 from urllib.parse import urlencode, urljoin, urlsplit
 
 from ..netguard import NetGuardError, safe_get
-from .clock import UTC, Clock
+from .clock import Clock
 from .dedup import DedupItem, domain_of
-from .temporal import EvidenceCutoff, Precision, TimestampRole, TimestampValue, parse_epoch, parse_gdelt, parse_iso, parse_rfc822
+from .temporal import EvidenceCutoff, TimestampRole, TimestampValue, parse_epoch, parse_gdelt, parse_iso, parse_rfc822
 
 USER_AGENT = "hutch/0.1 (+local agent platform; evidence retrieval)"
 GDELT_MIN_INTERVAL = 5.0        # GDELT's documented courtesy limit: one request / 5 s

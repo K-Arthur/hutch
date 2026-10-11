@@ -89,3 +89,66 @@ Everything is additive: a new schema migration (v51) adds tables only; new tools
 `web_fetch` keeps its old fields and adds a metadata block; no existing route behavior changes except
 new optional fields. Reverting the branch restores the pre-slice behavior; the schema upgrade is
 additive and the migration backup (`.db.bak-v50`) is kept by the existing upgrade path.
+
+## Frontend design research and route approval (2026-10-11)
+
+The user approved a route for the evidence panel before implementation (question tool, answer:
+"Run panel + chat entry"). Research actually inspected, with live interfaces captured in a real
+headless Chromium in this environment and read as images:
+
+| Inspected | URL | Pattern that transferred |
+|---|---|---|
+| Full Fact fact-check article | https://fullfact.org/conflict/video-compilation-us-strikes-iran-old-footage-and-fake/ | "What was claimed / Our verdict" split; the finding is a scoped sentence; metadata rail; attributed check |
+| Ground News home | https://ground.news/ | Explicit sample denominators plus a distribution bar; a blindspot badge rather than a truth score |
+| Google Fact Check Explorer | https://toolbox.google.com/factcheck/explorer | Claim-level rows with *attributed* ratings, publisher and age |
+| Wikipedia revision history | https://en.wikipedia.org/w/index.php?title=Black_Sea&action=history | Corrections as new rows with summaries and diffs; nothing rewritten |
+
+Not inspected, disclosed: Figma Community pages and their CDN previews were unreachable from this
+network through three routes (direct fetch, headless Chromium, a public reader proxy — CloudFront
+block on every one). The Mobbin connector answers "requires a paid plan". No Figma Community frame is
+claimed as inspected; the Motif plugin's text description informed wording only.
+
+Patterns deliberately not transferred: partisan lean axes, universal real/fake badges, single truth
+scores. Routes offered: run panel + chat entry (chosen), drawer-only, sources-first timeline,
+receipts strip. The chosen panel keeps the existing dark token set and Archivo display face.
+
+## Verification record (2026-10-11)
+
+- Offline tests: `tests/test_grounding_*.py` — temporal (13), dedup (7), acquire (14), streams (11),
+  media (6), tools/runtime delivery (12), API (4), adversarial scenarios (5); plus 2 real-browser
+  regression tests in `tests/e2e/test_grounding_panel.py` (1440 and 360 CSS px).
+- Live read-only checks (`HUTCH_LIVE_TEST=1`): BBC feed retained 5 items with declared dates;
+  HN retained 5 stories; Wikimedia stream read 40 events with a structured cursor; GDELT returned
+  HTTP 200 earlier in the day and `rate_limited` during the later run (reported honestly).
+- Browser validation of the panel (seeded fixture, real server, headless Chromium): panel, scoped
+  label, 2 source rows with text independence chips, 6 outcome rows, 1 loaded frame served from the
+  hash-verified API, revision list, chat entry link; zero console errors; no horizontal overflow at
+  1440 / 900 / 360. Screenshots: `docs/realignment/artifacts/grounding/panel2-{desktop,tablet,phone}.png`.
+- Integration base: `main` (4ac6041) + `toolcall/unified` (clean merge) + `wcag22-audit-fixes`
+  (29 conflicts: 26 regenerated artifacts resolved to main's captures, 4 code/doc files resolved by
+  keeping both sides). Focused suites on the merged tree pass; the single full-suite failure
+  (`test_code_handoff.py::test_interactive_process_keeps_terminal_and_owns_a_separate_group`) is a
+  load-sensitive TTY race that passes 3/3 in isolation and is recorded, not hidden.
+
+## Classification of each source/model/workflow
+
+| Item | Class |
+|---|---|
+| RSS/Atom feeds, Hacker News, Wikimedia EventStreams | **Verified live** (read-only) |
+| GDELT DOC 2.0 | **Verified live earlier; 429 under repeated use → honest `rate_limited`** |
+| Bluesky public search | **Blocked from this network (HTTP 403)** — implemented, unverified live |
+| SearXNG | **Implemented; fixture-verified** — needs the operator's instance |
+| Jetstream websocket | **Contract tested; live reader unsupported without the optional `websockets` dependency** |
+| Image/video input to models | **Implemented and wire-verified** (OpenAI-compatible, Anthropic, Ollama conversions); a live hosted vision call was not made and is not claimed |
+| C2PA validation | **Presence verified against fabricated markers; signature validation unsupported without a maintained verifier** |
+| Reverse-image / image fact-check | **Unsupported by design** (egress permission not held) |
+
+## Remaining gaps
+
+- No live hosted-model run was performed end-to-end (no provider call was made with media), so
+  "frames reached a real hosted model" remains implemented-and-wire-tested, not live-verified.
+- The Bluesky lane stays `blocked` from this network; SearXNG awaits a local instance.
+- Jetstream's live reader needs the optional websockets dependency before it can move from
+  contract-tested to live-verified.
+- Phone-width panel was inspected at 360 px; physical-device and screen-reader passes were not run.
+- Budgets are defaults asserted in code, not tuned against large real corpora.

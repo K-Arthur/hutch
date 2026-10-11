@@ -21,17 +21,16 @@ A live heartbeat proves connectivity — not correct filtering and not complete 
 from __future__ import annotations
 
 import json
-import random
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Callable, Iterable, Iterator, Optional
 
 from ..netguard import NetGuardError, resolve_public, screen_url
 from .clock import UTC, Clock
-from .temporal import Precision, TimestampRole, TimestampValue, parse_epoch
+
 
 JETSTREAM_TIMESTAMP_THRESHOLD = 1_000_000_000_000_000  # 1e15: v1 timestamp vs v2 seq
 WIKIMEDIA_SERVER_TIMEOUT = timedelta(minutes=15)

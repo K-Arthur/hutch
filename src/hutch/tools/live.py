@@ -19,9 +19,9 @@ from typing import Any
 from ..grounding import media as media_mod
 from ..grounding import acquire as acquire_mod
 from ..grounding.clock import SYSTEM_CLOCK
-from ..grounding.dedup import DedupItem, filter_sensitivity_summary, noise_signals, origin_clusters
+from ..grounding.dedup import filter_sensitivity_summary, noise_signals, origin_clusters
 from ..grounding.report import CitationIndex, ClaimDraft, EvidenceLinkDraft, assess_claims, render_brief
-from ..grounding.temporal import EvidenceCutoff, TimestampRole
+from ..grounding.temporal import EvidenceCutoff
 from .base import Tool, ToolContext, ToolResult, _schema, clip
 
 DEFAULT_HORIZON_HOURS = 72.0

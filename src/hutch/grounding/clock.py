@@ -19,7 +19,7 @@ from __future__ import annotations
 import time as _time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Protocol
+from typing import Protocol
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 UTC = timezone.utc

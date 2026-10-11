@@ -5581,6 +5581,8 @@ const TOOL_SETTINGS = [
   ["write_file", "Write workspace files", "Create or replace files; approval policy still applies."],
   ["shell", "Run shell commands", "Run commands inside the configured shell boundary."],
   ["web_fetch", "Fetch public pages", "Read public HTTP(S) pages through Hutch’s checked request path."],
+  ["live_search", "Search live sources", "Fan out across public feeds, news, and discussion with explicit time bounds; sources, outcomes, and limits are stored as evidence."],
+  ["inspect_media", "Inspect images and video", "Store and hash media, sample claim-relevant frames, and state what was not inspected. No authenticity verdict."],
   ["browser", "Use a browser", "Control this bot’s isolated browser profile."],
   ["remember", "Propose reference facts", "Suggest facts for human review before they can be recalled."],
   ["recall", "Recall reviewed facts", "Search reviewed facts available to this bot and chat."],
@@ -8237,13 +8239,16 @@ async function renderConnections() {
 
 /* -------------------------------------------------------- guided bot setup */
 
-const SETUP_TOOL_EXPANSIONS = { files: ["read_file", "list_files", "write_file"], memory: ["remember", "recall"] };
+const SETUP_TOOL_EXPANSIONS = { files: ["read_file", "list_files", "write_file"], memory: ["remember", "recall"],
+  grounding: ["live_search", "inspect_media"] };
 const BOT_SETUP_TOOLS = [
   ["read_file", "Read workspace files", "Open text files in this bot’s workspace."],
   ["list_files", "List workspace files", "See file names in this bot’s workspace."],
   ["write_file", "Write workspace files", "Create or replace workspace files; policy still applies."],
   ["shell", "Run shell commands", "Run commands within Hutch’s configured shell boundary."],
   ["web_fetch", "Fetch public pages", "Read public pages through Hutch’s checked network path."],
+  ["live_search", "Search live sources", "Fan out across public feeds, news, and discussion with explicit time bounds; every result keeps its source and limits."],
+  ["inspect_media", "Inspect images and video", "Store and hash media, sample claim-relevant frames, and state what was not inspected. No authenticity verdict."],
   ["browser", "Use an isolated browser", "Control this bot’s private browser profile."],
   ["remember", "Propose reference facts", "Suggest facts for review before they can be recalled."],
   ["recall", "Recall reviewed facts", "Search facts approved for this bot and conversation."],

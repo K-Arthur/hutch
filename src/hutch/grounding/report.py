@@ -16,12 +16,11 @@ The problem this module solves: produced text that *looks* grounded. Hutch there
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Iterable, Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from .acquire import AcquireResult, FoundSource
 from .clock import Clock, utc_iso
-from .dedup import DedupItem, origin_clusters
+from .dedup import origin_clusters
 from .temporal import EvidenceCutoff, TimestampValue
 
 #: labels deliberately phrased as findings about evidence, not verdicts about reality
