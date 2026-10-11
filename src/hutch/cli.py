@@ -1656,7 +1656,15 @@ def workflow_show(ref: str = typer.Argument(..., help="Workflow name or id")) ->
     plan = revision["plan"]
     # Show the *effective* plan: the stored document is exactly what was submitted, so the
     # defaults the compiler fills in are what a reader needs to see.
-    effective = compile_plan(plan).plan
+    from .workflow.compile import PlanInvalid
+
+    try:
+        effective = compile_plan(plan).plan
+    except PlanInvalid as exc:
+        err.print("[red]this saved revision no longer compiles:[/red]")
+        for item in exc.diagnostics[:8]:
+            err.print(f"[red]  {item.render()}[/red]")
+        raise typer.Exit(code=1) from None
     console.print(f"[bold]{effective.name}[/bold] rev {revision['revision']}  [dim]{revision['plan_hash'][:12]}…[/dim]")
     if effective.description:
         console.print(effective.description)
