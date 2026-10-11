@@ -1,0 +1,39 @@
+{
+  "test": "tests/e2e/test_browser.py::test_paired_phone_keeps_mixed_question_and_approval_pending_in_either_order",
+  "decision_order": [
+    "question",
+    "approval"
+  ],
+  "captured_at": "2026-10-11T23:23:07.448590+00:00",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright": "1.63.0",
+  "workflow_question_id": "wq_263dc88a8b5b",
+  "approval_id": "apr_3e5615c736c8",
+  "final_workflow_status": "succeeded",
+  "final_approval_status": "approved",
+  "pending_work_after_first_decision": "the other request remained visible and pending",
+  "viewports_css_px": {
+    "phone": [
+      390,
+      844
+    ],
+    "compact_phone": [
+      320,
+      780
+    ]
+  },
+  "compact_phone_overflow_px": 0,
+  "compact_phone_action_min_height_px": 48,
+  "page_errors": [],
+  "artifact_sha256": {
+    "needs-you-question-approval-390.png": "101fc03077228f3b42b31ddad1744c7dfd4b908c3df41dc8868727aab5bfad46",
+    "needs-you-question-approval-320.png": "eb6f180c64f72f839320733aeb850a0e274ee7e996d4d504e145e51ff7b0f1f0",
+    "mixed-review-question-approval-trace.zip": "8140d04ec3710a15619e4f70125de74043d8164635453ce63e7b8df14e2f8c9e"
+  },
+  "source_sha256": {
+    "src/hutch/server/static/app.js": "19bbc96be1ef20a8515327f44952334e9aaa0168698da240f48718bfa41551d6",
+    "src/hutch/server/workflows_api.py": "64199f3a358c99fb7e2908787b6bb7b555f64ad9d0ff53ff3c43fc04e6b11a07",
+    "tests/e2e/test_browser.py": "e96b1547e0a867c0ec83bb41e8a879a0d244173d9afb50954a625477c3847bce"
+  }
+}

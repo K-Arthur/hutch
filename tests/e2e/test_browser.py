@@ -422,6 +422,142 @@ def test_paired_phone_reviews_the_exact_approval_once(browser, live):
     }, indent=2) + "\n")
 
 
+@pytest.mark.parametrize("decision_order", [("question", "approval"), ("approval", "question")])
+def test_paired_phone_keeps_mixed_question_and_approval_pending_in_either_order(
+        browser, live, decision_order):
+    from hutch.workflow import persistence as wstore
+    from hutch.workflow.submit import submit_workflow
+
+    base, app = live
+    store, engine = app.state.store, app.state.engine
+    bot = store.create_bot(Bot(name="phone-mixed-review", model="mock/demo", tools=["files"],
+                               approval_mode=ApprovalMode.ask))
+    action_run = engine.submit(bot, "write a report")
+    engine.dispatch_pending()
+    wait_for(lambda: store.get_run(action_run.id).status is RunStatus.waiting_approval)
+    approval = store.pending_approvals()[0]
+    question_plan = {
+        "name": "phone-mixed-review-question",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 2, "max_model_calls": 0},
+        "nodes": [{"kind": "ask", "id": "confirm", "question": "May I continue this workflow?",
+                   "options": ["yes", "no"], "timeout_seconds": 300}],
+    }
+    workflow = submit_workflow(store, bot=bot, plan=question_plan,
+                               definition_name=question_plan["name"])
+    deadline = time.monotonic() + 20
+    pending_question = None
+    while time.monotonic() < deadline:
+        pending_question = next(iter(wstore.questions(
+            store, workflow.workflow_run_id, status="pending")), None)
+        attempt = store.get_run(workflow.attempt_run_id)
+        if pending_question and attempt and attempt.status is RunStatus.waiting_workflow:
+            break
+        time.sleep(0.05)
+    assert pending_question is not None
+
+    enrollment, outcome = store.exchange_pairing_code(
+        store.create_pairing_code(), "Mixed review phone", "browser-test")
+    assert outcome == "ok" and enrollment
+    paired = store.finish_passkey_enrollment(enrollment["token"], {
+        "credential_id": secrets.token_bytes(24), "public_key": b"mixed-review-phone-key", "sign_count": 0,
+        "backup_eligible": True, "backed_up": True, "user_handle": store.webauthn_user_handle(),
+    })
+    artifacts = (Path(__file__).resolve().parents[2]
+                 / "docs/realignment/artifacts/workflow-studio/mixed-review-2026-10-11")
+    artifacts.mkdir(parents=True, exist_ok=True)
+    order_label = "-".join(decision_order)
+    capture_names = [f"needs-you-{order_label}-390.png", f"needs-you-{order_label}-320.png",
+                     f"mixed-review-{order_label}-trace.zip"]
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        context.add_cookies([{"name": "hutch_session", "value": paired["session_token"], "url": base}])
+        page.goto(base + "/")
+        page.locator("#phone-root .phone-brand").wait_for()
+        page.locator('.phone-tabs [data-phone-tab="review"]').click()
+        question_card = page.locator(
+            f'.phone-question-card [data-question-id="{pending_question["id"]}"]').locator("..")
+        approval_card = page.locator(
+            f'.approval-card [data-phone-approve="{approval.id}"]').locator("..").locator("..")
+        question_card.wait_for()
+        approval_card.wait_for()
+        assert page.locator(".phone-question-card").count() == 1
+        assert page.locator(".approval-card").count() == 1
+        assert question_card.get_by_text(pending_question["id"], exact=True).is_visible()
+        assert approval_card.get_by_text(approval.id, exact=True).is_visible()
+        page.screenshot(path=str(artifacts / capture_names[0]), full_page=True, animations="disabled")
+
+        page.set_viewport_size({"width": 320, "height": 780})
+        overflow_320 = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+        assert overflow_320 <= 1
+        button_heights_320 = page.locator(
+            ".phone-list .phone-actions button, .phone-list .phone-workflow-answer-form button"
+        ).evaluate_all("items => items.map(el => Math.round(el.getBoundingClientRect().height))")
+        assert button_heights_320 and min(button_heights_320) >= 44
+        page.screenshot(path=str(artifacts / capture_names[1]), full_page=True, animations="disabled")
+        page.set_viewport_size({"width": 390, "height": 844})
+
+        for decision_index, decision in enumerate(decision_order):
+            if decision == "question":
+                current_question = page.locator(
+                    f'.phone-workflow-answer-form[data-question-id="{pending_question["id"]}"]').locator("..")
+                current_question.locator('select[name="answer"]').select_option("yes")
+                with page.expect_response(lambda response: response.url.endswith(
+                        f"/api/v1/phone/workflows/questions/{pending_question['id']}/answer")) as answered:
+                    current_question.get_by_role("button", name="Send answer").click()
+                assert answered.value.status == 200, answered.value.text()
+                wait_for(lambda: page.locator(".phone-question-card").count() == 0)
+                expected_approval_count = 1 if decision_index == 0 else 0
+                wait_for(lambda: page.locator(".approval-card").count() == expected_approval_count)
+                if expected_approval_count:
+                    assert page.get_by_text(approval.id, exact=True).is_visible()
+            else:
+                allow = page.locator(f'.approval-card [data-phone-approve="{approval.id}"]')
+                with page.expect_response(lambda response: response.url.endswith(
+                        f"/api/v1/actions/approvals/{approval.id}/approve")) as approved:
+                    allow.click()
+                assert approved.value.status == 200, approved.value.text()
+                wait_for(lambda: store.get_run(action_run.id).status is RunStatus.succeeded)
+                wait_for(lambda: page.locator(".approval-card").count() == 0)
+                expected_question_count = 1 if decision_index == 0 else 0
+                wait_for(lambda: page.locator(".phone-question-card").count() == expected_question_count)
+                if expected_question_count:
+                    assert page.get_by_text(pending_question["id"], exact=True).is_visible()
+
+        wait_for(lambda: wstore.workflow_run(store, workflow.workflow_run_id)["status"] == "succeeded")
+        assert store.get_approval(approval.id).status.value == "approved"
+        assert page.locator(".phone-question-card, .approval-card").count() == 0
+        assert not errors, errors
+    finally:
+        context.tracing.stop(path=str(artifacts / capture_names[2]))
+        context.close()
+
+    (artifacts / f"results-{order_label}.json").write_text(json.dumps({
+        "test": "tests/e2e/test_browser.py::test_paired_phone_keeps_mixed_question_and_approval_pending_in_either_order",
+        "decision_order": list(decision_order),
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "browser": browser.browser_type.name, "browser_version": browser.version,
+        "playwright": package_version("playwright"),
+        "workflow_question_id": pending_question["id"], "approval_id": approval.id,
+        "final_workflow_status": wstore.workflow_run(store, workflow.workflow_run_id)["status"],
+        "final_approval_status": store.get_approval(approval.id).status.value,
+        "pending_work_after_first_decision": "the other request remained visible and pending",
+        "viewports_css_px": {"phone": [390, 844], "compact_phone": [320, 780]},
+        "compact_phone_overflow_px": overflow_320,
+        "compact_phone_action_min_height_px": min(button_heights_320),
+        "page_errors": errors,
+        "artifact_sha256": {name: hashlib.sha256((artifacts / name).read_bytes()).hexdigest()
+                            for name in capture_names},
+        "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                          for name in ("src/hutch/server/static/app.js", "src/hutch/server/workflows_api.py",
+                                       "tests/e2e/test_browser.py")},
+    }, indent=2) + "\n")
+
+
 def test_workflow_studio_lists_and_resolves_every_pending_question(browser, live):
     import hashlib
     from datetime import datetime, timezone
