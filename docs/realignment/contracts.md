@@ -632,3 +632,40 @@ consistent SQLite read snapshot, limited to 10,000 fact revisions, 5,000 shares 
 of source content and 16 MiB serialized JSON. Oversize returns 413 with guidance to use the paginated
 fact/history/share resources; records are never silently truncated. This is an export of Bot memory,
 not a database backup or permanent-delete facility.
+
+## Dynamic workflows (schema v52, owner-only v1 routes)
+
+Workflows are **saved methods, not schedules**: a definition is inert until it is run, and
+running it never grants a schedule, a wider permission or a permanent background process.
+
+* Resources: `GET/POST /api/v1/workflows` (definitions), `GET /api/v1/workflows/{ref}` (latest
+  revision plan), `POST /api/v1/workflows/{ref}/activate`,
+  `POST /api/v1/workflows/validate` (compile + authority + role checks; admits and executes
+  nothing), `POST /api/v1/workflows/plans` (submit an inline plan),
+  `POST /api/v1/workflows/{ref}/runs` (run the latest revision with no planning call),
+  `GET /api/v1/workflows/runs` and `GET /api/v1/workflows/runs/{id}` (instance + attempt +
+  node records + questions + the committed structure),
+  `POST /api/v1/workflows/runs/{id}/stop`,
+  `POST /api/v1/workflows/questions/{question_id}/answer` (bound to that one question id),
+  and `GET/POST/DELETE /api/v1/workflows/qualifications` (role evidence; an operator
+  acknowledgement can only ever unlock a bounded worker/verifier scope).
+* Every command requires an `Idempotency-Key`; a replayed submission returns the original
+  instance instead of starting a second one. Errors: 428 without a key, 422 for a malformed
+  or invalid plan (with `{code, diagnostics}`), 409 when the Bot's authority or a role blocks
+  the plan, 413 for an oversized plan, 404 for unknown resources.
+* Identity: definition → immutable revision (`plan_hash`) → instance (`wrun_…`, stable across
+  orchestration attempts) → node instance (`(site_id, instance_key)`) → step attempt (an
+  ordinary run). A source change is a new revision, never a byte-identical resume.
+* Authority: a plan may never declare a tool or skill outside the Bot's own allowlist, and
+  `network: local_model_only` refuses a hosted route outright. Role qualification is checked
+  at submission, at node admission, and again when a step run starts from its frozen contract.
+* Capacity: an orchestration attempt and its step runs form a **workflow lane**, separate
+  from interactive work, so a workflow can progress while the person keeps chatting with the
+  same Bot; one workflow per Bot runs at a time; step runs share their attempt's global slot
+  and are bounded by the workflow's own logical concurrency. The one-caller/eight-waiter
+  inference admission is unchanged and remains the model-call limiter.
+* Durability: node records, questions and budgets live in SQLite. A crashed attempt is
+  continued by a new attempt that skips every settled node; a stopped or cancelled instance
+  is never continued. Attempts themselves still never resume mid-flight (ADR-0003).
+* Remote: the workflow routes are owner-only (unmapped in the remote capability inventory),
+  so a paired phone cannot start, stop or answer a workflow in this revision.

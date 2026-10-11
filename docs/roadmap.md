@@ -184,7 +184,7 @@ Strict Offline Linux runs; it does not complete the broader S6 collaboration pla
 
 - [ ] Vector memory (local embeddings, sqlite-vec) with inspectable recall
 - [ ] Webhook/event triggers (file-watch, HTTP inbox) alongside cron
-- [ ] Multi-step workflow templates (chained runs, hand-off artifacts)
+- [ ] Multi-step workflow templates (chained runs, hand-off artifacts) — *partly superseded*: dynamic workflows landed as saved, validated plans with bounded execution, verification and published artifacts (see `docs/workflows.md`); scheduling a workflow remains a separate, unimplemented action.
 - [ ] Pi/OpenCode adapters: match published RPC/CLI contracts; broker approvals and provider budgets; strict process containment
 - [~] Bounded same-bot `delegate_task` preview: Strict Offline and process-executor only, always human-approved, private child workspaces, task-text-only context, bounded depth/steps/time and inherited usage reservations. Parallel children, specialist selection, artifact transfer, cross-bot delegation and a plan UI are not implemented; see `realignment/delegation.md`.
 - [~] Browser tool: same-session human handoff is experimental on a local Linux desktop; HTTP(S)/WebSocket DNS-pinned egress has local Chromium fixture coverage. Live headed challenges, non-HTTP traffic, remote phone handoff and per-bot download directories remain

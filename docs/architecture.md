@@ -417,3 +417,52 @@ Worker approval admission commits the request and run wait together, draining pr
 events through the same ownership check. Failed admission rolls back both without losing
 the buffer. Expired execution cannot receive a new approval or standing grant; decisions still
 resolve once through compare-and-swap, and full-request rewrites are refused.
+
+## Dynamic workflows (schema v52)
+
+A workflow is a **saved, validated plan**, not generated code. The plan schema, the bounded
+evaluator and the compiler live in `src/hutch/workflow/`; `plan` is strict data, `expr`
+resolves references and conditions without `eval`, and `compile` lowers a plan to stable
+site ids, checked references, an envelope and a worst-case node count. Nothing in a plan can
+import, read a file or call a function by name.
+
+Identity is layered so that work can be continued without ever being replayed:
+
+```
+definition → immutable revision (plan_hash) → instance (wrun_…, stable across attempts)
+           → node instance (site_id, instance_key) → step attempt (an ordinary run)
+```
+
+`site_id` names the call site (`shape.then.pack`, `each.size`); `instance_key` names *this*
+invocation (`item:vendor-7`, `iter:2`). A repeated call site is therefore never one
+invocation, and a reordered collection produces the same keys because map identity comes
+from the declared `item_key`. A settled node record is reused; it is never re-executed. An
+orchestration attempt that crashes is continued by a **new** attempt that skips settled
+records - attempts themselves still never resume mid-flight (ADR-0003).
+
+Deterministic nodes (transforms, governed tool calls, joins, verification, publication,
+questions) run inside the orchestration process through the canonical `steps.call_tool`
+seam, so receipts, approvals, artifacts and transcripts are the ordinary ones. Model nodes
+become ordinary step runs executed by the existing worker/claim machinery with a frozen
+contract: an intersected tool allowlist, validated skill bindings, explicit limits and a
+model binding. `Engine._step_bot` re-checks that contract at start, so a Bot edited after
+admission cannot widen an old step.
+
+Capacity: an orchestration attempt and its steps form a **workflow lane** (`runs.kind` is
+`workflow`/`step`). The claim statement admits a Bot's workflow beside its interactive work
+and keeps one workflow per Bot; step runs share their attempt's global slot and are bounded
+by the workflow's own logical concurrency. `admission.py` is unchanged and remains the
+model-call limiter, so a waiting workflow node never holds an inference seat.
+
+Roles are gated by evidence, not by a model name: `workflow/qualify.py` resolves the same
+route identity the runtime records observations under (`route_identity.route_tuple`), so a
+changed connection, endpoint, protocol, template, quantization or backend invalidates a
+qualification automatically. Authoring and selection require probed evidence; worker and
+verifier roles use documented/advertised/observed evidence with recorded caveats; a
+negative state blocks the capability. The model-facing `draft_workflow` tool validates and
+explains but cannot start anything, and a guessed direct call is refused with its options.
+
+Routing (`workflow/routing.py`) is explainable and abstains by default: `off` never proposes
+or starts, `suggest` may describe a candidate route, and `auto` starts only inside the
+Bot's preauthorized definitions and budget caps. Recommendations come from task structure,
+never from message length or model family.

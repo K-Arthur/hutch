@@ -1,9 +1,10 @@
 # Dynamic workflows: reference audit, capability gates and design contract
 
-Status: design + reference audit landed 2026-10-11; implementation slices are tracked in
-[`ledger.md`](ledger.md). This file separates **verified** facts (read in source or fetched
-from a pinned revision today) from **unverified** claims, and records the decisions the
-implementation must satisfy.
+Status: **implemented (deterministic path verified end to end; model roles implemented and
+gated, not exercised against a live local checkpoint)**. User guide: [`docs/workflows.md`](../workflows.md).
+Evidence: [`artifacts/dynamic-workflows/`](artifacts/dynamic-workflows/) and the ledger entry.
+This file separates **verified** facts (read in source or fetched from a pinned revision)
+from **unverified** claims, and records the decisions the implementation must satisfy.
 
 ## 1. Reference identification
 
@@ -133,3 +134,33 @@ reset allowances. Every wait expires; every question/approval has a unique id.
 
 **Artifacts.** Published only through committed events on the workflow run; verified
 download/read-back.
+
+## 5. What landed, and what is actually verified
+
+| Area | State | Evidence |
+|---|---|---|
+| Plan schema, bounded evaluator, compiler | implemented, verified | `tests/test_workflow_plan.py` (18): identity, reference scope, envelope membership, nesting/cardinality expansion, fail-closed schema certification, strictness |
+| Role capability gate + durable evidence | implemented, verified (mechanism) | `tests/test_workflow_qualify.py` (14), `tests/test_workflow_api.py` qualification routes |
+| Durable execution: interpreter, step runs, continuation, lanes | implemented, verified | `tests/test_workflow_engine.py` (15): deterministic run, artifact publication + verified read-back, continuation reuse, loud caps, question waits, branch/map identity, stop semantics |
+| Submission gates (inputs, envelope-vs-Bot, local-only, role) | implemented, verified | `tests/test_workflow_engine.py`, `tests/test_workflow_api.py` |
+| Typed API + CLI | implemented, verified | `tests/test_workflow_api.py` (12); CLI exercised by the acceptance capture |
+| Routing policy Off/Suggest/Auto | implemented, verified (rules) | `tests/test_workflow_routing.py` (8) |
+| Model-facing authoring gate | implemented, verified (mechanism) | `tests/test_workflow_routing.py::test_authoring_tool_is_refused_without_probed_evidence` |
+| Acceptance: messy CSV → verified report | implemented, **verified end to end with the real CLI**, zero model calls | `tests/test_workflow_csv_acceptance.py` (2) + `artifacts/dynamic-workflows/validation.json` |
+| Model-authored plan on a live local route | **not verified** | no local model server on this host; the gate and refusal paths are tested, a passing probe was never recorded for a real checkpoint |
+| Planner/worker role split on one inference slot | **not verified live** | depends on the row above; admission is unchanged and shared |
+| Studio surface (plan preview, graph, inline questions) | **not implemented** | API/CLI only; UI is a later slice behind the design-research gate |
+| Amendment / replanning of a live instance | **partially implemented** | a new attempt continues an instance and reuses settled nodes; a plan *revision* diff + adoption of a changed revision is not implemented |
+| MCP facade | **not implemented** | Hutch has no MCP plane (ADR-0017 is proposed only) |
+
+### Residual uncertainty
+
+* No live local checkpoint was available, so "a qualified local planner coordinates a smaller
+  local worker" is implemented-but-unverified. Nothing here claims model planning competence.
+* The workflow lane changes the per-Bot single-instance rule deliberately (interactive work
+  and one workflow may overlap); the capacity tests cover the cap and branch rules, but a
+  long soak with a real model server is still needed before calling it proven under load.
+* A model-authored plan that is valid and well-bounded can still be a poor decomposition;
+  compilation establishes structure, not judgement. That is why authoring is gated on probed
+  evidence and why a person starts the reviewed plan.
+

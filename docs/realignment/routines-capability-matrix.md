@@ -20,7 +20,7 @@ Branch `routines/durable` worktree. Base `a2106ec`. Evidence from isolated pytes
 | Atomic claim (marker+row+run) | **implemented-and-verified** | durability duplicate/stale-marker tests |
 | Schedules UI run/skip/history/editor | **implemented-and-verified** | e2e `test_schedule_overview_*` + `test_multiple_scheduled_tasks_*` passed; artifacts under `docs/realignment/artifacts/schedules` and `scheduled-tasks` |
 | Delivery/digest notifications | **unsupported** | deferred; in-app run history only |
-| Multi-step workflow canvas | **unsupported** | out of smallest architecture |
+| Multi-step workflow canvas | **superseded** (2026-10-11) | the dynamic-workflows slice landed saved plans, bounded execution and the workflow API/CLI in a separate lane; see `dynamic-workflows.md`. This matrix covers the routines lane only, and no schedule may start a workflow in this revision. |
 | Overnight soak / live providers | **blocked** | no authorization for live accounts or overnight host soak |
 | Competing supervisor owners | **implemented-and-verified** (prior) | existing supervisor lease + occurrence PK; not re-soaked here |
 | Perf 100 routines due scan | **implemented-but-unverified** (loose bound) | `test_perf_due_claims_100_routines_budget` allows CI slack |

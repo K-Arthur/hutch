@@ -442,3 +442,35 @@ worker; no public destination or live model was contacted. The separately runnin
 service remains outside Hutch's worker boundary and may itself access the network. Hutch does not
 claim that a local model server or model label proves inference provenance. `GET /api/v1/capabilities`
 reports the current host result.
+
+## Dynamic workflow boundary
+
+A workflow is a saved, validated plan; Hutch never executes generated code, so there is no
+script sandbox to escape. The authority rules are the ordinary ones, applied earlier:
+
+* **A plan cannot widen a Bot.** At submission the compiler checks that every declared tool
+  and skill is inside the Bot's own allowlist, that every model resolves, and that a
+  `network: local_model_only` plan really has only local routes. A step run re-checks its
+  frozen contract when it starts, so a Bot edited after admission cannot silently widen an
+  old step.
+* **Roles are evidence, not names.** A model may perform a step only in a role qualified for
+  that exact route revision. Authoring and selection need probed evidence; a same-route
+  verifier is marked non-independent and can only advise, never certify. A negative evidence
+  state blocks the capability outright.
+* **Every effect goes through the same seams.** Tool calls use the canonical dispatcher with
+  intent/receipt bracketing; artifacts exist only as committed events with a recorded hash
+  and are re-hashed on read-back; approvals are bound to the actor, run, node, arguments and
+  expiry and are re-validated at effect time.
+* **Questions are not approvals.** An answer to a workflow question clarifies data. It never
+  authorizes a side effect, and an unanswered question is never treated as consent - it
+  expires and the plan's declared `on_fail`/timeout behaviour applies.
+* **Bounds cannot be reset.** Node instances, model calls, wall clock, fan-out and repair
+  rounds are root-level. A fan-out over more items than allowed fails loudly instead of
+  returning a partial view, and a crashed attempt is continued without re-executing any
+  settled node.
+* **Stop is real.** `hutch workflow stop` records a durable stop, cancels the owned attempt
+  tree (including step runs and their tools) and prevents any continuation from being
+  admitted.
+* **Auto is bounded.** `auto` starts only definitions and budgets the operator preauthorized
+  in Bot settings; anything outside that scope is refused with the reason, and consequential
+  actions inside the run still ask.
