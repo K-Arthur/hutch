@@ -709,9 +709,9 @@ def render_audio(manifest: SynthesisManifest, script: Script, *, engines: list[T
 
 
 def _next_kind_version(store, manifest_id: str, kind: str) -> int:
-    """Artifact versions are unique per (manifest, kind); re-renders never overwrite history."""
-    existing = store.list_synthesis_artifacts(manifest_id, kind=kind, limit=500)
-    return (max(int(a["version"]) for a in existing) + 1) if existing else 1
+    from .storage import next_kind_version
+
+    return next_kind_version(store, manifest_id, kind)
 
 
 # ---------------------------------------------------------------------------

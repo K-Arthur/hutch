@@ -66,13 +66,14 @@ Workspace actions (Docs brief, Sheets table, Drive placement, Calendar/reminder 
 | S0 | Lane plan, failure ledger, integration-base record | this file + research doc |
 | S1 | Manifest contract + ingestion + storage + schema v52 + tests | **implemented, local tests green** (48 tests: model 19, ingest 13, storage 11, +5 authoring) |
 | S2 | Two-host script authoring + TTS adapters + assembly + transcript/chapters | **implemented (protocol-verified vs fake servers); live provider calls unexecuted (no keys on this host)** |
-| S3 | Infographic renderer (deterministic SVG) + exports + accessible companion | planned |
+| S3 | Infographic renderer (deterministic SVG + PNG export + text companion; percentage-point guard) | **implemented, local tests green** (8 tests; rendered output visually inspected) |
 | S4 | Interactive join/answer/resume state machine + UI audio surface | planned (design gate first) |
 | S5a | Workspace request contracts (Docs tabs/revisions, Sheets RAW+append, Drive ids/uploads, Calendar events, reminder routing) | **implemented, local tests green** (17 tests, no I/O) |
 | S5b | Workspace OAuth transport + executors + action plan/effect orchestration | **implemented, local tests green** (10 plan-engine + 8 fake-Google transport tests; live Google unexecuted — no account) |
 | S5c | Tool layer: ingest_source, register_manifest, register_script, render_audio_overview, plan_workspace_action, run_workspace_plan | **implemented, local tests green** (8 tool tests; registered in groups `synthesis`/`workspace`, hidden in Strict Offline for the network tools) |
 | S5d | Calendar: relative reminders on create, conditional (`If-Match`) reminder updates, plan-step executors with grant checks | **implemented, local tests green** (6 client tests + 2 tool tests; live Google unexecuted) |
 | S5e | Connections API for the Workspace OAuth callback + hash-verified artifact download routes | **implemented, local tests green** (3 route tests; fake/local only) |
+| S6 | UI integration (source selector, audio player, infographic view, action drawer) | planned (design gate first) |
 | S6 | UI integration (source selector, coverage, format controls, action drawer) | planned (design gate first) |
 | S7 | Integrated acceptance, visual/audio evidence, independent verification | planned |
 

@@ -22,6 +22,7 @@ from .synthesis import (
     RegisterManifestTool,
     RegisterScriptTool,
     RenderAudioOverviewTool,
+    RenderInfographicTool,
 )
 from .workspace_actions import PlanWorkspaceActionTool, RunWorkspacePlanTool
 
@@ -44,6 +45,7 @@ _CATALOG: dict[str, type[Tool]] = {
     "register_manifest": RegisterManifestTool,
     "register_script": RegisterScriptTool,
     "render_audio_overview": RenderAudioOverviewTool,
+    "render_infographic": RenderInfographicTool,
     "plan_workspace_action": PlanWorkspaceActionTool,
     "run_workspace_plan": RunWorkspacePlanTool,
 }
@@ -55,7 +57,8 @@ GROUPS: dict[str, list[str]] = {
     "memory": ["remember", "recall"],
     "browser": ["browser"],
     "grounding": ["live_search", "inspect_media"],
-    "synthesis": ["ingest_source", "register_manifest", "register_script", "render_audio_overview"],
+    "synthesis": ["ingest_source", "register_manifest", "register_script",
+                  "render_audio_overview", "render_infographic"],
     "workspace": ["plan_workspace_action", "run_workspace_plan"],
 }
 

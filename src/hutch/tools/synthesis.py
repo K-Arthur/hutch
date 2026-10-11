@@ -13,9 +13,17 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from ..synthesis.authoring import ScriptRejected, authoring_prompt, parse_authored_script
+from ..synthesis.infographic import (
+    InfographicRenderError,
+    build_infographic_spec,
+    layout_spec,
+    render_png,
+    render_svg,
+    render_text_companion,
+)
 from ..synthesis.ingest import PaperEncryptedError, ingest_paper, ingest_thread
 from ..synthesis.model import (
     Claim,
@@ -24,7 +32,12 @@ from ..synthesis.model import (
     invalidate_outputs,
     spoken_text_problems,
 )
-from ..synthesis.storage import SynthesisStorage, SynthesisStorageError, new_artifact_id
+from ..synthesis.storage import (
+    SynthesisStorage,
+    SynthesisStorageError,
+    new_artifact_id,
+    next_kind_version,
+)
 from ..synthesis.tts import (
     GeminiTTSEngine,
     OpenAITTSEngine,
@@ -379,3 +392,83 @@ class RenderAudioOverviewTool(Tool):
                   "transcript_artifact_id": result.transcript_artifact_id,
                   "duration_ms": result.duration_ms, "sha256": result.audio_sha256,
                   "warnings": result.warnings})
+
+class RenderInfographicTool(Tool):
+    name = "render_infographic"
+    description = (
+        "Render a deterministic infographic panel (SVG source + optional PNG export) and a "
+        "plain-text companion from the registered manifest. Shows key findings with [S#] source "
+        "handles, numbers exactly as reported (percentage-point changes labeled as such), "
+        "limitations, and concise sources. Local rendering; no provider call.")
+    parameters = _obj(
+        ["manifest_id"],
+        {"manifest_id": {"type": "string"},
+         "width": {"type": "integer", "description": "Pixels; at least 480 (default 1080)"},
+         "height": {"type": "integer", "description": "Pixels; at least 400 (default 1600)"},
+         "include_png": {"type": "boolean", "description": "Raster export of the same layout (default true)"}},
+    )
+
+    def effect(self, args: dict[str, Any], ctx: ToolContext) -> str:
+        return "fs"
+
+    def run(self, args: dict[str, Any], ctx: ToolContext) -> ToolResult:
+        manifest_id = str(args.get("manifest_id", "")).strip()
+        row = ctx.store.get_synthesis_manifest(manifest_id) if manifest_id else None
+        if row is None:
+            return ToolResult(ok=False, output="error: no such manifest")
+        manifest = SynthesisManifest.model_validate(row["doc"])
+        spec = build_infographic_spec(manifest)
+        try:
+            layout = layout_spec(spec, width=int(args.get("width") or 1080),
+                                 height=int(args.get("height") or 1600))
+        except ValueError as exc:
+            return ToolResult(ok=False, output=f"error: {exc}")
+        svg = render_svg(layout, spec)
+        companion = render_text_companion(spec).encode("utf-8")
+        png: Optional[bytes] = None
+        raster_note = ""
+        if bool(args.get("include_png", True)):
+            try:
+                png = render_png(layout, spec)
+            except InfographicRenderError as exc:
+                raster_note = f" PNG export unavailable: {exc}."
+        storage = SynthesisStorage(ctx.config)
+        artifacts: dict[str, str] = {}
+        try:
+            def _store(kind: str, name: str, payload: bytes, meta: dict) -> str:
+                version = next_kind_version(ctx.store, manifest_id, kind)
+                artifact_id = new_artifact_id()
+                staged = storage.stage_bytes(kind, name, payload)
+                rel = storage.version_rel_path(manifest_id, kind, version, staged.sha256,
+                                               staged.storage_name)
+                storage.commit(staged, manifest_id, version,
+                               insert_row=lambda: ctx.store.record_synthesis_artifact(
+                                   artifact_id=artifact_id, manifest_id=manifest_id, kind=kind,
+                                   version=version, status="validated", storage_path=rel,
+                                   storage_name=staged.storage_name, mime=staged.mime,
+                                   bytes_=staged.bytes, sha256=staged.sha256, meta=meta))
+                artifacts[kind if kind != "infographic" else meta["variant"]] = artifact_id
+                return artifact_id
+
+            _store("infographic", f"infographic-{layout.width}x{layout.height}.svg", svg,
+                   {"variant": "svg", "width": layout.width, "height": layout.height,
+                    "manifest_revision": manifest.revision})
+            if png is not None:
+                _store("infographic", f"infographic-{layout.width}x{layout.height}.png", png,
+                       {"variant": "png", "width": layout.width, "height": layout.height,
+                        "manifest_revision": manifest.revision})
+            _store("companion", "infographic-companion.md", companion,
+                   {"variant": "text", "manifest_revision": manifest.revision})
+        except (SynthesisStorageError, ValueError) as exc:
+            return ToolResult(ok=False, output=f"error: {exc}")
+        sections = ", ".join(f"{s.kind} ({len(s.items)})" for s in spec.sections)
+        return ToolResult(ok=True, output=(
+            f"Infographic rendered at {layout.width}x{layout.height}: {sections}. "
+            f"SVG artifact {artifacts.get('svg', '')}"
+            + (f", PNG artifact {artifacts.get('png')}" if artifacts.get("png") else "")
+            + f", text companion {artifacts.get('text', '')}. "
+            "The SVG is the editable source; the PNG is a raster of the same layout."
+            + raster_note),
+            data={"manifest_id": manifest_id, "artifacts": artifacts,
+                  "width": layout.width, "height": layout.height,
+                  "source_handles": spec.source_handles})

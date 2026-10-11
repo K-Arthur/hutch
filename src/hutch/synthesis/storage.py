@@ -33,7 +33,8 @@ from typing import Callable, Optional
 from ..config import hutchConfig
 
 #: artifact kinds this store accepts; anything else is refused, never disguised
-SYNTHESIS_KINDS = ("script", "audio_segment", "audio_overview", "transcript", "infographic", "brief", "table")
+SYNTHESIS_KINDS = ("script", "audio_segment", "audio_overview", "transcript", "infographic",
+                   "brief", "table", "companion")
 
 MIME_BY_SUFFIX = {
     "wav": "audio/wav",
@@ -60,6 +61,7 @@ MAX_KIND_BYTES = {
     "script": 4_000_000,
     "brief": 16_000_000,
     "table": 16_000_000,
+    "companion": 4_000_000,
 }
 MAX_RUN_SYNTHESIS_BYTES = 512_000_000
 
@@ -102,6 +104,12 @@ def sanitize_storage_name(display_name: str, suffix: str) -> str:
 def mime_for(name: str) -> str:
     suffix = name.rsplit(".", 1)[-1].lower() if "." in name else ""
     return MIME_BY_SUFFIX.get(suffix, "application/octet-stream")
+
+
+def next_kind_version(store, manifest_id: str, kind: str) -> int:
+    """Artifact versions are unique per (manifest, kind); re-renders never overwrite history."""
+    existing = store.list_synthesis_artifacts(manifest_id, kind=kind, limit=500)
+    return (max(int(a["version"]) for a in existing) + 1) if existing else 1
 
 
 def _fsync_dir(path: Path) -> None:
