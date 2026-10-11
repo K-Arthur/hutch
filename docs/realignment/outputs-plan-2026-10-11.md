@@ -16,38 +16,49 @@ chart, table, receipt, media viewer, artifact card). Integration branch: `output
 * Test runs use private state dirs (`tests/support` helpers), never the operator's
   `~/.hutch`; kernel tests are skipped when `sandbox.status().ok` is false.
 
+## Integration record (2026-10-11, second session)
+
+The first integration session's uncommitted tree was salvaged by a concurrent lane into
+`outputs/unified-stray-wip` (09e9645) and the worktree was cleaned. The fleet's three
+lane branches were then complete/committed; this session integrated them:
+
+| Lane | Branch / commit | Integrated state |
+|---|---|---|
+| Typed blocks + schema v51 | `0fb87c2` (base) | as committed; 61 tests green |
+| Media (store, jobs, providers, renders, tools, router) | `outputs-media` 214e0c1, 2f307f9 | merged; router mounted in `create_app`; `create_media`/`render_diagram` registered; **range support added** to the content route (video seek) |
+| Widgets (renderers + uPlot 1.6.32 + app.js hook) | `outputs-widgets` f9addcc, a553fcb, 2ea6648 | merged as committed |
+| Workspace (contained kernel, `run_python`, `reset_workspace`, router) | `outputs-workspace` (uncommitted at copy time; tests green at 02:13) | sources + tests copied with attribution; tools registered; router mounted |
+| Integration glue + tests | this branch | `tests/test_outputs_integration.py` (7 tests: catalog, mounts, real diagram render + verified serving + range, fail-closed, real sandboxed run_python with state persistence) |
+
+The first session's parallel implementation of the same three areas (complete, 1886-test
+green) is preserved on `outputs/unified-stray-wip`; the fleet's lane implementations won
+integration because they were the concurrent workstream's committed design. Its design
+research (`outputs-widgets-design-research-2026-10-11.md`) supplied the approved
+widget direction.
+
 ## Slices and status
 
 | Slice | Files (owner) | State |
 |---|---|---|
 | Typed output blocks v1 + schema v51 | `outputblocks.py`, `store.py`, fixtures, tests (done @ c69fd9c) | implemented-and-verified (61 tests green) |
-| Contained Python workspace | `workspace/`, `tools/workspace.py`, `sandbox.workspace_argv` (unified) | in progress |
-| Media store + job service + renderers | `media/`, `tools/media.py`, routes (unified) | planned |
-| Interactive widget renderers | `static/blocks.js`, `static/blocks.css`, `app.js` hook, tests | planned (design gate first) |
-| Uploads intake | route + composer (unified, last) | planned |
-| Evidence + docs + packaging | docs, capture scripts, CHANGELOG | planned |
+| Media pipeline | `media/`, `tools/media.py`, routes (media lane) | merged; lane tests + integration tests green; live provider gate unverified (no configured backend) |
+| Contained Python workspace | `workspace/`, `tools/python_exec.py`, routes (workspace lane) | merged; 85 lane tests + real sandbox integration test green |
+| Interactive widget renderers | `static/widgets.js`, `static/widgets.css`, `app.js` hook, tests (widgets lane) | merged; static tests green; visual verification pending |
+| Integration | `tools/__init__.py`, `server/app.py`, `tests/test_outputs_integration.py` | done on this branch |
+| Evidence + docs + packaging | docs, capture scripts, CHANGELOG | pending |
 
 ## Frozen interfaces (this session)
 
 1. **Blocks**: unchanged from `outputs-block-contract-2026-10-10.md`. Tools put raw dicts on
    `ToolResult.data["blocks"]`; `call_tool` validates once.
-2. **Kernel protocol v1** (JSON lines, stdin/stdout; child is stdlib-only CPython):
-   host→child `{"v":1,"op":"execute","id":<str>,"code":<str>}`, `{"op":"ping"}`,
-   `{"op":"shutdown"}`; child→host events `ready|started|stdout|stderr|display|result|error|done|pong`
-   with the request `id`. `display` payloads are block dicts (validated host-side).
-   Interrupt: SIGINT to the process group; confirmation = a terminal `done` with
-   `status:"interrupted"`; otherwise the kernel is killed, generation bumps, state loss is
-   reported.
-3. **Sessions**: one kernel per (conversation_id, generation) in
-   `state_dir/workspace-sessions/<conversation_id>/gen-<N>/`; `inputs/` is mounted
-   read-only; `out/` is scanned and promoted to the media store after each run.
-   `workspace_sessions` rows (v51) record generation/status/fingerprint/dir.
-4. **Blob access**: every produced asset is a `media_assets` row (migration v52) served by
-   `/api/v1/media/{id}/v{version}/content`, hash-verified at serve time, scoped by
-   conversation; blocks reference `media_id` + `version` only.
-5. **Deterministic vs provider**: `generated_by` is `deterministic` or `provider`. A
-   deterministic figure/animation never claims to be a provider result; a provider job is
-   only `succeeded` after verified bytes are stored.
+2. **Kernel protocol v1**: the workspace lane's `workspace/protocol.py` is authoritative
+   (JSON-lines over stdio; state per generation; fail-closed without containment).
+3. **Sessions**: `workspace_sessions` rows (v51) are the durable identity; one kernel per
+   conversation; generations bump on reset/cold start.
+4. **Blob access**: media versions are content-addressed with a per-version manifest; the
+   serving router re-verifies size+SHA-256 and now supports verified single ranges.
+5. **Deterministic vs provider**: `generated_by` distinguishes deterministic renders from
+   provider results; a provider job succeeds only with verified stored bytes.
 
 ## Budgets (initial, local reference machine; measure, then revise)
 

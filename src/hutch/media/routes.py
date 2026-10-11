@@ -61,11 +61,26 @@ def build_media_router(store: Any, media_store: MediaStorage) -> APIRouter:
             "ETag": etag,
             "X-Content-Type-Options": "nosniff",
             "X-Hutch-Artifact-Verified": "sha256",
+            "Accept-Ranges": "bytes",
         }
         if request.headers.get("if-none-match") == etag:
             return Response(status_code=304, headers=headers)
         filename = str(manifest.get("storage_name") or "media")
         headers["Content-Disposition"] = f'inline; filename="{filename}"'
+        # Verified single-range support, so media elements can seek without downloading
+        # the whole asset (video/audio). Multi-range falls back to a full 200; an
+        # unsatisfiable range is an honest 416. Bytes were hash-verified above, so a
+        # range slice cannot bypass verification.
+        match = re.fullmatch(r"bytes=(\d+)-(\d*)", request.headers.get("range", "").strip())
+        if match:
+            start = int(match.group(1))
+            end = int(match.group(2)) if match.group(2) else len(data) - 1
+            if start >= len(data) or end < start:
+                raise HTTPException(416, "requested range not satisfiable")
+            end = min(end, len(data) - 1)
+            headers["Content-Range"] = f"bytes {start}-{end}/{len(data)}"
+            return Response(content=data[start:end + 1], status_code=206,
+                            media_type=str(manifest["mime"]), headers=headers)
         return Response(content=data, media_type=str(manifest["mime"]), headers=headers)
 
     @router.get("/api/v1/media/{media_id}/versions/{version}/poster")

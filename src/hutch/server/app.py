@@ -4126,6 +4126,29 @@ def create_app() -> FastAPI:
             bot_id=str(doc["bot_id"]), conversation_id=str(doc.get("conversation_id") or ""),
             version=_document_version_resource(str(doc["id"]), version_row))
 
+    # ---------------------------------------------------------------- media
+
+    from ..media import MediaStorage
+    from ..media.routes import build_media_router
+    # Media bytes are served by the media lane's router: hash re-verified against the
+    # version manifest at serve time, correct MIME, ETag. The route inventory loop at
+    # the end of create_app defaults both GETs to local-owner-only, matching the
+    # document routes (paired phones do not receive media bytes).
+    app.include_router(build_media_router(store, MediaStorage(config)))
+
+    # ---------------------------------------------------------------- workspace
+
+    from ..workspace.manager import manager_for_conversation
+    from ..workspace.routes import build_workspace_router
+
+    def _workspace_manager(conversation_id: str):
+        return manager_for_conversation(store, conversation_id, config.state_dir)
+
+    # Session status and explicit reset for the conversation workspace. Like media and
+    # documents, these paths stay local-owner-only (the inventory loop defaults them to
+    # None for paired phones).
+    app.include_router(build_workspace_router(store, _workspace_manager))
+
     def _document_or_404(doc_id: str) -> tuple[dict[str, Any], DocumentStorage]:
         if not _DOCUMENT_ID_RE.fullmatch(doc_id):
             raise HTTPException(404, "no such document")
