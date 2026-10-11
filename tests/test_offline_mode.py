@@ -148,6 +148,21 @@ def test_offline_worker_scope_has_full_namespaces_and_uses_a_private_broker_moun
     assert "--share-net" not in prefix
 
 
+def test_offline_broker_uses_configured_private_temp_root(tmp_path, monkeypatch):
+    import stat
+    import tempfile
+
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    monkeypatch.setattr(tempfile, "tempdir", None)
+    brokers = OfflineBrokerSet([])
+    try:
+        directory = Path(brokers.directory)
+        assert directory.parent == tmp_path
+        assert stat.S_IMODE(directory.stat().st_mode) == 0o700
+    finally:
+        brokers.close()
+
+
 def test_loopback_http_provider_uses_broker_from_network_isolated_worker(tmp_path, monkeypatch):
     import os
     import subprocess

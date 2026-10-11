@@ -307,7 +307,10 @@ class OfflineBrokerSet:
     """Run-scoped broker sockets for every local fallback/escalation endpoint."""
 
     def __init__(self, endpoints: Iterable[str]):
-        self._temp = tempfile.TemporaryDirectory(prefix="hutch-o-", dir="/tmp")
+        # Respect the process's configured temporary root. Besides making broker
+        # placement testable, this avoids forcing every private socket onto /tmp
+        # when an operator has selected a separate temporary filesystem.
+        self._temp = tempfile.TemporaryDirectory(prefix="hutch-o-")
         os.chmod(self._temp.name, 0o700)
         self.brokers = []
         self.directory = self._temp.name

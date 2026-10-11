@@ -258,10 +258,14 @@ fixed and passed targeted checks: missing-conversation policy fallback, atomic q
 publication, amendment comparison text caught by the emoji audit, and an undefined recommendation
 text token. The snapshot test fixture was corrected to mark its provider request started before it
 expects an uncertain reservation; tests/test_state_snapshot.py then passed all 10 tests. Three
-offline-worker tests failed with explicit ENOSPC under the already-full shared /tmp tmpfs. A
-fourth process-executor test failed before dispatch in the same run and remains unclassified until
-it can be repeated with temporary storage available. The earlier complete pytest -q invocation
-was interrupted at 33% after /tmp was full and is not counted as a completed suite.
+offline-worker tests failed with explicit ENOSPC under the already-full shared `/tmp` tmpfs, and a
+process-executor case failed before dispatch. `OfflineBrokerSet` had forced its private socket
+directory into `/tmp`, ignoring the configured temporary root. The temporary-root fix removes
+that override while retaining the 0700 private directory; the configured-root regression and all
+of `tests/test_offline_mode.py` then passed (37 tests) with `TMPDIR=/var/tmp`. The broad suite has
+not been rerun, so these focused passes do not upgrade its aggregate result. The earlier complete
+pytest invocation was interrupted at 33% after `/tmp` was full and is not counted as a completed
+suite.
 
 The amendment browser journey passed against a real SQLite store and supervisor at 1440, 768, 360
 and 320 CSS pixels. Opened screenshots show the candidate diff, the full pending-question
