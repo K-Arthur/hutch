@@ -4178,9 +4178,10 @@ What landed (commits `0b6f519`, `e1751b8`, `f3c3209` on `workflow/dynamic`):
 * **Typed API and CLI**: `/api/v1/workflows/*` (owner-only) and
   `hutch workflow list/show/validate/save/export/run/submit/status/stop/answer/qualify`.
 
-Verification boundary: **69 focused workflow tests** pass (`test_workflow_plan.py` 18,
-`test_workflow_qualify.py` 14, `test_workflow_engine.py` 15, `test_workflow_api.py` 12,
-`test_workflow_routing.py` 8, `test_workflow_csv_acceptance.py` 2), and the regression
+Verification boundary: **74 focused workflow tests** pass (`test_workflow_plan.py` 18,
+`test_workflow_qualify.py` 14, `test_workflow_engine.py` 15, `test_workflow_api.py` 11,
+`test_workflow_routing.py` 9, `test_workflow_csv_acceptance.py` 2, `test_workflow_steps.py` 4),
+and the regression
 subsets that touch the changed seams pass (engine/store/claims/cancel/delegation/approvals/
 API/lifecycle/receipts/action-intents: **270 passed**; remote-pairing route inventory: **35
 passed**). The acceptance capture (`docs/realignment/capture_workflow_acceptance.py`) ran the
