@@ -110,6 +110,17 @@ Not yet verified visually: video/audio media kinds (no provider backend configur
 deterministic lane produces SVG animations), the isolated rich-view path (not implemented),
 and a physical phone (viewport emulation only).
 
+## Final verification (2026-10-11, integration branch `outputs/unified`)
+
+* Full non-e2e suite on the integrated tree: **2072 passed, 2 skipped** (550 s,
+  `pytest tests -q --ignore=tests/e2e`).
+* Focused browser e2e (real Chromium via Playwright): `tests/e2e/test_design_system.py`
+  plus `test_browser.py::test_dashboard_polish_keeps_work_feedback_steady_and_headings_readable`
+  — **10 passed** (121 s).
+* Lane test totals: workspace 85, media 137 (with widgets static), integration 7.
+* The whole non-e2e suite was also green (1886) on the pre-integration foundation, so the
+  integration added no regressions to existing behavior.
+
 ## Frozen interfaces (this session)
 
 1. **Blocks**: unchanged from `outputs-block-contract-2026-10-10.md`. Tools put raw dicts on
