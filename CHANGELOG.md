@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Align settings disclosures on one shared row skeleton: peer rows on the Apps & AI screen and in assistant settings now share left edges, copy sizes, and a Show/Hide action axis, Outlook event creation and Outlook Mail sending sit beside the access they relate to instead of nested inside it (no disclosure inside a disclosure), and layout-bearing inline styles and one-off paddings move onto the spacing scale. A rendered geometry test fails when the axes drift again.
+- Resolve undefined Studio CSS tokens: radius, surface, and well references that computed to nothing (square corners on provider choices, task cards, and setup choices; cleared card backgrounds) now use the documented scale tokens, and a stylesheet guard fails when any fallback-less `var()` reference stops resolving.
+- Recapture the marketing proof screenshot so the public "Real application" section shows the current welcome screen (OpenAI mark and current roster copy) instead of the retired sparkle glyph.
 - Streamline model-provider setup: connect OpenAI API, Anthropic API, or OpenRouter with one provider-specific API key, then discover current model IDs without an inference call. Keep plan sign-in separate, use a collapsed advanced endpoint section, and bundle sourced provider marks locally. Model catalogs and prices remain live/provider-reported, and catalog visibility does not claim tool compatibility.
 - Make advanced assistant usage controls quieter: show work steps and time per task in a short summary, keep token and cost estimates behind an explicit disclosure, and accept minutes in the UI while preserving the seconds-based configuration.
 - Tighten chat reply references: discard template indentation instead of rendering it as empty quoted space, and rely on the visible message for ordinary send confirmation so phone toasts no longer cover the composer. Keep notices for rehearsals and queued work.
