@@ -19,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import copy
 import json
+import os
 import time
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
@@ -29,7 +30,7 @@ from ..admission import AdmissionCancelled, AdmissionError, inference_slot
 from ..context import check_prompt, plan_context, prompt_tokens as estimate_prompt_tokens, run_selfcheck
 from ..hardware import Hardware, probe
 from ..models import Event, EventType, Run, RunStatus
-from ..providers import ChatRequest, Provider, ProviderError
+from ..providers import ChatRequest, Provider, ProviderError, ToolCall
 from ..providers.base import ModelMeta
 from ..providers.pricing import PriceBook
 from ..store import UsageBudgetRefusal
@@ -39,9 +40,13 @@ from .base import RunAborted
 from ..connections import ConnectionBook
 from ..health import record_outcome
 from ..providers.connection import provider_for_connection
+from ..toolcalling.compiler import ToolProtocolUnavailable, compile_plan, plan_event
+from ..toolcalling.envelope import decode_action, looks_like_envelope
+from ..toolcalling.profiles import ModelCapabilityProfile, resolve_profile
 from .ladder import Ladder, Rung, SpendGuard, get_provider
 from .steps import StepTimer, call_tool, finish_step
 from .toolrepair import LoopDetector, coerce_args, repair_instruction, unknown_tool_message, validate_args
+from ..toolcalling.validate import required_fields
 
 SYSTEM_TEMPLATE = """You are {name}, a bot running on hutch - a local, human-supervised agent platform.
 
@@ -84,6 +89,7 @@ DEFAULT_LOCAL_TURN_TOKENS = 2048     # SR-5: a small model rambling for 30k toke
 DEFAULT_HOSTED_TURN_TOKENS = 16000   # hosted models think inside max_tokens; a low cap truncates mid-thought
 DEFAULT_WANT_CTX = 16384
 MAX_MALFORMED_STREAK = 4             # without an escalation target, give up after this many bad turns
+MAX_CONTRACT_REPAIRS = 4            # bounded correction attempts for hutch-action contract violations
 RATE_LIMIT_PAUSE_MAX = 30.0
 
 
@@ -440,6 +446,28 @@ class BuiltinRuntime:
                 return self._switch(ctx, run, ladder, guard, nxt, str(exc), "fallback", messages, specs, est_prompt)
         return None
 
+    def _resolve_tool_profile(self, ctx: ToolContext, ladder: Ladder, rung: Rung) -> ModelCapabilityProfile:
+        """Resolve the exact route's tool-calling profile; passive observations are inputs, not authority."""
+        book = self._connections(ctx)
+        conn = book.get(rung.provider)
+        endpoint = ""
+        if conn is not None:
+            try:
+                _protocol, endpoint = conn.endpoint_for(rung.model)
+            except Exception:
+                endpoint = ""
+        else:
+            endpoint = ladder.base_url_for(rung) or ""
+            if rung.provider == "ollama":
+                endpoint = endpoint or os.environ.get("OLLAMA_HOST") or ""
+        observations: list[dict] = []
+        try:
+            observations = list(ctx.store.list_model_capability_observations(limit=20))
+        except Exception:
+            observations = []
+        return resolve_profile(provider=rung.provider, endpoint=endpoint, model=rung.model,
+                               observations=observations)
+
     # ---------------------------------------------------------------- startup
 
     def _start(self, ctx, run, ladder: Ladder, guard: SpendGuard, messages, specs, stop, est_prompt: int) -> Session:
@@ -548,14 +576,48 @@ class BuiltinRuntime:
         ladder = Ladder(bot)
         prices = self._prices_for(ctx)
         guard = SpendGuard(ctx.store, bot, run, prices, self._connections(ctx))
+        requested = "disabled" if run.tool_access == "none" else (getattr(bot, "tool_protocol", "auto") or "auto")
+        profile = self._resolve_tool_profile(ctx, ladder, ladder.primary)
+        try:
+            plan = compile_plan(tools=tools, profile=profile, strategy=requested)
+        except ToolProtocolUnavailable as exc:
+            raise RunAborted("tool_protocol", str(exc)) from exc
+        self._log(ctx, run, "tool_protocol",
+                  f"tools: {plan.strategy} over {plan.protocol} ({profile.key}); "
+                  f"{len(plan.tools)} tool(s), validator {plan.validator}",
+                  **plan_event(plan, profile))
+        for diag in plan.diagnostics:
+            if diag.severity != "info":
+                self._log(ctx, run, "tool_protocol", f"{diag.code}: {diag.detail}",
+                          severity=diag.severity, tool=diag.tool, field=diag.field)
         system = self._system_prompt(ctx) + ctx.store.action_context(run.id)
         if run.tool_access == "none":
             system += DRAFT_ONLY_GUIDANCE
-        specs = [tools[n].spec() for n in sorted(tools)]             # PF-1 / PF-3: frozen, deterministic, allowed only
+        if plan.prompt_contract:
+            system += "\n\n" + plan.prompt_contract
+        specs = list(plan.wire_tools)                                # PF-1 / PF-3: frozen, deterministic, allowed only
+        envelope_mode = plan.strategy in ("constrained", "prompt")
+        contract_repairs = 0
         prefix_hash = hashlib.sha256((system + json.dumps(specs, sort_keys=True)).encode()).hexdigest()[:12]
         messages: list[dict[str, Any]] = [{"role": "system", "content": system},
                                           *run.conversation_context,
                                           {"role": "user", "content": run.prompt}]
+
+        def append_tool_result(call_name: str, call_id: str, content: str) -> None:
+            """Add one result in the shape the active protocol replays.
+
+            Native mode answers into the provider's own tool/result association. Envelope
+            modes were given no native tool protocol, so the result travels as a bounded
+            ``<tool_result>`` block in a user message; the contract tells the model to treat
+            it as untrusted data, and the block is never parsed for calls.
+            """
+            if envelope_mode:
+                bounded = content if len(content) <= 60_000 else content[:60_000] + "\n… [result clipped for the model]"
+                messages.append({"role": "user",
+                                 "content": f'<tool_result tool="{call_name}">\n{bounded}\n</tool_result>'})
+            else:
+                messages.append({"role": "tool", "tool_call_id": call_id, "name": call_name, "content": content})
+
         mt, tt = estimate_prompt_tokens(messages, specs)
         est_prompt = mt + tt
         run.model_used = ladder.primary.spec
@@ -661,6 +723,59 @@ class BuiltinRuntime:
                         cost_usd=cost or 0.0, account_id=account_id, reservation_id=reservation_id,
                         prefix=prefix_hash, window=session.num_ctx or 0,
                         finish=result.finish_reason, streamed=result.streamed, **extra)
+            # ---- envelope modes (constrained/prompt): the reply is a contract action, never free text
+            if envelope_mode:
+                if result.tool_calls:
+                    contract_repairs += 1
+                    note = ("the model used the native tool protocol in a turn that uses the hutch-action contract; "
+                            "no call was run")
+                    self._log(ctx, run, "tool_protocol", note, ok=False)
+                    messages.append({"role": "assistant", "content": result.content or ""})
+                    for tc in result.tool_calls:
+                        ctx.emit(Event(run_id=run.id, type=EventType.tool_call,
+                                       data={"tool": tc.name, "args": {"rejected": True}}))
+                        ctx.emit(Event(run_id=run.id, type=EventType.tool_result,
+                                       data={"tool": tc.name, "ok": False, "output": f"rejected: {note}"}))
+                    if contract_repairs > MAX_CONTRACT_REPAIRS:
+                        raise RunAborted("tool_protocol",
+                                         "the model kept sending native tool calls in hutch-action mode; "
+                                         "no call was executed. Choose native mode for this route or use a model "
+                                         "that follows the action contract")
+                    messages.append({"role": "user", "content": "[tool-contract] " + note +
+                                     " Reply with exactly one JSON object in the contract form."})
+                    continue
+                candidate = decode_action(result.content or "", aliases=plan.aliases,
+                                          canonical_names=[d.name for d in plan.tools])
+                if candidate.kind == "invalid":
+                    contract_repairs += 1
+                    self._log(ctx, run, "tool_protocol", f"contract violation: {candidate.error}", ok=False)
+                    if contract_repairs > MAX_CONTRACT_REPAIRS:
+                        raise RunAborted("tool_protocol",
+                                         f"the model produced {contract_repairs} invalid hutch-action messages; "
+                                         f"last error: {candidate.error}")
+                    messages.append({"role": "assistant", "content": result.content or ""})
+                    messages.append({"role": "user", "content": "[tool-contract] " + candidate.error +
+                                     " Reply again with exactly one JSON object in the contract form."})
+                    continue
+                if candidate.kind == "call":
+                    result.tool_calls = [ToolCall(id="", name=candidate.tool,
+                                                  arguments=dict(candidate.arguments),
+                                                  raw=candidate.raw_arguments, arguments_state="json_object")]
+                    self._log(ctx, run, "tool_protocol", f"contract action: call {candidate.tool}",
+                              tool=candidate.tool)
+                else:
+                    final = candidate.content if candidate.kind == "final" else (result.content or "")
+                    ctx.emit(Event(run_id=run.id, type=EventType.message,
+                                   data={"role": "assistant", "content": final}))
+                    return final
+
+            # ---- call identity: providers may omit ids (llama.cpp's documented shape) or reuse
+            # one within a response. Results must correlate exactly, so Hutch assigns a
+            # deterministic id where missing; a response that reuses an id is rejected as a
+            # unit below instead of executing half-correlated calls.
+            protocol_problems: dict[str, str] = {}
+            if result.tool_calls:
+                protocol_problems = _normalize_call_ids(run, result.tool_calls)
             if run.tool_access == "none" and result.tool_calls:
                 self._log(ctx, run, "tool_access", "review-only draft run refused a provider tool call; no tool was executed")
                 raise RunAborted("tool_access", "This tool-free review-only run cannot execute tool calls. No action was taken.")
@@ -680,9 +795,14 @@ class BuiltinRuntime:
                 session = nxt
                 continue
 
-            # ---- final answer
+            # ---- final answer (native mode)
             if not result.tool_calls:
                 final = result.content or ""
+                if looks_like_envelope(final) is not None:
+                    self._log(ctx, run, "tool_protocol",
+                              "the model wrote a hutch-action-shaped object as ordinary text; it was NOT executed "
+                              "(native mode expects provider tool calls). If this repeats, choose the prompt tool "
+                              "protocol for this Bot explicitly.", ok=False)
                 ctx.emit(Event(run_id=run.id, type=EventType.message, data={"role": "assistant", "content": final}))
                 return final
 
@@ -714,63 +834,80 @@ class BuiltinRuntime:
                                    data={"tool": tc.name, "args": recorded}))
                     ctx.emit(Event(run_id=run.id, type=EventType.tool_result,
                                    data={"tool": tc.name, "ok": False, "output": note}))
-                    messages.append({"role": "tool", "tool_call_id": tc.id, "name": tc.name, "content": note})
+                    append_tool_result(tc.name, tc.id, note)
                 continue
 
-            messages.append({"role": "assistant", "content": result.content or "", "tool_calls": [
-                {"id": tc.id, "type": "function",
-                 "function": {"name": tc.name,
-                              "arguments": tc.raw if (tc.parse_error and tc.raw) else json.dumps(tc.arguments)}}
-                for tc in result.tool_calls]})
+            if envelope_mode:
+                messages.append({"role": "assistant", "content": result.content or ""})
+            else:
+                messages.append({"role": "assistant", "content": result.content or "", "tool_calls": [
+                    {"id": tc.id, "type": "function",
+                     "function": {"name": tc.name,
+                                  "arguments": tc.raw if (tc.parse_error and tc.raw) else json.dumps(tc.arguments)}}
+                    for tc in result.tool_calls]})
             turn_bad = loop_hit = False
             for tc in result.tool_calls:
-                tool = tools.get(tc.name)
+                definition = plan.resolve_name(tc.name) if plan is not None else None
+                canonical_name = definition.name if definition is not None else tc.name
+                tool = tools.get(canonical_name)
                 args, problems = tc.arguments, []
-                if tool is None:
+                if tc.id in protocol_problems:
+                    problems = [protocol_problems[tc.id]]
+                    self._log(ctx, run, "tool_protocol", problems[0], ok=False, tool=canonical_name)
+                elif not tc.name:
+                    problems = ["the call arrived without a tool name; nothing was run"]
+                elif tool is None:
                     problems = [unknown_tool_message(tc.name, list(tools))]
                 elif tc.parse_error:
                     problems = [tc.parse_error]
+                elif tc.arguments_state == "empty" and required_fields(tool.parameters):
+                    problems = [f"the call to `{canonical_name}` arrived without any arguments; it must include: "
+                                f"{', '.join(required_fields(tool.parameters))}"]
                 else:
+                    if tc.double_decoded:
+                        self._log(ctx, run, "repair",
+                                  f"{canonical_name}: arguments were a double-encoded JSON string; decoded one level")
                     args, changed = coerce_args(tool.parameters, args)
                     if changed:
-                        self._log(ctx, run, "repair", f"repaired {tc.name} arguments ({'; '.join(changed)})")
+                        self._log(ctx, run, "repair", f"repaired {canonical_name} arguments ({'; '.join(changed)})")
                     problems = validate_args(tool.parameters, args)
                 if problems:
                     turn_bad = True
-                    msg = problems[0] if tool is None else repair_instruction(tc.name, problems, tool.parameters)
-                    ctx.emit(Event(run_id=run.id, type=EventType.tool_call, data={"tool": tc.name, "args": args}))
+                    msg = problems[0] if tool is None else repair_instruction(canonical_name, problems, tool.parameters)
+                    ctx.emit(Event(run_id=run.id, type=EventType.tool_call,
+                                   data={"tool": canonical_name, "args": args}))
                     ctx.emit(Event(run_id=run.id, type=EventType.tool_result,
-                                   data={"tool": tc.name, "ok": False, "output": f"rejected: {msg}"}))
-                    self._log(ctx, run, "repair", f"malformed call to {tc.name}: {'; '.join(problems)}")
-                    messages.append({"role": "tool", "tool_call_id": tc.id, "name": tc.name, "content": msg})
+                                   data={"tool": canonical_name, "ok": False, "output": f"rejected: {msg}"}))
+                    self._log(ctx, run, "repair", f"malformed call to {canonical_name}: {'; '.join(problems)}")
+                    append_tool_result(canonical_name, tc.id, msg)
                     continue
                 if run.fence and run.status is RunStatus.running:
                     route_revision = hashlib.sha256(json.dumps(route, sort_keys=True, separators=(",", ":"),
                                                           default=str).encode()).hexdigest()
                     ctx.store.record_model_capability_observation(
                         run, provider=str(route[0]), account_id=str(route[1]), model=session.rung.model,
-                        route_revision=route_revision, capability="function_tool_calls", source_tool=tc.name)
-                if loop.check(tc.name, args):
+                        route_revision=route_revision, capability="function_tool_calls", source_tool=canonical_name)
+                if loop.check(canonical_name, args):
                     loop_hit = True
                     loop_strikes += 1
-                    note = (f"You have made this exact call to `{tc.name}` repeatedly. It was NOT run again. "
+                    note = (f"You have made this exact call to `{canonical_name}` repeatedly. It was NOT run again. "
                             "Use what you already have, try a different approach, or finish and report what blocked you.")
-                    ctx.emit(Event(run_id=run.id, type=EventType.tool_call, data={"tool": tc.name, "args": args}))
+                    ctx.emit(Event(run_id=run.id, type=EventType.tool_call,
+                                   data={"tool": canonical_name, "args": args}))
                     ctx.emit(Event(run_id=run.id, type=EventType.tool_result,
-                                   data={"tool": tc.name, "ok": False, "output": note}))
-                    self._log(ctx, run, "loop", f"loop detected: {tc.name} called with identical arguments 3 times "
-                                                "(not executed again)", tool=tc.name)
-                    messages.append({"role": "tool", "tool_call_id": tc.id, "name": tc.name, "content": note})
+                                   data={"tool": canonical_name, "ok": False, "output": note}))
+                    self._log(ctx, run, "loop", f"loop detected: {canonical_name} called with identical arguments 3 times "
+                                                "(not executed again)", tool=canonical_name)
+                    append_tool_result(canonical_name, tc.id, note)
                     continue
                 if stop():
                     raise RunAborted("stopped", "user requested stop")
                 tool_timer = StepTimer()
-                res = call_tool(run, ctx, tools, tc.name, args, tool_timer)
+                res = call_tool(run, ctx, tools, canonical_name, args, tool_timer)
                 run.tool_ms += tool_timer.tool_ms
                 if res.data.get("question_pending"):
                     return ""
-                messages.append({"role": "tool", "tool_call_id": tc.id, "name": tc.name,
-                                 "content": res.output or "(empty)"})
+                append_tool_result(canonical_name, tc.id, res.output or "(empty)")
 
             malformed_streak = malformed_streak + 1 if turn_bad else 0
             if loop_hit and loop_strikes >= 2:
@@ -798,6 +935,31 @@ def _exit_reason(exc: ProviderError) -> str:
     if getattr(exc, "cost_cap", False):
         return "cost_cap"
     return {"context": "context", "refused": "refused"}.get(exc.kind, "error")
+
+
+def _normalize_call_ids(run: Run, calls: list) -> dict[str, str]:
+    """Assign deterministic ids to calls a provider left unidentified, and report id reuse.
+
+    Providers differ: llama.cpp's documented shape omits call ids entirely, and vLLM #47734
+    showed Mistral ids can violate a template's expectations until the server-side fix landed.
+    Hutch's correlation therefore cannot depend on the provider's id discipline. A response
+    that numbers two calls alike is rejected as a unit - a result could otherwise be attached
+    to the wrong call - and the response is re-identified so the replayed history stays valid.
+    """
+    prefix = run.id.removeprefix("run_")[:8]
+    counts: dict[str, int] = {}
+    for tc in calls:
+        if not tc.id:
+            tc.id = f"call_{prefix}_{run.steps}_{len(counts) + 1}"
+        counts[tc.id] = counts.get(tc.id, 0) + 1
+    duplicates = {cid for cid, count in counts.items() if count > 1}
+    if not duplicates:
+        return {}
+    for index, tc in enumerate(calls):
+        tc.id = f"call_{prefix}_{run.steps}_unresolved{index + 1}"
+    note = ("the provider response reused call id(s) " + ", ".join(sorted(duplicates)) +
+            "; no call from this response was run because results could not be correlated")
+    return {tc.id: note for tc in calls}
 
 
 def _keep_resident(ctx: ToolContext, bot) -> bool:

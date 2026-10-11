@@ -19,7 +19,7 @@ import time
 from typing import Any, Optional
 
 from .base import (ChatRequest, ChatResult, Health, ModelMeta, Provider, ProviderError, ToolCall,
-                   Watchdog, abort_response, parse_tool_args)
+                   Watchdog, abort_response, parse_tool_args_state)
 
 PRESET_URLS = {
     "openai": "https://api.openai.com/v1",
@@ -306,21 +306,27 @@ class OpenAICompatProvider(Provider):
         tcs = []
         for i, slot in sorted(calls.items()):
             raw = "".join(slot["args"])
-            args, err = parse_tool_args(raw)
-            tcs.append(ToolCall(id=slot["id"] or f"call_{i + 1}", name=slot["name"], arguments=args, raw=raw,
-                                parse_error=err))
+            args, err, state, double = parse_tool_args_state(raw)
+            tcs.append(ToolCall(id=slot["id"], name=slot["name"], arguments=args, raw=raw,
+                                parse_error=err, arguments_state=state, double_decoded=double))
         return self._result("".join(content), tcs, usage, finish, model, req, streamed=True)
 
     def _from_full(self, j: dict[str, Any], req: ChatRequest) -> ChatResult:
         choice = (j.get("choices") or [{}])[0]
         msg = choice.get("message") or {}
         tcs = []
-        for i, tc in enumerate(msg.get("tool_calls") or []):
+        for tc in msg.get("tool_calls") or []:
+            if not isinstance(tc, dict):
+                continue
             fn = tc.get("function", {})
-            raw = fn.get("arguments") if isinstance(fn.get("arguments"), str) else json.dumps(fn.get("arguments"))
-            args, err = parse_tool_args(fn.get("arguments"))
-            tcs.append(ToolCall(id=tc.get("id") or f"call_{i + 1}", name=fn.get("name", ""), arguments=args,
-                                raw=raw or "", parse_error=err))
+            raw_value = fn.get("arguments") if isinstance(fn, dict) and "arguments" in fn else tc.get("arguments")
+            raw = raw_value if isinstance(raw_value, str) else (
+                json.dumps(raw_value, ensure_ascii=False) if raw_value is not None else "")
+            name = (fn.get("name") if isinstance(fn, dict) else None) or tc.get("name") or ""
+            args, err, state, double = parse_tool_args_state(raw_value)
+            tcs.append(ToolCall(id=tc.get("id") or "", name=name if isinstance(name, str) else "",
+                                arguments=args, raw=raw or "", parse_error=err,
+                                arguments_state=state, double_decoded=double))
         return self._result(msg.get("content") or "", tcs, j.get("usage") or {}, choice.get("finish_reason") or "stop",
                             j.get("model", req.model), req, streamed=False)
 

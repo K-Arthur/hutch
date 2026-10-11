@@ -293,6 +293,9 @@ class Bot(BaseModel):
     base_url: Optional[str] = None    # override for OpenAI-compatible endpoints
     runtime: RuntimeKind = RuntimeKind.builtin
     inference_mode: InferenceMode = InferenceMode.hybrid
+    #: How Hutch represents this Bot's tools to its model (docs/realignment/tool-calling.md).
+    #: ``auto`` keeps the provider-native protocol and never silently picks another mode.
+    tool_protocol: Literal["auto", "native", "constrained", "prompt", "disabled"] = "auto"
     tools: list[str] = Field(default_factory=lambda: ["shell", "files", "memory", "documents"])
     schedule: Optional[Schedule] = None
     schedules: list[Schedule] = Field(default_factory=list)

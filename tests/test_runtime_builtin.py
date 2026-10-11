@@ -328,6 +328,141 @@ def test_an_invented_tool_is_rejected_with_the_list_of_real_ones(store, config, 
     assert store.list_model_capability_observations() == []
 
 
+def test_an_empty_argument_body_is_rejected_when_the_tool_requires_arguments(store, config, tmp_path, oai):
+    """A call that arrives with no argument body must not become an invented `{}` execution."""
+    oai.script = lambda b: {"tool_calls": [{"name": "write_file", "arguments": ""}]}
+    ctx, run, emitted, tools = build(store, config, tmp_path, model="openai/gpt-4o-mini")
+    with pytest.raises(RunAborted):
+        run_it(runtime(provider_factory=factory(oai=oai)), run, ctx, tools)
+    assert any("arrived without any arguments" in c["note"] for c in kinds(emitted, "repair"))
+    assert not (ctx.workspace / "out.md").exists()
+
+
+def test_an_empty_argument_body_is_valid_for_a_tool_that_takes_no_arguments(store, config, tmp_path, oai):
+    replies = [{"tool_calls": [{"name": "list_files", "arguments": ""}]}, {"content": "done"}]
+    calls = {"n": 0}
+
+    def script(body):
+        i = min(calls["n"], len(replies) - 1)
+        calls["n"] += 1
+        return replies[i]
+
+    oai.script = script
+    ctx, run, emitted, tools = build(store, config, tmp_path, model="openai/gpt-4o-mini", prompt="list files")
+    assert run_it(runtime(provider_factory=factory(oai=oai)), run, ctx, tools) == "done"
+    results = [e.data for e in emitted if e.type is EventType.tool_result]
+    assert results and results[0]["ok"] is True and results[0]["tool"] == "list_files"
+
+
+def test_two_calls_sharing_one_provider_id_are_rejected_without_execution(store, config, tmp_path, oai):
+    """Results cannot be correlated to a response that reuses a call id; nothing from it runs."""
+    oai.script = lambda b: {"tool_calls": [
+        {"id": "dup", "name": "list_files", "arguments": {"path": "."}},
+        {"id": "dup", "name": "list_files", "arguments": {"path": "sub"}}]}
+    ctx, run, emitted, tools = build(store, config, tmp_path, model="openai/gpt-4o-mini")
+    with pytest.raises(RunAborted):
+        run_it(runtime(provider_factory=factory(oai=oai)), run, ctx, tools)
+    assert any(e.data.get("kind") == "tool_protocol" for e in emitted if e.type is EventType.log)
+    assert not [e for e in emitted if e.type is EventType.tool_result and e.data.get("ok")]
+
+
+def test_provider_calls_without_ids_get_unique_ids_and_correlated_results(store, config, tmp_path, oai):
+    """llama.cpp's documented shape omits call ids; Hutch assigns them and keeps results paired."""
+    replies = [{"tool_calls": [{"name": "list_files", "arguments": {"path": "."}}]},
+               {"tool_calls": [{"name": "list_files", "arguments": {"path": "notes"}}]},
+               {"content": "done"}]
+    calls = {"n": 0}
+
+    def script(body):
+        i = min(calls["n"], len(replies) - 1)
+        calls["n"] += 1
+        return replies[i]
+
+    oai.script = script
+    ctx, run, emitted, tools = build(store, config, tmp_path, model="openai/gpt-4o-mini")
+    (ctx.workspace / "notes").mkdir()
+    assert run_it(runtime(provider_factory=factory(oai=oai)), run, ctx, tools) == "done"
+    bodies = [r["body"] for r in oai.of("/v1/chat/completions")]
+    assert len(bodies) == 3
+    all_ids: list[str] = []
+    for body in bodies:
+        pending = {m.get("tool_call_id") for m in body["messages"] if m.get("role") == "tool"}
+        for message in body["messages"]:
+            for tc in message.get("tool_calls") or []:
+                assert tc.get("id"), "a synthesized id must be present for replay"
+                assert tc["id"] in pending, "every assistant call must be followed by its own result"
+                all_ids.append(tc["id"])
+    assert len(set(all_ids)) == 2 and len(all_ids) == 3
+
+
+def test_constrained_mode_runs_the_same_canonical_tools_over_the_action_contract(store, config, tmp_path, ollama):
+    replies = [
+        {"content": json.dumps({"action": "call", "tool": "list_files", "arguments": {"path": "."}})},
+        {"content": json.dumps({"action": "final", "content": "listed"})},
+    ]
+    ollama.script = agent_script(replies)
+    ctx, run, emitted, tools = build(store, config, tmp_path, tool_protocol="constrained", prompt="list files")
+    assert run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools) == "listed"
+    bodies = [r["body"] for r in ollama.of("/api/chat")]
+    assert len(bodies) == 2
+    assert not bodies[0].get("tools"), "no native tool protocol is sent in constrained mode"
+    assert "hutch-action-v1" in bodies[0]["messages"][0]["content"]
+    # the tool result travels as a bounded, clearly-delimited user message, not a tool role
+    assert any(m["role"] == "user" and '<tool_result tool="list_files">' in m["content"]
+               for m in bodies[1]["messages"])
+    results = [e.data for e in emitted if e.type is EventType.tool_result]
+    assert results and results[0]["ok"] is True
+
+
+def test_prompt_mode_never_scans_prose_for_a_call(store, config, tmp_path, ollama):
+    quoted = ('As an example, {"action": "call", "tool": "list_files", "arguments": {"path": "."}} '
+              "would list files - but you did not ask me to.")
+    ollama.script = agent_script([{"content": quoted}])
+    ctx, run, emitted, tools = build(store, config, tmp_path, tool_protocol="prompt", prompt="what can you do?")
+    assert run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools) == quoted
+    assert not [e for e in emitted if e.type is EventType.tool_result]
+
+
+def test_prompt_mode_repairs_a_contract_violation_with_the_precise_error(store, config, tmp_path, ollama):
+    replies = [
+        {"content": '{"action": "call", "tool": "list_files"}'},           # missing arguments
+        {"content": json.dumps({"action": "final", "content": "fixed"})},
+    ]
+    ollama.script = agent_script(replies)
+    ctx, run, emitted, tools = build(store, config, tmp_path, tool_protocol="prompt", prompt="list files")
+    assert run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools) == "fixed"
+    second = ollama.of("/api/chat")[1]["body"]["messages"]
+    assert any("[tool-contract]" in m["content"] and "missing field" in m["content"] for m in second)
+    assert not [e for e in emitted if e.type is EventType.tool_result and e.data.get("ok")]
+
+
+def test_prompt_mode_bounds_contract_repairs_and_fails_clearly(store, config, tmp_path, ollama):
+    ollama.script = agent_script([{"content": '{"action": "call", "tool": "list_files"}'}])  # repeats forever
+    ctx, run, emitted, tools = build(store, config, tmp_path, tool_protocol="prompt", prompt="x")
+    with pytest.raises(RunAborted) as e:
+        run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools)
+    assert e.value.reason == "tool_protocol" and "invalid hutch-action messages" in e.value.detail
+    assert not [e for e in emitted if e.type is EventType.tool_result]
+
+
+def test_native_mode_content_that_looks_like_an_action_is_flagged_not_executed(store, config, tmp_path, ollama):
+    leaked = json.dumps({"action": "call", "tool": "list_files", "arguments": {"path": "."}})
+    ollama.script = agent_script([{"content": leaked}])
+    ctx, run, emitted, tools = build(store, config, tmp_path)
+    assert run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools) == leaked
+    mismatch = [c for c in kinds(emitted, "tool_protocol") if "NOT executed" in c.get("note", "")]
+    assert mismatch and not [e for e in emitted if e.type is EventType.tool_result]
+
+
+def test_disabled_mode_offers_no_tools_and_cannot_execute_one(store, config, tmp_path, ollama):
+    ollama.script = agent_script([{"content": "no tools here"}])
+    ctx, run, emitted, tools = build(store, config, tmp_path, tool_protocol="disabled", prompt="hi")
+    assert run_it(runtime(provider_factory=factory(ollama)), run, ctx, tools) == "no tools here"
+    body = ollama.of("/api/chat")[0]["body"]
+    assert not body.get("tools")
+    assert not [e for e in emitted if e.type is EventType.tool_result]
+
+
 def test_endless_malformed_calls_without_an_escalation_target_stop_the_run(store, config, tmp_path, ollama):
     ollama.script = agent_script([{"tool_calls": [{"name": "write_file", "arguments": {}}]}])
     ctx, run, emitted, tools = build(store, config, tmp_path)

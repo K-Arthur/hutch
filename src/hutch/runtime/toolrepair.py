@@ -31,13 +31,20 @@ def _is(value: Any, jtype: str) -> bool:
 
 
 def coerce_args(schema: dict[str, Any], args: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
-    """Fix the slips that are unambiguous. Returns (args, human-readable list of what was changed)."""
+    """Fix the slips that are unambiguous. Returns (args, human-readable list of what was changed).
+
+    Only a single declared type is coerced: a union such as ``["integer", "string"]`` is
+    ambiguous, and choosing one branch silently would change the model's meaning. The canonical
+    validator then still checks the final value; coercion is a recorded repair, never a bypass.
+    """
     props = (schema or {}).get("properties", {}) or {}
     out, changed = dict(args), []
     for key, spec in props.items():
         if key not in out:
             continue
         jtype, val = spec.get("type"), out[key]
+        if not isinstance(jtype, str):        # union or missing type: never guess
+            continue
         if jtype == "integer" and isinstance(val, str) and val.strip().lstrip("-").isdigit():
             out[key] = int(val)
         elif jtype == "integer" and isinstance(val, float) and val.is_integer():
@@ -66,26 +73,13 @@ def coerce_args(schema: dict[str, Any], args: dict[str, Any]) -> tuple[dict[str,
 
 
 def validate_args(schema: dict[str, Any], args: Any) -> list[str]:
-    """Problems with ``args`` against a JSON-schema subset (object, properties, required, type, enum)."""
-    if not isinstance(args, dict):
-        return [f"arguments must be a JSON object, got {type(args).__name__}"]
-    problems: list[str] = []
-    props = (schema or {}).get("properties", {}) or {}
-    for req in (schema or {}).get("required", []) or []:
-        if req not in args or args[req] in (None, ""):
-            problems.append(f"missing required argument '{req}'")
-    for key, val in args.items():
-        spec = props.get(key)
-        if spec is None:
-            if props and (schema or {}).get("additionalProperties") is False:
-                problems.append(f"unknown argument '{key}' (allowed: {', '.join(props)})")
-            continue
-        jtype = spec.get("type")
-        if jtype and not _is(val, jtype):
-            problems.append(f"argument '{key}' must be {jtype}, got {type(val).__name__}")
-        elif spec.get("enum") and val not in spec["enum"]:
-            problems.append(f"argument '{key}' must be one of {spec['enum']}, got {val!r}")
-    return problems
+    """Canonical schema problems (delegates to ``toolcalling.validate``).
+
+    The full registered schema is always the final validator, whatever generation mode
+    produced the call. A schema this install cannot fully check yields a refusal, never a pass.
+    """
+    from ..toolcalling.validate import validate_call
+    return validate_call(schema or {}, args)
 
 
 def repair_instruction(tool: str, problems: list[str], schema: dict[str, Any]) -> str:

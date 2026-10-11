@@ -24,7 +24,7 @@ import time
 from typing import Any, Optional
 
 from .base import (ChatRequest, ChatResult, Health, ModelMeta, Provider, ProviderError, ToolCall,
-                   Watchdog, abort_response, parse_tool_args)
+                   Watchdog, abort_response, parse_tool_args, parse_tool_args_state)
 
 DEFAULT_BASE_URL = "http://localhost:11434"
 TRUNCATION_RATIO = 0.98
@@ -289,10 +289,12 @@ class OllamaProvider(Provider):
                 thinking.append(msg["thinking"])
             for tc in msg.get("tool_calls") or []:
                 fn = tc.get("function", {})
-                args, err = parse_tool_args(fn.get("arguments"))
-                raw = fn.get("arguments") if isinstance(fn.get("arguments"), str) else json.dumps(fn.get("arguments"))
-                calls.append(ToolCall(id=tc.get("id") or f"call_{len(calls) + 1}", name=fn.get("name", ""),
-                                      arguments=args, raw=raw or "", parse_error=err))
+                args, err, state, double = parse_tool_args_state(fn.get("arguments"))
+                raw = fn.get("arguments") if isinstance(fn.get("arguments"), str) else (
+                    json.dumps(fn.get("arguments"), ensure_ascii=False) if fn.get("arguments") is not None else "")
+                calls.append(ToolCall(id=tc.get("id") or "", name=fn.get("name", ""),
+                                      arguments=args, raw=raw or "", parse_error=err,
+                                      arguments_state=state, double_decoded=double))
         last = chunks[-1]
         p, e = int(last.get("prompt_eval_count") or 0), int(last.get("eval_count") or 0)
         ev_ns = last.get("eval_duration") or 0

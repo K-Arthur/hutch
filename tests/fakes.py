@@ -290,9 +290,10 @@ class FakeOpenAI(_Server):
             if not body.get("stream"):
                 msg = {"role": "assistant", "content": content or None}
                 if calls:
-                    msg["tool_calls"] = [{"id": f"call_{i}", "type": "function",
+                    msg["tool_calls"] = [{"type": "function",
                                           "function": {"name": c["name"], "arguments": json.dumps(c.get("arguments", {}))
-                                          if not isinstance(c.get("arguments"), str) else c["arguments"]}}
+                                          if not isinstance(c.get("arguments"), str) else c["arguments"]},
+                                          **({"id": c["id"]} if c.get("id") else {})}
                                          for i, c in enumerate(calls)]
                 return self.send_json(h, {"model": body["model"], "choices": [{"message": msg, "finish_reason": finish}],
                                           "usage": usage})
@@ -310,7 +311,8 @@ class FakeOpenAI(_Server):
             for i, c in enumerate(calls):
                 raw = c["arguments"] if isinstance(c.get("arguments"), str) else json.dumps(c.get("arguments", {}))
                 mid = max(1, len(raw) // 2)          # arguments arrive split across chunks, as in the wild
-                ev({"choices": [{"delta": {"tool_calls": [{"index": i, "id": f"call_{i}", "type": "function",
+                ev({"choices": [{"delta": {"tool_calls": [{"index": i, **({"id": c["id"]} if c.get("id") else {}),
+                                                           "type": "function",
                                                            "function": {"name": c["name"], "arguments": raw[:mid]}}]}}]})
                 ev({"choices": [{"delta": {"tool_calls": [{"index": i, "function": {"arguments": raw[mid:]}}]}}]})
             ev({"choices": [{"delta": {}, "finish_reason": finish}]})
