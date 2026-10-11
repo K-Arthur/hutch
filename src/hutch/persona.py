@@ -8,11 +8,12 @@ zero, empty lists, and reset-to-inherit are preserved. A run receives one write-
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-PERSONA_VERSION = 2
+PERSONA_VERSION = 3
 PERSONA_PROFILE_VERSION = 2
 
 Depth = Literal["auto", "brief", "standard", "detailed", "thorough"]
@@ -22,6 +23,15 @@ Tone = Literal["neutral", "warm", "direct"]
 Profanity = Literal["avoid", "mirror"]
 FormatStyle = Literal["automatic", "conversational", "structured", "bullets"]
 AvoidHabit = Literal["filler", "overpraise", "emojis", "repeated_summary", "unasked_offer"]
+Intent = Literal["general", "banter", "analysis", "current_facts", "high_stakes", "coding",
+                 "recipient_draft", "external_action", "correction"]
+Audience = Literal["operator", "recipient"]
+GroundingNeed = Literal["conversation", "current_facts", "external_sources", "workspace", "tool_execution"]
+OutputContract = Literal["freeform", "json", "code", "citations", "recipient_draft"]
+ResolvedDepth = Literal["brief", "standard", "detailed"]
+DiagnosticReason = Literal["clear_humor_request", "analytical_work", "current_information",
+                           "external_sources", "high_stakes_cue", "code_or_workspace_work", "recipient_draft",
+                           "external_action", "answer_correction", "structured_output"]
 
 PERSONA_FIELDS = ("preset", "depth", "tone", "humor", "banter", "warmth", "directness", "formality",
                   "profanity", "format_style", "avoid_habits")
@@ -63,13 +73,15 @@ class PersonaStyle(BaseModel):
 
 
 class PersonaPlan(BaseModel):
-    """The resolved behavior snapshot for one run, with per-field provenance."""
+    """The resolved wording and contextual response plan snapshot for one run."""
 
     version: int = PERSONA_VERSION
     preset: Optional[Preset] = None
     depth: Depth
+    resolved_depth: ResolvedDepth = "standard"
     tone: Tone
     humor: Humor = "subtle"
+    humor_eligible: bool = False
     banter: bool = True                 # compatibility projection for v1 clients and stored plans
     warmth: int = Field(default=50, ge=0, le=100)
     directness: int = Field(default=50, ge=0, le=100)
@@ -77,8 +89,32 @@ class PersonaPlan(BaseModel):
     profanity: Profanity = "avoid"
     format_style: FormatStyle = "automatic"
     avoid_habits: list[AvoidHabit] = Field(default_factory=list, max_length=5)
+    intent: Intent = "general"
+    audience: Audience = "operator"
+    grounding_needs: list[GroundingNeed] = Field(default_factory=list, max_length=4)
+    output_contract: OutputContract = "freeform"
+    diagnostic_reasons: list[DiagnosticReason] = Field(default_factory=list, max_length=4)
     sources: dict[str, str] = Field(default_factory=dict)
     revisions: dict[str, int] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _decode_prior_plan_shape(cls, raw: Any) -> Any:
+        """Older write-once plans had only saved style; preserve their explicit depth when loading."""
+        if not isinstance(raw, dict):
+            return raw
+        value = dict(raw)
+        version = value.get("version", PERSONA_VERSION)
+        if not isinstance(version, int) or isinstance(version, bool) or version < 1:
+            raise ValueError("response-plan version must be a positive integer")
+        if "resolved_depth" not in value:
+            selected = value.get("depth", "standard")
+            value["resolved_depth"] = selected if selected in {"brief", "standard", "detailed"} else (
+                "detailed" if selected == "thorough" else "standard")
+        # Historical write-once plans were applied without contextual humor gating. Keep a retry stable.
+        if isinstance(version, int) and not isinstance(version, bool) and version < 3 and "humor_eligible" not in value:
+            value["humor_eligible"] = True
+        return value
 
     @model_validator(mode="after")
     def _legacy_banter_projection(self) -> "PersonaPlan":
@@ -204,7 +240,195 @@ def resolve_persona(*, application: Optional[PersonaStyle] = None, agent_preset:
             if value is not None:
                 values[field] = value
                 sources[field] = name
-    return PersonaPlan(**values, sources=sources, revisions=dict(revisions or {}))
+    selected_depth = values["depth"]
+    resolved_depth = selected_depth if selected_depth in {"brief", "standard", "detailed"} else (
+        "detailed" if selected_depth == "thorough" else "standard")
+    return PersonaPlan(**values, resolved_depth=resolved_depth, sources=sources, revisions=dict(revisions or {}))
+
+
+_HIGH_STAKES_RE = re.compile(
+    r"\b(?:medical|health|medicine|medication|diagnos\w*|legal|lawyer|attorney|court|lawsuit|tax|"
+    r"debt|loan|mortgage|credit|investment|financial|finance|bankrupt\w*|suicid\w*|self[- ]harm|"
+    r"weapon|violence|pregnan\w*|emergency)\b",
+    re.IGNORECASE,
+)
+_CURRENT_FACT_RE = re.compile(
+    r"\b(?:latest|current|right now|today|this week|as of|up[- ]to[- ]date|price|weather|news|score|"
+    r"recent|currently)\b",
+    re.IGNORECASE,
+)
+_SOURCE_RE = re.compile(r"\b(?:search|look up|research|verify|check whether|cite sources|with citations)\b",
+                        re.IGNORECASE)
+_CODING_RE = re.compile(
+    r"\b(?:code|coding|programming|script|function|class|repository|repo|debug|refactor|compile|terminal|shell|"
+    r"pull request|commit)\b|```",
+    re.IGNORECASE,
+)
+_ANALYSIS_RE = re.compile(
+    r"\b(?:analy[sz]e|analysis|compare|evaluate|investigate|research|audit|pros and cons|step by step|"
+    r"in detail|reasoning)\b",
+    re.IGNORECASE,
+)
+_RECIPIENT_DRAFT_RE = re.compile(
+    r"\b(?:draft|write|compose|rewrite)\s+(?:an?\s+)?(?:email|letter|message|reply|note|text)\s+to\b|"
+    r"\b(?:email|letter|message|reply|note)\s+to\s+(?:my|the|our|[A-Z][\w'-]*)",
+    re.IGNORECASE,
+)
+_ACTION_RE = re.compile(
+    r"\b(?:send|delete|book|buy|purchase|pay|transfer|schedule|post|publish|submit|cancel|invite)\s+"
+    r"(?:the|this|that|my|our|a|an|to|for|on)\b",
+    re.IGNORECASE,
+)
+_HUMOR_RE = re.compile(r"\b(?:joke|pun|make it funny|keep it playful|be playful|haha+|lol+|lmao|hilarious)\b",
+                       re.IGNORECASE)
+_SHORTER_RE = re.compile(
+    r"^\s*(?:please\s+)?(?:shorter|more concise|less detail|just the answer)(?:\s*,?\s*please)?[.!?]?\s*$|"
+    r"\b(?:make|keep|rewrite|revise)\s+(?:that|it|this|the answer|the reply)\s+"
+    r"(?:shorter|more concise|with less detail)\b",
+    re.IGNORECASE,
+)
+_DEEPER_RE = re.compile(r"\b(?:go deeper|more detail|expand on that)\b", re.IGNORECASE)
+_LESS_HUMOR_RE = re.compile(r"\b(?:less banter|less joking|no jokes|stop joking)\b",
+                            re.IGNORECASE)
+_CONVERSATION_REF_RE = re.compile(
+    r"\b(?:above|earlier|previous(?: answer| reply)?|last answer|what you said|that answer)\b",
+    re.IGNORECASE,
+)
+
+
+def contextualize_persona(plan: PersonaPlan, prompt: str, *,
+                          conversation_context: Optional[list[dict[str, str]]] = None) -> PersonaPlan:
+    """Add a bounded, local response plan from the current request without persisting preference inference."""
+    raw = prompt if isinstance(prompt, str) else ""
+    # Bound local inspection cost for very long prompts while retaining their beginning and end.
+    text = raw if len(raw) <= 8_000 else raw[:3_999] + "\n" + raw[-4_000:]
+    current = text.strip()
+    context_available = any(
+        isinstance(item, dict) and item.get("role") == "assistant" and bool(item.get("content"))
+        for item in (conversation_context or [])
+    )
+    shorter = bool(_SHORTER_RE.search(current)) and context_available
+    deeper = bool(_DEEPER_RE.search(current)) and context_available
+    less_humor_request = bool(_LESS_HUMOR_RE.search(current))
+    less_humor = less_humor_request and context_available
+    explicit_correction = shorter or deeper or less_humor
+
+    high_stakes = bool(_HIGH_STAKES_RE.search(text))
+    current_facts = bool(_CURRENT_FACT_RE.search(text))
+    external_sources = bool(_SOURCE_RE.search(text))
+    coding = bool(_CODING_RE.search(text))
+    analysis = bool(_ANALYSIS_RE.search(text))
+    recipient_draft = bool(_RECIPIENT_DRAFT_RE.search(text))
+    external_action = bool(_ACTION_RE.search(text)) and not recipient_draft
+    explicit_humor = bool(_HUMOR_RE.search(text))
+    humor_eligible = not (high_stakes or current_facts or external_sources or coding or analysis
+                          or recipient_draft or external_action or explicit_correction or less_humor_request)
+    references_context = context_available and bool(_CONVERSATION_REF_RE.search(text))
+
+    if high_stakes:
+        intent: Intent = "high_stakes"
+    elif external_action:
+        intent = "external_action"
+    elif current_facts:
+        intent = "current_facts"
+    elif coding:
+        intent = "coding"
+    elif recipient_draft:
+        intent = "recipient_draft"
+    elif explicit_correction:
+        intent = "correction"
+    elif analysis:
+        intent = "analysis"
+    elif explicit_humor and humor_eligible:
+        intent = "banter"
+    else:
+        intent = "general"
+
+    audience: Audience = "recipient" if recipient_draft else "operator"
+    grounding: list[GroundingNeed] = []
+    if references_context or explicit_correction:
+        grounding.append("conversation")
+    if current_facts:
+        grounding.append("current_facts")
+    elif external_sources:
+        grounding.append("external_sources")
+    if coding:
+        grounding.append("workspace")
+    if external_action:
+        grounding.append("tool_execution")
+
+    output_contract: OutputContract = "freeform"
+    if recipient_draft:
+        output_contract = "recipient_draft"
+    elif re.search(r"\b(?:valid\s+)?json\b", text, re.IGNORECASE):
+        output_contract = "json"
+    elif re.search(r"\b(?:write|return|provide|show|generate)\s+(?:(?:a|an|the)\s+)?"
+                   r"(?:python|javascript|typescript|rust|go|sql)?\s*(?:code|script|function|class)\b|```",
+                   text, re.IGNORECASE):
+        output_contract = "code"
+    elif re.search(r"\b(?:cite sources|with citations|include citations|source citations)\b", text, re.IGNORECASE):
+        output_contract = "citations"
+
+    if shorter:
+        resolved_depth: ResolvedDepth = "brief"
+    elif deeper:
+        resolved_depth = "detailed"
+    elif plan.depth == "brief":
+        resolved_depth = "brief"
+    elif plan.depth in {"detailed", "thorough"}:
+        resolved_depth = "detailed"
+    elif plan.depth == "standard":
+        resolved_depth = "standard"
+    elif intent in {"analysis", "current_facts", "high_stakes", "coding", "external_action"}:
+        resolved_depth = "detailed"
+    elif intent == "banter":
+        resolved_depth = "brief"
+    else:
+        resolved_depth = "standard"
+
+    reasons: list[DiagnosticReason] = []
+    if high_stakes:
+        reasons.append("high_stakes_cue")
+    if external_action:
+        reasons.append("external_action")
+    if current_facts:
+        reasons.append("current_information")
+    if external_sources:
+        reasons.append("external_sources")
+    if coding:
+        reasons.append("code_or_workspace_work")
+    if recipient_draft:
+        reasons.append("recipient_draft")
+    if explicit_correction:
+        reasons.append("answer_correction")
+    if output_contract != "freeform":
+        reasons.append("structured_output")
+    if explicit_humor:
+        reasons.append("clear_humor_request")
+    if analysis:
+        reasons.append("analytical_work")
+
+    sources = dict(plan.sources)
+    if shorter or deeper:
+        sources["resolved_depth"] = "current_turn"
+    elif plan.depth == "auto":
+        sources["resolved_depth"] = "context"
+    else:
+        sources["resolved_depth"] = sources.get("depth", "application")
+    if less_humor_request or high_stakes or current_facts or coding or external_action or recipient_draft:
+        sources["humor_eligible"] = "current_turn"
+    else:
+        sources["humor_eligible"] = "context"
+    return plan.model_copy(update={
+        "intent": intent,
+        "resolved_depth": resolved_depth,
+        "audience": audience,
+        "grounding_needs": grounding,
+        "humor_eligible": humor_eligible,
+        "output_contract": output_contract,
+        "diagnostic_reasons": reasons[:4],
+        "sources": sources,
+    })
 
 
 _DEPTH_GUIDANCE = {
@@ -225,7 +449,7 @@ _PRESET_GUIDANCE = {
     "dry_wit": "Use restrained dry wit only when it fits the operator's low-stakes playful tone; never target the operator or trivialize harm.",
 }
 _HUMOR_GUIDANCE = {
-    "off": "Do not use jokes or playful asides, even when the operator jokes.",
+    "off": "Do not add unrequested jokes or playful asides. A direct request for safe, low-stakes humor is part of the task and may be followed.",
     "subtle": "A brief light aside is allowed only when this turn is clearly playful and low-stakes; judge each turn fresh.",
     "playful": "Playful wording is allowed when this turn is clearly playful and low-stakes; do not force a joke into every answer.",
 }
@@ -250,13 +474,35 @@ def guidance(plan: PersonaPlan) -> str:
     preset = f"- Preset: {_PRESET_GUIDANCE[plan.preset]}\n" if plan.preset else ""
     habit_guidance = " ".join(_HABIT_GUIDANCE[habit] for habit in plan.avoid_habits)
     habits = f"- Habits to avoid: {habit_guidance}\n" if habit_guidance else ""
+    if not plan.humor_eligible:
+        humor_guidance = "- Humor: keep this turn plain; the current request is not unmistakably playful and low-stakes.\n"
+    else:
+        humor_guidance = f"- Humor: {_HUMOR_GUIDANCE[humor]}\n"
+    grounding_guidance = ""
+    if "current_facts" in plan.grounding_needs:
+        grounding_guidance += "- Grounding: current information is requested; use available current sources or say what you could not verify.\n"
+    if "external_sources" in plan.grounding_needs:
+        grounding_guidance += "- Grounding: use available sources for requested research or citations; say when sourcing is unavailable.\n"
+    if "workspace" in plan.grounding_needs:
+        grounding_guidance += "- Grounding: code or workspace work may require inspecting the actual workspace; do not claim unperformed changes.\n"
+    if "conversation" in plan.grounding_needs:
+        grounding_guidance += "- Grounding: preserve the referenced conversation facts and apply the current correction to the referenced answer only.\n"
+    if "tool_execution" in plan.grounding_needs:
+        grounding_guidance += "- Grounding: external actions require the available governed tools and their normal approvals; never imply they happened without a result.\n"
+    audience_guidance = ("- Audience: prepare wording for the intended recipient as a draft; do not send it unless the operator explicitly asks and normal governance permits.\n"
+                         if plan.audience == "recipient" else "")
+    contract_guidance = (f"- Output contract: preserve the requested {plan.output_contract} form; this does not change permissions or evidence requirements.\n"
+                         if plan.output_contract != "freeform" else "")
     return ("Response style chosen for this run. It shapes wording only and never overrides safety, permissions, tool "
             "rules, the task, the operator's explicit request, or detail needed to act correctly (errors, warnings, "
             "denials, approval facts):\n"
-            f"- Depth: {_DEPTH_GUIDANCE[plan.depth]}\n"
+            f"- Depth: {_DEPTH_GUIDANCE[plan.resolved_depth]}\n"
             f"{preset}"
             f"- Voice: {_TONE_GUIDANCE[plan.tone]}\n"
-            f"- Humor: {_HUMOR_GUIDANCE[humor]}\n"
+            f"{humor_guidance}"
+            f"{grounding_guidance}"
+            f"{audience_guidance}"
+            f"{contract_guidance}"
             f"- Warmth: {plan.warmth}/100; directness: {plan.directness}/100; formality: {plan.formality}/100.\n"
             f"- Profanity: {'mirror it only if the operator used it first and the context is suitable.' if plan.profanity == 'mirror' else 'avoid it.'}\n"
             f"- Format: {_FORMAT_GUIDANCE[plan.format_style]}\n"
@@ -268,5 +514,5 @@ def guidance(plan: PersonaPlan) -> str:
 
 __all__ = ["APPLICATION_DEFAULT", "AvoidHabit", "Depth", "FormatStyle", "Humor", "LAYER_LABELS", "LAYERS",
            "PERSONA_FIELDS", "PERSONA_PROFILE_VERSION", "PERSONA_V1_FIELDS", "PERSONA_VERSION", "Preset", "Profanity",
-           "Tone", "PersonaPlan", "PersonaStyle", "apply_persona_changes", "decode_persona_state",
+           "Tone", "PersonaPlan", "PersonaStyle", "apply_persona_changes", "contextualize_persona", "decode_persona_state",
            "encode_persona_state", "guidance", "resolve_persona"]

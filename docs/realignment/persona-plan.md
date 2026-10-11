@@ -169,19 +169,31 @@ Review follow-ups (status after the profile-compatibility slice):
   at 1440 × 960; the browser runner could not apply native browser zoom. Focused persona/builtin-runtime checks
   passed (**100 tests**) and the browser regression passed (**1 test**). Live examples and the inspector are
   not part of this UI slice.
+- Contextual run-plan slice: new run snapshots now resolve intent, contextual depth, audience, grounding needs,
+  humor eligibility, output contract and up to four label-only diagnostic reasons before the run starts. The
+  classifier examines a maximum of 8,000 request characters, uses current-turn wording plus the presence of a
+  prior assistant response, and adds no model call. Version-1/2 plans keep their prior depth and retry wording.
+  Tests cover low-risk humor, sensitive/current requests, recipient and structured outputs, bounded diagnostics,
+  context-gated correction signals, and the engine's persisted snapshot. `tests/test_persona.py` and
+  `tests/test_runtime_builtin.py`: **116 passed** in the final combined run; the persona-only recheck also passed
+  (**49 tests**). A separate 500-sample local
+  resolution-and-guidance run measured **0.0416 ms p50 / 0.0520 ms p95 / 0.4883 ms max**, below the 20 ms local
+  target. These are not provider latency or response-quality results. Tool routing, answer-scoped rewrite
+  execution, live preview and inspector remain
+  future work.
 - The combined offline suite at `04b5722` completed with **1,989 passed, 2 failed** in 525.57 s. The Unix
   socket test failed only because the long test temp path exceeded `AF_UNIX` path length; rerunning with a short
   cache root made it pass. The other failure, `test_the_shell_cannot_see_the_real_home_or_any_folder_outside_the_workspace`, also failed on clean
   integration commit `8a63585` with the same observed `/home` visibility and is therefore an inherited sandbox
   environment failure, not a persona change. No assertions were weakened. The existing `/tmp` contents were not
   removed or altered.
-- Remaining acceptance: add contextual intent/routing, answer-scoped corrections, feedback, isolated live
-  preview and redacted inspector; update marketing claims/screenshots and remaining user-facing docs; add
-  response-plan, correction and refusal regressions; update the supported-runtime capability evidence;
-  run combined offline/browser checks and bounded model evaluation. No separate supported Hutch Go connection
-  is configured, so Hutch product-path response quality and model latency are unverified. The device OpenCode
-  CLI did authenticate and run the low-cost MiMo Flash development task; its credential store has not been
-  imported into Hutch. Keep subsequent CLI packets narrow and review every diff.
+- Remaining acceptance: add a separate tool-free conversation execution purpose and low-risk routing; perform
+  answer-scoped corrections without rerunning tools or external actions; add feedback, isolated live preview and
+  redacted inspector; update marketing claims/screenshots and remaining user-facing docs; verify supported-runtime
+  request receipts; and run combined offline/browser checks plus bounded model evaluation. No separate supported
+  Hutch Go connection is configured, so Hutch product-path response quality and model latency are unverified.
+  The device OpenCode CLI did authenticate and run the low-cost MiMo Flash development task; its credential store
+  has not been imported into Hutch. Keep subsequent CLI packets narrow and review every diff.
 
 ## Rollback
 

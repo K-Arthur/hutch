@@ -10,8 +10,8 @@ import pytest
 from hutch.models import Bot, Run, RunStatus, Task
 from hutch.persona import (APPLICATION_DEFAULT, LAYER_LABELS, PERSONA_PROFILE_VERSION, PERSONA_VERSION,
                            PersonaPlan, PersonaStyle,
-                           apply_persona_changes, decode_persona_state, encode_persona_state, guidance,
-                           resolve_persona)
+                           apply_persona_changes, contextualize_persona, decode_persona_state,
+                           encode_persona_state, guidance, resolve_persona)
 from hutch.store import LeaseLost, PersonaConflict
 
 
@@ -130,18 +130,145 @@ def test_layer_labels_cover_every_resolution_source():
 
 def test_guidance_states_the_style_and_stays_subordinate():
     plan = resolve_persona(agent_override=PersonaStyle(depth="brief", tone="warm", banter=False))
+    assert plan.version == PERSONA_VERSION and plan.humor_eligible is False
     text = guidance(plan)
     assert "Response style chosen for this run" in text
     assert "never overrides safety, permissions" in text
     assert "sensitive topics" in text.lower()
-    assert "do not use jokes or playful asides" in text.lower()
+    assert "keep this turn plain" in text.lower()
 
 
 def test_guidance_distinguishes_banter_on_and_off_without_stale_consent():
-    on = guidance(resolve_persona(agent_override=PersonaStyle(banter=True)))
-    off = guidance(resolve_persona(agent_override=PersonaStyle(banter=False)))
+    on = guidance(contextualize_persona(resolve_persona(agent_override=PersonaStyle(banter=True)),
+                                        "Tell me a joke about databases."))
+    off = guidance(contextualize_persona(resolve_persona(agent_override=PersonaStyle(banter=False)),
+                                         "Tell me a joke about databases."))
     assert "clearly playful" in on and "clearly playful" not in off
     assert "judge each turn fresh" in on            # playfulness is re-decided per turn, never carried over
+    assert "direct request for safe, low-stakes humor" in off  # explicit current task beats a wording preference
+
+    serious = contextualize_persona(resolve_persona(agent_override=PersonaStyle(banter=False)),
+                                    "Tell me a joke about my debt and bankruptcy options.")
+    assert "keep this turn plain" in guidance(serious)
+
+
+def test_contextual_plan_keeps_clear_banter_brief_and_unretrieved():
+    plan = contextualize_persona(resolve_persona(), "Tell me a silly pun about a database.")
+    assert plan.intent == "banter"
+    assert plan.resolved_depth == "brief"
+    assert plan.humor_eligible is True
+    assert plan.grounding_needs == []
+    assert plan.diagnostic_reasons == ["clear_humor_request"]
+
+
+def test_contextual_plan_preserves_existing_subtle_humor_discretion_on_unrestricted_turns():
+    plan = contextualize_persona(resolve_persona(), "What is two plus two?")
+    assert plan.intent == "general"
+    assert plan.humor_eligible is True
+    assert "judge each turn fresh" in guidance(plan)
+
+    no_jokes = contextualize_persona(resolve_persona(), "No jokes, please.")
+    assert no_jokes.humor_eligible is False
+    assert no_jokes.intent == "general"
+
+
+def test_contextual_plan_suppresses_humor_for_current_or_high_stakes_requests():
+    current = contextualize_persona(resolve_persona(), "What is the latest weather forecast for Vancouver?")
+    assert current.intent == "current_facts"
+    assert current.resolved_depth == "detailed"
+    assert current.grounding_needs == ["current_facts"]
+    assert current.humor_eligible is False
+
+    consequential = contextualize_persona(resolve_persona(), "Tell me a joke about my debt and bankruptcy options.")
+    assert consequential.intent == "high_stakes"
+    assert consequential.humor_eligible is False
+    assert "high_stakes_cue" in consequential.diagnostic_reasons
+
+
+def test_contextual_plan_preserves_recipient_and_output_contracts():
+    draft = contextualize_persona(resolve_persona(), "Draft an email to my landlord asking for a repair.")
+    assert draft.audience == "recipient"
+    assert draft.intent == "recipient_draft"
+    assert draft.output_contract == "recipient_draft"
+
+    json_plan = contextualize_persona(resolve_persona(), "Return valid JSON with a name and status.")
+    assert json_plan.output_contract == "json"
+
+    code = contextualize_persona(resolve_persona(), "Write a Python function that sorts these records.")
+    assert code.intent == "coding" and code.output_contract == "code"
+    assert code.grounding_needs == ["workspace"]
+
+    citations = contextualize_persona(resolve_persona(), "Explain the trade-offs with citations.")
+    assert citations.output_contract == "citations"
+
+
+@pytest.mark.parametrize(
+    ("prompt", "expected_depth", "eligible"),
+    [("Shorter, please.", "brief", False),
+     ("Go deeper.", "detailed", False),
+     ("Less banter.", "detailed", False),
+     ("Please make that shorter, then explain why it matters, and use less banter in the revised answer.",
+      "brief", False)],
+)
+def test_contextual_plan_applies_only_exact_current_answer_corrections(prompt, expected_depth, eligible):
+    base = resolve_persona(agent_override=PersonaStyle(depth="detailed", humor="playful"))
+    context = [{"role": "assistant", "content": "A previous answer."}]
+    plan = contextualize_persona(base, prompt, conversation_context=context)
+    assert plan.intent == "correction"
+    assert plan.resolved_depth == expected_depth
+    assert plan.humor_eligible is eligible
+    assert plan.sources["resolved_depth"] == (
+        "current_turn" if expected_depth != "detailed" or "Go deeper" in prompt else "agent_override")
+    assert plan.grounding_needs == ["conversation"]
+
+
+def test_correction_words_without_a_referenced_answer_do_not_become_durable_preferences():
+    plan = contextualize_persona(resolve_persona(), "Please make future replies shorter.")
+    assert plan.intent == "general"
+    assert plan.resolved_depth == "standard"
+    assert "answer_correction" not in plan.diagnostic_reasons
+
+    unrelated = contextualize_persona(
+        resolve_persona(), "Use the shorter route and keep the explanation factual.",
+        conversation_context=[{"role": "assistant", "content": "A previous answer."}],
+    )
+    assert unrelated.intent == "general" and unrelated.resolved_depth == "standard"
+
+    without_answer = contextualize_persona(
+        resolve_persona(), "Shorter, please.", conversation_context=[{"role": "user", "content": "Question."}],
+    )
+    assert without_answer.intent == "general"
+
+
+def test_contextual_plan_diagnostics_are_bounded_labels_not_user_text():
+    sensitive_number = "123-45-6789"
+    prompt = (f"Tell me a joke about {sensitive_number}, analyze the latest legal and financial news, "
+              "write code, and return valid JSON with citations.")
+    plan = contextualize_persona(resolve_persona(), prompt)
+    assert len(plan.diagnostic_reasons) <= 4
+    serialized = json.dumps(plan.model_dump(mode="json"))
+    assert sensitive_number not in serialized
+    assert "123-45-6789" not in serialized
+
+
+def test_contextual_plan_marks_research_grounding_without_recording_queries():
+    plan = contextualize_persona(resolve_persona(), "Research how the city changed after the 1906 earthquake.")
+    assert plan.intent == "analysis"
+    assert plan.grounding_needs == ["external_sources"]
+    assert plan.output_contract == "freeform"
+    assert plan.diagnostic_reasons == ["external_sources", "analytical_work"]
+
+
+def test_version_two_write_once_plan_decodes_with_its_prior_depth_and_humor_behavior():
+    old = PersonaPlan.model_validate({"version": 2, "depth": "brief", "tone": "warm", "banter": True})
+    assert old.version == 2 and old.resolved_depth == "brief"
+    assert old.humor_eligible is True
+
+
+@pytest.mark.parametrize("bad_version", [True, 0, -1, "3"])
+def test_response_plan_rejects_invalid_version_types_and_values(bad_version):
+    with pytest.raises(ValueError, match="response-plan version"):
+        PersonaPlan.model_validate({"version": bad_version, "depth": "brief", "tone": "neutral"})
 
 
 def test_style_resolution_and_guidance_stay_under_the_local_budget():
@@ -151,10 +278,14 @@ def test_style_resolution_and_guidance_stay_under_the_local_budget():
     layers = dict(agent_preset=PersonaStyle(depth="thorough", tone="warm"),
                   agent_override=PersonaStyle(tone="direct", banter=False),
                   conversation=PersonaStyle(banter=True), turn=PersonaStyle(depth="brief"))
+    prompt = "Tell me a joke about the database."
+    context = [{"role": "assistant", "content": "A previous answer."}]
     samples = []
-    for _ in range(200):
+    for _ in range(500):
         start = _time.perf_counter()
-        guidance(resolve_persona(revisions={"agent": 3, "conversation": 2}, **layers))
+        plan = contextualize_persona(resolve_persona(revisions={"agent": 3, "conversation": 2}, **layers),
+                                     prompt, conversation_context=context)
+        guidance(plan)
         samples.append((_time.perf_counter() - start) * 1000.0)
     samples.sort()
     p95 = samples[int(0.95 * len(samples)) - 1]
@@ -361,9 +492,10 @@ def test_engine_captures_the_resolved_persona_plan_at_start(store, config, monke
                                       idem_key="eng-2", request_hash="eng-2")
 
     engine = Engine(config, store)
-    run = Run(bot_id=bot.id, prompt="hello", conversation_id=conversation["id"],
+    prompt = "Tell me a joke about the database."
+    run = Run(bot_id=bot.id, prompt=prompt, conversation_id=conversation["id"],
               persona_turn=PersonaStyle(banter=False))
-    store.submit_conversation_message(conversation["id"], "hello", run, Task(bot_id=bot.id, prompt="hello"),
+    store.submit_conversation_message(conversation["id"], prompt, run, Task(bot_id=bot.id, prompt=prompt),
                                       idem_key="eng-3", request_hash="eng-3")
     engine.dispatch_pending()
     deadline = time.time() + 10
@@ -380,6 +512,7 @@ def test_engine_captures_the_resolved_persona_plan_at_start(store, config, monke
     assert {key: plan.sources[key] for key in ("depth", "tone", "banter")} == {
         "depth": "conversation", "tone": "agent_override", "banter": "turn"}
     assert plan.revisions["agent"] == 1 and plan.revisions["conversation"] == 1
+    assert plan.intent == "banter" and plan.humor_eligible is True and plan.resolved_depth == "brief"
 
 
 # ============================================================ API: scoped saves with revision conflicts and reset

@@ -15,6 +15,12 @@
   format, profanity and habit preferences. `thorough` and legacy `tone`/`banter` values remain compatible.
   The API and runtime resolve these values locally; invalid/future profiles fail per assistant rather than
   hiding the rest of the roster.
+- Snapshot a v3 contextual response plan at run start: resolved depth, intent, audience, grounding needs,
+  humor eligibility, output contract, bounded diagnostic labels and saved-profile revisions. Local classification
+  examines a bounded portion of the current request and does not add a model call or store request text in its
+  diagnostic reasons. Low-risk eligibility preserves preset discretion, while humor guidance still requires a
+  clearly playful request. This plan currently informs prompt guidance; routing and answer-scoped rewrite behavior
+  are still in progress, and live provider adherence remains unverified.
 - Extend assistant settings with the independent v2 selectors and bounded customization beside standing
   directions. Conversation controls save scoped preferences with conflict recovery; next-reply controls stay
   local until one send. Browser regressions cover persistence, reset, concurrent edits, focus, keyboard,

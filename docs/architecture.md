@@ -364,15 +364,23 @@ run; a retried start reuses the recorded plan, and unreadable or newer state fai
 into its system prompt locally — no extra model call is spent on style — and the guidance is
 subordinate wording: it never overrides safety, permissions, tool rules, the task, explicit operator
 requests or detail needed to act correctly, keeps sensitive topics plain and steady, and lets
-playfulness apply only to turns that are themselves clearly playful, re-decided each turn. The
+playfulness apply only to turns that are themselves clearly playful, re-decided each turn. The v3
+run snapshot also records locally resolved intent, depth, audience, grounding needs, humor eligibility,
+output contract, bounded diagnostic labels, and the saved-profile revisions. Classification examines
+at most 8,000 characters from the current request and whether a prior assistant response exists;
+diagnostic labels never copy request text and put sensitive/action cues first. Low-risk eligibility preserves
+the selected preset's discretion, while the prompt still asks the model to use humor only when the request
+itself is clearly playful. This is deterministic guidance, not a provider-enforced guarantee or a
+tool/retrieval router. Corrections can shape the current response plan only when conversation context
+exists; answer-scoped rewrite behavior is still being implemented. The
 chain is covered by fixture and API tests, a real-engine plan-capture test, and a real-app browser
 regression at 320, 360, 768 and 1440 CSS pixels plus a 720 × 480 effective viewport for 200% reflow
 at 1440 × 960. Screenshots, browser trace and response/network checks are retained in
 `docs/realignment/artifacts/persona-ui-v2-2026-10-11/`; manually inspected screenshots and the exact
 evidence boundary are recorded in `docs/realignment/persona-ui-visual-review.md`. Browser zoom itself
 was not controllable through the headless test runner, so the 720px case checks the corresponding
-effective CSS viewport rather than claiming a native zoom gesture. Live-model humor and boundary
-calibration remain unverified.
+effective CSS viewport rather than claiming a native zoom gesture. Live-model humor, boundary
+calibration, and provider-side request receipt remain unverified.
 
 ## What is deliberately NOT here (yet)
 

@@ -46,7 +46,7 @@ from .models import (
     iso,
     utcnow,
 )
-from .persona import PERSONA_VERSION, resolve_persona
+from .persona import PERSONA_VERSION, contextualize_persona, resolve_persona
 from .runtime import RunAborted, get_runtime
 from .safety import PolicyEngine
 from .workdir import check_workdir_at_run
@@ -804,6 +804,8 @@ class Engine:
                     conversation=conversation_style, turn=run.persona_turn,
                     revisions={"agent": bot.persona_revision,
                                **({"conversation": conversation_revision} if run.conversation_id else {})})
+                persona_plan = contextualize_persona(persona_plan, run.prompt,
+                                                     conversation_context=run.conversation_context)
             except Exception as exc:  # noqa: BLE001 - unreadable style state must fail closed, not silently restyle
                 self._fail_persona_unavailable(run, f"the response style could not be resolved: {exc}")
                 return
