@@ -17,7 +17,7 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field, PrivateAttr, ValidationError, computed_field, field_validator, model_validator
 
-from .persona import PERSONA_PROFILE_VERSION, PersonaPlan, PersonaStyle
+from .persona import PERSONA_PROFILE_VERSION, PERSONA_V1_FIELDS, PersonaPlan, PersonaStyle
 
 
 def utcnow() -> datetime:
@@ -350,7 +350,7 @@ class Bot(BaseModel):
         profile_keys = ("persona_profile_version", "persona_preset", "persona_override")
         raw_profile = {key: document[key] for key in profile_keys if key in document}
         profile_error: str | None = None
-        version = document.get("persona_profile_version", PERSONA_PROFILE_VERSION)
+        version = document.get("persona_profile_version", 1)
         if not isinstance(version, int) or isinstance(version, bool) or version < 1:
             profile_error = "has an invalid response-style profile version"
         elif version > PERSONA_PROFILE_VERSION:
@@ -360,6 +360,9 @@ class Bot(BaseModel):
                 value = document.get(field)
                 if value is None:
                     continue
+                if version == 1 and isinstance(value, dict) and (set(value) - PERSONA_V1_FIELDS):
+                    profile_error = "has fields this version 1 response-style profile cannot represent"
+                    break
                 try:
                     PersonaStyle.model_validate(value)
                 except ValidationError as exc:
@@ -373,6 +376,9 @@ class Bot(BaseModel):
             document["persona_profile_version"] = PERSONA_PROFILE_VERSION
             document["persona_preset"] = None
             document["persona_override"] = None
+        elif "persona_profile_version" not in document:
+            document = dict(document)
+            document["persona_profile_version"] = 1
         bot = cls.model_validate(document)
         if profile_error:
             label = bot.display_name.strip() or bot.name

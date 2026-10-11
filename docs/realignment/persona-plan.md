@@ -154,6 +154,11 @@ Review follow-ups (status after the profile-compatibility slice):
   error, and are preserved verbatim if an unrelated Bot field is saved. The roster still returns valid sibling
   assistants. The integrated persona/runtime, Bot/workdir, general store and API batch passes (**115 tests**).
   An earlier run had one test-message expectation mismatch, corrected and followed by a clean combined rerun.
+- The v2 profile contract now supports the three named presets, independent Auto/Brief/Standard/Detailed depth,
+  Off/Subtle/Playful humor, and bounded customization while preserving v1 `tone`/`banter` and `thorough` values.
+  Preset selection clears only same-scope legacy tone/joking values when no explicit v2 override accompanies it.
+  Focused checks passed: persona contract/API/runtime **33 passed**, runtime and general API **124 passed**, and
+  Bot workdir/store **42 passed**. The existing compact form still needs its v2 controls.
 - The combined offline suite at `04b5722` completed with **1,989 passed, 2 failed** in 525.57 s. The Unix
   socket test failed only because the long test temp path exceeded `AF_UNIX` path length; rerunning with a short
   cache root made it pass. The other failure, `test_the_shell_cannot_see_the_real_home_or_any_folder_outside_the_workspace`, also failed on clean

@@ -29,20 +29,21 @@ def test_resolution_prefers_the_highest_layer_and_records_origins():
         conversation=PersonaStyle(banter=True),
         turn=PersonaStyle(depth="brief"))
     assert (plan.depth, plan.tone, plan.banter) == ("brief", "direct", True)      # turn -> conversation -> override
-    assert plan.sources == {"depth": "turn", "tone": "agent_override", "banter": "conversation"}
+    assert {key: plan.sources[key] for key in ("depth", "tone", "banter")} == {
+        "depth": "turn", "tone": "agent_override", "banter": "conversation"}
     assert plan.version == PERSONA_VERSION
 
 
 def test_resolution_falls_back_to_the_application_default():
     plan = resolve_persona()
-    assert (plan.depth, plan.tone, plan.banter) == ("standard", "neutral", APPLICATION_DEFAULT.banter)
-    assert plan.sources == {"depth": "application", "tone": "application", "banter": "application"}
+    assert (plan.depth, plan.tone, plan.humor, plan.banter) == ("auto", "neutral", "subtle", True)
+    assert all(source == "application" for source in plan.sources.values())
 
 
 def test_a_sparse_application_layer_keeps_the_built_in_fallbacks():
     plan = resolve_persona(application=PersonaStyle(depth="thorough"))
-    assert (plan.depth, plan.tone) == ("thorough", "neutral")
-    assert plan.sources == {"depth": "application", "tone": "application", "banter": "application"}
+    assert (plan.depth, plan.tone) == ("detailed", "neutral")
+    assert plan.sources["depth"] == plan.sources["tone"] == plan.sources["banter"] == "application"
 
 
 def test_reset_clears_one_layer_without_touching_the_others():
@@ -58,6 +59,50 @@ def test_override_precedence_beats_preset_and_preset_beats_default():
     assert plan.banter is True and plan.sources["banter"] == "agent_preset"
     plan = resolve_persona(agent_preset=PersonaStyle(banter=True), agent_override=PersonaStyle(banter=False))
     assert plan.banter is False and plan.sources["banter"] == "agent_override"
+
+
+def test_named_presets_set_voice_and_humor_without_changing_answer_depth():
+    direct = resolve_persona(agent_override=PersonaStyle(preset="direct"))
+    warm = resolve_persona(agent_override=PersonaStyle(preset="warm"))
+    wit = resolve_persona(agent_override=PersonaStyle(preset="dry_wit"))
+    assert (direct.preset, direct.tone, direct.humor, direct.depth) == ("direct", "direct", "off", "auto")
+    assert (warm.preset, warm.tone, warm.humor, warm.depth) == ("warm", "warm", "off", "auto")
+    assert (wit.preset, wit.tone, wit.humor, wit.depth) == ("dry_wit", "direct", "playful", "auto")
+
+
+def test_higher_explicit_humor_overrides_a_preset_and_legacy_banter_stays_subtle():
+    plan = resolve_persona(agent_preset=PersonaStyle(preset="dry_wit"),
+                           agent_override=PersonaStyle(humor="off"))
+    assert plan.humor == "off" and plan.banter is False and plan.sources["humor"] == "agent_override"
+    legacy = resolve_persona(agent_override=PersonaStyle(banter=True))
+    assert legacy.humor == "subtle" and legacy.banter is True
+    migrated = apply_persona_changes(PersonaStyle(tone="warm", banter=True), {"preset": "dry_wit"})
+    assert migrated.tone is None and migrated.banter is None
+    assert resolve_persona(agent_override=migrated).humor == "playful"
+
+
+def test_depth_alias_and_bounded_customization_round_trip_zero_and_empty_values():
+    style = PersonaStyle(depth="thorough", warmth=0, directness=100, formality=0,
+                         profanity="mirror", format_style="bullets", avoid_habits=[])
+    encoded = encode_persona_state(style, 1)
+    restored, revision = decode_persona_state(encoded)
+    assert restored == style and revision == 1
+    plan = resolve_persona(agent_override=style)
+    assert plan.depth == "detailed"
+    assert (plan.warmth, plan.directness, plan.formality) == (0, 100, 0)
+    assert plan.profanity == "mirror" and plan.format_style == "bullets" and plan.avoid_habits == []
+
+
+def test_depth_reads_v1_state_and_new_customization_is_bounded():
+    assert decode_persona_state('{"version": 1, "revision": 2, "values": {"depth": "thorough"}}') == (
+        PersonaStyle(depth="thorough"), 2)
+    assert decode_persona_state('{"revision": 2, "values": {"banter": false}}') == (PersonaStyle(banter=False), 2)
+    with pytest.raises(ValueError, match="version 1"):
+        decode_persona_state('{"version": 1, "revision": 2, "values": {"humor": "off"}}')
+    with pytest.raises(ValueError):
+        PersonaStyle.model_validate({"warmth": 101})
+    with pytest.raises(ValueError):
+        PersonaStyle.model_validate({"avoid_habits": ["filler"] * 6})
 
 
 def test_state_round_trip_and_revision_guards():
@@ -89,14 +134,14 @@ def test_guidance_states_the_style_and_stays_subordinate():
     assert "Response style chosen for this run" in text
     assert "never overrides safety, permissions" in text
     assert "sensitive topics" in text.lower()
-    assert "do not use playful or joking language" in text.lower()
+    assert "do not use jokes or playful asides" in text.lower()
 
 
 def test_guidance_distinguishes_banter_on_and_off_without_stale_consent():
     on = guidance(resolve_persona(agent_override=PersonaStyle(banter=True)))
     off = guidance(resolve_persona(agent_override=PersonaStyle(banter=False)))
-    assert "clearly joking" in on and "clearly joking" not in off
-    assert "judge every turn fresh" in on            # playfulness is re-decided per turn, never carried over
+    assert "clearly playful" in on and "clearly playful" not in off
+    assert "judge each turn fresh" in on            # playfulness is re-decided per turn, never carried over
 
 
 def test_style_resolution_and_guidance_stay_under_the_local_budget():
@@ -121,6 +166,7 @@ def test_style_resolution_and_guidance_stay_under_the_local_budget():
 def test_bot_persona_round_trip_conflict_and_reset(store):
     bot = store.create_bot(Bot(name="style-bot", model="mock/demo", tools=[]))
     assert bot.persona_revision == 0 and bot.persona_override is None
+    assert bot.persona_profile_version == PERSONA_PROFILE_VERSION
 
     updated, created = store.update_bot_persona(bot.id, {"tone": "warm", "banter": False},
                                                 expected_revision=0, idem_key="bp-1", request_hash="bp-1")
@@ -144,10 +190,29 @@ def test_bot_persona_round_trip_conflict_and_reset(store):
     assert stored.persona_revision == 2 and stored.persona_override.banter is False
 
 
+def test_legacy_bot_profile_loads_as_v1_then_upgrades_when_a_new_field_is_saved(store):
+    bot = store.create_bot(Bot(name="legacy-profile", model="mock/demo", tools=[]))
+    raw = json.loads(bot.store_json())
+    raw.pop("persona_profile_version")
+    raw["persona_override"] = {"depth": "thorough", "banter": False}
+    store._db.execute("UPDATE bots SET doc = ? WHERE id = ?", (json.dumps(raw), bot.id))
+    store._db.commit()
+
+    legacy = store.get_bot(bot.id)
+    assert legacy.persona_profile_version == 1
+    assert legacy.persona_override.depth == "thorough" and legacy.persona_override.banter is False
+    updated, created = store.update_bot_persona(bot.id, {"humor": "subtle", "warmth": 0}, expected_revision=0,
+                                                idem_key="legacy-v2", request_hash="legacy-v2")
+    assert created and updated.persona_profile_version == PERSONA_PROFILE_VERSION
+    assert updated.persona_override.depth == "thorough"
+    assert updated.persona_override.humor == "subtle" and updated.persona_override.warmth == 0
+
+
 @pytest.mark.parametrize(
     ("profile_version", "override", "error_text"),
     [
         (1, {"depth": "ultra-long"}, "unreadable response-style profile"),
+        (1, {"humor": "off"}, "fields this version 1"),
         (99, {"future_field": "kept"}, "version 99"),
     ],
 )
@@ -312,7 +377,8 @@ def test_engine_captures_the_resolved_persona_plan_at_start(store, config, monke
     plan = stored.persona_plan
     assert plan is not None
     assert (plan.depth, plan.tone, plan.banter) == ("brief", "warm", False)
-    assert plan.sources == {"depth": "conversation", "tone": "agent_override", "banter": "turn"}
+    assert {key: plan.sources[key] for key in ("depth", "tone", "banter")} == {
+        "depth": "conversation", "tone": "agent_override", "banter": "turn"}
     assert plan.revisions["agent"] == 1 and plan.revisions["conversation"] == 1
 
 
@@ -339,19 +405,24 @@ def test_bot_persona_api_is_revision_aware_and_resets_fields(persona_client):
     bot = _make_bot(client)
 
     state = client.get(f"/api/v1/bots/{bot['id']}/persona").json()
-    assert state["revision"] == 0 and state["override"] == {"depth": None, "tone": None, "banter": None}
-    assert state["effective"]["depth"] == {"value": "standard", "source": "application"}
+    assert state["revision"] == 0 and all(value is None for value in state["override"].values())
+    assert state["effective"]["depth"] == {"value": "auto", "source": "application"}
 
     saved = client.patch(f"/api/v1/bots/{bot['id']}/persona",
-                         json={"depth": "brief", "banter": False, "expected_revision": 0},
+                         json={"preset": "warm", "depth": "brief", "humor": "off", "banter": False,
+                               "warmth": 0, "avoid_habits": [], "expected_revision": 0},
                          headers={"Idempotency-Key": "persona-save-1"})
     assert saved.status_code == 200, saved.text
     body = saved.json()
-    assert body["revision"] == 1 and body["override"]["depth"] == "brief" and body["override"]["banter"] is False
+    assert body["revision"] == 1 and body["profile_version"] == PERSONA_PROFILE_VERSION
+    assert body["override"]["depth"] == "brief" and body["override"]["banter"] is False
+    assert body["override"]["humor"] == "off" and body["override"]["warmth"] == 0
+    assert body["override"]["avoid_habits"] == []
     assert body["effective"]["banter"] == {"value": False, "source": "agent_override"}
 
     replay = client.patch(f"/api/v1/bots/{bot['id']}/persona",
-                          json={"depth": "brief", "banter": False, "expected_revision": 0},
+                          json={"preset": "warm", "depth": "brief", "humor": "off", "banter": False,
+                                "warmth": 0, "avoid_habits": [], "expected_revision": 0},
                           headers={"Idempotency-Key": "persona-save-1"})
     assert replay.status_code == 200 and replay.json()["revision"] == 1      # idempotent retry, not a conflict
 
@@ -364,12 +435,16 @@ def test_bot_persona_api_is_revision_aware_and_resets_fields(persona_client):
                            json={"depth": None, "expected_revision": 1},
                            headers={"Idempotency-Key": "persona-save-3"})
     assert cleared.status_code == 200 and cleared.json()["revision"] == 2
-    assert cleared.json()["effective"]["depth"] == {"value": "standard", "source": "application"}
+    assert cleared.json()["effective"]["depth"] == {"value": "auto", "source": "application"}
 
     invalid = client.patch(f"/api/v1/bots/{bot['id']}/persona",
                            json={"depth": "verbose", "expected_revision": 2},
                            headers={"Idempotency-Key": "persona-save-4"})
     assert invalid.status_code == 422
+    out_of_bounds = client.patch(f"/api/v1/bots/{bot['id']}/persona",
+                                 json={"warmth": 101, "expected_revision": 2},
+                                 headers={"Idempotency-Key": "persona-save-4b"})
+    assert out_of_bounds.status_code == 422
 
     empty = client.patch(f"/api/v1/bots/{bot['id']}/persona",
                          json={"expected_revision": 2},
@@ -413,7 +488,9 @@ def test_conversation_persona_api_and_next_reply_plan(persona_client):
             break
         time.sleep(0.1)
     plan = store.get_run(run_id).persona_plan
-    assert plan is not None and plan.sources == {"depth": "turn", "tone": "conversation", "banter": "application"}
+    assert plan is not None
+    assert {key: plan.sources[key] for key in ("depth", "tone", "banter")} == {
+        "depth": "turn", "tone": "conversation", "banter": "application"}
 
 
 # ============================================================ independent-review regressions

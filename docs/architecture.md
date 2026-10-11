@@ -332,13 +332,20 @@ memory, workspace or permissions. Required response fields and limits are valida
 ## Response style (persona)
 
 The owner can save a response style for each assistant beside its standing directions, and choose
-this-conversation or next-reply styles from a chat's options. Choices are sparse: depth (short,
-balanced, thorough), voice (neutral, warm, direct) and joking (off, or matched only to clearly
-playful messages). Unset fields inherit by precedence — current turn, then conversation, then the
-assistant's saved style, then its preset, then Hutch's default — and an explicit "Inherited" clears
+this-conversation or next-reply styles from a chat's options. Version 2 profiles separate named
+presets (Direct, Warm, Dry Wit), depth (Auto, Brief, Standard, Detailed), and humor (Off, Subtle,
+Playful). Presets establish voice and humor defaults but never change depth. `thorough` remains a
+readable alias for Detailed; v1 `tone` and `banter` values remain compatible. Existing defaults keep
+the prior neutral, lightly playful behavior, and profanity stays off unless someone explicitly selects
+careful mirroring. Bounded customization uses 0–100 warmth, directness and formality values; a small
+format choice; and a fixed list of habits to avoid rather than arbitrary prompt text.
+
+Unset fields inherit by precedence — current turn, then conversation, then the owner's saved style
+for the assistant, then its shipped preset, then Hutch's default — and an explicit "Inherited" clears
 a saved value back to that chain. Saves are revision-guarded: a stale save is refused (409) and the
-person's edits stay on screen for review instead of being merged silently. A next-reply choice
-applies to one message only and never becomes a durable preference.
+person's edits stay on screen for review instead of being merged silently. A next-reply choice applies
+to one message only and never becomes a durable preference. The compact form currently retains its
+v1 controls while the version 2 controls are added in the interface slice.
 
 Each Bot document carries a response-style profile version; legacy documents without the version are read as
 version 1. A future-version or invalid style is isolated to that assistant: Hutch keeps the original profile

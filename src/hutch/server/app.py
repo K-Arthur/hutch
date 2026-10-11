@@ -56,8 +56,8 @@ from ..models import (
     InferenceMode, Limits, MemoryItem, OverlapPolicy, RiskTier, Run, RunStatus, RuntimeKind, Schedule, Task,
     TriggerKind, bot_slug_display_name, iso, utcnow,
 )
-from ..persona import (APPLICATION_DEFAULT, LAYER_LABELS, PERSONA_FIELDS, Depth, PersonaPlan, PersonaStyle, Tone,
-                       resolve_persona)
+from ..persona import (APPLICATION_DEFAULT, LAYER_LABELS, PERSONA_FIELDS, AvoidHabit, Depth, FormatStyle, Humor,
+                       PersonaPlan, PersonaStyle, Preset, Profanity, Tone, resolve_persona)
 from ..store import (ActiveRunConflict, AuthChallengeLimitExceeded, BotConflict, IdempotencyConflict,
                      PersonaConflict, RevisionConflict, Store)
 from ..state_snapshot import ExecutionHeld
@@ -699,9 +699,17 @@ class PersonaUpdateRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    preset: Optional[Preset] = None
     depth: Optional[Depth] = None
     tone: Optional[Tone] = None
+    humor: Optional[Humor] = None
     banter: Optional[bool] = None
+    warmth: Optional[int] = Field(default=None, ge=0, le=100)
+    directness: Optional[int] = Field(default=None, ge=0, le=100)
+    formality: Optional[int] = Field(default=None, ge=0, le=100)
+    profanity: Optional[Profanity] = None
+    format_style: Optional[FormatStyle] = None
+    avoid_habits: Optional[list[AvoidHabit]] = Field(default=None, max_length=5)
     expected_revision: int = Field(ge=0)
 
     def changes(self) -> dict[str, Any]:

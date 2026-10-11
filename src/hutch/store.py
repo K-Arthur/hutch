@@ -52,7 +52,8 @@ from .models import (
     bot_slug_display_name,
     utcnow,
 )
-from .persona import PERSONA_FIELDS, PersonaStyle, apply_persona_changes, decode_persona_state, encode_persona_state
+from .persona import (PERSONA_FIELDS, PERSONA_PROFILE_VERSION, PersonaStyle, apply_persona_changes,
+                      decode_persona_state, encode_persona_state)
 from .wake import Bus, WakeHub
 
 _SCHEMA = """
@@ -2169,6 +2170,7 @@ class Store:
                 # instead of silently rolling it back.
                 bot.persona_preset = previous.persona_preset
                 bot.persona_override = previous.persona_override
+                bot.persona_profile_version = max(bot.persona_profile_version, previous.persona_profile_version)
                 bot.persona_revision = previous.persona_revision
             identity_changed = previous is not None and previous.id != bot.id
             if identity_changed and (preserve_schedules or primary_schedule_update is not _SCHEDULE_UNCHANGED):
@@ -2233,7 +2235,7 @@ class Store:
         revision guard refuses a save from a stale form instead of silently merging it.
         """
         if not changes or not set(changes) <= set(PERSONA_FIELDS) or expected_revision < 0:
-            raise ValueError("response-style changes must include depth, tone, or banter and a valid revision")
+            raise ValueError("response-style changes must include a supported field and a valid revision")
         scope = f"api:v1:bot:{bot_id}:persona"
         now = iso(utcnow())
         with self._tx() as db:
@@ -2252,6 +2254,7 @@ class Store:
             if bot.persona_revision != expected_revision:
                 raise PersonaConflict(bot.persona_revision)
             bot.persona_override = apply_persona_changes(bot.persona_override, changes)
+            bot.persona_profile_version = PERSONA_PROFILE_VERSION
             bot.persona_revision += 1
             db.execute("UPDATE bots SET doc = ? WHERE id = ?", (bot.store_json(), bot.id))
             db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
