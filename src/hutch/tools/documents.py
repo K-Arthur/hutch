@@ -10,11 +10,13 @@ from the committed document id. Creation is ask-by-default (sticky key
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
 from typing import Any
 
 from ..documents import (MIME_BY_FORMAT, MAX_DOCUMENTS_PER_RUN, DocumentStorage,
                          new_document_id, new_job_id)
 from ..documents.docgen import DocumentGenerationError, generate, supported_formats
+from ..documents.docgen.render import RenderError, render_pdf_pages
 from ..documents.storage import DocumentStorageError
 from ..safety import Decision, Verdict
 from .base import Tool, ToolContext, ToolResult, _schema, rehearsed
@@ -69,6 +71,43 @@ def _describe_spec(fmt: str, spec: dict[str, Any]) -> str:
     if "files" in spec:
         return f"{len(spec.get('files') or [])} bundled files"
     return "content"
+
+
+def _render_pdf_preview(doc_id: str, version_row: dict[str, Any], *,
+                        data: bytes, storage_path: str, config, store) -> str:
+    """Render page previews for a committed pdf and record the outcome on its version row.
+
+    The version directory is derived from the storage path the store committed (its parts
+    minus the file name, under ``documents_dir``). Success records ``rendered_pages`` on
+    ``preview_data``; any failure — ``RenderError`` or an unexpected renderer crash —
+    downgrades ``preview_mode`` to ``download_only`` with a ``preview_render_failed``
+    finding appended to the stored findings. The document itself stays valid and
+    downloadable: generation and storage are never failed by preview rendering. Returns a
+    short note for the tool output ("" when previews rendered normally).
+    """
+    version_dir = config.documents_dir.joinpath(*PurePosixPath(storage_path).parts[:-1])
+    preview_error: str | None = None
+    try:
+        rendered = render_pdf_pages(data, version_dir)
+    except RenderError as exc:
+        preview_error = str(exc)
+    except Exception as exc:  # a renderer crash must never fail a committed document
+        preview_error = f"the preview renderer failed unexpectedly: {exc}"
+    if preview_error is None:
+        preview_data = dict(version_row["preview_data"])
+        preview_data["rendered_pages"] = rendered
+        store.set_document_preview(doc_id, int(version_row["version"]),
+                                   version_row["preview_mode"], preview_data)
+        version_row["preview_data"] = preview_data
+        return ""
+    stored = store.get_document_version(doc_id, int(version_row["version"]))
+    findings = list(stored["validation_findings"]) if stored else list(version_row["findings"])
+    findings.append({"code": "preview_render_failed", "detail": preview_error})
+    store.set_document_preview(doc_id, int(version_row["version"]), "download_only",
+                               dict(version_row["preview_data"]), findings=findings)
+    version_row["preview_mode"] = "download_only"
+    version_row["findings"] = findings
+    return "; page previews are unavailable, the document is download-only"
 
 
 class CreateDocumentTool(Tool):
@@ -159,10 +198,16 @@ class CreateDocumentTool(Tool):
             return ToolResult(ok=False, output=f"error: {exc}")
         except Exception as exc:
             return ToolResult(ok=False, output=f"error: the document could not be committed ({exc})")
+        preview_note = ""
+        if fmt == "pdf":
+            preview_note = _render_pdf_preview(
+                doc_id, version_row, data=generated.data,
+                storage_path=version_row["storage_path"], config=ctx.config, store=ctx.store)
         ref = _document_ref(doc_id, version_row, title=title, fmt=fmt)
         warnings = f"; {len(generated.findings)} note(s)" if generated.findings else ""
         return ToolResult(ok=True,
                           output=(f"created {filename} ({fmt}, {staged.bytes:,} bytes, "
-                                  f"validation {generated.validation_state}{warnings}); "
+                                  f"validation {generated.validation_state}{warnings}"
+                                  f"{preview_note}); "
                                   f"document {doc_id} v1 is ready to download"),
                           data={"document": ref})

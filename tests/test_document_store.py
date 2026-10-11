@@ -72,6 +72,29 @@ def test_document_revision_cas(store: Store):
         store.add_document_version("doc_ffffffffffffffff", 1, _version_rows(b"x"))
 
 
+def test_set_document_preview_updates_only_preview_columns(store: Store):
+    doc_id = new_document_id()
+    store.create_document(document_id=doc_id, bot_id="bot_0123456789abcdef", conversation_id=None,
+                          title="Report", fmt="pdf", version=_version_rows(b"pv-bytes"))
+    store.set_document_preview(doc_id, 1, "pages", {"kind": "pages", "rendered_pages": 3})
+    version = store.get_document_version(doc_id, 1)
+    assert version["preview_mode"] == "pages"
+    assert version["preview_data"] == {"kind": "pages", "rendered_pages": 3}
+    assert version["validation_state"] == "passed", "validation_state stays untouched"
+    assert version["sha256"] == hashlib.sha256(b"pv-bytes").hexdigest(), "content columns stay untouched"
+    # the RenderError downgrade: preview_mode lowered and findings replaced in one transaction
+    findings = version["validation_findings"] + [{"code": "preview_render_failed", "detail": "boom"}]
+    store.set_document_preview(doc_id, 1, "download_only", {"kind": "pages"}, findings=findings)
+    version = store.get_document_version(doc_id, 1)
+    assert version["preview_mode"] == "download_only"
+    assert [f["code"] for f in version["validation_findings"]] == ["preview_render_failed"]
+    assert version["validation_state"] == "passed"
+    with pytest.raises(KeyError, match="no such document version"):
+        store.set_document_preview("doc_ffffffffffffffff", 1, "pages", {})
+    with pytest.raises(ValueError, match="unknown preview mode"):
+        store.set_document_preview(doc_id, 1, "posters", {})
+
+
 def _commit_pdf(storage: DocumentStorage, store: Store, *, doc_id: str, version: int,
                 data: bytes | None = None) -> str:
     data = data if data is not None else f"pdf-bytes-{version}".encode()

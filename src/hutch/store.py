@@ -6010,6 +6010,32 @@ class Store:
             db.execute("UPDATE documents SET current_version = ? WHERE id = ?",
                        (int(version["version"]), document_id))
 
+    def set_document_preview(self, document_id: str, version: int, preview_mode: str,
+                             preview_data: dict[str, Any], *,
+                             findings: Optional[list[dict[str, Any]]] = None) -> None:
+        """Update only the derived preview columns of one stored version (one transaction).
+
+        ``preview_mode`` and ``preview_data`` are rewritten; when ``findings`` is given
+        the stored ``validation_findings`` are replaced with that list (the caller appends
+        to what it read). ``validation_state`` and every content column stay untouched:
+        preview rendering may only annotate or downgrade how an already-valid, already-
+        committed document presents itself, never what it is.
+        """
+        if preview_mode not in ("pages", "structure", "download_only"):
+            raise ValueError(f"unknown preview mode: {preview_mode}")
+        assignments = "preview_mode = ?, preview_data = ?"
+        args: list[Any] = [preview_mode, _canonical(preview_data or {})]
+        if findings is not None:
+            assignments += ", validation_findings = ?"
+            args.append(_canonical(list(findings)))
+        args.extend([document_id, int(version)])
+        with self._tx() as db:
+            cursor = db.execute(
+                f"UPDATE document_versions SET {assignments} "
+                "WHERE document_id = ? AND version = ?", args)
+            if cursor.rowcount != 1:
+                raise KeyError("no such document version")
+
     def get_document(self, document_id: str) -> Optional[dict[str, Any]]:
         with self._lock:
             row = self._db.execute("SELECT * FROM documents WHERE id = ?", (document_id,)).fetchone()

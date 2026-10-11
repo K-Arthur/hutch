@@ -139,6 +139,50 @@ def test_create_document_rejects_bad_content_before_storing(store, config, tmp_p
     assert not result.ok and "unsupported format" in result.output
 
 
+def test_create_document_pdf_renders_preview_pages(store, config, tmp_path):
+    ctx = make_ctx(store, config, tmp_path)
+    result = CreateDocumentTool().run(
+        {"format": "pdf", "filename": "report.pdf", "title": "Report",
+         "content": {"title": "Report", "blocks": [{"p": "Hello."}, {"pagebreak": True},
+                                                   {"p": "World."}]}}, ctx)
+    assert result.ok, result.output
+    ref = result.data["document"]
+    assert ref["preview_mode"] == "pages"
+    version = store.get_document_version(ref["id"], 1)
+    assert version["preview_mode"] == "pages"
+    assert version["preview_data"].get("rendered_pages") == 2
+    assert version["validation_state"] == "passed"
+    storage = DocumentStorage(config)
+    page = storage.read_preview_png(version["storage_path"], 1)
+    assert page is not None and page.startswith(b"\x89PNG\r\n\x1a\n")
+
+
+def test_create_document_pdf_survives_preview_render_failure(store, config, tmp_path, monkeypatch):
+    import hutch.tools.documents as documents_tool
+    from hutch.documents.docgen.render import RenderError
+
+    def boom(data, version_dir, **kwargs):
+        raise RenderError("the preview renderer exploded")
+
+    monkeypatch.setattr(documents_tool, "render_pdf_pages", boom)
+    ctx = make_ctx(store, config, tmp_path)
+    result = CreateDocumentTool().run(
+        {"format": "pdf", "filename": "report.pdf", "title": "Report",
+         "content": {"title": "Report", "blocks": [{"p": "Hello."}]}}, ctx)
+    assert result.ok, f"generation must never fail because preview rendering did: {result.output}"
+    assert "download-only" in result.output
+    ref = result.data["document"]
+    assert ref["preview_mode"] == "download_only"
+    assert any(f["code"] == "preview_render_failed" for f in ref["validation_findings"])
+    version = store.get_document_version(ref["id"], 1)
+    assert version["preview_mode"] == "download_only"
+    assert any(f["code"] == "preview_render_failed" for f in version["validation_findings"])
+    assert version["validation_state"] == "passed", "validation stays untouched by the downgrade"
+    storage = DocumentStorage(config)
+    served = storage.read_version(version["storage_path"], version["sha256"], version["bytes"])
+    assert served.startswith(b"%PDF"), "the document stays valid and downloadable"
+
+
 def test_create_document_ask_mode_requires_approval_then_sticks(store, config, tmp_path):
     bot = Bot(name="doc-ask-bot", model="mock/demo", tools=["documents"], approval_mode=ApprovalMode.ask)
     ctx = make_ctx(store, config, tmp_path, bot=bot)

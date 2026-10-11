@@ -66,6 +66,10 @@ RENDERERS: dict[str, "Any"] = {}
 
 def _load_builtin_generators() -> None:
     from . import texty  # noqa: F401  (registers txt/md/csv/json/yaml)
+    from . import docxgen  # noqa: F401  (registers docx)
+    from . import pdfdoc  # noqa: F401  (registers pdf)
+    from . import pptx  # noqa: F401  (registers pptx)
+    from . import xlsx  # noqa: F401  (registers xlsx)
 
 
 _load_builtin_generators()
