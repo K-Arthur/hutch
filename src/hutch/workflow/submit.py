@@ -209,6 +209,7 @@ def submit_workflow(store: Any, *, bot: Bot, plan: dict[str, Any] | Plan,
                     save_definition: bool = True, activate_definition: bool = False,
                     origin: str = "operator", conversation_id: str = "",
                     source: str = "operator", planning_model: str = "",
+                    planning_profile_hash: str = "",
                     created_by: str = "", note: str = "",
                     idem_key: str = "", request_hash: str = "",
                     auto: bool = False, revision_id: str = "") -> Submission:
@@ -229,7 +230,8 @@ def submit_workflow(store: Any, *, bot: Bot, plan: dict[str, Any] | Plan,
         if not planning_model:
             raise PlanNotSubmittable("a model-authored plan must name the planning model")
         gate = qualify.assess("author", spec=planning_model, store=store,
-                              base_url=bot.base_url or None)
+                              base_url=bot.base_url or None,
+                              execution_profile_hash=planning_profile_hash or None)
         if not gate.allowed:
             raise PlanNotSubmittable(
                 f"the planning model is not qualified to author workflows: {gate.summary()}")

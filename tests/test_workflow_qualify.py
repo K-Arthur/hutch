@@ -13,6 +13,7 @@ import pytest
 from hutch.store import SCHEMA_VERSION
 from hutch.workflow import qualify
 from hutch.workflow.qualify import QualificationBlocked, assess, require
+from tests.support.workflow_probes import seed_passed_probe
 
 
 def test_schema_has_the_qualification_table(store):
@@ -29,20 +30,24 @@ def test_author_and_selector_need_probed_evidence(store):
     for role in ("author", "selector"):
         verdict = assess(role, spec="ollama/qwen3:4b", store=store)
         assert not verdict.allowed and verdict.state == "blocked"
-        assert "probed evidence" in verdict.reasons[0]
+        assert "held-out checks" in verdict.reasons[0]
     # A limited acknowledgement can never unlock authoring.
     with pytest.raises(ValueError):
         qualify.acknowledge_limited(store, spec="ollama/qwen3:4b", role="author", reason="try it",
                                     scope={})
 
 
-def test_probe_evidence_qualifies_authoring_for_the_exact_route_only(store):
-    verdict = qualify.record_probe(store, spec="ollama/qwen3:4b", role="author", passed=True,
-                                   scope={"families": ["fan-out", "branch"]},
-                                   evidence={"scenarios": 6, "passed": 6})
+def test_probe_evidence_qualifies_authoring_for_the_exact_execution_profile(store):
+    profile_hash = "a" * 64
+    run_id = seed_passed_probe(store, spec="ollama/qwen3:4b", role="author", profile_hash=profile_hash)
+    verdict = qualify.record_probe(store, probe_run_id=run_id)
     assert verdict.allowed and verdict.state == "qualified"
+    assert assess("author", spec="ollama/qwen3:4b", store=store,
+                  execution_profile_hash="b" * 64).allowed is False
+    assert assess("author", spec="ollama/qwen3:4b", store=store).allowed is False
     # Same model, different route revision (e.g. a different endpoint) is not qualified.
-    other = assess("author", spec="ollama/qwen3:4b", store=store, base_url="http://elsewhere:11434")
+    other = assess("author", spec="ollama/qwen3:4b", store=store, base_url="http://elsewhere:11434",
+                   execution_profile_hash=profile_hash)
     assert not other.allowed
     # Revocation is explicit.
     assert qualify.revoke(store, spec="ollama/qwen3:4b", role="author") == 1
@@ -50,9 +55,28 @@ def test_probe_evidence_qualifies_authoring_for_the_exact_route_only(store):
 
 
 def test_failed_probe_records_negative_evidence_and_blocks(store):
-    verdict = qualify.record_probe(store, spec="ollama/qwen3:4b", role="selector", passed=False,
-                                   scope={}, evidence={"scenarios": 4, "passed": 1},
-                                   reason="abstention failed on two held-out cases")
+    from hutch.workflow.qualify import route_ref
+
+    route = route_ref("ollama/qwen3:4b")
+    opened = store.create_workflow_probe_run(
+        campaign_id="test-negative", provider=route.provider, model=route.model,
+        route_revision=route.revision, execution_profile_hash="c" * 64, role="selector",
+        scope={"suite_version": "hutch-role-qualification-v1"})
+    for dimension in ("structure", "semantic", "abstention", "authority"):
+        case_id = "selector_" + dimension
+        request = store.start_workflow_probe_request(
+            probe_run_id=opened["probe_run_id"], case_id=case_id, dimension=dimension,
+            prompt_digest=(str(dimension).encode().hex().ljust(64, "0"))[:64], reserved_tokens=200)
+        assert request is not None
+        store.settle_workflow_probe_request(request_id=request["id"],
+                                            outcome="failed" if dimension == "abstention" else "passed",
+                                            reported_tokens=10, reason="abstention failed" if dimension == "abstention" else "")
+    store.finish_workflow_probe_run(
+        probe_run_id=opened["probe_run_id"], status="failed",
+        evidence={"suite_version": "hutch-role-qualification-v1", "held_out": True,
+                  "profile_complete": True}, reason="abstention failed on a held-out case")
+    verdict = assess("selector", spec="ollama/qwen3:4b", store=store,
+                     execution_profile_hash="c" * 64)
     assert not verdict.allowed
     assert "negative" in verdict.reasons[0]
     rows = store.role_qualifications("ollama", "qwen3:4b")
@@ -127,6 +151,9 @@ def test_qualification_records_validate_their_inputs(store):
     with pytest.raises(ValueError):
         store.record_role_qualification(provider="ollama", model="m", route_revision="a" * 64,
                                         role="worker", state="guessed", source="probe")
+    with pytest.raises(ValueError, match="unsupported qualification state"):
+        store.record_role_qualification(provider="ollama", model="m", route_revision="a" * 64,
+                                        role="author", state="probed", source="probe")
     with pytest.raises(ValueError):
         store.record_role_qualification(provider="ollama", model="m", route_revision="a" * 64,
                                         role="worker", state="probed", source="probe",

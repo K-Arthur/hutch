@@ -158,10 +158,11 @@ def test_authoring_tool_is_refused_without_probed_evidence(store, config):
     assert refused.data["qualification"]["allowed"] is False
 
     # A passed probe unlocks authoring for that exact route; the tool still never starts work.
-    store.record_role_qualification(provider="ollama", model="qwen3:4b",
-                                    route_revision=_revision(store, instance),
-                                    role="author", state="probed", scope={}, evidence={},
-                                    reason="probe passed", source="probe")
+    from tests.support.workflow_probes import seed_passed_probe
+
+    execution_hash = "d" * 64
+    seed_passed_probe(store, spec=instance.model, role="author", profile_hash=execution_hash)
+    ctx.model_execution_profile = {"fingerprint": execution_hash}
     accepted = tool.run({"plan": plan, "save": True, "name": "drafted-by-model"}, ctx)
     assert accepted.ok is True and accepted.data["started"] is False
     from hutch.workflow import persistence as wstore

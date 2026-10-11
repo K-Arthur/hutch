@@ -454,9 +454,12 @@ script sandbox to escape. The authority rules are the ordinary ones, applied ear
   frozen contract when it starts, so a Bot edited after admission cannot silently widen an
   old step.
 * **Roles are evidence, not names.** A model may perform a step only in a role qualified for
-  that exact route revision. Authoring and selection need probed evidence; a same-route
-  verifier is marked non-independent and can only advise, never certify. A negative evidence
-  state blocks the capability outright.
+  that exact route revision and execution profile, including backend/checkpoint identity,
+  quantization, template/tokenizer, protocol/parser, context, decoding and modalities. Authoring
+  and selection need all four held-out checks to pass for that exact profile; only a local owner
+  can run probes. A same-route verifier is marked non-independent and can only advise, never
+  certify. A negative evidence state blocks the capability outright, and an acknowledgement
+  cannot manufacture author/selector authority.
 * **Every effect goes through the same seams.** Tool calls use the canonical dispatcher with
   intent/receipt bracketing; artifacts exist only as committed events with a recorded hash
   and are re-hashed on read-back; approvals are bound to the actor, run, node, arguments and

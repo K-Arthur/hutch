@@ -127,7 +127,8 @@ def _observations(store: Any, route: RouteRef) -> list[dict[str, Any]]:
 def assess(role: str, *, spec: str, store: Any = None, connections: Any = None,
            base_url: Optional[str] = None, requires_tools: bool = False,
            producer_spec: Optional[str] = None,
-           requires_structured_output: bool = False) -> RoleVerdict:
+           requires_structured_output: bool = False,
+           execution_profile_hash: Optional[str] = None) -> RoleVerdict:
     """Explain whether ``role`` may run on ``spec`` right now, and why."""
     if role not in ROLES:
         raise ValueError(f"unknown workflow role {role!r}")
@@ -153,17 +154,26 @@ def assess(role: str, *, spec: str, store: Any = None, connections: Any = None,
     negative = [r for r in records if r.get("state") in ("unsupported", "stale")]
 
     if role in PROBE_ONLY_ROLES:
-        if probed:
-            latest = probed[0]
+        exact = [record for record in probed
+                 if execution_profile_hash and record.get("execution_profile_hash") == execution_profile_hash]
+        if exact:
+            latest = exact[0]
             return RoleVerdict(role=role, state="qualified", allowed=True,
-                               reasons=("a bounded held-out probe passed on this exact route revision",),
+                               reasons=("all held-out checks passed on this exact route and execution profile",),
                                route=route, evidence={"records": len(probed)},
                                tested_at=str(latest.get("tested_at", "")),
                                scope=latest.get("scope") or {})
-        reason = ("this role needs probed evidence on this exact route revision; "
-                  "declared capability, connectivity or valid-looking output is not enough")
+        reason = ("this role needs all held-out checks to pass on the exact route and execution profile; "
+                  "the active model build/settings were not verified")
         if negative:
-            reason = f"evidence for this route is negative: {negative[0].get('reason') or negative[0].get('state')}"
+            exact_negative = [record for record in negative
+                              if not execution_profile_hash
+                              or record.get("execution_profile_hash") in ("", execution_profile_hash)]
+            if exact_negative:
+                reason = (f"evidence for this execution profile is negative: "
+                          f"{exact_negative[0].get('reason') or exact_negative[0].get('state')}")
+        elif probed and execution_profile_hash:
+            reason = "held-out evidence exists for a different execution profile and is stale for this model setup"
         elif limited:
             reason = ("only a limited worker/verifier scope was acknowledged for this route; "
                       "authoring stays blocked until a probe passes")
@@ -243,17 +253,16 @@ def require(role: str, **kwargs: Any) -> RoleVerdict:
     return verdict
 
 
-def record_probe(store: Any, *, spec: str, role: str, passed: bool, scope: dict[str, Any],
-                 evidence: dict[str, Any], reason: str = "", connections: Any = None,
-                 base_url: Optional[str] = None) -> RoleVerdict:
-    """Store the outcome of an explicit bounded probe. Only ``passed`` unlocks the role."""
-    route = route_ref(spec, base_url=base_url, connections=connections)
-    store.record_role_qualification(
-        provider=route.provider, model=route.model, route_revision=route.revision, role=role,
-        state="probed" if passed else "unsupported", scope=scope, evidence=evidence,
-        reason=reason or ("bounded held-out probe passed" if passed else "bounded held-out probe failed"),
-        source="probe")
-    return assess(role, spec=spec, store=store, connections=connections, base_url=base_url)
+def record_probe(store: Any, *, probe_run_id: str, base_url: Optional[str] = None) -> RoleVerdict:
+    """Read qualification evidence produced by a completed, durable held-out probe run."""
+    run = store.workflow_probe_run(probe_run_id) if hasattr(store, "workflow_probe_run") else None
+    if run is None:
+        raise ValueError("no durable probe run has that id")
+    if run.get("status") != "passed":
+        raise ValueError("only a completed passing probe can qualify a role")
+    return assess(str(run["role"]), spec=f"{run['provider']}/{run['model']}", store=store,
+                  base_url=base_url,
+                  execution_profile_hash=str(run["execution_profile_hash"]))
 
 
 def acknowledge_limited(store: Any, *, spec: str, role: str, reason: str, scope: dict[str, Any],

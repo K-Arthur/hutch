@@ -1933,10 +1933,12 @@ def workflow_answer(question_id: str = typer.Argument(...), text: str = typer.Ar
 
 @workflow_app.command("qualify")
 def workflow_qualify(bot_ref: str = typer.Argument(...),
-                     role: str = typer.Option("worker", "--role", help="worker | verifier"),
+                     role: str = typer.Option("worker", "--role", help="worker | verifier | author | selector"),
                      reason: str = typer.Option("", "--reason", help="why this scope is acceptable"),
                      revoke: bool = typer.Option(False, "--revoke"),
-                     assess_only: bool = typer.Option(False, "--assess")) -> None:
+                     assess_only: bool = typer.Option(False, "--assess"),
+                     probe: bool = typer.Option(False, "--probe", help="run the bounded local held-out suite"),
+                     campaign: str = typer.Option("dynamic-workflows-initial", "--campaign")) -> None:
     """Inspect or record a scoped role qualification for one Bot's exact route.
 
     An acknowledgement can only ever unlock a bounded worker/verifier scope; authoring and
@@ -1946,8 +1948,50 @@ def workflow_qualify(bot_ref: str = typer.Argument(...),
 
     store = _store()
     bot = _require_bot(store, bot_ref)
+    from .providers import parse_spec
+
+    if probe:
+        if role not in ("author", "selector"):
+            err.print("[red]--probe supports only the author and selector held-out suites[/red]")
+            raise typer.Exit(code=2)
+        from .providers import ProviderError, make_provider
+        from .route_identity import default_endpoint
+        from .workflow.probes import run_probe_suite
+
+        provider_name, _model = parse_spec(bot.model)
+        endpoint = bot.base_url or default_endpoint(provider_name)
+        try:
+            provider = make_provider(provider_name, endpoint or None)
+            result = run_probe_suite(store, spec=bot.model, role=role, endpoint=endpoint,
+                                     provider=provider, campaign_id=campaign)
+        except (ProviderError, ValueError, RuntimeError) as exc:
+            err.print(f"[red]qualification probe could not run: {exc}[/red]")
+            raise typer.Exit(code=2) from None
+        console.print(f"{result.status}: {result.role} on {result.provider}/{result.model}; "
+                      f"{len(result.requests)} sample(s), execution profile "
+                      f"{result.execution_profile['fingerprint']}")
+        for item in result.requests:
+            console.print(f"  {item['dimension']}: {item['status']} — {item.get('reason') or 'passed'}")
+        if result.reason:
+            console.print(f"  {result.reason}")
+        raise typer.Exit(code=0 if result.status == "passed" else 1)
     if assess_only:
-        verdict = qualify.assess(role, spec=bot.model, store=store, base_url=bot.base_url or None)
+        profile_hash = None
+        if role in ("author", "selector"):
+            try:
+                from .providers import make_provider
+                from .route_identity import default_endpoint
+                from .workflow.probes import inspect_probe_profile
+
+                provider_name, _model = parse_spec(bot.model)
+                endpoint = bot.base_url or default_endpoint(provider_name)
+                _name, _revision, profile = inspect_probe_profile(
+                    spec=bot.model, endpoint=endpoint, provider=make_provider(provider_name, endpoint or None))
+                profile_hash = profile["fingerprint"]
+            except Exception:
+                profile_hash = None
+        verdict = qualify.assess(role, spec=bot.model, store=store, base_url=bot.base_url or None,
+                                 execution_profile_hash=profile_hash)
         console.print(verdict.summary())
         if not verdict.allowed:
             from .workflow.routing import explain_block

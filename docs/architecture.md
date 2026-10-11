@@ -418,7 +418,7 @@ events through the same ownership check. Failed admission rolls back both withou
 the buffer. Expired execution cannot receive a new approval or standing grant; decisions still
 resolve once through compare-and-swap, and full-request rewrites are refused.
 
-## Dynamic workflows (schema v55)
+## Dynamic workflows (schema v56)
 
 A workflow is a **saved, validated plan**, not generated code. The plan schema, the bounded
 evaluator and the compiler live in `src/hutch/workflow/`; `plan` is strict data, `expr`
@@ -474,15 +474,20 @@ cannot change a stopped or replaced instance.
 
 Roles are gated by evidence, not by a model name: `workflow/qualify.py` resolves the same
 route identity the runtime records observations under (`route_identity.route_tuple`). Runtime
-tool profiles additionally fingerprint backend/version, checkpoint digest where available,
-quantization, template/tokenizer hashes, protocol/parser, effective context, decoding settings
-and reported modalities; this exact profile now participates in compiler identity. Stored role
-qualifications are not yet bound to that execution-profile fingerprint, so the role gate still
-needs the qualification-probe slice before it can claim exact build-scoped evidence. Authoring
-and selection require probed evidence; worker and
-verifier roles use documented/advertised/observed evidence with recorded caveats; a
-negative state blocks the capability. The model-facing `draft_workflow` tool validates and
-explains but cannot start anything, and a guessed direct call is refused with its options.
+tool profiles fingerprint backend/version, checkpoint digest, quantization, full template and
+tokenizer hashes, protocol/parser, effective context, decoding settings and reported modalities;
+that profile participates in compiler identity and in role-qualification records. Schema v56
+adds the exact profile hash to qualification records and stores probe campaigns, runs and
+requests separately so dispatch reservations survive process restart. The bounded
+probe runner accepts only a complete profile for a loopback Ollama 0.40.3 Q4_K_M model, checks
+four held-out cases per author/selector role, and records a pass only when all four dimensions
+settle successfully. A shared durable ledger limits the campaign to 80 requests, 60,000
+estimated/reported tokens and two hours; uncertain dispatches retain their reservations. The
+initial profile uses 4,096 context, a 2,048 output cap, streamed JSON requests and CPU-residency
+verification. Authoring and selection require evidence for the exact active profile; a changed
+setting blocks admission. Worker and verifier roles use their scoped evidence and recorded
+caveats; negative evidence blocks. The model-facing `draft_workflow` tool validates and explains
+but cannot start anything, and a guessed direct call is refused with its options.
 
 Routing (`workflow/routing.py`) is explainable and abstains by default: `off` never proposes
 or starts, `suggest` may describe a candidate route, and `auto` starts only inside the

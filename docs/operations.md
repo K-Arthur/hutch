@@ -33,6 +33,32 @@ New bots request strict mode. Existing bots migrated from older versions stay `o
 run. `HUTCH_SANDBOX=off` is an explicit operator rollback that disables containment for all bots in that process. Shell network
 requests are unavailable under strict mode; use `web_fetch`, which validates and pins the address for each redirect.
 
+## Local workflow qualification
+
+`hutch doctor` is a host and runtime readiness check; it does not qualify a model for workflow
+authoring or selection. `hutch workflow qualify <bot> --assess --role author` reports whether the
+Bot's current exact profile has probe evidence. Author and selector probes are a separate,
+local-owner-only action:
+
+```bash
+hutch workflow qualify local-planner --probe --role author --campaign dynamic-workflows-initial
+hutch workflow qualify local-planner --probe --role selector --campaign dynamic-workflows-initial
+hutch workflow qualify local-planner --assess --role author
+```
+
+The initial disposable campaign accepts a loopback Ollama 0.40.3 endpoint and a complete,
+installed Q4_K_M profile. It requests 4,096 context and 2,048 output tokens, forces CPU
+inference for probes, allows one resident model and one request at a time, and checks available
+memory before every request. The runner does not change an existing model residency setting or
+install a candidate. Use a private model directory and a separately owned foreground Ollama
+process for an evaluation; do not retune a shared service. The durable campaign cap is 80 actual
+requests, 60,000 estimated/reported tokens and two hours across roles and candidates. Incomplete
+or uncertain requests are not retried and do not grant authority. A successful author/selector
+result applies only to the exact profile tested, including decoding and effective context; for
+the initial profile, configure the Bot to use a 4,096-token context and the default 2,048 local
+turn cap. See [the workflow guide](workflows.md#roles-and-qualification) for probe scope and
+failure semantics.
+
 ## Workspace continuity
 
 New bots use a new empty workspace per run. To keep files across runs and conversations for one bot, use

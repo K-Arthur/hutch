@@ -207,7 +207,8 @@ class OllamaProvider(Provider):
             params_b=_params_b(d.get("parameter_size")), quant=d.get("quantization_level", ""),
             family=arch, max_context=pick(".context_length"), n_layers=pick(".block_count"),
             n_kv_heads=kv_heads or heads, head_dim=head_dim, capabilities=list(j.get("capabilities") or []),
-            template_hash=hashlib.sha256((j.get("template") or "").encode()).hexdigest(),
+            template_hash=(hashlib.sha256(j["template"].encode()).hexdigest()
+                           if isinstance(j.get("template"), str) and j["template"] else ""),
             tokenizer_hash=tokenizer_hash, license=lic[0].strip() if lic else "",
             digest=digest, size_bytes=_size_from_ps_or_none(self, model))
         self._caps[model] = meta.capabilities
@@ -252,6 +253,8 @@ class OllamaProvider(Provider):
             raise ProviderError("bad_request", "Ollama requests must set num_ctx explicitly (LM-1)",
                                 provider=self.name)
         options: dict[str, Any] = {"num_ctx": int(req.num_ctx)}
+        if req.num_gpu is not None:
+            options["num_gpu"] = int(req.num_gpu)
         if req.max_tokens:
             options["num_predict"] = int(req.max_tokens)  # per-turn cap (SR-5)
         if req.temperature is not None:

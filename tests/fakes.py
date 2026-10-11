@@ -147,6 +147,7 @@ class FakeOllama(_Server):
         self.chat_delay = 0.0                  # simulated generation time per call
         self.truncate = True                   # emulate Ollama's silent front-truncation
         self.version = "0.0-fake"
+        self.vram_bytes = 0
         self.loads: list[tuple[str, float]] = []
         super().__init__()
 
@@ -175,7 +176,7 @@ class FakeOllama(_Server):
                 for n, m in self.models.items()]})
         if path == "/api/ps":
             return self.send_json(h, {"models": [
-                {"name": n, "model": n, "size": self.models[n]["size"], "size_vram": 0,
+                {"name": n, "model": n, "size": self.models[n]["size"], "size_vram": self.vram_bytes,
                  "expires_at": "2099-01-01T00:00:00Z"} for n in self.loaded if n in self.models]})
         if path == "/api/show":
             m = self.models.get(body.get("model"))
@@ -209,6 +210,7 @@ class FakeOllama(_Server):
             return self.send_json(h, {"error": f"model '{name}' not found, try pulling it first"}, status=404)
         load = self._ensure_loaded(name)
         opts = body.get("options") or {}
+        self.last_chat_options = dict(opts)
         num_ctx = int(opts.get("num_ctx") or 4096)       # what real Ollama would default to, silently
         messages = body.get("messages", [])
         full = messages_text(messages)

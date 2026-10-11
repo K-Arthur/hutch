@@ -101,8 +101,9 @@ It contains no credential or resource-readiness state. For Ollama, `/api/tags` a
 provide the installed digest and model metadata; missing identity fields are reported as
 incomplete instead of guessed. These fields now participate in compiler identity, so changing
 one cannot silently reuse a plan compiled for another execution setup. Qualification records
-are not yet bound to the full profile; until held-out probes and that binding land, no live
-checkpoint should be described as author- or selector-qualified.
+are bound to that exact profile. A passing author or selector probe applies only to the same
+backend build, checkpoint, quantization, template, tokenizer, protocol/parser, context, decoding
+settings and modalities. A profile change blocks the role until it has new held-out evidence.
 
 | Role | Qualification |
 |---|---|
@@ -123,12 +124,29 @@ hutch workflow qualify research-bot --role worker --reason "local extraction onl
 hutch workflow qualify research-bot --revoke --role worker
 ```
 
-Current role records are keyed to the exact route identity (connection, endpoint and protocol).
-The model execution profile is now captured separately and its fingerprint changes with
-backend version, checkpoint digest, template, tokenizer, quantization, effective context,
-decoding, parser or reported modalities. Binding stored role evidence to that fingerprint and
-running bounded held-out probes are still required before the profile can grant author or
-selector authority. No acknowledgement creates either qualification.
+The built-in probe runner is deliberately narrow: it uses four harmless, held-out JSON cases
+for each role, only against a loopback Ollama 0.40.3 endpoint and an installed Q4_K_M checkpoint
+with a complete identity profile. It uses 4,096 context, the normal local 2,048-token turn cap,
+streaming with thinking disabled, and verifies after every response that exactly one model is
+resident with no VRAM use. It checks current memory headroom before each request and does not
+start a load when the candidate no longer fits. It sends no tools, user data, or hosted
+fallback. Its durable campaign ledger caps all runs together at 80 requests, 60,000
+estimated/reported tokens and two hours;
+an uncertain dispatch keeps its reservation and blocks another probe until reconciled. A
+timeout or incomplete sample is inconclusive and never grants authority. A complete failed
+suite records negative evidence for that exact profile.
+
+```bash
+hutch workflow qualify local-planner --probe --role author
+hutch workflow qualify local-planner --probe --role selector --campaign dynamic-workflows-initial
+hutch workflow qualify local-planner --assess --role author
+```
+
+The probe command and `POST /api/v1/workflows/qualifications/probe` are local-owner operations.
+After a passing probe, authoring/selection is available only to turns that report the exact
+same execution-profile fingerprint. For the initial probe profile, configure the Bot's model
+context to 4,096; the default local output cap is 2,048 tokens. No acknowledgement creates
+author or selector qualification. These initial probe limits do not qualify other settings.
 
 ## Verification
 
@@ -171,10 +189,10 @@ attempt can run.
 
 ## What is not implemented yet
 
-* **No live local-model evidence.** The deterministic path (tools, transforms, verification,
-  artifacts, questions) is verified end to end. Model-authored plans and planner/worker role
-  splits are implemented and gated but were not exercised against a real local checkpoint on
-  the development host, which has no model server installed.
+* **Live local-model evidence remains candidate-specific.** The bounded probe path is
+  implemented and tested against a fixture server. A checkpoint is qualified only after a
+  real campaign is run and its evidence is committed; an installed model or passing fixture
+  is not qualification.
 * **No workflow surface in Studio yet.** The API and CLI are complete; the plan/graph view,
   mode selection and inline question cards are a later slice.
 * No MCP facade (Hutch has no MCP plane), no code facade, and no automatic downloads or

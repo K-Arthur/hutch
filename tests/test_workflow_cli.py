@@ -11,7 +11,11 @@ import time
 from typer.testing import CliRunner
 
 from hutch.cli import app, _store
+from hutch import providers
+from hutch.hardware import Hardware
 from hutch.models import ACTIVE_STATUSES
+from hutch.workflow import probes as probe_module
+from tests.fakes import FakeOllama
 
 runner = CliRunner()
 
@@ -86,6 +90,39 @@ def test_workflow_cli_mode_sets_and_reports_the_policy(config):
         store.close()
     bad = runner.invoke(app, ["workflow", "mode", "mode-bot", "--mode", "sometimes"])
     assert bad.exit_code == 2
+
+
+def test_workflow_cli_probe_runs_all_held_out_checks_against_the_selected_local_model(config, monkeypatch):
+    monkeypatch.setattr(probe_module, "probe_hardware",
+                        lambda with_runtimes=False: Hardware(ram_total_gb=24, ram_available_gb=12))
+    model = "qwen3:1.7b-q4_K_M"
+    server = FakeOllama(models={model: {"params": "1.7B", "quant": "Q4_K_M",
+                                        "caps": ["completion", "tools"]}})
+    server.version = "0.40.3"
+    from tests.test_workflow_probes import _case_id, _reply
+
+    server.script = lambda body: {"content": _reply(_case_id(body))}
+    monkeypatch.setattr(providers, "make_provider", lambda _provider, _endpoint=None:
+                        __import__("hutch.providers.ollama", fromlist=["OllamaProvider"]).OllamaProvider(server.url))
+    try:
+        assert runner.invoke(app, ["init"]).exit_code == 0
+        created = runner.invoke(app, ["bot", "create", "probe-bot", "--model", f"ollama/{model}",
+                                      "--base-url", server.url, "--tools", ""])
+        assert created.exit_code == 0, created.output
+        result = runner.invoke(app, ["workflow", "qualify", "probe-bot", "--role", "author",
+                                     "--probe", "--campaign", "cli-probe-test"])
+        assert result.exit_code == 0, result.output
+        assert "passed" in result.output and "structure: passed" in result.output
+        assert len(server.of("/api/chat")) == 4
+        store = _store()
+        try:
+            records = store.role_qualifications("ollama", model)
+            assert records[0]["state"] == "probed"
+            assert records[0]["execution_profile_hash"]
+        finally:
+            store.close()
+    finally:
+        server.close()
 
 
 def test_workflow_cli_run_and_status_answer_a_question(config, tmp_path):

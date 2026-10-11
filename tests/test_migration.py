@@ -707,7 +707,7 @@ def _prepare_historical_workflow_schema(config, *, version: int, qualification: 
         pytest.param(52, True, True, False, id="workflow-v52-tables"),
     ],
 )
-def test_historical_schema_51_and_52_variants_converge_on_schema_55(
+def test_historical_schema_51_and_52_variants_converge_on_schema_56(
     config, version, qualification, workflow_tables, question_guards,
 ):
     _prepare_historical_workflow_schema(
@@ -717,7 +717,7 @@ def test_historical_schema_51_and_52_variants_converge_on_schema_55(
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == 55
+        assert upgraded.schema_version == 56
         names = {row[0] for row in upgraded._db.execute(
             "SELECT name FROM sqlite_master WHERE type IN ('table', 'trigger', 'index')")}
         assert "workflow_role_qualifications" in names
@@ -766,7 +766,7 @@ def test_interrupted_historical_upgrade_rolls_back_and_keeps_backup(config, monk
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == 55
+        assert upgraded.schema_version == 56
     finally:
         upgraded.close()
 
@@ -797,7 +797,8 @@ def test_interrupted_schema_53_to_54_upgrade_rolls_back_and_retries(config, monk
 
     with monkeypatch.context() as patch:
         patch.setattr(store_module, "_MIGRATIONS",
-                      [*store_module._MIGRATIONS[:-2], interrupt, store_module._MIGRATIONS[-1]])
+                      [*store_module._MIGRATIONS[:-3], interrupt,
+                       store_module._MIGRATIONS[-2], store_module._MIGRATIONS[-1]])
         with pytest.raises(RuntimeError, match="injected v54 receipt migration interruption"):
             Store(config)
 
@@ -820,7 +821,7 @@ def test_interrupted_schema_53_to_54_upgrade_rolls_back_and_retries(config, monk
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == 55
+        assert upgraded.schema_version == 56
         action_columns = {row[1] for row in upgraded._db.execute("PRAGMA table_info(tool_actions)")}
         question_columns = {row[1] for row in upgraded._db.execute("PRAGMA table_info(workflow_questions)")}
         assert {"workflow_identity", "workflow_fingerprint", "result_json"} <= action_columns
@@ -848,7 +849,8 @@ def test_interrupted_schema_54_to_55_usage_migration_rolls_back_and_retries(conf
         raise RuntimeError("injected v55 usage migration interruption")
 
     with monkeypatch.context() as patch:
-        patch.setattr(store_module, "_MIGRATIONS", [*store_module._MIGRATIONS[:-1], interrupt])
+        patch.setattr(store_module, "_MIGRATIONS",
+                      [*store_module._MIGRATIONS[:-2], interrupt, store_module._MIGRATIONS[-1]])
         with pytest.raises(RuntimeError, match="injected v55 usage migration interruption"):
             Store(config)
 
@@ -869,8 +871,55 @@ def test_interrupted_schema_54_to_55_usage_migration_rolls_back_and_retries(conf
 
     upgraded = Store(config)
     try:
-        assert upgraded.schema_version == 55
+        assert upgraded.schema_version == 56
         columns = {row[1] for row in upgraded._db.execute("PRAGMA table_info(usage_reservations)")}
         assert {"workflow_run_id", "request_started_at"} <= columns
+    finally:
+        upgraded.close()
+
+
+def test_interrupted_schema_55_to_56_probe_migration_rolls_back_and_retries(config, monkeypatch):
+    from hutch import store as store_module
+
+    current = Store(config)
+    current.close()
+    db = sqlite3.connect(config.db_path)
+    try:
+        for table in ("workflow_probe_requests", "workflow_probe_runs", "workflow_probe_campaigns"):
+            db.execute(f"DROP TABLE IF EXISTS {table}")
+        db.execute("ALTER TABLE workflow_role_qualifications DROP COLUMN execution_profile_hash")
+        db.execute("PRAGMA user_version = 55")
+        db.commit()
+    finally:
+        db.close()
+
+    def interrupt(_db):
+        raise RuntimeError("injected v56 qualification migration interruption")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store_module, "_MIGRATIONS",
+                      [*store_module._MIGRATIONS[:-1], interrupt])
+        with pytest.raises(RuntimeError, match="injected v56 qualification migration interruption"):
+            Store(config)
+
+    db = sqlite3.connect(config.db_path)
+    try:
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 55
+        assert db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                          "AND name='workflow_probe_campaigns'").fetchone() is None
+        columns = {row[1] for row in db.execute("PRAGMA table_info(workflow_role_qualifications)")}
+        assert "execution_profile_hash" not in columns
+    finally:
+        db.close()
+    assert config.db_path.with_suffix(".db.bak-v55").exists()
+
+    upgraded = Store(config)
+    try:
+        assert upgraded.schema_version == 56
+        names = {row[0] for row in upgraded._db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")}
+        assert {"workflow_probe_campaigns", "workflow_probe_runs", "workflow_probe_requests"} <= names
+        columns = {row[1] for row in upgraded._db.execute("PRAGMA table_info(workflow_role_qualifications)")}
+        assert "execution_profile_hash" in columns
     finally:
         upgraded.close()

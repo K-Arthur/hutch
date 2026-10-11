@@ -11,7 +11,11 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
+from hutch import providers
+from hutch.hardware import Hardware
 from hutch.server.app import create_app
+from hutch.workflow import probes as probe_module
+from tests.fakes import FakeOllama
 
 KEY = {"Idempotency-Key": "wf-test-key-1"}
 
@@ -258,3 +262,32 @@ def test_oversized_plans_are_refused(client):
     big["description"] = "x" * 600_000
     res = client.post("/api/v1/workflows/validate", json={"plan": big, "bot": bot["name"]}, headers=KEY)
     assert res.status_code == 413
+
+
+def test_qualification_probe_api_is_idempotent_and_uses_the_bounded_local_runner(client, monkeypatch):
+    monkeypatch.setattr(probe_module, "probe_hardware",
+                        lambda with_runtimes=False: Hardware(ram_total_gb=24, ram_available_gb=12))
+    model = "qwen3:1.7b-q4_K_M"
+    server = FakeOllama(models={model: {"params": "1.7B", "quant": "Q4_K_M",
+                                        "caps": ["completion", "tools"]}})
+    server.version = "0.40.3"
+    from tests.test_workflow_probes import _case_id, _reply
+
+    server.script = lambda body: {"content": _reply(_case_id(body))}
+    monkeypatch.setattr(providers, "make_provider", lambda _provider, _endpoint=None:
+                        __import__("hutch.providers.ollama", fromlist=["OllamaProvider"]).OllamaProvider(server.url))
+    try:
+        bot = make_bot(client, "wf-probe-bot", model=f"ollama/{model}", base_url=server.url)
+        payload = {"bot": bot["name"], "role": "selector", "campaign_id": "api-probe-test"}
+        response = client.post("/api/v1/workflows/qualifications/probe", json=payload, headers=KEY)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["status"] == "passed" and len(body["requests"]) == 4
+        assert len(server.of("/api/chat")) == 4
+        replay = client.post("/api/v1/workflows/qualifications/probe", json=payload, headers=KEY)
+        assert replay.status_code == 200 and replay.json()["id"] == body["id"]
+        assert replay.json()["status"] == "passed" and len(server.of("/api/chat")) == 4
+        detail = client.get(f"/api/v1/workflows/qualifications/probes/{body['id']}")
+        assert detail.status_code == 200 and detail.json()["status"] == "passed"
+    finally:
+        server.close()

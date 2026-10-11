@@ -136,9 +136,11 @@ class ModelCapabilityProfile:
             "modalities": list(self.modalities),
             "modalities_known": self.modalities_known,
         }
-        missing = [key for key in ("backend_version", "checkpoint_digest", "quantization",
-                                   "template_hash", "tokenizer_hash", "effective_context")
-                   if values[key] in (None, "")]
+        missing = [key for key in ("backend", "backend_version", "checkpoint_digest", "quantization",
+                                   "template_hash", "tokenizer_hash", "protocol", "parser_id",
+                                   "effective_context", "decoding") if values[key] in (None, "", {})]
+        if not values["modalities_known"] or not values["modalities"]:
+            missing.append("modalities")
         values["complete"] = not missing
         values["missing"] = missing
         values["fingerprint"] = hashlib.sha256(canonical_json(values).encode()).hexdigest()

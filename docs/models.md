@@ -85,6 +85,26 @@ Keep choosing the model route separately; the Models page and
 `GET /api/v1/task-presets` returns the configured profiles. Bot create/update accepts a `preset` ID; an empty value clears it,
 and an unknown or removed ID is rejected rather than silently falling back.
 
+## Workflow model-role compatibility
+
+The model catalog does not label a checkpoint "workflow-capable." Hutch checks each workflow
+role independently. Author and selector authority require a complete, passing held-out probe
+record for the exact serving backend/version, checkpoint digest, quantization, template and
+tokenizer hashes, protocol/parser, effective context, decoding settings and reported modalities.
+Changing any of those inputs makes the old probe inapplicable. A failure is negative evidence;
+an incomplete profile or timeout is inconclusive. Worker and verifier evidence remains scoped to
+the recorded task and route, and a same-route verifier cannot certify its producer.
+
+The initial disposable probe path accepts only a loopback Ollama 0.40.3 Q4_K_M candidate. It
+uses a 4,096-token context and the local runtime's default 2,048-token output cap, sends no tools
+or user data, and checks that each response used one CPU-resident model. The campaign ledger
+caps aggregate usage at 80 requests, 60,000 estimated/reported tokens and two hours. Probe
+execution is local-owner-only; no hosted fallback occurs. Passing a probe qualifies only the
+matching profile, not every setting for that model. Models without role evidence remain usable
+for supported direct chat or isolated evaluation, subject to ordinary route and resource gates.
+See [dynamic workflow role qualification](workflows.md#roles-and-qualification) for commands
+and the scope limits.
+
 The versioned provider compatibility matrix is available at `GET /api/v1/compatibility` and in
 [provider compatibility](realignment/provider-compatibility.md). It records Hutch's request mapping and evidence for each
 route. The route state describes the common protocol contract, not whether a particular live model can reliably use tools;

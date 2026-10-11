@@ -217,6 +217,7 @@ class ToolContext:
     delegation_submit: Optional[Callable[[str, str, str], ToolResult]] = None  # supervised, strict-offline child admission
     tool_call_index: Optional[int] = None   # position of this call inside the model response, set by the built-in loop
     skills: Optional[Any] = None      # skills.ResolvedSkills for this run; the engine resolves it once at start
+    model_execution_profile: Optional[dict[str, Any]] = None  # exact profile for the active provider turn, if reported
 
     def begin_effect(self) -> Optional[str]:
         """Call right BEFORE performing a lasting effect, after policy and approval have said yes. Records the intent

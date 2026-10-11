@@ -60,14 +60,16 @@ class DraftWorkflowTool(Tool):
 
         if len(json.dumps(plan, default=str)) > MAX_PLAN_CHARS:
             return ToolResult(ok=False, output="error: the plan is too large to review here")
+        execution = ctx.model_execution_profile or {}
         gate = qualify.assess("author", spec=ctx.bot.model, store=ctx.store,
-                              base_url=ctx.bot.base_url or None)
+                              base_url=ctx.bot.base_url or None,
+                              execution_profile_hash=execution.get("fingerprint"))
         if not gate.allowed:
             return ToolResult(
                 ok=False,
                 output=("error: this route is not qualified to author workflows. " + gate.summary()
                         + " Options: have the person write or import the plan, run an existing reviewed "
-                          "plan, or record a passed probe for this exact route revision."),
+                        "plan, or run the bounded held-out probe on this exact execution profile."),
                 data={"qualification": gate.as_dict()})
         try:
             compiled = compile_plan(plan)

@@ -668,6 +668,7 @@ class BuiltinRuntime:
             ctx, ladder, session.rung, metadata=session.meta, effective_context=session.num_ctx,
             decoding={"temperature": None, "max_tokens": self._turn_cap(bot, session.rung),
                       "think": bot.think if bot.think is not None else False, "stream": session.stream})
+        ctx.model_execution_profile = profile.execution_view()
         try:
             plan = compile_plan(tools=tools, profile=profile, strategy=requested)
         except ToolProtocolUnavailable as exc:

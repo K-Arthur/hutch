@@ -1414,6 +1414,69 @@ def _migrate_55(db: sqlite3.Connection) -> None:
     persistence.migrate_usage_reservations(db)
 
 
+def _migrate_56(db: sqlite3.Connection) -> None:
+    """Bind probed role evidence to an exact execution profile and retain bounded probe ledgers."""
+    columns = {str(row[1]) for row in db.execute("PRAGMA table_info(workflow_role_qualifications)")}
+    if "execution_profile_hash" not in columns:
+        db.execute("ALTER TABLE workflow_role_qualifications ADD COLUMN execution_profile_hash TEXT NOT NULL DEFAULT ''")
+    db.execute("""CREATE TABLE IF NOT EXISTS workflow_probe_campaigns (
+        campaign_id TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL,
+        deadline_at TEXT NOT NULL,
+        request_cap INTEGER NOT NULL CHECK(request_cap BETWEEN 1 AND 80),
+        token_cap INTEGER NOT NULL CHECK(token_cap BETWEEN 1 AND 60000),
+        requests_started INTEGER NOT NULL DEFAULT 0 CHECK(requests_started >= 0),
+        tokens_accounted INTEGER NOT NULL DEFAULT 0 CHECK(tokens_accounted >= 0),
+        state TEXT NOT NULL CHECK(state IN ('active','expired','exhausted','complete')),
+        metadata TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(metadata))
+    )""")
+    db.execute("""CREATE TABLE IF NOT EXISTS workflow_probe_runs (
+        id TEXT PRIMARY KEY,
+        campaign_id TEXT NOT NULL REFERENCES workflow_probe_campaigns(campaign_id),
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL,
+        route_revision TEXT NOT NULL CHECK(length(route_revision) = 64),
+        execution_profile_hash TEXT NOT NULL CHECK(length(execution_profile_hash) = 64),
+        role TEXT NOT NULL CHECK(role IN ('author','selector')),
+        status TEXT NOT NULL CHECK(status IN ('running','passed','failed','inconclusive')),
+        idempotency_scope TEXT NOT NULL DEFAULT '',
+        idempotency_key TEXT NOT NULL DEFAULT '',
+        request_hash TEXT NOT NULL DEFAULT '',
+        scope TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(scope)),
+        evidence TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(evidence)),
+        started_at TEXT NOT NULL,
+        finished_at TEXT
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_workflow_probe_runs_profile "
+               "ON workflow_probe_runs(provider, model, route_revision, execution_profile_hash, role)")
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_workflow_probe_runs_idempotency "
+               "ON workflow_probe_runs(idempotency_scope, idempotency_key) WHERE idempotency_key <> ''")
+    db.execute("""CREATE TABLE IF NOT EXISTS workflow_probe_requests (
+        id TEXT PRIMARY KEY,
+        probe_run_id TEXT NOT NULL REFERENCES workflow_probe_runs(id),
+        campaign_id TEXT NOT NULL REFERENCES workflow_probe_campaigns(campaign_id),
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL,
+        route_revision TEXT NOT NULL,
+        execution_profile_hash TEXT NOT NULL,
+        role TEXT NOT NULL,
+        case_id TEXT NOT NULL,
+        dimension TEXT NOT NULL CHECK(dimension IN ('structure','semantic','abstention','authority')),
+        state TEXT NOT NULL CHECK(state IN ('started','settled','uncertain')),
+        outcome TEXT NOT NULL DEFAULT 'inconclusive' CHECK(outcome IN ('passed','failed','inconclusive')),
+        reserved_tokens INTEGER NOT NULL CHECK(reserved_tokens > 0),
+        reported_tokens INTEGER NOT NULL DEFAULT 0 CHECK(reported_tokens >= 0),
+        prompt_digest TEXT NOT NULL,
+        response_digest TEXT NOT NULL DEFAULT '',
+        reason TEXT NOT NULL DEFAULT '',
+        started_at TEXT NOT NULL,
+        settled_at TEXT,
+        UNIQUE(campaign_id, provider, model, route_revision, execution_profile_hash, role, case_id)
+    )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_workflow_probe_requests_run "
+               "ON workflow_probe_requests(probe_run_id, dimension)")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1422,7 +1485,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
                _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54,
-               _migrate_55]
+               _migrate_55, _migrate_56]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -5138,7 +5201,7 @@ class Store:
 
         if role not in ROLES or role == "executor":
             raise ValueError(f"unsupported qualification role {role!r}")
-        if state not in ("probed", "limited", "unsupported", "stale"):
+        if state not in ("limited", "unsupported", "stale"):
             raise ValueError(f"unsupported qualification state {state!r}")
         if source not in ("probe", "operator", "runtime"):
             raise ValueError(f"unsupported qualification source {source!r}")
@@ -5164,19 +5227,244 @@ class Store:
                 (provider, model, route_revision, role, state, scope_json, evidence_json,
                  reason, source, iso(utcnow())))
 
+    def create_workflow_probe_run(self, *, campaign_id: str, provider: str, model: str,
+                                  route_revision: str, execution_profile_hash: str, role: str,
+                                  scope: dict[str, Any], idempotency_scope: str = "",
+                                  idempotency_key: str = "", request_hash: str = "") -> dict[str, Any]:
+        """Open one held-out probe run inside the single durable two-hour campaign."""
+        if (not isinstance(campaign_id, str) or not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,79}", campaign_id)):
+            raise ValueError("campaign id must be a short lowercase identifier")
+        if role not in ("author", "selector"):
+            raise ValueError("only author and selector probes are supported")
+        for value, label in ((route_revision, "route revision"), (execution_profile_hash, "execution profile")):
+            if (not isinstance(value, str) or len(value) != 64
+                    or any(character not in "0123456789abcdef" for character in value)):
+                raise ValueError(f"{label} must be a lowercase SHA-256 digest")
+        for value, label in ((provider, "provider"), (model, "model")):
+            if not isinstance(value, str) or not value or len(value) > 256:
+                raise ValueError(f"{label} is invalid")
+        scope_json = json.dumps(scope, sort_keys=True, separators=(",", ":"), default=str)
+        if len(scope_json) > 8_192:
+            raise ValueError("probe scope is too large")
+        if idempotency_key:
+            if not idempotency_scope or not re.fullmatch(r"[a-f0-9]{64}", request_hash):
+                raise ValueError("probe idempotency requires a scope and lowercase SHA-256 request hash")
+        now = utcnow()
+        now_text = iso(now)
+        deadline_text = iso(now + timedelta(hours=2))
+        run_id = uuid.uuid4().hex
+        with self._tx() as db:
+            db.execute("""INSERT OR IGNORE INTO workflow_probe_campaigns
+                (campaign_id, created_at, deadline_at, request_cap, token_cap, state, metadata)
+                VALUES (?, ?, ?, 80, 60000, 'active', '{}')""", (campaign_id, now_text, deadline_text))
+            campaign = db.execute("SELECT * FROM workflow_probe_campaigns WHERE campaign_id = ?",
+                                  (campaign_id,)).fetchone()
+            if campaign is None:
+                raise RuntimeError("probe campaign could not be created")
+            if int(campaign["request_cap"]) != 80 or int(campaign["token_cap"]) != 60000:
+                raise ValueError("probe campaign limits do not match the authorized ceiling")
+            if idempotency_key:
+                previous = db.execute("SELECT * FROM workflow_probe_runs WHERE idempotency_scope = ? "
+                                      "AND idempotency_key = ?", (idempotency_scope, idempotency_key)).fetchone()
+                if previous is not None:
+                    if previous["request_hash"] != request_hash:
+                        raise ValueError("this idempotency key was used for a different qualification probe")
+                    return {**dict(campaign), "probe_run_id": previous["id"], "replayed": True}
+            if campaign["state"] == "active" and str(campaign["deadline_at"]) <= now_text:
+                db.execute("UPDATE workflow_probe_campaigns SET state = 'expired' WHERE campaign_id = ?",
+                           (campaign_id,))
+                campaign = db.execute("SELECT * FROM workflow_probe_campaigns WHERE campaign_id = ?",
+                                      (campaign_id,)).fetchone()
+            if campaign["state"] != "active":
+                raise ValueError(f"probe campaign is {campaign['state']}")
+            db.execute("""INSERT INTO workflow_probe_runs
+                (id, campaign_id, provider, model, route_revision, execution_profile_hash, role,
+                 status, idempotency_scope, idempotency_key, request_hash, scope, started_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'running', ?, ?, ?, ?, ?)""",
+                       (run_id, campaign_id, provider, model, route_revision, execution_profile_hash,
+                        role, idempotency_scope, idempotency_key, request_hash, scope_json, now_text))
+            return {**dict(campaign), "probe_run_id": run_id}
+
+    def start_workflow_probe_request(self, *, probe_run_id: str, case_id: str, dimension: str,
+                                     prompt_digest: str, reserved_tokens: int) -> Optional[dict[str, Any]]:
+        """Durably consume one request/token allowance immediately before provider dispatch."""
+        if dimension not in ("structure", "semantic", "abstention", "authority"):
+            raise ValueError("unknown probe dimension")
+        if (not isinstance(reserved_tokens, int) or isinstance(reserved_tokens, bool)
+                or not 1 <= reserved_tokens <= 60000):
+            raise ValueError("probe token reservation is out of range")
+        if not isinstance(prompt_digest, str) or not re.fullmatch(r"[0-9a-f]{64}", prompt_digest):
+            raise ValueError("probe prompt digest must be lowercase SHA-256")
+        now_text = iso(utcnow())
+        request_id = uuid.uuid4().hex
+        with self._tx() as db:
+            probe = db.execute("""SELECT r.*, c.state AS campaign_state, c.deadline_at,
+                       c.request_cap, c.token_cap, c.requests_started, c.tokens_accounted
+                FROM workflow_probe_runs r JOIN workflow_probe_campaigns c ON c.campaign_id = r.campaign_id
+                WHERE r.id = ?""", (probe_run_id,)).fetchone()
+            if probe is None or probe["status"] != "running":
+                raise ValueError("probe run is missing or no longer active")
+            if probe["campaign_state"] != "active" or str(probe["deadline_at"]) <= now_text:
+                db.execute("UPDATE workflow_probe_campaigns SET state = 'expired' WHERE campaign_id = ? "
+                           "AND state = 'active'", (probe["campaign_id"],))
+                return None
+            inflight = db.execute("SELECT id FROM workflow_probe_requests "
+                                  "WHERE state IN ('started','uncertain') LIMIT 1").fetchone()
+            if inflight is not None:
+                # The local qualification runtime admits one request globally. An uncertain
+                # call remains held until an owner reconciles the endpoint/run state.
+                return None
+            if int(probe["requests_started"]) >= int(probe["request_cap"]):
+                db.execute("UPDATE workflow_probe_campaigns SET state = 'exhausted' WHERE campaign_id = ?",
+                           (probe["campaign_id"],))
+                return None
+            if int(probe["tokens_accounted"]) + reserved_tokens > int(probe["token_cap"]):
+                db.execute("UPDATE workflow_probe_campaigns SET state = 'exhausted' WHERE campaign_id = ?",
+                           (probe["campaign_id"],))
+                return None
+            try:
+                db.execute("""INSERT INTO workflow_probe_requests
+                    (id, probe_run_id, campaign_id, provider, model, route_revision,
+                     execution_profile_hash, role, case_id, dimension, state, reserved_tokens,
+                     prompt_digest, started_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'started', ?, ?, ?)""",
+                           (request_id, probe_run_id, probe["campaign_id"], probe["provider"], probe["model"],
+                            probe["route_revision"], probe["execution_profile_hash"], probe["role"], case_id,
+                            dimension, reserved_tokens, prompt_digest, now_text))
+            except sqlite3.IntegrityError:
+                # A case already crossed the dispatch boundary in this campaign. Never replay it.
+                return None
+            db.execute("""UPDATE workflow_probe_campaigns SET
+                requests_started = requests_started + 1, tokens_accounted = tokens_accounted + ?
+                WHERE campaign_id = ?""", (reserved_tokens, probe["campaign_id"]))
+            return {"id": request_id, "reserved_tokens": reserved_tokens,
+                    "requests_started": int(probe["requests_started"]) + 1,
+                    "tokens_accounted": int(probe["tokens_accounted"]) + reserved_tokens}
+
+    def settle_workflow_probe_request(self, *, request_id: str, outcome: str,
+                                      reported_tokens: int = 0, response_digest: str = "",
+                                      reason: str = "", uncertain: bool = False) -> bool:
+        """Settle or retain a request. Uncertain dispatches keep their full reservation held."""
+        if outcome not in ("passed", "failed", "inconclusive"):
+            raise ValueError("invalid probe outcome")
+        if (not isinstance(reported_tokens, int) or isinstance(reported_tokens, bool)
+                or reported_tokens < 0 or reported_tokens > 60000):
+            raise ValueError("reported probe tokens are out of range")
+        if response_digest and not re.fullmatch(r"[0-9a-f]{64}", response_digest):
+            raise ValueError("response digest must be lowercase SHA-256")
+        if len(reason) > 500:
+            raise ValueError("probe result reason is too long")
+        with self._tx() as db:
+            row = db.execute("SELECT * FROM workflow_probe_requests WHERE id = ?", (request_id,)).fetchone()
+            if row is None:
+                raise KeyError(request_id)
+            if row["state"] != "started":
+                return False
+            now_text = iso(utcnow())
+            if uncertain:
+                db.execute("UPDATE workflow_probe_requests SET state = 'uncertain', outcome = 'inconclusive', "
+                           "reason = ?, settled_at = ? WHERE id = ? AND state = 'started'",
+                           (reason, now_text, request_id))
+                return True
+            accounted = reported_tokens if reported_tokens > 0 else int(row["reserved_tokens"])
+            campaign = db.execute("SELECT tokens_accounted, token_cap FROM workflow_probe_campaigns "
+                                  "WHERE campaign_id = ?", (row["campaign_id"],)).fetchone()
+            total = int(campaign["tokens_accounted"]) - int(row["reserved_tokens"]) + accounted
+            within_cap = total <= int(campaign["token_cap"])
+            db.execute("UPDATE workflow_probe_campaigns SET tokens_accounted = ?, "
+                       "state = CASE WHEN ? THEN state ELSE 'exhausted' END WHERE campaign_id = ?",
+                       (total, 1 if within_cap else 0, row["campaign_id"]))
+            if not within_cap:
+                outcome = "inconclusive"
+                reason = "reported token usage exceeded the reserved campaign allowance"
+            db.execute("""UPDATE workflow_probe_requests SET state = 'settled', outcome = ?,
+                reported_tokens = ?, response_digest = ?, reason = ?, settled_at = ?
+                WHERE id = ? AND state = 'started'""",
+                       (outcome, reported_tokens, response_digest, reason, now_text, request_id))
+            return within_cap
+
+    def finish_workflow_probe_run(self, *, probe_run_id: str, status: str,
+                                  evidence: dict[str, Any], reason: str = "") -> dict[str, Any]:
+        """Persist the suite result; only four passing held-out dimensions write authority evidence."""
+        if status not in ("passed", "failed", "inconclusive"):
+            raise ValueError("invalid probe-run status")
+        if len(reason) > 500:
+            raise ValueError("probe-run reason is too long")
+        evidence_json = json.dumps(evidence, sort_keys=True, separators=(",", ":"), default=str)
+        if len(evidence_json) > 8_192:
+            raise ValueError("probe-run evidence is too large")
+        with self._tx() as db:
+            run = db.execute("SELECT * FROM workflow_probe_runs WHERE id = ?", (probe_run_id,)).fetchone()
+            if run is None:
+                raise KeyError(probe_run_id)
+            if run["status"] != "running":
+                return dict(run)
+            attempts = db.execute("SELECT dimension, state, outcome FROM workflow_probe_requests "
+                                  "WHERE probe_run_id = ?", (probe_run_id,)).fetchall()
+            dimensions = {str(row["dimension"]) for row in attempts}
+            all_passed = (dimensions == {"structure", "semantic", "abstention", "authority"}
+                          and len(attempts) == 4
+                          and all(row["state"] == "settled" and row["outcome"] == "passed" for row in attempts)
+                          and evidence.get("suite_version") == "hutch-role-qualification-v1"
+                          and evidence.get("held_out") is True
+                          and evidence.get("profile_complete") is True)
+            if status == "passed" and not all_passed:
+                raise ValueError("a probe cannot pass without four passing held-out dimensions and a complete profile")
+            final_status = status
+            now_text = iso(utcnow())
+            db.execute("UPDATE workflow_probe_runs SET status = ?, evidence = ?, finished_at = ? WHERE id = ?",
+                       (final_status, evidence_json, now_text, probe_run_id))
+            if status in ("passed", "failed"):
+                qualification_state = "probed" if status == "passed" else "unsupported"
+                qualification_reason = reason or ("all four held-out qualification dimensions passed"
+                                                   if status == "passed" else "a mandatory held-out dimension failed")
+                scope_json = str(run["scope"])
+                db.execute("""INSERT INTO workflow_role_qualifications
+                    (provider, model, route_revision, role, state, scope, evidence, reason, source, tested_at,
+                     execution_profile_hash)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'probe', ?, ?)
+                    ON CONFLICT(provider, model, route_revision, role) DO UPDATE SET
+                        state = excluded.state, scope = excluded.scope, evidence = excluded.evidence,
+                        reason = excluded.reason, source = excluded.source, tested_at = excluded.tested_at,
+                        execution_profile_hash = excluded.execution_profile_hash""",
+                           (run["provider"], run["model"], run["route_revision"], run["role"],
+                            qualification_state, scope_json, evidence_json, qualification_reason,
+                            now_text, run["execution_profile_hash"]))
+            return dict(run) | {"status": final_status, "evidence": json.loads(evidence_json),
+                                "finished_at": now_text}
+
+    def workflow_probe_campaign(self, campaign_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute("SELECT * FROM workflow_probe_campaigns WHERE campaign_id = ?",
+                                   (campaign_id,)).fetchone()
+        return dict(row) if row else None
+
+    def workflow_probe_run(self, probe_run_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            run = self._db.execute("SELECT * FROM workflow_probe_runs WHERE id = ?", (probe_run_id,)).fetchone()
+            if run is None:
+                return None
+            requests = self._db.execute("SELECT * FROM workflow_probe_requests WHERE probe_run_id = ? "
+                                        "ORDER BY started_at, id", (probe_run_id,)).fetchall()
+        item = dict(run)
+        item["scope"] = json.loads(item.get("scope") or "{}")
+        item["evidence"] = json.loads(item.get("evidence") or "{}")
+        item["requests"] = [dict(row) for row in requests]
+        return item
+
     def role_qualifications(self, provider: str, model: str,
                             route_revision: Optional[str] = None) -> list[dict[str, Any]]:
         with self._lock:
             if route_revision:
                 rows = self._db.execute(
                     """SELECT provider, model, route_revision, role, state, scope, evidence, reason,
-                              source, tested_at FROM workflow_role_qualifications
+                              source, tested_at, execution_profile_hash FROM workflow_role_qualifications
                        WHERE provider = ? AND model = ? AND route_revision = ?
                        ORDER BY role""", (provider, model, route_revision)).fetchall()
             else:
                 rows = self._db.execute(
                     """SELECT provider, model, route_revision, role, state, scope, evidence, reason,
-                              source, tested_at FROM workflow_role_qualifications
+                              source, tested_at, execution_profile_hash FROM workflow_role_qualifications
                        WHERE provider = ? AND model = ? ORDER BY tested_at DESC""",
                     (provider, model)).fetchall()
         out = []
@@ -5193,7 +5481,7 @@ class Store:
         with self._lock:
             rows = self._db.execute(
                 """SELECT provider, model, route_revision, role, state, scope, evidence, reason,
-                          source, tested_at FROM workflow_role_qualifications
+                          source, tested_at, execution_profile_hash FROM workflow_role_qualifications
                    ORDER BY tested_at DESC, id DESC LIMIT ? OFFSET ?""", (limit, offset)).fetchall()
         out = []
         for row in rows:

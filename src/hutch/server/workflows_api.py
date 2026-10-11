@@ -180,6 +180,26 @@ class QualificationRequest(BaseModel):
     scope: dict[str, Any] = Field(default_factory=dict)
 
 
+class QualificationProbeRequest(BaseModel):
+    bot: str = Field(min_length=1, max_length=120)
+    role: Literal["author", "selector"]
+    campaign_id: str = Field(default="dynamic-workflows-initial", min_length=1, max_length=80,
+                             pattern=r"^[a-z0-9][a-z0-9._-]{0,79}$")
+
+
+class QualificationProbeResource(BaseModel):
+    id: str
+    campaign_id: str
+    provider: str
+    model: str
+    role: str
+    status: str
+    route_revision: str
+    execution_profile: dict[str, Any]
+    requests: list[dict[str, Any]] = Field(default_factory=list)
+    reason: str = ""
+
+
 class WorkflowPolicyRequest(BaseModel):
     """The operator's workflow policy for one Bot. Saving a policy starts nothing."""
 
@@ -307,13 +327,66 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
     @app.get("/api/v1/workflows/qualifications/assess")
     def assess_role(bot: str, role: str, requires_tools: bool = False) -> dict[str, Any]:
         resolved = _bot_or_404(store, bot)
+        execution_profile_hash = None
+        if role in qualify.PROBE_ONLY_ROLES:
+            try:
+                from ..providers import make_provider, parse_spec
+                from ..route_identity import default_endpoint
+                from ..workflow.probes import inspect_probe_profile
+
+                provider_name, _model = parse_spec(resolved.model)
+                endpoint = resolved.base_url or default_endpoint(provider_name)
+                _name, _revision, profile = inspect_probe_profile(
+                    spec=resolved.model, endpoint=endpoint,
+                    provider=make_provider(provider_name, endpoint or None))
+                execution_profile_hash = profile["fingerprint"]
+            except Exception:
+                execution_profile_hash = None
         try:
             verdict = qualify.assess(role, spec=resolved.model, store=store,
                                      base_url=resolved.base_url or None,
-                                     requires_tools=requires_tools)
+                                     requires_tools=requires_tools,
+                                     execution_profile_hash=execution_profile_hash)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
         return verdict.as_dict()
+
+    @app.post("/api/v1/workflows/qualifications/probe", response_model=QualificationProbeResource,
+              status_code=200)
+    def run_qualification_probe(payload: QualificationProbeRequest, request: Request) -> QualificationProbeResource:
+        key, digest = _idempotency(request, payload.model_dump())
+        bot = _bot_or_404(store, payload.bot)
+        try:
+            from ..providers import make_provider, parse_spec
+            from ..route_identity import default_endpoint
+            from ..workflow.probes import run_probe_suite
+
+            provider_name, _model = parse_spec(bot.model)
+            endpoint = bot.base_url or default_endpoint(provider_name)
+            result = run_probe_suite(
+                store, spec=bot.model, role=payload.role, endpoint=endpoint,
+                provider=make_provider(provider_name, endpoint or None), campaign_id=payload.campaign_id,
+                idempotency_scope="api:v1:workflows:qualifications:probe", idempotency_key=key,
+                request_hash=digest)
+        except (ValueError, RuntimeError) as exc:
+            raise HTTPException(409, {"code": "qualification_probe_unavailable", "message": str(exc)}) from None
+        except Exception as exc:
+            from ..providers import ProviderError
+            if isinstance(exc, ProviderError):
+                raise HTTPException(409, {"code": "qualification_probe_unavailable", "message": str(exc)}) from None
+            raise
+        return QualificationProbeResource(**result.as_dict())
+
+    @app.get("/api/v1/workflows/qualifications/probes/{probe_run_id}")
+    def get_qualification_probe(probe_run_id: str) -> dict[str, Any]:
+        row = store.workflow_probe_run(probe_run_id)
+        if row is None:
+            raise HTTPException(404, "no such qualification probe")
+        row.pop("idempotency_scope", None)
+        row.pop("idempotency_key", None)
+        row.pop("request_hash", None)
+        row.pop("scope", None)
+        return row
 
     @app.get("/api/v1/workflows/policy")
     def get_workflow_policy(bot: str) -> dict[str, Any]:
