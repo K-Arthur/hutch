@@ -487,6 +487,96 @@ def test_answer_rewrite_rejects_unowned_incomplete_or_oversized_targets(conversa
     assert send("rewrite-running-answer", "rewrite-user-target").status_code == 409
 
 
+def test_answer_feedback_is_bounded_local_revisioned_and_never_changes_persona(conversation_client):
+    client = conversation_client
+    client.app.state.engine.tick = lambda: None
+    bot = client.post("/api/bots", json={"name": "feedback-api", "model": "mock/demo", "tools": []}).json()
+    conversation = client.post("/api/v1/conversations", json={"bot": bot["id"], "title": "Feedback"},
+                               headers={"Idempotency-Key": "feedback-create"}).json()
+    store = client.app.state.store
+    seed_completed_answer(store, conversation["id"], bot["id"], run_id="feedback-source",
+                          answer_id="feedback-answer", request="Explain the evidence.", answer="A concise answer.")
+    source_runs = len(store.list_runs(bot["id"]))
+    endpoint = f"/api/v1/conversations/{conversation['id']}/messages/feedback-answer/persona-feedback"
+
+    first_body = {"rating": "helpful", "reason": None, "expected_revision": 0}
+    first_headers = {"Idempotency-Key": "feedback-helpful"}
+    first = client.put(endpoint, json=first_body, headers=first_headers)
+    assert first.status_code == 200, first.text
+    assert first.json()["revision"] == 1 and first.json()["rating"] == "helpful"
+    assert client.put(endpoint, json=first_body, headers=first_headers).json() == first.json()
+    assert client.put(endpoint, json={**first_body, "rating": "needs_work"}, headers=first_headers).status_code == 409
+    assert client.put(endpoint, json=first_body,
+                      headers={"Idempotency-Key": "feedback-stale"}).status_code == 409
+
+    needs_work = client.put(endpoint, json={"rating": "needs_work", "reason": "accuracy", "expected_revision": 1},
+                            headers={"Idempotency-Key": "feedback-reason"})
+    assert needs_work.status_code == 200, needs_work.text
+    assert needs_work.json()["revision"] == 2 and needs_work.json()["reason"] == "accuracy"
+    transcript = client.get(f"/api/v1/conversations/{conversation['id']}").json()
+    answer = next(message for message in transcript["messages"] if message["id"] == "feedback-answer")
+    assert answer["persona_feedback"] == needs_work.json()
+    assert client.get(f"/api/v1/conversations/{conversation['id']}/messages/feedback-answer").json()[
+        "persona_feedback"] == needs_work.json()
+
+    cleared = client.put(endpoint, json={"rating": None, "reason": None, "expected_revision": 2},
+                         headers={"Idempotency-Key": "feedback-clear"})
+    assert cleared.status_code == 200 and cleared.json()["revision"] == 3
+    assert cleared.json()["rating"] is None and cleared.json()["reason"] is None
+    assert len(store.list_runs(bot["id"])) == source_runs
+    assert store.read_conversation_persona(conversation["id"]) == (None, 0)
+    rows = store._db.execute("SELECT feedback_version, revision, rating, reason FROM persona_feedback "
+                             "WHERE conversation_id = ? AND message_id = ?",
+                             (conversation["id"], "feedback-answer")).fetchall()
+    assert [tuple(row) for row in rows] == [(1, 3, None, None)]
+
+    assert client.put(endpoint, json={"rating": "helpful", "reason": "free text", "expected_revision": 3},
+                      headers={"Idempotency-Key": "feedback-unbounded-reason"}).status_code == 422
+    assert client.put(endpoint, json={"rating": None, "reason": None, "expected_revision": 3,
+                                      "comment": "private text"},
+                      headers={"Idempotency-Key": "feedback-free-text"}).status_code == 422
+    user_message_id = "feedback-answer-request"
+    assert client.put(f"/api/v1/conversations/{conversation['id']}/messages/{user_message_id}/persona-feedback",
+                      json={"rating": "helpful", "expected_revision": 0},
+                      headers={"Idempotency-Key": "feedback-user-message"}).status_code == 409
+    assert client.put(f"/api/v1/conversations/{conversation['id']}/messages/another-chat/persona-feedback",
+                      json={"rating": "helpful", "expected_revision": 0},
+                      headers={"Idempotency-Key": "feedback-cross-chat"}).status_code == 404
+
+    exported = client.get(f"/api/v1/conversations/{conversation['id']}/export").json()
+    assert "local answer feedback and response-style preferences" in exported["scope"]["excluded"]
+    assert all("persona_feedback" not in message for message in exported["messages"])
+
+
+def test_answer_feedback_rejects_failed_oversized_and_unresolved_answers(conversation_client):
+    client = conversation_client
+    client.app.state.engine.tick = lambda: None
+    bot = client.post("/api/bots", json={"name": "feedback-guards", "model": "mock/demo", "tools": []}).json()
+    conversation = client.post("/api/v1/conversations", json={"bot": bot["id"], "title": "Guards"},
+                               headers={"Idempotency-Key": "feedback-guards-create"}).json()
+    store = client.app.state.store
+    seed_completed_answer(store, conversation["id"], bot["id"], run_id="feedback-failed",
+                          answer_id="feedback-failed-answer", request="Original", answer="No result", status="failed")
+    seed_completed_answer(store, conversation["id"], bot["id"], run_id="feedback-long",
+                          answer_id="feedback-long-answer", request="Original", answer="x" * 12_001)
+    seed_completed_answer(store, conversation["id"], bot["id"], run_id="feedback-choice",
+                          answer_id="feedback-choice-answer", request="Original", answer="Question")
+    with store._tx() as db:
+        db.execute("INSERT INTO conversation_questions (id, conversation_id, run_id, bot_id, assistant_message_id, "
+                   "question, selection_mode, options_json, status, created_at) "
+                   "VALUES ('feedback-choice', ?, 'feedback-choice', ?, 'feedback-choice-answer', "
+                   "'Choose one', 'single', '[]', 'pending', '2026-10-11T12:00:00+00:00')",
+                   (conversation["id"], bot["id"]))
+    base = f"/api/v1/conversations/{conversation['id']}/messages"
+    for message_id, key in (("feedback-failed-answer", "feedback-failed"),
+                            ("feedback-long-answer", "feedback-long"),
+                            ("feedback-choice-answer", "feedback-choice")):
+        response = client.put(f"{base}/{message_id}/persona-feedback",
+                              json={"rating": "helpful", "expected_revision": 0},
+                              headers={"Idempotency-Key": key})
+        assert response.status_code == 409, response.text
+
+
 def test_versioned_resources_are_documented(tmp_path, monkeypatch):
     monkeypatch.setenv("HUTCH_STATE_DIR", str(tmp_path / "state"))
     app = create_app()

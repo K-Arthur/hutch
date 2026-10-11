@@ -203,7 +203,7 @@ Review follow-ups (status after the profile-compatibility slice):
   integration commit `8a63585` with the same observed `/home` visibility and is therefore an inherited sandbox
   environment failure, not a persona change. No assertions were weakened. The existing `/tmp` contents were not
   removed or altered.
-- Remaining acceptance: add feedback, static examples and explicitly requested live preview on isolated state, and
+- Remaining acceptance: add static examples and explicitly requested live preview on isolated state, and
   redacted request/adapter inspector; update marketing claims/screenshots and remaining user-facing docs; verify
   supported-runtime serialized request receipts and image delivery; and run combined offline/browser checks plus
   bounded model evaluation. No separate supported
@@ -227,6 +227,21 @@ Review follow-ups (status after the profile-compatibility slice):
   Screenshots, trace and detector output are inspected and retained under
   `artifacts/persona-rewrite-ui-2026-10-11/`; details are in `persona-ui-visual-review.md`. Live response quality,
   human review and native browser zoom remain unverified.
+
+- Local answer-feedback slice: completed built-in answers now expose **Helpful** and **Needs work** ratings, one
+  optional fixed reason, and **Clear**. A new additive v53 table keeps only the latest bounded rating per answer,
+  with revision tombstones for compare-and-swap conflict handling. Feedback stays in Hutch's local database, is
+  omitted from exports, does not alter saved style or trigger a run, and is not exposed through the paired-phone
+  capability allowlist. Errors remain actionable; successful saves announce an inline local status rather than
+  stacking notifications. Docs now cover settings, privacy, exports, safety and the disabled external runtimes.
+  The feedback API, migration/restart and existing-settings/rewrite/feedback browser regressions passed together:
+  **6 passed**. Chromium 153.0.8010.12 recorded four expected feedback PUTs at revisions 0–3, no message requests,
+  no provider calls, no page/console/response errors and no external requests. Screenshots and trace are inspected
+  under `artifacts/persona-feedback-2026-10-11/`; layout, keyboard behavior, 44px targets and contrast are recorded
+  in `persona-ui-visual-review.md`. A read-only review was started with pinned `opencode-go/mimo-v2.6-flash`; it
+  read the diff but produced no findings before the bounded session was stopped, so independent review remains
+  outstanding. This verifies the tested built-in/local workflow; response usefulness and model-quality effects
+  remain unverified.
 
 ## Rollback
 

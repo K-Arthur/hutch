@@ -1,0 +1,210 @@
+{
+  "test": "tests/e2e/test_design_system.py::test_answer_feedback_stays_local_revisioned_and_accessible",
+  "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_answer_feedback_stays_local_revisioned_and_accessible",
+  "captured_at": "2026-10-11T14:33:34.103113+00:00",
+  "browser": "Chromium 153.0.8010.12",
+  "playwright": "1.63.0",
+  "viewports": [
+    {
+      "label": "phone",
+      "viewport": [
+        360,
+        844
+      ],
+      "documentOverflow": 0,
+      "chatOverflow": 0,
+      "controls": [
+        {
+          "rating": "helpful",
+          "width": 76.78125,
+          "height": 44,
+          "contrast": 9.916653352697587,
+          "pressed": "false"
+        },
+        {
+          "rating": "needs_work",
+          "width": 109.296875,
+          "height": 44,
+          "contrast": 9.916653352697587,
+          "pressed": "false"
+        }
+      ],
+      "reason": null
+    },
+    {
+      "label": "tablet",
+      "viewport": [
+        768,
+        960
+      ],
+      "documentOverflow": 0,
+      "chatOverflow": 0,
+      "controls": [
+        {
+          "rating": "helpful",
+          "width": 76.78125,
+          "height": 44,
+          "contrast": 9.916653352697587,
+          "pressed": "false"
+        },
+        {
+          "rating": "needs_work",
+          "width": 109.296875,
+          "height": 44,
+          "contrast": 9.916653352697587,
+          "pressed": "false"
+        }
+      ],
+      "reason": null
+    },
+    {
+      "label": "desktop",
+      "viewport": [
+        1440,
+        960
+      ],
+      "documentOverflow": 0,
+      "chatOverflow": 0,
+      "controls": [
+        {
+          "rating": "helpful",
+          "width": 76.78125,
+          "height": 44,
+          "contrast": 9.916653352697587,
+          "pressed": "false"
+        },
+        {
+          "rating": "needs_work",
+          "width": 109.296875,
+          "height": 44,
+          "contrast": 9.916653352697587,
+          "pressed": "false"
+        }
+      ],
+      "reason": null
+    },
+    {
+      "label": "compact-phone",
+      "viewport": [
+        320,
+        800
+      ],
+      "documentOverflow": 0,
+      "chatOverflow": 0,
+      "controls": [
+        {
+          "rating": "helpful",
+          "width": 76.78125,
+          "height": 44,
+          "contrast": 9.916653352697587,
+          "pressed": "false"
+        },
+        {
+          "rating": "needs_work",
+          "width": 109.296875,
+          "height": 44,
+          "contrast": 9.916653352697587,
+          "pressed": "false"
+        }
+      ],
+      "reason": null
+    },
+    {
+      "label": "zoom-200-effective",
+      "viewport": [
+        720,
+        480
+      ],
+      "documentOverflow": 0,
+      "chatOverflow": 0,
+      "controls": [
+        {
+          "rating": "helpful",
+          "width": 76.78125,
+          "height": 44,
+          "contrast": 9.916653352697587,
+          "pressed": "false"
+        },
+        {
+          "rating": "needs_work",
+          "width": 109.296875,
+          "height": 44,
+          "contrast": 9.916653352697587,
+          "pressed": "false"
+        }
+      ],
+      "reason": null
+    }
+  ],
+  "states": [
+    "local-only answer feedback",
+    "keyboard rating, optional reason and clear",
+    "four compare-and-swap writes (expected revisions 0\u20133)",
+    "draft, selection and reading position retained",
+    "disabled OpenCode feedback hidden"
+  ],
+  "page_errors": [],
+  "console_errors": [],
+  "failed_responses": [],
+  "external_requests": [],
+  "feedback_requests": [
+    {
+      "method": "PUT",
+      "url": "http://127.0.0.1:32931/api/v1/conversations/conv_b47bd94ebf9e/messages/feedback-answer-selected/persona-feedback",
+      "body": {
+        "rating": "helpful",
+        "reason": null,
+        "expected_revision": 0
+      }
+    },
+    {
+      "method": "PUT",
+      "url": "http://127.0.0.1:32931/api/v1/conversations/conv_b47bd94ebf9e/messages/feedback-answer-selected/persona-feedback",
+      "body": {
+        "rating": "needs_work",
+        "reason": null,
+        "expected_revision": 1
+      }
+    },
+    {
+      "method": "PUT",
+      "url": "http://127.0.0.1:32931/api/v1/conversations/conv_b47bd94ebf9e/messages/feedback-answer-selected/persona-feedback",
+      "body": {
+        "rating": "needs_work",
+        "reason": "accuracy",
+        "expected_revision": 2
+      }
+    },
+    {
+      "method": "PUT",
+      "url": "http://127.0.0.1:32931/api/v1/conversations/conv_b47bd94ebf9e/messages/feedback-answer-selected/persona-feedback",
+      "body": {
+        "rating": null,
+        "reason": null,
+        "expected_revision": 3
+      }
+    }
+  ],
+  "message_requests": [],
+  "provider_calls": 0,
+  "runtime": "mock/demo with engine work disabled; feedback created no model run",
+  "reduced_motion": "reduce",
+  "source_sha256": {
+    "src/hutch/server/pages.py": "7884021b4a97b41a26c49e4337e8f53fe245ff8682c5e820a613a4dc70263826",
+    "src/hutch/server/static/app.js": "943c4446a58dfb9f257c8b396522d41c5612d68dded7a19d6c435399c46e46a6",
+    "src/hutch/server/static/persona.js": "7699bfc4ab212e8d170fddf35e96d9f2d18f702c85dd98bd9911ae82c156827d",
+    "src/hutch/server/static/index.html": "5f7faabcab72c2c2aa459cc143307275a03764ec9c72857d1c9f7d8f2ea5410b",
+    "src/hutch/server/static/style.css": "4f8d41e4918caafef9c2eebbfb0ef29a880dd0696c05445bdfe5a49050de334a",
+    "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
+    "src/hutch/server/static/brands/anthropic-symbol-ivory.svg": "38fc06d8e9390654cc4e96aa53691e2e78d929667c0034805b6d1b3891ba22dd",
+    "src/hutch/server/static/brands/openrouter-glyph-volt.svg": "0d22462e4f2835a5a5b9000af0a55fc9238e39996100f54706e41ec45b9d1727",
+    "src/hutch/server/static/brands/google-calendar-2026q2.png": "eac7b1d7c78a7c7fb40d74b6d879ba5fe781cbf2cd5f8d7d40f3c28fea73f77e",
+    "src/hutch/server/static/brands/google-gmail-2026q2.png": "ab8e9e880a28e2bc29207a62394aa7d296f435113fcc922819dab629ffbd64e6",
+    "src/hutch/server/static/brands/microsoft-outlook.svg": "4a3b6ab15d36e7c5317f75a83d1781708d68cce4d8b9073a3c82f0af662eaf18",
+    "website/index.html": "cae44861517f80b505843ac618e1bb56801425842867b8bbead8bcfe820aa7ec",
+    "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
+    "website/styles.css": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
+    "tests/e2e/test_design_system.py": "5c41673fa2a4d304ff0ae098c157a9f55a1a4329dc9a6109ffb4557fe199e889"
+  },
+  "visual_review": "Screenshots and trace manually inspected; see docs/realignment/persona-ui-visual-review.md."
+}

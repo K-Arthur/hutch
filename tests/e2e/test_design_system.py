@@ -2256,3 +2256,247 @@ def test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runti
             except Exception:
                 pass
         context.close()
+
+
+def test_answer_feedback_stays_local_revisioned_and_accessible(browser, app_server):
+    """Local answer feedback remains bounded, answer-scoped, keyboard reachable, and responsive."""
+    app_url, app = app_server
+    store = app.state.store
+    bot = store.get_bot("design-system-review")
+    app.state.engine.tick = lambda: None
+    conversation, _ = store.create_conversation(
+        bot.id, "Local answer feedback", idem_key="feedback-ui-conversation", request_hash="feedback-ui-conversation",
+    )
+    out = ROOT / "docs/realignment/artifacts/persona-feedback-2026-10-11"
+    out.mkdir(parents=True, exist_ok=True)
+    errors: list[str] = []
+    console_errors: list[str] = []
+    feedback_requests: list[dict[str, object]] = []
+    message_requests: list[dict[str, object]] = []
+    external_requests: list[str] = []
+    failed_responses: list[dict[str, object]] = []
+    evidence: list[dict[str, object]] = []
+    trace_saved = False
+
+    def seed_answer(target_bot, target_conversation_id: str, request: str, answer: str, suffix: str) -> str:
+        stamp = datetime.now(timezone.utc).isoformat()
+        run = store.create_run(Run(
+            bot_id=target_bot.id, prompt=request, conversation_id=target_conversation_id,
+            status=RunStatus.succeeded, exit_reason="completed", finished_at=stamp,
+        ))
+        with store._tx() as db:
+            seq = db.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM messages WHERE conversation_id = ?",
+                             (target_conversation_id,)).fetchone()[0]
+            store._insert_conversation_message(db, message_id=f"feedback-request-{suffix}",
+                conversation_id=target_conversation_id, seq=seq, run_id=run.id, role="user",
+                content=request, created_at=stamp)
+        answer_id = f"feedback-answer-{suffix}"
+        store.append_event(Event(run_id=run.id, type=EventType.message,
+            data={"role": "assistant", "content": answer, "message_id": answer_id}))
+        store.flush_events()
+        return answer_id
+
+    target_message_id = seed_answer(bot, conversation["id"], "Summarize the evidence.",
+        "\n".join(f"Finding {index}: the answer remains grounded in its selected source and keeps relevant caveats."
+                  for index in range(1, 25)), "selected")
+    for index in range(1, 4):
+        seed_answer(bot, conversation["id"], f"Follow-up {index}.",
+                    f"The follow-up message {index} remains in the transcript for scrolling checks. " * 12, f"later-{index}")
+    store.flush_transcripts()
+    before_runs = len(store.list_runs(bot.id))
+
+    external_bot = store.create_bot(Bot(
+        name="feedback-disabled-opencode", display_name="Disabled OpenCode Review", model="mock/demo",
+        runtime=RuntimeKind.opencode, tools=[],
+    ))
+    external_conversation, _ = store.create_conversation(
+        external_bot.id, "External feedback exclusion", idem_key="feedback-external-conversation",
+        request_hash="feedback-external-conversation",
+    )
+    external_answer_id = seed_answer(external_bot, external_conversation["id"], "Review this result.",
+                                     "A completed answer from the disabled adapter.", "external")
+
+    context = browser.new_context(viewport={"width": 1440, "height": 960}, has_touch=True, reduced_motion="reduce")
+    page = context.new_page()
+    page.set_default_timeout(8000)
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" else None)
+    page.on("request", lambda request: feedback_requests.append({"method": request.method, "url": request.url,
+            "body": request.post_data_json})
+            if request.method == "PUT" and request.url.endswith("/persona-feedback") else None)
+    page.on("request", lambda request: message_requests.append({"method": request.method, "url": request.url,
+            "body": request.post_data_json})
+            if request.url.endswith("/messages") else None)
+    page.on("request", lambda request: external_requests.append(request.url)
+            if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} else None)
+    page.on("response", lambda response: failed_responses.append({"status": response.status, "url": response.url})
+            if response.status >= 400 and urlsplit(response.url).hostname in {"127.0.0.1", "localhost"} else None)
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+
+    viewports = (("phone", 360, 844), ("tablet", 768, 960), ("desktop", 1440, 960),
+                 ("compact-phone", 320, 800), ("zoom-200-effective", 720, 480))
+    try:
+        page.goto(f"{app_url}/#/chat/design-system-review", wait_until="domcontentloaded")
+        page.locator("#chat-form").wait_for()
+        page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value === id",
+                               arg=conversation["id"])
+        page.locator(f'[data-feedback-message="{target_message_id}"][data-answer-feedback-rating="helpful"]').wait_for()
+        page.locator(f'[data-feedback-message="{target_message_id}"][data-answer-feedback-rating="needs_work"]').wait_for()
+        page.evaluate("""id => [...document.querySelectorAll('[data-feedback-message]')]
+          .find(control => control.dataset.feedbackMessage === id && control.dataset.answerFeedbackRating === 'helpful')
+          ?.scrollIntoView({block: 'center'})""", target_message_id)
+
+        def wait_for_feedback_revision(revision: int) -> None:
+            page.wait_for_function("""([id, expected]) => {
+              const controls = [...document.querySelectorAll('[data-feedback-message]')]
+                .filter(control => control.dataset.feedbackMessage === id && control.hasAttribute('data-answer-feedback-rating')
+                  && control.dataset.answerFeedbackRating);
+                  return controls.length === 2 && controls.every(control => Number(control.dataset.feedbackRevision) === expected
+                    && control.getAttribute('aria-disabled') !== 'true');
+            }""", arg=[target_message_id, revision])
+
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            page.wait_for_function("id => document.querySelectorAll(`[data-feedback-message=\\\"${id}\\\"][data-answer-feedback-rating]`).length === 2",
+                                   arg=target_message_id)
+            page.evaluate("""id => [...document.querySelectorAll('[data-feedback-message]')]
+              .find(control => control.dataset.feedbackMessage === id && control.dataset.answerFeedbackRating === 'helpful')
+              ?.scrollIntoView({block: 'center'})""", target_message_id)
+            measurements = page.evaluate("""targetId => {
+              const controls = [...document.querySelectorAll(`[data-feedback-message="${targetId}"][data-answer-feedback-rating]`)];
+              const scroll = document.querySelector('#chat-scroll');
+              const sampleColor = (background, foreground) => {
+                const canvas = document.createElement('canvas'); canvas.width = 2; canvas.height = 1;
+                const context = canvas.getContext('2d', {willReadFrequently: true});
+                context.fillStyle = background; context.fillRect(0, 0, 2, 1);
+                context.fillStyle = foreground; context.fillRect(1, 0, 1, 1);
+                const pixels = context.getImageData(0, 0, 2, 1).data;
+                return {background: [...pixels.slice(0, 3)], foreground: [...pixels.slice(4, 7)]};
+              };
+              const luminance = rgb => rgb.map(value => {
+                const channel = value / 255;
+                return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+              }).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0);
+              const contrast = node => {
+                const sampled = sampleColor(getComputedStyle(document.body).backgroundColor,
+                                            getComputedStyle(node).color);
+                const a = luminance(sampled.background), b = luminance(sampled.foreground);
+                return (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+              };
+              return {documentOverflow: document.documentElement.scrollWidth - innerWidth,
+                chatOverflow: scroll.scrollWidth - scroll.clientWidth,
+                controls: controls.map(control => ({rating: control.dataset.answerFeedbackRating,
+                  width: control.getBoundingClientRect().width, height: control.getBoundingClientRect().height,
+                  contrast: contrast(control), pressed: control.getAttribute('aria-pressed')})),
+                reason: document.querySelector('[data-answer-feedback-reason]')?.getBoundingClientRect().toJSON() || null};
+            }""", target_message_id)
+            assert measurements["documentOverflow"] <= 1, (label, measurements)
+            assert measurements["chatOverflow"] <= 1, (label, measurements)
+            assert len(measurements["controls"]) == 2, (label, measurements)
+            assert all(control["height"] >= 44 for control in measurements["controls"]), (label, measurements)
+            assert all(control["contrast"] >= 4.5 for control in measurements["controls"]), (label, measurements)
+            page.screenshot(path=str(out / f"feedback-{label}.png"), animations="disabled")
+            evidence.append({"label": label, "viewport": [width, height], **measurements})
+
+        prompt = page.locator("#chat-prompt")
+        prompt.fill("Keep this draft and selected range.")
+        prompt.evaluate("el => el.setSelectionRange(5, 17)")
+        scroll = page.locator("#chat-scroll")
+        scroll.evaluate("el => { el.scrollTop = Math.max(0, el.scrollHeight / 2); }")
+        page.evaluate("""id => [...document.querySelectorAll('[data-feedback-message]')]
+          .find(control => control.dataset.feedbackMessage === id && control.dataset.answerFeedbackRating === 'helpful')
+          ?.scrollIntoView({block: 'center'})""", target_message_id)
+        scroll_before = scroll.evaluate("el => el.scrollTop")
+        page.evaluate("""id => [...document.querySelectorAll('[data-feedback-message]')]
+          .find(control => control.dataset.feedbackMessage === id && control.dataset.answerFeedbackRating === 'helpful')?.focus()""",
+          target_message_id)
+        page.keyboard.press("Enter")
+        wait_for_feedback_revision(1)
+        assert page.locator(f'[data-feedback-message="{target_message_id}"][data-answer-feedback-rating="helpful"]').get_attribute("aria-pressed") == "true"
+        page.keyboard.press("Tab")
+        assert page.evaluate("document.activeElement.dataset.answerFeedbackRating") == "needs_work"
+        page.keyboard.press("Enter")
+        page.wait_for_function("id => document.querySelector(`[data-feedback-message=\\\"${id}\\\"][data-answer-feedback-rating=\\\"needs_work\\\"]`)?.getAttribute('aria-pressed') === 'true'",
+                               arg=target_message_id)
+        wait_for_feedback_revision(2)
+        assert prompt.input_value() == "Keep this draft and selected range."
+        assert prompt.evaluate("el => [el.selectionStart, el.selectionEnd]") == [5, 17]
+        assert scroll.evaluate("el => el.scrollTop") == scroll_before
+
+        reason = page.get_by_label("Optional reason for feedback")
+        reason.wait_for()
+        reason.select_option("accuracy")
+        page.wait_for_function("""([id, expected]) => [...document.querySelectorAll('[data-answer-feedback-reason]')]
+          .some(select => select.dataset.feedbackMessage === id && select.value === 'accuracy'
+            && Number(select.dataset.feedbackRevision) === expected
+            && select.getAttribute('aria-disabled') !== 'true')""",
+          arg=[target_message_id, 3])
+        target_feedback = page.locator(".answer-feedback").filter(
+            has=page.locator(f'[data-feedback-message="{target_message_id}"]')
+        ).locator("[role=status]")
+        assert target_feedback.inner_text() == (
+            "Feedback saved locally; never changes saved response style."
+        )
+        assert not page.locator("#toast-root .toast").filter(has_text="Feedback saved").count()
+        page.screenshot(path=str(out / "feedback-needs-work-reason.png"), animations="disabled")
+        page.locator(f'[data-feedback-message="{target_message_id}"][data-answer-feedback-rating=""]').click()
+        wait_for_feedback_revision(4)
+        page.wait_for_function("id => document.querySelector(`[data-feedback-message=\\\"${id}\\\"][data-answer-feedback-rating=\\\"helpful\\\"]`)?.getAttribute('aria-pressed') === 'false'",
+                               arg=target_message_id)
+
+        assert len(feedback_requests) == 4, feedback_requests
+        assert [request["body"]["expected_revision"] for request in feedback_requests] == [0, 1, 2, 3]
+        assert [request["body"]["rating"] for request in feedback_requests] == ["helpful", "needs_work", "needs_work", None]
+        assert feedback_requests[2]["body"]["reason"] == "accuracy"
+        page.wait_for_function("""([id, expected]) => {
+          const group = [...document.querySelectorAll('.answer-feedback')]
+            .find(element => element.querySelector(`[data-feedback-message=\\"${id}\\"]`));
+          return group?.querySelector('[role=status]')?.textContent.trim() === expected;
+        }""", arg=[target_message_id, "Local only; never changes saved response style."])
+        assert target_feedback.inner_text() == (
+            "Local only; never changes saved response style."
+        )
+        assert message_requests == [], message_requests
+        assert len(store.list_runs(bot.id)) == before_runs, "feedback must not start a model run"
+        assert store.read_conversation_persona(conversation["id"]) == (None, 0)
+
+        page.goto(f"{app_url}/#/conversation/{external_conversation['id']}", wait_until="domcontentloaded")
+        page.wait_for_function("id => document.querySelector('#conversation-switcher')?.value === id",
+                               arg=external_conversation["id"])
+        assert page.locator(f'[data-feedback-message="{external_answer_id}"][data-answer-feedback-rating]').count() == 0
+        assert failed_responses == [], failed_responses
+        assert errors == [], errors
+        assert console_errors == [], console_errors
+        assert external_requests == [], external_requests
+
+        context.tracing.stop(path=str(out / "trace.zip"))
+        trace_saved = True
+        (out / "validation.json").write_text(json.dumps({
+            "test": "tests/e2e/test_design_system.py::test_answer_feedback_stays_local_revisioned_and_accessible",
+            "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_answer_feedback_stays_local_revisioned_and_accessible",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": f"{browser.browser_type.name.title()} {browser.version}",
+            "playwright": package_version("playwright"),
+            "viewports": evidence,
+            "states": ["local-only answer feedback", "keyboard rating, optional reason and clear",
+                       "four compare-and-swap writes (expected revisions 0–3)",
+                       "draft, selection and reading position retained", "disabled OpenCode feedback hidden"],
+            "page_errors": errors,
+            "console_errors": console_errors,
+            "failed_responses": failed_responses,
+            "external_requests": external_requests,
+            "feedback_requests": feedback_requests,
+            "message_requests": message_requests,
+            "provider_calls": 0,
+            "runtime": "mock/demo with engine work disabled; feedback created no model run",
+            "reduced_motion": "reduce",
+            "source_sha256": _visual_source_hashes(),
+            "visual_review": "Screenshots and trace manually inspected; see docs/realignment/persona-ui-visual-review.md.",
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        if not trace_saved:
+            try:
+                context.tracing.stop(path=str(out / "trace-failed.zip"))
+            except Exception:
+                pass
+        context.close()

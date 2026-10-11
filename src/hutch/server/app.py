@@ -661,6 +661,17 @@ class ConversationMessageRequest(BaseModel):
     workspace_task_result_message_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
 
 
+class PersonaFeedbackRequest(BaseModel):
+    """Bounded, local feedback about one completed answer; no free-text training signal."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    rating: Optional[Literal["helpful", "needs_work"]]
+    reason: Optional[Literal["accuracy", "relevance", "completeness", "depth",
+                             "tone_or_humor", "safety", "other"]] = None
+    expected_revision: int = Field(ge=0)
+
+
 class BotPurposeClarificationTurn(BaseModel):
     question: str = Field(min_length=1, max_length=1_000)
     answer: str = Field(min_length=1, max_length=4_000)
@@ -845,6 +856,15 @@ class ConversationResource(BaseModel):
     active_run_status_label: Optional[str] = None
 
 
+class PersonaFeedbackResource(BaseModel):
+    version: int = 1
+    revision: int
+    rating: Optional[Literal["helpful", "needs_work"]]
+    reason: Optional[Literal["accuracy", "relevance", "completeness", "depth",
+                             "tone_or_humor", "safety", "other"]] = None
+    updated_at: Optional[str] = None
+
+
 class ConversationMessageResource(BaseModel):
     id: str
     conversation_id: str
@@ -863,6 +883,7 @@ class ConversationMessageResource(BaseModel):
     workspace_task_result_truncated: bool = False
     choice_question_id: Optional[str] = None
     content_truncated: bool = False
+    persona_feedback: Optional[PersonaFeedbackResource] = None
 
 
 class ConversationDetail(ConversationResource):
@@ -2819,7 +2840,8 @@ def create_app() -> FastAPI:
             scope=ConversationExportScope(
                 included=["conversation metadata", "ordered message text and provenance"],
                 excluded=["stored provider credentials and connection secrets", "tool receipts", "action receipts",
-                          "workspace content", "artifact bytes", "memory records"],
+                          "workspace content", "artifact bytes", "memory records",
+                          "local answer feedback and response-style preferences"],
                 notice="Message text is included verbatim. Review it for sensitive content before sharing the file.",
             ),
             conversation=snapshot["conversation"], messages=snapshot["messages"],
@@ -2850,6 +2872,32 @@ def create_app() -> FastAPI:
             # Keep absent and cross-conversation message IDs indistinguishable.
             raise HTTPException(404, "no such Bot message in this conversation")
         return message
+
+    @app.put("/api/v1/conversations/{conversation_id}/messages/{message_id}/persona-feedback",
+             response_model=PersonaFeedbackResource)
+    def update_persona_feedback(conversation_id: str, message_id: str, body: PersonaFeedbackRequest,
+                                request: Request) -> dict:
+        if body.reason is not None and body.rating != "needs_work":
+            raise HTTPException(422, "a feedback reason can be set only with the needs_work rating")
+        if body.rating is None and body.reason is not None:
+            raise HTTPException(422, "clearing feedback also clears its reason")
+        key = idempotency_key(request)
+        payload = {"conversation_id": conversation_id, "message_id": message_id,
+                   "rating": body.rating, "reason": body.reason,
+                   "expected_revision": body.expected_revision}
+        try:
+            resource, _created = store.update_persona_feedback(
+                conversation_id, message_id, body.rating, body.reason, body.expected_revision,
+                idem_key=key, request_hash=request_digest(payload),
+            )
+        except (IdempotencyConflict, RevisionConflict) as exc:
+            raise HTTPException(409, str(exc)) from None
+        except KeyError:
+            # Keep missing and cross-conversation message IDs indistinguishable.
+            raise HTTPException(404, "no such Bot message in this conversation") from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        return resource
 
     @app.get("/api/v1/search/messages", response_model=list[ConversationSearchResult])
     def search_messages(q: str, bot: Optional[str] = None, limit: int = 20) -> list[dict]:

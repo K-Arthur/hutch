@@ -404,6 +404,16 @@ not controllable through the headless test runner, so the 720px case checks the 
 viewport rather than claiming a native zoom gesture. Live-model humor, boundary calibration, and provider-side
 request receipt remain unverified.
 
+## Response style and answer feedback
+
+Schema v53 stores one current, versioned feedback record per assistant message. The owner may rate a completed,
+bounded answer Helpful or Needs work and optionally choose one fixed reason. Writes are local-owner-only, require an
+idempotency key and expected revision, and never create a run or change response-style settings. A stale revision
+returns a conflict; only the latest record is kept, and the owner can clear its rating. Feedback is attached to
+paginated conversation messages, excluded from conversation exports, and contains no free text. The built-in chat
+shows the controls only for completed built-in answers; disabled external runtime adapters gain no execution path.
+See [response-style help](response-style.md) for owner-facing scope and privacy details.
+
 ## What is deliberately NOT here (yet)
 
 Vector retrieval, webhook triggers, multi-user roles, bounded agent-to-agent collaboration, a cross-run artifact library, remote

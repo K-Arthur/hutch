@@ -21,7 +21,7 @@ from hutch.models import RunStatus
 from hutch.store import (SCHEMA_VERSION, Store, _migrate_25, _migrate_26, _migrate_27, _migrate_28,
                          _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33, _migrate_34, _migrate_45,
                          _migrate_35, _migrate_37, _migrate_40, _migrate_41, _migrate_46, _migrate_47,
-                         _migrate_48, _migrate_51)
+                         _migrate_48, _migrate_51, _migrate_53)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "state_v4.db.fixture"
 BRIEFING, SWEEPER = "bot_7eef563ee683", "bot_611a4b96d543"
@@ -705,3 +705,52 @@ def test_v52_repairs_both_v51_shapes_and_is_idempotent():
         assert persona_v51.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='messages_pending_question_result_update'").fetchone()
     finally:
         persona_v51.close()
+
+
+def test_v53_feedback_migration_preserves_chat_and_repeats_startup(config):
+    from hutch.models import Bot
+
+    store = Store(config)
+    bot = store.create_bot(Bot(name="feedback-upgrade", model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(bot.id, "Keep this transcript", idem_key="feedback-upgrade-create",
+                                                request_hash="feedback-upgrade-create")
+    with store._tx() as db:
+        store._insert_conversation_message(db, message_id="feedback-upgrade-message",
+            conversation_id=conversation["id"], seq=1, run_id="feedback-old-run", role="assistant",
+            content="Existing answer remains intact.", created_at="2026-10-11T12:00:00+00:00")
+    store.close()
+
+    # Model a real v52 database: it has chat data but does not have the new feedback table.
+    db = sqlite3.connect(config.db_path)
+    db.execute("DROP TABLE persona_feedback")
+    db.execute("PRAGMA user_version = 52")
+    db.commit()
+    db.close()
+
+    upgraded = Store(config)
+    try:
+        assert upgraded.schema_version == SCHEMA_VERSION == 53
+        assert upgraded.get_conversation(conversation["id"])["title"] == "Keep this transcript"
+        assert upgraded.list_conversation_messages(conversation["id"])[0]["content"] == "Existing answer remains intact."
+        assert upgraded._db.execute("SELECT COUNT(*) FROM persona_feedback").fetchone()[0] == 0
+    finally:
+        upgraded.close()
+
+    repeated = Store(config)
+    try:
+        assert repeated.schema_version == SCHEMA_VERSION
+        assert repeated.get_conversation(conversation["id"])["title"] == "Keep this transcript"
+    finally:
+        repeated.close()
+
+    # The migration DDL itself is also safe when an operator reruns the additive repair.
+    db = sqlite3.connect(":memory:")
+    try:
+        _migrate_53(db)
+        _migrate_53(db)
+        assert db.execute("SELECT COUNT(*) FROM persona_feedback").fetchone()[0] == 0
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute("INSERT INTO persona_feedback(conversation_id, message_id, revision, rating, reason, updated_at) "
+                       "VALUES ('chat', 'answer', 1, NULL, 'accuracy', '2026-10-11T12:00:00+00:00')")
+    finally:
+        db.close()

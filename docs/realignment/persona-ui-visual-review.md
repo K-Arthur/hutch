@@ -53,3 +53,21 @@ Viewport checks cover 360×844, 768×960, 1440×960, 320×800 and 720×480 as th
 reflow at 1440×960. The browser runner does not provide a native zoom gesture. Screen readers, Firefox/WebKit and
 physical devices remain untested; this browser fixture verifies UI handling and does not measure provider
 adherence or response quality.
+
+## Local answer feedback
+
+The local feedback controls passed the real-app Chromium regression with captures at 360×844, 768×960, 1440×960,
+320×800, and 720×480 effective CSS pixels for 200% reflow. I inspected `feedback-phone.png`, `feedback-compact-phone.png`,
+`feedback-tablet.png`, `feedback-desktop.png`, `feedback-zoom-200-effective.png`, and the selected-reason state
+`feedback-needs-work-reason.png` individually. The two ratings wrap at 320px without horizontal overflow; the reason
+selector remains reachable below the rating controls. In the selected-reason screenshot, the local saved-state message
+stays beside the controls and repeated saves do not leave stacked notifications over the composer.
+
+Both rating buttons measure 44px high with 9.92:1 text contrast. Keyboard activation, optional reason selection and
+clearing are covered. The selected answer's composer draft, selected text range, reader position and focus survive the
+refresh. Four revision-checked PUTs were observed (revisions 0–3); there were no message POSTs, provider calls, page or
+console errors, failed responses, or external requests. The disabled OpenCode fixture does not expose these controls.
+The trace, screenshots and measured request/viewport record are in
+`artifacts/persona-feedback-2026-10-11/`; `impeccable-detect.json` has no reported findings. This is local UI and
+storage-path verification, not evidence about model response quality. Screen readers, Firefox/WebKit, physical devices
+and native browser zoom remain untested.

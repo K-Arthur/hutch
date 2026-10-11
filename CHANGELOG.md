@@ -37,6 +37,11 @@
   a 720×480 effective 200% viewport. The regression uses a mock route with engine work disabled and makes zero
   provider calls; live provider adherence remains unverified. Screenshots and trace are retained in
   `docs/realignment/artifacts/persona-rewrite-ui-2026-10-11/`.
+- Add schema-v53, answer-scoped local feedback with Helpful/Needs work ratings and optional fixed reasons. Writes
+  are idempotent and revision-checked; arbitrary comments are rejected, feedback creates no model run, never changes
+  saved response style, and is excluded from conversation exports. Built-in chat feedback controls preserve keyboard
+  focus, drafts and reader position and stay hidden for disabled external runtimes. API, migration and actual-app
+  responsive/accessibility checks are recorded in `docs/realignment/artifacts/persona-feedback-2026-10-11/`.
 - Extend assistant settings with the independent v2 selectors and bounded customization beside standing
   directions. Conversation controls save scoped preferences with conflict recovery; next-reply controls stay
   local until one send. Browser regressions cover persistence, reset, concurrent edits, focus, keyboard,

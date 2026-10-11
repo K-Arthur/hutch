@@ -37,12 +37,14 @@ let studioGeneration = 0;
 let studioConversationMenuCleanup = null;
 let activeReplySelectionHandler = null;
 let activeAnswerCorrectionHandler = null;
+let activeAnswerFeedbackHandler = null;
 let activeWorkspaceResultSelectionHandler = null;
 let activeBotCreationFromMessageHandler = null;
 let activeChoiceSubmitHandler = null;
 let activeWorkspaceQuestionSubmitHandler = null;
 const requestedHumanResumes = new Set();
 const pendingAnswerCorrections = new Set();
+const pendingAnswerFeedbackUpdates = new Set();
 const runIntegrityStates = new Map();
 let hutchSession = null;
 let hutchCsrfToken = "";
@@ -2799,6 +2801,43 @@ async function renderChatStudio(preferredBot = null) {
       if (generation === studioGeneration && composerConversationId === currentConversationId) renderChatFeed();
     }
   };
+  activeAnswerFeedbackHandler = async (messageId, rating, reason, control) => {
+    if (generation !== studioGeneration || composerConversationId !== currentConversationId) return;
+    const pendingKey = `${composerConversationId}:${messageId}`;
+    if (!messageId || pendingAnswerFeedbackUpdates.has(pendingKey)) return;
+    const expectedRevision = Number(control?.dataset.feedbackRevision || 0);
+    const body = { rating, reason: reason || null, expected_revision: expectedRevision };
+    const scope = `persona-feedback:${composerConversationId}:${messageId}`;
+    pendingAnswerFeedbackUpdates.add(pendingKey);
+    const feedbackGroup = control?.closest(".answer-feedback");
+    feedbackGroup?.setAttribute("aria-busy", "true");
+    feedbackGroup?.querySelectorAll("button, select").forEach(action => {
+      action.setAttribute("aria-disabled", "true");
+      action.setAttribute("aria-busy", "true");
+    });
+    const feedbackStatus = feedbackGroup?.querySelector("[role=status]");
+    if (feedbackStatus) feedbackStatus.textContent = "Saving locally…";
+    try {
+      const key = await messageIdempotencyKey(scope, body);
+      const saved = await api(`/v1/conversations/${encodeURIComponent(composerConversationId)}/messages/${encodeURIComponent(messageId)}/persona-feedback`, {
+        method: "PUT", headers: { "Idempotency-Key": key }, body,
+      });
+      clearMessageIdempotencyKey(scope, key);
+      if (generation === studioGeneration && composerConversationId === currentConversationId) {
+        $$('[data-feedback-message]', $("#chat-stream")).filter(action => action.dataset.feedbackMessage === messageId)
+          .forEach(action => { action.dataset.feedbackRevision = String(saved.revision); });
+      }
+    } catch (err) {
+      if (generation === studioGeneration && composerConversationId === currentConversationId) {
+        if (err.status === 409) {
+          toast("This answer’s feedback changed elsewhere. The latest version has been loaded; review it before trying again.", true);
+        } else toast(`Could not save answer feedback: ${err.message}`, true);
+      }
+    } finally {
+      pendingAnswerFeedbackUpdates.delete(pendingKey);
+      if (generation === studioGeneration && composerConversationId === currentConversationId) scheduleFeedRender();
+    }
+  };
   activeBotCreationFromMessageHandler = async messageId => {
     if (generation !== studioGeneration || composerConversationId !== currentConversationId) return;
     await promptNewBot("", messageId);
@@ -3287,6 +3326,15 @@ async function renderChatFeed() {
   }
 
   const wasNearBottom = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 90;
+  const scrollTopBefore = scroll.scrollTop;
+  const scrollViewport = scroll.getBoundingClientRect();
+  const scrollAnchor = $$('.thread[data-run-id]', stream).find(thread => {
+    const rect = thread.getBoundingClientRect();
+    return rect.bottom > scrollViewport.top && rect.top < scrollViewport.bottom;
+  });
+  const scrollAnchorRunId = scrollAnchor?.dataset.runId || null;
+  const scrollAnchorOffset = scrollAnchor
+    ? scrollAnchor.getBoundingClientRect().top - scrollViewport.top : null;
 
   const shown = runIds.slice(-6);
   // An older live attempt (and its approval) must remain reachable even when
@@ -3302,9 +3350,13 @@ async function renderChatFeed() {
       const hasVisibleBotReply = messages.some(m => m.role === "assistant" && m.run_id === runId);
       const hasPendingAnswerCorrection = messages.some(m => m.role === "assistant" && m.run_id === runId
         && [...pendingAnswerCorrections].some(key => key.startsWith(`${conversationId}:${m.id}:`)));
+      const hasPersonaFeedback = messages.some(m => m.role === "assistant" && m.run_id === runId && m.persona_feedback);
+      const hasPendingAnswerFeedback = messages.some(m => m.role === "assistant" && m.run_id === runId
+        && pendingAnswerFeedbackUpdates.has(`${conversationId}:${m.id}`));
       const hasWorkspaceTask = workspaceTasks.some(task => task.source_run_id === runId);
       const hasCodeHandoff = codeHandoffs.some(task => task.source_run_id === runId);
-      if (runId === currentRunId || hasPendingAnswerCorrection || hasWorkspaceTask || hasCodeHandoff || !terminalRunCache.has(runId)
+      if (runId === currentRunId || hasPendingAnswerCorrection || hasPersonaFeedback || hasPendingAnswerFeedback
+          || hasWorkspaceTask || hasCodeHandoff || !terminalRunCache.has(runId)
           || hasVisibleBotReply && !terminalRunReplyCache.has(runId)) {
         html = await runBlockHtml(runId, messages, workspaceTasks, codeHandoffs);
       } else html = terminalRunCache.get(runId);
@@ -3332,6 +3384,9 @@ async function renderChatFeed() {
   const focusedFact = focused?.dataset.factReview;
   const focusedAnswerCorrection = focused?.dataset.answerCorrection;
   const focusedAnswerMessage = focused?.dataset.answerMessage;
+  const focusedFeedbackRating = focused?.dataset.answerFeedbackRating;
+  const focusedFeedbackMessage = focused?.dataset.feedbackMessage;
+  const focusedFeedbackReason = focused?.hasAttribute("data-answer-feedback-reason");
   const factUi = captureFactUi(stream);
   const nextHtml = parts.join("") + factPanelHtml(factPage.facts || [], factPage.error, factShares);
   if (chatRenderSnapshots.get(stream) === nextHtml) return;
@@ -3365,8 +3420,23 @@ async function renderChatFeed() {
     $$('[data-answer-correction]', stream).find(button => button.dataset.answerCorrection === focusedAnswerCorrection
       && button.dataset.answerMessage === focusedAnswerMessage)?.focus({ preventScroll: true });
   }
+  if (focusedFeedbackRating !== undefined && !focused.isConnected) {
+    $$('[data-answer-feedback-rating]', stream).find(button => button.dataset.answerFeedbackRating === focusedFeedbackRating
+      && button.dataset.feedbackMessage === focusedFeedbackMessage)?.focus({ preventScroll: true });
+  }
+  if (focusedFeedbackReason && !focused.isConnected) {
+    $$('[data-answer-feedback-reason]', stream).find(select => select.dataset.feedbackMessage === focusedFeedbackMessage)
+      ?.focus({ preventScroll: true });
+  }
   restoreFactUi(stream, factUi);
   if (wasNearBottom) scroll.scrollTop = scroll.scrollHeight;
+  else if (scrollAnchorRunId && scrollAnchorOffset !== null) {
+    const nextAnchor = $$('.thread[data-run-id]', stream).find(thread => thread.dataset.runId === scrollAnchorRunId);
+    if (nextAnchor) {
+      const nextOffset = nextAnchor.getBoundingClientRect().top - scroll.getBoundingClientRect().top;
+      scroll.scrollTop += nextOffset - scrollAnchorOffset;
+    } else scroll.scrollTop = scrollTopBefore;
+  } else scroll.scrollTop = scrollTopBefore;
 
   // The working indicator lives in a stable slot AFTER the feed: full re-renders
   // replace the transcript every event batch, so keeping its slot stable avoids
@@ -3755,6 +3825,11 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
   const pendingCorrectionKey = [...pendingAnswerCorrections].find(key => key.startsWith(`${correctionKey}:`)) || "";
   const correctionBusy = !!pendingCorrectionKey;
   const correctionBusyKind = pendingCorrectionKey.split(":").at(-1);
+  const answerFeedback = botMessage?.persona_feedback || null;
+  const feedbackRevision = Number(answerFeedback?.revision || 0);
+  const feedbackRating = answerFeedback?.rating || "";
+  const feedbackReason = answerFeedback?.reason || "";
+  const feedbackPending = !!botMessage && pendingAnswerFeedbackUpdates.has(`${run.conversation_id}:${botMessage.id}`);
   const correctionActions = run.status === "succeeded" && botMessage?.content && botMessage.content.length <= 12_000
     && !waitingForChoice && sourceBot?.runtime === "builtin"
     ? `<button class="btn ghost small" type="button" data-answer-correction="shorter" data-answer-message="${esc(botMessage.id)}"
@@ -3766,6 +3841,29 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
   const replyAction = botMessage ? `<div class="answer-actions" data-answer-actions role="group"
       aria-label="Adjust this answer. Rewrites do not run tools or external actions again.">
       ${correctionActions}<button class="btn ghost small" type="button" data-reply-message="${esc(botMessage.id)}" aria-label="Reply to ${esc(botName)} message">Reply to this</button></div>` : "";
+  const feedbackReasons = [["accuracy", "Accuracy"], ["relevance", "Relevance"], ["completeness", "Completeness"],
+    ["depth", "Depth"], ["tone_or_humor", "Tone or humor"], ["safety", "Safety or boundaries"], ["other", "Other"]];
+  const feedbackActions = run.status === "succeeded" && botMessage?.content && botMessage.content.length <= 12_000
+    && !waitingForChoice && sourceBot?.runtime === "builtin"
+    ? `<div class="answer-feedback" data-answer-feedback role="group" aria-label="Local answer feedback">
+        <span class="answer-feedback-prompt">Was this answer useful?</span>
+        <button class="btn ghost small" type="button" data-answer-feedback-rating="helpful"
+          data-feedback-message="${esc(botMessage.id)}" data-feedback-revision="${feedbackRevision}"
+          aria-pressed="${feedbackRating === "helpful"}" ${feedbackPending ? 'aria-disabled="true" aria-busy="true"' : ""}>Helpful</button>
+        <button class="btn ghost small" type="button" data-answer-feedback-rating="needs_work"
+          data-feedback-message="${esc(botMessage.id)}" data-feedback-revision="${feedbackRevision}"
+          data-feedback-reason="${feedbackReason}" aria-pressed="${feedbackRating === "needs_work"}"
+          ${feedbackPending ? 'aria-disabled="true" aria-busy="true"' : ""}>Needs work</button>
+        ${feedbackRating === "needs_work" ? `<label class="answer-feedback-reason"><span>Optional reason</span>
+          <select data-answer-feedback-reason data-feedback-message="${esc(botMessage.id)}"
+            data-feedback-revision="${feedbackRevision}" aria-label="Optional reason for feedback"
+            ${feedbackPending ? 'aria-disabled="true" aria-busy="true"' : ""}><option value="">No specific reason</option>${feedbackReasons.map(([value, label]) =>
+              `<option value="${value}" ${feedbackReason === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>` : ""}
+        ${feedbackRating ? `<button class="btn ghost small" type="button" data-answer-feedback-rating=""
+          data-feedback-message="${esc(botMessage.id)}" data-feedback-revision="${feedbackRevision}"
+          aria-label="Clear answer feedback" ${feedbackPending ? 'aria-disabled="true" aria-busy="true"' : ""}>Clear</button>` : ""}
+        <span class="answer-feedback-note" role="status" aria-live="polite">${feedbackPending ? "Saving locally…" : feedbackRating ? "Feedback saved locally; never changes saved response style." : "Local only; never changes saved response style."}</span>
+      </div>` : "";
   const createBotAction = userMessage ? `<div class="request-actions"><button class="btn ghost small" type="button"
       data-create-bot-from-request="${esc(userMessage.id)}" aria-label="Create a bot from this request">Make a bot</button></div>` : "";
   const coordinator = botsCache.find(bot => bot.name === currentStudioBot);
@@ -3817,7 +3915,7 @@ async function runBlockHtml(runId, messages = null, workspaceTasks = [], codeHan
           <summary>${icon("gear")}${running ? esc(activityLabel) : `${stepCount} step${stepCount === 1 ? "" : "s"}`}${stepCount && !running ? ` · ${dur}` : ""} ${icon("caret", "tool-caret")}</summary>
           ${steps.join("")}
         </details>` : ""}
-        ${message && message.data?.content ? `<div class="answer">${esc(message.data.content)}</div>${replyAction}${prepareTaskAction}${prepareCodeTaskAction}` : ""}
+        ${message && message.data?.content ? `<div class="answer">${esc(message.data.content)}</div>${replyAction}${feedbackActions}${prepareTaskAction}${prepareCodeTaskAction}` : ""}
         ${relatedTasks}
         ${relatedCodeTasks}
         ${choiceCards.join("")}
@@ -4552,6 +4650,13 @@ function wireFeedInteractions() {
     if (continueTask) { continueWorkspaceTask(continueTask); return; }
     const reply = ev.target.closest("[data-reply-message]");
     if (reply) { void activeReplySelectionHandler?.(reply.dataset.replyMessage); return; }
+    const feedback = ev.target.closest("[data-answer-feedback-rating]");
+    if (feedback && feedback.getAttribute("aria-disabled") !== "true") {
+      const rating = feedback.dataset.answerFeedbackRating || null;
+      void activeAnswerFeedbackHandler?.(feedback.dataset.feedbackMessage, rating,
+        rating === "needs_work" ? feedback.dataset.feedbackReason : null, feedback);
+      return;
+    }
     const correction = ev.target.closest("[data-answer-correction]");
     if (correction && correction.getAttribute("aria-disabled") !== "true") {
       void activeAnswerCorrectionHandler?.(correction.dataset.answerMessage, correction.dataset.answerCorrection, correction);
@@ -4616,6 +4721,12 @@ function wireFeedInteractions() {
     void activeChoiceSubmitHandler?.(form);
   });
   stream.addEventListener("change", ev => {
+    const feedbackReason = ev.target.closest("[data-answer-feedback-reason]");
+    if (feedbackReason && feedbackReason.getAttribute("aria-disabled") !== "true") {
+      void activeAnswerFeedbackHandler?.(feedbackReason.dataset.feedbackMessage, "needs_work",
+        feedbackReason.value || null, feedbackReason);
+      return;
+    }
     const input = ev.target.closest("[data-choice-option]");
     const form = input?.closest("[data-choice-form]");
     if (!form) return;

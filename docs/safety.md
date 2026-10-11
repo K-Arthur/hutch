@@ -86,6 +86,12 @@ confirm that using a correction preserves the composer draft and selection and k
 Changing persona controls alone does not send a request; choosing a correction is an explicit request to the
 configured provider with the bounded source request and answer as untrusted context.
 
+Helpful/Needs work feedback is a separate local record for a completed answer. It uses a fixed rating and optional
+fixed reason list, contains no free text, calls no provider, and never changes a saved response style or trains a
+model. Revision checks prevent one tab from silently overwriting another. Conversation exports omit this metadata;
+the built-in chat hides feedback controls for disabled external runtimes. See [response-style help](response-style.md)
+for the local-storage and export scope.
+
 Worker review requests, wait state and inline review events commit together. Canonical decision
 summaries override stale transcript asks after a worker crash. Schema v11 resource replay
 contains identifiers rather than message, argument or secret content; clients fetch current

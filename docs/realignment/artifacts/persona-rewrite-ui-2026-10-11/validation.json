@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_design_system.py::test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes",
   "command": ".venv/bin/python -m pytest -q tests/e2e/test_design_system.py::test_answer_rewrite_controls_preserve_chat_state_and_hide_for_external_runtimes",
-  "captured_at": "2026-10-11T14:11:18.918628+00:00",
+  "captured_at": "2026-10-11T14:33:30.780160+00:00",
   "browser": "Chromium 153.0.8010.12",
   "playwright": "1.63.0",
   "viewports": [
@@ -494,7 +494,7 @@
   "external_requests": [],
   "correction_requests": [
     {
-      "url": "http://127.0.0.1:36363/api/v1/conversations/conv_a9a74d8df2c5/messages",
+      "url": "http://127.0.0.1:45657/api/v1/conversations/conv_1657304c09b0/messages",
       "body": {
         "prompt": "Make this answer shorter.",
         "correction": "shorter",
@@ -508,10 +508,10 @@
   "reduced_motion": "reduce",
   "source_sha256": {
     "src/hutch/server/pages.py": "7884021b4a97b41a26c49e4337e8f53fe245ff8682c5e820a613a4dc70263826",
-    "src/hutch/server/static/app.js": "b45c54085f0bc08a4cd817ae948be99ad79c707dbed21e9302e64aa5e008f313",
+    "src/hutch/server/static/app.js": "943c4446a58dfb9f257c8b396522d41c5612d68dded7a19d6c435399c46e46a6",
     "src/hutch/server/static/persona.js": "7699bfc4ab212e8d170fddf35e96d9f2d18f702c85dd98bd9911ae82c156827d",
     "src/hutch/server/static/index.html": "5f7faabcab72c2c2aa459cc143307275a03764ec9c72857d1c9f7d8f2ea5410b",
-    "src/hutch/server/static/style.css": "22197075a70702597748825b8e40118b13c9e9597e195566b26d4983a7a9cef7",
+    "src/hutch/server/static/style.css": "4f8d41e4918caafef9c2eebbfb0ef29a880dd0696c05445bdfe5a49050de334a",
     "src/hutch/server/static/brands/openai-white-monoblossom.svg": "b94ea61d860fae6f82f43571f36f17111fcf5d348e8e9cc22ae4b441c7560011",
     "src/hutch/server/static/brands/anthropic-symbol-ivory.svg": "38fc06d8e9390654cc4e96aa53691e2e78d929667c0034805b6d1b3891ba22dd",
     "src/hutch/server/static/brands/openrouter-glyph-volt.svg": "0d22462e4f2835a5a5b9000af0a55fc9238e39996100f54706e41ec45b9d1727",
@@ -521,7 +521,7 @@
     "website/index.html": "cae44861517f80b505843ac618e1bb56801425842867b8bbead8bcfe820aa7ec",
     "website/site.js": "5905a0e4af56b9461551c38f61bd6f68a1d19fb3afc12a38dc843af7d7aa8ab0",
     "website/styles.css": "4e2f4b3e4094cfc3aef1e9b21deaaf472421e607bb416824e63db0197dd0f4bd",
-    "tests/e2e/test_design_system.py": "0a84a1d70dbe59eed200d8f3f9cb324744781832346d50f1507ea9dbef304ba2"
+    "tests/e2e/test_design_system.py": "5c41673fa2a4d304ff0ae098c157a9f55a1a4329dc9a6109ffb4557fe199e889"
   },
   "visual_review": "Screenshots are stored alongside this record and manually inspected after the browser run."
 }

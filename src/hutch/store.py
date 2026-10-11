@@ -1379,6 +1379,22 @@ def _migrate_52(db: sqlite3.Connection) -> None:
         db.execute("ALTER TABLE conversations ADD COLUMN persona TEXT NOT NULL DEFAULT ''")
 
 
+def _migrate_53(db: sqlite3.Connection) -> None:
+    """Store bounded, owner-authored feedback per assistant answer without changing persona state."""
+    db.execute("""CREATE TABLE IF NOT EXISTS persona_feedback (
+        conversation_id TEXT NOT NULL,
+        message_id TEXT NOT NULL,
+        feedback_version INTEGER NOT NULL DEFAULT 1 CHECK(feedback_version = 1),
+        revision INTEGER NOT NULL CHECK(revision > 0),
+        rating TEXT CHECK(rating IS NULL OR rating IN ('helpful', 'needs_work')),
+        reason TEXT CHECK(reason IS NULL OR reason IN
+            ('accuracy', 'relevance', 'completeness', 'depth', 'tone_or_humor', 'safety', 'other')),
+        updated_at TEXT NOT NULL,
+        CHECK(reason IS NULL OR (rating IS NOT NULL AND rating = 'needs_work')),
+        PRIMARY KEY(conversation_id, message_id)
+    )""")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1386,7 +1402,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
-               _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52]
+               _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -3650,23 +3666,92 @@ class Store:
             rows = self._db.execute(query, args).fetchall()
             return [self._with_conversation_authority(row) for row in rows]
 
+    @staticmethod
+    def _persona_feedback_resource(row: sqlite3.Row) -> Optional[dict[str, Any]]:
+        if row["feedback_revision"] is None:
+            return None
+        return {"version": int(row["feedback_version"]), "revision": int(row["feedback_revision"]),
+                "rating": row["feedback_rating"], "reason": row["feedback_reason"],
+                "updated_at": row["feedback_updated_at"]}
+
+    def update_persona_feedback(self, conversation_id: str, message_id: str, rating: Optional[str],
+                                reason: Optional[str], expected_revision: int, *, idem_key: str,
+                                request_hash: str) -> tuple[dict[str, Any], bool]:
+        """Compare-and-swap one bounded feedback record; never train or edit response preferences."""
+        if (rating not in {None, "helpful", "needs_work"}
+                or reason not in {None, "accuracy", "relevance", "completeness", "depth",
+                                  "tone_or_humor", "safety", "other"}
+                or (reason is not None and rating != "needs_work") or expected_revision < 0):
+            raise ValueError("persona feedback must use a supported rating, reason, and revision")
+        scope = f"api:v1:conversation:{conversation_id}:message:{message_id}:persona-feedback"
+        now = iso(utcnow())
+        with self._tx() as db:
+            replay = self._idempotency_replay(db, scope, idem_key, request_hash)
+            if replay is not None:
+                return replay, False
+            target = db.execute(
+                "SELECT m.role, m.content, r.status, "
+                "EXISTS(SELECT 1 FROM conversation_questions q WHERE q.assistant_message_id = m.id "
+                "AND q.status = 'pending') AS pending_question "
+                "FROM messages m LEFT JOIN runs r ON r.id = m.run_id "
+                "WHERE m.conversation_id = ? AND m.id = ?",
+                (conversation_id, message_id),
+            ).fetchone()
+            if target is None:
+                raise KeyError(message_id)
+            if (target["role"] != "assistant" or target["status"] != "succeeded"
+                    or len(target["content"]) > 12_000 or target["pending_question"]):
+                raise ValueError("feedback is available only for a completed answer in this conversation")
+            current = db.execute(
+                "SELECT revision FROM persona_feedback WHERE conversation_id = ? AND message_id = ?",
+                (conversation_id, message_id),
+            ).fetchone()
+            revision = int(current["revision"]) if current else 0
+            if revision != expected_revision:
+                raise RevisionConflict(f"answer feedback changed (current revision {revision}); reload before editing")
+            updated_revision = revision + 1
+            resource = {"version": 1, "revision": updated_revision, "rating": rating,
+                        "reason": reason, "updated_at": now}
+            db.execute(
+                "INSERT INTO persona_feedback(conversation_id, message_id, feedback_version, revision, rating, reason, updated_at) "
+                "VALUES (?, ?, 1, ?, ?, ?, ?) ON CONFLICT(conversation_id, message_id) DO UPDATE SET "
+                "feedback_version = 1, revision = excluded.revision, rating = excluded.rating, "
+                "reason = excluded.reason, updated_at = excluded.updated_at",
+                (conversation_id, message_id, updated_revision, rating, reason, now),
+            )
+            db.execute("INSERT INTO idempotency_keys(scope, key, request_hash, response_json, created_at) "
+                       "VALUES (?, ?, ?, ?, ?)",
+                       (scope, idem_key, request_hash, _canonical(resource), now))
+        self.bus.notify("conversations", f"conversation:{conversation_id}")
+        return resource, True
+
     def list_conversation_messages(self, conversation_id: str, *, after: int = 0, limit: int = 100) -> list[dict[str, Any]]:
         with self._lock:
             rows = self._db.execute("SELECT m.*, target.role AS reply_to_role, "
-                                    "substr(target.content, 1, 241) AS reply_to_excerpt "
+                                    "substr(target.content, 1, 241) AS reply_to_excerpt, "
+                                    "f.feedback_version, f.revision AS feedback_revision, "
+                                    "f.rating AS feedback_rating, f.reason AS feedback_reason, "
+                                    "f.updated_at AS feedback_updated_at "
                                     "FROM messages m LEFT JOIN messages target ON target.id = m.reply_to_message_id "
+                                    "LEFT JOIN persona_feedback f ON f.conversation_id = m.conversation_id "
+                                    "AND f.message_id = m.id "
                                     "WHERE m.conversation_id = ? AND m.seq > ? ORDER BY m.seq LIMIT ?",
                                     (conversation_id, after, limit)).fetchall()
-        return [dict(row) for row in rows]
+        return [{**dict(row), "persona_feedback": self._persona_feedback_resource(row)} for row in rows]
 
     def get_conversation_message(self, conversation_id: str, message_id: str) -> Optional[dict[str, Any]]:
         """Read one assistant message, scoped to the requested conversation."""
         with self._lock:
-            row = self._db.execute("SELECT id, conversation_id, seq, run_id, role, "
-                                   "substr(content, 1, 4001) AS content, length(content) > 4001 AS content_truncated, created_at "
-                                   "FROM messages WHERE conversation_id = ? AND id = ? AND role = 'assistant'",
+            row = self._db.execute("SELECT m.id, m.conversation_id, m.seq, m.run_id, m.role, "
+                                   "substr(m.content, 1, 4001) AS content, length(m.content) > 4001 AS content_truncated, m.created_at, "
+                                   "f.feedback_version, f.revision AS feedback_revision, "
+                                   "f.rating AS feedback_rating, f.reason AS feedback_reason, "
+                                   "f.updated_at AS feedback_updated_at "
+                                   "FROM messages m LEFT JOIN persona_feedback f "
+                                   "ON f.conversation_id = m.conversation_id AND f.message_id = m.id "
+                                   "WHERE m.conversation_id = ? AND m.id = ? AND m.role = 'assistant'",
                                    (conversation_id, message_id)).fetchone()
-        return dict(row) if row else None
+        return ({**dict(row), "persona_feedback": self._persona_feedback_resource(row)} if row else None)
 
     def get_conversation_user_message(self, conversation_id: str, message_id: str) -> Optional[dict[str, Any]]:
         """Read one full user request, scoped to a conversation, for explicit Bot-creation provenance."""
