@@ -46,6 +46,10 @@ class AmendmentSnapshotLimit(ValueError):
     """Historical result state exceeds the bounded amendment archive size."""
 
 
+class WorkflowPauseRequested(RuntimeError):
+    """A node has not started because the owner requested a safe-boundary pause."""
+
+
 def migrate(db: sqlite3.Connection) -> None:
     """Ensure workflow definitions, revisions, runs, nodes and questions exist."""
     db.execute("""CREATE TABLE IF NOT EXISTS workflow_definitions (
@@ -355,6 +359,41 @@ def workflow_attempt_quiescence(store: Any, attempt_id: str) -> dict[str, Any]:
                 "owned_work_quiet": _workflow_execution_tree_quiet(store._db, attempt_id)}
 
 
+def workflow_pause_requested(store: Any, wf_id: str) -> bool:
+    with store._lock:
+        row = store._db.execute("SELECT pause_requested FROM workflow_runs WHERE id = ?", (wf_id,)).fetchone()
+    return bool(row and row["pause_requested"])
+
+
+def workflow_pause_controls(store: Any, wf_id: str) -> dict[str, bool]:
+    """Return owner-control availability without mistaking a pending drain for a parked run."""
+    with store._lock:
+        workflow = store._db.execute("SELECT * FROM workflow_runs WHERE id = ?", (wf_id,)).fetchone()
+        if workflow is None:
+            return {"pause_available": False, "pause_after_work_available": False,
+                    "resume_available": False, "pause_ready": False}
+        attempt_id = str(workflow["attempt_run_id"] or "")
+        attempt = store._db.execute("SELECT status, cancel_requested, lease_owner FROM runs WHERE id = ?",
+                                    (attempt_id,)).fetchone() if attempt_id else None
+        status = str(workflow["status"])
+        paused = bool(workflow["pause_requested"])
+        stopping = bool(workflow["stop_requested"] or workflow["finished_at"])
+        attempt_status = str(attempt["status"]) if attempt else ""
+        owner = str(attempt["lease_owner"] or "") if attempt else ""
+        cancelled = bool(attempt["cancel_requested"]) if attempt else True
+        parked = (status == "waiting" and attempt_status == "waiting_workflow"
+                  and not owner and not cancelled)
+        quiet = bool(attempt and _workflow_execution_tree_quiet(store._db, attempt_id))
+        ready = parked and quiet
+        resume = paused and not stopping and ready
+        can_pause = (not paused and not stopping and not cancelled and
+                     ((status == "running" and attempt_status == "running" and bool(owner))
+                      or (status == "waiting" and attempt_status == "waiting_workflow" and not owner)))
+        return {"pause_available": can_pause,
+                "pause_after_work_available": can_pause and not ready,
+                "resume_available": resume, "pause_ready": paused and ready}
+
+
 def adopt_workflow_amendment(store: Any, *, wf_id: str, expected_revision_id: str,
                              expected_generation: str, plan: dict[str, Any], plan_hash: str,
                              inputs: dict[str, Any], budget: dict[str, Any],
@@ -503,7 +542,8 @@ def adopt_workflow_amendment(store: Any, *, wf_id: str, expected_revision_id: st
                 effective_budget[key] = min(int(prior_budget[key]), int(effective_budget[key]))
         cur = db.execute(
             """UPDATE workflow_runs SET revision_id = ?, plan_hash = ?, inputs_json = ?, budget_json = ?,
-                      status = 'waiting', reason = ?, result_json = '{}', finished_at = NULL, updated_at = ?
+                      status = 'waiting', reason = ?, result_json = '{}', pause_requested = 0,
+                      finished_at = NULL, updated_at = ?
                WHERE id = ? AND revision_id = ? AND attempt_run_id = ? AND status = 'waiting'
                  AND stop_requested = 0""",
             (revision_id, plan_hash, _json(inputs), _json(effective_budget),
@@ -739,10 +779,11 @@ def request_workflow_stop(store: Any, wf_id: str, *, expected_revision_id: str =
 
 def set_workflow_pause(store: Any, wf_id: str, *, paused: bool, expected_revision_id: str,
                        expected_generation: str, idem_key: str, request_hash: str) -> dict[str, Any]:
-    """Pause or resume only a parked workflow whose owned execution tree is quiet.
+    """Request a safe-boundary pause, or resume after the run is fully parked.
 
-    This never cancels active work. The revision and generation compare, quiet-tree proof,
-    pause bit, and idempotency receipt share one write transaction with continuation admission.
+    A pause request never cancels active work. The current node and owned children settle,
+    while node admission and continuation remain blocked. Resume requires verified cleanup.
+    Revision/generation checks, pause state and the idempotency receipt share one transaction.
     """
     scope = f"api:v1:workflow-pause:{wf_id}"
     with store._tx() as db:
@@ -757,27 +798,43 @@ def set_workflow_pause(store: Any, wf_id: str, *, paused: bool, expected_revisio
             raise ValueError("the workflow revision changed; refresh before pausing or resuming")
         if str(row["attempt_run_id"] or "") != expected_generation:
             raise ValueError("the workflow generation changed; refresh before pausing or resuming")
-        if (str(row["status"]) != "waiting" or int(row["stop_requested"])
+        workflow_status = str(row["status"])
+        if (workflow_status not in ("running", "waiting") or int(row["stop_requested"])
                 or bool(row["finished_at"])):
-            raise ValueError("pause and resume require a live workflow that is already parked")
+            raise ValueError("pause and resume require a live workflow")
         attempt = db.execute("SELECT status, cancel_requested, lease_owner FROM runs WHERE id = ?",
                              (expected_generation,)).fetchone()
-        if (attempt is None or str(attempt["status"]) != "waiting_workflow"
-                or int(attempt["cancel_requested"] or 0) or str(attempt["lease_owner"] or "")):
-            raise ValueError("the current workflow attempt has not released its process and owner lease")
-        if not _workflow_execution_tree_quiet(db, expected_generation):
-            raise ValueError("pause and resume are unavailable while child work or an owned process is active")
+        if attempt is None or int(attempt["cancel_requested"] or 0):
+            raise ValueError("the current workflow attempt is stopping or unavailable")
+        attempt_status = str(attempt["status"])
+        owner = str(attempt["lease_owner"] or "")
+        if paused:
+            can_request = ((workflow_status == "running" and attempt_status == "running" and bool(owner))
+                           or (workflow_status == "waiting" and attempt_status == "waiting_workflow" and not owner))
+            if not can_request:
+                raise ValueError("pause requires the current attempt to be running or parked while waiting")
+        else:
+            if (workflow_status != "waiting" or attempt_status != "waiting_workflow" or owner):
+                raise ValueError("resume requires the current attempt to be parked and to have released its lease")
+            if not _workflow_execution_tree_quiet(db, expected_generation):
+                raise ValueError("resume is unavailable while child work or an owned process is active")
 
         actual = bool(row["pause_requested"])
+        quiet = _workflow_execution_tree_quiet(db, expected_generation)
+        parked = (workflow_status == "waiting" and attempt_status == "waiting_workflow"
+                  and not owner and not int(attempt["cancel_requested"] or 0) and quiet)
         now = iso(utcnow())
         if actual != paused:
-            reason = ("paused by owner; workflow remains parked" if paused
+            reason = (("paused by owner; workflow remains parked" if parked else
+                       "pause requested; waiting for current owned work to settle") if paused
                       else "resumed by owner; continuation is eligible")
             db.execute("UPDATE workflow_runs SET pause_requested = ?, reason = ?, updated_at = ? WHERE id = ? "
-                       "AND revision_id = ? AND attempt_run_id = ? AND status = 'waiting' AND stop_requested = 0",
+                       "AND revision_id = ? AND attempt_run_id = ? "
+                       "AND status IN ('running','waiting') AND stop_requested = 0",
                        (1 if paused else 0, reason, now, wf_id, expected_revision_id, expected_generation))
         response = {"workflow_run_id": wf_id, "revision_id": expected_revision_id,
-                    "attempt_run_id": expected_generation, "status": "waiting", "paused": paused}
+                    "attempt_run_id": expected_generation, "status": workflow_status,
+                    "paused": paused, "parked": parked}
         db.execute("INSERT INTO idempotency_keys (scope, key, request_hash, response_json, created_at) "
                    "VALUES (?, ?, ?, ?, ?)",
                    (scope, idem_key, request_hash, _json(response), now))
@@ -805,7 +862,6 @@ def workflow_runs_needing_attempt(store: Any, *, limit: int = 4,
         rows = store._db.execute(
             """SELECT w.* FROM workflow_runs w
                WHERE w.status IN ('pending','running','waiting') AND w.stop_requested = 0
-                 AND w.pause_requested = 0
                ORDER BY w.updated_at LIMIT 500""").fetchall()
         ready: list[sqlite3.Row] = []
         terminal = set(_TERMINAL_VALUES)
@@ -813,6 +869,20 @@ def workflow_runs_needing_attempt(store: Any, *, limit: int = 4,
             attempt_id = str(workflow["attempt_run_id"] or "")
             previous = store._db.execute(
                 "SELECT status, cancel_requested FROM runs WHERE id = ?", (attempt_id,)).fetchone()
+            if int(workflow["pause_requested"]):
+                # A paused, parked generation stays parked when its wait resolves. If an
+                # active attempt disappeared during a pause request, admit one fresh
+                # attempt to establish the parked state; run_attempt observes the bit
+                # before interpreting any node.
+                if previous is None:
+                    if str(workflow["updated_at"]) <= cutoff:
+                        ready.append(workflow)
+                elif (str(previous["status"]) in terminal
+                      and (str(workflow["updated_at"]) <= cutoff or
+                           str(previous["status"]) == "stopped")):
+                    if _workflow_branch_ready(store._db, str(workflow["id"]), attempt_id):
+                        ready.append(workflow)
+                continue
             if previous is None:
                 if str(workflow["updated_at"]) <= cutoff:
                     ready.append(workflow)
@@ -867,15 +937,20 @@ def admit_workflow_continuation(store: Any, wf_id: str) -> Optional[Run]:
         if row is None:
             raise KeyError(wf_id)
         if (str(row["status"]) not in ("pending", "running", "waiting")
-                or int(row["stop_requested"]) or int(row["pause_requested"])):
+                or int(row["stop_requested"])):
             return None
+        pause_requested = bool(row["pause_requested"])
         previous = db.execute("SELECT id, status, cancel_requested FROM runs WHERE id = ?",
                               (str(row["attempt_run_id"]),)).fetchone()
         if previous is not None:
             if int(previous["cancel_requested"]):
                 return None
             previous_status = str(previous["status"])
-            if previous_status == "waiting_workflow":
+            if pause_requested:
+                if previous_status not in _TERMINAL_VALUES or not _workflow_branch_ready(
+                        db, wf_id, str(row["attempt_run_id"])):
+                    return None
+            elif previous_status == "waiting_workflow":
                 if str(row["status"]) != "waiting" or not _workflow_branch_ready(
                         db, wf_id, str(row["attempt_run_id"])):
                     return None
@@ -947,6 +1022,9 @@ def open_node(store: Any, wf_id: str, *, owner_run_id: str, owner_fence: int, re
     with store._tx() as db:
         _assert_workflow_owner(db, store, wf_id=wf_id, revision_id=revision_id,
                                attempt_run_id=owner_run_id, owner_fence=owner_fence)
+        pause = db.execute("SELECT pause_requested FROM workflow_runs WHERE id = ?", (wf_id,)).fetchone()
+        if pause is not None and int(pause["pause_requested"]):
+            raise WorkflowPauseRequested("the owner requested a pause before this node started")
         count = db.execute("SELECT COUNT(*) AS n FROM workflow_nodes WHERE workflow_run_id = ?",
                            (wf_id,)).fetchone()["n"]
         if int(count) >= MAX_NODES_PER_RUN:

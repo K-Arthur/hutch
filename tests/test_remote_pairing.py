@@ -400,7 +400,7 @@ def test_paired_routes_require_origin_csrf_and_deny_legacy_mutation_aliases(tmp_
 
 
 def test_phone_workflow_monitor_and_review_permissions_use_redacted_projections(tmp_path, monkeypatch):
-    from hutch.models import Bot
+    from hutch.models import Bot, Run
     from hutch.workflow import persistence as wstore
     from hutch.workflow.submit import submit_workflow
 
@@ -438,13 +438,37 @@ def test_phone_workflow_monitor_and_review_permissions_use_redacted_projections(
                 break
             time.sleep(0.05)
         assert first_question and second_question, "workflow ask nodes should park with durable question IDs"
+        deadline = time.monotonic() + 10
+        parked_attempt = wstore.workflow_attempt_quiescence(store, second.attempt_run_id)
+        while time.monotonic() < deadline and not parked_attempt["attempt_parked"]:
+            time.sleep(0.05)
+            parked_attempt = wstore.workflow_attempt_quiescence(store, second.attempt_run_id)
+        assert parked_attempt["attempt_parked"]
+        assert wstore.workflow_pause_controls(store, second.workflow_run_id)["pause_available"]
+        pause_child = Run(bot_id=bot.id, prompt="phone pause projection child", kind="step")
+        with store._tx() as db:
+            db.execute("INSERT INTO runs (id, bot_id, doc, status, created_at, parent_run_id, kind) "
+                       "VALUES (?, ?, ?, 'waiting_human', ?, ?, 'step')",
+                       (pause_child.id, bot.id, pause_child.model_dump_json(), iso(utcnow()),
+                        second.attempt_run_id))
+        assert not wstore.workflow_attempt_quiescence(store, second.attempt_run_id)["owned_work_quiet"]
+        pause_result = wstore.set_workflow_pause(
+            store, second.workflow_run_id, paused=True,
+            expected_revision_id=second.revision_id,
+            expected_generation=second.attempt_run_id,
+            idem_key="phone-pause-requested-projection", request_hash="phone-pause-requested-projection")
+        assert pause_result["paused"] is True and pause_result["parked"] is False
+        assert wstore.workflow_pause_controls(store, second.workflow_run_id)["pause_ready"] is False
         # A private result in the authoritative record must remain absent from phone projections.
         with store._tx() as db:
             db.execute("UPDATE workflow_nodes SET result_json=? WHERE workflow_run_id=? AND site_id='confirm'",
                        ('{"private":"PRIVATE_RESULT_SENTINEL"}', first.workflow_run_id))
 
         client.cookies.set(SESSION_COOKIE, monitor["session_token"])
-        assert client.get("/api/v1/phone/workflows/runs", headers=_phone_headers()).status_code == 200
+        phone_runs = client.get("/api/v1/phone/workflows/runs", headers=_phone_headers())
+        assert phone_runs.status_code == 200
+        requested = next(item for item in phone_runs.json()["items"] if item["id"] == second.workflow_run_id)
+        assert requested["pause_requested"] is True and requested["pause_ready"] is False
         monitor_detail = client.get(f"/api/v1/phone/workflows/runs/{first.workflow_run_id}",
                                     headers=_phone_headers())
         assert monitor_detail.status_code == 200, monitor_detail.text
@@ -453,6 +477,16 @@ def test_phone_workflow_monitor_and_review_permissions_use_redacted_projections(
         assert "instance_key" not in monitor_detail.text
         assert monitor_detail.json()["nodes"] == [{"site_id": "confirm", "instance_number": 1,
                                                    "kind": "ask", "status": "waiting"}]
+        requested_detail = client.get(f"/api/v1/phone/workflows/runs/{second.workflow_run_id}",
+                                      headers=_phone_headers())
+        assert requested_detail.status_code == 200
+        assert requested_detail.json()["pause_requested"] is True
+        assert requested_detail.json()["pause_ready"] is False
+        with store._tx() as db:
+            db.execute("UPDATE runs SET status='failed' WHERE id=?", (pause_child.id,))
+        settled_detail = client.get(f"/api/v1/phone/workflows/runs/{second.workflow_run_id}",
+                                    headers=_phone_headers())
+        assert settled_detail.json()["pause_ready"] is True
         assert client.get("/api/v1/phone/workflows/questions", headers=_phone_headers()).status_code == 403
         monitor_csrf = store.auth_csrf_token(monitor["session_token"], monitor["session_id"])
         monitor_headers = _phone_headers({"X-Hutch-Request": "1", "X-Hutch-CSRF": monitor_csrf,

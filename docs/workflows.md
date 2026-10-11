@@ -100,20 +100,29 @@ hutch workflow answer wq_… "yes"                       # answer one pending qu
 Running a saved workflow makes **no planning call**: the plan is fixed, and every model step
 must already have a qualified role binding.
 
-In Studio, **Pause workflow** appears only after an attempt is parked and its owned child/process
-tree is quiet. Pause leaves the run in its honest waiting state, keeps every pending question
-available, and prevents the supervisor from admitting a continuation. An answer may arrive while
-paused, but no downstream step starts until the owner resumes the workflow. Resume wakes the
-supervisor; it starts a fresh attempt from the durable state rather than restarting the old process.
-Stop remains available while paused and clears the pause flag as it cancels owned work.
+The plan submission API is `POST /api/v1/workflows/plans`. Chat callers pass
+`conversation_id` with the plan and assistant; Hutch checks that the conversation exists and
+belongs to that assistant, then stores the link on the workflow instance. Studio filters runs
+by that durable conversation ID, so a submitted plan appears in the chat that started it.
+Omitting `conversation_id` keeps an API or CLI-started workflow outside any chat card.
+
+In Studio, **Pause after current work** is available while an attempt is running or parked. It
+does not cancel the current node or its owned children: they settle, and the interpreter holds
+before opening the next node. The card says **Pause requested** while that work is still active.
+Once the attempt is parked and the owned child/process tree is verified quiet, the card says
+**Paused** and offers Resume. A parked workflow can also be paused immediately. Pending questions
+remain answerable while paused, but no downstream node starts until the owner resumes the workflow.
+Resume wakes the supervisor; it starts a fresh attempt from durable state rather than restarting
+the old process. Stop remains available throughout and clears pause intent as it cancels owned work.
 
 The local-owner API uses `POST /api/v1/workflows/runs/{id}/pause` and
 `POST /api/v1/workflows/runs/{id}/resume`. Both require an `Idempotency-Key`,
-`expected_revision_id`, and `expected_generation` (the current attempt id). They return 409 if the
-revision/generation changed, the attempt is not parked, or a child/process is still active. Run
-detail reports `pause_available` and `resume_available` from the current quiescence snapshot; the
-mutation rechecks those conditions transactionally. Paired phones can display the paused state,
-but planning and pause/resume remain local-owner controls.
+`expected_revision_id`, and `expected_generation` (the current attempt id). Pause can be requested
+for the current running attempt or a parked waiting attempt; Resume requires the current attempt to
+be parked, have released its lease, and have no active child/process work. Both return 409 when the
+revision or generation is stale, and the mutation rechecks its state transactionally. Run detail
+reports `pause_available`, `pause_after_work_available`, and `resume_available`. Paired phones can
+display **Pause requested** or **Paused**, but planning and pause/resume remain local-owner controls.
 
 ## Authoring
 
@@ -316,7 +325,9 @@ attempt can run.
   is not yet sufficient to prove reuse. A preview also refuses a wider root budget.
   `POST /api/v1/workflows/runs/{id}/amendments/adopt` requires an idempotency key and the same
   revision/generation compare. It only adopts a parked run after child work and owned processes
-  have settled. Active children are never killed by adoption. Pending human questions require the
+  have settled. For a running workflow, the owner can request Pause after current work, then adopt
+  after the Studio reports **Paused**. Active children are never killed by pause or adoption.
+  Adopting a revision clears pause intent and continues under the new revision. Pending human questions require the
   explicit `cancel_pending_questions` choice; old question IDs and result records are archived
   before continuation. The old owner is fenced by the new revision, and any subsequent ask gets a
   fresh identity. `GET /api/v1/workflows/runs/{id}/amendments` lists adoption history and

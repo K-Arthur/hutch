@@ -20,15 +20,16 @@
   "workflow_stop_status": 200,
   "page_errors": [],
   "screenshots_sha256": {
-    "workflow-detail-390.png": "4962d33a335370598cc7d0eedc6e3b6f7ad4b36b296567cef7c07ffdef99a075",
-    "workflow-question-390.png": "2594cb85da3effa19dae31ed8994d895bf6166b308b1247f4c6db119c1b1d5f0",
-    "workflow-detail-320.png": "5d0b47beefa56c8b16943cb653260dffa2a1a5a1575789f8d092672effb986d5",
-    "paired-phone-workflows-trace.zip": "42a121fd6695d3a19ec95286987069bcb8c484fa8429e2c1ddc1b14f965085a7"
+    "workflow-detail-390.png": "ef015173e475bb95ae0e2650037b25b1a2fb22062490cb06c52c6eb3d409eb5a",
+    "workflow-question-390.png": "bf45d7737a80bab18bcab9fd0378502fded526c9367647d75c96aacab7406cae",
+    "workflow-detail-320.png": "1d1a23d4a156954e3e9124342456f8553fb6383de992bdc7ec7e13dc297d963f",
+    "workflow-pause-requested-390.png": "b3d6df2bc7ba10849c7981049d439f8e195bd8443c52433391aa20b0963035d5",
+    "paired-phone-workflows-trace.zip": "a3acf4152e66e900e608e1ff421a1f2ffc3cb0cdd69a2b18bd0d17e283626bd0"
   },
   "source_sha256": {
-    "src/hutch/server/workflows_api.py": "7fc8fd502787b3faedd15f8388e56901a693fafb0dc5fc1501c4ee780c6795af",
-    "src/hutch/server/static/app.js": "9ef7b71d5071ac21c6efe44f3db54f664e8e2b44130427591a6665732d489599",
-    "src/hutch/server/static/style.css": "41bf5a2e7a8d5d3801acabdebd032d71d61c43838ebe537f711b9da889a809ca"
+    "src/hutch/server/workflows_api.py": "9c8b49e976e11900d13614913220c2ee38b2ccf7fbdbbd2b2d4a6f033049718a",
+    "src/hutch/server/static/app.js": "bf5bf28a9e720b2e07b71d0a8dc64d996f30714997fd5c970d022d5cf593b4ba",
+    "src/hutch/server/static/style.css": "52e1ea61a280e8658c2608c9710053cbc235438df4699b66f3333f920ea9c45e"
   },
-  "captured_at": "2026-10-11T16:59:23.587156+00:00"
+  "captured_at": "2026-10-11T19:36:42.921098+00:00"
 }

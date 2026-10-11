@@ -79,7 +79,8 @@ def run_attempt(engine: Any, ctx: Any, run: Run, tools: dict[str, Any], stop: An
         interp.workflow = fresh
 
         try:
-            advance: Advance = interp.advance()
+            advance: Advance = (Advance("wait", detail="pause requested")
+                                if fresh.get("pause_requested") else interp.advance())
         except RunAborted as exc:
             if exc.reason == "outcome_unknown":
                 _settle(store, wf_id, run, revision_id=revision_id,
@@ -88,7 +89,11 @@ def run_attempt(engine: Any, ctx: Any, run: Run, tools: dict[str, Any], stop: An
             raise
         if advance.kind == "wait":
             pending = [q for q in wstore.questions(store, wf_id, status="pending")]
-            reason = f"waiting for {len(pending)} answer(s)" if pending else "waiting for child workflow work"
+            fresh = wstore.workflow_run(store, wf_id) or {}
+            if fresh.get("pause_requested"):
+                reason = "pause requested; waiting for the current work to settle"
+            else:
+                reason = f"waiting for {len(pending)} answer(s)" if pending else "waiting for child workflow work"
             wstore.update_workflow_run(store, wf_id, attempt_run_id=run.id,
                                        owner_fence=run.fence, revision_id=revision_id,
                                        status="waiting",
@@ -221,7 +226,7 @@ def _settle(store: Any, wf_id: str, run: Run, *, revision_id: str,
     wstore.update_workflow_run(
         store, wf_id, attempt_run_id=run.id, owner_fence=run.fence,
         revision_id=revision_id,
-        status=status, reason=reason[:500], result=result, finished=True)
+        status=status, reason=reason[:500], result=result, pause_requested=False, finished=True)
     if status != "succeeded":
         wstore.cancel_questions(store, wf_id)
 

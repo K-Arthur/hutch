@@ -174,14 +174,14 @@
       }
     }
   ],
-  "question_id": "wq_a10cba4a398f",
-  "first_workflow_id": "wrun_3739e7b7921b",
-  "stopped_workflow_id": "wrun_db11d7bf7e1d",
+  "question_id": "wq_729031cd3910",
+  "first_workflow_id": "wrun_f47a61570d3f",
+  "stopped_workflow_id": "wrun_5c1f2b521772",
   "policy_override": {
-    "conversation_id": "conv_21d5b40a9719",
+    "conversation_id": "conv_a87661a6d514",
     "mode": "off",
     "revision": 1,
-    "updated_at": "2026-10-11T19:08:25.189102+00:00"
+    "updated_at": "2026-10-11T19:36:49.235447+00:00"
   },
   "keyboard_path": [
     "focus answer",
@@ -194,26 +194,39 @@
   "source_sha256": {
     "src/hutch/models.py": "10d57a7f3c266ef9ae91cfe692c47625dcb35ecab83bba89812b378e08f59a82",
     "src/hutch/store.py": "2b6b0c6dcf81eaf969389e806a8383a3a20c23ef4b0e81532564e48d4de66f87",
-    "src/hutch/workflow/persistence.py": "4ed8ce94bb64d522c6237d547b7db7e90dcaf461c1e588dbb0aeebe702a4d5cd",
+    "src/hutch/workflow/persistence.py": "bb295261dd880ac95cbbce4caf0ccf561b2ae621385c9770e4c77dacd2afcac9",
     "src/hutch/workflow/submit.py": "a1f3f517635422b1e44c4ffa1d4620c44747f55fbc8a009b76e2fd2b9701f061",
-    "src/hutch/server/workflows_api.py": "2976e00dc1fdbea41676c58a8b047153c22a7676adba054304195b2c250b45c5",
-    "src/hutch/server/static/app.js": "6480e21665742b39ffabcd587aed6062f36bea8a62133fa68dd277f5b63dd95f",
+    "src/hutch/server/workflows_api.py": "9c8b49e976e11900d13614913220c2ee38b2ccf7fbdbbd2b2d4a6f033049718a",
+    "src/hutch/server/static/app.js": "bf5bf28a9e720b2e07b71d0a8dc64d996f30714997fd5c970d022d5cf593b4ba",
     "src/hutch/server/static/style.css": "52e1ea61a280e8658c2608c9710053cbc235438df4699b66f3333f920ea9c45e"
   },
   "visual_artifact_sha256": {
-    "desktop-waiting.png": "f4ba1724933a726b1a25de109a0a96a9cb7d76ec694d3148f66a8ccf6da76aca",
-    "desktop-stopped.png": "50e6e9440f2c4fec5bd3dbcc453fa9c6b6e33fb93a31228d72a8e84f84ed58cf",
-    "desktop-paused.png": "df8528db83d3355fe681982235d13664d2bbaf3b7682de00c226938fabc250c9",
-    "desktop-answered-while-paused.png": "7db74f8dfbccfdeb0e81d34e126f6d1e4890a89df8930ff3c424b674d1f17c9b",
-    "tablet-waiting.png": "7e06f882df70c43f67808b91e384f0189ba334369273052f542b04cf3b9bb9e8",
-    "desktop-policy-off.png": "0faf51739bddd21d851692a0dc7f056c717afa5cc9d9dd4513a7764f7ff3957a",
-    "phone-waiting.png": "6dc8e3bfa40f0a622625b0aea5a88a2d2e54e0b42cd67e092b0767382b06f32d",
-    "compact-phone-paused.png": "b04a893595187a8a9624010062450d514f41bc66a28a3cf971d4691d7540a6e8",
-    "phone-paused.png": "d42e85683d8283449f0b8649b3e5dd551132098e44983015bb8cd72d2621631b",
-    "trace.zip": "57abab12bc72ebe2877526ec3b6e1a17707d0aec85b1126f413cbd6c162d7671",
-    "desktop-finished.png": "4f784a2374f8365d6018b45b1ab27b98258acebe4193f1fc07c609adf2f4742b",
-    "compact-phone-waiting.png": "d5ef94cca69c7af0339870ea280ddc8be0fea46493ed94af13476c024b14ca67",
-    "tablet-paused.png": "f854d3b4db876ec14179d1b02f949a8ac29ae8c9c61b7b488376c7d7ffb8ef91"
+    "active-pause-trace.zip": "a1009497f91d46b122b02d0534823bb1fec7d2642a568d6b3b28ce990604596c",
+    "desktop-waiting.png": "7ce1630c91df910e41946a0a5d8f5a8fb689be045ed8b2abb0993ea3b3c8527d",
+    "active-pause-pause-requested-tablet.png": "4375c669f9f08c46e27b6df83b7b0b0891fad025c3b6cd42447e7dba2e6d0380",
+    "active-pause-paused-compact-phone.png": "d70a168f9963599941f5c18ece8955e36693be34afe7b0bf609e7d3b366f6084",
+    "desktop-stopped.png": "84694c10bff508385ecc0c4dad3c77ae9ea12b043d39e430bf34dab77fc860f2",
+    "active-pause-pause-requested-phone.png": "078274fb84392c459932d54985e02a59c6df84f0440ba3dd1f11f8ddf5d24db1",
+    "desktop-paused.png": "6f4ad8b55f9dad9c26819f8f9e54bb0c0fdde493630ad8bad2d96c2e3893fde8",
+    "desktop-answered-while-paused.png": "049031089291ce5da59c13819eca76efb9daf5f026cbea31836b6e05849df5b8",
+    "active-pause-paused-tablet.png": "98f827d8c2c1ebd0106cf50316cfc7edbfd9432c2ed15cdbc5bc8b0c1c70ae42",
+    "tablet-waiting.png": "69f3885846f08b67392f312120a601a742a9a8ed0122d9eff398e91181b7f711",
+    "active-pause-running-desktop.png": "5664d7c3ecf436857019038f9157ee46e5495ba661ab41f6e72161187fe305ce",
+    "desktop-policy-off.png": "61201af2c721424375179f62b80d6177f0bb26b5f87b2ab6c8df4b344818727a",
+    "active-pause-running-phone.png": "d50e32a6f44dbb34ccfc07bfae95163a6160fca4280b7baf6cbab7f7e4a3e1b2",
+    "phone-waiting.png": "cd9f49b0a9e84ae70cb2f4d9de9d8ccefd5b54ae81db09477741eb2a4311308a",
+    "active-pause-paused-phone.png": "c7590260eb7484e0f7c92f5d6c5b1613705bc293ff14a82e33e461c7536d48d4",
+    "compact-phone-paused.png": "07d8fc595eb3bd948ab893a06fac3fe3e42652f6f5d10fddeb2cf4825b5b6361",
+    "phone-paused.png": "b07ff32ff13360682a278b9e0ee856c02caf520b038a99426f84de15489338c5",
+    "trace.zip": "03896a7d05148f2412e7d873f172e07d5059dcac63f6bfa83f2f9d22759458f6",
+    "desktop-finished.png": "9ad799e7d73df59b2881e73747993fe67c99c191e8feaa0af95d4ae7d0cc2f86",
+    "compact-phone-waiting.png": "0aafa0488b0d84ffee30c746e4a97cfe0413d6a518741c28a3218eaa47b8e82a",
+    "active-pause-paused-desktop.png": "eefc070369d8b65303c2038c8595d0f074076674796642db73e6bbbb7b2a4ec8",
+    "active-pause-running-tablet.png": "b9d5eca3106f99ecdbaf73ee804375f34c1c66d4755a9b66e317beae216c0bb3",
+    "active-pause-running-compact-phone.png": "7a8d9a1fc4825beeddfe6204b118db33643585271d0987d9547647bddad08285",
+    "active-pause-pause-requested-desktop.png": "f92e351e30cdf3b08f0ea465570f3b02230dbaec9b1658cbe586776925181f56",
+    "tablet-paused.png": "3cc73a8bc15575887a96a0c5db5d44e7be3ca05506dec1d5c8902b1f876a5291",
+    "active-pause-pause-requested-compact-phone.png": "34a5e52087944b646a82be3e1bb5601830a020bee096d2ac3dea8be7def235ac"
   },
-  "captured_at": "2026-10-11T19:08:30.786498+00:00"
+  "captured_at": "2026-10-11T19:36:54.393317+00:00"
 }

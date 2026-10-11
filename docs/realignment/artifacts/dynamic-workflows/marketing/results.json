@@ -1,7 +1,7 @@
 {
   "test": "tests/e2e/test_website.py::test_dynamic_workflow_marketing_is_truthful_and_responsive",
   "command": "uv run pytest tests/e2e/test_website.py::test_dynamic_workflow_marketing_is_truthful_and_responsive -q",
-  "captured_at": "2026-10-11T19:03:37.926000+00:00",
+  "captured_at": "2026-10-11T19:37:05.985550+00:00",
   "browser": "chromium",
   "browser_version": "153.0.8010.12",
   "playwright_version": "1.63.0",
@@ -18,15 +18,15 @@
       ],
       "workflow_preview": {
         "x": 164,
-        "y": 541.671875,
+        "y": 517.671875,
         "width": 1112,
-        "height": 358.03125
+        "height": 382.78125
       },
       "availability_row": {
         "x": 189,
-        "y": 330.375,
+        "y": 320.125,
         "width": 557.6875,
-        "height": 239.5
+        "height": 259
       },
       "horizontal_overflow_px": 0
     },
@@ -38,15 +38,15 @@
       ],
       "workflow_preview": {
         "x": 24,
-        "y": 619.4375,
+        "y": 569.4375,
         "width": 720,
-        "height": 404.96875
+        "height": 454.46875
       },
       "availability_row": {
         "x": 49,
-        "y": 431.375,
+        "y": 421.875,
         "width": 670,
-        "height": 161.5
+        "height": 181
       },
       "horizontal_overflow_px": 0
     },
@@ -58,15 +58,15 @@
       ],
       "workflow_preview": {
         "x": 16,
-        "y": 182.265625,
+        "y": 132.265625,
         "width": 328,
-        "height": 618.03125
+        "height": 667.53125
       },
       "availability_row": {
         "x": 33,
-        "y": 241.1875,
+        "y": 221.6875,
         "width": 294,
-        "height": 317.5
+        "height": 356.5
       },
       "horizontal_overflow_px": 0
     },
@@ -78,32 +78,32 @@
       ],
       "workflow_preview": {
         "x": 16,
-        "y": 81.640625,
+        "y": 7.640625,
         "width": 288,
-        "height": 717.921875
+        "height": 792.171875
       },
       "availability_row": {
         "x": 33,
-        "y": 202.078125,
+        "y": 173.328125,
         "width": 254,
-        "height": 395.5
+        "height": 454
       },
       "horizontal_overflow_px": 0
     }
   ],
   "source_sha256": {
-    "website/index.html": "ea14c9fdc5d7f80c83d7f2fe8315910f87c9add17bb34e62f76acedd3df09313",
+    "website/index.html": "157c3ea2d14473b7625be269901d64a797efab8faa881cf9d7312f8fa3953f30",
     "website/styles.css": "d02c433af1d1a34d88106445af671bde72f7ba0581f6fd17a6ef224b30a081cb"
   },
   "visual_artifact_sha256": {
-    "availability-compact-phone.png": "95b977ef5ded4e5ddad328d1d6fbcbeccf7772813b9ec287b4d5e1396443cfe1",
-    "workflow-phone.png": "98ca286da2e0b917d76abbb96ce4e36c96aa6150cef5549c4d7ecedade889a21",
-    "workflow-desktop.png": "0b71726b1aa9387cc6756fcf1942027f7282a692a17f9ee9a4172e51193f523d",
-    "availability-desktop.png": "966c4f214f2b02c164203864f927834c425a9644086f205c53ea8922c164f043",
-    "availability-phone.png": "ad322ebf55948a159f3d6ba980af803f00a8746d9adde307045fd650f3533db4",
-    "trace.zip": "c120ad9038b56021d3eb6ed0c0a912e29dbe20ff1cf9e01f20c3fa12b5daa22a",
-    "availability-tablet.png": "71d91236d8eaec75784ce62c780f440f9046e2105105b7c9fb9ec2b7f4800901",
-    "workflow-compact-phone.png": "ac7cece1eabc86c7af8fa052d57ad03afd71f1211c701414d1303a20f880b1fa",
-    "workflow-tablet.png": "144ffc467a122d3da9e656aa4a8f1e03c20cf4fbd02e2842de73cd0156ee3ab5"
+    "availability-compact-phone.png": "74fe2ee7aade71a7c6f89dee87424edfeb95ce225c9b29d67c8147498ff302ac",
+    "workflow-phone.png": "1740a9662a3fa3574d9240d4daff7c75c4e3cd00611b60a12f09b860879d9d3b",
+    "workflow-desktop.png": "ac6c75319a01a2f11a0891d1e49992c900093dbb5f33f662083d594583479054",
+    "availability-desktop.png": "ee6fbf0b5c5ceb56fc04976141ac2f7401152eb1617e0dc8a73a533fac713ed7",
+    "availability-phone.png": "2c9e57551b4d3050c4277dbba50e174fd70982ac133d55f35b26f0d6f4e3eb77",
+    "trace.zip": "6dede93d03fc90fef0c0160d24d8ab6566f3b33a0cc4ad2c01c58f3b81ce7cb2",
+    "availability-tablet.png": "f5e25fb4ded1c0c9ce4182912a907318ae57f3cb5076ab90ac5a3c20faa93e01",
+    "workflow-compact-phone.png": "0d98ae9cbf0930815abc4de1fb764f1a30c0500b94441b59022befbde5f0e7d8",
+    "workflow-tablet.png": "56fa4492d32068e9724f46cbdbdd57060f2dc9cd631068dac6df2ed9f408c305"
   }
 }

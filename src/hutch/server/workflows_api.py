@@ -139,6 +139,7 @@ class PhoneWorkflowRunSummary(BaseModel):
     status: str
     stop_requested: bool = False
     pause_requested: bool = False
+    pause_ready: bool = False
     created_at: str
     updated_at: str
     step_count: int = 0
@@ -196,6 +197,7 @@ class WorkflowRunDetail(BaseModel):
     plan: Optional[dict[str, Any]] = None
     structure: list[dict[str, Any]] = Field(default_factory=list)
     pause_available: bool = False
+    pause_after_work_available: bool = False
     resume_available: bool = False
 
 
@@ -338,6 +340,7 @@ class SubmitPlanRequest(BaseModel):
     plan: dict[str, Any]
     inputs: dict[str, Any] = Field(default_factory=dict)
     bot: str = Field(min_length=1, max_length=120)
+    conversation_id: str = Field(default="", max_length=100)
     definition_name: str = Field(default="", max_length=120)
     save_definition: bool = True
     source: Literal["operator", "model"] = "operator"
@@ -369,6 +372,7 @@ class WorkflowPauseMutationResource(BaseModel):
     attempt_run_id: str
     status: str
     paused: bool
+    parked: bool = False
 
 
 class AnswerRequest(BaseModel):
@@ -519,6 +523,7 @@ def _phone_workflow_summary(store: Any, row: dict[str, Any]) -> dict[str, Any]:
     pending = [question for question in wstore.questions(store, str(row["id"]), status="pending")
                if str(question.get("revision_id") or "") == str(row.get("revision_id") or "")
                and str(question.get("attempt_run_id") or "") == str(row.get("attempt_run_id") or "")]
+    pause_controls = wstore.workflow_pause_controls(store, str(row["id"]))
     return {
         "id": str(row["id"]),
         "title": str(plan.get("name") or "Workflow"),
@@ -526,6 +531,7 @@ def _phone_workflow_summary(store: Any, row: dict[str, Any]) -> dict[str, Any]:
         "status": str(row.get("status") or "unknown"),
         "stop_requested": bool(row.get("stop_requested")),
         "pause_requested": bool(row.get("pause_requested")),
+        "pause_ready": pause_controls["pause_ready"],
         "created_at": str(row.get("created_at") or ""),
         "updated_at": str(row.get("updated_at") or ""),
         "step_count": len(nodes),
@@ -879,11 +885,18 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
         _plan_size(payload.plan)
         key, digest = _idempotency(request, payload.model_dump())
         bot = _bot_or_404(store, payload.bot)
+        if payload.conversation_id:
+            conversation = store.get_conversation(payload.conversation_id)
+            if conversation is None:
+                raise HTTPException(404, "no such conversation")
+            if str(conversation["bot_id"]) != bot.id:
+                raise HTTPException(422, "the conversation belongs to a different assistant")
         try:
             submission = wfsubmit.submit_workflow(
                 store, bot=bot, plan=payload.plan, inputs=payload.inputs,
                 definition_name=payload.definition_name, save_definition=payload.save_definition,
-                origin="api", source=payload.source, planning_model=payload.planning_model,
+                origin="api", conversation_id=payload.conversation_id,
+                source=payload.source, planning_model=payload.planning_model,
                 note=payload.note, idem_key=key, request_hash=digest, auto=payload.auto)
         except wfsubmit.PlanInputError as exc:
             raise HTTPException(422, {"code": "plan_inputs", "message": str(exc)}) from None
@@ -934,16 +947,15 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
         revision = wstore.revision(store, str(view["workflow"]["revision_id"]))
         plan = revision["plan"] if revision else None
         workflow = view["workflow"]
-        quiet = wstore.workflow_attempt_quiescence(store, str(workflow.get("attempt_run_id") or ""))
-        safe_to_control = (workflow["status"] == "waiting" and not workflow["stop_requested"]
-                           and quiet["attempt_parked"] and quiet["owned_work_quiet"])
+        pause_controls = wstore.workflow_pause_controls(store, wf_id)
         return WorkflowRunDetail(
             workflow=_run_resource(workflow), attempt=view["attempt"],
             nodes=[_node_resource(node) for node in view["nodes"]],
             questions=[_question_resource(question) for question in view["questions"]],
             plan=plan, structure=_structure(plan) if plan else [],
-            pause_available=safe_to_control and not workflow["pause_requested"],
-            resume_available=safe_to_control and workflow["pause_requested"])
+            pause_available=pause_controls["pause_available"],
+            pause_after_work_available=pause_controls["pause_after_work_available"],
+            resume_available=pause_controls["resume_available"])
 
     @app.post("/api/v1/workflows/runs/{wf_id}/amendments/preview",
               response_model=WorkflowAmendmentPreviewResource)

@@ -481,15 +481,27 @@ without dispatch; uncertain receipts refuse a retry until an operator records th
 was not applied. Workflow questions also carry revision/attempt identity, so old answers
 cannot change a stopped or replaced instance.
 
-Schema v59 adds `workflow_runs.pause_requested`. The owner may pause only after the workflow
-instance is waiting, its current attempt has released its lease, and the complete child/process
-tree is quiet. The bit is checked in the same transaction as continuation admission and automatic
-recovery selection, so a pending answer or process restart cannot wake a paused workflow. Answers
-remain accepted by durable question ID while paused; resuming clears the bit and wakes the
-supervisor to create a fresh attempt when all ordinary wait conditions are satisfied. Stop clears
-pause intent and cancels owned work. The local-owner pause/resume routes require an idempotency
-key plus the current revision and attempt generation. The paired-phone projection exposes paused
-status, but the phone cannot pause or resume workflows.
+Dynamic-plan submissions may be bound to a chat by `conversation_id`. The API verifies that the
+conversation exists and belongs to the selected assistant before admission, and stores the ID
+on the workflow instance. Studio then projects the run only into its owning chat. This prevents
+otherwise valid API submissions from disappearing from the chat card because their conversation
+metadata was ignored.
+
+Schema v59 adds `workflow_runs.pause_requested`. The owner can request Pause during a running
+attempt or a parked wait. Node admission checks the flag in the same transaction as opening a new
+node, so the current node may settle but a subsequent node cannot slip through the pause boundary.
+Already-owned child work is not cancelled; the workflow remains **Pause requested** until the
+attempt releases its lease and the complete child/process tree is verified quiet. Only then does
+the projection report **Paused** and enable Resume. A pause request also blocks ordinary continuation
+and recovery. If an active attempt disappears during the request, recovery admits one fenced
+parking attempt that checks the flag before interpreting a node, then releases its lease. A paused
+wait whose children finish stays parked until Resume. Answers remain accepted by durable question
+ID while paused; resuming clears the bit and wakes the supervisor to create a fresh attempt when
+all ordinary wait conditions are satisfied. Adopting an amendment also clears the bit because the
+owner's explicit adoption starts the reviewed revision. Stop clears pause intent and cancels owned
+work. Pause/resume mutations require an idempotency key plus the current revision and attempt
+generation. The paired-phone projection shows **Pause requested** or **Paused**, but the phone
+cannot pause or resume workflows.
 
 Terminal workflow results store node-state counts separately from `output_outcomes`. The
 latter groups declared outputs by the evidence and completion available (`verified`,

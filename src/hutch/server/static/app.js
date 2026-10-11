@@ -374,6 +374,13 @@ const WORKFLOW_STATUS_LABELS = {
   failed: "Failed", stopped: "Stopped", outcome_unknown: "Needs review",
 };
 
+function workflowDisplayTitle(value) {
+  const title = String(value || "").trim();
+  if (!/^[a-z0-9][a-z0-9._-]*$/.test(title) || !/[-_.]/.test(title)) return title || "Workflow";
+  return title.split(/[-_.]+/).filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+}
+
 function workflowNodeLabel(node) {
   if (node.status === "succeeded") {
     if (node.result && typeof node.result === "object" && node.result.verified === true) return "Verified";
@@ -416,19 +423,21 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
       disclosure: document.activeElement.closest("details[data-workflow-disclosure]")?.dataset.workflowDisclosure || "",
       summary: document.activeElement.tagName === "SUMMARY",
     } : null;
-    const status = selected ? (selected.pause_requested ? "Paused" : WORKFLOW_STATUS_LABELS[selected.status] || selected.status)
+    const status = selected ? (selected.pause_requested
+      ? (detail?.resume_available ? "Paused" : "Pause requested")
+      : WORKFLOW_STATUS_LABELS[selected.status] || selected.status)
       : "No run in this chat";
     const plan = detail?.plan || {};
     const structure = detail?.structure || [];
     const nodes = detail?.nodes || [];
-    const title = plan.name || selected?.definition_id || "Workflow run";
+    const title = workflowDisplayTitle(plan.name || "Workflow run");
     const stopButton = selected && ["pending", "running", "waiting"].includes(selected.status)
       ? `<button class="btn danger small" type="button" data-workflow-action="stop" data-workflow-id="${esc(selected.id)}" data-revision-id="${esc(selected.revision_id)}">${icon("stop")} Stop workflow</button>` : "";
     const amendButton = selected && selected.status === "waiting" && detail?.attempt?.status === "waiting_workflow"
       && hutchSession?.principal === "owner"
       ? `<button class="btn ghost small" type="button" data-workflow-action="amend" data-workflow-id="${esc(selected.id)}">Amend parked run</button>` : "";
     const pauseButton = selected && detail?.pause_available && hutchSession?.principal === "owner"
-      ? `<button class="btn ghost small" type="button" data-workflow-action="pause" data-workflow-id="${esc(selected.id)}">Pause workflow</button>` : "";
+      ? `<button class="btn ghost small" type="button" data-workflow-action="pause" data-workflow-id="${esc(selected.id)}">${detail.pause_after_work_available ? "Pause after current work" : "Pause workflow"}</button>` : "";
     const resumeButton = selected && detail?.resume_available && hutchSession?.principal === "owner"
       ? `<button class="btn ghost small" type="button" data-workflow-action="resume" data-workflow-id="${esc(selected.id)}">Resume workflow</button>` : "";
     const liveList = nodes.length ? `<ol class="workflow-step-list" aria-label="Discovered workflow instances">${nodes.map(node => {
@@ -462,7 +471,8 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
       </div>
     </details>` : "";
     const markup = selected ? `<header class="workflow-panel-head"><div><p class="workflow-panel-kicker">Workflow activity</p>
-      <h2 title="${esc(title)}">${esc(title)}</h2><p class="hint">${esc(status)}${selected?.definition_id ? " · saved workflow" : " · dynamic plan"}</p></div>
+      <h2 title="${esc(title)}">${esc(title)}</h2><p class="hint">${esc(status)}${selected?.definition_id ? " · saved workflow" : " · dynamic plan"}</p>
+      ${selected.pause_requested && !detail?.resume_available ? `<p class="hint">Current work will settle before the next step is held.</p>` : ""}</div>
       <div class="workflow-panel-actions">${amendButton}${pauseButton}${resumeButton}${stopButton}<button class="btn ghost small" type="button" data-workflow-action="refresh">Refresh</button></div></header>
       <p class="workflow-panel-meta">${esc(nodes.length)} discovered ${nodes.length === 1 ? "instance" : "instances"} · workflow ${esc(selected.id)}</p>${disclosure}
       ${savedList}` : savedList;
@@ -791,15 +801,17 @@ async function setWorkflowPauseFromPanel(workflow, button, paused, botName, conv
   const operation = `workflow-${action}:${workflow.id}`;
   try {
     const key = await messageIdempotencyKey(operation, body);
-    await api(`/v1/workflows/runs/${encodeURIComponent(workflow.id)}/${action}`, {
+    const result = await api(`/v1/workflows/runs/${encodeURIComponent(workflow.id)}/${action}`, {
       method: "POST", headers: { "Idempotency-Key": key }, body,
     });
     clearMessageIdempotencyKey(operation, key);
-    announce(paused ? "Workflow paused. Its waiting questions and results remain available." :
-      "Workflow resumed. It will continue when its remaining work is ready.");
+    announce(paused
+      ? result.parked ? "Workflow paused. Its waiting questions and results remain available."
+        : "Pause requested. Current work will settle before the next step is held."
+      : "Workflow resumed. It will continue when its remaining work is ready.");
     await refreshWorkflowPanel(botName, conversationId, generation, true);
     if (generation === studioGeneration && conversationId === currentConversationId) {
-      const nextAction = paused ? "resume" : "refresh";
+      const nextAction = paused && result.parked ? "resume" : "refresh";
       panel?.querySelector(`[data-workflow-action="${nextAction}"]`)?.focus({ preventScroll: true });
     }
   } catch (error) {
@@ -10067,7 +10079,7 @@ function phoneRender() {
   if (phoneModel.tab === "review") {
     const questionCards = workflowQuestions.map(q => `<article class="phone-card phone-question-card">
       <div class="phone-card-head"><span class="phone-status needs">Needs your answer</span><span>${esc(q.bot_display_name || "Assistant")}</span></div>
-      <h2>${esc(q.workflow_title || "Workflow")}</h2><p class="phone-sub">Step ${esc(q.site_id)} · Question ID <code>${esc(q.id)}</code></p>
+      <h2>${esc(workflowDisplayTitle(q.workflow_title || "Workflow"))}</h2><p class="phone-sub">Step ${esc(q.site_id)} · Question ID <code>${esc(q.id)}</code></p>
       <p class="phone-question-prompt">${esc(q.question)}</p>
       <form class="phone-workflow-answer-form" data-question-id="${esc(q.id)}">
         ${q.options?.length ? `<label>Answer<select name="answer" required><option value="">Choose an answer</option>${q.options.map(option => `<option value="${esc(option)}">${esc(option)}</option>`).join("")}</select></label>` : `<label>Your answer<textarea name="answer" rows="3" maxlength="4000" required></textarea></label>`}
@@ -10090,8 +10102,8 @@ function phoneRender() {
     const nodes = selectedWorkflow.nodes || [];
     const plannedSteps = selectedWorkflow.planned_steps || [];
     body = `<section class="phone-workflow-detail"><button class="btn ghost" type="button" data-phone-workflow-back>All workflows</button>
-      <article class="phone-card phone-workflow-heading"><div class="phone-card-head"><span class="phone-status ${selectedWorkflow.needs_you ? "needs" : ""}">${esc(selectedWorkflow.pause_requested ? "Paused" : selectedWorkflow.status)}${selectedWorkflow.stop_requested ? " · stop requested" : ""}</span><span>${esc(selectedWorkflow.bot_display_name || "Assistant")}</span></div>
-      <h1>${esc(selectedWorkflow.title || "Workflow")}</h1><p class="phone-sub">${plannedSteps.length} planned · ${nodes.length} recorded instance${nodes.length === 1 ? "" : "s"} · updated ${esc(phoneTimestamp(selectedWorkflow.updated_at))}</p>
+      <article class="phone-card phone-workflow-heading"><div class="phone-card-head"><span class="phone-status ${selectedWorkflow.needs_you ? "needs" : ""}">${esc(selectedWorkflow.pause_requested ? (selectedWorkflow.pause_ready ? "Paused" : "Pause requested") : selectedWorkflow.status)}${selectedWorkflow.stop_requested ? " · stop requested" : ""}</span><span>${esc(selectedWorkflow.bot_display_name || "Assistant")}</span></div>
+      <h1>${esc(workflowDisplayTitle(selectedWorkflow.title || "Workflow"))}</h1><p class="phone-sub">${plannedSteps.length} planned · ${nodes.length} recorded instance${nodes.length === 1 ? "" : "s"} · updated ${esc(phoneTimestamp(selectedWorkflow.updated_at))}</p>
       ${canReview && activeWorkflow.has(selectedWorkflow.status) && !selectedWorkflow.stop_requested ? `<button class="btn danger" type="button" data-phone-workflow-stop="${esc(selectedWorkflow.id)}" ${pending || phoneUnresolvedCommand ? "disabled" : ""}>Stop workflow</button>` : ""}</article>
       <h2 class="phone-section-title">Planned steps</h2>
       ${plannedSteps.length ? `<ol class="phone-workflow-steps phone-planned-steps">${plannedSteps.map(step => `<li data-depth="${Math.min(5, Math.max(0, Number(step.depth) || 0))}"><span class="phone-step-status">planned</span><span class="phone-step-title">${esc(step.site_id)}</span><span class="phone-sub">${esc(step.kind)}${step.bounded ? " · bounded group" : ""}</span></li>`).join("")}</ol>` : `<p class="phone-empty">No plan steps are available.</p>`}
@@ -10100,7 +10112,7 @@ function phoneRender() {
       ${selectedWorkflow.needs_you ? `<p class="phone-sub">${selectedWorkflow.needs_you} pending question${selectedWorkflow.needs_you === 1 ? "" : "s"}. Open Review to answer by question ID.</p>` : ""}
       <p class="phone-sub">Step names and status only. Results, inputs, artifacts and usage details stay on the local owner view.</p></section>`;
   } else if (phoneModel.tab === "workflows") {
-    body = workflows.length ? `<section class="phone-list" aria-label="Workflows">${workflows.map(workflow => `<button class="phone-card phone-workflow-card" type="button" data-phone-workflow="${esc(workflow.id)}"><span class="phone-card-head"><span class="phone-status ${workflow.needs_you ? "needs" : ""}">${esc(workflow.pause_requested ? "Paused" : workflow.status)}${workflow.stop_requested ? " · stop requested" : ""}</span><span>${esc(workflow.bot_display_name || "Assistant")}</span></span><strong>${esc(workflow.title || "Workflow")}</strong><span class="phone-sub">${Number(workflow.planned_step_count) || 0} planned · ${Number(workflow.step_count) || 0} instances · ${workflow.needs_you ? `${Number(workflow.needs_you)} need you · ` : ""}${esc(phoneTimestamp(workflow.updated_at))}</span></button>`).join("")}</section>` : `<section class="phone-empty"><h2>No workflow runs yet</h2><p>Workflows launched on the local Hutch host will appear here.</p></section>`;
+    body = workflows.length ? `<section class="phone-list" aria-label="Workflows">${workflows.map(workflow => `<button class="phone-card phone-workflow-card" type="button" data-phone-workflow="${esc(workflow.id)}"><span class="phone-card-head"><span class="phone-status ${workflow.needs_you ? "needs" : ""}">${esc(workflow.pause_requested ? (workflow.pause_ready ? "Paused" : "Pause requested") : workflow.status)}${workflow.stop_requested ? " · stop requested" : ""}</span><span>${esc(workflow.bot_display_name || "Assistant")}</span></span><strong>${esc(workflowDisplayTitle(workflow.title || "Workflow"))}</strong><span class="phone-sub">${Number(workflow.planned_step_count) || 0} planned · ${Number(workflow.step_count) || 0} instances · ${workflow.needs_you ? `${Number(workflow.needs_you)} need you · ` : ""}${esc(phoneTimestamp(workflow.updated_at))}</span></button>`).join("")}</section>` : `<section class="phone-empty"><h2>No workflow runs yet</h2><p>Workflows launched on the local Hutch host will appear here.</p></section>`;
   } else if (phoneModel.tab === "runs" && selected) {
     const events = selected.events || [];
     body = `<section class="phone-run-detail"><button class="btn ghost" type="button" data-phone-back><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg> All runs</button>

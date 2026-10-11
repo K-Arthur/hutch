@@ -7,6 +7,7 @@ identity.
 from __future__ import annotations
 
 import json
+import threading
 import time
 
 import pytest
@@ -135,6 +136,37 @@ def test_save_run_and_read_back_with_idempotency(client):
     assert detail["workflow"]["result"]["artifacts"][0]["name"] == "summary"
 
 
+def test_dynamic_plan_submission_is_bound_to_its_conversation(client):
+    bot = make_bot(client, name="wf-plan-chat-owner")
+    other = make_bot(client, name="wf-plan-chat-other")
+    created = client.post("/api/v1/conversations", headers={"Idempotency-Key": "wf-plan-chat-create"},
+                          json={"bot": bot["name"], "title": "Dynamic workflow chat"})
+    assert created.status_code == 201, created.text
+    conversation_id = created.json()["id"]
+    simple_plan = {
+        "name": "conversation-bound-plan",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 3, "max_model_calls": 0},
+        "nodes": [{"kind": "transform", "id": "value", "op": "constant",
+                   "args": {"value": "chat-bound"}}],
+    }
+    submitted = client.post("/api/v1/workflows/plans", headers={"Idempotency-Key": "wf-plan-chat-submit"},
+                            json={"plan": simple_plan, "bot": bot["name"],
+                                  "conversation_id": conversation_id})
+    assert submitted.status_code == 201, submitted.text
+    detail = client.get(f"/api/v1/workflows/runs/{submitted.json()['workflow_run_id']}").json()
+    assert detail["workflow"]["conversation_id"] == conversation_id
+
+    mismatched = client.post("/api/v1/workflows/plans", headers={"Idempotency-Key": "wf-plan-chat-mismatch"},
+                             json={"plan": {**simple_plan, "name": "other-chat-plan"},
+                                   "bot": other["name"], "conversation_id": conversation_id})
+    assert mismatched.status_code == 422
+    missing = client.post("/api/v1/workflows/plans", headers={"Idempotency-Key": "wf-plan-chat-missing"},
+                          json={"plan": {**simple_plan, "name": "missing-chat-plan"},
+                                "bot": bot["name"], "conversation_id": "missing-conversation"})
+    assert missing.status_code == 404
+
+
 @pytest.mark.parametrize(
     ("value", "encoded", "site_id"),
     [(False, "false", "value-false"), (0, "0", "value-zero"),
@@ -251,17 +283,18 @@ def test_pause_holds_an_answered_wait_and_resume_continues_the_same_workflow(cli
         db.execute("INSERT INTO runs (id, bot_id, doc, status, created_at, parent_run_id, kind) "
                    "VALUES (?, ?, '{}', 'queued', ?, ?, 'step')",
                    (child_id, bot["id"], "2026-10-11T00:00:00+00:00", attempt_id))
-    blocked = client.post(pause_url, headers=pause_headers, json=pause_body)
-    assert blocked.status_code == 409 and "child work" in blocked.text
+    deferred = client.post(pause_url, headers=pause_headers, json=pause_body)
+    assert deferred.status_code == 200, deferred.text
+    assert deferred.json()["paused"] is True and deferred.json()["parked"] is False
     with store._lock:
         child = store._db.execute("SELECT status, cancel_requested FROM runs WHERE id = ?", (child_id,)).fetchone()
     assert child["status"] == "queued" and child["cancel_requested"] == 0
     with store._tx() as db:
         db.execute("UPDATE runs SET status='failed' WHERE id=?", (child_id,))
-    paused = client.post(pause_url, headers=pause_headers, json=pause_body)
-    assert paused.status_code == 200, paused.text
+    paused = deferred
     assert paused.json() == {"workflow_run_id": workflow_id, "revision_id": workflow["revision_id"],
-                             "attempt_run_id": attempt_id, "status": "waiting", "paused": True}
+                             "attempt_run_id": attempt_id, "status": "waiting", "paused": True,
+                             "parked": False}
     assert client.post(pause_url, headers=pause_headers, json=pause_body).json() == paused.json()
 
     paused_detail = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
@@ -333,6 +366,151 @@ def test_pause_holds_an_answered_wait_and_resume_continues_the_same_workflow(cli
         time.sleep(0.05)
     assert stopped_detail["workflow"]["status"] == "stopped"
     assert stopped_detail["workflow"]["pause_requested"] is False
+
+
+def test_active_work_pause_waits_for_current_node_before_holding_the_next(client, monkeypatch):
+    from hutch.workflow.engine import Interpreter
+
+    entered = threading.Event()
+    release = threading.Event()
+    original_transform = Interpreter._transform
+
+    def slow_transform(self, node, scope):
+        if node.id == "slow":
+            entered.set()
+            assert release.wait(10), "test did not release the in-flight node"
+        return original_transform(self, node, scope)
+
+    monkeypatch.setattr(Interpreter, "_transform", slow_transform)
+    bot = make_bot(client, name="wf-active-pause-bot")
+    active_plan = {
+        "name": "active-pause-boundary",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 5, "max_model_calls": 0},
+        "nodes": [
+            {"kind": "transform", "id": "slow", "op": "constant", "args": {"value": "settled"}},
+            {"kind": "transform", "id": "after", "op": "constant", "args": {"value": {"ref": "slow"}}},
+        ],
+    }
+    submitted = client.post("/api/v1/workflows/plans", headers=KEY,
+                            json={"plan": active_plan, "bot": bot["name"],
+                                  "definition_name": "active-pause-boundary"})
+    assert submitted.status_code == 201, submitted.text
+    workflow_id = submitted.json()["workflow_run_id"]
+    try:
+        assert entered.wait(10), "the first node did not enter its in-flight operation"
+        active = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        assert active["workflow"]["status"] == "running", active
+        assert active["attempt"]["status"] == "running", active
+        assert active["pause_available"] is True
+        body = {"expected_revision_id": active["workflow"]["revision_id"],
+                "expected_generation": active["workflow"]["attempt_run_id"]}
+        pause = client.post(f"/api/v1/workflows/runs/{workflow_id}/pause",
+                            headers={"Idempotency-Key": "wf-active-pause"}, json=body)
+        assert pause.status_code == 200, pause.text
+        assert pause.json()["paused"] is True and pause.json()["parked"] is False
+        assert client.get(f"/api/v1/workflows/runs/{workflow_id}").json()["workflow"]["pause_requested"] is True
+
+        release.set()
+        deadline = time.monotonic() + 15
+        held = None
+        while time.monotonic() < deadline:
+            held = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+            if held["resume_available"]:
+                break
+            time.sleep(0.05)
+        assert held is not None and held["resume_available"] is True, held
+        assert held["workflow"]["status"] == "waiting", held
+        assert held["attempt"]["status"] == "waiting_workflow", held
+        assert {node["site_id"] for node in held["nodes"]} == {"slow"}
+        assert next(node for node in held["nodes"] if node["site_id"] == "slow")["result"] == "settled"
+
+        resumed = client.post(f"/api/v1/workflows/runs/{workflow_id}/resume",
+                              headers={"Idempotency-Key": "wf-active-pause-resume"}, json=body)
+        assert resumed.status_code == 200 and resumed.json()["paused"] is False
+        deadline = time.monotonic() + 15
+        finished = None
+        while time.monotonic() < deadline:
+            finished = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+            if finished["workflow"]["status"] in ("succeeded", "failed", "stopped", "outcome_unknown"):
+                break
+            time.sleep(0.05)
+        assert finished is not None and finished["workflow"]["status"] == "succeeded", finished
+        assert {node["site_id"] for node in finished["nodes"]} == {"slow", "after"}
+    finally:
+        release.set()
+
+
+def test_recovery_parks_a_lost_active_attempt_when_pause_is_requested(client):
+    bot = make_bot(client, name="wf-pause-recovery-bot")
+    recovery_plan = {
+        "name": "pause-recovery-boundary",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 5, "max_model_calls": 0},
+        "nodes": [
+            {"kind": "ask", "id": "confirm", "question": "Continue after recovery?",
+             "options": ["yes", "no"], "timeout_seconds": 300},
+            {"kind": "transform", "id": "after", "op": "constant",
+             "args": {"value": {"ref": "confirm.answer"}}},
+        ],
+    }
+    submitted = client.post("/api/v1/workflows/plans", headers=KEY,
+                            json={"plan": recovery_plan, "bot": bot["name"],
+                                  "definition_name": "pause-recovery-boundary"})
+    assert submitted.status_code == 201, submitted.text
+    workflow_id = submitted.json()["workflow_run_id"]
+    deadline = time.monotonic() + 15
+    waiting = None
+    while time.monotonic() < deadline:
+        waiting = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        if waiting["pause_available"]:
+            break
+        time.sleep(0.05)
+    assert waiting and waiting["pause_available"] is True
+    old_generation = waiting["workflow"]["attempt_run_id"]
+    body = {"expected_revision_id": waiting["workflow"]["revision_id"],
+            "expected_generation": old_generation}
+    paused = client.post(f"/api/v1/workflows/runs/{workflow_id}/pause",
+                         headers={"Idempotency-Key": "wf-pause-recovery"}, json=body)
+    assert paused.status_code == 200 and paused.json()["parked"] is True
+    question_id = waiting["questions"][0]["id"]
+    assert client.post(f"/api/v1/workflows/questions/{question_id}/answer", headers=KEY,
+                       json={"answer": "yes"}).status_code == 200
+
+    # Simulate process replacement after a crash: the parked attempt disappeared, while
+    # the answered wait and durable pause survive in SQLite. Recovery may establish a new
+    # parked attempt, but must not run the downstream node until Resume.
+    with client.app.state.store._tx() as db:
+        db.execute("UPDATE runs SET status='failed' WHERE id=?", (old_generation,))
+        db.execute("UPDATE workflow_runs SET status='running', updated_at=datetime('now','-10 seconds') WHERE id=?",
+                   (workflow_id,))
+
+    deadline = time.monotonic() + 20
+    held = None
+    while time.monotonic() < deadline:
+        held = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        if held["workflow"]["attempt_run_id"] != old_generation and held["resume_available"]:
+            break
+        time.sleep(0.05)
+    assert held and held["workflow"]["attempt_run_id"] != old_generation, held
+    assert held["workflow"]["status"] == "waiting", held
+    assert held["attempt"]["status"] == "waiting_workflow", held
+    assert {node["site_id"] for node in held["nodes"]} == set()
+
+    resume_body = {"expected_revision_id": held["workflow"]["revision_id"],
+                   "expected_generation": held["workflow"]["attempt_run_id"]}
+    resumed = client.post(f"/api/v1/workflows/runs/{workflow_id}/resume",
+                          headers={"Idempotency-Key": "wf-pause-recovery-resume"}, json=resume_body)
+    assert resumed.status_code == 200, resumed.text
+    deadline = time.monotonic() + 15
+    finished = None
+    while time.monotonic() < deadline:
+        finished = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        if finished["workflow"]["status"] in ("succeeded", "failed", "stopped", "outcome_unknown"):
+            break
+        time.sleep(0.05)
+    assert finished is not None and finished["workflow"]["status"] == "succeeded", finished
+    assert {node["site_id"] for node in finished["nodes"]} == {"after"}
 
 
 def test_stop_is_durable_and_idempotent(client):
@@ -628,6 +806,11 @@ def test_amendment_adoption_archives_and_cancels_old_question_then_continues(cli
     assert detail is not None
     old_question = next(question for question in detail["questions"] if question["status"] == "pending")
     old_workflow = detail["workflow"]
+    pause_body = {"expected_revision_id": old_workflow["revision_id"],
+                  "expected_generation": old_workflow["attempt_run_id"]}
+    paused = client.post(f"/api/v1/workflows/runs/{workflow_id}/pause",
+                         headers={"Idempotency-Key": "adoption-pause-before-review"}, json=pause_body)
+    assert paused.status_code == 200 and paused.json()["parked"] is True
     candidate = json.loads(json.dumps(old_plan))
     candidate["nodes"][1]["question"] = "Use the revised method?"
     body = {"expected_revision_id": old_workflow["revision_id"],
@@ -658,6 +841,8 @@ def test_amendment_adoption_archives_and_cancels_old_question_then_continues(cli
     assert result["attempt_run_id"] == old_workflow["attempt_run_id"]
     assert result["cancelled_question_ids"] == [old_question["id"]]
     assert [row["site_id"] for row in result["preview"]["reuse"]] == ["stable"]
+    adopted_detail = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+    assert adopted_detail["workflow"]["pause_requested"] is False
 
     from hutch.lifecycle import LeaseLost
     stale_run = client.app.state.store.get_run(old_workflow["attempt_run_id"])

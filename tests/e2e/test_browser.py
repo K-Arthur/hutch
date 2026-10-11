@@ -164,6 +164,28 @@ def test_paired_phone_monitors_and_reviews_redacted_workflows(browser, live):
             break
         time.sleep(0.05)
     assert review_question and stop_question, "the real workflow supervisor should park both ask nodes"
+    deadline = time.monotonic() + 10
+    parked_attempt = wstore.workflow_attempt_quiescence(store, stop_workflow.attempt_run_id)
+    while time.monotonic() < deadline and not parked_attempt["attempt_parked"]:
+        time.sleep(0.05)
+        parked_attempt = wstore.workflow_attempt_quiescence(store, stop_workflow.attempt_run_id)
+    assert parked_attempt["attempt_parked"]
+    assert wstore.workflow_pause_controls(store, stop_workflow.workflow_run_id)["pause_available"]
+    pause_child = Run(bot_id=bot.id, prompt="phone pause projection child", kind="step")
+    with store._tx() as db:
+        db.execute("INSERT INTO runs (id, bot_id, doc, status, created_at, parent_run_id, kind) "
+                   "VALUES (?, ?, ?, 'waiting_human', ?, ?, 'step')",
+                   (pause_child.id, bot.id, pause_child.model_dump_json(),
+                    datetime.now(timezone.utc).isoformat(), stop_workflow.attempt_run_id))
+    assert not wstore.workflow_attempt_quiescence(
+        store, stop_workflow.attempt_run_id)["owned_work_quiet"]
+    pause_projection = wstore.set_workflow_pause(
+        store, stop_workflow.workflow_run_id, paused=True,
+        expected_revision_id=stop_workflow.revision_id,
+        expected_generation=stop_workflow.attempt_run_id,
+        idem_key="browser-phone-pause-requested", request_hash="browser-phone-pause-requested")
+    assert pause_projection["parked"] is False
+    assert wstore.workflow_pause_controls(store, stop_workflow.workflow_run_id)["pause_ready"] is False
     wstore.set_workflow_pause(
         store, review_workflow.workflow_run_id, paused=True,
         expected_revision_id=review_workflow.revision_id,
@@ -219,8 +241,17 @@ def test_paired_phone_monitors_and_reviews_redacted_workflows(browser, live):
         assert "yes" not in answer_response.text()
         assert wstore.workflow_run(store, review_workflow.workflow_run_id)["pause_requested"] is True
 
+        page.reload()
+        page.locator("#phone-root .phone-brand").wait_for()
         page.get_by_role("button", name="Workflows").click()
         page.locator(f'[data-phone-workflow="{stop_workflow.workflow_run_id}"]').click()
+        assert "Pause requested" in page.locator(".phone-workflow-heading").inner_text()
+        assert page.get_by_role("button", name="Pause workflow").count() == 0
+        assert page.get_by_role("button", name="Resume workflow").count() == 0
+        page.screenshot(path=str(artifacts / "workflow-pause-requested-390.png"),
+                        full_page=True, animations="disabled")
+        with store._tx() as db:
+            db.execute("UPDATE runs SET status='failed' WHERE id=?", (pause_child.id,))
         stop_button = page.get_by_role("button", name="Stop workflow")
         stop_button.wait_for()
         with page.expect_response(lambda response: response.url.endswith(
@@ -256,7 +287,8 @@ def test_paired_phone_monitors_and_reviews_redacted_workflows(browser, live):
         context.tracing.stop(path=str(artifacts / "paired-phone-workflows-trace.zip"))
         context.close()
 
-    screenshots = ["workflow-detail-390.png", "workflow-question-390.png", "workflow-detail-320.png"]
+    screenshots = ["workflow-detail-390.png", "workflow-question-390.png", "workflow-detail-320.png",
+                   "workflow-pause-requested-390.png"]
     source_paths = ["src/hutch/server/workflows_api.py", "src/hutch/server/static/app.js", "src/hutch/server/static/style.css"]
     hashes = {name: hashlib.sha256((artifacts / name).read_bytes()).hexdigest() for name in screenshots}
     hashes["paired-phone-workflows-trace.zip"] = hashlib.sha256(
@@ -372,7 +404,7 @@ def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(bro
         page.goto(f"{base}/#/chat/{bot.name}")
         panel = page.locator("#workflow-panel")
         panel.wait_for(state="visible")
-        page.get_by_role("heading", name=workflow_title).wait_for()
+        page.get_by_role("heading", name="Review Source Findings With Independent Check").wait_for()
         panel.get_by_text("Waiting · saved workflow", exact=True).wait_for()
         panel.get_by_text("Planned structure", exact=True).wait_for()
         panel.get_by_text("Discovered instances", exact=True).wait_for()
@@ -424,7 +456,11 @@ def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(bro
         resume_after_pause = panel.get_by_role("button", name="Resume workflow")
         assert resume_after_pause.count() == 1
         page.wait_for_function("document.activeElement?.dataset.workflowAction === 'resume'", timeout=2000)
-        assert resume_after_pause.evaluate("element => document.activeElement === element")
+        assert resume_after_pause.evaluate("element => document.activeElement === element"), page.evaluate(
+            "({tag: document.activeElement?.tagName, id: document.activeElement?.id, "
+            "action: document.activeElement?.dataset.workflowAction, "
+            "workflow: document.activeElement?.dataset.workflowId, "
+            "html: document.activeElement?.outerHTML?.slice(0, 300)})")
         paused_detail = page.request.get(f"{base}/api/v1/workflows/runs/{first_workflow_id}").json()
         assert paused_detail["workflow"]["pause_requested"] is True
         assert paused_detail["resume_available"] is True
@@ -541,6 +577,177 @@ def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(bro
             "captured_at": datetime.now(timezone.utc).isoformat(),
         }, indent=2) + "\n")
     finally:
+        context.close()
+
+
+def test_workflow_studio_pause_after_active_work_at_all_viewports(browser, live, monkeypatch):
+    """A pause request holds the next step while the current owner operation settles."""
+    from hutch.workflow.engine import Interpreter
+    from hutch.workflow import persistence as workflow_store
+
+    base, app = live
+    store = app.state.store
+    entered = threading.Event()
+    release = threading.Event()
+    original_transform = Interpreter._transform
+
+    def slow_transform(self, node, scope):
+        if node.id == "in_flight":
+            entered.set()
+            assert release.wait(45), "browser test did not release the in-flight node"
+        return original_transform(self, node, scope)
+
+    monkeypatch.setattr(Interpreter, "_transform", slow_transform)
+    bot = Bot(name="workflow-active-pause", display_name="Active pause fixture", model="mock/demo", tools=[])
+    store.upsert_bot(bot)
+    conversation, _ = store.create_conversation(
+        bot.id, "Pause at a safe boundary", idem_key="workflow-active-pause-conversation",
+        request_hash="workflow-active-pause-conversation")
+    plan = {
+        "name": "pause-after-the-current-work-settles-at-a-safe-boundary",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 6, "max_model_calls": 0},
+        "nodes": [
+            {"kind": "transform", "id": "in_flight", "title": "Current calculation",
+             "op": "constant", "args": {"value": "settled"}},
+            {"kind": "transform", "id": "next_step", "title": "Next calculation",
+             "op": "constant", "args": {"value": {"ref": "in_flight"}}},
+        ],
+    }
+    artifacts = Path(__file__).resolve().parents[2] / (
+        "docs/realignment/artifacts/workflow-studio/pause-resume-2026-10-11")
+    artifacts.mkdir(parents=True, exist_ok=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1)
+    context = page.context
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    capture_log = []
+    try:
+        submitted = page.request.post(
+            f"{base}/api/v1/workflows/plans",
+            data={"plan": plan, "bot": bot.name, "conversation_id": conversation["id"]},
+            headers={"Idempotency-Key": "workflow-active-pause-submit"})
+        assert submitted.status == 201, submitted.text()
+        workflow_id = submitted.json()["workflow_run_id"]
+        assert entered.wait(15), "the first transform did not enter its in-flight operation"
+
+        page.goto(f"{base}/#/chat/{bot.name}")
+        panel = page.locator("#workflow-panel")
+        panel.wait_for(state="visible")
+        display_title = "Pause After The Current Work Settles At A Safe Boundary"
+        page.get_by_role("heading", name=display_title).wait_for()
+        panel.get_by_text("Running · saved workflow", exact=True).wait_for()
+        pause_button = panel.get_by_role("button", name="Pause after current work")
+        pause_button.wait_for(state="visible")
+        sizes = [("desktop", 1440, 960), ("tablet", 768, 1024),
+                 ("phone", 360, 800), ("compact-phone", 320, 800)]
+
+        def capture_state(state: str, expected_button: str | None) -> None:
+            for label, width, height in sizes:
+                page.set_viewport_size({"width": width, "height": height})
+                page.wait_for_timeout(80)
+                assert panel.get_by_text(f"{state} · saved workflow", exact=True).is_visible()
+                overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+                assert overflow <= 1, f"{label} {state} view has horizontal overflow: {overflow}px"
+                action = panel.get_by_role("button", name=expected_button) if expected_button else None
+                target_bounds = action.bounding_box() if action else None
+                if action:
+                    assert target_bounds is not None
+                    assert target_bounds["height"] >= (44 if width <= 520 else 24)
+                image_name = f"active-pause-{state.lower().replace(' ', '-')}-{label}.png"
+                page.screenshot(path=str(artifacts / image_name), full_page=True, animations="disabled")
+                capture_log.append({
+                    "viewport": label, "size": [width, height], "state": state.lower().replace(" ", "-"),
+                    "horizontal_overflow_px": overflow,
+                    "control": expected_button,
+                    "control_bounds": ({key: round(value, 2) for key, value in target_bounds.items()}
+                                       if target_bounds else None),
+                })
+
+        capture_state("Running", "Pause after current work")
+        page.set_viewport_size({"width": 1440, "height": 960})
+        active = page.request.get(f"{base}/api/v1/workflows/runs/{workflow_id}").json()
+        assert active["workflow"]["status"] == "running" and active["pause_available"] is True
+        pause_body = {"expected_revision_id": active["workflow"]["revision_id"],
+                      "expected_generation": active["workflow"]["attempt_run_id"]}
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/workflows/runs/{workflow_id}/pause")) as pause_response:
+            pause_button.click()
+        response = pause_response.value
+        assert response.status == 200, response.text()
+        assert response.request.headers.get("idempotency-key")
+        assert response.request.post_data_json == pause_body
+        assert response.json()["paused"] is True and response.json()["parked"] is False
+        panel.get_by_text("Pause requested · saved workflow", exact=True).wait_for()
+        panel.get_by_text("Current work will settle before the next step is held.", exact=True).wait_for()
+        assert panel.get_by_role("button", name="Pause after current work").count() == 0
+        assert panel.get_by_role("button", name="Resume workflow").count() == 0
+        page.wait_for_function("document.activeElement?.dataset.workflowAction === 'refresh'", timeout=2000)
+        assert panel.get_by_role("button", name="Refresh").evaluate(
+            "element => element === document.activeElement")
+        capture_state("Pause requested", None)
+
+        release.set()
+        deadline = time.monotonic() + 20
+        parked = None
+        while time.monotonic() < deadline:
+            parked = page.request.get(f"{base}/api/v1/workflows/runs/{workflow_id}").json()
+            if parked["resume_available"]:
+                break
+            time.sleep(0.05)
+        assert parked and parked["resume_available"] is True, parked
+        assert parked["attempt"]["status"] == "waiting_workflow"
+        assert {node["site_id"] for node in parked["nodes"]} == {"in_flight"}
+        assert next(node for node in parked["nodes"] if node["site_id"] == "in_flight")["result"] == "settled"
+        panel.get_by_role("button", name="Refresh").click()
+        panel.get_by_text("Paused · saved workflow", exact=True).wait_for()
+        capture_state("Paused", "Resume workflow")
+
+        page.set_viewport_size({"width": 1440, "height": 960})
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/workflows/runs/{workflow_id}/resume")) as resume_response:
+            panel.get_by_role("button", name="Resume workflow").click()
+        assert resume_response.value.status == 200, resume_response.value.text()
+        assert resume_response.value.request.headers.get("idempotency-key")
+        assert resume_response.value.json()["paused"] is False
+        deadline = time.monotonic() + 20
+        finished = None
+        while time.monotonic() < deadline:
+            finished = workflow_store.workflow_run(store, workflow_id)
+            if finished and finished["status"] in ("succeeded", "failed", "stopped", "outcome_unknown"):
+                break
+            time.sleep(0.05)
+        assert finished and finished["status"] == "succeeded", finished
+        assert not errors, errors
+        context.tracing.stop(path=str(artifacts / "active-pause-trace.zip"))
+        sources = ("src/hutch/workflow/persistence.py", "src/hutch/workflow/engine.py",
+                   "src/hutch/workflow/runtime.py", "src/hutch/server/workflows_api.py",
+                   "src/hutch/server/static/app.js", "src/hutch/server/static/style.css")
+        images_and_trace = {file.name: hashlib.sha256(file.read_bytes()).hexdigest()
+                            for file in artifacts.iterdir()
+                            if file.name.startswith("active-pause-") and file.suffix in {".png", ".zip"}}
+        (artifacts / "active-pause-results.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_workflow_studio_pause_after_active_work_at_all_viewports",
+            "command": "uv run pytest tests/e2e/test_browser.py::test_workflow_studio_pause_after_active_work_at_all_viewports -q",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"), "viewports": capture_log,
+            "workflow_run_id": workflow_id, "keyboard_path": "Pause action focused Refresh after a deferred pause request.",
+            "page_errors": errors, "provider_calls": 0,
+            "fixture_boundary": "A saved declarative two-transform plan uses the real SQLite store, supervisor, HTTP API, and browser. The first transform blocks on a test event; no model/provider call is made.",
+            "verified_transitions": ["running", "pause requested", "parked after current node settled", "resumed", "succeeded"],
+            "source_sha256": {name: hashlib.sha256((Path(__file__).resolve().parents[2] / name).read_bytes()).hexdigest()
+                              for name in sources},
+            "visual_artifact_sha256": images_and_trace,
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+        }, indent=2) + "\n")
+    finally:
+        release.set()
+        if context.tracing:
+            try:
+                context.tracing.stop(path=str(artifacts / "active-pause-trace.zip"))
+            except Exception:
+                pass
         context.close()
 
 

@@ -190,6 +190,8 @@ class Interpreter:
     def _walk(self, nodes: list[CompiledNode], scope: dict[str, Any]) -> Any:
         value: Any = None
         for cnode in nodes:
+            if wstore.workflow_pause_requested(self.store, self.wf_id):
+                raise _Wait()
             blocked = [dep for dep in cnode.deps if scope.get(dep) is _JOIN_SKIPPED]
             if blocked and cnode.kind != "join":
                 if cnode.site_id in self.all_settled_targets:
@@ -257,8 +259,7 @@ class Interpreter:
             raise WorkflowFailed(cnode.site_id, record["error"].get("reason") or "node failed")
         input_value = self._resolve_inputs(node, scope)
         if record is None:
-            self._spend(cnode.site_id, "nodes")
-            self._ensure_open(cnode, instance_key, node.kind, input_value)
+            self._start_node(cnode, instance_key, node.kind, input_value)
             self._emit(EventType.step, {"node": cnode.site_id, "instance": instance_key,
                                         "kind": node.kind, "title": node.title,
                                         "phase": "started"})
@@ -356,10 +357,13 @@ class Interpreter:
             return record["result"]
         question = self.questions.get((cnode.site_id, key))
         if question is None:
-            self._spend(cnode.site_id, "nodes")
-            rendered = self._render(node.question, self._resolve_inputs(node, scope))
-            expires = _expiry(node.timeout_seconds)
-            self._persist_question(cnode.site_id, key, rendered, node.options, expires)
+            with self.store._lock:
+                if wstore.workflow_pause_requested(self.store, self.wf_id):
+                    raise _Wait()
+                self._spend(cnode.site_id, "nodes")
+                rendered = self._render(node.question, self._resolve_inputs(node, scope))
+                expires = _expiry(node.timeout_seconds)
+                self._persist_question(cnode.site_id, key, rendered, node.options, expires)
             self._emit(EventType.human_needed, {"node": cnode.site_id, "kind": "question",
                                                 "instance": key, "question": rendered,
                                                 "options": list(node.options),
@@ -503,8 +507,7 @@ class Interpreter:
                 advisory = list(result.get("advisory") or [])
             else:
                 if record is None:
-                    self._spend(cnode.site_id, "nodes")
-                    self._ensure_open(cnode, instance, "verify", {"round": rounds})
+                    self._start_node(cnode, instance, "verify", {"round": rounds})
                     self._emit(EventType.step, {"node": cnode.site_id, "instance": instance,
                                                 "kind": "verify", "phase": "started"})
                 checks, advisory = self._run_checks(cnode, scope, instance)
@@ -816,11 +819,6 @@ class Interpreter:
         if not verdict.allowed:
             raise WorkflowFailed(cnode.site_id, f"role blocked: {verdict.summary()}")
         self._check_model_request_budget(cnode.site_id)
-        self._spend(cnode.site_id, "nodes")
-        self._emit(EventType.log, {"node": cnode.site_id, "instance": instance_key,
-                                   "note": f"dispatching {role} step on {spec}",
-                                   "model_state": verdict.state,
-                                   **({"capability_caveats": list(verdict.reasons)} if verdict.state != "qualified" else {})})
         run = Run(bot_id=self.run.bot_id, prompt=prompt, model_override=spec if model not in ("$bot", "$default") else "",
                   conversation_id=self.run.conversation_id,
                   conversation_context=[{"role": "user",
@@ -838,7 +836,11 @@ class Interpreter:
             "role_state": verdict.state,
         }
         task = Task(bot_id=self.run.bot_id, kind="step", prompt=prompt)
-        self._ensure_open(cnode, instance_key, "step", bundle)
+        self._start_node(cnode, instance_key, "step", bundle)
+        self._emit(EventType.log, {"node": cnode.site_id, "instance": instance_key,
+                                   "note": f"dispatching {role} step on {spec}",
+                                   "model_state": verdict.state,
+                                   **({"capability_caveats": list(verdict.reasons)} if verdict.state != "qualified" else {})})
         try:
             child, inserted = wstore.submit_step_run(
                 self.store, workflow_run_id=self.wf_id, site_id=cnode.site_id, instance_key=instance_key,
@@ -951,8 +953,7 @@ class Interpreter:
         key = (cnode.site_id, self._instance_key)
         record = self.nodes.get(key)
         if record is None:
-            self._spend(cnode.site_id, "nodes")
-            self._ensure_open(cnode, key[1], cnode.node.kind, {"container": True})
+            self._start_node(cnode, key[1], cnode.node.kind, {"container": True})
             record = self.nodes[key]
         if record["status"] in ("running", "waiting"):
             try:
@@ -970,11 +971,22 @@ class Interpreter:
                              owner_fence=self.run.fence, revision_id=self.revision_id,
                              site_id=cnode.site_id, instance_key=instance_key, kind=kind,
                              input_value=input_value, input_hash=_hash(input_value))
+        except wstore.WorkflowPauseRequested:
+            raise _Wait() from None
         except ValueError as exc:
             raise WorkflowFailed(cnode.site_id, str(exc)) from None
         self.nodes[(cnode.site_id, instance_key)] = {
             "site_id": cnode.site_id, "instance_key": instance_key, "status": "running",
             "result": {}, "error": {}, "run_id": None}
+
+    def _start_node(self, cnode: CompiledNode, instance_key: str, kind: str,
+                    input_value: Any) -> None:
+        """Charge and open a new node atomically with the pause-request check."""
+        with self.store._lock:
+            if wstore.workflow_pause_requested(self.store, self.wf_id):
+                raise _Wait()
+            self._spend(cnode.site_id, "nodes")
+            self._ensure_open(cnode, instance_key, kind, input_value)
 
     def _settle(self, cnode: CompiledNode, instance_key: str, status: str, result: Any, error: str) -> None:
         try:

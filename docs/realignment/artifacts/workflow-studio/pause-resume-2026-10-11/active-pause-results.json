@@ -1,0 +1,217 @@
+{
+  "test": "tests/e2e/test_browser.py::test_workflow_studio_pause_after_active_work_at_all_viewports",
+  "command": "uv run pytest tests/e2e/test_browser.py::test_workflow_studio_pause_after_active_work_at_all_viewports -q",
+  "browser": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.63.0",
+  "viewports": [
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "state": "running",
+      "horizontal_overflow_px": 0,
+      "control": "Pause after current work",
+      "control_bounds": {
+        "x": 779.97,
+        "y": 81,
+        "width": 200.75,
+        "height": 26
+      }
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        768,
+        1024
+      ],
+      "state": "running",
+      "horizontal_overflow_px": 0,
+      "control": "Pause after current work",
+      "control_bounds": {
+        "x": 287.97,
+        "y": 135.14,
+        "width": 200.75,
+        "height": 26
+      }
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        360,
+        800
+      ],
+      "state": "running",
+      "horizontal_overflow_px": 0,
+      "control": "Pause after current work",
+      "control_bounds": {
+        "x": 41,
+        "y": 231.31,
+        "width": 200.75,
+        "height": 44
+      }
+    },
+    {
+      "viewport": "compact-phone",
+      "size": [
+        320,
+        800
+      ],
+      "state": "running",
+      "horizontal_overflow_px": 0,
+      "control": "Pause after current work",
+      "control_bounds": {
+        "x": 41,
+        "y": 231.31,
+        "width": 200.75,
+        "height": 44
+      }
+    },
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "state": "pause-requested",
+      "horizontal_overflow_px": 0,
+      "control": null,
+      "control_bounds": null
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        768,
+        1024
+      ],
+      "state": "pause-requested",
+      "horizontal_overflow_px": 0,
+      "control": null,
+      "control_bounds": null
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        360,
+        800
+      ],
+      "state": "pause-requested",
+      "horizontal_overflow_px": 0,
+      "control": null,
+      "control_bounds": null
+    },
+    {
+      "viewport": "compact-phone",
+      "size": [
+        320,
+        800
+      ],
+      "state": "pause-requested",
+      "horizontal_overflow_px": 0,
+      "control": null,
+      "control_bounds": null
+    },
+    {
+      "viewport": "desktop",
+      "size": [
+        1440,
+        960
+      ],
+      "state": "paused",
+      "horizontal_overflow_px": 0,
+      "control": "Resume workflow",
+      "control_bounds": {
+        "x": 829.58,
+        "y": 81,
+        "width": 151.14,
+        "height": 26
+      }
+    },
+    {
+      "viewport": "tablet",
+      "size": [
+        768,
+        1024
+      ],
+      "state": "paused",
+      "horizontal_overflow_px": 0,
+      "control": "Resume workflow",
+      "control_bounds": {
+        "x": 337.58,
+        "y": 135.14,
+        "width": 151.14,
+        "height": 26
+      }
+    },
+    {
+      "viewport": "phone",
+      "size": [
+        360,
+        800
+      ],
+      "state": "paused",
+      "horizontal_overflow_px": 0,
+      "control": "Resume workflow",
+      "control_bounds": {
+        "x": 41,
+        "y": 279.31,
+        "width": 151.14,
+        "height": 44
+      }
+    },
+    {
+      "viewport": "compact-phone",
+      "size": [
+        320,
+        800
+      ],
+      "state": "paused",
+      "horizontal_overflow_px": 0,
+      "control": "Resume workflow",
+      "control_bounds": {
+        "x": 41,
+        "y": 279.31,
+        "width": 151.14,
+        "height": 44
+      }
+    }
+  ],
+  "workflow_run_id": "wrun_e2e0b388af0c",
+  "keyboard_path": "Pause action focused Refresh after a deferred pause request.",
+  "page_errors": [],
+  "provider_calls": 0,
+  "fixture_boundary": "A saved declarative two-transform plan uses the real SQLite store, supervisor, HTTP API, and browser. The first transform blocks on a test event; no model/provider call is made.",
+  "verified_transitions": [
+    "running",
+    "pause requested",
+    "parked after current node settled",
+    "resumed",
+    "succeeded"
+  ],
+  "source_sha256": {
+    "src/hutch/workflow/persistence.py": "bb295261dd880ac95cbbce4caf0ccf561b2ae621385c9770e4c77dacd2afcac9",
+    "src/hutch/workflow/engine.py": "3535ae2c51672e99e12fb3fdb10b5c28c3e3c84cbe7bb1586ff258145979bd09",
+    "src/hutch/workflow/runtime.py": "3d245e698486b1137c9376da37f2fbdbcea99012efdd356795368e4cd6bb301b",
+    "src/hutch/server/workflows_api.py": "9c8b49e976e11900d13614913220c2ee38b2ccf7fbdbbd2b2d4a6f033049718a",
+    "src/hutch/server/static/app.js": "bf5bf28a9e720b2e07b71d0a8dc64d996f30714997fd5c970d022d5cf593b4ba",
+    "src/hutch/server/static/style.css": "52e1ea61a280e8658c2608c9710053cbc235438df4699b66f3333f920ea9c45e"
+  },
+  "visual_artifact_sha256": {
+    "active-pause-trace.zip": "bf5b05c235ea14f6d19da54457f8f2e0643924c4891cd83bae03d622a8e446a2",
+    "active-pause-pause-requested-tablet.png": "a18410d1a2a556a856e28e118f83e1b846e1ba7d454c497f258b8428210969f9",
+    "active-pause-paused-compact-phone.png": "6c8bbcac4444820985fd0a20d804de9d2a970e2c3abab9bf7fffdc56579e2c3a",
+    "active-pause-pause-requested-phone.png": "c668b157a3fce7aa8d89578fc57eeec53f31a21142234aa90a4459aaa5d312b9",
+    "active-pause-paused-tablet.png": "3bb07cb212eb87ef333892e1c12e3b3c2832ac801a820ef755e091057fd4ff8e",
+    "active-pause-running-desktop.png": "87bfe2156e9b72edd3019a359524a70e47be42163b382e702b5c720235224317",
+    "active-pause-running-phone.png": "6a2601818f5720db2e70baf3d689f386a00d36fb7b7123a16c3cef0250f083f4",
+    "active-pause-paused-phone.png": "3d3ae80e8ef6a1a3637247604003c31f9d9eab97f5903b5e7206d7176e1a46e5",
+    "active-pause-paused-desktop.png": "1d7f64b5fbb20574369b92e4dde74c9bfd0ed5a814dfcdd1ba868c8b0494302e",
+    "active-pause-running-tablet.png": "52dc0c4f052360316d57cc2255bbd30b9e48c376a6379279988f752e20219a36",
+    "active-pause-running-compact-phone.png": "2f681abdc1ae02ef40b99b68f559badb29cd9cad43ed2788215d65fac815f0d2",
+    "active-pause-pause-requested-desktop.png": "e0651893434eae74aec303187ac6ff3f5539e470e2cbd0cf23437b67a23188f8",
+    "active-pause-pause-requested-compact-phone.png": "9e50ad0f79a7b5d9049a85428877f6f6e8d9f43085e7bcf783c80a7754889bff"
+  },
+  "captured_at": "2026-10-11T19:36:58.120365+00:00"
+}
