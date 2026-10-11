@@ -12,7 +12,7 @@
   <link rel="preload" href="assets/fonts/archivo-latin-var.woff2?v=e3a28ead" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="tokens.css?v=5b585bb3">
   <link rel="stylesheet" href="app.css?v=8f05fcde">
-    <link rel="stylesheet" href="styles.css?v=4e2f4b3e">
+    <link rel="stylesheet" href="styles.css?v=d02c433a">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -235,6 +235,15 @@
           </div>
         </li>
       </ol>
+      <aside class="workflow-preview" aria-labelledby="workflow-preview-title">
+        <div class="workflow-preview-copy">
+          <p class="workflow-preview-status"><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Private preview</span><span>Saved steps, started by you</span></p>
+          <h3 id="workflow-preview-title">Keep a multi-step plan and its progress in the same chat.</h3>
+          <p>Review a saved workflow, start it yourself, see planned steps separately from discovered instances, answer each pending question, and stop while owned work settles. A completed step is not necessarily verified.</p>
+          <p class="workflow-preview-limit">Chat recommendations, Auto launches, and scheduled workflow links are not available yet.</p>
+        </div>
+        <a class="btn btn-outline workflow-preview-link" href="#faq">Workflow questions</a>
+      </aside>
     </div>
   </section>
 
@@ -538,6 +547,7 @@
               <tr><td class="av-k">Public access</td><td class="av-v">Private source; no anonymous download or public release</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
               <tr><td class="av-k">Supported</td><td class="av-v">Linux executor, local SQLite state and fixture-tested lifecycle/control flows; actual runs need a configured model route</td><td><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></td></tr>
               <tr><td class="av-k">Documents</td><td class="av-v">Local generation of PDF, DOCX, XLSX, PPTX, CSV, JSON, Markdown, YAML and ZIP bundles from reviewed content, with SHA-256-verified downloads, versioned revisions and in-app previews (page images for PDF; extracted structure for other formats; office layout renders additionally need LibreOffice installed on the host)</td><td><span class="ev"><span class="dot dot-ok" aria-hidden="true"></span>Supported</span></td></tr>
+              <tr><td class="av-k">Workflows</td><td class="av-v">Experimental: owner-started saved workflows are in the private-preview build. Chat recommendations, Auto launches and routine links are not available yet; no local author or selector profile is qualified.</td><td><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></td></tr>
               <tr><td class="av-k">Experimental</td><td class="av-v">Hosted/local models; OpenCode Go API-key handoff; reviewed OpenCode CLI coding tasks on Linux in pinned worktrees (separate sign-in/usage, command approvals outside Hutch); ChatGPT sign-in preview (eligibility unconfirmed); Google Calendar lookup plus owner-configured guest-free event creation after per-event approval (Google account scope is broader; consent unverified); Outlook Calendar lookup and optional guest-free event creation on one selected calendar, with exact approval each time (Microsoft consent is account-wide and unverified); read-only Outlook Mail previews; private Gmail search (owner OAuth and loopback Local routes only; public release awaits Google scope verification and any required security assessment); host-gated Offline; reviewed child tasks; HTTPS pairing; Linux credential/CAPTCHA handoff; fixture-tested DNS pinning. Browser field detection, public destinations and live provider checks remain unverified</td><td><span class="ev"><span class="dot dot-info" aria-hidden="true"></span>Experimental</span></td></tr>
               <tr><td class="av-k">Unavailable</td><td class="av-v">macOS/Windows executor, phone browser handoff, authenticated PTY/desktop control and OpenCode/Pi as Hutch-managed Bot runtimes</td><td><span class="ev"><span class="dot dot-warn" aria-hidden="true"></span>Unavailable</span></td></tr>
               <tr><td class="av-k">Data movement</td><td class="av-v">Prompts go to the selected hosted endpoint; network tools also contact their configured destinations</td><td><span class="ev">Per configuration</span></td></tr>
@@ -585,6 +595,22 @@
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">What happens when my laptop sleeps on a schedule?</summary>
           <div class="collapse-content"><p>Nothing runs while the machine is off. With the local supervisor running again, configured schedules detect missed windows and either coalesce them into one catch-up run or record a skip, according to the bot&rsquo;s policy.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">How do Suggest and Auto work for workflows?</summary>
+          <div class="collapse-content"><p>New assistants start in Suggest. The setting is stored per conversation, and changing it never starts work. You can start a saved workflow yourself from its chat card. Auto scope is only selectable when the assistant has an activated saved method and explicit limits; chat does not use that scope to launch work yet.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">Can a local model design or choose a workflow?</summary>
+          <div class="collapse-content"><p>Author and selector authority depends on evidence for the exact model and execution settings. No local profile is currently qualified for those roles; two Qwen3 checkpoints failed at least one required check. Hutch does not silently switch to another provider. You can still start a saved workflow when its required model roles are qualified for your route.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">What happens if I stop a workflow or Hutch restarts?</summary>
+          <div class="collapse-content"><p>Stop cancels work owned by that workflow and keeps its status visible until cleanup is verified. After a restart, settled steps and completed effect receipts are reused. If an external effect is uncertain, Hutch holds retry for reconciliation. Some recovery paths remain under evaluation in this private preview.</p></div>
+        </details>
+        <details class="collapse collapse-arrow faq-item">
+          <summary class="collapse-title">What is the difference between a workflow and a routine?</summary>
+          <div class="collapse-content"><p>A workflow describes the steps to do; a routine decides when work runs. Saving or importing a workflow does not schedule it. Connecting a saved workflow to a routine is a separate action and is not available yet.</p></div>
         </details>
         <details class="collapse collapse-arrow faq-item">
           <summary class="collapse-title">Can I hand coding work to OpenCode?</summary>

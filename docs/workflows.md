@@ -11,6 +11,11 @@ Off behavior for existing assistants whose saved record did not contain a mode. 
 point out a workflow-shaped route but does not start it. Auto requires an activated saved
 definition, explicit workflow and budget limits, and separate action approval where required.
 
+Workflows are in private preview. Today, the owner can start a reviewed saved workflow from
+Studio, the API or CLI. Chat-turn recommendations, chat-based plan creation, automatic launch,
+and scheduled routine links are not connected. The public website’s availability row and FAQ
+describe these same limits; they do not imply a public download or qualified local planner.
+
 ## What a workflow is
 
 A plan is data, not code. It declares:

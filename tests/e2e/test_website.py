@@ -703,6 +703,106 @@ def test_outlook_calendar_and_mail_support_row_is_truthful_and_reachable_at_all_
         context.close()
 
 
+def test_dynamic_workflow_marketing_is_truthful_and_responsive(browser, site_url):
+    context, page, errors = _page(browser, reduced_motion="reduce")
+    out = ROOT / "docs/realignment/artifacts/dynamic-workflows/marketing"
+    out.mkdir(parents=True, exist_ok=True)
+    external = []
+    page.on("request", lambda request: external.append(request.url)
+            if not request.url.startswith(site_url) and not request.url.startswith("data:") else None)
+    source_hashes = {
+        "website/index.html": hashlib.sha256((SITE_DIR / "index.html").read_bytes()).hexdigest(),
+        "website/styles.css": hashlib.sha256((SITE_DIR / "styles.css").read_bytes()).hexdigest(),
+    }
+    captures = []
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        page.goto(site_url, wait_until="networkidle")
+        preview = page.locator("#workflow .workflow-preview")
+        assert preview.count() == 1
+        preview_text = preview.inner_text().lower()
+        for phrase in ("private preview", "saved steps, started by you", "planned steps separately from discovered instances",
+                       "answer each pending question", "stop while owned work settles",
+                       "completed step is not necessarily verified", "chat recommendations, auto launches"):
+            assert phrase in preview_text, phrase
+        assert page.locator("#workflow .workflow-details").count() == 3
+
+        page.locator("#get .availability-details > summary").click()
+        workflow_row = page.locator("#get .availability tbody tr").filter(has_text="Workflows")
+        assert workflow_row.count() == 1
+        availability = workflow_row.inner_text().lower()
+        for phrase in ("owner-started saved workflows", "chat recommendations", "auto launches",
+                       "routine links", "no local author or selector profile is qualified", "experimental"):
+            assert phrase in availability, phrase
+
+        faq_expectations = {
+            "How do Suggest and Auto work for workflows?": "chat does not use that scope to launch work yet",
+            "Can a local model design or choose a workflow?": "no local profile is currently qualified",
+            "What happens if I stop a workflow or Hutch restarts?": "hutch holds retry for reconciliation",
+            "What is the difference between a workflow and a routine?": "connecting a saved workflow to a routine is a separate action",
+        }
+        for question, expected in faq_expectations.items():
+            item = page.locator("#faq details").filter(has=page.get_by_text(question, exact=True))
+            assert item.count() == 1, question
+            item.locator("summary").click()
+            answer = item.locator(".collapse-content")
+            assert answer.is_visible()
+            assert expected in answer.inner_text().lower(), question
+
+        page.get_by_role("link", name="Workflow questions").click()
+        assert page.evaluate("location.hash") == "#faq"
+
+        viewports = (("desktop", 1440, 900), ("tablet", 768, 1024),
+                     ("phone", 360, 800), ("compact-phone", 320, 800))
+        for label, width, height in viewports:
+            page.set_viewport_size({"width": width, "height": height})
+            page.locator("#workflow").scroll_into_view_if_needed()
+            preview.scroll_into_view_if_needed()
+            page.wait_for_timeout(60)
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, (label, overflow)
+            box = preview.bounding_box()
+            assert box and box["x"] >= 0 and box["x"] + box["width"] <= width + 1, (label, box)
+            copy_box = preview.locator(".workflow-preview-copy").bounding_box()
+            headline = preview.locator("h3").bounding_box()
+            assert copy_box and headline and headline["x"] >= copy_box["x"] - 1
+            assert headline["x"] + headline["width"] <= copy_box["x"] + copy_box["width"] + 1
+            assert headline["height"] <= 120, (label, headline)
+            page.screenshot(path=str(out / f"workflow-{label}.png"), animations="disabled")
+
+            workflow_row.locator(".av-v").scroll_into_view_if_needed()
+            page.wait_for_timeout(40)
+            row_box = workflow_row.bounding_box()
+            assert row_box and row_box["x"] >= 0 and row_box["x"] + row_box["width"] <= width + 1, (label, row_box)
+            assert page.evaluate("document.documentElement.scrollWidth - innerWidth") <= 1, label
+            page.screenshot(path=str(out / f"availability-{label}.png"), animations="disabled")
+            captures.append({"name": label, "viewport": [width, height], "workflow_preview": box,
+                             "availability_row": row_box, "horizontal_overflow_px": overflow})
+
+        assert external == [], external
+        assert not errors, errors
+        context.tracing.stop(path=str(out / "trace.zip"))
+        hashes = {file.name: hashlib.sha256(file.read_bytes()).hexdigest()
+                  for file in out.iterdir() if file.suffix in {".png", ".zip"}}
+        (out / "results.json").write_text(json.dumps({
+            "test": "tests/e2e/test_website.py::test_dynamic_workflow_marketing_is_truthful_and_responsive",
+            "command": "uv run pytest tests/e2e/test_website.py::test_dynamic_workflow_marketing_is_truthful_and_responsive -q",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"), "reduced_motion": "reduce",
+            "provider_calls": 0, "external_requests": external, "page_errors": errors,
+            "viewports": captures, "source_sha256": source_hashes,
+            "visual_artifact_sha256": hashes,
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        if context.tracing:
+            try:
+                context.tracing.stop()
+            except Exception:
+                pass
+        context.close()
+
+
 def test_no_javascript_keeps_the_page_readable(browser, site_url):
     context, page, _ = _page(browser, width=390, height=844, js=False)
     page.goto(site_url, wait_until="load")

@@ -122,6 +122,13 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .workflow-details > summary::after { right: 14px; width: 20px; height: 20px; font-size: 17px; }
 .workflow-details .details-copy { display: grid; gap: var(--space-3); padding: var(--space-4); }
 .workflow-details p { color: var(--color-semantic-text-2); font-size: var(--text-size-xs); line-height: 1.65; }
+.workflow-preview { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-8); margin-top: var(--space-8); padding: clamp(var(--space-5), 4vw, var(--space-8)); border: 1px solid var(--color-semantic-border); border-inline-start: 3px solid var(--color-semantic-brand); border-radius: var(--radius-panel); background: var(--color-semantic-surface); }
+.workflow-preview-copy { min-width: 0; }
+.workflow-preview-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); color: var(--color-semantic-text-3); font-size: var(--text-size-xs); font-weight: 650; }
+.workflow-preview h3 { max-width: 38ch; margin: 0 0 var(--space-3); font-size: var(--text-size-lg); font-weight: 750; line-height: 1.35; letter-spacing: -.012em; }
+.workflow-preview-copy > p:not(.workflow-preview-status) { max-width: 72ch; margin-bottom: var(--space-3); color: var(--color-semantic-text-2); font-size: var(--text-size-sm); line-height: 1.65; }
+.workflow-preview-copy > .workflow-preview-limit { margin-bottom: 0; color: var(--color-semantic-text-3); font-size: var(--text-size-xs); }
+.workflow-preview-link { align-self: center; white-space: nowrap; }
 .review-flow { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: var(--space-5); margin-bottom: var(--space-8); }
 .review-flow article { min-width: 0; padding: var(--space-6); border: 1px solid var(--color-semantic-border); border-radius: var(--radius-panel); background: var(--color-semantic-surface); }
 .review-flow-heading { align-items: flex-start; }
@@ -133,6 +140,8 @@ section.band { background: var(--color-semantic-sunken); border-block: 1px solid
 .control-details .details-copy { padding: var(--space-6); }
 @media (max-width: 760px) {
   .benefit-grid, .choice-grid, .review-flow { grid-template-columns: minmax(0,1fr); }
+  .workflow-preview { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+  .workflow-preview-link { justify-self: start; }
   .benefit-art { min-height: 160px; }
   .benefit-copy, .choice-card, .review-flow article { padding: var(--space-5); }
   .details-copy { padding: var(--space-4); }
