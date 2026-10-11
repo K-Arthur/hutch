@@ -183,6 +183,39 @@ def test_verify_requires_independent_evidence():
     assert compiled.by_site["check"].deps == ("summarize",)
 
 
+def test_repair_target_is_validated_and_single_check_targets_remain_compatible():
+    raw = {"name": "repair-target", "budget": {"max_nodes": 8, "max_repairs": 1},
+           "nodes": [
+               {"kind": "transform", "id": "left", "op": "constant", "args": {"value": 1}},
+               {"kind": "transform", "id": "right", "op": "constant", "args": {"value": 2}},
+               {"kind": "verify", "id": "check", "checks": [
+                   {"kind": "schema", "ref": "left", "schema": {"type": "integer", "minimum": 3}}],
+                "on_fail": {"action": "repair", "rounds": 1}},
+           ]}
+    compiled = compile_ok(raw)
+    assert compiled.by_site["check"].repair_target == "left"
+    assert compiled.by_site["check"].deps == ("left",)
+
+    raw["nodes"][2]["checks"].append(
+        {"kind": "schema", "ref": "right", "schema": {"type": "integer", "minimum": 3}})
+    with pytest.raises(wf_compile.PlanInvalid) as info:
+        compile_ok(raw)
+    assert "REPAIR_TARGET" in codes(info.value)
+
+    raw["nodes"][2]["on_fail"]["adopt"] = "left"
+    assert compile_ok(raw).by_site["check"].repair_target == "left"
+    raw["nodes"][2]["on_fail"]["adopt"] = "missing"
+    with pytest.raises(wf_compile.PlanInvalid) as info:
+        compile_ok(raw)
+    assert "REPAIR_TARGET" in codes(info.value)
+
+    raw["nodes"][2]["checks"] = raw["nodes"][2]["checks"][:1]
+    raw["nodes"][2]["on_fail"]["adopt"] = "right"
+    with pytest.raises(wf_compile.PlanInvalid) as info:
+        compile_ok(raw)
+    assert "REPAIR_TARGET" in codes(info.value)
+
+
 def test_uncertifiable_output_schema_is_refused():
     raw = minimal()
     raw["nodes"][1]["output_schema"] = {"if": {"type": "object"}, "then": {"required": ["x"]}}

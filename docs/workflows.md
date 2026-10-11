@@ -174,7 +174,18 @@ exit code, or a person's answer to a durable question. A model review (`agent_re
 advisory by construction: it can fail a result or send it to repair, never certify it.
 
 `on_fail` is explicit: `stop`, `continue` (recording the result as unverified), or `repair`
-with a bounded number of rounds.
+with a bounded number of rounds. A repair policy identifies the earlier node value to replace
+with `adopt`; that node must be in the same scope and referenced by a verification check. For
+backward compatibility, a plan can omit `adopt` only when its checks identify exactly one prior
+node. Ambiguous plans are rejected before admission.
+
+Each repair worker must return one JSON object shaped like `{"replacement": ...}`. Hutch validates
+that closed output contract, adopts the complete replacement value, and reruns the independent
+checks in a new durable verification round. Reusing a completed child after recovery does not
+dispatch it again, and its saved replacement is applied again before a recheck. A replacement equal
+to the current value fails with a no-progress reason; repair rounds and model requests stay inside
+the original root budget. This execution path is covered with a scripted local route, but repair
+quality from a live model has not been verified.
 
 ## Bounds, waiting and stopping
 

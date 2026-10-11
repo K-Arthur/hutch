@@ -70,6 +70,7 @@ class CompiledNode:
     deps: tuple[str, ...]           # data dependencies (site ids)
     control_deps: tuple[str, ...]   # explicit `needs`
     instances: int                  # worst-case instances of this site
+    repair_target: Optional[str] = None
 
     @property
     def kind(self) -> str:
@@ -234,6 +235,10 @@ class _Compiler:
 
             deps = self._collect_deps(node, local_scope, node_path)
             control = self._check_needs(node, local_scope, node_path)
+            repair_target = (self._repair_target(node, local_scope, node_path)
+                             if node.kind == "verify" and node.on_fail.action == "repair" else None)
+            if repair_target:
+                deps.add(repair_target)
             if node.kind == "join":
                 control |= self._check_join_targets(node, local_scope, node_path)
             self._check_node(node, node_path, depth)
@@ -241,7 +246,7 @@ class _Compiler:
             compiled = CompiledNode(site_id=site, node=node, order=self._order, depth=depth,
                                     body_of=parent, body_name=body_name, scope_path=node_path,
                                     deps=tuple(sorted(deps)), control_deps=tuple(sorted(control)),
-                                    instances=self._instances(node, depth))
+                                    instances=self._instances(node, depth), repair_target=repair_target)
             self.nodes.append(compiled)
             self.by_site[site] = compiled
             local_scope.add(site)
@@ -330,6 +335,34 @@ class _Compiler:
                 if not art.name or any(ch not in _ARTIFACT_CHARS for ch in art.name):
                     self.error("ARTIFACT_NAME", f"{path}.artifacts[{index}].name",
                                "artifact names use letters, digits, dot, dash and underscore")
+
+    def _repair_target(self, node: Node, scope: set[str], path: str) -> Optional[str]:
+        """Resolve one prior node whose value the bounded repair is allowed to replace."""
+        referenced = set()
+        for check in node.checks:
+            if not check.ref:
+                continue
+            head = _ref_head(check.ref)
+            target = (check.ref if check.ref in scope else
+                      self._longest_site(check.ref, scope) or (head if head in scope else None))
+            if target is not None:
+                referenced.add(target)
+        target = node.on_fail.adopt
+        if not target:
+            if len(referenced) != 1:
+                self.error("REPAIR_TARGET", f"{path}.on_fail.adopt",
+                           "repair must identify one prior node to replace; set adopt when checks cover zero or multiple nodes")
+                return None
+            target = next(iter(referenced))
+        if target not in scope or target not in self.by_site:
+            self.error("REPAIR_TARGET", f"{path}.on_fail.adopt",
+                       f"repair target {target!r} must name a prior node in this scope")
+            return None
+        if target not in referenced:
+            self.error("REPAIR_TARGET", f"{path}.on_fail.adopt",
+                       f"repair target {target!r} is not referenced by a verification check")
+            return None
+        return target
 
     def _check_agent(self, node: Node, path: str) -> None:
         if node.output_schema is not None:

@@ -55,6 +55,12 @@ _VERIFIER_SCHEMA = {
     },
     "additionalProperties": False,
 }
+_REPAIR_SCHEMA = {
+    "type": "object",
+    "required": ["replacement"],
+    "properties": {"replacement": {}},
+    "additionalProperties": False,
+}
 
 
 class WorkflowFailed(RuntimeError):
@@ -420,23 +426,53 @@ class Interpreter:
 
     def _verify(self, cnode: CompiledNode, scope: dict[str, Any]) -> Any:
         node = cnode.node
-        # Rounds are derived from durable records, not from this pass: a repair round is
-        # opened once and charged once, however many times the interpreter re-enters.
-        rounds = sum(1 for (site, key) in self.nodes
-                     if site == cnode.site_id
-                     and key.startswith(f"{self._instance_key}|r")
-                     and "|repair:" not in key)
-        instance = self._instance_key if rounds == 0 else f"{self._instance_key}|r{rounds}"
+        # Count only exact verifier round records. Check memo keys such as ``|r1:c0``
+        # must not be mistaken for another verifier round.
+        prefix = f"{self._instance_key}|r"
+        round_numbers = [int(key[len(prefix):]) for site, key in self.nodes
+                         if site == cnode.site_id and key.startswith(prefix)
+                         and key[len(prefix):].isdigit()]
+        rounds = max(round_numbers, default=0)
+        target = cnode.repair_target
+
+        # Scope itself is reconstructed from settled producers on every attempt. Replay
+        # each durable repair result before reading a later verification round, so a crash
+        # after adoption cannot restore the pre-repair value.
+        if rounds:
+            if target is None:
+                raise WorkflowFailed(cnode.site_id, "the saved repair round has no adoption target")
+            for prior_round in range(1, rounds + 1):
+                repair_key = f"{self._instance_key}|repair:{prior_round}"
+                repair_record = self.nodes.get((cnode.site_id, repair_key))
+                if repair_record is None or repair_record["status"] != "succeeded":
+                    raise WorkflowFailed(cnode.site_id,
+                                         f"repair round {prior_round} has no settled replacement to recheck")
+                replacement = self._replacement(cnode, repair_record.get("result"), prior_round)
+                self._adopt_replacement(cnode, scope, target, replacement, prior_round)
+
         while True:
+            instance = self._instance_key if rounds == 0 else f"{self._instance_key}|r{rounds}"
             record = self.nodes.get((cnode.site_id, instance))
+            if record is not None and record["status"] in ("failed", "cancelled"):
+                raise WorkflowFailed(cnode.site_id, record["error"].get("reason") or "verification failed")
             if record is not None and record["status"] == "succeeded":
-                return record["result"]
-            if record is None:
-                self._spend(cnode.site_id, "nodes")
-                self._ensure_open(cnode, instance, "verify", {"round": rounds})
-                self._emit(EventType.step, {"node": cnode.site_id, "instance": instance,
-                                            "kind": "verify", "phase": "started"})
-            checks, advisory = self._run_checks(cnode, scope, instance)
+                result = record.get("result") if isinstance(record.get("result"), dict) else {}
+                if result.get("ok") is True:
+                    self.verified = result.get("verified") is True
+                    return result
+                if result.get("ok") is not False:
+                    raise WorkflowFailed(cnode.site_id, "the saved verification result is malformed")
+                # A failed check round is completed work. Reuse its durable findings
+                # rather than rerunning a command or asking the same question again.
+                checks = list(result.get("checks") or [])
+                advisory = list(result.get("advisory") or [])
+            else:
+                if record is None:
+                    self._spend(cnode.site_id, "nodes")
+                    self._ensure_open(cnode, instance, "verify", {"round": rounds})
+                    self._emit(EventType.step, {"node": cnode.site_id, "instance": instance,
+                                                "kind": "verify", "phase": "started"})
+                checks, advisory = self._run_checks(cnode, scope, instance)
             independent = [c for c in checks if c["kind"] in ("schema", "artifact", "command", "human")]
             failed = [c for c in independent if not c["ok"]]
             passed = [c for c in independent if c["ok"]]
@@ -460,13 +496,21 @@ class Interpreter:
                 self._settle(cnode, instance, "succeeded", result, "")
                 return result
             if policy.action == "repair" and rounds < min(policy.rounds, int(self.budget.get("max_repairs") or 0)):
-                # The repair step is opened (and charged) once; later passes see its record
-                # and wait for it instead of spending another round.
+                if target is None:
+                    raise WorkflowFailed(cnode.site_id, "the repair policy has no validated adoption target")
                 next_round = rounds + 1
+                round_result = {"ok": False, "checks": checks, "advisory": advisory,
+                                "verified": False, "rounds": rounds,
+                                "repair": {"target": target, "round": next_round}}
+                if record is None or record["status"] != "succeeded":
+                    self._settle(cnode, instance, "succeeded", round_result, "")
                 repair_key = f"{self._instance_key}|repair:{next_round}"
                 if (cnode.site_id, repair_key) not in self.nodes:
                     self._spend(cnode.site_id, "repairs")
-                self._repair_step(cnode, scope, repair_key, policy.instruction, detail)
+                repair_result = self._repair_step(cnode, scope, repair_key, policy.instruction, detail)
+                replacement = self._replacement(cnode, repair_result, next_round)
+                self._adopt_replacement(cnode, scope, target, replacement, next_round)
+                rounds = next_round
                 continue
             self._settle(cnode, instance, "failed", {}, detail)
             raise WorkflowFailed(cnode.site_id, f"verification failed: {detail}")
@@ -603,11 +647,14 @@ class Interpreter:
         key = f"{instance}:v{index}"
         record = self.nodes.get((cnode.site_id, key))
         if record is not None and record["status"] in ("succeeded", "failed"):
-            verdict = record["result"] if record["status"] == "succeeded" else {}
+            result = record.get("result") if record["status"] == "succeeded" else {}
+            verdict = result.get("output") if isinstance(result, dict) else None
+            if not isinstance(verdict, dict):
+                verdict = {}
             if record["status"] == "failed":
                 return {"kind": "agent_review", "ok": False,
                         "detail": record["error"].get("reason") or "the reviewer step failed"}
-            return {"kind": "agent_review", "ok": bool(verdict.get("pass")),
+            return {"kind": "agent_review", "ok": verdict.get("pass") is True,
                     "detail": str(verdict.get("reason") or "")[:600], "advisory": True}
         self._dispatch_step(cnode, key, scope, instruction=check.instruction,
                             model=check.model, role="verifier", subject=value,
@@ -615,13 +662,38 @@ class Interpreter:
         raise _Wait()
 
     def _repair_step(self, cnode: CompiledNode, scope: dict[str, Any], key: str,
-                     instruction: str, detail: str) -> None:
-        text = instruction or "Repair the failed result using the verifier's findings."
-        self._dispatch_step(cnode, key, scope, instruction=text, model="$bot", role="worker",
-                            subject={"failure": detail, "previous": self._previous_results(scope)},
-                            output_schema=None, tools=list(self.compiled.plan.envelope.tools),
-                            skills=list(self.compiled.plan.envelope.skills))
-        raise _Wait()
+                     instruction: str, detail: str) -> dict[str, Any]:
+        text = instruction or "Repair the failed value using the verifier's findings."
+        text += " Return exactly one JSON object with a replacement field containing the complete replacement value."
+        result = self._dispatch_step(cnode, key, scope, instruction=text, model="$bot", role="worker",
+                                     subject={"failure": detail,
+                                              "target": cnode.repair_target,
+                                              "previous": self._previous_results(scope)},
+                                     output_schema=_REPAIR_SCHEMA,
+                                     tools=list(self.compiled.plan.envelope.tools),
+                                     skills=list(self.compiled.plan.envelope.skills))
+        if not isinstance(result, dict):
+            raise WorkflowFailed(cnode.site_id, "the repair step has no validated result")
+        return result
+
+    def _replacement(self, cnode: CompiledNode, result: Any, round_number: int) -> Any:
+        if not isinstance(result, dict) or not isinstance(result.get("output"), dict) \
+                or "replacement" not in result["output"]:
+            raise WorkflowFailed(cnode.site_id,
+                                 f"repair round {round_number} did not return a replacement value")
+        replacement = result["output"]["replacement"]
+        if len(_canonical(replacement).encode("utf-8")) > MAX_RESULT_BYTES:
+            raise WorkflowFailed(cnode.site_id,
+                                 f"repair round {round_number} replacement exceeds {MAX_RESULT_BYTES} bytes")
+        return replacement
+
+    def _adopt_replacement(self, cnode: CompiledNode, scope: dict[str, Any], target: str,
+                           replacement: Any, round_number: int) -> None:
+        previous = scope.get(target)
+        if _canonical(previous) == _canonical(replacement):
+            raise WorkflowFailed(cnode.site_id,
+                                 f"repair round {round_number} made no progress for {target!r}")
+        scope[target] = replacement
 
     def _previous_results(self, scope: dict[str, Any]) -> dict[str, Any]:
         out: dict[str, Any] = {}
@@ -649,9 +721,14 @@ class Interpreter:
     def _dispatch_step(self, cnode: CompiledNode, instance_key: str, scope: dict[str, Any], *,
                        instruction: str, model: str, role: str, subject: Any,
                        output_schema: Optional[dict[str, Any]], tools: list[str],
-                       skills: list[str]) -> None:
+                       skills: list[str]) -> Optional[dict[str, Any]]:
         node = cnode.node
         record = self.nodes.get((cnode.site_id, instance_key))
+        if record is not None and record["status"] == "succeeded":
+            result = record.get("result")
+            return result if isinstance(result, dict) else None
+        if record is not None and record["status"] in ("failed", "cancelled"):
+            raise WorkflowFailed(cnode.site_id, record["error"].get("reason") or "the step failed")
         if record is not None and record["status"] in ("running", "waiting"):
             run_id = record.get("run_id")
             if run_id:
@@ -659,8 +736,7 @@ class Interpreter:
                 if step["status"] in ("pending", "loading_model", "running", "waiting_approval",
                                       "waiting_human", "waiting_resources", "cancelling", "recovering"):
                     raise _Wait()
-                self._settle_step(cnode, instance_key, step, output_schema)
-                return
+                return self._settle_step(cnode, instance_key, step, output_schema)
             # The record was written but the step run never was (the attempt died in
             # between): re-admit it under the same idempotency key rather than waiting
             # forever for a run that does not exist.
@@ -726,7 +802,7 @@ class Interpreter:
         raise _Wait()
 
     def _settle_step(self, cnode: CompiledNode, instance_key: str, step: dict[str, Any],
-                     output_schema: Optional[dict[str, Any]]) -> None:
+                     output_schema: Optional[dict[str, Any]]) -> dict[str, Any]:
         text = str(step.get("text") or "")
         if step["status"] != "succeeded":
             if step["status"] == "outcome_unknown":
@@ -753,9 +829,13 @@ class Interpreter:
         value["steps"] = step.get("steps")
         value["tokens"] = step.get("tokens")
         self._persist_settle(cnode.site_id, instance_key, status="succeeded", result=value)
+        self.nodes[(cnode.site_id, instance_key)] = {
+            "site_id": cnode.site_id, "instance_key": instance_key, "status": "succeeded",
+            "result": value, "error": {}, "run_id": None}
         self._emit(EventType.step, {"node": cnode.site_id, "instance": instance_key,
                                     "kind": "step", "phase": "succeeded",
                                     "summary": str(text)[:300]})
+        return value
 
     # ---------------------------------------------------------------- utilities
 

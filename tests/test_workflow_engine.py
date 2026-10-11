@@ -402,7 +402,8 @@ def test_question_waits_and_is_answered_by_its_own_id(store, config):
     while time.monotonic() < deadline:
         engine.dispatch_pending()
         pending = wstore.questions(store, submission.workflow_run_id, status="pending")
-        if pending:
+        parked = store.get_run(submission.attempt_run_id)
+        if pending and parked is not None and parked.status is RunStatus.waiting_workflow:
             question = pending[0]
             break
         time.sleep(0.05)
@@ -433,9 +434,12 @@ def test_stopping_a_parked_workflow_finishes_after_cleanup_and_cancels_questions
                        "timeout_seconds": 300}]}
     submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan)
     deadline = time.monotonic() + 15
-    while time.monotonic() < deadline and not wstore.questions(
-            store, submission.workflow_run_id, status="pending"):
+    while time.monotonic() < deadline:
         engine.tick()
+        pending = wstore.questions(store, submission.workflow_run_id, status="pending")
+        attempt = store.get_run(submission.attempt_run_id)
+        if pending and attempt is not None and attempt.status is RunStatus.waiting_workflow:
+            break
         time.sleep(0.05)
     assert wstore.questions(store, submission.workflow_run_id, status="pending")
     assert store.get_run(submission.attempt_run_id).status is RunStatus.waiting_workflow
@@ -581,3 +585,154 @@ def test_event_failure_after_effect_reuses_receipt_on_recovery(store, config, mo
     assert view["workflow"]["attempt_run_id"] != submission.attempt_run_id
     assert len(effect_calls) == 1
     assert effect_calls[0][1:] == ("event-proof.txt", "one effect")
+
+
+def _repair_plan(*, rounds=2):
+    return {
+        "name": "repair-and-recheck",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 12, "max_model_calls": 4, "max_repairs": rounds,
+                    "max_wall_seconds": 60},
+        "nodes": [
+            {"kind": "transform", "id": "producer", "op": "constant", "args": {"value": 1}},
+            {"kind": "verify", "id": "check", "checks": [
+                {"kind": "schema", "ref": "producer", "schema": {"type": "integer", "minimum": 3}}],
+             "on_fail": {"action": "repair", "rounds": rounds, "adopt": "producer",
+                         "instruction": "Return the corrected integer value."}},
+            {"kind": "transform", "id": "after", "op": "constant",
+             "args": {"value": {"ref": "producer"}}},
+        ],
+    }
+
+
+def _use_repair_responses(monkeypatch, responses):
+    from hutch import engine as engine_module
+    from hutch.models import Event, EventType
+
+    calls = []
+
+    class CannedRepairRuntime:
+        kind = "fixture-repair"
+
+        def execute(self, run, ctx, _tools, _stop):
+            index = len(calls)
+            calls.append(run.id)
+            text = responses[min(index, len(responses) - 1)]
+            ctx.emit(Event(run_id=run.id, type=EventType.message,
+                           data={"role": "assistant", "content": text}))
+            return text
+
+    runtime = CannedRepairRuntime()
+    monkeypatch.setattr(engine_module, "get_runtime", lambda _bot: runtime)
+    return calls
+
+
+@pytest.fixture()
+def repair_model(monkeypatch):
+    from tests.fakes import FakeOllama
+
+    server = FakeOllama({"tiny:1b": {"params": "1.0B", "size": 800_000_000, "ctx": 8192}})
+    monkeypatch.setenv("OLLAMA_HOST", server.url)
+    yield
+    server.close()
+
+
+def test_repair_adopts_output_and_rechecks_each_durable_round(store, config, monkeypatch, repair_model):
+    bot = make_bot(store, name="repair-adoption-bot", model="ollama/tiny:1b", tools=[])
+    engine = Engine(config, store)
+    calls = _use_repair_responses(monkeypatch, ['{"replacement":2}', '{"replacement":3}'])
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=_repair_plan(rounds=2))
+
+    drive(engine, store, submission.attempt_run_id, timeout=60)
+
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert view["workflow"]["status"] == "succeeded", view["workflow"]["reason"]
+    assert len(calls) == 2
+    records = {(node["site_id"], node["instance_key"]): node for node in view["nodes"]}
+    assert records[("producer", "once")]["result"] == 1
+    assert records[("check", "once")]["result"]["ok"] is False
+    assert records[("check", "once|repair:1")]["result"]["output"]["replacement"] == 2
+    assert records[("check", "once|r1")]["result"]["ok"] is False
+    assert records[("check", "once|repair:2")]["result"]["output"]["replacement"] == 3
+    assert records[("check", "once|r2")]["result"]["verified"] is True
+    assert records[("after", "once")]["result"] == 3
+
+
+def test_repair_recovery_reuses_settled_output_and_reconstructs_adopted_scope(
+        store, config, monkeypatch, repair_model):
+    bot = make_bot(store, name="repair-recovery-bot", model="ollama/tiny:1b", tools=[])
+    engine = Engine(config, store)
+    calls = _use_repair_responses(monkeypatch, ['{"replacement":2}', '{"replacement":3}'])
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=_repair_plan(rounds=2))
+    append = store.append_event
+    rejected = {"repair": False, "recheck": False}
+
+    def fail_after_durable_boundary(event):
+        data = event.data
+        if (event.type is EventType.step and data.get("node") == "check"
+                and data.get("phase") == "succeeded" and data.get("instance") == "once|repair:1"
+                and not rejected["repair"]):
+            rejected["repair"] = True
+            raise RuntimeError("crash after the repair result was durably settled")
+        if (event.type is EventType.step and data.get("node") == "check"
+                and data.get("phase") == "started" and data.get("instance") == "once|r1"
+                and not rejected["recheck"]):
+            rejected["recheck"] = True
+            raise RuntimeError("crash after the recheck round was durably opened")
+        return append(event)
+
+    monkeypatch.setattr(store, "append_event", fail_after_durable_boundary)
+    drive(engine, store, submission.attempt_run_id, timeout=60)
+
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert rejected == {"repair": True, "recheck": True}
+    assert view["workflow"]["status"] == "succeeded", view["workflow"]["reason"]
+    assert len(calls) == 2
+    records = {(node["site_id"], node["instance_key"]): node for node in view["nodes"]}
+    assert records[("check", "once|repair:1")]["status"] == "succeeded"
+    assert records[("check", "once|r1")]["result"]["ok"] is False
+    assert records[("check", "once|repair:2")]["result"]["output"]["replacement"] == 3
+    assert records[("after", "once")]["result"] == 3
+
+
+def test_repair_with_no_progress_fails_without_another_round(store, config, monkeypatch, repair_model):
+    bot = make_bot(store, name="repair-no-progress-bot", model="ollama/tiny:1b", tools=[])
+    engine = Engine(config, store)
+    calls = _use_repair_responses(monkeypatch, ['{"replacement":1}'])
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=_repair_plan(rounds=2))
+
+    drive(engine, store, submission.attempt_run_id, timeout=60)
+
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    assert view["workflow"]["status"] == "failed"
+    assert "made no progress" in view["workflow"]["reason"]
+    assert len(calls) == 1
+    assert not any(node["instance_key"] == "once|r1" for node in view["nodes"])
+
+
+def test_advisory_review_reads_the_validated_step_output(store, config, monkeypatch, repair_model):
+    bot = make_bot(store, name="advisory-review-bot", model="ollama/tiny:1b", tools=[])
+    engine = Engine(config, store)
+    _use_repair_responses(monkeypatch, ['{"pass":true,"reason":"the value matches"}'])
+    plan = {
+        "name": "advisory-review",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 8, "max_model_calls": 2, "max_wall_seconds": 60},
+        "nodes": [
+            {"kind": "transform", "id": "producer", "op": "constant", "args": {"value": 3}},
+            {"kind": "verify", "id": "check", "checks": [
+                {"kind": "schema", "ref": "producer", "schema": {"type": "integer", "minimum": 1}},
+                {"kind": "agent_review", "ref": "producer", "instruction": "Review the value."}],
+            },
+        ],
+    }
+    submission = wfsubmit.submit_workflow(store, bot=bot, plan=plan)
+
+    drive(engine, store, submission.attempt_run_id, timeout=60)
+
+    view = wfsubmit.status(store, submission.workflow_run_id)
+    check = next(node for node in view["nodes"] if node["site_id"] == "check")
+    assert view["workflow"]["status"] == "succeeded", view["workflow"]["reason"]
+    assert check["result"]["verified"] is True
+    assert check["result"]["advisory"] == [
+        {"kind": "agent_review", "ok": True, "detail": "the value matches", "advisory": True}]

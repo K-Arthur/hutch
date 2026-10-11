@@ -175,12 +175,17 @@ class FailPolicy(_Strict):
     action: FailAction = "stop"
     rounds: int = Field(default=0, ge=0, le=CEILINGS["max_repairs"])
     instruction: str = Field(default="", max_length=MAX_INSTRUCTION)
+    #: A prior node whose full value is replaced by the repair's validated JSON output.
+    #: Omitted only for compatibility when checks identify exactly one prior node.
+    adopt: str = Field(default="", max_length=200)
     mark_unverified: bool = True
 
     @model_validator(mode="after")
     def _repair_needs_rounds(self) -> "FailPolicy":
         if self.action == "repair" and self.rounds < 1:
             raise ValueError("a repair policy needs at least one round")
+        if self.action != "repair" and self.adopt:
+            raise ValueError("an adoption target is only valid with the repair policy")
         return self
 
 
