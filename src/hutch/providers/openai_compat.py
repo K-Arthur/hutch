@@ -40,6 +40,8 @@ def _httpx():
 
 class OpenAICompatProvider(Provider):
     name = "openai-compatible"
+    #: OpenAI-shaped messages already carry content parts; image input passes through
+    supports_media_input = True
 
     def __init__(self, base_url: str, api_key: str = "", provider_name: str = "openai-compatible",
                  headers: Optional[dict[str, str]] = None, session_header: str = "", auth_hint: str = ""):

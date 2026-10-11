@@ -215,6 +215,7 @@ class ToolContext:
     receipt: Optional[Callable[[], Optional[str]]] = None   # set per call by the runtime: records the intent (see begin_effect)
     delegation_submit: Optional[Callable[[str, str, str], ToolResult]] = None  # supervised, strict-offline child admission
     skills: Optional[Any] = None      # skills.ResolvedSkills for this run; the engine resolves it once at start
+    clock: Optional[Any] = None       # grounding.clock.Clock: the ONE time source for tools/parsers; None = SystemClock
 
     def begin_effect(self) -> Optional[str]:
         """Call right BEFORE performing a lasting effect, after policy and approval have said yes. Records the intent

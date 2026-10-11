@@ -23,6 +23,7 @@ import os
 import time
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any, Callable, Optional
 
 from ..approvals import DeniedError
@@ -645,13 +646,18 @@ class BuiltinRuntime:
         planned_rung_spec = session.rung.spec
         contract_repairs = 0
 
-        def append_tool_result(call_name: str, call_id: str, content: str) -> None:
+        def append_tool_result(call_name: str, call_id: str, content: str,
+                               attachments: Optional[list] = None) -> None:
             """Add one result in the shape the active protocol replays.
 
             Native mode answers into the provider's own tool/result association. Envelope
             modes were given no native tool protocol, so the result travels as a bounded
             ``<tool_result>`` block in a user message; the contract tells the model to treat
             it as untrusted data, and the block is never parsed for calls.
+
+            Media attachments (frames prepared by ``inspect_media``) travel as a separate
+            user message with OpenAI-style content parts — only when the active route says
+            it accepts image input. What actually reached the model is recorded either way.
             """
             if envelope_mode:
                 bounded = content if len(content) <= 60_000 else content[:60_000] + "\n… [result clipped for the model]"
@@ -659,6 +665,65 @@ class BuiltinRuntime:
                                  "content": f'<tool_result tool="{call_name}">\n{bounded}\n</tool_result>'})
             else:
                 messages.append({"role": "tool", "tool_call_id": call_id, "name": call_name, "content": content})
+            if not attachments:
+                return
+            server_supports = bool(getattr(session.provider, "supports_media_input", False))
+            if not server_supports:
+                messages.append({"role": "user", "content": (
+                    "The selected model route cannot receive image input, so the inspected frames were NOT "
+                    "transmitted. Report only the textual inspection results and say the model could not view "
+                    "the media.")})
+                self._log(ctx, run, "media", "frames were prepared but the route does not accept image input; "
+                                             "nothing was transmitted", transmitted=0, prepared=len(attachments))
+                _record_media_transmission(ctx, run, attachments, transmitted=0, route=session.rung.spec)
+                return
+            parts: list[dict[str, Any]] = [{"type": "text", "text": (
+                f"Frames attached from the {call_name} call above. Each label states its timecode in the source. "
+                "Describe only what is visible in these frames; do not infer identity, exact location, intent, "
+                "or authenticity.")}]
+            sent = 0
+            for item in attachments[:6]:
+                path = Path(str(item.get("path", "")))
+                try:
+                    raw = path.read_bytes()
+                except OSError:
+                    continue
+                if len(raw) > 1_500_000:
+                    self._log(ctx, run, "media", f"frame {path.name} exceeds the 1.5 MB attachment limit; not sent",
+                              transmitted=sent, prepared=len(attachments))
+                    continue
+                import base64
+                mime = str(item.get("mime") or "image/jpeg")
+                data_url = f"data:{mime};base64,{base64.b64encode(raw).decode('ascii')}"
+                parts.append({"type": "text", "text": str(item.get("label") or path.name)})
+                parts.append({"type": "image_url", "image_url": {"url": data_url}})
+                sent += 1
+            if sent:
+                messages.append({"role": "user", "content": parts})
+                self._log(ctx, run, "media", f"{sent} frame(s) sent to {session.rung.spec} for visual inspection",
+                          transmitted=sent, prepared=len(attachments), route=session.rung.spec)
+            else:
+                messages.append({"role": "user", "content": (
+                    "The frames could not be attached (read or size limits); rely on the textual inspection "
+                    "results and state that the media was not viewed.")})
+                self._log(ctx, run, "media", "no frame could be attached; nothing was transmitted",
+                          transmitted=0, prepared=len(attachments))
+            _record_media_transmission(ctx, run, attachments, transmitted=sent, route=session.rung.spec)
+
+        def _record_media_transmission(fn_ctx, fn_run, attachments, *, transmitted: int, route: str) -> None:
+            """Record what actually reached the model, keyed to the investigation that produced it."""
+            try:
+                investigation = fn_ctx.store.investigation_for_run(fn_run.id)
+                if investigation is None:
+                    return
+                labels = [str(a.get("label") or a.get("path") or "")[:120] for a in attachments[:6]]
+                fn_ctx.store.add_observation(
+                    investigation["id"], kind="model_input",
+                    text=(f"{transmitted} of {len(attachments)} prepared frame(s) transmitted to {route}"),
+                    transmitted_json={"route": route, "transmitted": transmitted,
+                                      "prepared": len(attachments), "labels": labels})
+            except Exception:
+                pass
 
         loop = LoopDetector()
         malformed_streak = loop_strikes = 0
@@ -960,7 +1025,8 @@ class BuiltinRuntime:
                 run.tool_ms += tool_timer.tool_ms
                 if res.data.get("question_pending"):
                     return ""
-                append_tool_result(canonical_name, tc.id, res.output or "(empty)")
+                append_tool_result(canonical_name, tc.id, res.output or "(empty)",
+                                   attachments=res.data.get("media_attachments"))
 
             malformed_streak = malformed_streak + 1 if turn_bad else 0
             if loop_hit and loop_strikes >= 2:

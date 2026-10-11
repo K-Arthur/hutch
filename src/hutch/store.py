@@ -1336,6 +1336,199 @@ def _migrate_50(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX idx_document_versions_run ON document_versions(run_id)")
 
 
+def _migrate_51(db: sqlite3.Connection) -> None:
+    """Grounding evidence layer: investigations, sources/revisions, claims, evidence links,
+    media artifacts/observations, answers, and versioned stream cursors.
+
+    Design notes that are load-bearing:
+
+    * ``inv_sources.item_key`` is the source *identity* (platform object id or canonical URL);
+      the same identity observed again is a new ``revision`` of the same source item, never
+      a second independent witness.
+    * ``published_json`` keeps raw text + role + precision + zone; ``published_instant`` is
+      only a convenience index for ordering and is NULL when the source gave no parseable time.
+    * observations record what actually reached the model (``transmitted_json``) separately
+      from what was observed locally, so "we inspected it" and "the model saw it" never blur.
+    """
+    db.execute("""CREATE TABLE investigations (
+        id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL DEFAULT '',
+        conversation_id TEXT NOT NULL DEFAULT '',
+        bot_id TEXT NOT NULL DEFAULT '',
+        question TEXT NOT NULL DEFAULT '',
+        question_kind TEXT NOT NULL DEFAULT 'general',
+        status TEXT NOT NULL DEFAULT 'open',
+        reference_instant TEXT NOT NULL,
+        as_of_instant TEXT,
+        user_timezone TEXT NOT NULL DEFAULT 'UTC',
+        horizon_hours REAL,
+        budget_json TEXT NOT NULL DEFAULT '{}',
+        coverage_json TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        revision INTEGER NOT NULL DEFAULT 1
+    )""")
+    db.execute("CREATE INDEX idx_investigations_run ON investigations(run_id)")
+    db.execute("CREATE INDEX idx_investigations_conversation ON investigations(conversation_id, created_at)")
+
+    db.execute("""CREATE TABLE inv_query_attempts (
+        id TEXT PRIMARY KEY,
+        investigation_id TEXT NOT NULL REFERENCES investigations(id),
+        adapter TEXT NOT NULL,
+        lane TEXT NOT NULL DEFAULT '',
+        query TEXT NOT NULL DEFAULT '',
+        state TEXT NOT NULL,
+        detail TEXT NOT NULL DEFAULT '',
+        http_status INTEGER,
+        returned INTEGER NOT NULL DEFAULT 0,
+        retained INTEGER NOT NULL DEFAULT 0,
+        dropped_out_of_range INTEGER NOT NULL DEFAULT 0,
+        dropped_undated INTEGER NOT NULL DEFAULT 0,
+        disabled_engines_json TEXT NOT NULL DEFAULT '[]',
+        latency_ms REAL NOT NULL DEFAULT 0,
+        freshness TEXT NOT NULL DEFAULT 'polled',
+        attempts INTEGER NOT NULL DEFAULT 1,
+        started_at TEXT NOT NULL,
+        finished_at TEXT NOT NULL DEFAULT ''
+    )""")
+    db.execute("CREATE INDEX idx_inv_attempts_inv ON inv_query_attempts(investigation_id, started_at)")
+
+    db.execute("""CREATE TABLE inv_sources (
+        id TEXT PRIMARY KEY,
+        investigation_id TEXT NOT NULL REFERENCES investigations(id),
+        attempt_id TEXT NOT NULL DEFAULT '',
+        item_key TEXT NOT NULL,
+        revision INTEGER NOT NULL DEFAULT 1,
+        adapter TEXT NOT NULL,
+        lane TEXT NOT NULL DEFAULT '',
+        platform TEXT NOT NULL DEFAULT '',
+        kind TEXT NOT NULL DEFAULT '',
+        url TEXT NOT NULL,
+        canonical_url TEXT NOT NULL DEFAULT '',
+        origin TEXT NOT NULL DEFAULT '',
+        origin_id TEXT NOT NULL DEFAULT '',
+        title TEXT NOT NULL DEFAULT '',
+        excerpt TEXT NOT NULL DEFAULT '',
+        language TEXT NOT NULL DEFAULT '',
+        published_json TEXT,
+        published_instant TEXT,
+        updated_json TEXT,
+        retrieved_at TEXT NOT NULL,
+        access_state TEXT NOT NULL DEFAULT 'ok',
+        freshness TEXT NOT NULL DEFAULT 'polled',
+        engagement_json TEXT NOT NULL DEFAULT '{}',
+        content_sha256 TEXT NOT NULL DEFAULT '',
+        origin_cluster TEXT NOT NULL DEFAULT '',
+        independence TEXT NOT NULL DEFAULT 'unknown',
+        note TEXT NOT NULL DEFAULT ''
+    )""")
+    db.execute("CREATE INDEX idx_inv_sources_item ON inv_sources(investigation_id, item_key, revision)")
+    db.execute("CREATE INDEX idx_inv_sources_time ON inv_sources(investigation_id, published_instant)")
+
+    db.execute("""CREATE TABLE inv_claims (
+        id TEXT PRIMARY KEY,
+        investigation_id TEXT NOT NULL REFERENCES investigations(id),
+        text TEXT NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'occurrence',
+        speaker TEXT NOT NULL DEFAULT '',
+        occurrence_json TEXT,
+        normalized_hash TEXT NOT NULL DEFAULT '',
+        note TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        revision INTEGER NOT NULL DEFAULT 1
+    )""")
+    db.execute("CREATE INDEX idx_inv_claims_inv ON inv_claims(investigation_id, created_at)")
+
+    db.execute("""CREATE TABLE inv_evidence (
+        id TEXT PRIMARY KEY,
+        investigation_id TEXT NOT NULL REFERENCES investigations(id),
+        claim_id TEXT NOT NULL REFERENCES inv_claims(id),
+        source_id TEXT NOT NULL REFERENCES inv_sources(id),
+        relation TEXT NOT NULL CHECK(relation IN ('supports','contradicts','context','reports_allegation')),
+        independence TEXT NOT NULL DEFAULT 'unknown',
+        quote TEXT NOT NULL DEFAULT '',
+        quote_hash TEXT NOT NULL DEFAULT '',
+        note TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        revision INTEGER NOT NULL DEFAULT 1
+    )""")
+    db.execute("CREATE INDEX idx_inv_evidence_claim ON inv_evidence(claim_id)")
+    db.execute("CREATE INDEX idx_inv_evidence_source ON inv_evidence(source_id)")
+
+    db.execute("""CREATE TABLE inv_media (
+        id TEXT PRIMARY KEY,
+        investigation_id TEXT NOT NULL REFERENCES investigations(id),
+        source_id TEXT NOT NULL DEFAULT '',
+        origin TEXT NOT NULL,
+        local_path TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        mime TEXT NOT NULL DEFAULT '',
+        bytes INTEGER NOT NULL DEFAULT 0,
+        sha256 TEXT NOT NULL,
+        probe_json TEXT NOT NULL DEFAULT '{}',
+        metadata_json TEXT NOT NULL DEFAULT '{}',
+        c2pa_json TEXT NOT NULL DEFAULT '{}',
+        transformations_json TEXT NOT NULL DEFAULT '[]',
+        acquired_at TEXT NOT NULL,
+        revision INTEGER NOT NULL DEFAULT 1
+    )""")
+    db.execute("CREATE INDEX idx_inv_media_inv ON inv_media(investigation_id, acquired_at)")
+
+    db.execute("""CREATE TABLE inv_media_frames (
+        id TEXT PRIMARY KEY,
+        media_id TEXT NOT NULL REFERENCES inv_media(id),
+        at_ms INTEGER NOT NULL,
+        path TEXT NOT NULL DEFAULT '',
+        sha256 TEXT NOT NULL DEFAULT '',
+        note TEXT NOT NULL DEFAULT ''
+    )""")
+    db.execute("CREATE INDEX idx_inv_frames_media ON inv_media_frames(media_id, at_ms)")
+
+    db.execute("""CREATE TABLE inv_observations (
+        id TEXT PRIMARY KEY,
+        investigation_id TEXT NOT NULL REFERENCES investigations(id),
+        media_id TEXT NOT NULL DEFAULT '',
+        observer TEXT NOT NULL DEFAULT 'local',
+        kind TEXT NOT NULL,
+        text TEXT NOT NULL,
+        evidence_ref TEXT NOT NULL DEFAULT '',
+        transmitted_json TEXT NOT NULL DEFAULT '{}',
+        uncertain INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        revision INTEGER NOT NULL DEFAULT 1
+    )""")
+    db.execute("CREATE INDEX idx_inv_obs_inv ON inv_observations(investigation_id, created_at)")
+
+    db.execute("""CREATE TABLE inv_answers (
+        id TEXT PRIMARY KEY,
+        investigation_id TEXT NOT NULL REFERENCES investigations(id),
+        revision_of TEXT NOT NULL DEFAULT '',
+        body_json TEXT NOT NULL DEFAULT '{}',
+        effective_as_of TEXT NOT NULL,
+        evidence_cutoff TEXT NOT NULL DEFAULT '',
+        citations_json TEXT NOT NULL DEFAULT '[]',
+        coverage_json TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL
+    )""")
+    db.execute("CREATE INDEX idx_inv_answers_inv ON inv_answers(investigation_id, created_at)")
+
+    db.execute("""CREATE TABLE inv_stream_cursors (
+        stream_key TEXT PRIMARY KEY,
+        investigation_id TEXT NOT NULL DEFAULT '',
+        adapter TEXT NOT NULL DEFAULT '',
+        instance TEXT NOT NULL DEFAULT '',
+        cursor_kind TEXT NOT NULL DEFAULT 'opaque',
+        cursor_json TEXT NOT NULL DEFAULT '{}',
+        schema_version INTEGER NOT NULL DEFAULT 1,
+        filter_revision TEXT NOT NULL DEFAULT '',
+        liveness_json TEXT NOT NULL DEFAULT '{}',
+        gap_note TEXT NOT NULL DEFAULT '',
+        updated_at TEXT NOT NULL
+    )""")
+
+    db.execute("CREATE INDEX idx_inv_stream_inv ON inv_stream_cursors(investigation_id)")
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1343,7 +1536,7 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
-               _migrate_48, _migrate_49, _migrate_50]
+               _migrate_48, _migrate_49, _migrate_50, _migrate_51]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -7443,3 +7636,290 @@ class Store:
         with self._lock:
             row = self._db.execute("SELECT value FROM kv WHERE key = ?", (key,)).fetchone()
         return row["value"] if row else default
+
+    # ------------------------------------------------------- grounding evidence
+
+    def create_investigation(self, *, run_id: str = "", conversation_id: str = "", bot_id: str = "",
+                             question: str, reference_instant: str, as_of_instant: Optional[str] = None,
+                             user_timezone: str = "UTC", horizon_hours: Optional[float] = None,
+                             question_kind: str = "general", budget_json: Optional[dict] = None) -> dict[str, Any]:
+        """One request frame = one investigation. Reusing an open investigation for the same
+        run turns later searches into additional attempts, not a second parallel narrative."""
+        now = iso(utcnow())
+        with self._lock:
+            if run_id:
+                existing = self._db.execute(
+                    "SELECT * FROM investigations WHERE run_id = ? ORDER BY created_at DESC LIMIT 1",
+                    (run_id,)).fetchone()
+                if existing is not None:
+                    return dict(existing)
+            inv_id = f"inv_{uuid.uuid4().hex[:12]}"
+            self._db.execute(
+                "INSERT INTO investigations (id, run_id, conversation_id, bot_id, question, question_kind, "
+                "reference_instant, as_of_instant, user_timezone, horizon_hours, budget_json, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (inv_id, run_id, conversation_id, bot_id, question[:2000], question_kind, reference_instant,
+                 as_of_instant, user_timezone, horizon_hours, json.dumps(budget_json or {}), now, now))
+            self._db.commit()
+            row = self._db.execute("SELECT * FROM investigations WHERE id = ?", (inv_id,)).fetchone()
+        return dict(row)
+
+    def get_investigation(self, investigation_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute("SELECT * FROM investigations WHERE id = ?", (investigation_id,)).fetchone()
+        return dict(row) if row else None
+
+    def investigation_for_run(self, run_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute(
+                "SELECT * FROM investigations WHERE run_id = ? ORDER BY created_at DESC LIMIT 1", (run_id,)).fetchone()
+        return dict(row) if row else None
+
+    def update_investigation(self, investigation_id: str, *, coverage: Optional[dict] = None,
+                             status: Optional[str] = None, horizon_hours: Optional[float] = None,
+                             bump_revision: bool = False) -> None:
+        fields, values = [], []
+        if coverage is not None:
+            fields.append("coverage_json = ?")
+            values.append(json.dumps(coverage))
+        if status is not None:
+            fields.append("status = ?")
+            values.append(status)
+        if horizon_hours is not None:
+            fields.append("horizon_hours = ?")
+            values.append(horizon_hours)
+        if bump_revision:
+            fields.append("revision = revision + 1")
+        fields.append("updated_at = ?")
+        values.append(iso(utcnow()))
+        values.append(investigation_id)
+        with self._lock:
+            self._db.execute(f"UPDATE investigations SET {', '.join(fields)} WHERE id = ?", values)
+            self._db.commit()
+
+    def record_query_attempts(self, investigation_id: str, attempts: list[dict[str, Any]]) -> list[str]:
+        """Persist adapter outcomes exactly as reported (state, counters, disabled engines)."""
+        now = iso(utcnow())
+        ids: list[str] = []
+        with self._lock:
+            for row in attempts:
+                attempt_id = f"qa_{uuid.uuid4().hex[:12]}"
+                ids.append(attempt_id)
+                self._db.execute(
+                    "INSERT INTO inv_query_attempts (id, investigation_id, adapter, lane, query, state, detail, "
+                    "http_status, returned, retained, dropped_out_of_range, dropped_undated, disabled_engines_json, "
+                    "latency_ms, freshness, attempts, started_at, finished_at) VALUES "
+                    "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (attempt_id, investigation_id, str(row.get("adapter")), str(row.get("lane", "")),
+                     str(row.get("query", ""))[:500], str(row.get("state")), str(row.get("detail", ""))[:1000],
+                     row.get("http_status"), int(row.get("returned", 0)), int(row.get("retained", 0)),
+                     int(row.get("dropped_out_of_range", 0)), int(row.get("dropped_undated", 0)),
+                     json.dumps(row.get("disabled_engines") or []), float(row.get("latency_ms", 0)),
+                     str(row.get("freshness", "polled")), int(row.get("attempts", 1)), now, now))
+            self._db.commit()
+        return ids
+
+    def record_sources(self, investigation_id: str, sources: list[dict[str, Any]],
+                       attempts_by_adapter: Optional[dict[str, str]] = None) -> list[dict[str, Any]]:
+        """Insert sources; the same item identity seen again becomes a new revision.
+
+        Returns the stored rows (with ``id``, ``item_key``, ``revision``) in input order.
+        """
+        now = iso(utcnow())
+        stored: list[dict[str, Any]] = []
+        attempts_by_adapter = attempts_by_adapter or {}
+        with self._lock:
+            for row in sources:
+                item_key = str(row.get("origin_id") or row.get("canonical_url") or row.get("url") or "")[:400]
+                if not item_key:
+                    continue
+                previous = self._db.execute(
+                    "SELECT MAX(revision) AS rev FROM inv_sources WHERE investigation_id = ? AND item_key = ?",
+                    (investigation_id, item_key)).fetchone()
+                revision = int(previous["rev"] or 0) + 1
+                source_id = f"src_{uuid.uuid4().hex[:12]}"
+                published = row.get("published") or None
+                updated = row.get("updated") or None
+                published_instant = (published or {}).get("instant") if isinstance(published, dict) else None
+                self._db.execute(
+                    "INSERT INTO inv_sources (id, investigation_id, attempt_id, item_key, revision, adapter, lane, "
+                    "platform, kind, url, canonical_url, origin, origin_id, title, excerpt, language, published_json, "
+                    "published_instant, updated_json, retrieved_at, access_state, freshness, engagement_json, "
+                    "content_sha256, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (source_id, investigation_id, attempts_by_adapter.get(str(row.get("adapter")), ""), item_key,
+                     revision, str(row.get("adapter", "")), str(row.get("lane", "")), str(row.get("platform", "")),
+                     str(row.get("kind", "")), str(row.get("url", ""))[:2000], str(row.get("canonical_url", ""))[:2000],
+                     str(row.get("origin", ""))[:300], str(row.get("origin_id", ""))[:400],
+                     str(row.get("title", ""))[:1000], str(row.get("excerpt", ""))[:4000],
+                     str(row.get("language", ""))[:60],
+                     json.dumps(published) if published else None, published_instant,
+                     json.dumps(updated) if updated else None, str(row.get("retrieved_at", now)),
+                     str(row.get("access_state", "ok")), str(row.get("freshness", "polled")),
+                     json.dumps(row.get("engagement") or {}), str(row.get("content_sha256", ""))[:64],
+                     str(row.get("note", ""))[:1000]))
+                stored.append({"id": source_id, "item_key": item_key, "revision": revision, **row})
+            self._db.commit()
+        return stored
+
+    def list_sources(self, investigation_id: str, *, limit: int = 200, latest_only: bool = True) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT * FROM inv_sources WHERE investigation_id = ? ORDER BY "
+                "COALESCE(published_instant, retrieved_at) DESC LIMIT ?",
+                (investigation_id, max(1, min(limit, 1000)))).fetchall()
+        out = []
+        for row in rows:
+            item = dict(row)
+            if latest_only:
+                latest = self._db.execute(
+                    "SELECT MAX(revision) AS rev FROM inv_sources WHERE investigation_id = ? AND item_key = ?",
+                    (investigation_id, item["item_key"])).fetchone()
+                if latest and int(latest["rev"] or 0) > int(item["revision"]):
+                    continue
+            out.append(item)
+        return out
+
+    def add_claim(self, investigation_id: str, *, text: str, kind: str = "occurrence", speaker: str = "",
+                  occurrence_json: Optional[dict] = None, note: str = "") -> str:
+        claim_id = f"claim_{uuid.uuid4().hex[:12]}"
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO inv_claims (id, investigation_id, text, kind, speaker, occurrence_json, "
+                "normalized_hash, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (claim_id, investigation_id, text[:4000], kind, speaker[:300],
+                 json.dumps(occurrence_json) if occurrence_json else None,
+                 hashlib.sha256(text.encode("utf-8")).hexdigest()[:32], note[:1000], iso(utcnow())))
+            self._db.commit()
+        return claim_id
+
+    def add_evidence_link(self, investigation_id: str, *, claim_id: str, source_id: str, relation: str,
+                          independence: str = "unknown", quote: str = "", note: str = "") -> str:
+        if relation not in ("supports", "contradicts", "context", "reports_allegation"):
+            raise ValueError(f"unknown evidence relation {relation!r}")
+        link_id = f"ev_{uuid.uuid4().hex[:12]}"
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO inv_evidence (id, investigation_id, claim_id, source_id, relation, independence, "
+                "quote, quote_hash, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (link_id, investigation_id, claim_id, source_id, relation, independence, quote[:2000],
+                 hashlib.sha256(quote.encode("utf-8")).hexdigest()[:32], note[:1000], iso(utcnow())))
+            self._db.commit()
+        return link_id
+
+    def add_media(self, investigation_id: str, *, origin: str, local_path: str, kind: str, mime: str,
+                  byte_size: int, sha256: str, probe_json: Optional[dict] = None,
+                  metadata_json: Optional[dict] = None, c2pa_json: Optional[dict] = None,
+                  transformations_json: Optional[list] = None, source_id: str = "",
+                  acquired_at: str = "", frames: Optional[list[dict]] = None) -> str:
+        media_id = f"media_{uuid.uuid4().hex[:12]}"
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO inv_media (id, investigation_id, source_id, origin, local_path, kind, mime, bytes, "
+                "sha256, probe_json, metadata_json, c2pa_json, transformations_json, acquired_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (media_id, investigation_id, source_id, origin[:2000], local_path[:2000], kind, mime,
+                 int(byte_size), sha256[:64], json.dumps(probe_json or {}), json.dumps(metadata_json or {}),
+                 json.dumps(c2pa_json or {}), json.dumps(transformations_json or []),
+                 acquired_at or iso(utcnow())))
+            for frame in frames or []:
+                self._db.execute(
+                    "INSERT INTO inv_media_frames (id, media_id, at_ms, path, sha256, note) VALUES (?, ?, ?, ?, ?, ?)",
+                    (f"frame_{uuid.uuid4().hex[:12]}", media_id, int(frame.get("at_ms", 0)),
+                     str(frame.get("path", ""))[:2000], str(frame.get("sha256", ""))[:64],
+                     str(frame.get("note", ""))[:500]))
+            self._db.commit()
+        return media_id
+
+    def add_observation(self, investigation_id: str, *, kind: str, text: str, media_id: str = "",
+                        observer: str = "local", evidence_ref: str = "",
+                        transmitted_json: Optional[dict] = None, uncertain: bool = False) -> str:
+        obs_id = f"obs_{uuid.uuid4().hex[:12]}"
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO inv_observations (id, investigation_id, media_id, observer, kind, text, evidence_ref, "
+                "transmitted_json, uncertain, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (obs_id, investigation_id, media_id, observer, kind, text[:4000], evidence_ref[:200],
+                 json.dumps(transmitted_json or {}), 1 if uncertain else 0, iso(utcnow())))
+            self._db.commit()
+        return obs_id
+
+    def add_answer(self, investigation_id: str, *, body_json: dict, effective_as_of: str,
+                   evidence_cutoff: str = "", citations_json: Optional[list] = None,
+                   coverage_json: Optional[dict] = None) -> str:
+        """Answers are revisions: writing a new one never rewrites the previous statement."""
+        answer_id = f"ans_{uuid.uuid4().hex[:12]}"
+        with self._lock:
+            previous = self._db.execute(
+                "SELECT id FROM inv_answers WHERE investigation_id = ? ORDER BY created_at DESC LIMIT 1",
+                (investigation_id,)).fetchone()
+            self._db.execute(
+                "INSERT INTO inv_answers (id, investigation_id, revision_of, body_json, effective_as_of, "
+                "evidence_cutoff, citations_json, coverage_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (answer_id, investigation_id, previous["id"] if previous else "", json.dumps(body_json),
+                 effective_as_of, evidence_cutoff, json.dumps(citations_json or []),
+                 json.dumps(coverage_json or {}), iso(utcnow())))
+            self._db.execute("UPDATE investigations SET revision = revision + 1, updated_at = ? WHERE id = ?",
+                             (iso(utcnow()), investigation_id))
+            self._db.commit()
+        return answer_id
+
+    def investigation_bundle(self, investigation_id: str, *, source_limit: int = 200) -> Optional[dict[str, Any]]:
+        """Everything one investigation needs for an API/UI panel, bounded and ordered."""
+        investigation = self.get_investigation(investigation_id)
+        if investigation is None:
+            return None
+        with self._lock:
+            attempts = [dict(r) for r in self._db.execute(
+                "SELECT * FROM inv_query_attempts WHERE investigation_id = ? ORDER BY started_at",
+                (investigation_id,)).fetchall()]
+            claims = [dict(r) for r in self._db.execute(
+                "SELECT * FROM inv_claims WHERE investigation_id = ? ORDER BY created_at",
+                (investigation_id,)).fetchall()]
+            evidence = [dict(r) for r in self._db.execute(
+                "SELECT * FROM inv_evidence WHERE investigation_id = ? ORDER BY created_at",
+                (investigation_id,)).fetchall()]
+            media = [dict(r) for r in self._db.execute(
+                "SELECT * FROM inv_media WHERE investigation_id = ? ORDER BY acquired_at",
+                (investigation_id,)).fetchall()]
+            observations = [dict(r) for r in self._db.execute(
+                "SELECT * FROM inv_observations WHERE investigation_id = ? ORDER BY created_at",
+                (investigation_id,)).fetchall()]
+            answers = [dict(r) for r in self._db.execute(
+                "SELECT * FROM inv_answers WHERE investigation_id = ? ORDER BY created_at",
+                (investigation_id,)).fetchall()]
+            frames: dict[str, list[dict]] = {}
+            for row in self._db.execute(
+                    "SELECT f.* FROM inv_media_frames f JOIN inv_media m ON m.id = f.media_id "
+                    "WHERE m.investigation_id = ? ORDER BY f.at_ms", (investigation_id,)).fetchall():
+                frames.setdefault(row["media_id"], []).append(dict(row))
+        for item in media:
+            item["frames"] = frames.get(item["id"], [])
+        return {"investigation": investigation, "attempts": attempts,
+                "sources": self.list_sources(investigation_id, limit=source_limit),
+                "claims": claims, "evidence": evidence, "media": media,
+                "observations": observations, "answers": answers}
+
+    def save_stream_cursor(self, stream_key: str, *, investigation_id: str, cursor_json: dict,
+                           liveness_json: Optional[dict] = None, gap_note: str = "") -> None:
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO inv_stream_cursors (stream_key, investigation_id, adapter, instance, cursor_kind, "
+                "cursor_json, schema_version, filter_revision, liveness_json, gap_note, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(stream_key) DO UPDATE SET investigation_id = excluded.investigation_id, "
+                "adapter = excluded.adapter, instance = excluded.instance, cursor_kind = excluded.cursor_kind, "
+                "cursor_json = excluded.cursor_json, schema_version = excluded.schema_version, "
+                "filter_revision = excluded.filter_revision, liveness_json = excluded.liveness_json, "
+                "gap_note = excluded.gap_note, updated_at = excluded.updated_at",
+                (stream_key[:200], investigation_id, str(cursor_json.get("adapter", "")),
+                 str(cursor_json.get("instance", "")), str(cursor_json.get("kind", "opaque")),
+                 json.dumps(cursor_json), int(cursor_json.get("schema_version", 1)),
+                 str(cursor_json.get("filter_revision", "")), json.dumps(liveness_json or {}),
+                 gap_note[:1000], iso(utcnow())))
+            self._db.commit()
+
+    def get_stream_cursor(self, stream_key: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            row = self._db.execute("SELECT * FROM inv_stream_cursors WHERE stream_key = ?",
+                                   (stream_key[:200],)).fetchone()
+        return dict(row) if row else None
