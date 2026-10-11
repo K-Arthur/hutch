@@ -9527,6 +9527,7 @@ function validDocumentRef(ref) {
     validationState: String(ref.validation_state || "passed"),
     findings: Array.isArray(ref.validation_findings) ? ref.validation_findings : [],
     previewMode: String(ref.preview_mode || "download_only"),
+    created_at: typeof ref.created_at === "string" ? ref.created_at : "",
   };
 }
 
