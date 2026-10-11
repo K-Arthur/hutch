@@ -311,8 +311,8 @@ def _replayed(store: Any, replay: dict[str, Any]) -> Submission:
     return _from_record(row)
 
 
-def stop_workflow(store: Any, wf_id: str) -> dict[str, Any]:
-    return wstore.request_workflow_stop(store, wf_id)
+def stop_workflow(store: Any, wf_id: str, *, expected_revision_id: str = "") -> dict[str, Any]:
+    return wstore.request_workflow_stop(store, wf_id, expected_revision_id=expected_revision_id)
 
 
 def answer(store: Any, question_id: str, text: str) -> str:

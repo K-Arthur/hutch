@@ -502,6 +502,16 @@ or starts, `suggest` may describe a candidate route, and `auto` starts only insi
 Bot's preauthorized definitions and budget caps. Recommendations come from task structure,
 never from message length or model family.
 
+Studio projects the selected conversation's saved workflow runs through a compact card: the
+planned structure comes from the immutable compiled revision, discovered instances and
+questions come from durable node/question records, and terminal labels distinguish completed
+from independently verified output. Answers address one displayed question ID; saved runs
+record the conversation they belong to; Stop compares the run revision before changing state.
+Those writes are idempotent. A changed conversation mode is stored separately from the
+assistant default and cannot widen it. The card does not yet call the routing recommendation
+path from a model turn, and a stored Auto policy does not yet auto-launch work. Workflow
+questions and Stop controls are not projected into the paired-phone interface.
+
 The plan defaults are 40 node instances, 12 actual provider requests, 64,000 reported or
 reserved tokens, 900 seconds, fan-out 8 and two repair rounds. The logical worker default is
 two; local inference still admits one request at a time. An Auto scope can set a lower cap

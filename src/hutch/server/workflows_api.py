@@ -166,8 +166,13 @@ class SubmitPlanRequest(BaseModel):
 
 class RunSavedRequest(BaseModel):
     bot: str = Field(min_length=1, max_length=120)
+    conversation_id: str = Field(default="", max_length=100)
     inputs: dict[str, Any] = Field(default_factory=dict)
     auto: bool = False
+
+
+class WorkflowStopRequest(BaseModel):
+    expected_revision_id: str = Field(min_length=1, max_length=100)
 
 
 class AnswerRequest(BaseModel):
@@ -555,10 +560,16 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
     def run_saved_workflow(ref: str, payload: RunSavedRequest, request: Request) -> WorkflowSubmissionResource:
         key, digest = _idempotency(request, {"ref": ref, **payload.model_dump()})
         bot = _bot_or_404(store, payload.bot)
+        if payload.conversation_id:
+            conversation = store.get_conversation(payload.conversation_id)
+            if conversation is None:
+                raise HTTPException(404, "no such conversation")
+            if str(conversation["bot_id"]) != bot.id:
+                raise HTTPException(422, "the conversation belongs to a different assistant")
         try:
             submission = wfsubmit.submit_saved(store, bot=bot, definition=ref, inputs=payload.inputs,
                                                origin="api", idem_key=key, request_hash=digest,
-                                               auto=payload.auto)
+                                               auto=payload.auto, conversation_id=payload.conversation_id)
         except KeyError:
             raise HTTPException(404, "no such workflow") from None
         except wfsubmit.PlanInputError as exc:
@@ -588,12 +599,14 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
             plan=plan, structure=_structure(plan) if plan else [])
 
     @app.post("/api/v1/workflows/runs/{wf_id}/stop", response_model=WorkflowRunResource)
-    def stop_workflow_run(wf_id: str, request: Request) -> WorkflowRunResource:
-        _idempotency(request, {"stop": wf_id})
+    def stop_workflow_run(wf_id: str, payload: WorkflowStopRequest, request: Request) -> WorkflowRunResource:
+        _idempotency(request, {"stop": wf_id, **payload.model_dump()})
         try:
-            wfsubmit.stop_workflow(store, wf_id)
+            wfsubmit.stop_workflow(store, wf_id, expected_revision_id=payload.expected_revision_id)
         except KeyError:
             raise HTTPException(404, "no such workflow run") from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
         engine.store.bus.notify("work")
         row = wstore.workflow_run(store, wf_id)
         assert row is not None

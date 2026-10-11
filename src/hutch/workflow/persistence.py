@@ -397,6 +397,9 @@ def update_workflow_run(store: Any, wf_id: str, *, attempt_run_id: Optional[str]
         args.append(iso(utcnow()))
     where = "id = ?"
     args.append(wf_id)
+    if revision_id is not None and attempt_run_id is None:
+        where += " AND revision_id = ?"
+        args.append(revision_id)
     if attempt_run_id is not None:
         where += " AND attempt_run_id = ?"
         args.append(attempt_run_id)
@@ -438,14 +441,19 @@ def claim_workflow_attempt(store: Any, wf_id: str, attempt_run_id: str, *,
         return cur.rowcount == 1
 
 
-def request_workflow_stop(store: Any, wf_id: str) -> dict[str, Any]:
+def request_workflow_stop(store: Any, wf_id: str, *, expected_revision_id: str = "") -> dict[str, Any]:
     """Durable stop intent: no continuation may be admitted, and the attempt tree is cancelled."""
     with store._lock:
-        row = store._db.execute("SELECT * FROM workflow_runs WHERE id = ?", (wf_id,)).fetchone()
+        row = store._db.execute("SELECT revision_id, attempt_run_id FROM workflow_runs WHERE id = ?",
+                                (wf_id,)).fetchone()
     if row is None:
         raise KeyError(wf_id)
+    if expected_revision_id and str(row["revision_id"]) != expected_revision_id:
+        raise ValueError("workflow revision changed; refresh before stopping")
     attempt = str(row["attempt_run_id"] or "")
-    update_workflow_run(store, wf_id, status=None, stop_requested=True)
+    if not update_workflow_run(store, wf_id, status=None, stop_requested=True,
+                               revision_id=expected_revision_id or str(row["revision_id"])):
+        raise ValueError("workflow revision changed; refresh before stopping")
     if attempt:
         store.request_cancel_tree(attempt)
     cancel_questions(store, wf_id)

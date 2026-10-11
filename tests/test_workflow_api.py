@@ -101,14 +101,19 @@ def test_save_run_and_read_back_with_idempotency(client):
     fetched = client.get("/api/v1/workflows/api-collect").json()
     assert fetched["plan"]["name"] == "api-collect"
 
+    conversation = client.post("/api/v1/conversations", headers={"Idempotency-Key": "workflow-run-chat"},
+                               json={"bot": bot["name"], "title": "Workflow run"})
+    assert conversation.status_code == 201
+    conversation_id = conversation.json()["id"]
+
     res = client.post("/api/v1/workflows/api-collect/runs", headers=KEY,
-                      json={"bot": bot["name"], "inputs": {}})
+                      json={"bot": bot["name"], "conversation_id": conversation_id, "inputs": {}})
     assert res.status_code == 201, res.text
     submission = res.json()
     assert submission["workflow_run_id"].startswith("wrun_")
 
     replay = client.post("/api/v1/workflows/api-collect/runs", headers=KEY,
-                         json={"bot": bot["name"], "inputs": {}})
+                         json={"bot": bot["name"], "conversation_id": conversation_id, "inputs": {}})
     assert replay.status_code == 201
     assert replay.json()["workflow_run_id"] == submission["workflow_run_id"]
     assert len(client.get("/api/v1/workflows/runs").json()["items"]) == 1
@@ -122,6 +127,7 @@ def test_save_run_and_read_back_with_idempotency(client):
             break
         time.sleep(0.1)
     assert detail["workflow"]["status"] == "succeeded", detail
+    assert detail["workflow"]["conversation_id"] == conversation_id
     assert {node["site_id"] for node in detail["nodes"]} == {"scan", "count", "report", "check"}
     assert detail["plan"]["name"] == "api-collect"
     assert [item["site_id"] for item in detail["structure"]] == ["scan", "count", "report", "check"]
@@ -205,11 +211,18 @@ def test_stop_is_durable_and_idempotent(client):
     res = client.post("/api/v1/workflows/plans", headers=KEY,
                       json={"plan": plan(), "bot": bot["name"], "definition_name": "api-stop"})
     wf_id = res.json()["workflow_run_id"]
-    stopped = client.post(f"/api/v1/workflows/runs/{wf_id}/stop", headers=KEY)
+    revision_id = client.get(f"/api/v1/workflows/runs/{wf_id}").json()["workflow"]["revision_id"]
+    url = f"/api/v1/workflows/runs/{wf_id}/stop"
+    stale = client.post(url, headers={"Idempotency-Key": "wf-stale-stop"},
+                        json={"expected_revision_id": "stale-revision"})
+    assert stale.status_code == 409
+    body = {"expected_revision_id": revision_id}
+    stopped = client.post(url, headers=KEY, json=body)
     assert stopped.status_code == 200 and stopped.json()["stop_requested"] is True
-    again = client.post(f"/api/v1/workflows/runs/{wf_id}/stop", headers=KEY)
+    again = client.post(url, headers=KEY, json=body)
     assert again.status_code == 200
-    assert client.post("/api/v1/workflows/runs/wrun_missing/stop", headers=KEY).status_code == 404
+    assert client.post("/api/v1/workflows/runs/wrun_missing/stop", headers=KEY,
+                       json=body).status_code == 404
 
 
 def test_qualification_routes_are_scoped_and_revocable(client):

@@ -367,6 +367,237 @@ async function showConversationArtifactShare(article, item, currentId) {
   await loadChats();
 }
 
+let workflowPanelLoadToken = 0;
+
+const WORKFLOW_STATUS_LABELS = {
+  pending: "Queued", running: "Running", waiting: "Waiting", succeeded: "Finished",
+  failed: "Failed", stopped: "Stopped", outcome_unknown: "Needs review",
+};
+
+function workflowNodeLabel(node) {
+  if (node.status === "succeeded") {
+    if (node.result && typeof node.result === "object" && node.result.verified === true) return "Verified";
+    if (node.result && typeof node.result === "object" && node.result.verified === false) return "Completed · not verified";
+    return "Completed";
+  }
+  return WORKFLOW_STATUS_LABELS[node.status] || String(node.status || "Unknown").replaceAll("_", " ");
+}
+
+async function refreshWorkflowPanel(botName, conversationId, generation, force = false) {
+  const panel = $("#workflow-panel");
+  if (!panel || !conversationId || !botName) return;
+  const activeElement = document.activeElement;
+  const hasDraftFocus = panel.contains(activeElement) && activeElement.matches(
+    "input, textarea, select, [contenteditable='true']",
+  );
+  if (!force && hasDraftFocus) return;
+  const token = ++workflowPanelLoadToken;
+  try {
+    const [runPage, definitionPage] = await Promise.all([
+      api(`/v1/workflows/runs?bot=${encodeURIComponent(botName)}&limit=50`),
+      api("/v1/workflows?limit=50"),
+    ]);
+    if (token !== workflowPanelLoadToken || generation !== studioGeneration || conversationId !== currentConversationId) return;
+    const runs = (runPage.items || []).filter(run => run.conversation_id === conversationId);
+    const selected = runs.find(run => ["pending", "running", "waiting"].includes(run.status)) || runs[0] || null;
+    let detail = null;
+    if (selected) detail = await api(`/v1/workflows/runs/${encodeURIComponent(selected.id)}`);
+    if (token !== workflowPanelLoadToken || generation !== studioGeneration || conversationId !== currentConversationId) return;
+    const definitions = definitionPage.items || [];
+    if (!selected && !definitions.length) {
+      panel.hidden = true;
+      panel.innerHTML = "";
+      return;
+    }
+    const oldDetails = new Map($$("details[data-workflow-disclosure]", panel).map(item => [item.dataset.workflowDisclosure, item.open]));
+    const oldFocus = panel.contains(document.activeElement) ? {
+      action: document.activeElement.dataset.workflowAction || "",
+      id: document.activeElement.dataset.workflowId || document.activeElement.dataset.questionId || "",
+      disclosure: document.activeElement.closest("details[data-workflow-disclosure]")?.dataset.workflowDisclosure || "",
+      summary: document.activeElement.tagName === "SUMMARY",
+    } : null;
+    const status = selected ? WORKFLOW_STATUS_LABELS[selected.status] || selected.status : "No run in this chat";
+    const plan = detail?.plan || {};
+    const structure = detail?.structure || [];
+    const nodes = detail?.nodes || [];
+    const title = plan.name || selected?.definition_id || "Workflow run";
+    const stopButton = selected && ["pending", "running", "waiting"].includes(selected.status)
+      ? `<button class="btn danger small" type="button" data-workflow-action="stop" data-workflow-id="${esc(selected.id)}" data-revision-id="${esc(selected.revision_id)}">${icon("stop")} Stop workflow</button>` : "";
+    const liveList = nodes.length ? `<ol class="workflow-step-list" aria-label="Discovered workflow instances">${nodes.map(node => {
+      const label = structure.find(item => item.site_id === node.site_id)?.title || node.site_id;
+      return `<li><span class="workflow-step-copy"><b title="${esc(label)}">${esc(label)}</b><span>${esc(node.instance_key)}</span></span><span class="workflow-step-status">${esc(workflowNodeLabel(node))}</span></li>`;
+    }).join("")}</ol>` : `<p class="hint">No step instances have been created yet.</p>`;
+    const plannedList = structure.length ? `<ol class="workflow-step-list workflow-planned-list" aria-label="Planned workflow structure">${structure.map(item =>
+      `<li><span class="workflow-step-copy"><b title="${esc(item.title || item.site_id)}">${esc(item.title || item.site_id)}</b><span>${esc(item.kind || "step")}</span></span><span class="workflow-step-status">Planned</span></li>`
+    ).join("")}</ol>` : `<p class="hint">This saved method has no compiled step outline.</p>`;
+    const pendingQuestions = (detail?.questions || []).filter(question => question.status === "pending");
+    const questionMarkup = pendingQuestions.map(question => `<form class="workflow-question" data-workflow-question-form data-question-id="${esc(question.id)}">
+      <p><b>Question ${esc(question.id)}</b></p><p>${esc(question.question)}</p>
+      <label for="workflow-answer-${esc(question.id)}">Your answer</label>
+      <textarea id="workflow-answer-${esc(question.id)}" name="answer" rows="2" maxlength="4000" required></textarea>
+      <p class="hint">This answer resolves only this question. It does not approve a separate action.</p>
+      <button class="btn primary small" type="submit">Send answer</button><p class="workflow-question-error" role="status" aria-live="polite"></p>
+    </form>`).join("");
+    const savedList = definitions.length ? `<details data-workflow-disclosure="saved" ${oldDetails.has("saved") ? (oldDetails.get("saved") ? "open" : "") : ""}>
+      <summary>Saved workflows <span class="hint">${definitions.length}</span></summary>
+      <ul class="workflow-saved-list">${definitions.map(definition => `<li><span><b title="${esc(definition.name)}">${esc(definition.name)}</b><small>${definition.active ? "Active definition" : "Saved · run only when chosen"}</small></span>
+        <button class="btn ghost small" type="button" data-workflow-action="start" data-workflow-id="${esc(definition.id)}">Run</button></li>`).join("")}</ul>
+    </details>` : `<p class="hint">No saved workflows yet. Saving or importing a method does not activate it.</p>`;
+    const disclosure = selected ? `<details class="workflow-inspector" data-workflow-disclosure="run" ${oldDetails.has("run") ? (oldDetails.get("run") ? "open" : "") : "open"}>
+      <summary>Inspect workflow steps</summary>
+      <div class="workflow-inspector-body">
+        ${pendingQuestions.length ? `<section class="workflow-needs-you" aria-labelledby="workflow-questions-title"><h3 id="workflow-questions-title">Needs you</h3>${questionMarkup}</section>` : ""}
+        <section aria-labelledby="workflow-planned-title"><h3 id="workflow-planned-title">Planned structure</h3>${plannedList}</section>
+        <section aria-labelledby="workflow-instances-title"><h3 id="workflow-instances-title">Discovered instances</h3>${liveList}</section>
+        ${selected.reason ? `<p class="workflow-queue-reason"><b>Current reason:</b> ${esc(selected.reason)}</p>` : ""}
+        <p class="hint">A completed step is not necessarily verified. Only an independent check is labelled Verified.</p>
+      </div>
+    </details>` : "";
+    const markup = `<header class="workflow-panel-head"><div><p class="workflow-panel-kicker">Workflow activity</p>
+      <h2 title="${esc(title)}">${esc(title)}</h2><p class="hint">${esc(status)}${selected?.definition_id ? " · saved workflow" : " · dynamic plan"}</p></div>
+      <div class="workflow-panel-actions">${stopButton}<button class="btn ghost small" type="button" data-workflow-action="refresh">Refresh</button></div></header>
+      ${selected ? `<p class="workflow-panel-meta">${esc(nodes.length)} discovered ${nodes.length === 1 ? "instance" : "instances"} · workflow ${esc(selected.id)}</p>${disclosure}` : `<p class="hint">Start a saved workflow here when you choose a reviewed method.</p>`}
+      ${savedList}`;
+    if (panel.innerHTML !== markup) {
+      panel.innerHTML = markup;
+      panel.hidden = false;
+      panel.querySelectorAll("[data-workflow-action]").forEach(button => button.addEventListener("click", () => {
+        if (button.dataset.workflowAction === "refresh") {
+          void refreshWorkflowPanel(botName, conversationId, generation, true);
+        } else if (button.dataset.workflowAction === "start") {
+          void startSavedWorkflow(button.dataset.workflowId, button);
+        } else if (button.dataset.workflowAction === "stop") {
+          void stopWorkflowFromPanel(selected, button, botName, conversationId, generation);
+        }
+      }));
+      panel.querySelectorAll("[data-workflow-question-form]").forEach(form => form.addEventListener("submit", event => {
+        event.preventDefault();
+        void answerWorkflowQuestion(form, botName, conversationId, generation);
+      }));
+      if (oldFocus) {
+        const target = oldFocus.summary && oldFocus.disclosure
+          ? panel.querySelector(`details[data-workflow-disclosure="${CSS.escape(oldFocus.disclosure)}"] > summary`)
+          : $$('[data-workflow-action]', panel).find(element =>
+            element.dataset.workflowAction === oldFocus.action && element.dataset.workflowId === oldFocus.id);
+        target?.focus({ preventScroll: true });
+      }
+    }
+    panel.hidden = false;
+  } catch (error) {
+    if (token !== workflowPanelLoadToken || generation !== studioGeneration || conversationId !== currentConversationId) return;
+    panel.hidden = false;
+    panel.innerHTML = `<p class="workflow-panel-error" role="status">Workflow activity could not be refreshed: ${esc(error.message)} <button class="btn ghost small" type="button" data-workflow-action="refresh">Try again</button></p>`;
+    panel.querySelector("[data-workflow-action=refresh]")?.addEventListener("click", () =>
+      void refreshWorkflowPanel(botName, conversationId, generation, true));
+  }
+}
+
+async function startSavedWorkflow(definitionId, trigger) {
+  try {
+    const saved = await api(`/v1/workflows/${encodeURIComponent(definitionId)}`);
+    const plan = saved.plan || {};
+    const inputs = plan.inputs || {};
+    const entries = Object.entries(inputs);
+    const fields = entries.map(([name, spec]) => {
+      const value = spec.default === undefined || spec.default === null ? "" :
+        typeof spec.default === "string" ? spec.default : JSON.stringify(spec.default);
+      const placeholder = spec.required && !value ? `Enter a ${spec.type || "string"} value` : value;
+      const hint = spec.description ? `<span class="hint">${esc(spec.description)}</span>` : "";
+      return `<label class="field">${esc(name)}${spec.required ? " · required" : " · optional"}
+        <textarea data-workflow-input="${esc(name)}" data-workflow-type="${esc(spec.type || "string")}" rows="2" maxlength="20000" placeholder="${esc(placeholder)}">${esc(value)}</textarea>${hint}</label>`;
+    }).join("");
+    openModal({
+      title: `Run ${plan.name || definitionId}`,
+      bodyHtml: `<p>Starting this saved workflow is an explicit action. Its plan and permissions are checked again before admission.</p>
+        ${fields || '<p class="hint">This workflow does not require inputs.</p>'}
+        <p class="workflow-question-error" id="workflow-start-error" role="alert"></p>`,
+      confirmText: "Start workflow", confirmClass: "primary", wide: true, tall: entries.length > 4,
+      returnFocus: trigger,
+      onConfirm: async () => {
+        const values = {};
+        try {
+          for (const field of $$("[data-workflow-input]")) {
+            const raw = field.value;
+            if (!raw.trim() && !inputs[field.dataset.workflowInput]?.required) continue;
+            if (!raw.trim()) throw new Error(`${field.dataset.workflowInput} is required.`);
+            switch (field.dataset.workflowType) {
+              case "string": values[field.dataset.workflowInput] = raw; break;
+              case "boolean":
+              case "number":
+              case "integer":
+              case "array":
+              case "object": values[field.dataset.workflowInput] = JSON.parse(raw); break;
+              default: throw new Error(`Unsupported input type: ${field.dataset.workflowType}`);
+            }
+          }
+          const payload = { bot: currentStudioBot, conversation_id: currentConversationId, inputs: values };
+          const key = await messageIdempotencyKey(`workflow-start:${currentConversationId}:${definitionId}`, payload);
+          const result = await api(`/v1/workflows/${encodeURIComponent(definitionId)}/runs`, {
+            method: "POST", headers: { "Idempotency-Key": key }, body: payload,
+          });
+          clearMessageIdempotencyKey(`workflow-start:${currentConversationId}:${definitionId}`, key);
+          currentRunId = result.attempt_run_id;
+          subscribeRun(result.attempt_run_id);
+          toast("Workflow started. Its progress and checks are available here.");
+          void refreshWorkflowPanel(currentStudioBot, currentConversationId, studioGeneration, true);
+          return true;
+        } catch (error) {
+          const status = $("#workflow-start-error");
+          if (status) status.textContent = error.message;
+          return false;
+        }
+      },
+    });
+  } catch (error) {
+    toast(`Could not open this saved workflow: ${error.message}`, true);
+  }
+}
+
+async function stopWorkflowFromPanel(workflow, button, botName, conversationId, generation) {
+  if (!workflow?.id || button.disabled) return;
+  button.disabled = true;
+  const body = { expected_revision_id: workflow.revision_id };
+  try {
+    const key = await messageIdempotencyKey(`workflow-stop:${workflow.id}`, body);
+    await api(`/v1/workflows/runs/${encodeURIComponent(workflow.id)}/stop`, {
+      method: "POST", headers: { "Idempotency-Key": key }, body,
+    });
+    clearMessageIdempotencyKey(`workflow-stop:${workflow.id}`, key);
+    toast("Stop requested. Hutch will keep the workflow visible until owned work is settled.");
+    await refreshWorkflowPanel(botName, conversationId, generation, true);
+  } catch (error) {
+    button.disabled = false;
+    toast(`Workflow stop was not confirmed: ${error.message}`, true);
+  }
+}
+
+async function answerWorkflowQuestion(form, botName, conversationId, generation) {
+  if (form.dataset.submitting === "1") return;
+  const questionId = form.dataset.questionId;
+  const answer = $("textarea[name=answer]", form)?.value.trim() || "";
+  const errorNode = $(".workflow-question-error", form);
+  if (!answer) { if (errorNode) errorNode.textContent = "Enter an answer first."; return; }
+  form.dataset.submitting = "1";
+  const button = $("[type=submit]", form);
+  button.disabled = true;
+  try {
+    const body = { answer };
+    const key = await messageIdempotencyKey(`workflow-question:${questionId}`, body);
+    await api(`/v1/workflows/questions/${encodeURIComponent(questionId)}/answer`, {
+      method: "POST", headers: { "Idempotency-Key": key }, body,
+    });
+    clearMessageIdempotencyKey(`workflow-question:${questionId}`, key);
+    announce(`Answer sent for workflow question ${questionId}.`);
+    $("#workflow-panel")?.scrollTo({ top: 0, behavior: "auto" });
+    await refreshWorkflowPanel(botName, conversationId, generation, true);
+  } catch (error) {
+    if (errorNode) errorNode.textContent = error.message;
+    button.disabled = false;
+  } finally {
+    if (form.isConnected) form.dataset.submitting = "";
+  }
+}
+
 async function openConversationFiles(conversationId, returnFocus) {
   openModal({
     title: "Files in this chat",
@@ -2383,6 +2614,17 @@ async function renderChatStudio(preferredBot = null) {
     status_label: selectedConversation.active_run_status_label,
   } : null;
   currentRunId = activeRun?.id || selectedConversation.latest_run_id || null;
+  let workflowPolicy = { mode: "suggest", override: "inherit", revision: 0,
+    auto_available: false, bot_mode: "suggest", limits: {} };
+  let workflowPolicyError = "";
+  try {
+    workflowPolicy = await api(`/v1/workflows/conversations/${encodeURIComponent(selectedConversation.id)}/policy`);
+  } catch (error) {
+    workflowPolicyError = error.message || "Workflow settings could not be loaded.";
+  }
+  if (generation !== studioGeneration) return;
+  const workflowModeOption = (value, label, disabled = false) =>
+    `<option value="${value}" ${workflowPolicy.override === value ? "selected" : ""} ${disabled ? "disabled" : ""}>${esc(label)}</option>`;
 
   const state = botState(detail);
   const assistantName = botHeading(bot);
@@ -2415,6 +2657,18 @@ async function renderChatStudio(preferredBot = null) {
           <button class="conversation-action-item" id="studio-conversation-pin" data-conversation-action="pin" type="button">${icon("pin")} ${selectedConversation.pinned ? "Unpin conversation" : "Pin conversation"}</button>
           <button class="conversation-action-item" id="studio-conversation-unread" data-conversation-action="unread" type="button">${icon("mail")} ${selectedConversation.unread ? "Mark read" : "Mark unread"}</button>
           <button class="conversation-action-item" id="studio-conversation-section" data-conversation-action="section" type="button">${icon("folder")} ${selectedConversation.section ? "Move to a section" : "New section"}</button>
+          <div class="conversation-workflow-policy">
+            <label for="chat-workflow-mode">Workflow mode for this chat</label>
+            <select id="chat-workflow-mode" aria-describedby="chat-workflow-mode-help" ${workflowPolicyError ? "disabled" : ""}>
+              ${workflowModeOption("inherit", `Assistant default · ${workflowPolicy.mode}`)}
+              ${workflowModeOption("suggest", "Suggest in this chat")}
+              ${workflowModeOption("off", "Off in this chat")}
+              ${workflowModeOption("auto", workflowPolicy.auto_available || workflowPolicy.override === "auto" ? "Auto in this chat" : "Auto (set a reviewed assistant scope first)", !workflowPolicy.auto_available && workflowPolicy.override !== "auto")}
+            </select>
+            <p class="hint" id="chat-workflow-mode-help" role="status">${esc(workflowPolicyError || (workflowPolicy.auto_available
+              ? "Auto stays inside this assistant’s saved workflow and budget limits."
+              : "Suggest never starts a workflow. Auto needs an assistant-level reviewed scope."))}</p>
+          </div>
           <details class="conversation-action-more" id="studio-conversation-more">
             <summary class="conversation-action-item" aria-label="More conversation actions" aria-expanded="false" aria-controls="studio-conversation-more-panel">${icon("moreHorizontal")} More</summary>
             <div class="conversation-action-more-panel" id="studio-conversation-more-panel">
@@ -2436,6 +2690,7 @@ async function renderChatStudio(preferredBot = null) {
 
   view.innerHTML = `
     <section class="studio">
+      <section class="workflow-panel" id="workflow-panel" hidden aria-label="Workflow activity"></section>
       <div class="chat-scroll" id="chat-scroll">
         <div class="feed" id="chat-stream"></div>
       </div>
@@ -2491,6 +2746,8 @@ async function renderChatStudio(preferredBot = null) {
         </form>
       </footer>
     </section>`;
+
+  void refreshWorkflowPanel(bot.name, selectedConversation.id, generation);
 
   const conversationSwitcher = $("#conversation-switcher");
   conversationSwitcher?.addEventListener("change", async ev => {
@@ -2640,6 +2897,41 @@ async function renderChatStudio(preferredBot = null) {
       toast(`Could not update this conversation: ${error.message}`, true);
       action.disabled = false;
       action.focus();
+    }
+  });
+
+  const workflowModeSelect = $("#chat-workflow-mode");
+  workflowModeSelect?.addEventListener("change", async event => {
+    const select = event.currentTarget;
+    const requested = select.value;
+    const previous = workflowPolicy.override;
+    if (requested === "auto" && !workflowPolicy.auto_available && previous !== "auto") {
+      select.value = previous;
+      return;
+    }
+    select.disabled = true;
+    const help = $("#chat-workflow-mode-help");
+    if (help) help.textContent = "Saving this conversation’s workflow mode…";
+    const body = { mode: requested, expected_revision: workflowPolicy.revision };
+    try {
+      const key = await messageIdempotencyKey(`workflow-policy:${selectedConversation.id}`, body);
+      const saved = await api(`/v1/workflows/conversations/${encodeURIComponent(selectedConversation.id)}/policy`, {
+        method: "POST", headers: { "Idempotency-Key": key }, body,
+      });
+      clearMessageIdempotencyKey(`workflow-policy:${selectedConversation.id}`, key);
+      if (generation !== studioGeneration || composerConversationId !== currentConversationId) return;
+      workflowPolicy = saved;
+      select.value = saved.override;
+      if (help) help.textContent = saved.auto_available
+        ? "Auto stays inside this assistant’s saved workflow and budget limits."
+        : "Suggest never starts a workflow. Auto needs an assistant-level reviewed scope.";
+      announce(`Workflow mode saved: ${saved.mode}.`);
+    } catch (error) {
+      select.value = previous;
+      if (help) help.textContent = `Could not save this mode: ${error.message}`;
+      toast(`Workflow mode was not saved: ${error.message}`, true);
+    } finally {
+      if (select.isConnected) select.disabled = !!workflowPolicyError;
     }
   });
 
@@ -3171,6 +3463,7 @@ async function renderChatFeed() {
   if (!stream || !scroll || !currentStudioBot) return;
 
   const conversationId = currentConversationId, generation = studioGeneration;
+  void refreshWorkflowPanel(currentStudioBot, conversationId, generation);
   const stillCurrent = () => generation === studioGeneration && conversationId === currentConversationId && stream.isConnected;
   let messages, authority, factPage, factShares, workspaceTasks = [], codeHandoffs = [];
   try {

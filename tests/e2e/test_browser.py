@@ -168,6 +168,167 @@ def test_paired_phone_reviews_the_exact_approval_once(browser, live):
         context.close()
 
 
+def test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports(browser, live):
+    from hutch.workflow import persistence as workflow_store
+
+    base, app = live
+    store = app.state.store
+    bot = Bot(name="workflow-studio", display_name="Workflow studio fixture", model="mock/demo", tools=[],
+              approval_mode=ApprovalMode.auto)
+    store.upsert_bot(bot)
+    conversation, _ = store.create_conversation(
+        bot.id, "Dynamic workflow review", idem_key="workflow-studio-conversation",
+        request_hash="workflow-studio-conversation")
+    workflow_title = "review-source-findings-with-independent-check"
+    plan = {
+        "name": workflow_title,
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 8, "max_model_calls": 0},
+        "nodes": [{"kind": "ask", "id": "review", "title": "Review findings",
+                   "question": "Which findings should be included?", "options": ["All", "Only verified"],
+                   "timeout_seconds": 600}],
+    }
+    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workflow-studio"
+    artifacts.mkdir(parents=True, exist_ok=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1)
+    context = page.context
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    trace = []
+    context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    try:
+        saved = page.request.post(f"{base}/api/v1/workflows", data={"name": workflow_title, "plan": plan},
+                                  headers={"Idempotency-Key": "workflow-studio-save"})
+        assert saved.status == 201, saved.text()
+        definition = saved.json()
+        first = page.request.post(f"{base}/api/v1/workflows/{definition['id']}/runs",
+                                  data={"bot": bot.name, "conversation_id": conversation["id"], "inputs": {}},
+                                  headers={"Idempotency-Key": "workflow-studio-first-run"})
+        assert first.status == 201, first.text()
+        first_workflow_id = first.json()["workflow_run_id"]
+        deadline = time.monotonic() + 20
+        pending_questions = []
+        while time.monotonic() < deadline:
+            pending_questions = workflow_store.questions(store, first_workflow_id, status="pending")
+            if pending_questions:
+                break
+            time.sleep(0.05)
+        assert pending_questions
+
+        page.goto(f"{base}/#/chat/{bot.name}")
+        panel = page.locator("#workflow-panel")
+        panel.wait_for(state="visible")
+        page.get_by_role("heading", name=workflow_title).wait_for()
+        panel.get_by_text("Waiting · saved workflow", exact=True).wait_for()
+        panel.get_by_text("Planned structure", exact=True).wait_for()
+        panel.get_by_text("Discovered instances", exact=True).wait_for()
+        question_form = panel.locator("[data-workflow-question-form]")
+        question_form.wait_for(state="visible")
+        question_id = question_form.get_attribute("data-question-id")
+        assert question_id == pending_questions[0]["id"]
+
+        sizes = [("desktop", 1440, 960), ("tablet", 768, 1024), ("phone", 360, 800),
+                 ("compact-phone", 320, 800)]
+        for label, width, height in sizes:
+            page.set_viewport_size({"width": width, "height": height})
+            page.wait_for_timeout(80)
+            overflow = page.evaluate("document.documentElement.scrollWidth - innerWidth")
+            assert overflow <= 1, f"{label} has horizontal overflow: {overflow}px"
+            page.screenshot(path=str(artifacts / f"{label}-waiting.png"), full_page=True, animations="disabled")
+            card_box = panel.bounding_box()
+            title_locator = panel.locator("h2")
+            actions_locator = panel.locator(".workflow-panel-actions")
+            title_locator.wait_for(state="visible")
+            actions_locator.wait_for(state="visible")
+            title_box = title_locator.bounding_box()
+            actions_box = actions_locator.bounding_box()
+            assert card_box and card_box["x"] >= 0 and card_box["x"] + card_box["width"] <= width + 1
+            assert title_box and actions_box
+            if width <= 520:
+                assert title_box["width"] >= card_box["width"] * 0.7
+                assert title_box["y"] + title_box["height"] <= actions_box["y"] + 1
+            trace.append({"viewport": label, "size": [width, height], "state": "waiting",
+                          "horizontal_overflow_px": overflow,
+                          "panel_bounds": {key: round(value, 2) for key, value in card_box.items()},
+                          "title_bounds": {key: round(value, 2) for key, value in title_box.items()},
+                          "actions_bounds": {key: round(value, 2) for key, value in actions_box.items()}})
+
+        page.set_viewport_size({"width": 1440, "height": 960})
+        page.wait_for_timeout(80)
+        answer_field = question_form.locator("textarea[name=answer]")
+        answer_field.fill("Include only findings with independent evidence.")
+        answer_field.press("Tab")
+        send_answer = question_form.get_by_role("button", name="Send answer")
+        assert send_answer.evaluate("element => document.activeElement === element")
+        page.keyboard.press("Enter")
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            current = workflow_store.workflow_run(store, first_workflow_id)
+            if current and current["status"] == "succeeded":
+                break
+            time.sleep(0.05)
+        assert workflow_store.workflow_run(store, first_workflow_id)["status"] == "succeeded"
+        panel.get_by_role("button", name="Refresh").click()
+        panel.get_by_text("Finished · saved workflow", exact=True).wait_for()
+        assert panel.evaluate("element => element.scrollTop") == 0
+        assert panel.locator("h2").is_visible()
+        page.wait_for_timeout(300)
+        page.screenshot(path=str(artifacts / "desktop-finished.png"), full_page=True, animations="disabled")
+
+        page.locator("#studio-conversation-options").click()
+        page.locator("#chat-workflow-mode").wait_for(state="visible")
+        assert page.locator("#chat-workflow-mode option[value=auto]").is_disabled()
+        page.locator("#chat-workflow-mode").select_option("off")
+        wait_for(lambda: store.get_conversation_workflow_policy(conversation["id"])["mode"] == "off")
+        assert page.locator("#chat-workflow-mode-help").inner_text().strip()
+        page.screenshot(path=str(artifacts / "desktop-policy-off.png"), full_page=True, animations="disabled")
+        page.keyboard.press("Escape")
+
+        panel.locator("summary", has_text="Saved workflows").click()
+        panel.get_by_role("button", name="Run").click()
+        page.get_by_role("button", name="Start workflow").click()
+        panel.locator("[data-workflow-question-form]").wait_for(state="visible")
+        panel.get_by_role("button", name="Stop workflow").click()
+        deadline = time.monotonic() + 20
+        newest = None
+        while time.monotonic() < deadline:
+            runs = workflow_store.list_workflow_runs(store, bot_id=bot.id, limit=20)
+            newest = next((row for row in runs if row["id"] != first_workflow_id), None)
+            if newest and newest["status"] == "stopped":
+                break
+            time.sleep(0.05)
+        assert newest and newest["status"] == "stopped"
+        panel.get_by_text("Stopped · saved workflow", exact=True).wait_for()
+        assert panel.get_by_role("button", name="Stop workflow").count() == 0
+        page.wait_for_function("document.querySelectorAll('#toast-root .toast').length === 0", timeout=6000)
+        page.screenshot(path=str(artifacts / "desktop-stopped.png"), full_page=True, animations="disabled")
+        assert not errors, errors
+
+        context.tracing.stop(path=str(artifacts / "trace.zip"))
+        sources = ("src/hutch/models.py", "src/hutch/store.py", "src/hutch/workflow/persistence.py",
+                   "src/hutch/workflow/submit.py", "src/hutch/server/workflows_api.py",
+                   "src/hutch/server/static/app.js", "src/hutch/server/static/style.css")
+        images_and_trace = {file.name: hashlib.sha256(file.read_bytes()).hexdigest()
+                            for file in artifacts.iterdir() if file.suffix in {".png", ".zip"}}
+        (artifacts / "results.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports",
+            "command": "uv run pytest tests/e2e/test_browser.py::test_workflow_studio_policy_steps_start_answer_and_stop_at_all_viewports -q",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"), "viewports": trace,
+            "question_id": question_id, "first_workflow_id": first_workflow_id,
+            "stopped_workflow_id": newest["id"], "policy_override": store.get_conversation_workflow_policy(conversation["id"]),
+            "keyboard_path": ["focus answer", "Tab to Send answer", "Enter submits"],
+            "page_errors": errors, "provider_calls": 0,
+            "fixture_boundary": "A saved declarative ask workflow uses the real SQLite, supervisor, API and browser path; no model/provider call is made.",
+            "source_sha256": {name: hashlib.sha256((artifacts.parents[3] / name).read_bytes()).hexdigest()
+                              for name in sources},
+            "visual_artifact_sha256": images_and_trace,
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+        }, indent=2) + "\n")
+    finally:
+        context.close()
+
+
 def test_paired_phone_can_stop_a_run_and_resume_the_current_human_wait(browser, live, monkeypatch):
     """Phone commands carry session CSRF/idempotency and target the exact live run state."""
     base, app = live

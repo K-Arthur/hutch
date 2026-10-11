@@ -202,12 +202,25 @@ attempt can run.
 
 ## What is not implemented yet
 
-* **Live local-model evidence remains candidate-specific.** The bounded probe path is
-  implemented and tested against a fixture server. A checkpoint is qualified only after a
-  real campaign is run and its evidence is committed; an installed model or passing fixture
-  is not qualification.
-* **No workflow surface in Studio yet.** The API and CLI are complete; the plan/graph view,
-  mode selection and inline question cards are a later slice.
+* **Local author/selector probes are implemented, but the tested checkpoints are blocked.**
+  On 2026-10-11, the bounded held-out campaign tested Qwen3 1.7B and 4B Q4_K_M on CPU at
+  4,096 context. Both exact profiles failed at least one required author and selector case;
+  neither model can author or select production workflows. See the retained negative evidence
+  in [`qualification-campaign-2026-10-11.json`](realignment/artifacts/dynamic-workflows/qualification-campaign-2026-10-11.json).
+* **Studio now has a workflow card for the selected conversation.** It separates planned
+  structure from discovered instances, labels completed versus verified work, lists pending
+  questions by durable ID, accepts an answer for that question, starts a saved workflow after
+  you choose it, and sends a revision-checked Stop. The conversation options menu stores a
+  revisioned Off/Suggest/Auto override; Auto is unavailable until the assistant has an
+  activated definition and explicit limits. These controls do not run a planner or start work
+  when you change policy.
+* **Chat-turn recommendations and automatic launches are not connected yet.** Suggest currently
+  stores the preference; Hutch does not yet recommend a workflow from a model turn or create a
+  plan there. Auto policy storage and scope validation exist, but chat does not use Auto to
+  launch work.
+* **No paired-phone workflow monitor or review controls yet.** The workflow card and its
+  questions are owner-local. Phone supervision still covers ordinary run monitoring/review;
+  workflow question, approval and Stop projections have not been added there.
 * No MCP facade (Hutch has no MCP plane), no code facade, and no automatic downloads or
   model substitution.
 * **No scheduling of workflows yet.** A routine decides *when* saved work runs; wiring a
