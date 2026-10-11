@@ -48,10 +48,13 @@ at 1440/900/360 with zero console errors and no overflow. Offline tests: 83 grou
 merge and the continuation increments — live Jetstream, scene-change and region sampling, hard
 wall budget, refresh action, accessibility pass): see the fresh run recorded in
 `docs/realignment/grounding-evidence.md`. The last recorded run before the final closures: 2032
-passed, 6 skipped, 1 failed — the load-sensitive TTY race in `test_code_handoff.py`, which
-turned out to be a real product bug: a SIGINT-ignoring launcher (backgrounded `nohup` suite runs)
-passed `SIG_IGN` through fork/exec to the interactive CLI, so `^C` never reached it. Fixed in
-`spawn_interactive` (child-only SIG_DFL reset), A/B-proven, with a coherent harness budget.
+passed, 6 skipped, 0 failed after closing every failure: the TTY race in `test_code_handoff.py` was
+a real product bug: a SIGINT-ignoring launcher (backgrounded suite runs) passed `SIG_IGN` through
+fork/exec to the interactive CLI, so `^C` never reached it; `spawn_interactive` now resets SIGINT
+for the child (A/B-proven). The residue was the harness stopping its pty read before the
+controller's separate `EXIT=` write (now drained until `EXIT=`), and a hardcoded `/tmp` in
+`OfflineBrokerSet` that hit ENOSPC on a full shared tmpfs (now honors `TMPDIR`). Final offline
+suite on the merged tree: **2047 passed, 6 skipped, 0 failed**.
 A genuine DOCX determinism defect found
 during integration (python-docx ZIP timestamps) is repaired and verified byte-identical across a
 2.2 s boundary. Evidence: `docs/realignment/grounding-evidence.md`, `docs/grounding.md`, artifacts under

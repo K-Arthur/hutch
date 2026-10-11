@@ -169,6 +169,8 @@ receipts strip. The chosen panel keeps the existing dark token set and Archivo d
   measurement showed 1.5 s, which exposed that the wall budget was not a hard bound — fixed and
   locked with a unit-test bound. This measures Hutch's scheduler, not providers or networks.
 
+- Final certification: **2047 passed, 6 skipped, 0 failed** on the merged tree (offline suite), plus 94 grounding offline and browser tests including the panel, accessibility and documents journeys. The last stubborn failure was the test harness stopping its pty read at `RESTORED` while the controller writes `RESTORED` and `EXIT=` as separate writes; the loop now ends on `EXIT=` with a final drain (5/5 under a SIGINT-ignoring launcher). Together with the SIGINT reset in `spawn_interactive` and the `TMPDIR` fix in `OfflineBrokerSet`, every failure in the certification runs was traced to a real cause and closed.
+
 ## Classification of each source/model/workflow
 
 | Item | Class |
