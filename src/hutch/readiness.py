@@ -166,8 +166,8 @@ def bot_readiness(store, config, bot: Bot) -> dict:
             }.get(code, "warning")
             requirement_status[name] = code
             skill_items.append({"name": name, "status": status, "detail": reason})
-    except SkillError as exc:
-        skill_items.append({"name": "skills", "status": "warning", "detail": str(exc)})
+    except Exception as exc:  # noqa: BLE001 - a store read or package inspection must not 500 the settings page
+        skill_items.append({"name": "skills", "status": "warning", "detail": f"could not be resolved: {exc}"})
     if not bot.skills:
         skill_items = [{"name": "skills", "status": "ok", "detail": "none assigned"}]
     areas.append(_area("skills", "Skills", _status_of(skill_items), skill_items))

@@ -41,16 +41,21 @@ discover/import → validate → review/trust → install/version → assign to 
   `hutch run --skill`, or the `skills` field of the run API). The model can also load an assigned
   skill on demand with the `use_skill` tool.
 * **Update** — `update` stages a new version from the skill's recorded source. The reviewed
-  version stays active and keeps running until the operator applies the update; `discard` drops
-  the staged version; `rollback` restores the previous retained version (the last 3 are kept).
+  version stays active and keeps running until the operator applies the update; the inspector shows
+  the staged instructions so "review the update" is literal. Applying re-reads and re-hashes the
+  staged bytes and refuses if they changed after staging. `discard` drops the staged version;
+  `rollback` restores the previous retained version (the last 3 are kept).
 * **Disable/uninstall** — disabling stops future disclosure and activation immediately, even
   though earlier instructions may remain in an old transcript. Uninstalling removes the files;
   Bots that reference it show a visible "not installed" readiness reason rather than failing
   silently.
 
-A package that changes on disk after review is detected by hash: it is withheld from runs and
-reported as **Changed on disk** until the operator re-reviews it. `recheck` never re-trusts
-content on its own.
+A package that changes on disk after review is detected by full hash at the enforcement points:
+run start, `use_skill` body/resource loads, trust, recheck, and the inspector (which always reads
+the bytes it shows). The compact library card uses a cheap file-count/size/mtime signature and may
+briefly keep showing the previous state for an edit that preserves all three — the run path still
+withholds it. A trusted package whose bytes changed is withheld from runs and reported as
+**Changed on disk** until the operator re-reviews it; `recheck` never re-trusts content on its own.
 
 ## Where skills are discovered
 
@@ -76,7 +81,8 @@ skills are installed there; it is read, never written.
    the run (frozen into the run's system prompt) or because the model called
    `use_skill(name)` (returned as a tool result with an untrusted-content label and a hash).
 3. **Resources** — bundled files are listed, not read. `use_skill(name, resource="…")` reads one
-   file, confined to the skill directory, capped at 64 KiB, UTF-8 only.
+   file, confined to the skill directory, capped at 64 KiB, UTF-8 only, and hash-verified against
+   the run's resolved package so a file changed mid-run is never served.
 
 Skill text is instruction material, not permission. The activation result explicitly says so, and
 the system prompt states that skills cannot grant tools, accounts, budgets, or approval bypasses.
@@ -153,7 +159,10 @@ cannot manage skills or activate them (owner action).
 ## Security model
 
 * Installation rejects symlinked packages and entries, path escapes, files over 2 MB, packages
-  over 20 MB, and packages over 2,000 files.
+  over 20 MB, and packages over 2,000 files. Frontmatter is parsed with YAML aliases/anchors
+  rejected before construction (an alias graph could otherwise explode when rendered), metadata
+  values must be scalars, and prompt catalog text is escaped so a description cannot close the
+  surrounding block.
 * The registry is written atomically with `0600` permissions and a cross-process file lock;
   concurrent mutations serialize instead of racing.
 * Resource reads are canonicalized and confined to the reviewed package directory.

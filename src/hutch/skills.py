@@ -270,25 +270,51 @@ def _split_frontmatter(text: str) -> tuple[Optional[str], str, list[SkillDiagnos
     return "\n".join(lines[1:closing]), "\n".join(lines[closing + 1:]).strip(), diagnostics
 
 
-def _load_frontmatter(frontmatter: str, diagnostics: list[SkillDiagnostic]) -> Optional[dict]:
+def _scan_yaml_events(text: str) -> Optional[str]:
+    """Pre-construction guard: reject aliases and oversized node graphs.
+
+    PyYAML resolves anchors into shared objects, and rendering a shared graph through ``str()`` can
+    explode exponentially — a ~1 KB alias bomb caused a MemoryError through discovery alone. The
+    event stream is safe to scan without constructing anything.
+    """
     try:
-        document = yaml.load(frontmatter, Loader=_UniqueSafeLoader)
-    except yaml.YAMLError as exc:
-        repaired = _repair_unquoted_colons(frontmatter)
-        if repaired is None:
-            diagnostics.append(SkillDiagnostic("error", "frontmatter.invalid", f"frontmatter is not valid YAML: {exc}"))
+        from yaml.events import AliasEvent
+        for index, event in enumerate(yaml.parse(text, Loader=yaml.SafeLoader)):
+            if index >= 5_000:
+                return "frontmatter has too many nodes"
+            if isinstance(event, AliasEvent):
+                return "YAML aliases/anchors are not supported in skill frontmatter"
+    except yaml.YAMLError:
+        return None  # a parse error: the loader (and repair) path reports it precisely
+    return None
+
+
+def _load_frontmatter(frontmatter: str, diagnostics: list[SkillDiagnostic]) -> Optional[dict]:
+    def attempt(text: str, *, repaired: bool) -> Optional[dict]:
+        unsupported = _scan_yaml_events(text)
+        if unsupported:
+            diagnostics.append(SkillDiagnostic("error", "frontmatter.unsupported", unsupported))
             return None
         try:
-            document = yaml.load(repaired, Loader=_UniqueSafeLoader)
-        except yaml.YAMLError as exc2:
-            diagnostics.append(SkillDiagnostic("error", "frontmatter.invalid", f"frontmatter is not valid YAML: {exc2}"))
+            document = yaml.load(text, Loader=_UniqueSafeLoader)
+        except yaml.YAMLError as exc:
+            if not repaired:
+                repaired_text = _repair_unquoted_colons(frontmatter)
+                if repaired_text is not None:
+                    result = attempt(repaired_text, repaired=True)
+                    if result is not None:
+                        diagnostics.append(SkillDiagnostic(
+                            "warning", "frontmatter.repaired",
+                            "unquoted values containing ': ' were repaired for cross-client compatibility"))
+                    return result
+            diagnostics.append(SkillDiagnostic("error", "frontmatter.invalid", f"frontmatter is not valid YAML: {exc}"))
             return None
-        diagnostics.append(SkillDiagnostic("warning", "frontmatter.repaired",
-                                           "unquoted values containing ': ' were repaired for cross-client compatibility"))
-    if not isinstance(document, dict):
-        diagnostics.append(SkillDiagnostic("error", "frontmatter.not_mapping", "frontmatter must be a YAML mapping"))
-        return None
-    return document
+        if not isinstance(document, dict):
+            diagnostics.append(SkillDiagnostic("error", "frontmatter.not_mapping", "frontmatter must be a YAML mapping"))
+            return None
+        return document
+
+    return attempt(frontmatter, repaired=False)
 
 
 def parse_skill_md(text: str, *, dir_name: str = "") -> tuple[Optional[ParsedSkill], list[SkillDiagnostic]]:
@@ -360,7 +386,12 @@ def parse_skill_md(text: str, *, dir_name: str = "") -> tuple[Optional[ParsedSki
             if not isinstance(key, str):
                 diagnostics.append(SkillDiagnostic("warning", "metadata.key", "metadata keys must be strings"))
                 continue
-            metadata[key] = value if isinstance(value, str) else str(value)
+            if not isinstance(value, (str, int, float, bool)) and value is not None:
+                diagnostics.append(SkillDiagnostic("warning", "metadata.value",
+                                                   f"metadata '{key}' must be a scalar; the nested value was ignored"))
+                continue
+            rendered = "" if value is None else str(value)
+            metadata[key] = rendered[:MAX_DESCRIPTION]
 
     allowed_tools = document.get("allowed-tools", "")
     if isinstance(allowed_tools, list):
@@ -520,7 +551,12 @@ def inspect_package(directory: Path, *, enforce_bounds: bool = True) -> tuple[Op
     if len(resources) >= MAX_RESOURCES_LISTED:
         diagnostics.append(SkillDiagnostic("info", "package.resources_truncated", "resource listing was truncated"))
     parsed.resources = resources
-    return parsed, diagnostics, content_hash(directory, files)
+    try:
+        package_hash = content_hash(directory, files)
+    except OSError as exc:
+        diagnostics.append(SkillDiagnostic("error", "package.unreadable", f"could not read package files: {exc}"))
+        package_hash = ""
+    return parsed, diagnostics, package_hash
 
 
 def _has_errors(diagnostics: Iterable[SkillDiagnostic]) -> bool:
@@ -665,11 +701,14 @@ class SkillRegistry:
         Listing uses this; run-time resolution and trust always read the bytes (``inspect_package``),
         so a same-size/mtime edit cannot pass the enforcement boundary.
         """
-        signature = package_signature(directory)
-        if signature and entry.get("signature") and signature == entry["signature"] and entry.get("hash"):
-            return str(entry["hash"])
-        _parsed, _diagnostics, current = inspect_package(directory, enforce_bounds=False)
-        return current
+        try:
+            signature = package_signature(directory)
+            if signature and entry.get("signature") and signature == entry["signature"] and entry.get("hash"):
+                return str(entry["hash"])
+            _parsed, _diagnostics, current = inspect_package(directory, enforce_bounds=False)
+            return current
+        except OSError:
+            return ""
 
     def _status(self, entry: dict, directory: Path, *, current_hash: Optional[str] = None) -> str:
         if entry.get("trust"):
@@ -689,10 +728,12 @@ class SkillRegistry:
         parsed, diagnostics, current_hash = (None, [], "")
         if directory.is_dir():
             signature = package_signature(directory)
-            if signature and entry.get("signature") == signature and entry.get("hash"):
+            if (not include_body and signature and entry.get("signature") == signature and entry.get("hash")):
                 current_hash = str(entry["hash"])
                 parsed, diagnostics, _ignored = inspect_package(directory, enforce_bounds=False)
             else:
+                # The review surface always reads the bytes: the hash it shows must describe the
+                # content it shows, even for a same-size edit with a restored mtime.
                 parsed, diagnostics, current_hash = inspect_package(directory, enforce_bounds=False)
         status = self._status(entry, directory, current_hash=current_hash) if directory.is_dir() else "missing"
         detail = {
@@ -712,6 +753,7 @@ class SkillRegistry:
             "updated_at": entry.get("updated_at", ""),
             "reviewed_at": (entry.get("trust") or {}).get("reviewed_at", ""),
             "staged_update": entry.get("staged"),
+            "staged_body": self._staged_body(entry) if include_body else None,
             "versions": list(entry.get("versions") or []),
             "diagnostics": [d.to_dict() for d in diagnostics],
             "resources": list(parsed.resources) if parsed else [],
@@ -721,6 +763,15 @@ class SkillRegistry:
             "allowed_tools": parsed.allowed_tools if parsed else "",
         }
         return detail
+
+    def _staged_body(self, entry: dict) -> str:
+        """The staged update's instructions, so the operator can review what applying would activate."""
+        staged = entry.get("staged") or {}
+        staged_dir = Path(str(staged.get("path", "")))
+        if not staged_dir.is_dir():
+            return ""
+        parsed, _diagnostics, _hash = inspect_package(staged_dir, enforce_bounds=False)
+        return parsed.body if parsed else ""
 
     def detail(self, name: str, *, include_body: bool = False) -> Optional[dict]:
         document = self._read_registry()
@@ -870,6 +921,9 @@ class SkillRegistry:
         return self._install(source, {"kind": "path", "detail": str(source), "scope": "imported"})
 
     def install_builtin(self, name: str) -> dict:
+        if (not name or "/" in name or "\\" in name or name in (".", "..")
+                or Path(name).name != name or name.startswith(".")):
+            raise SkillError("a bundled skill name must be a plain directory name", status=404)
         source = builtin_skills_dir() / name
         if not source.is_dir():
             raise SkillError(f"no bundled skill named '{name}'", status=404)
@@ -927,6 +981,11 @@ class SkillRegistry:
             staged_dir = Path(staged["path"])
             if not staged_dir.is_dir():
                 raise SkillError("the staged update is no longer on disk", status=409)
+            # Re-read and hash the staged bytes: a staged directory modified after staging must not
+            # apply as reviewed. Run start would withhold it, but the operator action itself must be honest.
+            staged_parsed, staged_diagnostics, staged_hash = inspect_package(staged_dir, enforce_bounds=False)
+            if staged_parsed is None or _has_errors(staged_diagnostics) or staged_hash != staged.get("hash"):
+                raise SkillError("the staged update changed on disk; stage it again before applying", status=409)
             current = self.package_path(name)
             previous_hash = entry.get("hash")
             if current.is_dir() and previous_hash:
@@ -1089,11 +1148,16 @@ class SkillRegistry:
             if entry is None:
                 raise SkillError(f"no such installed skill: {name}", status=404)
             directory = self.package_path(name)
-            if directory.is_dir():
-                shutil.rmtree(directory)
+            try:
+                if directory.is_symlink():
+                    os.unlink(directory)          # remove the link, never what it points at
+                elif directory.is_dir():
+                    shutil.rmtree(directory)
+            except OSError as exc:
+                raise SkillError(f"the package directory could not be removed: {exc}", status=409) from None
             versions = self.versions_dir / name
             if versions.is_dir():
-                shutil.rmtree(versions)
+                shutil.rmtree(versions, ignore_errors=True)
             del document["skills"][name]
             self._write_registry(document)
             return {"name": name, "uninstalled": True}
@@ -1172,18 +1236,19 @@ class SkillRegistry:
             return None, f"skill '{name}' is not installed", "not_installed"
         if runtime_kind != "builtin":
             return None, f"runtime '{runtime_kind}' does not support Hutch skills", "runtime_unsupported"
-        status_value = self._status(entry, directory)
+        try:
+            parsed, _diagnostics, package_hash = inspect_package(directory, enforce_bounds=False)
+        except OSError:
+            return None, f"skill '{name}' could not be read", "unreadable"
+        if parsed is None or not package_hash:
+            return None, f"skill '{name}' could not be read", "unreadable"
+        status_value = self._status(entry, directory, current_hash=package_hash)
         if status_value == "modified":
             return None, f"skill '{name}' changed on disk and was withheld until review", "modified"
         if not entry.get("trust"):
             return None, f"skill '{name}' has not been reviewed and was not loaded", "unreviewed"
         if not entry.get("enabled"):
             return None, f"skill '{name}' is disabled and was not loaded", "disabled"
-        parsed, _diagnostics, package_hash = inspect_package(directory, enforce_bounds=False)
-        if parsed is None:
-            return None, f"skill '{name}' could not be read", "unreadable"
-        if package_hash != entry.get("hash"):
-            return None, f"skill '{name}' changed on disk and was withheld until review", "modified"
         tools = available_tools if available_tools is not None else self._available_tools_for(bot)
         missing_tools = [tool for tool in dict.fromkeys(parsed.requires_tools)
                          if tool not in tools and not set(self._expand_one(tool)) & tools]
@@ -1298,10 +1363,10 @@ class SkillRegistry:
     def wrapped_body(skill: ResolvedSkill) -> str:
         body = skill.body or ""
         lines = [
-            f'<skill_content name="{skill.name}" source="skill" hash="sha256:{skill.hash[:16]}">',
+            f'<skill_content name="{_xml_text(skill.name)}" source="skill" hash="sha256:{skill.hash[:16]}">',
             body.strip(),
             "",
-            f'Skill file: {skill.path}',
+            f'Skill file: {_xml_text(skill.path)}',
             'Relative paths in this skill resolve against its directory and can be read with '
             'use_skill(resource="…"). Its supporting files and scripts are not executed automatically: '
             'running a script requires writing it into the workspace and using the shell, under the '
@@ -1312,6 +1377,11 @@ class SkillRegistry:
 
 
 # ---------------------------------------------------------------- prompt helpers
+
+
+def _xml_text(value: str) -> str:
+    """Escape text that goes inside the prompt's XML-ish blocks so a description cannot close them."""
+    return (value or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def catalog_block(resolved: ResolvedSkills) -> str:
@@ -1326,7 +1396,8 @@ def catalog_block(resolved: ResolvedSkills) -> str:
         "<available_skills>",
     ]
     for skill in resolved.catalog:
-        lines.append(f"  <skill><name>{skill.name}</name><description>{skill.description}</description></skill>")
+        lines.append(f"  <skill><name>{_xml_text(skill.name)}</name>"
+                     f"<description>{_xml_text(skill.description)}</description></skill>")
     lines.append("</available_skills>")
     return "\n".join(lines)
 
@@ -1357,24 +1428,37 @@ def load_body_verified(skill: ResolvedSkill) -> tuple[bool, str]:
 
 
 def read_resource(skill: ResolvedSkill, relative: str) -> tuple[bool, str]:
-    """Read one bundled resource, confined to the skill's package directory."""
+    """Read one bundled resource, confined to the skill's package directory and hash-verified."""
     if not relative or not isinstance(relative, str):
         return False, "resource path is required"
-    pure = PurePosixPath(relative.replace("\\", "/"))
-    if pure.is_absolute() or any(part in ("..", "") for part in pure.parts) or str(pure) != relative.replace("\\", "/"):
+    if len(relative) > 512:
+        return False, "resource path is too long"
+    normalized = relative.replace("\\", "/")
+    pure = PurePosixPath(normalized)
+    if pure.is_absolute() or any(part in ("..", "") for part in pure.parts) or str(pure) != normalized:
         return False, "resource path must stay inside the skill directory"
-    package = Path(skill.path).parent.resolve()
-    candidate = (package / pure).resolve()
     try:
+        package = Path(skill.path).parent.resolve()
+        candidate = (package / pure).resolve()
         candidate.relative_to(package)
-    except ValueError:
+    except (OSError, ValueError):
         return False, "resource path must stay inside the skill directory"
-    if candidate.is_symlink() or not candidate.is_file():
-        return False, "no such resource file"
+    # The body is hash-verified before activation; resources get the same guarantee so a file that
+    # changed after the run resolved the skill is never served to the model.
+    if skill.hash:
+        try:
+            if content_hash(package) != skill.hash:
+                return False, "the skill changed on disk after this run started; the resource was not read"
+        except OSError:
+            return False, "the skill's files could not be read"
     try:
+        if candidate.is_symlink() or not candidate.is_file():
+            return False, "no such resource file"
         if candidate.stat().st_size > MAX_RESOURCE_BYTES:
             return False, f"resource is larger than the {MAX_RESOURCE_BYTES}-byte read limit"
         content = candidate.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
+    except (OSError, ValueError):
+        return False, "no such resource file"
+    except UnicodeDecodeError:
         return False, "resource is not readable UTF-8 text"
     return True, content

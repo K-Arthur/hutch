@@ -302,7 +302,10 @@
         ? detail.bound_bots.map(b => `<span class="skill-status tone-muted">${esc(b.display_name || b.name)}</span>`).join(" ")
         : `<span class="hint">Not assigned to any assistant.</span>`;
       const staged = detail.staged_update
-        ? `<p class="hint tone-info">Staged update ${esc(detail.staged_update.hash.slice(0, 12))} from ${esc(detail.staged_update.staged_at)}. Apply or discard it from the card.</p>` : "";
+        ? `<p class="hint tone-info">Staged update ${esc(detail.staged_update.hash.slice(0, 12))} from ${esc(detail.staged_update.staged_at)}.
+             The reviewed version stays active until you apply this from the card.</p>
+           ${detail.staged_body ? `<details class="skill-instructions" open><summary>Staged update instructions (what applying would activate)</summary>
+             <pre tabindex="0" aria-label="Staged skill instructions">${esc(detail.staged_body)}</pre></details>` : ""}` : "";
       const html = `
         <div class="skill-inspector">
           <div class="skill-inspector-head">${statusChip(detail.status)}

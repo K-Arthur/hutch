@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
@@ -200,6 +203,26 @@ def test_readiness_reports_skills_model_and_tools_separately(client):
     assert report["ready"] is False
     assert areas["skills"]["status"] == "missing"
     assert "not installed" in areas["skills"]["items"][0]["detail"]
+
+
+def test_readiness_survives_an_unreadable_skill_file(client, tmp_path):
+    install_builtin(client)
+    make_bot(client, name="locked-bot", skills=["workspace-summary"])
+    # locate the installed package through the API's own detail (state dir is the client fixture's tmp)
+    detail = client.get("/api/v1/skills/workspace-summary").json()
+    package = Path(detail["directory"])
+    (package / "notes.md").write_text("extra", encoding="utf-8")
+    client.post("/api/v1/skills/workspace-summary/recheck")
+    client.post("/api/v1/skills/workspace-summary/trust")
+    os.chmod(package / "notes.md", 0o000)
+    try:
+        response = client.get("/api/v1/bots/locked-bot/readiness")
+        assert response.status_code == 200, response.text
+        areas = {area["id"]: area for area in response.json()["areas"]}
+        assert areas["skills"]["status"] in {"warning", "missing"}
+        assert areas["skills"]["items"], "the unreadable skill is explained, not dropped"
+    finally:
+        os.chmod(package / "notes.md", 0o600)
 
 
 def test_readiness_explains_a_missing_connection_for_an_integration_skill(client):

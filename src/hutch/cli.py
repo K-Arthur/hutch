@@ -1794,6 +1794,9 @@ def skills_show(name: str = typer.Argument(...), body: bool = typer.Option(False
     if body and detail.get("body"):
         console.print("\n[bold]Instructions[/bold]\n")
         console.print(detail["body"])
+    if body and detail.get("staged_body"):
+        console.print("\n[bold]Staged update instructions (not active yet)[/bold]\n")
+        console.print(detail["staged_body"])
 
 
 @skills_app.command("validate")

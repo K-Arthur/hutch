@@ -25,8 +25,9 @@ class UseSkillTool(Tool):
     parameters = {
         "type": "object",
         "properties": {
-            "name": {"type": "string", "description": "The skill's name, exactly as listed in Available skills."},
-            "resource": {"type": "string",
+            "name": {"type": "string", "maxLength": 64,
+                      "description": "The skill's name, exactly as listed in Available skills."},
+            "resource": {"type": "string", "maxLength": 512,
                           "description": "Optional relative path of a bundled file to read, e.g. references/FORMS.md."},
         },
         "required": ["name"],

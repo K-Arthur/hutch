@@ -171,6 +171,39 @@ def test_use_skill_refuses_a_body_changed_after_run_start(store, config, tmp_pat
     assert not result.ok and "changed on disk" in result.output
 
 
+def test_use_skill_refuses_a_resource_changed_after_run_start(store, config, tmp_path):
+    source = tmp_path / "sources" / "helper"
+    source.mkdir(parents=True)
+    (source / "SKILL.md").write_text(VALID.format(name="helper", description="Helps."), encoding="utf-8")
+    (source / "references").mkdir()
+    (source / "references" / "guide.md").write_text("# Guide\nOriginal.", encoding="utf-8")
+    registry = sk.SkillRegistry(tmp_path / "state")
+    registry.install_path(source)
+    registry.trust("helper")
+    bot = Bot(name="tester", model="ollama/fake:8b", skills=["helper"], tools=["files"])
+    store.create_bot(bot)
+    ctx = make_ctx(store, config, tmp_path, bot)
+    ctx.skills = registry.effective_for_bot(bot)
+    tool = build_tools(bot.tools, ctx)["use_skill"]
+    (registry.package_path("helper") / "references" / "guide.md").write_text("# Guide\nTAMPERED.", encoding="utf-8")
+    result = tool.run({"name": "helper", "resource": "references/guide.md"}, ctx)
+    assert not result.ok and "changed on disk" in result.output
+    assert "TAMPERED" not in result.output
+
+
+def test_use_skill_hostile_resource_arguments_are_refused_not_raised(store, config, tmp_path):
+    registry = install_and_trust(tmp_path, "helper", "Helps.")
+    bot = Bot(name="tester", model="ollama/fake:8b", skills=["helper"], tools=["files"])
+    store.create_bot(bot)
+    ctx = make_ctx(store, config, tmp_path, bot)
+    ctx.skills = registry.effective_for_bot(bot)
+    tool = build_tools(bot.tools, ctx)["use_skill"]
+    for hostile in ("bad\u0000name.md", "a" * 300 + ".md", "..\\..\\etc\\passwd", "references/../../SKILL.md"):
+        result = tool.run({"name": "helper", "resource": hostile}, ctx)
+        assert not result.ok, hostile
+        assert "could not read" in result.output.lower() or "inside the skill directory" in result.output
+
+
 # ------------------------------------------------------------------- engine
 
 class _RecordingRuntime:
