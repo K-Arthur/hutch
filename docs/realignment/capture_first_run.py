@@ -63,8 +63,8 @@ async def capture(url: str, out: Path) -> None:
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
             await page.goto(url, wait_until="networkidle")
-            await page.get_by_text("No bots yet.", exact=True).wait_for(state="visible")
-            intro = page.get_by_text("Hutch will not create sample bots or simulate a run.", exact=False)
+            await page.get_by_text("No assistants yet — create one.", exact=True).wait_for(state="visible")
+            intro = page.get_by_text("If you need help choosing an AI service, Hutch can guide you.", exact=False)
             if not await intro.is_visible():
                 raise SystemExit(f"Refusing capture: real first-run explanation missing at {name}")
             overflow = await page.evaluate("document.documentElement.scrollWidth - innerWidth")
