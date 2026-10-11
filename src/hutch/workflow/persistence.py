@@ -1,7 +1,8 @@
 """Durable state for dynamic workflows.
 
 Migration schema v53 adds workflow tables and one ``runs`` column; schema v54 adds
-effect-receipt identities and workflow-question generation fields. Every write here
+effect-receipt identities and workflow-question generation fields; schema v55 binds
+provider usage reservations to the root workflow. Every write here
 goes through the owning :class:`hutch.store.Store` transaction and lock, so workflow
 state is in the same SQLite file, the same durability rules and the same resource
 outbox as the rest of Hutch.
@@ -124,6 +125,28 @@ def migrate(db: sqlite3.Connection) -> None:
     if "kind" not in columns:
         db.execute("ALTER TABLE runs ADD COLUMN kind TEXT NOT NULL DEFAULT 'attempt'")
     db.execute("CREATE INDEX IF NOT EXISTS idx_runs_kind_status ON runs(kind, status)")
+
+
+def migrate_usage_reservations(db: sqlite3.Connection) -> None:
+    """Bind provider attempts to workflow roots and conservatively mark legacy starts."""
+    columns = {str(row[1]) for row in db.execute("PRAGMA table_info(usage_reservations)")}
+    if "workflow_run_id" not in columns:
+        db.execute("ALTER TABLE usage_reservations ADD COLUMN workflow_run_id TEXT NOT NULL DEFAULT ''")
+    if "request_started_at" not in columns:
+        db.execute("ALTER TABLE usage_reservations ADD COLUMN request_started_at TEXT")
+    db.execute("""UPDATE usage_reservations
+                  SET workflow_run_id = COALESCE((SELECT CASE WHEN json_valid(r.doc)
+                                                              THEN json_extract(r.doc, '$.workflow_run_id')
+                                                              ELSE '' END
+                                                  FROM runs r WHERE r.id = usage_reservations.run_id), '')
+                  WHERE workflow_run_id = ''""")
+    # Settled and unresolved reservations were created immediately before provider dispatch
+    # in the old runtime. Count them as started when preserving the root allowance.
+    db.execute("""UPDATE usage_reservations SET request_started_at = created_at
+                  WHERE request_started_at IS NULL AND status IN ('reserved', 'uncertain', 'settled')""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_usage_reservations_workflow "
+               "ON usage_reservations(workflow_run_id, status, request_started_at) "
+               "WHERE workflow_run_id != ''")
 
 
 # --------------------------------------------------------------------------- helpers

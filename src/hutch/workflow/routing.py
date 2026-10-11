@@ -27,13 +27,13 @@ MODES = ("off", "suggest", "auto")
 
 #: The budget keys an auto scope may cap, with the same bounds the plan schema enforces.
 #: Derived from the compiler's ceilings so raising one cannot leave this validator stale.
-AUTO_CAPS = ("max_nodes", "max_model_calls", "max_wall_seconds", "max_fanout")
+AUTO_CAPS = ("max_nodes", "max_model_calls", "max_tokens", "max_wall_seconds", "max_fanout")
 
 
 def _cap_bounds(key: str) -> tuple[int, int]:
     from .plan import CEILINGS
 
-    low = 0 if key == "max_model_calls" else 1
+    low = 0 if key in ("max_model_calls", "max_tokens") else 1
     return low, int(CEILINGS[key])
 
 
@@ -74,12 +74,12 @@ def recommend(*, signals: dict[str, Any], saved_workflow: str = "") -> Recommend
                               "later work depends on what earlier steps find, so the shape cannot be "
                               "fixed in advance",
                               simpler="one fan-out with a fixed list, if the items are already known",
-                              bounds={"max_fanout": 20})
+                              bounds={"max_fanout": 8})
     if on("independent_items") and on("known_inputs"):
         return Recommendation("bounded_fanout",
                               "several independent items can be processed in one bounded fan-out and joined",
                               simpler="a handful of direct tool calls, if there are only a few items",
-                              bounds={"max_fanout": 20})
+                              bounds={"max_fanout": 8})
     workflow_shaped = any(on(name) for name in
                           ("independent_items", "needs_verification", "repeatable_procedure",
                            "depends_on_results"))

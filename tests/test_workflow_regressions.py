@@ -41,7 +41,7 @@ def test_agent_step_runs_under_the_process_executor(store, config, ollama):
     plan = {
         "name": "proc-step",
         "envelope": {"tools": ["list_files"], "models": ["ollama/tiny:1b"]},
-        "budget": {"max_nodes": 6, "max_model_calls": 1, "max_wall_seconds": 120},
+        "budget": {"max_nodes": 6, "max_model_calls": 4, "max_wall_seconds": 120},
         "nodes": [{"kind": "agent", "id": "answer", "model": "ollama/tiny:1b",
                    "instruction": "List the workspace and answer.", "tools": ["list_files"],
                    "max_steps": 3}],
@@ -66,7 +66,7 @@ def test_step_contract_widening_under_the_process_executor(store, config, ollama
     plan = {
         "name": "proc-narrow",
         "envelope": {"tools": ["list_files"], "models": ["ollama/tiny:1b"]},
-        "budget": {"max_nodes": 6, "max_model_calls": 1, "max_wall_seconds": 60},
+        "budget": {"max_nodes": 6, "max_model_calls": 4, "max_wall_seconds": 60},
         "nodes": [{"kind": "agent", "id": "answer", "model": "ollama/tiny:1b",
                    "instruction": "Answer.", "tools": ["list_files"], "max_steps": 2}],
     }
@@ -92,7 +92,7 @@ def test_a_step_runs_on_the_model_its_node_declared(store, config, ollama):
     plan = {
         "name": "declared-model",
         "envelope": {"tools": [], "models": ["ollama/tiny:1b"]},
-        "budget": {"max_nodes": 6, "max_model_calls": 1, "max_wall_seconds": 60},
+        "budget": {"max_nodes": 6, "max_model_calls": 4, "max_wall_seconds": 60},
         "nodes": [{"kind": "agent", "id": "answer", "model": "ollama/tiny:1b",
                    "instruction": "Answer.", "max_steps": 2}],
     }
@@ -384,7 +384,7 @@ def test_a_crash_between_opening_a_node_and_admitting_its_step_recovers(store, c
     plan = {
         "name": "recover-step",
         "envelope": {"tools": [], "models": ["ollama/tiny:1b"]},
-        "budget": {"max_nodes": 6, "max_model_calls": 1, "max_wall_seconds": 60},
+        "budget": {"max_nodes": 6, "max_model_calls": 4, "max_wall_seconds": 60},
         "nodes": [{"kind": "agent", "id": "answer", "model": "ollama/tiny:1b",
                    "instruction": "Answer.", "max_steps": 2}],
     }

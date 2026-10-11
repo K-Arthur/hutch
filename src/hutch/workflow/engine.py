@@ -686,8 +686,8 @@ class Interpreter:
                                  requires_structured_output=output_schema is not None)
         if not verdict.allowed:
             raise WorkflowFailed(cnode.site_id, f"role blocked: {verdict.summary()}")
+        self._check_model_request_budget(cnode.site_id)
         self._spend(cnode.site_id, "nodes")
-        self._spend(cnode.site_id, "model_calls")
         self._emit(EventType.log, {"node": cnode.site_id, "instance": instance_key,
                                    "note": f"dispatching {role} step on {spec}",
                                    "model_state": verdict.state,
@@ -788,14 +788,13 @@ class Interpreter:
         return model
 
     def _spend(self, site_id: str, key: str) -> None:
-        """Charge one unit against a root-level allowance.
+        """Charge one deterministic unit against a root-level allowance.
 
-        A declared limit of ``0`` means *none* - the same rule ``max_repairs`` already
-        followed - so a plan can promise "no model calls at all" and be held to it. A
-        missing key means "no limit" (the plan schema always supplies one).
+        Provider requests are charged at the durable usage-reservation boundary, not when
+        a worker node is admitted. A declared zero model-call limit is checked before
+        dispatch here and enforced transactionally again for every actual request.
         """
-        limit_key = {"nodes": "max_nodes", "model_calls": "max_model_calls",
-                     "repairs": "max_repairs"}[key]
+        limit_key = {"nodes": "max_nodes", "repairs": "max_repairs"}[key]
         used = int(self.ledger.get(key, 0)) + 1
         limit = self.budget.get(limit_key)
         if limit is not None and used > int(limit):
@@ -804,6 +803,15 @@ class Interpreter:
         wstore.update_workflow_run(self.store, self.wf_id, attempt_run_id=self.run.id,
                                    owner_fence=self.run.fence, revision_id=self.revision_id,
                                    ledger=self.ledger)
+
+    def _check_model_request_budget(self, site_id: str) -> None:
+        """Avoid launching a worker when no request remains; reservations are the race-safe gate."""
+        limit = int(self.budget.get("max_model_calls", 12))
+        used = int(self.ledger.get("model_calls", 0))
+        if used >= limit:
+            raise WorkflowFailed(site_id,
+                                 f"the workflow's max_model_calls budget is exhausted ({limit} actual requests; "
+                                 f"{used} already started)")
 
     def _record_container(self, cnode: CompiledNode, result: Any) -> None:
         """Record a bounded construct's own aggregate, so the plan view shows real state."""

@@ -83,8 +83,9 @@ def test_agent_node_releases_its_slot_while_its_child_step_runs(store, config, o
     published = view["workflow"]["result"]["artifacts"]
     assert published and published[0]["name"] == "answer"
     assert published[0]["bytes"] > 0
-    # Usage from the step is accounted on the step run, not invented for the workflow.
-    assert view["workflow"]["ledger"].get("model_calls", 0) == 1
+    # Every provider request (the tool-call turn and the post-result turn) is charged
+    # to the root workflow, rather than counting this worker node as one call.
+    assert view["workflow"]["ledger"].get("model_calls", 0) == 2
 
 
 def test_agent_step_output_contract_is_enforced_and_fails_honestly(store, config, ollama):

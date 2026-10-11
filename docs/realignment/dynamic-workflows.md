@@ -143,10 +143,10 @@ download/read-back.
 
 | Area | State | Evidence |
 |---|---|---|
-| Plan schema, bounded evaluator, compiler | implemented, verified | `tests/test_workflow_plan.py` (18): identity, reference scope, envelope membership, nesting/cardinality expansion, fail-closed schema certification, strictness |
+| Plan schema, bounded evaluator, compiler | implemented, verified | `tests/test_workflow_plan.py` (19): identity, reference scope, envelope membership, nesting/cardinality expansion, default limits, fail-closed schema certification, strictness |
 | Role capability gate + durable evidence | implemented, verified (mechanism) | `tests/test_workflow_qualify.py` (14), `tests/test_workflow_api.py` qualification routes |
 | Durable execution: interpreter, step runs, continuation, lanes | implemented, verified | `tests/test_workflow_engine.py` + `tests/test_workflow_regressions.py`: deterministic run, artifact publication + tamper-detecting read-back, settled-node reuse, workflow lane, question parking, expiry, branch/map/repeat/join identity, stop semantics and cleanup |
-| Model steps as real child runs (scripted local HTTP server, thread **and** process executor) | implemented, verified on the wire path | `tests/test_workflow_steps.py` + `tests/test_workflow_regressions.py`: own transcript/workspace/tool calls, declared model binding, frozen contract, output-contract enforcement, zero-call budgets, re-admission, and child survival while its workflow parent is parked |
+| Model steps as real child runs (scripted local HTTP server, thread **and** process executor) | implemented, verified on the wire path | `tests/test_workflow_steps.py` + `tests/test_workflow_regressions.py`: own transcript/workspace/tool calls, declared model binding, frozen contract, output-contract enforcement, zero-call budgets, root charging for both tool-call and final-answer requests, re-admission, and child survival while its workflow parent is parked |
 | Submission gates (inputs, envelope-vs-Bot, local-only, role) | implemented, verified | `tests/test_workflow_engine.py`, `tests/test_workflow_api.py` |
 | Typed API + CLI | implemented, verified | `tests/test_workflow_api.py` (11) and `tests/test_workflow_cli.py` (4); the acceptance capture also drives the CLI end to end |
 | Routing policy Off/Suggest/Auto | implemented, verified (rules) | `tests/test_workflow_routing.py` (9); an automatic start is scope-checked at submission, and the gate is bound to the Bot's endpoint, not just provider+model |
@@ -215,15 +215,14 @@ flowchart LR
   Events --> Views[Chat, Studio, paired-phone projections]
 ```
 
-At this baseline, persisted identity and ownership exist, but several workflow mutations do not
-yet prove the current attempt/generation at write time. A wait can still occupy orchestration
-capacity, and an effect receipt can be separated from node settlement by a process crash. These
-are explicit A1 failures below, not properties inferred from the diagram.
+The A1 fixes now fence workflow mutations to the active attempt/generation, park waits outside
+orchestration capacity, and persist stable effect receipts across a crash window. The remaining
+A1 gap is canonical event/outbox delivery when recording execution history fails.
 
 | ID | Acceptance boundary | Baseline state and evidence pointer |
 |---|---|---|
 | A0 | Merge local main and workflow work; reconcile schema histories and recover from interrupted migration | Verified in commit `488200f`; main v51, workflow v51/v52, rollback, backup and retry: `tests/test_migration.py` (32 passed with CSV acceptance). |
-| A1 | Fence recovery, questions, nodes and callbacks; prevent duplicate effects; charge every request; park waits; fair capacity; truthful Stop and event delivery | Partial. Recovery selection, node/question owner checks, stable effect receipts, uncertain-action reconciliation, durable wait parking, child survival during parking, parked Stop cleanup, and scalar/array/null/falsy projections are covered. Root-wide model request accounting and event failure handling remain open. Regressions: `test_recovery_query_uses_cutoff_before_terminal_status_values`, `test_stale_workflow_attempt_cannot_replace_the_current_owner`, `test_stale_or_expired_workflow_owner_cannot_mutate_node_or_question`, `test_question_waits_and_is_answered_by_its_own_id`, `test_stopping_a_parked_workflow_finishes_after_cleanup_and_cancels_questions`, `test_completed_effect_result_replays_without_a_second_dispatch`, `test_uncertain_effect_requires_reconciliation_before_retry`, `test_model_step_effect_identity_is_bound_to_the_parked_parent_generation`, `test_run_detail_preserves_scalar_array_null_and_falsy_node_values`, `test_agent_step_runs_under_the_process_executor`. |
+| A1 | Fence recovery, questions, nodes and callbacks; prevent duplicate effects; charge every request; park waits; fair capacity; truthful Stop and event delivery | Partial. Recovery selection, node/question owner checks, stable effect receipts, uncertain-action reconciliation, durable wait parking, child survival during parking, parked Stop cleanup, scalar/array/null/falsy projections, root-wide request/token reservations (including uncached local context self-checks), request-start recovery and process-executor paths are covered. Canonical event-delivery failure handling remains open. Regressions: `test_recovery_query_uses_cutoff_before_terminal_status_values`, `test_stale_workflow_attempt_cannot_replace_the_current_owner`, `test_stale_or_expired_workflow_owner_cannot_mutate_node_or_question`, `test_question_waits_and_is_answered_by_its_own_id`, `test_stopping_a_parked_workflow_finishes_after_cleanup_and_cancels_questions`, the three tests in `tests/test_workflow_effect_receipts.py`, `tests/test_workflow_usage_budget.py`, `test_run_detail_preserves_scalar_array_null_and_falsy_node_values`, and `test_agent_step_runs_under_the_process_executor`. |
 | A2 | Exact capability identity, tested scope, negative evidence, bounded disposable probes, no acknowledgement-made qualification | Partial mechanism only; no actual checkpoint is yet qualified. Planned evidence scope is per backend/template/context/decoding profile and task role. |
 | A3 | Strict dynamic plan validation, repair adoption and recheck, explicit join policies, honest result categories, amendment preview/adoption and reuse rules | Interpreter exists; listed semantics remain open until regression tests exercise them. Generated code remains unsupported. |
 | A4 | New assistants default to Suggest; server-persisted conversation policy; rules plus eligible model-turn recommendations; explicit reviewed Auto | Per-Bot routing exists; conversation default, overrides, chat path and scope-complete API remain open. |
@@ -231,6 +230,12 @@ are explicit A1 failures below, not properties inferred from the diagram.
 | A6 | Preserve the existing “How it helps” journey; evidence-backed workflow explanation, availability and FAQ | Open. No availability or qualification claim may move beyond linked local evidence. |
 | A7 | Ollama 0.40.3, private storage/process, Qwen3 1.7b and 4b Q4_K_M candidate probes within the user-authorized request/time/token/download/storage bounds | Authorized and not started at this baseline. There is no installed or active Ollama process and no candidate is qualified. |
 | A8 | Focused and broad runtime checks, browser/app/site visual captures at 320/360/768/1440, interaction/accessibility and soak evidence; classify exercised role combinations | Open. Visual capture must be opened and observed, not accepted from a file's existence. |
+
+The request-budget slice passed its broad compatibility set on 2026-10-11: 237 passed in
+102.91 s across usage-budget, step, engine, regression, plan, routing, API, CLI, reservation,
+built-in runtime, provider authority, local admission and migration tests. The run used the
+worktree's Python 3.13 environment and a private `TMPDIR` because the shared `/tmp` tmpfs had
+previously filled; no files from other processes were removed.
 
 ### Baseline environment and measured path
 

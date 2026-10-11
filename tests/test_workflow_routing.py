@@ -36,7 +36,7 @@ def test_repeatable_procedure_prefers_a_saved_workflow():
 
 def test_fanout_and_branching_need_structure_not_length():
     fan = routing.recommend(signals={"independent_items": True, "known_inputs": True})
-    assert fan.route == "bounded_fanout" and fan.bounds["max_fanout"] == 20
+    assert fan.route == "bounded_fanout" and fan.bounds["max_fanout"] == 8
     branch = routing.recommend(signals={"independent_items": True, "depends_on_results": True,
                                         "known_inputs": True})
     assert branch.route == "dynamic_branch"
@@ -66,10 +66,11 @@ def test_auto_is_refused_unless_the_operator_opted_in(store):
 def test_auto_respects_definitions_activation_and_caps(store):
     auto = bot(store, name="route-auto", workflow_mode="auto",
                workflow_limits={"definitions": ["weekly-report"], "max_nodes": 50,
-                                "max_model_calls": 5, "max_wall_seconds": 600, "max_fanout": 10})
+                                "max_model_calls": 5, "max_tokens": 48_000,
+                                "max_wall_seconds": 600, "max_fanout": 10})
     ok, why = routing.check_auto(bot=auto, definition={"active": True},
                                  budget={"max_nodes": 20, "max_model_calls": 2,
-                                         "max_wall_seconds": 60, "max_fanout": 5},
+                                         "max_tokens": 32_000, "max_wall_seconds": 60, "max_fanout": 5},
                                  plan_name="weekly-report")
     assert ok, why
     refused, why = routing.check_auto(bot=auto, definition={"active": True},
@@ -77,6 +78,10 @@ def test_auto_respects_definitions_activation_and_caps(store):
                                               "max_wall_seconds": 60, "max_fanout": 5},
                                       plan_name="weekly-report")
     assert not refused and "max_nodes" in why
+    refused, why = routing.check_auto(bot=auto, definition={"active": True},
+                                      budget={"max_nodes": 5, "max_tokens": 64_000},
+                                      plan_name="weekly-report")
+    assert not refused and "max_tokens" in why
     refused, why = routing.check_auto(bot=auto, definition={"active": True},
                                       budget={"max_nodes": 5}, plan_name="something-else")
     assert not refused and "preauthorized definitions" in why

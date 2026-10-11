@@ -173,15 +173,18 @@ def _run_with_receipt(tool: Tool, name: str, args: dict[str, Any], ctx: ToolCont
     key = hashlib.sha256(f"{run.id}|{name}|{json.dumps(recorded, sort_keys=True, default=str)}".encode()).hexdigest()[:24]
     began: dict[str, Any] = {}
     workflow_identity = ctx.workflow_action_identity
-    if workflow_identity is None and isinstance(run.workflow_step, dict):
-        step = run.workflow_step
+    inherited_identity = (run.workflow_step if isinstance(run.workflow_step, dict)
+                          else run.workflow_context if isinstance(run.workflow_context, dict) else None)
+    if workflow_identity is None and inherited_identity is not None:
+        step = inherited_identity
         if all(isinstance(step.get(key), str) and step.get(key) for key in
                ("workflow_run_id", "revision_id", "site_id", "instance_key")):
             call_index = ctx.tool_call_index if isinstance(ctx.tool_call_index, int) else 0
+            prefix = "" if isinstance(run.workflow_step, dict) else f"{step.get('slot', 'child')}:run:{run.id}:"
             workflow_identity = {
                 "workflow_run_id": step["workflow_run_id"], "revision_id": step["revision_id"],
                 "site_id": step["site_id"], "instance_key": step["instance_key"],
-                "slot": f"turn:{max(0, run.steps)}:call:{max(0, call_index)}:{name}",
+                "slot": f"{prefix}turn:{max(0, run.steps)}:call:{max(0, call_index)}:{name}",
             }
     ctx.gate.last_authorization = None
 

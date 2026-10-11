@@ -1408,6 +1408,12 @@ def _migrate_54(db: sqlite3.Connection) -> None:
     action_receipts.migrate_workflow_identity(db)
 
 
+def _migrate_55(db: sqlite3.Connection) -> None:
+    """Bind usage reservations to workflow roots for crash-safe request/token budgets."""
+    from .workflow import persistence
+    persistence.migrate_usage_reservations(db)
+
+
 #: schema upgrades applied in order; index + 2 == resulting user_version
 _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migrate_7, _migrate_8, _migrate_9, _migrate_10,
                _migrate_11, _migrate_12, _migrate_13, _migrate_14, _migrate_15, _migrate_16, _migrate_17, _migrate_18,
@@ -1415,7 +1421,8 @@ _MIGRATIONS = [_migrate_2, _migrate_3, _migrate_4, _migrate_5, _migrate_6, _migr
                _migrate_27, _migrate_28, _migrate_29, _migrate_30, _migrate_31, _migrate_32, _migrate_33,
                _migrate_34, _migrate_35, _migrate_36, _migrate_37, _migrate_38, _migrate_39, _migrate_40,
                _migrate_41, _migrate_42, _migrate_43, _migrate_44, _migrate_45, _migrate_46, _migrate_47,
-               _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54]
+               _migrate_48, _migrate_49, _migrate_50, _migrate_51, _migrate_52, _migrate_53, _migrate_54,
+               _migrate_55]
 SCHEMA_VERSION = 1 + len(_MIGRATIONS)
 
 #: computed fields of ``Run`` are for API output only and are never persisted
@@ -3140,7 +3147,7 @@ class Store:
 
             parent = db.execute("SELECT id, bot_id, status, fence, lease_owner, lease_expires_at, cancel_requested, "
                                 "conversation_id, conversation_context, parent_run_id, delegation_budget_cost_usd, "
-                                "capability_snapshot_json "
+                                "capability_snapshot_json, doc "
                                 "FROM runs WHERE id = ?",
                                 (parent_run_id,)).fetchone()
             if parent is None:
@@ -3187,6 +3194,26 @@ class Store:
             run.delegation_budget_cost_usd = delegated_budget
             run.origin = "delegated"
             run.task_id = task.id
+            try:
+                parent_doc = json.loads(str(parent["doc"]))
+            except (TypeError, json.JSONDecodeError):
+                raise ValueError("delegation parent workflow metadata is unavailable") from None
+            parent_workflow_id = str(parent_doc.get("workflow_run_id") or "")
+            if parent_workflow_id:
+                if run.workflow_run_id and run.workflow_run_id != parent_workflow_id:
+                    raise ValueError("delegated child workflow identity does not match its parent")
+                inherited = (run.workflow_context or parent_doc.get("workflow_step")
+                             or parent_doc.get("workflow_context"))
+                if (not isinstance(inherited, dict)
+                        or any(not isinstance(inherited.get(key), str) or not inherited.get(key)
+                               for key in ("workflow_run_id", "revision_id", "site_id", "instance_key"))):
+                    raise ValueError("workflow descendants need a node identity for root-budget accounting")
+                if str(inherited.get("workflow_run_id")) != parent_workflow_id:
+                    raise ValueError("delegated child node identity does not match its workflow")
+                run.workflow_run_id = parent_workflow_id
+                run.workflow_context = dict(inherited)
+            elif run.workflow_context:
+                raise ValueError("a delegated child cannot invent workflow context")
             run.conversation_id = parent["conversation_id"] or ""
             # Delegation shares only its explicit task. Prior user/assistant turns may contain
             # unrelated private context and must not be copied into a child prompt.
@@ -5320,11 +5347,20 @@ class Store:
                                          "decided_by": decided_by})
             db.execute("UPDATE approvals SET status = 'expired', doc = json_patch(doc, ?) "
                        "WHERE run_id = ? AND status = 'pending'", (approval_patch, run_id))
-            # A crash can leave a reservation between admission and usage settlement. With no live caller to
-            # verify the outcome, keep it held until an operator reconciles the provider record.
-            db.execute("UPDATE usage_reservations SET status = 'uncertain', reason = "
-                       "CASE WHEN reason = '' THEN 'run ended before provider usage was settled' ELSE reason END "
-                       "WHERE run_id = ? AND status = 'reserved'", (run_id,))
+            # A pre-dispatch reservation is provably not a provider request. Once the
+            # request-start marker is durable, a crash leaves an uncertain charge that
+            # remains held until explicit reconciliation.
+            db.execute("UPDATE usage_reservations SET "
+                       "status = CASE WHEN request_started_at IS NULL THEN 'released' ELSE 'uncertain' END, "
+                       "resolved_at = CASE WHEN request_started_at IS NULL THEN ? ELSE NULL END, "
+                       "reason = CASE WHEN request_started_at IS NULL THEN 'run ended before provider dispatch' "
+                       "WHEN reason = '' THEN 'run ended before provider usage was settled' ELSE reason END "
+                       "WHERE run_id = ? AND status = 'reserved'", (terminal_at, run_id))
+            workflow_ids = [str(item[0]) for item in db.execute(
+                "SELECT DISTINCT workflow_run_id FROM usage_reservations "
+                "WHERE run_id = ? AND workflow_run_id != ''", (run_id,))]
+            for workflow_id in workflow_ids:
+                self._sync_workflow_usage_ledger(db, workflow_id)
             task_state = {RunStatus.succeeded: "done", RunStatus.skipped: "cancelled",
                           RunStatus.stopped: "cancelled"}.get(to, "failed")
             db.execute("UPDATE tasks SET state = ?, done = 1 WHERE run_id = ? OR id = ?",
@@ -5803,6 +5839,9 @@ class Store:
         kind = db.execute("SELECT kind, parent_run_id FROM runs WHERE id = ?", (run_id,)).fetchone()
         if kind is None:
             raise LeaseLost(run_id, "workflow action run disappeared")
+        if str(kind["kind"]) == "attempt" and kind["parent_run_id"]:
+            Store._assert_workflow_descendant_owner(db, run_id, run_doc, str(kind["parent_run_id"]), identity)
+            return
         if str(kind["kind"]) == "workflow":
             if (str(workflow["attempt_run_id"]) != run_id or str(workflow["status"]) != "running"):
                 raise LeaseLost(run_id, "workflow action attempt is no longer current")
@@ -5824,6 +5863,46 @@ class Store:
             raise LeaseLost(run_id, "workflow step's parent attempt is no longer current")
         if str(parent["status"]) == "waiting_workflow" and str(workflow["status"]) != "waiting":
             raise LeaseLost(run_id, "parked workflow step is not authorized by the waiting instance")
+
+    @staticmethod
+    def _assert_workflow_descendant_owner(db: sqlite3.Connection, run_id: str, run_doc: dict[str, Any],
+                                          parent_run_id: str, identity: dict[str, str]) -> None:
+        """Fence delegated descendants to the current workflow node and live parent chain."""
+        from .lifecycle import LeaseLost
+
+        context = run_doc.get("workflow_context")
+        keys = ("workflow_run_id", "revision_id", "site_id", "instance_key")
+        if (not isinstance(context, dict)
+                or any(not isinstance(context.get(key), str) or not context.get(key) for key in keys)
+                or any(str(context.get(key)) != identity[key] for key in keys)):
+            raise LeaseLost(run_id, "delegated workflow child has no matching inherited node identity")
+        workflow_id = identity["workflow_run_id"]
+        ancestor_id = parent_run_id
+        seen: set[str] = set()
+        while ancestor_id and ancestor_id not in seen:
+            seen.add(ancestor_id)
+            ancestor = db.execute(f"SELECT bot_id, {_RUN_COLS} FROM runs WHERE id = ?",
+                                  (ancestor_id,)).fetchone()
+            if ancestor is None:
+                break
+            ancestor_kind = db.execute("SELECT kind, parent_run_id FROM runs WHERE id = ?",
+                                       (ancestor_id,)).fetchone()
+            if ancestor_kind is None:
+                break
+            if (str(ancestor["status"]) not in (RunStatus.running.value, RunStatus.waiting_workflow.value)
+                    or int(ancestor["cancel_requested"])):
+                raise LeaseLost(run_id, "a delegated workflow ancestor is no longer active")
+            try:
+                ancestor_doc = json.loads(str(ancestor["doc"]))
+            except (TypeError, json.JSONDecodeError):
+                raise LeaseLost(run_id, "delegated workflow ancestry is unavailable") from None
+            if str(ancestor_doc.get("workflow_run_id") or "") != workflow_id:
+                raise LeaseLost(run_id, "delegated workflow ancestry changed instances")
+            if str(ancestor_kind["kind"]) in ("workflow", "step"):
+                Store._assert_workflow_action_owner(db, ancestor_id, ancestor, identity)
+                return
+            ancestor_id = str(ancestor_kind["parent_run_id"] or "")
+        raise LeaseLost(run_id, "delegated workflow request has no current workflow owner")
 
     @staticmethod
     def _action_owner(row, run_id, fence):
@@ -7241,6 +7320,99 @@ class Store:
 
     # -------------------------------------------------------------- usage
 
+    @staticmethod
+    def _workflow_usage_scope(db: sqlite3.Connection, run_id: str,
+                              run_row: sqlite3.Row, run_doc: dict[str, Any]) -> Optional[dict[str, Any]]:
+        """Validate a model request against the active root workflow generation, if any."""
+        from .lifecycle import LeaseLost
+
+        workflow_id = str(run_doc.get("workflow_run_id") or "")
+        if not workflow_id:
+            return None
+        workflow = db.execute("SELECT revision_id, attempt_run_id, status, stop_requested, budget_json, ledger_json "
+                              "FROM workflow_runs WHERE id = ?", (workflow_id,)).fetchone()
+        if (workflow is None or int(workflow["stop_requested"])
+                or str(workflow["status"]) not in ("running", "waiting")):
+            raise LeaseLost(run_id, "workflow model request is no longer admitted")
+        kind = db.execute("SELECT kind, parent_run_id FROM runs WHERE id = ?", (run_id,)).fetchone()
+        if kind is None:
+            raise LeaseLost(run_id, "workflow model request run disappeared")
+        if str(kind["kind"]) == "workflow":
+            if (str(workflow["attempt_run_id"]) != run_id or str(workflow["status"]) != "running"
+                    or RunStatus(run_row["status"]) is not RunStatus.running):
+                raise LeaseLost(run_id, "workflow model request attempt is no longer current")
+        elif str(kind["kind"]) == "step":
+            step = run_doc.get("workflow_step")
+            if not isinstance(step, dict):
+                raise LeaseLost(run_id, "workflow model request has no frozen node identity")
+            identity = {
+                "workflow_run_id": workflow_id,
+                "revision_id": str(step.get("revision_id") or ""),
+                "site_id": str(step.get("site_id") or ""),
+                "instance_key": str(step.get("instance_key") or ""),
+                "slot": "model-request",
+            }
+            Store._assert_workflow_action_owner(db, run_id, run_row, identity)
+        elif str(kind["kind"]) == "attempt" and kind["parent_run_id"]:
+            context = run_doc.get("workflow_context")
+            if (not isinstance(context, dict)
+                    or any(not isinstance(context.get(key), str) or not context.get(key)
+                           for key in ("workflow_run_id", "revision_id", "site_id", "instance_key"))
+                    or str(context.get("workflow_run_id")) != workflow_id):
+                raise LeaseLost(run_id, "delegated workflow request has no inherited node identity")
+            identity = {key: str(context[key]) for key in
+                        ("workflow_run_id", "revision_id", "site_id", "instance_key")}
+            identity["slot"] = str(context.get("slot") or "model-request")
+            Store._assert_workflow_action_owner(db, run_id, run_row, identity)
+        else:
+            raise LeaseLost(run_id, "only the workflow owner, a step, or its delegated descendants may reserve model usage")
+        try:
+            budget = json.loads(str(workflow["budget_json"] or "{}"))
+            ledger = json.loads(str(workflow["ledger_json"] or "{}"))
+        except (TypeError, json.JSONDecodeError):
+            raise LeaseLost(run_id, "workflow budget record is unavailable") from None
+        if not isinstance(budget, dict) or not isinstance(ledger, dict):
+            raise LeaseLost(run_id, "workflow budget record is malformed")
+        return {"id": workflow_id, "revision_id": str(workflow["revision_id"]),
+                "attempt_run_id": str(workflow["attempt_run_id"]), "budget": budget, "ledger": ledger}
+
+    @staticmethod
+    def _workflow_usage_totals(db: sqlite3.Connection, workflow_id: str, *, held: bool) -> tuple[int, int]:
+        """Return request and token commitments (or started usage) for the whole workflow tree."""
+        if held:
+            request_condition = "request_started_at IS NOT NULL OR status IN ('reserved','uncertain','settled')"
+            token_condition = "status IN ('reserved','uncertain') OR request_started_at IS NOT NULL"
+        else:
+            request_condition = "request_started_at IS NOT NULL"
+            token_condition = "request_started_at IS NOT NULL"
+        row = db.execute(
+            f"""SELECT COUNT(*) AS calls,
+                       COALESCE(SUM(CASE
+                         WHEN status = 'settled' AND actual_prompt_tokens IS NOT NULL
+                              AND actual_completion_tokens IS NOT NULL
+                           THEN actual_prompt_tokens + actual_completion_tokens
+                         WHEN {token_condition} THEN reserved_tokens ELSE 0 END), 0) AS tokens
+                FROM usage_reservations WHERE workflow_run_id = ? AND ({request_condition})""",
+            (workflow_id,)).fetchone()
+        return int(row["calls"] or 0), int(row["tokens"] or 0)
+
+    @staticmethod
+    def _sync_workflow_usage_ledger(db: sqlite3.Connection, workflow_id: str) -> None:
+        row = db.execute("SELECT ledger_json FROM workflow_runs WHERE id = ?", (workflow_id,)).fetchone()
+        if row is None:
+            return
+        try:
+            ledger = json.loads(str(row["ledger_json"] or "{}"))
+        except (TypeError, json.JSONDecodeError):
+            return
+        if not isinstance(ledger, dict):
+            return
+        calls, tokens = Store._workflow_usage_totals(db, workflow_id, held=False)
+        ledger["model_calls"] = calls
+        ledger["model_tokens"] = tokens
+        db.execute("UPDATE workflow_runs SET ledger_json = ?, updated_at = ? WHERE id = ?",
+                   (json.dumps(ledger, sort_keys=True, ensure_ascii=False), iso(utcnow()), workflow_id))
+
     def reserve_usage(self, *, run_id: str, bot_id: str, provider: str, account_id: str, model: str,
                       reserved_tokens: int, reserved_cost_usd: float, daily_token_cap: int = 0,
                       max_run_cost_usd: float = 0.0, daily_bot_cost_cap_usd: float = 0.0,
@@ -7294,6 +7466,7 @@ class Store:
             if run_doc_row["cancel_requested"] or RunStatus(run_doc_row["status"]) in (RunStatus.cancelling, RunStatus.recovering):
                 raise LeaseLost(run_id, "the run is stopping or recovering; no new provider call may start")
             legacy_run = json.loads(run_doc_row["doc"])
+            workflow_scope = self._workflow_usage_scope(db, run_id, run_doc_row, legacy_run)
             ledger_run_cost, _ = totals(
                 "SELECT SUM(cost_usd) AS cost, SUM(prompt_tokens + completion_tokens) AS tokens "
                 "FROM usage WHERE run_id = ?", (run_id,))
@@ -7350,6 +7523,20 @@ class Store:
                         f"the next call could pass this delegated run tree's ${float(tree_cap):.2f} cap; "
                         f"${tree_total:.4f} is spent or reserved")
 
+            if workflow_scope is not None:
+                used_calls, used_tokens = self._workflow_usage_totals(
+                    db, workflow_scope["id"], held=True)
+                call_limit = int(workflow_scope["budget"].get("max_model_calls", 12))
+                token_limit = int(workflow_scope["budget"].get("max_tokens", 64_000))
+                if used_calls + 1 > call_limit:
+                    raise UsageBudgetRefusal(
+                        f"the workflow's max_model_calls budget is exhausted ({call_limit} actual requests; "
+                        f"{used_calls} used or reserved)")
+                if used_tokens + reserved_tokens > token_limit:
+                    raise UsageBudgetRefusal(
+                        f"the next model request could pass the workflow's max_tokens budget "
+                        f"({used_tokens:,} used or reserved + {reserved_tokens:,} estimated; limit {token_limit:,})")
+
             bot_ledger_spent, bot_ledger_tokens = totals(
                 "SELECT SUM(cost_usd) AS cost, SUM(prompt_tokens + completion_tokens) AS tokens FROM usage "
                 "WHERE bot_id = ? AND ts >= ? AND ts < ?", (bot_id, day_start, day_end))
@@ -7400,18 +7587,51 @@ class Store:
                         f"{used + reserved:,} tokens are used or reserved in its rolling window")
 
             db.execute("INSERT INTO usage_reservations (id, run_id, bot_id, provider, account_id, model, "
-                       "reserved_tokens, reserved_cost_usd, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?)",
+                       "reserved_tokens, reserved_cost_usd, status, created_at, workflow_run_id) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?, ?)",
                        (reservation_id, run_id, bot_id, provider, account_id, model, reserved_tokens,
-                        reserved_cost_usd, now_text))
+                        reserved_cost_usd, now_text, workflow_scope["id"] if workflow_scope else ""))
         self.bus.notify("usage")
         return reservation_id
 
+    def start_usage_request(self, reservation_id: str, *, expected_fence: Optional[int] = None) -> bool:
+        """Mark the point immediately before provider dispatch; a reservation can start only once."""
+        now_text = iso(utcnow())
+        with self._tx() as db:
+            reservation = db.execute("SELECT run_id, bot_id, status, workflow_run_id, request_started_at "
+                                     "FROM usage_reservations WHERE id = ?", (reservation_id,)).fetchone()
+            if reservation is None:
+                raise KeyError(reservation_id)
+            run_row = self._usage_authority(db, reservation["run_id"], reservation["bot_id"], expected_fence)
+            if reservation["request_started_at"]:
+                return False
+            if reservation["status"] != "reserved":
+                raise LeaseLost(reservation["run_id"], "the provider reservation is no longer startable")
+            if (RunStatus(run_row["status"]) is not RunStatus.running or int(run_row["cancel_requested"])):
+                raise LeaseLost(reservation["run_id"], "the run is stopping; the provider request was not started")
+            try:
+                run_doc = json.loads(str(run_row["doc"]))
+            except (TypeError, json.JSONDecodeError):
+                raise LeaseLost(reservation["run_id"], "provider run metadata is unavailable") from None
+            scope = self._workflow_usage_scope(db, reservation["run_id"], run_row, run_doc)
+            if scope is not None and scope["id"] != str(reservation["workflow_run_id"] or ""):
+                raise LeaseLost(reservation["run_id"], "provider reservation belongs to another workflow")
+            cur = db.execute("UPDATE usage_reservations SET request_started_at = ? "
+                              "WHERE id = ? AND status = 'reserved' AND request_started_at IS NULL",
+                              (now_text, reservation_id))
+            if cur.rowcount != 1:
+                return False
+            if scope is not None:
+                self._sync_workflow_usage_ledger(db, scope["id"])
+        self.bus.notify("usage", *( [f"workflow:{scope['id']}"] if scope else []))
+        return True
+
     def _usage_authority(self, db: sqlite3.Connection, run_id: str, bot_id: Optional[str],
-                         expected_fence: Optional[int], *, required: bool = True) -> None:
+                         expected_fence: Optional[int], *, required: bool = True) -> Optional[sqlite3.Row]:
         row = db.execute(f"SELECT bot_id, {_RUN_COLS} FROM runs WHERE id = ?", (run_id,)).fetchone()
         if row is None:
             if not required and expected_fence is None:
-                return  # compatibility import/diagnostic accounting, not worker settlement
+                return None  # compatibility import/diagnostic accounting, not worker settlement
             raise ValueError("usage must refer to an existing run")
         if bot_id is not None and row["bot_id"] != bot_id:
             raise ValueError("usage must belong to the run's bot")
@@ -7421,16 +7641,22 @@ class Store:
             raise LeaseLost(run_id, "a worker fence is required for usage mutations")
         if expected_fence is not None:
             self._check_lease(row, run_id, expected_fence)
+        return row
 
     def mark_usage_uncertain(self, reservation_id: str, reason: str, *, expected_fence: Optional[int] = None) -> bool:
         with self._tx() as db:
-            row = db.execute("SELECT run_id, bot_id FROM usage_reservations WHERE id = ?", (reservation_id,)).fetchone()
+            row = db.execute("SELECT run_id, bot_id, workflow_run_id FROM usage_reservations WHERE id = ?",
+                             (reservation_id,)).fetchone()
             if row is None:
                 raise KeyError(reservation_id)
             self._usage_authority(db, row["run_id"], row["bot_id"], expected_fence)
-            cur = db.execute("UPDATE usage_reservations SET status = 'uncertain', reason = ? "
+            cur = db.execute("UPDATE usage_reservations SET status = 'uncertain', "
+                             "request_started_at = COALESCE(request_started_at, created_at), reason = ? "
                              "WHERE id = ? AND status = 'reserved'", (reason[:500], reservation_id))
-        self.bus.notify("usage")
+            if cur.rowcount and row["workflow_run_id"]:
+                self._sync_workflow_usage_ledger(db, str(row["workflow_run_id"]))
+        self.bus.notify("usage", *([f"workflow:{row['workflow_run_id']}"]
+                                    if cur.rowcount and row["workflow_run_id"] else []))
         return cur.rowcount == 1
 
     def release_usage_reservation(self, reservation_id: str, reason: str, *, expected_fence: Optional[int] = None) -> bool:
@@ -7438,14 +7664,20 @@ class Store:
         if not reason.strip():
             raise ValueError("a reason is required")
         with self._tx() as db:
-            row = db.execute("SELECT run_id, bot_id FROM usage_reservations WHERE id = ?", (reservation_id,)).fetchone()
+            row = db.execute("SELECT run_id, bot_id, workflow_run_id, request_started_at "
+                             "FROM usage_reservations WHERE id = ?", (reservation_id,)).fetchone()
             if row is None:
                 raise KeyError(reservation_id)
             self._usage_authority(db, row["run_id"], row["bot_id"], expected_fence)
+            if row["request_started_at"]:
+                raise ValueError("a started provider request must be settled or reconciled, not released")
             cur = db.execute("UPDATE usage_reservations SET status = 'released', resolved_at = ?, reason = ? "
-                             "WHERE id = ? AND status = 'reserved'",
+                             "WHERE id = ? AND status = 'reserved' AND request_started_at IS NULL",
                              (iso(utcnow()), reason[:500], reservation_id))
-        self.bus.notify("usage")
+            if cur.rowcount and row["workflow_run_id"]:
+                self._sync_workflow_usage_ledger(db, str(row["workflow_run_id"]))
+        self.bus.notify("usage", *([f"workflow:{row['workflow_run_id']}"]
+                                    if cur.rowcount and row["workflow_run_id"] else []))
         return cur.rowcount == 1
 
     def unresolved_usage_reservations(self, limit: int = 100) -> list[dict[str, Any]]:
@@ -7507,7 +7739,9 @@ class Store:
                            (now_text, prompt_tokens, completion_tokens, cached_tokens, actual_cost_usd,
                             reason[:500], reservation_id))
                 result = "settled"
-        self.bus.notify("usage")
+            if row["workflow_run_id"]:
+                self._sync_workflow_usage_ledger(db, str(row["workflow_run_id"]))
+        self.bus.notify("usage", *([f"workflow:{row['workflow_run_id']}"] if row["workflow_run_id"] else []))
         return result
 
     def add_usage(self, run_id: str, bot_id: str, provider: str, model: str, prompt_tokens: int,
@@ -7522,6 +7756,7 @@ class Store:
         now_text = iso(utcnow())
         with self._tx() as db:
             account = account_id or provider
+            workflow_id = ""
             if reservation_id:
                 reservation = db.execute("SELECT * FROM usage_reservations WHERE id = ?",
                                          (reservation_id,)).fetchone()
@@ -7544,6 +7779,11 @@ class Store:
                 if reservation["status"] == "uncertain":
                     raise ValueError("uncertain usage requires explicit terminal-run reconciliation")
                 account = reservation["account_id"]
+                workflow_id = str(reservation["workflow_run_id"] or "")
+                # A settled usage record is proof the request reached a provider, even
+                # for compatibility callers that predate the explicit start marker.
+                db.execute("UPDATE usage_reservations SET request_started_at = COALESCE(request_started_at, created_at) "
+                           "WHERE id = ? AND status = 'reserved'", (reservation_id,))
             else:
                 self._usage_authority(db, run_id, bot_id, expected_fence, required=False)
             db.execute(
@@ -7555,7 +7795,9 @@ class Store:
                 db.execute("UPDATE usage_reservations SET status = 'settled', resolved_at = ?, actual_prompt_tokens = ?, "
                            "actual_completion_tokens = ?, actual_cached_tokens = ?, actual_cost_usd = ?, reason = '' WHERE id = ?",
                            (now_text, prompt_tokens, completion_tokens, cached_tokens, cost_usd, reservation_id))
-        self.bus.notify("usage")
+                if workflow_id:
+                    self._sync_workflow_usage_ledger(db, workflow_id)
+        self.bus.notify("usage", *([f"workflow:{workflow_id}"] if workflow_id else []))
 
     def reserved_account_usage_since(self, account_id: str, seconds: float) -> tuple[int, float]:
         """Every unresolved hold consumes the current allowance until settled/reconciled.

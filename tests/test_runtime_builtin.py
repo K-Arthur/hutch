@@ -128,7 +128,35 @@ def runtime(**kw):
 
 
 def run_it(rt, run, ctx, tools, stop=lambda: False):
-    return rt.execute(run, ctx, tools, stop)
+    # Provider dispatch is fenced to a claimed running owner. Most runtime tests use
+    # this helper instead of exercising the scheduler, so give their disposable run
+    # the same lease the real engine would establish before invoking the runtime.
+    current = ctx.store.get_run(run.id)
+    if current is not None and current.status is RunStatus.pending:
+        claimed = ctx.store.claim_run(run.id, f"runtime-test-{run.id}", 120)
+        assert claimed is not None
+        current = ctx.store.transition_run(run.id, RunStatus.running, fence=claimed.fence)
+    if current is not None:
+        for name in ("status", "fence", "lease_owner", "lease_expires_at"):
+            setattr(run, name, getattr(current, name))
+        ctx.run = ctx.gate.run = run
+    try:
+        result = rt.execute(run, ctx, tools, stop)
+        latest = ctx.store.get_run(run.id)
+        if latest is not None and latest.status is RunStatus.running:
+            ctx.store.transition_run(run.id, RunStatus.succeeded, fence=run.fence)
+        return result
+    except RunAborted as exc:
+        latest = ctx.store.get_run(run.id)
+        if latest is not None and latest.status is RunStatus.running:
+            terminal = RunStatus.stopped if exc.reason == "stopped" else RunStatus.failed
+            ctx.store.transition_run(run.id, terminal, fence=run.fence, exit_reason=exc.reason, error=exc.detail)
+        raise
+    finally:
+        latest = ctx.store.get_run(run.id)
+        if latest is not None:
+            for name in Run.model_fields:
+                setattr(run, name, getattr(latest, name))
 
 
 def kinds(emitted, kind):

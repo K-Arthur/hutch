@@ -15,7 +15,8 @@ A plan is data, not code. It declares:
 * **inputs** with types, bounds and defaults;
 * an **envelope** - which tools, models and skills the plan may use, and whether it must
   stay on local models;
-* a **budget** - node instances, model calls, wall clock, fan-out, repair rounds;
+* a **budget** - node instances, actual provider requests, reported/reserved tokens, wall clock,
+  fan-out and repair rounds;
 * **nodes** connected by explicit references, and the **outputs** worth publishing.
 
 Node kinds: deterministic transforms (`transform`), governed tool calls (`tool`), model
@@ -39,11 +40,15 @@ Set the policy per Bot; saving it starts nothing:
 ```bash
 hutch workflow mode research-bot --mode suggest
 hutch workflow mode research-bot --mode auto --allow-definition weekly-report \
-    --max-nodes 40 --max-model-calls 5 --max-wall-seconds 900 --max-fanout 10
+    --max-nodes 40 --max-model-calls 5 --max-tokens 64000 \
+    --max-wall-seconds 900 --max-fanout 8
 ```
 
 `auto` needs an explicit scope: which saved definitions it may start and the maximum nodes,
-model calls, wall clock and fan-out. Anything outside that scope is refused with the reason.
+actual model requests, tokens, wall clock and fan-out. Anything outside that scope is refused
+with the reason. New plans default to at most 40 node instances, 12 requests, 64,000 tokens,
+900 seconds, fan-out 8 and two repair rounds. The envelope defaults to two logical workers;
+local inference still sends one request at a time.
 Consequential actions inside a run still use their own approval boundaries - permission to
 choose a method is never permission to spend, access or mutate.
 
@@ -126,9 +131,12 @@ with a bounded number of rounds.
 
 ## Bounds, waiting and stopping
 
-* Budgets are root-level: node instances, model calls, wall clock, fan-out and repairs.
-  Retries and children cannot reset them, and a fan-out over more items than allowed fails
-  loudly instead of returning a partial view.
+* Budgets are root-level: node instances, provider requests, tokens, wall clock, fan-out and
+  repairs. The request counter is charged at the durable provider-dispatch boundary, so each
+  retry, uncached local context self-check and child step consumes the same allowance. Reported
+  tokens replace an estimate after settlement; unresolved requests keep their estimate held.
+  A request that never crossed the dispatch boundary releases its reservation. A fan-out over
+  its bound fails loudly.
 * Every wait expires. A question has its own id, answer and deadline; an unanswered
   question is never treated as consent.
 * Workflow model steps are ordinary Hutch runs: same approval gate, same receipts, same

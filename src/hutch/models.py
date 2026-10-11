@@ -454,6 +454,7 @@ class Run(BaseModel):
     kind: Literal["attempt", "workflow", "step"] = "attempt"
     workflow_run_id: str = ""          # the workflow instance this attempt/step belongs to
     workflow_step: Optional[dict] = None  # a step's frozen execution contract (tools, limits, role)
+    workflow_context: Optional[dict] = None  # inherited node identity for a narrowly delegated descendant
 
     @field_validator("parent_run_id")
     @classmethod

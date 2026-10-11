@@ -188,6 +188,7 @@ class WorkflowPolicyRequest(BaseModel):
     definitions: list[str] = Field(default_factory=list, max_length=50)
     max_nodes: Optional[int] = Field(default=None, ge=1, le=2_000)
     max_model_calls: Optional[int] = Field(default=None, ge=0, le=500)
+    max_tokens: Optional[int] = Field(default=None, ge=0, le=1_000_000)
     max_wall_seconds: Optional[int] = Field(default=None, ge=5, le=86_400)
     max_fanout: Optional[int] = Field(default=None, ge=1, le=100)
 
@@ -472,7 +473,7 @@ def register_workflow_api(app: Any, store: Any, engine: Any, *, idempotency_key:
         if payload.mode == "auto":
             if payload.definitions:
                 limits["definitions"] = list(payload.definitions)
-            for key in ("max_nodes", "max_model_calls", "max_wall_seconds", "max_fanout"):
+            for key in ("max_nodes", "max_model_calls", "max_tokens", "max_wall_seconds", "max_fanout"):
                 value = getattr(payload, key)
                 if value is not None:
                     limits[key] = int(value)

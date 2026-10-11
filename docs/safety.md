@@ -467,10 +467,12 @@ script sandbox to escape. The authority rules are the ordinary ones, applied ear
 * **Questions are not approvals.** An answer to a workflow question clarifies data. It never
   authorizes a side effect, and an unanswered question is never treated as consent - it
   expires and the plan's declared `on_fail`/timeout behaviour applies.
-* **Bounds cannot be reset.** Node instances, model calls, wall clock, fan-out and repair
-  rounds are root-level. A fan-out over more items than allowed fails loudly instead of
-  returning a partial view, and a crashed attempt is continued without re-executing any
-  settled node.
+* **Bounds cannot be reset.** Node instances, actual provider requests, tokens, wall clock,
+  fan-out and repair rounds are root-level. Retries and child steps consume the same durable
+  request reservations; reported token usage replaces an estimate after settlement, while an
+  uncertain request keeps its estimate held. A pre-send reservation can be released. A
+  fan-out over its bound fails loudly instead of returning a partial view, and a crashed
+  attempt is continued without re-executing any settled node.
 * **Stop is real.** `hutch workflow stop` records a durable stop, cancels the owned attempt
   tree (including step runs and their tools) and prevents any continuation from being
   admitted.

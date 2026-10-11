@@ -685,7 +685,12 @@ class Engine:
             return ToolResult(ok=False, output=(f"delegation at depth {depth + 1} needs at least "
                                                 f"{depth + 2} global run slots; current limit is {self.max_concurrent}"))
 
-        child_run = Run(bot_id=ctx.bot.id, prompt=task_text)
+        workflow_context = (ctx.workflow_action_identity
+                            or ctx.run.workflow_step
+                            or ctx.run.workflow_context)
+        child_run = Run(bot_id=ctx.bot.id, prompt=task_text,
+                        workflow_run_id=ctx.run.workflow_run_id,
+                        workflow_context=(dict(workflow_context) if isinstance(workflow_context, dict) else None))
         child_task = Task(bot_id=ctx.bot.id, kind="delegated", prompt=task_text)
         try:
             child, inserted = self.store.submit_delegated_run(

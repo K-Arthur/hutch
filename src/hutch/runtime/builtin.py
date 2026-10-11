@@ -285,12 +285,12 @@ class BuiltinRuntime:
     # ----------------------------------------------------------- bring online
 
     def _bring_online(self, ctx: ToolContext, run: Run, ladder: Ladder, rung: Rung, messages: list[dict],
-                      specs: list[dict]) -> Session:
+                      specs: list[dict], guard: Optional[SpendGuard] = None) -> Session:
         with self._inference(ctx, run, rung):
-            return self._prepare_session(ctx, run, ladder, rung, messages, specs)
+            return self._prepare_session(ctx, run, ladder, rung, messages, specs, guard)
 
     def _prepare_session(self, ctx: ToolContext, run: Run, ladder: Ladder, rung: Rung, messages: list[dict],
-                         specs: list[dict]) -> Session:
+                         specs: list[dict], guard: Optional[SpendGuard] = None) -> Session:
         """Make a rung ready: window, pre-run check, cold load, self-check. Raises ProviderError on failure."""
         bot = ctx.bot
         route = None if rung.local else self._route_identity(ctx, ladder, rung)
@@ -344,7 +344,48 @@ class BuiltinRuntime:
             if sc is None:
                 self._log(ctx, run, "selfcheck", f"checking that {rung.model} really recalls a fact placed at the "
                                                  f"top of a long prompt in a {num_ctx:,}-token window...")
-                res = run_selfcheck(provider, rung.model, num_ctx)
+                request_runner = None
+                if run.workflow_run_id:
+                    if guard is None:
+                        raise RunAborted("usage_reservation", "workflow self-check has no root usage guard")
+
+                    def request_runner(request, estimated_prompt_tokens):
+                        try:
+                            reservation = guard.reserve(rung, estimated_prompt_tokens, request.max_tokens)
+                        except UsageBudgetRefusal as exc:
+                            raise RunAborted("cost_cap", str(exc)) from exc
+                        if not ctx.store.start_usage_request(reservation, expected_fence=run.fence):
+                            raise RunAborted("usage_reservation", "workflow self-check reservation was already used")
+                        try:
+                            response = provider.chat(request)
+                        except Exception as exc:
+                            ctx.store.mark_usage_uncertain(
+                                reservation, f"workflow self-check outcome is uncertain ({type(exc).__name__})",
+                                expected_fence=run.fence)
+                            raise
+                        if response.prompt_tokens or response.completion_tokens:
+                            account_id, _, _ = guard.account_policy(rung)
+                            cost = guard.prices.cost(rung.provider, rung.model, response.prompt_tokens,
+                                                     response.completion_tokens, response.cached_tokens,
+                                                     response.cache_write_tokens) or 0.0
+                            ctx.store.add_usage(
+                                run.id, run.bot_id, rung.provider, rung.model, response.prompt_tokens,
+                                response.completion_tokens, response.cached_tokens, cost,
+                                kind="workflow_selfcheck", account_id=account_id,
+                                reservation_id=reservation, expected_fence=run.fence)
+                            run.prompt_tokens += response.prompt_tokens
+                            run.completion_tokens += response.completion_tokens
+                            run.cached_tokens += response.cached_tokens
+                            run.tokens += response.prompt_tokens + response.completion_tokens
+                            run.cost_usd = round(run.cost_usd + cost, 8)
+                            ctx.store.update_run(run)
+                        else:
+                            ctx.store.mark_usage_uncertain(
+                                reservation, "workflow self-check response omitted token usage",
+                                expected_fence=run.fence)
+                        return response
+
+                res = run_selfcheck(provider, rung.model, num_ctx, request_runner=request_runner)
                 sc = res.__dict__
                 if res.ok:
                     ctx.store.kv_set(key, json.dumps(sc))
@@ -413,7 +454,7 @@ class BuiltinRuntime:
             self._log(ctx, run, kind, f"{kind} to {rung.spec} was not approved: {exc}", blocked=True)
             return None
         try:
-            session = self._bring_online(ctx, run, ladder, rung, messages, specs)
+            session = self._bring_online(ctx, run, ladder, rung, messages, specs, guard)
         except ProviderError as exc:
             ladder.blocked.add(rung.spec)
             self._log(ctx, run, kind, f"{rung.spec} is not usable either: {exc}", blocked=True)
@@ -494,7 +535,7 @@ class BuiltinRuntime:
                     raise capped
                 if rung is not ladder.primary:
                     self._ask_first_hosted(ctx, ladder, rung, "the primary model is unavailable", est_prompt)
-                session = self._bring_online(ctx, run, ladder, rung, messages, specs)
+                session = self._bring_online(ctx, run, ladder, rung, messages, specs, guard)
                 self._announce_plan(ctx, run, session, est_prompt)
                 return session
             except DeniedError as denied:
@@ -563,6 +604,20 @@ class BuiltinRuntime:
             if stop() or ctx.gate.cancelled():
                 ctx.store.release_usage_reservation(reservation, "run stopped before provider call started", expected_fence=run.fence)
                 raise RunAborted("stopped", "user requested stop")
+            try:
+                started = ctx.store.start_usage_request(reservation, expected_fence=run.fence)
+            except Exception:
+                # We have not crossed the durable request-start boundary. Release only
+                # when the same owner can prove that the reservation is still pre-send.
+                try:
+                    ctx.store.release_usage_reservation(
+                        reservation, "provider dispatch was refused before the request started",
+                        expected_fence=run.fence)
+                except Exception:
+                    pass
+                raise
+            if not started:
+                raise RunAborted("usage_reservation", "this provider reservation was already used; no second request was sent")
             t_call = time.perf_counter()
             try:
                 result = session.provider.chat(req)

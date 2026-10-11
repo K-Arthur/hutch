@@ -30,6 +30,7 @@ MAX_QUESTION = 2_000
 CEILINGS = {
     "max_nodes": 2_000,
     "max_model_calls": 500,
+    "max_tokens": 1_000_000,
     "max_wall_seconds": 86_400,
     "max_fanout": 100,
     "max_repairs": 5,
@@ -196,17 +197,18 @@ class Envelope(_Strict):
     tools: list[str] = Field(default_factory=list)
     models: list[str] = Field(default_factory=list)
     skills: list[str] = Field(default_factory=list)
-    max_parallel_steps: int = Field(default=1, ge=1, le=CEILINGS["max_parallel_steps"])
+    max_parallel_steps: int = Field(default=2, ge=1, le=CEILINGS["max_parallel_steps"])
     network: Literal["inherit", "local_model_only"] = "inherit"
 
 
 class Budget(_Strict):
     """Root-level allowances. Children and retries can never reset them."""
 
-    max_nodes: int = Field(default=200, ge=1, le=CEILINGS["max_nodes"])
-    max_model_calls: int = Field(default=40, ge=0, le=CEILINGS["max_model_calls"])
-    max_wall_seconds: int = Field(default=3_600, ge=5, le=CEILINGS["max_wall_seconds"])
-    max_fanout: int = Field(default=20, ge=1, le=CEILINGS["max_fanout"])
+    max_nodes: int = Field(default=40, ge=1, le=CEILINGS["max_nodes"])
+    max_model_calls: int = Field(default=12, ge=0, le=CEILINGS["max_model_calls"])
+    max_tokens: int = Field(default=64_000, ge=0, le=CEILINGS["max_tokens"])
+    max_wall_seconds: int = Field(default=900, ge=5, le=CEILINGS["max_wall_seconds"])
+    max_fanout: int = Field(default=8, ge=1, le=CEILINGS["max_fanout"])
     max_repairs: int = Field(default=2, ge=0, le=CEILINGS["max_repairs"])
 
 

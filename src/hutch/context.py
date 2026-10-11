@@ -132,7 +132,7 @@ def _filler(target_tokens: int, rng: random.Random) -> str:
 
 
 def run_selfcheck(provider: Provider, model: str, num_ctx: int, *, size_tokens: Optional[int] = None,
-                  seed: Optional[int] = None) -> SelfCheck:
+                  seed: Optional[int] = None, request_runner=None) -> SelfCheck:
     """Place a code word at the very top of a long prompt and ask for it back.
 
     ``size_tokens`` defaults to 80% of the window, capped at 12k so a CPU-only machine is not stuck for an hour;
@@ -145,10 +145,13 @@ def run_selfcheck(provider: Provider, model: str, num_ctx: int, *, size_tokens: 
     needle = f"IMPORTANT: the secret code word for this check is {code}. Remember it exactly."
     question = "What was the secret code word stated at the very beginning? Reply with only the code word."
     messages = [{"role": "user", "content": needle + "\n\n" + _filler(size, rng) + "\n\n" + question}]
+    request = ChatRequest(model=model, messages=messages, num_ctx=num_ctx, max_tokens=64,
+                          think=False, temperature=0.0, keep_alive="10m")
+    estimated_prompt_tokens = estimate_tokens(messages[0]["content"]) + PER_MESSAGE_OVERHEAD
     t0 = time.perf_counter()
     try:
-        res = provider.chat(ChatRequest(model=model, messages=messages, num_ctx=num_ctx, max_tokens=64,
-                                        think=False, temperature=0.0, keep_alive="10m"))
+        res = (request_runner(request, estimated_prompt_tokens) if request_runner is not None
+               else provider.chat(request))
     except ProviderError as exc:
         return SelfCheck(False, f"the model call failed: {exc}", num_ctx=num_ctx, error_kind=exc.kind,
                          seconds=time.perf_counter() - t0)

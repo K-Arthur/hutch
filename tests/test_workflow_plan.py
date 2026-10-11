@@ -133,6 +133,17 @@ def test_budget_nodes_expansion_is_checked_statically():
     assert "BUDGET_NODES" in codes(info.value)
 
 
+def test_default_workflow_bounds_match_the_initial_chat_limits():
+    plan = compile_ok({"name": "defaults", "nodes": [
+        {"kind": "transform", "id": "done", "op": "constant", "args": {"value": True}},
+    ]}).plan
+    assert plan.budget.model_dump() == {
+        "max_nodes": 40, "max_model_calls": 12, "max_tokens": 64_000,
+        "max_wall_seconds": 900, "max_fanout": 8, "max_repairs": 2,
+    }
+    assert plan.envelope.max_parallel_steps == 2
+
+
 def test_envelope_membership_is_enforced():
     raw = minimal()
     raw["nodes"][1]["tools"] = ["shell"]  # not in the workflow envelope
@@ -149,7 +160,7 @@ def test_envelope_membership_is_enforced():
     raw = minimal()
     raw["nodes"].insert(1, {
         "kind": "map", "id": "each", "over": {"ref": "scan.files"}, "item_key": "k",
-        "concurrency": 2, "max_items": 2, "body": [
+        "concurrency": 3, "max_items": 2, "body": [
             {"kind": "transform", "id": "t", "op": "count", "args": {"items": {"ref": "item"}}}]})
     with pytest.raises(wf_compile.PlanInvalid) as info:
         compile_ok(raw)

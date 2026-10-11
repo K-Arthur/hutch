@@ -74,13 +74,14 @@ def test_workflow_cli_mode_sets_and_reports_the_policy(config):
     assert runner.invoke(app, ["init"]).exit_code == 0
     runner.invoke(app, ["bot", "create", "mode-bot", "--model", "ollama/qwen3:4b", "--tools", "files"])
     set_mode = runner.invoke(app, ["workflow", "mode", "mode-bot", "--mode", "auto",
-                                   "--allow-definition", "cli-plan", "--max-nodes", "40"])
+                                   "--allow-definition", "cli-plan", "--max-nodes", "40",
+                                   "--max-tokens", "32000"])
     assert set_mode.exit_code == 0 and "auto" in set_mode.output
     store = _store()
     try:
         bot = store.get_bot("mode-bot")
         assert bot is not None and bot.workflow_mode == "auto"
-        assert bot.workflow_limits == {"definitions": ["cli-plan"], "max_nodes": 40}
+        assert bot.workflow_limits == {"definitions": ["cli-plan"], "max_nodes": 40, "max_tokens": 32000}
     finally:
         store.close()
     bad = runner.invoke(app, ["workflow", "mode", "mode-bot", "--mode", "sometimes"])

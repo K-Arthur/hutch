@@ -418,7 +418,7 @@ events through the same ownership check. Failed admission rolls back both withou
 the buffer. Expired execution cannot receive a new approval or standing grant; decisions still
 resolve once through compare-and-swap, and full-request rewrites are refused.
 
-## Dynamic workflows (schema v54)
+## Dynamic workflows (schema v55)
 
 A workflow is a **saved, validated plan**, not generated code. The plan schema, the bounded
 evaluator and the compiler live in `src/hutch/workflow/`; `plan` is strict data, `expr`
@@ -451,8 +451,13 @@ admission cannot widen an old step.
 Capacity: an orchestration attempt and its steps form a **workflow lane** (`runs.kind` is
 `workflow`/`step`). The claim statement admits a Bot's workflow beside its interactive work
 and keeps one workflow per Bot; step runs share their attempt's global slot and are bounded
-by the workflow's own logical concurrency. `admission.py` is unchanged and remains the
-model-call limiter, so a waiting workflow node never holds an inference seat.
+by the workflow's own logical concurrency. Inference admission remains the model-concurrency
+limiter, so a waiting workflow node never holds an inference seat. Each provider request
+reserves against the root workflow's request and token budgets in the same transaction as
+the ordinary account reservation. A durable request-start marker distinguishes a released
+pre-send hold from a possibly billed request; retries, child steps and continuations all use
+the same workflow id. An uncached local model context self-check uses that same reservation
+path. Settled calls charge reported tokens; unresolved calls retain their reservation estimate.
 
 When an attempt waits for a person or a child step, it transitions to `waiting_workflow`:
 the run remains visible and nonterminal, while its lease and capacity are released. The
@@ -479,3 +484,8 @@ Routing (`workflow/routing.py`) is explainable and abstains by default: `off` ne
 or starts, `suggest` may describe a candidate route, and `auto` starts only inside the
 Bot's preauthorized definitions and budget caps. Recommendations come from task structure,
 never from message length or model family.
+
+The plan defaults are 40 node instances, 12 actual provider requests, 64,000 reported or
+reserved tokens, 900 seconds, fan-out 8 and two repair rounds. The logical worker default is
+two; local inference still admits one request at a time. An Auto scope can set a lower cap
+for each of nodes, requests, tokens, wall time and fan-out.

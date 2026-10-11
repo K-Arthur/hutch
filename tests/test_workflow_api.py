@@ -236,12 +236,13 @@ def test_workflow_policy_route_saves_mode_and_scope(client):
 
     saved = client.post("/api/v1/workflows/policy", headers=KEY,
                         json={"bot": "policy-bot", "mode": "auto", "definitions": ["expense-audit"],
-                              "max_nodes": 40, "max_model_calls": 0})
+                              "max_nodes": 40, "max_model_calls": 0, "max_tokens": 32000})
     assert saved.status_code == 200, saved.text
     assert saved.json()["mode"] == "auto"
     assert saved.json()["limits"]["definitions"] == ["expense-audit"]
     after = client.get("/api/v1/workflows/policy", params={"bot": "policy-bot"}).json()
     assert after["mode"] == "auto" and after["limits"]["max_nodes"] == 40
+    assert after["limits"]["max_tokens"] == 32000
 
     # Switching back to off clears the auto scope rather than leaving it armed.
     client.post("/api/v1/workflows/policy", headers=KEY,

@@ -643,7 +643,7 @@ of source content and 16 MiB serialized JSON. Oversize returns 413 with guidance
 fact/history/share resources; records are never silently truncated. This is an export of Bot memory,
 not a database backup or permanent-delete facility.
 
-## Dynamic workflows (schema v54, owner-only v1 routes)
+## Dynamic workflows (schema v55, owner-only v1 routes)
 
 Workflows are **saved methods, not schedules**: a definition is inert until it is run, and
 running it never grants a schedule, a wider permission or a permanent background process.
@@ -672,13 +672,22 @@ running it never grants a schedule, a wider permission or a permanent background
 * Capacity: an orchestration attempt and its step runs form a **workflow lane**, separate
   from interactive work, so a workflow can progress while the person keeps chatting with the
   same Bot; one workflow per Bot runs at a time; step runs share their attempt's global slot
-  and are bounded by the workflow's own logical concurrency. The one-caller/eight-waiter
-  inference admission is unchanged and remains the model-call limiter.
+  and are bounded by the workflow's own logical concurrency. Inference admission limits
+  simultaneous model use; root budgets count actual provider requests and tokens separately.
 * Durability: node records, questions and budgets live in SQLite. A crashed attempt is
   continued by a new attempt that skips every settled node; a stopped or cancelled instance
   is never continued. Attempts themselves still never resume mid-flight (ADR-0003). Questions
   carry the current revision and attempt; workflow actions carry a stable revision/site/instance/
   slot identity, replay completed results without dispatch, and block uncertain retries until
   an operator reconciles them as not applied.
+* Root model usage: schema v55 adds `workflow_run_id` and `request_started_at` to provider
+  reservations. Every retry and child request reserves request/token allowance under the
+  same workflow id before provider dispatch. The marker is written immediately before the
+  provider call; a crash afterward preserves an uncertain charge, while a pre-send hold can
+  be released. Settled responses charge reported prompt+completion tokens and in-flight or
+  uncertain requests retain their estimate. An uncached local context self-check uses the same
+  accounting path. Default plan limits are 40 nodes, 12 requests,
+  64,000 tokens, 900 seconds, fan-out 8 and two repair rounds; tighter declared or Auto
+  limits still apply. Local inference remains one active request.
 * Remote: the workflow routes are owner-only (unmapped in the remote capability inventory),
   so a paired phone cannot start, stop or answer a workflow in this revision.

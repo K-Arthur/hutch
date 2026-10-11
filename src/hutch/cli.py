@@ -1674,7 +1674,8 @@ def workflow_show(ref: str = typer.Argument(..., help="Workflow name or id")) ->
                   f"parallel={effective.envelope.max_parallel_steps}")
     budget = effective.budget
     console.print(f"budget: nodes≤{budget.max_nodes} model_calls≤{budget.max_model_calls} "
-                  f"wall≤{budget.max_wall_seconds}s fanout≤{budget.max_fanout} repairs≤{budget.max_repairs}")
+                  f"tokens≤{budget.max_tokens:,} wall≤{budget.max_wall_seconds}s "
+                  f"fanout≤{budget.max_fanout} repairs≤{budget.max_repairs}")
     if effective.inputs:
         console.print("inputs:")
         for name, spec in effective.inputs.items():
@@ -1978,6 +1979,7 @@ def workflow_mode(bot_ref: str = typer.Argument(...),
                                                        help="saved workflow auto may start (repeatable)"),
                   max_nodes: Optional[int] = typer.Option(None, "--max-nodes"),
                   max_model_calls: Optional[int] = typer.Option(None, "--max-model-calls"),
+                  max_tokens: Optional[int] = typer.Option(None, "--max-tokens"),
                   max_wall_seconds: Optional[int] = typer.Option(None, "--max-wall-seconds"),
                   max_fanout: Optional[int] = typer.Option(None, "--max-fanout")) -> None:
     """Set how Hutch may use workflows for one Bot. Saving a policy starts nothing."""
@@ -1993,6 +1995,7 @@ def workflow_mode(bot_ref: str = typer.Argument(...),
         if definition:
             limits["definitions"] = list(definition)
         for key, value in (("max_nodes", max_nodes), ("max_model_calls", max_model_calls),
+                           ("max_tokens", max_tokens),
                            ("max_wall_seconds", max_wall_seconds), ("max_fanout", max_fanout)):
             if value is not None:
                 limits[key] = int(value)
