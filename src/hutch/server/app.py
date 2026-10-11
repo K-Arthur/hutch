@@ -4281,6 +4281,7 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/grounding/config")
     def grounding_config() -> dict:
         """Which live lanes exist here, without secrets or live probes."""
+        import shutil as _shutil
         from ..grounding import acquire as grounding_acquire
         from ..grounding import media as grounding_media
         from ..grounding.streams import jetstream_readiness
@@ -4295,8 +4296,8 @@ def create_app() -> FastAPI:
             "streams": {"wikimedia": {"verified_on": "2026-10-11"},
                         "jetstream": {"state": jetstream_state, "detail": jetstream_detail}},
             "media": {"reverse_image": grounding_media.reverse_image_search_status(),
-                      "ffmpeg": bool(__import__("shutil").which("ffmpeg")),
-                      "ffprobe": bool(__import__("shutil").which("ffprobe"))},
+                      "ffmpeg": bool(_shutil.which("ffmpeg")),
+                      "ffprobe": bool(_shutil.which("ffprobe"))},
             "budget_defaults": {"max_total_sources": 40, "wall_seconds": 90.0, "per_adapter_timeout": 25.0},
         }
 
