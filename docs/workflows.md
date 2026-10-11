@@ -326,7 +326,7 @@ attempt can run.
   `POST /api/v1/workflows/runs/{id}/amendments/adopt` requires an idempotency key and the same
   revision/generation compare. It only adopts a parked run after child work and owned processes
   have settled. For a running workflow, the owner can request Pause after current work, then adopt
-  after the Studio reports **Paused**. Active children are never killed by pause or adoption.
+  after the Studio reports **Paused**. A preview made while work is active is read-only and is not adoption authorization; preview again after the run parks so settled results, authority and quiescence are current. Active children are never killed by pause or adoption.
   Adopting a revision clears pause intent and continues under the new revision. Pending human questions require the
   explicit `cancel_pending_questions` choice; old question IDs and result records are archived
   before continuation. The old owner is fenced by the new revision, and any subsequent ask gets a

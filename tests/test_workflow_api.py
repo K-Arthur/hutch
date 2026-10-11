@@ -751,6 +751,107 @@ def test_amendment_preview_includes_pending_question_id_and_requires_quiescence(
     assert all(row["reason"] == "not_settled" for row in body["invalidate"])
 
 
+def test_active_amendment_waits_for_safe_pause_then_adopts_from_fresh_preview(client, monkeypatch):
+    from hutch.workflow.engine import Interpreter
+
+    entered = threading.Event()
+    release = threading.Event()
+    original_transform = Interpreter._transform
+
+    def slow_transform(self, node, scope):
+        if node.id == "slow" and not entered.is_set():
+            entered.set()
+            assert release.wait(10), "test did not release the in-flight node"
+        return original_transform(self, node, scope)
+
+    monkeypatch.setattr(Interpreter, "_transform", slow_transform)
+    bot = make_bot(client, name="wf-active-amendment-bot")
+    original_plan = {
+        "name": "active-amendment-boundary",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 5, "max_model_calls": 0},
+        "nodes": [
+            {"kind": "transform", "id": "slow", "op": "constant", "args": {"value": "stable"}},
+            {"kind": "transform", "id": "after", "op": "constant", "args": {"value": "old"}},
+        ],
+    }
+    candidate = json.loads(json.dumps(original_plan))
+    candidate["nodes"][1]["args"]["value"] = "amended"
+    submitted = client.post("/api/v1/workflows/plans", headers=KEY,
+                            json={"plan": original_plan, "bot": bot["name"],
+                                  "definition_name": "active-amendment-boundary"})
+    assert submitted.status_code == 201, submitted.text
+    workflow_id = submitted.json()["workflow_run_id"]
+    preview_url = f"/api/v1/workflows/runs/{workflow_id}/amendments/preview"
+    adopt_url = f"/api/v1/workflows/runs/{workflow_id}/amendments/adopt"
+
+    try:
+        assert entered.wait(10), "the active amendment node did not enter its operation"
+        running = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        current = running["workflow"]
+        request = {"expected_revision_id": current["revision_id"],
+                   "expected_generation": current["attempt_run_id"]}
+        live_preview = client.post(preview_url, json={**request, "plan": candidate})
+        assert live_preview.status_code == 200, live_preview.text
+        live = live_preview.json()
+        assert live["eligible"] is True
+        assert live["quiescence"]["workflow_status"] == "running"
+        assert live["quiescence"]["attempt_parked"] is False
+        assert any(row["site_id"] == "slow" and row["reason"] == "not_settled"
+                   for row in live["invalidate"])
+
+        blocked = client.post(adopt_url, headers={"Idempotency-Key": "wf-active-amendment-too-early"},
+                              json={**request, "plan": candidate})
+        assert blocked.status_code == 409, blocked.text
+        before_pause = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+        assert before_pause["workflow"]["revision_id"] == current["revision_id"]
+        assert client.get(f"/api/v1/workflows/runs/{workflow_id}/amendments").json()["items"] == []
+
+        pause = client.post(f"/api/v1/workflows/runs/{workflow_id}/pause",
+                            headers={"Idempotency-Key": "wf-active-amendment-pause"}, json=request)
+        assert pause.status_code == 200 and pause.json()["parked"] is False
+        release.set()
+        deadline = time.monotonic() + 15
+        parked = None
+        while time.monotonic() < deadline:
+            parked = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+            if parked["resume_available"]:
+                break
+            time.sleep(0.05)
+        assert parked and parked["resume_available"] is True, parked
+        assert {node["site_id"] for node in parked["nodes"]} == {"slow"}
+        assert next(node for node in parked["nodes"] if node["site_id"] == "slow")["result"] == "stable"
+
+        fresh_preview = client.post(preview_url, json={
+            "expected_revision_id": parked["workflow"]["revision_id"],
+            "expected_generation": parked["workflow"]["attempt_run_id"],
+            "plan": candidate,
+        })
+        assert fresh_preview.status_code == 200, fresh_preview.text
+        fresh = fresh_preview.json()
+        assert fresh["quiescence"]["attempt_parked"] is True
+        assert fresh["quiescence"]["owned_work_quiet"] is True
+        assert [row["site_id"] for row in fresh["reuse"]] == ["slow"]
+
+        adopted = client.post(adopt_url, headers={"Idempotency-Key": "wf-active-amendment-after-pause"},
+                              json={"expected_revision_id": parked["workflow"]["revision_id"],
+                                    "expected_generation": parked["workflow"]["attempt_run_id"],
+                                    "plan": candidate})
+        assert adopted.status_code == 200, adopted.text
+        assert [row["site_id"] for row in adopted.json()["preview"]["reuse"]] == ["slow"]
+        deadline = time.monotonic() + 15
+        finished = None
+        while time.monotonic() < deadline:
+            finished = client.get(f"/api/v1/workflows/runs/{workflow_id}").json()
+            if finished["workflow"]["status"] in ("succeeded", "failed", "stopped", "outcome_unknown"):
+                break
+            time.sleep(0.05)
+        assert finished and finished["workflow"]["status"] == "succeeded", finished
+        assert next(node for node in finished["nodes"] if node["site_id"] == "after")["result"] == "amended"
+    finally:
+        release.set()
+
+
 def test_amendment_preview_does_not_reuse_results_derived_from_effects_or_evidence(client):
     bot = make_bot(client, name="amendment-effect-dependency-bot")
     submitted = client.post("/api/v1/workflows/plans", headers=KEY,
