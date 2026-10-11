@@ -279,8 +279,8 @@ attempt can run.
   the current attempt ID as an opaque generation token, a candidate plan and optional new input
   snapshot. It returns a field/site diff, current authority verdicts, budget limits, quiescence
   facts, and per-instance reuse or invalidation reasons without saving a revision or mutating
-  the run. Its `eligible` flag covers authority and budget checks only; it does not signal that
-  the run is quiescent or that adoption is available. Reuse is limited to settled pure transforms
+  the run. Its `eligible` flag covers authority and budget checks only; the preview separately reports
+  whether the attempt released its owner lease and whether its owned child/process tree is quiet. Reuse is limited to settled pure transforms
   when inputs, capability envelope, node semantics and dependencies remain unchanged, and every
   upstream result is also safe to reuse. Tool, model, verification, publication, question and
   control/container results are invalidated because binding/evidence or nested-output provenance
@@ -292,5 +292,8 @@ attempt can run.
   before continuation. The old owner is fenced by the new revision, and any subsequent ask gets a
   fresh identity. `GET /api/v1/workflows/runs/{id}/amendments` lists adoption history and
   `GET /api/v1/workflows/runs/{id}/amendments/{history_id}` exposes the archived graph/results.
-  Live-run draining, Studio adoption controls, terminal-run amendment, and safe reuse beyond pure
-  transforms remain unavailable.
+  The owner-local Studio card offers a declarative plan/input editor, read-only preview with
+  authority, budget, quiescence, diff and reuse sections, and an explicit adoption action. It
+  requires a pending-question cancellation checkbox when relevant, and falls back to the composer
+  for focus while the new revision is running. Live-run draining, terminal-run amendment, and safe
+  reuse beyond pure transforms remain unavailable.

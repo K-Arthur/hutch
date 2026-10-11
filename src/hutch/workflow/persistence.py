@@ -329,6 +329,23 @@ def _workflow_execution_tree_quiet(db: sqlite3.Connection, attempt_id: str) -> b
     return owned_process is None
 
 
+def workflow_attempt_quiescence(store: Any, attempt_id: str) -> dict[str, Any]:
+    """Return a read-only snapshot of attempt parking and its owned child/process tree."""
+    if not attempt_id:
+        return {"attempt_status": "", "attempt_parked": False, "owned_work_quiet": False}
+    with store._lock:
+        attempt = store._db.execute(
+            "SELECT status, cancel_requested, lease_owner FROM runs WHERE id = ?", (attempt_id,)
+        ).fetchone()
+        if attempt is None:
+            return {"attempt_status": "", "attempt_parked": False, "owned_work_quiet": False}
+        status = str(attempt["status"])
+        parked = (status == "waiting_workflow" and not int(attempt["cancel_requested"] or 0)
+                  and not str(attempt["lease_owner"] or ""))
+        return {"attempt_status": status, "attempt_parked": parked,
+                "owned_work_quiet": _workflow_execution_tree_quiet(store._db, attempt_id)}
+
+
 def adopt_workflow_amendment(store: Any, *, wf_id: str, expected_revision_id: str,
                              expected_generation: str, plan: dict[str, Any], plan_hash: str,
                              inputs: dict[str, Any], budget: dict[str, Any],
@@ -410,6 +427,9 @@ def adopt_workflow_amendment(store: Any, *, wf_id: str, expected_revision_id: st
         preview_copy["eligible"] = True
         preview_copy["quiescence"] = {
             "workflow_status": str(row["status"]),
+            "attempt_status": "waiting_workflow",
+            "attempt_parked": True,
+            "owned_work_quiet": True,
             "active_nodes": [{"site_id": str(node["site_id"]),
                               "instance_key": str(node["instance_key"]),
                               "status": str(node["status"])} for node in active_nodes],

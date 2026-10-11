@@ -182,6 +182,9 @@ class WorkflowAmendmentBudgetResource(BaseModel):
 
 class WorkflowAmendmentQuiescenceResource(BaseModel):
     workflow_status: str
+    attempt_status: str = ""
+    attempt_parked: bool = False
+    owned_work_quiet: bool = False
     active_nodes: list[WorkflowAmendmentNodeState] = Field(default_factory=list)
     pending_question_ids: list[str] = Field(default_factory=list)
     required: bool = False

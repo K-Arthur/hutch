@@ -241,6 +241,7 @@ def preview(store: Any, *, workflow_run_id: str, plan: dict[str, Any],
                     for row in rows if str(row.get("status") or "") in ("pending", "running", "waiting")]
     pending_questions = [str(row["id"]) for row in wstore.questions(store, workflow_run_id)
                          if row.get("status") == "pending"]
+    attempt_quiescence = wstore.workflow_attempt_quiescence(store, generation_id)
     budgets = {}
     old_budget = dict(workflow.get("budget") or {})
     new_budget = candidate.plan.budget.model_dump(mode="json")
@@ -281,6 +282,7 @@ def preview(store: Any, *, workflow_run_id: str, plan: dict[str, Any],
         "eligible": not blocked_reasons,
         "quiescence": {
             "workflow_status": str(workflow.get("status") or ""),
+            **attempt_quiescence,
             "active_nodes": active_nodes,
             "pending_question_ids": pending_questions,
             "required": bool(active_nodes or pending_questions or workflow.get("status") in ("pending", "running", "waiting")),

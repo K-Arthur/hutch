@@ -398,6 +398,9 @@ def test_amendment_preview_includes_pending_question_id_and_requires_quiescence(
     body = preview.json()
     assert body["eligible"] is True  # Authority/budget eligibility is separate from adoption readiness.
     assert body["quiescence"]["required"] is True
+    assert body["quiescence"]["attempt_status"] == "waiting_workflow"
+    assert body["quiescence"]["attempt_parked"] is True
+    assert body["quiescence"]["owned_work_quiet"] is True
     assert set(body["quiescence"]["pending_question_ids"]) == {question["id"] for question in pending}
     assert all(row["reason"] == "not_settled" for row in body["invalidate"])
 
@@ -568,6 +571,15 @@ def test_amendment_adoption_refuses_active_child_without_cancelling_question(cli
                       VALUES (?, ?, ?, '{}', 'running', ?, ?, 'step')""",
                    (fake_child_id, bot["id"], fake_task_id,
                     time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), current["attempt_run_id"]))
+
+    preview = client.post(
+        f"/api/v1/workflows/runs/{workflow_id}/amendments/preview",
+        json={"expected_revision_id": current["revision_id"],
+              "expected_generation": current["attempt_run_id"], "plan": candidate},
+    )
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["quiescence"]["attempt_parked"] is True
+    assert preview.json()["quiescence"]["owned_work_quiet"] is False
 
     response = client.post(
         f"/api/v1/workflows/runs/{workflow_id}/amendments/adopt",

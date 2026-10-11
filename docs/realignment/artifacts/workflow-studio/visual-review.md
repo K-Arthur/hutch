@@ -51,6 +51,8 @@ not an accessibility certification.
 | **Regression health** | **8.5** | Focused checks and the real browser journey pass; broad suite, site checks and soak are not complete. |
 | **Combined** | **9.5** | Weighted project formula; all scored dimensions clear the 8-point presentation threshold. |
 
+The waiting-state captures were refreshed with the parked-run amendment action. Its full preview/adoption journey and responsive visual scorecard are recorded separately in [`amendment/visual-review.md`](amendment/visual-review.md).
+
 ## Not verified in this capture
 
 No screen-reader pass, axe scan, physical phone, browser-level zoom, 200% text-spacing stress,

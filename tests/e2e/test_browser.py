@@ -1643,6 +1643,166 @@ def test_provider_connections_fit_phone_viewports_and_capture_signin_states(brow
         page.close()
 
 
+def test_workflow_amendment_preview_adoption_is_explicit_and_responsive(browser, live):
+    from hutch.workflow import persistence as workflow_store
+    from hutch.workflow import submit as workflow_submit
+
+    base, app = live
+    store = app.state.store
+    bot = store.create_bot(Bot(name="workflow-amendment-studio", display_name="Amendment review fixture",
+                               model="mock/demo", tools=[]))
+    conversation, _ = store.create_conversation(
+        bot.id, "Amend parked workflow", idem_key="workflow-amendment-conversation",
+        request_hash="workflow-amendment-conversation")
+    plan = {
+        "name": "amendable-human-review",
+        "envelope": {"tools": []},
+        "budget": {"max_nodes": 8, "max_model_calls": 0},
+        "nodes": [{"kind": "ask", "id": "review", "title": "Review findings",
+                   "question": "Which findings should be included?", "options": ["All", "Only verified"],
+                   "timeout_seconds": 600}],
+    }
+    saved = workflow_store.save_definition(store, name=plan["name"], plan=plan,
+                                           source="operator", activate=False)
+    submission = workflow_submit.submit_saved(
+        store, bot=bot, definition=saved["definition_id"], inputs={}, origin="api",
+        idem_key="workflow-amendment-start", request_hash="workflow-amendment-start",
+        auto=False, conversation_id=conversation["id"])
+    workflow_id = submission.workflow_run_id
+    deadline = time.monotonic() + 20
+    pending_questions = []
+    while time.monotonic() < deadline:
+        pending_questions = workflow_store.questions(store, workflow_id, status="pending")
+        if pending_questions:
+            break
+        time.sleep(0.05)
+    assert pending_questions, "the human-review workflow did not park on its question"
+
+    artifacts = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/workflow-studio/amendment"
+    artifacts.mkdir(parents=True, exist_ok=True)
+    page = browser.new_page(viewport={"width": 1440, "height": 960}, device_scale_factor=1)
+    errors: list[str] = []
+    failed_requests: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("requestfailed", lambda request: failed_requests.append(request.url))
+    page.context.tracing.start(screenshots=True, snapshots=True, sources=False)
+    viewports = []
+    try:
+        page.goto(f"{base}/#/chat/{bot.name}", wait_until="domcontentloaded")
+        panel = page.locator("#workflow-panel")
+        panel.get_by_role("button", name="Amend parked run").wait_for()
+        old_question_id = pending_questions[0]["id"]
+        panel.get_by_role("button", name="Amend parked run").click()
+        dialog = page.locator('.modal-card[role="dialog"]')
+        dialog.wait_for(state="visible")
+        assert dialog.get_by_label("Candidate workflow plan").evaluate(
+            "element => document.activeElement === element")
+        candidate = {**plan, "nodes": [{**plan["nodes"][0],
+                                         "question": "Which evidence-backed findings should remain?"}]}
+        dialog.locator("#workflow-amendment-plan").fill(json.dumps(candidate, indent=2))
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/workflows/runs/{workflow_id}/amendments/preview")) as preview_info:
+            dialog.get_by_role("button", name="Preview candidate").click()
+        preview_response = preview_info.value
+        assert preview_response.status == 200, preview_response.text()
+        preview_quiescence = preview_response.json()["quiescence"]
+        assert preview_quiescence["attempt_parked"] is True
+        assert preview_quiescence["owned_work_quiet"] is True
+        dialog.get_by_text("Pending questions that adoption would cancel:").wait_for()
+        dialog.get_by_text(old_question_id, exact=True).wait_for()
+        assert "Reusable completed results" in dialog.inner_text()
+        assert "Which evidence-backed findings should remain?" in dialog.inner_text()
+        assert dialog.get_by_role("button", name="Revise candidate").is_visible()
+        assert dialog.get_by_role("button", name="Adopt amendment").is_visible()
+
+        for label, width, height in (("desktop", 1440, 960), ("tablet", 768, 1024),
+                                     ("phone", 360, 800), ("compact-phone", 320, 740)):
+            page.set_viewport_size({"width": width, "height": height})
+            page.wait_for_timeout(80)
+            overflow = page.evaluate("Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth")
+            assert overflow <= 1, f"{label} has horizontal overflow: {overflow}px"
+            bounds = dialog.bounding_box()
+            assert bounds and bounds["x"] >= 0 and bounds["x"] + bounds["width"] <= width + 1
+            dialog.locator(".modal-body").evaluate("element => { element.scrollTop = 0; }")
+            page.wait_for_timeout(40)
+            page.screenshot(path=str(artifacts / f"editor-{label}.png"), full_page=True, animations="disabled")
+            preview_panel = dialog.locator(".workflow-amendment-preview")
+            preview_panel.scroll_into_view_if_needed()
+            page.wait_for_timeout(40)
+            page.screenshot(path=str(artifacts / f"preview-{label}.png"), full_page=True, animations="disabled")
+            adopt_bounds = dialog.get_by_role("button", name="Adopt amendment").bounding_box()
+            assert adopt_bounds and adopt_bounds["height"] >= 44, f"{label} adopt target is too small"
+            viewports.append({"label": label, "size": [width, height], "dialog_bounds": bounds,
+                              "horizontal_overflow_px": overflow,
+                              "adopt_target_height": adopt_bounds["height"]})
+
+        assert dialog.get_by_role("button", name="Adopt amendment").is_disabled()
+        assert workflow_store.workflow_run(store, workflow_id)["revision_id"] == submission.revision_id
+        dialog.get_by_label("I understand these questions will be canceled and archived").check()
+        adopt_button = dialog.get_by_role("button", name="Adopt amendment")
+        assert adopt_button.is_enabled()
+        dialog.get_by_label("I understand these questions will be canceled and archived").scroll_into_view_if_needed()
+        page.screenshot(path=str(artifacts / "explicit-cancellation-compact-phone.png"),
+                        full_page=True, animations="disabled")
+        adopt_button.focus()
+        with page.expect_response(lambda response: response.url.endswith(
+                f"/api/v1/workflows/runs/{workflow_id}/amendments/adopt")) as response_info:
+            page.keyboard.press("Enter")
+        response = response_info.value
+        assert response.status == 200, response.text()
+        assert response.request.headers.get("idempotency-key")
+        assert response.request.post_data_json["cancel_pending_questions"] is True
+        dialog.wait_for(state="detached")
+
+        deadline = time.monotonic() + 20
+        new_questions = []
+        while time.monotonic() < deadline:
+            new_questions = workflow_store.questions(store, workflow_id, status="pending")
+            if new_questions and new_questions[0]["id"] != old_question_id:
+                break
+            time.sleep(0.05)
+        assert new_questions and new_questions[0]["id"] != old_question_id
+        history = page.request.get(f"{base}/api/v1/workflows/runs/{workflow_id}/amendments")
+        assert history.status == 200, history.text()
+        history_id = history.json()["items"][0]["id"]
+        archived = page.request.get(f"{base}/api/v1/workflows/runs/{workflow_id}/amendments/{history_id}")
+        assert archived.status == 200, archived.text()
+        assert any(question["id"] == old_question_id and question["status"] == "cancelled"
+                   for question in archived.json()["questions"])
+        await_focus = page.evaluate("document.activeElement?.dataset?.workflowAction || ''")
+        assert await_focus == "", "focus should move to the composer while the amended run is active"
+        assert page.locator("#chat-prompt").evaluate("element => document.activeElement === element")
+        panel.get_by_role("button", name="Amend parked run").wait_for()
+        page.locator("#workflow-panel").get_by_text("Waiting · saved workflow", exact=True).wait_for()
+        page.screenshot(path=str(artifacts / "desktop-after-adoption.png"), full_page=True, animations="disabled")
+        assert not errors, errors
+        assert not failed_requests, failed_requests
+        page.context.tracing.stop(path=str(artifacts / "trace.zip"))
+        source_paths = ("src/hutch/server/static/app.js", "src/hutch/server/static/style.css",
+                        "src/hutch/server/workflows_api.py", "src/hutch/workflow/amendments.py",
+                        "src/hutch/workflow/persistence.py", "tests/e2e/test_browser.py")
+        visual_artifacts = {file.name: hashlib.sha256(file.read_bytes()).hexdigest()
+                            for file in artifacts.iterdir() if file.suffix in {".png", ".zip"}}
+        (artifacts / "results.json").write_text(json.dumps({
+            "test": "tests/e2e/test_browser.py::test_workflow_amendment_preview_adoption_is_explicit_and_responsive",
+            "browser": browser.browser_type.name, "browser_version": browser.version,
+            "playwright_version": package_version("playwright"), "viewports": viewports,
+            "workflow_id": workflow_id, "old_question_id": old_question_id,
+            "new_question_id": new_questions[0]["id"], "history_id": history_id,
+            "interaction": "plan edited, field-level diff inspected, adoption stays disabled until explicit question cancellation is checked, adoption submitted with Enter; composer receives focus while continuation runs and the parked amend control returns",
+            "page_errors": errors, "failed_requests": failed_requests, "provider_calls": 0,
+            "source_sha256": {relative: hashlib.sha256((artifacts.parents[4] / relative).read_bytes()).hexdigest()
+                              for relative in source_paths},
+            "visual_artifact_sha256": visual_artifacts,
+        }, indent=2) + "\n", encoding="utf-8")
+    finally:
+        try:
+            page.context.tracing.stop()
+        except Exception:
+            pass
+        page.close()
+
+
 def test_model_capability_observations_show_unknown_and_latest_evidence(browser, live):
     base, _app = live
     out = Path(__file__).resolve().parents[2] / "docs/realignment/artifacts/model-capabilities"

@@ -423,6 +423,9 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
     const title = plan.name || selected?.definition_id || "Workflow run";
     const stopButton = selected && ["pending", "running", "waiting"].includes(selected.status)
       ? `<button class="btn danger small" type="button" data-workflow-action="stop" data-workflow-id="${esc(selected.id)}" data-revision-id="${esc(selected.revision_id)}">${icon("stop")} Stop workflow</button>` : "";
+    const amendButton = selected && selected.status === "waiting" && detail?.attempt?.status === "waiting_workflow"
+      && hutchSession?.principal === "owner"
+      ? `<button class="btn ghost small" type="button" data-workflow-action="amend" data-workflow-id="${esc(selected.id)}">Amend parked run</button>` : "";
     const liveList = nodes.length ? `<ol class="workflow-step-list" aria-label="Discovered workflow instances">${nodes.map(node => {
       const label = structure.find(item => item.site_id === node.site_id)?.title || node.site_id;
       return `<li><span class="workflow-step-copy"><b title="${esc(label)}">${esc(label)}</b><span>${esc(node.instance_key)}</span></span><span class="workflow-step-status">${esc(workflowNodeLabel(node))}</span></li>`;
@@ -455,7 +458,7 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
     </details>` : "";
     const markup = selected ? `<header class="workflow-panel-head"><div><p class="workflow-panel-kicker">Workflow activity</p>
       <h2 title="${esc(title)}">${esc(title)}</h2><p class="hint">${esc(status)}${selected?.definition_id ? " · saved workflow" : " · dynamic plan"}</p></div>
-      <div class="workflow-panel-actions">${stopButton}<button class="btn ghost small" type="button" data-workflow-action="refresh">Refresh</button></div></header>
+      <div class="workflow-panel-actions">${amendButton}${stopButton}<button class="btn ghost small" type="button" data-workflow-action="refresh">Refresh</button></div></header>
       <p class="workflow-panel-meta">${esc(nodes.length)} discovered ${nodes.length === 1 ? "instance" : "instances"} · workflow ${esc(selected.id)}</p>${disclosure}
       ${savedList}` : savedList;
     if (panel.innerHTML !== markup) {
@@ -468,6 +471,8 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
           void startSavedWorkflow(button.dataset.workflowId, button);
         } else if (button.dataset.workflowAction === "stop") {
           void stopWorkflowFromPanel(selected, button, botName, conversationId, generation);
+        } else if (button.dataset.workflowAction === "amend") {
+          void openWorkflowAmendment(selected, detail, button, botName, conversationId, generation);
         }
       }));
       panel.querySelectorAll("[data-workflow-question-form]").forEach(form => form.addEventListener("submit", event => {
@@ -489,6 +494,200 @@ async function refreshWorkflowPanel(botName, conversationId, generation, force =
     panel.innerHTML = `<p class="workflow-panel-error" role="status">Workflow activity could not be refreshed: ${esc(error.message)} <button class="btn ghost small" type="button" data-workflow-action="refresh">Try again</button></p>`;
     panel.querySelector("[data-workflow-action=refresh]")?.addEventListener("click", () =>
       void refreshWorkflowPanel(botName, conversationId, generation, true));
+  }
+}
+
+function workflowAmendmentPreviewMarkup(preview, detail) {
+  const allowedQuestionNodes = new Set((detail?.questions || [])
+    .filter(question => question.status === "pending")
+    .map(question => `${question.site_id}\u0000${question.instance_key}`));
+  const blockingActive = (preview.quiescence?.active_nodes || []).filter(node =>
+    node.status !== "waiting" || !allowedQuestionNodes.has(`${node.site_id}\u0000${node.instance_key}`));
+  const pendingIds = preview.quiescence?.pending_question_ids || [];
+  const changes = (preview.nodes || []).map(node => {
+    const fields = (node.fields || []).map(change =>
+      `<li><b>${esc(change.field)}</b><span>${esc(JSON.stringify(change.old ?? null))} → ${esc(JSON.stringify(change.new ?? null))}</span></li>`).join("");
+    return `<li><b>${esc(node.site_id)}</b> · ${esc(node.change)}${node.dependencies_changed ? " · dependencies changed" : ""}${fields ? `<ul>${fields}</ul>` : ""}</li>`;
+  }).join("");
+  const changedFields = (preview.changed_fields || []).map(change =>
+    `<li><b>${esc(change.field)}</b><span>${esc(JSON.stringify(change.old ?? null))} → ${esc(JSON.stringify(change.new ?? null))}</span></li>`).join("");
+  const reused = (preview.reuse || []).map(item =>
+    `<li><b>${esc(item.site_id)}</b> · ${esc(item.instance_key)} · ${esc(item.status)}</li>`).join("");
+  const invalidated = (preview.invalidate || []).map(item =>
+    `<li><b>${esc(item.site_id)}</b> · ${esc(item.instance_key)} · ${esc(item.reason)}</li>`).join("");
+  const budgets = Object.entries(preview.budgets || {}).map(([name, budget]) =>
+    `<li><b>${esc(name)}</b>: current ${esc(budget.current ?? "unset")}, proposed ${esc(budget.proposed ?? "unset")}, effective ${esc(budget.effective_if_adopted ?? "unset")}</li>`).join("");
+  const roles = (preview.roles || []).map(role =>
+    `<li><b>${esc(role.node || role.role || "Model role")}</b> · ${esc(role.state || (role.allowed ? "allowed" : "blocked"))}${role.profile ? ` · ${esc(role.profile)}` : ""}</li>`).join("");
+  const blocked = preview.blocked_reasons || [];
+  const canAdopt = workflowAmendmentCanAdopt(preview, detail);
+  const readiness = preview.quiescence?.workflow_status !== "waiting"
+    ? "This run is no longer parked. Refresh it before adopting an amendment."
+    : !preview.quiescence?.attempt_parked
+      ? "The orchestration attempt has not released its owner lease yet. Refresh after it parks."
+      : !preview.quiescence?.owned_work_quiet
+        ? "Owned child work or a process is still active. Refresh after cleanup completes."
+    : blockingActive.length
+      ? `Owned work must settle first: ${blockingActive.map(node => `${node.site_id} (${node.status})`).join(", ")}.`
+      : "The run is parked and no other active step is recorded.";
+  return `<section class="workflow-amendment-preview" aria-label="Amendment preview">
+    <h4>Read-only preview</h4>
+    <p class="${preview.eligible ? "" : "workflow-amendment-blocked"}" role="status">${preview.eligible ? "Candidate passes current authority and budget checks." : "Candidate is blocked."}</p>
+    ${blocked.length ? `<ul>${blocked.map(reason => `<li>${esc(reason)}</li>`).join("")}</ul>` : ""}
+    <p>${esc(readiness)}</p>
+    <p>Candidate plan hash: <code>${esc(preview.candidate_plan_hash)}</code></p>
+    <details open><summary>Changed fields · ${(preview.changed_fields || []).length}</summary><ul>${changedFields || "<li>No top-level field changes.</li>"}</ul></details>
+    <details open><summary>Step changes · ${(preview.nodes || []).length}</summary><ul>${changes || "<li>No step structure changes.</li>"}</ul></details>
+    <details><summary>Reusable completed results · ${(preview.reuse || []).length}</summary><ul>${reused || "<li>No results are reusable.</li>"}</ul></details>
+    <details open><summary>Results to invalidate · ${(preview.invalidate || []).length}</summary><ul>${invalidated || "<li>No prior results need invalidation.</li>"}</ul></details>
+    <details><summary>Effective budgets</summary><ul>${budgets}</ul></details>
+    <details><summary>Model roles checked · ${(preview.roles || []).length}</summary><ul>${roles || "<li>No model role is required.</li>"}</ul></details>
+    ${pendingIds.length ? `<div class="workflow-amendment-questions"><p>Pending questions that adoption would cancel:</p><ul>${pendingIds.map(id => `<li><code>${esc(id)}</code></li>`).join("")}</ul>
+      <label><input type="checkbox" id="workflow-amendment-cancel-questions"> I understand these questions will be canceled and archived</label>
+      <p class="hint">Adoption stays disabled until you select this choice.</p></div>` : ""}
+    <p class="hint">Adoption archives the prior run state. The supervisor continues under a new revision; stale callbacks are rejected.</p>
+    <button class="btn ghost small" type="button" id="workflow-amendment-preview-again">Revise candidate</button>
+    ${canAdopt ? "" : "<p class=\"hint\">Adoption is unavailable until authority and run-state checks pass.</p>"}
+  </section>`;
+}
+
+function workflowAmendmentCanAdopt(preview, detail) {
+  const allowedQuestionNodes = new Set((detail?.questions || [])
+    .filter(question => question.status === "pending")
+    .map(question => `${question.site_id}\u0000${question.instance_key}`));
+  const blockingActive = (preview.quiescence?.active_nodes || []).some(node =>
+    node.status !== "waiting" || !allowedQuestionNodes.has(`${node.site_id}\u0000${node.instance_key}`));
+  return preview.eligible && preview.quiescence?.workflow_status === "waiting"
+    && preview.quiescence?.attempt_parked === true && preview.quiescence?.owned_work_quiet === true
+    && !blockingActive;
+}
+
+async function openWorkflowAmendment(workflow, detail, trigger, botName, conversationId, generation) {
+  if (hutchSession?.principal !== "owner" || workflow?.status !== "waiting"
+      || detail?.attempt?.status !== "waiting_workflow" || !detail?.plan) return;
+  const planText = JSON.stringify(detail.plan, null, 2);
+  const inputsText = JSON.stringify(workflow.inputs || {}, null, 2);
+  let reviewed = null;
+  let busy = false;
+  const payloadFromEditor = () => {
+    const plan = JSON.parse($("#workflow-amendment-plan")?.value || "null");
+    const inputs = JSON.parse($("#workflow-amendment-inputs")?.value || "null");
+    if (!plan || typeof plan !== "object" || Array.isArray(plan)) throw new Error("Workflow plan must be a JSON object.");
+    if (!inputs || typeof inputs !== "object" || Array.isArray(inputs)) throw new Error("Workflow inputs must be a JSON object.");
+    return { expected_revision_id: workflow.revision_id, expected_generation: workflow.attempt_run_id, plan, inputs };
+  };
+  const updateAdoptionControl = () => {
+    if (busy) return;
+    const action = $("#modal-confirm");
+    if (!action) return;
+    if (!reviewed) { action.disabled = false; return; }
+    const pending = reviewed.preview.quiescence?.pending_question_ids || [];
+    const cancelQuestions = $("#workflow-amendment-cancel-questions")?.checked === true;
+    action.disabled = !workflowAmendmentCanAdopt(reviewed.preview, detail) || (pending.length > 0 && !cancelQuestions);
+  };
+  openModal({
+    title: `Amend ${detail.plan.name || workflow.definition_id || "workflow"}`,
+    bodyHtml: `<p>Only parked runs can be amended here. Review the server-computed diff, authority and result reuse before adoption.</p>
+      <p class="hint">This editor accepts declarative workflow JSON. Generated scripts are unsupported.</p>
+      <label class="workflow-amendment-label" for="workflow-amendment-plan">Candidate workflow plan</label>
+      <textarea id="workflow-amendment-plan" spellcheck="false" aria-describedby="workflow-amendment-plan-help">${esc(planText)}</textarea>
+      <p id="workflow-amendment-plan-help" class="hint">The plan is validated and role authority is refreshed on preview and adoption.</p>
+      <label class="workflow-amendment-label" for="workflow-amendment-inputs">Input snapshot</label>
+      <textarea id="workflow-amendment-inputs" spellcheck="false">${esc(inputsText)}</textarea>
+      <div id="workflow-amendment-preview-result"></div>
+      <p class="workflow-amendment-error" id="workflow-amendment-status" role="status" aria-live="polite"></p>`,
+    confirmText: "Preview candidate", confirmClass: "primary", wide: true, tall: true, returnFocus: trigger,
+    onConfirm: async () => {
+      if (busy) return false;
+      const action = $("#modal-confirm");
+      const status = $("#workflow-amendment-status");
+      busy = true;
+      action.disabled = true;
+      if (!reviewed) {
+        try {
+          const body = payloadFromEditor();
+          const preview = await api(`/v1/workflows/runs/${encodeURIComponent(workflow.id)}/amendments/preview`, {
+            method: "POST", body,
+          });
+          reviewed = { body, preview };
+          const result = $("#workflow-amendment-preview-result");
+          result.innerHTML = workflowAmendmentPreviewMarkup(preview, detail);
+          const previewButton = $("#workflow-amendment-preview-again", result);
+          previewButton?.addEventListener("click", () => {
+            reviewed = null;
+            action.textContent = "Preview candidate";
+            updateAdoptionControl();
+            result.innerHTML = "";
+            $("#workflow-amendment-status").textContent = "Edit the plan or inputs, then preview the candidate again.";
+            $("#workflow-amendment-plan")?.focus({ preventScroll: false });
+          });
+          const canAdopt = workflowAmendmentCanAdopt(preview, detail);
+          action.textContent = canAdopt ? "Adopt amendment" : "Adoption unavailable";
+          $("#workflow-amendment-cancel-questions")?.addEventListener("change", updateAdoptionControl);
+          updateAdoptionControl();
+          if (status) status.textContent = preview.eligible ? "Preview complete. Inspect every section before adoption." : "Preview complete with blocked checks.";
+        } catch (error) {
+          if (status) status.textContent = error.message || "Could not preview this candidate.";
+        } finally {
+          busy = false;
+          updateAdoptionControl();
+        }
+        return false;
+      }
+      try {
+        const freshBody = payloadFromEditor();
+        if (JSON.stringify(freshBody) !== JSON.stringify(reviewed.body)) {
+          reviewed = null;
+          action.textContent = "Preview candidate";
+          $("#workflow-amendment-preview-result").innerHTML = "";
+          updateAdoptionControl();
+          if (status) status.textContent = "Candidate changed. Run a fresh preview before adopting it.";
+          return false;
+        }
+        if (!workflowAmendmentCanAdopt(reviewed.preview, detail)) {
+          if (status) status.textContent = "Adoption is unavailable until authority passes and all owned work has settled.";
+          return false;
+        }
+        const pending = reviewed.preview.quiescence?.pending_question_ids || [];
+        const cancelQuestions = $("#workflow-amendment-cancel-questions")?.checked === true;
+        if (pending.length && !cancelQuestions) {
+          if (status) status.textContent = "Review and select the explicit question-cancellation choice before adoption.";
+          return false;
+        }
+        const adoptionBody = { ...freshBody, cancel_pending_questions: cancelQuestions };
+        const key = await messageIdempotencyKey(`workflow-amendment:${workflow.id}`, adoptionBody);
+        const result = await api(`/v1/workflows/runs/${encodeURIComponent(workflow.id)}/amendments/adopt`, {
+          method: "POST", headers: { "Idempotency-Key": key }, body: adoptionBody,
+        });
+        clearMessageIdempotencyKey(`workflow-amendment:${workflow.id}`, key);
+        toast(`Amendment adopted. New revision ${result.revision_id} is running.`);
+        await refreshWorkflowPanel(botName, conversationId, generation, true);
+        return true;
+      } catch (error) {
+        if (error.status === 409 || error.status === 422 || error.status === 413) {
+          reviewed = null;
+          action.textContent = "Preview candidate";
+          $("#workflow-amendment-preview-result").innerHTML = "";
+        }
+        if (status) status.textContent = error.message || "Amendment adoption was not confirmed.";
+        return false;
+      } finally {
+        busy = false;
+        if (action.isConnected) updateAdoptionControl();
+      }
+    },
+  });
+  $(".modal-card", $("#modal-root"))?.classList.add("workflow-amendment-modal");
+  for (const selector of ["#workflow-amendment-plan", "#workflow-amendment-inputs"]) {
+    $(selector)?.addEventListener("input", () => {
+      if (!reviewed) return;
+      reviewed = null;
+      const action = $("#modal-confirm");
+      if (action) action.textContent = "Preview candidate";
+      updateAdoptionControl();
+      $("#workflow-amendment-preview-result").innerHTML = "";
+      $("#workflow-amendment-status").textContent = "Candidate changed. Run a fresh preview before adopting it.";
+    });
   }
 }
 
@@ -1134,6 +1333,11 @@ function openModal({ title, bodyHtml, onConfirm, onCancel, confirmText = "Confir
     else if (modalReturnFocus?.dataset.backgroundProvider) {
       ($$('[data-background-provider]').find(button =>
         button.dataset.backgroundProvider === modalReturnFocus.dataset.backgroundProvider) || $('#nav-toggle'))?.focus();
+    }
+    else if (modalReturnFocus?.dataset.workflowAction && modalReturnFocus?.dataset.workflowId) {
+      ($$('[data-workflow-action]').find(button =>
+        button.dataset.workflowAction === modalReturnFocus.dataset.workflowAction &&
+        button.dataset.workflowId === modalReturnFocus.dataset.workflowId) || $('#chat-prompt'))?.focus();
     }
     else if (modalReturnFocus?.isConnected && modalReturnFocus.getClientRects().length) modalReturnFocus.focus();
     else ($('#chat-prompt') || $('#nav-toggle'))?.focus();

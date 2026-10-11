@@ -670,6 +670,28 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: var(--f
 .workflow-question textarea { box-sizing: border-box; width: 100%; min-height: 64px; resize: vertical; }
 .workflow-question-error, .workflow-panel-error, .workflow-queue-reason { color: var(--warn); overflow-wrap: anywhere; }
 .workflow-panel-error { margin: 0; }
+.workflow-amendment-label { display: block; margin: var(--s-3) 0 var(--s-1); font-size: var(--fs-xs); font-weight: 650; }
+.modal-body > #workflow-amendment-plan, .modal-body > #workflow-amendment-inputs {
+  box-sizing: border-box; display: block; width: 100%; min-height: 9rem; max-height: 34dvh; padding: var(--s-3);
+  border: 1px solid var(--line-strong); border-radius: var(--r-ctl); background: var(--sunken); color: var(--text);
+  font: 400 var(--fs-xs)/1.5 var(--mono); overflow-wrap: anywhere;
+}
+.modal-body > #workflow-amendment-plan { min-height: 16rem; }
+.workflow-amendment-preview { display: grid; gap: var(--s-2); margin-top: var(--s-4); padding: var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-panel); background: var(--panel); }
+.workflow-amendment-preview h4, .workflow-amendment-preview p { margin: 0; }
+.workflow-amendment-preview > p, .workflow-amendment-preview li { font-size: var(--fs-xs); line-height: 1.5; overflow-wrap: anywhere; }
+.workflow-amendment-preview code { overflow-wrap: anywhere; }
+.workflow-amendment-preview details { border-top: 1px solid var(--line); }
+.workflow-amendment-preview summary { min-height: 40px; display: flex; align-items: center; padding: var(--s-1) 0; cursor: pointer; font-size: var(--fs-xs); font-weight: 650; }
+.workflow-amendment-preview ul { display: grid; gap: var(--s-1); margin: 0; padding: 0 0 var(--s-2) 1.25rem; }
+.workflow-amendment-preview li span { display: block; color: var(--text-2); overflow-wrap: anywhere; }
+.workflow-amendment-questions { padding: var(--s-2); border-inline-start: 2px solid var(--warn); background: var(--sunken); }
+.workflow-amendment-questions label { display: flex; align-items: flex-start; gap: var(--s-2); font-size: var(--fs-xs); line-height: 1.5; }
+.workflow-amendment-questions input { flex: none; width: 18px; height: 18px; margin: 0; }
+.workflow-amendment-error, .workflow-amendment-blocked { color: var(--warn); overflow-wrap: anywhere; }
+.workflow-amendment-error { min-height: 1.35em; margin: 0; font-size: var(--fs-xs); }
+.workflow-amendment-modal .modal-footer .btn, .workflow-amendment-preview > .btn { min-height: 44px; }
+.workflow-amendment-modal #modal-confirm:disabled { opacity: .48; filter: grayscale(.4); cursor: not-allowed; }
 .workflow-recommendation { display: grid; gap: var(--s-1); min-width: 0; margin: var(--s-2) 0 var(--s-3); padding: var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-panel); background: var(--panel); color: var(--text-1); overflow-wrap: anywhere; }
 .workflow-recommendation p { margin: 0; font-size: var(--fs-xs); }
 .workflow-recommendation > div:first-child { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-2); }

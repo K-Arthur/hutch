@@ -490,7 +490,7 @@ until execution can race branches and cancel and drain discarded work safely.
 
 The owner-only amendment-preview route is read-only. It compares a compiled candidate against
 the run's immutable revision and the active attempt ID (the opaque generation token), then
-returns field/site changes, refreshed role checks, budgets, quiescence state and per-instance
+returns field/site changes, refreshed role checks, budgets, parked-attempt and owned child/process quiescence, and per-instance
 reuse/invalidation reasons. It currently reuses only settled pure transforms with unchanged
 inputs, capability envelope, node semantics and dependencies, and only when every upstream
 result is also safe to reuse. Tools, agents, verification, publication, questions and control or
@@ -505,7 +505,9 @@ and recorded processes are gone. Pending questions require an explicit cancellat
 revision update and question/node archival are one transaction; changing the revision fences any
 late callback from the prior attempt. The supervisor then admits a normal continuation under the
 new revision, retaining only preview-approved pure-transform rows. Adoption currently refuses
-live children rather than killing them; active-work draining and Studio controls are still open.
+live children rather than killing them. The owner-local Studio exposes a declarative plan editor,
+read-only preview, reuse/invalidation and budget sections, explicit pending-question cancellation,
+and an idempotent adopt action. Paired-phone sessions do not receive these controls.
 
 Roles are gated by evidence, not by a model name: `workflow/qualify.py` resolves the same
 route identity the runtime records observations under (`route_identity.route_tuple`). Runtime
