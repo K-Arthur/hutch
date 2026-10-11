@@ -68,7 +68,8 @@ Workspace actions (Docs brief, Sheets table, Drive placement, Calendar/reminder 
 | S2 | Two-host script authoring + TTS adapters + assembly + transcript/chapters | **implemented (protocol-verified vs fake servers); live provider calls unexecuted (no keys on this host)** |
 | S3 | Infographic renderer (deterministic SVG) + exports + accessible companion | planned |
 | S4 | Interactive join/answer/resume state machine + UI audio surface | planned (design gate first) |
-| S5 | Workspace connectors (Docs/Sheets/Drive/Calendar) + action plan/effect ledger | planned (effect-ledger schema landed in v52) |
+| S5a | Workspace request contracts (Docs tabs/revisions, Sheets RAW+append, Drive ids/uploads, Calendar events, reminder routing) | **implemented, local tests green** (17 tests, no I/O) |
+| S5b | Workspace OAuth transport + executors + action plan/effect orchestration | planned |
 | S6 | UI integration (source selector, coverage, format controls, action drawer) | planned (design gate first) |
 | S7 | Integrated acceptance, visual/audio evidence, independent verification | planned |
 
