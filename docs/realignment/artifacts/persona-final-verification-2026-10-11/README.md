@@ -51,3 +51,11 @@ unavailable” both in the suite and alone. The DOCX identical-bytes assertion f
 These cases do not touch rollback-gate code. The six relevant persona browser journeys passed together (**6 passed in
 22.75 s**) using `TMPDIR=/var/tmp`, including the new rollback UI journey. Rollback captures and validation are in
 `persona-rollback-ui-2026-10-11/`; the complete browser suite remains unverified.
+
+After the final rollback-gate fast-forward (`a0975d8`), the combined focused smoke covered migrations, persona/API,
+built-in runtime and all six persona browser journeys. It reported **185 passed, 1 failed in 89.92 s**; the new rollback
+journey and the migration/persona/runtime suites passed. The failure was the answer-rewrite browser's detached locator
+while scrolling between viewport sizes. That case passed alone immediately afterward (**1 passed in 5.60 s**) and had
+also passed in the six-journey pre-merge run. The full captured output is `post-merge-rollback-smoke.log`; no assertion
+was changed. Test-generated screenshots and traces in unrelated artifact folders were restored to their committed
+bytes after verification.
