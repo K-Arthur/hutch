@@ -7383,6 +7383,7 @@ class Store:
         bot_id = str(row["bot_id"])
         conversation_id = str(row["conversation_id"] or "")
         now = utcnow()
+        day_start, day_end = local_day_bounds(now)
         try:
             with self._tx() as db:
                 run_measured = float(db.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM usage WHERE run_id = ?",
@@ -7391,16 +7392,19 @@ class Store:
                 run_held = float(db.execute("SELECT COALESCE(SUM(reserved_cost_usd), 0) FROM usage_reservations "
                                             "WHERE run_id = ? AND status IN ('reserved','uncertain')",
                                             (run_id,)).fetchone()[0] or 0.0)
-                bot_measured = float(db.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM usage WHERE bot_id = ?",
-                                                (bot_id,)).fetchone()[0] or 0.0)
+                # Bot and account scopes are enforced over the local day (the only windows offered for
+                # them), so the preflight must use the same window as admission — never lifetime totals.
+                bot_measured = float(db.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM usage "
+                                                "WHERE bot_id = ? AND ts >= ? AND ts < ?",
+                                                (bot_id, day_start, day_end)).fetchone()[0] or 0.0)
                 bot_held = float(db.execute("SELECT COALESCE(SUM(reserved_cost_usd), 0) FROM usage_reservations "
                                             "WHERE bot_id = ? AND status IN ('reserved','uncertain')",
                                             (bot_id,)).fetchone()[0] or 0.0)
                 account_measured = account_held = 0.0
                 if account_id:
                     account_measured = float(db.execute(
-                        "SELECT COALESCE(SUM(cost_usd), 0) FROM usage WHERE account_id = ?",
-                        (account_id,)).fetchone()[0] or 0.0)
+                        "SELECT COALESCE(SUM(cost_usd), 0) FROM usage WHERE account_id = ? AND ts >= ? AND ts < ?",
+                        (account_id, day_start, day_end)).fetchone()[0] or 0.0)
                     account_held = float(db.execute(
                         "SELECT COALESCE(SUM(reserved_cost_usd), 0) FROM usage_reservations "
                         "WHERE account_id = ? AND status IN ('reserved','uncertain')",
@@ -7420,9 +7424,11 @@ class Store:
 
     def set_budget_policy(self, *, scope_kind: str, scope_id: str, warn_usd: Optional[float] = None,
                           pause_usd: Optional[float] = None, ceiling_usd: Optional[float] = None,
-                          reset: str = "local_day", unknown_price: str = "refuse") -> "BudgetPolicy":
+                          reset: Optional[str] = None, unknown_price: str = "refuse") -> "BudgetPolicy":
         """Create or replace one scope's warn/pause/ceiling bands. Revision bumps; warnings re-arm."""
         from .models import BudgetPolicy
+        if reset is None:
+            reset = {"run": "run_lifetime", "conversation": "conversation_lifetime"}.get(scope_kind, "local_day")
         scope_id = str(scope_id or "").strip()
         policy = BudgetPolicy(scope_kind=scope_kind, scope_id=scope_id, warn_usd=warn_usd, pause_usd=pause_usd,
                               ceiling_usd=ceiling_usd, reset=reset, unknown_price=unknown_price)

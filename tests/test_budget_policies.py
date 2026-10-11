@@ -63,6 +63,11 @@ def test_policy_validation_rejects_bad_bands_and_missing_scopes(store):
         store.set_budget_policy(scope_kind="run", scope_id="run_missing", ceiling_usd=1.0)
     with pytest.raises(ValueError):
         store.set_budget_policy(scope_kind="bot", scope_id=bot.id, reset="run_lifetime")
+    with pytest.raises(ValueError):
+        store.set_budget_policy(scope_kind="bot", scope_id=bot.id, reset="lifetime")
+    with pytest.raises(ValueError):
+        conversation_id = _conversation(store, bot)
+        store.set_budget_policy(scope_kind="conversation", scope_id=conversation_id, reset="local_day")
 
 
 def test_warn_fires_once_per_cycle_and_rearms_on_policy_change(store):
@@ -215,6 +220,34 @@ def test_scope_spend_reports_measured_and_held(store):
     assert measured == pytest.approx(0.05) and held == 0.0
     run_measured, run_held = store.scope_spend(scope_kind="run", scope_id=run.id)
     assert run_measured == pytest.approx(0.05) or run_measured == pytest.approx(0.09)
+
+
+def test_preflight_matches_the_admission_window(store):
+    """A ceiling must stop today's paid calls, not every future call because of yesterday's spend."""
+    from datetime import timedelta
+
+    from hutch.models import iso, utcnow
+    from hutch.store import CallQuote
+
+    bot, run = _bot_run(store)
+    store.set_budget_policy(scope_kind="bot", scope_id=bot.id, ceiling_usd=0.10)
+    yesterday = iso(utcnow() - timedelta(days=1))
+    with store._tx() as db:
+        db.execute("INSERT INTO usage (ts, run_id, bot_id, provider, model, prompt_tokens, completion_tokens, "
+                   "cached_tokens, cost_usd, kind, account_id) "
+                   "VALUES (?, ?, ?, 'vendor-a', 'model-a', 10, 5, 0, 5.0, 'step', 'acct-a')",
+                   (yesterday, run.id, bot.id))
+    quote = CallQuote(usd=0.05, source="caller")
+    assert store.budget_admission_block(run_id=run.id, quote=quote) is None
+    _admit(store, bot, run, cost=0.05)  # admission agrees with the preflight
+
+    today = iso(utcnow())
+    with store._tx() as db:
+        db.execute("INSERT INTO usage (ts, run_id, bot_id, provider, model, prompt_tokens, completion_tokens, "
+                   "cached_tokens, cost_usd, kind, account_id) "
+                   "VALUES (?, ?, ?, 'vendor-a', 'model-a', 10, 5, 0, 0.20, 'step', 'acct-a')",
+                   (today, run.id, bot.id))
+    assert store.budget_admission_block(run_id=run.id, quote=quote) is not None
 
 
 def test_migration_creates_policy_tables(store):

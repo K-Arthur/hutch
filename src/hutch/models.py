@@ -239,12 +239,13 @@ class BudgetPolicy(BaseModel):
                 raise ValueError(f"{low_label} threshold must not exceed {high_label}")
         allowed_resets = {
             "run": {"run_lifetime"},
-            "conversation": {"conversation_lifetime", "local_day"},
-            "bot": {"local_day", "rolling_24h", "lifetime"},
-            "account": {"local_day", "rolling_24h", "lifetime"},
+            "conversation": {"conversation_lifetime"},
+            "bot": {"local_day"},
+            "account": {"local_day"},
         }[self.scope_kind]
         if self.reset not in allowed_resets:
-            raise ValueError(f"{self.scope_kind} policies do not support reset '{self.reset}'")
+            raise ValueError(f"{self.scope_kind} policies support {sorted(allowed_resets)}; other reset "
+                             "windows are not enforced yet and are not offered")
         return self
 
     model_config = {"frozen": True}

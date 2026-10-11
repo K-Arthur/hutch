@@ -639,7 +639,10 @@ class BuiltinRuntime:
                     break
                 except UsagePauseRequired as pause:
                     if pause_retried:
-                        raise RunAborted("cost_cap", str(pause)) from pause
+                        raise RunAborted(
+                            "cost_cap",
+                            f"the spend pause on {pause.scope_kind} '{pause.scope_id}' was not resolved: {pause}"
+                        ) from pause
                     pause_retried = True
                     if not self._ask_budget_pause(ctx, run, ladder, session.rung, pause, route_hash, expected_route):
                         raise RunAborted(
@@ -676,7 +679,7 @@ class BuiltinRuntime:
     # ------------------------------------------------- fitting and compaction (LM-3)
 
     def _fit_loop(self, ctx, run, ladder: Ladder, guard: SpendGuard, session: Session, plan,
-                  messages: list[dict[str, Any]], specs: list[dict[str, Any]]) -> "fitloop.FitResult":
+                  messages: list[dict[str, Any]], specs: list[dict[str, Any]], stop=None) -> "fitloop.FitResult":
         """Fit the next request to its destination before every provider call (LM-3, issue F6).
 
         Runs at the top of every loop iteration, so a large tool result or a long history cannot silently
@@ -702,7 +705,9 @@ class BuiltinRuntime:
             self._log(ctx, run, "compaction",
                       f"this run already compacted {MAX_COMPACTIONS_PER_RUN} times; history will no longer be "
                       "summarized for it", ok=False)
-        result = fitloop.fit_or_compact(messages, destination, summarize=(summarize if compaction_on else None))
+        with self._inference(ctx, run, session.rung, stop):
+            result = fitloop.fit_or_compact(messages, destination,
+                                            summarize=(summarize if compaction_on else None))
         if result.attempts or result.status in ("wont_fit", "compact_failed"):
             self._log(ctx, run, "compaction",
                       f"{result.status}: ~{result.before_tokens:,} -> ~{result.after_tokens:,} prompt tokens for "
@@ -920,7 +925,7 @@ class BuiltinRuntime:
             if ctx.store.tokens_today(bot.id) > bot.limits.daily_token_cap:
                 raise RunAborted("token_cap", f"daily cap {bot.limits.daily_token_cap} exceeded")
             guard.connections = self._connections(ctx)
-            fitted = self._fit_loop(ctx, run, ladder, guard, session, plan, messages, specs)
+            fitted = self._fit_loop(ctx, run, ladder, guard, session, plan, messages, specs, stop)
             if fitted.messages is not messages:
                 messages = fitted.messages
                 mt, tt = estimate_prompt_tokens(messages, specs)
