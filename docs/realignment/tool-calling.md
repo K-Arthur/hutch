@@ -237,3 +237,21 @@ browser-verified with artifacts listed in section 9.
   adds no new authority; existing deny/ask/allow rules, sticky approvals, budgets,
   and receipts remain the enforcement point, and all generation modes converge on
   them.
+
+## 12. Integration verification log (2026-10-10/11)
+
+- Branch `toolcall/unified` was rebased onto current `main` (b588dc5, which includes the
+  documents feature and provider quick-connect) and the combined tree was tested.
+- Full non-e2e suite on the integrated tree: **1774 passed**, with three deselected tests
+  that fail identically on untouched `main`:
+  `tests/test_delegation.py::test_schema_v21…`, `…v22…`, `…v23…` - all raise
+  `sqlite3.OperationalError: table documents already exists` in the documents schema path
+  (`store.py:1301`), reproduced in isolation on main with no changes from this branch.
+- Two load-sensitive failures observed once under the full suite (`test_action_intents.py`
+  receipt API, `test_code_handoff.py` terminal group) pass in isolation on both this branch
+  and untouched main; they share no code path with this feature.
+- Browser: `tests/e2e/test_tool_compatibility.py` green on the integrated tree; the adjacent
+  `tests/e2e/test_design_system.py` settings test (failing on the old base) passes after the
+  rebase.
+- Benchmark rerun on the integrated tree matches the recorded budgets within run-to-run noise.
+- Unrelated artifact churn produced by other suites was excluded from this branch.
