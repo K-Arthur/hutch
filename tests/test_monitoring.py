@@ -504,6 +504,27 @@ def test_next_wakeup_honours_source_schedules(store, config, tmp_path):
     engine.sources.shutdown()
 
 
+def test_due_source_query_stays_indexed_at_scale(store, tmp_path):
+    """100 registered sources: the due lookup must stay a bounded indexed query, not a scan."""
+    import time
+
+    bot = store.create_bot(_bot(name="scale-bot"))
+    root = tmp_path / "watched"
+    root.mkdir()
+    for index in range(100):
+        store.create_event_source(bot_id=bot.id, kind="folder", name=f"source-{index}",
+                                  config={"path": str(root), "settle_seconds": 0,
+                                          "check_seconds": 3600})
+    started = time.perf_counter()
+    due = store.due_event_sources(limit=8)
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    assert len(due) == 8, "the limit bounds how many checks one pump can start"
+    assert elapsed_ms < 50, f"due-source lookup took {elapsed_ms:.1f}ms for 100 sources"
+    stats = store.source_inbox_stats()
+    assert stats["total"] == 100 and stats["due"] == 100
+    assert store.pending_admission_sources(limit=8) == []
+
+
 def test_admission_prompt_frames_events_as_untrusted(store, tmp_path):
     bot = store.create_bot(_bot())
     prompt = render_admission_prompt("Do {count} thing(s): {summary}", {"name": "feed", "kind": "feed"},
